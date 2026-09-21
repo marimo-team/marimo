@@ -5,9 +5,10 @@ import copy
 import pathlib
 import sys
 import textwrap
+import threading
 import types
 from queue import Queue
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from reload_test_utils import random_modname, update_file
@@ -23,6 +24,9 @@ from marimo._runtime.reload.module_watcher import (
 )
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 INTERVAL = 0.2
 
@@ -676,13 +680,51 @@ async def test_reload_self_import_cycle(
     assert k.globals["x"] == 4
 
 
-@pytest.mark.flaky(reruns=3)
+def _park_watcher(
+    monkeypatch: pytest.MonkeyPatch, reloader: ModuleReloader, modname: str
+) -> tuple[threading.Event, threading.Event]:
+    """Hold the watcher before its next scan once it has an mtime baseline
+    for `modname`.
+
+    Returns `(parked, release)`: `parked` is set when the watcher is
+    waiting, and setting `release` lets it scan again. While parked, a
+    test can edit `modname` and run cells knowing the kernel, not the
+    watcher, will be first to see the edit.
+    """
+    import marimo._runtime.reload.module_watcher as mw
+
+    parked = threading.Event()
+    release = threading.Event()
+    real_check_modules = mw._check_modules
+
+    def gated(**kwargs: Any) -> dict[str, int]:
+        if modname in reloader.watcher_modules_mtimes and not release.is_set():
+            parked.set()
+            release.wait(timeout=10)
+        return real_check_modules(**kwargs)
+
+    monkeypatch.setattr(mw, "_check_modules", gated)
+    return parked, release
+
+
+async def _wait_for(predicate: Callable[[], bool], polls: int = 25) -> bool:
+    for _ in range(polls):
+        await asyncio.sleep(INTERVAL)
+        if predicate():
+            return True
+    return predicate()
+
+
 async def test_reload_self_import_cycle_race_with_other_cell(
     tmp_path: pathlib.Path,
     py_modname: str,
     execution_kernel: Kernel,
     exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
 ):
+    """A cell run that reloads the edited module must not hide the edit
+    from the watcher: cells importing modules that depend on it still
+    need to be marked stale (#10191)."""
     k = execution_kernel
     sys.path.append(str(tmp_path))
 
@@ -720,18 +762,20 @@ async def test_reload_self_import_cycle_race_with_other_cell(
         ]
     )
     assert k.globals["x"] == 10
+
+    reloader = k.autoreload_manager._reloader
+    assert reloader is not None
+    parked, release = _park_watcher(monkeypatch, reloader, py_modname)
+    assert await _wait_for(parked.is_set)
+
+    # The unrelated cell's run reloads the edited module first, consuming
+    # the mtime change the kernel tracks.
     update_file(py_file, "def func(): return 2")
     await k.run([exec_req.get_with_id(er_3.cell_id, "pass")])
+    assert not k.graph.cells[er_1.cell_id].stale
+    release.set()
 
-    # wait for the watcher to pick up the change
-    retries = 0
-    while retries < 15:
-        await asyncio.sleep(INTERVAL)
-        retries += 1
-        if k.graph.cells[er_1.cell_id].stale:
-            break
-
-    assert k.graph.cells[er_1.cell_id].stale
+    assert await _wait_for(lambda: k.graph.cells[er_1.cell_id].stale)
     assert k.graph.cells[er_2.cell_id].stale
     await k.run_stale_cells()
     assert k.globals["x"] == 4
@@ -1070,7 +1114,7 @@ class TestCheckModules:
 
         # _check_modules should detect it's stale
         modules = {"test_check_mod": mod}
-        stale, _ = _check_modules(modules, reloader, sys.modules)
+        stale = _check_modules(modules, reloader, sys.modules)
 
         assert "test_check_mod" in stale
 
@@ -1079,7 +1123,7 @@ class TestCheckModules:
         reloader = ModuleReloader()
         modules = {"os": sys.modules["os"]}
 
-        stale, _ = _check_modules(modules, reloader, sys.modules)
+        stale = _check_modules(modules, reloader, sys.modules)
         assert len(stale) == 0
 
     def test_check_modules_empty_input(self):
@@ -1087,7 +1131,7 @@ class TestCheckModules:
         reloader = ModuleReloader()
         modules = {}
 
-        stale, _ = _check_modules(modules, reloader, sys.modules)
+        stale = _check_modules(modules, reloader, sys.modules)
         assert len(stale) == 0
 
 
@@ -1462,3 +1506,67 @@ async def test_watcher_marks_cell_whose_context_ran_without_rerun(
         if k.graph.cells[er_1.cell_id].stale:
             break
     assert k.graph.cells[er_1.cell_id].stale
+
+
+async def test_watcher_skips_cell_that_reran_before_its_poll(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Edit a module, then rerun its importing cell before the watcher
+    polls.
+
+    The rerun reloads the module, so the cell already holds the new code.
+    The watcher still notices the edit against its own mtime baseline; it
+    must leave that cell, its imported definitions, and its descendants
+    alone.
+    """
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text("def foo():\n    return 1\n")
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run(
+        [
+            er_1 := exec_req.get(f"from {py_modname} import foo"),
+            er_2 := exec_req.get("x = foo()"),
+        ]
+    )
+    assert k.globals["x"] == 1
+
+    reloader = k.autoreload_manager._reloader
+    assert reloader is not None
+    parked, release = _park_watcher(monkeypatch, reloader, py_modname)
+    assert await _wait_for(parked.is_set)
+
+    update_file(py_file, "def foo():\n    return 2\n")
+    await k.run(
+        [exec_req.get_with_id(er_1.cell_id, f"from {py_modname} import foo")]
+    )
+    assert k.globals["foo"]() == 2
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+
+    release.set()
+    # Wait until the watcher has scanned the edit, then give it a poll to
+    # finish marking.
+    assert await _wait_for(
+        lambda: (
+            reloader.watcher_modules_mtimes.get(py_modname)
+            == py_file.stat().st_mtime
+        )
+    )
+    await asyncio.sleep(2 * INTERVAL)
+
+    assert not k.graph.cells[er_1.cell_id].stale, (
+        "watcher flagged a cell that already reran with the new code"
+    )
+    assert not k.graph.cells[er_2.cell_id].stale
+    assert k.graph.cells[er_1.cell_id].import_workspace.imported_defs == {
+        "foo"
+    }

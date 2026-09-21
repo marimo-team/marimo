@@ -215,6 +215,10 @@ class ModuleReloader:
         # from one that still holds the old code.
         self.reload_generation = 0
         self._cell_generations: dict[CellId_t, int] = {}
+        # source path -> (mtime, generation) of its last successful reload.
+        # Lets the watcher tell whether a change it notices was already
+        # reloaded by the kernel, and if so under which generation.
+        self._reloaded_sources: dict[str, tuple[float, int]] = {}
         # for thread-safety; reentrant so callers can compose `check` with
         # a read of `reload_generation` atomically.
         self.lock = threading.RLock()
@@ -279,10 +283,27 @@ class ModuleReloader:
         with self.lock:
             self._cell_generations.pop(cell_id, None)
 
-    def cell_ran_since(self, cell_id: CellId_t, generation: int) -> bool:
-        """Whether `cell_id` last ran after a reload newer than `generation`."""
+    def cell_ran_at_or_after(self, cell_id: CellId_t, generation: int) -> bool:
+        """Whether `cell_id` last ran under `generation` or a later one."""
         with self.lock:
-            return self._cell_generations.get(cell_id, 0) > generation
+            return self._cell_generations.get(cell_id, 0) >= generation
+
+    def required_generation(self, module: types.ModuleType) -> int:
+        """The generation a cell must have run under to hold `module`'s
+        current source.
+
+        If the kernel already reloaded the source now on disk, that is the
+        generation of that reload. Otherwise no cell holds it yet, and the
+        answer is the next generation, which the reload will bump to.
+        """
+        with self.lock:
+            module_mtime = self.filename_and_mtime(module)
+            if module_mtime is None:
+                return self.reload_generation + 1
+            reloaded = self._reloaded_sources.get(module_mtime.name)
+            if reloaded is None or reloaded[0] != module_mtime.mtime:
+                return self.reload_generation + 1
+            return reloaded[1]
 
     def cell_uses_stale_modules(self, cell: CellImpl) -> bool:
         with self.lock:
@@ -434,6 +455,10 @@ class ModuleReloader:
                     )
                     self.failed[py_filename] = pymtime
                 else:
+                    self._reloaded_sources[py_filename] = (
+                        pymtime,
+                        self.reload_generation,
+                    )
                     # TODO or always evict?
                     self._module_dependency_finder.evict_from_cache(m)
 

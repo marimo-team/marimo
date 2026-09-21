@@ -426,6 +426,32 @@ class TestModuleReloaderMethods:
         reloader.check(sys.modules, reload=True)
         assert len(reloader.stale_modules) == 0
 
+    def test_required_generation_follows_kernel_reloads(
+        self, tmp_path: pathlib.Path, py_modname: str
+    ):
+        """Until the kernel reloads an edit, only a future reload can bring
+        it in; after the reload, cells run under that generation hold it."""
+        sys.path.append(str(tmp_path))
+        py_file = tmp_path / pathlib.Path(py_modname + ".py")
+        py_file.write_text("x = 1")
+        mod = importlib.import_module(py_modname)
+
+        reloader = ModuleReloader()
+        pending = reloader.reload_generation + 1
+        assert reloader.required_generation(mod) == pending
+
+        update_file(py_file, "x = 2")
+        assert reloader.required_generation(mod) == pending
+
+        reloader.check(sys.modules, reload=True)
+        assert mod.x == 2
+        assert reloader.reload_generation == pending
+        assert reloader.required_generation(mod) == pending
+
+        # The next edit is pending again, under the generation after this.
+        update_file(py_file, "x = 3")
+        assert reloader.required_generation(mod) == pending + 1
+
 
 class TestSkipCache:
     def test_is_user_module_stdlib(self):

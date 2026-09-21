@@ -123,38 +123,46 @@ def _check_modules(
     modules: dict[str, types.ModuleType],
     reloader: ModuleReloader,
     sys_modules: dict[str, types.ModuleType],
-) -> tuple[dict[str, types.ModuleType], int]:
-    """Returns the modules used by the graph that have been modified, and
-    the reload generation at the moment of detection.
+) -> dict[str, int]:
+    """Returns the modules used by the graph that depend on a modified
+    module, each mapped to the reload generation a cell must have run under
+    to hold the modified code.
 
-    The dependency crawl below can take seconds. The kernel may reload and
-    rerun cells in that window; the generation lets the caller skip cells
-    that already ran against the new code.
+    The kernel may have reloaded a modification before this poll noticed
+    it, and the dependency crawl below can take seconds, during which the
+    kernel may reload and rerun cells. Either way, the generation lets the
+    caller skip cells that already ran against the new code.
     """
     with reloader.lock:
         modified_modules = reloader.check_for_watcher(modules=sys_modules)
-        generation = reloader.reload_generation
+        generations = {
+            m: reloader.required_generation(m)
+            for m in modified_modules
+            if m is not None
+        }
     # TODO(akshayka): could also exclude modules part of the standard library;
     # haven't found a reliable way to do this, however.
     excludes = _get_excluded_modules(sys_modules)
 
-    target_modules = {m for m in modified_modules if m is not None}
-    target_filenames = {
-        t.__file__ for t in target_modules if hasattr(t, "__file__")
-    }
-
-    stale_modules: dict[str, types.ModuleType] = {
-        modname: module
-        for modname, module in modules.items()
-        if _depends_on(
-            src_module=module,
-            target_modules=target_modules,
-            target_filenames=target_filenames,
-            excludes=excludes,
-            reloader=reloader,
+    stale_modules: dict[str, int] = {}
+    for target, generation in generations.items():
+        target_filenames = (
+            {target.__file__} if hasattr(target, "__file__") else set()
         )
-    }
-    return stale_modules, generation
+        for modname, module in modules.items():
+            if _depends_on(
+                src_module=module,
+                target_modules={target},
+                target_filenames=target_filenames,
+                excludes=excludes,
+                reloader=reloader,
+            ):
+                # A module depending on several modified modules holds all
+                # of them only from the latest of their reloads.
+                stale_modules[modname] = max(
+                    stale_modules.get(modname, generation), generation
+                )
+    return stale_modules
 
 
 MODULE_WATCHER_SLEEP_INTERVAL = 1.0
@@ -193,7 +201,7 @@ def watch_modules(
                         modules[modname] = sys_modules[modname]
                         modname_to_cell_id[modname] = cell_id
 
-        stale_modules, generation = _check_modules(
+        stale_modules = _check_modules(
             modules=modules,
             reloader=reloader,
             sys_modules=sys_modules,
@@ -205,11 +213,12 @@ def watch_modules(
             )
             with graph.lock:
                 LOGGER.debug("Acquired graph lock.")
-                for modname in stale_modules:
+                for modname, generation in stale_modules.items():
                     # prune definitions that are derived from stale modules
                     cell_id = modname_to_cell_id[modname]
-                    # Reran after a newer reload: its imports are current.
-                    if reloader.cell_ran_since(cell_id, generation):
+                    # Ran under the reload that brought the change in, or
+                    # a later one: its imports are current.
+                    if reloader.cell_ran_at_or_after(cell_id, generation):
                         continue
                     cell = graph.cells[cell_id]
                     defs_to_prune = [
@@ -222,14 +231,22 @@ def watch_modules(
                 # If any modules are stale, communicate that to the FE
                 # and update the backend's view of the importing cells'
                 # staleness
-                stale_cell_ids = dataflow.transitive_closure(
-                    graph,
-                    {modname_to_cell_id[modname] for modname in stale_modules},
-                    relatives=dataflow.get_import_block_relatives(graph),
-                )
-                for cid in stale_cell_ids:
-                    # Reran after a newer reload: already holds the new code.
-                    if reloader.cell_ran_since(cid, generation):
+                relatives = dataflow.get_import_block_relatives(graph)
+                required_generation: dict[CellId_t, int] = {}
+                for modname, generation in stale_modules.items():
+                    for cid in dataflow.transitive_closure(
+                        graph,
+                        {modname_to_cell_id[modname]},
+                        relatives=relatives,
+                    ):
+                        required_generation[cid] = max(
+                            required_generation.get(cid, generation),
+                            generation,
+                        )
+                for cid, generation in required_generation.items():
+                    # Ran under that reload or a later one: already holds
+                    # the new code.
+                    if reloader.cell_ran_at_or_after(cid, generation):
                         continue
                     graph.cells[cid].set_stale(stale=True, stream=stream)
             LOGGER.debug("Released graph lock and updated stale statuses.")
