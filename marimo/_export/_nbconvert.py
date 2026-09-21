@@ -11,6 +11,7 @@ from marimo._convert.common.dom_traversal import (
     replace_virtual_files_with_data_uris,
 )
 from marimo._convert.ipynb.from_ir import NBCONVERT_REMOVE_INPUT_TAG
+from marimo._export._limits import MAX_VIRTUAL_FILE_INLINE_BYTES
 
 if TYPE_CHECKING:
     from traitlets.config import Config
@@ -22,10 +23,13 @@ def inline_pdf_assets(html: str, filename: str | None) -> str:
         html,
         allowed_tags={"img", "audio", "video", "source"},
         allowed_attributes={"src"},
+        max_inline_bytes=MAX_VIRTUAL_FILE_INLINE_BYTES,
     )
     if filename is not None:
         html, _ = replace_public_files_with_data_uris(
-            html, public_dir=Path(filename).resolve().parent / "public"
+            html,
+            public_dir=Path(filename).resolve().parent / "public",
+            max_inline_bytes=MAX_VIRTUAL_FILE_INLINE_BYTES,
         )
     return html
 

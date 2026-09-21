@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
+from marimo._export._limits import MAX_VIRTUAL_FILE_INLINE_BYTES
+from marimo._export._nbconvert import inline_pdf_assets
 from marimo._export.file import export_html, export_pdf
 from marimo._export.requests import (
     HTMLFileExportRequest,
@@ -19,6 +21,39 @@ from tests._server.templates.utils import parse_mount_config
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_pdf_assets_skip_oversized_files_without_reading(
+    tmp_path: Path,
+) -> None:
+    public = tmp_path / "public"
+    public.mkdir()
+    size = MAX_VIRTUAL_FILE_INLINE_BYTES + 1
+    with (public / "large.png").open("wb") as image:
+        image.truncate(size)
+    html = (
+        '<img src="public/large.png">'
+        f'<video src="./@file/{size}-large.mp4"></video>'
+    )
+    with (
+        patch("pathlib.Path.read_bytes") as read_public,
+        patch(
+            "marimo._convert.common.dom_traversal.read_virtual_file"
+        ) as read_virtual,
+    ):
+        result = inline_pdf_assets(html, str(tmp_path / "notebook.py"))
+
+    read_public.assert_not_called()
+    read_virtual.assert_not_called()
+    message = (
+        f"File too large to inline ({size} bytes, "
+        f"limit {MAX_VIRTUAL_FILE_INLINE_BYTES})"
+    )
+    encoded = base64.b64encode(message.encode()).decode()
+    assert result == (
+        '<img src="public/large.png">'
+        f'<video src="data:text/plain;base64,{encoded}"></video>'
+    )
 
 
 @pytest.fixture

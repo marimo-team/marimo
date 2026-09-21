@@ -2063,6 +2063,7 @@ class TestPDFExport:
         session_view: SessionView,
     ) -> None:
         """Test PDF export in webpdf mode (mocked)."""
+        from bs4 import BeautifulSoup
 
         app = App()
 
@@ -2097,10 +2098,11 @@ class TestPDFExport:
             mock_webpdf_exporter.assert_called_once_with(
                 allow_chromium_download=True
             )
-            assert (
-                "test"
-                in mock_exporter_instance.run_playwright.call_args.args[0]
+            html = BeautifulSoup(
+                mock_exporter_instance.run_playwright.call_args.args[0],
+                "html.parser",
             )
+            assert html.select_one(".jp-InputArea") is not None
 
     @pytest.mark.skipif(
         sys.platform != "win32" or not DependencyManager.nbformat.has(),
@@ -2199,6 +2201,7 @@ class TestPDFExport:
         session_view: SessionView,
     ) -> None:
         """Test WebPDF export suppressing code inputs."""
+        from bs4 import BeautifulSoup
 
         app = App()
 
@@ -2234,10 +2237,11 @@ class TestPDFExport:
             mock_webpdf_exporter.assert_called_once_with(
                 allow_chromium_download=True
             )
-            assert (
-                'class="jp-InputArea jp-Cell-inputArea"'
-                not in mock_exporter_instance.run_playwright.call_args.args[0]
+            html = BeautifulSoup(
+                mock_exporter_instance.run_playwright.call_args.args[0],
+                "html.parser",
             )
+            assert html.select_one(".jp-InputArea") is None
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
