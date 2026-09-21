@@ -57,8 +57,8 @@ export function useExpandedOutput(cellId: CellId) {
   const isExpanded = isEditable ? configState : sessionState;
 
   const setIsExpanded = useEvent((expanded: boolean) => {
+    setSessionState(expanded);
     if (!isEditable) {
-      setSessionState(expanded);
       return;
     }
     const config = { expand_output: expanded };

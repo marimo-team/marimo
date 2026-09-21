@@ -35,10 +35,8 @@ function setup(opts: { mode: AppMode; expandOutput?: boolean }) {
   return { cellId, store, result };
 }
 
-const configOf = (
-  store: ReturnType<typeof createStore>,
-  cellId: CellId,
-) => store.get(notebookAtom).cellData[cellId].config;
+const configOf = (store: ReturnType<typeof createStore>, cellId: CellId) =>
+  store.get(notebookAtom).cellData[cellId].config;
 
 describe("useExpandedOutput", () => {
   beforeEach(() => {
@@ -106,12 +104,9 @@ describe("useExpandedOutput", () => {
     );
     store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
 
-    const { result } = renderHook(
-      () => useExpandedConsoleOutput(cellId),
-      {
-        wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-      },
-    );
+    const { result } = renderHook(() => useExpandedConsoleOutput(cellId), {
+      wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+    });
 
     act(() => result.current[1](true));
 
