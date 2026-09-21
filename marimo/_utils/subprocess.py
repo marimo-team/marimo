@@ -6,6 +6,8 @@ import os
 import signal
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from typing import (
     IO,
     Any,
@@ -434,7 +436,8 @@ def kill_subprocess(
     Use SIGKILL for an isolated group so a descendant ignoring SIGTERM
     cannot keep captured pipes open after the launcher exits.
     """
-    if process.poll() is not None:
+    # A launcher may have exited while its descendants still hold the pipes.
+    if process.poll() is not None and (is_windows() or not start_new_session):
         return
     if is_windows():
         try:
@@ -448,10 +451,46 @@ def kill_subprocess(
         process.kill()
     else:
         try:
-            if start_new_session:
+            if start_new_session or os.getpgid(process.pid) == process.pid:
                 os.killpg(process.pid, signal.SIGKILL)
             else:
                 process.kill()
         except ProcessLookupError:
             pass
     process.wait()
+
+
+async def stop_subprocess(
+    process: subprocess.Popen[Any],
+    *,
+    start_new_session: bool,
+    drain: asyncio.Future[Any] | None = None,
+) -> None:
+    """Finish failed-command cleanup before the caller re-raises its error.
+
+    Killing and reaping run off the event loop. Further cancellation cannot
+    abandon the process or the pipe readers supplied by its owner.
+    """
+
+    async def cleanup() -> None:
+        # Pipe readers can fill the default executor while waiting for this
+        # kill. Cleanup must be able to run independently of those readers.
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            await asyncio.get_running_loop().run_in_executor(
+                executor,
+                partial(
+                    kill_subprocess,
+                    process,
+                    start_new_session=start_new_session,
+                ),
+            )
+        if drain is not None:
+            await asyncio.gather(drain, return_exceptions=True)
+
+    task = asyncio.create_task(cleanup())
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            continue
+    task.result()

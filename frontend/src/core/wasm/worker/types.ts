@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
+import type { WasmRuntimeConfig } from "../runtime-config";
 import type { UserConfig } from "@/core/config/config-schema";
 import type {
   CommandMessage,
@@ -43,10 +44,12 @@ export interface WasmController {
    * Prepare the wasm environment
    * @param opts.version - The marimo version
    */
-  bootstrap(opts: {
-    version: string;
-    pyodideVersion: string;
-  }): Promise<PyodideInterface>;
+  bootstrap(
+    opts: WasmRuntimeConfig & {
+      version: string;
+      pyodideVersion: string;
+    },
+  ): Promise<PyodideInterface>;
   /**
    * Mount the filesystem
    * @param opts.code - The code to mount

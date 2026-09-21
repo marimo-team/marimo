@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import sys
 import threading
 from pathlib import Path
@@ -41,20 +42,20 @@ def get_kernel_tasks(
     return kernel_tasks
 
 
-def join_kernel_thread_tasks(session_manager: SessionManager) -> None:
+async def join_kernel_thread_tasks(session_manager: SessionManager) -> None:
     # Kernels started in run mode run in their own threads; if these kernels
     # execute code, they may patch and restore their own main modules.
     # To ensure that this fixture correctly restores the original saved
     # main module, we wait for threads to finish before restoring the module.
     kernel_tasks = get_kernel_tasks(session_manager)
-    session_manager.shutdown()
+    await session_manager.shutdown()
     for task in kernel_tasks:
         # At least some tests are flaky with processes (edit tasks)
         # not joining for a long time; orphaned edit tasks
         # won't affect other tests, but they are somewhat concerning
         # ...
         if isinstance(task, threading.Thread):
-            task.join()
+            await asyncio.to_thread(task.join)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -117,7 +118,7 @@ def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
     yield client
 
     try:
-        join_kernel_thread_tasks(client.app.state.session_manager)
+        asyncio.run(join_kernel_thread_tasks(client.app.state.session_manager))
     finally:
         sys.modules["__main__"] = main
 

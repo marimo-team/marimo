@@ -79,9 +79,7 @@ class ConnectionDistributor(Distributor[T_co]):
                 response = self.input_connection.recv()
             except BlockingIOError as e:
                 # recv() sporadically fails with EAGAIN, EDEADLK ...
-                LOGGER.warning(
-                    "BlockingIOError in distributor receive: %s", str(e)
-                )
+                LOGGER.warning("BlockingIOError in distributor receive: %s", e)
                 time.sleep(retry_sleep_seconds)
                 continue
             except (EOFError, StopIteration):

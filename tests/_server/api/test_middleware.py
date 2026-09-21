@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import socket
@@ -241,7 +242,7 @@ def read_app() -> Starlette:
     yield app
 
     try:
-        join_kernel_thread_tasks(session_manager)
+        asyncio.run(join_kernel_thread_tasks(session_manager))
     finally:
         sys.modules["__main__"] = main
 
@@ -279,7 +280,7 @@ def no_auth_read_app() -> Starlette:
     yield app
 
     try:
-        join_kernel_thread_tasks(session_manager)
+        asyncio.run(join_kernel_thread_tasks(session_manager))
     finally:
         sys.modules["__main__"] = main
 

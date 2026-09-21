@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
-from marimo._cli.sandbox import SandboxMode
 from marimo._messaging.notification import FocusCellNotification
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
@@ -149,15 +148,11 @@ async def format_cell(request: Request) -> FormatResponse:
         codes = await formatter.format(body.codes, filename)
         return FormatResponse(codes)
     except ModuleNotFoundError:
-        # In multi-sandbox mode each kernel has its own venv, so installing
-        # ruff into the server wouldn't help the kernel.  Just surface the
-        # error without an install prompt.
-        if app_state.session_manager.sandbox_mode is SandboxMode.MULTI:
+        # Sandboxed kernels cannot install the server's formatter.
+        if app_state.session_manager.sandbox:
             raise ModuleNotFoundError(
                 "Server does not have a formatter. Please install ruff"
             ) from None
-        # For single-sandbox and non-sandbox modes the server *is* the
-        # formatting environment, so offer to install ruff there.
         notify_server_missing_packages(
             app_state.get_current_session(),
             app_state.get_current_session_id(),

@@ -491,6 +491,18 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         assert isinstance(bool_stats.true, int)
         assert isinstance(bool_stats.false, int)
 
+    def test_bool_stats_exclude_nulls(self) -> None:
+        import polars as pl
+
+        data = pl.DataFrame({"b": [True, False, None, True, None]})
+        manager = NarwhalsTableManager.from_dataframe(data)
+        assert manager.get_stats("b") == ColumnStats(
+            total=5,
+            nulls=2,
+            true=2,
+            false=1,
+        )
+
     def test_summary_all_nan_column_no_warning(self) -> None:
         import warnings
 

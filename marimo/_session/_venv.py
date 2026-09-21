@@ -12,14 +12,14 @@ in marimo's sandbox mode. It handles:
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._cli.print import echo
-from marimo._environments.uv import UvCommandError, uv
+from marimo._environments.process import run_command
+from marimo._environments.uv import UvCommandError, uv_async
 from marimo._version import __version__
 
 if TYPE_CHECKING:
@@ -123,7 +123,7 @@ def get_kernel_pythonpath() -> str:
     return os.pathsep.join(paths)
 
 
-def has_marimo_installed(venv_python: str) -> bool:
+async def has_marimo_installed(venv_python: str) -> bool:
     """Check if marimo and its IPC deps are installed in the venv.
 
     Args:
@@ -132,14 +132,12 @@ def has_marimo_installed(venv_python: str) -> bool:
     Returns:
         True if marimo, msgspec, and zmq can all be imported.
     """
-    result = subprocess.run(
+    result = await run_command(
         [
             venv_python,
             "-c",
             "import marimo, msgspec, zmq; print(marimo.__version__)",
         ],
-        capture_output=True,
-        text=True,
     )
     if result.returncode != 0:
         return False
@@ -157,7 +155,7 @@ def has_marimo_installed(venv_python: str) -> bool:
     return True
 
 
-def check_python_version_compatibility(venv_python: str) -> bool:
+async def check_python_version_compatibility(venv_python: str) -> bool:
     """Check if venv Python version matches current Python.
 
     Binary dependencies (pyzmq, msgspec) aren't cross-version compatible,
@@ -169,14 +167,12 @@ def check_python_version_compatibility(venv_python: str) -> bool:
     Returns:
         True if versions match, False otherwise.
     """
-    result = subprocess.run(
+    result = await run_command(
         [
             venv_python,
             "-c",
             "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
         ],
-        capture_output=True,
-        text=True,
     )
     venv_version = result.stdout.strip()
     current_version = f"{sys.version_info.major}.{sys.version_info.minor}"
@@ -184,7 +180,7 @@ def check_python_version_compatibility(venv_python: str) -> bool:
     return venv_version == current_version
 
 
-def install_marimo_into_venv(venv_python: str) -> None:
+async def install_marimo_into_venv(venv_python: str) -> None:
     """Install marimo into a venv.
 
     Args:
@@ -195,7 +191,7 @@ def install_marimo_into_venv(venv_python: str) -> None:
     echo("Installing marimo into configured venv...", err=True)
 
     try:
-        uv(["pip", "install", "--python", venv_python] + packages)
+        await uv_async(["pip", "install", "--python", venv_python] + packages)
     except UvCommandError as e:
         LOGGER.warning(
             f"Failed to install marimo into configured venv: {e.stderr}"

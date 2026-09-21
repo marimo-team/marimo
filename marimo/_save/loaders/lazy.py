@@ -615,8 +615,8 @@ class LazyLoader(BasePersistenceLoader):
         self,
         name: str,
         store: Store | None = None,
-        signer: CacheSigner | None | _Unset = _SIGNER_UNSET,
-        trusted_signers: Iterable[str] | None | _Unset = _TRUSTED_UNSET,
+        signer: CacheSigner | _Unset | None = _SIGNER_UNSET,
+        trusted_signers: Iterable[str] | _Unset | None = _TRUSTED_UNSET,
         verification: str | _Unset = _VERIFICATION_UNSET,
     ) -> None:
         """Create a LazyLoader.
@@ -847,7 +847,7 @@ class LazyLoader(BasePersistenceLoader):
         return self._signer
 
     @signer.setter
-    def signer(self, value: CacheSigner | None | _Unset) -> None:
+    def signer(self, value: CacheSigner | _Unset | None) -> None:
         # Validate up front (mirrors __init__) so a bad reconfigure fails here
         # rather than as an AttributeError mid-save.
         if not isinstance(value, (_Unset, CacheSigner)) and value is not None:
@@ -1389,7 +1389,7 @@ class LazyLoader(BasePersistenceLoader):
             if loader == "ui":
                 ui_vars[var] = obj
                 ui_defs_list.append(var)
-            elif loader not in ("inline",):
+            elif loader != "inline":
                 format_vars.setdefault(loader, {})[var] = obj
 
         version = cache.meta.get("version", MARIMO_CACHE_VERSION)

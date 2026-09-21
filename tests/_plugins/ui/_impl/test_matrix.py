@@ -168,17 +168,17 @@ def test_matrix_empty_row_raises():
 
 
 def test_matrix_step_zero_raises():
-    with pytest.raises(ValueError, match="step.*positive"):
+    with pytest.raises(ValueError, match=r"step.*positive"):
         ui.matrix([[1]], step=0)
 
 
 def test_matrix_step_negative_raises():
-    with pytest.raises(ValueError, match="step.*positive"):
+    with pytest.raises(ValueError, match=r"step.*positive"):
         ui.matrix([[1]], step=-0.5)
 
 
 def test_matrix_step_per_element_zero_raises():
-    with pytest.raises(ValueError, match="step.*positive"):
+    with pytest.raises(ValueError, match=r"step.*positive"):
         ui.matrix([[1, 2]], step=[[1, 0]])
 
 
@@ -416,12 +416,12 @@ def test_matrix_1d_value_above_max_raises():
 
 
 def test_matrix_1d_step_zero_raises():
-    with pytest.raises(ValueError, match="step.*positive"):
+    with pytest.raises(ValueError, match=r"step.*positive"):
         ui.matrix([1], step=0)
 
 
 def test_matrix_1d_step_negative_raises():
-    with pytest.raises(ValueError, match="step.*positive"):
+    with pytest.raises(ValueError, match=r"step.*positive"):
         ui.matrix([1], step=-0.5)
 
 
@@ -443,7 +443,7 @@ def test_matrix_1d_2d_param_raises():
 
 def test_matrix_1d_symmetric_raises():
     """symmetric=True with 1D input should raise."""
-    with pytest.raises(ValueError, match="symmetric.*not supported.*1D"):
+    with pytest.raises(ValueError, match=r"symmetric.*not supported.*1D"):
         ui.matrix([1, 2], symmetric=True)
 
 

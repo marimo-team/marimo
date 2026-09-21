@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import enum
+from contextlib import aclosing
 from typing import TYPE_CHECKING, Union, cast
 
 from starlette.websockets import WebSocketDisconnect
@@ -126,66 +127,76 @@ class SSESessionHandler(SessionHandler):
         (shutdown, takeover); ends without one on client disconnect.
         """
         try:
-            session, connection_type = self._connect_session(self.request)
-        except KernelStartupError as e:
-            LOGGER.error("Kernel startup failed: %s", e)
-            yield format_sse_event(
-                serialize_notification_for_wire(
-                    KernelStartupErrorNotification(error=str(e))
-                )
-            )
-            yield format_close_event(
-                WebSocketCodes.UNEXPECTED_ERROR,
-                WebSocketCloseReason.KERNEL_STARTUP_ERROR,
-            )
-            return
-        except WebSocketDisconnect as e:
-            # SessionConnector signals connection rejections (e.g. kiosk
-            # not allowed) with WebSocketDisconnect regardless of
-            # transport.
-            yield format_close_event(e.code, e.reason or "")
-            return
-
-        LOGGER.debug(
-            "Connected to session %s with type %s",
-            session.initialization_id,
-            connection_type,
-        )
-
-        disconnect_task = asyncio.create_task(self._signal_on_disconnect())
-        heartbeat_task = asyncio.create_task(self._heartbeat_loop())
-        self._check_status_update()
-        try:
-            while True:
-                item = await self._queue.get()
-                if item is _Signal.DISCONNECT:
+            async with self._connection_lifetime(self.request) as startup:
+                try:
+                    async with aclosing(
+                        self._startup_messages(startup)
+                    ) as messages:
+                        async for progress in messages:
+                            yield format_sse_event(progress)
+                    session, connection_type = await startup
+                except asyncio.CancelledError:
                     return
-                if item is _Signal.CLOSE:
-                    if self._close_code is not None:
-                        yield format_close_event(
-                            self._close_code, self._close_reason or ""
+                except KernelStartupError as e:
+                    LOGGER.error("Kernel startup failed: %s", e)
+                    yield format_sse_event(
+                        serialize_notification_for_wire(
+                            KernelStartupErrorNotification(error=str(e))
                         )
+                    )
+                    yield format_close_event(
+                        WebSocketCodes.UNEXPECTED_ERROR,
+                        WebSocketCloseReason.KERNEL_STARTUP_ERROR,
+                    )
                     return
-                if item is _Signal.HEARTBEAT:
-                    yield HEARTBEAT_EVENT
-                    continue
-                text = prepare_wire_message(
-                    item,
-                    is_kiosk=self._is_viewer(session, connection_type),
+                except WebSocketDisconnect as e:
+                    # SessionConnector signals connection rejections (e.g. kiosk
+                    # not allowed) with WebSocketDisconnect regardless of
+                    # transport.
+                    yield format_close_event(e.code, e.reason or "")
+                    return
+
+                LOGGER.debug(
+                    "Connected to session %s with type %s",
+                    session.initialization_id,
+                    connection_type,
                 )
-                if text is not None:
-                    yield format_sse_event(text)
+
+                disconnect_task = asyncio.create_task(
+                    self._signal_on_disconnect()
+                )
+                heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+                self._check_status_update()
+                try:
+                    while True:
+                        item = await self._queue.get()
+                        if item is _Signal.DISCONNECT:
+                            return
+                        if item is _Signal.CLOSE:
+                            if self._close_code is not None:
+                                yield format_close_event(
+                                    self._close_code, self._close_reason or ""
+                                )
+                            return
+                        if item is _Signal.HEARTBEAT:
+                            yield HEARTBEAT_EVENT
+                            continue
+                        text = prepare_wire_message(
+                            item,
+                            is_kiosk=self._is_viewer(session, connection_type),
+                        )
+                        if text is not None:
+                            yield format_sse_event(text)
+                finally:
+                    # Also runs when the client disconnects and StreamingResponse
+                    # cancels the generator; don't await anything cancellable here.
+                    disconnect_task.cancel()
+                    heartbeat_task.cancel()
         finally:
-            # Also runs when the client disconnects and StreamingResponse
-            # cancels the generator; don't await anything cancellable here.
             self._stream_finished = True
-            disconnect_task.cancel()
-            heartbeat_task.cancel()
-            if not self._close_requested:
-                self._on_disconnect(
-                    ConnectionError("SSE client disconnected"),
-                    lambda: None,
-                )
+
+    async def _wait_for_disconnect(self) -> None:
+        await wait_for_http_disconnect(self.request)
 
     async def _signal_on_disconnect(self) -> None:
         """Signal the stream loop when the client disconnects.
@@ -195,7 +206,7 @@ class SSESessionHandler(SessionHandler):
         to the disconnect first, the generator is cancelled and its
         `finally` performs the same teardown.
         """
-        await wait_for_http_disconnect(self.request)
+        await self._wait_for_disconnect()
         self._queue.put_nowait(_Signal.DISCONNECT)
 
     async def _heartbeat_loop(self) -> None:

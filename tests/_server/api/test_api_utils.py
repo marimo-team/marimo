@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import subprocess
 import threading
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, cast
@@ -18,6 +19,7 @@ from starlette.testclient import TestClient
 from marimo._server.api.utils import (
     get_code_mode_credentials,
     install_packages_on_server,
+    open_url_in_browser,
     parse_multipart_request,
 )
 
@@ -30,6 +32,40 @@ if TYPE_CHECKING:
 class _SampleForm(msgspec.Struct):
     name: str
     count: int
+
+
+@pytest.mark.parametrize(
+    ("platform", "implementation", "start_new_session"),
+    [
+        ("linux", "cpython", True),
+        ("darwin", "cpython", True),
+        ("win32", "cpython", False),
+        ("cygwin", "cpython", False),
+        ("linux", "graalpy", False),
+    ],
+)
+def test_open_browser_detaches_without_preexec_callback(
+    platform: str, implementation: str, start_new_session: bool
+) -> None:
+    with (
+        patch("marimo._server.api.utils.which", return_value="/bin/xdg-open"),
+        patch(
+            "marimo._server.api.utils.sys",
+            SimpleNamespace(
+                platform=platform,
+                implementation=SimpleNamespace(name=implementation),
+            ),
+        ),
+        patch("marimo._server.api.utils.subprocess.Popen") as popen,
+    ):
+        open_url_in_browser("default", "http://localhost:2718")
+
+    popen.assert_called_once_with(
+        ["xdg-open", "http://localhost:2718"],
+        start_new_session=start_new_session,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT,
+    )
 
 
 def _build_app(captured: dict[str, object]) -> TestClient:

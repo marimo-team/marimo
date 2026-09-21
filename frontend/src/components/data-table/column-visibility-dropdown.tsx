@@ -215,6 +215,11 @@ export const ColumnVisibilityDropdown = <TData,>({
                 index === list.pinnedCount &&
                 list.pinnedCount > 0 &&
                 list.pinnedCount < list.visibleOptions.length;
+              const label = (
+                <span className="truncate" title={option.label}>
+                  {option.label}
+                </span>
+              );
               return (
                 <React.Fragment key={option.value}>
                   {isSectionBoundary && <CommandSeparator />}
@@ -225,15 +230,16 @@ export const ColumnVisibilityDropdown = <TData,>({
                     className="flex items-center gap-1.5 cursor-pointer"
                   >
                     {dataType === undefined ? (
-                      <span>{option.label}</span>
+                      label
                     ) : (
                       <ColumnName
-                        columnName={option.label}
+                        className="min-w-0"
+                        columnName={label}
                         dataType={dataType}
                       />
                     )}
                     {!option.disabled && (
-                      <span className="ml-auto flex items-center gap-0.5">
+                      <span className="ml-auto flex shrink-0 items-center gap-0.5">
                         <ShowOnlyColumnButton
                           table={table}
                           columnIds={[option.value]}

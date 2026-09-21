@@ -3,9 +3,9 @@ packages:
   - frontend
   - packages/*
 overrides:
-  react: "^19.2.4"
-  react-dom: "^19.2.4"
-  vite: "^8.2.1"
+  react: "^19.2.8"
+  react-dom: "^19.2.8"
+  vite: "^8.2.2"
   form-data: ">=4.0.6"
 patchedDependencies:
   html-to-image@1.11.13: patches/html-to-image@1.11.13.patch
@@ -45,7 +45,6 @@ trustPolicyExclude:
   - "@octokit/endpoint@9.0.6"
   - "@octokit/plugin-paginate-rest@9.2.2"
   - "@swc/core@1.12.14"
-  - "@textea/json-viewer@4.0.1"
   - "chokidar@4.0.3"
   - "semver@5.7.2 || 6.3.1"
   - "tailwind-merge@2.6.0"

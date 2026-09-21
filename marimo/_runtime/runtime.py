@@ -120,6 +120,7 @@ from marimo._runtime.context import (
     ExecutionContext,
     get_context,
 )
+from marimo._runtime.context.filename import NOTEBOOK_FILENAME
 from marimo._runtime.context.kernel_context import (
     KernelRuntimeContext,
 )
@@ -365,12 +366,13 @@ def notebook_dir() -> pathlib.Path | None:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        # If we are not running in a notebook (e.g. exported to Jupyter),
-        # return the current working directory
-        return pathlib.Path().cwd()
-
-    # NB: __file__ is patched by runner, so always bound to be correct.
-    filename = ctx.globals.get("__file__", None) or ctx.filename
+        filename = NOTEBOOK_FILENAME.get()
+        if filename is None:
+            # Outside a notebook (e.g. exported to Jupyter), use the cwd.
+            return pathlib.Path.cwd()
+    else:
+        # NB: __file__ is patched by runner, so always bound to be correct.
+        filename = ctx.globals.get("__file__", None) or ctx.filename
     if filename is not None:
         path = normalize_path(pathlib.Path(filename))
         while not path.is_dir():
@@ -648,9 +650,9 @@ class Kernel:
         import getpass
 
         getpass.getpass = getpass_override
-        # Webbrowser may not be set (e.g. docker container) or stubbed/broken
-        # (e.g. in pyodide). Set default to just inject an iframe of the
-        # expected page to output.
+        # Route webbrowser.open() to an iframe in the cell output when the
+        # browser cannot launch or the module is a stub (Pyodide).
+        # Browser discovery runs on first use, never at startup.
         patches.patch_webbrowser()
         # micropip only patched in non-pyodide environments.
         if not is_pyodide():
@@ -1076,9 +1078,7 @@ class Kernel:
                     try:
                         duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
                     except Exception as e:
-                        LOGGER.warning(
-                            "Failed to drop table %s: %s", name, str(e)
-                        )
+                        LOGGER.warning("Failed to drop table %s: %s", name, e)
             elif variable.kind == "view" and DependencyManager.duckdb.has():
                 import duckdb
 
@@ -1090,9 +1090,7 @@ class Kernel:
                     try:
                         duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
                     except Exception as e:
-                        LOGGER.warning(
-                            "Failed to drop view %s: %s", name, str(e)
-                        )
+                        LOGGER.warning("Failed to drop view %s: %s", name, e)
             elif variable.kind == "catalog" and DependencyManager.duckdb.has():
                 import duckdb
 
@@ -1100,9 +1098,7 @@ class Kernel:
                     identifier = quote_sql_identifier(name)
                     duckdb.execute(f"DETACH DATABASE IF EXISTS {identifier}")
                 except Exception as e:
-                    LOGGER.warning(
-                        "Failed to detach catalog %s: %s", name, str(e)
-                    )
+                    LOGGER.warning("Failed to detach catalog %s: %s", name, e)
             else:
                 if name in self.globals:
                     del self.globals[name]
@@ -1724,7 +1720,7 @@ class Kernel:
 
                 try:
                     cell = compile_cell(er.code, cell_id=er.cell_id)
-                except Exception:
+                except Exception:  # noqa: S112
                     # The cell was not parsable.
                     continue
                 graph.register_cell(cell_id=cid, cell=cell)
@@ -1734,7 +1730,8 @@ class Kernel:
             for er in execution_requests:
                 try:
                     cell = compile_cell(er.code, cell_id=er.cell_id)
-                except Exception:
+                # Unparsable requests cannot contribute graph ancestors.
+                except Exception:  # noqa: S112
                     continue
                 graph.register_cell(cell_id=er.cell_id, cell=cell)
                 ancestors |= graph.ancestors(er.cell_id)

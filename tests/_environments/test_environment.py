@@ -77,7 +77,7 @@ def test_old_uv_is_rejected(
     stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
     monkeypatch.setenv("UV", str(stub))
 
-    with pytest.raises(UvUnsupportedVersionError, match="0.5.0"):
+    with pytest.raises(UvUnsupportedVersionError, match=r"0\.5\.0"):
         sync(str(tmp_path / "nb.py"))
 
 
@@ -266,14 +266,6 @@ def test_launch_layers_over_the_activated_environment() -> None:
     assert plan.argv[-3:] == ("python", "-m", "marimo")
     assert plan.env["VIRTUAL_ENV"] == "/env"
     assert plan.start_new_session
-
-
-def test_isolated_launcher_plan_starts_a_new_session() -> None:
-    isolated = environment.launch_isolated(
-        ["-m", "marimo"], requirements=["marimo"], python="3.13"
-    )
-
-    assert isolated.start_new_session
 
 
 @pytest.mark.network

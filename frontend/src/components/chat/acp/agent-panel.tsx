@@ -738,8 +738,8 @@ const AgentPanel: React.FC = () => {
     let cancelled = false;
     setError(null);
 
-    const initAndAuth = async () => {
-      const response = await agent.initialize({
+    const initialize = async () => {
+      await agent.initialize({
         protocolVersion: 1,
         clientCapabilities: {
           fs: {
@@ -749,23 +749,16 @@ const AgentPanel: React.FC = () => {
         },
       });
 
-      if (cancelled) {
-        return;
-      }
-
-      // Preserve the existing authentication flow before starting a session.
-      const authMethods = response?.authMethods;
-      if (authMethods && authMethods.length > 0) {
-        await agent.authenticate({ methodId: authMethods[0].id });
-      }
+      // Agents use credentials from their CLI login. Advertised auth methods
+      // describe login options, not whether authentication is required.
       if (!cancelled) {
         setInitializedConnection({ agent, wsUrl });
       }
     };
 
-    initAndAuth().catch((error) => {
+    initialize().catch((error) => {
       if (!cancelled) {
-        logger.error("Failed to initialize/authenticate agent", { error });
+        logger.error("Failed to initialize agent", { error });
         setError(error instanceof Error ? error : String(error));
       }
     });
@@ -850,6 +843,8 @@ const AgentPanel: React.FC = () => {
       }
       creatingOrResumingSession.current = true;
       try {
+        // Loading replays the agent's history through session notifications.
+        clearNotifications(previousSessionId);
         const loadedSession = await agent.loadSession({
           sessionId: previousSessionId,
           cwd: getCwd(),
@@ -873,7 +868,16 @@ const AgentPanel: React.FC = () => {
     },
   );
 
-  // Create or resume a session once initialization and authentication finish.
+  const handleRestartSession = useEvent(async () => {
+    setError(null);
+    try {
+      await handleNewSession();
+    } catch (error) {
+      setError(error instanceof Error ? error : String(error));
+    }
+  });
+
+  // Create or resume a session once initialization finishes.
   const tabLastActiveSessionId = selectedTab?.externalAgentSessionId;
   useEffect(() => {
     if (!isAgentReady || !selectedTab || !agent) {
@@ -925,18 +929,6 @@ const AgentPanel: React.FC = () => {
         return;
       }
 
-      logger.debug("Submitting prompt to agent", {
-        sessionId: activeSessionId,
-      });
-      setIsLoading(true);
-      setPromptValue("");
-      clearFiles();
-
-      // Update session title with first message if it's still the default
-      if (selectedTab?.title.startsWith("New ")) {
-        setSessionState((prev) => updateSessionTitle(prev, prompt));
-      }
-
       let absoluteFilename: string;
       try {
         absoluteFilename = getAbsoluteFilename();
@@ -949,50 +941,63 @@ const AgentPanel: React.FC = () => {
         return;
       }
 
-      const promptBlocks: ContentBlock[] = [{ type: "text", text: prompt }];
+      logger.debug("Submitting prompt to agent", {
+        sessionId: activeSessionId,
+      });
+      setIsLoading(true);
+      setPromptValue("");
+      clearFiles();
 
-      // Parse context from the prompt
-      const { contextBlocks, attachmentBlocks } =
-        await parseContextFromPrompt(prompt);
-      promptBlocks.push(...contextBlocks, ...attachmentBlocks);
-
-      // Add manually uploaded files as resource links
-      if (files && files.length > 0) {
-        const fileResourceLinks = await convertFilesToResourceLinks(files);
-        promptBlocks.push(...fileResourceLinks);
-      }
-
-      const hasGivenRules = notifications.some(
-        (notification) =>
-          notification.type === "session_notification" &&
-          notification.data.update.sessionUpdate === "user_message_chunk",
-      );
-      if (!hasGivenRules) {
-        promptBlocks.push(
-          {
-            type: "resource_link",
-            uri: absoluteFilename,
-            mimeType: "text/x-python",
-            name: absoluteFilename,
-          },
-          {
-            type: "resource",
-            resource: {
-              uri: "marimo_rules.md",
-              mimeType: "text/plain",
-              text: getAgentPrompt(absoluteFilename),
-            },
-          },
-        );
+      // Update session title with first message if it's still the default
+      if (selectedTab?.title.startsWith("New ")) {
+        setSessionState((prev) => updateSessionTitle(prev, prompt));
       }
 
       try {
+        const promptBlocks: ContentBlock[] = [{ type: "text", text: prompt }];
+
+        // Parse context from the prompt
+        const { contextBlocks, attachmentBlocks } =
+          await parseContextFromPrompt(prompt);
+        promptBlocks.push(...contextBlocks, ...attachmentBlocks);
+
+        // Add manually uploaded files as resource links
+        if (files && files.length > 0) {
+          const fileResourceLinks = await convertFilesToResourceLinks(files);
+          promptBlocks.push(...fileResourceLinks);
+        }
+
+        const hasGivenRules = notifications.some(
+          (notification) =>
+            notification.type === "session_notification" &&
+            notification.data.update.sessionUpdate === "user_message_chunk",
+        );
+        if (!hasGivenRules) {
+          promptBlocks.push(
+            {
+              type: "resource_link",
+              uri: absoluteFilename,
+              mimeType: "text/x-python",
+              name: absoluteFilename,
+            },
+            {
+              type: "resource",
+              resource: {
+                uri: "marimo_rules.md",
+                mimeType: "text/plain",
+                text: getAgentPrompt(absoluteFilename),
+              },
+            },
+          );
+        }
+
         await agent.prompt({
           sessionId: activeSessionId,
           prompt: promptBlocks,
         });
       } catch (error) {
         logger.error("Failed to send prompt", { error });
+        setError(error instanceof Error ? error : String(error));
       } finally {
         setIsLoading(false);
       }
@@ -1152,10 +1157,7 @@ const AgentPanel: React.FC = () => {
               <Button
                 variant="linkDestructive"
                 size="sm"
-                onClick={() => {
-                  setError(null);
-                  handleNewSession();
-                }}
+                onClick={handleRestartSession}
               >
                 Restart session
               </Button>
@@ -1270,7 +1272,7 @@ const AgentPanel: React.FC = () => {
         currentAgentId={selectedTab?.agentId}
         onConnect={handleManualConnect}
         onDisconnect={handleManualDisconnect}
-        onRestartThread={isAgentReady ? handleNewSession : undefined}
+        onRestartThread={isAgentReady ? handleRestartSession : undefined}
         hasActiveSession={true}
         shouldShowConnectionControl={wsUrl !== NO_WS_SET}
       />

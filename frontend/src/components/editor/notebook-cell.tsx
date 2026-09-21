@@ -451,7 +451,8 @@ const EditableCellComponent = ({
       cellRuntime.staleInputs) &&
     !cellRuntime.interrupted;
 
-  // Callback to get the editor view.
+  // This getter is called during render, so useEvent cannot be used here.
+  // oxlint-disable-next-line react/preserve-manual-memoization
   const getEditorView = useCallback(() => editorView.current, [editorView]);
 
   // Use the extracted hooks
@@ -1096,7 +1097,8 @@ const SetupCellComponent = ({
       cellRuntime.staleInputs) &&
     !cellRuntime.interrupted;
 
-  // Callback to get the editor view.
+  // This getter is called during render, so useEvent cannot be used here.
+  // oxlint-disable-next-line react/preserve-manual-memoization
   const getEditorView = useCallback(() => editorView.current, [editorView]);
 
   const { isCellCodeShown, showHiddenCode } = useCellHiddenLogic({

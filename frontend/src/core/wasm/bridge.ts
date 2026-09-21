@@ -9,6 +9,7 @@ import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { generateUUID } from "@/utils/uuid";
+import { createModuleWorker } from "@/utils/worker";
 import { notebookIsRunningAtom } from "../cells/cells";
 import type { CommandMessage } from "../kernel/messages";
 import { getMarimoVersion } from "../meta/globals";
@@ -41,10 +42,13 @@ import { BasicTransport } from "../websocket/transports/basic";
 import type { IConnectionTransport } from "../websocket/transports/transport";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC } from "./rpc";
+import { getWasmRuntimeConfig } from "./runtime-config";
 import { createShareableLink } from "./share";
 import { wasmInitStateAtom } from "./state";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
+import saveWorkerUrl from "./worker/save-worker.ts?worker&url";
+import workerUrl from "./worker/worker.ts?worker&url";
 import type { SaveWorkerSchema } from "./worker/save-worker";
 import type { WorkerSchema } from "./worker/worker";
 
@@ -81,19 +85,20 @@ export class PyodideBridge implements RunRequests, EditRequests {
       };
     }
 
+    const runtimeConfig = getWasmRuntimeConfig();
+
     // Create save worker
-    const saveWorker = new Worker(
-      // oxlint-disable-next-line unicorn/relative-url-style
-      new URL("./worker/save-worker.ts", import.meta.url),
+    const saveWorker = createModuleWorker(
+      new URL(saveWorkerUrl, import.meta.url),
       {
-        type: "module",
         // Pass the version (and optional capability suffix) to the worker
-        /* @vite-ignore */
         name: getWasmWorkerName(),
       },
     );
 
-    return getWorkerRPC<SaveWorkerSchema>(saveWorker).proxy.request;
+    const rpc = getWorkerRPC<SaveWorkerSchema>(saveWorker);
+    rpc.send.bootstrap(runtimeConfig);
+    return rpc.proxy.request;
   }
 
   private constructor() {
@@ -101,20 +106,17 @@ export class PyodideBridge implements RunRequests, EditRequests {
       return;
     }
 
+    const runtimeConfig = getWasmRuntimeConfig();
+
     // Create a worker
-    const worker = new Worker(
-      // oxlint-disable-next-line unicorn/relative-url-style
-      new URL("./worker/worker.ts", import.meta.url),
-      {
-        type: "module",
-        // Pass the version (and optional capability suffix) to the worker
-        /* @vite-ignore */
-        name: getWasmWorkerName(),
-      },
-    );
+    const worker = createModuleWorker(new URL(workerUrl, import.meta.url), {
+      // Pass the version (and optional capability suffix) to the worker
+      name: getWasmWorkerName(),
+    });
 
     // Create the RPC
     this.rpc = getWorkerRPC<WorkerSchema>(worker);
+    this.rpc.send.bootstrap(runtimeConfig);
 
     // Listeners
     this.rpc.addMessageListener("ready", () => {
@@ -640,6 +642,17 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response;
   };
 
+  getSandbox: EditRequests["getSandbox"] = async () => ({
+    backend: null,
+    manifest: null,
+    filename: null,
+  });
+  updateManifest: EditRequests["updateManifest"] = async () => {
+    throw new Error("Sandboxes are not supported in WebAssembly");
+  };
+  syncSandbox: EditRequests["syncSandbox"] = async () => {
+    throw new Error("Sandboxes are not supported in WebAssembly");
+  };
   getDependencyTree: EditRequests["getDependencyTree"] = async () => {
     // WASM doesn't support dependency trees yet
     return {

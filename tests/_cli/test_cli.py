@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import contextlib
 import inspect
+import json
 import os
+import shutil
 import signal
 import socket
 import subprocess
@@ -109,12 +111,19 @@ def _check_shutdown(
 
 
 def _try_fetch(
-    port: int, host: str = "localhost", token: str | None = None
+    port: int,
+    host: str = "localhost",
+    token: str | None = None,
+    *,
+    timeout: float = 60,
 ) -> bytes | None:
     import http.cookiejar
 
+    # Cold sandbox installs and remote notebooks can take longer than the
+    # usual server startup, especially on macOS CI runners.
+    deadline = time.monotonic() + timeout
     err: Exception | None = None
-    for _ in range(20):
+    while (remaining := deadline - time.monotonic()) > 0:
         try:
             url = f"http://{host}:{port}"
             if token is not None:
@@ -127,12 +136,55 @@ def _try_fetch(
             opener = urllib.request.build_opener(
                 urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
             )
-            return opener.open(url).read()
+            with opener.open(url, timeout=min(5, remaining)) as response:
+                return response.read()
         except Exception as e:
             err = e
-            time.sleep(0.6)
-    print(f"Failed to fetch contents: {err}")
+            time.sleep(min(0.6, max(0, deadline - time.monotonic())))
+    print(f"Failed to fetch contents within {timeout}s: {err}")
     return None
+
+
+@pytest.mark.parametrize(
+    ("ready_after", "request_duration"),
+    [(0, 0), (15, 0), (None, 0), (None, 5)],
+)
+def test_try_fetch_waits_for_startup(
+    monkeypatch: pytest.MonkeyPatch,
+    ready_after: int | None,
+    request_duration: int,
+) -> None:
+    elapsed = 0.0
+
+    def sleep(seconds: float) -> None:
+        nonlocal elapsed
+        elapsed += seconds
+
+    def open_url(url: str, *, timeout: float = 5) -> Any:
+        assert url == "http://localhost:2718?access_token=secret"
+        assert 0 < timeout <= 5
+        if request_duration:
+            sleep(min(request_duration, timeout))
+            raise TimeoutError("Request timed out")
+        if ready_after is None or elapsed < ready_after:
+            raise urllib.error.URLError("Connection refused")
+        return response
+
+    monkeypatch.setattr(time, "monotonic", lambda: elapsed)
+    monkeypatch.setattr(time, "sleep", sleep)
+    with patch("urllib.request.build_opener") as build_opener:
+        response = build_opener.return_value.open.return_value
+        response.__enter__.return_value = response
+        response.read.return_value = b"ready"
+        build_opener.return_value.open.side_effect = open_url
+        contents = _try_fetch(2718, token="secret")
+
+    if ready_after is None:
+        assert contents is None
+        assert elapsed == 60
+    else:
+        assert contents == b"ready"
+        assert ready_after <= elapsed < ready_after + 0.6
 
 
 def _check_started(port: int, host: str = "localhost") -> bytes | None:
@@ -1338,24 +1390,24 @@ def test_cli_sandbox_edit_no_prompt(temp_marimo_file: str) -> None:
 
 @pytest.mark.parametrize("command", ["edit", "run"])
 @pytest.mark.parametrize(
-    ("option", "backend"), [("--sandbox=pixi", "pixi"), ("--sandbox", "uv")]
+    ("options", "backend"),
+    [
+        (["--sandbox"], "uv"),
+        (["--sandbox=uv"], "uv"),
+        (["--sandbox=pixi"], "pixi"),
+        (["--sandbox", "uv"], "uv"),
+        (["--sandbox", "pixi"], "pixi"),
+    ],
 )
-@pytest.mark.parametrize("directory", ["pixi", "uv"])
-def test_cli_sandbox_records_backend_and_preserves_paths(
+def test_cli_sandbox_selects_backend(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     command: str,
-    option: str,
+    options: list[str],
     backend: str,
-    directory: str,
 ) -> None:
-    """Kernel launches read the backend from GLOBAL_SETTINGS; `run` must
-    record it or `run --sandbox=pixi` launches uv kernels."""
-    from marimo._cli.sandbox import SandboxMode
-    from marimo._config.settings import GLOBAL_SETTINGS
-
     monkeypatch.chdir(tmp_path)
-    notebook_dir = tmp_path / directory
+    notebook_dir = tmp_path / "notebooks"
     notebook_dir.mkdir()
     (notebook_dir / "nb.py").write_text(
         codegen.generate_filecontents(
@@ -1365,48 +1417,148 @@ def test_cli_sandbox_records_backend_and_preserves_paths(
         ),
         encoding="utf-8",
     )
-    runner = CliRunner()
-    captured: dict[str, object] = {}
-
-    def _capture_start(**kwargs: object) -> None:
-        captured["backend"] = GLOBAL_SETTINGS.SANDBOX_BACKEND
-        captured["sandbox_mode"] = kwargs["sandbox_mode"]
-
-    with (
-        patch.dict(os.environ),
-        patch.object(GLOBAL_SETTINGS, "SANDBOX_BACKEND", None),
-        patch.object(GLOBAL_SETTINGS, "SANDBOX_MODE", None),
-        patch.object(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", False),
-        patch("marimo._cli.cli.start", side_effect=_capture_start),
-    ):
-        result = runner.invoke(
-            cli_main,
-            [command, option, directory, "--headless"],
+    monkeypatch.setenv("MARIMO_SERVER_OVERLAY", "1")
+    with patch("marimo._cli.cli.start") as start_server:
+        result = CliRunner().invoke(
+            cli_main, [command, *options, "notebooks", "--headless"]
         )
-
     assert result.exit_code == 0, result.output
-    assert captured["sandbox_mode"] is SandboxMode.MULTI
-    assert captured["backend"] == backend
+    assert start_server.call_args.kwargs["sandbox"] == backend
+    assert start_server.call_args.kwargs["workspace"].directory == str(
+        notebook_dir
+    )
 
 
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
-def test_cli_sandbox_edit_new_file() -> None:
-    with tempfile.TemporaryDirectory() as d:
-        path = os.path.join(d, "new_sandbox_file.py")
-        runner = CliRunner()
-        with patch(
-            "marimo._cli.sandbox.run_in_sandbox"
-        ) as mock_run_in_sandbox:
-            mock_run_in_sandbox.return_value = 0
-            result = runner.invoke(
-                cli_main,
-                ["edit", "--sandbox", path, "--headless", "--no-token"],
+@pytest.fixture(scope="module")
+def bare_marimo_python(tmp_path_factory: pytest.TempPathFactory) -> str:
+    """A real marimo installation without server tools or test dependencies."""
+    root = tmp_path_factory.mktemp("bare-marimo")
+    python = root / ("Scripts/python.exe" if _is_win32() else "bin/python")
+    subprocess.run(
+        ["uv", "venv", "--python", sys.executable, str(root)], check=True
+    )
+    subprocess.run(
+        ["uv", "pip", "install", "--python", str(python), "-e", "."],
+        check=True,
+    )
+    return str(python)
+
+
+@pytest.mark.network
+@pytest.mark.skipif(not HAS_UV, reason="uv is required to install the fixture")
+@pytest.mark.parametrize("entry", ["file", "folder", "stdin", "new"])
+@pytest.mark.parametrize("backend", ["uv", "pixi"])
+def test_editor_sandbox_supplies_server_tools(
+    tmp_path: Path, bare_marimo_python: str, entry: str, backend: str
+) -> None:
+    """Formatting works without adding Ruff to the notebook or host."""
+    from websockets.sync.client import connect
+
+    from marimo._environments.uv import find_uv_bin
+
+    if entry == "stdin" and _is_win32():
+        pytest.skip("Piped notebooks are not supported on Windows")
+
+    backend_bin = shutil.which(backend)
+    if backend_bin is None:
+        pytest.skip(f"{backend} is required")
+    source = (
+        '# /// script\n# dependencies = ["marimo"]\n# ///\n'
+        "import marimo\napp = marimo.App()\n"
+    )
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        source.replace('["marimo"]', '["does-not-exist-marimo-test"]')
+    )
+    targets = {"file": [str(notebook)], "folder": [str(tmp_path)]}
+    port = _get_port()
+    # A formatter on the test runner's PATH would hide this regression.
+    env = {
+        **os.environ,
+        "UV": str(find_uv_bin()),
+        "PATH": os.pathsep.join([str(Path(backend_bin).parent), os.defpath]),
+    }
+    env.pop("PYTHONPATH", None)
+    env.pop("MARIMO_SERVER_OVERLAY", None)
+    probe = [
+        bare_marimo_python,
+        "-c",
+        (
+            "import importlib.util, shutil; "
+            "assert shutil.which('ruff') is None; "
+            "assert all(importlib.util.find_spec(p) is None "
+            "for p in ('ruff', 'pylsp', 'pylsp_ruff'))"
+        ),
+    ]
+    subprocess.run(probe, env=env, check=True)
+    with subprocess.Popen(
+        [
+            bare_marimo_python,
+            "-m",
+            "marimo",
+            "new" if entry == "new" else "edit",
+            *targets.get(entry, []),
+            f"--sandbox={backend}",
+            "--headless",
+            "--no-token",
+            "--no-skew-protection",
+            "--port",
+            str(port),
+        ],
+        cwd=tmp_path,
+        env=env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    ) as process:
+        try:
+            assert process.stdin is not None
+            if entry == "stdin":
+                process.stdin.write(source.encode())
+            process.stdin.close()
+            assert process.stdout is not None
+            output = []
+            for line in process.stdout:
+                output.append(line.decode())
+                if b"URL:" in line:
+                    break
+            else:
+                pytest.fail("Server did not start: " + "".join(output))
+            assert _try_fetch(port) is not None
+            # An unresolvable manifest must not prevent server startup.
+            notebook.write_text(source)
+            query = urllib.parse.urlencode(
+                {
+                    "session_id": "formatting",
+                    **({"file": str(notebook)} if entry == "folder" else {}),
+                }
             )
-        assert result.exit_code == 0, result.output
-        mock_run_in_sandbox.assert_called_once()
-        call_kwargs = mock_run_in_sandbox.call_args
-        assert call_kwargs.kwargs["name"] == path
-        assert call_kwargs.kwargs["extras"] == ["lsp"]
+            with connect(f"ws://localhost:{port}/ws?{query}") as websocket:
+                while True:
+                    message = json.loads(websocket.recv(timeout=60))
+                    assert message["op"] != "kernel-startup-error", message
+                    if message["op"] == "kernel-ready":
+                        break
+                request = urllib.request.Request(
+                    f"http://localhost:{port}/api/kernel/format",
+                    data=json.dumps(
+                        {
+                            "codes": {"cell": "x=  1"},
+                            "lineLength": 80,
+                        }
+                    ).encode(),
+                    headers={
+                        "Content-Type": "application/json",
+                        "Marimo-Session-Id": "formatting",
+                    },
+                )
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    assert json.load(response) == {"codes": {"cell": "x = 1"}}
+        finally:
+            process.terminate()
+            process.wait(timeout=15)
+    assert notebook.read_text() == source
+    subprocess.run(probe, env=env, check=True)
 
 
 @pytest.mark.skipif(
@@ -1923,25 +2075,25 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
     finally:
         p.kill()
 
-    # marimo new --sandbox, in the directory with pyproject.toml
-    runner = CliRunner()
-    original_dir = os.getcwd()
+    # The unnamed editor reads the same project configuration.
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "new",
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+        ],
+        cwd=tmp_path,
+    )
     try:
-        os.chdir(tmp_path)
-        with patch(
-            "marimo._cli.sandbox.run_in_sandbox"
-        ) as mock_run_in_sandbox:
-            mock_run_in_sandbox.return_value = 0
-            result = runner.invoke(
-                cli_main,
-                ["new", "--sandbox", "--headless", "--no-token"],
-            )
+        assert_custom_config(_try_fetch(port))
     finally:
-        os.chdir(original_dir)
-    assert result.exit_code == 0, result.output
-    mock_run_in_sandbox.assert_called_once()
-    call_kwargs = mock_run_in_sandbox.call_args
-    assert call_kwargs.kwargs["extras"] == ["lsp"]
+        p.kill()
+        p.wait()
 
 
 # shell-completion has 1 input (value of $SHELL) & 3 outputs (return code, stdout, & stderr)

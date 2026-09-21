@@ -15,7 +15,7 @@ export type ConnectionTransportCallback<T extends ConnectionEvent> = (
 export interface IConnectionTransport {
   reconnect(code?: number | undefined, reason?: string | undefined): void;
   close(): void;
-  send(data: string | ArrayBuffer | Blob | ArrayBufferView): void;
+  send(data: string | ArrayBuffer | Blob | ArrayBufferView<ArrayBuffer>): void;
   addEventListener<T extends ConnectionEvent>(
     event: T,
     callback: ConnectionTransportCallback<T>,
