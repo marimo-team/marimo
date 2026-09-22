@@ -223,7 +223,12 @@ export function useMarimoKernelConnection(opts: {
   const { setLayoutData } = useLayoutActions();
   const [connection, setConnection] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
-  const { addPackageAlert, addStartupLog } = useAlertActions();
+  const {
+    addMissingPackageAlert,
+    updateEnvironment,
+    setEnvironment,
+    addStartupLog,
+  } = useAlertActions();
   const setKioskMode = useSetAtom(kioskModeAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
@@ -366,7 +371,7 @@ export function useMarimoKernelConnection(opts: {
         addBanner(msg.data);
         return;
       case "missing-package-alert":
-        addPackageAlert({
+        addMissingPackageAlert({
           ...msg.data,
           kind: "missing",
         });
@@ -382,10 +387,13 @@ export function useMarimoKernelConnection(opts: {
         ) {
           invalidatePackageData();
         }
-        addPackageAlert({
-          ...msg.data,
-          kind: "installing",
-        });
+        updateEnvironment(msg.data);
+        return;
+      case "environment-state":
+        setEnvironment(msg.data);
+        if (msg.data.source === "kernel") {
+          invalidatePackageData();
+        }
         return;
       case "startup-logs":
         addStartupLog({

@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from marimo._messaging.notification import (
+    EnvironmentOperation,
+    EnvironmentState,
     InstallingPackageAlertNotification,
     OperationRunning,
 )
 from marimo._session.state.environment import (
-    EnvironmentOperation,
-    EnvironmentState,
     reduce_environment_state,
 )
 

@@ -16,6 +16,7 @@ from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
+    EnvironmentState,
     EsmSpec,
     InstallingPackageAlertNotification,
     InterruptedNotification,
@@ -48,7 +49,6 @@ from marimo._runtime.commands import (
 )
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._session.state.environment import (
-    EnvironmentState,
     reduce_environment_state,
 )
 from marimo._sql.connection_utils import (

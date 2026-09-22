@@ -14,6 +14,7 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.notification import (
     AlertNotification,
     BannerNotification,
+    EnvironmentStateNotification,
     NotificationMessage,
     ReconnectedNotification,
     StartupProgressNotification,
@@ -300,6 +301,7 @@ class SessionHandler(SessionConsumer, abc.ABC):
                     description="You have reconnected to an existing session.",
                 )
             )
+            self._write_environment_state(session)
             return
 
         self._write_kernel_ready_from_session_view(session, self.params.kiosk)
@@ -345,8 +347,20 @@ class SessionHandler(SessionConsumer, abc.ABC):
         # Replay all operations
         self._replay_previous_session(session)
 
+    def _write_environment_state(self, session: Session) -> None:
+        # Attachment and snapshot delivery run in one event-loop turn, before
+        # any later live deltas. Empty states also clear a previous session.
+        for source in ("kernel", "server"):
+            self._serialize_and_notify(
+                EnvironmentStateNotification(
+                    source=source,
+                    state=session.session_view.get_environment_state(source),
+                )
+            )
+
     def _replay_previous_session(self, session: Session) -> None:
         """Replay the previous session view."""
+        self._write_environment_state(session)
         notifications = session.session_view.notifications
         if len(notifications) == 0:
             LOGGER.debug("No notifications to replay")

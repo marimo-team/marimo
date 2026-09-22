@@ -182,6 +182,7 @@ function handleMessage(
       case "banner":
       case "missing-package-alert":
       case "installing-package-alert":
+      case "environment-state":
       case "completion-result":
       case "reload":
       case "focus-cell":

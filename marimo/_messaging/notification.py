@@ -555,6 +555,31 @@ EnvironmentOperationStatus = (
 )
 
 
+class EnvironmentOperation(msgspec.Struct, frozen=True):
+    """Current progress and logs for one execution of environment work."""
+
+    operation_id: str
+    status: EnvironmentOperationStatus
+    packages: PackageStatusType
+    logs: dict[str, str]
+    source: Literal["kernel", "server"]
+
+
+class EnvironmentState(msgspec.Struct, frozen=True):
+    """Active operations, the latest result, and an outstanding restart."""
+
+    restart_required: bool
+    operations: list[EnvironmentOperation]
+
+
+class EnvironmentStateNotification(Notification, tag="environment-state"):
+    """Replace the current state for one environment on connection."""
+
+    name: ClassVar[str] = "environment-state"
+    source: Literal["kernel", "server"]
+    state: EnvironmentState
+
+
 class InstallingPackageAlertNotification(
     Notification, tag="installing-package-alert"
 ):
@@ -1075,6 +1100,7 @@ NotificationMessage = (
     | BannerNotification
     | MissingPackageAlertNotification
     | InstallingPackageAlertNotification
+    | EnvironmentStateNotification
     | StartupLogsNotification
     | StartupProgressNotification
     | KernelStartupErrorNotification

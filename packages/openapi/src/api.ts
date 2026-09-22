@@ -4872,6 +4872,51 @@ export interface components {
       theme: "dark" | "light" | "system";
     };
     /**
+     * EnvironmentOperation
+     * @description Current progress and logs for one execution of environment work.
+     */
+    EnvironmentOperation: {
+      logs: {
+        [key: string]: string;
+      };
+      operation_id: string;
+      packages: {
+        [key: string]:
+          | "failed"
+          | "installed"
+          | "installing"
+          | "queued"
+          | "restart-required";
+      };
+      /** @enum {unknown} */
+      source: "kernel" | "server";
+      status:
+        | components["schemas"]["OperationRunning"]
+        | components["schemas"]["OperationSucceeded"]
+        | components["schemas"]["OperationRestartRequired"]
+        | components["schemas"]["OperationFailed"]
+        | components["schemas"]["OperationCancelled"];
+    };
+    /**
+     * EnvironmentState
+     * @description Active operations, the latest result, and an outstanding restart.
+     */
+    EnvironmentState: {
+      operations: components["schemas"]["EnvironmentOperation"][];
+      restart_required: boolean;
+    };
+    /**
+     * EnvironmentStateNotification
+     * @description Replace the current state for one environment on connection.
+     */
+    EnvironmentStateNotification: {
+      /** @enum {unknown} */
+      op: "environment-state";
+      /** @enum {unknown} */
+      source: "kernel" | "server";
+      state: components["schemas"]["EnvironmentState"];
+    };
+    /**
      * EnvironmentVariableDiscoveryValue
      * @description A reference to an environment variable, never its value.
      */
@@ -5771,6 +5816,7 @@ export interface components {
         | components["schemas"]["BannerNotification"]
         | components["schemas"]["MissingPackageAlertNotification"]
         | components["schemas"]["InstallingPackageAlertNotification"]
+        | components["schemas"]["EnvironmentStateNotification"]
         | components["schemas"]["StartupLogsNotification"]
         | components["schemas"]["StartupProgressNotification"]
         | components["schemas"]["KernelStartupErrorNotification"]

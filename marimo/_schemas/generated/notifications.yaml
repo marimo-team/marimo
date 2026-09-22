@@ -793,6 +793,83 @@ components:
       - substrings
       title: DialectHidesWhen
       type: object
+    EnvironmentOperation:
+      description: Current progress and logs for one execution of environment work.
+      properties:
+        logs:
+          additionalProperties:
+            type: string
+          type: object
+        operation_id:
+          type: string
+        packages:
+          additionalProperties:
+            enum:
+            - failed
+            - installed
+            - installing
+            - queued
+            - restart-required
+          type: object
+        source:
+          enum:
+          - kernel
+          - server
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/OperationRunning'
+          - $ref: '#/components/schemas/OperationSucceeded'
+          - $ref: '#/components/schemas/OperationRestartRequired'
+          - $ref: '#/components/schemas/OperationFailed'
+          - $ref: '#/components/schemas/OperationCancelled'
+          discriminator:
+            mapping:
+              cancelled: '#/components/schemas/OperationCancelled'
+              failed: '#/components/schemas/OperationFailed'
+              restart-required: '#/components/schemas/OperationRestartRequired'
+              running: '#/components/schemas/OperationRunning'
+              succeeded: '#/components/schemas/OperationSucceeded'
+            propertyName: kind
+      required:
+      - operation_id
+      - status
+      - packages
+      - logs
+      - source
+      title: EnvironmentOperation
+      type: object
+    EnvironmentState:
+      description: Active operations, the latest result, and an outstanding restart.
+      properties:
+        operations:
+          items:
+            $ref: '#/components/schemas/EnvironmentOperation'
+          type: array
+        restart_required:
+          type: boolean
+      required:
+      - restart_required
+      - operations
+      title: EnvironmentState
+      type: object
+    EnvironmentStateNotification:
+      description: Replace the current state for one environment on connection.
+      properties:
+        op:
+          enum:
+          - environment-state
+        source:
+          enum:
+          - kernel
+          - server
+        state:
+          $ref: '#/components/schemas/EnvironmentState'
+      required:
+      - op
+      - source
+      - state
+      title: EnvironmentStateNotification
+      type: object
     EnvironmentVariableDiscoveryValue:
       description: A reference to an environment variable, never its value.
       properties:

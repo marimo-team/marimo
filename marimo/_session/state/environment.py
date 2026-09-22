@@ -1,34 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal
-
-import msgspec
-
 from marimo._messaging.notification import (
-    EnvironmentOperationStatus,
+    EnvironmentOperation,
+    EnvironmentState,
     InstallingPackageAlertNotification,
     OperationRestartRequired,
     OperationRunning,
-    PackageStatusType,
 )
-
-
-class EnvironmentOperation(msgspec.Struct, frozen=True):
-    """Current progress and logs for one execution of environment work."""
-
-    operation_id: str
-    status: EnvironmentOperationStatus
-    packages: PackageStatusType
-    logs: dict[str, str]
-    source: Literal["kernel", "server"]
-
-
-class EnvironmentState(msgspec.Struct, frozen=True):
-    """Active operations, the latest result, and an outstanding restart."""
-
-    restart_required: bool
-    operations: list[EnvironmentOperation]
 
 
 def reduce_environment_state(

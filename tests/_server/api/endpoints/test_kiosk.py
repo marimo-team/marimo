@@ -47,6 +47,11 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                 ),
             )
 
+            for _ in range(2):
+                assert (
+                    other_websocket.receive_json()["op"] == "environment-state"
+                )
+
             # Send document transaction to reorder cells
             response = client.post(
                 "/api/document/transaction",

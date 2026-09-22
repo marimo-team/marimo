@@ -14,7 +14,7 @@ import {
   XIcon,
 } from "lucide-react";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 import {
@@ -30,6 +30,7 @@ import {
   useAlertActions,
   useAlerts,
 } from "@/core/alerts/state";
+import type { EnvironmentOperation } from "@/core/alerts/environment";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import type { PackageInstallationStatus } from "@/core/kernel/messages";
 import { useRequestClient } from "@/core/network/requests";
@@ -37,7 +38,7 @@ import { RESTART_REQUIRED_DESCRIPTION } from "@/core/packages/toast-components";
 import { isWasm } from "@/core/wasm/utils";
 import { usePackageMetadata } from "@/hooks/usePackageMetadata";
 import { Banner } from "@/plugins/impl/common/error-banner";
-import { logNever } from "@/utils/assertNever";
+import { assertNever, logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import {
@@ -100,7 +101,7 @@ const SourceBadge: React.FC<{ source?: "kernel" | "server" }> = ({
 };
 
 export const PackageAlert: React.FC = () => {
-  const { packageAlert, packageLogs } = useAlerts();
+  const { packageAlert } = useAlerts();
   const { clearPackageAlert } = useAlertActions();
   const [userConfig] = useResolvedMarimoConfig();
   const [desiredPackageVersions, setDesiredPackageVersions] = useState<
@@ -109,6 +110,23 @@ export const PackageAlert: React.FC = () => {
   const [selectedExtras, setSelectedExtras] = useState<
     Record<string, string[]>
   >({});
+
+  const completedAlertId =
+    packageAlert?.kind === "installing" &&
+    packageAlert.status.kind === "succeeded" &&
+    !packageAlert.restartRequired
+      ? packageAlert.id
+      : null;
+  useEffect(() => {
+    if (completedAlertId === null) {
+      return;
+    }
+    const timeout = setTimeout(
+      () => clearPackageAlert(completedAlertId),
+      10_000,
+    );
+    return () => clearTimeout(timeout);
+  }, [completedAlertId, clearPackageAlert]);
 
   if (packageAlert === null) {
     return null;
@@ -226,10 +244,7 @@ export const PackageAlert: React.FC = () => {
 
   if (isInstallingPackageAlert(packageAlert)) {
     const { status, title, titleIcon, description } =
-      getInstallationStatusElements(packageAlert.packages);
-    if (status === "installed") {
-      setTimeout(() => clearPackageAlert(packageAlert.id), 10_000);
-    }
+      getInstallationStatusElements(packageAlert.status);
 
     return (
       <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-200 opacity-95 max-w-[600px] pointer-events-none">
@@ -259,10 +274,14 @@ export const PackageAlert: React.FC = () => {
             )}
           >
             <p>{description}</p>
-            {status !== "installing" &&
-              Object.values(packageAlert.packages).includes(
-                "restart-required",
-              ) && <RestartKernelButton />}
+            {status !== "installing" && packageAlert.restartRequired && (
+              <>
+                {status !== "restart-required" && (
+                  <p>{RESTART_REQUIRED_DESCRIPTION}</p>
+                )}
+                <RestartKernelButton />
+              </>
+            )}
             <ul className="list-disc ml-2 mt-1">
               {Object.entries(packageAlert.packages).map(([pkg, st], index) => (
                 <li
@@ -282,8 +301,12 @@ export const PackageAlert: React.FC = () => {
                 </li>
               ))}
             </ul>
-            {Object.keys(packageLogs).length > 0 && (
-              <StreamingLogsViewer packageLogs={packageLogs} />
+            {Object.keys(packageAlert.logs).length > 0 && (
+              <StreamingLogsViewer
+                key={packageAlert.id}
+                packageLogs={packageAlert.logs}
+                initiallyExpanded={packageAlert.status.kind === "running"}
+              />
             )}
           </div>
         </Banner>
@@ -295,47 +318,47 @@ export const PackageAlert: React.FC = () => {
   return null;
 };
 
-function getInstallationStatusElements(packages: PackageInstallationStatus) {
-  const statuses = new Set(Object.values(packages));
-  const status =
-    statuses.has("queued") || statuses.has("installing")
-      ? "installing"
-      : statuses.has("failed")
-        ? "failed"
-        : statuses.has("restart-required")
-          ? "restart-required"
-          : "installed";
-
-  if (status === "installing") {
-    return {
-      status: "installing",
-      title: "Installing packages",
-      titleIcon: <DownloadCloudIcon className="w-5 h-5 inline-block mr-2" />,
-      description: "Installing packages:",
-    };
+function getInstallationStatusElements(status: EnvironmentOperation["status"]) {
+  switch (status.kind) {
+    case "running":
+      return {
+        status: "installing",
+        title: "Installing packages",
+        titleIcon: <DownloadCloudIcon className="w-5 h-5 inline-block mr-2" />,
+        description: "Installing packages:",
+      };
+    case "restart-required":
+      return {
+        status: "restart-required",
+        title: "Changes saved — restart required",
+        titleIcon: <RotateCwIcon className="w-5 h-5 inline-block mr-2" />,
+        description: status.reason,
+      };
+    case "succeeded":
+      return {
+        status: "installed",
+        title: "All packages installed!",
+        titleIcon: <PackageCheckIcon className="w-5 h-5 inline-block mr-2" />,
+        description: "Installed packages:",
+      };
+    case "failed":
+      return {
+        status: "failed",
+        title: "Package installation failed",
+        titleIcon: <PackageXIcon className="w-5 h-5 inline-block mr-2" />,
+        description: status.error,
+      };
+    case "cancelled":
+      return {
+        status: "cancelled",
+        title: "Package installation cancelled",
+        titleIcon: <XIcon className="w-5 h-5 inline-block mr-2" />,
+        description:
+          "Installation was interrupted. Some packages may have changed.",
+      };
+    default:
+      return assertNever(status);
   }
-  if (status === "restart-required") {
-    return {
-      status,
-      title: "Changes saved — restart required",
-      titleIcon: <RotateCwIcon className="w-5 h-5 inline-block mr-2" />,
-      description: RESTART_REQUIRED_DESCRIPTION,
-    };
-  }
-  if (status === "installed") {
-    return {
-      status: "installed",
-      title: "All packages installed!",
-      titleIcon: <PackageCheckIcon className="w-5 h-5 inline-block mr-2" />,
-      description: "Installed packages:",
-    };
-  }
-  return {
-    status: "failed",
-    title: "Some packages failed to install",
-    titleIcon: <PackageXIcon className="w-5 h-5 inline-block mr-2" />,
-    description: "See error logs.",
-  };
 }
 
 const ProgressIcon = ({
@@ -659,12 +682,14 @@ const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
 
 interface StreamingLogsViewerProps {
   packageLogs: { [packageName: string]: string };
+  initiallyExpanded: boolean;
 }
 
 const StreamingLogsViewer: React.FC<StreamingLogsViewerProps> = ({
   packageLogs,
+  initiallyExpanded,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
 
   const packageCount = Object.keys(packageLogs).length;
   if (packageCount === 0) {

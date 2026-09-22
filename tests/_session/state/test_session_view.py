@@ -22,7 +22,9 @@ from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
+    EnvironmentOperation,
     EnvironmentOperationStatus,
+    EnvironmentState,
     EsmSpec,
     InstallingPackageAlertNotification,
     ModelClose,
@@ -58,10 +60,6 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
 )
 from marimo._runtime.layout.layout import LayoutConfig
-from marimo._session.state.environment import (
-    EnvironmentOperation,
-    EnvironmentState,
-)
 from marimo._session.state.session_view import ModelReplayState, SessionView
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, RequestId, VariableName, WidgetModelId

@@ -43,6 +43,7 @@ with app.setup:
         o.AlertNotification,
         o.MissingPackageAlertNotification,
         o.InstallingPackageAlertNotification,
+        o.EnvironmentStateNotification,
         o.ReconnectedNotification,
         o.StartupLogsNotification,
         o.BannerNotification,

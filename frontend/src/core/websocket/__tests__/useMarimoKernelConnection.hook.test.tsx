@@ -42,6 +42,7 @@ vi.mock("@/core/runtime/config", async () => {
 
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
+import { alertAtom, getPackageAlert } from "@/core/alerts/state";
 import { notebookAtom } from "@/core/cells/cells";
 import { AppConfigSchema } from "@/core/config/config-schema";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
@@ -397,4 +398,116 @@ describe("connection notice", () => {
       expect(screen.getByText("Elapsed 0s")).toBeInTheDocument();
     },
   );
+});
+
+it("replaces environment state on reconnect, then continues live progress", () => {
+  const store = createStore();
+  vi.mocked(useConnectionTransport).mockClear();
+  vi.mocked(useConnectionTransport).mockReturnValue(
+    makeTransport(WebSocket.OPEN),
+  );
+  vi.mocked(useRuntimeManager).mockReturnValue(
+    makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
+  );
+  renderConnectionHook(store);
+  const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)?.[0];
+  function receive(data: NotificationPayload["data"]) {
+    act(() =>
+      options?.onMessage(
+        new MessageEvent("message", {
+          data: JSON.stringify({ op: data.op, data }),
+        }),
+      ),
+    );
+  }
+  receive({
+    op: "installing-package-alert",
+    source: "kernel",
+    operation_id: "old",
+    status: { kind: "running" },
+    packages: { pandas: "installing" },
+    logs: { pandas: "stale" },
+    log_status: "append",
+  });
+  const operation = {
+    operation_id: "new",
+    source: "kernel",
+    status: { kind: "running" },
+    packages: { numpy: "installing" },
+    logs: { numpy: "Downloading\n" },
+  } as const;
+  const serverOperation = {
+    ...operation,
+    operation_id: "server",
+    source: "server",
+    status: { kind: "succeeded" },
+    packages: { numpy: "installed" },
+    logs: { numpy: "Server logs\n" },
+  } as const;
+  receive({
+    op: "environment-state",
+    source: "server",
+    state: {
+      restart_required: false,
+      operations: [serverOperation],
+    },
+  });
+  const snapshot = {
+    op: "environment-state",
+    source: "kernel",
+    state: { restart_required: false, operations: [operation] },
+  } as const;
+  // Receiving a snapshot twice must not duplicate logs.
+  receive({
+    ...snapshot,
+    state: { ...snapshot.state, operations: [operation] },
+  });
+  receive({
+    ...snapshot,
+    state: { ...snapshot.state, operations: [operation] },
+  });
+  receive({
+    op: "installing-package-alert",
+    operation_id: "new",
+    source: "kernel",
+    status: { kind: "failed", error: "Network unavailable" },
+    packages: { numpy: "installing" },
+    logs: { numpy: "Failed\n" },
+    log_status: "done",
+  });
+  expect(getPackageAlert(store.get(alertAtom))).toEqual({
+    ...operation,
+    id: "new",
+    kind: "installing",
+    restartRequired: false,
+    status: { kind: "failed", error: "Network unavailable" },
+    logs: { numpy: "Downloading\nFailed\n" },
+  });
+  receive({
+    op: "environment-state",
+    source: "kernel",
+    state: {
+      restart_required: false,
+      operations: [],
+    },
+  });
+  expect(getPackageAlert(store.get(alertAtom))).toEqual({
+    ...serverOperation,
+    id: "server",
+    kind: "installing",
+    restartRequired: false,
+  });
+  receive({
+    op: "environment-state",
+    source: "server",
+    state: {
+      restart_required: false,
+      operations: [],
+    },
+  });
+  expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+  expect(store.get(alertAtom).environments).toEqual({
+    kernel: { restart_required: false, operations: [] },
+    server: { restart_required: false, operations: [] },
+  });
 });

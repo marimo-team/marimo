@@ -395,6 +395,8 @@ async def test_connects_to_existing_session_with_same_file(
         with client.websocket_connect(ws_1) as websocket1:
             data = websocket1.receive_json()
             assert_parse_ready_response(data)
+            for _ in range(2):
+                assert websocket1.receive_json()["op"] == "environment-state"
 
             # Instantiate the session
             client.post(
@@ -418,6 +420,11 @@ async def test_connects_to_existing_session_with_same_file(
                 # which the room membership is observable.
                 data2 = websocket2.receive_json()
                 assert_parse_ready_response(data2)
+                for _ in range(2):
+                    assert (
+                        websocket2.receive_json()["op"] == "environment-state"
+                    )
+
                 assert data2["data"]["resumed"] is True
 
                 # Check in the same room

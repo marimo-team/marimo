@@ -1,16 +1,29 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import os
 import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
+import pytest
+
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.notification import (
     CellNotification,
+    EnvironmentOperation,
+    EnvironmentOperationStatus,
+    EnvironmentState,
+    EnvironmentStateNotification,
+    InstallingPackageAlertNotification,
     KernelReadyNotification,
+    OperationFailed,
+    OperationRunning,
+    OperationSucceeded,
 )
+from marimo._messaging.serde import serialize_kernel_message
+from marimo._server.api.endpoints.ws.ws_formatter import format_wire_message
 from marimo._server.workspace import DirectoryWorkspace
 from marimo._session import Session
 from marimo._types.ids import SessionId
@@ -303,6 +316,8 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
     with client.websocket_connect(_create_ws_url("123")) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({}))
+        for _ in range(2):
+            assert websocket.receive_json()["op"] == "environment-state"
 
         session = get_session(client, SessionId("123"))
         assert session
@@ -361,3 +376,94 @@ def without_autorun_on_save(config: UserConfigManager):
         yield
     finally:
         config.save_config(prev_config)
+
+
+@pytest.mark.parametrize("connection_id", ["123", "456"])
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        OperationRunning(),
+        OperationSucceeded(),
+        OperationFailed(error="Offline"),
+    ],
+)
+def test_environment_restored_after_disconnect(
+    client: TestClient,
+    connection_id: str,
+    outcome: EnvironmentOperationStatus,
+) -> None:
+    with client.websocket_connect(_create_ws_url("123")) as websocket:
+        assert_kernel_ready_response(websocket.receive_json())
+        for source in ("kernel", "server"):
+            assert websocket.receive_json() == {
+                "op": "environment-state",
+                "data": {
+                    "op": "environment-state",
+                    "source": source,
+                    "state": {"restart_required": False, "operations": []},
+                },
+            }
+        session = get_session(client, SessionId("123"))
+        assert session is not None
+        progress = InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"numpy": "installing"},
+            logs={"numpy": "Downloading\n"},
+            log_status="start",
+        )
+        websocket.portal.call(
+            lambda: session.notify(progress, from_consumer_id=None)
+        )
+
+    # Work can finish while no consumer is attached.
+    session.notify(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=outcome,
+            packages={
+                "numpy": "installed"
+                if isinstance(outcome, OperationSucceeded)
+                else "installing"
+            },
+            logs={"numpy": "Latest\n"},
+            log_status="append",
+        ),
+        from_consumer_id=None,
+    )
+    expected = EnvironmentStateNotification(
+        source="kernel",
+        state=EnvironmentState(
+            restart_required=False,
+            operations=[
+                EnvironmentOperation(
+                    operation_id="install",
+                    source="kernel",
+                    status=outcome,
+                    packages={
+                        "numpy": "installed"
+                        if isinstance(outcome, OperationSucceeded)
+                        else "installing"
+                    },
+                    logs={"numpy": "Downloading\nLatest\n"},
+                )
+            ],
+        ),
+    )
+    with client.websocket_connect(_create_ws_url(connection_id)) as websocket:
+        assert websocket.receive_json()["op"] == "reconnected"
+        if connection_id != "123":
+            assert websocket.receive_json()["op"] == "kernel-ready"
+            assert websocket.receive_json()["op"] == "banner"
+        else:
+            assert websocket.receive_json()["op"] == "alert"
+        assert websocket.receive_json() == json.loads(
+            format_wire_message(
+                expected.name, serialize_kernel_message(expected)
+            )
+        )
+        assert websocket.receive_json()["data"] == {
+            "op": "environment-state",
+            "source": "server",
+            "state": {"restart_required": False, "operations": []},
+        }

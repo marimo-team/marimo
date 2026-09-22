@@ -5,32 +5,38 @@ import asyncio
 import queue
 import threading
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import get_default_config_manager
 from marimo._messaging.notification import (
+    EnvironmentOperation,
+    EnvironmentState,
+    EnvironmentStateNotification,
     InstallingPackageAlertNotification,
     OperationRunning,
 )
-from marimo._messaging.serde import serialize_kernel_message
+from marimo._messaging.serde import (
+    deserialize_kernel_message,
+    serialize_kernel_message,
+)
 from marimo._messaging.types import KernelMessage
+from marimo._server.api.endpoints.ws.ws_connection_validator import (
+    ConnectionParams,
+)
+from marimo._server.api.endpoints.ws_endpoint import WebSocketHandler
 from marimo._session.consumer import SessionConsumer
 from marimo._session.extensions.extensions import (
     NotificationListenerExtension,
     SessionViewExtension,
 )
 from marimo._session.managers import KernelManagerImpl
-from marimo._session.model import ConnectionState
+from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
 from marimo._session.session import SessionImpl
-from marimo._session.state.environment import (
-    EnvironmentOperation,
-    EnvironmentState,
-)
-from marimo._types.ids import ConsumerId
+from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.distributor import QueueDistributor
 
 if TYPE_CHECKING:
@@ -143,3 +149,54 @@ async def test_queued_kernel_messages_update_and_deliver_on_session_loop(
         (loop_thread, _state("Downloading\n")),
         (loop_thread, _state("Downloading\nInstalling\n")),
     ]
+
+
+async def test_reconnect_snapshot_precedes_a_queued_live_update(
+    session_and_consumer: tuple[SessionImpl, Mock],
+) -> None:
+    session, consumer = session_and_consumer
+    session.disconnect_consumer(consumer)
+    session.notify(_progress("Before\n"), from_consumer_id=None)
+    handler = WebSocketHandler(
+        websocket=MagicMock(),
+        manager=MagicMock(),
+        params=ConnectionParams(
+            session_id=SessionId("reconnected"),
+            file_key="notebook.py",
+            kiosk=False,
+            auto_instantiate=False,
+            rtc_enabled=False,
+        ),
+        mode=SessionMode.EDIT,
+    )
+    asyncio.get_running_loop().call_soon(
+        lambda: session.notify(_progress("After\n"), from_consumer_id=None)
+    )
+    handler._reconnect_session(session, replay=False)
+    await asyncio.sleep(0)
+
+    messages = []
+    while not handler.message_queue.empty():
+        messages.append(
+            deserialize_kernel_message(handler.message_queue.get_nowait())
+        )
+    assert [message.name for message in messages] == [
+        "reconnected",
+        "alert",
+        "environment-state",
+        "environment-state",
+        "installing-package-alert",
+    ]
+    assert messages[2:] == [
+        EnvironmentStateNotification(
+            source="kernel", state=_state("Before\n")
+        ),
+        EnvironmentStateNotification(
+            source="server",
+            state=EnvironmentState(restart_required=False, operations=[]),
+        ),
+        _progress("After\n"),
+    ]
+    assert session.session_view.get_environment_state("kernel") == _state(
+        "Before\nAfter\n"
+    )
