@@ -14,6 +14,8 @@ from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.notification import (
     InstallingPackageAlertNotification,
     MissingPackageAlertNotification,
+    OperationRunning,
+    OperationSucceeded,
 )
 from marimo._runtime.commands import (
     CommandMessage,
@@ -578,6 +580,21 @@ async def test_install_missing_packages_with_streaming_logs(
         mock_package_manager.install.assert_called_once()
         call_args = mock_package_manager.install.call_args
         assert call_args.kwargs.get("log_callback") is not None
+
+        operation_id = broadcast_messages[0].operation_id
+        assert operation_id is not None
+        assert {msg.operation_id for msg in broadcast_messages} == {
+            operation_id
+        }
+        assert all(
+            isinstance(msg.status, OperationRunning)
+            for msg in broadcast_messages[:-1]
+        )
+        assert broadcast_messages[-1] == InstallingPackageAlertNotification(
+            packages={"numpy": "installed"},
+            operation_id=operation_id,
+            status=OperationSucceeded(),
+        )
 
 
 async def test_install_missing_packages_streaming_logs_failure(

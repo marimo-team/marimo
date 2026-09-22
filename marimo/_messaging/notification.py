@@ -509,6 +509,52 @@ PackageStatusType = dict[
 ]
 
 
+class _EnvironmentOperationStatus(
+    msgspec.Struct,
+    tag_field="kind",
+    frozen=True,
+    forbid_unknown_fields=True,
+):
+    pass
+
+
+class OperationRunning(
+    _EnvironmentOperationStatus, tag="running", frozen=True
+):
+    pass
+
+
+class OperationSucceeded(
+    _EnvironmentOperationStatus, tag="succeeded", frozen=True
+):
+    pass
+
+
+class OperationRestartRequired(
+    _EnvironmentOperationStatus, tag="restart-required", frozen=True
+):
+    reason: str
+
+
+class OperationFailed(_EnvironmentOperationStatus, tag="failed", frozen=True):
+    error: str
+
+
+class OperationCancelled(
+    _EnvironmentOperationStatus, tag="cancelled", frozen=True
+):
+    pass
+
+
+EnvironmentOperationStatus = (
+    OperationRunning
+    | OperationSucceeded
+    | OperationRestartRequired
+    | OperationFailed
+    | OperationCancelled
+)
+
+
 class InstallingPackageAlertNotification(
     Notification, tag="installing-package-alert"
 ):
@@ -521,10 +567,14 @@ class InstallingPackageAlertNotification(
         source: Which Python environment packages are installed into.
                 "kernel" (default) installs in the kernel's venv; "server"
                 installs in the server's own Python env.
+        operation_id: Identifies one installation attempt within the session.
+        status: Overall attempt status, independent of per-package log status.
     """
 
     name: ClassVar[str] = "installing-package-alert"
     packages: PackageStatusType
+    operation_id: str
+    status: EnvironmentOperationStatus
     logs: dict[str, str] | None = None  # package name -> log content
     log_status: Literal["append", "start", "done"] | None = None
     source: Literal["kernel", "server"] = "kernel"

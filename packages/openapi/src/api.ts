@@ -5495,13 +5495,15 @@ export interface components {
      * InstallingPackageAlertNotification
      * @description Package installation progress with streaming logs.
      *
-     *         Attributes:
-     *             packages: Package name to status (queued/installing/installed/failed).
-     *             logs: Optional streaming logs per package.
-     *             log_status: Log stream status (append/start/done).
-     *             source: Which Python environment packages are installed into.
-     *                     "kernel" (default) installs in the kernel's venv; "server"
-     *                     installs in the server's own Python env.
+     *     Attributes:
+     *         packages: Package name to status (queued/installing/installed/failed).
+     *         logs: Optional streaming logs per package.
+     *         log_status: Log stream status (append/start/done).
+     *         source: Which Python environment packages are installed into.
+     *                 "kernel" (default) installs in the kernel's venv; "server"
+     *                 installs in the server's own Python env.
+     *         operation_id: Identifies one installation attempt within the session.
+     *         status: Overall attempt status, independent of per-package log status.
      */
     InstallingPackageAlertNotification: {
       /** @default null */
@@ -5512,6 +5514,7 @@ export interface components {
       } | null;
       /** @enum {unknown} */
       op: "installing-package-alert";
+      operation_id: string;
       packages: {
         [key: string]:
           | "failed"
@@ -5525,6 +5528,12 @@ export interface components {
        * @enum {unknown}
        */
       source?: "kernel" | "server";
+      status:
+        | components["schemas"]["OperationRunning"]
+        | components["schemas"]["OperationSucceeded"]
+        | components["schemas"]["OperationRestartRequired"]
+        | components["schemas"]["OperationFailed"]
+        | components["schemas"]["OperationCancelled"];
     };
     /** InstantiateNotebookRequest */
     InstantiateNotebookRequest: {
@@ -6426,6 +6435,33 @@ export interface components {
             | "ui"
           )
         | "markdown-format";
+    };
+    /** OperationCancelled */
+    OperationCancelled: {
+      /** @enum {unknown} */
+      kind: "cancelled";
+    };
+    /** OperationFailed */
+    OperationFailed: {
+      error: string;
+      /** @enum {unknown} */
+      kind: "failed";
+    };
+    /** OperationRestartRequired */
+    OperationRestartRequired: {
+      /** @enum {unknown} */
+      kind: "restart-required";
+      reason: string;
+    };
+    /** OperationRunning */
+    OperationRunning: {
+      /** @enum {unknown} */
+      kind: "running";
+    };
+    /** OperationSucceeded */
+    OperationSucceeded: {
+      /** @enum {unknown} */
+      kind: "succeeded";
     };
     /** PackageDescription */
     PackageDescription: {

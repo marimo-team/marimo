@@ -10,14 +10,17 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING, Literal, Union
 
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.notification import (
     InstallingPackageAlertNotification,
+    OperationRunning,
     PackageStatusType,
 )
 from marimo._messaging.notification_utils import broadcast_notification
+from marimo._runtime.packages.installation import package_installation
 from marimo._runtime.packages.package_manager import (
     PackageDescription,
     PackageManager,
@@ -193,34 +196,42 @@ class Packages:
             if isinstance(op, _AddPackage):
                 statuses[op.package] = "queued"
 
-        if statuses:
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=statuses, source=source
-                ),
-                stream=self._ctx._kernel.stream,
+        with package_installation(
+            statuses,
+            source,
+            partial(broadcast_notification, stream=self._ctx._kernel.stream),
+        ) as operation_id:
+            if statuses:
+                broadcast_notification(
+                    InstallingPackageAlertNotification(
+                        operation_id=operation_id,
+                        status=OperationRunning(),
+                        packages=dict(statuses),
+                        source=source,
+                    ),
+                    stream=self._ctx._kernel.stream,
+                )
+
+            filename = self._ctx._kernel.app_metadata.filename
+            manage_metadata = (
+                GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA is True
+                and filename is not None
             )
 
-        filename = self._ctx._kernel.app_metadata.filename
-        manage_metadata = (
-            GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA is True
-            and filename is not None
-        )
-
-        results: PackageResultList = []
-        for op in ops:
-            if isinstance(op, _AddPackage):
-                success = await self._run_add(
-                    op, pm, statuses, source, manage_metadata
-                )
-            else:
-                success = await self._run_remove(op, pm, manage_metadata)
-            if success:
-                results.append(PackageResult.succeeded(op))
-            elif pm.restart_required:
-                results.append(PackageResult.restart_required(op))
-            else:
-                results.append(PackageResult.failed(op))
+            results: PackageResultList = []
+            for op in ops:
+                if isinstance(op, _AddPackage):
+                    success = await self._run_add(
+                        op, pm, statuses, source, operation_id, manage_metadata
+                    )
+                else:
+                    success = await self._run_remove(op, pm, manage_metadata)
+                if success:
+                    results.append(PackageResult.succeeded(op))
+                elif pm.restart_required:
+                    results.append(PackageResult.restart_required(op))
+                else:
+                    results.append(PackageResult.failed(op))
 
         return results
 
@@ -230,19 +241,25 @@ class Packages:
         pm: PackageManager,
         statuses: PackageStatusType,
         source: Literal["kernel", "server"],
+        operation_id: str,
         manage_metadata: bool,
     ) -> bool:
         pkg = op.package
         statuses[pkg] = "installing"
         broadcast_notification(
             InstallingPackageAlertNotification(
-                packages=statuses, source=source
+                operation_id=operation_id,
+                status=OperationRunning(),
+                packages=dict(statuses),
+                source=source,
             ),
             stream=self._ctx._kernel.stream,
         )
         broadcast_notification(
             InstallingPackageAlertNotification(
-                packages=statuses,
+                operation_id=operation_id,
+                status=OperationRunning(),
+                packages=dict(statuses),
                 logs={pkg: f"Installing {pkg}...\n"},
                 log_status="start",
                 source=source,
@@ -253,7 +270,9 @@ class Packages:
         def log_callback(log_line: str) -> None:
             broadcast_notification(
                 InstallingPackageAlertNotification(
-                    packages=statuses,
+                    operation_id=operation_id,
+                    status=OperationRunning(),
+                    packages=dict(statuses),
                     logs={pkg: log_line},
                     log_status="append",
                     source=source,
@@ -284,7 +303,9 @@ class Packages:
 
         broadcast_notification(
             InstallingPackageAlertNotification(
-                packages=statuses,
+                operation_id=operation_id,
+                status=OperationRunning(),
+                packages=dict(statuses),
                 logs={pkg: final_log},
                 log_status="done",
                 source=source,

@@ -1,10 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import patch
 
 import msgspec
+import pytest
 
 from marimo._ast.cell import RuntimeStateType
 from marimo._data.models import (
@@ -21,6 +22,7 @@ from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
+    EnvironmentOperationStatus,
     EsmSpec,
     InstallingPackageAlertNotification,
     ModelClose,
@@ -28,6 +30,11 @@ from marimo._messaging.notification import (
     ModelLifecycleNotification,
     ModelOpen,
     ModelUpdate,
+    OperationFailed,
+    OperationRestartRequired,
+    OperationRunning,
+    OperationSucceeded,
+    PackageStatusType,
     SQLDatabaseMetadata,
     SQLMetadata,
     SQLSchemaListPreviewNotification,
@@ -51,6 +58,10 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
 )
 from marimo._runtime.layout.layout import LayoutConfig
+from marimo._session.state.environment import (
+    EnvironmentOperation,
+    EnvironmentState,
+)
 from marimo._session.state.session_view import ModelReplayState, SessionView
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, RequestId, VariableName, WidgetModelId
@@ -1853,217 +1864,453 @@ def test_session_view_startup_logs_standalone_done(
     assert session_view.startup_logs.status == "done"
 
 
-def test_session_view_package_logs_initialization(
+def test_package_operations_retain_progress_and_result(
     session_view: SessionView,
 ) -> None:
-    """Test that SessionView initializes package_logs correctly."""
-    assert hasattr(session_view, "package_logs")
-    assert isinstance(session_view.package_logs, dict)
-    assert len(session_view.package_logs) == 0
+    assert session_view.get_environment_state("kernel").operations == []
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"numpy": "queued"},
+        )
+    )
+    queued = session_view.get_environment_state("kernel").operations
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"numpy": "installing"},
+            logs={"numpy": "Installing numpy\n"},
+            log_status="start",
+        )
+    )
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"numpy": "installing"},
+            logs={"numpy": "Downloading\n"},
+            log_status="append",
+        )
+    )
+    installing = session_view.get_environment_state("kernel").operations
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"numpy": "installed"},
+            logs={"numpy": "Installed\n"},
+            log_status="done",
+        )
+    )
+
+    assert [
+        queued,
+        installing,
+        session_view.get_environment_state("kernel").operations,
+    ] == [
+        [
+            EnvironmentOperation(
+                operation_id="install",
+                status=OperationRunning(),
+                logs={},
+                source="kernel",
+                packages={"numpy": "queued"},
+            )
+        ],
+        [
+            EnvironmentOperation(
+                operation_id="install",
+                status=OperationRunning(),
+                source="kernel",
+                packages={"numpy": "installing"},
+                logs={"numpy": "Installing numpy\nDownloading\n"},
+            )
+        ],
+        [
+            EnvironmentOperation(
+                operation_id="install",
+                status=OperationRunning(),
+                source="kernel",
+                packages={"numpy": "installed"},
+                logs={"numpy": "Installing numpy\nDownloading\nInstalled\n"},
+            )
+        ],
+    ]
 
 
-def test_session_view_package_logs_start(session_view: SessionView) -> None:
-    """Test SessionView handles package logs start status."""
+def test_package_operations_separate_environments(
+    session_view: SessionView,
+) -> None:
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"ruff": "installing"},
+            logs={"ruff": "Kernel install\n"},
+            log_status="start",
+            source="kernel",
+        )
+    )
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"ruff": "installing"},
+            logs={"ruff": "Server install\n"},
+            log_status="start",
+            source="server",
+        )
+    )
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"ruff": "failed"},
+            logs={"ruff": "Server failure\n"},
+            log_status="done",
+            source="server",
+        )
+    )
 
-    alert = InstallingPackageAlertNotification(
+    assert (
+        session_view.get_environment_state("kernel").operations
+        + session_view.get_environment_state("server").operations
+    ) == [
+        EnvironmentOperation(
+            operation_id="install",
+            status=OperationRunning(),
+            source="kernel",
+            packages={"ruff": "installing"},
+            logs={"ruff": "Kernel install\n"},
+        ),
+        EnvironmentOperation(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"ruff": "failed"},
+            logs={"ruff": "Server install\nServer failure\n"},
+            source="server",
+        ),
+    ]
+
+
+def test_package_log_start_resets_only_that_package(
+    session_view: SessionView,
+) -> None:
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"numpy": "installed", "pandas": "failed"},
+            logs={"numpy": "Installed\n", "pandas": "Failed\n"},
+            log_status="done",
+        )
+    )
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"numpy": "installed", "pandas": "installing"},
+            logs={"pandas": ""},
+            log_status="start",
+        )
+    )
+    assert session_view.get_environment_state("kernel").operations == [
+        EnvironmentOperation(
+            operation_id="install",
+            status=OperationRunning(),
+            source="kernel",
+            packages={"numpy": "installed", "pandas": "installing"},
+            logs={"numpy": "Installed\n", "pandas": ""},
+        )
+    ]
+
+
+@pytest.mark.parametrize("packages", [{"pandas": "queued"}, {}])
+def test_package_operations_replace_statuses_and_drop_obsolete_logs(
+    session_view: SessionView, packages: PackageStatusType
+) -> None:
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"numpy": "failed"},
+            logs={"numpy": "Failed\n"},
+            log_status="done",
+        )
+    )
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages=packages,
+        )
+    )
+    assert session_view.get_environment_state("kernel").operations == [
+        EnvironmentOperation(
+            operation_id="install",
+            status=OperationRunning(),
+            logs={},
+            source="kernel",
+            packages=packages,
+        )
+    ]
+
+
+def test_package_installation_snapshot_does_not_share_mutable_state(
+    session_view: SessionView,
+) -> None:
+    notification = InstallingPackageAlertNotification(
+        operation_id="install",
+        status=OperationRunning(),
         packages={"numpy": "installing"},
-        logs={"numpy": "Installing numpy...\n"},
+        logs={"numpy": "Installing\n"},
         log_status="start",
     )
+    session_view.add_notification(notification)
+    state = session_view.get_environment_state("kernel").operations
 
-    session_view.add_notification(alert)
+    notification.packages["numpy"] = "failed"
+    state[0].packages.clear()
+    state[0].logs.clear()
+    state.clear()
 
-    assert "numpy" in session_view.package_logs
-    assert session_view.package_logs["numpy"] == "Installing numpy...\n"
-
-
-def test_session_view_package_logs_append(session_view: SessionView) -> None:
-    """Test SessionView handles package logs append status."""
-
-    # Start with initial log
-    start_alert = InstallingPackageAlertNotification(
-        packages={"pandas": "installing"},
-        logs={"pandas": "Starting installation...\n"},
-        log_status="start",
-    )
-    session_view.add_notification(start_alert)
-
-    # Append more logs
-    append_alert = InstallingPackageAlertNotification(
-        packages={"pandas": "installing"},
-        logs={"pandas": "Downloading dependencies...\n"},
-        log_status="append",
-    )
-    session_view.add_notification(append_alert)
-
-    expected_content = (
-        "Starting installation...\nDownloading dependencies...\n"
-    )
-    assert session_view.package_logs["pandas"] == expected_content
+    assert session_view.get_environment_state("kernel").operations == [
+        EnvironmentOperation(
+            operation_id="install",
+            status=OperationRunning(),
+            source="kernel",
+            packages={"numpy": "installing"},
+            logs={"numpy": "Installing\n"},
+        )
+    ]
 
 
-def test_session_view_package_logs_done(session_view: SessionView) -> None:
-    """Test SessionView handles package logs done status."""
-
-    # Start installation
-    start_alert = InstallingPackageAlertNotification(
-        packages={"scipy": "installing"},
-        logs={"scipy": "Installing scipy...\n"},
-        log_status="start",
-    )
-    session_view.add_notification(start_alert)
-
-    # Add progress log
-    append_alert = InstallingPackageAlertNotification(
-        packages={"scipy": "installing"},
-        logs={"scipy": "Building wheels...\n"},
-        log_status="append",
-    )
-    session_view.add_notification(append_alert)
-
-    # Finish installation
-    done_alert = InstallingPackageAlertNotification(
-        packages={"scipy": "installed"},
-        logs={"scipy": "Successfully installed scipy!\n"},
-        log_status="done",
-    )
-    session_view.add_notification(done_alert)
-
-    expected_content = (
-        "Installing scipy...\n"
-        "Building wheels...\n"
-        "Successfully installed scipy!\n"
-    )
-    assert session_view.package_logs["scipy"] == expected_content
-
-
-def test_session_view_package_logs_multiple_packages(
+def test_package_operations_retain_status_without_log_update(
     session_view: SessionView,
 ) -> None:
-    """Test SessionView handles logs for multiple packages simultaneously."""
-
-    # Start installing multiple packages
-    multi_alert = InstallingPackageAlertNotification(
-        packages={"numpy": "installing", "pandas": "installing"},
-        logs={
-            "numpy": "Starting numpy install...\n",
-            "pandas": "Starting pandas install...\n",
-        },
-        log_status="start",
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"numpy": "installing"},
+            logs={"numpy": "Installing\n"},
+            log_status="append",
+        )
     )
-    session_view.add_notification(multi_alert)
-
-    # Add logs for numpy only
-    numpy_alert = InstallingPackageAlertNotification(
-        packages={"numpy": "installing", "pandas": "installing"},
-        logs={"numpy": "Numpy progress...\n"},
-        log_status="append",
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="install",
+            status=OperationRunning(),
+            packages={"numpy": "restart-required"},
+            logs={"numpy": "Ignored without log_status"},
+        )
     )
-    session_view.add_notification(numpy_alert)
-
-    # Add logs for pandas only
-    pandas_alert = InstallingPackageAlertNotification(
-        packages={"numpy": "installing", "pandas": "installing"},
-        logs={"pandas": "Pandas progress...\n"},
-        log_status="append",
-    )
-    session_view.add_notification(pandas_alert)
-
-    assert len(session_view.package_logs) == 2
-    assert "numpy" in session_view.package_logs
-    assert "pandas" in session_view.package_logs
-
-    assert session_view.package_logs["numpy"] == (
-        "Starting numpy install...\nNumpy progress...\n"
-    )
-    assert session_view.package_logs["pandas"] == (
-        "Starting pandas install...\nPandas progress...\n"
-    )
+    assert session_view.get_environment_state("kernel").operations == [
+        EnvironmentOperation(
+            operation_id="install",
+            status=OperationRunning(),
+            source="kernel",
+            packages={"numpy": "restart-required"},
+            logs={"numpy": "Installing\n"},
+        )
+    ]
 
 
-def test_session_view_package_logs_without_logs(
+def test_package_operations_keep_overlapping_attempts_separate(
     session_view: SessionView,
 ) -> None:
-    """Test SessionView handles InstallingPackageAlert without logs (backward compatibility)."""
-
-    # Old-style alert without logs
-    alert = InstallingPackageAlertNotification(
-        packages={"requests": "installing"}
+    for operation_id in ("first", "second"):
+        session_view.add_notification(
+            InstallingPackageAlertNotification(
+                packages={"numpy": "installing"},
+                operation_id=operation_id,
+                status=OperationRunning(),
+                logs={"numpy": operation_id},
+                log_status="start",
+            )
+        )
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            packages={"numpy": "installed"},
+            operation_id="first",
+            status=OperationRunning(),
+            logs={"numpy": " done"},
+            log_status="done",
+        )
     )
-    session_view.add_notification(alert)
 
-    # Should not add any package logs
-    assert len(session_view.package_logs) == 0
+    assert session_view.get_environment_state("kernel").operations == [
+        EnvironmentOperation(
+            source="kernel",
+            packages={"numpy": "installed"},
+            logs={"numpy": "first done"},
+            operation_id="first",
+            status=OperationRunning(),
+        ),
+        EnvironmentOperation(
+            source="kernel",
+            packages={"numpy": "installing"},
+            logs={"numpy": "second"},
+            operation_id="second",
+            status=OperationRunning(),
+        ),
+    ]
 
 
-def test_session_view_package_logs_partial_logs(
+def test_package_operations_retain_active_and_latest_completed_attempts(
     session_view: SessionView,
 ) -> None:
-    """Test SessionView handles alerts with logs but no log_status."""
+    for operation_id in ("first", "second", "active"):
+        session_view.add_notification(
+            InstallingPackageAlertNotification(
+                packages={"numpy": "installing"},
+                operation_id=operation_id,
+                status=OperationRunning(),
+            )
+        )
+    for operation_id in ("first", "second"):
+        session_view.add_notification(
+            InstallingPackageAlertNotification(
+                packages={"numpy": "failed"},
+                operation_id=operation_id,
+                status=OperationFailed(error=operation_id),
+            )
+        )
 
-    # Alert with logs but no log_status
-    alert = InstallingPackageAlertNotification(
-        packages={"matplotlib": "installing"},
-        logs={"matplotlib": "Some log content...\n"},
-        # log_status is None
-    )
-    session_view.add_notification(alert)
+    assert session_view.get_environment_state("kernel").operations == [
+        EnvironmentOperation(
+            logs={},
+            source="kernel",
+            packages={"numpy": "failed"},
+            operation_id="second",
+            status=OperationFailed(error="second"),
+        ),
+        EnvironmentOperation(
+            logs={},
+            source="kernel",
+            packages={"numpy": "installing"},
+            operation_id="active",
+            status=OperationRunning(),
+        ),
+    ]
 
-    # Should not add any package logs since log_status is missing
-    assert len(session_view.package_logs) == 0
 
-
-def test_session_view_package_logs_start_without_existing(
+def test_package_installation_retry_replaces_completed_result_and_logs(
     session_view: SessionView,
 ) -> None:
-    """Test package logs start status on package that doesn't exist yet."""
-
-    alert = InstallingPackageAlertNotification(
-        packages={"new_package": "installing"},
-        logs={"new_package": "Starting fresh install...\n"},
-        log_status="start",
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            packages={"numpy": "failed"},
+            operation_id="first",
+            status=OperationFailed(error="Installation failed"),
+            logs={"numpy": "Failed\n"},
+            log_status="done",
+        )
     )
-    session_view.add_notification(alert)
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            packages={"numpy": "queued"},
+            operation_id="retry",
+            status=OperationRunning(),
+        )
+    )
 
+    assert session_view.get_environment_state("kernel").operations == [
+        EnvironmentOperation(
+            logs={},
+            source="kernel",
+            packages={"numpy": "queued"},
+            operation_id="retry",
+            status=OperationRunning(),
+        )
+    ]
+
+
+@pytest.mark.parametrize("source", ["kernel", "server"])
+@pytest.mark.parametrize(
+    "result",
+    [OperationSucceeded(), OperationFailed(error="A later operation failed")],
+)
+def test_restart_requirement_survives_replacing_operation_results(
+    session_view: SessionView,
+    source: Literal["kernel", "server"],
+    result: EnvironmentOperationStatus,
+) -> None:
+    initial = session_view.get_environment_state(source)
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="first",
+            source=source,
+            status=OperationRunning(),
+            packages={"numpy": "restart-required", "pandas": "installing"},
+        )
+    )
+    assert session_view.get_environment_state(source).restart_required
+
+    # A batch can fail after an earlier package saved changes needing restart.
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="first",
+            source=source,
+            status=OperationFailed(error="Could not install pandas"),
+            packages={"numpy": "restart-required", "pandas": "failed"},
+        )
+    )
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="second",
+            source=source,
+            status=OperationRunning(),
+            packages={"polars": "installing"},
+        )
+    )
+    packages: PackageStatusType = {
+        "polars": "installed"
+        if isinstance(result, OperationSucceeded)
+        else "failed"
+    }
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="second",
+            source=source,
+            status=result,
+            packages=packages,
+        )
+    )
+
+    assert session_view.get_environment_state(source) == EnvironmentState(
+        restart_required=True,
+        operations=[
+            EnvironmentOperation(
+                operation_id="second",
+                source=source,
+                status=result,
+                packages=packages,
+                logs={},
+            )
+        ],
+    )
+    other = "server" if source == "kernel" else "kernel"
     assert (
-        session_view.package_logs["new_package"]
-        == "Starting fresh install...\n"
-    )
+        initial,
+        session_view.get_environment_state(other),
+        SessionView().get_environment_state(source),
+    ) == (EnvironmentState(restart_required=False, operations=[]),) * 3
 
 
-def test_session_view_package_logs_append_without_existing(
+def test_restart_outcome_retains_requirement_without_package_progress(
     session_view: SessionView,
 ) -> None:
-    """Test package logs append status on package that doesn't exist yet."""
-
-    # Append to non-existing package should start with empty string
-    alert = InstallingPackageAlertNotification(
-        packages={"orphan_package": "installing"},
-        logs={"orphan_package": "Appending to nothing...\n"},
-        log_status="append",
+    session_view.add_notification(
+        InstallingPackageAlertNotification(
+            operation_id="first",
+            status=OperationRestartRequired(reason="Python version changed"),
+            packages={"numpy": "installing"},
+        )
     )
-    session_view.add_notification(alert)
-
-    assert (
-        session_view.package_logs["orphan_package"]
-        == "Appending to nothing...\n"
-    )
-
-
-def test_session_view_package_logs_empty_content(
-    session_view: SessionView,
-) -> None:
-    """Test SessionView handles empty log content."""
-
-    alert = InstallingPackageAlertNotification(
-        packages={"empty_logs": "installing"},
-        logs={"empty_logs": ""},
-        log_status="start",
-    )
-    session_view.add_notification(alert)
-
-    assert "empty_logs" in session_view.package_logs
-    assert session_view.package_logs["empty_logs"] == ""
+    assert session_view.get_environment_state("kernel").restart_required
 
 
 class TestUpdateCellOutputs:

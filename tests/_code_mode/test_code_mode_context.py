@@ -953,6 +953,8 @@ async def test_package_summary_reports_unsuccessful_outcomes(
 ) -> None:
     from marimo._messaging.notification import (
         InstallingPackageAlertNotification,
+        OperationFailed,
+        OperationRestartRequired,
     )
 
     with _ctx(k) as ctx:
@@ -985,9 +987,23 @@ async def test_package_summary_reports_unsuccessful_outcomes(
                 for n in k.stream.operations
                 if isinstance(n, InstallingPackageAlertNotification)
             ]
-            assert alerts[-1].packages == {
-                "boltons": "restart-required" if restart_required else "failed"
-            }
+            operation_id = alerts[0].operation_id
+            assert operation_id is not None
+            assert {alert.operation_id for alert in alerts} == {operation_id}
+            outcome = "restart-required" if restart_required else "failed"
+            assert alerts[-1] == InstallingPackageAlertNotification(
+                packages={"boltons": outcome},
+                operation_id=operation_id,
+                status=(
+                    OperationRestartRequired(
+                        reason="Dependency changes are saved; restart the kernel to apply them."
+                    )
+                    if restart_required
+                    else OperationFailed(
+                        error="Failed to install boltons. See installation logs for details."
+                    )
+                ),
+            )
 
 
 class TestAutorunStaleState:
