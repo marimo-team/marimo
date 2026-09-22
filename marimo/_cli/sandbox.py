@@ -473,14 +473,13 @@ def run_in_sandbox(
             write_constraint_file,
         )
 
-        constraint_tmp = tempfile.NamedTemporaryFile(
+        with tempfile.NamedTemporaryFile(
             mode="w",
             delete=False,
             suffix="-pyodide-constraints.txt",
             encoding="utf-8",
-        )
-        constraint_tmp.close()
-        constraint_path = constraint_tmp.name
+        ) as constraint_tmp:
+            constraint_path = constraint_tmp.name
         if write_constraint_file(constraint_path):
             # Resolution happens in the child uv process; see below.
             env["UV_CONSTRAINT"] = constraint_path
