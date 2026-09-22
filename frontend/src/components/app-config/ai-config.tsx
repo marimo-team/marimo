@@ -59,6 +59,7 @@ import {
   listModelsForAiSettings,
 } from "../ai/ai-utils";
 import { getTagColour } from "../ai/display-helpers";
+import { PairWithAgentBanner } from "../editor/actions/pair-with-agent";
 import {
   Accordion,
   AccordionContent,
@@ -2005,6 +2006,7 @@ export const AiConfig: React.FC<AiConfigProps> = ({
       {aiEnabled !== false && (
         <>
           <TabsContent value="ai-providers">
+            <PairWithAgentBanner className="mb-4" />
             <AiProvidersConfig
               form={form}
               config={config}
