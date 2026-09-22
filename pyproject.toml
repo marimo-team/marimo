@@ -104,7 +104,7 @@ sandbox = [
 recommended = [
     "marimo[sql]",
     "marimo[sandbox]",                           # For `marimo edit --sandbox DIRECTORY`
-    "marimo-lens>=0.1.2",                        # Inspect and select notebook outputs
+    "marimo-lens",                               # Inspect and select notebook outputs
     "cryptography>=42.0.0",                      # Ed25519 signing of persistent cache manifests
     "altair>=5.4.0",                             # Plotting in datasource viewer
     "pydantic-ai-slim[openai]>=1.107.0,<3.0.0",  # AI features
@@ -308,7 +308,7 @@ docs = [
 # Mirror CI's dependency window (UV_EXCLUDE_NEWER in .github/workflows) so local
 # resolution reproduces what CI resolves at setup time, including the ruff version.
 exclude-newer = "7 days"
-exclude-newer-package = { marimo-lens = false }
+exclude-newer-package = { agent-plugins = false, marimo-lens = false }
 
 [tool.uv.sources]
 marimo_docs = { path = "./docs", editable = true }

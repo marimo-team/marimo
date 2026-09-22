@@ -1,6 +1,6 @@
 altair>=5.4.0
 cryptography>=42.0.0
-marimo-lens>=0.1.2
+marimo-lens
 marimo[sandbox]
 marimo[sql]
 nbformat>=5.7.0
