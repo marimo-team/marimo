@@ -89,12 +89,9 @@
     "array-callback-return": "warn",
     "no-new": "off",
     "no-bitwise": "off",
-    // TODO: re-enable
-    "no-control-regex": "warn",
-    // TODO: re-enable
-    "no-unsafe-optional-chaining": "warn",
-    // TODO: re-enable
-    "no-unused-expressions": "warn",
+    "no-control-regex": "error",
+    "no-unsafe-optional-chaining": "error",
+    "no-unused-expressions": "error",
     // TODO: re-enable
     "no-unused-vars": "warn",
 
@@ -127,10 +124,9 @@
     "react/jsx-pascal-case": "error",
     "react/no-multi-comp": "off",
     "react/jsx-filename-extension": "off",
-    // TODO: re-enable as error
-    "react/jsx-no-useless-fragment": "warn",
-    "react/jsx-no-target-blank": "warn",
-    "react/jsx-no-comment-textnodes": "warn",
+    "react/jsx-no-useless-fragment": "error",
+    "react/jsx-no-target-blank": "error",
+    "react/jsx-no-comment-textnodes": "error",
     "react/self-closing-comp": "error",
 
     // === React Hooks ===
@@ -138,10 +134,9 @@
     "react-hooks/exhaustive-deps": "warn",
 
     // === JSX A11y ===
-    // TODO: re-enable all of these as error
     "jsx-a11y/click-events-have-key-events": "off",
     "jsx-a11y/heading-has-content": "off",
-    "jsx-a11y/iframe-has-title": "warn",
+    "jsx-a11y/iframe-has-title": "error",
     "jsx-a11y/media-has-caption": "off",
     "jsx-a11y/no-autofocus": "off",
     "jsx-a11y/no-noninteractive-tabindex": "warn",
