@@ -411,9 +411,11 @@ def require_sandbox_backend(backend: SandboxBackend) -> None:
             if backend == "pixi"
             else "https://docs.astral.sh/uv/getting-started/installation/"
         )
+        # uv and pixi are standalone tools, not Python packages, so skip the
+        # generic `pip install <package>` hint and point at their installers.
         raise MarimoCLIMissingDependencyError(
             f"{backend} must be installed to use {option}.",
-            backend,
+            [],
             additional_tip=f"Install {backend} from {install_url}",
         ) from e
 

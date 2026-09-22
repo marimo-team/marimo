@@ -476,7 +476,11 @@ def edit(
     name: str | None,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import ensure_server_environment, resolve_sandbox
+    from marimo._cli.sandbox import (
+        ensure_server_environment,
+        require_sandbox_backend,
+        resolve_sandbox,
+    )
 
     stdin_notebook = None
     pass_on_stdin = token_password_file == "-"
@@ -523,6 +527,19 @@ def edit(
             else:
                 check_app_correctness(name)
         elif not is_dir:
+            # A new notebook has no inline metadata, so the sandbox choice
+            # comes from the flags alone. Check the backend first so a
+            # missing uv/pixi does not leave an empty file behind.
+            new_notebook_backend = resolve_sandbox(
+                sandbox=sandbox, no_sandbox=no_sandbox, name=None
+            )
+            if new_notebook_backend is not None:
+                from marimo._environments.errors import EnvironmentManagerError
+
+                try:
+                    require_sandbox_backend(new_notebook_backend)
+                except EnvironmentManagerError as error:
+                    raise MarimoCLIRuntimeError(str(error)) from error
             # write empty file
             try:
                 with open(name, "w", encoding="utf-8"):
