@@ -658,7 +658,7 @@ async def test_ttl_close_does_not_kill_session_owned_by_new_consumer(
         ),  # RUN mode with manager TTL=None (create_asgi_app default)
     ],
 )
-async def test_session_ttl_expiration(
+def test_session_ttl_expiration(
     client: TestClient, mode: SessionMode, manager_ttl: int | None
 ) -> None:
     """Test that sessions expire after TTL in RUN mode or when TTL cleanup applies in EDIT mode."""
@@ -679,10 +679,18 @@ async def test_session_ttl_expiration(
 
         websocket.close()
 
-        # Wait for TTL to expire, which should close the session
-        await asyncio.sleep(0.3)
-        session = session_manager.get_session("123")
-        assert session is None
+        async def wait_for_session_close() -> None:
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + 5
+            while session_manager.get_session("123") is not None:
+                assert loop.time() < deadline, (
+                    "Session was not removed within 5 seconds of disconnect"
+                )
+                await asyncio.sleep(0.01)
+
+        # Observe cleanup on the server loop: closing the client socket only
+        # queues a disconnect, so a fixed sleep can race with TTL scheduling.
+        websocket.portal.call(wait_for_session_close)
 
         # We join on kernel threads to make sure that the main module
         # is restored correctly.
