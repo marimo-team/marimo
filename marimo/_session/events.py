@@ -56,7 +56,7 @@ class SessionEventListener:
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
     ) -> None:
-        """Called when a notification is emitted by a session."""
+        """Called before a session notification is broadcast to consumers."""
         del session
         del notification
         return
@@ -169,7 +169,7 @@ class SessionEventBus:
     def emit_notification_sent(
         self, session: Session, notification: KernelMessage
     ) -> None:
-        """Emit a notification sent event."""
+        """Notify listeners before broadcasting to session consumers."""
         self._emit(
             "notification_sent",
             lambda listener: listener.on_notification_sent(

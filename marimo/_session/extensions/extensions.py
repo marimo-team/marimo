@@ -392,14 +392,26 @@ class NotificationListenerExtension(SessionExtension):
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
-        self.distributor = self._create_distributor(
+        loop = asyncio.get_running_loop()
+        distributor = self._create_distributor(
             kernel_manager=self.kernel_manager,
             queue_manager=self.queue_manager,
         )
-        self.distributor.add_consumer(
-            lambda msg: self._on_kernel_message(session, msg)
-        )
-        self.distributor.start()
+        self.distributor = distributor
+
+        def consume(msg: KernelMessage) -> None:
+            # Queued callbacks can outlive the session that scheduled them.
+            if self.distributor is distributor:
+                self._on_kernel_message(session, msg)
+
+        def enqueue(msg: KernelMessage) -> None:
+            if self.distributor is distributor:
+                # QueueDistributor calls from a worker thread. Both transports
+                # must serialize document/view updates with consumer attachment.
+                loop.call_soon_threadsafe(consume, msg)
+
+        distributor.add_consumer(enqueue)
+        distributor.start()
 
     def on_detach(self) -> None:
         if self.distributor is not None:
@@ -471,7 +483,7 @@ class SessionViewExtension(EventAwareExtension):
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
     ) -> None:
-        """Called when a notification is sent."""
+        """Retain a notification before consumers receive it."""
         session.session_view.add_raw_notification(notification)
 
 

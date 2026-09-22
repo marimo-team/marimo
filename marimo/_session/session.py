@@ -490,8 +490,9 @@ class SessionImpl(Session):
         else:
             notification = serialize_kernel_message(operation)
 
-        self.room.broadcast(notification, except_consumer=from_consumer_id)
+        # Consumers must observe a view that already includes this notification.
         self._event_bus.emit_notification_sent(self, notification)
+        self.room.broadcast(notification, except_consumer=from_consumer_id)
 
     def close(self, *, graceful: bool = False) -> None:
         """
