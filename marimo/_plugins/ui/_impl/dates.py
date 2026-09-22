@@ -254,7 +254,8 @@ class datetime(UIElement[str | None, dt.datetime | None]):
 
         if value is None:
             if start is None and stop is None:
-                value = dt.datetime.today()
+                # HTML datetime-local values intentionally use local naïve time.
+                value = dt.datetime.today()  # noqa: DTZ002
             elif start is not None:
                 value = start
             else:

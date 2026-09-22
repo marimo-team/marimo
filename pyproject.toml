@@ -377,7 +377,6 @@ ignore = [
     "UP007", # Use `X | Y` for type annotations
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
     "DTZ901", # `datetime.min` / `datetime.max` used
-    "DTZ002", # `datetime.today()` called without tz
     "D421", # Property docstring should not start with a verb (preview rule)
 
     # Restored to Ruff's default rule set in 0.16.6; enable incrementally
