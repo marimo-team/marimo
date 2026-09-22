@@ -167,7 +167,7 @@ package managers, letting you [install packages on import](guides/package_manage
 [serialize package
 requirements](guides/package_management/sandboxes.md)
 in notebook files, and auto install them in
-isolated venv sandboxes.
+isolated environments.
 
 **Deterministic execution order.** Notebooks are executed in a deterministic
 order, based on variable references instead of cells' positions on the page.
