@@ -87,7 +87,7 @@ export const PairWithAgentBanner: React.FC<{
               key={id}
               title={label}
               aria-label={label}
-              className="m-0 flex size-6 items-center justify-center rounded-full border bg-background shadow-xs"
+              className="flex size-6 items-center justify-center rounded-full border bg-background shadow-xs"
             >
               {id === "openai-compatible" ? (
                 <BotIcon className="size-3.5" aria-hidden={true} />
