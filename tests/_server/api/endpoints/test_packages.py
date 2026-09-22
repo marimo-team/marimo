@@ -1197,6 +1197,16 @@ def test_sync_retains_outcome_and_logs_without_a_package_list(
     )
     response = client.post("/api/packages/sync", headers=HEADERS, json={})
     assert response.status_code == 200
+    assert response.json() == {
+        "success": outcome == "succeeded",
+        "error": {
+            "succeeded": None,
+            "failed": "Resolution failed",
+            "restart-required": "Python changed",
+        }[outcome],
+        "restartRequired": outcome == "restart-required",
+        "reconnect": False,
+    }
     status = {"kind": outcome}
     if outcome == "failed":
         status["error"] = "Resolution failed"

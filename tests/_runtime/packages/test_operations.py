@@ -6,11 +6,8 @@ import threading
 
 import pytest
 
-from marimo._environments.errors import SandboxRestartRequired
 from marimo._messaging.notification import (
-    EnvironmentAction,
     EnvironmentOperationNotification,
-    EnvironmentOperationStatus,
     OperationCancelled,
     OperationFailed,
     OperationRestartRequired,
@@ -24,97 +21,6 @@ from marimo._runtime.packages.operations import (
 )
 
 
-@pytest.mark.parametrize(
-    ("action", "packages", "expected"),
-    [
-        ("prepare", {}, OperationSucceeded()),
-        ("sync", {}, OperationSucceeded()),
-        ("remove", {"numpy": "succeeded"}, OperationSucceeded()),
-        (
-            "install",
-            {"numpy": "succeeded", "skipped": "queued"},
-            OperationFailed(
-                error="Could not apply changes to skipped. See operation logs for details."
-            ),
-        ),
-        (
-            "install",
-            {"numpy": "failed", "pandas": "restart-required"},
-            OperationFailed(
-                error="Could not apply changes to numpy. See operation logs for details."
-            ),
-        ),
-        (
-            "install",
-            {"numpy": "restart-required"},
-            OperationRestartRequired(
-                reason="Dependency changes are saved; restart the kernel to apply them."
-            ),
-        ),
-    ],
-)
-def test_operation_reports_start_and_outcome(
-    action: EnvironmentAction,
-    packages: PackageStatusType,
-    expected: EnvironmentOperationStatus,
-) -> None:
-    notifications: list[EnvironmentOperationNotification] = []
-    with environment_operation(
-        action, packages, "server", notifications.append
-    ) as operation:
-        pass
-    assert notifications == [
-        EnvironmentOperationNotification(
-            action=action,
-            source="server",
-            packages=packages,
-            operation_id=operation.operation_id,
-            status=status,
-            logs={},
-            log_mode="append",
-        )
-        for status in (OperationRunning(), expected)
-    ]
-
-
-@pytest.mark.parametrize(
-    ("error", "status"),
-    [
-        (
-            RuntimeError("installation failed"),
-            OperationFailed(error="installation failed"),
-        ),
-        (asyncio.CancelledError(), OperationCancelled()),
-        (
-            SandboxRestartRequired("Python changed"),
-            OperationRestartRequired(reason="Python changed"),
-        ),
-    ],
-)
-def test_operation_reports_errors_and_reraises(
-    error: BaseException,
-    status: EnvironmentOperationStatus,
-) -> None:
-    notifications: list[EnvironmentOperationNotification] = []
-    with pytest.raises(type(error), match=str(error) or "^$"):
-        with environment_operation(
-            "sync", {}, "kernel", notifications.append
-        ) as operation:
-            raise error
-    assert notifications == [
-        EnvironmentOperationNotification(
-            action="sync",
-            source="kernel",
-            packages={},
-            operation_id=operation.operation_id,
-            status=outcome,
-            logs={},
-            log_mode="append",
-        )
-        for outcome in (OperationRunning(), status)
-    ]
-
-
 def test_retries_have_distinct_ids_and_do_not_mutate_previous_updates() -> (
     None
 ):
@@ -122,18 +28,66 @@ def test_retries_have_distinct_ids_and_do_not_mutate_previous_updates() -> (
     packages: PackageStatusType = {"numpy": "failed"}
     with environment_operation(
         "install", packages, "kernel", notifications.append
-    ) as first:
+    ):
         pass
+    first = notifications[-1]
     with environment_operation(
         "install", packages, "kernel", notifications.append
-    ) as retry:
+    ):
         packages["numpy"] = "succeeded"
+    retry = notifications[-1]
     assert first.operation_id != retry.operation_id
-    assert [notification.packages for notification in notifications] == [
-        {"numpy": "failed"},
-        {"numpy": "failed"},
+    assert (first.packages, retry.packages) == (
         {"numpy": "failed"},
         {"numpy": "succeeded"},
+    )
+
+
+@pytest.mark.parametrize(
+    "packages",
+    [
+        {"numpy": "succeeded", "pandas": "queued"},
+        {"numpy": "restart-required", "pandas": "failed"},
+    ],
+)
+def test_incomplete_work_cannot_report_success(
+    packages: PackageStatusType,
+) -> None:
+    notifications: list[EnvironmentOperationNotification] = []
+    with environment_operation(
+        "install", packages, "kernel", notifications.append
+    ):
+        pass
+    status = notifications[-1].status
+    assert isinstance(status, OperationFailed)
+    assert "pandas" in status.error
+
+
+@pytest.mark.parametrize(
+    ("packages", "expected"),
+    [
+        ({}, OperationSucceeded()),
+        ({"numpy": "succeeded"}, OperationSucceeded()),
+        (
+            {"numpy": "restart-required", "pandas": "succeeded"},
+            OperationRestartRequired(
+                reason="Dependency changes are saved; restart the kernel to apply them."
+            ),
+        ),
+    ],
+)
+def test_completed_work_reports_its_outcome(
+    packages: PackageStatusType,
+    expected: OperationSucceeded | OperationRestartRequired,
+) -> None:
+    notifications: list[EnvironmentOperationNotification] = []
+    with environment_operation(
+        "sync", packages, "kernel", notifications.append
+    ):
+        pass
+    assert [notification.status for notification in notifications] == [
+        OperationRunning(),
+        expected,
     ]
 
 

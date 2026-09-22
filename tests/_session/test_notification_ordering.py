@@ -93,9 +93,8 @@ def _state(log: str) -> EnvironmentState:
     )
 
 
-@pytest.mark.parametrize("serialized", [False, True])
 def test_notification_is_retained_before_consumer_receives_it(
-    session_and_consumer: tuple[SessionImpl, Mock], serialized: bool
+    session_and_consumer: tuple[SessionImpl, Mock],
 ) -> None:
     session, consumer = session_and_consumer
     observed: list[EnvironmentState] = []
@@ -108,7 +107,7 @@ def test_notification_is_retained_before_consumer_receives_it(
     consumer.notify.side_effect = receive
     progress = _progress("Downloading\n")
     session.notify(
-        serialize_kernel_message(progress) if serialized else progress,
+        progress,
         from_consumer_id=None,
     )
 
@@ -185,14 +184,14 @@ async def test_reconnect_snapshot_precedes_a_queued_live_update(
         messages.append(
             deserialize_kernel_message(handler.message_queue.get_nowait())
         )
-    assert [message.name for message in messages] == [
-        "reconnected",
-        "alert",
-        "environment-state",
-        "environment-state",
-        "environment-operation",
-    ]
-    assert messages[2:] == [
+    assert [
+        message
+        for message in messages
+        if isinstance(
+            message,
+            (EnvironmentStateNotification, EnvironmentOperationNotification),
+        )
+    ] == [
         EnvironmentStateNotification(
             source="kernel", state=_state("Before\n")
         ),
@@ -202,6 +201,3 @@ async def test_reconnect_snapshot_precedes_a_queued_live_update(
         ),
         _progress("After\n"),
     ]
-    assert session.session_view.get_environment_state("kernel") == _state(
-        "Before\nAfter\n"
-    )

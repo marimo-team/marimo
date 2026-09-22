@@ -677,6 +677,7 @@ async def test_refresh_reuses_pending_startup(
 
     entered, release, finished, restored = (asyncio.Event() for _ in range(4))
     progress = StartupProgressNotification(phase="preparing-environment")
+    starting = StartupProgressNotification(phase="starting-kernel")
     launches = 0
     mock_session.initialization_id = NEW_FILE
     mock_session.app_file_manager = AppFileManager(filename=None)
@@ -688,6 +689,7 @@ async def test_refresh_reuses_pending_startup(
         startup.notify(progress)
         entered.set()
         await release.wait()
+        startup.notify(starting)
         finished.set()
         return mock_session
 
@@ -730,7 +732,7 @@ async def test_refresh_reuses_pending_startup(
             deserialize_kernel_message(call.args[0])
             for call in refreshed.handler.notify.call_args_list
         ] == [
-            progress,
+            starting if finish_disconnected else progress,
             *[
                 EnvironmentStateNotification(
                     source=source,
@@ -752,7 +754,7 @@ async def test_refresh_reuses_pending_startup(
             is mock_session
         )
         assert mock_session.room.main_consumer is refreshed.handler
-        assert mock_session.session_view.startup_progress == progress
+        assert mock_session.session_view.startup_progress == starting
         assert not session_manager.is_session_starting(
             SessionId(replacement_id), NEW_FILE
         )

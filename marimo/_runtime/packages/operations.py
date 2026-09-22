@@ -34,8 +34,8 @@ class EnvironmentOperationReporter:
         source: Literal["kernel", "server"],
         notify: Callable[[EnvironmentOperationNotification], None],
     ) -> None:
-        self.operation_id = uuid4().hex
-        self.action = action
+        self._operation_id = uuid4().hex
+        self._action = action
         self.packages = packages
         self._source = source
         self._notify = notify
@@ -60,8 +60,8 @@ class EnvironmentOperationReporter:
                 return
             self._notify(
                 EnvironmentOperationNotification(
-                    operation_id=self.operation_id,
-                    action=self.action,
+                    operation_id=self._operation_id,
+                    action=self._action,
                     status=status,
                     source=self._source,
                     packages=dict(self.packages),

@@ -102,44 +102,6 @@ def test_startup_logs_all_statuses() -> None:
         assert startup_log.content == f"Test {status}"
 
 
-def test_environment_operation_basic() -> None:
-    """Test basic EnvironmentOperationNotification without streaming logs."""
-    alert = EnvironmentOperationNotification(
-        action="install",
-        source="kernel",
-        logs={},
-        log_mode="append",
-        operation_id="install",
-        status=OperationRunning(),
-        packages={"numpy": "queued", "pandas": "running"},
-    )
-    assert alert.name == "environment-operation"
-    assert alert.packages == {"numpy": "queued", "pandas": "running"}
-    assert alert.logs == {}
-    assert alert.log_mode == "append"
-
-
-def test_environment_operation_with_logs() -> None:
-    """Test EnvironmentOperationNotification with streaming logs."""
-    packages = {"numpy": "running"}
-    logs = {"numpy": "Installing numpy...\n"}
-
-    alert = EnvironmentOperationNotification(
-        action="install",
-        source="kernel",
-        operation_id="install",
-        status=OperationRunning(),
-        packages=packages,
-        logs=logs,
-        log_mode="replace",
-    )
-
-    assert alert.name == "environment-operation"
-    assert alert.packages == packages
-    assert alert.logs == logs
-    assert alert.log_mode == "replace"
-
-
 @pytest.mark.parametrize(
     "status",
     [

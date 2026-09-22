@@ -27,8 +27,21 @@ def reduce_environment_state(
             for operation_id, attempt in operations.items()
             if isinstance(attempt.status, OperationRunning)
         }
-    operations[notification.operation_id] = _reduce_operation(
-        previous, notification
+    packages = dict(notification.packages)
+    logs = dict(previous.logs) if previous is not None else {}
+    for name, content in notification.logs.items():
+        if notification.log_mode == "replace":
+            logs[name] = content
+        else:
+            logs[name] = logs.get(name, "") + content
+
+    operations[notification.operation_id] = EnvironmentOperation(
+        packages=packages,
+        logs=logs,
+        source=notification.source,
+        operation_id=notification.operation_id,
+        action=notification.action,
+        status=notification.status,
     )
     return EnvironmentState(
         # A later mutation cannot confirm that a different kernel was launched.
@@ -38,27 +51,4 @@ def reduce_environment_state(
             or "restart-required" in notification.packages.values()
         ),
         operations=list(operations.values()),
-    )
-
-
-def _reduce_operation(
-    state: EnvironmentOperation | None,
-    notification: EnvironmentOperationNotification,
-) -> EnvironmentOperation:
-    """Replace package progress and apply changes to named output streams."""
-    packages = dict(notification.packages)
-    logs = dict(state.logs) if state is not None else {}
-    for name, content in notification.logs.items():
-        if notification.log_mode == "replace":
-            logs[name] = content
-        else:
-            logs[name] = logs.get(name, "") + content
-
-    return EnvironmentOperation(
-        packages=packages,
-        logs=logs,
-        source=notification.source,
-        operation_id=notification.operation_id,
-        action=notification.action,
-        status=notification.status,
     )
