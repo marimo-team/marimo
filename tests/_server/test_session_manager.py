@@ -659,7 +659,11 @@ async def test_refresh_reuses_pending_startup(
 ) -> None:
     from starlette.requests import HTTPConnection
 
-    from marimo._messaging.notification import StartupProgressNotification
+    from marimo._messaging.notification import (
+        EnvironmentState,
+        EnvironmentStateNotification,
+        StartupProgressNotification,
+    )
     from marimo._messaging.serde import deserialize_kernel_message
     from marimo._server.api.endpoints.ws.ws_connection_validator import (
         ConnectionParams,
@@ -725,7 +729,18 @@ async def test_refresh_reuses_pending_startup(
         assert [
             deserialize_kernel_message(call.args[0])
             for call in refreshed.handler.notify.call_args_list
-        ] == [progress]
+        ] == [
+            progress,
+            *[
+                EnvironmentStateNotification(
+                    source=source,
+                    state=EnvironmentState(
+                        restart_required=False, operations=[]
+                    ),
+                )
+                for source in ("kernel", "server")
+            ],
+        ]
         release.set()
         assert await asyncio.wait_for(next_connection, 5) == (
             mock_session,

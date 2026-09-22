@@ -18,7 +18,6 @@ from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
     NotificationMessage,
-    StartupProgressNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -175,9 +174,7 @@ class SessionImpl(Session):
                 app_metadata=app_metadata,
                 config_manager=config_manager,
                 redirect_console_to_browser=redirect_console_to_browser,
-                on_progress=lambda phase: startup.notify(
-                    StartupProgressNotification(phase=phase)
-                ),
+                on_notification=startup.notify,
             )
         else:
             # Original kernel: Process for edit, Thread for run

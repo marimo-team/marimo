@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
-from marimo._messaging.notification import StartupProgressNotification
+from marimo._messaging.notification import (
+    EnvironmentState,
+    EnvironmentStateNotification,
+    StartupProgressNotification,
+)
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._session.consumer import SessionConsumer
 from marimo._session.startup import SessionStartup
@@ -29,7 +33,16 @@ def test_late_subscriber_receives_current_phase_then_live_progress() -> None:
     assert [
         deserialize_kernel_message(call.args[0])
         for call in second.notify.call_args_list
-    ] == [starting]
+    ] == [
+        starting,
+        *[
+            EnvironmentStateNotification(
+                source=source,
+                state=EnvironmentState(restart_required=False, operations=[]),
+            )
+            for source in ("kernel", "server")
+        ],
+    ]
 
 
 def test_disconnecting_one_subscriber_preserves_the_other() -> None:

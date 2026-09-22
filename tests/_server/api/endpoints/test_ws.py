@@ -917,8 +917,18 @@ def test_sandbox_progress_before_preparation_failure(
                 "phase": "preparing-environment",
             },
         }
+        running = websocket.receive_json()
+        assert running["op"] == "environment-operation"
+        assert running["data"]["action"] == "prepare"
+        assert running["data"]["status"] == {"kind": "running"}
         assert not get_session_manager(client).sessions
         websocket.portal.call(release.set)
+        failed = websocket.receive_json()
+        assert failed["op"] == "environment-operation"
+        assert (
+            failed["data"]["operation_id"] == running["data"]["operation_id"]
+        )
+        assert failed["data"]["status"]["kind"] == "failed"
         error = websocket.receive_json()
         assert error["op"] == "kernel-startup-error"
         assert "Could not resolve dependencies" in error["data"]["error"]
@@ -939,9 +949,10 @@ def test_refresh_observes_existing_sandbox_preparation(
     release = asyncio.Event()
     launches = 0
 
-    async def prepare(*_args: object, **_kwargs: object) -> None:
+    async def prepare(*_args: object, **kwargs: Any) -> None:
         nonlocal launches
         launches += 1
+        kwargs["on_output"]("Resolving dependencies\n")
         await release.wait()
         raise EnvironmentManagerError("Could not resolve dependencies")
 
@@ -956,12 +967,45 @@ def test_refresh_observes_existing_sandbox_preparation(
     with client:
         with client.websocket_connect(WS_URL) as first:
             assert first.receive_json() == expected
+            running = first.receive_json()
+            output = first.receive_json()
+            assert output["data"]["logs"] == {
+                "environment": "Resolving dependencies\n"
+            }
             first.close()
             with client.websocket_connect(replacement_url) as refreshed:
                 assert refreshed.receive_json() == expected
+                snapshot = refreshed.receive_json()
+                assert snapshot == {
+                    "op": "environment-state",
+                    "data": {
+                        "op": "environment-state",
+                        "source": "kernel",
+                        "state": {
+                            "restart_required": False,
+                            "operations": [
+                                {
+                                    "operation_id": running["data"][
+                                        "operation_id"
+                                    ],
+                                    "action": "prepare",
+                                    "status": {"kind": "running"},
+                                    "source": "kernel",
+                                    "packages": {},
+                                    "logs": {
+                                        "environment": "Resolving dependencies\n"
+                                    },
+                                }
+                            ],
+                        },
+                    },
+                }
+                assert refreshed.receive_json()["data"]["source"] == "server"
                 assert launches == 1
                 assert not manager.sessions
                 refreshed.portal.call(release.set)
+                failed = refreshed.receive_json()
+                assert failed["data"]["status"]["kind"] == "failed"
                 error = refreshed.receive_json()
                 assert error["op"] == "kernel-startup-error"
                 assert (

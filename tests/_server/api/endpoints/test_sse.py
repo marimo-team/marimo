@@ -341,12 +341,22 @@ async def test_sandbox_progress_during_preparation(
                 "phase": "preparing-environment",
             },
         }
+        running = json.loads((await connection.next_event())["data"])
+        assert running["op"] == "environment-operation"
+        assert running["data"]["action"] == "prepare"
+        assert running["data"]["status"] == {"kind": "running"}
         assert not manager.sessions
         if outcome == "disconnect":
             connection.disconnect()
             await asyncio.wait_for(cleaned_up.wait(), timeout=5)
         else:
             release.set()
+            completed = json.loads((await connection.next_event())["data"])
+            assert (
+                completed["data"]["operation_id"]
+                == running["data"]["operation_id"]
+            )
+            assert completed["data"]["status"] == {"kind": "succeeded"}
             event = await connection.next_event()
             assert json.loads(event["data"]) == {
                 "op": "startup-progress",

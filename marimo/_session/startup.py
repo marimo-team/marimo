@@ -5,7 +5,10 @@ import asyncio
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
-from marimo._messaging.notification import NotificationMessage
+from marimo._messaging.notification import (
+    EnvironmentStateNotification,
+    NotificationMessage,
+)
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._session.state.session_view import SessionView
 
@@ -58,6 +61,15 @@ class SessionStartup:
                 consumer.notify(
                     serialize_kernel_message(self.view.startup_progress)
                 )
+                for source in ("kernel", "server"):
+                    consumer.notify(
+                        serialize_kernel_message(
+                            EnvironmentStateNotification(
+                                source=source,
+                                state=self.view.get_environment_state(source),
+                            )
+                        )
+                    )
             yield
         finally:
             self._consumers.remove(consumer)

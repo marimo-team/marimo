@@ -14,6 +14,7 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.notification import (
     AlertNotification,
     BannerNotification,
+    EnvironmentOperationNotification,
     EnvironmentStateNotification,
     NotificationMessage,
     ReconnectedNotification,
@@ -203,10 +204,15 @@ class SessionHandler(SessionConsumer, abc.ABC):
         )
 
     def notify(self, notification: KernelMessage) -> None:
-        if (
-            self._startup_queue is not None
-            and deserialize_kernel_notification_name(notification)
-            == StartupProgressNotification.name
+        name = deserialize_kernel_notification_name(notification)
+        if self._startup_queue is not None and (
+            name == StartupProgressNotification.name
+            or self._session is None
+            and name
+            in (
+                EnvironmentOperationNotification.name,
+                EnvironmentStateNotification.name,
+            )
         ):
             self._startup_queue.put_nowait(notification)
         else:
