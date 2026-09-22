@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from starlette.websockets import WebSocketDisconnect
+from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 from marimo._config.config import ExperimentalConfig
 from marimo._config.manager import UserConfigManager
@@ -55,6 +55,36 @@ def test_ws(client: TestClient) -> None:
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
+
+
+@pytest.mark.parametrize("client_state", list(WebSocketState))
+async def test_safe_close_skips_a_client_that_already_disconnected(
+    client_state: WebSocketState,
+) -> None:
+    websocket = MagicMock()
+    websocket.close = AsyncMock()
+    websocket.client_state = client_state
+    handler = WebSocketHandler(
+        websocket=websocket,
+        manager=MagicMock(),
+        params=ConnectionParams(
+            session_id=SessionId("s1"),
+            file_key="test.py",
+            kiosk=False,
+            auto_instantiate=False,
+            rtc_enabled=False,
+        ),
+        mode=SessionMode.RUN,
+    )
+
+    await handler._safe_close(WebSocketCodes.NORMAL_CLOSE, "")
+
+    if client_state is WebSocketState.DISCONNECTED:
+        # Closing again would make uvicorn raise
+        # "Unexpected ASGI message 'websocket.close'".
+        websocket.close.assert_not_awaited()
+    else:
+        websocket.close.assert_awaited_once()
 
 
 @pytest.mark.parametrize("failure", ["disconnect", "cancel"])

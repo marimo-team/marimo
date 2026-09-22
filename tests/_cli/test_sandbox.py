@@ -32,7 +32,33 @@ def test_missing_sandbox_backend_reports_install_instructions(
     with pytest.raises(MarimoCLIMissingDependencyError) as error:
         run_in_sandbox(["edit", "--sandbox", "notebook.py"], backend=backend)
 
-    assert f"{backend} must be installed" in str(error.value)
+    message = str(error.value)
+    assert f"{backend} must be installed" in message
+    assert f"Install {backend} from" in message
+    # uv and pixi are standalone tools; a pip hint would be misleading.
+    assert "pip install" not in message
+
+
+@pytest.mark.parametrize("backend", ["uv", "pixi"])
+def test_missing_sandbox_backend_does_not_create_new_notebook(
+    backend: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import edit
+
+    monkeypatch.delenv("UV", raising=False)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    notebook = tmp_path / "new_notebook.py"
+
+    result = CliRunner().invoke(
+        edit, [f"--sandbox={backend}", "--headless", str(notebook)]
+    )
+
+    assert result.exit_code != 0
+    assert f"{backend} must be installed" in result.output
+    assert not notebook.exists()
 
 
 def test_dependency_export_uses_notebook_directory(
