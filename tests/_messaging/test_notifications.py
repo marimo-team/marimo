@@ -9,8 +9,8 @@ import pytest
 from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
 from marimo._messaging.notification import (
     CellNotification,
+    EnvironmentOperationNotification,
     EnvironmentOperationStatus,
-    InstallingPackageAlertNotification,
     ModelLifecycleNotification,
     ModelOpen,
     OperationCancelled,
@@ -102,36 +102,42 @@ def test_startup_logs_all_statuses() -> None:
         assert startup_log.content == f"Test {status}"
 
 
-def test_installing_package_alert_basic() -> None:
-    """Test basic InstallingPackageAlert without streaming logs."""
-    alert = InstallingPackageAlertNotification(
+def test_environment_operation_basic() -> None:
+    """Test basic EnvironmentOperationNotification without streaming logs."""
+    alert = EnvironmentOperationNotification(
+        action="install",
+        source="kernel",
+        logs={},
+        log_mode="append",
         operation_id="install",
         status=OperationRunning(),
-        packages={"numpy": "queued", "pandas": "installing"},
+        packages={"numpy": "queued", "pandas": "running"},
     )
-    assert alert.name == "installing-package-alert"
-    assert alert.packages == {"numpy": "queued", "pandas": "installing"}
-    assert alert.logs is None
-    assert alert.log_status is None
+    assert alert.name == "environment-operation"
+    assert alert.packages == {"numpy": "queued", "pandas": "running"}
+    assert alert.logs == {}
+    assert alert.log_mode == "append"
 
 
-def test_installing_package_alert_with_logs() -> None:
-    """Test InstallingPackageAlert with streaming logs."""
-    packages = {"numpy": "installing"}
+def test_environment_operation_with_logs() -> None:
+    """Test EnvironmentOperationNotification with streaming logs."""
+    packages = {"numpy": "running"}
     logs = {"numpy": "Installing numpy...\n"}
 
-    alert = InstallingPackageAlertNotification(
+    alert = EnvironmentOperationNotification(
+        action="install",
+        source="kernel",
         operation_id="install",
         status=OperationRunning(),
         packages=packages,
         logs=logs,
-        log_status="start",
+        log_mode="replace",
     )
 
-    assert alert.name == "installing-package-alert"
+    assert alert.name == "environment-operation"
     assert alert.packages == packages
     assert alert.logs == logs
-    assert alert.log_status == "start"
+    assert alert.log_mode == "replace"
 
 
 @pytest.mark.parametrize(
@@ -147,7 +153,11 @@ def test_installing_package_alert_with_logs() -> None:
 def test_installation_status_roundtrip(
     status: EnvironmentOperationStatus,
 ) -> None:
-    notification = InstallingPackageAlertNotification(
+    notification = EnvironmentOperationNotification(
+        action="install",
+        source="kernel",
+        logs={},
+        log_mode="append",
         operation_id="install",
         status=status,
         packages={},
@@ -173,8 +183,12 @@ def test_installation_status_rejects_invalid_wire_state(
     message = KernelMessage(
         msgspec.json.encode(
             {
-                "op": "installing-package-alert",
+                "op": "environment-operation",
                 "operation_id": "install",
+                "action": "install",
+                "source": "kernel",
+                "logs": {},
+                "log_mode": "append",
                 "packages": {},
                 "status": status,
             }

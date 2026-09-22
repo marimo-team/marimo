@@ -13,10 +13,10 @@ from marimo._config.manager import UserConfigManager
 from marimo._messaging.notification import (
     CellNotification,
     EnvironmentOperation,
+    EnvironmentOperationNotification,
     EnvironmentOperationStatus,
     EnvironmentState,
     EnvironmentStateNotification,
-    InstallingPackageAlertNotification,
     KernelReadyNotification,
     OperationFailed,
     OperationRunning,
@@ -405,12 +405,14 @@ def test_environment_restored_after_disconnect(
             }
         session = get_session(client, SessionId("123"))
         assert session is not None
-        progress = InstallingPackageAlertNotification(
+        progress = EnvironmentOperationNotification(
+            action="install",
+            source="kernel",
             operation_id="install",
             status=OperationRunning(),
-            packages={"numpy": "installing"},
+            packages={"numpy": "running"},
             logs={"numpy": "Downloading\n"},
-            log_status="start",
+            log_mode="replace",
         )
         websocket.portal.call(
             lambda: session.notify(progress, from_consumer_id=None)
@@ -418,16 +420,18 @@ def test_environment_restored_after_disconnect(
 
     # Work can finish while no consumer is attached.
     session.notify(
-        InstallingPackageAlertNotification(
+        EnvironmentOperationNotification(
+            action="install",
+            source="kernel",
             operation_id="install",
             status=outcome,
             packages={
-                "numpy": "installed"
+                "numpy": "succeeded"
                 if isinstance(outcome, OperationSucceeded)
-                else "installing"
+                else "running"
             },
             logs={"numpy": "Latest\n"},
-            log_status="append",
+            log_mode="append",
         ),
         from_consumer_id=None,
     )
@@ -437,13 +441,14 @@ def test_environment_restored_after_disconnect(
             restart_required=False,
             operations=[
                 EnvironmentOperation(
+                    action="install",
                     operation_id="install",
                     source="kernel",
                     status=outcome,
                     packages={
-                        "numpy": "installed"
+                        "numpy": "succeeded"
                         if isinstance(outcome, OperationSucceeded)
-                        else "installing"
+                        else "running"
                     },
                     logs={"numpy": "Downloading\nLatest\n"},
                 )

@@ -1729,6 +1729,12 @@ components:
     EnvironmentOperation:
       description: Current progress and logs for one execution of environment work.
       properties:
+        action:
+          enum:
+          - install
+          - prepare
+          - remove
+          - sync
         logs:
           additionalProperties:
             type: string
@@ -1739,10 +1745,10 @@ components:
           additionalProperties:
             enum:
             - failed
-            - installed
-            - installing
             - queued
             - restart-required
+            - running
+            - succeeded
           type: object
         source:
           enum:
@@ -1765,6 +1771,7 @@ components:
             propertyName: kind
       required:
       - operation_id
+      - action
       - status
       - packages
       - logs
@@ -2823,47 +2830,45 @@ components:
       - versions
       title: InstallPackagesRequest
       type: object
-    InstallingPackageAlertNotification:
-      description: "Package installation progress with streaming logs.\n\nAttributes:\n\
-        \    packages: Package name to status (queued/installing/installed/failed).\n\
-        \    logs: Optional streaming logs per package.\n    log_status: Log stream\
-        \ status (append/start/done).\n    source: Which Python environment packages\
-        \ are installed into.\n            \"kernel\" (default) installs in the kernel's\
-        \ venv; \"server\"\n            installs in the server's own Python env.\n\
-        \    operation_id: Identifies one installation attempt within the session.\n\
-        \    status: Overall attempt status, independent of per-package log status."
+    EnvironmentOperationNotification:
+      description: 'Current operation progress and changes to its named log streams.
+
+
+        Package statuses replace the previous map. Log chunks append to a stream,
+
+        or replace it when `log_mode` is `replace`. The operation status determines
+
+        completion independently of its packages and output streams.'
       properties:
-        log_status:
-          anyOf:
-          - enum:
-            - append
-            - done
-            - start
-          - type: 'null'
-          default: null
+        action:
+          enum:
+          - install
+          - prepare
+          - remove
+          - sync
+        log_mode:
+          enum:
+          - append
+          - replace
         logs:
-          anyOf:
-          - additionalProperties:
-              type: string
-            type: object
-          - type: 'null'
-          default: null
+          additionalProperties:
+            type: string
+          type: object
         op:
           enum:
-          - installing-package-alert
+          - environment-operation
         operation_id:
           type: string
         packages:
           additionalProperties:
             enum:
             - failed
-            - installed
-            - installing
             - queued
             - restart-required
+            - running
+            - succeeded
           type: object
         source:
-          default: kernel
           enum:
           - kernel
           - server
@@ -2884,10 +2889,14 @@ components:
             propertyName: kind
       required:
       - op
-      - packages
       - operation_id
+      - action
       - status
-      title: InstallingPackageAlertNotification
+      - source
+      - packages
+      - logs
+      - log_mode
+      title: EnvironmentOperationNotification
       type: object
     InstantiateNotebookRequest:
       properties:
@@ -3276,7 +3285,7 @@ components:
           - $ref: '#/components/schemas/AlertNotification'
           - $ref: '#/components/schemas/BannerNotification'
           - $ref: '#/components/schemas/MissingPackageAlertNotification'
-          - $ref: '#/components/schemas/InstallingPackageAlertNotification'
+          - $ref: '#/components/schemas/EnvironmentOperationNotification'
           - $ref: '#/components/schemas/EnvironmentStateNotification'
           - $ref: '#/components/schemas/StartupLogsNotification'
           - $ref: '#/components/schemas/StartupProgressNotification'
@@ -3320,10 +3329,10 @@ components:
               data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
               data-source-discovery-result: '#/components/schemas/DataSourceDiscoveryResultNotification'
               datasets: '#/components/schemas/DatasetsNotification'
+              environment-operation: '#/components/schemas/EnvironmentOperationNotification'
               environment-state: '#/components/schemas/EnvironmentStateNotification'
               focus-cell: '#/components/schemas/FocusCellNotification'
               function-call-result: '#/components/schemas/FunctionCallResultNotification'
-              installing-package-alert: '#/components/schemas/InstallingPackageAlertNotification'
               interrupted: '#/components/schemas/InterruptedNotification'
               kernel-ready: '#/components/schemas/KernelReadyNotification'
               kernel-startup-error: '#/components/schemas/KernelStartupErrorNotification'

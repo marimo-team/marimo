@@ -13,31 +13,24 @@ export function emptyEnvironmentState(): EnvironmentState {
 /** Apply a live delta after the connection's authoritative snapshot. */
 export function reduceEnvironmentState(
   state: EnvironmentState,
-  update: NotificationMessageData<"installing-package-alert">,
+  update: NotificationMessageData<"environment-operation">,
 ): EnvironmentState {
   const previous = state.operations.find(
     (operation) => operation.operation_id === update.operation_id,
   );
-  const logs = Object.fromEntries(
-    Object.entries(previous?.logs ?? {}).filter(
-      ([pkg]) => pkg in update.packages,
-    ),
-  );
-  if (update.logs && update.log_status) {
-    for (const [pkg, content] of Object.entries(update.logs)) {
-      if (pkg in update.packages) {
-        logs[pkg] =
-          update.log_status === "start" ? content : (logs[pkg] ?? "") + content;
-      }
-    }
+  const logs = { ...previous?.logs };
+  for (const [name, content] of Object.entries(update.logs)) {
+    logs[name] =
+      update.log_mode === "replace" ? content : (logs[name] ?? "") + content;
   }
 
   const operation: EnvironmentOperation = {
     operation_id: update.operation_id,
+    action: update.action,
     status: update.status,
     packages: update.packages,
     logs,
-    source: update.source ?? "kernel",
+    source: update.source,
   };
   const operations = state.operations.filter(
     (item) =>

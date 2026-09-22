@@ -421,27 +421,30 @@ it("replaces environment state on reconnect, then continues live progress", () =
     );
   }
   receive({
-    op: "installing-package-alert",
+    op: "environment-operation",
     source: "kernel",
     operation_id: "old",
+    action: "install",
     status: { kind: "running" },
-    packages: { pandas: "installing" },
+    packages: { pandas: "running" },
     logs: { pandas: "stale" },
-    log_status: "append",
+    log_mode: "append",
   });
   const operation = {
     operation_id: "new",
+    action: "install",
     source: "kernel",
     status: { kind: "running" },
-    packages: { numpy: "installing" },
+    packages: { numpy: "running" },
     logs: { numpy: "Downloading\n" },
   } as const;
   const serverOperation = {
     ...operation,
     operation_id: "server",
+    action: "install",
     source: "server",
     status: { kind: "succeeded" },
-    packages: { numpy: "installed" },
+    packages: { numpy: "succeeded" },
     logs: { numpy: "Server logs\n" },
   } as const;
   receive({
@@ -467,18 +470,19 @@ it("replaces environment state on reconnect, then continues live progress", () =
     state: { ...snapshot.state, operations: [operation] },
   });
   receive({
-    op: "installing-package-alert",
+    op: "environment-operation",
     operation_id: "new",
+    action: "install",
     source: "kernel",
     status: { kind: "failed", error: "Network unavailable" },
-    packages: { numpy: "installing" },
+    packages: { numpy: "running" },
     logs: { numpy: "Failed\n" },
-    log_status: "done",
+    log_mode: "append",
   });
   expect(getPackageAlert(store.get(alertAtom))).toEqual({
     ...operation,
     id: "new",
-    kind: "installing",
+    kind: "environment",
     restartRequired: false,
     status: { kind: "failed", error: "Network unavailable" },
     logs: { numpy: "Downloading\nFailed\n" },
@@ -494,7 +498,7 @@ it("replaces environment state on reconnect, then continues live progress", () =
   expect(getPackageAlert(store.get(alertAtom))).toEqual({
     ...serverOperation,
     id: "server",
-    kind: "installing",
+    kind: "environment",
     restartRequired: false,
   });
   receive({

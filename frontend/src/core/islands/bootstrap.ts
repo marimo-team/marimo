@@ -181,7 +181,7 @@ function handleMessage(
       // Unsupported operations in islands mode
       case "banner":
       case "missing-package-alert":
-      case "installing-package-alert":
+      case "environment-operation":
       case "environment-state":
       case "completion-result":
       case "reload":

@@ -42,7 +42,7 @@ with app.setup:
         o.CompletionResultNotification,
         o.AlertNotification,
         o.MissingPackageAlertNotification,
-        o.InstallingPackageAlertNotification,
+        o.EnvironmentOperationNotification,
         o.EnvironmentStateNotification,
         o.ReconnectedNotification,
         o.StartupLogsNotification,

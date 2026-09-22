@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
@@ -9,9 +10,7 @@ from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.context import is_code_mode_request
 from marimo._messaging.notification import (
     CompletedRunNotification,
-    InstallingPackageAlertNotification,
     MissingPackageAlertNotification,
-    OperationRunning,
     PackageStatusType,
 )
 from marimo._messaging.notification_utils import broadcast_notification
@@ -24,7 +23,7 @@ from marimo._runtime.packages.import_error_extractors import (
     extract_missing_module_from_cause_chain,
     try_extract_packages_from_import_error_message,
 )
-from marimo._runtime.packages.installation import package_installation
+from marimo._runtime.packages.operations import environment_operation
 from marimo._runtime.packages.package_manager import (
     LogCallback,
     PackageManager,
@@ -301,66 +300,31 @@ class PackagesCallbacks:
         package_statuses: PackageStatusType = dict.fromkeys(
             missing_packages, "queued"
         )
-        with package_installation(
-            package_statuses, request.source, broadcast_notification
-        ) as operation_id:
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    operation_id=operation_id,
-                    status=OperationRunning(),
-                    packages=dict(package_statuses),
-                    source=request.source,
-                )
-            )
+        # Worker log callbacks need the kernel's stream captured on this thread.
+        try:
+            stream = get_context().stream
+        except ContextNotInitializedError:
+            stream = None
+        with environment_operation(
+            "install",
+            package_statuses,
+            request.source,
+            partial(broadcast_notification, stream=stream),
+        ) as operation:
 
             def create_log_callback(pkg: str) -> LogCallback:
-                # Bind the stream now, on the kernel thread: the callback
-                # fires from worker threads, which do not carry the kernel's
-                # thread-local context, so a bare broadcast would be dropped.
-                try:
-                    stream = get_context().stream
-                except ContextNotInitializedError:
-                    stream = None
+                return lambda line: operation.update({pkg: line})
 
-                def log_callback(log_line: str) -> None:
-                    broadcast_notification(
-                        InstallingPackageAlertNotification(
-                            operation_id=operation_id,
-                            status=OperationRunning(),
-                            packages=dict(package_statuses),
-                            logs={pkg: log_line},
-                            log_status="append",
-                            source=request.source,
-                        ),
-                        stream=stream,
-                    )
-
-                return log_callback
-
-            # Mark every still-installable package as "installing" up-front so the
+            # Mark every still-installable package as "running" up-front so the
             # UI can render the batch state before any wheel completes.
             for pkg in missing_packages:
                 if not self.package_manager.attempted_to_install(package=pkg):
-                    package_statuses[pkg] = "installing"
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    operation_id=operation_id,
-                    status=OperationRunning(),
-                    packages=dict(package_statuses),
-                    source=request.source,
-                )
-            )
+                    package_statuses[pkg] = "running"
+            operation.update()
             for pkg in missing_packages:
-                if package_statuses.get(pkg) == "installing":
-                    broadcast_notification(
-                        InstallingPackageAlertNotification(
-                            operation_id=operation_id,
-                            status=OperationRunning(),
-                            packages=dict(package_statuses),
-                            logs={pkg: f"Installing {pkg}...\n"},
-                            log_status="start",
-                            source=request.source,
-                        )
+                if package_statuses.get(pkg) == "running":
+                    operation.update(
+                        {pkg: f"Installing {pkg}...\n"}, replace=True
                     )
 
             installable = [
@@ -378,17 +342,8 @@ class PackagesCallbacks:
                 log_callback_factory=create_log_callback,
             ):
                 if success:
-                    package_statuses[pkg] = "installed"
-                    broadcast_notification(
-                        InstallingPackageAlertNotification(
-                            operation_id=operation_id,
-                            status=OperationRunning(),
-                            packages=dict(package_statuses),
-                            logs={pkg: f"Successfully installed {pkg}\n"},
-                            log_status="done",
-                            source=request.source,
-                        ),
-                    )
+                    package_statuses[pkg] = "succeeded"
+                    operation.update({pkg: f"Successfully installed {pkg}\n"})
                 else:
                     restart_required = self.package_manager.restart_required
                     package_statuses[pkg] = (
@@ -396,27 +351,20 @@ class PackagesCallbacks:
                     )
                     mod = self.package_manager.package_to_module(pkg)
                     self._kernel.module_registry.excluded_modules.add(mod)
-                    broadcast_notification(
-                        InstallingPackageAlertNotification(
-                            operation_id=operation_id,
-                            status=OperationRunning(),
-                            packages=dict(package_statuses),
-                            logs={
-                                pkg: (
-                                    f"Dependency changes saved for {pkg}; restart the kernel to use them.\n"
-                                    if restart_required
-                                    else f"Failed to install {pkg}\n"
-                                )
-                            },
-                            log_status="done",
-                            source=request.source,
-                        ),
+                    operation.update(
+                        {
+                            pkg: (
+                                f"Dependency changes saved for {pkg}; restart the kernel to use them.\n"
+                                if restart_required
+                                else f"Failed to install {pkg}\n"
+                            )
+                        }
                     )
 
             installed_modules = [
                 self.package_manager.package_to_module(pkg)
                 for pkg in package_statuses
-                if package_statuses[pkg] == "installed"
+                if package_statuses[pkg] == "succeeded"
             ]
 
             # If a package was not installed at cell registration time, it won't

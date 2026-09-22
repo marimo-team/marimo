@@ -25,14 +25,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
-  isInstallingPackageAlert,
+  isEnvironmentOperationAlert,
   isMissingPackageAlert,
   useAlertActions,
   useAlerts,
 } from "@/core/alerts/state";
 import type { EnvironmentOperation } from "@/core/alerts/environment";
 import { useResolvedMarimoConfig } from "@/core/config/config";
-import type { PackageInstallationStatus } from "@/core/kernel/messages";
+import type { PackageOperationStatus } from "@/core/kernel/messages";
 import { useRequestClient } from "@/core/network/requests";
 import { RESTART_REQUIRED_DESCRIPTION } from "@/core/packages/toast-components";
 import { isWasm } from "@/core/wasm/utils";
@@ -112,7 +112,7 @@ export const PackageAlert: React.FC = () => {
   >({});
 
   const completedAlertId =
-    packageAlert?.kind === "installing" &&
+    packageAlert?.kind === "environment" &&
     packageAlert.status.kind === "succeeded" &&
     !packageAlert.restartRequired
       ? packageAlert.id
@@ -242,9 +242,9 @@ export const PackageAlert: React.FC = () => {
     );
   }
 
-  if (isInstallingPackageAlert(packageAlert)) {
+  if (isEnvironmentOperationAlert(packageAlert)) {
     const { status, title, titleIcon, description } =
-      getInstallationStatusElements(packageAlert.status);
+      getOperationStatusElements(packageAlert);
 
     return (
       <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-200 opacity-95 max-w-[600px] pointer-events-none">
@@ -270,11 +270,11 @@ export const PackageAlert: React.FC = () => {
           <div
             className={cn(
               "flex flex-col gap-4 justify-between items-start text-muted-foreground text-base",
-              status === "installed" && "text-accent-foreground",
+              status === "succeeded" && "text-accent-foreground",
             )}
           >
             <p>{description}</p>
-            {status !== "installing" && packageAlert.restartRequired && (
+            {status !== "running" && packageAlert.restartRequired && (
               <>
                 {status !== "restart-required" && (
                   <p>{RESTART_REQUIRED_DESCRIPTION}</p>
@@ -287,10 +287,10 @@ export const PackageAlert: React.FC = () => {
                 <li
                   className={cn(
                     "flex items-center gap-1 font-mono text-sm",
-                    st === "installing" && "font-semibold",
+                    st === "running" && "font-semibold",
                     st === "failed" && "text-destructive",
-                    st === "installed" && "text-accent-foreground",
-                    st === "installed" &&
+                    st === "succeeded" && "text-accent-foreground",
+                    st === "succeeded" &&
                       status === "failed" &&
                       "text-muted-foreground",
                   )}
@@ -318,14 +318,26 @@ export const PackageAlert: React.FC = () => {
   return null;
 };
 
-function getInstallationStatusElements(status: EnvironmentOperation["status"]) {
+function getOperationStatusElements({ action, status }: EnvironmentOperation) {
+  const titles = {
+    prepare: {
+      running: "Preparing environment",
+      succeeded: "Environment ready",
+    },
+    install: {
+      running: "Installing packages",
+      succeeded: "Packages installed",
+    },
+    remove: { running: "Removing packages", succeeded: "Packages removed" },
+    sync: { running: "Syncing environment", succeeded: "Environment synced" },
+  }[action];
   switch (status.kind) {
     case "running":
       return {
-        status: "installing",
-        title: "Installing packages",
+        status: "running",
+        title: titles.running,
         titleIcon: <DownloadCloudIcon className="w-5 h-5 inline-block mr-2" />,
-        description: "Installing packages:",
+        description: "Applying environment changes…",
       };
     case "restart-required":
       return {
@@ -336,25 +348,25 @@ function getInstallationStatusElements(status: EnvironmentOperation["status"]) {
       };
     case "succeeded":
       return {
-        status: "installed",
-        title: "All packages installed!",
+        status: "succeeded",
+        title: titles.succeeded,
         titleIcon: <PackageCheckIcon className="w-5 h-5 inline-block mr-2" />,
-        description: "Installed packages:",
+        description: "Environment changes applied.",
       };
     case "failed":
       return {
         status: "failed",
-        title: "Package installation failed",
+        title: "Environment change failed",
         titleIcon: <PackageXIcon className="w-5 h-5 inline-block mr-2" />,
         description: status.error,
       };
     case "cancelled":
       return {
         status: "cancelled",
-        title: "Package installation cancelled",
+        title: "Environment change cancelled",
         titleIcon: <XIcon className="w-5 h-5 inline-block mr-2" />,
         description:
-          "Installation was interrupted. Some packages may have changed.",
+          "The operation was interrupted. Some packages may have changed.",
       };
     default:
       return assertNever(status);
@@ -364,14 +376,14 @@ function getInstallationStatusElements(status: EnvironmentOperation["status"]) {
 const ProgressIcon = ({
   status,
 }: {
-  status: PackageInstallationStatus[string];
+  status: PackageOperationStatus[string];
 }) => {
   switch (status) {
     case "queued":
       return <BoxIcon size="1rem" />;
-    case "installing":
+    case "running":
       return <DownloadCloudIcon size="1rem" />;
-    case "installed":
+    case "succeeded":
       return <CheckIcon size="1rem" />;
     case "failed":
       return <XIcon size="1rem" />;
@@ -708,7 +720,7 @@ const StreamingLogsViewer: React.FC<StreamingLogsViewerProps> = ({
         ) : (
           <ChevronRightIcon className="w-4 h-4" />
         )}
-        Installation logs
+        Logs
       </button>
 
       {isExpanded && (

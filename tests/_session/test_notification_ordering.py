@@ -13,9 +13,9 @@ from marimo._ast.app import App, InternalApp
 from marimo._config.manager import get_default_config_manager
 from marimo._messaging.notification import (
     EnvironmentOperation,
+    EnvironmentOperationNotification,
     EnvironmentState,
     EnvironmentStateNotification,
-    InstallingPackageAlertNotification,
     OperationRunning,
 )
 from marimo._messaging.serde import (
@@ -65,13 +65,15 @@ def session_and_consumer() -> Iterator[tuple[SessionImpl, Mock]]:
         session.close()
 
 
-def _progress(log: str) -> InstallingPackageAlertNotification:
-    return InstallingPackageAlertNotification(
+def _progress(log: str) -> EnvironmentOperationNotification:
+    return EnvironmentOperationNotification(
+        action="install",
+        source="kernel",
         operation_id="install",
         status=OperationRunning(),
-        packages={"numpy": "installing"},
+        packages={"numpy": "running"},
         logs={"numpy": log},
-        log_status="append",
+        log_mode="append",
     )
 
 
@@ -80,9 +82,10 @@ def _state(log: str) -> EnvironmentState:
         restart_required=False,
         operations=[
             EnvironmentOperation(
+                action="install",
                 operation_id="install",
                 status=OperationRunning(),
-                packages={"numpy": "installing"},
+                packages={"numpy": "running"},
                 logs={"numpy": log},
                 source="kernel",
             )
@@ -187,7 +190,7 @@ async def test_reconnect_snapshot_precedes_a_queued_live_update(
         "alert",
         "environment-state",
         "environment-state",
-        "installing-package-alert",
+        "environment-operation",
     ]
     assert messages[2:] == [
         EnvironmentStateNotification(

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from marimo._messaging.notification import (
     EnvironmentOperation,
+    EnvironmentOperationNotification,
     EnvironmentState,
-    InstallingPackageAlertNotification,
     OperationRunning,
 )
 from marimo._session.state.environment import (
@@ -14,18 +14,21 @@ from marimo._session.state.environment import (
 
 def test_reducer_preserves_previous_state_and_notification() -> None:
     previous = EnvironmentOperation(
+        action="install",
         operation_id="install",
         status=OperationRunning(),
         source="kernel",
-        packages={"numpy": "installing"},
+        packages={"numpy": "running"},
         logs={"numpy": "Installing\n"},
     )
-    notification = InstallingPackageAlertNotification(
+    notification = EnvironmentOperationNotification(
+        action="install",
+        source="kernel",
         operation_id="install",
         status=OperationRunning(),
-        packages={"numpy": "installed"},
+        packages={"numpy": "succeeded"},
         logs={"numpy": "Installed\n"},
-        log_status="done",
+        log_mode="append",
     )
 
     environment = EnvironmentState(
@@ -35,24 +38,28 @@ def test_reducer_preserves_previous_state_and_notification() -> None:
 
     assert (environment.operations[0], notification, result.operations[0]) == (
         EnvironmentOperation(
+            action="install",
             operation_id="install",
             status=OperationRunning(),
             source="kernel",
-            packages={"numpy": "installing"},
+            packages={"numpy": "running"},
             logs={"numpy": "Installing\n"},
         ),
-        InstallingPackageAlertNotification(
+        EnvironmentOperationNotification(
+            action="install",
+            source="kernel",
             operation_id="install",
             status=OperationRunning(),
-            packages={"numpy": "installed"},
+            packages={"numpy": "succeeded"},
             logs={"numpy": "Installed\n"},
-            log_status="done",
+            log_mode="append",
         ),
         EnvironmentOperation(
+            action="install",
             operation_id="install",
             status=OperationRunning(),
             source="kernel",
-            packages={"numpy": "installed"},
+            packages={"numpy": "succeeded"},
             logs={"numpy": "Installing\nInstalled\n"},
         ),
     )

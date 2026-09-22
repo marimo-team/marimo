@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from marimo._messaging.notification import (
     EnvironmentOperation,
+    EnvironmentOperationNotification,
     EnvironmentState,
-    InstallingPackageAlertNotification,
     OperationRestartRequired,
     OperationRunning,
 )
@@ -12,7 +12,7 @@ from marimo._messaging.notification import (
 
 def reduce_environment_state(
     state: EnvironmentState,
-    notification: InstallingPackageAlertNotification,
+    notification: EnvironmentOperationNotification,
 ) -> EnvironmentState:
     """Retain active attempts, the latest result, and outstanding restarts."""
     operations = {
@@ -43,37 +43,22 @@ def reduce_environment_state(
 
 def _reduce_operation(
     state: EnvironmentOperation | None,
-    notification: InstallingPackageAlertNotification,
+    notification: EnvironmentOperationNotification,
 ) -> EnvironmentOperation:
-    """Reduce an installation update without mutating its inputs.
-
-    Package statuses replace the previous map. Log updates apply per package;
-    a log's `start` or `done` does not indicate an installation batch boundary.
-    """
+    """Replace package progress and apply changes to named output streams."""
     packages = dict(notification.packages)
-    logs = (
-        {
-            package: content
-            for package, content in state.logs.items()
-            if package in packages
-        }
-        if state is not None
-        else {}
-    )
-
-    if notification.logs is not None and notification.log_status is not None:
-        for package, content in notification.logs.items():
-            if package not in packages:
-                continue
-            if notification.log_status == "start":
-                logs[package] = content
-            else:
-                logs[package] = logs.get(package, "") + content
+    logs = dict(state.logs) if state is not None else {}
+    for name, content in notification.logs.items():
+        if notification.log_mode == "replace":
+            logs[name] = content
+        else:
+            logs[name] = logs.get(name, "") + content
 
     return EnvironmentOperation(
         packages=packages,
         logs=logs,
         source=notification.source,
         operation_id=notification.operation_id,
+        action=notification.action,
         status=notification.status,
     )

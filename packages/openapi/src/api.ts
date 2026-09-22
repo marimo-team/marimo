@@ -4876,6 +4876,8 @@ export interface components {
      * @description Current progress and logs for one execution of environment work.
      */
     EnvironmentOperation: {
+      /** @enum {unknown} */
+      action: "install" | "prepare" | "remove" | "sync";
       logs: {
         [key: string]: string;
       };
@@ -4883,10 +4885,10 @@ export interface components {
       packages: {
         [key: string]:
           | "failed"
-          | "installed"
-          | "installing"
           | "queued"
-          | "restart-required";
+          | "restart-required"
+          | "running"
+          | "succeeded";
       };
       /** @enum {unknown} */
       source: "kernel" | "server";
@@ -5537,42 +5539,34 @@ export interface components {
       };
     };
     /**
-     * InstallingPackageAlertNotification
-     * @description Package installation progress with streaming logs.
+     * EnvironmentOperationNotification
+     * @description Current operation progress and changes to its named log streams.
      *
-     *     Attributes:
-     *         packages: Package name to status (queued/installing/installed/failed).
-     *         logs: Optional streaming logs per package.
-     *         log_status: Log stream status (append/start/done).
-     *         source: Which Python environment packages are installed into.
-     *                 "kernel" (default) installs in the kernel's venv; "server"
-     *                 installs in the server's own Python env.
-     *         operation_id: Identifies one installation attempt within the session.
-     *         status: Overall attempt status, independent of per-package log status.
+     *     Package statuses replace the previous map. Log chunks append to a stream,
+     *     or replace it when `log_mode` is `replace`. The operation status determines
+     *     completion independently of its packages and output streams.
      */
-    InstallingPackageAlertNotification: {
-      /** @default null */
-      log_status?: ("append" | "done" | "start") | null;
-      /** @default null */
-      logs?: {
-        [key: string]: string;
-      } | null;
+    EnvironmentOperationNotification: {
       /** @enum {unknown} */
-      op: "installing-package-alert";
+      action: "install" | "prepare" | "remove" | "sync";
+      /** @enum {unknown} */
+      log_mode: "append" | "replace";
+      logs: {
+        [key: string]: string;
+      };
+      /** @enum {unknown} */
+      op: "environment-operation";
       operation_id: string;
       packages: {
         [key: string]:
           | "failed"
-          | "installed"
-          | "installing"
           | "queued"
-          | "restart-required";
+          | "restart-required"
+          | "running"
+          | "succeeded";
       };
-      /**
-       * @default kernel
-       * @enum {unknown}
-       */
-      source?: "kernel" | "server";
+      /** @enum {unknown} */
+      source: "kernel" | "server";
       status:
         | components["schemas"]["OperationRunning"]
         | components["schemas"]["OperationSucceeded"]
@@ -5815,7 +5809,7 @@ export interface components {
         | components["schemas"]["AlertNotification"]
         | components["schemas"]["BannerNotification"]
         | components["schemas"]["MissingPackageAlertNotification"]
-        | components["schemas"]["InstallingPackageAlertNotification"]
+        | components["schemas"]["EnvironmentOperationNotification"]
         | components["schemas"]["EnvironmentStateNotification"]
         | components["schemas"]["StartupLogsNotification"]
         | components["schemas"]["StartupProgressNotification"]

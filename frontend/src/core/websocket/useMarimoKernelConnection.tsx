@@ -376,14 +376,10 @@ export function useMarimoKernelConnection(opts: {
           kind: "missing",
         });
         return;
-      case "installing-package-alert":
+      case "environment-operation":
         if (
-          msg.data.source !== "server" &&
-          msg.data.log_status !== "append" &&
-          msg.data.log_status !== "start" &&
-          Object.values(msg.data.packages).some(
-            (status) => status === "installed" || status === "restart-required",
-          )
+          msg.data.source === "kernel" &&
+          msg.data.status.kind !== "running"
         ) {
           invalidatePackageData();
         }

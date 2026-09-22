@@ -502,10 +502,10 @@ class MissingPackageAlertNotification(
     source: Literal["kernel", "server"] = "kernel"
 
 
-# package name => installation status
+# Package name => progress within the current operation
 PackageStatusType = dict[
     str,
-    Literal["queued", "installing", "installed", "failed", "restart-required"],
+    Literal["queued", "running", "succeeded", "failed", "restart-required"],
 ]
 
 
@@ -555,10 +555,14 @@ EnvironmentOperationStatus = (
 )
 
 
+EnvironmentAction = Literal["prepare", "install", "remove", "sync"]
+
+
 class EnvironmentOperation(msgspec.Struct, frozen=True):
     """Current progress and logs for one execution of environment work."""
 
     operation_id: str
+    action: EnvironmentAction
     status: EnvironmentOperationStatus
     packages: PackageStatusType
     logs: dict[str, str]
@@ -580,29 +584,24 @@ class EnvironmentStateNotification(Notification, tag="environment-state"):
     state: EnvironmentState
 
 
-class InstallingPackageAlertNotification(
-    Notification, tag="installing-package-alert"
+class EnvironmentOperationNotification(
+    Notification, tag="environment-operation"
 ):
-    """Package installation progress with streaming logs.
+    """Current operation progress and changes to its named log streams.
 
-    Attributes:
-        packages: Package name to status (queued/installing/installed/failed).
-        logs: Optional streaming logs per package.
-        log_status: Log stream status (append/start/done).
-        source: Which Python environment packages are installed into.
-                "kernel" (default) installs in the kernel's venv; "server"
-                installs in the server's own Python env.
-        operation_id: Identifies one installation attempt within the session.
-        status: Overall attempt status, independent of per-package log status.
+    Package statuses replace the previous map. Log chunks append to a stream,
+    or replace it when `log_mode` is `replace`. The operation status determines
+    completion independently of its packages and output streams.
     """
 
-    name: ClassVar[str] = "installing-package-alert"
-    packages: PackageStatusType
+    name: ClassVar[str] = "environment-operation"
     operation_id: str
+    action: EnvironmentAction
     status: EnvironmentOperationStatus
-    logs: dict[str, str] | None = None  # package name -> log content
-    log_status: Literal["append", "start", "done"] | None = None
-    source: Literal["kernel", "server"] = "kernel"
+    source: Literal["kernel", "server"]
+    packages: PackageStatusType
+    logs: dict[str, str]
+    log_mode: Literal["append", "replace"]
 
 
 class ReconnectedNotification(Notification, tag="reconnected"):
@@ -1099,7 +1098,7 @@ NotificationMessage = (
     | AlertNotification
     | BannerNotification
     | MissingPackageAlertNotification
-    | InstallingPackageAlertNotification
+    | EnvironmentOperationNotification
     | EnvironmentStateNotification
     | StartupLogsNotification
     | StartupProgressNotification

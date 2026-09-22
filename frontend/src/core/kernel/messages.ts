@@ -36,8 +36,8 @@ export type CompletionResultMessage =
 export type HumanReadableStatus = schemas["HumanReadableStatus"];
 export type FunctionCallResultMessage =
   NotificationMessageData<"function-call-result">;
-export type PackageInstallationStatus =
-  schemas["InstallingPackageAlertNotification"]["packages"];
+export type PackageOperationStatus =
+  schemas["EnvironmentOperationNotification"]["packages"];
 export type DataColumnPreview = NotificationMessageData<"data-column-preview">;
 export type SQLTablePreview = NotificationMessageData<"sql-table-preview">;
 export type SQLTableListPreview =

@@ -6,15 +6,16 @@ import { emptyEnvironmentState, reduceEnvironmentState } from "../environment";
 
 function progress(
   operation_id: string,
-  update: Partial<NotificationMessageData<"installing-package-alert">> = {},
-): NotificationMessageData<"installing-package-alert"> {
+  update: Partial<NotificationMessageData<"environment-operation">> = {},
+): NotificationMessageData<"environment-operation"> {
   return {
     operation_id,
+    action: "install",
     source: "kernel",
     status: { kind: "running" },
-    packages: { numpy: "installing" },
+    packages: { numpy: "running" },
     logs: { numpy: "Downloading\n" },
-    log_status: "append",
+    log_mode: "append",
     ...update,
   };
 }
@@ -29,9 +30,9 @@ describe("environment progress", () => {
       snapshot,
       progress("one", {
         status: { kind: "succeeded" },
-        packages: { numpy: "installed" },
+        packages: { numpy: "succeeded" },
         logs: { numpy: "Installed\n" },
-        log_status: "done",
+        log_mode: "append",
       }),
     );
     expect(result).toEqual({
@@ -39,9 +40,10 @@ describe("environment progress", () => {
       operations: [
         {
           operation_id: "one",
+          action: "install",
           source: "kernel",
           status: { kind: "succeeded" },
-          packages: { numpy: "installed" },
+          packages: { numpy: "succeeded" },
           logs: { numpy: "Downloading\nInstalled\n" },
         },
       ],
@@ -62,36 +64,39 @@ describe("environment progress", () => {
       state,
       progress("one", {
         status: { kind: "failed", error: "Network unavailable" },
-        logs: null,
+        logs: {},
       }),
     );
     expect(state.operations.map((op) => [op.operation_id, op.logs])).toEqual([
       ["one", { numpy: "Downloading\n" }],
       ["two", { numpy: "Other\n" }],
     ]);
-    state = reduceEnvironmentState(state, progress("retry", { logs: null }));
+    state = reduceEnvironmentState(state, progress("retry", { logs: {} }));
     expect(state.operations.map((op) => [op.operation_id, op.logs])).toEqual([
       ["two", { numpy: "Other\n" }],
       ["retry", {}],
     ]);
   });
 
-  it("replaces a package log on start and removes omitted packages", () => {
+  it("replaces named logs independently of the package map", () => {
     const state = reduceEnvironmentState(
       emptyEnvironmentState(),
       progress("one", {
-        packages: { numpy: "installed", pandas: "installing" },
+        packages: { numpy: "succeeded", pandas: "running" },
         logs: { numpy: "Old\n", pandas: "Old\n" },
       }),
     );
     const result = reduceEnvironmentState(
       state,
       progress("one", {
-        log_status: "start",
+        log_mode: "replace",
         logs: { numpy: "", pandas: "Ignored\n" },
       }),
     );
-    expect(result.operations[0].logs).toEqual({ numpy: "" });
+    expect(result.operations[0].logs).toEqual({
+      numpy: "",
+      pandas: "Ignored\n",
+    });
   });
 
   it("keeps a restart requirement after a later operation succeeds", () => {
@@ -105,8 +110,8 @@ describe("environment progress", () => {
       state,
       progress("two", {
         status: { kind: "succeeded" },
-        packages: { numpy: "installed" },
-        logs: null,
+        packages: { numpy: "succeeded" },
+        logs: {},
       }),
     );
     expect(state).toEqual({
@@ -114,9 +119,10 @@ describe("environment progress", () => {
       operations: [
         {
           operation_id: "two",
+          action: "install",
           source: "kernel",
           status: { kind: "succeeded" },
-          packages: { numpy: "installed" },
+          packages: { numpy: "succeeded" },
           logs: {},
         },
       ],

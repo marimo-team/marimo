@@ -952,7 +952,7 @@ async def test_package_summary_reports_unsuccessful_outcomes(
     restart_required: bool,
 ) -> None:
     from marimo._messaging.notification import (
-        InstallingPackageAlertNotification,
+        EnvironmentOperationNotification,
         OperationFailed,
         OperationRestartRequired,
     )
@@ -985,13 +985,17 @@ async def test_package_summary_reports_unsuccessful_outcomes(
             alerts = [
                 n
                 for n in k.stream.operations
-                if isinstance(n, InstallingPackageAlertNotification)
+                if isinstance(n, EnvironmentOperationNotification)
             ]
             operation_id = alerts[0].operation_id
             assert operation_id is not None
             assert {alert.operation_id for alert in alerts} == {operation_id}
             outcome = "restart-required" if restart_required else "failed"
-            assert alerts[-1] == InstallingPackageAlertNotification(
+            assert alerts[-1] == EnvironmentOperationNotification(
+                action="install",
+                source="kernel",
+                logs={},
+                log_mode="append",
                 packages={"boltons": outcome},
                 operation_id=operation_id,
                 status=(
@@ -1000,7 +1004,7 @@ async def test_package_summary_reports_unsuccessful_outcomes(
                     )
                     if restart_required
                     else OperationFailed(
-                        error="Failed to install boltons. See installation logs for details."
+                        error="Could not apply changes to boltons. See operation logs for details."
                     )
                 ),
             )

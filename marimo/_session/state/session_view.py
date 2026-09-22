@@ -16,9 +16,9 @@ from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
+    EnvironmentOperationNotification,
     EnvironmentState,
     EsmSpec,
-    InstallingPackageAlertNotification,
     InterruptedNotification,
     ModelClose,
     ModelLifecycleNotification,
@@ -482,7 +482,7 @@ class SessionView:
                 status=notification.status,
             )
 
-        elif isinstance(notification, InstallingPackageAlertNotification):
+        elif isinstance(notification, EnvironmentOperationNotification):
             self._environment_states[notification.source] = (
                 reduce_environment_state(
                     self._environment_states[notification.source],

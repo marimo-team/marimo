@@ -21,8 +21,8 @@ export interface MissingPackageAlert {
   source?: "kernel" | "server";
 }
 
-export interface InstallingPackageAlert extends EnvironmentOperation {
-  kind: "installing";
+export interface EnvironmentOperationAlert extends EnvironmentOperation {
+  kind: "environment";
   restartRequired: boolean;
 }
 
@@ -32,21 +32,21 @@ export interface StartupLogsAlert {
 }
 
 export function isMissingPackageAlert(
-  alert: MissingPackageAlert | InstallingPackageAlert,
+  alert: MissingPackageAlert | EnvironmentOperationAlert,
 ): alert is MissingPackageAlert {
   return alert.kind === "missing";
 }
 
-export function isInstallingPackageAlert(
-  alert: MissingPackageAlert | InstallingPackageAlert,
-): alert is InstallingPackageAlert {
-  return alert.kind === "installing";
+export function isEnvironmentOperationAlert(
+  alert: MissingPackageAlert | EnvironmentOperationAlert,
+): alert is EnvironmentOperationAlert {
+  return alert.kind === "environment";
 }
 
 interface AlertState {
   packageAlert:
     | Identified<MissingPackageAlert>
-    | { kind: "installing"; id: string; source: EnvironmentSource }
+    | { kind: "environment"; id: string; source: EnvironmentSource }
     | null;
   environments: Record<EnvironmentSource, EnvironmentState>;
   startupLogsAlert: StartupLogsAlert | null;
@@ -72,7 +72,7 @@ function setEnvironment(
     environments,
     packageAlert: operation
       ? {
-          kind: "installing",
+          kind: "environment",
           id: operation.operation_id,
           source: operation.source,
         }
@@ -100,9 +100,9 @@ export const { valueAtom: alertAtom, useActions: useAlertActions } =
 
       updateEnvironment: (
         state,
-        update: NotificationMessageData<"installing-package-alert">,
+        update: NotificationMessageData<"environment-operation">,
       ) => {
-        const source = update.source ?? "kernel";
+        const source = update.source;
         return setEnvironment(
           state,
           source,
@@ -137,9 +137,9 @@ export const { valueAtom: alertAtom, useActions: useAlertActions } =
 
 export function getPackageAlert(
   state: AlertState,
-): Identified<MissingPackageAlert | InstallingPackageAlert> | null {
+): Identified<MissingPackageAlert | EnvironmentOperationAlert> | null {
   const alert = state.packageAlert;
-  if (alert?.kind !== "installing") {
+  if (alert?.kind !== "environment") {
     return alert;
   }
   const environment = state.environments[alert.source];
