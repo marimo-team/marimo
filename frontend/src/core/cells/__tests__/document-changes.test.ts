@@ -239,6 +239,29 @@ describe("toDocumentChanges", () => {
       `);
     });
 
+    it("maps expand_output to expandOutput in set-config", () => {
+      setup("a");
+      const [a] = state.cellIds.inOrderIds;
+
+      const { changes } = resolve(state, {
+        type: "updateCellConfig",
+        payload: { cellId: a, config: { expand_output: true } },
+      });
+
+      expect(changes).toMatchInlineSnapshot(`
+        [
+          {
+            "cellId": "0",
+            "column": null,
+            "disabled": false,
+            "expandOutput": true,
+            "hideCode": false,
+            "type": "set-config",
+          },
+        ]
+      `);
+    });
+
     it("includes full CellConfig in create-cell", () => {
       setup("a");
 
@@ -249,13 +272,14 @@ describe("toDocumentChanges", () => {
           before: false,
           code: "hidden",
           newCellId: CellId.create(),
+          config: { expand_output: true },
           hideCode: true,
         },
       });
 
       expect(changes[0]).toMatchObject({
         type: "create-cell",
-        config: { hide_code: true },
+        config: { hide_code: true, expand_output: true },
       });
     });
   });
