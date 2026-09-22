@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { BotIcon } from "lucide-react";
 import React from "react";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
@@ -77,17 +78,29 @@ export const PairWithAgentBanner: React.FC<{
     >
       <div className="flex items-center gap-2 text-sm font-semibold">
         {label}
-        <div className="flex -space-x-1.5 mb-0.5" aria-label="Supported agents">
+        <fieldset
+          className="m-0 flex min-w-0 -space-x-1.5 border-0 p-0 mb-0.5"
+          aria-label="Supported agents"
+        >
           {FEATURED_AGENTS.map(({ id, label }) => (
-            <div
+            <figure
               key={id}
               title={label}
-              className="flex size-6 items-center justify-center rounded-full border bg-background shadow-xs"
+              aria-label={label}
+              className="m-0 flex size-6 items-center justify-center rounded-full border bg-background shadow-xs"
             >
-              <AiProviderIcon provider={id} className="size-3.5" />
-            </div>
+              {id === "openai-compatible" ? (
+                <BotIcon className="size-3.5" aria-hidden={true} />
+              ) : (
+                <AiProviderIcon
+                  provider={id}
+                  className="size-3.5"
+                  aria-hidden={true}
+                />
+              )}
+            </figure>
           ))}
-        </div>
+        </fieldset>
       </div>
       <button
         type="button"

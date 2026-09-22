@@ -32,13 +32,20 @@ describe("PairWithAgent", () => {
   it("shows local agent options", () => {
     render(<PairWithAgentBanner />, { wrapper });
 
-    expect(screen.getByRole("img", { name: "claude" })).toBeVisible();
-    expect(screen.getByRole("img", { name: "codex" })).toBeVisible();
-    expect(screen.getByRole("img", { name: "cursor" })).toBeVisible();
-    expect(screen.getByRole("img", { name: "gemini" })).toBeVisible();
-    expect(screen.getByRole("img", { name: "opencode" })).toBeVisible();
-    expect(screen.getByRole("img", { name: "github" })).toBeVisible();
-    expect(screen.getByTitle("Any local agent")).toBeVisible();
+    expect(
+      screen.getByRole("group", { name: "Supported agents" }),
+    ).toBeVisible();
+    expect(screen.getByRole("figure", { name: "Claude Code" })).toBeVisible();
+    expect(screen.getByRole("figure", { name: "Codex" })).toBeVisible();
+    expect(screen.getByRole("figure", { name: "Cursor" })).toBeVisible();
+    expect(screen.getByRole("figure", { name: "Gemini CLI" })).toBeVisible();
+    expect(screen.getByRole("figure", { name: "OpenCode" })).toBeVisible();
+    expect(
+      screen.getByRole("figure", { name: "GitHub Copilot" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("figure", { name: "Any local agent" }),
+    ).toBeVisible();
     expect(
       screen.getByRole("button", {
         name: /any agent to work with this notebook/,
