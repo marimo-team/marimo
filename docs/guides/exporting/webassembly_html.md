@@ -298,7 +298,7 @@ For local modules outside the notebook directory, configure
 can resolve the import.
 
 If you already build a local wheel, reference it from the notebook's
-[inline script metadata](../package_management/inlining_dependencies.md):
+[inline script metadata](../package_management/sandboxes.md):
 
 ```python
 # /// script

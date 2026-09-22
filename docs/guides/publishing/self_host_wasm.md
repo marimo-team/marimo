@@ -40,7 +40,7 @@ The HTML uses relative URLs for the bundled runtime, lockfile, and package
 index, so the directory can be moved to another host or URL prefix. The
 `packages` directory includes transitive dependencies, packages inferred from
 imports that are available in Pyodide, and dependencies declared in
-[inline script metadata](../package_management/inlining_dependencies.md).
+[inline script metadata](../package_management/sandboxes.md).
 Declare PyPI dependencies in that metadata, including packages installed
 dynamically by the notebook.
 

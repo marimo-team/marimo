@@ -72,7 +72,7 @@ By default, thumbnails are generated without executing the notebook (fast; no ou
         installed. Use `--no-sandbox` to disable sandboxing and dependency prompts.
 
         Sandboxed execution installs dependencies from inline script metadata
-        (PEP 723). See [Inlining dependencies](../package_management/inlining_dependencies.md).
+        (PEP 723). See [Inlining dependencies](../package_management/sandboxes.md).
 
         Each notebook executes in its own process using its inline dependencies.
         Playwright is installed for the renderer without adding it to notebook
