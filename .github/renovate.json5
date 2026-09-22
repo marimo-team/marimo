@@ -23,9 +23,9 @@
       "matchPackageNames": ["node"],
       "enabled": false
     },
-    // Temporarily allow marimo-lens and its agent plugin dependency without the global age gate
+    // Temporarily allow marimo-lens releases without the global age gate
     {
-      "matchPackageNames": ["agent-plugins", "marimo-lens"],
+      "matchPackageNames": ["marimo-lens"],
       "minimumReleaseAge": "0 days"
     },
     // Only upgrade ruff, mkdocs, pytest
