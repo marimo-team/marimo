@@ -278,18 +278,20 @@ describe("file browser navigation", () => {
         await new Promise(requestAnimationFrame);
       });
       dragEvent(folder, "drop");
-      if (canMove) {
-        await waitFor(() =>
-          expect(client.sendRenameFileOrFolder).toHaveBeenCalledExactlyOnceWith(
-            {
-              path: "/workspace/notes.txt",
-              newPath: "/workspace/data/notes.txt",
-            },
-          ),
+      await waitFor(() => {
+        expect(client.sendRenameFileOrFolder.mock.calls).toEqual(
+          canMove
+            ? [
+                [
+                  {
+                    path: "/workspace/notes.txt",
+                    newPath: "/workspace/data/notes.txt",
+                  },
+                ],
+              ]
+            : [],
         );
-      } else {
-        expect(client.sendRenameFileOrFolder).not.toHaveBeenCalled();
-      }
+      });
       dragEvent(source, "dragend");
     },
   );

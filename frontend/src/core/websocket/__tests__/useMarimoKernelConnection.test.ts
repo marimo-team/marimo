@@ -47,9 +47,10 @@ describe("classifyCloseEvent", () => {
         state: WebSocketState.CLOSED,
         code: WebSocketClosedReason.KERNEL_DISCONNECTED,
       });
-      if (decision.kind === "terminal") {
-        expect(decision.closeTransport).toBe(true);
-      }
+      expect(decision).toMatchObject({
+        kind: "terminal",
+        closeTransport: true,
+      });
     });
 
     it("MARIMO_KERNEL_STARTUP_ERROR → terminal + closeTransport", () => {
@@ -59,9 +60,10 @@ describe("classifyCloseEvent", () => {
         state: WebSocketState.CLOSED,
         code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
       });
-      if (decision.kind === "terminal") {
-        expect(decision.closeTransport).toBe(true);
-      }
+      expect(decision).toMatchObject({
+        kind: "terminal",
+        closeTransport: true,
+      });
     });
   });
 

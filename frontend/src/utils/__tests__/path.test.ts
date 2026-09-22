@@ -213,15 +213,16 @@ describe("PathBuilder", () => {
       "should handle unicode and spaces in path operations: %s",
       (filename) => {
         const baseName = Paths.basename(filename);
-        const extension = Paths.extension(filename);
 
         // Should preserve unicode characters in basename
         expect(baseName).toContain(filename.split(".")[0]);
+      },
+    );
 
-        // Should correctly extract extension
-        if (filename.includes(".")) {
-          expect(extension).toBe(filename.split(".").pop());
-        }
+    it.each(EDGE_CASE_FILENAMES)(
+      "should extract the extension from edge-case filenames: %s",
+      (filename) => {
+        expect(Paths.extension(filename)).toBe("py");
       },
     );
   });
