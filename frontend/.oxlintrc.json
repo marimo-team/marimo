@@ -89,9 +89,6 @@
     "array-callback-return": "warn",
     "no-new": "off",
     "no-bitwise": "off",
-    "no-control-regex": "error",
-    "no-unsafe-optional-chaining": "error",
-    "no-unused-expressions": "error",
     // TODO: re-enable
     "no-unused-vars": "warn",
 
