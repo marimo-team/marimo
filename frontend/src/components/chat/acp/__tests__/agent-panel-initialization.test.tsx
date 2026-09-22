@@ -168,7 +168,7 @@ describe("AgentPanel initialization", () => {
             ]
           : [],
       );
-      expect(agent.newSession.mock.calls).toEqual(
+      expect(agent.newSession.mock.calls).toStrictEqual(
         sessionId
           ? []
           : [
