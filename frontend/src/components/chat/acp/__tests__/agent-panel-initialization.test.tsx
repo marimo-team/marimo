@@ -155,21 +155,32 @@ describe("AgentPanel initialization", () => {
 
       await act(async () => initialization.resolve(initialized));
       expect(agent.authenticate).not.toHaveBeenCalled();
-      if (sessionId) {
-        expect(agent.loadSession).toHaveBeenCalledExactlyOnceWith({
-          sessionId,
-          cwd: "/notebooks",
-          mcpServers: [],
-        });
-        expect(agent.newSession).not.toHaveBeenCalled();
-      } else {
-        expect(agent.newSession).toHaveBeenCalledExactlyOnceWith({
-          cwd: "/notebooks",
-          mcpServers: [],
-          _meta: undefined,
-        });
-        expect(agent.loadSession).not.toHaveBeenCalled();
-      }
+      expect(agent.loadSession.mock.calls).toEqual(
+        sessionId
+          ? [
+              [
+                {
+                  sessionId,
+                  cwd: "/notebooks",
+                  mcpServers: [],
+                },
+              ],
+            ]
+          : [],
+      );
+      expect(agent.newSession.mock.calls).toStrictEqual(
+        sessionId
+          ? []
+          : [
+              [
+                {
+                  cwd: "/notebooks",
+                  mcpServers: [],
+                  _meta: undefined,
+                },
+              ],
+            ],
+      );
       expect(
         screen.getByRole("button", { name: "Restart" }),
       ).toBeInTheDocument();
