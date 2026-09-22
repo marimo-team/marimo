@@ -526,7 +526,6 @@ const ChatPanel = () => {
             >
               Edit AI settings
             </Button>
-            <PairWithAgentBanner className="mt-4" />
           </div>
         }
         icon={<BotMessageSquareIcon />}
