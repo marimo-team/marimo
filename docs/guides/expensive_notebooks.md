@@ -188,35 +188,19 @@ def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.nda
 See our [guide on caching](../api/caching.md) for details, including how the cache
 key is constructed, and limitations.
 
-### Manage the on-disk cache
+/// tip
 
 Use the `marimo cache` command group to see and reclaim the disk space
-used by [`mo.persistent_cache`][marimo.persistent_cache]. Every
-subcommand accepts an optional PATH, a notebook file or a directory.
-PATH defaults to the current directory. A notebook path resolves to the
-cache directory beside that notebook. A directory resolves its own
-`__marimo__/cache`, as if a notebook ran in that directory. Add
-`-r`/`--recursive` to instead search the directory for
-`__marimo__/cache` directories, skipping dot-folders. Every subcommand
-prints each cache directory it acts on.
-
-If your configuration sets `cache.store`, the kernel writes to that
-store instead. The commands then act on the directories that store
-keeps on this machine. A file store with no `save_path` writes beside
-the notebook, so PATH still applies to it. A store set in project or
-notebook configuration is not trusted by the default cache method,
-which keeps writing beside the notebook, so the commands act on both
-places. A store that keeps nothing on this machine, such as a remote
-one, leaves the commands nothing to act on.
-
-#### Find the cache directories
+used by [`mo.persistent_cache`][marimo.persistent_cache].
 
 ```bash
 marimo cache dir notebook.py
 ```
 
-Run `marimo cache dir` to print the cache directories that PATH resolves
-to, without changing anything on disk.
+Run `marimo cache dir ./dir` to print cache directories resolved
+from the given folder.
+
+///
 
 ## Lazy-load expensive UIs
 
