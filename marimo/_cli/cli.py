@@ -534,7 +534,12 @@ def edit(
                 sandbox=sandbox, no_sandbox=no_sandbox, name=None
             )
             if new_notebook_backend is not None:
-                require_sandbox_backend(new_notebook_backend)
+                from marimo._environments.errors import EnvironmentManagerError
+
+                try:
+                    require_sandbox_backend(new_notebook_backend)
+                except EnvironmentManagerError as error:
+                    raise MarimoCLIRuntimeError(str(error)) from error
             # write empty file
             try:
                 with open(name, "w", encoding="utf-8"):
