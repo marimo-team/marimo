@@ -14,7 +14,10 @@ from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
-from marimo._messaging.notification import CellNotification
+from marimo._messaging.notification import (
+    CellNotification,
+    StartupProgressNotification,
+)
 from marimo._runtime.commands import ExecuteCellsCommand
 from marimo._schemas.session import NotebookSessionV1
 from marimo._session.state.serialize import (
@@ -1215,7 +1218,10 @@ class TestSessionCacheManager:
             cache_file.write_text(json.dumps(data))
 
             # Read back
-            manager = SessionCacheManager(SessionView(), doc, path, 0.1)
+            current = SessionView()
+            progress = StartupProgressNotification(phase="starting-kernel")
+            current.add_notification(progress)
+            manager = SessionCacheManager(current, doc, path, 0.1)
             loaded_view = manager.read_session_view(
                 SessionCacheKey(
                     codes=(
@@ -1226,5 +1232,7 @@ class TestSessionCacheManager:
                     cell_ids=(CELL1, CELL2),
                 )
             )
+            assert loaded_view is current
+            assert loaded_view.startup_progress == progress
             # cache hit: codes and version match
             assert len(loaded_view.cell_notifications) == 2

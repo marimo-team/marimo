@@ -36,6 +36,7 @@ from marimo._session.managers import KernelManagerImpl
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
 from marimo._session.session import SessionImpl
+from marimo._session.state.session_view import SessionView
 from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.distributor import QueueDistributor
 
@@ -49,6 +50,7 @@ def session_and_consumer() -> Iterator[tuple[SessionImpl, Mock]]:
     consumer.consumer_id = ConsumerId("main")
     consumer.connection_state.return_value = ConnectionState.OPEN
     session = SessionImpl(
+        session_view=SessionView(),
         initialization_id="notebook.py",
         session_consumer=consumer,
         kernel_manager=Mock(spec=KernelManagerImpl),

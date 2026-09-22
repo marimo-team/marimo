@@ -29,6 +29,7 @@ from marimo._messaging.notification import (
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
+    StartupProgressNotification,
     StorageNamespacesNotification,
     UIElementMessageNotification,
     VariablesNotification,
@@ -203,6 +204,7 @@ class SessionView:
 
         # Startup logs for startup command - only one at a time
         self.startup_logs: StartupLogsNotification | None = None
+        self.startup_progress: StartupProgressNotification | None = None
 
         self._environment_states: dict[
             Literal["kernel", "server"], EnvironmentState
@@ -469,6 +471,9 @@ class SessionView:
             elif isinstance(msg, ModelClose):
                 self.model_states.pop(model_id, None)
             # ModelCustom is ephemeral — skip for replay
+
+        elif isinstance(notification, StartupProgressNotification):
+            self.startup_progress = notification
 
         elif isinstance(notification, StartupLogsNotification):
             prev = self.startup_logs.content if self.startup_logs else ""

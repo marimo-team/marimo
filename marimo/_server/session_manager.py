@@ -48,6 +48,7 @@ from marimo._session.managers.ipc import KernelStartupError
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.session import Session, SessionImpl
 from marimo._session.session_repository import SessionRepository
+from marimo._session.startup import SessionStartup
 from marimo._session.types import KernelState
 from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.asyncio_utils import fire_and_forget
@@ -64,6 +65,7 @@ LOGGER = _loggers.marimo_logger()
 @dataclass
 class _PendingSession:
     task: asyncio.Task[Session]
+    startup: SessionStartup
     waiters: int = 0
 
 
@@ -217,6 +219,7 @@ class SessionManager:
             return existing
         pending = self._pending.get(session_id)
         if pending is None:
+            startup = SessionStartup()
             task = asyncio.create_task(
                 self._create_session(
                     session_id,
@@ -224,10 +227,11 @@ class SessionManager:
                     query_params,
                     file_key,
                     auto_instantiate,
+                    startup,
                 ),
                 name=f"session.start.{session_id}",
             )
-            pending = _PendingSession(task)
+            pending = _PendingSession(task, startup)
             self._pending[session_id] = pending
 
             def finished(task: asyncio.Task[Session]) -> None:
@@ -239,7 +243,8 @@ class SessionManager:
             task.add_done_callback(finished)
         pending.waiters += 1
         try:
-            return await asyncio.shield(pending.task)
+            with pending.startup.subscribe(session_consumer):
+                return await asyncio.shield(pending.task)
         finally:
             pending.waiters -= 1
             if pending.waiters == 0 and not pending.task.done():
@@ -258,6 +263,7 @@ class SessionManager:
         query_params: SerializedQueryParams,
         file_key: MarimoFileKey,
         auto_instantiate: bool,
+        startup: SessionStartup,
     ) -> Session:
         """Create a new session."""
         LOGGER.debug("Creating new session for id %s", session_id)
@@ -283,6 +289,7 @@ class SessionManager:
 
         session = await SessionImpl.create(
             initialization_id=file_key,
+            startup=startup,
             session_consumer=session_consumer,
             mode=self.mode,
             app_metadata=AppMetadata(

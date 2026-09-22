@@ -55,6 +55,7 @@ from marimo._session.managers import (
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
 from marimo._session.room import Room
+from marimo._session.startup import SessionStartup
 from marimo._session.state.session_view import SessionView
 from marimo._session.types import (
     KernelExitInfo,
@@ -101,6 +102,7 @@ class SessionImpl(Session):
         *,
         initialization_id: str,
         session_consumer: SessionConsumer,
+        startup: SessionStartup,
         mode: SessionMode,
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
@@ -173,10 +175,8 @@ class SessionImpl(Session):
                 app_metadata=app_metadata,
                 config_manager=config_manager,
                 redirect_console_to_browser=redirect_console_to_browser,
-                on_progress=lambda phase: session_consumer.notify(
-                    serialize_kernel_message(
-                        StartupProgressNotification(phase=phase)
-                    )
+                on_progress=lambda phase: startup.notify(
+                    StartupProgressNotification(phase=phase)
                 ),
             )
         else:
@@ -229,6 +229,7 @@ class SessionImpl(Session):
         return cls(
             initialization_id=initialization_id,
             session_consumer=session_consumer,
+            session_view=startup.view,
             kernel_manager=kernel_manager,
             app_file_manager=app_file_manager,
             config_manager=config_manager,
@@ -240,6 +241,7 @@ class SessionImpl(Session):
         self,
         initialization_id: str,
         session_consumer: SessionConsumer,
+        session_view: SessionView,
         kernel_manager: KernelManager,
         app_file_manager: AppFileManager,
         config_manager: MarimoConfigManager,
@@ -256,7 +258,7 @@ class SessionImpl(Session):
         self.ttl_seconds = (
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
-        self.session_view = SessionView()
+        self.session_view = session_view
         self.config_manager = config_manager
         self.extensions = ExtensionRegistry()
         self.extensions.add(*extensions)
