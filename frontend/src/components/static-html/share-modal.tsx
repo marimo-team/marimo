@@ -74,6 +74,7 @@ export const ShareStaticNotebookModal: React.FC<{
                   <a
                     href={Constants.issuesPage}
                     target="_blank"
+                    rel="noreferrer"
                     className="underline"
                   >
                     GitHub
