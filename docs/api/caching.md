@@ -266,109 +266,61 @@ In this instance, the cache will work as expected because the decorated function
 
 ## Cache signing and trust
 
-Restoring a persistent cache entry deserializes it with `pickle`, which runs
-whatever code the entry tells it to. Reading a cache someone else wrote therefore
-means running code they chose.
+By default, marimo uses the `pickle` module to serialize and deserialize cache
+entries. This is fast and safe for your local computer, but if you configure a
+shared cache directory or remote store, this may become a security issue since
+unpickling a cache entry is equivalent to running arbitrary code.
 
-The lazy loader defends against that. It signs each entry it writes with an
-[Ed25519](https://ed25519.cr.yp.to/) signing key, and checks the signature before
-restoring one. An entry that does not verify against a key you trust is
-recomputed instead of loaded.
-
-Signing applies to `method="lazy"` only:
-
-```python
-with mo.persistent_cache("my_cache", method="lazy"):
-    ...
-```
-
-The default, `method="pickle"`, neither signs on write nor verifies on read, so a
-cache it wrote carries no provenance at all. Prefer the lazy loader for any cache
-that might be read on a machine other than the one that wrote it.
-
-On a local cache you configure nothing: the lazy loader signs with a
-machine-local key it creates on first use, so your own entries verify and a cache
-written elsewhere does not.
-
-### Sharing a cache between machines
-
-To read entries written on another machine — a continuous integration (CI) job
-that populates a shared store, or a colleague's cache — name whose key you trust.
-A key is identified by its *fingerprint*: `"SHA256:"` followed by base64, in the
-style of a Secure Shell (SSH) key fingerprint.
+marimo has a cache verification mechanism built-in (which is currently opt-in).
+It uses digital signatures to verify that a cache entry was written by a
+trusted key and requires the `cryptography` package. That mechanism is the
+*lazy loader*: the storage backend selected with `loader = "lazy"` (the default)
+or `method="lazy"` on an individual cache. It is the only loader that signs and
+verifies. You can configure the verification level in your user
+configuration file at `~/.config/marimo/marimo.toml` as follows:
 
 ```toml title="~/.config/marimo/marimo.toml"
 [signing]
-# This machine's signing identity.
+# Optional: This machine's signing identity.
+# This will be generated if a key is not provided.
+# MARIMO_CACHE_SIGNING_PRIVATE_KEY also sets this value.
 private_key_path = "~/.marimo/cache_key.pem"
 
 [signing.trusted_signers]
-# fingerprint = label. The label is a note to yourself; only the
-# fingerprint decides anything.
+# Optional: If you use multiple caches, you can record trusted keys here.
+# fingerprint = label. The label is a note to yourself
+# Only the fingerprint matters.
 "SHA256:kV9x2c...q8" = "CI cache key"
 "SHA256:abc9f1...4d" = "Alice"
+
+[cache]
+verification = "on"  # "off" | "on" | "strict"
+# Default `method` for `mo.persistent_cache`: "lazy" (default), "pickle", or "json".
+# Only "lazy" can sign and verify.
+loader = "lazy"
 ```
 
-Two environment variables set the same thing without a config file:
-`MARIMO_CACHE_SIGNING_PRIVATE_KEY` holds a signing identity, and
-`MARIMO_CACHE_SIGNING_PUBLIC_KEY` adds one trusted key. Both take the key itself
-in Privacy-Enhanced Mail (PEM) form, not a path.
+To sign and verify without a configuration file, set
+`MARIMO_CACHE_SIGNING_PRIVATE_KEY` to your signing key. To trust another key for
+verification only, set `MARIMO_CACHE_SIGNING_PUBLIC_KEY` to that key. Set each
+variable to the key itself in Privacy-Enhanced Mail (PEM) form, not a path.
 
 !!! danger "Trusting a key grants code execution"
     Restoring a cache entry deserializes it with `pickle`, so trusting a
     fingerprint lets whoever holds that key run arbitrary code on your machine.
-    There is no narrower "cache-only" version of this grant. Add a fingerprint
-    only if you would run a script that person handed you.
-
-### Verification settings
-
-```toml title="~/.config/marimo/marimo.toml"
-[cache]
-verification = "on"  # "off" | "on" | "strict"
-```
+    There is no narrower "cache-only" version of this grant: add a fingerprint
+    only if you would run any script that person handed you.
 
 | Cache entry | `off` | `on` (default) | `strict` |
 |---|---|---|---|
-| Trusted key, valid signature | served | served | served |
-| Foreign key, bad signature, or unsigned | served **unchecked** | **miss** — recomputed | **raises** |
-| On write | not signed | signed | signed |
+| Signed by a trusted key | load | load | load |
+| Unsigned, or signed by an unknown key | load without verifying | recompute | raise an error |
 
-`off` is the only setting that hands you unverified bytes while signing is
-available. Under `on`, an entry that cannot be verified is treated as a cache
-miss, so the cost of a foreign entry is recomputing it. Under `strict` the read
-raises instead. Prefer `strict` in continuous integration, where a cache that
-quietly stops hitting is a problem you would rather be told about.
+We recommend using `strict` in CI.
 
-Without the `cryptography` package marimo can neither sign nor verify, so
-`strict` raises as soon as the cache is created. Under `on` what happens depends
-on where the entries live. A cache directory on your own filesystem is still
-served, because reading it already takes the same file access as reading the
-notebook. A shared or remote store is the case signing protects, so there every
-read misses and every write is skipped. Install `marimo[recommended]` to get
-`cryptography`.
-
-Notebooks running in the browser under WebAssembly never verify. Their cache
-blobs come from the same origin as the notebook code, so swapping one already
-requires control of the notebook itself.
-
-### Where trust can be configured
-
-`[signing]` and `[cache].verification` are read from your user configuration
-only — the file at `~/.config/marimo/marimo.toml` or `~/.marimo.toml`. marimo
-ignores them in `pyproject.toml`, in notebook script metadata, and in a
-`.marimo.toml` that sits inside a project directory.
-
-Those three files travel with the code. A repository that could name its own
-signing key as trusted, or turn verification off, could commit a poisoned cache
-entry that runs the first time you open the notebook — the attack signing exists
-to prevent.
-
-`[cache].store` is different: a `pyproject.toml` may still choose the store,
-because the bytes a store returns are verified before anything is deserialized.
-The one loader that does not verify, `method="pickle"`, refuses a store chosen by
-a project and falls back to the default. A `.marimo.toml` inside a project cannot
-set the store at all, because it loads at the same precedence as your user
-configuration and so cannot be told apart from it later.
+Note that notebooks running in browser under WebAssembly (WASM) dot no have a
+machine key. Configuration must be set in the PEP-723 metadata for verification
+to work.
 
 ## Comparison with `functools.cache`
 
