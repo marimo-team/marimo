@@ -12,30 +12,34 @@ environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/man
 Project managers such as uv and Pixi handle this setup automatically when you
 launch marimo from your project with `uv run` or `pixi run`.
 
-/// admonition | Try a standalone notebook
+//// admonition | Try a standalone notebook
     type: tip
 
 [uv](https://docs.astral.sh/uv/) and [Pixi](https://pixi.prefix.dev/) can manage
 Python and install marimo for you without setting up a project. To try a notebook
 with its own dependencies:
 
-=== "uv"
+/// tab | uv
 
-    ```bash
-    uvx marimo edit --sandbox notebook.py
-    ```
+```bash
+uvx marimo edit --sandbox notebook.py
+```
 
-=== "Pixi"
+///
 
-    ```bash
-    pixi exec marimo edit --sandbox=pixi notebook.py
-    ```
+/// tab | Pixi
+
+```bash
+pixi exec marimo edit --sandbox=pixi notebook.py
+```
+
+///
 
 To add marimo to an existing codebase, see
 [working in projects](../guides/package_management/projects.md).
 See [package management](../guides/package_management/index.md) to compare
 projects and notebook sandboxes.
-///
+////
 
 /// admonition | Use our editor extensions
     type: tip
