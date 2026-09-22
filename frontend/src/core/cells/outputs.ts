@@ -23,10 +23,7 @@ const expandedConsoleOutputs: Record<CellId, boolean> = {};
  * height. Covers the cell's output area only; console output is clamped
  * independently, via `useExpandedConsoleOutput`.
  *
- * In edit mode this is backed by the cell's `expand_output` config, so the
- * choice is saved to the notebook file and restored when it is reopened.
- * Cell configs are read-only in other modes, so the toggle is instead kept in
- * memory for the lifetime of the page.
+ * In edit mode, we toggle the cell's `expand_output` config, so the choice is persisted.
  */
 export function useExpandedOutput(cellId: CellId) {
   const { mode } = useAtomValue(viewStateAtom);
