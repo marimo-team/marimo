@@ -408,7 +408,12 @@ class NotificationListenerExtension(SessionExtension):
             if self.distributor is distributor:
                 # QueueDistributor calls from a worker thread. Both transports
                 # must serialize document/view updates with consumer attachment.
-                loop.call_soon_threadsafe(consume, msg)
+                try:
+                    loop.call_soon_threadsafe(consume, msg)
+                except RuntimeError:
+                    # Loop teardown can race with the worker's final messages.
+                    if not loop.is_closed():
+                        raise
 
         distributor.add_consumer(enqueue)
         distributor.start()

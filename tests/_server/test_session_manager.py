@@ -942,3 +942,78 @@ async def test_retry_waits_for_expired_startup_cleanup(
     finally:
         release_cleanup.set()
         await session_manager.shutdown()
+
+
+@pytest.mark.parametrize("close_before_attachment", [False, True])
+async def test_closed_startup_cannot_be_attached(
+    session_manager: SessionManager,
+    mock_session: Session,
+    mock_session_consumer: SessionConsumer,
+    monkeypatch: pytest.MonkeyPatch,
+    close_before_attachment: bool,
+) -> None:
+    from marimo._session.managers.ipc import KernelStartupError
+    from marimo._session.session import SessionImpl
+
+    entered, release = asyncio.Event(), asyncio.Event()
+    mock_session.app_file_manager = AppFileManager(filename=None)
+
+    async def create(**_kwargs: object) -> Session:
+        entered.set()
+        await release.wait()
+        return mock_session
+
+    monkeypatch.setattr(SessionImpl, "create", create)
+    first = asyncio.create_task(
+        session_manager.create_session(
+            session_id, mock_session_consumer, {}, NEW_FILE, False
+        )
+    )
+    try:
+        await asyncio.wait_for(entered.wait(), 5)
+        pending = next(iter(session_manager._pending.values()))
+        if close_before_attachment:
+            # The task publishes its session before the waiter can attach.
+            pending.task.add_done_callback(
+                lambda _: session_manager.close_session(session_id)
+            )
+            release.set()
+            with pytest.raises(
+                KernelStartupError, match="closed during startup"
+            ):
+                await asyncio.wait_for(first, 5)
+        else:
+            first.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await first
+            release.set()
+            await asyncio.wait_for(asyncio.shield(pending.task), 5)
+            assert session_manager.close_session(session_id)
+
+        mock_session.connect_consumer.assert_not_called()
+        assert not session_manager.is_session_starting(session_id, NEW_FILE)
+        assert not session_manager.sessions
+
+        replacement = Mock(spec=Session)
+        replacement.room = Room()
+        replacement.connect_consumer.side_effect = (
+            replacement.room.add_consumer
+        )
+        replacement.connection_state.return_value = ConnectionState.ORPHANED
+        replacement.app_file_manager = mock_session.app_file_manager
+
+        async def restart(**_kwargs: object) -> Session:
+            return replacement
+
+        monkeypatch.setattr(SessionImpl, "create", restart)
+        assert (
+            await session_manager.create_session(
+                session_id, mock_session_consumer, {}, NEW_FILE, False
+            )
+            is replacement
+        )
+        assert session_manager.get_session(session_id) is replacement
+        assert replacement.room.main_consumer is mock_session_consumer
+    finally:
+        release.set()
+        await session_manager.shutdown()

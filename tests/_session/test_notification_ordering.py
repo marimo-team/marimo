@@ -201,3 +201,34 @@ async def test_reconnect_snapshot_precedes_a_queued_live_update(
         ),
         _progress("After\n"),
     ]
+
+
+def test_queue_can_be_reused_after_its_listener_loop_closes(
+    session_and_consumer: tuple[SessionImpl, Mock],
+) -> None:
+    session, consumer = session_and_consumer
+    messages: queue.Queue[KernelMessage | None] = queue.Queue()
+    listener = NotificationListenerExtension(
+        Mock(), Mock(stream_queue=messages)
+    )
+    loop = asyncio.new_event_loop()
+
+    async def attach() -> QueueDistributor[KernelMessage]:
+        listener.on_attach(session, session._event_bus)
+        assert isinstance(listener.distributor, QueueDistributor)
+        return listener.distributor
+
+    distributor = loop.run_until_complete(attach())
+    loop.close()
+    try:
+        messages.put(serialize_kernel_message(_progress("Late output\n")))
+        # Queue the sentinel after the late message, before detaching, to
+        # exercise a callback racing with loop teardown.
+        distributor.stop()
+        assert distributor.thread is not None
+        distributor.thread.join(5)
+        assert not distributor.thread.is_alive()
+        assert messages.empty()
+        consumer.notify.assert_not_called()
+    finally:
+        listener.on_detach()

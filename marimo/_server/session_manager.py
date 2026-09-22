@@ -70,6 +70,7 @@ class _PendingSession:
     startup: SessionStartup
     waiters: int = 0
     close_handle: asyncio.TimerHandle | None = None
+    expired: bool = False
 
 
 class SessionManager:
@@ -225,7 +226,7 @@ class SessionManager:
         existing = self._repository.get_sync(session_id)
         if pending is None and existing is not None:
             return existing
-        if pending is not None and pending.task.cancelling():
+        if pending is not None and pending.expired:
             # A new attempt must wait for an expired launch to release its resources.
             await asyncio.shield(
                 asyncio.gather(pending.task, return_exceptions=True)
@@ -271,6 +272,16 @@ class SessionManager:
                 session = await asyncio.shield(pending.task)
             if self._closed:
                 raise KernelStartupError("Session manager is shut down")
+            previous_id = self._repository.get_session_id(session)
+            if (
+                previous_id is None
+                or session.connection_state() == ConnectionState.CLOSED
+            ):
+                if previous_id is not None:
+                    self.close_session(previous_id)
+                if self._pending.get(key) is pending:
+                    self._pending.pop(key)
+                raise KernelStartupError("Session closed during startup")
             if session.room.main_consumer is not None:
                 # The connection lock serializes attachment per key, so a
                 # second main consumer means a caller bypassed it. The session
@@ -278,8 +289,7 @@ class SessionManager:
                 if self._pending.get(key) is pending:
                     self._pending.pop(key)
                 raise RuntimeError("Session already has a main consumer")
-            previous_id = self._repository.get_session_id(session)
-            if previous_id is not None and previous_id != session_id:
+            if previous_id != session_id:
                 self._repository.update_session_id_sync(
                     previous_id, session_id
                 )
@@ -308,6 +318,7 @@ class SessionManager:
     def _expire_startup(self, key: str, pending: _PendingSession) -> None:
         pending.close_handle = None
         if not pending.task.done():
+            pending.expired = True
             pending.task.cancel()
             return
         self._pending.pop(key, None)
@@ -568,6 +579,17 @@ class SessionManager:
         session = self._repository.remove_sync(session_id)
         if session is None:
             return False
+
+        for key, pending in list(self._pending.items()):
+            if (
+                pending.task.done()
+                and not pending.task.cancelled()
+                and pending.task.exception() is None
+                and pending.task.result() is session
+            ):
+                if pending.close_handle is not None:
+                    pending.close_handle.cancel()
+                self._pending.pop(key)
 
         fire_and_forget(
             self._event_bus.emit_session_closed(session),
