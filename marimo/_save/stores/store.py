@@ -16,14 +16,7 @@ class Store(ABC):
 
     @abstractmethod
     def put(self, key: str, value: bytes) -> bool:
-        """Put a cache into the store.
-
-        A key holds either its previous value or the whole new one. A reader
-        racing a writer, or arriving after one died, never sees a truncated
-        value. Cache writes depend on it. A lazy entry's completeness marker
-        is written last, and the marker means nothing if a partial write can
-        be read as a complete one.
-        """
+        """Put a cache into the store."""
 
     @abstractmethod
     def hit(self, key: str) -> bool:
