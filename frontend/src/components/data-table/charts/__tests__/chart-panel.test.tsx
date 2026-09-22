@@ -1,12 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, waitFor } from "@testing-library/react";
+import { createStore, Provider } from "jotai";
 import { Tooltip } from "radix-ui";
+import type { ComponentProps } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
+import { cellId } from "@/__tests__/branded";
 import { LazyVegaEmbed } from "@/components/charts/lazy";
 import { vegaLoader } from "@/plugins/impl/vega/loader";
-import { ChartPanel } from "../charts";
+import { ChartPanel, TablePanel, type TablePanelProps } from "../charts";
+import { getChartTabName, tabsStorageAtom } from "../storage";
 import { ChartType, NONE_VALUE } from "../types";
 
 vi.mock("@/components/charts/lazy", () => ({
@@ -18,8 +22,129 @@ beforeAll(() => {
 });
 
 describe("ChartPanel", () => {
-  it("keeps dotted CSV columns aligned with the chart encodings", async () => {
-    vi.spyOn(vegaLoader, "load").mockResolvedValue("a.b,n\n1,1\n2,2\n3,3\n");
+  it.each([undefined, null, []] as const)(
+    "infers the full CSV through TablePanel without backend metadata (%s)",
+    async (fieldTypes) => {
+      vi.spyOn(vegaLoader, "load").mockResolvedValue(
+        "value,index\n,0\n2.5,1\n",
+      );
+      const store = createStore();
+      const id = cellId("csv-inference");
+      const tabName = getChartTabName(0, ChartType.BAR);
+      store.set(
+        tabsStorageAtom,
+        new Map([
+          [
+            id,
+            [
+              {
+                tabName,
+                chartType: ChartType.BAR,
+                config: {
+                  general: {
+                    xColumn: { field: "value", type: "number" },
+                    yColumn: {
+                      field: "index",
+                      type: "integer",
+                      aggregate: NONE_VALUE,
+                    },
+                  },
+                },
+              },
+            ],
+          ],
+        ]),
+      );
+      const sample = [{ value: null }];
+      const SampleTable = (_props: { data: typeof sample }) => null;
+      const props: TablePanelProps = {
+        cellId: id,
+        data: sample,
+        dataTable: <SampleTable data={sample} />,
+        totalRows: 2,
+        columns: 1,
+        displayHeader: true,
+        fieldTypes: fieldTypes == null ? fieldTypes : [...fieldTypes],
+        rowHeaders: [["index", ["integer", "int64"]]],
+        getDataUrl: vi
+          .fn()
+          .mockResolvedValue({ data_url: "chart.csv", format: "csv" }),
+      };
+      const { getByRole } = render(
+        <Provider store={store}>
+          <Tooltip.Provider>
+            <TablePanel {...props} />
+          </Tooltip.Provider>
+        </Provider>,
+      );
+      fireEvent.click(getByRole("tab", { name: tabName }));
+      await waitFor(() => {
+        expect(vi.mocked(LazyVegaEmbed).mock.lastCall?.[0].spec).toEqual(
+          expect.objectContaining({
+            data: {
+              values: [
+                { value: null, index: 0 },
+                { value: 2.5, index: 1 },
+              ],
+            },
+          }),
+        );
+      });
+    },
+  );
+
+  it("reloads CSV only when column types change, not their array identity", async () => {
+    vi.spyOn(vegaLoader, "load").mockResolvedValue("value\n001\n");
+    const getDataUrl = vi.fn().mockResolvedValue({
+      data_url: "chart.csv",
+      format: "csv",
+    });
+    const props: ComponentProps<typeof ChartPanel> = {
+      tableData: [{ value: "001" }],
+      chartConfig: {
+        general: {
+          xColumn: { field: "value", type: "string" },
+          yColumn: { field: "value", type: "integer", aggregate: NONE_VALUE },
+        },
+      },
+      chartType: ChartType.BAR,
+      saveChart: vi.fn(),
+      saveChartType: vi.fn(),
+      getDataUrl,
+      isLargeDataset: false,
+    };
+    const panel = (
+      fieldTypes: ComponentProps<typeof ChartPanel>["fieldTypes"],
+    ) => (
+      <Tooltip.Provider>
+        <ChartPanel {...props} fieldTypes={fieldTypes} />
+      </Tooltip.Provider>
+    );
+    const expectValues = async (value: string | number) => {
+      await waitFor(() => {
+        expect(vi.mocked(LazyVegaEmbed).mock.lastCall?.[0].spec).toEqual(
+          expect.objectContaining({ data: { values: [{ value }] } }),
+        );
+      });
+    };
+
+    const { rerender } = render(panel([["value", ["string", "object"]]]));
+    await expectValues("001");
+    expect(getDataUrl).toHaveBeenCalledTimes(1);
+
+    rerender(panel([["value", ["string", "object"]]]));
+    await expectValues("001");
+    expect(getDataUrl).toHaveBeenCalledTimes(1);
+
+    rerender(panel([["value", ["integer", "int64"]]]));
+    await expectValues(1);
+    expect(getDataUrl).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses column types to parse numeric CSV values without coercing text", async () => {
+    vi.spyOn(vegaLoader, "load").mockResolvedValue(
+      "a.b,n,label,day,timestamp,active,duration\ninf,1,inf,2024-01-01,2024-01-01T12:00:00Z,True,1 days\n-inf,2,001,2024-01-02,2024-01-02T12:00:00Z,False,2 days\n2.5,3,2024-01-03,2024-01-03,2024-01-03T12:00:00Z,True,3 days\n,4,,,,,\n",
+    );
 
     render(
       <Tooltip.Provider>
@@ -28,11 +153,7 @@ describe("ChartPanel", () => {
           chartConfig={{
             general: {
               xColumn: { field: "a.b", type: "number" },
-              yColumn: {
-                field: "n",
-                type: "number",
-                aggregate: NONE_VALUE,
-              },
+              yColumn: { field: "n", type: "integer", aggregate: NONE_VALUE },
             },
           }}
           chartType={ChartType.BAR}
@@ -45,6 +166,11 @@ describe("ChartPanel", () => {
           fieldTypes={[
             ["a.b", ["number", "float64"]],
             ["n", ["integer", "int64"]],
+            ["label", ["string", "object"]],
+            ["day", ["date", "date"]],
+            ["timestamp", ["datetime", "datetime64[ns]"]],
+            ["active", ["boolean", "bool"]],
+            ["duration", ["unknown", "timedelta64[ns]"]],
           ]}
           isLargeDataset={false}
         />
@@ -56,17 +182,105 @@ describe("ChartPanel", () => {
         expect.objectContaining({
           data: {
             values: [
-              { "a.b": 1, n: 1 },
-              { "a.b": 2, n: 2 },
-              { "a.b": 3, n: 3 },
+              {
+                "a.b": Infinity,
+                n: 1,
+                label: "inf",
+                day: new Date("2024-01-01"),
+                timestamp: new Date("2024-01-01T12:00:00Z"),
+                active: true,
+                duration: "1 days",
+              },
+              {
+                "a.b": -Infinity,
+                n: 2,
+                label: "001",
+                day: new Date("2024-01-02"),
+                timestamp: new Date("2024-01-02T12:00:00Z"),
+                active: false,
+                duration: "2 days",
+              },
+              {
+                "a.b": 2.5,
+                n: 3,
+                label: "2024-01-03",
+                day: new Date("2024-01-03"),
+                timestamp: new Date("2024-01-03T12:00:00Z"),
+                active: true,
+                duration: "3 days",
+              },
+              {
+                "a.b": null,
+                n: 4,
+                label: null,
+                day: "",
+                timestamp: "",
+                active: null,
+                duration: "",
+              },
             ],
           },
-          encoding: expect.objectContaining({
-            x: expect.objectContaining({ field: "a\\.b" }),
-            y: expect.objectContaining({ field: "n" }),
-          }),
         }),
       );
     });
   });
+
+  it.each([true, false])(
+    "keeps dotted CSV columns aligned with the chart encodings (schema: %s)",
+    async (hasSchema) => {
+      vi.spyOn(vegaLoader, "load").mockResolvedValue("a.b,n\n1,1\n2,2\n3,3\n");
+
+      render(
+        <Tooltip.Provider>
+          <ChartPanel
+            tableData={[{ "a.b": 1, n: 1 }]}
+            chartConfig={{
+              general: {
+                xColumn: { field: "a.b", type: "number" },
+                yColumn: {
+                  field: "n",
+                  type: "number",
+                  aggregate: NONE_VALUE,
+                },
+              },
+            }}
+            chartType={ChartType.BAR}
+            saveChart={vi.fn()}
+            saveChartType={vi.fn()}
+            getDataUrl={vi.fn().mockResolvedValue({
+              data_url: "chart.csv",
+              format: "csv",
+            })}
+            fieldTypes={
+              hasSchema
+                ? [
+                    ["a.b", ["number", "float64"]],
+                    ["n", ["integer", "int64"]],
+                  ]
+                : undefined
+            }
+            isLargeDataset={false}
+          />
+        </Tooltip.Provider>,
+      );
+
+      await waitFor(() => {
+        expect(vi.mocked(LazyVegaEmbed).mock.lastCall?.[0].spec).toEqual(
+          expect.objectContaining({
+            data: {
+              values: [
+                { "a.b": 1, n: 1 },
+                { "a.b": 2, n: 2 },
+                { "a.b": 3, n: 3 },
+              ],
+            },
+            encoding: expect.objectContaining({
+              x: expect.objectContaining({ field: "a\\.b" }),
+              y: expect.objectContaining({ field: "n" }),
+            }),
+          }),
+        );
+      });
+    },
+  );
 });

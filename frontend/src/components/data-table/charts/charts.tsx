@@ -23,9 +23,11 @@ import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CellId } from "@/core/cells/ids";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
+import { getVegaFieldTypes } from "@/plugins/impl/vega/utils";
 import { useTheme } from "@/theme/useTheme";
 import { uniqueBy } from "@/utils/arrays";
 import { inferFieldTypes } from "../columns";
@@ -284,6 +286,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
               saveChart={saveChart}
               saveChartType={saveChartType}
               getDataUrl={getDataUrl}
+              hasSchema={Boolean(fieldTypes?.length)}
               fieldTypes={mergeIndexFields(
                 fieldTypes ?? inferFieldTypes(dataTable.props.data),
                 rowHeaders,
@@ -307,6 +310,7 @@ export const ChartPanel: React.FC<{
   saveChartType: (chartType: ChartType) => void;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
+  hasSchema?: boolean;
   isLargeDataset: boolean;
 }> = ({
   tableData,
@@ -316,6 +320,7 @@ export const ChartPanel: React.FC<{
   saveChartType,
   getDataUrl,
   fieldTypes,
+  hasSchema = Boolean(fieldTypes?.length),
   isLargeDataset,
 }) => {
   const { theme } = useTheme();
@@ -331,6 +336,8 @@ export const ChartPanel: React.FC<{
   const [renderLargeCharts, setRenderLargeCharts] = useState(!isLargeDataset);
 
   const { ref: chartContainerRef } = useResizeObserver();
+  // Sample-inferred types are useful for controls, but not full CSV parsing.
+  const csvFieldTypes = useDeepCompareMemoize(hasSchema ? fieldTypes : null);
 
   const { data, isPending, error } = useAsyncData(async () => {
     if (!getDataUrl || tableData.length === 0 || !renderLargeCharts) {
@@ -342,17 +349,26 @@ export const ChartPanel: React.FC<{
       return response.data_url;
     }
 
-    const chartData = await vegaLoadData(
-      response.data_url,
-      response.format === "arrow"
-        ? { type: "arrow" }
-        : response.format === "json"
-          ? { type: "json" }
-          : { type: "csv", parse: "auto" },
-    );
-    return chartData;
+    let format: Parameters<typeof vegaLoadData>[1];
+    if (response.format === "arrow") {
+      format = { type: "arrow" };
+    } else if (response.format === "json") {
+      format = { type: "json" };
+    } else {
+      format = {
+        type: "csv",
+        parse: getVegaFieldTypes(
+          csvFieldTypes &&
+            Object.fromEntries(
+              csvFieldTypes.map(([name, [type]]) => [name, type]),
+            ),
+          { parseDates: true },
+        ),
+      };
+    }
+    return vegaLoadData(response.data_url, format);
     // Re-run when the data table changes
-  }, [tableData, renderLargeCharts]);
+  }, [tableData, renderLargeCharts, csvFieldTypes]);
 
   const formValues = form.watch();
 

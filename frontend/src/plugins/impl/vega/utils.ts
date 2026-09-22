@@ -45,21 +45,22 @@ function toArray<T>(value: T | T[] | undefined): T[] {
 
 export function getVegaFieldTypes(
   types: Record<string, DataType> | undefined | null,
+  { parseDates = false }: { parseDates?: boolean } = {},
 ): FieldTypes | "auto" {
   if (!types || Object.keys(types).length === 0) {
     // If fieldTypes is provided, use it to parse the data
     // Otherwise, infer the data types
     return "auto";
   }
-  // Convert all 'date' to 'string', because dates don't format back to
-  // the correct formatting. For example, a date like '2024-01-01' will
-  // be formatted to '2024-01-01T00:00:00.000Z'.
+  // Preserve date-only strings for callers such as the data editor.
+  // Parsing creates Date objects that JSON serializes as full timestamps.
+  // Charts opt into date parsing for temporal axes.
   return Objects.mapValues(types, (type): VegaDataType => {
     if (type === "geometry") {
       return "string";
     }
     if (type === "date") {
-      return "string";
+      return parseDates ? "date" : "string";
     }
     if (type === "time") {
       return "string";
