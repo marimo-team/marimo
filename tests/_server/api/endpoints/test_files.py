@@ -400,7 +400,7 @@ def test_copy_file(client: TestClient) -> None:
     assert filename_copy in response.text
 
     def _assert_contents():
-        file_contents = open(copied_file).read()
+        file_contents = Path(copied_file).read_text()
         assert "import marimo as mo" in file_contents
         assert 'marimo.App(width="full"' in file_contents
 
