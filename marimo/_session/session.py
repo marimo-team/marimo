@@ -101,7 +101,7 @@ class SessionImpl(Session):
         cls,
         *,
         initialization_id: str,
-        session_consumer: SessionConsumer,
+        session_consumer: SessionConsumer | None,
         startup: SessionStartup,
         mode: SessionMode,
         app_metadata: AppMetadata,
@@ -240,7 +240,7 @@ class SessionImpl(Session):
     def __init__(
         self,
         initialization_id: str,
-        session_consumer: SessionConsumer,
+        session_consumer: SessionConsumer | None,
         session_view: SessionView,
         kernel_manager: KernelManager,
         app_file_manager: AppFileManager,
@@ -274,7 +274,8 @@ class SessionImpl(Session):
         self._attach_extensions()
         # Connect the main consumer after attaching extensions,
         # to avoid calling on_attach on the main consumer twice.
-        self.connect_consumer(session_consumer, main=True)
+        if session_consumer is not None:
+            self.connect_consumer(session_consumer, main=True)
 
     @property
     def stable_id(self) -> StableSessionId:

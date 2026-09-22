@@ -329,6 +329,8 @@ async def test_sandbox_progress_during_preparation(
     monkeypatch.setattr(ipc, "has_marimo_installed", check_environment)
     manager = get_session_manager(client)
     manager.sandbox = True
+    if outcome == "disconnect":
+        manager.ttl_seconds = 0
 
     async with _connect(client) as connection:
         event = await connection.next_event()

@@ -61,12 +61,15 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+_STARTUP_RECONNECT_SECONDS = 120.0
+
 
 @dataclass
 class _PendingSession:
     task: asyncio.Task[Session]
     startup: SessionStartup
     waiters: int = 0
+    close_handle: asyncio.TimerHandle | None = None
 
 
 class SessionManager:
@@ -122,7 +125,7 @@ class SessionManager:
             )
 
         self._repository = SessionRepository()
-        self._pending: dict[SessionId, _PendingSession] = {}
+        self._pending: dict[str, _PendingSession] = {}
         self._connection_locks: WeakValueDictionary[str, asyncio.Lock] = (
             WeakValueDictionary()
         )
@@ -192,16 +195,19 @@ class SessionManager:
         """Serialize reconnect decisions while a notebook is starting."""
         if self._closed:
             raise KernelStartupError("Session manager is shut down")
-        key = (
-            self._resolve_file_key(file_key) or file_key
-            if self.mode == SessionMode.EDIT
-            else session_id
-        )
+        key = self._connection_key(session_id, file_key)
         lock = self._connection_locks.get(key)
         if lock is None:
             lock = asyncio.Lock()
             self._connection_locks[key] = lock
         return lock
+
+    def _connection_key(
+        self, session_id: SessionId, file_key: MarimoFileKey
+    ) -> str:
+        if self.mode == SessionMode.EDIT:
+            return self._resolve_file_key(file_key) or file_key
+        return session_id
 
     async def create_session(
         self,
@@ -214,16 +220,28 @@ class SessionManager:
         """Return a ready session, retaining ownership during startup."""
         if self._closed:
             raise KernelStartupError("Session manager is shut down")
+        key = self._connection_key(session_id, file_key)
+        pending = self._pending.get(key)
         existing = self._repository.get_sync(session_id)
-        if existing is not None:
+        if pending is None and existing is not None:
             return existing
-        pending = self._pending.get(session_id)
+        if pending is not None and pending.task.cancelling():
+            # A new attempt must wait for an expired launch to release its resources.
+            await asyncio.shield(
+                asyncio.gather(pending.task, return_exceptions=True)
+            )
+            return await self.create_session(
+                session_id,
+                session_consumer,
+                query_params,
+                file_key,
+                auto_instantiate,
+            )
         if pending is None:
             startup = SessionStartup()
             task = asyncio.create_task(
                 self._create_session(
                     session_id,
-                    session_consumer,
                     query_params,
                     file_key,
                     auto_instantiate,
@@ -232,34 +250,83 @@ class SessionManager:
                 name=f"session.start.{session_id}",
             )
             pending = _PendingSession(task, startup)
-            self._pending[session_id] = pending
+            self._pending[key] = pending
 
             def finished(task: asyncio.Task[Session]) -> None:
-                self._pending.pop(session_id, None)
-                # A disconnected caller may no longer be awaiting the error.
-                if not task.cancelled():
-                    task.exception()
+                # Failed launches can be retried; successful ones await attachment.
+                if task.cancelled() or task.exception() is not None:
+                    if pending.close_handle is not None:
+                        pending.close_handle.cancel()
+                    if self._pending.get(key) is pending:
+                        self._pending.pop(key)
 
             task.add_done_callback(finished)
+        if pending.close_handle is not None:
+            pending.close_handle.cancel()
+            pending.close_handle = None
         pending.waiters += 1
+        attached = False
         try:
             with pending.startup.subscribe(session_consumer):
-                return await asyncio.shield(pending.task)
+                session = await asyncio.shield(pending.task)
+            if self._closed:
+                raise KernelStartupError("Session manager is shut down")
+            if session.room.main_consumer is not None:
+                # The connection lock serializes attachment per key, so a
+                # second main consumer means a caller bypassed it. The session
+                # is in use either way, so its startup bookkeeping is done.
+                if self._pending.get(key) is pending:
+                    self._pending.pop(key)
+                raise RuntimeError("Session already has a main consumer")
+            previous_id = self._repository.get_session_id(session)
+            if previous_id is not None and previous_id != session_id:
+                self._repository.update_session_id_sync(
+                    previous_id, session_id
+                )
+            session.connect_consumer(session_consumer, main=True)
+            attached = True
+            return session
         finally:
             pending.waiters -= 1
-            if pending.waiters == 0 and not pending.task.done():
-                # The last disconnected caller releases its connection lock
-                # only after the abandoned launch has cleaned up.
-                pending.task.cancel()
-                await asyncio.gather(pending.task, return_exceptions=True)
+            if pending.waiters == 0 and self._pending.get(key) is pending:
+                if attached:
+                    self._pending.pop(key)
+                elif not self._closed:
+                    # Nobody has seen an unattached launch, so a long session
+                    # TTL must not keep abandoned kernels alive.
+                    pending.close_handle = (
+                        asyncio.get_running_loop().call_later(
+                            min(self.ttl_seconds, _STARTUP_RECONNECT_SECONDS)
+                            if self.ttl_seconds is not None
+                            else _STARTUP_RECONNECT_SECONDS,
+                            self._expire_startup,
+                            key,
+                            pending,
+                        )
+                    )
 
-    def is_session_starting(self, session_id: SessionId) -> bool:
-        return session_id in self._pending
+    def _expire_startup(self, key: str, pending: _PendingSession) -> None:
+        pending.close_handle = None
+        if not pending.task.done():
+            pending.task.cancel()
+            return
+        self._pending.pop(key, None)
+        if pending.task.cancelled() or pending.task.exception() is not None:
+            return
+        session = pending.task.result()
+        if session.room.size == 0:
+            orphan_id = self._repository.get_session_id(session)
+            if orphan_id is not None:
+                self.close_session(orphan_id)
+
+    def is_session_starting(
+        self, session_id: SessionId, file_key: MarimoFileKey
+    ) -> bool:
+        return self._connection_key(session_id, file_key) in self._pending
 
     async def _create_session(
         self,
         session_id: SessionId,
-        session_consumer: SessionConsumer,
         query_params: SerializedQueryParams,
         file_key: MarimoFileKey,
         auto_instantiate: bool,
@@ -290,7 +357,7 @@ class SessionManager:
         session = await SessionImpl.create(
             initialization_id=file_key,
             startup=startup,
-            session_consumer=session_consumer,
+            session_consumer=None,
             mode=self.mode,
             app_metadata=AppMetadata(
                 query_params=query_params,
@@ -523,9 +590,13 @@ class SessionManager:
         LOGGER.debug("Shutting down")
         self._closed = True
         pending = [entry.task for entry in self._pending.values()]
+        for entry in self._pending.values():
+            if entry.close_handle is not None:
+                entry.close_handle.cancel()
         for task in pending:
             task.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
+        self._pending.clear()
         self.close_all_sessions()
         if self._app_host_pool is not None:
             self._app_host_pool.shutdown()

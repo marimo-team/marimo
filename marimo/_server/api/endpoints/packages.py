@@ -267,8 +267,13 @@ def _sandbox_source(
 ) -> tuple[NotebookSandbox | None, str | None, Backend | None]:
     state = AppState(request)
     manager = state.session_manager
-    if mutation and manager.is_session_starting(
-        state.require_current_session_id()
+    key = file_key or manager.workspace.get_unique_file_key()
+    if (
+        mutation
+        and key is not None
+        and manager.is_session_starting(
+            state.require_current_session_id(), key
+        )
     ):
         raise HTTPException(409, "Wait for sandbox preparation to finish.")
     session = state.get_current_session()
@@ -279,7 +284,6 @@ def _sandbox_source(
         return None, None, None
     if not manager.sandbox:
         return None, None, None
-    key = file_key or manager.workspace.get_unique_file_key()
     path = manager.workspace.resolve(key) if key else None
     return None, path, current_backend()
 

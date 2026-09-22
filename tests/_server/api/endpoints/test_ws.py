@@ -861,13 +861,15 @@ async def test_websocket_message_queue_delivery(client: TestClient) -> None:
         assert len(messages) >= 1
 
 
-def test_disconnect_cancels_pending_startup(
+def test_disconnect_expires_pending_startup(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import asyncio
     import threading
 
     from marimo._session.session import SessionImpl
+
+    get_session_manager(client).ttl_seconds = 0
 
     started = threading.Event()
     cleaned_up = threading.Event()
@@ -923,3 +925,48 @@ def test_sandbox_progress_before_preparation_failure(
         with pytest.raises(WebSocketDisconnect) as closed:
             websocket.receive_json()
         assert closed.value.reason == "MARIMO_KERNEL_STARTUP_ERROR"
+
+
+@pytest.mark.parametrize("replacement_url", [WS_URL, OTHER_WS_URL])
+def test_refresh_observes_existing_sandbox_preparation(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    replacement_url: str,
+) -> None:
+    from marimo._environments.errors import EnvironmentManagerError
+    from marimo._environments.sandbox import NotebookSandbox
+
+    release = asyncio.Event()
+    launches = 0
+
+    async def prepare(*_args: object, **_kwargs: object) -> None:
+        nonlocal launches
+        launches += 1
+        await release.wait()
+        raise EnvironmentManagerError("Could not resolve dependencies")
+
+    monkeypatch.setattr(NotebookSandbox, "launch_async", prepare)
+    manager = get_session_manager(client)
+    manager.sandbox = True
+    expected = {
+        "op": "startup-progress",
+        "data": {"op": "startup-progress", "phase": "preparing-environment"},
+    }
+    # Keep one server loop alive across both browser connections.
+    with client:
+        with client.websocket_connect(WS_URL) as first:
+            assert first.receive_json() == expected
+            first.close()
+            with client.websocket_connect(replacement_url) as refreshed:
+                assert refreshed.receive_json() == expected
+                assert launches == 1
+                assert not manager.sessions
+                refreshed.portal.call(release.set)
+                error = refreshed.receive_json()
+                assert error["op"] == "kernel-startup-error"
+                assert (
+                    "Could not resolve dependencies" in error["data"]["error"]
+                )
+                with pytest.raises(WebSocketDisconnect) as closed:
+                    refreshed.receive_json()
+                assert closed.value.reason == "MARIMO_KERNEL_STARTUP_ERROR"
