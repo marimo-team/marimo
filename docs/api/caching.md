@@ -318,7 +318,7 @@ variable to the key itself in Privacy-Enhanced Mail (PEM) form, not a path.
 
 We recommend using `strict` in CI.
 
-Note that notebooks running in browser under WebAssembly (WASM) dot no have a
+Note that notebooks running in browser under WebAssembly (WASM) do not have a
 machine key. Configuration must be set in the PEP-723 metadata for verification
 to work.
 
