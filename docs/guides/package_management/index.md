@@ -1,35 +1,46 @@
 # Package management
 
-A notebook most often relies on Python packages (e.g., `matplotlib`, `polars`)
-that must be installed _before_ its own code can run. marimo helps you [install
-the packages](installing_packages.md) as you work and keep their requirements
-up to date, making it easier for others to run your notebook and for you to
-return to it later.
-
-marimo integrates with [several Python package
-managers](installing_packages.md), with additional support for
-[uv](https://docs.astral.sh/uv/) and [Pixi](https://pixi.prefix.dev/).
+Notebooks often use Python packages, such as `matplotlib` or `polars`, that
+must be installed before their code can run. **Package managers** handle
+installing these libraries and their dependencies. marimo integrates with these
+tools so you can [manage packages from the editor](installing_packages.md).
 
 ## Choosing a workflow
 
-Because marimo notebooks are Python scripts, marimo can record their package
-requirements (i.e., dependencies) in two places: a shared configuration file
-for a Python **project**, or directly inside an individual **notebook**
-(script).
+A notebook's **requirements** record which packages it needs and any
+constraints on their versions. You can share requirements across a project or
+store them inside individual notebooks.
 
 A [project](projects.md) lets several notebooks and scripts _share_
 requirements. A single configuration file (e.g., `pyproject.toml`) defines a
 shared environment, so package changes apply to all notebooks within a project.
 
-Alternatively, a notebook can carry its _own_ requirements using [inline script
-metadata (PEP 723)](https://peps.python.org/pep-0723/). marimo's [sandbox
-mode](sandboxes.md) prepares a separate environment for each notebook from its
-requirements and records package changes back into that notebook's file.
+In [sandbox mode](sandboxes.md), each notebook carries its _own_ requirements
+inside its file. marimo prepares a separate environment for each notebook from
+those requirements and records package changes back into the notebook's file.
 
-Both approaches can coexist in one repository. As a rule of thumb, project-level
-requirements work well when you want to share the **project** (e.g., a whole
-repository that others will clone), while notebook-level requirements work well
-when you want to share the **notebook** (e.g., a standalone file shared as a Gist).
+Both approaches can coexist in one repository. As a rule of thumb,
+project-level requirements work well when you want to share the **project**
+(e.g., a whole repository that others will clone), while notebook-level
+requirements work well when you want to share the **notebook** (e.g., a
+standalone file shared as a Gist).
+
+## Choosing a package manager
+
+For either workflow, a package manager prepares the environment where your
+notebook runs. marimo supports [several package
+managers](installing_packages.md) for projects. Notebook sandboxes require
+**uv** or **Pixi**, two popular package managers that also work with projects:
+
+- **[uv](https://docs.astral.sh/uv/)** is a Python package and project manager.
+  It manages Python, environments, and packages from PyPI (the Python Package
+  Index) in one tool.
+- **[Pixi](https://pixi.prefix.dev/)** manages environments across languages using
+  Conda and PyPI packages. Choose it if you're coming from the Conda ecosystem,
+  rely on Conda packages, or need to manage dependencies beyond Python.
+
+In general, we recommend using what your team or community uses. If you're
+getting started on your own and aren't sure, uv is a good place to start.
 
 ## Working in a project
 

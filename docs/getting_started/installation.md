@@ -4,14 +4,13 @@ description: "Install marimo with pip, uv, Pixi, or conda. Use a project manager
 
 # Installation
 
-Install marimo in a Python environment alongside your notebook's packages.
-With pip or Conda, create and activate the environment first.
-
-uv and Pixi prepare an environment from your project's requirements. Add marimo
-to the project, then launch it with `uv run` or `pixi run`.
-
-Need help with setup? See [virtual environments](../guides/package_management/projects.md#use-an-existing-environment)
-or [Conda environments](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands).
+You can install marimo alongside your notebook's packages using any major Python
+package manager. With pip or Conda, you'll first need to create and activate a
+[virtual environment](../guides/package_management/projects.md#use-an-existing-environment)
+or [Conda
+environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands).
+Project managers such as uv and Pixi handle this setup automatically when you
+launch marimo from your project with `uv run` or `pixi run`.
 
 /// admonition | Try a standalone notebook
     type: tip

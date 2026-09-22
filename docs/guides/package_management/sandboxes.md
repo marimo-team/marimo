@@ -147,7 +147,6 @@ You can also manage requirements from the terminal:
     the package panel to edit the notebook's metadata and sync its environment,
     even if sandbox setup has failed.
 
-<a id="pixi-sandboxes"></a>
 <a id="local-development-with-editable-installs"></a>
 
 ### Tool-specific configuration { #backend-specific-metadata }
@@ -189,15 +188,48 @@ library's source without reinstalling after each change.
     # ///
     ```
 
-    Pixi also supports [Conda dependencies](https://pixi.prefix.dev/latest/python/scripts/#portable-and-pixi-specific-metadata)
-    under `tool.pixi.dependencies`. Add them through the metadata or Pixi's
-    script commands; the package panel manages PyPI dependencies.
-
     marimo does not apply Pixi activation scripts or activation environment variables.
 
 The `./my-library` path is relative to the notebook. See
 [module autoreloading](../editor_features/module_autoreloading.md) for how
 marimo picks up source changes in an open notebook.
+
+### Conda packages with Pixi { #pixi-sandboxes }
+
+Pixi can manage non-Python dependencies, including system libraries and language
+runtimes, alongside Python packages. For example, a notebook can include the R
+runtime and [rpy2](https://rpy2.github.io/) from Conda to call R
+from Python:
+
+```python title="notebook.py (header)"
+# /// script
+# dependencies = ["marimo"]
+#
+# [tool.pixi.workspace]
+# channels = ["conda-forge"]
+#
+# [tool.pixi.dependencies]
+# r-base = "*"
+# rpy2 = "*"
+# ///
+```
+
+When you open the notebook with `marimo edit --sandbox=pixi notebook.py`,
+Pixi installs marimo from PyPI and R and rpy2 from Conda. A Python cell
+can then summarize R's built-in `iris` dataset:
+
+```python
+import rpy2.robjects as ro
+
+print(ro.r("summary(iris)"))
+```
+
+For an interactive example combining a marimo slider, dplyr, Arrow, and Polars,
+see the [Using R notebook](https://github.com/marimo-team/marimo/blob/main/examples/misc/using_r.py).
+
+Manage [Conda dependencies](https://pixi.prefix.dev/latest/python/scripts/#manage-dependencies)
+through the metadata or Pixi's script commands; marimo's package panel manages
+PyPI dependencies.
 
 ### Using packages across platforms { #platform-specific-dependencies-pep-508 }
 
