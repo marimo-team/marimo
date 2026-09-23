@@ -170,10 +170,30 @@ class MarimoConfigManager(MarimoConfigReader):
             )
         return cast(PartialMarimoConfig, result)
 
+    def get_config_defaults(
+        self, *, hide_secrets: bool = True
+    ) -> PartialMarimoConfig:
+        """Get the defaults the partials compute, merged beneath the user configuration"""
+        result: MarimoConfig = cast(MarimoConfig, {})
+        for partial in (*self.partials, *self.security_partials):
+            result = merge_config(
+                result, partial.get_defaults(hide_secrets=hide_secrets)
+            )
+        return cast(PartialMarimoConfig, result)
+
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the configuration, by merging the user configuration and the configuration overrides"""
+        # NB. Defaults go under the user configuration, overrides over it. A
+        # default a partial computes from the notebook location is not
+        # something anyone wrote, so it must lose to a value the user set.
         return merge_config(
-            self.get_user_config(hide_secrets=hide_secrets),
+            merge_config(
+                cast(
+                    MarimoConfig,
+                    self.get_config_defaults(hide_secrets=hide_secrets),
+                ),
+                self.get_user_config(hide_secrets=hide_secrets),
+            ),
             self.get_config_overrides(hide_secrets=hide_secrets),
         )
 
@@ -191,10 +211,21 @@ class MarimoConfigManager(MarimoConfigReader):
         The new override is appended after the existing partials but before the
         security partials, which the constructor keeps last so they always win.
         """
+        return self.with_partial(MarimoConfigReaderWithOverrides(overrides))
+
+    def with_partial(
+        self, partial: PartialMarimoConfigReader
+    ) -> MarimoConfigManager:
+        """Get a new config manager with the given partial reader layered on
+
+        Unlike `with_overrides`, the reader keeps answering `hide_secrets`
+        itself, so a masked read does not become the value an unmasked read
+        returns.
+        """
         return MarimoConfigManager(
             self.user_config_mgr,
             *self.partials,
-            MarimoConfigReaderWithOverrides(overrides),
+            partial,
             *self.security_partials,
         )
 
@@ -205,12 +236,55 @@ class PartialMarimoConfigReader:
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
         """Get the configuration, as a partial configuration"""
 
+    def get_defaults(
+        self, *, hide_secrets: bool = True
+    ) -> PartialMarimoConfig:
+        """Get the values that apply when no configuration layer set them"""
+        del hide_secrets  # no defaults, so nothing to mask
+        return {}
+
 
 class ProjectConfigManager(PartialMarimoConfigReader):
     """Read the project configuration"""
 
     def __init__(self, start_path: str) -> None:
+        self.start_path = start_path
         self.pyproject_path = find_nearest_pyproject_toml(start_path)
+
+    @property
+    def _dotenv_root(self) -> Path:
+        """Directory that relative `dotenv` paths resolve against.
+
+        Standalone notebooks (such as sandboxed ones) have no
+        pyproject.toml to anchor on, so they fall back to the directory
+        holding the notebook.
+        """
+        if self.pyproject_path is not None:
+            return self.pyproject_path.parent
+        start_path = Path(self.start_path)
+        return start_path if start_path.is_dir() else start_path.parent
+
+    def get_defaults(
+        self, *, hide_secrets: bool = True
+    ) -> PartialMarimoConfig:
+        """Get the `.env` next to the project, loaded when no layer set `dotenv`"""
+        root = self._dotenv_root
+        if self.pyproject_path is None and _is_home_directory(root):
+            # NB. Without a pyproject.toml the anchor is wherever the notebook
+            # or `marimo edit` sits. For ~ that would load ~/.env and list its
+            # keys in the secrets panel, so the default is skipped there.
+            return {}
+        # NB. Emitted as a default, not from get_config(): get_config() is an
+        # override layer over the user configuration, so a path nobody wrote
+        # would outrank the user's own runtime.dotenv and would show up as a
+        # project override in the settings editor.
+        defaults = cast(
+            PartialMarimoConfig,
+            {"runtime": {"dotenv": [str((root / ".env").absolute())]}},
+        )
+        if hide_secrets:
+            return mask_secrets_partial(defaults)
+        return defaults
 
     # It is safe to cache this config, as we only read from the pyproject.toml
     # and never update it. If the user updates the pyproject.toml,
@@ -218,14 +292,13 @@ class ProjectConfigManager(PartialMarimoConfigReader):
     @lru_cache(maxsize=2)  # noqa: B019
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
         try:
-            if self.pyproject_path is None:
-                return {}
-            project_config = read_pyproject_marimo_config(self.pyproject_path)
+            project_config = (
+                read_pyproject_marimo_config(self.pyproject_path)
+                if self.pyproject_path is not None
+                else None
+            )
             if project_config is None:
-                # Some project configuration defaults (dotenv in particular)
-                # are resolved at runtime, even in the absence of marimo
-                # section in the pyproject.toml.
-                project_config = cast(PartialMarimoConfig, {})
+                return {}
             project_config = self._resolve_pythonpath(project_config)
             project_config = self._resolve_dotenv(project_config)
             project_config = self._resolve_custom_css(project_config)
@@ -272,19 +345,18 @@ class ProjectConfigManager(PartialMarimoConfigReader):
     def _resolve_dotenv(
         self, config: PartialMarimoConfig
     ) -> PartialMarimoConfig:
-        if self.pyproject_path is None:
-            return config
-
         runtime = config.get("runtime", cast(RuntimeConfig, {}))
-        dotenv = runtime.get("dotenv", [".env"])
+        if "dotenv" not in runtime:
+            # NB. The default is emitted by get_defaults() instead, which
+            # ranks below the user configuration.
+            return config
+        dotenv = runtime["dotenv"]
 
         if not isinstance(dotenv, list):
             return config
 
-        resolved_dotenv = [
-            str((self.pyproject_path.parent / path).absolute())
-            for path in dotenv
-        ]
+        root = self._dotenv_root
+        resolved_dotenv = [str((root / path).absolute()) for path in dotenv]
         return {**config, "runtime": {**runtime, "dotenv": resolved_dotenv}}
 
     def _resolve_custom_css(
@@ -431,6 +503,20 @@ class ScriptConfigManager(PartialMarimoConfigReader):
     def __init__(self, filename: str | None) -> None:
         self.filename = filename
 
+    def get_defaults(
+        self, *, hide_secrets: bool = True
+    ) -> PartialMarimoConfig:
+        """Get the `.env` next to the notebook, loaded when no layer set `dotenv`"""
+        # NB. In a directory workspace the project manager anchors on the
+        # directory marimo edit opened, not on the notebook a session runs.
+        # Script config already outranks project config, so the notebook's
+        # default outranks the workspace's the same way.
+        if self.filename is None:
+            return {}
+        return ProjectConfigManager(self.filename).get_defaults(
+            hide_secrets=hide_secrets
+        )
+
     # It is safe to cache this config, as we only read from the script
     # and never update it. If the user updates the script,
     # it is ok to expect updates to be reflected after a server restart.
@@ -467,6 +553,11 @@ class ScriptConfigManager(PartialMarimoConfigReader):
             )
             if marimo_config is None:
                 return {}
+
+            marimo_config = ProjectConfigManager(
+                self.filename
+            )._resolve_dotenv(marimo_config)
+
             # PEP 723 script metadata cannot anchor cache-signing trust.
             marimo_config = strip_untrusted_config(marimo_config)
 
@@ -549,7 +640,7 @@ class UserConfigManager(MarimoConfigReader):
                 user_config = strip_untrusted_config(
                     user_config, is_user_layer=True
                 )
-            return merge_default_config(user_config)
+            return merge_default_config(_drop_hollow_dotenv(user_config))
         else:
             LOGGER.debug("No config found; loading default settings.")
         return DEFAULT_CONFIG
@@ -565,6 +656,26 @@ class MarimoConfigReaderWithOverrides(PartialMarimoConfigReader):
         if hide_secrets:
             return mask_secrets_partial(self.override_config)
         return self.override_config
+
+
+def _is_home_directory(path: Path) -> bool:
+    home = os.path.expanduser("~")
+    if home == "~":
+        return False
+    return os.path.realpath(path) == os.path.realpath(home)
+
+
+def _drop_hollow_dotenv(config: PartialMarimoConfig) -> PartialMarimoConfig:
+    """Drop an empty `runtime.dotenv`, which is a masked value and not a choice."""
+    # NB. Reading the configuration blanks runtime.dotenv by emptying the list,
+    # and marimo 0.18 and earlier saved that masked copy straight back to disk,
+    # so an empty list there means "hidden", not "load nothing". Keeping it
+    # would let a stale file suppress the .env next to the notebook.
+    runtime = config.get("runtime")
+    if runtime is None or runtime.get("dotenv") != []:
+        return config
+    without_dotenv = {k: v for k, v in runtime.items() if k != "dotenv"}
+    return {**config, "runtime": cast(RuntimeConfig, without_dotenv)}
 
 
 def _drop_none_values(d: dict[str, Any]) -> None:

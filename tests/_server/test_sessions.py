@@ -1120,6 +1120,52 @@ async def test_session_with_script_config_overrides(
     session.close()
 
 
+async def test_session_script_dotenv_reaches_the_kernel_config(
+    tmp_path: Path,
+) -> None:
+    # runtime.dotenv is masked to [] when read with secrets hidden. If the
+    # session layered that masked snapshot on as an override, the empty list
+    # would win the unmasked merge the kernel reads, so a script-level dotenv
+    # would load nothing.
+    session_consumer = MagicMock()
+    session_consumer.connection_state.return_value = ConnectionState.OPEN
+    tmp_file = tmp_path / "nb.py"
+    tmp_file.write_text(
+        dedent(
+            """
+        # /// script
+        # [tool.marimo.runtime]
+        # dotenv = [".env", ".env.local"]
+        # ///
+        """
+        )
+    )
+    session = await SessionImpl.create(
+        initialization_id="test_id",
+        session_consumer=session_consumer,
+        mode=SessionMode.RUN,
+        app_metadata=app_metadata,
+        app_file_manager=AppFileManager(filename=str(tmp_file)),
+        config_manager=get_default_config_manager(current_path=str(tmp_file)),
+        virtual_file_storage="in_memory",
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+        auto_instantiate=True,
+    )
+    try:
+        kernel_config = session._kernel_manager.config_manager.get_config(
+            hide_secrets=False
+        )
+        assert kernel_config["runtime"]["dotenv"] == [
+            str(tmp_path / ".env"),
+            str(tmp_path / ".env.local"),
+        ]
+        masked = session.config_manager.get_config()
+        assert masked["runtime"]["dotenv"] == []
+    finally:
+        session.close()
+
+
 async def test_caching_extension_respects_mode_and_config() -> None:
     """Test caching enablement and mode across edit/run sessions."""
     from marimo._session.extensions.extensions import (

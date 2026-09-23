@@ -214,6 +214,28 @@ def test_save_config_with_none_does_not_raise(tmp_path: Path) -> None:
     assert "be terse" in contents
 
 
+def test_user_config_drops_hollow_dotenv(tmp_path: Path) -> None:
+    """An empty runtime.dotenv on disk is a masked value, so it is ignored."""
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text("[runtime]\ndotenv = []\n")
+    manager = UserConfigManager()
+    manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
+
+    config = manager.get_config(hide_secrets=False)
+    assert "dotenv" not in config["runtime"]
+
+
+def test_user_config_keeps_populated_dotenv(tmp_path: Path) -> None:
+    config_path = tmp_path / "marimo.toml"
+    dotenv = tmp_path / ".env.user"
+    config_path.write_text(f'[runtime]\ndotenv = ["{dotenv.as_posix()}"]\n')
+    manager = UserConfigManager()
+    manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
+
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [dotenv.as_posix()]
+
+
 def test_drop_none_values_strips_nested_none() -> None:
     from marimo._config.manager import _drop_none_values
 
@@ -355,6 +377,355 @@ def test_project_config_default_dotenv(tmp_path: Path) -> None:
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
 
 
+def test_project_config_dotenv_without_pyproject(tmp_path: Path) -> None:
+    # Standalone notebooks (e.g. PEP 723 sandboxes) have no pyproject.toml to
+    # anchor on, so the dotenv default resolves next to the notebook.
+    notebook_path = tmp_path / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+
+
+def test_project_config_dotenv_without_pyproject_directory(
+    tmp_path: Path,
+) -> None:
+    manager = get_default_config_manager(current_path=str(tmp_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+
+
+def test_default_dotenv_is_masked_with_the_other_secrets(
+    tmp_path: Path,
+) -> None:
+    # The computed default is a runtime.dotenv entry like any other, so a
+    # masked read must hide it too.
+    notebook_path = tmp_path / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    assert manager.get_config()["runtime"]["dotenv"] == []
+    assert manager.get_config(hide_secrets=False)["runtime"]["dotenv"] == [
+        str(tmp_path / ".env")
+    ]
+
+
+def test_project_config_empty_dotenv_opts_out(tmp_path: Path) -> None:
+    # A user-level [] is dropped as a masked leftover, but a pyproject.toml is
+    # never written back masked, so its [] is a deliberate "load nothing".
+    notebook_path = _write_dotenv_project(tmp_path, "")
+    (notebook_path.parent / ".env").write_text("KEY=value")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    assert manager.get_config(hide_secrets=False)["runtime"]["dotenv"] == []
+
+
+def test_default_dotenv_skips_the_home_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # `marimo edit ~/nb.py`, or `marimo edit` run from ~, would otherwise load
+    # ~/.env and list its keys in the secrets panel.
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".env").write_text("KEY=value")
+    _set_home(monkeypatch, home)
+    notebook_path = home / "nb.py"
+    notebook_path.write_text("import marimo as mo")
+
+    for start_path in (notebook_path, home):
+        manager = get_default_config_manager(current_path=str(start_path))
+        config = manager.get_config(hide_secrets=False)
+        assert "dotenv" not in config["runtime"]
+
+
+def test_default_dotenv_applies_to_a_pyproject_in_the_home_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A pyproject.toml in ~ is a deliberate project root, so the pre-existing
+    # default stays.
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / "pyproject.toml").write_text("")
+    _set_home(monkeypatch, home)
+    notebook_path = home / "nb.py"
+    notebook_path.write_text("import marimo as mo")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(home / ".env")]
+
+
+def test_explicit_dotenv_resolves_in_the_home_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    home = tmp_path / "home"
+    home.mkdir()
+    _set_home(monkeypatch, home)
+    notebook_path = home / "nb.py"
+    notebook_path.write_text(
+        textwrap.dedent(
+            """
+            # /// script
+            # [tool.marimo.runtime]
+            # dotenv = [".env"]
+            # ///
+            import marimo as mo
+            """
+        )
+    )
+
+    config = ScriptConfigManager(str(notebook_path)).get_config(
+        hide_secrets=False
+    )
+    assert config["runtime"]["dotenv"] == [str(home / ".env")]
+
+
+def test_directory_workspace_dotenv_anchors_on_the_notebook(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # `marimo edit repo/` reads project config from repo/, but each session
+    # layers the notebook's script config on top. The notebook-level default
+    # follows the same precedence, so repo/sub/app.py gets repo/sub/.env.
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    repo = tmp_path / "repo"
+    sub = repo / "sub"
+    sub.mkdir(parents=True)
+    (repo / ".env").write_text("KEY=repo")
+    (sub / ".env").write_text("KEY=sub")
+    notebook_path = sub / "app.py"
+    notebook_path.write_text("import marimo as mo")
+
+    workspace = get_default_config_manager(current_path=str(repo))
+    session = workspace.with_partial(ScriptConfigManager(str(notebook_path)))
+    config = session.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(sub / ".env")]
+    assert "runtime" not in session.get_config_overrides(hide_secrets=False)
+
+
+def test_directory_workspace_dotenv_keeps_the_pyproject_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    repo = tmp_path / "repo"
+    sub = repo / "sub"
+    sub.mkdir(parents=True)
+    (repo / "pyproject.toml").write_text("")
+    notebook_path = sub / "app.py"
+    notebook_path.write_text("import marimo as mo")
+
+    workspace = get_default_config_manager(current_path=str(repo))
+    session = workspace.with_partial(ScriptConfigManager(str(notebook_path)))
+    config = session.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(repo / ".env")]
+
+
+def test_directory_workspace_dotenv_falls_back_to_the_workspace_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A new, unsaved notebook has no path to anchor on.
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    workspace = get_default_config_manager(current_path=str(repo))
+    session = workspace.with_partial(ScriptConfigManager(None))
+    config = session.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(repo / ".env")]
+
+
+def test_project_config_dotenv_prefers_pyproject_root(tmp_path: Path) -> None:
+    # When a pyproject.toml exists, it stays the anchor even if the notebook
+    # lives in a subdirectory.
+    (tmp_path / "pyproject.toml").write_text("")
+    notebooks = tmp_path / "notebooks"
+    notebooks.mkdir()
+    notebook_path = notebooks / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+
+
+def _write_dotenv_project(tmp_path: Path, dotenv_entries: str) -> Path:
+    """Write a project with runtime.dotenv set, return its notebook path."""
+    project = tmp_path / "project"
+    project.mkdir(exist_ok=True)
+    (project / "pyproject.toml").write_text(
+        textwrap.dedent(
+            f"""
+            [tool.marimo.runtime]
+            dotenv = [{dotenv_entries}]
+            """
+        )
+    )
+    notebook_path = project / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+    return notebook_path
+
+
+def test_project_config_dotenv_allows_subdirectory(tmp_path: Path) -> None:
+    notebook_path = _write_dotenv_project(tmp_path, '"config/.env"')
+    config_dir = notebook_path.parent / "config"
+    config_dir.mkdir()
+    (config_dir / ".env").write_text("KEY=value")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(config_dir / ".env")]
+
+
+def _isolate_user_config(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, contents: str
+) -> None:
+    """Point the user configuration at a temporary marimo.toml."""
+    config_path = tmp_path / "user" / "marimo.toml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(textwrap.dedent(contents))
+    monkeypatch.setattr(
+        "marimo._config.manager.get_or_create_user_config_path",
+        lambda: str(config_path),
+    )
+
+
+def _set_home(monkeypatch: pytest.MonkeyPatch, home: Path) -> None:
+    """Point `~` at a temporary directory on every platform."""
+    # NB. os.path.expanduser reads HOME on POSIX and USERPROFILE on Windows.
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+
+
+def _write_notebook(tmp_path: Path, *, with_pyproject: bool) -> Path:
+    """Write a notebook, under a pyproject.toml that says nothing about dotenv."""
+    project = tmp_path / "project"
+    project.mkdir()
+    if with_pyproject:
+        (project / "pyproject.toml").write_text(
+            textwrap.dedent(
+                """
+                [tool.marimo.formatting]
+                line_length = 100
+                """
+            )
+        )
+    notebook_path = project / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+    return notebook_path
+
+
+@pytest.mark.parametrize("with_pyproject", [True, False])
+def test_user_config_dotenv_beats_the_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, with_pyproject: bool
+) -> None:
+    # The default is resolved from the notebook location, so it must not
+    # outrank a dotenv the user wrote in their own configuration.
+    outside = tmp_path / "outside" / ".env"
+    outside.parent.mkdir()
+    outside.write_text("KEY=value")
+    _isolate_user_config(
+        monkeypatch,
+        tmp_path,
+        f"""
+        [runtime]
+        dotenv = ["{outside.as_posix()}"]
+        """,
+    )
+    notebook_path = _write_notebook(tmp_path, with_pyproject=with_pyproject)
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [outside.as_posix()]
+
+
+@pytest.mark.parametrize("with_pyproject", [True, False])
+def test_default_dotenv_applies_with_an_empty_user_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, with_pyproject: bool
+) -> None:
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    notebook_path = _write_notebook(tmp_path, with_pyproject=with_pyproject)
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
+
+
+def test_default_dotenv_applies_over_a_hollow_user_dotenv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # marimo 0.18 and earlier wrote the masked (emptied) dotenv back to disk.
+    _isolate_user_config(
+        monkeypatch,
+        tmp_path,
+        """
+        [runtime]
+        dotenv = []
+        """,
+    )
+    notebook_path = _write_notebook(tmp_path, with_pyproject=False)
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
+
+
+def test_project_dotenv_beats_user_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user_env = tmp_path / "user" / ".env"
+    user_env.parent.mkdir(exist_ok=True)
+    user_env.write_text("KEY=value")
+    _isolate_user_config(
+        monkeypatch,
+        tmp_path,
+        f"""
+        [runtime]
+        dotenv = ["{user_env.as_posix()}"]
+        """,
+    )
+    notebook_path = _write_dotenv_project(tmp_path, '".env"')
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
+
+
+def test_project_config_dotenv_keeps_absolute_and_parent_paths(
+    tmp_path: Path,
+) -> None:
+    # Configs such as dotenv = ["../shared/.env"] predate this anchoring, so
+    # entries leaving the project directory still resolve.
+    shared = tmp_path / "shared" / ".env"
+    notebook_path = _write_dotenv_project(
+        tmp_path, f'".env", "../shared/.env", "{shared.as_posix()}"'
+    )
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [
+        str(notebook_path.parent / ".env"),
+        str(notebook_path.parent / "../shared/.env"),
+        str(shared),
+    ]
+
+
+@pytest.mark.parametrize("with_pyproject", [True, False])
+def test_default_dotenv_is_not_a_config_override(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, with_pyproject: bool
+) -> None:
+    # The editor greys out settings reported here, so a default nobody wrote
+    # must not appear.
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    notebook_path = _write_notebook(tmp_path, with_pyproject=with_pyproject)
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    overrides = manager.get_config_overrides(hide_secrets=False)
+    assert "runtime" not in overrides
+
+
 def test_project_config_manager_with_script_metadata(tmp_path: Path) -> None:
     # Create a notebook file with script metadata
     notebook_path = tmp_path / "notebook.py"
@@ -387,16 +758,16 @@ def test_project_config_manager_with_script_metadata(tmp_path: Path) -> None:
     manager = get_default_config_manager(current_path=str(notebook_path))
     config = manager.get_config_overrides(hide_secrets=False)
 
-    # Verify that script metadata takes precedence over pyproject.toml
+    # Verify that script metadata takes precedence over pyproject.toml.
+    # runtime.dotenv is absent: neither file sets it, and the default the
+    # project computes is not an override, so the editor does not grey the
+    # setting out.
     assert config == {
         "formatting": {"line_length": 79},  # From script metadata
         "save": {
             "autosave_delay": 1000,  # From script metadata
             "format_on_save": True,  # From pyproject.toml
             "autosave": "after_delay",  # From pyproject.toml
-        },
-        "runtime": {
-            "dotenv": [str(tmp_path / ".env")],
         },
     }
 
@@ -432,6 +803,62 @@ def test_script_config_manager_with_metadata(tmp_path: Path) -> None:
         "formatting": {"line_length": 79},
         "save": {"autosave_delay": 1000},
     }
+
+
+def test_script_config_manager_dotenv_anchors_on_project(
+    tmp_path: Path,
+) -> None:
+    # Script metadata resolves relative dotenv paths like the pyproject.toml
+    # does: against the project directory, with absolute entries kept.
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "pyproject.toml").touch()
+    notebooks = project / "notebooks"
+    notebooks.mkdir()
+    shared = tmp_path / "shared" / ".env"
+    notebook_path = notebooks / "notebook.py"
+    notebook_content = f'''
+    # /// script
+    # [tool.marimo.runtime]
+    # dotenv = [".env", "{shared.as_posix()}"]
+    # ///
+    import marimo as mo
+    '''
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config(
+        hide_secrets=False
+    )
+
+    assert config["runtime"]["dotenv"] == [
+        str(project / ".env"),
+        str(shared),
+    ]
+
+
+def test_script_config_manager_dotenv_anchors_on_standalone_notebook(
+    tmp_path: Path,
+) -> None:
+    notebook_dir = tmp_path / "notebook"
+    notebook_dir.mkdir()
+    notebook_path = notebook_dir / "notebook.py"
+    notebook_content = """
+    # /// script
+    # [tool.marimo.runtime]
+    # dotenv = [".env", "../shared/.env"]
+    # ///
+    import marimo as mo
+    """
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config(
+        hide_secrets=False
+    )
+
+    assert config["runtime"]["dotenv"] == [
+        str(notebook_dir / ".env"),
+        str(notebook_dir / "../shared/.env"),
+    ]
 
 
 def test_script_config_manager_ignores_file_browser(tmp_path: Path) -> None:
