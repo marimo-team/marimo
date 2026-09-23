@@ -130,8 +130,6 @@ You can also configure marimo settings directly in your notebook files using scr
 
     **Script config > pyproject.toml config > user config**
 
-    The `.env` marimo loads when nothing sets `runtime.dotenv` sits below all three, so a `dotenv` in your user configuration replaces it.
-
 ## Environment variables
 
 marimo supports the following environment variables for advanced configuration:

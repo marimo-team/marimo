@@ -140,9 +140,9 @@ dotenv = [".env", ".env.testing"]
 ```
 
 Relative paths resolve against the directory holding the `pyproject.toml`, or
-against the notebook's directory when there is none. The same rule applies to
-a `dotenv` set in [script metadata](index.md#script-metadata-configuration).
-To load no `.env` at all, set `dotenv = []` in your `pyproject.toml` or script
-metadata.
+against the notebook's directory when not in a project.
+The same rule applies to a `dotenv` set in [script
+metadata](index.md#script-metadata-configuration). To load no `.env` at all,
+set `dotenv = []` in your `pyproject.toml` or script metadata.
 
 Environment variables from your `dotenv` will be surfaced in the UI when creating databases.
