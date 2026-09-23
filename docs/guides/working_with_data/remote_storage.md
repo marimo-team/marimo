@@ -15,7 +15,7 @@ marimo auto-discovers variables that are instances of:
 | Library | Base class | Example stores |
 |---------|-----------|----------------|
 | [obstore](https://developmentseed.org/obstore/) | `obstore.store.ObjectStore` | `S3Store`, `GCSStore`, `AzureStore`, `HTTPStore`, `LocalStore`, `MemoryStore` |
-| [fsspec](https://filesystem-spec.readthedocs.io/) | `fsspec.AbstractFileSystem` | `S3FileSystem`, `GithubFileSystem`, `FTPFileSystem`, `DatabricksFileSystem`, and [many more](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations) |
+| [fsspec](https://filesystem-spec.readthedocs.io/) | `fsspec.AbstractFileSystem` | `S3FileSystem`, `GoogleDriveFileSystem`, `GithubFileSystem`, `FTPFileSystem`, `DatabricksFileSystem`, and [many more](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations) |
 | [huggingface_hub](https://huggingface.co/docs/huggingface_hub) | `huggingface_hub.HfApi` | Browse the Hugging Face Hub (datasets, models, spaces, buckets) |
 
 
@@ -83,6 +83,19 @@ store = S3Store(
       of the endpoint hostname; unlike boto3, obstore does not prepend it.
 
 #### fsspec
+
+For Google Drive, install [`gdrive-fsspec`](https://github.com/marimo-team/gdrive-fsspec) and create a filesystem:
+
+```python
+from gdrive_fsspec import GoogleDriveFileSystem
+
+drive = GoogleDriveFileSystem(
+    use_listings_cache=False,
+    skip_instance_cache=True,
+)
+```
+
+For GitHub:
 
 ```python
 from fsspec.implementations.github import GithubFileSystem
