@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { ArrowDownIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { ArrowDownIcon, ChevronUpIcon } from "lucide-react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { useEventListener } from "@/hooks/useEventListener";
@@ -55,7 +55,18 @@ export function StartupOutput({
   }
 
   return (
-    <div className="relative mt-2.5 min-w-0 contain-inline-size rounded border bg-muted/30 text-muted-foreground">
+    <div
+      className={cn(
+        // Same tint and padding in both states, so expanding swaps the
+        // contents without moving anything around it.
+        "relative mt-2.5 min-w-0 contain-inline-size border text-muted-foreground",
+        // Collapsed, a hairline rail grows with the preview and the tint
+        // only appears on hover; expanded, the full box takes over.
+        expanded
+          ? "rounded border-border bg-muted/30"
+          : "border-transparent border-l-border",
+      )}
+    >
       <div className={cn(expanded && "flex items-center pr-1")}>
         <button
           type="button"
@@ -64,8 +75,10 @@ export function StartupOutput({
           aria-controls={outputId}
           title={expanded ? "Collapse output" : "Expand output"}
           className={cn(
-            "flex w-full min-w-0 items-start gap-2 px-2.5 py-1 text-left rounded hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
-            expanded && "items-center justify-between text-xs",
+            "flex w-full min-w-0 text-left focus-visible:outline-2 focus-visible:outline-ring",
+            expanded
+              ? "items-center justify-between gap-2 px-2.5 py-1 text-xs hover:text-foreground"
+              : "px-2.5 py-1 hover:bg-muted/30",
           )}
           onClick={() => {
             setExpanded(!expanded);
@@ -80,25 +93,19 @@ export function StartupOutput({
               <ChevronUpIcon className="size-3.5 shrink-0" aria-hidden={true} />
             </>
           ) : (
-            <>
-              <span
-                className="min-w-0 flex-1 font-mono text-[11px] leading-5"
-                aria-hidden={true}
-              >
-                {lines.slice(-3).map((line, index) => (
-                  <span
-                    key={index}
-                    className="block truncate opacity-60 last:opacity-100"
-                  >
-                    {line || "\u00A0"}
-                  </span>
-                ))}
-              </span>
-              <ChevronDownIcon
-                className="size-3.5 shrink-0 mt-0.5 opacity-60"
-                aria-hidden={true}
-              />
-            </>
+            <span
+              className="min-w-0 flex-1 font-mono text-[11px] leading-5"
+              aria-hidden={true}
+            >
+              {lines.slice(-3).map((line, index) => (
+                <span
+                  key={index}
+                  className="block truncate opacity-60 last:opacity-100"
+                >
+                  {line || "\u00A0"}
+                </span>
+              ))}
+            </span>
           )}
         </button>
         {expanded && (
