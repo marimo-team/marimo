@@ -1908,16 +1908,16 @@ class Kernel:
         # Stale cells that are enabled will need to be run.
         stale_cells: set[CellId_t] = set()
         for cell_id, config in request.configs.items():
-            # store the config, regardless of whether we've seen the cell yet
-            self.cell_metadata[cell_id] = CellMetadata(
-                config=CellConfig.from_dict(config)
-            )
+            previous = self.cell_metadata.get(cell_id, CellMetadata()).config
+            merged = CellConfig.from_dict(previous.asdict())
+            merged.configure(config)
+            self.cell_metadata[cell_id] = CellMetadata(config=merged)
             cell = self.graph.cells.get(cell_id)
             if cell is None:
                 continue
             cell.configure(config)
             if not cell.config.disabled:
-                stale_cells = self.graph.enable_cell(cell_id)
+                stale_cells |= self.graph.enable_cell(cell_id)
             elif cell.config.disabled:
                 self.graph.disable_cell(cell_id)
 
