@@ -15,7 +15,7 @@ marimo auto-discovers variables that are instances of:
 | Library | Base class | Example stores |
 |---------|-----------|----------------|
 | [obstore](https://developmentseed.org/obstore/) | `obstore.store.ObjectStore` | `S3Store`, `GCSStore`, `AzureStore`, `HTTPStore`, `LocalStore`, `MemoryStore` |
-| [fsspec](https://filesystem-spec.readthedocs.io/) | `fsspec.AbstractFileSystem` | `S3FileSystem`, `GithubFileSystem`, `FTPFileSystem`, `DatabricksFileSystem`, and [many more](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations) |
+| [fsspec](https://filesystem-spec.readthedocs.io/) | `fsspec.AbstractFileSystem` | `S3FileSystem`, `GoogleDriveFileSystem`, `GithubFileSystem`, `FTPFileSystem`, `DatabricksFileSystem`, and [many more](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations) |
 | [huggingface_hub](https://huggingface.co/docs/huggingface_hub) | `huggingface_hub.HfApi` | Browse the Hugging Face Hub (datasets, models, spaces, buckets) |
 
 
@@ -39,6 +39,7 @@ marimo also detects credentials in your kernel's environment and offers a **Quic
 | --- | --- |
 | Amazon S3 | `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are set, or `AWS_PROFILE` is set |
 | S3-compatible storage | As above, with a custom endpoint (`AWS_ENDPOINT_URL` or `AWS_ENDPOINT_URL_S3`), e.g. MinIO or Cloudflare R2 |
+| Hugging Face Hub | `HF_TOKEN` or the legacy `HUGGING_FACE_HUB_TOKEN` is set |
 
 See [Detecting data sources from your environment](sql.md#detecting-data-sources-from-your-environment) for details on how detection works.
 
@@ -82,6 +83,19 @@ store = S3Store(
       of the endpoint hostname; unlike boto3, obstore does not prepend it.
 
 #### fsspec
+
+For Google Drive, install [`gdrive-fsspec`](https://github.com/marimo-team/gdrive-fsspec) and create a filesystem:
+
+```python
+from gdrive_fsspec import GoogleDriveFileSystem
+
+drive = GoogleDriveFileSystem(
+    use_listings_cache=False,
+    skip_instance_cache=True,
+)
+```
+
+For GitHub:
 
 ```python
 from fsspec.implementations.github import GithubFileSystem
