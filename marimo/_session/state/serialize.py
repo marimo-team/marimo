@@ -373,6 +373,7 @@ def serialize_notebook(
                 column=None,
                 disabled=None,
                 hide_code=None,
+                expand_output=None,
             )
         else:
             name = cell_data.name
@@ -380,6 +381,7 @@ def serialize_notebook(
                 column=cell_data.config.column,
                 disabled=cell_data.config.disabled,
                 hide_code=cell_data.config.hide_code,
+                expand_output=cell_data.config.expand_output,
             )
 
         cells.append(

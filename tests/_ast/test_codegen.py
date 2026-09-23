@@ -327,14 +327,16 @@ app._unparsable_cell(
         assert generate(
             "x = 1",
             "named_cell",
-            CellConfig(disabled=True, hide_code=True, column=1),
+            CellConfig(
+                disabled=True, hide_code=True, column=1, expand_output=True
+            ),
         ) == snapshot(
             '''\
 app._unparsable_cell(
     r"""
     x = 1
     """,
-    column=1, disabled=True, hide_code=True, name="named_cell"
+    column=1, disabled=True, hide_code=True, expand_output=True, name="named_cell"
 )\
 '''
         )
@@ -948,17 +950,40 @@ class TestToFunctionDef:
     def test_with_all_config(self) -> None:
         code = "x = 0"
         cell = compile_cell(code)
-        cell = cell.configure(CellConfig(disabled=True, hide_code=True))
+        cell = cell.configure(
+            CellConfig(disabled=True, hide_code=True, expand_output=True)
+        )
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
             [
-                "@app.cell(disabled=True, hide_code=True)",
+                "@app.cell(disabled=True, hide_code=True, expand_output=True)",
                 "def foo():",
                 "    x = 0",
                 "    return (x,)",
             ]
         )
         assert fndef == expected
+
+    def test_with_expand_output(self) -> None:
+        code = "x = 0"
+        cell = compile_cell(code)
+        cell = cell.configure(CellConfig(expand_output=True))
+        fndef = codegen.to_functiondef(cell, "foo")
+        expected = "\n".join(
+            [
+                "@app.cell(expand_output=True)",
+                "def foo():",
+                "    x = 0",
+                "    return (x,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_expand_output_omitted_when_false(self) -> None:
+        code = "x = 0"
+        cell = compile_cell(code)
+        cell = cell.configure(CellConfig(expand_output=False))
+        assert codegen.to_functiondef(cell, "foo").startswith("@app.cell\n")
 
     def test_dotted_names_filtered_from_signature(self) -> None:
         """Test that dotted names (like SQL schema.table references) are filtered out from function signatures."""

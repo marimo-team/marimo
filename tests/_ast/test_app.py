@@ -543,11 +543,35 @@ class TestApp:
             assert __x__ == 0
             return
 
+        @app.cell(expand_output=True)
+        def _() -> None:
+            return
+
         cell_manager = app._cell_manager
         configs = tuple(cell_manager.configs())
         assert configs[0].disabled
         assert configs[0].column is not None
         assert configs[1].hide_code
+        assert not configs[1].expand_output
+        assert configs[2].expand_output
+
+    @staticmethod
+    def test_top_level_cell_config() -> None:
+        # Codegen emits `expand_output` for top-level cells too, so the
+        # decorators must accept it -- otherwise the flag is dropped when the
+        # notebook is imported or run as a script.
+        app = App()
+
+        @app.function(expand_output=True)
+        def add(a: int, b: int) -> int:
+            return a + b
+
+        @app.class_definition(expand_output=True)
+        class Struct: ...
+
+        configs = tuple(app._cell_manager.configs())
+        assert configs[0].expand_output
+        assert configs[1].expand_output
 
     @staticmethod
     def test_conditional_definition() -> None:

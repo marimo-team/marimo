@@ -35,6 +35,7 @@ const ClipboardCellDataSchema = z.object({
           column: z.union([z.number(), z.null()]).optional(),
           disabled: z.boolean().optional(),
           hide_code: z.boolean().optional(),
+          expand_output: z.boolean().optional(),
         })
         .optional(),
     }),

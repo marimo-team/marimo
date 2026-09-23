@@ -438,6 +438,9 @@ components:
         disabled:
           default: false
           type: boolean
+        expand_output:
+          default: false
+          type: boolean
         hide_code:
           default: false
           type: boolean
@@ -5297,6 +5300,8 @@ components:
           - type: 'null'
         disabled:
           type: boolean
+        expandOutput:
+          type: boolean
         hideCode:
           type: boolean
         type:
@@ -5308,6 +5313,7 @@ components:
       - column
       - disabled
       - hideCode
+      - expandOutput
       title: SetConfig
       type: object
     SetName:
