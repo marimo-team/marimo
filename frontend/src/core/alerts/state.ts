@@ -62,9 +62,19 @@ function setEnvironment(
   const operations = Object.values(environments).flatMap(
     (item) => item.operations,
   );
+  const alert = state.packageAlert;
+  const selected =
+    alert?.kind === "environment"
+      ? operations.find(
+          (item) =>
+            item.operation_id === alert.id && item.source === alert.source,
+        )
+      : undefined;
   const operation =
+    (selected?.status.kind === "running" ? selected : undefined) ??
     environment.operations.findLast((item) => item.status.kind === "running") ??
     operations.findLast((item) => item.status.kind === "running") ??
+    selected ??
     environment.operations.at(-1) ??
     operations.at(-1);
   return {
@@ -104,7 +114,14 @@ export const { valueAtom: alertAtom, useActions: useAlertActions } =
       ) => {
         const source = update.source;
         return setEnvironment(
-          state,
+          {
+            ...state,
+            packageAlert: {
+              kind: "environment",
+              id: update.operation_id,
+              source,
+            },
+          },
           source,
           reduceEnvironmentState(state.environments[source], update),
         );

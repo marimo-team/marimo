@@ -15,6 +15,7 @@ from marimo._messaging.notification import (
     EnvironmentOperationNotification,
     MissingPackageAlertNotification,
     OperationFailed,
+    OperationSucceeded,
 )
 from marimo._runtime.commands import (
     CommandMessage,
@@ -501,8 +502,10 @@ def test_missing_packages_hook_pip(
         # Note: The exact sequence might vary, but we should have final success
 
 
+@pytest.mark.parametrize("succeed", [False, True])
 async def test_install_logs_reach_the_stream_from_worker_threads(
     mocked_kernel: MockedKernel,
+    succeed: bool,
 ) -> None:
     """Per-line install logs bind the kernel's stream when the callback
     is created: the callback fires from worker threads, which do not
@@ -517,7 +520,9 @@ async def test_install_logs_reach_the_stream_from_worker_threads(
     fake = Mock(restart_required=False)
     fake.name = current.name
     fake.is_manager_installed.return_value = True
-    fake.attempted_to_install.return_value = False
+    fake.attempted_to_install.side_effect = lambda package: (
+        package == "skipped"
+    )
     fake.module_to_package.side_effect = lambda module: module
     fake.package_to_module.side_effect = lambda package: package
 
@@ -533,7 +538,7 @@ async def test_install_logs_reach_the_stream_from_worker_threads(
         )
         worker.start()
         worker.join()
-        return package == "available"
+        return succeed or package == "available"
 
     fake.install = install
     fake.stream_install = partial(PackageManager.stream_install, fake)
@@ -542,7 +547,7 @@ async def test_install_logs_reach_the_stream_from_worker_threads(
     await k.packages_callbacks.install_missing_packages(
         InstallPackagesCommand(
             manager=fake.name,
-            versions={"available": "", "broken": ""},
+            versions={"available": "", "broken": "", "skipped": ""},
             source="server",
         )
     )
@@ -553,18 +558,25 @@ async def test_install_logs_reach_the_stream_from_worker_threads(
         if isinstance(message, EnvironmentOperationNotification)
     ]
     outcome = updates[-1]
-    assert isinstance(outcome.status, OperationFailed)
+    assert isinstance(
+        outcome.status, OperationSucceeded if succeed else OperationFailed
+    )
     assert outcome.packages == {
         "available": "succeeded",
-        "broken": "failed",
+        "broken": "succeeded" if succeed else "failed",
     }
     assert {
         (update.operation_id, update.action, update.source)
         for update in updates
     } == {(outcome.operation_id, "install", "server")}
+    assert all("skipped" not in update.packages for update in updates)
     final_messages = {
         "available": "Successfully installed available\n",
-        "broken": "Failed to install broken\n",
+        "broken": (
+            "Successfully installed broken\n"
+            if succeed
+            else "Failed to install broken\n"
+        ),
     }
     for package, final_message in final_messages.items():
         logged = [update for update in updates if package in update.logs]

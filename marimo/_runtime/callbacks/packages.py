@@ -292,13 +292,14 @@ class PackagesCallbacks:
         missing_packages = [
             str(pkg)
             for pkg in sorted(resolved_packages.values(), key=lambda p: p.name)
+            if not self.package_manager.attempted_to_install(package=str(pkg))
         ]
         if not missing_packages:
             return
 
         # Frontend shows package names, not module names
         package_statuses: PackageStatusType = dict.fromkeys(
-            missing_packages, "queued"
+            missing_packages, "running"
         )
         # Worker log callbacks need the kernel's stream captured on this thread.
         try:
@@ -315,28 +316,14 @@ class PackagesCallbacks:
             def create_log_callback(pkg: str) -> LogCallback:
                 return lambda line: operation.update({pkg: line})
 
-            # Mark every still-installable package as "running" up-front so the
-            # UI can render the batch state before any wheel completes.
             for pkg in missing_packages:
-                if not self.package_manager.attempted_to_install(package=pkg):
-                    package_statuses[pkg] = "running"
-            operation.update()
-            for pkg in missing_packages:
-                if package_statuses.get(pkg) == "running":
-                    operation.update(
-                        {pkg: f"Installing {pkg}...\n"}, replace=True
-                    )
+                operation.update({pkg: f"Installing {pkg}...\n"}, replace=True)
 
-            installable = [
-                pkg
-                for pkg in missing_packages
-                if not self.package_manager.attempted_to_install(package=pkg)
-            ]
             versions: dict[str, str | None] = {
-                pkg: request.versions.get(pkg) for pkg in installable
+                pkg: request.versions.get(pkg) for pkg in missing_packages
             }
             async for pkg, success in self.package_manager.stream_install(
-                installable,
+                missing_packages,
                 versions=versions,
                 index_urls=request.index_urls or None,
                 log_callback_factory=create_log_callback,
