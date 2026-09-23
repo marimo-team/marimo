@@ -64,10 +64,7 @@ import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
-import {
-  PairWithAgentBanner,
-  PairWithAgentButton,
-} from "../editor/actions/pair-with-agent";
+import { PairWithAgentButton } from "../editor/actions/pair-with-agent";
 import { PairWithAgentModal } from "../editor/actions/pair-with-agent-modal";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import {
