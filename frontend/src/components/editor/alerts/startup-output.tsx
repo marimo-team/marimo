@@ -55,12 +55,7 @@ export function StartupOutput({
   }
 
   return (
-    <div
-      className={cn(
-        "mt-2.5 min-w-0 contain-inline-size text-muted-foreground",
-        expanded && "relative rounded border bg-muted/30",
-      )}
-    >
+    <div className="relative mt-2.5 min-w-0 contain-inline-size rounded border bg-muted/30 text-muted-foreground">
       <div className={cn(expanded && "flex items-center pr-1")}>
         <button
           type="button"
@@ -69,10 +64,8 @@ export function StartupOutput({
           aria-controls={outputId}
           title={expanded ? "Collapse output" : "Expand output"}
           className={cn(
-            "flex w-full min-w-0 items-start gap-2 text-left rounded focus-visible:outline-2 focus-visible:outline-ring",
-            expanded
-              ? "items-center justify-between px-2.5 py-1 text-xs hover:text-foreground"
-              : "border-l-2 border-border py-1 pl-2.5 pr-1 hover:bg-muted/30 hover:border-muted-foreground",
+            "flex w-full min-w-0 items-start gap-2 px-2.5 py-1 text-left rounded hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
+            expanded && "items-center justify-between text-xs",
           )}
           onClick={() => {
             setExpanded(!expanded);
