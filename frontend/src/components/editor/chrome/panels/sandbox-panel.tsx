@@ -1,23 +1,22 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { useAtomValue } from "jotai";
-import { ChevronUpIcon, FileCodeIcon, RefreshCwIcon } from "lucide-react";
+import { useAtom, useAtomValue } from "jotai";
+import { RefreshCwIcon } from "lucide-react";
 import { connectionNoticeAtom } from "@/core/network/connection-notice";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Tooltip } from "@/components/ui/tooltip";
-import { isConnectedAtom } from "@/core/network/connection";
+  isConnectedAtom,
+  startupProgressAtom,
+} from "@/core/network/connection";
 import type { DisplayConnectionNotice } from "@/core/network/useConnectionNotice";
 import {
+  preparationAtom,
   sandboxActionsAtom,
   sandboxAtom,
   sandboxSyncAtom,
 } from "@/core/packages/sandbox-state";
 import { cn } from "@/utils/cn";
+import { usePanelSection } from "./panel-context";
+import { sandboxDetailsExpandedAtom } from "./sandbox-details-state";
 import {
   ConnectionStatusIcon,
   StartupProgress,
@@ -72,18 +71,14 @@ function SandboxRecovery({ notice }: { notice: DisplayConnectionNotice }) {
   );
 }
 
-export function SandboxStartupPanel({
-  notice,
-}: {
-  notice: DisplayConnectionNotice;
-}) {
+function SandboxStartupPanel({ notice }: { notice: DisplayConnectionNotice }) {
   const showSteps =
     notice.kind === "startup" &&
     (notice.ready ||
       notice.phase === "preparing-environment" ||
       notice.phase === "starting-kernel");
   return (
-    <div className="flex-1 min-h-0 overflow-auto p-6 text-sm">
+    <div className="min-w-0 text-sm">
       {showSteps ? (
         <StartupProgress notice={notice} surface="sidebar" />
       ) : (
@@ -97,13 +92,9 @@ export function SandboxStartupPanel({
   );
 }
 
-export function SandboxSyncStatus({
-  notice,
-}: {
-  notice: DisplayConnectionNotice;
-}) {
+function SandboxSyncStatus({ notice }: { notice: DisplayConnectionNotice }) {
   return (
-    <div className="border-b px-3 py-3 text-sm shrink-0 max-h-[50%] overflow-auto">
+    <div className="mb-5 text-sm">
       <output className="flex items-center gap-2 text-xs">
         <ConnectionStatusIcon notice={notice} />
         <span>{notice.title}</span>
@@ -113,85 +104,73 @@ export function SandboxSyncStatus({
   );
 }
 
-export function SandboxFooter() {
-  const sandbox = useAtomValue(sandboxAtom);
+export function SandboxDetails() {
+  const section = usePanelSection();
   const connected = useAtomValue(isConnectedAtom);
-  const actions = useAtomValue(sandboxActionsAtom);
-  const operation = useAtomValue(sandboxSyncAtom);
   const notice = useAtomValue(connectionNoticeAtom);
-  if (!sandbox?.backend) {
-    return null;
-  }
-  const pending = operation.pending || notice?.pending;
-  const status = operation.pending
-    ? "Syncing sandbox…"
-    : (notice?.title ?? (connected ? "Sandbox ready" : "Sandbox not started"));
+  const preparation = useAtomValue(preparationAtom);
+  const progress = useAtomValue(startupProgressAtom);
+  const [expanded, setExpanded] = useAtom(sandboxDetailsExpandedAtom);
+  const startup: DisplayConnectionNotice | null =
+    notice?.kind === "startup"
+      ? { ...notice, ready: false }
+      : preparation || progress
+        ? {
+            kind: "startup",
+            sandbox: true,
+            title: "Notebook started",
+            description: "The notebook is ready to run.",
+            pending: false,
+            ready: true,
+            error: null,
+          }
+        : null;
   return (
-    <div className="border-t p-1.5 shrink-0">
-      <DropdownMenu>
-        <Tooltip content={status}>
-          <DropdownMenuTrigger asChild={true}>
-            <button
-              type="button"
-              className="flex items-center gap-2 w-full h-8 px-2 rounded text-xs text-muted-foreground hover:bg-accent data-[state=open]:bg-accent"
-              aria-label={`${sandbox.backend} sandbox actions`}
-            >
-              <span
-                role="status"
-                aria-label={status}
-                className={cn(
-                  "size-1.5 shrink-0 rounded-full",
-                  pending
-                    ? "bg-amber-500 motion-safe:animate-pulse"
-                    : notice
-                      ? "bg-(--red-9)"
-                      : connected
-                        ? "bg-emerald-500"
-                        : "bg-muted-foreground",
-                )}
-              />
-              <span className="shrink-0">{sandbox.backend} sandbox</span>
-              <span className="ml-auto truncate">
-                {pending
-                  ? operation.pending
-                    ? "Syncing…"
-                    : "Starting…"
-                  : notice
-                    ? "Needs attention"
-                    : connected
-                      ? "Ready"
-                      : ""}
-              </span>
-              <ChevronUpIcon className="size-3 shrink-0" />
-            </button>
-          </DropdownMenuTrigger>
-        </Tooltip>
-        <DropdownMenuContent
-          side="top"
-          align="start"
-          className="w-52"
-          sideOffset={8}
-        >
-          <DropdownMenuItem
-            disabled={pending || !actions}
-            onSelect={() => {
-              void actions?.sync();
-            }}
-          >
-            <RefreshCwIcon className="size-3.5 mr-2" />
-            Sync
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={!actions || sandbox.manifest === null}
-            onSelect={() => {
-              void actions?.editManifest();
-            }}
-          >
-            <FileCodeIcon className="size-3.5 mr-2" />
-            Edit manifest…
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+    <section
+      id={`sandbox-details-${section}`}
+      aria-label="Sandbox details"
+      hidden={!expanded}
+      className={cn(
+        "min-w-0 overflow-auto p-4",
+        connected ? "shrink-0 max-h-[65%] border-b" : "flex-1",
+      )}
+      onPointerDownCapture={() => setExpanded(true)}
+      onFocusCapture={() => setExpanded(true)}
+    >
+      {notice && notice.kind !== "startup" && (
+        <SandboxSyncStatus notice={{ ...notice, ready: false }} />
+      )}
+      {startup && <SandboxStartupPanel notice={startup} />}
+      {connected && (!notice || notice.pending) && <SandboxActions />}
+    </section>
+  );
+}
+
+function SandboxActions() {
+  const sandbox = useAtomValue(sandboxAtom);
+  const actions = useAtomValue(sandboxActionsAtom);
+  const { pending } = useAtomValue(sandboxSyncAtom);
+  return (
+    <div className="flex items-center gap-4 mt-5 border-t pt-3">
+      <Button
+        variant="text"
+        size="xs"
+        className="text-muted-foreground gap-1.5 p-0"
+        disabled={pending || !actions}
+        onClick={() => actions?.sync()}
+      >
+        <RefreshCwIcon className="size-3" aria-hidden={true} />
+        Sync
+      </Button>
+      <Button
+        variant="text"
+        size="xs"
+        className="text-muted-foreground p-0"
+        disabled={!actions || sandbox?.manifest == null}
+        onClick={() => actions?.editManifest()}
+      >
+        Edit manifest…
+      </Button>
     </div>
   );
 }

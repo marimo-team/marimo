@@ -27,6 +27,7 @@ import { store } from "@/core/state/jotai";
 import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
 import { chromeAtom } from "../../state";
 import PackagesPanel from "../packages-panel";
+import { PanelSectionProvider } from "../panel-context";
 import { SandboxController } from "../sandbox-controller";
 
 vi.mock("@/plugins/impl/code/LazyAnyLanguageCodeMirror", () => ({
@@ -83,7 +84,9 @@ function mount(
           appConfig={AppConfigSchema.parse({})}
           onRetry={reconnect}
         />
-        <PackagesPanel />
+        <PanelSectionProvider value="sidebar">
+          <PackagesPanel />
+        </PanelSectionProvider>
       </TooltipProvider>
     </Provider>,
   );

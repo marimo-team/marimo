@@ -24,6 +24,8 @@ import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
 import { store } from "@/core/state/jotai";
 import { WebSocketState } from "@/core/websocket/types";
 import PackagesPanel from "../packages-panel";
+import { PanelSectionProvider } from "../panel-context";
+import { SandboxToggle } from "../sandbox-toggle";
 
 const { openSettings } = vi.hoisted(() => ({
   openSettings: vi.fn(),
@@ -69,6 +71,7 @@ function renderPanel(
       ? { backend: context.backend, manifest: "", filename: "notebook.py" }
       : null,
   );
+  store.set(connectionAtom, { state: WebSocketState.OPEN });
   store.set(sandboxSyncAtom, { pending: false, error: null });
   const getPackageList = vi.fn().mockResolvedValue({ packages: [] });
   const client = MockRequestClient.create({
@@ -83,7 +86,10 @@ function renderPanel(
     ...render(
       <Provider store={store}>
         <TooltipProvider>
-          <PackagesPanel />
+          <PanelSectionProvider value="sidebar">
+            <SandboxToggle section="sidebar" />
+            <PackagesPanel />
+          </PanelSectionProvider>
         </TooltipProvider>
       </Provider>,
     ),
@@ -180,6 +186,7 @@ it("refreshes an open panel when a package is installed elsewhere, after install
     manifest: "",
     filename: "notebook.py",
   });
+  store.set(connectionAtom, { state: WebSocketState.OPEN });
   store.set(sandboxSyncAtom, { pending: false, error: null });
   store.set(requestClientAtom, withPackageInvalidation(client));
   function InstallElsewhere() {
@@ -193,7 +200,10 @@ it("refreshes an open panel when a package is installed elsewhere, after install
   render(
     <Provider store={store}>
       <TooltipProvider>
-        <PackagesPanel />
+        <PanelSectionProvider value="sidebar">
+          <SandboxToggle section="sidebar" />
+          <PackagesPanel />
+        </PanelSectionProvider>
         <InstallElsewhere />
       </TooltipProvider>
     </Provider>,

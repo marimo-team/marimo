@@ -8,6 +8,12 @@ import { assertNever } from "@/utils/assertNever";
 
 export const sandboxAtom = atom<SandboxResponse | null>(null);
 
+export const preparationAtom = atom((get) =>
+  get(alertAtom).environments.kernel.operations.findLast(
+    (operation) => operation.action === "prepare",
+  ),
+);
+
 interface SandboxSyncState {
   pending: boolean;
   error: string | null;

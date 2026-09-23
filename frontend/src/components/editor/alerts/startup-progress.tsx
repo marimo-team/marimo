@@ -1,14 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import { useAtomValue } from "jotai";
 import { AlertCircleIcon, CheckIcon, CircleIcon } from "lucide-react";
 import { Spinner } from "@/components/icons/spinner";
+import { preparationAtom } from "@/core/packages/sandbox-state";
+import { startupProgressAtom } from "@/core/network/connection";
 import type { DisplayConnectionNotice } from "@/core/network/useConnectionNotice";
 import { cn } from "@/utils/cn";
+import { StartupOutput } from "./startup-output";
 
 const STEPS = [
   {
     phase: "preparing-environment",
     titles: {
-      complete: "Environment ready",
+      complete: "Environment prepared",
       failed: "Environment setup failed",
       pending: "Preparing environment",
       waiting: "Prepare environment",
@@ -23,7 +27,7 @@ const STEPS = [
   {
     phase: "starting-kernel",
     titles: {
-      complete: "Kernel ready",
+      complete: "Kernel started",
       failed: "Kernel failed to start",
       pending: "Starting kernel",
       waiting: "Start kernel",
@@ -42,30 +46,41 @@ interface StartupProgressProps {
   surface: "notebook" | "sidebar";
 }
 
-function StartupSummary({ notice, surface }: StartupProgressProps) {
+function StartupStepOutput({
+  phase,
+}: {
+  phase: (typeof STEPS)[number]["phase"];
+}) {
+  const preparation = useAtomValue(preparationAtom);
+  const progress = useAtomValue(startupProgressAtom);
+  const preparing = phase === "preparing-environment";
+  const logs = preparing
+    ? (preparation?.logs.environment ?? "")
+    : progress?.phase === phase
+      ? progress.logs
+      : "";
+
+  return (
+    <StartupOutput
+      key={preparation?.operation_id}
+      logs={logs}
+      label={
+        preparing ? "environment preparation output" : "kernel startup output"
+      }
+    />
+  );
+}
+
+function StartupSummary({ notice }: { notice: DisplayConnectionNotice }) {
   return (
     <header>
       <output className="sr-only">{notice.title}</output>
-      <h2
-        className={cn(
-          "text-foreground",
-          surface === "notebook"
-            ? "font-heading text-2xl leading-8 tracking-tight font-normal"
-            : "font-prose text-base leading-6 font-bold",
-        )}
-      >
+      <h2 className="text-foreground font-heading text-2xl leading-8 tracking-tight font-normal">
         {notice.ready
           ? "Your notebook is ready"
           : "Getting your notebook ready"}
       </h2>
-      <p
-        className={cn(
-          "text-muted-foreground",
-          surface === "notebook"
-            ? "mt-3 text-sm leading-6"
-            : "mt-2 text-xs leading-5",
-        )}
-      >
+      <p className="text-muted-foreground mt-3 text-sm leading-6">
         {notice.ready
           ? "Your environment and kernel are ready."
           : notice.pending
@@ -108,9 +123,9 @@ export function ConnectionStatusIcon({
 export function StartupProgress({ notice, surface }: StartupProgressProps) {
   return (
     <>
-      <StartupSummary notice={notice} surface={surface} />
+      {surface === "notebook" && <StartupSummary notice={notice} />}
       <ol
-        className={cn("space-y-6", surface === "notebook" ? "mt-8" : "mt-6")}
+        className={cn("space-y-6", surface === "notebook" && "mt-8")}
         aria-label="Notebook startup stages"
       >
         {STEPS.map(({ phase, titles, descriptions }, index) => {
@@ -154,7 +169,7 @@ export function StartupProgress({ notice, surface }: StartupProgressProps) {
                   />
                 )}
               </span>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div
                   className={cn(
                     "text-sm",
@@ -170,6 +185,7 @@ export function StartupProgress({ notice, surface }: StartupProgressProps) {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {descriptions[state]}
                 </p>
+                {surface === "sidebar" && <StartupStepOutput phase={phase} />}
               </div>
             </li>
           );

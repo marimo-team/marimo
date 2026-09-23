@@ -61,13 +61,13 @@ it("shows both stages in an empty notebook, checks them off, then dismisses Read
       phase: "starting-kernel",
     }),
   );
-  expect(steps.getByText("Environment ready")).toBeInTheDocument();
+  expect(steps.getByText("Environment prepared")).toBeInTheDocument();
   expect(steps.getByText("Starting kernel")).toBeInTheDocument();
   act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
   expect(
     screen.getByRole("heading", { name: "Your notebook is ready" }),
   ).toBeInTheDocument();
-  expect(steps.getByText("Kernel ready")).toBeInTheDocument();
+  expect(steps.getByText("Kernel started")).toBeInTheDocument();
   act(() => vi.advanceTimersByTime(1000));
   expect(screen.getByRole("status")).toHaveTextContent(
     "Your notebook is ready",
