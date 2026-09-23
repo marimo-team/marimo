@@ -672,7 +672,7 @@ const StreamingLogsViewer: React.FC<StreamingLogsViewerProps> = ({
   }
 
   return (
-    <div className="mt-4 border-t border-border pt-4 w-full">
+    <div className="mt-4 border-t border-border pt-4 w-full contain-inline-size">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -694,7 +694,7 @@ const StreamingLogsViewer: React.FC<StreamingLogsViewerProps> = ({
                 {packageName}
               </h4>
               <div className="border border-border rounded w-full">
-                <pre className="p-3 text-xs font-mono bg-background max-h-64 overflow-y-auto text-muted-foreground whitespace-pre-wrap scrollbar-thin">
+                <pre className="p-3 text-xs font-mono bg-background max-h-64 overflow-auto text-muted-foreground whitespace-pre scrollbar-thin">
                   {logs || "No logs available"}
                 </pre>
               </div>
