@@ -7,7 +7,7 @@ from pathlib import Path
 
 from marimo._utils.parse_dataclass import parse_raw
 
-PAIR_COMMAND = "uv run marimo"
+PAIR_COMMAND = "uvx marimo@latest"
 
 
 @dataclass(frozen=True)

@@ -1579,8 +1579,8 @@ Pair with me on this running marimo notebook.
 URL: http://localhost:2718
 Session: s_ab12cd
 
-Run `uv run marimo pair --help` first.
-Use `uv run marimo` for all marimo commands.
+Run `uvx marimo@latest pair --help` first.
+Use `uvx marimo@latest` for all marimo commands.
 
 Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 
@@ -1609,8 +1609,8 @@ Pair with me on this running marimo notebook.
 
 URL: http://localhost:2718
 
-Run `uv run marimo pair --help` first.
-Use `uv run marimo` for all marimo commands.
+Run `uvx marimo@latest pair --help` first.
+Use `uvx marimo@latest` for all marimo commands.
 
 Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 """)
@@ -1639,8 +1639,8 @@ URL: http://localhost:2718/{session}
 File: {command}/it's notebook.py
 Session: {file}
 
-Run `uv run marimo pair --help` first.
-Use `uv run marimo` for all marimo commands.
+Run `uvx marimo@latest pair --help` first.
+Use `uvx marimo@latest` for all marimo commands.
 
 Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 """)
@@ -1667,8 +1667,8 @@ Pair with me on this running marimo notebook.
 URL: http://localhost:2718
 File: notebook.py
 
-Run `uv run marimo pair --help` first.
-Use `uv run marimo` for all marimo commands.
+Run `uvx marimo@latest pair --help` first.
+Use `uvx marimo@latest` for all marimo commands.
 
 Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 """)

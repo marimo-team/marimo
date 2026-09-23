@@ -30,7 +30,7 @@ def test_render_notebook_pair_preview(
     )
     assert parse_mount_config(html)["pairPreview"] == snapshot(
         {
-            "command": "uv run marimo",
+            "command": "uvx marimo@latest",
             "templates": {
                 "prompt": "Pair with me on this running marimo notebook.\n\nURL: {url}\n{file}{session}\nRun `{command} pair --help` first.\nUse `{command}` for all marimo commands.\n\nOnce connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).{authentication}",
                 "file": "File: {file}\n",
