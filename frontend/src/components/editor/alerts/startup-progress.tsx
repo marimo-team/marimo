@@ -6,7 +6,7 @@ import { preparationAtom } from "@/core/packages/sandbox-state";
 import { startupProgressAtom } from "@/core/network/connection";
 import type { DisplayConnectionNotice } from "@/core/network/useConnectionNotice";
 import { cn } from "@/utils/cn";
-import { StartupOutput } from "./startup-output";
+import { StartupOutput, type StartupOutputState } from "./startup-output";
 
 const STEPS = [
   {
@@ -48,8 +48,10 @@ interface StartupProgressProps {
 
 function StartupStepOutput({
   phase,
+  state,
 }: {
   phase: (typeof STEPS)[number]["phase"];
+  state: StartupOutputState;
 }) {
   const preparation = useAtomValue(preparationAtom);
   const progress = useAtomValue(startupProgressAtom);
@@ -64,6 +66,7 @@ function StartupStepOutput({
     <StartupOutput
       key={preparation?.operation_id}
       logs={logs}
+      state={state}
       label={
         preparing ? "environment preparation output" : "kernel startup output"
       }
@@ -185,7 +188,12 @@ export function StartupProgress({ notice, surface }: StartupProgressProps) {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {descriptions[state]}
                 </p>
-                {surface === "sidebar" && <StartupStepOutput phase={phase} />}
+                {surface === "sidebar" && (
+                  <StartupStepOutput
+                    phase={phase}
+                    state={failed ? "failed" : active ? "running" : "succeeded"}
+                  />
+                )}
               </div>
             </li>
           );

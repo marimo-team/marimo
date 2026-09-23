@@ -140,6 +140,13 @@ function SandboxSyncDetails({
       <StartupOutput
         key={operation?.operation_id}
         logs={operation?.logs.environment ?? ""}
+        state={
+          operation?.status.kind === "running"
+            ? "running"
+            : operation?.status.kind === "succeeded"
+              ? "succeeded"
+              : "failed"
+        }
         label="sandbox sync output"
       />
     </div>

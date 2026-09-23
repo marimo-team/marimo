@@ -12,18 +12,38 @@ function hasSelection(element: HTMLElement) {
   );
 }
 
+export type StartupOutputState = "running" | "succeeded" | "failed";
+
 export function StartupOutput({
   logs,
   label,
+  state = "running",
 }: {
   logs: string;
   label: string;
+  /** Running keeps the newest line bright; failed keeps all of it bright. */
+  state?: StartupOutputState;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [following, setFollowing] = useState(true);
   const outputRef = useRef<HTMLPreElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const outputId = useId();
   const lines = logs.trimEnd().split(/\r?\n/);
+  const emphasis =
+    state === "failed"
+      ? "text-foreground"
+      : state === "running"
+        ? "last:text-foreground"
+        : undefined;
+
+  useEventListener(outputRef, "keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setExpanded(false);
+      toggleRef.current?.focus();
+    }
+  });
 
   useEventListener(document, "selectionchange", () => {
     if (outputRef.current && hasSelection(outputRef.current)) {
@@ -57,28 +77,23 @@ export function StartupOutput({
   return (
     <div
       className={cn(
-        // Same tint and padding in both states, so expanding swaps the
-        // contents without moving anything around it.
-        "relative mt-2.5 min-w-0 contain-inline-size border text-muted-foreground",
-        // Collapsed, a hairline rail grows with the preview and the tint
-        // only appears on hover; expanded, the full box takes over.
-        expanded
-          ? "rounded border-border bg-muted/30"
-          : "border-transparent border-l-border",
+        "relative mt-2.5 min-w-0 contain-inline-size rounded text-muted-foreground",
+        // One surface: it washes on hover and the wash stays while open.
+        expanded ? "bg-muted/40" : "hover:bg-muted/40",
       )}
     >
       <div className={cn(expanded && "flex items-center pr-1")}>
         <button
+          ref={toggleRef}
           type="button"
           aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
           aria-expanded={expanded}
           aria-controls={outputId}
           title={expanded ? "Collapse output" : "Expand output"}
           className={cn(
-            "flex w-full min-w-0 text-left focus-visible:outline-2 focus-visible:outline-ring",
-            expanded
-              ? "items-center justify-between gap-2 px-2.5 py-1 text-xs hover:text-foreground"
-              : "px-2.5 py-1 hover:bg-muted/30",
+            "flex w-full min-w-0 rounded px-2.5 py-1 text-left focus-visible:outline-2 focus-visible:outline-ring",
+            expanded &&
+              "items-center justify-between gap-2 text-xs hover:text-foreground",
           )}
           onClick={() => {
             setExpanded(!expanded);
@@ -87,21 +102,22 @@ export function StartupOutput({
         >
           {expanded ? (
             <>
-              <span>
-                {lines.length} {lines.length === 1 ? "line" : "lines"}
-              </span>
+              <span className="leading-5">Logs</span>
               <ChevronUpIcon className="size-3.5 shrink-0" aria-hidden={true} />
             </>
           ) : (
             <span
-              className="min-w-0 flex-1 font-mono text-[11px] leading-5"
+              className={cn(
+                "min-w-0 flex-1 font-mono text-[11px] leading-5",
+                // Fade the top of the tail so it reads as a stream, not as
+                // greyed-out prose.
+                lines.length > 1 &&
+                  "[mask-image:linear-gradient(to_bottom,transparent,#000_70%)]",
+              )}
               aria-hidden={true}
             >
               {lines.slice(-3).map((line, index) => (
-                <span
-                  key={index}
-                  className="block truncate opacity-60 last:opacity-100"
-                >
+                <span key={index} className={cn("block truncate", emphasis)}>
                   {line || "\u00A0"}
                 </span>
               ))}
