@@ -21,7 +21,9 @@ from marimo._messaging.notebook.document import (
     notebook_document_context,
 )
 from marimo._messaging.notification import (
+    EnvironmentOperationNotification,
     NotebookDocumentTransactionNotification,
+    OperationRunning,
 )
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.packages.package_manager import PackageDescription
@@ -823,6 +825,7 @@ class TestPackages:
     async def test_add_and_remove_in_same_batch(self, k: Kernel) -> None:
         """add and remove can coexist in the same batch, executed in order."""
         with _ctx(k) as ctx:
+            _clear_messages(k)
             pm = k.packages_callbacks.package_manager
             assert pm is not None
 
@@ -830,7 +833,7 @@ class TestPackages:
 
             async def track_install(package: str, **_kwargs: object) -> bool:
                 call_order.append(("add", package))
-                return True
+                return package != "missing-package"
 
             async def track_uninstall(package: str, **_kwargs: object) -> bool:
                 call_order.append(("remove", package))
@@ -843,8 +846,51 @@ class TestPackages:
                 async with ctx as nb:
                     nb.packages.add("polars")
                     nb.packages.remove("pandas")
+                    nb.packages.add("numpy", "missing-package")
 
-            assert call_order == [("add", "polars"), ("remove", "pandas")]
+            assert call_order == [
+                ("add", "polars"),
+                ("remove", "pandas"),
+                ("add", "numpy"),
+                ("add", "missing-package"),
+            ]
+            notifications = [
+                notification
+                for notification in k.stream.operations
+                if isinstance(notification, EnvironmentOperationNotification)
+            ]
+            assert [
+                (
+                    notification.action,
+                    notification.packages,
+                    msgspec.to_builtins(notification.status)["kind"],
+                )
+                for notification in notifications
+                if not isinstance(notification.status, OperationRunning)
+            ] == snapshot(
+                [
+                    (
+                        "install",
+                        {"polars": "succeeded"},
+                        "succeeded",
+                    ),
+                    ("remove", {"pandas": "succeeded"}, "succeeded"),
+                    (
+                        "install",
+                        {"numpy": "succeeded", "missing-package": "failed"},
+                        "failed",
+                    ),
+                ]
+            )
+            assert len({n.operation_id for n in notifications}) == 3
+            assert all(
+                n.action in ("install", "remove") for n in notifications
+            )
+            assert any(
+                n.logs
+                == {"missing-package": "Failed to install missing-package\n"}
+                for n in notifications
+            )
 
     async def test_exception_discards_package_ops(self, k: Kernel) -> None:
         """If an exception occurs, queued package ops are discarded."""

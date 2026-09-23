@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from functools import partial
+from itertools import groupby
 from typing import TYPE_CHECKING, Literal, Union
 
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -192,37 +193,40 @@ class Packages:
             pm.alert_not_installed()
             return [PackageResult.failed(op) for op in ops]
 
-        statuses: PackageStatusType = {op.package: "queued" for op in ops}
-        action: EnvironmentAction = (
-            "install"
-            if all(isinstance(op, _AddPackage) for op in ops)
-            else "remove"
-            if all(isinstance(op, _RemovePackage) for op in ops)
-            else "sync"
+        filename = self._ctx._kernel.app_metadata.filename
+        manage_metadata = (
+            GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA is True
+            and filename is not None
         )
-        with environment_operation(
-            action,
-            statuses,
-            "kernel",
-            partial(broadcast_notification, stream=self._ctx._kernel.stream),
-        ) as operation:
-            filename = self._ctx._kernel.app_metadata.filename
-            manage_metadata = (
-                GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA is True
-                and filename is not None
-            )
-
-            results: PackageResultList = []
-            for op in ops:
-                success = await self._run_operation(
-                    op, pm, operation, manage_metadata
-                )
-                if success:
-                    results.append(PackageResult.succeeded(op))
-                elif pm.restart_required:
-                    results.append(PackageResult.restart_required(op))
-                else:
-                    results.append(PackageResult.failed(op))
+        results: PackageResultList = []
+        # Group adjacent actions so progress stays in package alerts without
+        # reordering an add/remove/add sequence.
+        for installing, group in groupby(
+            ops, key=lambda op: isinstance(op, _AddPackage)
+        ):
+            batch = list(group)
+            statuses: PackageStatusType = {
+                op.package: "queued" for op in batch
+            }
+            action: EnvironmentAction = "install" if installing else "remove"
+            with environment_operation(
+                action,
+                statuses,
+                "kernel",
+                partial(
+                    broadcast_notification, stream=self._ctx._kernel.stream
+                ),
+            ) as operation:
+                for op in batch:
+                    success = await self._run_operation(
+                        op, pm, operation, manage_metadata
+                    )
+                    if success:
+                        results.append(PackageResult.succeeded(op))
+                    elif pm.restart_required:
+                        results.append(PackageResult.restart_required(op))
+                    else:
+                        results.append(PackageResult.failed(op))
 
         return results
 
