@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import signal
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.streams import ThreadSafeStream
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import ExecutionContext
 from marimo._runtime.handlers import construct_interrupt_handler
@@ -96,7 +98,7 @@ def test_duckdb_interrupt_handler_exception_handling():
             interrupt_handler = construct_interrupt_handler()
 
             # Should raise MarimoInterrupt, not RuntimeError
-            # The RuntimeError should be caught and logged
+            # The handler swallows the RuntimeError
             with pytest.raises(MarimoInterrupt):
                 interrupt_handler(signal.SIGINT, None)
 
@@ -185,3 +187,69 @@ def test_ignore_console_ctrl_c_keeps_interrupt_main_working() -> None:
         [sys.executable, "-c", script], timeout=30, capture_output=True
     )
     assert completed.returncode == 0, completed.stderr.decode()
+
+
+def _active_scheduler_context() -> MagicMock:
+    sched = MagicMock()
+    sched.has_active_tasks.return_value = False
+    ctx = MagicMock(spec=KernelRuntimeContext)
+    ctx.execution_context = None
+    ctx.active_scheduler = sched
+    return ctx
+
+
+def test_handler_does_not_broadcast() -> None:
+    """The handler runs between arbitrary bytecodes and can run nested.
+    It must not write to the kernel stream, because the stream write
+    takes a non-reentrant lock."""
+    ctx = _active_scheduler_context()
+    ctx.stream = MagicMock()
+
+    with (
+        patch("marimo._runtime.handlers.safe_get_context", return_value=ctx),
+        patch(
+            "marimo._messaging.notification_utils.get_context",
+            return_value=ctx,
+        ),
+    ):
+        interrupt_handler = construct_interrupt_handler()
+        with pytest.raises(MarimoInterrupt):
+            interrupt_handler(signal.SIGINT, None)
+
+    ctx.stream.write.assert_not_called()
+
+
+def test_handler_finishes_while_stream_lock_is_held() -> None:
+    """A second SIGINT can arrive while the kernel holds `stream_lock`.
+    The handler must still finish, so the kernel main thread cannot
+    deadlock inside the signal handler."""
+    stream = ThreadSafeStream(
+        pipe=MagicMock(), input_queue=MagicMock(), redirect_console=False
+    )
+    ctx = _active_scheduler_context()
+    ctx.stream = stream
+    outcome: list[str] = []
+
+    def run_handler() -> None:
+        with (
+            patch(
+                "marimo._runtime.handlers.safe_get_context",
+                return_value=ctx,
+            ),
+            patch(
+                "marimo._messaging.notification_utils.get_context",
+                return_value=ctx,
+            ),
+        ):
+            interrupt_handler = construct_interrupt_handler()
+            try:
+                interrupt_handler(signal.SIGINT, None)
+            except MarimoInterrupt:
+                outcome.append("raised")
+
+    worker = threading.Thread(target=run_handler, daemon=True)
+    with stream.stream_lock:
+        worker.start()
+        worker.join(timeout=2)
+        assert not worker.is_alive(), "handler blocked on stream_lock"
+    assert outcome == ["raised"]
