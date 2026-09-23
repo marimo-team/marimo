@@ -4900,6 +4900,42 @@ export interface components {
         | components["schemas"]["OperationCancelled"];
     };
     /**
+     * EnvironmentOperationNotification
+     * @description Current operation progress and changes to its named log streams.
+     *
+     *         Package statuses replace the previous map. Log chunks append to a stream,
+     *         or replace it when `log_mode` is `replace`. The operation status determines
+     *         completion independently of its packages and output streams.
+     */
+    EnvironmentOperationNotification: {
+      /** @enum {unknown} */
+      action: "install" | "prepare" | "remove" | "sync";
+      /** @enum {unknown} */
+      log_mode: "append" | "replace";
+      logs: {
+        [key: string]: string;
+      };
+      /** @enum {unknown} */
+      op: "environment-operation";
+      operation_id: string;
+      packages: {
+        [key: string]:
+          | "failed"
+          | "queued"
+          | "restart-required"
+          | "running"
+          | "succeeded";
+      };
+      /** @enum {unknown} */
+      source: "kernel" | "server";
+      status:
+        | components["schemas"]["OperationRunning"]
+        | components["schemas"]["OperationSucceeded"]
+        | components["schemas"]["OperationRestartRequired"]
+        | components["schemas"]["OperationFailed"]
+        | components["schemas"]["OperationCancelled"];
+    };
+    /**
      * EnvironmentState
      * @description Active operations, the latest result, and an outstanding restart.
      */
@@ -5537,42 +5573,6 @@ export interface components {
       versions: {
         [key: string]: string;
       };
-    };
-    /**
-     * EnvironmentOperationNotification
-     * @description Current operation progress and changes to its named log streams.
-     *
-     *     Package statuses replace the previous map. Log chunks append to a stream,
-     *     or replace it when `log_mode` is `replace`. The operation status determines
-     *     completion independently of its packages and output streams.
-     */
-    EnvironmentOperationNotification: {
-      /** @enum {unknown} */
-      action: "install" | "prepare" | "remove" | "sync";
-      /** @enum {unknown} */
-      log_mode: "append" | "replace";
-      logs: {
-        [key: string]: string;
-      };
-      /** @enum {unknown} */
-      op: "environment-operation";
-      operation_id: string;
-      packages: {
-        [key: string]:
-          | "failed"
-          | "queued"
-          | "restart-required"
-          | "running"
-          | "succeeded";
-      };
-      /** @enum {unknown} */
-      source: "kernel" | "server";
-      status:
-        | components["schemas"]["OperationRunning"]
-        | components["schemas"]["OperationSucceeded"]
-        | components["schemas"]["OperationRestartRequired"]
-        | components["schemas"]["OperationFailed"]
-        | components["schemas"]["OperationCancelled"];
     };
     /** InstantiateNotebookRequest */
     InstantiateNotebookRequest: {

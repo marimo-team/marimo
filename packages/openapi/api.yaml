@@ -1778,6 +1778,70 @@ components:
       - source
       title: EnvironmentOperation
       type: object
+    EnvironmentOperationNotification:
+      description: "Current operation progress and changes to its named log streams.\n\
+        \n    Package statuses replace the previous map. Log chunks append to a stream,\n\
+        \    or replace it when `log_mode` is `replace`. The operation status determines\n\
+        \    completion independently of its packages and output streams."
+      properties:
+        action:
+          enum:
+          - install
+          - prepare
+          - remove
+          - sync
+        log_mode:
+          enum:
+          - append
+          - replace
+        logs:
+          additionalProperties:
+            type: string
+          type: object
+        op:
+          enum:
+          - environment-operation
+        operation_id:
+          type: string
+        packages:
+          additionalProperties:
+            enum:
+            - failed
+            - queued
+            - restart-required
+            - running
+            - succeeded
+          type: object
+        source:
+          enum:
+          - kernel
+          - server
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/OperationRunning'
+          - $ref: '#/components/schemas/OperationSucceeded'
+          - $ref: '#/components/schemas/OperationRestartRequired'
+          - $ref: '#/components/schemas/OperationFailed'
+          - $ref: '#/components/schemas/OperationCancelled'
+          discriminator:
+            mapping:
+              cancelled: '#/components/schemas/OperationCancelled'
+              failed: '#/components/schemas/OperationFailed'
+              restart-required: '#/components/schemas/OperationRestartRequired'
+              running: '#/components/schemas/OperationRunning'
+              succeeded: '#/components/schemas/OperationSucceeded'
+            propertyName: kind
+      required:
+      - op
+      - operation_id
+      - action
+      - status
+      - source
+      - packages
+      - logs
+      - log_mode
+      title: EnvironmentOperationNotification
+      type: object
     EnvironmentState:
       description: Active operations, the latest result, and an outstanding restart.
       properties:
@@ -2829,74 +2893,6 @@ components:
       - manager
       - versions
       title: InstallPackagesRequest
-      type: object
-    EnvironmentOperationNotification:
-      description: 'Current operation progress and changes to its named log streams.
-
-
-        Package statuses replace the previous map. Log chunks append to a stream,
-
-        or replace it when `log_mode` is `replace`. The operation status determines
-
-        completion independently of its packages and output streams.'
-      properties:
-        action:
-          enum:
-          - install
-          - prepare
-          - remove
-          - sync
-        log_mode:
-          enum:
-          - append
-          - replace
-        logs:
-          additionalProperties:
-            type: string
-          type: object
-        op:
-          enum:
-          - environment-operation
-        operation_id:
-          type: string
-        packages:
-          additionalProperties:
-            enum:
-            - failed
-            - queued
-            - restart-required
-            - running
-            - succeeded
-          type: object
-        source:
-          enum:
-          - kernel
-          - server
-        status:
-          anyOf:
-          - $ref: '#/components/schemas/OperationRunning'
-          - $ref: '#/components/schemas/OperationSucceeded'
-          - $ref: '#/components/schemas/OperationRestartRequired'
-          - $ref: '#/components/schemas/OperationFailed'
-          - $ref: '#/components/schemas/OperationCancelled'
-          discriminator:
-            mapping:
-              cancelled: '#/components/schemas/OperationCancelled'
-              failed: '#/components/schemas/OperationFailed'
-              restart-required: '#/components/schemas/OperationRestartRequired'
-              running: '#/components/schemas/OperationRunning'
-              succeeded: '#/components/schemas/OperationSucceeded'
-            propertyName: kind
-      required:
-      - op
-      - operation_id
-      - action
-      - status
-      - source
-      - packages
-      - logs
-      - log_mode
-      title: EnvironmentOperationNotification
       type: object
     InstantiateNotebookRequest:
       properties:

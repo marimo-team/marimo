@@ -139,15 +139,18 @@ async def test_queued_kernel_messages_update_and_deliver_on_session_loop(
     listener = NotificationListenerExtension(Mock(), queue_manager)
     listener.on_attach(session, session._event_bus)
     distributor = listener.distributor
-    assert isinstance(distributor, QueueDistributor)
     try:
+        assert isinstance(distributor, QueueDistributor)
         messages.put(serialize_kernel_message(_progress("Downloading\n")))
         messages.put(serialize_kernel_message(_progress("Installing\n")))
         await asyncio.wait_for(delivered.wait(), timeout=5)
     finally:
         listener.on_detach()
-        assert distributor.thread is not None
-        await asyncio.to_thread(distributor.thread.join, 5)
+        if (
+            isinstance(distributor, QueueDistributor)
+            and distributor.thread is not None
+        ):
+            await asyncio.to_thread(distributor.thread.join, 5)
 
     assert observed == [
         (loop_thread, _state("Downloading\n")),

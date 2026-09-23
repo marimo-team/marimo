@@ -974,14 +974,10 @@ components:
       title: ImportStarError
       type: object
     EnvironmentOperationNotification:
-      description: 'Current operation progress and changes to its named log streams.
-
-
-        Package statuses replace the previous map. Log chunks append to a stream,
-
-        or replace it when `log_mode` is `replace`. The operation status determines
-
-        completion independently of its packages and output streams.'
+      description: "Current operation progress and changes to its named log streams.\n\
+        \n    Package statuses replace the previous map. Log chunks append to a stream,\n\
+        \    or replace it when `log_mode` is `replace`. The operation status determines\n\
+        \    completion independently of its packages and output streams."
       properties:
         action:
           enum:

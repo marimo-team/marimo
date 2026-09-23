@@ -33,6 +33,7 @@ from tests._server.api.endpoints.ws_helpers import (
     assert_parse_ready_response,
     create_response,
     headers,
+    receive_until,
 )
 from tests._server.conftest import get_kernel_tasks, get_user_config_manager
 from tests._server.mocks import get_session_manager
@@ -253,7 +254,7 @@ def test_second_connection_with_same_file_joins_as_viewer(
             assert viewer.consumer_capabilities.edit is False
 
 
-async def test_file_watcher_calls_reload(client: TestClient) -> None:
+def test_file_watcher_calls_reload(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
     session_manager.mode = SessionMode.RUN
     # Recreate the file change coordinator with the new mode's strategy
@@ -266,23 +267,18 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
         assert_kernel_ready_response(data)
         filename = session_manager.workspace.get_unique_file_key()
         assert filename
-        with open(filename, "a") as f:  # noqa: ASYNC230
+        with open(filename, "a") as f:
             f.write("\n# test")
             f.close()
         assert session_manager._watcher_manager._watchers
         watcher = next(
             iter(session_manager._watcher_manager._watchers.values())
         )
-        await watcher.callback(Path(filename))
-        # Drain messages until we get the reload message
-        # (other messages like 'variables' may arrive first)
-        expected = {"op": "reload", "data": {"op": "reload"}}
-        for _ in range(10):
-            data = websocket.receive_json()
-            if data == expected:
-                break
-        else:
-            raise AssertionError(f"Expected {expected}, but never received it")
+        websocket.portal.call(watcher.callback, Path(filename))
+        assert receive_until("reload", websocket) == {
+            "op": "reload",
+            "data": {"op": "reload"},
+        }
         session_manager.watch = False
 
 
@@ -953,7 +949,7 @@ def test_refresh_observes_existing_sandbox_preparation(
         nonlocal launches
         launches += 1
         kwargs["on_output"]("Resolving dependencies\n")
-        await release.wait()
+        await asyncio.wait_for(release.wait(), timeout=5)
         raise EnvironmentManagerError("Could not resolve dependencies")
 
     monkeypatch.setattr(NotebookSandbox, "launch_async", prepare)

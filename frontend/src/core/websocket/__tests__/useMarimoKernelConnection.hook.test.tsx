@@ -400,7 +400,7 @@ describe("connection notice", () => {
   );
 });
 
-it("replaces environment state on reconnect, then continues live progress", () => {
+it("replaces environment state from snapshots, then continues live progress", () => {
   const store = createStore();
   vi.mocked(useConnectionTransport).mockClear();
   vi.mocked(useConnectionTransport).mockReturnValue(
