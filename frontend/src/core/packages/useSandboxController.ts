@@ -63,7 +63,11 @@ export function useSandboxController(onReconnect: () => Promise<void>) {
   }, [requests, filename, connection.state, setSandbox]);
 
   const sync = useEvent(async () => {
-    if (inFlight.current || connection.state === WebSocketState.CONNECTING) {
+    if (
+      inFlight.current ||
+      operation.pending ||
+      connection.state === WebSocketState.CONNECTING
+    ) {
       return false;
     }
     inFlight.current = true;

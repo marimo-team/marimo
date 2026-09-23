@@ -7,6 +7,64 @@ import { expect, it } from "vitest";
 import type { EnvironmentOperation } from "../environment";
 import { alertAtom, getPackageAlert, useAlertActions } from "../state";
 
+it.each(["prepare", "sync"] as const)(
+  "retains %s progress without turning it into a package alert",
+  (action) => {
+    const store = createStore();
+    const { result } = renderHook(() => useAlertActions(), {
+      wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+    });
+    const operation: EnvironmentOperation = {
+      operation_id: "sandbox",
+      action,
+      source: "kernel",
+      status: { kind: "succeeded" },
+      packages: {},
+      logs: { environment: "Environment ready\n" },
+    };
+    const environment = { restart_required: false, operations: [operation] };
+
+    // A refreshed browser restores the result without announcing it again.
+    act(() =>
+      result.current.setEnvironment({ source: "kernel", state: environment }),
+    );
+    expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+    expect(store.get(alertAtom).environments.kernel).toEqual(environment);
+
+    const install: EnvironmentOperation = {
+      ...operation,
+      operation_id: "install",
+      action: "install",
+      status: { kind: "running" },
+      packages: { numpy: "running" },
+      logs: { numpy: "Installing\n" },
+    };
+    act(() =>
+      result.current.updateEnvironment({ ...install, log_mode: "replace" }),
+    );
+    const packageAlert = getPackageAlert(store.get(alertAtom));
+    for (const status of [
+      { kind: "running" },
+      { kind: "failed", error: "Sync failed" },
+    ] as const) {
+      act(() =>
+        result.current.updateEnvironment({
+          ...operation,
+          status,
+          log_mode: "replace",
+        }),
+      );
+      expect(getPackageAlert(store.get(alertAtom))).toEqual(packageAlert);
+    }
+
+    act(() => result.current.clearPackageAlert(install.operation_id));
+    act(() =>
+      result.current.updateEnvironment({ ...operation, log_mode: "replace" }),
+    );
+    expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+  },
+);
+
 it.each(["kernel", "server"] as const)(
   "preserves the selected %s result across snapshots and follows new work",
   (source) => {

@@ -22,8 +22,17 @@ export interface MissingPackageAlert {
 }
 
 export interface EnvironmentOperationAlert extends EnvironmentOperation {
+  action: "install" | "remove";
   kind: "environment";
   restartRequired: boolean;
+}
+
+function isPackageOperation(
+  operation: EnvironmentOperation,
+): operation is EnvironmentOperation & {
+  action: EnvironmentOperationAlert["action"];
+} {
+  return operation.action === "install" || operation.action === "remove";
 }
 
 export interface StartupLogsAlert {
@@ -57,11 +66,12 @@ function setEnvironment(
   source: EnvironmentSource,
   environment: EnvironmentState,
 ): AlertState {
-  // The banner shows active work first; logs stay scoped to each operation.
+  // Sandbox preparation and sync use the existing sandbox UI.
   const environments = { ...state.environments, [source]: environment };
-  const operations = Object.values(environments).flatMap(
-    (item) => item.operations,
-  );
+  const operations = Object.values(environments)
+    .flatMap((item) => item.operations)
+    .filter(isPackageOperation);
+  const incoming = environment.operations.filter(isPackageOperation);
   const alert = state.packageAlert;
   const selected =
     alert?.kind === "environment"
@@ -72,10 +82,10 @@ function setEnvironment(
       : undefined;
   const operation =
     (selected?.status.kind === "running" ? selected : undefined) ??
-    environment.operations.findLast((item) => item.status.kind === "running") ??
+    incoming.findLast((item) => item.status.kind === "running") ??
     operations.findLast((item) => item.status.kind === "running") ??
     selected ??
-    environment.operations.at(-1) ??
+    incoming.at(-1) ??
     operations.at(-1);
   return {
     ...state,
@@ -113,6 +123,16 @@ export const { valueAtom: alertAtom, useActions: useAlertActions } =
         update: NotificationMessageData<"environment-operation">,
       ) => {
         const source = update.source;
+        const environment = reduceEnvironmentState(
+          state.environments[source],
+          update,
+        );
+        if (!isPackageOperation(update)) {
+          return {
+            ...state,
+            environments: { ...state.environments, [source]: environment },
+          };
+        }
         return setEnvironment(
           {
             ...state,
@@ -123,7 +143,7 @@ export const { valueAtom: alertAtom, useActions: useAlertActions } =
             },
           },
           source,
-          reduceEnvironmentState(state.environments[source], update),
+          environment,
         );
       },
 
@@ -163,7 +183,7 @@ export function getPackageAlert(
   const operation = environment.operations.find(
     (item) => item.operation_id === alert.id,
   );
-  return operation
+  return operation && isPackageOperation(operation)
     ? { ...operation, ...alert, restartRequired: environment.restart_required }
     : null;
 }

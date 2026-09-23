@@ -25,12 +25,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
+  type EnvironmentOperationAlert,
   isEnvironmentOperationAlert,
   isMissingPackageAlert,
   useAlertActions,
   useAlerts,
 } from "@/core/alerts/state";
-import type { EnvironmentOperation } from "@/core/alerts/environment";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import type { PackageOperationStatus } from "@/core/kernel/messages";
 import { useRequestClient } from "@/core/network/requests";
@@ -318,18 +318,16 @@ export const PackageAlert: React.FC = () => {
   return null;
 };
 
-function getOperationStatusElements({ action, status }: EnvironmentOperation) {
+function getOperationStatusElements({
+  action,
+  status,
+}: EnvironmentOperationAlert) {
   const titles = {
-    prepare: {
-      running: "Preparing environment",
-      succeeded: "Environment ready",
-    },
     install: {
       running: "Installing packages",
       succeeded: "Packages installed",
     },
     remove: { running: "Removing packages", succeeded: "Packages removed" },
-    sync: { running: "Syncing environment", succeeded: "Environment synced" },
   }[action];
   switch (status.kind) {
     case "running":

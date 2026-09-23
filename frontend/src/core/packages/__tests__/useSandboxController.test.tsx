@@ -3,6 +3,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { Provider } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
+import {
+  emptyEnvironmentState,
+  type EnvironmentOperation,
+} from "@/core/alerts/environment";
+import { alertAtom } from "@/core/alerts/state";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
 import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
@@ -35,6 +40,13 @@ const sandbox: SandboxResponse = {
 };
 
 beforeEach(() => {
+  store.set(alertAtom, (value) => ({
+    ...value,
+    environments: {
+      kernel: emptyEnvironmentState(),
+      server: emptyEnvironmentState(),
+    },
+  }));
   store.set(sandboxAtom, null);
   store.set(sandboxSyncAtom, { pending: false, error: null });
   store.set(sandboxActionsAtom, null);
@@ -65,6 +77,55 @@ function setup() {
 }
 
 describe("useSandboxController", () => {
+  it("restores sync progress and lets a retry replace the restored failure", async () => {
+    const operation: EnvironmentOperation = {
+      operation_id: "sync",
+      action: "sync",
+      source: "kernel",
+      status: { kind: "running" },
+      packages: {},
+      logs: {},
+    };
+    const restore = (status: EnvironmentOperation["status"]) =>
+      store.set(alertAtom, (value) => ({
+        ...value,
+        environments: {
+          ...value.environments,
+          kernel: {
+            restart_required: false,
+            operations: [{ ...operation, status }],
+          },
+        },
+      }));
+    restore({ kind: "running" });
+    const { client, result } = setup();
+    const actions = store.get(sandboxActionsAtom)!;
+    expect(result.current.pending).toBe(true);
+    await act(async () => {
+      expect(await actions.sync()).toBe(false);
+    });
+    expect(client.syncSandbox).not.toHaveBeenCalled();
+    act(() => restore({ kind: "failed", error: "Dependency conflict" }));
+    expect(result.current.diagnostic).toBe("Dependency conflict");
+
+    const { promise, resolve } = Promise.withResolvers<SyncSandboxResponse>();
+    vi.mocked(client.syncSandbox).mockReturnValue(promise);
+    let pending: Promise<boolean>;
+    act(() => {
+      pending = actions.sync();
+    });
+    expect(store.get(sandboxSyncAtom)).toEqual({ pending: true, error: null });
+    act(() => restore({ kind: "running" }));
+    await act(async () => {
+      resolve({ success: true, reconnect: false });
+      expect(await pending).toBe(true);
+    });
+    // The response can arrive before the final websocket notification.
+    expect(store.get(sandboxSyncAtom)).toEqual({ pending: true, error: null });
+    act(() => restore({ kind: "succeeded" }));
+    expect(store.get(sandboxSyncAtom)).toEqual({ pending: false, error: null });
+  });
+
   it("keeps a conflicting draft across closing and only discards it on explicit reload", async () => {
     const { result, client } = setup();
     vi.mocked(client.updateManifest).mockRejectedValue(
