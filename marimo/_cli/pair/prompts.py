@@ -6,8 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from marimo._utils.parse_dataclass import parse_raw
+from marimo._utils.versions import is_editable
 
-PAIR_COMMAND = "uvx marimo@latest"
+
+def get_pair_command() -> str:
+    return "uv run marimo" if is_editable("marimo") else "uvx marimo@latest"
 
 
 @dataclass(frozen=True)
@@ -35,7 +38,7 @@ def render_prompt(
 ) -> str:
     templates = load_prompt_templates()
     return templates.prompt.format(
-        command=PAIR_COMMAND,
+        command=get_pair_command(),
         url=url,
         file=templates.file.format(file=file_path) if file_path else "",
         session=(
