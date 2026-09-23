@@ -41,6 +41,9 @@ TEST_URL = "https://localhost:8000?auth=tok123"
 @pytest.fixture(autouse=True)
 def _isolate_pair_preview(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("MARIMO_PAIR_NEXT", raising=False)
+    monkeypatch.setattr(
+        "marimo._cli.pair.prompts.is_editable", lambda _: False
+    )
 
 
 class TestPairGroup:
@@ -1537,6 +1540,32 @@ Once you are connected, send a fun toast (mo.status.toast(...)) to the user insi
 
 
 class TestPairPromptPreview:
+    @pytest.mark.parametrize(
+        ("editable", "command"),
+        [(True, "uv run marimo"), (False, "uvx marimo@latest")],
+    )
+    def test_prompt_uses_installation_command(
+        self, monkeypatch: pytest.MonkeyPatch, editable: bool, command: str
+    ) -> None:
+        monkeypatch.setattr(
+            "marimo._cli.pair.prompts.is_editable", lambda _: editable
+        )
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "prompt", "--url", "http://localhost:2718"],
+            env={"MARIMO_PAIR_NEXT": "1"},
+        )
+
+        assert result.exit_code == 0
+        assert result.output == (
+            "Pair with me on this running marimo notebook.\n\n"
+            "URL: http://localhost:2718\n\n"
+            f"Run `{command} pair --help` first.\n"
+            f"Use `{command}` for all marimo commands.\n\n"
+            "Once connected, send a fun toast using `mo.status.toast(...)` "
+            "(`import marimo as mo`).\n"
+        )
+
     def test_with_token_uses_private_file(self, tmp_path: Path) -> None:
         token_dir = tmp_path / "tokens ' {command}"
         with patch.object(commands, "_token_dir", return_value=token_dir):
@@ -1579,8 +1608,8 @@ Pair with me on this running marimo notebook.
 URL: http://localhost:2718
 Session: s_ab12cd
 
-Run `uv run marimo pair --help` first.
-Use `uv run marimo` for all marimo commands.
+Run `uvx marimo@latest pair --help` first.
+Use `uvx marimo@latest` for all marimo commands.
 
 Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 
@@ -1609,8 +1638,8 @@ Pair with me on this running marimo notebook.
 
 URL: http://localhost:2718
 
-Run `uv run marimo pair --help` first.
-Use `uv run marimo` for all marimo commands.
+Run `uvx marimo@latest pair --help` first.
+Use `uvx marimo@latest` for all marimo commands.
 
 Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 """)
@@ -1639,8 +1668,8 @@ URL: http://localhost:2718/{session}
 File: {command}/it's notebook.py
 Session: {file}
 
-Run `uv run marimo pair --help` first.
-Use `uv run marimo` for all marimo commands.
+Run `uvx marimo@latest pair --help` first.
+Use `uvx marimo@latest` for all marimo commands.
 
 Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 """)
@@ -1667,8 +1696,8 @@ Pair with me on this running marimo notebook.
 URL: http://localhost:2718
 File: notebook.py
 
-Run `uv run marimo pair --help` first.
-Use `uv run marimo` for all marimo commands.
+Run `uvx marimo@latest pair --help` first.
+Use `uvx marimo@latest` for all marimo commands.
 
 Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 """)

@@ -6,7 +6,7 @@ import { pairPreviewSchema } from "@/core/config/pair";
 
 // Read the Python-owned resource only in tests to check the shared contract.
 export const PAIR_PREVIEW = pairPreviewSchema.parse({
-  command: "uv run marimo",
+  command: "uvx marimo@latest",
   templates: JSON.parse(
     readFileSync(
       path.resolve(
