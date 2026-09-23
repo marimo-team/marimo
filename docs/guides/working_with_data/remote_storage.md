@@ -39,6 +39,7 @@ marimo also detects credentials in your kernel's environment and offers a **Quic
 | --- | --- |
 | Amazon S3 | `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are set, or `AWS_PROFILE` is set |
 | S3-compatible storage | As above, with a custom endpoint (`AWS_ENDPOINT_URL` or `AWS_ENDPOINT_URL_S3`), e.g. MinIO or Cloudflare R2 |
+| Hugging Face Hub | `HF_TOKEN` or the legacy `HUGGING_FACE_HUB_TOKEN` is set |
 
 See [Detecting data sources from your environment](sql.md#detecting-data-sources-from-your-environment) for details on how detection works.
 
