@@ -80,13 +80,17 @@ function setEnvironment(
             item.operation_id === alert.id && item.source === alert.source,
         )
       : undefined;
+  // A snapshot restores work and unresolved issues, not old success banners.
+  const needsAttention = (operation: EnvironmentOperation) =>
+    operation.status.kind !== "succeeded" ||
+    environments[operation.source].restart_required;
   const operation =
     (selected?.status.kind === "running" ? selected : undefined) ??
     incoming.findLast((item) => item.status.kind === "running") ??
     operations.findLast((item) => item.status.kind === "running") ??
     selected ??
-    incoming.at(-1) ??
-    operations.at(-1);
+    incoming.findLast(needsAttention) ??
+    operations.findLast(needsAttention);
   return {
     ...state,
     environments,

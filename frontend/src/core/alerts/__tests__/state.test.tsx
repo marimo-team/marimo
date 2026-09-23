@@ -7,6 +7,85 @@ import { expect, it } from "vitest";
 import type { EnvironmentOperation } from "../environment";
 import { alertAtom, getPackageAlert, useAlertActions } from "../state";
 
+it.each(["install", "remove"] as const)(
+  "restores active %s progress without announcing old successes",
+  (action) => {
+    const store = createStore();
+    const { result } = renderHook(() => useAlertActions(), {
+      wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+    });
+    const operation: EnvironmentOperation = {
+      operation_id: "package",
+      action,
+      source: "kernel",
+      status: { kind: "succeeded" },
+      packages: { numpy: "succeeded" },
+      logs: { numpy: "Done\n" },
+    };
+    const snapshot = (value: EnvironmentOperation) =>
+      result.current.setEnvironment({
+        source: value.source,
+        state: { restart_required: false, operations: [value] },
+      });
+    act(() => snapshot(operation));
+    expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+    expect(store.get(alertAtom).environments.kernel.operations).toEqual([
+      operation,
+    ]);
+
+    const active: EnvironmentOperation = {
+      ...operation,
+      status: { kind: "running" },
+      packages: { numpy: "running" },
+      logs: { numpy: "Working\n" },
+    };
+    act(() => snapshot(active));
+    expect(getPackageAlert(store.get(alertAtom))).toEqual({
+      ...active,
+      id: active.operation_id,
+      kind: "environment",
+      restartRequired: false,
+    });
+
+    // Reconnecting can complete work that was already visible on this page.
+    act(() => snapshot(operation));
+    expect(getPackageAlert(store.get(alertAtom))).toEqual({
+      ...operation,
+      id: operation.operation_id,
+      kind: "environment",
+      restartRequired: false,
+    });
+    act(() => result.current.clearPackageAlert(operation.operation_id));
+    act(() => snapshot(operation));
+    expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+
+    // A live result still gives feedback for a new package action.
+    act(() =>
+      result.current.updateEnvironment({
+        ...operation,
+        operation_id: "new",
+        log_mode: "replace",
+      }),
+    );
+    expect(getPackageAlert(store.get(alertAtom))?.id).toBe("new");
+
+    // Earlier changes can still require a restart after a later action succeeds.
+    act(() => result.current.clearPackageAlert("new"));
+    act(() =>
+      result.current.setEnvironment({
+        source: operation.source,
+        state: { restart_required: true, operations: [operation] },
+      }),
+    );
+    expect(getPackageAlert(store.get(alertAtom))).toEqual({
+      ...operation,
+      id: operation.operation_id,
+      kind: "environment",
+      restartRequired: true,
+    });
+  },
+);
+
 it.each(["prepare", "sync"] as const)(
   "retains %s progress without turning it into a package alert",
   (action) => {

@@ -305,7 +305,6 @@ export const PackageAlert: React.FC = () => {
               <StreamingLogsViewer
                 key={packageAlert.id}
                 packageLogs={packageAlert.logs}
-                initiallyExpanded={packageAlert.status.kind === "running"}
               />
             )}
           </div>
@@ -320,14 +319,26 @@ export const PackageAlert: React.FC = () => {
 
 function getOperationStatusElements({
   action,
-  status,
+  status: outcome,
+  restartRequired,
 }: EnvironmentOperationAlert) {
+  const status: EnvironmentOperationAlert["status"] =
+    outcome.kind === "succeeded" && restartRequired
+      ? { kind: "restart-required", reason: RESTART_REQUIRED_DESCRIPTION }
+      : outcome;
   const titles = {
     install: {
       running: "Installing packages",
-      succeeded: "Packages installed",
+      succeeded: "All packages installed!",
+      failed: "Some packages failed to install",
+      cancelled: "Package installation cancelled",
     },
-    remove: { running: "Removing packages", succeeded: "Packages removed" },
+    remove: {
+      running: "Removing packages",
+      succeeded: "Packages removed",
+      failed: "Some packages failed to remove",
+      cancelled: "Package removal cancelled",
+    },
   }[action];
   switch (status.kind) {
     case "running":
@@ -335,7 +346,8 @@ function getOperationStatusElements({
         status: "running",
         title: titles.running,
         titleIcon: <DownloadCloudIcon className="w-5 h-5 inline-block mr-2" />,
-        description: "Applying environment changes…",
+        description:
+          action === "install" ? "Installing packages:" : "Removing packages:",
       };
     case "restart-required":
       return {
@@ -349,19 +361,20 @@ function getOperationStatusElements({
         status: "succeeded",
         title: titles.succeeded,
         titleIcon: <PackageCheckIcon className="w-5 h-5 inline-block mr-2" />,
-        description: "Environment changes applied.",
+        description:
+          action === "install" ? "Installed packages:" : "Removed packages:",
       };
     case "failed":
       return {
         status: "failed",
-        title: "Environment change failed",
+        title: titles.failed,
         titleIcon: <PackageXIcon className="w-5 h-5 inline-block mr-2" />,
         description: status.error,
       };
     case "cancelled":
       return {
         status: "cancelled",
-        title: "Environment change cancelled",
+        title: titles.cancelled,
         titleIcon: <XIcon className="w-5 h-5 inline-block mr-2" />,
         description:
           "The operation was interrupted. Some packages may have changed.",
@@ -692,14 +705,12 @@ const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
 
 interface StreamingLogsViewerProps {
   packageLogs: { [packageName: string]: string };
-  initiallyExpanded: boolean;
 }
 
 const StreamingLogsViewer: React.FC<StreamingLogsViewerProps> = ({
   packageLogs,
-  initiallyExpanded,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const packageCount = Object.keys(packageLogs).length;
   if (packageCount === 0) {

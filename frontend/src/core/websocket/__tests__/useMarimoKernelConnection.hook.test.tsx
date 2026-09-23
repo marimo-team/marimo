@@ -495,12 +495,11 @@ it("replaces environment state from snapshots, then continues live progress", ()
       operations: [],
     },
   });
-  expect(getPackageAlert(store.get(alertAtom))).toEqual({
-    ...serverOperation,
-    id: "server",
-    kind: "environment",
-    restartRequired: false,
-  });
+  // Clearing the active environment must not promote an old server success.
+  expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+  expect(store.get(alertAtom).environments.server.operations).toEqual([
+    serverOperation,
+  ]);
   receive({
     op: "environment-state",
     source: "server",
