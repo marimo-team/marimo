@@ -64,7 +64,7 @@ import type { SessionId } from "../kernel/session";
 import { initialRunCompletedAtom, kernelStateAtom } from "../kernel/state";
 import { type LayoutState, useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
-import { connectionAtom } from "../network/connection";
+import { connectionAtom, startupProgressAtom } from "../network/connection";
 import type { RequestId } from "../network/DeferredRequestRegistry";
 import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
@@ -222,6 +222,7 @@ export function useMarimoKernelConnection(opts: {
     useDataSourceActions();
   const { setLayoutData } = useLayoutActions();
   const [connection, setConnection] = useAtom(connectionAtom);
+  const updateStartupProgress = useSetAtom(startupProgressAtom);
   const { addBanner } = useBannersActions();
   const {
     addMissingPackageAlert,
@@ -246,12 +247,17 @@ export function useMarimoKernelConnection(opts: {
       case "reload":
         reloadSafe();
         return;
-      case "startup-progress":
-        setConnection({
-          state: WebSocketState.CONNECTING,
-          phase: msg.data.phase,
-        });
+      case "startup-progress": {
+        const { phase } = msg.data;
+        updateStartupProgress(msg.data);
+        setConnection((previous) =>
+          previous.state === WebSocketState.CONNECTING &&
+          previous.phase === phase
+            ? previous
+            : { state: WebSocketState.CONNECTING, phase },
+        );
         return;
+      }
       case "kernel-ready": {
         setKernelStartupError(null);
         setConnection({ state: WebSocketState.OPEN });

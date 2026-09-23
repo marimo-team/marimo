@@ -5679,8 +5679,16 @@ components:
       title: StartupLogsNotification
       type: object
     StartupProgressNotification:
-      description: Progress reported before a session's kernel is ready.
+      description: "Current startup phase and its output before the kernel is ready.\n\
+        \n    Output appends within a phase. Snapshots replace it, and changing phases\n\
+        \    starts a new stream. Environment preparation logs belong to its operation."
       properties:
+        log_mode:
+          enum:
+          - append
+          - replace
+        logs:
+          type: string
         op:
           enum:
           - startup-progress
@@ -5691,6 +5699,8 @@ components:
       required:
       - op
       - phase
+      - logs
+      - log_mode
       title: StartupProgressNotification
       type: object
     StdinRequest:

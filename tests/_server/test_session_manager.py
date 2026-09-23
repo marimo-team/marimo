@@ -676,8 +676,12 @@ async def test_refresh_reuses_pending_startup(
     from marimo._session.startup import SessionStartup
 
     entered, release, finished, restored = (asyncio.Event() for _ in range(4))
-    progress = StartupProgressNotification(phase="preparing-environment")
-    starting = StartupProgressNotification(phase="starting-kernel")
+    progress = StartupProgressNotification(
+        phase="preparing-environment", logs="", log_mode="replace"
+    )
+    starting = StartupProgressNotification(
+        phase="starting-kernel", logs="Launching kernel\n", log_mode="replace"
+    )
     launches = 0
     mock_session.initialization_id = NEW_FILE
     mock_session.app_file_manager = AppFileManager(filename=None)
@@ -690,6 +694,13 @@ async def test_refresh_reuses_pending_startup(
         entered.set()
         await release.wait()
         startup.notify(starting)
+        startup.notify(
+            StartupProgressNotification(
+                phase="starting-kernel",
+                logs="Loading runtime\n",
+                log_mode="append",
+            )
+        )
         finished.set()
         return mock_session
 
@@ -732,7 +743,13 @@ async def test_refresh_reuses_pending_startup(
             deserialize_kernel_message(call.args[0])
             for call in refreshed.handler.notify.call_args_list
         ] == [
-            starting if finish_disconnected else progress,
+            StartupProgressNotification(
+                phase="starting-kernel",
+                logs="Launching kernel\nLoading runtime\n",
+                log_mode="replace",
+            )
+            if finish_disconnected
+            else progress,
             *[
                 EnvironmentStateNotification(
                     source=source,
@@ -754,7 +771,14 @@ async def test_refresh_reuses_pending_startup(
             is mock_session
         )
         assert mock_session.room.main_consumer is refreshed.handler
-        assert mock_session.session_view.startup_progress == starting
+        assert (
+            mock_session.session_view.startup_progress
+            == StartupProgressNotification(
+                phase="starting-kernel",
+                logs="Launching kernel\nLoading runtime\n",
+                log_mode="replace",
+            )
+        )
         assert not session_manager.is_session_starting(
             SessionId(replacement_id), NEW_FILE
         )

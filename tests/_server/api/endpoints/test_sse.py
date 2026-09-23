@@ -339,6 +339,8 @@ async def test_sandbox_progress_during_preparation(
             "data": {
                 "op": "startup-progress",
                 "phase": "preparing-environment",
+                "logs": "",
+                "log_mode": "replace",
             },
         }
         running = json.loads((await connection.next_event())["data"])
@@ -363,6 +365,8 @@ async def test_sandbox_progress_during_preparation(
                 "data": {
                     "op": "startup-progress",
                     "phase": "starting-kernel",
+                    "logs": "",
+                    "log_mode": "replace",
                 },
             }
             event = await connection.next_event()
@@ -525,7 +529,9 @@ async def test_disconnect_during_startup_progress_detaches_session() -> None:
     session = handler.manager.get_session.return_value
     handler.notify(
         serialize_kernel_message(
-            StartupProgressNotification(phase="starting-kernel")
+            StartupProgressNotification(
+                phase="starting-kernel", logs="", log_mode="replace"
+            )
         )
     )
 

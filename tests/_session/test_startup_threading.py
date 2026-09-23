@@ -30,7 +30,9 @@ async def test_worker_output_reaches_consumers_on_the_session_loop() -> None:
         delivered.set()
 
     consumer.notify.side_effect = notify
-    progress = StartupProgressNotification(phase="starting-kernel")
+    progress = StartupProgressNotification(
+        phase="starting-kernel", logs="", log_mode="replace"
+    )
     with startup.subscribe(consumer):
         await asyncio.to_thread(startup.notify, progress)
         await asyncio.wait_for(delivered.wait(), 5)

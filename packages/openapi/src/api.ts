@@ -7274,9 +7274,15 @@ export interface components {
     };
     /**
      * StartupProgressNotification
-     * @description Progress reported before a session's kernel is ready.
+     * @description Current startup phase and its output before the kernel is ready.
+     *
+     *         Output appends within a phase. Snapshots replace it, and changing phases
+     *         starts a new stream. Environment preparation logs belong to its operation.
      */
     StartupProgressNotification: {
+      /** @enum {unknown} */
+      log_mode: "append" | "replace";
+      logs: string;
       /** @enum {unknown} */
       op: "startup-progress";
       /** @enum {unknown} */

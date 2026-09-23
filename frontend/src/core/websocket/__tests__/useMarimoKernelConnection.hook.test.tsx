@@ -50,7 +50,7 @@ import { kernelStartupErrorAtom } from "@/core/errors/state";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { initialRunCompletedAtom } from "../../kernel/state";
-import { connectionAtom } from "../../network/connection";
+import { connectionAtom, startupProgressAtom } from "../../network/connection";
 import type { SessionId } from "../../kernel/session";
 import { WebSocketClosedReason, WebSocketState } from "../types";
 import type { IConnectionTransport } from "../transports/transport";
@@ -307,7 +307,12 @@ describe("connection notice", () => {
 
   it("keeps elapsed time across startup phases and leaves reconnection to the footer once cells are available", () => {
     const { store, options, send } = renderNotice();
-    send({ op: "startup-progress", phase: "preparing-environment" });
+    send({
+      op: "startup-progress",
+      phase: "preparing-environment",
+      logs: "",
+      log_mode: "replace",
+    });
     expect(
       screen.queryByRole("region", { name: "Notebook startup" }),
     ).not.toBeInTheDocument();
@@ -325,7 +330,12 @@ describe("connection notice", () => {
         }),
       ),
     );
-    send({ op: "startup-progress", phase: "starting-kernel" });
+    send({
+      op: "startup-progress",
+      phase: "starting-kernel",
+      logs: "",
+      log_mode: "replace",
+    });
     expect(screen.getByRole("status")).toHaveTextContent("Starting kernel");
     expect(screen.getByText("Elapsed 35s")).toBeInTheDocument();
     send({ op: "reconnected" });
@@ -343,11 +353,47 @@ describe("connection notice", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("restores startup output before appending live chunks and resets it for a new attempt", () => {
+    const { store, send } = renderNotice();
+    const snapshot = {
+      op: "startup-progress",
+      phase: "starting-kernel",
+      logs: "Downloading runtime\n",
+      log_mode: "replace",
+    } as const;
+    send(snapshot);
+    send(snapshot);
+    const connection = store.get(connectionAtom);
+    send({ ...snapshot, logs: "Loading kernel\n", log_mode: "append" });
+    expect(store.get(startupProgressAtom)).toEqual({
+      phase: "starting-kernel",
+      logs: "Downloading runtime\nLoading kernel\n",
+    });
+    expect(store.get(connectionAtom)).toBe(connection);
+    expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+
+    send({ ...snapshot, phase: "preparing-environment", logs: "" });
+    expect(store.get(startupProgressAtom)).toEqual({
+      phase: "preparing-environment",
+      logs: "",
+    });
+  });
+
   it("does not flash a notice when startup finishes within the delay", () => {
     const { send } = renderNotice();
-    send({ op: "startup-progress", phase: "preparing-environment" });
+    send({
+      op: "startup-progress",
+      phase: "preparing-environment",
+      logs: "",
+      log_mode: "replace",
+    });
     act(() => vi.advanceTimersByTime(200));
-    send({ op: "startup-progress", phase: "starting-kernel" });
+    send({
+      op: "startup-progress",
+      phase: "starting-kernel",
+      logs: "",
+      log_mode: "replace",
+    });
     act(() => vi.advanceTimersByTime(200));
     expect(
       screen.queryByRole("region", { name: "Notebook startup" }),
@@ -366,7 +412,7 @@ describe("connection notice", () => {
     "keeps a %s failure available until the user retries",
     async (phase, title) => {
       const { store, transport, options, send } = renderNotice();
-      send({ op: "startup-progress", phase });
+      send({ op: "startup-progress", phase, logs: "", log_mode: "replace" });
       const error = "A full diagnostic\nwith <stderr> details";
       send({ op: "kernel-startup-error", error });
       transport.readyState = WebSocket.CLOSED;
@@ -390,7 +436,12 @@ describe("connection notice", () => {
       expect(
         screen.queryByRole("button", { name: "Try again" }),
       ).not.toBeInTheDocument();
-      send({ op: "startup-progress", phase: "preparing-environment" });
+      send({
+        op: "startup-progress",
+        phase: "preparing-environment",
+        logs: "",
+        log_mode: "replace",
+      });
       act(() => vi.advanceTimersByTime(500));
       expect(screen.getByRole("status")).toHaveTextContent(
         "Preparing environment",

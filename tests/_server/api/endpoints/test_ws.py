@@ -129,7 +129,9 @@ async def test_failed_startup_progress_delivery_detaches_session(
         handler.status = ConnectionState.OPEN
         handler.notify(
             serialize_kernel_message(
-                StartupProgressNotification(phase="starting-kernel")
+                StartupProgressNotification(
+                    phase="starting-kernel", logs="", log_mode="replace"
+                )
             )
         )
         return session, ConnectionType.NEW
@@ -911,6 +913,8 @@ def test_sandbox_progress_before_preparation_failure(
             "data": {
                 "op": "startup-progress",
                 "phase": "preparing-environment",
+                "logs": "",
+                "log_mode": "replace",
             },
         }
         running = websocket.receive_json()
@@ -957,7 +961,12 @@ def test_refresh_observes_existing_sandbox_preparation(
     manager.sandbox = True
     expected = {
         "op": "startup-progress",
-        "data": {"op": "startup-progress", "phase": "preparing-environment"},
+        "data": {
+            "op": "startup-progress",
+            "phase": "preparing-environment",
+            "logs": "",
+            "log_mode": "replace",
+        },
     }
     # Keep one server loop alive across both browser connections.
     with client:

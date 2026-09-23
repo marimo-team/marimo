@@ -326,7 +326,9 @@ class IPCKernelManagerImpl(KernelManager):
         )
 
         self._notify(
-            StartupProgressNotification(phase="preparing-environment")
+            StartupProgressNotification(
+                phase="preparing-environment", logs="", log_mode="replace"
+            )
         )
         with environment_operation(
             "prepare", {}, "kernel", self._notify
@@ -360,7 +362,12 @@ class IPCKernelManagerImpl(KernelManager):
                 # environment can spawn a marimo kernel.
                 if writable:
                     try:
-                        await install_marimo_into_venv(venv_python)
+                        await install_marimo_into_venv(
+                            venv_python,
+                            on_output=lambda line: operation.update(
+                                {"environment": line}
+                            ),
+                        )
                     except Exception as e:
                         raise KernelStartupError(
                             f"Failed to install marimo into configured venv.\n\n{e}"
@@ -459,9 +466,23 @@ class IPCKernelManagerImpl(KernelManager):
         )
         LOGGER.debug(f"Launching kernel: {' '.join(cmd)}")
         handshake: asyncio.Future[list[str]] | None = None
+        loop = asyncio.get_running_loop()
+        streaming_startup = True
+
+        def report_startup_output(line: str) -> None:
+            if streaming_startup:
+                self._notify(
+                    StartupProgressNotification(
+                        phase="starting-kernel", logs=line, log_mode="append"
+                    )
+                )
 
         try:
-            self._notify(StartupProgressNotification(phase="starting-kernel"))
+            self._notify(
+                StartupProgressNotification(
+                    phase="starting-kernel", logs="", log_mode="replace"
+                )
+            )
             self._process = subprocess.Popen(  # noqa: ASYNC220 — owns the child before yielding
                 cmd,
                 stdin=subprocess.PIPE,
@@ -486,6 +507,18 @@ class IPCKernelManagerImpl(KernelManager):
                     for line in iter(pipe.readline, b""):
                         if stream == "stderr":
                             stderr_tail.append(line)
+                            if streaming_startup:
+                                # Windows pipes carry CRLF; keep one stream shape.
+                                text = line.decode(
+                                    "utf-8", errors="replace"
+                                ).replace("\r\n", "\n")
+                                try:
+                                    loop.call_soon_threadsafe(
+                                        report_startup_output, text
+                                    )
+                                except RuntimeError:
+                                    if not loop.is_closed():
+                                        raise
                         try:
                             output = getattr(sys, stream).buffer
                             output.write(line)
@@ -523,7 +556,6 @@ class IPCKernelManagerImpl(KernelManager):
                     process.wait()
                 return lines
 
-            loop = asyncio.get_running_loop()
             handshake = loop.run_in_executor(None, exchange_handshake)
             exited: asyncio.Future[int] = loop.create_future()
 
@@ -606,8 +638,11 @@ class IPCKernelManagerImpl(KernelManager):
                 f"Failed to start kernel subprocess.\n\n{e}"
             ) from e
         finally:
-            if self.kernel_task is None:
-                await self._cleanup_failed_start(handshake)
+            try:
+                if self.kernel_task is None:
+                    await self._cleanup_failed_start(handshake)
+            finally:
+                streaming_startup = False
 
     async def _cleanup_failed_start(
         self, handshake: asyncio.Future[list[str]] | None = None

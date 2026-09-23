@@ -641,10 +641,16 @@ class BannerNotification(Notification, tag="banner"):
 
 
 class StartupProgressNotification(Notification, tag="startup-progress"):
-    """Progress reported before a session's kernel is ready."""
+    """Current startup phase and its output before the kernel is ready.
+
+    Output appends within a phase. Snapshots replace it, and changing phases
+    starts a new stream. Environment preparation logs belong to its operation.
+    """
 
     name: ClassVar[str] = "startup-progress"
     phase: StartupPhase
+    logs: str
+    log_mode: Literal["append", "replace"]
 
 
 class KernelStartupErrorNotification(Notification, tag="kernel-startup-error"):

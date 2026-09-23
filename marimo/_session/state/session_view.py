@@ -473,7 +473,17 @@ class SessionView:
             # ModelCustom is ephemeral — skip for replay
 
         elif isinstance(notification, StartupProgressNotification):
-            self.startup_progress = notification
+            previous_progress = self.startup_progress
+            logs = notification.logs
+            if (
+                notification.log_mode == "append"
+                and previous_progress is not None
+                and previous_progress.phase == notification.phase
+            ):
+                logs = previous_progress.logs + logs
+            self.startup_progress = StartupProgressNotification(
+                phase=notification.phase, logs=logs, log_mode="replace"
+            )
 
         elif isinstance(notification, StartupLogsNotification):
             prev = self.startup_logs.content if self.startup_logs else ""

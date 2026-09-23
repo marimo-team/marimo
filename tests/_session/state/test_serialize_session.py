@@ -1219,7 +1219,9 @@ class TestSessionCacheManager:
 
             # Read back
             current = SessionView()
-            progress = StartupProgressNotification(phase="starting-kernel")
+            progress = StartupProgressNotification(
+                phase="starting-kernel", logs="", log_mode="replace"
+            )
             current.add_notification(progress)
             manager = SessionCacheManager(current, doc, path, 0.1)
             loaded_view = manager.read_session_view(
