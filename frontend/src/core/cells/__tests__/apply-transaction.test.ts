@@ -380,6 +380,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -387,6 +388,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
@@ -411,6 +413,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -418,6 +421,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
@@ -439,6 +443,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -446,6 +451,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -453,6 +459,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 2,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
@@ -475,6 +482,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -482,6 +490,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -489,6 +498,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -496,6 +506,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     // a and c in col0; b and d in col1. Order within each column follows
@@ -518,6 +529,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     // Without reorder-cells, the flat order comes from the current tree.
@@ -542,6 +554,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: null,
         disabled: false,
         hideCode: true,
+        expandOutput: false,
       },
     ]);
     // All three cells remain in a single column. No rebuild triggered.
@@ -571,6 +584,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -578,6 +592,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
@@ -608,6 +623,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -615,6 +631,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
@@ -632,6 +649,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -639,6 +657,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
@@ -691,6 +710,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -698,6 +718,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
@@ -752,6 +773,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -759,6 +781,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
@@ -776,6 +799,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
@@ -798,6 +822,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -805,6 +830,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -812,6 +838,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
@@ -830,6 +857,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
@@ -855,6 +883,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -862,6 +891,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       // reorder-cells comes afterwards.
       { type: "reorder-cells", cellIds: [a, b, c, d] },
@@ -889,6 +919,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       { type: "set-code", cellId: a, code: "x = 1" },
       {
@@ -897,6 +928,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       { type: "reorder-cells", cellIds: [a, b, c, d] },
       { type: "set-name", cellId: d, name: "last" },
@@ -929,6 +961,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 0,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
       {
         type: "set-config",
@@ -936,6 +969,7 @@ describe("applyTransactionChanges column rebuild", () => {
         column: 1,
         disabled: false,
         hideCode: false,
+        expandOutput: false,
       },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`

@@ -7062,8 +7062,7 @@ export interface components {
       cellId: components["schemas"]["CellId"];
       column: number | null;
       disabled: boolean;
-      /** @default false */
-      expandOutput?: boolean;
+      expandOutput: boolean;
       hideCode: boolean;
       /** @enum {unknown} */
       type: "set-config";

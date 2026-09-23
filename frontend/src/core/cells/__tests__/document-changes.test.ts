@@ -685,6 +685,7 @@ describe("coalesceChanges", () => {
         column: null,
         disabled: true,
         hideCode: false,
+        expandOutput: false,
       },
       { type: "move-cell", cellId: X, after: A },
       { type: "delete-cell", cellId: X },

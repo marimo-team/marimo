@@ -180,6 +180,7 @@ class TestKernelSourcedAutoSave:
                     column=None,
                     disabled=False,
                     hide_code=True,
+                    expand_output=False,
                 )
             ),
         )

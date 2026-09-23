@@ -140,6 +140,7 @@ class TestSetProperties:
                     column=None,
                     disabled=False,
                     hide_code=False,
+                    expand_output=False,
                 ),
             ),
             doc,

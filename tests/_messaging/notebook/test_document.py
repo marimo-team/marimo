@@ -455,6 +455,7 @@ class TestCellVersion:
                     column=None,
                     disabled=True,
                     hide_code=False,
+                    expand_output=False,
                 )
             )
         )
@@ -500,6 +501,7 @@ class TestSetConfig:
                     column=None,
                     disabled=False,
                     hide_code=True,
+                    expand_output=False,
                 )
             )
         )
@@ -533,6 +535,7 @@ class TestSetConfig:
                     column=None,
                     disabled=True,
                     hide_code=False,
+                    expand_output=False,
                 )
             )
         )
@@ -565,6 +568,7 @@ class TestSetConfig:
                     column=0,
                     disabled=False,
                     hide_code=False,
+                    expand_output=False,
                 )
             )
         )
@@ -591,6 +595,7 @@ class TestSetConfig:
                     column=None,
                     disabled=False,
                     hide_code=False,
+                    expand_output=False,
                 )
             )
         )
