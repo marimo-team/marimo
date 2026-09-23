@@ -131,12 +131,12 @@ it("shows a sync as a single operation, without pretending to restart the kernel
   const store = mount(true);
   act(() => {
     store.set(connectionAtom, { state: WebSocketState.OPEN });
-    store.set(sandboxSyncAtom, { pending: true, error: null });
+    store.set(sandboxSyncAtom, { kind: "running" });
   });
   act(() => vi.advanceTimersByTime(500));
   expect(screen.getByRole("status")).toHaveTextContent("Syncing sandbox");
   expect(screen.queryByRole("list")).not.toBeInTheDocument();
-  act(() => store.set(sandboxSyncAtom, { pending: false, error: null }));
+  act(() => store.set(sandboxSyncAtom, { kind: "succeeded" }));
   expect(screen.getByRole("status")).toHaveTextContent("Environment synced");
 });
 
@@ -172,16 +172,15 @@ it("restores syncing in the existing status and stays quiet for a completed snap
   act(() => vi.advanceTimersByTime(500));
   expect(screen.getByRole("status")).toHaveTextContent("Syncing sandbox");
   expect(getPackageAlert(store.get(alertAtom))).toBeNull();
-  for (const [status, error] of [
-    [{ kind: "failed", error: "Dependency conflict" }, "Dependency conflict"],
+  for (const [status, title] of [
+    [{ kind: "failed", error: "Dependency conflict" }, "Sandbox sync failed"],
     [
       { kind: "restart-required", reason: "Restart the kernel" },
-      "Restart the kernel",
+      "Sandbox restart required",
     ],
-    [{ kind: "cancelled" }, "Sandbox sync was interrupted."],
+    [{ kind: "cancelled" }, "Sandbox sync failed"],
   ] as const) {
     act(() => restore(status));
-    expect(screen.getByRole("status")).toHaveTextContent("Sandbox sync failed");
-    expect(store.get(sandboxSyncAtom)).toEqual({ pending: false, error });
+    expect(screen.getByRole("status")).toHaveTextContent(title);
   }
 });

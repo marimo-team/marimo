@@ -11,6 +11,7 @@ import { chromeAtom } from "@/components/editor/chrome/state";
 import { Cell } from "@/components/editor/notebook-cell";
 import { VerticalLayoutWrapper } from "@/components/editor/renderers/vertical-layout/vertical-layout-wrapper";
 import { alertAtom } from "@/core/alerts/state";
+import type { EnvironmentOperation } from "@/core/alerts/environment";
 import {
   createNotebookActions,
   notebookAtom,
@@ -26,11 +27,7 @@ import { kernelStartupErrorAtom } from "@/core/errors/state";
 import { connectionAtom, startupProgressAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { createStaticRequests } from "@/core/network/requests-static";
-import {
-  sandboxActionsAtom,
-  sandboxAtom,
-  sandboxSyncAtom,
-} from "@/core/packages/sandbox-state";
+import { sandboxActionsAtom, sandboxAtom } from "@/core/packages/sandbox-state";
 import { filenameAtom } from "@/core/saving/file-state";
 import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
 import { HTTPError } from "@/utils/errors";
@@ -69,7 +66,9 @@ interface Props {
     | "failed"
     | "ready"
     | "syncing"
-    | "sync-failed";
+    | "sync-failed"
+    | "synced"
+    | "restart-required";
   existingCells: boolean;
   backend: "uv" | "pixi";
   saveResult: "success" | "failure" | "stale";
@@ -190,12 +189,26 @@ function SandboxStory(props: Props) {
       kernelStartupErrorAtom,
       props.phase === "failed" ? resolutionError : null,
     );
+    const syncStatus: EnvironmentOperation["status"] | null =
+      props.phase === "syncing"
+        ? { kind: "running" }
+        : props.phase === "sync-failed"
+          ? { kind: "failed", error: resolutionError }
+          : props.phase === "restart-required"
+            ? {
+                kind: "restart-required",
+                reason:
+                  "The manifest requires Python 3.14. This kernel uses Python 3.13.",
+              }
+            : props.phase === "synced"
+              ? { kind: "succeeded" }
+              : null;
     state.set(alertAtom, (value) => ({
       ...value,
       environments: {
         ...value.environments,
         kernel: {
-          restart_required: false,
+          restart_required: props.phase === "restart-required",
           operations: [
             {
               operation_id: "story-preparation",
@@ -215,6 +228,21 @@ function SandboxStory(props: Props) {
                     : preparationOutput,
               },
             },
+            ...(syncStatus
+              ? [
+                  {
+                    operation_id: "story-sync",
+                    action: "sync" as const,
+                    source: "kernel" as const,
+                    status: syncStatus,
+                    packages: {},
+                    logs: {
+                      environment:
+                        "Reading notebook manifest\nResolving dependencies\nChecking Python version\n",
+                    },
+                  },
+                ]
+              : []),
           ],
         },
       },
@@ -229,10 +257,6 @@ function SandboxStory(props: Props) {
           ? "Launching kernel process\nUsing /home/user/.cache/uv/environments-v2/bike-trips-a274bddc/bin/python\nWaiting for kernel connection\n"
           : "",
       log_mode: "replace",
-    });
-    state.set(sandboxSyncAtom, {
-      pending: props.phase === "syncing",
-      error: props.phase === "sync-failed" ? resolutionError : null,
     });
     if (props.existingCells) {
       const actions = createNotebookActions((action) =>
@@ -437,6 +461,14 @@ export const PackagesSyncing: Story = {
 export const PackagesSyncFailed: Story = {
   name: "Setup details / sync failed",
   args: { surface: "packages", phase: "sync-failed" },
+};
+export const PackagesSynced: Story = {
+  name: "Setup details / sync completed",
+  args: { surface: "packages", phase: "synced" },
+};
+export const PackagesRestartRequired: Story = {
+  name: "Setup details / restart required",
+  args: { surface: "packages", phase: "restart-required" },
 };
 export const PixiPackagesReady: Story = {
   name: "Status row / pixi",

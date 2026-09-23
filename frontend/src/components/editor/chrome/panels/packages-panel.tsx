@@ -99,7 +99,7 @@ const PackagesPanel: React.FC = () => {
 };
 
 const PackageContents: React.FC = () => {
-  const { pending: syncing } = useAtomValue(sandboxSyncAtom);
+  const syncing = useAtomValue(sandboxSyncAtom).kind === "running";
   const [userViewMode, setUserViewMode] = React.useState<ViewMode | null>(null);
   const { data: dependencies, error, isPending } = usePackageDependencies();
 

@@ -24,20 +24,36 @@ export const connectionNoticeAtom = atom<ConnectionNotice | null>((get) => {
   const backend = get(sandboxAtom)?.backend;
   const sandbox = Boolean(backend);
   const sync = get(sandboxSyncAtom);
+  const syncing = sync.kind === "running";
+  const restartRequired = sync.kind === "restart-required";
+  const syncError =
+    sync.kind === "failed"
+      ? sync.error
+      : sync.kind === "cancelled"
+        ? "Sandbox sync was interrupted."
+        : restartRequired
+          ? sync.reason
+          : null;
   if (
     sandbox &&
-    (sync.pending || sync.error) &&
+    (syncing || syncError !== null) &&
     connection.state === WebSocketState.OPEN
   ) {
     return {
       kind: "sync",
       sandbox,
-      title: sync.pending ? "Syncing sandbox…" : "Sandbox sync failed",
-      description: sync.pending
+      title: syncing
+        ? "Syncing sandbox…"
+        : restartRequired
+          ? "Sandbox restart required"
+          : "Sandbox sync failed",
+      description: syncing
         ? "Applying the saved manifest to this notebook’s environment."
-        : "Review the error details, then try again.",
-      pending: sync.pending,
-      error: sync.error,
+        : restartRequired
+          ? "Restart the kernel to use the updated environment."
+          : "Review the error details, then try again.",
+      pending: syncing,
+      error: syncError,
     };
   }
   if (connection.state === WebSocketState.CONNECTING) {

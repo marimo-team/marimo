@@ -72,7 +72,7 @@ function renderPanel(
       : null,
   );
   store.set(connectionAtom, { state: WebSocketState.OPEN });
-  store.set(sandboxSyncAtom, { pending: false, error: null });
+  store.set(sandboxSyncAtom, { kind: "succeeded" });
   const getPackageList = vi.fn().mockResolvedValue({ packages: [] });
   const client = MockRequestClient.create({
     getPackageList,
@@ -187,7 +187,7 @@ it("refreshes an open panel when a package is installed elsewhere, after install
     filename: "notebook.py",
   });
   store.set(connectionAtom, { state: WebSocketState.OPEN });
-  store.set(sandboxSyncAtom, { pending: false, error: null });
+  store.set(sandboxSyncAtom, { kind: "succeeded" });
   store.set(requestClientAtom, withPackageInvalidation(client));
   function InstallElsewhere() {
     const { handleInstallPackages } = useInstallPackages();
@@ -226,7 +226,7 @@ it("keeps packages and the install draft visible while blocking mutations during
   await screen.findByRole("treeitem", { name: /polars/ });
   const input = screen.getByPlaceholderText("Add packages to pixi sandbox...");
   fireEvent.change(input, { target: { value: "altair" } });
-  act(() => store.set(sandboxSyncAtom, { pending: true, error: null }));
+  act(() => store.set(sandboxSyncAtom, { kind: "running" }));
   const row = screen.getByRole("treeitem", { name: /polars/ });
   expect(
     screen.getByPlaceholderText("Add packages to pixi sandbox..."),
@@ -235,9 +235,12 @@ it("keeps packages and the install draft visible while blocking mutations during
   expect(
     screen.queryByRole("list", { name: "Notebook startup stages" }),
   ).not.toBeInTheDocument();
+  const toggle = screen.getByRole("button", { name: "pixi sandbox" });
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
   act(() =>
     store.set(sandboxSyncAtom, {
-      pending: false,
+      kind: "failed",
       error: "Could not resolve dependencies",
     }),
   );
@@ -245,6 +248,8 @@ it("keeps packages and the install draft visible while blocking mutations during
   expect(screen.getByLabelText("Error details")).toHaveTextContent(
     "Could not resolve dependencies",
   );
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByRole("button", { name: "Retry sync" })).toBeVisible();
   const restoredInput = screen.getByPlaceholderText(
     "Add packages to pixi sandbox...",
   );

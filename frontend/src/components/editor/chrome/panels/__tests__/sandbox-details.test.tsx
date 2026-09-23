@@ -3,17 +3,20 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
+import { ModalProvider } from "@/components/modal/ImperativeModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { alertAtom } from "@/core/alerts/state";
 import type { EnvironmentOperation } from "@/core/alerts/environment";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
 import { connectionAtom, startupProgressAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
-import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
+import { sandboxAtom } from "@/core/packages/sandbox-state";
 import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
 import PackagesPanel from "../packages-panel";
 import { PanelSectionProvider } from "../panel-context";
 import { SandboxToggle } from "../sandbox-toggle";
+
+vi.mock("@/utils/reload-safe", () => ({ reloadSafe: vi.fn() }));
 
 const preparation: EnvironmentOperation = {
   operation_id: "prepare-1",
@@ -63,6 +66,7 @@ function mount({
     });
   }
   const client = MockRequestClient.create({
+    sendRestart: vi.fn(async () => null),
     getDependencyTree: vi.fn(async () => ({
       context: backend
         ? { kind: "sandbox" as const, backend }
@@ -81,17 +85,19 @@ function mount({
     })),
   });
   store.set(requestClientAtom, client);
-  render(
+  const { unmount } = render(
     <Provider store={store}>
       <TooltipProvider>
-        <SandboxToggle section="sidebar" />
-        <PanelSectionProvider value="sidebar">
-          <PackagesPanel />
-        </PanelSectionProvider>
+        <ModalProvider>
+          <SandboxToggle section="sidebar" />
+          <PanelSectionProvider value="sidebar">
+            <PackagesPanel />
+          </PanelSectionProvider>
+        </ModalProvider>
       </TooltipProvider>
     </Provider>,
   );
-  return { store, client };
+  return { store, client, unmount };
 }
 
 it("opens restored preparation and kernel logs without reopening completed startup on refresh", async () => {
@@ -130,6 +136,132 @@ it("opens restored preparation and kernel logs without reopening completed start
   expect(details.getByLabelText("kernel startup output")).toBeVisible();
 });
 
+it("restores a restart-required sync with the kernel restart action", async () => {
+  const { store, client } = mount();
+  act(() =>
+    store.set(alertAtom, (state) => ({
+      ...state,
+      environments: {
+        ...state.environments,
+        kernel: {
+          restart_required: true,
+          operations: [
+            preparation,
+            {
+              operation_id: "sync-python",
+              action: "sync",
+              source: "kernel",
+              status: {
+                kind: "restart-required",
+                reason: "Python version changed",
+              },
+              packages: {},
+              logs: { environment: "Resolved Python 3.14\n" },
+            },
+          ],
+        },
+      },
+    })),
+  );
+  await screen.findByText("numpy");
+  expect(screen.getByText("Sandbox restart required")).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Retry sync" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Error details")).toHaveTextContent(
+    "Python version changed",
+  );
+  // A later package operation can displace the sync, but not its restart.
+  act(() =>
+    store.set(alertAtom, (state) => ({
+      ...state,
+      environments: {
+        ...state.environments,
+        kernel: {
+          restart_required: true,
+          operations: [
+            preparation,
+            {
+              operation_id: "install-1",
+              action: "install",
+              source: "kernel",
+              status: { kind: "succeeded" },
+              packages: { numpy: "succeeded" },
+              logs: {},
+            },
+          ],
+        },
+      },
+    })),
+  );
+  expect(screen.getByText("Sandbox restart required")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Restart Kernel" }));
+  expect(screen.getByRole("alertdialog")).toHaveTextContent("Restart Kernel");
+  expect(client.sendRestart).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Confirm Restart" }));
+  expect(client.sendRestart).toHaveBeenCalledTimes(1);
+});
+
+it("keeps sync output open through completion and restores it quietly after refresh", () => {
+  const { store, unmount } = mount();
+  const restore = (status: EnvironmentOperation["status"], logs: string) =>
+    store.set(alertAtom, (state) => ({
+      ...state,
+      environments: {
+        ...state.environments,
+        kernel: {
+          restart_required: false,
+          operations: [
+            preparation,
+            {
+              operation_id: "sync-1",
+              action: "sync",
+              source: "kernel",
+              status,
+              packages: {},
+              logs: { environment: logs },
+            },
+          ],
+        },
+      },
+    }));
+  act(() => restore({ kind: "running" }, "Resolving dependencies\n"));
+  const preview = screen.getByRole("button", {
+    name: "Expand sandbox sync output",
+  });
+  fireEvent.pointerDown(preview);
+  fireEvent.click(preview);
+  const output = screen.getByLabelText("sandbox sync output");
+  act(() =>
+    restore({ kind: "running" }, "Resolving dependencies\nDownloading numpy\n"),
+  );
+  expect(output).toHaveTextContent("Downloading numpy");
+  act(() =>
+    restore(
+      { kind: "succeeded" },
+      "Resolving dependencies\nDownloading numpy\nDone\n",
+    ),
+  );
+  expect(output).toBeVisible();
+  expect(output).toHaveTextContent("Done");
+  expect(screen.getByText("Environment prepared")).toBeVisible();
+  expect(screen.getByText("Kernel started")).toBeVisible();
+
+  const snapshot = store.get(alertAtom);
+  unmount();
+  const refreshed = mount();
+  act(() => refreshed.store.set(alertAtom, snapshot));
+  const toggle = screen.getByRole("button", { name: "uv sandbox" });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(toggle);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Expand sandbox sync output" }),
+  );
+  expect(screen.getByLabelText("sandbox sync output").textContent).toBe(
+    "Resolving dependencies\nDownloading numpy\nDone\n",
+  );
+});
+
 it.each([false, true])(
   "retains the progression after completion with inspecting=%s",
   async (inspecting) => {
@@ -164,8 +296,10 @@ it.each([false, true])(
     expect(screen.getByText("Environment prepared")).toBeVisible();
     expect(screen.getByText("Kernel started")).toBeVisible();
     expect(
-      screen.getByLabelText("environment preparation output"),
-    ).toHaveProperty("hidden", !inspecting);
+      screen.getByRole("button", {
+        name: `${inspecting ? "Collapse" : "Expand"} environment preparation output`,
+      }),
+    ).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Expand kernel startup output" }),
     ).toHaveTextContent("Launching kernel");
@@ -210,28 +344,6 @@ it("opens a startup error even after collapsing preparation and keeps both step 
   expect(toggle).toHaveAttribute("aria-expanded", "false");
   fireEvent.click(toggle);
   expect(screen.getByLabelText("Error details")).toBeVisible();
-});
-
-it("keeps packages usable when a sync fails and exposes recovery in the details", async () => {
-  const { store } = mount();
-  await screen.findByText("numpy");
-  const toggle = screen.getByRole("button", { name: "uv sandbox" });
-  act(() => store.set(sandboxSyncAtom, { pending: true, error: null }));
-  expect(within(toggle).getByRole("status")).toHaveAccessibleName(
-    "Syncing sandbox…",
-  );
-  fireEvent.click(toggle);
-  act(() =>
-    store.set(sandboxSyncAtom, { pending: false, error: "No solution" }),
-  );
-  expect(toggle).toHaveAttribute("aria-expanded", "true");
-  expect(screen.getByLabelText("Error details")).toHaveTextContent(
-    "No solution",
-  );
-  expect(screen.getByText("numpy")).toBeVisible();
-  expect(
-    screen.getByRole("button", { name: "Retry sync" }),
-  ).toBeInTheDocument();
 });
 
 it("does not add a toggle or startup details to an existing environment", async () => {

@@ -59,7 +59,7 @@ const failed = {
 } as const;
 beforeEach(() => {
   store.set(sandboxAtom, { backend: "uv", manifest, filename: "notebook.py" });
-  store.set(sandboxSyncAtom, { pending: false, error: null });
+  store.set(sandboxSyncAtom, { kind: "succeeded" });
   store.set(sandboxActionsAtom, null);
   store.set(connectionAtom, failed);
   store.set(kernelStartupErrorAtom, "resolver output\n  no solution");

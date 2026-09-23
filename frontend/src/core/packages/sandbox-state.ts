@@ -1,10 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { atom } from "jotai";
-import type { SetStateAction } from "react";
 import type { EnvironmentOperation } from "@/core/alerts/environment";
 import { alertAtom } from "@/core/alerts/state";
 import type { SandboxResponse } from "@/core/network/types";
-import { assertNever } from "@/utils/assertNever";
 
 export const sandboxAtom = atom<SandboxResponse | null>(null);
 
@@ -14,12 +12,9 @@ export const preparationAtom = atom((get) =>
   ),
 );
 
-interface SandboxSyncState {
-  pending: boolean;
-  error: string | null;
-}
+type SandboxSyncState = EnvironmentOperation["status"] | { kind: "idle" };
 
-const sandboxSyncOperationAtom = atom((get) => {
+export const sandboxSyncOperationAtom = atom((get) => {
   const operations = get(alertAtom).environments.kernel.operations;
   return (
     operations.findLast(
@@ -39,34 +34,29 @@ export const sandboxSyncAtom = atom(
     const operation = get(sandboxSyncOperationAtom);
     const request = get(sandboxSyncRequestAtom);
     // Local request status lasts until newer progress arrives from the server.
-    if (
+    const state: SandboxSyncState =
       request &&
       request.operation === operation &&
       operation?.status.kind !== "running"
+        ? request.state
+        : (operation?.status ?? { kind: "idle" });
+    // Later package operations can replace the sync result, but only a new
+    // environment snapshot can clear an outstanding restart.
+    if (
+      get(alertAtom).environments.kernel.restart_required &&
+      (state.kind === "idle" || state.kind === "succeeded")
     ) {
-      return request.state;
+      return {
+        kind: "restart-required",
+        reason:
+          "Dependency changes are saved; restart the kernel to apply them.",
+      };
     }
-    const status = operation?.status;
-    switch (status?.kind) {
-      case "running":
-        return { pending: true, error: null };
-      case "failed":
-        return { pending: false, error: status.error };
-      case "restart-required":
-        return { pending: false, error: status.reason };
-      case "cancelled":
-        return { pending: false, error: "Sandbox sync was interrupted." };
-      case "succeeded":
-      case undefined:
-        return { pending: false, error: null };
-      default:
-        return assertNever(status);
-    }
+    return state;
   },
-  (get, set, update: SetStateAction<SandboxSyncState>) => {
+  (get, set, state: SandboxSyncState) => {
     set(sandboxSyncRequestAtom, {
-      state:
-        typeof update === "function" ? update(get(sandboxSyncAtom)) : update,
+      state,
       operation: get(sandboxSyncOperationAtom),
     });
   },

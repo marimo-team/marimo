@@ -3,6 +3,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { RefreshCwIcon } from "lucide-react";
 import { connectionNoticeAtom } from "@/core/network/connection-notice";
 import { Button } from "@/components/ui/button";
+import { useRestartKernel } from "@/components/editor/actions/useRestartKernel";
 import {
   isConnectedAtom,
   startupProgressAtom,
@@ -13,10 +14,12 @@ import {
   sandboxActionsAtom,
   sandboxAtom,
   sandboxSyncAtom,
+  sandboxSyncOperationAtom,
 } from "@/core/packages/sandbox-state";
 import { cn } from "@/utils/cn";
 import { usePanelSection } from "./panel-context";
 import { sandboxDetailsExpandedAtom } from "./sandbox-details-state";
+import { StartupOutput } from "../../alerts/startup-output";
 import {
   ConnectionStatusIcon,
   StartupProgress,
@@ -37,6 +40,7 @@ export function SandboxErrorOutput({ error }: { error: string }) {
 function SandboxRecovery({ notice }: { notice: DisplayConnectionNotice }) {
   const sandbox = useAtomValue(sandboxAtom);
   const actions = useAtomValue(sandboxActionsAtom);
+  const sync = useAtomValue(sandboxSyncAtom);
   if (notice.pending || notice.ready) {
     return null;
   }
@@ -53,14 +57,18 @@ function SandboxRecovery({ notice }: { notice: DisplayConnectionNotice }) {
         >
           Edit manifest…
         </Button>
-        <Button
-          variant="text"
-          size="xs"
-          disabled={!actions}
-          onClick={() => actions?.sync()}
-        >
-          Retry sync
-        </Button>
+        {notice.kind === "sync" && sync.kind === "restart-required" ? (
+          <SandboxRestart />
+        ) : (
+          <Button
+            variant="text"
+            size="xs"
+            disabled={!actions}
+            onClick={() => actions?.sync()}
+          >
+            Retry sync
+          </Button>
+        )}
       </div>
       {sandbox?.manifest == null && (
         <p className="mt-3 text-xs text-muted-foreground">
@@ -68,6 +76,15 @@ function SandboxRecovery({ notice }: { notice: DisplayConnectionNotice }) {
         </p>
       )}
     </>
+  );
+}
+
+function SandboxRestart() {
+  const restartKernel = useRestartKernel();
+  return (
+    <Button variant="text" size="xs" onClick={restartKernel}>
+      Restart Kernel
+    </Button>
   );
 }
 
@@ -100,6 +117,31 @@ function SandboxSyncStatus({ notice }: { notice: DisplayConnectionNotice }) {
         <span>{notice.title}</span>
       </output>
       <SandboxRecovery notice={notice} />
+    </div>
+  );
+}
+
+function SandboxSyncDetails({
+  notice,
+}: {
+  notice: DisplayConnectionNotice | null;
+}) {
+  const operation = useAtomValue(sandboxSyncOperationAtom);
+  if (!operation && !notice) {
+    return null;
+  }
+  return (
+    <div className="mt-5 min-w-0">
+      {notice ? (
+        <SandboxSyncStatus notice={notice} />
+      ) : (
+        <p className="text-sm">Environment synced</p>
+      )}
+      <StartupOutput
+        key={operation?.operation_id}
+        logs={operation?.logs.environment ?? ""}
+        label="sandbox sync output"
+      />
     </div>
   );
 }
@@ -137,10 +179,15 @@ export function SandboxDetails() {
       onPointerDownCapture={() => setExpanded(true)}
       onFocusCapture={() => setExpanded(true)}
     >
-      {notice && notice.kind !== "startup" && (
+      {notice?.kind === "connection" && (
         <SandboxSyncStatus notice={{ ...notice, ready: false }} />
       )}
       {startup && <SandboxStartupPanel notice={startup} />}
+      {connected && (
+        <SandboxSyncDetails
+          notice={notice?.kind === "sync" ? { ...notice, ready: false } : null}
+        />
+      )}
       {connected && (!notice || notice.pending) && <SandboxActions />}
     </section>
   );
@@ -149,7 +196,7 @@ export function SandboxDetails() {
 function SandboxActions() {
   const sandbox = useAtomValue(sandboxAtom);
   const actions = useAtomValue(sandboxActionsAtom);
-  const { pending } = useAtomValue(sandboxSyncAtom);
+  const pending = useAtomValue(sandboxSyncAtom).kind === "running";
   return (
     <div className="flex items-center gap-4 mt-5 border-t pt-3">
       <Button
