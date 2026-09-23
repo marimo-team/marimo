@@ -595,7 +595,7 @@ class SessionCacheManager:
                 # Map the code_hash to the current cell_id from the key
                 code_hash_to_cell_id[code_hash] = cell_id
 
-        self.session_view = deserialize_session(
-            notebook_session, code_hash_to_cell_id
-        )
+        cached = deserialize_session(notebook_session, code_hash_to_cell_id)
+        # Cached cell output must not replace this launch's environment state.
+        self.session_view.cell_notifications = cached.cell_notifications
         return self.session_view

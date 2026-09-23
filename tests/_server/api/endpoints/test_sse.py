@@ -329,6 +329,8 @@ async def test_sandbox_progress_during_preparation(
     monkeypatch.setattr(ipc, "has_marimo_installed", check_environment)
     manager = get_session_manager(client)
     manager.sandbox = True
+    if outcome == "disconnect":
+        manager.ttl_seconds = 0
 
     async with _connect(client) as connection:
         event = await connection.next_event()
@@ -337,20 +339,34 @@ async def test_sandbox_progress_during_preparation(
             "data": {
                 "op": "startup-progress",
                 "phase": "preparing-environment",
+                "logs": "",
+                "log_mode": "replace",
             },
         }
+        running = json.loads((await connection.next_event())["data"])
+        assert running["op"] == "environment-operation"
+        assert running["data"]["action"] == "prepare"
+        assert running["data"]["status"] == {"kind": "running"}
         assert not manager.sessions
         if outcome == "disconnect":
             connection.disconnect()
             await asyncio.wait_for(cleaned_up.wait(), timeout=5)
         else:
             release.set()
+            completed = json.loads((await connection.next_event())["data"])
+            assert (
+                completed["data"]["operation_id"]
+                == running["data"]["operation_id"]
+            )
+            assert completed["data"]["status"] == {"kind": "succeeded"}
             event = await connection.next_event()
             assert json.loads(event["data"]) == {
                 "op": "startup-progress",
                 "data": {
                     "op": "startup-progress",
                     "phase": "starting-kernel",
+                    "logs": "",
+                    "log_mode": "replace",
                 },
             }
             event = await connection.next_event()
@@ -513,7 +529,9 @@ async def test_disconnect_during_startup_progress_detaches_session() -> None:
     session = handler.manager.get_session.return_value
     handler.notify(
         serialize_kernel_message(
-            StartupProgressNotification(phase="starting-kernel")
+            StartupProgressNotification(
+                phase="starting-kernel", logs="", log_mode="replace"
+            )
         )
     )
 
