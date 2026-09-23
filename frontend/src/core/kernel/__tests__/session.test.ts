@@ -48,6 +48,26 @@ describe("Session", () => {
     });
     expect(getSessionId()).toBe(URL_SESSION_ID);
     expect(currentSearchParams().get("session_id")).toBe(URL_SESSION_ID);
+    expect(currentSearchParams().get("kiosk")).toBe("true");
+  });
+
+  it("keeps the kiosk flag in edit mode when the URL names no session", async () => {
+    const { getSessionId } = await loadSession({
+      mode: "edit",
+      url: "/?kiosk=true",
+    });
+    expect(isSessionId(getSessionId())).toBe(true);
+    expect(currentSearchParams().get("kiosk")).toBe("true");
+  });
+
+  it("starts a new session when the URL session id is malformed", async () => {
+    const { getSessionId } = await loadSession({
+      mode: "edit",
+      url: "/?session_id=not-a-session",
+    });
+    const id = getSessionId();
+    expect(isSessionId(id)).toBe(true);
+    expect(id).not.toBe("not-a-session");
   });
 
   it("ignores the URL session id in read mode", async () => {
@@ -62,13 +82,25 @@ describe("Session", () => {
     expect(currentSearchParams().has("session_id")).toBe(false);
   });
 
-  it("ignores the URL session id in read mode even with kiosk set", async () => {
+  it("drops both the session id and the kiosk flag in read mode", async () => {
     const { getSessionId } = await loadSession({
       mode: "read",
       url: `/?kiosk=true&session_id=${URL_SESSION_ID}`,
     });
     expect(getSessionId()).not.toBe(URL_SESSION_ID);
     expect(currentSearchParams().has("session_id")).toBe(false);
+    // The kiosk flag is forwarded to the websocket URL, and the server
+    // refuses kiosk connections to an app, so it must not survive here.
+    expect(currentSearchParams().has("kiosk")).toBe(false);
+  });
+
+  it("drops a lone kiosk flag in read mode", async () => {
+    const { getSessionId } = await loadSession({
+      mode: "read",
+      url: "/?kiosk=true",
+    });
+    expect(isSessionId(getSessionId())).toBe(true);
+    expect(currentSearchParams().has("kiosk")).toBe(false);
   });
 
   it("ignores the URL session id when the mode is not yet known", async () => {
@@ -77,6 +109,7 @@ describe("Session", () => {
       url: `/?session_id=${URL_SESSION_ID}`,
     });
     expect(getSessionId()).not.toBe(URL_SESSION_ID);
+    expect(currentSearchParams().has("session_id")).toBe(false);
   });
 
   it("returns the same id on every call", async () => {
