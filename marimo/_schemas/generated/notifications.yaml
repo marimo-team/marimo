@@ -793,6 +793,90 @@ components:
       - substrings
       title: DialectHidesWhen
       type: object
+    EnvironmentOperation:
+      description: Current progress and logs for one execution of environment work.
+      properties:
+        action:
+          enum:
+          - install
+          - prepare
+          - remove
+          - sync
+        logs:
+          additionalProperties:
+            type: string
+          type: object
+        operation_id:
+          type: string
+        packages:
+          additionalProperties:
+            enum:
+            - failed
+            - queued
+            - restart-required
+            - running
+            - succeeded
+          type: object
+        source:
+          enum:
+          - kernel
+          - server
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/OperationRunning'
+          - $ref: '#/components/schemas/OperationSucceeded'
+          - $ref: '#/components/schemas/OperationRestartRequired'
+          - $ref: '#/components/schemas/OperationFailed'
+          - $ref: '#/components/schemas/OperationCancelled'
+          discriminator:
+            mapping:
+              cancelled: '#/components/schemas/OperationCancelled'
+              failed: '#/components/schemas/OperationFailed'
+              restart-required: '#/components/schemas/OperationRestartRequired'
+              running: '#/components/schemas/OperationRunning'
+              succeeded: '#/components/schemas/OperationSucceeded'
+            propertyName: kind
+      required:
+      - operation_id
+      - action
+      - status
+      - packages
+      - logs
+      - source
+      title: EnvironmentOperation
+      type: object
+    EnvironmentState:
+      description: Active operations, the latest result, and an outstanding restart.
+      properties:
+        operations:
+          items:
+            $ref: '#/components/schemas/EnvironmentOperation'
+          type: array
+        restart_required:
+          type: boolean
+      required:
+      - restart_required
+      - operations
+      title: EnvironmentState
+      type: object
+    EnvironmentStateNotification:
+      description: Replace the current state for one environment on connection.
+      properties:
+        op:
+          enum:
+          - environment-state
+        source:
+          enum:
+          - kernel
+          - server
+        state:
+          $ref: '#/components/schemas/EnvironmentState'
+      required:
+      - op
+      - source
+      - state
+      title: EnvironmentStateNotification
+      type: object
     EnvironmentVariableDiscoveryValue:
       description: A reference to an environment variable, never its value.
       properties:
@@ -889,51 +973,69 @@ components:
       - msg
       title: ImportStarError
       type: object
-    InstallingPackageAlertNotification:
-      description: "Package installation progress with streaming logs.\n\n    Attributes:\n\
-        \        packages: Package name to status (queued/installing/installed/failed).\n\
-        \        logs: Optional streaming logs per package.\n        log_status: Log\
-        \ stream status (append/start/done).\n        source: Which Python environment\
-        \ packages are installed into.\n                \"kernel\" (default) installs\
-        \ in the kernel's venv; \"server\"\n                installs in the server's\
-        \ own Python env."
+    EnvironmentOperationNotification:
+      description: "Current operation progress and changes to its named log streams.\n\
+        \n    Package statuses replace the previous map. Log chunks append to a stream,\n\
+        \    or replace it when `log_mode` is `replace`. The operation status determines\n\
+        \    completion independently of its packages and output streams."
       properties:
-        log_status:
-          anyOf:
-          - enum:
-            - append
-            - done
-            - start
-          - type: 'null'
-          default: null
+        action:
+          enum:
+          - install
+          - prepare
+          - remove
+          - sync
+        log_mode:
+          enum:
+          - append
+          - replace
         logs:
-          anyOf:
-          - additionalProperties:
-              type: string
-            type: object
-          - type: 'null'
-          default: null
+          additionalProperties:
+            type: string
+          type: object
         op:
           enum:
-          - installing-package-alert
+          - environment-operation
+        operation_id:
+          type: string
         packages:
           additionalProperties:
             enum:
             - failed
-            - installed
-            - installing
             - queued
             - restart-required
+            - running
+            - succeeded
           type: object
         source:
-          default: kernel
           enum:
           - kernel
           - server
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/OperationRunning'
+          - $ref: '#/components/schemas/OperationSucceeded'
+          - $ref: '#/components/schemas/OperationRestartRequired'
+          - $ref: '#/components/schemas/OperationFailed'
+          - $ref: '#/components/schemas/OperationCancelled'
+          discriminator:
+            mapping:
+              cancelled: '#/components/schemas/OperationCancelled'
+              failed: '#/components/schemas/OperationFailed'
+              restart-required: '#/components/schemas/OperationRestartRequired'
+              running: '#/components/schemas/OperationRunning'
+              succeeded: '#/components/schemas/OperationSucceeded'
+            propertyName: kind
       required:
       - op
+      - operation_id
+      - action
+      - status
+      - source
       - packages
-      title: InstallingPackageAlertNotification
+      - logs
+      - log_mode
+      title: EnvironmentOperationNotification
       type: object
     InterruptedNotification:
       description: Kernel was interrupted by user (SIGINT/Ctrl+C).
@@ -1270,6 +1372,62 @@ components:
       - name
       - cells
       title: MultipleDefinitionError
+      type: object
+    OperationCancelled:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+          - cancelled
+      required:
+      - kind
+      title: OperationCancelled
+      type: object
+    OperationFailed:
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+        kind:
+          enum:
+          - failed
+      required:
+      - kind
+      - error
+      title: OperationFailed
+      type: object
+    OperationRestartRequired:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+          - restart-required
+        reason:
+          type: string
+      required:
+      - kind
+      - reason
+      title: OperationRestartRequired
+      type: object
+    OperationRunning:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+          - running
+      required:
+      - kind
+      title: OperationRunning
+      type: object
+    OperationSucceeded:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+          - succeeded
+      required:
+      - kind
+      title: OperationSucceeded
       type: object
     QueryParamsAppendNotification:
       description: "Appends value to URL query parameter.\n\n    Attributes:\n   \

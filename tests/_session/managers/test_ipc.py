@@ -448,6 +448,10 @@ async def test_startup_owns_kernel_process_and_pipes(
     from marimo._config.manager import get_default_config_manager
     from marimo._environments.environment import ProcessPlan
     from marimo._ipc import QueueManager
+    from marimo._messaging.notification import (
+        NotificationMessage,
+        StartupProgressNotification,
+    )
     from marimo._runtime.commands import AppMetadata
     from marimo._session.managers.ipc import (
         IPCKernelManagerImpl,
@@ -455,8 +459,21 @@ async def test_startup_owns_kernel_process_and_pipes(
         KernelStartupError,
     )
     from marimo._session.model import SessionMode
+    from marimo._session.startup import SessionStartup
 
     started = asyncio.Event()
+    output_received = asyncio.Event()
+    event_loop = asyncio.get_running_loop()
+    progress = SessionStartup()
+
+    def notify(notification: NotificationMessage) -> None:
+        assert asyncio.get_running_loop() is event_loop
+        progress.notify(notification)
+        if (
+            isinstance(notification, StartupProgressNotification)
+            and notification.logs
+        ):
+            output_received.set()
 
     async def ready(
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
@@ -483,6 +500,7 @@ async def test_startup_owns_kernel_process_and_pipes(
         )
     )
     output_ready = tmp_path / "output-ready"
+    handshake_ready = tmp_path / "handshake-ready"
     if outcome == "output":
         child_code = "import sys; sys.stdout.write('x' * 131072)"
         code = (
@@ -490,9 +508,12 @@ async def test_startup_owns_kernel_process_and_pipes(
             "from pathlib import Path\n"
             "sys.stdin.read()\n"
             f"socket.create_connection(('127.0.0.1', {port})).send(b'x')\n"
+            "print('Resolving runtime', file=sys.stderr, flush=True)\n"
+            f"while not Path({str(handshake_ready)!r}).exists(): time.sleep(0.01)\n"
             "print('KERNEL_READY', flush=True)\n"
             "print(f'KERNEL_INFO {os.getpid()} {sys.executable}', flush=True)\n"
             f"while not Path({str(output_ready)!r}).exists(): time.sleep(0.01)\n"
+            "print('Runtime output', file=sys.stderr, flush=True)\n"
             # Inherit the kernel's stdout and fill more than the pipe buffer.
             f"result = subprocess.run([sys.executable, '-c', {child_code!r}], stdout=sys.stdout)\n"
             "sys.exit(result.returncode)\n"
@@ -545,16 +566,27 @@ async def test_startup_owns_kernel_process_and_pipes(
             app_config=_AppConfig(),
         ),
         config_manager=get_default_config_manager(current_path=None),
+        on_notification=notify,
     )
     startup = asyncio.create_task(manager.start_kernel())
     try:
         await asyncio.wait_for(started.wait(), 5)
         if outcome == "output":
+            await asyncio.wait_for(output_received.wait(), 5)
+            assert not startup.done()
+            expected_progress = StartupProgressNotification(
+                phase="starting-kernel",
+                logs="Resolving runtime\n",
+                log_mode="replace",
+            )
+            assert progress.view.startup_progress == expected_progress
+            handshake_ready.touch()  # noqa: ASYNC240
             await asyncio.wait_for(startup, 5)
             output_ready.touch()  # noqa: ASYNC240
             assert manager.kernel_task is not None
             await asyncio.to_thread(manager.kernel_task.join, 5)
             assert manager.kernel_task.exitcode == 0
+            assert progress.view.startup_progress == expected_progress
         elif outcome == "cancel":
             startup.cancel()
             with pytest.raises(asyncio.CancelledError):

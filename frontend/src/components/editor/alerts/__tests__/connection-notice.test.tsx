@@ -3,6 +3,8 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
+import type { EnvironmentOperation } from "@/core/alerts/environment";
+import { alertAtom, getPackageAlert } from "@/core/alerts/state";
 import { notebookAtom } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { AppConfigSchema } from "@/core/config/config-schema";
@@ -59,13 +61,13 @@ it("shows both stages in an empty notebook, checks them off, then dismisses Read
       phase: "starting-kernel",
     }),
   );
-  expect(steps.getByText("Environment ready")).toBeInTheDocument();
+  expect(steps.getByText("Environment prepared")).toBeInTheDocument();
   expect(steps.getByText("Starting kernel")).toBeInTheDocument();
   act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
   expect(
     screen.getByRole("heading", { name: "Your notebook is ready" }),
   ).toBeInTheDocument();
-  expect(steps.getByText("Kernel ready")).toBeInTheDocument();
+  expect(steps.getByText("Kernel started")).toBeInTheDocument();
   act(() => vi.advanceTimersByTime(1000));
   expect(screen.getByRole("status")).toHaveTextContent(
     "Your notebook is ready",
@@ -129,11 +131,56 @@ it("shows a sync as a single operation, without pretending to restart the kernel
   const store = mount(true);
   act(() => {
     store.set(connectionAtom, { state: WebSocketState.OPEN });
-    store.set(sandboxSyncAtom, { pending: true, error: null });
+    store.set(sandboxSyncAtom, { kind: "running" });
   });
   act(() => vi.advanceTimersByTime(500));
   expect(screen.getByRole("status")).toHaveTextContent("Syncing sandbox");
   expect(screen.queryByRole("list")).not.toBeInTheDocument();
-  act(() => store.set(sandboxSyncAtom, { pending: false, error: null }));
+  act(() => store.set(sandboxSyncAtom, { kind: "succeeded" }));
   expect(screen.getByRole("status")).toHaveTextContent("Environment synced");
+});
+
+it("restores syncing in the existing status and stays quiet for a completed snapshot", () => {
+  const store = mount(true);
+  const operation: EnvironmentOperation = {
+    operation_id: "sync",
+    action: "sync",
+    source: "kernel",
+    status: { kind: "succeeded" },
+    packages: {},
+    logs: { environment: "Sync complete\n" },
+  };
+  const restore = (status: EnvironmentOperation["status"]) =>
+    store.set(alertAtom, (value) => ({
+      ...value,
+      environments: {
+        ...value.environments,
+        kernel: {
+          restart_required: false,
+          operations: [{ ...operation, status }],
+        },
+      },
+    }));
+  act(() => {
+    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    restore({ kind: "succeeded" });
+  });
+  act(() => vi.advanceTimersByTime(2000));
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+  act(() => restore({ kind: "running" }));
+  act(() => vi.advanceTimersByTime(500));
+  expect(screen.getByRole("status")).toHaveTextContent("Syncing sandbox");
+  expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+  for (const [status, title] of [
+    [{ kind: "failed", error: "Dependency conflict" }, "Sandbox sync failed"],
+    [
+      { kind: "restart-required", reason: "Restart the kernel" },
+      "Sandbox restart required",
+    ],
+    [{ kind: "cancelled" }, "Sandbox sync failed"],
+  ] as const) {
+    act(() => restore(status));
+    expect(screen.getByRole("status")).toHaveTextContent(title);
+  }
 });

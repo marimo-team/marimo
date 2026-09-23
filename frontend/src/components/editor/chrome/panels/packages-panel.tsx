@@ -36,11 +36,7 @@ import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
-import {
-  SandboxFooter,
-  SandboxStartupPanel,
-  SandboxSyncStatus,
-} from "./sandbox-panel";
+import { SandboxDetails } from "./sandbox-panel";
 import { PanelEmptyState } from "./empty-state";
 import { PACKAGES_INPUT_ID, packagesToInstallAtom } from "./packages-utils";
 
@@ -79,15 +75,8 @@ const PackagesPanel: React.FC = () => {
   if (sandbox?.backend) {
     return (
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        {notice && (!connected || notice.kind === "startup") ? (
-          <SandboxStartupPanel notice={notice} />
-        ) : (
-          <>
-            {notice?.kind === "sync" && <SandboxSyncStatus notice={notice} />}
-            <PackageContents />
-          </>
-        )}
-        <SandboxFooter />
+        <SandboxDetails />
+        {connected && <PackageContents />}
       </div>
     );
   }
@@ -110,7 +99,7 @@ const PackagesPanel: React.FC = () => {
 };
 
 const PackageContents: React.FC = () => {
-  const { pending: syncing } = useAtomValue(sandboxSyncAtom);
+  const syncing = useAtomValue(sandboxSyncAtom).kind === "running";
   const [userViewMode, setUserViewMode] = React.useState<ViewMode | null>(null);
   const { data: dependencies, error, isPending } = usePackageDependencies();
 

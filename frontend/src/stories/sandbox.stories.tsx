@@ -4,10 +4,14 @@ import { createStore, Provider, useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import PackagesPanel from "@/components/editor/chrome/panels/packages-panel";
+import { PanelSectionProvider } from "@/components/editor/chrome/panels/panel-context";
+import { SandboxToggle } from "@/components/editor/chrome/panels/sandbox-toggle";
 import { SandboxController } from "@/components/editor/chrome/panels/sandbox-controller";
 import { chromeAtom } from "@/components/editor/chrome/state";
 import { Cell } from "@/components/editor/notebook-cell";
 import { VerticalLayoutWrapper } from "@/components/editor/renderers/vertical-layout/vertical-layout-wrapper";
+import { alertAtom } from "@/core/alerts/state";
+import type { EnvironmentOperation } from "@/core/alerts/environment";
 import {
   createNotebookActions,
   notebookAtom,
@@ -20,14 +24,10 @@ import {
   defaultUserConfig,
 } from "@/core/config/config-schema";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
-import { connectionAtom } from "@/core/network/connection";
+import { connectionAtom, startupProgressAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { createStaticRequests } from "@/core/network/requests-static";
-import {
-  sandboxActionsAtom,
-  sandboxAtom,
-  sandboxSyncAtom,
-} from "@/core/packages/sandbox-state";
+import { sandboxActionsAtom, sandboxAtom } from "@/core/packages/sandbox-state";
 import { filenameAtom } from "@/core/saving/file-state";
 import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
 import { HTTPError } from "@/utils/errors";
@@ -44,6 +44,19 @@ description = "Explore bike trips"
 const resolutionError = `No solution found when resolving dependencies:
   Because there is no version of rich==999.0.0 and your script depends
   on rich==999.0.0, your script's requirements are unsatisfiable.`;
+const preparationOutput = `Using Python 3.13
+Resolving notebook dependencies
+Resolved 24 packages
+Downloading polars
+Downloading rich
+Downloading marimo
+Downloading pyzmq
+Downloaded rich
+Downloaded polars
+Downloaded marimo
+Preparing packages
+Installing packages
+`;
 
 interface Props {
   surface: "notebook" | "packages" | "manifest";
@@ -53,7 +66,9 @@ interface Props {
     | "failed"
     | "ready"
     | "syncing"
-    | "sync-failed";
+    | "sync-failed"
+    | "synced"
+    | "restart-required";
   existingCells: boolean;
   backend: "uv" | "pixi";
   saveResult: "success" | "failure" | "stale";
@@ -82,8 +97,13 @@ function SandboxPreview({
     >
       {showPackages && props.surface !== "manifest" && (
         <aside className="flex flex-col w-[300px] shrink-0 border-r h-[520px]">
-          <div className="px-4 py-3 border-b text-sm">Packages</div>
-          <PackagesPanel />
+          <div className="flex items-center justify-between px-3 py-2 border-b text-sm">
+            Packages
+            <SandboxToggle section="sidebar" />
+          </div>
+          <PanelSectionProvider value="sidebar">
+            <PackagesPanel />
+          </PanelSectionProvider>
         </aside>
       )}
       {props.surface === "notebook" && (
@@ -169,9 +189,74 @@ function SandboxStory(props: Props) {
       kernelStartupErrorAtom,
       props.phase === "failed" ? resolutionError : null,
     );
-    state.set(sandboxSyncAtom, {
-      pending: props.phase === "syncing",
-      error: props.phase === "sync-failed" ? resolutionError : null,
+    const syncStatus: EnvironmentOperation["status"] | null =
+      props.phase === "syncing"
+        ? { kind: "running" }
+        : props.phase === "sync-failed"
+          ? { kind: "failed", error: resolutionError }
+          : props.phase === "restart-required"
+            ? {
+                kind: "restart-required",
+                reason:
+                  "The manifest requires Python 3.14. This kernel uses Python 3.13.",
+              }
+            : props.phase === "synced"
+              ? { kind: "succeeded" }
+              : null;
+    state.set(alertAtom, (value) => ({
+      ...value,
+      environments: {
+        ...value.environments,
+        kernel: {
+          restart_required: props.phase === "restart-required",
+          operations: [
+            {
+              operation_id: "story-preparation",
+              action: "prepare",
+              source: "kernel",
+              status:
+                props.phase === "failed"
+                  ? { kind: "failed", error: resolutionError }
+                  : props.phase === "preparing"
+                    ? { kind: "running" }
+                    : { kind: "succeeded" },
+              packages: {},
+              logs: {
+                environment:
+                  props.phase === "failed"
+                    ? resolutionError
+                    : preparationOutput,
+              },
+            },
+            ...(syncStatus
+              ? [
+                  {
+                    operation_id: "story-sync",
+                    action: "sync" as const,
+                    source: "kernel" as const,
+                    status: syncStatus,
+                    packages: {},
+                    logs: {
+                      environment:
+                        "Reading notebook manifest\nResolving dependencies\nChecking Python version\n",
+                    },
+                  },
+                ]
+              : []),
+          ],
+        },
+      },
+    }));
+    state.set(startupProgressAtom, {
+      phase:
+        props.phase !== "preparing" && props.phase !== "failed"
+          ? "starting-kernel"
+          : "preparing-environment",
+      logs:
+        props.phase !== "preparing" && props.phase !== "failed"
+          ? "Launching kernel process\nUsing /home/user/.cache/uv/environments-v2/bike-trips-a274bddc/bin/python\nWaiting for kernel connection\n"
+          : "",
+      log_mode: "replace",
     });
     if (props.existingCells) {
       const actions = createNotebookActions((action) =>
@@ -248,15 +333,36 @@ function SandboxStory(props: Props) {
     if (!props.interactive) {
       return;
     }
+    const appendPreparation = (line: string) =>
+      store.set(alertAtom, (value) => ({
+        ...value,
+        environments: {
+          ...value.environments,
+          kernel: {
+            ...value.environments.kernel,
+            operations: value.environments.kernel.operations.map(
+              (operation) => ({
+                ...operation,
+                logs: { environment: operation.logs.environment + line },
+              }),
+            ),
+          },
+        },
+      }));
     const timers = [
-      setTimeout(
-        () =>
-          store.set(connectionAtom, {
-            state: WebSocketState.CONNECTING,
-            phase: "starting-kernel",
-          }),
-        3500,
-      ),
+      setTimeout(() => appendPreparation("Installed 24 packages\n"), 1500),
+      setTimeout(() => appendPreparation("Environment prepared\n"), 2500),
+      setTimeout(() => {
+        store.set(startupProgressAtom, {
+          phase: "starting-kernel",
+          logs: "Launching kernel process\nWaiting for kernel connection\n",
+          log_mode: "replace",
+        });
+        store.set(connectionAtom, {
+          state: WebSocketState.CONNECTING,
+          phase: "starting-kernel",
+        });
+      }, 3500),
       setTimeout(
         () => store.set(connectionAtom, { state: WebSocketState.OPEN }),
         5500,
@@ -332,6 +438,14 @@ export const PackagesPreparing: Story = {
   name: "Setup details / preparing",
   args: { surface: "packages" },
 };
+export const PackagesStarting: Story = {
+  name: "Setup details / starting kernel",
+  args: { surface: "packages", phase: "starting" },
+};
+export const PackagesStartupTransition: Story = {
+  name: "Setup details / live output",
+  args: { surface: "packages", interactive: true },
+};
 export const PackagesFailed: Story = {
   name: "Setup details / failed",
   args: { surface: "packages", phase: "failed" },
@@ -347,6 +461,14 @@ export const PackagesSyncing: Story = {
 export const PackagesSyncFailed: Story = {
   name: "Setup details / sync failed",
   args: { surface: "packages", phase: "sync-failed" },
+};
+export const PackagesSynced: Story = {
+  name: "Setup details / sync completed",
+  args: { surface: "packages", phase: "synced" },
+};
+export const PackagesRestartRequired: Story = {
+  name: "Setup details / restart required",
+  args: { surface: "packages", phase: "restart-required" },
 };
 export const PixiPackagesReady: Story = {
   name: "Status row / pixi",

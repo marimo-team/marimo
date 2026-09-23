@@ -14,6 +14,8 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.notification import (
     AlertNotification,
     BannerNotification,
+    EnvironmentOperationNotification,
+    EnvironmentStateNotification,
     NotificationMessage,
     ReconnectedNotification,
     StartupProgressNotification,
@@ -202,10 +204,19 @@ class SessionHandler(SessionConsumer, abc.ABC):
         )
 
     def notify(self, notification: KernelMessage) -> None:
+        name = deserialize_kernel_notification_name(notification)
         if (
             self._startup_queue is not None
-            and deserialize_kernel_notification_name(notification)
-            == StartupProgressNotification.name
+            and self.status == ConnectionState.CONNECTING
+            and (
+                name == StartupProgressNotification.name
+                or self._session is None
+                and name
+                in (
+                    EnvironmentOperationNotification.name,
+                    EnvironmentStateNotification.name,
+                )
+            )
         ):
             self._startup_queue.put_nowait(notification)
         else:
@@ -300,6 +311,7 @@ class SessionHandler(SessionConsumer, abc.ABC):
                     description="You have reconnected to an existing session.",
                 )
             )
+            self._write_environment_state(session)
             return
 
         self._write_kernel_ready_from_session_view(session, self.params.kiosk)
@@ -345,8 +357,24 @@ class SessionHandler(SessionConsumer, abc.ABC):
         # Replay all operations
         self._replay_previous_session(session)
 
+    def _write_environment_state(self, session: Session) -> None:
+        # Attachment and snapshot delivery run in one event-loop turn, before
+        # any later live deltas. Empty states also clear a previous session.
+        for source in ("kernel", "server"):
+            self._serialize_and_notify(
+                EnvironmentStateNotification(
+                    source=source,
+                    state=session.session_view.get_environment_state(source),
+                )
+            )
+        if session.session_view.startup_progress is not None:
+            # Completed startup follows kernel-ready/reconnected on the normal
+            # queue, so replay cannot put a ready notebook back into startup.
+            self._serialize_and_notify(session.session_view.startup_progress)
+
     def _replay_previous_session(self, session: Session) -> None:
         """Replay the previous session view."""
+        self._write_environment_state(session)
         notifications = session.session_view.notifications
         if len(notifications) == 0:
             LOGGER.debug("No notifications to replay")
