@@ -30,7 +30,7 @@ export function useExpandedOutput(cellId: CellId) {
   const { updateCellConfig } = useCellActions();
   // Select just the flag: every output would otherwise re-render on each
   // keystroke in its cell.
-  const configState = useAtomValue(
+  const isConfigExpanded = useAtomValue(
     useMemo(
       () =>
         selectAtom(
@@ -41,20 +41,20 @@ export function useExpandedOutput(cellId: CellId) {
       [cellId],
     ),
   );
-  const [sessionState, setSessionState] = useState(
-    () => expandedOutputs[cellId] ?? configState,
+  const [isSessionExpanded, setIsSessionExpanded] = useState(
+    () => expandedOutputs[cellId] ?? isConfigExpanded,
   );
 
   // Sync state to external storage
   useEffect(() => {
-    expandedOutputs[cellId] = sessionState;
-  }, [cellId, sessionState]);
+    expandedOutputs[cellId] = isSessionExpanded;
+  }, [cellId, isSessionExpanded]);
 
   const isEditable = mode === "edit";
-  const isExpanded = isEditable ? configState : sessionState;
+  const isExpanded = isEditable ? isConfigExpanded : isSessionExpanded;
 
   const setIsExpanded = useEvent((expanded: boolean) => {
-    setSessionState(expanded);
+    setIsSessionExpanded(expanded);
     if (!isEditable) {
       return;
     }
@@ -76,14 +76,16 @@ export function useExpandedOutput(cellId: CellId) {
  * output stays a per-session, in-memory toggle.
  */
 export function useExpandedConsoleOutput(cellId: CellId) {
-  const [state, setState] = useState(expandedConsoleOutputs[cellId] ?? false);
+  const [isExpanded, setIsExpanded] = useState(
+    expandedConsoleOutputs[cellId] ?? false,
+  );
 
   // Sync state to external storage
   useEffect(() => {
-    expandedConsoleOutputs[cellId] = state;
-  }, [cellId, state]);
+    expandedConsoleOutputs[cellId] = isExpanded;
+  }, [cellId, isExpanded]);
 
-  return [state, setState] as const;
+  return [isExpanded, setIsExpanded] as const;
 }
 
 export function isOutputEmpty(
