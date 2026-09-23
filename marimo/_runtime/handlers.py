@@ -12,6 +12,7 @@ from marimo._runtime.context import get_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._utils.signals import SigintHandler
 
 LOGGER = _loggers.marimo_logger()
 
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
     from marimo._runtime.runtime import Kernel
 
 
-def construct_interrupt_handler() -> Callable[[int, Any], None]:
+def construct_interrupt_handler() -> SigintHandler:
     def interrupt_handler(signum: int, frame: Any) -> None:
         """Tries to interrupt the kernel."""
         del signum
@@ -71,7 +72,7 @@ def construct_interrupt_handler() -> Callable[[int, Any], None]:
             sched.cancel_all()
         raise MarimoInterrupt
 
-    return interrupt_handler
+    return SigintHandler(interrupt_handler)
 
 
 def construct_sigterm_handler(kernel: Kernel) -> Callable[[int, Any], None]:
