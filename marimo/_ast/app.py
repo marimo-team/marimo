@@ -435,6 +435,7 @@ class App:
         column: int | None = None,
         disabled: bool = False,
         hide_code: bool = False,
+        expand_output: bool = False,
         **kwargs: Any,
     ) -> Fn[P, R] | Callable[[Fn[P, R]], Fn[P, R]]:
         """A decorator to wrap a callable function into a marimo cell.
@@ -463,6 +464,9 @@ class App:
             column: The column number to place this cell in.
             disabled: Whether to disable the cell.
             hide_code: Whether to hide the cell's code.
+            expand_output: Whether to show the cell's output in full; when
+                False, a tall output is clamped to a fixed height in the
+                editor. Does not affect console output.
             **kwargs: For forward-compatibility with future arguments.
         """
         del kwargs
@@ -474,6 +478,7 @@ class App:
                 column,
                 disabled,
                 hide_code,
+                expand_output=expand_output,
                 app=InternalApp(self),
                 top_level=True,
             ),
@@ -492,6 +497,7 @@ class App:
         column: int | None = None,
         disabled: bool = False,
         hide_code: bool = False,
+        expand_output: bool = False,
         **kwargs: Any,
     ) -> Cls | Callable[[Cls], Cls]:
         """A decorator to wrap a class into a marimo cell.
@@ -518,6 +524,9 @@ class App:
             column: The column number to place this cell in.
             disabled: Whether to disable the cell.
             hide_code: Whether to hide the cell's code.
+            expand_output: Whether to show the cell's output in full; when
+                False, a tall output is clamped to a fixed height in the
+                editor. Does not affect console output.
             **kwargs: For forward-compatibility with future arguments.
         """
         del kwargs
@@ -529,6 +538,7 @@ class App:
                 column,
                 disabled,
                 hide_code,
+                expand_output=expand_output,
                 app=InternalApp(self),
                 top_level=True,
             ),
