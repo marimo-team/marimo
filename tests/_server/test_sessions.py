@@ -1150,6 +1150,7 @@ async def test_session_script_dotenv_reaches_the_kernel_config(
         )
     )
     session = await SessionImpl.create(
+        startup=SessionStartup(),
         initialization_id="test_id",
         session_consumer=session_consumer,
         mode=SessionMode.RUN,
