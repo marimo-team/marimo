@@ -37,7 +37,7 @@ class UIElementRegistry:
             # on cell re-run, a UI element may be (re)-registered before
             # its destructor was called, so manually delete the old element
             # here
-            self.delete(object_id, id(self._objects[object_id]))
+            self.delete(object_id, id(self._objects[object_id]()))
         self._objects[object_id] = weakref.ref(ui_element)
         assert execution_context is not None
         self._constructing_cells[object_id] = execution_context.cell_id
