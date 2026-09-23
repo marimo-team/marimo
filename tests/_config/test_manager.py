@@ -430,7 +430,7 @@ def test_default_dotenv_skips_the_home_directory(
     home = tmp_path / "home"
     home.mkdir()
     (home / ".env").write_text("KEY=value")
-    monkeypatch.setenv("HOME", str(home))
+    _set_home(monkeypatch, home)
     notebook_path = home / "nb.py"
     notebook_path.write_text("import marimo as mo")
 
@@ -449,7 +449,7 @@ def test_default_dotenv_applies_to_a_pyproject_in_the_home_directory(
     home = tmp_path / "home"
     home.mkdir()
     (home / "pyproject.toml").write_text("")
-    monkeypatch.setenv("HOME", str(home))
+    _set_home(monkeypatch, home)
     notebook_path = home / "nb.py"
     notebook_path.write_text("import marimo as mo")
 
@@ -464,7 +464,7 @@ def test_explicit_dotenv_resolves_in_the_home_directory(
     _isolate_user_config(monkeypatch, tmp_path, "")
     home = tmp_path / "home"
     home.mkdir()
-    monkeypatch.setenv("HOME", str(home))
+    _set_home(monkeypatch, home)
     notebook_path = home / "nb.py"
     notebook_path.write_text(
         textwrap.dedent(
@@ -592,6 +592,13 @@ def _isolate_user_config(
     )
 
 
+def _set_home(monkeypatch: pytest.MonkeyPatch, home: Path) -> None:
+    """Point `~` at a temporary directory on every platform."""
+    # NB. os.path.expanduser reads HOME on POSIX and USERPROFILE on Windows.
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+
+
 def _write_notebook(tmp_path: Path, *, with_pyproject: bool) -> Path:
     """Write a notebook, under a pyproject.toml that says nothing about dotenv."""
     project = tmp_path / "project"
@@ -701,7 +708,7 @@ def test_project_config_dotenv_keeps_absolute_and_parent_paths(
     assert config["runtime"]["dotenv"] == [
         str(notebook_path.parent / ".env"),
         str(notebook_path.parent / "../shared/.env"),
-        shared.as_posix(),
+        str(shared),
     ]
 
 
@@ -825,7 +832,7 @@ def test_script_config_manager_dotenv_anchors_on_project(
 
     assert config["runtime"]["dotenv"] == [
         str(project / ".env"),
-        shared.as_posix(),
+        str(shared),
     ]
 
 
