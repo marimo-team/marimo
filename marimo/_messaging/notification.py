@@ -570,7 +570,7 @@ class EnvironmentOperation(msgspec.Struct, frozen=True):
 
 
 class EnvironmentState(msgspec.Struct, frozen=True):
-    """Active operations, the latest result, and an outstanding restart."""
+    """Preparation, active operations, the latest mutation, and restarts."""
 
     restart_required: bool
     operations: list[EnvironmentOperation]

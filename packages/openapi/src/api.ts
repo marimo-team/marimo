@@ -4937,7 +4937,7 @@ export interface components {
     };
     /**
      * EnvironmentState
-     * @description Active operations, the latest result, and an outstanding restart.
+     * @description Preparation, active operations, the latest mutation, and restarts.
      */
     EnvironmentState: {
       operations: components["schemas"]["EnvironmentOperation"][];

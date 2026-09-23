@@ -251,8 +251,9 @@ export function useMarimoKernelConnection(opts: {
         const { phase } = msg.data;
         updateStartupProgress(msg.data);
         setConnection((previous) =>
-          previous.state === WebSocketState.CONNECTING &&
-          previous.phase === phase
+          previous.state === WebSocketState.OPEN ||
+          (previous.state === WebSocketState.CONNECTING &&
+            previous.phase === phase)
             ? previous
             : { state: WebSocketState.CONNECTING, phase },
         );
@@ -548,6 +549,7 @@ export function useMarimoKernelConnection(opts: {
      * The transport is open; kernel-ready establishes session readiness.
      */
     onOpen: async () => {
+      updateStartupProgress(null);
       // If we are open, we can reset our reconnecting flag.
       shouldTryReconnecting.current = true;
     },

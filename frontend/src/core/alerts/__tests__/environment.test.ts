@@ -129,3 +129,55 @@ describe("environment progress", () => {
     });
   });
 });
+
+it("retains preparation through later package changes and replaces it on a new attempt", () => {
+  const preparation = progress("prepare", {
+    action: "prepare",
+    status: { kind: "succeeded" },
+    packages: {},
+    logs: { environment: "Prepared environment\n" },
+  });
+  let state = reduceEnvironmentState(emptyEnvironmentState(), preparation);
+  const retained = state.operations[0];
+  for (const action of ["install", "sync", "remove"] as const) {
+    state = reduceEnvironmentState(state, progress(action, { action }));
+    state = reduceEnvironmentState(
+      state,
+      progress(action, {
+        action,
+        status: { kind: "succeeded" },
+        packages: { numpy: "succeeded" },
+        logs: {},
+      }),
+    );
+    expect(state.operations).toEqual([
+      retained,
+      {
+        operation_id: action,
+        action,
+        source: "kernel",
+        status: { kind: "succeeded" },
+        packages: { numpy: "succeeded" },
+        logs: { numpy: "Downloading\n" },
+      },
+    ]);
+  }
+  state = reduceEnvironmentState(
+    state,
+    progress("prepare-again", {
+      action: "prepare",
+      packages: {},
+      logs: {},
+    }),
+  );
+  expect(state.operations).toEqual([
+    {
+      operation_id: "prepare-again",
+      action: "prepare",
+      source: "kernel",
+      status: { kind: "running" },
+      packages: {},
+      logs: {},
+    },
+  ]);
+});

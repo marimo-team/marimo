@@ -35,7 +35,8 @@ export function reduceEnvironmentState(
   const operations = state.operations.filter(
     (item) =>
       (previous && update.status.kind === "running") ||
-      item.status.kind === "running",
+      item.status.kind === "running" ||
+      (item.action === "prepare" && update.action !== "prepare"),
   );
   const index = operations.findIndex(
     (item) => item.operation_id === update.operation_id,

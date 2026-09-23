@@ -205,13 +205,17 @@ class SessionHandler(SessionConsumer, abc.ABC):
 
     def notify(self, notification: KernelMessage) -> None:
         name = deserialize_kernel_notification_name(notification)
-        if self._startup_queue is not None and (
-            name == StartupProgressNotification.name
-            or self._session is None
-            and name
-            in (
-                EnvironmentOperationNotification.name,
-                EnvironmentStateNotification.name,
+        if (
+            self._startup_queue is not None
+            and self.status == ConnectionState.CONNECTING
+            and (
+                name == StartupProgressNotification.name
+                or self._session is None
+                and name
+                in (
+                    EnvironmentOperationNotification.name,
+                    EnvironmentStateNotification.name,
+                )
             )
         ):
             self._startup_queue.put_nowait(notification)
@@ -363,6 +367,10 @@ class SessionHandler(SessionConsumer, abc.ABC):
                     state=session.session_view.get_environment_state(source),
                 )
             )
+        if session.session_view.startup_progress is not None:
+            # Completed startup follows kernel-ready/reconnected on the normal
+            # queue, so replay cannot put a ready notebook back into startup.
+            self._serialize_and_notify(session.session_view.startup_progress)
 
     def _replay_previous_session(self, session: Session) -> None:
         """Replay the previous session view."""

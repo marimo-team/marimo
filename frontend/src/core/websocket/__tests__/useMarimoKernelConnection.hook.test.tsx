@@ -379,6 +379,30 @@ describe("connection notice", () => {
     });
   });
 
+  it("restores completed startup output without putting a connected kernel back into startup", async () => {
+    const { store, options, send } = renderNotice();
+    send({ op: "reconnected" });
+    send({
+      op: "startup-progress",
+      phase: "starting-kernel",
+      logs: "Kernel startup output\n",
+      log_mode: "replace",
+    });
+    expect(store.get(connectionAtom)).toEqual({ state: WebSocketState.OPEN });
+    expect(store.get(startupProgressAtom)).toEqual({
+      phase: "starting-kernel",
+      logs: "Kernel startup output\n",
+    });
+    act(() => vi.advanceTimersByTime(500));
+    expect(
+      screen.queryByRole("region", { name: "Notebook startup" }),
+    ).not.toBeInTheDocument();
+
+    // A new transport starts from the next session's authoritative snapshot.
+    await act(async () => options.onOpen(new Event("open")));
+    expect(store.get(startupProgressAtom)).toBeNull();
+  });
+
   it("does not flash a notice when startup finishes within the delay", () => {
     const { send } = renderNotice();
     send({

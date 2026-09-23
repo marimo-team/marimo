@@ -13,7 +13,9 @@ from starlette.websockets import WebSocketDisconnect, WebSocketState
 from marimo._config.config import ExperimentalConfig
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.notification import (
+    EnvironmentOperationNotification,
     KernelReadyNotification,
+    OperationSucceeded,
     StartupProgressNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
@@ -126,7 +128,8 @@ async def test_failed_startup_progress_delivery_detaches_session(
 
     async def connect(_connection: Any) -> tuple[Any, ConnectionType]:
         handler.on_attach(session, MagicMock())
-        handler.status = ConnectionState.OPEN
+        # Progress reaches the startup queue only while the handler is still
+        # connecting; once open, it travels with session messages instead.
         handler.notify(
             serialize_kernel_message(
                 StartupProgressNotification(
@@ -134,6 +137,7 @@ async def test_failed_startup_progress_delivery_detaches_session(
                 )
             )
         )
+        handler.status = ConnectionState.OPEN
         return session, ConnectionType.NEW
 
     with patch.object(handler, "_connect_session", side_effect=connect):
@@ -188,6 +192,59 @@ def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({"resumed": True}))
         assert manager.sessions[SessionId("456")].stable_id == stable_id
+
+
+def test_completed_startup_is_restored_on_reconnect_and_refresh(
+    client: TestClient,
+) -> None:
+    manager = get_session_manager(client)
+    progress = StartupProgressNotification(
+        phase="starting-kernel",
+        logs="Kernel startup output\n",
+        log_mode="append",
+    )
+    with client.websocket_connect(WS_URL) as websocket:
+        assert_kernel_ready_response(websocket.receive_json())
+        view = manager.sessions[SessionId("123")].session_view
+        view.add_notification(
+            EnvironmentOperationNotification(
+                operation_id="prepare",
+                action="prepare",
+                source="kernel",
+                status=OperationSucceeded(),
+                packages={},
+                logs={"environment": "Prepared environment\n"},
+                log_mode="replace",
+            )
+        )
+        view.add_notification(progress)
+        websocket.close()
+
+    for url in (WS_URL, OTHER_WS_URL):
+        with client.websocket_connect(url) as websocket:
+            assert websocket.receive_json()["op"] == "reconnected"
+            message = websocket.receive_json()
+            if url == OTHER_WS_URL:
+                assert_kernel_ready_response(
+                    message, create_response({"resumed": True})
+                )
+            else:
+                assert message["op"] == "alert"
+            environment = receive_until("environment-state", websocket)["data"]
+            assert environment["source"] == "kernel"
+            assert environment["state"]["operations"][0]["logs"] == {
+                "environment": "Prepared environment\n"
+            }
+            restored = receive_until("startup-progress", websocket)
+            assert restored == {
+                "op": "startup-progress",
+                "data": {
+                    "op": "startup-progress",
+                    "phase": "starting-kernel",
+                    "logs": "Kernel startup output\n",
+                    "log_mode": "replace",
+                },
+            }
 
 
 def test_allows_multiple_connections_with_other_sessions(

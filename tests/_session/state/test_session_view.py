@@ -22,6 +22,7 @@ from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
+    EnvironmentAction,
     EnvironmentOperation,
     EnvironmentOperationNotification,
     EnvironmentOperationStatus,
@@ -2364,3 +2365,66 @@ class TestUpdateCellOutputs:
         assert (
             session_view.cell_notifications[cell_id].output == malformed_output
         )
+
+
+def test_preparation_remains_available_after_package_changes(
+    session_view: SessionView,
+) -> None:
+    session_view.add_notification(
+        EnvironmentOperationNotification(
+            operation_id="prepare",
+            action="prepare",
+            source="kernel",
+            status=OperationSucceeded(),
+            packages={},
+            logs={"environment": "Prepared environment\n"},
+            log_mode="replace",
+        )
+    )
+    preparation = session_view.get_environment_state("kernel").operations[0]
+    actions: tuple[EnvironmentAction, ...] = ("install", "sync", "remove")
+    for action in actions:
+        for status in (OperationRunning(), OperationSucceeded()):
+            session_view.add_notification(
+                EnvironmentOperationNotification(
+                    operation_id=action,
+                    action=action,
+                    source="kernel",
+                    status=status,
+                    packages={},
+                    logs={"environment": action},
+                    log_mode="replace",
+                )
+            )
+        assert session_view.get_environment_state("kernel").operations == [
+            preparation,
+            EnvironmentOperation(
+                operation_id=action,
+                action=action,
+                source="kernel",
+                status=OperationSucceeded(),
+                packages={},
+                logs={"environment": action},
+            ),
+        ]
+    session_view.add_notification(
+        EnvironmentOperationNotification(
+            operation_id="new-preparation",
+            action="prepare",
+            source="kernel",
+            status=OperationRunning(),
+            packages={},
+            logs={},
+            log_mode="replace",
+        )
+    )
+    assert session_view.get_environment_state("kernel").operations == [
+        EnvironmentOperation(
+            operation_id="new-preparation",
+            action="prepare",
+            source="kernel",
+            status=OperationRunning(),
+            packages={},
+            logs={},
+        ),
+    ]

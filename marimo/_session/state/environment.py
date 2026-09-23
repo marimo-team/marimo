@@ -14,7 +14,7 @@ def reduce_environment_state(
     state: EnvironmentState,
     notification: EnvironmentOperationNotification,
 ) -> EnvironmentState:
-    """Retain active attempts, the latest result, and outstanding restarts."""
+    """Retain preparation, active attempts, and the latest mutation result."""
     operations = {
         attempt.operation_id: attempt for attempt in state.operations
     }
@@ -26,6 +26,8 @@ def reduce_environment_state(
             operation_id: attempt
             for operation_id, attempt in operations.items()
             if isinstance(attempt.status, OperationRunning)
+            or attempt.action == "prepare"
+            and notification.action != "prepare"
         }
     packages = dict(notification.packages)
     logs = dict(previous.logs) if previous is not None else {}

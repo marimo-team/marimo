@@ -18,14 +18,18 @@ type StartupProgress = NotificationMessageData<"startup-progress">;
 
 export const startupProgressAtom = atomWithReducer<
   Pick<StartupProgress, "phase" | "logs"> | null,
-  StartupProgress
->(null, (previous, update: StartupProgress) => ({
-  phase: update.phase,
-  logs:
-    update.log_mode === "append" && previous?.phase === update.phase
-      ? previous.logs + update.logs
-      : update.logs,
-}));
+  StartupProgress | null
+>(null, (previous, update: StartupProgress | null) =>
+  update === null
+    ? null
+    : {
+        phase: update.phase,
+        logs:
+          update.log_mode === "append" && previous?.phase === update.phase
+            ? previous.logs + update.logs
+            : update.logs,
+      },
+);
 
 export function waitForConnectionOpen() {
   return waitFor(connectionAtom, (value) => {
