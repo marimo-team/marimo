@@ -271,3 +271,41 @@ def test_owner_registry_delete_removes_function_namespace(
     assert ctx.function_registry.get_function(object_id, "function") is None
     with pytest.raises(KeyError):
         ctx.ui_element_registry.get_object(object_id)
+
+
+def test_reregister_cleans_up_previous_element(
+    executing_kernel: Kernel,
+) -> None:
+    # Regression test for #9551: re-registering an object_id must clean up
+    # the previously registered element. `register` used to pass the id of
+    # the weakref wrapper instead of the referent, so `delete`'s python_id
+    # guard never matched and stale state (function namespace, bindings,
+    # constructing cell) leaked.
+    del executing_kernel
+    ctx = get_context()
+    object_id = UIElementId("reused-object-id")
+    function = Function(
+        name="function",
+        arg_cls=EmptyArgs,
+        function=lambda _args: None,
+    )
+    ctx.function_registry.register(namespace=object_id, function=function)
+
+    first = _CyclicDummy()
+    ctx.ui_element_registry.register(
+        object_id,
+        cast("UIElement[Any, Any]", first),
+    )
+
+    second = _CyclicDummy()
+    ctx.ui_element_registry.register(
+        object_id,
+        cast("UIElement[Any, Any]", second),
+    )
+
+    # The stale function namespace from the first registration is gone.
+    assert ctx.function_registry.get_function(object_id, "function") is None
+    # The registry now resolves to the newly registered element.
+    assert ctx.ui_element_registry.get_object(object_id) is cast(
+        "UIElement[Any, Any]", second
+    )
