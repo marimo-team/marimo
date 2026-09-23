@@ -337,11 +337,16 @@ def test_is_marimo_dependency():
     assert is_marimo_dependency("marimo[extras]>=0.1.0")
     assert is_marimo_dependency("marimo[extras]<=0.1.0")
 
+    # With the "!=" exclusion specifier (PEP 440)
+    assert is_marimo_dependency("marimo!=0.1.0")
+    assert is_marimo_dependency("marimo[extras]!=0.1.0")
+
     # With other packages
     assert not is_marimo_dependency("numpy")
     assert not is_marimo_dependency("pandas")
     assert not is_marimo_dependency("marimo-ai")
     assert not is_marimo_dependency("marimo-ai==0.1.0")
+    assert not is_marimo_dependency("marimo-ai!=0.1.0")
 
 
 def test_has_marimo_in_script_metadata(tmp_path):
