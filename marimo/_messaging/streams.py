@@ -4,6 +4,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import signal
 import sys
 import threading
 from collections import deque
@@ -32,6 +33,7 @@ from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
+    from types import FrameType
 
 LOGGER = _loggers.marimo_logger()
 
@@ -93,6 +95,34 @@ class QueuePipe(PipeProtocol):
         self._queue.put_nowait(obj)
 
 
+@contextlib.contextmanager
+def _defer_sigint() -> Iterator[None]:
+    """Defer SIGINT until the stream's transport lock has been released."""
+    # Signal handlers run on the main thread; worker writes cannot reenter.
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+
+    handler = signal.getsignal(signal.SIGINT)
+    if not callable(handler):
+        yield
+        return
+
+    pending: tuple[int, FrameType | None] | None = None
+
+    def defer(signum: int, frame: FrameType | None) -> None:
+        nonlocal pending
+        pending = (signum, frame)
+
+    signal.signal(signal.SIGINT, defer)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGINT, handler)
+        if pending is not None:
+            handler(*pending)
+
+
 class ThreadSafeStream(Stream):
     """A thread-safe wrapper around a pipe.
 
@@ -129,7 +159,9 @@ class ThreadSafeStream(Stream):
         self.input_queue = input_queue
 
     def write(self, data: KernelMessage) -> None:
-        with self.stream_lock:
+        # The interrupt handler also writes to this stream. Finish the send
+        # and release the lock before allowing it to run.
+        with _defer_sigint(), self.stream_lock:
             try:
                 self.pipe.send(data)
             except OSError as e:
