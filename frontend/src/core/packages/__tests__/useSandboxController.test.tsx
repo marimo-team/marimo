@@ -3,6 +3,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { Provider } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
+import {
+  emptyEnvironmentState,
+  type EnvironmentOperation,
+} from "@/core/alerts/environment";
+import { alertAtom } from "@/core/alerts/state";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
 import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
@@ -25,6 +30,8 @@ import { useSandboxController } from "../useSandboxController";
 vi.mock("../toast-components", () => ({
   showPackageRestartToast: vi.fn(),
   showSandboxSyncToast: vi.fn(),
+  RESTART_REQUIRED_DESCRIPTION:
+    "Restart the kernel to use the updated environment.",
 }));
 
 const manifest = 'dependencies = ["numpy"]';
@@ -35,8 +42,15 @@ const sandbox: SandboxResponse = {
 };
 
 beforeEach(() => {
+  store.set(alertAtom, (value) => ({
+    ...value,
+    environments: {
+      kernel: emptyEnvironmentState(),
+      server: emptyEnvironmentState(),
+    },
+  }));
   store.set(sandboxAtom, null);
-  store.set(sandboxSyncAtom, { pending: false, error: null });
+  store.set(sandboxSyncAtom, { kind: "succeeded" });
   store.set(sandboxActionsAtom, null);
   store.set(connectionAtom, { state: WebSocketState.OPEN });
   store.set(kernelStartupErrorAtom, null);
@@ -65,6 +79,73 @@ function setup() {
 }
 
 describe("useSandboxController", () => {
+  it("preserves a restart-required response instead of reporting a failed sync", async () => {
+    const { client, result } = setup();
+    vi.mocked(client.syncSandbox).mockResolvedValue({
+      success: false,
+      restartRequired: true,
+      error: "Python version changed",
+    });
+    await act(async () => {
+      expect(await store.get(sandboxActionsAtom)?.sync()).toBe(false);
+    });
+    expect(store.get(sandboxSyncAtom)).toEqual({
+      kind: "restart-required",
+      reason: "Python version changed",
+    });
+    expect(result.current.pending).toBe(false);
+    expect(result.current.diagnostic).toBe("Python version changed");
+  });
+
+  it("restores sync progress and lets a retry replace the restored failure", async () => {
+    const operation: EnvironmentOperation = {
+      operation_id: "sync",
+      action: "sync",
+      source: "kernel",
+      status: { kind: "running" },
+      packages: {},
+      logs: {},
+    };
+    const restore = (status: EnvironmentOperation["status"]) =>
+      store.set(alertAtom, (value) => ({
+        ...value,
+        environments: {
+          ...value.environments,
+          kernel: {
+            restart_required: false,
+            operations: [{ ...operation, status }],
+          },
+        },
+      }));
+    restore({ kind: "running" });
+    const { client, result } = setup();
+    const actions = store.get(sandboxActionsAtom)!;
+    expect(result.current.pending).toBe(true);
+    await act(async () => {
+      expect(await actions.sync()).toBe(false);
+    });
+    expect(client.syncSandbox).not.toHaveBeenCalled();
+    act(() => restore({ kind: "failed", error: "Dependency conflict" }));
+    expect(result.current.diagnostic).toBe("Dependency conflict");
+
+    const { promise, resolve } = Promise.withResolvers<SyncSandboxResponse>();
+    vi.mocked(client.syncSandbox).mockReturnValue(promise);
+    let pending: Promise<boolean>;
+    act(() => {
+      pending = actions.sync();
+    });
+    expect(store.get(sandboxSyncAtom)).toEqual({ kind: "running" });
+    act(() => restore({ kind: "running" }));
+    await act(async () => {
+      resolve({ success: true, reconnect: false });
+      expect(await pending).toBe(true);
+    });
+    // The response can arrive before the final websocket notification.
+    expect(store.get(sandboxSyncAtom)).toEqual({ kind: "running" });
+    act(() => restore({ kind: "succeeded" }));
+    expect(store.get(sandboxSyncAtom)).toEqual({ kind: "succeeded" });
+  });
+
   it("keeps a conflicting draft across closing and only discards it on explicit reload", async () => {
     const { result, client } = setup();
     vi.mocked(client.updateManifest).mockRejectedValue(
@@ -116,7 +197,7 @@ describe("useSandboxController", () => {
     act(() => {
       pending = actions.sync();
     });
-    expect(store.get(sandboxSyncAtom)).toEqual({ pending: true, error: null });
+    expect(store.get(sandboxSyncAtom)).toEqual({ kind: "running" });
     await act(async () => {
       expect(await actions.sync()).toBe(false);
     });
@@ -125,7 +206,7 @@ describe("useSandboxController", () => {
       resolve({ success: true, reconnect: false });
       expect(await pending).toBe(true);
     });
-    expect(store.get(sandboxSyncAtom)).toEqual({ pending: false, error: null });
+    expect(store.get(sandboxSyncAtom)).toEqual({ kind: "succeeded" });
     expect(store.get(packageDataVersionAtom)).toBe(1);
     expect(reconnect).not.toHaveBeenCalled();
   });
@@ -138,13 +219,13 @@ describe("useSandboxController", () => {
       expect(await actions.sync()).toBe(false);
     });
     expect(store.get(sandboxSyncAtom)).toEqual({
-      pending: false,
+      kind: "failed",
       error: "offline",
     });
     await act(async () => {
       expect(await actions.sync()).toBe(true);
     });
-    expect(store.get(sandboxSyncAtom)).toEqual({ pending: false, error: null });
+    expect(store.get(sandboxSyncAtom)).toEqual({ kind: "succeeded" });
   });
 
   it("ignores stale metadata after a filename change and unregisters actions on unmount", async () => {

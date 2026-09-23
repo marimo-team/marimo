@@ -218,7 +218,7 @@ export const FileBrowser = ({
 
   const { data, error, isPending } = useAsyncData(() => {
     return list_directory({ path: path });
-  }, [path, randomId]);
+  }, [path, randomId, list_directory]);
 
   useEffect(() => {
     if (!isPending) {
@@ -238,9 +238,15 @@ export const FileBrowser = ({
   // Reset the roving tabindex whenever the listing reloads (a new path or a
   // same-path refresh) so activeIndex never points past the current rows.
   const listingKey = `${path}::${randomId}`;
-  const [prevListingKey, setPrevListingKey] = useState(listingKey);
-  if (prevListingKey !== listingKey) {
-    setPrevListingKey(listingKey);
+  const [prevListing, setPrevListing] = useState({
+    listingKey,
+    list_directory,
+  });
+  if (
+    prevListing.listingKey !== listingKey ||
+    prevListing.list_directory !== list_directory
+  ) {
+    setPrevListing({ listingKey, list_directory });
     setActiveIndex(0);
   }
 

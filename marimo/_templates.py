@@ -12,7 +12,7 @@ from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo._ast.app_config import _AppConfig
-from marimo._cli.pair.prompts import PAIR_COMMAND, load_prompt_templates
+from marimo._cli.pair.prompts import get_pair_command, load_prompt_templates
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._convert.common.filename import parse_title
 from marimo._convert.converters import MarimoConvert
@@ -143,7 +143,7 @@ def _get_mount_config(
     if is_env_true("MARIMO_PAIR_NEXT"):
         pair_preview = ',\n            "pairPreview": ' + json_script(
             {
-                "command": PAIR_COMMAND,
+                "command": get_pair_command(),
                 "templates": asdict(load_prompt_templates()),
             }
         )

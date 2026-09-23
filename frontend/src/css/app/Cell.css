@@ -82,7 +82,6 @@
     .console-output-area {
       max-height: 610px;
       overflow: auto;
-      overscroll-behavior: contain;
     }
 
     /* Special case for particular components */
@@ -522,7 +521,6 @@
   display: flow-root;
 
   overflow: auto;
-  overscroll-behavior: contain;
 }
 
 .marimo-output-stale,
