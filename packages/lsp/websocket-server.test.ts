@@ -1,6 +1,12 @@
+import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { existsSync } from "node:fs";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
 import type { AddressInfo } from "node:net";
-import { describe, expect, it } from "vitest";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it, vi } from "vitest";
 import WebSocket from "ws";
 import { createWebSocketServer } from "./index";
 
@@ -37,7 +43,7 @@ describe("LSP WebSocket security", () => {
     try {
       const [error] = await once(client, "error");
       expect(error.message).toContain("403");
-      // No language-server process can be created before this event.
+      // Rejected handshakes must not emit a connection event.
       expect(connections).toBe(0);
       // Rejection must leave the listener usable, including with lowercase headers.
       const validClient = new WebSocket(`ws://127.0.0.1:${address.port}`, {
@@ -52,6 +58,96 @@ describe("LSP WebSocket security", () => {
     } finally {
       client.terminate();
       await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("authenticates before spawning through the production bridge", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "marimo-lsp-security-"));
+    const marker = join(directory, "spawned.json");
+    const script = join(directory, "language-server.cjs");
+    const recorder = join(directory, "record-spawns.cjs");
+    await writeFile(script, "process.stdin.resume();");
+    // Record at the actual spawn boundary so even short-lived children count.
+    await writeFile(
+      recorder,
+      `
+      const cp = require("node:child_process");
+      const originalSpawn = cp.spawn;
+      cp.spawn = (command, args, options) => {
+        const env = options?.env ?? process.env;
+        require("node:fs").appendFileSync(${JSON.stringify(marker)}, JSON.stringify({
+          hasToken: Object.hasOwn(env, "MARIMO_LSP_TOKEN"),
+          otherEnv: env.MARIMO_LSP_TEST,
+        }) + "\\n");
+        return originalSpawn(command, args, options);
+      };
+    `,
+    );
+    const reservation = createServer();
+    reservation.listen(0, "127.0.0.1");
+    await once(reservation, "listening");
+    const { port } = reservation.address() as AddressInfo;
+    await new Promise<void>((resolve) => reservation.close(() => resolve()));
+
+    const bridge = spawn(
+      process.execPath,
+      [
+        "--require",
+        recorder,
+        "./dist/index.cjs",
+        "--port",
+        String(port),
+        "--lsp",
+        `copilot:${script}`,
+        "--log-file",
+        join(directory, "bridge.log"),
+      ],
+      {
+        env: {
+          ...process.env,
+          MARIMO_LSP_TOKEN: "test-token",
+          MARIMO_LSP_TEST: "preserved",
+        },
+        stdio: "ignore",
+      },
+    );
+    const exited = once(bridge, "exit");
+    let validClient: WebSocket | undefined;
+    try {
+      for (const headers of [
+        {},
+        { "Marimo-LSP-Token": "wrong" },
+        { "Marimo-LSP-Token": "test-token", Origin: "https://attacker.test" },
+      ]) {
+        await vi.waitFor(async () => {
+          expect(bridge.exitCode).toBeNull();
+          const client = new WebSocket(`ws://127.0.0.1:${port}`, { headers });
+          try {
+            const [error] = await once(client, "error");
+            expect(error.message).toContain("403");
+          } finally {
+            client.terminate();
+          }
+        });
+        expect(existsSync(marker)).toBe(false);
+      }
+
+      validClient = new WebSocket(`ws://127.0.0.1:${port}`, {
+        headers: { "Marimo-LSP-Token": "test-token" },
+      });
+      await once(validClient, "open");
+      await vi.waitFor(async () => {
+        const spawns = (await readFile(marker, "utf8"))
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line));
+        expect(spawns).toEqual([{ hasToken: false, otherEnv: "preserved" }]);
+      });
+    } finally {
+      validClient?.terminate();
+      bridge.kill();
+      await exited;
+      await rm(directory, { recursive: true, force: true });
     }
   });
 

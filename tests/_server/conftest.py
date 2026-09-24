@@ -35,14 +35,29 @@ _module_app = create_starlette_app(base_url="", enable_auth=True)
 
 @contextmanager
 def serve_in_thread(server: WebSocketServer) -> Iterator[None]:
-    thread = threading.Thread(target=server.serve_forever)
+    error: BaseException | None = None
+
+    def serve() -> None:
+        nonlocal error
+        try:
+            server.serve_forever()
+        except BaseException as exc:
+            error = exc
+
+    thread = threading.Thread(target=serve)
     thread.start()
     try:
         yield
     finally:
-        server.shutdown()
-        thread.join(timeout=5)
-        assert not thread.is_alive()
+        try:
+            server.shutdown()
+        finally:
+            thread.join(timeout=5)
+            assert not thread.is_alive(), (
+                "WebSocket server thread did not stop"
+            )
+            if error is not None:
+                raise error
 
 
 def get_kernel_tasks(

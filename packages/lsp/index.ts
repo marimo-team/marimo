@@ -139,10 +139,14 @@ function handleWebSocketConnection(
     return;
   }
 
+  // The bridge authenticates connections; the stdio server needs no credential.
+  const env = { ...process.env };
+  delete env.MARIMO_LSP_TOKEN;
   const jsonRpcConnection = createServerProcess(
     languageServerCommand.join(" "),
     languageServerCommand[0],
     languageServerCommand.slice(1),
+    { env },
   );
 
   if (!jsonRpcConnection) {
