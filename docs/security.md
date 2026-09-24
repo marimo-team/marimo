@@ -53,7 +53,7 @@ For security reasons marimo applies priority to these settings as follows:
 
 - **Script metadata** or [notebook level settings](guides/configuration/index.md#script-metadata-configuration) strips several settings for security. Since notebooks can be opened from remote sources, marimo intentionally removes certain settings from script metadata to prevent malicious configuration.
 - **In `pyproject.toml` and `.marimo.toml` files most configuration options are respected**. You should only open a notebook from a project you trust. Projects can install arbitrary code, and other settings (including marimo's) may be configured maliciously.
-- **User config** (XDG config or `~/.marimo.toml`) options are always trusted. These configs are stored in your personal directories and only you can modify them.
+- **User config** (XDG config) options are always trusted. These configs are stored in your personal directories and only you can modify them.
 
 ### Authentication
 
