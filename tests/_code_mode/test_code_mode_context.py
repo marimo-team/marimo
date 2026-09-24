@@ -394,6 +394,7 @@ class TestUpdateCell:
                 nb.edit_cell("0", expand_output=False)
 
         assert k.cell_metadata["0"].config.expand_output is False
+        assert k.graph.cells["0"].config.expand_output is False
 
     async def test_update_code_skips_formatting_when_disabled(
         self, k: Kernel
