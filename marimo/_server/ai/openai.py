@@ -30,15 +30,15 @@ class _ResponseStream(AsyncStream[ResponseStreamEvent]):
 
         async for event in self._source:
             if getattr(event, "response", None) is None:
-                # Empty interim updates carry no content, but a missing
-                # terminal response must not be treated as success.
+                # Only progress updates are optional. The initial response
+                # supplies model metadata; the final response confirms success.
                 if event.type in {
-                    "response.created",
                     "response.in_progress",
                     "response.queued",
                 }:
                     continue
                 if event.type in {
+                    "response.created",
                     "response.completed",
                     "response.failed",
                     "response.incomplete",

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from importlib import import_module
 from typing import Any
 from unittest.mock import patch
 
@@ -49,21 +50,25 @@ async def _run_stream(
     provider_kind: str = "openai",
     tool_calls: list[str] | None = None,
 ) -> str:
-    httpx2 = pytest.importorskip("httpx2")
-    from openai import AsyncOpenAI
+    import httpx
+    from openai import AsyncOpenAI, DefaultAsyncHttpxClient
     from pydantic_ai import Agent
     from pydantic_ai.providers.openai import OpenAIProvider as PydanticOpenAI
 
-    responses: list[httpx2.Response] = []
+    # OpenAI 3 uses httpx2; earlier SDK versions use httpx.
+    if not issubclass(DefaultAsyncHttpxClient, httpx.AsyncClient):
+        httpx = import_module("httpx2")
 
-    def handler(request: httpx2.Request) -> httpx2.Response:
+    responses: list[httpx.Response] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
         del request
         request_events = _events() if responses else events
         body = "".join(
             f"data: {json.dumps({**event, 'sequence_number': index})}\n\n"
             for index, event in enumerate(request_events)
         )
-        response = httpx2.Response(
+        response = httpx.Response(
             200, text=body, headers={"content-type": "text/event-stream"}
         )
         responses.append(response)
@@ -74,8 +79,8 @@ async def _run_stream(
         tool_calls.append("get_cell_runtime_data")
         return "print('Hello')"
 
-    async with httpx2.AsyncClient(
-        transport=httpx2.MockTransport(handler)
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler)
     ) as http_client:
         client = AsyncOpenAI(api_key="test", http_client=http_client)
         provider_class = {
@@ -91,7 +96,7 @@ async def _run_stream(
         ):
             if provider_kind == "custom":
                 provider = CustomProvider(
-                    AiModelId.from_model("openai/gpt-4o"), config
+                    AiModelId.from_model("openai-responses/gpt-4o"), config
                 )
             else:
                 provider = provider_class("gpt-4o", config)
@@ -115,9 +120,7 @@ async def test_valid_response_stream(provider_kind: str) -> None:
 
 
 @pytest.mark.parametrize("provider_kind", ["openai", "azure", "custom"])
-@pytest.mark.parametrize(
-    "status", ["response.created", "response.in_progress", "response.queued"]
-)
+@pytest.mark.parametrize("status", ["response.in_progress", "response.queued"])
 @pytest.mark.parametrize("payload", [{"response": None}, {}])
 async def test_empty_interim_status(
     provider_kind: str, status: str, payload: dict[str, Any]
@@ -127,6 +130,36 @@ async def test_empty_interim_status(
     events.insert(0, {"type": status, **payload})
     events.insert(-1, {"type": status, **payload})
     assert await _run_stream(events, provider_kind) == "Hello"
+
+
+@pytest.mark.parametrize("provider_kind", ["openai", "azure", "custom"])
+@pytest.mark.parametrize("payload", [{"response": None}, {}])
+@pytest.mark.parametrize("next_event", ["text", "tool"])
+async def test_empty_created_status_is_an_error(
+    provider_kind: str, payload: dict[str, Any], next_event: str
+) -> None:
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    events = _events()
+    # Replace the only created event, rather than inserting another before it.
+    events[0] = {"type": "response.created", **payload}
+    if next_event == "tool":
+        events[1] = {
+            "type": "response.output_item.added",
+            "output_index": 0,
+            "item": {
+                "type": "function_call",
+                "id": "fc_test",
+                "call_id": "call_test",
+                "name": "get_cell_runtime_data",
+                "arguments": "{}",
+            },
+        }
+    with pytest.raises(
+        UnexpectedModelBehavior,
+        match="AI provider sent response.created without a response",
+    ):
+        await _run_stream(events, provider_kind)
 
 
 @pytest.mark.parametrize(
