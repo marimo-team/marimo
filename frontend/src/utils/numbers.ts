@@ -49,7 +49,10 @@ export function maxFractionDigitsForSteps(
 export function fractionDigitsForSlider(
   step?: number,
   steps?: readonly number[] | null,
+  origin?: number,
 ): number {
+  const originDigits = origin == null ? 0 : countFractionDigits(origin);
+
   if (steps && steps.length > 0) {
     let minGap = Number.POSITIVE_INFINITY;
     for (let i = 1; i < steps.length; i++) {
@@ -59,23 +62,23 @@ export function fractionDigitsForSlider(
       }
     }
 
-    return maxFractionDigitsForSteps(
-      steps,
-      Number.isFinite(minGap) ? minGap : 0,
+    return Math.max(
+      originDigits,
+      maxFractionDigitsForSteps(steps, Number.isFinite(minGap) ? minGap : 0),
     );
   }
 
   if (step == null) {
     // Preserve the range slider's legacy two-decimal display when no step is
     // supplied. Radix still accepts this as its default step configuration.
-    return 2;
+    return Math.max(2, originDigits);
   }
 
   if (!Number.isFinite(step) || step <= 0) {
-    return 2;
+    return Math.max(2, originDigits);
   }
 
-  return countFractionDigits(step);
+  return Math.max(originDigits, countFractionDigits(step));
 }
 
 /** Round away float noise so step-based inputs stay on a clean decimal grid. */

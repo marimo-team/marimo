@@ -26,7 +26,7 @@ const RangeSlider = React.forwardRef<
 >(({ className, steps, valueMap, ...props }, ref) => {
   const [open, openActions] = useBoolean(false);
   const { locale } = useLocale();
-  const fractionDigits = fractionDigitsForSlider(props.step, steps);
+  const fractionDigits = fractionDigitsForSlider(props.step, steps, props.min);
 
   const isDraggingRange = React.useRef(false);
   const dragStartX = React.useRef(0);

@@ -115,4 +115,20 @@ describe("RangeSlider", () => {
     expect(getAllByText("1")).toHaveLength(1);
     expect(getAllByText("1.234")).toHaveLength(1);
   });
+
+  it("preserves decimals from the slider origin", () => {
+    const { getAllByText } = render(
+      <RangeSlider
+        aria-label="Range"
+        min={0.5}
+        max={10.5}
+        step={1}
+        value={[0.5, 1.5]}
+        valueMap={(value) => value}
+      />,
+    );
+
+    expect(getAllByText("0.5")).toHaveLength(1);
+    expect(getAllByText("1.5")).toHaveLength(1);
+  });
 });

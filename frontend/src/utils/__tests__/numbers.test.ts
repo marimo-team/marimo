@@ -136,4 +136,8 @@ describe("fractionDigitsForSlider", () => {
       fractionDigitsForSlider(undefined, [0.1, 0.2, 0.30000000000000004]),
     ).toBe(1);
   });
+
+  it("includes the slider origin in regular step precision", () => {
+    expect(fractionDigitsForSlider(1, null, 0.5)).toBe(1);
+  });
 });

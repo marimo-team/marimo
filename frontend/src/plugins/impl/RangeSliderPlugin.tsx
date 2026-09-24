@@ -87,7 +87,7 @@ const RangeSliderComponent = ({
 }: RangeSliderProps): JSX.Element => {
   const id = useId();
   const { locale } = useLocale();
-  const fractionDigits = fractionDigitsForSlider(step, steps);
+  const fractionDigits = fractionDigitsForSlider(step, steps, start);
 
   // Hold internal value
   const [internalValue, setInternalValue] = useState(value);
