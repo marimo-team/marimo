@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -308,7 +308,14 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         return path.rstrip("/")
 
     def _list_files(self, prefix: str) -> list[Any]:
-        files = self.store.ls(path=prefix, detail=True)
+        try:
+            files = self.store.ls(path=prefix, detail=True)
+        except FileNotFoundError:
+            # SFTP filesystems (e.g. sshfs) have an empty root marker but
+            # can't list "", so fall back to the working (home) directory
+            if prefix:
+                raise
+            files = self.store.ls(path=".", detail=True)
         if not isinstance(files, list):
             raise ValueError(f"Files is not a list: {files}")
         return files
@@ -396,11 +403,16 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         else:
             resolved_kind = self._identify_kind(entry_type)
 
+        # Some filesystems (e.g. sshfs) return mtime as a datetime
+        mtime = file.get("mtime")
+        if isinstance(mtime, datetime):
+            mtime = mtime.timestamp()
+
         resolved_path = name or ""
         return StorageEntry(
             path=resolved_path,
             size=size or 0,
-            last_modified=file.get("mtime"),
+            last_modified=mtime,
             kind=resolved_kind,
             metadata=entry_meta,
             mime_type=guess_mime_type(resolved_path)
