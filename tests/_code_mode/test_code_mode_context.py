@@ -396,6 +396,46 @@ class TestUpdateCell:
         assert k.cell_metadata["0"].config.expand_output is False
         assert k.graph.cells["0"].config.expand_output is False
 
+    async def test_update_config_of_pending_create(self, k: Kernel) -> None:
+        """Editing a cell created in the same batch keeps its create config.
+
+        The create is still queued, so the cell has no entry in
+        `cell_metadata` to merge against yet.
+        """
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                cid = nb.create_cell("x = 1", hide_code=True, disabled=True)
+                nb.edit_cell(cid, expand_output=True)
+
+        cfg = k.cell_metadata[cid].config
+        assert cfg.expand_output is True
+        assert cfg.hide_code is True
+        assert cfg.disabled is True
+
+        # And in the other direction: an unrelated edit must not reset
+        # a config field the create set.
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                other = nb.create_cell("y = 1", expand_output=True)
+                nb.edit_cell(other, hide_code=False)
+
+        cfg = k.cell_metadata[other].config
+        assert cfg.expand_output is True
+        assert cfg.hide_code is False
+
+    async def test_two_config_edits_in_one_batch(self, k: Kernel) -> None:
+        """A second edit merges into the first edit's queued config."""
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("0", hide_code=True)
+                nb.edit_cell("0", expand_output=True)
+
+        cfg = k.cell_metadata["0"].config
+        assert cfg.hide_code is True
+        assert cfg.expand_output is True
+
     async def test_update_code_skips_formatting_when_disabled(
         self, k: Kernel
     ) -> None:

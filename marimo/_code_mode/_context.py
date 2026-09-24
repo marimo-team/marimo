@@ -1133,6 +1133,24 @@ class AsyncCodeModeContext:
         self._pending_adds[cell_id] = op
         return cell_id
 
+    def _current_config(self, cell_id: CellId_t) -> CellConfig:
+        """The cell's config as of the last op queued in this batch.
+
+        Ops aren't applied to the kernel until the context exits, so a
+        cell created or configured earlier in the same batch isn't in
+        `cell_metadata` yet. Scan the queue first so merging into the
+        existing config doesn't clobber those pending changes.
+        """
+        for op in reversed(self._ops):
+            if op.cell_id != cell_id or not isinstance(
+                op, (_AddOp, _UpdateOp)
+            ):
+                continue
+            if op.config is not None:
+                return op.config
+        meta = self._kernel.cell_metadata.get(cell_id)
+        return meta.config if meta else CellConfig()
+
     def edit_cell(
         self,
         target: str,
@@ -1245,8 +1263,7 @@ class AsyncCodeModeContext:
             or column is not None
         ):
             # Start from existing config and override provided fields.
-            meta = self._kernel.cell_metadata.get(cell_id)
-            existing = meta.config if meta else CellConfig()
+            existing = self._current_config(cell_id)
             config = CellConfig(
                 hide_code=hide_code
                 if hide_code is not None
