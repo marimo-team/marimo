@@ -15,7 +15,7 @@ marimo auto-discovers variables that are instances of:
 | Library | Base class | Example stores |
 |---------|-----------|----------------|
 | [obstore](https://developmentseed.org/obstore/) | `obstore.store.ObjectStore` | `S3Store`, `GCSStore`, `AzureStore`, `HTTPStore`, `LocalStore`, `MemoryStore` |
-| [fsspec](https://filesystem-spec.readthedocs.io/) | `fsspec.AbstractFileSystem` | `S3FileSystem`, `GithubFileSystem`, `FTPFileSystem`, `SSHFileSystem`, `DatabricksFileSystem`, and [many more](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations) |
+| [fsspec](https://filesystem-spec.readthedocs.io/) | `fsspec.AbstractFileSystem` | `S3FileSystem`, `GithubFileSystem`, `FTPFileSystem`, `SFTPFileSystem`, `DatabricksFileSystem`, and [many more](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations) |
 | [huggingface_hub](https://huggingface.co/docs/huggingface_hub) | `huggingface_hub.HfApi` | Browse the Hugging Face Hub (datasets, models, spaces, buckets) |
 
 
@@ -91,33 +91,44 @@ repo = GithubFileSystem(org="marimo-team", repo="marimo")
 
 #### SSH / SFTP
 
-Browse files on a remote machine over SSH with [sshfs](https://github.com/fsspec/sshfs), the fsspec plugin for SSH (`pip install sshfs`):
+Browse files on a remote machine over SSH with fsspec's `SFTPFileSystem`, which requires [paramiko](https://www.paramiko.org/) (`pip install paramiko`):
 
 ```python
-from sshfs import SSHFileSystem
+from fsspec.implementations.sftp import SFTPFileSystem
 
-server = SSHFileSystem(
+server = SFTPFileSystem("my-server.example.com", username="me")
+```
+
+By default, this uses your SSH agent and the default keys in `~/.ssh`. To use a specific key, pass `key_filename`. Note that paramiko doesn't expand `~` or read `~/.ssh/config`, so use the full key path and the real hostname:
+
+```python
+import os
+
+from fsspec.implementations.sftp import SFTPFileSystem
+
+server = SFTPFileSystem(
     "my-server.example.com",
     username="me",
-    client_keys=["~/.ssh/id_ed25519"],
+    key_filename="/home/<user>>/.ssh/<filename>",
+    passphrase=os.environ.get("SSH_KEY_PASSPHRASE"),  # only for encrypted keys
 )
 ```
 
-`client_keys` is optional: by default, your SSH agent and the default keys in `~/.ssh` are used. Other keyword arguments are passed to [`asyncssh.connect`](https://asyncssh.readthedocs.io/en/latest/api.html#asyncssh.connect), e.g. `port`, `passphrase` for an encrypted key, or `password`.
+Other keyword arguments are passed to [`paramiko.SSHClient.connect`](https://docs.paramiko.org/en/stable/api/client.html#paramiko.client.SSHClient.connect), e.g. `port` or `password`.
 
 The panel opens in your home directory on the server. To start in a different folder, wrap the filesystem in fsspec's `DirFileSystem`; paths you use in code are then relative to that folder too:
 
 ```python
 from fsspec.implementations.dirfs import DirFileSystem
-from sshfs import SSHFileSystem
+from fsspec.implementations.sftp import SFTPFileSystem
 
 project = DirFileSystem(
     path="/data/project",
-    fs=SSHFileSystem("my-server.example.com", username="me"),
+    fs=SFTPFileSystem("my-server.example.com", username="me"),
 )
 ```
 
-`DirFileSystem` works with any fsspec filesystem, not just SSH.
+Note that `DirFileSystem` works with any fsspec filesystem, not just SFTP.
 
 #### Hugging Face Hub
 
