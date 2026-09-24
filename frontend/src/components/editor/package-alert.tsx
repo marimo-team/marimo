@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtomValue } from "jotai";
 import {
   BoxIcon,
   CheckIcon,
@@ -34,6 +35,7 @@ import {
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import type { PackageOperationStatus } from "@/core/kernel/messages";
 import { useRequestClient } from "@/core/network/requests";
+import { sandboxAtom } from "@/core/packages/sandbox-state";
 import { RESTART_REQUIRED_DESCRIPTION } from "@/core/packages/toast-components";
 import { isWasm } from "@/core/wasm/utils";
 import { usePackageMetadata } from "@/hooks/usePackageMetadata";
@@ -104,6 +106,7 @@ export const PackageAlert: React.FC = () => {
   const { packageAlert } = useAlerts();
   const { clearPackageAlert } = useAlertActions();
   const [userConfig] = useResolvedMarimoConfig();
+  const sandbox = useAtomValue(sandboxAtom);
   const [desiredPackageVersions, setDesiredPackageVersions] = useState<
     Record<string, string>
   >({});
@@ -132,8 +135,12 @@ export const PackageAlert: React.FC = () => {
     return null;
   }
 
+  const sandboxPackageManager =
+    packageAlert.source === "server" ? null : sandbox?.backend;
+  const packageManager =
+    sandboxPackageManager ?? userConfig.package_management.manager;
   const doesSupportVersioning =
-    userConfig.package_management.manager !== "pixi";
+    packageAlert.source === "server" || packageManager !== "pixi";
 
   if (isMissingPackageAlert(packageAlert)) {
     return (
@@ -207,7 +214,7 @@ export const PackageAlert: React.FC = () => {
               {packageAlert.isolated ? (
                 <>
                   <InstallPackagesButton
-                    manager={userConfig.package_management.manager}
+                    manager={packageManager}
                     packages={packageAlert.packages.map((pkg) => {
                       const parsed = parsePackageSpecifier(pkg);
                       const currentExtras =
@@ -219,10 +226,12 @@ export const PackageAlert: React.FC = () => {
                     source={packageAlert.source}
                   />
 
-                  {!isWasm() && (
+                  {!isWasm() && packageAlert.source !== "server" && (
                     <>
                       <span className="px-2 text-sm">with</span>{" "}
-                      <PackageManagerForm />
+                      <PackageManagerForm
+                        fixedManager={sandboxPackageManager ?? undefined}
+                      />
                     </>
                   )}
                 </>
@@ -449,7 +458,9 @@ const InstallPackagesButton = ({
   );
 };
 
-const PackageManagerForm: React.FC = () => {
+const PackageManagerForm: React.FC<{
+  fixedManager?: PackageManagerName;
+}> = ({ fixedManager }) => {
   const [config, setConfig] = useResolvedMarimoConfig();
   const { saveUserConfig } = useRequestClient();
 
@@ -490,8 +501,8 @@ const PackageManagerForm: React.FC = () => {
                   <NativeSelect
                     data-testid="install-package-manager-select"
                     onChange={(e) => field.onChange(e.target.value)}
-                    value={field.value}
-                    disabled={field.disabled}
+                    value={fixedManager ?? field.value}
+                    disabled={fixedManager !== undefined || field.disabled}
                     className="inline-flex mr-2"
                   >
                     {PackageManagerNames.map((option) => (
