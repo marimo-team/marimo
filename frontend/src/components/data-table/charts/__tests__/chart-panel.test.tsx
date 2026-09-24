@@ -113,6 +113,8 @@ describe("ChartPanel", () => {
       saveChartType: vi.fn(),
       getDataUrl,
       isLargeDataset: false,
+      totalRows: 1,
+      columns: 1,
     };
     const panel = (
       fieldTypes: ComponentProps<typeof ChartPanel>["fieldTypes"],
@@ -173,6 +175,8 @@ describe("ChartPanel", () => {
             ["active", ["boolean", "bool"]],
             ["duration", ["unknown", "timedelta64[ns]"]],
           ]}
+          totalRows={4}
+          columns={7}
           isLargeDataset={false}
         />
       </Tooltip.Provider>,
@@ -260,6 +264,8 @@ describe("ChartPanel", () => {
                   ]
                 : undefined
             }
+            totalRows={3}
+            columns={2}
             isLargeDataset={false}
           />
         </Tooltip.Provider>,

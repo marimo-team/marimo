@@ -1,8 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { gzipSync } from "node:zlib";
-import { expect, it } from "vitest";
-import { initialBundleSize } from "../../vite-plugins/bundle-budget";
+import { assert, expect, it, vi } from "vitest";
+import {
+  bundleBudget,
+  initialBundleSize,
+} from "../../vite-plugins/bundle-budget";
 
 it("counts shared static imports once across entries and excludes lazy chunks", () => {
   const size = initialBundleSize([
@@ -36,3 +39,34 @@ it("counts shared static imports once across entries and excludes lazy chunks", 
     ),
   });
 });
+
+it.each([
+  { maxGzipKiB: 0.001, exceedsBudget: true },
+  { maxGzipKiB: 100, exceedsBudget: false },
+])(
+  "enforces a $maxGzipKiB KiB gzip budget",
+  ({ maxGzipKiB, exceedsBudget }) => {
+    const plugin = bundleBudget({ name: "Test app", maxGzipKiB });
+    const hook = plugin.generateBundle;
+    assert(hook && typeof hook !== "function");
+    const error = vi.fn();
+    const bundle = {
+      "entry.js": {
+        type: "chunk",
+        fileName: "entry.js",
+        isEntry: true,
+        imports: [],
+        code: "console.log('hello');",
+      },
+      "style.css": {
+        type: "asset",
+        fileName: "style.css",
+        source: "body { color: red; }",
+      },
+    };
+
+    Reflect.apply(hook.handler, { error }, [{}, bundle, false]);
+
+    expect(error).toHaveBeenCalledTimes(exceedsBudget ? 1 : 0);
+  },
+);

@@ -10,7 +10,7 @@ import {
   DatabaseIcon,
   PaintRollerIcon,
 } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { type UseFormReturn, useForm } from "react-hook-form";
 import useResizeObserver from "use-resize-observer";
 import { PythonIcon } from "@/components/editor/cell/code/icons";
@@ -25,7 +25,7 @@ import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import { getVegaFieldTypes } from "@/plugins/impl/vega/utils";
 import { useTheme } from "@/theme/useTheme";
-import type { FieldTypesWithExternalType } from "../types";
+import type { FieldTypesWithExternalType, TooManyRows } from "../types";
 import { generateAltairChartSnippet } from "./chart-spec/altair-generator";
 import { createSpecWithoutData } from "./chart-spec/spec";
 import { ChartTypeSelect } from "./components/chart-items";
@@ -54,6 +54,8 @@ export const ChartPanel: React.FC<{
   fieldTypes?: FieldTypesWithExternalType | null;
   hasSchema?: boolean;
   isLargeDataset: boolean;
+  totalRows: number | TooManyRows;
+  columns: number;
 }> = ({
   tableData,
   chartConfig,
@@ -64,6 +66,8 @@ export const ChartPanel: React.FC<{
   fieldTypes,
   hasSchema = Boolean(fieldTypes?.length),
   isLargeDataset,
+  totalRows,
+  columns,
 }) => {
   const { theme } = useTheme();
   const form = useForm<ChartSchemaType>({
@@ -75,7 +79,12 @@ export const ChartPanel: React.FC<{
     useState<ChartType>(chartType);
   const [formCollapsed, setFormCollapsed] = useState(false);
 
+  const [datasetSize, setDatasetSize] = useState({ totalRows, columns });
   const [renderLargeCharts, setRenderLargeCharts] = useState(!isLargeDataset);
+  if (datasetSize.totalRows !== totalRows || datasetSize.columns !== columns) {
+    setDatasetSize({ totalRows, columns });
+    setRenderLargeCharts(!isLargeDataset);
+  }
 
   const { ref: chartContainerRef } = useResizeObserver();
   // Sample-inferred types are useful for controls, but not full CSV parsing.
@@ -304,6 +313,14 @@ const ChartFormContainer = ({
     saveChart(values);
   }, 300);
 
+  useEffect(() => {
+    const subscription = form.watch(() => debouncedSave());
+    return () => {
+      subscription.unsubscribe();
+      debouncedSave.flush();
+    };
+  }, [form, debouncedSave]);
+
   let ChartForm = CommonChartForm;
 
   if (chartType === ChartType.PIE) {
@@ -315,7 +332,7 @@ const ChartFormContainer = ({
   return (
     <ChartFormContext value={{ fields, saveForm: debouncedSave, chartType }}>
       <Form {...form}>
-        <form onSubmit={(e) => e.preventDefault()} onChange={debouncedSave}>
+        <form onSubmit={(e) => e.preventDefault()}>
           <Tabs defaultValue="data">
             <TabsList className="w-full">
               <TabsTrigger value="data" className="w-1/2 h-6">

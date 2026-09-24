@@ -6,7 +6,7 @@ interface LazyComponentWithPreload<T> {
   /**
    * Eagerly trigger the dynamic import. Returns the import promise so callers
    * can await it or attach error handling; safe to call multiple times (the
-   * import is memoized).
+   * successful import is memoized). Failed preloads can be retried.
    */
   preload: () => Promise<{ default: React.ComponentType<T> }>;
   Component: React.LazyExoticComponent<React.ComponentType<T>>;
@@ -19,7 +19,10 @@ export const reactLazyWithPreload = <T>(
 
   const preload = async () => {
     if (!component) {
-      component = factory();
+      component = factory().catch((error) => {
+        component = null;
+        throw error;
+      });
     }
     return component;
   };
