@@ -146,6 +146,7 @@ def ensure_server_environment(
                 base_env={
                     **os.environ,
                     "MARIMO_SERVER_OVERLAY": "1",
+                    "MARIMO_MANAGE_SCRIPT_METADATA": "true",
                     "MARIMO_ANCESTOR_PID": str(os.getpid()),
                 },
             )
