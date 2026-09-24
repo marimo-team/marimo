@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
-from marimo._messaging.notification import InterruptedNotification
-from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.context import get_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import safe_get_context
@@ -24,7 +22,13 @@ if TYPE_CHECKING:
 
 def construct_interrupt_handler() -> SigintHandler:
     def interrupt_handler(signum: int, frame: Any) -> None:
-        """Tries to interrupt the kernel."""
+        """Interrupt the running cell.
+
+        Python can run this handler nested inside itself when two
+        SIGINTs arrive close together, so it does not write to the kernel
+        stream. It does not send `InterruptedNotification`. The interrupted
+        run reports the interruption after its running cell stops.
+        """
         del signum
         del frame
 
@@ -45,9 +49,6 @@ def construct_interrupt_handler() -> SigintHandler:
         exec_ctx = ctx.execution_context
         if sched is None and exec_ctx is None:
             return
-
-        LOGGER.info("Interrupt request received")
-        broadcast_notification(InterruptedNotification())
 
         # DuckDB connections are sometimes left in an inconsistent state
         # when interrupted by a SIGINT; route through duckdb's own API.
