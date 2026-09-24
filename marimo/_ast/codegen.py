@@ -186,8 +186,8 @@ def format_markdown(cell: CellImpl) -> str:
     # in the source rather than rebuilding it from tokens, which drop
     # whitespace.
     line_starts = [0]
-    for line in cell.code.splitlines(keepends=True):
-        line_starts.append(line_starts[-1] + len(line))
+    for match in re.finditer(r"\r\n|\r|\n", cell.code):
+        line_starts.append(match.end())
 
     def offset(position: tuple[int, int]) -> int:
         row, col = position
