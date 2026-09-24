@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import { XIcon } from "lucide-react";
 import type { JSX } from "react";
 import React, { Suspense, useRef, useState } from "react";
+import { ErrorBoundary } from "react-error-boundary";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CellId } from "@/core/cells/ids";
@@ -18,7 +19,7 @@ import {
   type TooManyRows,
 } from "../types";
 import type { ChartPanel } from "./chart-panel";
-import { ChartLoadingState } from "./components/chart-states";
+import { ChartInfoState, ChartLoadingState } from "./components/chart-states";
 import { type ChartSchemaType, getChartDefaults } from "./schemas";
 import { getChartTabName, type TabName, tabsStorageAtom } from "./storage";
 import type { ChartType } from "./types";
@@ -30,6 +31,35 @@ const LazyChartPanel = reactLazyWithPreload<
 function preloadChartPanel() {
   void LazyChartPanel.preload().catch((error) => Logger.warn(error));
 }
+
+const ChartPanelLoader: React.FC<React.ComponentProps<typeof ChartPanel>> = (
+  props,
+) => {
+  const [Component, setComponent] = useState(() =>
+    React.lazy(LazyChartPanel.preload),
+  );
+
+  return (
+    <ErrorBoundary
+      onReset={() => {
+        // React.lazy also caches rejections; retry with a fresh lazy component.
+        setComponent(() => React.lazy(LazyChartPanel.preload));
+      }}
+      fallbackRender={({ resetErrorBoundary }) => (
+        <ChartInfoState>
+          Could not load the chart.
+          <Button variant="outline" onClick={resetErrorBoundary}>
+            Try again
+          </Button>
+        </ChartInfoState>
+      )}
+    >
+      <Suspense fallback={<ChartLoadingState />}>
+        <Component {...props} />
+      </Suspense>
+    </ErrorBoundary>
+  );
+};
 
 const NEW_CHART_TYPE = "bar" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
@@ -162,16 +192,20 @@ export const TablePanel: React.FC<TablePanelProps> = ({
       return;
     }
 
-    const updatedTabs = new Map(tabsMap);
-    updatedTabs.set(
-      cellId,
-      tabs.map((tab) =>
-        tab.tabName === tabName
-          ? { ...tab, chartType, config: chartConfig }
-          : tab,
-      ),
-    );
-    saveTabsMap(updatedTabs);
+    saveTabsMap((currentTabsMap) => {
+      const currentTabs = currentTabsMap.get(cellId);
+      if (!currentTabs?.some((tab) => tab.tabName === tabName)) {
+        return currentTabsMap;
+      }
+      return new Map(currentTabsMap).set(
+        cellId,
+        currentTabs.map((tab) =>
+          tab.tabName === tabName
+            ? { ...tab, chartType, config: chartConfig }
+            : tab,
+        ),
+      );
+    });
   };
 
   const saveTabChartType = (tabName: TabName, chartType: ChartType) => {
@@ -262,21 +296,21 @@ export const TablePanel: React.FC<TablePanelProps> = ({
         };
         return (
           <TabsContent key={idx} value={tab.tabName} className="h-[400px] mt-0">
-            <Suspense fallback={<ChartLoadingState />}>
-              <LazyChartPanel.Component
-                tableData={data}
-                chartConfig={tab.config}
-                chartType={tab.chartType}
-                saveChart={saveChart}
-                saveChartType={saveChartType}
-                getDataUrl={getDataUrl}
-                fieldTypes={mergeIndexFields(
-                  fieldTypes ?? inferFieldTypes(dataTable.props.data),
-                  rowHeaders,
-                )}
-                isLargeDataset={isLargeDataset}
-              />
-            </Suspense>
+            <ChartPanelLoader
+              tableData={data}
+              chartConfig={tab.config}
+              chartType={tab.chartType}
+              saveChart={saveChart}
+              saveChartType={saveChartType}
+              getDataUrl={getDataUrl}
+              fieldTypes={mergeIndexFields(
+                fieldTypes ?? inferFieldTypes(dataTable.props.data),
+                rowHeaders,
+              )}
+              isLargeDataset={isLargeDataset}
+              totalRows={totalRows}
+              columns={columns}
+            />
           </TabsContent>
         );
       })}

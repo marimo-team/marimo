@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { DataType } from "@/core/kernel/messages";
-import { Objects } from "@/utils/objects";
 import type { FieldTypesWithExternalType } from "./types";
 import { uniformSample } from "./uniformSample";
 
@@ -35,7 +34,7 @@ export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
     return [];
   }
 
-  const fieldTypes: Record<string, [DataType, string]> = {};
+  const fieldTypes = new Map<string, [DataType, string]>();
 
   // This can be slow for large datasets,
   // so only sample 10 evenly distributed rows
@@ -46,19 +45,12 @@ export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
     // We will be a bit defensive and assume values are not homogeneous.
     // If any is a mimetype, then we will treat it as a mimetype (i.e. not sortable)
     Object.entries(item).forEach(([key, value]) => {
-      const currentValue = fieldTypes[key];
-      if (!currentValue) {
-        // Set for the first time
-        fieldTypes[key] = inferDataType(value);
-      }
-
-      // If its not null, override the type
-      if (value != null) {
-        // This can be lossy as we infer take the last seen type
-        fieldTypes[key] = inferDataType(value);
+      // Keep the first-seen order, but infer the last non-null value's type.
+      if (!fieldTypes.has(key) || value != null) {
+        fieldTypes.set(key, inferDataType(value));
       }
     });
   });
 
-  return Objects.entries(fieldTypes);
+  return [...fieldTypes.entries()];
 }
