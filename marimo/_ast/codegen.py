@@ -181,12 +181,21 @@ def format_markdown(cell: CellImpl) -> str:
     # tokenize.
     tokens = tokenize.tokenize(io.BytesIO(cell.code.encode("utf-8")).readline)
     tag = ""
-    # Comment capture
-    comments = {
-        "prefix": "",
-        "suffix": "",
-    }
-    key: str | None = "prefix"
+    # Anything outside the `mo.md(...)` call (comments, and the whitespace
+    # around them) is kept verbatim, so track where the call starts and ends
+    # in the source rather than rebuilding it from tokens, which drop
+    # whitespace.
+    line_starts = [0]
+    for line in cell.code.splitlines(keepends=True):
+        line_starts.append(line_starts[-1] + len(line))
+
+    def offset(position: tuple[int, int]) -> int:
+        row, col = position
+        return line_starts[row - 1] + col
+
+    call_start = 0
+    call_end = len(cell.code)
+    depth = 0
     tokenizes_fstring = sys.version_info >= (3, 12)
     start_tokens = (
         (tokenize.STRING, tokenize.FSTRING_START)
@@ -206,11 +215,14 @@ def format_markdown(cell: CellImpl) -> str:
                     start = start[1:]
             fstring = "f" in tag.lower()
         elif tok.string == "mo":
-            key = None
+            call_start = offset(tok.start)
+            depth = 0
+        elif tok.string == "(":
+            depth += 1
         elif tok.string == ")":
-            key = "suffix"
-        elif key in comments and tok.type != tokenize.ENCODING:
-            comments[key] += tok.string
+            depth -= 1
+            if depth == 0:
+                call_end = offset(tok.end)
 
     if fstring:
         # We can blanket replace, because cell.markdown is not set
@@ -220,7 +232,7 @@ def format_markdown(cell: CellImpl) -> str:
 
     # We always use """ as per front end.
     body = construct_markdown_call(markdown, '"""', tag)
-    return "".join([comments["prefix"], body, comments["suffix"]])
+    return "".join([cell.code[:call_start], body, cell.code[call_end:]])
 
 
 def construct_markdown_call(markdown: str, quote: str, tag: str) -> str:
