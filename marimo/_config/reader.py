@@ -122,7 +122,7 @@ def allowlist_script_config(
 
 
 # We typically do not strip pyproject configuration keys on the basis that a
-# malicious project can provide as bad if not worse behavior as our options.
+# malicious project can provide behavior as bad as, if not worse than, our options.
 # However, we are reserving these keys for potential TOFU-style trust anchors.
 # Reporters, do not read into this as a security guarantee for stripping
 # project options. See https://docs.marimo.io/security/#project-files for
