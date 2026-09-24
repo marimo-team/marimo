@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react";
 import { JSDOM } from "jsdom";
 import { defineConfig, type Plugin } from "vite";
 import wasm from "vite-plugin-wasm";
+import { bundleBudget } from "./vite-plugins/bundle-budget";
 import { createViteLogger, reactCompilerConfig } from "./vite.shared.mts";
 
 const SERVER_PORT = process.env.SERVER_PORT || 2718;
@@ -322,6 +323,7 @@ export default defineConfig({
     format: "es",
   },
   plugins: [
+    !isDev && bundleBudget({ name: "App", maxGzipKiB: 1280 }),
     htmlDevPlugin(),
     react({
       // React Compiler backed by Oxc (oxc-transform-react)

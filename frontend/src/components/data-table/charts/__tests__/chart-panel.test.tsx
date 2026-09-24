@@ -9,7 +9,8 @@ import { SetupMocks } from "@/__mocks__/common";
 import { cellId } from "@/__tests__/branded";
 import { LazyVegaEmbed } from "@/components/charts/lazy";
 import { vegaLoader } from "@/plugins/impl/vega/loader";
-import { ChartPanel, TablePanel, type TablePanelProps } from "../charts";
+import { ChartPanel } from "../chart-panel";
+import { TablePanel, type TablePanelProps } from "../charts";
 import { getChartTabName, tabsStorageAtom } from "../storage";
 import { ChartType, NONE_VALUE } from "../types";
 

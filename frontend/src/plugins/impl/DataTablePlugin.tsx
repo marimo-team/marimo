@@ -15,6 +15,7 @@ import { Table2Icon } from "lucide-react";
 import type { JSX } from "react";
 import React, {
   memo,
+  Suspense,
   useCallback,
   useEffect,
   useId,
@@ -33,12 +34,12 @@ import { ColumnChartContext } from "@/components/data-table/column-summary/colum
 import { downloadSizeLimitAtom } from "@/components/data-table/download-policy/atoms";
 import { filtersToFilterGroup } from "@/components/data-table/filters";
 import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-ownership";
+import { inferFieldTypes } from "@/components/data-table/infer-field-types";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import {
   type DownloadAsArgs,
   DownloadAsSchema,
 } from "@/components/data-table/schemas";
-import { TableExplorerPanel } from "@/components/data-table/table-explorer-panel/table-explorer-panel";
 import {
   type BinValues,
   type ColumnHeaderStats,
@@ -77,10 +78,7 @@ import { Arrays } from "@/utils/arrays";
 import { Functions } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 import { prettyNumber } from "@/utils/numbers";
-import {
-  generateColumns,
-  inferFieldTypes,
-} from "../../components/data-table/columns";
+import { generateColumns } from "../../components/data-table/columns";
 import { DataTable } from "../../components/data-table/data-table";
 import { createPlugin } from "../core/builder";
 import { rpc } from "../core/rpc";
@@ -91,6 +89,12 @@ import {
   type FilterGroupType,
   columnToFieldTypesSchema,
 } from "./data-frames/schema";
+
+const LazyTableExplorerPanel = React.lazy(() =>
+  import("@/components/data-table/table-explorer-panel/table-explorer-panel").then(
+    (mod) => ({ default: mod.TableExplorerPanel }),
+  ),
+);
 
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
@@ -1070,24 +1074,30 @@ const DataTableComponent = ({
     }
     return (table: TanstackTable<unknown>) => (
       <ContextAwarePanelItem>
-        <TableExplorerPanel
-          rowIdx={viewedRowIdx}
-          setRowIdx={setViewedRow}
-          totalRows={totalRows}
-          fieldTypes={memoizedUnclampedFieldTypes}
-          getRow={getRow}
-          isSelectable={isSelectable}
-          isRowSelected={Boolean(rowSelection[viewedRowIdx])}
-          handleRowSelectionChange={handleRowSelectionChange}
-          previewColumn={preview_column}
-          totalColumns={totalColumns}
-          tableId={id}
-          table={table}
-          showRowExplorer={showRowExplorer && !isInVscode}
-          showColumnExplorer={canShowColumnExplorer && !isInVscode}
-          activeTab={panelType}
-          onTabChange={setPanelType}
-        />
+        <Suspense
+          fallback={
+            <div className="p-4 text-muted-foreground">Loading explorer...</div>
+          }
+        >
+          <LazyTableExplorerPanel
+            rowIdx={viewedRowIdx}
+            setRowIdx={setViewedRow}
+            totalRows={totalRows}
+            fieldTypes={memoizedUnclampedFieldTypes}
+            getRow={getRow}
+            isSelectable={isSelectable}
+            isRowSelected={Boolean(rowSelection[viewedRowIdx])}
+            handleRowSelectionChange={handleRowSelectionChange}
+            previewColumn={preview_column}
+            totalColumns={totalColumns}
+            tableId={id}
+            table={table}
+            showRowExplorer={showRowExplorer && !isInVscode}
+            showColumnExplorer={canShowColumnExplorer && !isInVscode}
+            activeTab={panelType}
+            onTabChange={setPanelType}
+          />
+        </Suspense>
       </ContextAwarePanelItem>
     );
   }, [

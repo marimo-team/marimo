@@ -7,12 +7,8 @@ import { beforeAll, describe, expect, it, test, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Logger } from "@/utils/Logger";
 import { parseContent } from "@/utils/url-parser";
-import {
-  generateColumns,
-  inferFieldTypes,
-  LocaleNumber,
-  renderCellValue,
-} from "../columns";
+import { generateColumns, LocaleNumber, renderCellValue } from "../columns";
+import { inferFieldTypes } from "../infer-field-types";
 import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
 import type { FieldTypesWithExternalType } from "../types";
 import { uniformSample } from "../uniformSample";
