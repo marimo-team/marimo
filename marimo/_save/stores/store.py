@@ -16,7 +16,7 @@ class Store(ABC):
 
     @abstractmethod
     def put(self, key: str, value: bytes) -> bool:
-        """Put a cache into the store"""
+        """Put a cache into the store."""
 
     @abstractmethod
     def hit(self, key: str) -> bool:

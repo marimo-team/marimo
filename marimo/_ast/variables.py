@@ -47,7 +47,9 @@ def unmangle_local(
 ) -> UnmagledLocal:
     if not is_mangled_local(name, cell_id):
         return UnmagledLocal(name, CellId_t(""))
-    private_prefix = r"^_cell_\w+?_"
+    # Cell ids can hold hyphens (a UUID, or a nested app's prefix), which
+    # `\w` excludes.
+    private_prefix = r"^_cell_[\w-]+?_"
     if cell_id:
         private_prefix = f"^_cell_{cell_id}_"
     return UnmagledLocal(
