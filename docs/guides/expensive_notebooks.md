@@ -188,6 +188,20 @@ def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.nda
 See our [guide on caching](../api/caching.md) for details, including how the cache
 key is constructed, and limitations.
 
+/// tip
+
+Use the `marimo cache` command group to see and reclaim the disk space
+used by [`mo.persistent_cache`][marimo.persistent_cache].
+
+```bash
+marimo cache dir notebook.py
+```
+
+Run `marimo cache dir ./dir` to print cache directories resolved
+from the given folder.
+
+///
+
 ## Lazy-load expensive UIs
 
 Lazily render UI elements that are expensive to compute using
