@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import threading
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -26,8 +27,22 @@ from tests._server.mocks import get_mock_session_manager
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
 
+    from websockets.sync.server import Server as WebSocketServer
+
 # Module-level app only for client_with_lifespans fixture
 _module_app = create_starlette_app(base_url="", enable_auth=True)
+
+
+@contextmanager
+def serve_in_thread(server: WebSocketServer) -> Iterator[None]:
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+    try:
+        yield
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        assert not thread.is_alive()
 
 
 def get_kernel_tasks(

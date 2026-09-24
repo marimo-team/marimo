@@ -91,6 +91,11 @@ async def test_base_lsp_server_start_stop(
     assert alert is None
     mock_popen.assert_called_once()
     assert (
+        mock_popen.call_args.kwargs["env"]["MARIMO_LSP_TOKEN"]
+        == server.auth_token
+    )
+    assert server.auth_token not in server.get_command()
+    assert (
         server.is_running() is True
     )  # Process exists and is running (returncode is None)
 
@@ -222,12 +227,9 @@ async def test_pylsp_server():
     assert server.get_command() == [
         sys.executable,
         "-m",
-        "pylsp",
-        "--ws",
-        "-v",
+        "marimo._server._pylsp",
         "--port",
         "8000",
-        "--check-parent-process",
         "--log-file",
         str(get_log_directory() / "pylsp.log"),
     ]
