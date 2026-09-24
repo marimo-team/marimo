@@ -680,11 +680,9 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
 
     @override
     def create_model(self) -> OpenAIResponsesModel:
-        from pydantic_ai.models.openai import (
-            OpenAIResponsesModel,
-        )
+        from marimo._server.ai.openai import SafeOpenAIResponsesModel
 
-        return OpenAIResponsesModel(
+        return SafeOpenAIResponsesModel(
             model_name=self.model, provider=self.provider
         )
 
@@ -1056,13 +1054,26 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         """
         from pydantic_ai import UserError
         from pydantic_ai.models import infer_model
-        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.models.openai import (
+            OpenAIChatModel,
+            OpenAIResponsesModel,
+        )
+
+        from marimo._server.ai.openai import SafeOpenAIResponsesModel
 
         try:
-            return infer_model(
+            model = infer_model(
                 f"{self._provider_name}:{self.model}",
                 provider_factory=lambda _: self.provider,
             )
+            if type(model) is OpenAIResponsesModel:
+                return SafeOpenAIResponsesModel(
+                    model_name=model.model_name,
+                    provider=self.provider,
+                    profile=model.profile,
+                    settings=model.settings,
+                )
+            return model
         except UserError:
             model_not_found_msg = (
                 f"Model {self.model} not found in pydantic-ai's model registry. "
