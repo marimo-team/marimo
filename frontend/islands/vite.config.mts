@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import wasm from "vite-plugin-wasm";
+import { bundleBudget } from "../vite-plugins/bundle-budget";
 import { createViteLogger, reactCompilerConfig } from "../vite.shared.mts";
 import packageJson from "../package.json";
 
@@ -116,6 +117,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    bundleBudget({ name: "Islands", maxGzipKiB: 1825 }),
     htmlDevPlugin(),
     react({
       // React Compiler backed by Oxc (oxc-transform-react)
