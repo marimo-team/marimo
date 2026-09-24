@@ -45,6 +45,16 @@ marimo behaves differently depending on how you run it:
 
 This distinction reflects the different threat models: editing is exploratory and may involve untrusted notebooks; deployed apps are intentional publications.
 
+### Project files
+
+marimo reads configuration settings from three sources: your user config, the nearest `pyproject.toml`, and the notebook's inline script metadata (PEP 723).
+Configuration is merged in order of precedence, as explained in the [configuration guide](guides/configuration/index.md).
+For security reasons marimo applies priority to these settings as follows:
+
+- **Script metadata** or [notebook level settings](guides/configuration/index.md#script-metadata-configuration) strips several settings for security. Since notebooks can be opened from remote sources, marimo intentionally removes certain settings from script metadata to prevent malicious configuration.
+- **In `pyproject.toml` and `.marimo.toml` files most configuration options are respected**. You should only open a notebook from a project you trust. Projects can install arbitrary code, and other settings (including marimo's) may be configured maliciously.
+- **User config** options are always trusted. The config is stored in your home directory and only you can modify it.
+
 ### Authentication
 
 marimo provides token-based authentication:
@@ -61,6 +71,7 @@ See the [Authentication guide](guides/deploying/authentication.md) for more deta
 
 - Auto-running cells is disabled on notebook load (you can disable this during your session)
 - Custom head tags are disabled
+- Notebook script metadata is stripped as described under [Project files](#project-files)
 
 These restrictions prevent code execution without explicit user consent.
 

@@ -303,7 +303,9 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             project_config = self._resolve_dotenv(project_config)
             project_config = self._resolve_custom_css(project_config)
             project_config = self._resolve_vimrc(project_config)
-            # A cloned repo's pyproject.toml cannot anchor cache-signing trust.
+            # pyproject.toml is honoured as written apart from trust anchors.
+            # Opening a notebook inside a project already means trusting that
+            # project, so an allowlist here adds little protection.
             project_config = strip_untrusted_config(project_config)
         except Exception as e:
             LOGGER.warning("Failed to read project config: %s", e)
