@@ -98,7 +98,7 @@ def test_duckdb_interrupt_handler_exception_handling():
             interrupt_handler = construct_interrupt_handler()
 
             # Should raise MarimoInterrupt, not RuntimeError
-            # The handler swallows the RuntimeError
+            # The RuntimeError should be caught and logged
             with pytest.raises(MarimoInterrupt):
                 interrupt_handler(signal.SIGINT, None)
 

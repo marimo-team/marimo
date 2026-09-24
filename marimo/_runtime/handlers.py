@@ -5,10 +5,13 @@ import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from marimo import _loggers
 from marimo._runtime.context import get_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.control_flow import MarimoInterrupt
+
+LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -21,8 +24,8 @@ def construct_interrupt_handler() -> Callable[[int, Any], None]:
         """Interrupt the running cell.
 
         Python can run this handler nested inside itself when two
-        SIGINTs arrive close together, so it takes no lock and does no
-        I/O. It does not send `InterruptedNotification`. The interrupted
+        SIGINTs arrive close together, so it does not write to the kernel
+        stream. It does not send `InterruptedNotification`. The interrupted
         run reports the interruption after its running cell stops.
         """
         del signum
@@ -51,11 +54,12 @@ def construct_interrupt_handler() -> Callable[[int, Any], None]:
         if exec_ctx is not None and exec_ctx.duckdb_connection is not None:
             try:
                 exec_ctx.duckdb_connection.interrupt()
-            except Exception:
-                # Logging here writes to a buffered stream that a nested
-                # handler can already be writing to. Drop the failure:
-                # the SIGINT still stops the cell once duckdb returns.
-                pass
+            except Exception as e:
+                LOGGER.warning(
+                    "Failed to interrupt running duckdb connection. This "
+                    "may be a bug in duckdb or marimo. %s",
+                    e,
+                )
 
         if sched is not None and sched.has_active_tasks():
             # Async cell in flight: cancel via the loop. Raising from a
