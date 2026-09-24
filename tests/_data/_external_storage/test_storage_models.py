@@ -760,7 +760,7 @@ class TestFsspecFilesystem:
             ((), {"path": "", "detail": True}),
             ((), {"path": ".", "detail": True}),
         ]
-        assert [e.path for e in result.entries] == ["./a.txt"]
+        assert [e.path for e in result.entries] == ["a.txt"]
 
     def test_list_entries_not_found_below_root_raises(self) -> None:
         mock_store = MagicMock()
@@ -1138,15 +1138,23 @@ class TestFsspecFilesystem:
             )
         )
 
-    def test_create_storage_entry_datetime_mtime(self) -> None:
+    @pytest.mark.parametrize(
+        "mtime",
+        [
+            datetime(2024, 1, 1, tzinfo=timezone.utc),
+            datetime(2024, 1, 1),  # naive datetimes are treated as UTC
+        ],
+    )
+    def test_create_storage_entry_datetime_mtime(
+        self, mtime: datetime
+    ) -> None:
         # e.g. sshfs returns mtime as a datetime rather than a float
-        mtime = datetime(2024, 1, 1, tzinfo=timezone.utc)
         backend = self._make_backend(MagicMock())
 
         entry = backend._create_storage_entry(
             {"name": "a.txt", "size": 1, "type": "file", "mtime": mtime}
         )
-        assert entry.last_modified == mtime.timestamp()
+        assert entry.last_modified == 1704067200.0
 
     async def test_get_entry(self) -> None:
         mock_store = MagicMock()

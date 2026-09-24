@@ -15,7 +15,7 @@ marimo auto-discovers variables that are instances of:
 | Library | Base class | Example stores |
 |---------|-----------|----------------|
 | [obstore](https://developmentseed.org/obstore/) | `obstore.store.ObjectStore` | `S3Store`, `GCSStore`, `AzureStore`, `HTTPStore`, `LocalStore`, `MemoryStore` |
-| [fsspec](https://filesystem-spec.readthedocs.io/) | `fsspec.AbstractFileSystem` | `S3FileSystem`, `GithubFileSystem`, `FTPFileSystem`, `DatabricksFileSystem`, and [many more](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations) |
+| [fsspec](https://filesystem-spec.readthedocs.io/) | `fsspec.AbstractFileSystem` | `S3FileSystem`, `GithubFileSystem`, `FTPFileSystem`, `SSHFileSystem`, `DatabricksFileSystem`, and [many more](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations) |
 | [huggingface_hub](https://huggingface.co/docs/huggingface_hub) | `huggingface_hub.HfApi` | Browse the Hugging Face Hub (datasets, models, spaces, buckets) |
 
 
@@ -88,6 +88,36 @@ from fsspec.implementations.github import GithubFileSystem
 
 repo = GithubFileSystem(org="marimo-team", repo="marimo")
 ```
+
+#### SSH / SFTP
+
+Browse files on a remote machine over SSH with [sshfs](https://github.com/fsspec/sshfs), the fsspec plugin for SSH (`pip install sshfs`):
+
+```python
+from sshfs import SSHFileSystem
+
+server = SSHFileSystem(
+    "my-server.example.com",
+    username="me",
+    client_keys=["~/.ssh/id_ed25519"],
+)
+```
+
+`client_keys` is optional: by default, your SSH agent and the default keys in `~/.ssh` are used. Other keyword arguments are passed to [`asyncssh.connect`](https://asyncssh.readthedocs.io/en/latest/api.html#asyncssh.connect), e.g. `port`, `passphrase` for an encrypted key, or `password`.
+
+The panel opens in your home directory on the server. To start in a different folder, wrap the filesystem in fsspec's `DirFileSystem`; paths you use in code are then relative to that folder too:
+
+```python
+from fsspec.implementations.dirfs import DirFileSystem
+from sshfs import SSHFileSystem
+
+project = DirFileSystem(
+    path="/data/project",
+    fs=SSHFileSystem("my-server.example.com", username="me"),
+)
+```
+
+`DirFileSystem` works with any fsspec filesystem, not just SSH.
 
 #### Hugging Face Hub
 

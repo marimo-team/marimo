@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -403,12 +403,16 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         else:
             resolved_kind = self._identify_kind(entry_type)
 
-        # Some filesystems (e.g. sshfs) return mtime as a datetime
+        # Some filesystems (e.g. sshfs) return mtime as a datetime;
+        # fsspec times are UTC, so treat naive datetimes as UTC
         mtime = file.get("mtime")
         if isinstance(mtime, datetime):
-            mtime = mtime.timestamp()
+            mtime = mtime.replace(
+                tzinfo=mtime.tzinfo or timezone.utc
+            ).timestamp()
 
-        resolved_path = name or ""
+        # Entries listed from the "." fallback are prefixed with "./"
+        resolved_path = (name or "").removeprefix("./")
         return StorageEntry(
             path=resolved_path,
             size=size or 0,
