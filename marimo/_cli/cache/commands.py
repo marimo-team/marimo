@@ -38,6 +38,27 @@ def format_dir(cache_dir: Path) -> str:
     return f"{cache_dir} (does not exist)"
 
 
+_BYTE_UNITS = ("B", "KB", "MB", "GB", "TB", "PB")
+
+
+def format_bytes(size: int) -> str:
+    """Render a byte count in binary units, where 1 KB is 1024 B."""
+    value = float(size)
+    unit = 0
+    # Round before comparing, so a value that renders as a full 1024 of its
+    # unit moves up instead of printing as "1024.0".
+    while round(value, 1) >= 1024 and unit < len(_BYTE_UNITS) - 1:
+        value /= 1024
+        unit += 1
+    if unit == 0:
+        return f"{size} B"
+    return f"{value:.1f} {_BYTE_UNITS[unit]}"
+
+
+def format_entries(entries: int) -> str:
+    return f"{entries} entry" if entries == 1 else f"{entries} entries"
+
+
 def resolve_cache_dirs_or_error(path: Path, recursive: bool) -> list[Path]:
     """Resolve PATH, reporting a resolution failure as a CLI error."""
     from marimo._save.cache_dirs import CacheDirError, resolve_cache_dirs
@@ -123,3 +144,45 @@ def cache_dir(path: Path, recursive: bool) -> None:
 
     for cache_directory in cache_dirs:
         click.echo(format_dir(cache_directory))
+
+
+@cache.command(
+    name="size",
+    help="""Print disk usage and entry counts for the cache.
+
+Prints the disk usage and entry count for each cache directory that
+PATH resolves to, and a total when there is more than one. Accepts
+`-r`/`--recursive` to search PATH recursively.
+
+Example usage:
+
+    marimo cache size
+
+    marimo cache size -r notebooks/
+""",
+)
+@path_argument
+@recursive_option
+def cache_size(path: Path, recursive: bool) -> None:
+    from marimo._save.cache_dirs import CacheDirStats, cache_dir_stats
+
+    cache_dirs = resolve_cache_dirs_or_error(path, recursive)
+    if not cache_dirs:
+        click.echo("No cache directories found.")
+        return
+
+    total = CacheDirStats()
+    for cache_directory in cache_dirs:
+        stats = cache_dir_stats(cache_directory)
+        total += stats
+        label = format_dir(cache_directory)
+        click.echo(
+            f"{label}\t{format_bytes(stats.total_bytes)}"
+            f"\t{format_entries(stats.entries)}"
+        )
+
+    if len(cache_dirs) > 1:
+        click.echo(
+            f"Total\t{format_bytes(total.total_bytes)}"
+            f"\t{format_entries(total.entries)}"
+        )

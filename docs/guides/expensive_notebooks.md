@@ -202,6 +202,15 @@ from the given folder.
 
 ///
 
+### Check disk usage
+
+```bash
+marimo cache size -r notebooks/
+```
+
+Run `marimo cache size` to print the disk usage and entry count for each
+cache directory, plus a total when there is more than one.
+
 ## Lazy-load expensive UIs
 
 Lazily render UI elements that are expensive to compute using

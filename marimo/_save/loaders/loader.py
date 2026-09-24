@@ -207,6 +207,22 @@ class Loader(ABC):
         # Default implementation: no-op for loaders that don't support clearing
         return
 
+    def storage_dirs(self) -> list[Path]:
+        """Cache directories this loader writes its block into.
+
+        Empty when the cache keeps nothing on the local filesystem, so there
+        is no disk usage to attribute to it.
+        """
+        return []
+
+    def clearable_paths(self) -> list[Path]:
+        """Files and directories on disk that `clear()` removes."""
+        return []
+
+    def clearable_bytes(self) -> int:
+        """Bytes on disk that `clear()` frees."""
+        return 0
+
 
 class BasePersistenceLoader(Loader):
     """Abstract base for cache written to disk."""
@@ -265,22 +281,46 @@ class BasePersistenceLoader(Loader):
         except FileNotFoundError as e:
             raise LoaderError("Unexpected cache miss.") from e
 
-    def clear(self) -> None:
-        """Clear all cached items for this loader."""
-        # Clear all files in the loader's directory
-        import glob
+    def storage_dirs(self) -> list[Path]:
+        return self.store.local_dirs()
 
+    def _clearable_root(self) -> Path | None:
+        """Root directory `clear()` removes this loader's entry files under.
+
+        `None` unless the store itself maps every key to a path below a root
+        it owns; anything else, a wrapper or a remote store included, holds
+        entries that cannot be enumerated as paths.
+        """
         from marimo._save.stores.file import FileStore
 
-        # Only FileStore has save_path, so we need to check
-        if not isinstance(self.store, FileStore):
-            return
+        if isinstance(self.store, FileStore):
+            # A file store keeps its entries in exactly one directory.
+            return self.store.local_dirs()[0]
+        return None
 
-        pattern = str(Path(self.name) / f"*.{self.suffix}")
-        # Get all matching cache files through the store's base path
-        for cache_file in glob.glob(str(self.store.save_path / pattern)):
-            key = str(Path(cache_file).relative_to(self.store.save_path))
-            self.store.clear(key)
+    def _clearable_paths(self, root: Path) -> list[Path]:
+        """Paths under `root` that `clear()` removes."""
+        import glob
+
+        pattern = str(root / self.name / f"*.{self.suffix}")
+        return [Path(match) for match in glob.glob(pattern)]
+
+    def clear(self) -> None:
+        """Clear all cached items for this loader."""
+        root = self._clearable_root()
+        if root is None:
+            return
+        for cache_file in self._clearable_paths(root):
+            self.store.clear(str(cache_file.relative_to(root)))
+
+    def clearable_paths(self) -> list[Path]:
+        root = self._clearable_root()
+        return [] if root is None else self._clearable_paths(root)
+
+    def clearable_bytes(self) -> int:
+        from marimo._save.cache_dirs import entry_bytes
+
+        return sum(entry_bytes(path) for path in self.clearable_paths())
 
     @abstractmethod
     def restore_cache(self, key: HashKey, blob: bytes) -> Cache:
