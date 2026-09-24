@@ -11,6 +11,11 @@ import {
 } from "react";
 import { z } from "zod";
 import { useFullScreenElement } from "@/components/ui/fullscreen";
+import { MarimoIncomingMessageEvent } from "@/core/dom/events";
+import {
+  type HTMLElementNotDerivedFromRef,
+  useEventListener,
+} from "@/hooks/useEventListener";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
@@ -23,8 +28,13 @@ import {
 } from "./video/floating-video";
 
 export interface VideoData extends FloatingVideoData {
-  floating: "manual" | "auto";
+  floating: "off" | "manual" | "auto";
 }
+
+const VideoCommandSchema = z.object({
+  type: z.literal("seek"),
+  time: z.number().finite().nonnegative(),
+});
 
 export class VideoPlugin implements IStatelessPlugin<VideoData> {
   tagName = "marimo-video";
@@ -36,7 +46,7 @@ export class VideoPlugin implements IStatelessPlugin<VideoData> {
     autoplay: z.boolean().default(false),
     loop: z.boolean().default(false),
     rounded: z.boolean().default(false),
-    floating: z.enum(["manual", "auto"]),
+    floating: z.enum(["off", "manual", "auto"]),
     width: z.string().optional(),
     height: z.string().optional(),
   });
@@ -48,6 +58,25 @@ export class VideoPlugin implements IStatelessPlugin<VideoData> {
 
 type FloatingReason = "manual" | "auto";
 
+const stylePluginHost = (
+  host: HTMLElement,
+  width: string | undefined,
+): (() => void) => {
+  const previousDisplay = host.style.display;
+  const previousMaxWidth = host.style.maxWidth;
+  const previousWidth = host.style.width;
+
+  host.style.display = "inline-block";
+  host.style.maxWidth = "100%";
+  host.style.width = width ?? "";
+
+  return () => {
+    host.style.display = previousDisplay;
+    host.style.maxWidth = previousMaxWidth;
+    host.style.width = previousWidth;
+  };
+};
+
 export const VideoComponent = ({
   data,
   host,
@@ -56,6 +85,8 @@ export const VideoComponent = ({
   host: HTMLElement;
 }): JSX.Element => {
   const inlineAnchorRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const pendingSeekRef = useRef<number | null>(null);
   const portalContainer = useMemo(() => {
     const element = document.createElement("div");
     element.dataset.testid = "marimo-video-container";
@@ -70,6 +101,40 @@ export const VideoComponent = ({
   const transitionFromRectRef = useRef<DOMRect | null>(null);
   const fullScreenElement = useFullScreenElement();
   const isFloating = floatingReason !== null;
+  const canFloat = data.floating !== "off";
+
+  const seek = useCallback((time: number) => {
+    const video = videoRef.current;
+    if (!video || video.readyState === 0) {
+      pendingSeekRef.current = time;
+      return;
+    }
+
+    pendingSeekRef.current = null;
+    video.currentTime = time;
+  }, []);
+
+  const handleLoadedMetadata = useCallback(() => {
+    const video = videoRef.current;
+    const pendingSeek = pendingSeekRef.current;
+    if (!video || pendingSeek === null) {
+      return;
+    }
+
+    pendingSeekRef.current = null;
+    video.currentTime = pendingSeek;
+  }, []);
+
+  useEventListener(
+    host as HTMLElementNotDerivedFromRef,
+    MarimoIncomingMessageEvent.TYPE,
+    (event) => {
+      const command = VideoCommandSchema.safeParse(event.detail.message);
+      if (command.success) {
+        seek(command.data.time);
+      }
+    },
+  );
 
   useLayoutEffect(() => {
     inlineAnchorRef.current?.append(portalContainer);
@@ -106,28 +171,17 @@ export const VideoComponent = ({
     setFloatingReason(null);
   }, [captureTransitionOrigin, data.floating]);
 
-  useLayoutEffect(() => {
-    const previousDisplay = host.style.display;
-    const previousMaxWidth = host.style.maxWidth;
-    const previousWidth = host.style.width;
-
-    host.style.display = "inline-block";
-    host.style.maxWidth = "100%";
-    host.style.width = data.width ?? "";
-
-    return () => {
-      host.style.display = previousDisplay;
-      host.style.maxWidth = previousMaxWidth;
-      host.style.width = previousWidth;
-    };
-  }, [data.width, host]);
+  useLayoutEffect(() => stylePluginHost(host, data.width), [data.width, host]);
 
   useEffect(() => {
     const anchor = inlineAnchorRef.current;
     if (data.floating !== "auto" || !anchor) {
       wasVisibleRef.current = false;
       dismissedAutoFloatRef.current = false;
-      if (floatingReason === "auto") {
+      if (
+        floatingReason === "auto" ||
+        (data.floating === "off" && floatingReason === "manual")
+      ) {
         captureTransitionOrigin();
         setFloatingReason(null);
       }
@@ -183,16 +237,19 @@ export const VideoComponent = ({
         <FloatingVideoPlaceholder onDock={dockVideo} rounded={data.rounded} />
       ) : null}
       <FloatingVideoPanel
+        canFloat={canFloat}
         data={data}
         fullScreenElement={fullScreenElement}
         hasExplicitWidth={data.width !== undefined}
         inlineAnchorRef={inlineAnchorRef}
         inlineSize={inlineSize}
         isFloating={isFloating}
+        onLoadedMetadata={handleLoadedMetadata}
         onDock={dockVideo}
         onFloat={floatVideo}
         portalContainer={portalContainer}
         transitionFromRectRef={transitionFromRectRef}
+        videoRef={videoRef}
       />
     </div>
   );

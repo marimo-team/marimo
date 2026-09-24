@@ -22,6 +22,8 @@ import {
   type FloatingCorner,
   getCornerPosition,
   getFloatingRoot,
+  getFloatingViewportBounds,
+  getFloatingViewportElements,
   getInitialFloatingSize,
   getOppositeCorner,
   getResizeCornerClassName,
@@ -68,6 +70,7 @@ interface ResizeGesture {
 }
 
 interface FloatingVideoPanelProps {
+  canFloat: boolean;
   data: FloatingVideoData;
   fullScreenElement: Element | null;
   hasExplicitWidth: boolean;
@@ -76,8 +79,10 @@ interface FloatingVideoPanelProps {
   isFloating: boolean;
   onDock: () => void;
   onFloat: () => void;
+  onLoadedMetadata: () => void;
   portalContainer: HTMLDivElement;
   transitionFromRectRef: RefObject<DOMRect | null>;
+  videoRef: RefObject<HTMLVideoElement | null>;
 }
 
 interface FloatingVideoPlaceholderProps {
@@ -86,6 +91,7 @@ interface FloatingVideoPlaceholderProps {
 }
 
 export const FloatingVideoPanel = ({
+  canFloat,
   data,
   fullScreenElement,
   hasExplicitWidth,
@@ -94,12 +100,17 @@ export const FloatingVideoPanel = ({
   isFloating,
   onDock,
   onFloat,
+  onLoadedMetadata,
   portalContainer,
   transitionFromRectRef,
+  videoRef,
 }: FloatingVideoPanelProps) => {
   const [floatingSize, setFloatingSize] = useState<Size | null>(null);
   const [floatingCorner, setFloatingCorner] =
     useState<FloatingCorner>("bottom-right");
+  const [floatingViewportBounds, setFloatingViewportBounds] = useState(
+    getFloatingViewportBounds,
+  );
   const [dragPosition, setDragPosition] = useState<Position | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -111,8 +122,10 @@ export const FloatingVideoPanel = ({
   );
 
   const resolvedFloatingSize = useMemo(
-    () => floatingSize ?? getInitialFloatingSize(inlineSize),
-    [floatingSize, inlineSize],
+    () =>
+      floatingSize ??
+      getInitialFloatingSize(inlineSize, floatingViewportBounds),
+    [floatingSize, floatingViewportBounds, inlineSize],
   );
 
   const cancelAnimation = useCallback(() => {
@@ -215,6 +228,7 @@ export const FloatingVideoPanel = ({
                 y: moveEvent.clientY - gesture.offsetY,
               },
               resolvedFloatingSize,
+              floatingViewportBounds,
             ),
           );
         },
@@ -241,12 +255,18 @@ export const FloatingVideoPanel = ({
               y: finishEvent.clientY - gesture.offsetY,
             },
             resolvedFloatingSize,
+            floatingViewportBounds,
           );
           setFloatingCorner(
-            getSnapCorner(position, resolvedFloatingSize, {
-              x: gesture.velocityX,
-              y: gesture.velocityY,
-            }),
+            getSnapCorner(
+              position,
+              resolvedFloatingSize,
+              {
+                x: gesture.velocityX,
+                y: gesture.velocityY,
+              },
+              floatingViewportBounds,
+            ),
           );
           setDragPosition(null);
           suppressNextClick();
@@ -261,6 +281,7 @@ export const FloatingVideoPanel = ({
       cancelActiveGesture,
       cancelAnimation,
       data.controls,
+      floatingViewportBounds,
       isFloating,
       portalContainer,
       resolvedFloatingSize,
@@ -308,7 +329,11 @@ export const FloatingVideoPanel = ({
               ? widthFromHorizontal
               : widthFromVertical;
           setFloatingSize(
-            constrainFloatingSize(nextWidth, gesture.aspectRatio),
+            constrainFloatingSize(
+              nextWidth,
+              gesture.aspectRatio,
+              floatingViewportBounds,
+            ),
           );
         },
         onFinish: () => setIsResizing(false),
@@ -318,6 +343,7 @@ export const FloatingVideoPanel = ({
     [
       cancelActiveGesture,
       cancelAnimation,
+      floatingViewportBounds,
       isFloating,
       resizeCorner,
       resolvedFloatingSize,
@@ -338,12 +364,45 @@ export const FloatingVideoPanel = ({
       return;
     }
 
+    const syncBounds = () => {
+      const next = getFloatingViewportBounds();
+      setFloatingViewportBounds((current) =>
+        current.left === next.left &&
+        current.top === next.top &&
+        current.right === next.right &&
+        current.bottom === next.bottom
+          ? current
+          : next,
+      );
+    };
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(syncBounds);
+    for (const element of getFloatingViewportElements()) {
+      resizeObserver?.observe(element);
+    }
+    window.addEventListener("resize", syncBounds);
+    syncBounds();
+    return () => {
+      window.removeEventListener("resize", syncBounds);
+      resizeObserver?.disconnect();
+    };
+  }, [isFloating]);
+
+  useEffect(() => {
+    if (!isFloating) {
+      return;
+    }
+
     const constrainToViewport = () => {
       setFloatingSize((current) => {
-        const size = current ?? getInitialFloatingSize(inlineSize);
+        const size =
+          current ?? getInitialFloatingSize(inlineSize, floatingViewportBounds);
         const next = constrainFloatingSize(
           size.width,
           size.width / size.height,
+          floatingViewportBounds,
         );
         return next.width === size.width && next.height === size.height
           ? current
@@ -351,10 +410,8 @@ export const FloatingVideoPanel = ({
       });
     };
 
-    window.addEventListener("resize", constrainToViewport);
     constrainToViewport();
-    return () => window.removeEventListener("resize", constrainToViewport);
-  }, [inlineSize, isFloating]);
+  }, [floatingViewportBounds, inlineSize, isFloating]);
 
   useLayoutEffect(() => {
     const parent = isFloating
@@ -373,7 +430,11 @@ export const FloatingVideoPanel = ({
         isFloating && dragPosition
           ? dragPosition
           : isFloating
-            ? getCornerPosition(floatingCorner, resolvedFloatingSize)
+            ? getCornerPosition(
+                floatingCorner,
+                resolvedFloatingSize,
+                floatingViewportBounds,
+              )
             : null,
       isInteracting: isDragging || isResizing,
     });
@@ -402,6 +463,7 @@ export const FloatingVideoPanel = ({
   }, [
     dragPosition,
     floatingCorner,
+    floatingViewportBounds,
     fullScreenElement,
     hasExplicitWidth,
     inlineAnchorRef,
@@ -434,12 +496,14 @@ export const FloatingVideoPanel = ({
     >
       <video
         key={createVideoPlaybackKey(data)}
+        ref={videoRef}
         data-testid="marimo-video"
         src={data.src ?? undefined}
         controls={data.controls}
         autoPlay={data.autoplay}
         loop={data.loop}
         muted={data.muted}
+        onLoadedMetadata={onLoadedMetadata}
         disablePictureInPicture={true}
         className={isFloating ? "block size-full object-contain" : undefined}
         style={{
@@ -448,24 +512,26 @@ export const FloatingVideoPanel = ({
           borderRadius: data.rounded ? "4px" : undefined,
         }}
       />
-      <Button
-        data-testid="floating-video-toggle"
-        variant="secondary"
-        size="icon"
-        className={`absolute bottom-2 z-10 size-7 opacity-75 shadow-md transition-opacity hover:opacity-100 ${
-          isFloating && floatingCorner.includes("right") ? "left-2" : "right-2"
-        }`}
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={isFloating ? onDock : onFloat}
-        aria-label={isFloating ? "Return video inline" : "Float video"}
-        title={isFloating ? "Return video inline" : "Float video"}
-      >
-        {isFloating ? (
-          <Minimize2Icon className="size-4" />
-        ) : (
-          <PictureInPicture2Icon className="size-4" />
-        )}
-      </Button>
+      {canFloat && (
+        <Button
+          data-testid="floating-video-toggle"
+          variant="secondary"
+          size="icon"
+          className={`absolute right-2 z-10 size-7 opacity-75 shadow-md transition-opacity hover:opacity-100 ${
+            isFloating ? "top-2" : "bottom-2"
+          }`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={isFloating ? onDock : onFloat}
+          aria-label={isFloating ? "Return video inline" : "Float video"}
+          title={isFloating ? "Return video inline" : "Float video"}
+        >
+          {isFloating ? (
+            <Minimize2Icon className="size-4" />
+          ) : (
+            <PictureInPicture2Icon className="size-4" />
+          )}
+        </Button>
+      )}
       {isFloating && (
         <div
           data-testid="marimo-video-resize-corner"
@@ -495,9 +561,9 @@ export const FloatingVideoPlaceholder = ({
     style={{ borderRadius: rounded ? "4px" : "0" }}
   >
     <PictureInPicture2Icon className="size-7" aria-hidden="true" />
-    <span role="status" className="text-sm font-medium">
+    <output className="text-sm font-medium">
       Video is playing in a floating window
-    </span>
+    </output>
     <Button variant="outline" size="sm" onClick={onDock}>
       Return video here
     </Button>

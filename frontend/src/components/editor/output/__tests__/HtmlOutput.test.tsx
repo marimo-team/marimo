@@ -152,11 +152,7 @@ describe("HtmlOutput", () => {
 
       const updatedVideo = container.querySelector("video");
       expect(updatedVideo).not.toBe(initialVideo);
-      if (attribute === "muted") {
-        expect(updatedVideo).toHaveProperty("muted", true);
-      } else {
-        expect(updatedVideo).toHaveAttribute(attribute);
-      }
+      expect(updatedVideo).toHaveProperty(attribute, true);
     },
   );
 

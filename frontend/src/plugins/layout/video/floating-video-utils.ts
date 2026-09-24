@@ -12,6 +12,13 @@ export interface Position {
   y: number;
 }
 
+export interface FloatingViewportBounds {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
 interface StyledPosition {
   x: number | string;
   y: number | string;
@@ -40,11 +47,60 @@ const MOVE_THRESHOLD = 5;
 const FLICK_VELOCITY_THRESHOLD = 0.5;
 const FLICK_PROJECTION_MS = 180;
 const CAPTURE_EVENT_OPTIONS = { capture: true } as const;
+const APP_SELECTOR = "#App";
+const RIGHT_CONTROLS_SELECTOR = [
+  "#chrome-controls-top-right",
+  "#chrome-controls-bottom-right",
+].join(",");
+const FLOATING_VIEWPORT_SELECTORS = [APP_SELECTOR, RIGHT_CONTROLS_SELECTOR];
 
 export const RESIZE_HIT_TARGET_SIZE = 11;
 export const NATIVE_CONTROLS_HEIGHT = 48;
 
-export const getInitialFloatingSize = (inlineSize: Size | null): Size => {
+export const getFloatingViewportElements = (): Element[] => {
+  if (typeof document === "undefined") {
+    return [];
+  }
+  return FLOATING_VIEWPORT_SELECTORS.flatMap((selector) => [
+    ...document.querySelectorAll(selector),
+  ]);
+};
+
+export const getFloatingViewportBounds = (): FloatingViewportBounds => {
+  const viewportBounds = {
+    left: 0,
+    top: 0,
+    right: window.innerWidth,
+    bottom: window.innerHeight,
+  };
+  if (typeof document === "undefined" || document.fullscreenElement) {
+    return viewportBounds;
+  }
+
+  const app = getVisibleRect(document.querySelector(APP_SELECTOR));
+  if (app) {
+    viewportBounds.left = Math.max(viewportBounds.left, app.left);
+    viewportBounds.top = Math.max(viewportBounds.top, app.top);
+    viewportBounds.right = Math.min(viewportBounds.right, app.right);
+    viewportBounds.bottom = Math.min(viewportBounds.bottom, app.bottom);
+  }
+
+  for (const controls of document.querySelectorAll(RIGHT_CONTROLS_SELECTOR)) {
+    const controlsRect = getVisibleRect(controls);
+    if (controlsRect) {
+      viewportBounds.right = Math.min(viewportBounds.right, controlsRect.left);
+    }
+  }
+
+  viewportBounds.right = Math.max(viewportBounds.left, viewportBounds.right);
+  viewportBounds.bottom = Math.max(viewportBounds.top, viewportBounds.bottom);
+  return viewportBounds;
+};
+
+export const getInitialFloatingSize = (
+  inlineSize: Size | null,
+  bounds = getFloatingViewportBounds(),
+): Size => {
   const aspectRatio =
     inlineSize && inlineSize.height > 0
       ? inlineSize.width / inlineSize.height
@@ -53,18 +109,25 @@ export const getInitialFloatingSize = (inlineSize: Size | null): Size => {
     inlineSize?.width ?? DEFAULT_FLOATING_WIDTH,
     DEFAULT_FLOATING_WIDTH,
   );
-  return constrainFloatingSize(requestedWidth, aspectRatio);
+  return constrainFloatingSize(requestedWidth, aspectRatio, bounds);
 };
 
 export const constrainFloatingSize = (
   width: number,
   aspectRatio: number,
+  bounds = getFloatingViewportBounds(),
 ): Size => {
   const maxWidth = Math.max(
     1,
-    Math.min(MAX_FLOATING_WIDTH, window.innerWidth - FLOATING_MARGIN * 2),
+    Math.min(
+      MAX_FLOATING_WIDTH,
+      bounds.right - bounds.left - FLOATING_MARGIN * 2,
+    ),
   );
-  const maxHeight = Math.max(1, window.innerHeight - FLOATING_MARGIN * 2);
+  const maxHeight = Math.max(
+    1,
+    bounds.bottom - bounds.top - FLOATING_MARGIN * 2,
+  );
   const minimumWidth = Math.min(MIN_FLOATING_WIDTH, maxWidth);
   const widthLimitedByHeight = maxHeight * aspectRatio;
   const constrainedWidth = Math.min(
@@ -81,36 +144,50 @@ export const constrainFloatingSize = (
 export const constrainFloatingPosition = (
   position: Position,
   size: Size,
-): Position => ({
-  x: Math.min(
-    Math.max(position.x, FLOATING_MARGIN),
-    Math.max(FLOATING_MARGIN, window.innerWidth - size.width - FLOATING_MARGIN),
-  ),
-  y: Math.min(
-    Math.max(position.y, FLOATING_MARGIN),
-    Math.max(
-      FLOATING_MARGIN,
-      window.innerHeight - size.height - FLOATING_MARGIN,
+  bounds = getFloatingViewportBounds(),
+): Position => {
+  const minX = bounds.left + FLOATING_MARGIN;
+  const minY = bounds.top + FLOATING_MARGIN;
+  return {
+    x: Math.min(
+      Math.max(position.x, minX),
+      Math.max(minX, bounds.right - size.width - FLOATING_MARGIN),
     ),
-  ),
-});
+    y: Math.min(
+      Math.max(position.y, minY),
+      Math.max(minY, bounds.bottom - size.height - FLOATING_MARGIN),
+    ),
+  };
+};
 
 export const getCornerPosition = (
   corner: FloatingCorner,
   size: Size,
-): StyledPosition => ({
-  x: corner.includes("left")
-    ? FLOATING_MARGIN
-    : `calc(100vw - ${size.width + FLOATING_MARGIN}px)`,
-  y: corner.includes("top")
-    ? FLOATING_MARGIN
-    : `calc(100vh - ${size.height + FLOATING_MARGIN}px)`,
-});
+  bounds = getFloatingViewportBounds(),
+): StyledPosition => {
+  const minX = bounds.left + FLOATING_MARGIN;
+  const minY = bounds.top + FLOATING_MARGIN;
+  const maxX = Math.max(minX, bounds.right - size.width - FLOATING_MARGIN);
+  const maxY = Math.max(minY, bounds.bottom - size.height - FLOATING_MARGIN);
+  return {
+    x: corner.includes("left")
+      ? minX
+      : bounds.right === window.innerWidth
+        ? `calc(100vw - ${size.width + FLOATING_MARGIN}px)`
+        : maxX,
+    y: corner.includes("top")
+      ? minY
+      : bounds.bottom === window.innerHeight
+        ? `calc(100vh - ${size.height + FLOATING_MARGIN}px)`
+        : maxY,
+  };
+};
 
 export const getSnapCorner = (
   position: Position,
   size: Size,
   velocity: Position,
+  bounds = getFloatingViewportBounds(),
 ): FloatingCorner => {
   const centerX = position.x + size.width / 2;
   const centerY = position.y + size.height / 2;
@@ -124,8 +201,10 @@ export const getSnapCorner = (
     (Math.abs(velocity.y) >= FLICK_VELOCITY_THRESHOLD
       ? velocity.y * FLICK_PROJECTION_MS
       : 0);
-  const horizontal = projectedX < window.innerWidth / 2 ? "left" : "right";
-  const vertical = projectedY < window.innerHeight / 2 ? "top" : "bottom";
+  const horizontal =
+    projectedX < (bounds.left + bounds.right) / 2 ? "left" : "right";
+  const vertical =
+    projectedY < (bounds.top + bounds.bottom) / 2 ? "top" : "bottom";
   return `${vertical}-${horizontal}`;
 };
 
@@ -364,3 +443,15 @@ export const getFloatingRoot = (
 
 const toCssPosition = (value: number | string): string =>
   typeof value === "number" ? `${value}px` : value;
+
+const getVisibleRect = (element: Element | null): DOMRect | null => {
+  if (!element) {
+    return null;
+  }
+  const style = window.getComputedStyle(element);
+  if (style.display === "none" || style.visibility === "hidden") {
+    return null;
+  }
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0 ? rect : null;
+};

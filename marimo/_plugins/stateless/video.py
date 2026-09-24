@@ -2,18 +2,20 @@
 from __future__ import annotations
 
 import io
+import math
 import os
+import re
 from typing import Literal
 
 import marimo._output.data.data as mo_data
-from marimo._output.builder import h
-from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
-from marimo._output.utils import create_style, normalize_dimension
+from marimo._output.utils import normalize_dimension
 from marimo._plugins.core.media import io_to_data_url
-from marimo._plugins.core.web_component import (
-    JSONType,
-    build_stateless_plugin,
+from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.ui._core.ui_element import UIElement
+
+_TIMESTAMP_PATTERN = re.compile(
+    r"^(?:(?P<hours>\d+):)?(?P<minutes>\d+):(?P<seconds>\d+(?:\.\d+)?)$"
 )
 
 
@@ -47,6 +49,63 @@ def _get_resolved_src(
     return io_to_data_url(src, fallback_mime_type="video/mp4")
 
 
+def _parse_video_timestamp(timestamp: float | str) -> float:
+    if isinstance(timestamp, bool):
+        raise TypeError("timestamp must be a number of seconds or a timestamp")
+
+    if isinstance(timestamp, (int, float)):
+        seconds = float(timestamp)
+    elif isinstance(timestamp, str):
+        match = _TIMESTAMP_PATTERN.fullmatch(timestamp.strip())
+        if match is None:
+            raise ValueError(
+                "timestamp must use MM:SS or HH:MM:SS format, "
+                f"but received {timestamp!r}"
+            )
+
+        hours_text = match.group("hours")
+        hours = int(hours_text) if hours_text is not None else 0
+        minutes = int(match.group("minutes"))
+        component_seconds = float(match.group("seconds"))
+        if component_seconds >= 60 or (
+            hours_text is not None and minutes >= 60
+        ):
+            raise ValueError(f"invalid video timestamp: {timestamp!r}")
+        seconds = hours * 3600 + minutes * 60 + component_seconds
+    else:
+        raise TypeError("timestamp must be a number of seconds or a timestamp")
+
+    if not math.isfinite(seconds) or seconds < 0:
+        raise ValueError("timestamp must be a finite, non-negative duration")
+    return seconds
+
+
+class _Video(UIElement[None, None]):
+    def __init__(self, args: dict[str, JSONType]) -> None:
+        super().__init__(
+            component_name="marimo-video",
+            initial_value=None,
+            label=None,
+            args=args,
+            on_change=None,
+        )
+
+    def _convert_value(self, value: None) -> None:
+        return value
+
+    def seek(self, timestamp: float | str) -> None:
+        """Seek to a timestamp without changing the playback state.
+
+        Args:
+            timestamp: a non-negative number of seconds, or a timestamp in
+                `MM:SS` or `HH:MM:SS` format.
+        """
+        self._send_message(
+            {"type": "seek", "time": _parse_video_timestamp(timestamp)},
+            buffers=None,
+        )
+
+
 @mddoc
 def video(
     src: str | bytes | io.BytesIO | io.BufferedReader,
@@ -58,7 +117,7 @@ def video(
     height: int | str | None = None,
     rounded: bool = False,
     floating: bool | Literal["auto"] = False,
-) -> Html:
+) -> _Video:
     """Render a video as HTML.
 
     Example:
@@ -71,19 +130,31 @@ def video(
 
         # Let the video follow the reader as they scroll
         mo.video(src="path/to/video.mp4", floating="auto")
+
+        # In one cell, create and display the player
+        player = mo.video(src="path/to/video.mp4", floating="auto")
+        player
+
+        # In a second cell, add a chapter button
+        jump_to_chapter = mo.ui.run_button(label="Jump to chapter")
+        jump_to_chapter
+
+        # In a third cell, react to the interaction
+        mo.stop(not jump_to_chapter.value)
+        player.seek("1:37")
         ```
 
     Args:
         src: the URL of the video, a path to a local file, `bytes`, or a
-            file-like object opened in binary mode
-        controls: whether to show the controls
-        muted: whether to mute the video
-        autoplay: whether to autoplay the video.
-            the video will only autoplay if `muted` is `True`
-        loop: whether to loop the video
-        width: the width of the video in pixels or a string with units
-        height: the height of the video in pixels or a string with units
-        rounded: whether to round the corners of the video
+            file-like object opened in binary mode.
+        controls: whether to show the controls.
+        muted: whether to mute the video.
+        autoplay: whether to autoplay the video. The video will only autoplay
+            if `muted` is `True`.
+        loop: whether to loop the video.
+        width: the width of the video in pixels or a string with units.
+        height: the height of the video in pixels or a string with units.
+        rounded: whether to round the corners of the video.
         floating: whether the video can float above the notebook. `True` adds
             a button for moving the video between its inline and floating
             positions. `"auto"` also floats the video after it has been visible
@@ -92,30 +163,13 @@ def video(
             Floating uses an in-page panel, not the browser's Picture-in-Picture
             API.
 
-    Returns:
-        `Html` object
+    Methods:
+        seek(timestamp): seek to a timestamp given in seconds, `MM:SS`, or
+            `HH:MM:SS` format.
     """
-    resolved_src = _get_resolved_src(src)
     if floating is False:
-        styles = create_style(
-            {
-                "width": normalize_dimension(width),
-                "height": normalize_dimension(height),
-                "border-radius": "4px" if rounded else None,
-            }
-        )
-        return Html(
-            h.video(
-                src=resolved_src,
-                controls=controls,
-                style=styles,
-                muted=muted,
-                autoplay=autoplay,
-                loop=loop,
-            )
-        )
-
-    if floating is True:
+        floating_mode = "off"
+    elif floating is True:
         floating_mode = "manual"
     elif floating == "auto":
         floating_mode = "auto"
@@ -126,7 +180,7 @@ def video(
         )
 
     args: dict[str, JSONType] = {
-        "src": resolved_src,
+        "src": _get_resolved_src(src),
         "controls": controls,
         "muted": muted,
         "autoplay": autoplay,
@@ -139,9 +193,4 @@ def video(
     if height is not None:
         args["height"] = normalize_dimension(height)
 
-    return Html(
-        build_stateless_plugin(
-            component_name="marimo-video",
-            args=args,
-        )
-    )
+    return _Video(args)

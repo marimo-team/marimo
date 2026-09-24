@@ -89,6 +89,7 @@ export const Controls = ({
 
       {!closed && (
         <div
+          id="chrome-controls-top-right"
           data-testid="chrome-controls-top-right"
           className={topRightControls}
         >
@@ -107,6 +108,7 @@ export const Controls = ({
       )}
 
       <div
+        id="chrome-controls-bottom-right"
         data-testid="chrome-controls-bottom-right"
         className={cn(bottomRightControls)}
       >

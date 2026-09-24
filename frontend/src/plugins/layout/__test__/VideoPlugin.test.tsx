@@ -2,6 +2,8 @@
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import type { UIElementId } from "@/core/cells/ids";
+import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { type VideoData, VideoComponent, VideoPlugin } from "../VideoPlugin";
 
 const data: VideoData = {
@@ -83,6 +85,62 @@ describe("VideoPlugin", () => {
   test("validates floating video data", () => {
     const plugin = new VideoPlugin();
     expect(plugin.validator.parse(data)).toEqual(data);
+    expect(plugin.validator.parse({ ...data, floating: "off" })).toEqual({
+      ...data,
+      floating: "off",
+    });
+  });
+
+  test("renders a native video without floating controls when floating is off", () => {
+    const host = document.createElement("marimo-video");
+    render(<VideoComponent data={{ ...data, floating: "off" }} host={host} />);
+
+    expect(screen.getByTestId("marimo-video")).toBeInstanceOf(HTMLVideoElement);
+    expect(
+      screen.queryByRole("button", { name: "Float video" }),
+    ).not.toBeInTheDocument();
+  });
+
+  test("seeks an initialized video without changing its element", () => {
+    const host = document.createElement("marimo-video");
+    render(<VideoComponent data={data} host={host} />);
+    const video = screen.getByTestId("marimo-video") as HTMLVideoElement;
+    Object.defineProperty(video, "readyState", {
+      configurable: true,
+      value: 1,
+    });
+
+    sendVideoCommand(host, { type: "seek", time: 97.5 });
+
+    expect(video.currentTime).toBe(97.5);
+    expect(screen.getByTestId("marimo-video")).toBe(video);
+  });
+
+  test("queues a seek until video metadata is loaded", () => {
+    const host = document.createElement("marimo-video");
+    render(<VideoComponent data={data} host={host} />);
+    const video = screen.getByTestId("marimo-video") as HTMLVideoElement;
+
+    sendVideoCommand(host, { type: "seek", time: 97 });
+    expect(video.currentTime).toBe(0);
+
+    fireEvent.loadedMetadata(video);
+    expect(video.currentTime).toBe(97);
+  });
+
+  test("ignores malformed video commands", () => {
+    const host = document.createElement("marimo-video");
+    render(<VideoComponent data={data} host={host} />);
+    const video = screen.getByTestId("marimo-video") as HTMLVideoElement;
+    Object.defineProperty(video, "readyState", {
+      configurable: true,
+      value: 1,
+    });
+
+    sendVideoCommand(host, { type: "seek", time: -1 });
+    sendVideoCommand(host, { type: "pause" });
+
+    expect(video.currentTime).toBe(0);
   });
 
   test("moves the same video element between inline and floating positions", () => {
@@ -107,7 +165,11 @@ describe("VideoPlugin", () => {
     expect(portalContainer.parentElement).toBe(inlineAnchor);
     expect(video).toHaveAttribute("disablepictureinpicture");
 
-    fireEvent.click(screen.getByRole("button", { name: "Float video" }));
+    const toggle = screen.getByRole("button", { name: "Float video" });
+    expect(toggle).toHaveClass("right-2", "bottom-2");
+    expect(toggle).not.toHaveClass("top-2");
+
+    fireEvent.click(toggle);
 
     expect(screen.getByTestId("marimo-video")).toBe(video);
     expect(portalContainer.parentElement).toBe(document.body);
@@ -116,6 +178,8 @@ describe("VideoPlugin", () => {
       width: "360px",
     });
     expect(inlineAnchor).toHaveStyle({ width: "640px", height: "360px" });
+    expect(toggle).toHaveClass("right-2", "top-2");
+    expect(toggle).not.toHaveClass("bottom-2", "left-2");
 
     fireEvent.click(
       screen.getByRole("button", { name: "Return video inline" }),
@@ -751,6 +815,20 @@ describe("VideoPlugin", () => {
           } as IntersectionObserverEntry,
         ],
         {} as IntersectionObserver,
+      );
+    });
+  }
+
+  function sendVideoCommand(host: HTMLElement, message: unknown): void {
+    act(() => {
+      host.dispatchEvent(
+        MarimoIncomingMessageEvent.create({
+          detail: {
+            objectId: "test-video" as UIElementId,
+            message,
+            buffers: [],
+          },
+        }),
       );
     });
   }

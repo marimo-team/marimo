@@ -5321,6 +5321,7 @@ components:
         floating:
           type: string
           enum:
+            - off
             - manual
             - auto
         width:
