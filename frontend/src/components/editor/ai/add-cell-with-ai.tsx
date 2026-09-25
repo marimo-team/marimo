@@ -29,6 +29,7 @@ import useEvent from "react-use-event-hook";
 import { DefaultChatTransport } from "ai";
 import { z } from "zod";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
+import { PairWithAgentButton } from "@/components/editor/actions/pair-with-agent";
 import {
   AddContextButton,
   AttachFileButton,
@@ -301,6 +302,7 @@ export const AddCellWithAI: React.FC<{
           showAddCustomModelDocs={true}
         />
         {languageDropdown}
+        <PairWithAgentButton label="Pair" />
       </div>
       <div className="flex flex-row items-center">
         {files.length > 0 && (

@@ -64,6 +64,7 @@ import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
+import { PairWithAgentButton } from "../editor/actions/pair-with-agent";
 import { PairWithAgentModal } from "../editor/actions/pair-with-agent-modal";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import {
@@ -163,6 +164,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         </Button>
       </Tooltip>
       <div className="flex items-center gap-2">
+        <Tooltip content="Pair with an agent">
+          <PairWithAgentButton label="Pair" />
+        </Tooltip>
+
         <MCPStatusIndicator />
         <Tooltip content="AI Settings">
           <Button
@@ -509,13 +514,16 @@ const ChatPanel = () => {
         title="Chat with AI"
         description="No AI provider configured or Chat model not selected"
         action={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleClick("ai", "ai-providers")}
-          >
-            Edit AI settings
-          </Button>
+          <div className="flex flex-col gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={() => handleClick("ai", "ai-providers")}
+            >
+              Edit AI settings
+            </Button>
+          </div>
         }
         icon={<BotMessageSquareIcon />}
       />
