@@ -263,6 +263,65 @@ def my_decorator(func):
 ```
 
 In this instance, the cache will work as expected because the decorated function has the same signature and metadata as the original function.
+
+## Cache signing and trust
+
+By default, marimo uses the `pickle` module to serialize and deserialize cache
+entries. This is fast and safe for your local computer, but if you configure a
+shared cache directory or remote store, this may become a security issue since
+unpickling a cache entry is equivalent to running arbitrary code.
+
+marimo has a cache verification mechanism built-in (which is currently opt-in).
+It uses digital signatures to verify that a cache entry was written by a
+trusted key and requires the `cryptography` package. That mechanism is the
+*lazy loader*: the storage backend selected with `loader = "lazy"` (the default)
+or `method="lazy"` on an individual cache. It is the only loader that signs and
+verifies. You can configure the verification level in your user
+configuration file at `~/.config/marimo/marimo.toml` as follows:
+
+```toml title="~/.config/marimo/marimo.toml"
+[signing]
+# Optional: This machine's signing identity.
+# This will be generated if a key is not provided.
+# MARIMO_CACHE_SIGNING_PRIVATE_KEY also sets this value.
+private_key_path = "~/.marimo/cache_key.pem"
+
+[signing.trusted_signers]
+# Optional: If you use multiple caches, you can record trusted keys here.
+# fingerprint = label. The label is a note to yourself
+# Only the fingerprint matters.
+"SHA256:kV9x2c...q8" = "CI cache key"
+"SHA256:abc9f1...4d" = "Alice"
+
+[cache]
+verification = "on"  # "off" | "on" | "strict"
+# Default `method` for `mo.persistent_cache`: "lazy" (default), "pickle", or "json".
+# Only "lazy" can sign and verify.
+loader = "lazy"
+```
+
+To sign and verify without a configuration file, set
+`MARIMO_CACHE_SIGNING_PRIVATE_KEY` to your signing key. To trust another key for
+verification only, set `MARIMO_CACHE_SIGNING_PUBLIC_KEY` to that key. Set each
+variable to the key itself in Privacy-Enhanced Mail (PEM) form, not a path.
+
+!!! danger "Trusting a key grants code execution"
+    Restoring a cache entry deserializes it with `pickle`, so trusting a
+    fingerprint lets whoever holds that key run arbitrary code on your machine.
+    There is no narrower "cache-only" version of this grant: add a fingerprint
+    only if you would run any script that person handed you.
+
+| Cache entry | `off` | `on` (default) | `strict` |
+|---|---|---|---|
+| Signed by a trusted key | load | load | load |
+| Unsigned, or signed by an unknown key | load without verifying | recompute | raise an error |
+
+We recommend using `strict` in CI.
+
+Note that notebooks running in browser under WebAssembly (WASM) do not have a
+machine key. Configuration must be set in the PEP-723 metadata for verification
+to work.
+
 ## Comparison with `functools.cache`
 
 Here is a table comparing marimo's cache with `functools.cache`:
