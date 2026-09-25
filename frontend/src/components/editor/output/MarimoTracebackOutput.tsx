@@ -121,9 +121,7 @@ export const MarimoTracebackOutput = ({
         ) : (
           <ChevronRight className="h-3 w-3" />
         )}
-        <span className="text-[0.6875rem] uppercase tracking-wider">
-          Traceback
-        </span>
+        <span className="text-3xs uppercase tracking-wider">Traceback</span>
       </button>
       {isOpen && (
         <div className="text-muted-foreground pr-4 text-xs overflow-auto">

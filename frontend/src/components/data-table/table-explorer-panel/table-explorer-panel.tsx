@@ -50,7 +50,7 @@ export interface TableExplorerPanelProps<TData> {
 }
 
 const tabTriggerClassName =
-  "text-[13px] uppercase tracking-wide font-semibold cursor-pointer transition-colors";
+  "text-13 uppercase tracking-wide font-semibold cursor-pointer transition-colors";
 const activeClassName = "text-primary";
 const inactiveClassName = "hover:text-foreground";
 
