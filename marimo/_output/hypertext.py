@@ -375,3 +375,29 @@ def is_non_interactive() -> bool:
     For example, prefer images or markdown over rich HTML output.
     """
     return os.getenv(MARIMO_NO_JS_KEY, "false").lower() == "true"
+
+
+MARIMO_RESOLVE_LAZY_KEY = "MARIMO_RESOLVE_LAZY"
+
+
+@contextmanager
+def patch_lazy_for_static_export() -> Iterator[None]:
+    """Resolve mo.lazy elements eagerly during static HTML export.
+
+    Unlike patch_html_for_non_interactive_output(), this only affects
+    mo.lazy; interactive widgets like tables, altair, and plotly stay
+    in their full JS form so the exported HTML remains fully interactive.
+    """
+    # Use an env var so the flag is visible across threads (same pattern
+    # as MARIMO_NO_JS).
+    old = os.getenv(MARIMO_RESOLVE_LAZY_KEY, "false")
+    try:
+        os.environ[MARIMO_RESOLVE_LAZY_KEY] = "true"
+        yield
+    finally:
+        os.environ[MARIMO_RESOLVE_LAZY_KEY] = old
+
+
+def should_resolve_lazy() -> bool:
+    """Whether mo.lazy should resolve its element eagerly (static HTML export)."""
+    return os.getenv(MARIMO_RESOLVE_LAZY_KEY, "false").lower() == "true"
