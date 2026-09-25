@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import re
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -224,6 +223,30 @@ class Loader(ABC):
         return 0
 
 
+def _files(directory: Path, suffix: str) -> list[Path]:
+    """The files directly under `directory` ending in `suffix`."""
+    try:
+        return [
+            child
+            for child in directory.iterdir()
+            if child.name.endswith(suffix) and child.is_file()
+        ]
+    except OSError:
+        return []
+
+
+def _subdirectories(directory: Path) -> list[Path]:
+    """The directories directly under `directory`, links excluded."""
+    try:
+        return [
+            child
+            for child in directory.iterdir()
+            if child.is_dir() and not child.is_symlink()
+        ]
+    except OSError:
+        return []
+
+
 class BasePersistenceLoader(Loader):
     """Abstract base for cache written to disk."""
 
@@ -243,8 +266,9 @@ class BasePersistenceLoader(Loader):
             except ContextNotInitializedError:
                 self.store = DEFAULT_STORE()
 
-        # Limited character set for path for windows compatibility
-        self.name = re.sub(r"[^a-zA-Z0-9 _-]", "_", self.name)
+        from marimo._save.cache_dirs import block_dir_name
+
+        self.name = block_dir_name(self.name)
         self.suffix = suffix
 
     def build_path(self, key: HashKey) -> Path:
@@ -287,22 +311,21 @@ class BasePersistenceLoader(Loader):
     def _clearable_root(self) -> Path | None:
         """Root directory `clear()` removes this loader's entry files under.
 
-        `None` unless the store itself maps every key to a path below a root
-        it owns; anything else, a wrapper or a remote store included, holds
-        entries that cannot be enumerated as paths.
+        `None` unless the store maps every key to a path below a root it
+        owns. A remote store holds entries that cannot be enumerated as
+        paths.
         """
-        from marimo._save.stores.file import FileStore
-
-        if isinstance(self.store, FileStore):
-            # A file store keeps its entries in exactly one directory.
-            return self.store.local_dirs()[0]
-        return None
+        return self.store.clearable_root()
 
     def _clearable_paths(self, root: Path) -> list[Path]:
         """Paths under `root` that `clear()` removes."""
         import glob
 
-        from marimo._save.cache_dirs import PARTIAL_WRITE_INFIX
+        from marimo._save.cache_dirs import (
+            LAZY_ENTRY_SUFFIX,
+            PARTIAL_WRITE_INFIX,
+            entry_hash,
+        )
 
         block = root / self.name
         # The leftovers of an interrupted write hold no value anyone can read,
@@ -311,9 +334,26 @@ class BasePersistenceLoader(Loader):
             str(block / f"*.{self.suffix}"),
             str(block / f"*.{self.suffix}{PARTIAL_WRITE_INFIX}*"),
         )
-        return [
+        paths = [
             Path(match) for pattern in patterns for match in glob.glob(pattern)
         ]
+        # A value too large to inline is split over a directory of blobs
+        # named after the same hash as its entry. Removing the entry alone
+        # leaves those bytes behind with nothing left that can read them.
+        # Only this loader's own hashes are taken: another loader sharing
+        # the block name still reads its blobs through its own entries.
+        hashes = {entry_hash(path.name) for path in paths}
+        # A marker another loader left under the same name and hash still
+        # reads those blobs, so they stay with it.
+        hashes -= {
+            entry_hash(marker.name)
+            for marker in _files(block, LAZY_ENTRY_SUFFIX)
+            if marker not in paths
+        }
+        paths.extend(
+            child for child in _subdirectories(block) if child.name in hashes
+        )
+        return paths
 
     def clear(self) -> None:
         """Clear all cached items for this loader."""
