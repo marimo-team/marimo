@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable react/jsx-no-comment-textnodes */
-/* oxlint-disable react/jsx-no-target-blank */
 
 import { useAtomValue } from "jotai";
 import { CopyIcon, DownloadIcon } from "lucide-react";
@@ -49,6 +48,7 @@ export const StaticBanner: React.FC = () => {
         <a
           href={Constants.githubPage}
           target="_blank"
+          rel="noreferrer"
           className="text-(--sky-11) font-medium underline"
         >
           marimo
@@ -93,6 +93,7 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
                 <a
                   href={Constants.githubPage}
                   target="_blank"
+                  rel="noreferrer"
                   className="text-(--sky-11) hover:underline font-medium"
                 >
                   marimo
