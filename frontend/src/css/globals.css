@@ -162,7 +162,13 @@
     animation-duration: 0.01ms !important;
     animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    /*
+    Must be 0s, not 0.01ms: `transition-property` defaults to `all`, so any
+    non-zero duration gives every element a transition. Libraries that change
+    an attribute and measure synchronously (e.g. Plotly hover labels) would
+    read stale geometry (#10949).
+    */
+    transition-duration: 0s !important;
     transition-delay: 0s !important;
   }
 
