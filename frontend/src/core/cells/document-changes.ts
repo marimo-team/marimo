@@ -177,6 +177,21 @@ function columnChanges(
   return changes;
 }
 
+/**
+ * Produce only a reorder-cells change, without emitting set-config for
+ * column indices. Used for view-flattening actions (mergeAllColumns,
+ * compactColumns) that visually collapse columns but should not overwrite
+ * the persisted column metadata.
+ */
+function reorderOnly(newState: NotebookState): DocumentChange[] {
+  return [
+    {
+      type: "reorder-cells",
+      cellIds: newState.cellIds.inOrderIds,
+    },
+  ];
+}
+
 // ---------------------------------------------------------------------------
 // toDocumentChanges: action + state → changes
 // ---------------------------------------------------------------------------
@@ -283,16 +298,22 @@ export function toDocumentChanges(
       ];
     }
 
-    // Column structure changes → set-config + reorder-cells
-    // All of these change column layout. We emit config changes for
-    // cells whose column index changed, then the full ordering.
+    // Explicit column-structure edits → set-config + reorder-cells.
+    // These represent user intent to change column assignments, so we
+    // persist the new column index for each affected cell.
     case "dropOverNewColumn":
     case "moveColumn":
     case "addColumnBreakpoint":
     case "deleteColumn":
+      return columnChanges(prevState, newState);
+
+    // View-flattening actions → reorder-cells only.
+    // These visually collapse columns (e.g., switching from "columns"
+    // width to "compact") but must NOT overwrite persisted column
+    // metadata; otherwise @app.cell(column=N) is lost on save.
     case "mergeAllColumns":
     case "compactColumns":
-      return columnChanges(prevState, newState);
+      return reorderOnly(newState);
 
     // addColumn creates a new column with a new empty cell.
     // Emits create-cell for the new cell plus column layout changes.
