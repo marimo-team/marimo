@@ -37,7 +37,7 @@ with app.setup:
 @app.cell(hide_code=True)
 def _():
     mo.md("""
-    # Using R
+    # R with Pixi
 
     With Pixi sandboxing, a marimo notebook can describe more than its Python
     dependencies, including system libraries and even another language's runtime.
@@ -45,12 +45,17 @@ def _():
     This demo declares R and Python dependencies together, uses marimo's
     reactivity to run R code when a slider changes, and shares the resulting
     Arrow table back to Python without copying its data.
+    """)
+    return
 
-    With [Pixi installed](https://pixi.prefix.dev/latest/installation/), open
-    this notebook in a Pixi sandbox to install both its R and Python dependencies:
+
+@app.cell(hide_code=True)
+def _():
+    mo.md("""
+    With [Pixi installed](https://pixi.prefix.dev/latest/installation/), run:
 
     ```bash
-    marimo edit --sandbox=pixi examples/misc/using_r.py
+    marimo edit --sandbox=pixi examples/misc/pixi_r.py
     ```
     """)
     return
