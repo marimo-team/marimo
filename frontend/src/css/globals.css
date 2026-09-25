@@ -113,7 +113,22 @@
 
     /* Codemirror editor */
     --cm-background: light-dark(var(--background), #282c34);
-    --cm-comment: light-dark(#708090, #6b7280);
+    --cm-comment: var(--marimo-cm-comment, light-dark(#708090, #6b7280));
+    --cm-foreground: var(--marimo-cm-foreground, light-dark(#000, #abb2bf));
+    --cm-keyword: var(--marimo-cm-keyword, light-dark(#708, #c678dd));
+    --cm-string: var(--marimo-cm-string, light-dark(#a11, #98c379));
+    --cm-number: var(--marimo-cm-number, light-dark(#164, #d19a66));
+    --cm-atom: var(--marimo-cm-atom, light-dark(#219, #d19a66));
+    --cm-operator: var(--marimo-cm-operator, light-dark(#a2f, #56b6c2));
+    --cm-function: var(--marimo-cm-function, light-dark(#00c, #61afef));
+    --cm-property: var(--marimo-cm-property, light-dark(#05a, #e5c07b));
+    --cm-class-name: var(--marimo-cm-class-name, light-dark(#00f, #61afef));
+    --cm-type-name: var(--marimo-cm-type-name, light-dark(#085, #56b6c2));
+    --cm-tag-name: var(--marimo-cm-tag-name, light-dark(#170, #e06c75));
+    --cm-attribute-name: var(
+      --marimo-cm-attribute-name,
+      light-dark(#00c, #d19a66)
+    );
     --cm-selection-background-light: #d7d4f0;
     --cm-selection-background-dark: #1177cc80;
     --cm-reactive-reference-color-light: #005f87;
