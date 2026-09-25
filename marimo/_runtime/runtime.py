@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import dataclasses
+import functools
 import io
 import itertools
 import os
@@ -825,7 +826,11 @@ class Kernel:
 
     @contextlib.contextmanager
     def _install_execution_context(
-        self, cell_id: CellId_t, setting_element_value: bool = False
+        self,
+        cell_id: CellId_t,
+        setting_element_value: bool = False,
+        *,
+        is_cell_run: bool = False,
     ) -> Iterator[ExecutionContext]:
         """NB: When installed, KeyboardInterrupts may be raised, which MUST be caught.
 
@@ -850,7 +855,9 @@ class Kernel:
                 stderr=self.stderr,
                 stdin=self.stdin,
             ),
-            self.autoreload_manager.cell_scope(),
+            self.autoreload_manager.cell_scope(
+                cell_id if is_cell_run else None
+            ),
         ):
             try:
                 yield exec_ctx
@@ -1169,6 +1176,7 @@ class Kernel:
         In contrast to deleting a cell, which fully scrubs the cell
         from the kernel and graph.
         """
+        self.autoreload_manager.forget_cell(cell_id)
         if cell_id not in self.errors:
             self._invalidate_cell_state(cell_id, deletion=True)
             return self.graph.delete_cell(cell_id)
@@ -1544,7 +1552,9 @@ class Kernel:
             debugger=self.debugger,
             execution_mode=self.reactive_execution_mode,
             execution_type=self.execution_type,
-            execution_context=self._install_execution_context,
+            execution_context=functools.partial(
+                self._install_execution_context, is_cell_run=True
+            ),
             hooks=run_hooks,
             user_config=self.user_config,
         )

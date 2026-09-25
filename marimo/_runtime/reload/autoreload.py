@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._messaging.tracebacks import write_traceback
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -209,8 +210,18 @@ class ModuleReloader:
         self.modules_mtimes: dict[str, float] = {}
         # set of modules names known to be stale but haven't been reloaded
         self.stale_modules: set[str] = set()
-        # for thread-safety
-        self.lock = threading.Lock()
+        # Bumped on every reload. Cells record the generation they ran
+        # under so the watcher can tell a cell rerun after a reload apart
+        # from one that still holds the old code.
+        self.reload_generation = 0
+        self._cell_generations: dict[CellId_t, int] = {}
+        # source path -> (mtime, generation) of its last successful reload.
+        # Lets the watcher tell whether a change it notices was already
+        # reloaded by the kernel, and if so under which generation.
+        self._reloaded_sources: dict[str, tuple[float, int]] = {}
+        # for thread-safety; reentrant so callers can compose `check` with
+        # a read of `reload_generation` atomically.
+        self.lock = threading.RLock()
         self._module_dependency_finder = ModuleDependencyFinder()
         # modname -> cached `__file__` for modules classified as non-user.
         # Populated by every `check()` call (memoizing `is_user_module`);
@@ -220,8 +231,13 @@ class ModuleReloader:
         # module shadowing an installed package).
         self._skip: dict[str, str | None] = {}
 
+        # module-name -> mtime observed by the module watcher. The watcher
+        # needs an independent baseline because a cell reload can advance
+        # `modules_mtimes` between watcher polls.
+        self.watcher_modules_mtimes: dict[str, float] = {}
+
         # Timestamp existing modules
-        self.check(modules=sys.modules, reload=False)
+        self.check_for_watcher(modules=sys.modules)
 
     def filename_and_mtime(
         self, module: types.ModuleType
@@ -257,6 +273,38 @@ class ModuleReloader:
             return None
         return ModuleMTime(py_filename, pymtime)
 
+    def record_cell_run(self, cell_id: CellId_t) -> None:
+        """Note that `cell_id` is running against the current generation."""
+        with self.lock:
+            self._cell_generations[cell_id] = self.reload_generation
+
+    def forget_cell(self, cell_id: CellId_t) -> None:
+        """Drop the run record of a cell that left the graph."""
+        with self.lock:
+            self._cell_generations.pop(cell_id, None)
+
+    def cell_ran_at_or_after(self, cell_id: CellId_t, generation: int) -> bool:
+        """Whether `cell_id` last ran under `generation` or a later one."""
+        with self.lock:
+            return self._cell_generations.get(cell_id, 0) >= generation
+
+    def required_generation(self, module: types.ModuleType) -> int:
+        """The generation a cell must have run under to hold `module`'s
+        current source.
+
+        If the kernel already reloaded the source now on disk, that is the
+        generation of that reload. Otherwise no cell holds it yet, and the
+        answer is the next generation, which the reload will bump to.
+        """
+        with self.lock:
+            module_mtime = self.filename_and_mtime(module)
+            if module_mtime is None:
+                return self.reload_generation + 1
+            reloaded = self._reloaded_sources.get(module_mtime.name)
+            if reloaded is None or reloaded[0] != module_mtime.mtime:
+                return self.reload_generation + 1
+            return reloaded[1]
+
     def cell_uses_stale_modules(self, cell: CellImpl) -> bool:
         with self.lock:
             return bool(
@@ -285,6 +333,21 @@ class ModuleReloader:
 
         Returns a set of modules that were found to have been modified.
         """
+        return self._check(
+            modules,
+            reload=reload,
+            skip_non_user_modules=skip_non_user_modules,
+            for_watcher=False,
+        )
+
+    def _check(
+        self,
+        modules: dict[str, types.ModuleType],
+        *,
+        reload: bool,
+        skip_non_user_modules: bool,
+        for_watcher: bool,
+    ) -> set[types.ModuleType]:
 
         # module watcher thread and kernel thread might try to use the
         # reloader at the same time, but reloader mutates state
@@ -314,6 +377,7 @@ class ModuleReloader:
                         # from a clean mtime baseline.
                         del self._skip[modname]
                         self.modules_mtimes.pop(modname, None)
+                        self.watcher_modules_mtimes.pop(modname, None)
                         self.stale_modules.discard(modname)
                         is_non_user = False
                 else:
@@ -330,24 +394,41 @@ class ModuleReloader:
                 py_filename, pymtime = module_mtime.name, module_mtime.mtime
 
                 existing_mtime = self.modules_mtimes.get(modname)
-                if existing_mtime is None:
+                reloader_detected_change = (
+                    existing_mtime is not None
+                    and pymtime > existing_mtime
+                    and self.failed.get(py_filename) != pymtime
+                )
+                if existing_mtime is None or pymtime > existing_mtime:
                     self.modules_mtimes[modname] = pymtime
-                    continue
-                if pymtime <= existing_mtime:
-                    continue
-                if self.failed.get(py_filename, None) == pymtime:
-                    continue
 
-                self.modules_mtimes[modname] = pymtime
-                modified_modules.add(m)
-                self.stale_modules.add(modname)
-                self._module_dependency_finder.evict_from_cache(m)
+                watcher_detected_change = False
+                if for_watcher:
+                    watcher_mtime = self.watcher_modules_mtimes.get(modname)
+                    watcher_detected_change = (
+                        watcher_mtime is not None and pymtime > watcher_mtime
+                    )
+                    if watcher_mtime is None or pymtime > watcher_mtime:
+                        self.watcher_modules_mtimes[modname] = pymtime
+
+                if reloader_detected_change:
+                    self.stale_modules.add(modname)
+                    self._module_dependency_finder.evict_from_cache(m)
+
+                detected_change = (
+                    watcher_detected_change
+                    if for_watcher
+                    else reloader_detected_change
+                )
+                if detected_change:
+                    modified_modules.add(m)
 
             if not reload:
                 return modified_modules
 
             # Pre-filter stale modules to only those present in modules dict
             relevant_stale_modules = self.stale_modules & modules.keys()
+            generation_bumped = False
             for modname in relevant_stale_modules:
                 # Reload after the check loop: if there are any
                 # previously discovered stale modules, reload those as well
@@ -358,6 +439,10 @@ class ModuleReloader:
                     continue
                 py_filename, pymtime = module_mtime.name, module_mtime.mtime
 
+                # Bump once per check, and only when a reload starts.
+                if not generation_bumped:
+                    self.reload_generation += 1
+                    generation_bumped = True
                 LOGGER.debug(f"Reloading '{modname}'.")
                 try:
                     superreload(m, self.old_objects)
@@ -370,6 +455,10 @@ class ModuleReloader:
                     )
                     self.failed[py_filename] = pymtime
                 else:
+                    self._reloaded_sources[py_filename] = (
+                        pymtime,
+                        self.reload_generation,
+                    )
                     # TODO or always evict?
                     self._module_dependency_finder.evict_from_cache(m)
 
@@ -381,6 +470,23 @@ class ModuleReloader:
     ) -> dict[str, types.ModuleType]:
         return self._module_dependency_finder.find_dependencies(
             module, excludes
+        )
+
+    def check_for_watcher(
+        self, modules: dict[str, types.ModuleType]
+    ) -> set[types.ModuleType]:
+        """Check modules against the watcher's independent mtime baseline.
+
+        A single scan updates the normal reload state and returns modules that
+        changed since the previous watcher poll. This prevents cell reloads
+        from consuming changes before the watcher can compute transitive
+        staleness.
+        """
+        return self._check(
+            modules,
+            reload=False,
+            skip_non_user_modules=False,
+            for_watcher=True,
         )
 
 

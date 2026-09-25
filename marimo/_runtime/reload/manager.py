@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
     from marimo._runtime.runner.hook_context import OnFinishHookContext
     from marimo._runtime.runtime import Kernel
+    from marimo._types.ids import CellId_t
 
 AutoReloadMode = Literal["off", "lazy", "autorun"]
 
@@ -78,18 +79,36 @@ class AutoreloadManager:
         if reloader.cell_uses_stale_modules(cell):
             self._kernel.graph.set_stale({cell.cell_id}, prune_imports=True)
 
+    def forget_cell(self, cell_id: CellId_t) -> None:
+        """Drop per-cell reload bookkeeping for a cell leaving the graph."""
+        if self._reloader is not None:
+            self._reloader.forget_cell(cell_id)
+
     @contextlib.contextmanager
-    def cell_scope(self) -> Iterator[None]:
-        """Reload modified modules on entry; record mtimes for newly-imported modules on exit."""
+    def cell_scope(self, cell_id: CellId_t | None) -> Iterator[None]:
+        """Reload modified modules on entry; record mtimes for newly-imported modules on exit.
+
+        `cell_id` is the cell whose top-level code is about to run. Pass
+        `None` for other work done in a cell's context (UI callbacks, RPCs,
+        the debugger): modules still reload, but the cell is not recorded as
+        having rerun, so the watcher will still mark it stale.
+        """
         if self._reloader is None:
             yield
             return
         snapshot = set(sys.modules)
         # Entry: skip stdlib/site-packages so cells don't pay for stat-ing
         # them. This is the perf-critical call.
-        self._reloader.check(
-            modules=sys.modules, reload=True, skip_non_user_modules=True
-        )
+        # Reload and record under one lock hold: the watcher must never
+        # observe the reload without the record, or it would mark this
+        # cell stale while it is running against the new code.
+        with self._reloader.lock:
+            self._reloader.check(
+                modules=sys.modules, reload=True, skip_non_user_modules=True
+            )
+            if cell_id is not None:
+                # The cell now runs against the freshly reloaded modules.
+                self._reloader.record_cell_run(cell_id)
         try:
             yield
         finally:
