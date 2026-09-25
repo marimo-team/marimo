@@ -166,6 +166,34 @@ def cache_dir_stats(cache_dir: Path) -> CacheDirStats:
     return stats
 
 
+def cache_entry_keys(cache_dir: Path) -> set[tuple[str, str]]:
+    """Return the `(block, key)` entries `cache_dir` holds.
+
+    A key names an entry without its suffix, as in `C_ab12`, which is how a
+    manifest records it. A directory of blobs is named by the entry that reads
+    it rather than by itself, and the leftovers of a killed write name no
+    entry at all.
+    """
+    keys: set[tuple[str, str]] = set()
+    for block in _children(cache_dir):
+        if not _is_directory(block):
+            continue
+        for child in _children(block):
+            if _is_directory(child) or is_partial_write(child.name):
+                continue
+            keys.add((block.name, child.name.split(".", 1)[0]))
+    return keys
+
+
+def is_marimo_notebook(path: Path) -> bool:
+    """Whether marimo reads `path` as a notebook."""
+    try:
+        _validate_notebook(path)
+    except NotANotebookError:
+        return False
+    return True
+
+
 def block_dir_name(name: str) -> str:
     """Return the directory a cache block called `name` is written to.
 

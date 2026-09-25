@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,6 +14,7 @@ from marimo._config.settings import GLOBAL_SETTINGS
 
 if TYPE_CHECKING:
     from marimo._save.cache_dirs import CacheDirStats
+    from marimo._save.prune import DirectoryPrunePlan, PrunePlan
 
 LOGGER = _loggers.marimo_logger()
 
@@ -64,6 +66,20 @@ def format_entries(entries: int) -> str:
     return f"{entries} entry" if entries == 1 else f"{entries} entries"
 
 
+def stats_line(cache_dir: Path, stats: CacheDirStats) -> str:
+    return (
+        f"{format_dir(cache_dir)}\t{format_bytes(stats.total_bytes)}"
+        f"\t{format_entries(stats.entries)}"
+    )
+
+
+def total_line(total: CacheDirStats) -> str:
+    return (
+        f"Total\t{format_bytes(total.total_bytes)}"
+        f"\t{format_entries(total.entries)}"
+    )
+
+
 def report(measured: list[tuple[Path, CacheDirStats]]) -> CacheDirStats:
     """Print what each cache directory holds, and a total across several."""
     from marimo._save.cache_dirs import CacheDirStats
@@ -71,15 +87,9 @@ def report(measured: list[tuple[Path, CacheDirStats]]) -> CacheDirStats:
     total = CacheDirStats()
     for cache_directory, stats in measured:
         total += stats
-        click.echo(
-            f"{format_dir(cache_directory)}\t{format_bytes(stats.total_bytes)}"
-            f"\t{format_entries(stats.entries)}"
-        )
+        click.echo(stats_line(cache_directory, stats))
     if len(measured) > 1:
-        click.echo(
-            f"Total\t{format_bytes(total.total_bytes)}"
-            f"\t{format_entries(total.entries)}"
-        )
+        click.echo(total_line(total))
     return total
 
 
@@ -359,6 +369,129 @@ def _still_held(
         if (cache_dir / block / key).exists()
         or any((cache_dir / block).glob(f"{key}.*"))
     }
+
+
+@cache.command(
+    name="prune",
+    help="""Delete cache entries that current code can no longer produce.
+
+Uses each cache directory's manifest and the current source code to
+find entries that current code can no longer produce, then deletes
+them. Prune never deletes an entry recorded under code that still
+exists. Deleting too much costs a recomputation. It never produces a
+wrong result. Accepts `-r`/`--recursive` to search PATH recursively.
+
+Example usage:
+
+    marimo cache prune my_notebook.py
+
+    marimo cache prune my_notebook.py --dry-run
+
+    marimo cache prune my_notebook.py --force
+
+Use `--dry-run` to report the planned deletions and delete nothing.
+Use `--force` (or `-y`) to skip confirmation prompts, for
+example in an automated script.
+""",
+)
+@path_argument
+@recursive_option
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Report the planned deletions and delete nothing.",
+)
+@click.option(
+    "--force",
+    "--yes",
+    "-y",
+    "force",
+    is_flag=True,
+    default=False,
+    help="Prune without asking for confirmation.",
+)
+def cache_prune(
+    path: Path, recursive: bool, dry_run: bool, force: bool
+) -> None:
+    from marimo._save.prune import PrunePlan, apply_prune, plan_prune
+
+    cache_dirs = resolve_cache_dirs_or_error(path, recursive)
+    if not cache_dirs:
+        click.echo("No cache directories found.")
+        return
+
+    plan = plan_prune(cache_dirs)
+    _report_plan(plan)
+    if dry_run:
+        click.echo("Deleted nothing (--dry-run).")
+        return
+
+    approved = PrunePlan(
+        tuple(
+            directory
+            for directory in plan.directories
+            if not directory.is_empty() and _approve(directory, force=force)
+        )
+    )
+    freed = apply_prune(approved)
+    if freed.entries:
+        _report_deleted(freed)
+        return
+    click.echo("Nothing to delete.")
+
+
+def _report_plan(plan: PrunePlan) -> None:
+    """Print the planned deletions for each cache directory, and why."""
+    for directory in plan.directories:
+        click.echo(stats_line(directory.cache_dir, directory.freed))
+        for note in _notes(directory):
+            click.echo(f"  {note}")
+    if len(plan.directories) > 1:
+        click.echo(total_line(plan.freed))
+
+
+def _notes(directory: DirectoryPrunePlan) -> list[str]:
+    notes = [*directory.skips, *directory.confirmations]
+    if directory.dead_nodes:
+        records = "record" if directory.dead_nodes == 1 else "records"
+        notes.append(
+            f"{directory.dead_nodes} {records} of code the notebook no "
+            "longer has."
+        )
+    if directory.untracked:
+        notes.append(
+            f"Kept {format_entries(directory.untracked)} that no readable "
+            "manifest tracks."
+        )
+    return notes
+
+
+def _approve(directory: DirectoryPrunePlan, *, force: bool) -> bool:
+    """Ask before pruning a directory whose entries are not all accounted for.
+
+    The reasons were printed with the plan. The prompt names the directory
+    they belong to.
+    """
+    if not directory.needs_approval():
+        return True
+    if force or GLOBAL_SETTINGS.YES:
+        return True
+    if not _interactive():
+        click.echo(
+            f"Skipping {directory.cache_dir}: rerun with --force to prune it."
+        )
+        return False
+    return click.confirm(
+        f"Delete {format_entries(directory.freed.entries)} "
+        f"({format_bytes(directory.freed.total_bytes)}) "
+        f"from {directory.cache_dir}?"
+    )
+
+
+def _interactive() -> bool:
+    """Whether anyone is there to answer a prompt."""
+    return sys.stdin.isatty()
 
 
 def _deletes_nothing(planned: CacheDirStats) -> bool:
