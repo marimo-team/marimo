@@ -5,6 +5,7 @@ import json
 import string
 import unittest
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.table import SortArgs, _validate_header_tooltip
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
+from marimo._plugins.ui._impl.tables.delimited import DelimitedDialect
 from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
     TableCoordinate,
@@ -1249,6 +1251,53 @@ def test_validate_header_tooltip_invalid() -> None:
     mapping = {"does_not_exist": "oops"}
     with pytest.raises(ValueError):
         _validate_header_tooltip(mapping, columns)
+
+
+def test_to_delimited_str_formats_numbers_without_grouping() -> None:
+    manager = DefaultTableManager(
+        [
+            {
+                "integer": 1234,
+                "fraction": 1234.56,
+                "text": "value.1,2;3",
+                "null": None,
+            }
+        ]
+    )
+    result = manager.to_delimited_str(DelimitedDialect(";", ","))
+    assert (
+        result == 'integer;fraction;text;null\n1234;1234,56;"value.1,2;3";\n'
+    )
+
+
+def test_to_delimited_str_preserves_long_fractional_values() -> None:
+    manager = DefaultTableManager([{"value": Decimal("1234.567890123456")}])
+    result = manager.to_delimited_str(DelimitedDialect(";", ","))
+    assert result == "value\n1234,567890123456\n"
+
+
+def test_to_delimited_str_uses_unicode_decimal_separator() -> None:
+    manager = DefaultTableManager([{"value": 12.5}])
+    result = manager.to_delimited_str(DelimitedDialect(",", "٫"))
+    assert result == "value\n12٫5\n"
+
+
+def test_to_delimited_str_quotes_when_field_equals_decimal() -> None:
+    manager = DefaultTableManager([{"value": 12.5}])
+    result = manager.to_delimited_str(DelimitedDialect(",", ","))
+    assert result == 'value\n"12,5"\n'
+
+
+def test_to_delimited_str_leaves_strings_unchanged() -> None:
+    manager = DefaultTableManager([{"text": '1.2,3;4\t5"6\n7'}])
+    result = manager.to_delimited_str(DelimitedDialect(";", ","))
+    assert result == 'text\n"1.2,3;4\t5""6\n7"\n'
+
+
+def test_to_csv_str_remains_locale_neutral() -> None:
+    manager = DefaultTableManager([{"value": 12.5, "text": "1.2"}])
+    assert manager.to_csv_str() == "value,text\n12.5,1.2\n"
+    assert manager.to_csv(separator="|") == b"value|text\n12.5|1.2\n"
 
 
 _column_name = st.text(
