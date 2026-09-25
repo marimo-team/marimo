@@ -35,7 +35,7 @@ export function countFractionDigits(n: number): number {
 
 /** Max fraction digits to display a set of step values cleanly. */
 export function maxFractionDigitsForSteps(
-  steps: number[],
+  steps: readonly number[],
   minGap: number,
 ): number {
   let max = countFractionDigits(minGap);
@@ -43,6 +43,42 @@ export function maxFractionDigitsForSteps(
     max = Math.max(max, countFractionDigits(step));
   }
   return max;
+}
+
+/** Infer display precision from a slider's regular or custom steps. */
+export function fractionDigitsForSlider(
+  step?: number,
+  steps?: readonly number[] | null,
+  origin?: number,
+): number {
+  const originDigits = origin == null ? 0 : countFractionDigits(origin);
+
+  if (steps && steps.length > 0) {
+    let minGap = Number.POSITIVE_INFINITY;
+    for (let i = 1; i < steps.length; i++) {
+      const gap = Math.abs(steps[i] - steps[i - 1]);
+      if (gap > 0 && gap < minGap) {
+        minGap = gap;
+      }
+    }
+
+    return Math.max(
+      originDigits,
+      maxFractionDigitsForSteps(steps, Number.isFinite(minGap) ? minGap : 0),
+    );
+  }
+
+  if (step == null) {
+    // Preserve the range slider's legacy two-decimal display when no step is
+    // supplied. Radix still accepts this as its default step configuration.
+    return Math.max(2, originDigits);
+  }
+
+  if (!Number.isFinite(step) || step <= 0) {
+    return Math.max(2, originDigits);
+  }
+
+  return Math.max(originDigits, countFractionDigits(step));
 }
 
 /** Round away float noise so step-based inputs stay on a clean decimal grid. */
@@ -96,6 +132,7 @@ export function prettyScientificNumber(
   value: number,
   opts: {
     shouldRound?: boolean; // Default to false
+    maximumFractionDigits?: number;
     locale: string;
   },
 ): string {
@@ -119,11 +156,12 @@ export function prettyScientificNumber(
 
   const { shouldRound, locale } = opts;
 
-  if (shouldRound) {
-    // Number has an integer part, format with 2 decimal places
+  if (shouldRound || opts.maximumFractionDigits !== undefined) {
+    // Keep the caller-provided precision when one is available. The legacy
+    // shouldRound mode still defaults to two fractional digits.
     return new Intl.NumberFormat(locale, {
       minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: opts.maximumFractionDigits ?? 2,
     }).format(value);
   }
 
