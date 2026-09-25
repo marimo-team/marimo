@@ -57,7 +57,7 @@ pip install marimo && marimo tutorial intro
 
 _在我们的[在线体验平台](https://marimo.app/l/c7h6pz)试用marimo，完全在浏览器中运行！_
 
-_跳转到[快速入门](#快速入门)了解我们的命令行工具。_
+_跳转到[快速入门](#快速起步)了解我们的命令行工具。_
 
 ## 响应式编程环境
 
