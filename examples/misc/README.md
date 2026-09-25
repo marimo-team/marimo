@@ -21,10 +21,11 @@ comment. Here are the steps to open an example notebook:
 You can also open notebooks without `uv`, with just `marimo edit <notebook.py>`;
 however, you'll need to install the requirements yourself.
 
-The [Using R](using_r.py) example uses Pixi to install R and its packages
-alongside Python dependencies. With [Pixi installed](https://pixi.prefix.dev/latest/installation/),
-open it with:
+The [R](pixi_r.py) and [FFmpeg](pixi_ffmpeg.py) examples use Pixi to install
+non-Python dependencies. With [Pixi installed](https://pixi.prefix.dev/latest/installation/),
+run:
 
 ```bash
-marimo edit --sandbox=pixi examples/misc/using_r.py
+marimo edit --sandbox=pixi examples/misc/pixi_r.py
+marimo edit --sandbox=pixi examples/misc/pixi_ffmpeg.py
 ```
