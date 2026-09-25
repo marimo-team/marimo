@@ -676,7 +676,6 @@ def complete(
         docstrings_limit: Limit past which we won't attempt to fetch type hints
             and docstrings
         timeout: Timeout after which we'll stop fetching type hints/docstrings
-        prefer_interpreter_completion: Whether to prefer interpreter completion
     """
     if not request.document.strip():
         _write_no_completions(stream, request.id)
