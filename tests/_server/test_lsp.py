@@ -91,6 +91,10 @@ async def test_base_lsp_server_start_stop(
     assert alert is None
     mock_popen.assert_called_once()
     assert (
+        mock_popen.call_args.kwargs["env"]["MARIMO_LSP_TOKEN"]
+        == server.auth_token
+    )
+    assert (
         server.is_running() is True
     )  # Process exists and is running (returncode is None)
 
@@ -110,6 +114,59 @@ async def test_base_lsp_server_start_stop(
     # Verify wait was called with timeout for graceful shutdown
     mock_process.wait.assert_called_once_with(timeout=2)
     assert server.process is None
+
+
+@pytest.mark.parametrize(
+    "server_type",
+    [
+        PyLspServer,
+        CopilotLspServer,
+        BasedpyrightServer,
+        TyServer,
+        PyreflyServer,
+    ],
+)
+async def test_lsp_launch_keeps_token_out_of_argv(
+    server_type: type[BaseLspServer],
+    tmp_path: Path,
+    mock_popen: mock.MagicMock,
+):
+    server = server_type(port=8000)
+    lsp_dir = tmp_path / "_lsp"
+    lsp_dir.mkdir()
+    (lsp_dir / "index.cjs").touch()
+    ty_module = mock.MagicMock()
+    ty_module.find_ty_bin.return_value = "/path/to/ty"
+    pyrefly_module = mock.MagicMock()
+    pyrefly_module.get_pyrefly_bin.return_value = "/path/to/pyrefly"
+
+    # Stub installed dependencies, but exercise each real get_command()
+    # and the actual argv passed to Popen.
+    with (
+        mock.patch("marimo._server.lsp.DependencyManager"),
+        mock.patch(
+            "marimo._server.lsp.marimo_package_path", return_value=tmp_path
+        ),
+        mock.patch.dict(
+            "sys.modules",
+            {"ty.__main__": ty_module, "pyrefly.__main__": pyrefly_module},
+        ),
+        mock.patch.object(server, "validate_requirements", return_value=True),
+        mock.patch.object(server, "_wait_until_ready", return_value=True),
+        mock.patch.object(server, "_signal_process_tree"),
+    ):
+        try:
+            assert await server.start() is None
+            mock_popen.assert_called_once()
+            command = mock_popen.call_args.args[0]
+            assert command
+            assert all(server.auth_token not in arg for arg in command)
+            assert (
+                mock_popen.call_args.kwargs["env"]["MARIMO_LSP_TOKEN"]
+                == server.auth_token
+            )
+        finally:
+            server.stop()
 
 
 async def test_base_lsp_server_stop_force_kill_on_timeout(
@@ -222,12 +279,9 @@ async def test_pylsp_server():
     assert server.get_command() == [
         sys.executable,
         "-m",
-        "pylsp",
-        "--ws",
-        "-v",
+        "marimo._server._pylsp",
         "--port",
         "8000",
-        "--check-parent-process",
         "--log-file",
         str(get_log_directory() / "pylsp.log"),
     ]

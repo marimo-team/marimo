@@ -225,7 +225,7 @@ print(ro.r("summary(iris)"))
 ```
 
 For an interactive example combining a marimo slider, dplyr, Arrow, and Polars,
-see the [Using R notebook](https://github.com/marimo-team/marimo/blob/main/examples/misc/using_r.py).
+see the [R with Pixi notebook](https://github.com/marimo-team/marimo/blob/main/examples/misc/pixi_r.py).
 
 Manage [Conda dependencies](https://pixi.prefix.dev/latest/python/scripts/#manage-dependencies)
 through the metadata or Pixi's script commands; marimo's package panel manages

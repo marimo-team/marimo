@@ -37,6 +37,7 @@ from marimo._runtime.commands import (
     AppMetadata,
     CreateNotebookCommand,
     ExecuteCellCommand,
+    ExecuteCellsCommand,
     SyncGraphCommand,
     UpdateUIElementCommand,
 )
@@ -176,7 +177,10 @@ async def test_kernel_manager_edit_mode() -> None:
     queue_manager.control_queue.join_thread()  # type: ignore
 
 
-async def test_kernel_manager_interrupt() -> None:
+@pytest.mark.parametrize("interrupt_during_write", [False, True])
+async def test_kernel_manager_interrupt(
+    interrupt_during_write: bool,
+) -> None:
     queue_manager = QueueManagerImpl(use_multiprocessing=True)
     kernel_manager = KernelManagerImpl(
         queue_manager=queue_manager,
@@ -203,7 +207,11 @@ async def test_kernel_manager_interrupt() -> None:
             ):
                 continue
             output = message.output.data
-            if isinstance(output, str) and "ready-to-interrupt" in output:
+            if (
+                not interrupt_during_write
+                and isinstance(output, str)
+                and "ready-to-interrupt" in output
+            ):
                 kernel_manager.interrupt_kernel()
             elif isinstance(output, list):
                 interrupted |= any(
@@ -211,18 +219,39 @@ async def test_kernel_manager_interrupt() -> None:
                     for error in output
                 )
 
+    code = inspect.cleandoc("""
+        import marimo as mo
+        mo.output.append("ready-to-interrupt")
+        while True:
+            pass
+    """)
+    if interrupt_during_write:
+        # Deliver SIGINT while write() still owns the transport lock.
+        code = inspect.cleandoc("""
+            import _thread
+            import marimo as mo
+            from marimo._runtime.context import get_context
+
+            _pipe = get_context().stream.pipe
+            _send = _pipe.send
+
+            def _send_and_interrupt(message):
+                _send(message)
+                if b"ready-to-interrupt" in message:
+                    _pipe.send = _send
+                    _thread.interrupt_main()
+
+            _pipe.send = _send_and_interrupt
+            mo.output.append("ready-to-interrupt")
+        """)
+
     try:
         queue_manager.put_control_request(
             CreateNotebookCommand(
                 execution_requests=(
                     ExecuteCellCommand(
                         cell_id="1",
-                        code=inspect.cleandoc("""
-                            import marimo as mo
-                            mo.output.append("ready-to-interrupt")
-                            while True:
-                                pass
-                        """),
+                        code=code,
                     ),
                 ),
                 cell_ids=("1",),
@@ -230,6 +259,16 @@ async def test_kernel_manager_interrupt() -> None:
                     object_ids=[], values=[]
                 ),
                 auto_run=True,
+            )
+        )
+        assert await asyncio.wait_for(
+            asyncio.to_thread(interrupt_running_cell), timeout=5
+        )
+        # A later interrupt must still work after the first handler raised.
+        queue_manager.put_control_request(
+            ExecuteCellsCommand(
+                cell_ids=["1"],
+                codes=["import _thread; _thread.interrupt_main()"],
             )
         )
         assert await asyncio.wait_for(

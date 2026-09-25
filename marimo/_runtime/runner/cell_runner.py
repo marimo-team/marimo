@@ -23,6 +23,8 @@ from marimo._messaging.errors import (
     MarimoSQLError,
     UnknownError,
 )
+from marimo._messaging.notification import InterruptedNotification
+from marimo._messaging.notification_utils import broadcast_notification
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
 from marimo._runtime.context.types import safe_get_context
@@ -865,6 +867,12 @@ class Runner:
                 await self._dispatch_runnable(pre_exec_ctx, post_exec_ctx)
             except KeyboardInterrupt:
                 LOGGER.info("Runner interrupted via SIGINT")
+
+        if self.interrupted:
+            # Sent from normal control flow, not from the SIGINT handler.
+            # The handler can run nested inside itself and must not take
+            # the stream lock that this broadcast needs.
+            broadcast_notification(InterruptedNotification())
 
         finish_ctx = OnFinishHookContext(
             graph=self.graph,

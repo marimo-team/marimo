@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
+    from pathlib import Path
 
 
 class Store(ABC):
@@ -15,7 +16,7 @@ class Store(ABC):
 
     @abstractmethod
     def put(self, key: str, value: bytes) -> bool:
-        """Put a cache into the store"""
+        """Put a cache into the store."""
 
     @abstractmethod
     def hit(self, key: str) -> bool:
@@ -25,6 +26,15 @@ class Store(ABC):
         """Check if the cache is in the store"""
         del key
         return False
+
+    def local_dirs(self) -> list[Path]:
+        """Every local directory this store keeps its entries in.
+
+        Lets a caller find the disk a cache occupies without knowing which
+        store it writes through. One `put` can write to several directories,
+        and a remote store writes to none. Defaults to none.
+        """
+        return []
 
     def get_batch(
         self, keys: Iterable[str]

@@ -2265,3 +2265,39 @@ def _strip_header_footer(source: str) -> str:
     code_start = source.index(header)
     code_end = source.index('if __name__ == "__main__":')
     return source[code_start + len(header) : code_end].strip()
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        # Already formatted: identity
+        ('mo.md(r"""\nA\n""")', 'mo.md(r"""\nA\n""")'),
+        # Inline comment after the call keeps its leading whitespace (#10976)
+        (
+            'mo.md(r"""\nA\n""")  # noqa: E501',
+            'mo.md(r"""\nA\n""")  # noqa: E501',
+        ),
+        # Comments on their own lines, before and after
+        (
+            '# lead\n\nmo.md(r"""\nA\n""")\n# trail',
+            '# lead\n\nmo.md(r"""\nA\n""")\n# trail',
+        ),
+        # Reformatting the call preserves the inline comment
+        (
+            'mo.md(\n    r"""\n    A\n    """\n)  # noqa: E501',
+            'mo.md(r"""\nA\n""")  # noqa: E501',
+        ),
+        # Non-ASCII content does not shift the comment position
+        (
+            'mo.md(r"""\nÄé\n""")  # noqa: É',
+            'mo.md(r"""\nÄé\n""")  # noqa: É',
+        ),
+        # Parentheses around the call are kept
+        ('(mo.md("x"))', '(mo.md("""\nx\n"""))'),
+        ('mo.md(("x"))', 'mo.md("""\nx\n""")'),
+    ],
+)
+def test_format_markdown_preserves_surrounding_source(
+    code: str, expected: str
+) -> None:
+    assert codegen.format_markdown(compile_cell(code)) == expected

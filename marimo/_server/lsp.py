@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import asyncio
 import os
+import secrets
 import signal
 import socket
 import subprocess
 import time
 from abc import ABC, abstractmethod
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -36,6 +38,11 @@ LOGGER = _loggers.marimo_logger()
 class LspServer(ABC):
     port: int
     id: str
+
+    @cached_property
+    def auth_token(self) -> str:
+        # This credential stays between the proxy and its child process.
+        return secrets.token_urlsafe(32)
 
     @abstractmethod
     async def start(self) -> AlertNotification | None:
@@ -111,6 +118,7 @@ class BaseLspServer(LspServer):
                 stderr=subprocess.DEVNULL if is_windows() else subprocess.PIPE,
                 stdin=None,
                 text=True,
+                env={**os.environ, "MARIMO_LSP_TOKEN": self.auth_token},
                 # Create a new process group so we can kill the entire
                 # tree (parent + children) on shutdown. Without this,
                 # child processes (e.g. copilot language-server.cjs)
@@ -260,7 +268,7 @@ class BaseLspServer(LspServer):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(timeout_ms / 1000)
-            result = sock.connect_ex(("localhost", self.port))
+            result = sock.connect_ex(("127.0.0.1", self.port))
             sock.close()
             return result == 0
         except Exception:
@@ -619,12 +627,9 @@ class PyLspServer(BaseLspServer):
         return [
             sys.executable,
             "-m",
-            "pylsp",
-            "--ws",
-            "-v",
+            "marimo._server._pylsp",
             "--port",
             str(self.port),
-            "--check-parent-process",
             "--log-file",
             str(self.log_file),
         ]

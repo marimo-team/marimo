@@ -372,7 +372,27 @@ class _cache_call(CacheContext, Generic[P, R]):
         # stateful variables may be global
         scope = {k: v for k, v in scope.items() if k in attempt.stateful_refs}
         attempt.update(scope, meta={"return": response, "runtime": runtime})
-        self.loader.save_cache(attempt)
+        if self.loader.save_cache(attempt):
+            self._record(attempt)
+
+    def _record(self, attempt: Cache) -> None:
+        """Record the entry under the cell the function is defined in.
+
+        A call can come from any cell. The definition is what a later prune
+        recompiles.
+        """
+        if self.base_block is None:
+            return
+
+        from marimo._save.manifest import record_cache_event
+
+        record_cache_event(
+            self.loader,
+            attempt.key,
+            self.base_block.cell_id,
+            self.base_block.graph,
+            saved=not attempt.hit,
+        )
 
     @property
     def misses(self) -> int:
@@ -495,6 +515,7 @@ class _cache_call(CacheContext, Generic[P, R]):
         try:
             if attempt.hit:
                 attempt.restore(scope)
+                self._record(attempt)
                 return cast(R, attempt.meta.get("return"))
 
             start_time = time.time()
@@ -622,6 +643,7 @@ class _cache_call_async(_cache_call[P, R]):
         try:
             if attempt.hit:
                 attempt.restore(scope)
+                self._record(attempt)
                 return attempt.meta.get("return")
 
             start_time = time.time()
@@ -655,6 +677,9 @@ class _cache_context(SkipContext, CacheContext):
 
         self._cache: Cache | None = None
         self._body_start: int = MAXINT
+        # The cell the block was found in, resolved while tracing.
+        self._cell_id: CellId_t | None = None
+        self._graph: DirectedGraph | None = None
         # TODO: Consider having a user level setting.
         self.pin_modules = pin_modules
         self.hash_type = hash_type
@@ -668,6 +693,22 @@ class _cache_context(SkipContext, CacheContext):
     @property
     def hit(self) -> bool:
         return self._cache is not None and self._cache.hit
+
+    def _record(self) -> None:
+        """Record the entry under the cell holding the block."""
+        if self._cache is None or self._cell_id is None:
+            return
+        assert self._graph is not None, UNEXPECTED_FAILURE_BOILERPLATE
+
+        from marimo._save.manifest import record_cache_event
+
+        record_cache_event(
+            self.loader,
+            self._cache.key,
+            self._cell_id,
+            self._graph,
+            saved=not self._cache.hit,
+        )
 
     def trace(self, with_frame: FrameType) -> None:
         # General flow is as follows:
@@ -749,6 +790,8 @@ class _cache_context(SkipContext, CacheContext):
                     ast.parse(code).body  # type: ignore[arg-type]
                 )
 
+                self._cell_id = cell_id
+                self._graph = graph
                 self._cache = cache_attempt_from_hash(
                     save_module,
                     graph,
@@ -813,6 +856,7 @@ class _cache_context(SkipContext, CacheContext):
             if self._cache.hit:
                 assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
                 self._cache.restore(self._frame.f_locals)
+                self._record()
                 # Return true to suppress the SkipWithBlock exception.
                 return True
 
@@ -820,8 +864,9 @@ class _cache_context(SkipContext, CacheContext):
             runtime = time.time() - self._start_time
             self._cache.update(self._frame.f_locals, meta={"runtime": runtime})
 
+            saved = False
             try:
-                self.loader.save_cache(self._cache)
+                saved = self.loader.save_cache(self._cache)
             except Exception as e:
                 sys.stderr.write(
                     "An exception was raised when attempting to cache this code "
@@ -833,6 +878,8 @@ class _cache_context(SkipContext, CacheContext):
                 traceback.print_exc(file=tmpio)
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
+            if saved:
+                self._record()
         except Exception:
             failed = True
             raise

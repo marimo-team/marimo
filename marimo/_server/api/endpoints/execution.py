@@ -346,13 +346,25 @@ async def execute_code(
         http_request=HTTPRequest.from_request(request),
     )
 
-    async def _watch_disconnect() -> None:
-        """Wait for client disconnect and interrupt the kernel."""
-        await wait_for_http_disconnect(request)
-        session.try_interrupt()
-
     async def sse_generator() -> AsyncGenerator[str, None]:
-        disconnect_task = asyncio.create_task(_watch_disconnect())
+        interrupt_sent = False
+
+        def interrupt_once() -> None:
+            # The disconnect watcher and the response cancellation can
+            # both observe one client disconnect. The kernel must get
+            # one interrupt. Both callers run on the event-loop thread,
+            # so a plain flag is enough.
+            nonlocal interrupt_sent
+            if interrupt_sent:
+                return
+            interrupt_sent = True
+            session.try_interrupt()
+
+        async def watch_disconnect() -> None:
+            await wait_for_http_disconnect(request)
+            interrupt_once()
+
+        disconnect_task = asyncio.create_task(watch_disconnect())
         # Correlation ID: tags both the scratchpad command and the
         # listener so we wait for *our* completion and ignore
         # ``CompletedRun`` events from other commands on this session
@@ -389,10 +401,11 @@ async def execute_code(
 
                 yield build_done_event(session, listener)
         except asyncio.CancelledError:
-            # On ASGI spec < 2.4, Starlette consumes http.disconnect
-            # itself and cancels this generator before _watch_disconnect
-            # observes it; still interrupt the kernel on the way out.
-            session.try_interrupt()
+            # On ASGI spec < 2.4 (uvicorn), Starlette cancels this
+            # generator when the client disconnects. On spec >= 2.4 it
+            # does not, and only the watcher fires. Interrupt here too
+            # so both server kinds stop the kernel.
+            interrupt_once()
             raise
         finally:
             await cancel_and_wait(disconnect_task)
