@@ -28,6 +28,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, overload
 
+from msgspec.structs import replace as structs_replace
+
 from marimo import _loggers
 from marimo._ast.cell import (
     CellConfig,
@@ -1254,27 +1256,22 @@ class AsyncCodeModeContext:
                     cell_id, tracker.get_stale_cells(self._document)
                 )
 
-        # Build config only if any config kwarg was explicitly set.
+        # Build config only if any config kwarg was explicitly set,
+        # starting from the existing config so unspecified fields persist.
         config: CellConfig | None = None
-        if (
-            hide_code is not None
-            or disabled is not None
-            or expand_output is not None
-            or column is not None
-        ):
-            # Start from existing config and override provided fields.
-            existing = self._current_config(cell_id)
-            config = CellConfig(
-                hide_code=hide_code
-                if hide_code is not None
-                else existing.hide_code,
-                disabled=disabled
-                if disabled is not None
-                else existing.disabled,
-                column=column if column is not None else existing.column,
-                expand_output=expand_output
-                if expand_output is not None
-                else existing.expand_output,
+        overrides = {
+            key: value
+            for key, value in (
+                ("hide_code", hide_code),
+                ("disabled", disabled),
+                ("expand_output", expand_output),
+                ("column", column),
+            )
+            if value is not None
+        }
+        if overrides:
+            config = structs_replace(
+                self._current_config(cell_id), **overrides
             )
 
         self._ops.append(
