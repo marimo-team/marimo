@@ -18,7 +18,6 @@ import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
 import { maxFractionalDigits } from "@/utils/numbers";
-import { Objects } from "@/utils/objects";
 import { parseContent } from "@/utils/url-parser";
 import { JsonOutput } from "../editor/output/JsonOutput";
 import { CopyClipboardIcon } from "../icons/copy-icon";
@@ -42,71 +41,12 @@ import {
 } from "./types";
 import { SentinelCell, WhitespaceMarkers } from "./sentinel-cell";
 import { detectSentinel, splitLeadingTrailingWhitespace } from "./utils";
-import { uniformSample } from "./uniformSample";
 import { MarkdownUrlDetector, UrlDetector } from "./url-detector";
 
 export const NAMELESS_COLUMN_PREFIX = "__m_column__";
 // Artificial limit to display long strings
 export const SELECT_ID = "__select__";
 const MAX_STRING_LENGTH = 50;
-
-function inferDataType(value: unknown): [type: DataType, displayType: string] {
-  if (typeof value === "string") {
-    return ["string", "string"];
-  }
-  if (typeof value === "number") {
-    return ["number", "number"];
-  }
-  if (value instanceof Date) {
-    return ["datetime", "datetime"];
-  }
-  if (typeof value === "boolean") {
-    return ["boolean", "boolean"];
-  }
-  if (value == null) {
-    return ["unknown", "object"];
-  }
-  return ["unknown", "object"];
-}
-
-export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
-  // No items
-  if (items.length === 0) {
-    return [];
-  }
-
-  // Not an object
-  if (typeof items[0] !== "object") {
-    return [];
-  }
-
-  const fieldTypes: Record<string, [DataType, string]> = {};
-
-  // This can be slow for large datasets,
-  // so only sample 10 evenly distributed rows
-  uniformSample(items, 10).forEach((item) => {
-    if (typeof item !== "object" || item === null) {
-      return;
-    }
-    // We will be a bit defensive and assume values are not homogeneous.
-    // If any is a mimetype, then we will treat it as a mimetype (i.e. not sortable)
-    Object.entries(item).forEach(([key, value]) => {
-      const currentValue = fieldTypes[key];
-      if (!currentValue) {
-        // Set for the first time
-        fieldTypes[key] = inferDataType(value);
-      }
-
-      // If its not null, override the type
-      if (value != null) {
-        // This can be lossy as we infer take the last seen type
-        fieldTypes[key] = inferDataType(value);
-      }
-    });
-  });
-
-  return Objects.entries(fieldTypes);
-}
 
 export function generateColumns<T>({
   rowHeaders,

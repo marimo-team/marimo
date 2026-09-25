@@ -3,7 +3,7 @@
 import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
 import React, { useEffect, useState } from "react";
 import { z } from "zod";
-import { inferFieldTypes } from "@/components/data-table/columns";
+import { inferFieldTypes } from "@/components/data-table/infer-field-types";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import {
   type FieldTypesWithExternalType,
