@@ -28,6 +28,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, overload
 
+from msgspec.structs import replace as structs_replace
+
 from marimo import _loggers
 from marimo._ast.cell import (
     CellConfig,
@@ -1056,6 +1058,7 @@ class AsyncCodeModeContext:
         after: str | None = None,
         hide_code: bool = True,
         disabled: bool = False,
+        expand_output: bool = False,
         column: int | None = None,
         name: str | None = None,
     ) -> CellId_t:
@@ -1094,6 +1097,8 @@ class AsyncCodeModeContext:
                 Defaults to True.
             disabled (bool): Prevent the cell from executing.
                 Defaults to False.
+            expand_output (bool): Show the cell's output in full instead of
+                clamping it to a fixed height. Defaults to False.
             column (int, optional): Column index for multi-column layouts.
             name (str, optional): Cell names are a human-facing label,
                 reserved for special cases (e.g. `"setup"`). Prefer
@@ -1107,7 +1112,10 @@ class AsyncCodeModeContext:
         cell_id, resolved_name = self._resolve_new_cell(name)
 
         config = CellConfig(
-            hide_code=hide_code, disabled=disabled, column=column
+            hide_code=hide_code,
+            disabled=disabled,
+            expand_output=expand_output,
+            column=column,
         )
 
         before_id = (
@@ -1127,6 +1135,24 @@ class AsyncCodeModeContext:
         self._pending_adds[cell_id] = op
         return cell_id
 
+    def _current_config(self, cell_id: CellId_t) -> CellConfig:
+        """The cell's config as of the last op queued in this batch.
+
+        Ops aren't applied to the kernel until the context exits, so a
+        cell created or configured earlier in the same batch isn't in
+        `cell_metadata` yet. Scan the queue first so merging into the
+        existing config doesn't clobber those pending changes.
+        """
+        for op in reversed(self._ops):
+            if op.cell_id != cell_id or not isinstance(
+                op, (_AddOp, _UpdateOp)
+            ):
+                continue
+            if op.config is not None:
+                return op.config
+        meta = self._kernel.cell_metadata.get(cell_id)
+        return meta.config if meta else CellConfig()
+
     def edit_cell(
         self,
         target: str,
@@ -1134,6 +1160,7 @@ class AsyncCodeModeContext:
         *,
         hide_code: bool | None = None,
         disabled: bool | None = None,
+        expand_output: bool | None = None,
         column: int | None = None,
         name: str | None = None,
     ) -> None:
@@ -1172,6 +1199,8 @@ class AsyncCodeModeContext:
             code (str, optional): New Python source code. None keeps existing.
             hide_code (bool, optional): Collapse the code editor. None keeps existing.
             disabled (bool, optional): Prevent the cell from executing. None keeps existing.
+            expand_output (bool, optional): Show the cell's output in full
+                instead of clamping it to a fixed height. None keeps existing.
             column (int, optional): Column index for multi-column layouts. None keeps existing.
             name (str, optional): New name for the cell. None keeps existing.
         """
@@ -1227,21 +1256,22 @@ class AsyncCodeModeContext:
                     cell_id, tracker.get_stale_cells(self._document)
                 )
 
-        # Build config only if any config kwarg was explicitly set.
+        # Build config only if any config kwarg was explicitly set,
+        # starting from the existing config so unspecified fields persist.
         config: CellConfig | None = None
-        if hide_code is not None or disabled is not None or column is not None:
-            # Start from existing config and override provided fields.
-            meta = self._kernel.cell_metadata.get(cell_id)
-            existing = meta.config if meta else CellConfig()
-            config = CellConfig(
-                hide_code=hide_code
-                if hide_code is not None
-                else existing.hide_code,
-                disabled=disabled
-                if disabled is not None
-                else existing.disabled,
-                column=column if column is not None else existing.column,
-                expand_output=existing.expand_output,
+        overrides = {
+            key: value
+            for key, value in (
+                ("hide_code", hide_code),
+                ("disabled", disabled),
+                ("expand_output", expand_output),
+                ("column", column),
+            )
+            if value is not None
+        }
+        if overrides:
+            config = structs_replace(
+                self._current_config(cell_id), **overrides
             )
 
         self._ops.append(
