@@ -142,7 +142,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .marimo,
   .marimo::before,
   .marimo::after,
@@ -153,6 +152,7 @@
     animation-duration: 0.01ms !important;
     animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
+
     /*
     Set to 0s, because `transition-property` defaults to `all`, so any non-zero
     duration gives every element a transition. Libraries that change an
