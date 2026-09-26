@@ -248,6 +248,9 @@ importers:
       ansi_up:
         specifier: ^6.0.6
         version: 6.0.6
+      better-filter-bar:
+        specifier: link:../../../better-filter-bar/geneva
+        version: link:../../../better-filter-bar/geneva
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
