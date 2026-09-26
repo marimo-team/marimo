@@ -482,9 +482,6 @@ importers:
       '@types/dompurify':
         specifier: ^3.2.0
         version: 3.2.0
-      '@types/katex':
-        specifier: ^0.16.8
-        version: 0.16.8
       '@types/lodash-es':
         specifier: ^4.17.12
         version: 4.17.12

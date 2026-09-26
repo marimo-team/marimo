@@ -198,7 +198,6 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@types/dompurify": "^3.2.0",
-    "@types/katex": "^0.16.8",
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^24.13.3",
     "@types/plotly.js": "^2.35.16",
