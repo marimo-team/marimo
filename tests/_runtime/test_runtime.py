@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from marimo._ast.compiler import compile_cell
 from marimo._ast.variables import is_mangled_local
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
@@ -151,6 +152,105 @@ class TestExecution:
         assert "x" not in k.globals
         assert "y" not in k.globals
         assert "z" not in k.globals
+
+    @pytest.mark.requires("polars", "sqlglot")
+    async def test_polars_sql_reacts_to_upstream_frame(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        query = ExecuteCellCommand(
+            cell_id="2",
+            code=(
+                "result = mo.sql("
+                "'SELECT SUM(amount) AS total FROM orders', "
+                "engine='polars', output=False)"
+            ),
+        )
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="import marimo as mo\nimport polars as pl",
+                ),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="orders = pl.DataFrame({'amount': [1, 2]})",
+                ),
+                query,
+            ]
+        )
+
+        assert not k.errors
+        assert "1" in k.graph.parents["2"]
+        assert k.globals["result"].collect().item() == 3
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="orders = pl.DataFrame({'amount': [10, 20]})",
+                )
+            ]
+        )
+        if k.lazy():
+            assert k.graph.cells["2"].stale
+            await k.run([query])
+
+        assert not k.errors
+        assert k.globals["result"].collect().item() == 30
+
+    @pytest.mark.requires("polars", "sqlglot")
+    async def test_polars_sql_dependency_before_sqlglot_is_available(
+        self, any_kernel: Kernel, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        k = any_kernel
+        query = ExecuteCellCommand(
+            cell_id="2",
+            code=(
+                "result = mo.sql("
+                "query='SELECT SUM(amount) AS total FROM orders', "
+                "engine='polars', output=False)"
+            ),
+        )
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="import marimo as mo\nimport polars as pl",
+                ),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="orders = pl.DataFrame({'amount': [1, 2]})",
+                ),
+            ]
+        )
+
+        with monkeypatch.context() as patch_context:
+            patch_context.setattr(
+                DependencyManager.sqlglot, "has", lambda: False
+            )
+            cell = compile_cell(query.code, cell_id=query.cell_id)
+        k._register_cell(query.cell_id, cell, stale=False)
+
+        assert "1" in k.graph.parents["2"]
+        await k._run_cells({"2"})
+        assert not k.errors
+        assert k.globals["result"].collect().item() == 3
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="orders = pl.DataFrame({'amount': [10, 20]})",
+                )
+            ]
+        )
+        if k.lazy():
+            assert k.graph.cells["2"].stale
+            await k._run_cells({"2"})
+
+        assert not k.errors
+        assert k.globals["result"].collect().item() == 30
 
     async def test_delete_cell_restores_doc(self, any_kernel: Kernel) -> None:
         k = any_kernel

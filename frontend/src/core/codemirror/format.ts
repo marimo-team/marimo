@@ -206,6 +206,7 @@ async function getSqlFormatterDialect(
     case "timescaledb":
     case "datafusion":
     case "dremio":
+    case "polars":
       return sql;
     case "databricks":
       return spark;

@@ -477,6 +477,286 @@ class SQLRef:
         return False
 
 
+@dataclass(frozen=True)
+class _FallbackSQLToken:
+    value: str
+    quoted: bool = False
+
+
+def _fallback_sql_tokens(sql_statement: str) -> list[_FallbackSQLToken]:
+    """Tokenize the small SQL subset needed for dependency bootstrapping."""
+    tokens: list[_FallbackSQLToken] = []
+    punctuation = "(),."
+    i = 0
+    while i < len(sql_statement):
+        char = sql_statement[i]
+        if char.isspace():
+            i += 1
+            continue
+        if sql_statement.startswith("--", i):
+            newline = sql_statement.find("\n", i + 2)
+            i = len(sql_statement) if newline == -1 else newline + 1
+            continue
+        if sql_statement.startswith("/*", i):
+            comment_end = sql_statement.find("*/", i + 2)
+            i = len(sql_statement) if comment_end == -1 else comment_end + 2
+            continue
+        if char in ('"', "`", "'"):
+            quote = char
+            i += 1
+            identifier: list[str] = []
+            while i < len(sql_statement):
+                if sql_statement[i] != quote:
+                    identifier.append(sql_statement[i])
+                    i += 1
+                elif (
+                    i + 1 < len(sql_statement)
+                    and sql_statement[i + 1] == quote
+                ):
+                    identifier.append(quote)
+                    i += 2
+                else:
+                    i += 1
+                    break
+            tokens.append(_FallbackSQLToken("".join(identifier), quoted=True))
+            continue
+        if char in punctuation:
+            tokens.append(_FallbackSQLToken(char))
+            i += 1
+            continue
+        if char == "_" or char.isalpha():
+            start = i
+            i += 1
+            while i < len(sql_statement):
+                candidate = sql_statement[start : i + 1]
+                if candidate.isidentifier() or sql_statement[i] == "$":
+                    i += 1
+                else:
+                    break
+            tokens.append(_FallbackSQLToken(sql_statement[start:i]))
+            continue
+        # Operators and other punctuation cannot introduce a relation.
+        tokens.append(_FallbackSQLToken(char))
+        i += 1
+    return tokens
+
+
+def _fallback_parentheses(
+    tokens: list[_FallbackSQLToken],
+) -> dict[int, int]:
+    pairs: dict[int, int] = {}
+    stack: list[int] = []
+    for index, token in enumerate(tokens):
+        if token.value == "(":
+            stack.append(index)
+        elif token.value == ")" and stack:
+            pairs[stack.pop()] = index
+    return pairs
+
+
+def _fallback_cte_scopes(
+    tokens: list[_FallbackSQLToken], pairs: dict[int, int]
+) -> list[tuple[str, int, int]]:
+    """Return CTE names and their visibility ranges.
+
+    Polars resolves both quoted and unquoted relation names case-sensitively.
+    Preserve their spelling so a differently cased CTE cannot hide a frame.
+    """
+    scopes: list[tuple[str, int, int]] = []
+    enclosing: list[int] = []
+    for index, token in enumerate(tokens):
+        if token.value == "(":
+            enclosing.append(pairs.get(index, len(tokens)))
+            continue
+        if token.value == ")":
+            if enclosing:
+                enclosing.pop()
+            continue
+        if token.quoted or token.value.casefold() != "with":
+            continue
+
+        scope_end = enclosing[-1] if enclosing else len(tokens)
+        cursor = index + 1
+        recursive = (
+            cursor < len(tokens)
+            and not tokens[cursor].quoted
+            and tokens[cursor].value.casefold() == "recursive"
+        )
+        if recursive:
+            cursor += 1
+        while cursor < scope_end:
+            name = tokens[cursor]
+            if not name.value.isidentifier():
+                break
+            cursor += 1
+            # Optional CTE column list.
+            if cursor < scope_end and tokens[cursor].value == "(":
+                cursor = pairs.get(cursor, scope_end) + 1
+            if (
+                cursor >= scope_end
+                or tokens[cursor].quoted
+                or tokens[cursor].value.casefold() != "as"
+            ):
+                break
+            cursor += 1
+            if (
+                cursor < scope_end
+                and not tokens[cursor].quoted
+                and tokens[cursor].value.casefold() == "not"
+            ):
+                cursor += 1
+            if (
+                cursor < scope_end
+                and not tokens[cursor].quoted
+                and tokens[cursor].value.casefold() == "materialized"
+            ):
+                cursor += 1
+            if cursor >= scope_end or tokens[cursor].value != "(":
+                break
+            body_end = pairs.get(cursor, scope_end)
+            # A non-recursive CTE does not shadow a same-named base relation
+            # inside its own definition. Earlier CTEs are visible to later
+            # definitions because their visibility starts after their body.
+            visibility_start = index if recursive else body_end + 1
+            scopes.append((name.value, visibility_start, scope_end))
+            cursor = body_end + 1
+            if cursor >= scope_end or tokens[cursor].value != ",":
+                break
+            cursor += 1
+    return scopes
+
+
+def find_unqualified_sql_refs_fallback(sql_statement: str) -> set[SQLRef]:
+    """Best-effort local-frame refs before SQLGlot can be installed.
+
+    Polars and SQLGlot are optional dependencies. SQL cells are compiled before
+    missing packages can be installed, so this lightweight tokenizer wires the
+    reactive graph on first compilation. SQLGlot remains authoritative once it
+    is available.
+    """
+    tokens = _fallback_sql_tokens(sql_statement)
+    pairs = _fallback_parentheses(tokens)
+    cte_scopes = _fallback_cte_scopes(tokens, pairs)
+    refs: set[SQLRef] = set()
+    from_active: dict[int, bool] = {}
+    expect_relation: dict[int, bool] = {}
+    query_depths = {0}
+    depth = 0
+    index = 0
+    clause_terminators = {
+        "except",
+        "group",
+        "having",
+        "intersect",
+        "limit",
+        "order",
+        "qualify",
+        "returning",
+        "union",
+        "where",
+        "window",
+    }
+
+    while index < len(tokens):
+        token = tokens[index]
+        keyword = None if token.quoted else token.value.casefold()
+        if token.value == "(":
+            entering_relation_group = bool(expect_relation.get(depth))
+            if entering_relation_group:
+                expect_relation[depth] = False
+            depth += 1
+            next_token = tokens[index + 1] if index + 1 < len(tokens) else None
+            starts_query = (
+                next_token is not None
+                and not next_token.quoted
+                and next_token.value.casefold()
+                in (
+                    "select",
+                    "values",
+                    "with",
+                )
+            )
+            if starts_query:
+                query_depths.add(depth)
+            elif entering_relation_group:
+                # Polars supports parenthesized join groups without a nested
+                # SELECT, e.g. `FROM (a JOIN b ON ...) AS nested`.
+                query_depths.add(depth)
+                from_active[depth] = True
+                expect_relation[depth] = True
+            index += 1
+            continue
+        if token.value == ")":
+            from_active.pop(depth, None)
+            expect_relation.pop(depth, None)
+            query_depths.discard(depth)
+            depth = max(0, depth - 1)
+            index += 1
+            continue
+        if depth not in query_depths:
+            index += 1
+            continue
+        if keyword in ("from", "join"):
+            from_active[depth] = True
+            expect_relation[depth] = True
+            index += 1
+            continue
+        if keyword in clause_terminators:
+            from_active[depth] = False
+            expect_relation[depth] = False
+            index += 1
+            continue
+        if token.value == "," and from_active.get(depth):
+            expect_relation[depth] = True
+            index += 1
+            continue
+        if not expect_relation.get(depth):
+            index += 1
+            continue
+        if keyword in ("lateral", "only"):
+            index += 1
+            continue
+
+        expect_relation[depth] = False
+        if not token.value.isidentifier():
+            index += 1
+            continue
+        parts = [token.value]
+        cursor = index + 1
+        while (
+            cursor + 1 < len(tokens)
+            and tokens[cursor].value == "."
+            and tokens[cursor + 1].value.isidentifier()
+        ):
+            parts.append(tokens[cursor + 1].value)
+            cursor += 2
+        # Qualified names and table functions are not notebook frames.
+        if len(parts) == 1 and (
+            cursor >= len(tokens) or tokens[cursor].value != "("
+        ):
+            table = parts[0]
+            is_cte = any(
+                name == table and start <= index < end
+                for name, start, end in cte_scopes
+            )
+            if not is_cte:
+                refs.add(SQLRef(table=table))
+        index = cursor
+    return refs
+
+
+def find_polars_sql_refs(sql_statement: str) -> set[SQLRef]:
+    """Find unqualified local Polars frame references."""
+    refs = find_unqualified_sql_refs_fallback(sql_statement)
+    if DependencyManager.sqlglot.has():
+        # SQLGlot understands richer query structure, while the fallback also
+        # covers Polars syntax that its DuckDB dialect rejects (for example,
+        # backticks and SEMI/ANTI joins). The fallback is query-scope aware, so
+        # merging avoids dropping relations from either supported syntax.
+        refs.update(find_sql_refs(sql_statement))
+    return {ref for ref in refs if ref.schema is None and ref.catalog is None}
+
+
 def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     """
     Find table and schema references in a SQL statement.

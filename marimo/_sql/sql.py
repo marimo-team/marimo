@@ -1,11 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
 import os
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from types import FrameType
 
 from marimo._config.config import SqlOutputType
 from marimo._dependencies.dependencies import Dependency, DependencyManager
@@ -13,6 +15,7 @@ from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
 from marimo._sql.engines.dbapi import DBAPIConnection, DBAPIEngine
 from marimo._sql.engines.duckdb import DuckDBEngine
+from marimo._sql.engines.polars import PolarsEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import QueryEngine
 from marimo._sql.error_utils import MarimoSQLException, is_sql_parse_error
@@ -76,12 +79,36 @@ def _default_duckdb_deps() -> list[Dependency]:
     )
 
 
+def _resolve_polars_deps(sql_output: SqlOutputType) -> list[Dependency]:
+    deps = [DependencyManager.polars, DependencyManager.sqlglot]
+    if sql_output == "pandas":
+        deps.extend([DependencyManager.pandas, DependencyManager.pyarrow])
+    return deps
+
+
+def _namespace_for_polars(caller: FrameType | None) -> dict[str, Any]:
+    """Return notebook globals, falling back to the direct caller namespace."""
+    from marimo._runtime.context.types import (
+        ContextNotInitializedError,
+        get_context,
+    )
+
+    try:
+        return get_context().globals
+    except ContextNotInitializedError:
+        if caller is None:
+            return {}
+        namespace = dict(caller.f_globals)
+        namespace.update(caller.f_locals)
+        return namespace
+
+
 @mddoc
 def sql(
     query: str,
     *,
     output: bool = True,
-    engine: DBAPIConnection | None = None,
+    engine: DBAPIConnection | Literal["polars"] | None = None,
 ) -> Any:
     """
     Execute a SQL query.
@@ -98,9 +125,10 @@ def sql(
     Args:
         query: The SQL query to execute.
         output: Whether to display the result in the UI. Defaults to True.
-        engine: Optional SQL engine to use. Can be a SQLAlchemy, DuckDB, Clickhouse,
-            Redshift, Ibis, or DB-API 2.0 compatible connection (including ADBC drivers).
-               If None, uses DuckDB.
+        engine: Optional SQL engine to use. Pass `"polars"` to query Polars
+            DataFrames and LazyFrames in the notebook namespace. Can also be a
+            SQLAlchemy, DuckDB, Clickhouse, Redshift, Ibis, or DB-API 2.0
+            compatible connection (including ADBC drivers). If None, uses DuckDB.
 
     Returns:
         The result of the query.
@@ -116,6 +144,19 @@ def sql(
             source="kernel",
         )
         sql_engine = DuckDBEngine(connection=None)
+    elif isinstance(engine, str) and engine == "polars":
+        DependencyManager.require_many(
+            "to execute SQL with Polars",
+            *_resolve_polars_deps(get_configured_sql_output_format()),
+            source="kernel",
+        )
+        frame = inspect.currentframe()
+        try:
+            caller = frame.f_back if frame is not None else None
+            sql_engine = PolarsEngine(_namespace_for_polars(caller))
+        finally:
+            # Frames can participate in reference cycles.
+            del frame
     else:
         for engine_cls in SUPPORTED_ENGINES:
             if engine_cls.is_compatible(engine):
@@ -125,13 +166,22 @@ def sql(
                 break
         else:
             raise ValueError(
-                "Unsupported engine. Must be a SQLAlchemy, Ibis, Clickhouse, DuckDB, Redshift, StarRocks or DBAPI 2.0 compatible engine."
+                "Unsupported engine. Must be 'polars' or a SQLAlchemy, Ibis, "
+                "Clickhouse, DuckDB, Redshift, StarRocks or DBAPI 2.0 "
+                "compatible engine."
             )
 
     try:
         df = sql_engine.execute(query)
     except Exception as e:
-        if is_sql_parse_error(e):
+        is_polars_sql_error = False
+        if isinstance(sql_engine, PolarsEngine):
+            import polars as pl
+
+            # SQLContext can raise general Polars planning/execution errors,
+            # which should only be classified as SQL errors on this path.
+            is_polars_sql_error = isinstance(e, pl.exceptions.PolarsError)
+        if is_polars_sql_error or is_sql_parse_error(e):
             # NB. raising _from_ creates a noisier stack trace, but preserves
             # the original exception context for debugging.
             raise MarimoSQLException(
@@ -158,22 +208,30 @@ def sql(
 
     custom_total_count: Literal["too_many"] | None = None
     if enforce_own_limit:
-        if DependencyManager.polars.has():
-            custom_total_count = (
-                "too_many"
-                if len(df) > cast(int, default_result_limit)
-                else None
-            )
-            df = df.limit(default_result_limit)
-        elif DependencyManager.pandas.has():
-            custom_total_count = (
-                "too_many"
-                if len(df) > cast(int, default_result_limit)
-                else None
-            )
-            df = df.head(default_result_limit)
+        result_limit = cast(int, default_result_limit)
+        if can_narwhalify_lazyframe(df):
+            # Limiting a lazy result must remain lazy; determining the total
+            # row count would execute the query.
+            df = df.limit(result_limit)
         else:
-            raise_df_import_error("polars[pyarrow]")
+            is_polars_dataframe = False
+            if DependencyManager.polars.has():
+                import polars as pl
+
+                is_polars_dataframe = isinstance(df, pl.DataFrame)
+
+            if is_polars_dataframe:
+                custom_total_count = (
+                    "too_many" if len(df) > result_limit else None
+                )
+                df = df.limit(result_limit)
+            elif DependencyManager.pandas.has():
+                custom_total_count = (
+                    "too_many" if len(df) > result_limit else None
+                )
+                df = df.head(result_limit)
+            else:
+                raise_df_import_error("polars[pyarrow]")
 
     if output:
         from marimo._output.formatters.df_formatters import include_opinionated

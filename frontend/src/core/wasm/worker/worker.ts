@@ -7,7 +7,7 @@ import {
   createWorkerParentTransport,
   type RPCSchema,
 } from "rpc-anywhere";
-import type { UserConfig } from "@/core/config/config-schema";
+import type { SqlOutputType, UserConfig } from "@/core/config/config-schema";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import type {
   ListPackagesResponse,
@@ -35,7 +35,7 @@ import type {
   SerializedBridge,
   WasmController,
 } from "./types";
-import { shouldLoadDuckDBPackages } from "../utils";
+import { prependSQLPackageImports } from "../utils";
 
 /**
  * Web worker responsible for running the notebook.
@@ -141,23 +141,12 @@ const requestHandler = createRPCRequestHandler({
   /**
    * Load packages
    */
-  loadPackages: async (code: string) => {
+  loadPackages: async (opts: { code: string; sqlOutput: SqlOutputType }) => {
     const span = t.startSpan("loadPackages");
     await pyodideReadyPromise; // Make sure loading is done
-
-    if (shouldLoadDuckDBPackages(code)) {
-      // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
-      code = `import pandas\n${code}`;
-      code = `import duckdb\n${code}`;
-      code = `import sqlglot\n${code}`;
-
-      // Polars + SQL requires pyarrow, and installing
-      // after notebook load does not work. As a heuristic,
-      // if it appears that the notebook uses polars, add pyarrow.
-      if (code.includes("polars")) {
-        code = `import pyarrow\n${code}`;
-      }
-    }
+    const code = prependSQLPackageImports(opts.code, {
+      sqlOutput: opts.sqlOutput,
+    });
 
     await self.pyodide.loadPackagesFromImports(code, {
       messageCallback: Logger.log,
