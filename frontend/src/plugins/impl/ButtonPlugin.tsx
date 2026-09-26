@@ -35,6 +35,17 @@ export class ButtonPlugin implements IPlugin<number, Data> {
     const {
       data: { disabled, kind, label, fullWidth, tooltip, keyboardShortcut },
     } = props;
+    const renderedLabel = renderHTML({ html: label });
+    // A disabled button sets `pointer-events: none`, which its label subtree
+    // inherits — starving any `data-tooltip` trigger inside the label of the
+    // pointer events Radix needs (#2515). Re-enable pointer events on just the
+    // label subtree (`display: contents` keeps it layout-neutral); the button
+    // stays disabled via its native `disabled` attribute.
+    const labelContent = disabled ? (
+      <span className="contents pointer-events-auto">{renderedLabel}</span>
+    ) : (
+      renderedLabel
+    );
     // value counts number of times button was clicked
     const button = (
       <Button
@@ -56,7 +67,7 @@ export class ButtonPlugin implements IPlugin<number, Data> {
         }}
         type="submit"
       >
-        {renderHTML({ html: label })}
+        {labelContent}
       </Button>
     );
 
