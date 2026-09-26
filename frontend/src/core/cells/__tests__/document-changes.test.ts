@@ -354,7 +354,11 @@ describe("toDocumentChanges", () => {
       `);
     });
 
-    it("mergeAllColumns emits set-config + reorder-cells", () => {
+    it("mergeAllColumns emits only reorder-cells (preserves column metadata)", () => {
+      // Regression for #3543: merging all columns is a visual flattening
+      // action (triggered when switching from "columns" width to any
+      // single-column width); it must NOT emit set-config changes that
+      // overwrite the persisted column= metadata.
       setup("a", "b", "c");
       const [, b] = state.cellIds.inOrderIds;
       state = dispatch(state, {
@@ -369,22 +373,6 @@ describe("toDocumentChanges", () => {
 
       expect(changes).toMatchInlineSnapshot(`
         [
-          {
-            "cellId": "1",
-            "column": 0,
-            "disabled": false,
-            "expandOutput": false,
-            "hideCode": false,
-            "type": "set-config",
-          },
-          {
-            "cellId": "2",
-            "column": 0,
-            "disabled": false,
-            "expandOutput": false,
-            "hideCode": false,
-            "type": "set-config",
-          },
           {
             "cellIds": [
               "0",

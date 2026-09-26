@@ -1658,38 +1658,32 @@ function updateCellData({
 export function getCellConfigs(state: NotebookState): CellConfig[] {
   const cells = state.cellData;
 
-  // We set to null by default to prevent inconsistencies between undefined & null
-  const defaultCellConfig: Partial<CellConfig> = { column: null };
-
-  // Handle the case where there's only one column
-  // We don't want to set the column config
+  // When the notebook is visually rendered as a single column (e.g.,
+  // "compact", "medium", "full" widths after switching away from
+  // "columns"), we must still preserve each cell's persisted column
+  // metadata so that switching back to "columns" restores the layout.
+  // Forcing column to null here was the cause of
+  // https://github.com/marimo-team/marimo/issues/3543 — saving from a
+  // single-column view erased @app.cell(column=N) decorators.
   const hasMultipleColumns = state.cellIds.getColumns().length > 1;
   if (!hasMultipleColumns) {
-    return state.cellIds.getColumns().flatMap((column) => {
-      return column.inOrderIds.map((cellId) => {
-        return {
-          ...cells[cellId].config,
-          ...defaultCellConfig,
-        };
-      });
-    });
+    return state.cellIds
+      .getColumns()
+      .flatMap((column) =>
+        column.inOrderIds.map((cellId) => ({ ...cells[cellId].config })),
+      );
   }
 
+  // Multi-column view: emit sparse column markers. Only the first cell in
+  // each column carries column=N; subsequent cells have column=null so the
+  // backend/loader can infer their column via left-to-right inheritance.
   return state.cellIds.getColumns().flatMap((column, columnIndex) => {
     return column.inOrderIds.map((cellId, cellIndex) => {
-      const config: Partial<CellConfig> = { ...defaultCellConfig };
-
-      // Only set the column index for the first cell in the column
-      if (cellIndex === 0) {
-        config.column = columnIndex;
-      }
-
-      const newConfig = {
+      const config: Partial<CellConfig> = {
         ...cells[cellId].config,
-        ...config,
+        column: cellIndex === 0 ? columnIndex : null,
       };
-
-      return newConfig;
+      return config as CellConfig;
     });
   });
 }
