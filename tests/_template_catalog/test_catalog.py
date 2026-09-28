@@ -86,7 +86,23 @@ def test_default_catalog() -> None:
                     "description": "Connect a slider to reactive Markdown output.",
                     "category_ids": ("getting-started",),
                     "notebook_path": "interactive_controls.py",
-                    "preview_path": "logo.png",
+                    "preview_path": "interactive-controls.png",
+                },
+                {
+                    "id": "filter-data",
+                    "title": "Filter tabular data",
+                    "description": "Filter embedded records and inspect them in a table.",
+                    "category_ids": ("working-with-data",),
+                    "notebook_path": "filter_data.py",
+                    "preview_path": "filter-data.png",
+                },
+                {
+                    "id": "query-with-duckdb",
+                    "title": "Query data with DuckDB",
+                    "description": "Parameterize a SQL query with a reactive control.",
+                    "category_ids": ("working-with-data",),
+                    "notebook_path": "query_with_duckdb.py",
+                    "preview_path": "query-with-duckdb.png",
                 },
                 {
                     "id": "data-explorer",
@@ -97,7 +113,11 @@ def test_default_catalog() -> None:
                     "preview_path": "logo.png",
                 },
             ],
-            "featured_ids": ("interactive-controls",),
+            "featured_ids": (
+                "interactive-controls",
+                "filter-data",
+                "query-with-duckdb",
+            ),
         }
     )
 

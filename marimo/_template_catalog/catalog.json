@@ -11,14 +11,35 @@
       "description": "Explore data with reactive controls and clear outputs."
     }
   ],
-  "featured": ["interactive-controls"],
+  "featured": [
+    "interactive-controls",
+    "filter-data",
+    "query-with-duckdb"
+  ],
   "templates": [
     {
       "id": "interactive-controls",
       "notebook": "notebooks/interactive_controls.py",
       "title": "Build an interactive control",
       "description": "Connect a slider to reactive Markdown output.",
-      "categories": ["getting-started"]
+      "categories": ["getting-started"],
+      "preview": "previews/interactive-controls.png"
+    },
+    {
+      "id": "filter-data",
+      "notebook": "notebooks/filter_data.py",
+      "title": "Filter tabular data",
+      "description": "Filter embedded records and inspect them in a table.",
+      "categories": ["working-with-data"],
+      "preview": "previews/filter-data.png"
+    },
+    {
+      "id": "query-with-duckdb",
+      "notebook": "notebooks/query_with_duckdb.py",
+      "title": "Query data with DuckDB",
+      "description": "Parameterize a SQL query with a reactive control.",
+      "categories": ["working-with-data"],
+      "preview": "previews/query-with-duckdb.png"
     },
     {
       "id": "data-explorer",

@@ -51,6 +51,20 @@ def test_list_templates(client: TestClient) -> None:
                     "previewUrl": "/api/templates/interactive-controls/preview",
                 },
                 {
+                    "id": "filter-data",
+                    "title": "Filter tabular data",
+                    "description": "Filter embedded records and inspect them in a table.",
+                    "categoryIds": ["working-with-data"],
+                    "previewUrl": "/api/templates/filter-data/preview",
+                },
+                {
+                    "id": "query-with-duckdb",
+                    "title": "Query data with DuckDB",
+                    "description": "Parameterize a SQL query with a reactive control.",
+                    "categoryIds": ["working-with-data"],
+                    "previewUrl": "/api/templates/query-with-duckdb/preview",
+                },
+                {
                     "id": "data-explorer",
                     "title": "Explore a small dataset",
                     "description": "Select a city and inspect its embedded sample data.",
@@ -58,7 +72,11 @@ def test_list_templates(client: TestClient) -> None:
                     "previewUrl": "/api/templates/data-explorer/preview",
                 },
             ],
-            "featuredIds": ["interactive-controls"],
+            "featuredIds": [
+                "interactive-controls",
+                "filter-data",
+                "query-with-duckdb",
+            ],
         }
     )
 
@@ -87,6 +105,8 @@ def test_list_templates_uses_base_url(client: TestClient) -> None:
     assert response.status_code == 200
     assert [item["previewUrl"] for item in response.json()["templates"]] == [
         "/proxy/api/templates/interactive-controls/preview",
+        "/proxy/api/templates/filter-data/preview",
+        "/proxy/api/templates/query-with-duckdb/preview",
         "/proxy/api/templates/data-explorer/preview",
     ]
 
