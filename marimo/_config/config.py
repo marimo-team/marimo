@@ -162,8 +162,10 @@ class RuntimeConfig(TypedDict):
         `PYTHONPATH` environment variable, the directories will be included in
         where Python will look for imported modules.
     - `dotenv`: a list of paths to `.env` files to load.
-        If the file does not exist, it will be silently ignored.
-        The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
+        If the file does not exist, it will be silently ignored. Relative
+        paths resolve against the directory holding the `pyproject.toml`,
+        or the notebook's directory when there is none. The default is
+        `[".env"]`.
     - `default_sql_output`: the default output format for SQL queries. Can be one of:
         `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
         The default is `"auto"`.
@@ -323,7 +325,7 @@ class AiConfig(TypedDict, total=False):
     - `bedrock`: the Bedrock config
     - `azure`: the Azure config
     - `ollama`: the Ollama config
-    - `github`: the GitHub config
+    - `github`: the GitHub Copilot config
     - `openrouter`: the OpenRouter config
     - `wandb`: the Weights & Biases config
     - `opencode_go`: the OpenCode Go config
@@ -425,18 +427,18 @@ class BedrockConfig(TypedDict, total=False):
 
 @dataclass
 class GitHubConfig(TypedDict, total=False):
-    """Configuration options for GitHub.
+    """Configuration options for GitHub Copilot.
 
     **Keys.**
 
-    - `api_key`: the GitHub API token or an `env:` reference
-    - `base_url`: the base URL for the API
+    - `api_key`: a GitHub Copilot token or an `env:` reference
+    - `base_url`: the base URL for the GitHub Copilot API
     - `copilot_settings`: configuration settings for GitHub Copilot LSP.
         Supports settings like `http` (proxy configuration), `telemetry`,
         and `github-enterprise` (enterprise URI).
     """
 
-    api_key: str
+    api_key: NotRequired[str]
     base_url: NotRequired[str]
     copilot_settings: NotRequired[dict[str, Any]]
 
@@ -797,8 +799,8 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
-    # dotenv's default value is set at runtime, depending on whether a
-    # pyproject.toml is found.
+    # dotenv's default value is set at runtime, since it resolves relative to
+    # the pyproject.toml or the notebook's directory.
     "runtime": {
         "auto_instantiate": False,
         "auto_reload": "off",

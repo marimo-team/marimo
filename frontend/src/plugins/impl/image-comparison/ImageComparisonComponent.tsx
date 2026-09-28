@@ -41,7 +41,7 @@ const ImageComparisonComponent: React.FC<ImageComparisonData> = ({
 
   const containerStyle: React.CSSProperties = {
     width: width || "100%",
-    height: height || (direction === "vertical" ? "400px" : "auto"),
+    height: height || "auto",
     maxWidth: "100%",
     // The slider derives its height entirely from its (loaded) images, so a
     // broken/slow-loading source would otherwise collapse it to nothing and

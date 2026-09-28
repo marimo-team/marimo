@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 import msgspec
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.context import safe_get_context
 from marimo._runtime.primitives import (
     is_data_primitive,
@@ -218,6 +219,13 @@ def maybe_update_lazy_stub(value: Any) -> str:
     # MRO not that expensive, type hashable for functools lookup.
     result = mro_lookup(value_type, LAZY_STUB_LOOKUP)
     loader = result[1] if result else "pickle"
+    if (
+        loader == "arrow"
+        and result is not None
+        and result[0].startswith("pandas.")
+        and not DependencyManager.pyarrow.has()
+    ):
+        return "pickle"
     return loader
 
 
@@ -493,6 +501,9 @@ class LazyStore(Store):
     def export_keys(self) -> list[str]:
         return sorted(self._written_keys | self._touched_keys)
 
+    def local_dirs(self) -> list[Path]:
+        return self._inner.local_dirs()
+
 
 class WasmLazyStore(LazyStore):
     """WASM store: writes to a shared in-session `DictStore`; reads fall
@@ -607,8 +618,8 @@ class LazyLoader(BasePersistenceLoader):
         self,
         name: str,
         store: Store | None = None,
-        signer: CacheSigner | None | _Unset = _SIGNER_UNSET,
-        trusted_signers: Iterable[str] | None | _Unset = _TRUSTED_UNSET,
+        signer: CacheSigner | _Unset | None = _SIGNER_UNSET,
+        trusted_signers: Iterable[str] | _Unset | None = _TRUSTED_UNSET,
         verification: str | _Unset = _VERIFICATION_UNSET,
     ) -> None:
         """Create a LazyLoader.
@@ -839,7 +850,7 @@ class LazyLoader(BasePersistenceLoader):
         return self._signer
 
     @signer.setter
-    def signer(self, value: CacheSigner | None | _Unset) -> None:
+    def signer(self, value: CacheSigner | _Unset | None) -> None:
         # Validate up front (mirrors __init__) so a bad reconfigure fails here
         # rather than as an AttributeError mid-save.
         if not isinstance(value, (_Unset, CacheSigner)) and value is not None:
@@ -1381,7 +1392,7 @@ class LazyLoader(BasePersistenceLoader):
             if loader == "ui":
                 ui_vars[var] = obj
                 ui_defs_list.append(var)
-            elif loader not in ("inline",):
+            elif loader != "inline":
                 format_vars.setdefault(loader, {})[var] = obj
 
         version = cache.meta.get("version", MARIMO_CACHE_VERSION)

@@ -810,7 +810,7 @@ def test_print_code_result_matches_actual_transform_polars(
         # while narwhals uses Python's str() which gives True/False
         assume(
             not any(
-                column_id in {"booleans"} for column_id in transform.column_ids
+                column_id == "booleans" for column_id in transform.column_ids
             )
         )
         # When value_column_ids is empty, all remaining columns become values.
@@ -1075,7 +1075,7 @@ def test_print_code_result_matches_actual_transform_ibis(
     if transform.type == TransformType.FILTER_ROWS:
         assume(
             not any(
-                condition.column_id in {"booleans"}
+                condition.column_id == "booleans"
                 for condition in transform.where.children
             )
         )

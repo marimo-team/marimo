@@ -274,7 +274,6 @@ function PluginSlotInternal<T>(
       Objects.mapValues(hostElement.dataset, (value) =>
         typeof value === "string" ? parseAttrValue(value) : value,
       ),
-      hostElement.shadowRoot,
     );
   }
 

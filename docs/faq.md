@@ -49,9 +49,9 @@ consistent, eliminating hidden state and making your notebook reproducible.
 marimo achieves this by intelligently analyzing your code and understanding the
 relationships between cells, and automatically re-running cells as needed.
 
-In addition, marimo notebooks can serialize package requirements inline;
-marimo runs these "sandboxed" notebooks in temporary virtual environments,
-making them [reproducible down to the packages](guides/editor_features/package_management.md).
+In addition, marimo notebooks can [carry their package requirements](guides/package_management/sandboxes.md)
+inside the notebook file. marimo runs these notebooks in separate environments,
+and script lockfiles can record resolved dependency versions for sharing.
 
 **Maintainability.**
 marimo notebooks are stored as pure Python programs (`.py` files). This lets you
@@ -509,7 +509,13 @@ code completion.
 
 ### How do I use marimo on a remote server?
 
-> We recorded a video tutorial on how to use marimo on a remote server. Check it out [here](https://youtu.be/pam9Hw8rbaA).
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/pam9Hw8rbaA"
+  title="YouTube video player" loading="lazy" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
 
 Use SSH port-forwarding to run marimo on a remote server
 and connect to it from a browser on your local machine. Make sure

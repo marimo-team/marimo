@@ -49,6 +49,7 @@ from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.runner.hook_context import PostExecutionHookContext
 from marimo._runtime.runner.hooks import PostExecutionHook
+from marimo._runtime.runner.hooks_lens import mount_lens
 from marimo._runtime.side_effect import SideEffect
 from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
@@ -560,6 +561,12 @@ POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     _broadcast_outputs,
     _reset_matplotlib_context,
     _delete_local_variables,
+    mount_lens,
+]
+
+
+# These hooks may be retried after an interrupt, so they must be safe to repeat.
+FINALIZATION_HOOKS: list[PostExecutionHook] = [
     # Flush buffered console output so that stderr/stdout arrives at the
     # frontend before the cell transitions to idle.
     _flush_console,
@@ -567,6 +574,4 @@ POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     # other hooks take a long time (broadcast outputs can take a long time
     # if a formatter is slow).
     _set_status_idle,
-    # NB. Other hooks are added ad-hoc or manually due to priority.
-    # Consider implementing priority sort to keep everything more centralized.
 ]

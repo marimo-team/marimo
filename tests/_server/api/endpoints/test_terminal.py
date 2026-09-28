@@ -1,22 +1,26 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
+import logging
 import os
 import signal
 import sys
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
 from marimo._server.api.endpoints.terminal import (
+    LOGGER,
     _create_process_cleanup_handler,
     _create_shell_environment,
     _decode_pty_data,
     _manage_command_buffer,
+    _resize_pty,
     _setup_child_process,
     _should_close_on_command,
 )
@@ -50,6 +54,97 @@ def test_terminal_ws(client: TestClient) -> None:
         assert "echo hello" in data
 
 
+@pytest.mark.skipif(
+    is_windows or is_mac, reason="PTY integration requires Linux"
+)
+@pytest.mark.timeout(10)
+@pytest.mark.parametrize(
+    ("query", "expected_size"),
+    [
+        ("&rows=30&cols=140", (30, 140)),
+        ("", (24, 80)),
+        ("&rows=0&cols=140", (24, 80)),
+        ("&rows=30&cols=-1", (24, 80)),
+        ("&rows=invalid&cols=140", (24, 80)),
+        ("&rows=30&cols=65536", (24, 80)),
+    ],
+)
+def test_terminal_ws_initial_size(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    query: str,
+    expected_size: tuple[int, int],
+) -> None:
+    shell = tmp_path / "shell"
+    shell.write_text(
+        "#!/bin/sh\nstty size\nwhile read -r line; do stty size; done\n"
+    )
+    shell.chmod(0o755)
+    monkeypatch.setenv("SHELL", str(shell))
+
+    with client.websocket_connect(TERMINAL_WS_URL + query) as websocket:
+        # No resize message is sent until the shell has reported its size.
+        data = ""
+        while "\n" not in data:
+            data += websocket.receive_text()
+        assert tuple(map(int, data.split())) == expected_size
+
+        websocket.send_text(
+            json.dumps({"type": "resize", "rows": 40, "cols": 160})
+        )
+        websocket.send_text("\n")
+        data = ""
+        while "40 160" not in data:
+            data += websocket.receive_text()
+        assert data.strip() == "40 160"
+
+
+@pytest.mark.skipif(
+    is_windows or is_mac, reason="PTY integration requires Linux"
+)
+@pytest.mark.timeout(10)
+@pytest.mark.parametrize("log_level", [logging.WARNING, logging.DEBUG])
+def test_terminal_ws_long_prompt(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    log_level: int,
+) -> None:
+    caplog.set_level(log_level, logger=LOGGER.name)
+    # Use the real stderr so the inherited handler writes to the PTY slave.
+    monkeypatch.setattr(
+        LOGGER, "handlers", [logging.StreamHandler(sys.__stderr__)]
+    )
+    shell = tmp_path / "shell"
+    shell.write_text("#!/bin/sh\nexec /bin/bash --noprofile --norc -i\n")
+    shell.chmod(0o755)
+    monkeypatch.setenv("SHELL", str(shell))
+    prompt = (
+        "henkan@session-gbm-henkan-notebook-m-6b3c03b8238e-56ddd64d76-5p27b"
+        ":~/notebooks$ "
+    )
+    monkeypatch.setenv("PS1", prompt)
+    monkeypatch.setenv("LC_ALL", "C")
+    monkeypatch.delenv("PROMPT_COMMAND", raising=False)
+
+    with client.websocket_connect(
+        TERMINAL_WS_URL + "&rows=30&cols=140"
+    ) as websocket:
+        data = ""
+        while "$ " not in data:
+            data += websocket.receive_text()
+        # Type before sending any resize message, as on a slow connection.
+        websocket.send_text("ls")
+        while not data.endswith("ls"):
+            data += websocket.receive_text()
+
+        # A wrong initial width makes Bash emit a carriage return after the
+        # prompt, placing typed characters over its first letters.
+        assert data.replace("\x1b[?2004h", "") == prompt + "ls"
+
+
 def test_terminal_ws_not_allowed_in_run(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
     session_manager.mode = SessionMode.RUN
@@ -76,6 +171,39 @@ def test_terminal_ws_wrong_token(client: TestClient) -> None:
 
 
 # Unit tests for terminal utility functions
+
+
+@pytest.mark.skipif(is_windows, reason="Skip on Windows")
+@pytest.mark.parametrize("log", [True, False])
+def test_resize_pty_logging(log: bool) -> None:
+    import pty
+
+    master, slave = pty.openpty()
+    try:
+        with patch("marimo._server.api.endpoints.terminal.LOGGER") as logger:
+            _resize_pty(slave, 30, 140, log=log)
+            assert os.get_terminal_size(slave) == (140, 30)
+            assert logger.mock_calls == (
+                [call.debug("PTY resized to 140x30")] if log else []
+            )
+    finally:
+        os.close(master)
+        os.close(slave)
+
+
+@pytest.mark.skipif(is_windows, reason="Skip on Windows")
+@pytest.mark.parametrize("log", [True, False])
+def test_resize_pty_failure_logging(log: bool) -> None:
+    with (
+        patch("fcntl.ioctl", side_effect=OSError("resize failed")),
+        patch("marimo._server.api.endpoints.terminal.LOGGER") as logger,
+    ):
+        _resize_pty(0, 30, 140, log=log)
+        assert logger.mock_calls == (
+            [call.warning("Failed to resize PTY: resize failed")]
+            if log
+            else []
+        )
 
 
 class TestCreateShellEnvironment:

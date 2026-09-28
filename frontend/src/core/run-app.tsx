@@ -3,6 +3,7 @@
 import { atom, useAtomValue } from "jotai";
 import { ArrowLeftIcon } from "lucide-react";
 import { useEffect } from "react";
+import { KernelStartupErrorModal } from "@/components/editor/KernelStartupErrorModal";
 import { AppContainer } from "@/components/editor/app-container";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { ProgressiveBoundary } from "@/components/lifecycle/ProgressiveBoundary";
@@ -78,6 +79,7 @@ export const RunApp: React.FC<AppProps> = ({ appConfig, hideHeader }) => {
       width={appConfig.width}
       onReconnect={reconnect}
     >
+      <KernelStartupErrorModal />
       <AppHeader
         connection={connection}
         className={hideHeader ? "hidden" : "sm:pt-8"}

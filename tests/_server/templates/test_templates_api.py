@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import unittest
 
+import pytest
+from inline_snapshot import snapshot
+
 from marimo._schemas.session import (
     VERSION,
     Cell,
@@ -15,6 +18,49 @@ from marimo._server.templates.api import (
     render_static_notebook,
 )
 from tests._server.templates.utils import parse_mount_config
+
+
+@pytest.mark.parametrize("flag", ["1", "true", " TRUE "])
+@pytest.mark.parametrize(
+    ("editable", "command"),
+    [(True, "uv run marimo"), (False, "uvx marimo@latest")],
+)
+def test_render_notebook_pair_preview(
+    monkeypatch: pytest.MonkeyPatch, flag: str, editable: bool, command: str
+) -> None:
+    monkeypatch.setenv("MARIMO_PAIR_NEXT", flag)
+    monkeypatch.setattr(
+        "marimo._cli.pair.prompts.is_editable", lambda _: editable
+    )
+    html = render_notebook(
+        code="import marimo\napp = marimo.App()", mode="edit"
+    )
+    assert parse_mount_config(html)["pairPreview"] == {
+        "command": command,
+        "templates": snapshot(
+            {
+                "prompt": "Pair with me on this running marimo notebook.\n\nURL: {url}\n{file}{session}\nRun `{command} pair --help` first.\nUse `{command}` for all marimo commands.\n\nOnce connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).{authentication}",
+                "file": "File: {file}\n",
+                "session": "Session: {session}\n",
+                "token_file": "\n\nFor authenticated Pair commands, pass `--token-file {token_file}`.",
+                "token": "\n\nFor authenticated Pair commands, set `export MARIMO_TOKEN={token}` in the shell that runs marimo.",
+            }
+        ),
+    }
+
+
+@pytest.mark.parametrize("flag", [None, "", "0", "false"])
+def test_render_notebook_omits_pair_preview(
+    monkeypatch: pytest.MonkeyPatch, flag: str | None
+) -> None:
+    if flag is None:
+        monkeypatch.delenv("MARIMO_PAIR_NEXT", raising=False)
+    else:
+        monkeypatch.setenv("MARIMO_PAIR_NEXT", flag)
+    html = render_notebook(
+        code="import marimo\napp = marimo.App()", mode="edit"
+    )
+    assert "pairPreview" not in parse_mount_config(html)
 
 
 class TestRenderNotebook(unittest.TestCase):

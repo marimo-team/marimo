@@ -90,6 +90,11 @@ components:
           - type: 'null'
           - $ref: '#/components/schemas/AiCompletionContext'
           default: null
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         includeOtherCode:
           type: string
         language:
@@ -129,11 +134,11 @@ components:
         \ AI completions\n    - `open_ai`: the OpenAI config\n    - `anthropic`: the\
         \ Anthropic config\n    - `google`: the Google AI config\n    - `bedrock`:\
         \ the Bedrock config\n    - `azure`: the Azure config\n    - `ollama`: the\
-        \ Ollama config\n    - `github`: the GitHub config\n    - `openrouter`: the\
-        \ OpenRouter config\n    - `wandb`: the Weights & Biases config\n    - `opencode_go`:\
-        \ the OpenCode Go config\n    - `custom_providers`: a dict of custom OpenAI-compatible\
-        \ providers\n    - `open_ai_compatible`: the OpenAI-compatible config (deprecated,\
-        \ use custom_providers)"
+        \ Ollama config\n    - `github`: the GitHub Copilot config\n    - `openrouter`:\
+        \ the OpenRouter config\n    - `wandb`: the Weights & Biases config\n    -\
+        \ `opencode_go`: the OpenCode Go config\n    - `custom_providers`: a dict\
+        \ of custom OpenAI-compatible providers\n    - `open_ai_compatible`: the OpenAI-compatible\
+        \ config (deprecated, use custom_providers)"
       properties:
         allow_provider_config:
           type: boolean
@@ -433,6 +438,9 @@ components:
         disabled:
           default: false
           type: boolean
+        expand_output:
+          default: false
+          type: boolean
         hide_code:
           default: false
           type: boolean
@@ -664,6 +672,11 @@ components:
 
         See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.'
       properties:
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         includeOtherCode:
           type: string
         model:
@@ -1506,12 +1519,22 @@ components:
       type: object
     DependencyTreeResponse:
       properties:
+        context:
+          anyOf:
+          - $ref: '#/components/schemas/SandboxPackageContext'
+          - $ref: '#/components/schemas/PackageManagerContext'
+          discriminator:
+            mapping:
+              package-manager: '#/components/schemas/PackageManagerContext'
+              sandbox: '#/components/schemas/SandboxPackageContext'
+            propertyName: kind
         tree:
           anyOf:
           - type: 'null'
           - $ref: '#/components/schemas/DependencyTreeNode'
       required:
       - tree
+      - context
       title: DependencyTreeResponse
       type: object
     DetectedDataSource:
@@ -1705,6 +1728,154 @@ components:
       - default_width
       - theme
       title: DisplayConfig
+      type: object
+    EnvironmentOperation:
+      description: Current progress and logs for one execution of environment work.
+      properties:
+        action:
+          enum:
+          - install
+          - prepare
+          - remove
+          - sync
+        logs:
+          additionalProperties:
+            type: string
+          type: object
+        operation_id:
+          type: string
+        packages:
+          additionalProperties:
+            enum:
+            - failed
+            - queued
+            - restart-required
+            - running
+            - succeeded
+          type: object
+        source:
+          enum:
+          - kernel
+          - server
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/OperationRunning'
+          - $ref: '#/components/schemas/OperationSucceeded'
+          - $ref: '#/components/schemas/OperationRestartRequired'
+          - $ref: '#/components/schemas/OperationFailed'
+          - $ref: '#/components/schemas/OperationCancelled'
+          discriminator:
+            mapping:
+              cancelled: '#/components/schemas/OperationCancelled'
+              failed: '#/components/schemas/OperationFailed'
+              restart-required: '#/components/schemas/OperationRestartRequired'
+              running: '#/components/schemas/OperationRunning'
+              succeeded: '#/components/schemas/OperationSucceeded'
+            propertyName: kind
+      required:
+      - operation_id
+      - action
+      - status
+      - packages
+      - logs
+      - source
+      title: EnvironmentOperation
+      type: object
+    EnvironmentOperationNotification:
+      description: "Current operation progress and changes to its named log streams.\n\
+        \n    Package statuses replace the previous map. Log chunks append to a stream,\n\
+        \    or replace it when `log_mode` is `replace`. The operation status determines\n\
+        \    completion independently of its packages and output streams."
+      properties:
+        action:
+          enum:
+          - install
+          - prepare
+          - remove
+          - sync
+        log_mode:
+          enum:
+          - append
+          - replace
+        logs:
+          additionalProperties:
+            type: string
+          type: object
+        op:
+          enum:
+          - environment-operation
+        operation_id:
+          type: string
+        packages:
+          additionalProperties:
+            enum:
+            - failed
+            - queued
+            - restart-required
+            - running
+            - succeeded
+          type: object
+        source:
+          enum:
+          - kernel
+          - server
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/OperationRunning'
+          - $ref: '#/components/schemas/OperationSucceeded'
+          - $ref: '#/components/schemas/OperationRestartRequired'
+          - $ref: '#/components/schemas/OperationFailed'
+          - $ref: '#/components/schemas/OperationCancelled'
+          discriminator:
+            mapping:
+              cancelled: '#/components/schemas/OperationCancelled'
+              failed: '#/components/schemas/OperationFailed'
+              restart-required: '#/components/schemas/OperationRestartRequired'
+              running: '#/components/schemas/OperationRunning'
+              succeeded: '#/components/schemas/OperationSucceeded'
+            propertyName: kind
+      required:
+      - op
+      - operation_id
+      - action
+      - status
+      - source
+      - packages
+      - logs
+      - log_mode
+      title: EnvironmentOperationNotification
+      type: object
+    EnvironmentState:
+      description: Preparation, active operations, the latest mutation, and restarts.
+      properties:
+        operations:
+          items:
+            $ref: '#/components/schemas/EnvironmentOperation'
+          type: array
+        restart_required:
+          type: boolean
+      required:
+      - restart_required
+      - operations
+      title: EnvironmentState
+      type: object
+    EnvironmentStateNotification:
+      description: Replace the current state for one environment on connection.
+      properties:
+        op:
+          enum:
+          - environment-state
+        source:
+          enum:
+          - kernel
+          - server
+        state:
+          $ref: '#/components/schemas/EnvironmentState'
+      required:
+      - op
+      - source
+      - state
+      title: EnvironmentStateNotification
       type: object
     EnvironmentVariableDiscoveryValue:
       description: A reference to an environment variable, never its value.
@@ -2363,6 +2534,9 @@ components:
         includeFiles:
           default: true
           type: boolean
+        includeHidden:
+          default: true
+          type: boolean
         limit:
           default: 100
           type: integer
@@ -2536,11 +2710,12 @@ components:
       title: GetCacheInfoRequest
       type: object
     GitHubConfig:
-      description: "Configuration options for GitHub.\n\n    **Keys.**\n\n    - `api_key`:\
-        \ the GitHub API token or an `env:` reference\n    - `base_url`: the base\
-        \ URL for the API\n    - `copilot_settings`: configuration settings for GitHub\
-        \ Copilot LSP.\n        Supports settings like `http` (proxy configuration),\
-        \ `telemetry`,\n        and `github-enterprise` (enterprise URI)."
+      description: "Configuration options for GitHub Copilot.\n\n    **Keys.**\n\n\
+        \    - `api_key`: a GitHub Copilot token or an `env:` reference\n    - `base_url`:\
+        \ the base URL for the GitHub Copilot API\n    - `copilot_settings`: configuration\
+        \ settings for GitHub Copilot LSP.\n        Supports settings like `http`\
+        \ (proxy configuration), `telemetry`,\n        and `github-enterprise` (enterprise\
+        \ URI)."
       properties:
         api_key:
           type: string
@@ -2721,51 +2896,6 @@ components:
       - manager
       - versions
       title: InstallPackagesRequest
-      type: object
-    InstallingPackageAlertNotification:
-      description: "Package installation progress with streaming logs.\n\n    Attributes:\n\
-        \        packages: Package name to status (queued/installing/installed/failed).\n\
-        \        logs: Optional streaming logs per package.\n        log_status: Log\
-        \ stream status (append/start/done).\n        source: Which Python environment\
-        \ packages are installed into.\n                \"kernel\" (default) installs\
-        \ in the kernel's venv; \"server\"\n                installs in the server's\
-        \ own Python env."
-      properties:
-        log_status:
-          anyOf:
-          - enum:
-            - append
-            - done
-            - start
-          - type: 'null'
-          default: null
-        logs:
-          anyOf:
-          - additionalProperties:
-              type: string
-            type: object
-          - type: 'null'
-          default: null
-        op:
-          enum:
-          - installing-package-alert
-        packages:
-          additionalProperties:
-            enum:
-            - failed
-            - installed
-            - installing
-            - queued
-          type: object
-        source:
-          default: kernel
-          enum:
-          - kernel
-          - server
-      required:
-      - op
-      - packages
-      title: InstallingPackageAlertNotification
       type: object
     InstantiateNotebookRequest:
       properties:
@@ -3154,8 +3284,10 @@ components:
           - $ref: '#/components/schemas/AlertNotification'
           - $ref: '#/components/schemas/BannerNotification'
           - $ref: '#/components/schemas/MissingPackageAlertNotification'
-          - $ref: '#/components/schemas/InstallingPackageAlertNotification'
+          - $ref: '#/components/schemas/EnvironmentOperationNotification'
+          - $ref: '#/components/schemas/EnvironmentStateNotification'
           - $ref: '#/components/schemas/StartupLogsNotification'
+          - $ref: '#/components/schemas/StartupProgressNotification'
           - $ref: '#/components/schemas/KernelStartupErrorNotification'
           - $ref: '#/components/schemas/VariablesNotification'
           - $ref: '#/components/schemas/VariableValuesNotification'
@@ -3196,9 +3328,10 @@ components:
               data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
               data-source-discovery-result: '#/components/schemas/DataSourceDiscoveryResultNotification'
               datasets: '#/components/schemas/DatasetsNotification'
+              environment-operation: '#/components/schemas/EnvironmentOperationNotification'
+              environment-state: '#/components/schemas/EnvironmentStateNotification'
               focus-cell: '#/components/schemas/FocusCellNotification'
               function-call-result: '#/components/schemas/FunctionCallResultNotification'
-              installing-package-alert: '#/components/schemas/InstallingPackageAlertNotification'
               interrupted: '#/components/schemas/InterruptedNotification'
               kernel-ready: '#/components/schemas/KernelReadyNotification'
               kernel-startup-error: '#/components/schemas/KernelStartupErrorNotification'
@@ -3218,6 +3351,7 @@ components:
               sql-table-list-preview: '#/components/schemas/SQLTableListPreviewNotification'
               sql-table-preview: '#/components/schemas/SQLTablePreviewNotification'
               startup-logs: '#/components/schemas/StartupLogsNotification'
+              startup-progress: '#/components/schemas/StartupProgressNotification'
               storage-download-ready: '#/components/schemas/StorageDownloadReadyNotification'
               storage-entries: '#/components/schemas/StorageEntriesNotification'
               storage-namespaces: '#/components/schemas/StorageNamespacesNotification'
@@ -4291,6 +4425,62 @@ components:
       - tutorialId
       title: OpenTutorialRequest
       type: object
+    OperationCancelled:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+          - cancelled
+      required:
+      - kind
+      title: OperationCancelled
+      type: object
+    OperationFailed:
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+        kind:
+          enum:
+          - failed
+      required:
+      - kind
+      - error
+      title: OperationFailed
+      type: object
+    OperationRestartRequired:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+          - restart-required
+        reason:
+          type: string
+      required:
+      - kind
+      - reason
+      title: OperationRestartRequired
+      type: object
+    OperationRunning:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+          - running
+      required:
+      - kind
+      title: OperationRunning
+      type: object
+    OperationSucceeded:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+          - succeeded
+      required:
+      - kind
+      title: OperationSucceeded
+      type: object
     PackageDescription:
       properties:
         name:
@@ -4317,6 +4507,18 @@ components:
       - manager
       title: PackageManagementConfig
       type: object
+    PackageManagerContext:
+      properties:
+        kind:
+          enum:
+          - package-manager
+        name:
+          type: string
+      required:
+      - kind
+      - name
+      title: PackageManagerContext
+      type: object
     PackageOperationResponse:
       properties:
         error:
@@ -4324,6 +4526,9 @@ components:
           - type: string
           - type: 'null'
           default: null
+        restartRequired:
+          default: false
+          type: boolean
         success:
           type: boolean
       required:
@@ -4714,17 +4919,18 @@ components:
         \ environment variable, the directories will be included in\n        where\
         \ Python will look for imported modules.\n    - `dotenv`: a list of paths\
         \ to `.env` files to load.\n        If the file does not exist, it will be\
-        \ silently ignored.\n        The default is `[\".env\"]` if a pyproject.toml\
-        \ is found, otherwise `[]`.\n    - `default_sql_output`: the default output\
-        \ format for SQL queries. Can be one of:\n        `\"auto\"`, `\"native\"\
-        `, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n        The default\
-        \ is `\"auto\"`.\n    - `default_auto_download`: an Optional list of export\
-        \ types to automatically snapshot your notebook as:\n       `html`, `markdown`,\
-        \ `ipynb`.\n       The default is None.\n    - `default_csv_encoding`: the\
-        \ default encoding for CSV exports.\n        The default is `\"utf-8\"`.\n\
-        \    - `show_tracebacks`: if `True`, show detailed error tracebacks in run\
-        \ mode.\n        When enabled, exceptions will display a clickable toast that\
-        \ opens a modal with the full traceback.\n        The default is `False`."
+        \ silently ignored. Relative\n        paths resolve against the directory\
+        \ holding the `pyproject.toml`,\n        or the notebook's directory when\
+        \ there is none. The default is\n        `[\".env\"]`.\n    - `default_sql_output`:\
+        \ the default output format for SQL queries. Can be one of:\n        `\"auto\"\
+        `, `\"native\"`, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n     \
+        \   The default is `\"auto\"`.\n    - `default_auto_download`: an Optional\
+        \ list of export types to automatically snapshot your notebook as:\n     \
+        \  `html`, `markdown`, `ipynb`.\n       The default is None.\n    - `default_csv_encoding`:\
+        \ the default encoding for CSV exports.\n        The default is `\"utf-8\"\
+        `.\n    - `show_tracebacks`: if `True`, show detailed error tracebacks in\
+        \ run mode.\n        When enabled, exceptions will display a clickable toast\
+        \ that opens a modal with the full traceback.\n        The default is `False`."
       properties:
         auto_instantiate:
           type: boolean
@@ -4931,6 +5137,52 @@ components:
       - kind
       - value
       title: SafeLiteralDiscoveryValue
+      type: object
+    SandboxPackageContext:
+      properties:
+        backend:
+          enum:
+          - pixi
+          - uv
+        kind:
+          enum:
+          - sandbox
+      required:
+      - kind
+      - backend
+      title: SandboxPackageContext
+      type: object
+    SandboxRequest:
+      properties:
+        fileKey:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      required: []
+      title: SandboxRequest
+      type: object
+    SandboxResponse:
+      properties:
+        backend:
+          anyOf:
+          - enum:
+            - pixi
+            - uv
+          - type: 'null'
+        filename:
+          anyOf:
+          - type: string
+          - type: 'null'
+        manifest:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - backend
+      - manifest
+      - filename
+      title: SandboxResponse
       type: object
     SaveAppConfigurationRequest:
       properties:
@@ -5209,6 +5461,8 @@ components:
           - type: 'null'
         disabled:
           type: boolean
+        expandOutput:
+          type: boolean
         hideCode:
           type: boolean
         type:
@@ -5220,6 +5474,7 @@ components:
       - column
       - disabled
       - hideCode
+      - expandOutput
       title: SetConfig
       type: object
     SetName:
@@ -5429,6 +5684,31 @@ components:
       - content
       - status
       title: StartupLogsNotification
+      type: object
+    StartupProgressNotification:
+      description: "Current startup phase and its output before the kernel is ready.\n\
+        \n    Output appends within a phase. Snapshots replace it, and changing phases\n\
+        \    starts a new stream. Environment preparation logs belong to its operation."
+      properties:
+        log_mode:
+          enum:
+          - append
+          - replace
+        logs:
+          type: string
+        op:
+          enum:
+          - startup-progress
+        phase:
+          enum:
+          - preparing-environment
+          - starting-kernel
+      required:
+      - op
+      - phase
+      - logs
+      - log_mode
+      title: StartupProgressNotification
       type: object
     StdinRequest:
       properties:
@@ -5796,6 +6076,25 @@ components:
       - deleteIds
       title: SyncGraphCommand
       type: object
+    SyncSandboxResponse:
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        reconnect:
+          default: false
+          type: boolean
+        restartRequired:
+          default: false
+          type: boolean
+        success:
+          type: boolean
+      required:
+      - success
+      title: SyncSandboxResponse
+      type: object
     ToolDefinition:
       description: Tool definition compatible with ai-sdk-ui format.
       properties:
@@ -5994,6 +6293,22 @@ components:
       required:
       - cellIdsToOutput
       title: UpdateCellOutputsRequest
+      type: object
+    UpdateManifestRequest:
+      properties:
+        contents:
+          type: string
+        fileKey:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        previous:
+          type: string
+      required:
+      - contents
+      - previous
+      title: UpdateManifestRequest
       type: object
     UpdateUIElementCommand:
       description: "Update UI element values.\n\n    Triggered when users interact\
@@ -7725,6 +8040,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListPackagesResponse'
           description: List installed packages
+  /api/packages/manifest:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateManifestRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxResponse'
+          description: Save notebook metadata without changing its cells
   /api/packages/remove:
     post:
       requestBody:
@@ -7739,6 +8075,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/PackageOperationResponse'
           description: Uninstall package
+  /api/packages/sandbox:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SandboxRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxResponse'
+          description: Sandbox manifest, available before kernel startup
+  /api/packages/sync:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SandboxRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncSandboxResponse'
+          description: Apply the saved manifest, or reconnect to retry startup
   /api/packages/tree:
     get:
       responses:
@@ -8036,3 +8414,4 @@ paths:
       summary: Get the auth token for the current session
       tags:
       - auth
+

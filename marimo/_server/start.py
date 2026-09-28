@@ -10,10 +10,10 @@ from urllib.parse import urlparse
 import uvicorn
 
 from marimo._cli.print import echo
-from marimo._cli.sandbox import SandboxMode
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._environments.sandbox import Backend
 from marimo._mcp.setup import McpType, setup_mcp_server
 from marimo._messaging.notification import StartupLogsNotification
 from marimo._runtime.commands import SerializedCLIArgs
@@ -211,7 +211,7 @@ def start(
     server_startup_command: str | None = None,
     asset_url: str | None = None,
     timeout: float | None = None,
-    sandbox_mode: SandboxMode | None = None,
+    sandbox: Backend | None = None,
     startup_tip: CliTip | None = None,
     show_tracebacks: bool | None = None,
     execute_opengraph_generators: bool = False,
@@ -221,8 +221,8 @@ def start(
     """
     import packaging.version
 
-    # In single-file sandbox mode, uv becomes our direct parent. So we
-    # watch the outer CLI's PID, terminating if the CLI terminates.
+    # Sandboxed run commands put a launcher between the CLI and server.
+    # Watch the outer CLI's PID, terminating if the CLI terminates.
     ancestor_pid_env = os.environ.get("MARIMO_ANCESTOR_PID")
     if ancestor_pid_env:
         try:
@@ -282,6 +282,15 @@ def start(
             "trusted directories and authentication controls."
         )
 
+    if sandbox is not None:
+        os.environ["MARIMO_SANDBOX_BACKEND"] = sandbox
+        GLOBAL_SETTINGS.SANDBOX_BACKEND = sandbox
+        if mode == SessionMode.EDIT:
+            os.environ["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+            GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
+            os.environ["MARIMO_SANDBOX_MODE"] = "multi"
+            GLOBAL_SETTINGS.SANDBOX_MODE = "multi"
+
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         config_reader = config_reader.with_overrides(
             {
@@ -321,7 +330,7 @@ def start(
         auth_token=auth_token,
         redirect_console_to_browser=redirect_console_to_browser,
         watch=watch,
-        sandbox_mode=sandbox_mode,
+        sandbox=sandbox is not None,
         isolate_apps=isolate_apps,
         execute_opengraph_generators=execute_opengraph_generators,
     )

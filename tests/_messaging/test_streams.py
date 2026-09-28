@@ -1,12 +1,73 @@
+import signal
 import sys
 import threading
 from queue import Queue
 from typing import Any
+from unittest.mock import Mock
 
+import pytest
+
+from marimo._messaging.notification import InterruptedNotification
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.streams import ThreadSafeStream
 from marimo._messaging.types import KernelMessage
+from marimo._runtime.handlers import construct_interrupt_handler
 from marimo._runtime.runtime import Kernel
+from marimo._utils.signals import SigintHandler
 from tests.conftest import ExecReqProvider, MockedKernel
+
+
+@pytest.mark.parametrize("custom_handler", [False, True])
+@pytest.mark.parametrize("broken_pipe", [False, True])
+def test_stream_write_preserves_signal_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+    custom_handler: bool,
+    broken_pipe: bool,
+) -> None:
+    handler = Mock() if custom_handler else construct_interrupt_handler()
+
+    # Installing even the same handler resets POSIX syscall-restart behavior.
+    def forbid_signal_change(*_args: Any) -> None:
+        pytest.fail("Stream writes must not change OS signal configuration")
+
+    pipe = Mock()
+    if broken_pipe:
+        pipe.send.side_effect = BrokenPipeError
+    stream = ThreadSafeStream(
+        pipe=pipe, input_queue=Queue[str](), redirect_console=False
+    )
+    message = serialize_kernel_message(InterruptedNotification())
+    with monkeypatch.context() as patch:
+        patch.setattr(signal, "getsignal", lambda _signum: handler)
+        patch.setattr(signal, "signal", forbid_signal_change)
+        if hasattr(signal, "siginterrupt"):
+            patch.setattr(signal, "siginterrupt", forbid_signal_change)
+        stream.write(message)
+    pipe.send.assert_called_once_with(message)
+
+
+def test_stream_write_defers_forwarded_interrupt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lock_states: list[bool] = []
+    pipe = Mock()
+    stream = ThreadSafeStream(
+        pipe=pipe, input_queue=Queue[str](), redirect_console=False
+    )
+    handler = SigintHandler(
+        lambda *_args: lock_states.append(stream.stream_lock.locked())
+    )
+
+    def forward_interrupt(signum: int, frame: Any) -> None:
+        handler(signum, frame)
+
+    # A user-installed handler can forward SIGINT to marimo's saved handler.
+    monkeypatch.setattr(signal, "getsignal", lambda _signum: forward_interrupt)
+    pipe.send.side_effect = lambda _message: forward_interrupt(
+        signal.SIGINT, None
+    )
+    stream.write(KernelMessage(b"output"))
+    assert lock_states == [False]
 
 
 class _SerializedPipe:

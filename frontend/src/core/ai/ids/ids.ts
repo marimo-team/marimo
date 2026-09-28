@@ -4,13 +4,13 @@ import type { TypedString } from "@/utils/typed";
 
 export const KNOWN_PROVIDERS = [
   "openai",
+  "github",
   "anthropic",
   "google",
   "ollama",
   "bedrock",
   "deepseek",
   "azure",
-  "github",
   "openrouter",
   "wandb",
   "opencode-go",

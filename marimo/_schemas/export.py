@@ -36,7 +36,7 @@ class ExportAsHTMLRequest(msgspec.Struct, rename="camel"):
     files: list[str]
     include_code: bool
     asset_url: str | None = None
-    layout: LayoutConfig | None | msgspec.UnsetType = msgspec.UNSET
+    layout: LayoutConfig | msgspec.UnsetType | None = msgspec.UNSET
 
 
 def to_html_export_options(

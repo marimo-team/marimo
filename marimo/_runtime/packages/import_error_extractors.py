@@ -12,7 +12,7 @@ def extract_missing_module_from_cause_chain(
     This handles cases where a `ModuleNotFoundError` was raised and then wrapped,
     e.g., via `raise ImportError("helpful message") from err`
     """
-    current: None | BaseException = error
+    current: BaseException | None = error
     while current is not None:
         if (
             isinstance(current, ModuleNotFoundError)

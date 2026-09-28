@@ -5,8 +5,9 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
+import { CellNotInitializedError } from "@/utils/errors";
 import type { IPluginProps } from "../../types";
-import { FileBrowserPlugin } from "../FileBrowserPlugin";
+import { FileBrowser, FileBrowserPlugin } from "../FileBrowserPlugin";
 
 interface MockFile {
   id: string;
@@ -78,6 +79,54 @@ function renderBrowser(overrides: Parameters<typeof makeProps>[0] = {}) {
 beforeAll(() => {
   SetupMocks.resizeObserver();
   store.set(initialModeAtom, "edit");
+});
+
+describe("FileBrowserPlugin session cache recovery", () => {
+  it("retries a failed cached listing when the plugin resets", async () => {
+    const host = document.createElement("marimo-file-browser");
+    const wrapper = document.createElement("marimo-ui-element");
+    wrapper.setAttribute("random-id", "cached-id");
+    wrapper.append(host);
+
+    const props = {
+      initialPath: "/home/user",
+      filetypes: [],
+      selectionMode: "directory",
+      multiple: false,
+      label: "Pick folder",
+      restrictNavigation: false,
+      value: [],
+      setValue: vi.fn(),
+      host,
+    };
+    const error = new CellNotInitializedError();
+    const cachedListDirectory = vi.fn().mockRejectedValue(error);
+    const { rerender } = render(
+      <FileBrowser {...props} list_directory={cachedListDirectory} />,
+    );
+    expect(await screen.findByText(error.message)).toBeInTheDocument();
+
+    // PluginSlot recreates the RPC functions on reset, even when the path
+    // and the host's attributes are unchanged.
+    const liveListDirectory = mockListDirectory(FILES);
+    rerender(<FileBrowser {...props} list_directory={liveListDirectory} />);
+
+    expect(await screen.findByText("docs")).toBeInTheDocument();
+    expect(screen.queryByText(error.message)).not.toBeInTheDocument();
+    expect(liveListDirectory.mock.calls).toEqual([[{ path: "/home/user" }]]);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select docs" }));
+    expect(props.setValue).toHaveBeenCalledWith([
+      { ...FILES[0], id: FILES[0].path },
+    ]);
+
+    fireEvent.keyDown(screen.getAllByRole("row")[0], { key: "End" });
+    rerender(
+      <FileBrowser {...props} list_directory={mockListDirectory([FILES[0]])} />,
+    );
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(2));
+    expect(screen.getAllByRole("row")[0]).toHaveAttribute("tabindex", "0");
+  });
 });
 
 describe("FileBrowserPlugin keyboard accessibility", () => {

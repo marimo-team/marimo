@@ -49,7 +49,7 @@ def get_or_create_user_config_path() -> str:
         LOGGER.error(
             "Could not search for config file due to path error: %s. "
             "Falling back to XDG config path.",
-            str(e),
+            e,
         )
 
     # No config found or error occurred, create XDG config

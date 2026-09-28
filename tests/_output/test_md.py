@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,9 +9,6 @@ from inline_snapshot import snapshot
 
 from marimo._output.md import _md, latex
 from tests.mocks import normalize_html_entities
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def test_md() -> None:
@@ -669,6 +666,57 @@ def test_latex_via_url(mock_urlopen: MagicMock, output: MagicMock) -> None:
     )
 
 
+@patch("marimo._runtime.output")
+def test_latex_via_text(output: MagicMock) -> None:
+    latex("\\newcommand{\\\\foo}{bar}")
+    assert (
+        output.append.call_args[0][0].text
+        == '<span class="markdown prose dark:prose-invert contents"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\\foo}{bar}\n||]</marimo-tex></span>'
+    )
+
+
+@patch("marimo._runtime.output")
+def test_latex_via_text_keyword(output: MagicMock) -> None:
+    latex(text="\\newcommand{\\\\foo}{bar}")
+    assert (
+        output.append.call_args[0][0].text
+        == '<span class="markdown prose dark:prose-invert contents"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\\foo}{bar}\n||]</marimo-tex></span>'
+    )
+
+
+def test_latex_both_args_raises(tmp_path: Path) -> None:
+    filename = tmp_path / "macros.tex"
+    filename.write_text("\\newcommand{\\\\foo}{bar}")
+    with pytest.raises(
+        ValueError, match=r"Cannot provide both 'text' and 'filename'\."
+    ):
+        latex("\\newcommand{\\\\foo}{bar}", filename=filename)
+
+    with pytest.raises(
+        ValueError, match=r"Cannot provide both 'text' and 'filename'\."
+    ):
+        latex(text="\\newcommand{\\\\foo}{bar}", filename=filename)
+
+
+def test_latex_neither_arg_raises() -> None:
+    with pytest.raises(
+        ValueError, match=r"Must provide either 'text' or 'filename'\."
+    ):
+        latex()
+
+
+def test_latex_invalid_filename_raises() -> None:
+    with pytest.raises(
+        ValueError, match=r"Invalid filename: nonexistent\.tex"
+    ):
+        latex(filename="nonexistent.tex")
+
+    with pytest.raises(
+        ValueError, match=r"Invalid filename: nonexistent\.tex"
+    ):
+        latex(filename=Path("nonexistent.tex"))
+
+
 @patch("marimo._output.md.is_pyodide")
 def test_b64_extension_not_in_non_wasm(mock_is_pyodide: MagicMock) -> None:
     # Test that b64 extension is NOT included in non-WASM mode
@@ -878,6 +926,149 @@ def test_md_math_normalization_skips_fenced_and_inline_code() -> None:
     assert ":math:`y`" not in result
     assert result.count("<marimo-tex") == 1
     assert "||(y||)" in result
+
+
+def test_md_display_math_inside_list_item() -> None:
+    text = (
+        "1. Item one.\n"
+        "2. Item two with inline $a^2$ math, then a display block:\n"
+        "   $$\n"
+        "   E = mc^2\n"
+        "   $$\n"
+        "   and continuing text.\n"
+        "3. Item three.\n"
+    )
+    result = _md(text, apply_markdown_class=False).text
+
+    assert result == snapshot(
+        "<ol>\n"
+        "<li>Item one.</li>\n"
+        "<li>\n"
+        '<span class="paragraph">Item two with inline <marimo-tex class="arithmatex">||(a^2||)</marimo-tex> math, then a display block:</span>\n'
+        '<marimo-tex class="arithmatex">||[\n'
+        "E = mc^2\n"
+        '||]</marimo-tex><span class="paragraph">and continuing text.</span>\n'
+        "</li>\n"
+        "<li>Item three.</li>\n"
+        "</ol>"
+    )
+
+
+def test_md_display_math_paren_marker_not_treated_as_list() -> None:
+    text = (
+        "Some intro text.\n"
+        "\n"
+        "1) Not actually a list item, just prose ending in a number.\n"
+        "   $$\n"
+        "   E = mc^2\n"
+        "   $$\n"
+        "   trailing text.\n"
+    )
+    result = _md(text, apply_markdown_class=False).text
+    assert "<pre>" not in result
+    assert "codehilite" not in result
+    assert "highlight" not in result
+
+
+def test_md_display_math_list_item_with_blank_line_in_block() -> None:
+    text = (
+        "1. Item one.\n"
+        "2. Item two with a multi-part display block:\n"
+        "   $$\n"
+        "   a = 1\n"
+        "\n"
+        "   b = 2\n"
+        "   $$\n"
+        "   trailing text.\n"
+        "3. Item three.\n"
+    )
+    result = _md(text, apply_markdown_class=False).text
+    assert result.count("<ol") == 1
+    assert 'start="3"' not in result
+    assert "Item three" in result
+    assert "trailing text." in result
+
+
+def test_md_display_math_deeper_indent_than_continuation() -> None:
+    text = "- Item\n  continuation\n    $$x$$\n- Next\n"
+    result = _md(text, apply_markdown_class=False).text
+    assert result.count("<ul") == 1
+    assert "||[x||]" in result
+    assert "$$" not in result
+    assert "Next" in result
+
+
+@pytest.mark.parametrize(("first_indent", "second_indent"), [(2, 4), (4, 2)])
+@pytest.mark.parametrize("multiline", [False, True])
+def test_md_display_math_multiple_list_blocks(
+    first_indent: int, second_indent: int, multiline: bool
+) -> None:
+    first_padding = " " * first_indent
+    second_padding = " " * second_indent
+    if multiline:
+        first_math = f"{first_padding}$$\n{first_padding}x\n{first_padding}$$"
+        second_math = (
+            f"{second_padding}$$\n{second_padding}y\n{second_padding}$$"
+        )
+        rendered_x = "\nx\n"
+        rendered_y = "\ny\n"
+    else:
+        first_math = f"{first_padding}$$x$$"
+        second_math = f"{second_padding}$$y$$"
+        rendered_x = "x"
+        rendered_y = "y"
+    text = (
+        f"- Item\n  continuation\n{first_math}\n"
+        f"  after\n{second_math}\n  end\n- Next"
+    )
+    assert _md(text, apply_markdown_class=False).text == (
+        "<ul>\n<li>\n"
+        '<span class="paragraph">Item\n  continuation</span>\n'
+        f'<marimo-tex class="arithmatex">||[{rendered_x}||]</marimo-tex>'
+        '<span class="paragraph">after</span>\n'
+        f'<marimo-tex class="arithmatex">||[{rendered_y}||]</marimo-tex>'
+        '<span class="paragraph">end</span>\n'
+        "</li>\n<li>Next</li>\n</ul>"
+    )
+
+
+def test_md_list_continuation_without_math() -> None:
+    text = "- Item\n  continuation\n- Next\n\n$$x$$"
+    assert _md(text, apply_markdown_class=False).text == snapshot(
+        "<ul>\n<li>Item\n  continuation</li>\n<li>Next</li>\n</ul>\n"
+        '<marimo-tex class="arithmatex">||[x||]</marimo-tex>'
+    )
+
+
+@pytest.mark.parametrize("marker", ["-", "*", "+"])
+def test_md_display_math_bullet_markers(marker: str) -> None:
+    text = (
+        f"{marker} Item one, no math here.\n"
+        f"{marker} Item two with a display block:\n"
+        "   $$\n"
+        "   E = mc^2\n"
+        "   $$\n"
+        "   and continuing text.\n"
+        f"{marker} Item three, plain.\n"
+    )
+    result = _md(text, apply_markdown_class=False).text
+    assert result.count("<ul") == 1
+    assert "||[" in result
+    assert "$$" not in result
+    assert "Item three, plain." in result
+    assert "and continuing text." in result
+
+
+@pytest.mark.parametrize("rule", ["- - -", "* * *", "- --", "* **"])
+def test_md_display_math_after_horizontal_rule(rule: str) -> None:
+    text = f"Intro\n\n{rule}\n  $$x$$\n  This should remain prose.\n\nEnd"
+    assert _md(text, apply_markdown_class=False).text == snapshot(
+        '<span class="paragraph">Intro</span>\n'
+        "<hr />\n"
+        '<span class="paragraph">$<marimo-tex class="arithmatex">||(x||)</marimo-tex>$</span>\n'
+        '<span class="paragraph">This should remain prose.</span>\n'
+        '<span class="paragraph">End</span>'
+    )
 
 
 def test_md_display_math_format_preserved() -> None:

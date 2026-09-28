@@ -353,7 +353,9 @@ describe("generateDatabaseCode", () => {
     ];
 
     it.each(testCases)("%s", (_name, connection, orm) => {
-      expect(generateDatabaseCode(connection, orm)).toMatchSnapshot();
+      expect(generateDatabaseCode(connection, orm)).toMatchSnapshot(
+        "generated code",
+      );
     });
   });
 
@@ -458,7 +460,7 @@ describe("generateDatabaseCode", () => {
     ])("%s", (_name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
-      ).toMatchSnapshot();
+      ).toMatchSnapshot("generated code");
     });
   });
 
@@ -703,7 +705,7 @@ describe("generateDatabaseCode", () => {
     it.each(testCases)("%s", (_name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
-      ).toMatchSnapshot();
+      ).toMatchSnapshot("generated code");
     });
   });
 
@@ -745,8 +747,12 @@ describe("generateDatabaseCode", () => {
         },
       ],
     ])("%s", (_name, connection) => {
-      expect(generateDatabaseCode(connection, "sqlmodel")).toMatchSnapshot();
-      expect(generateDatabaseCode(connection, "sqlalchemy")).toMatchSnapshot();
+      expect(generateDatabaseCode(connection, "sqlmodel")).toMatchSnapshot(
+        "sqlmodel",
+      );
+      expect(generateDatabaseCode(connection, "sqlalchemy")).toMatchSnapshot(
+        "sqlalchemy",
+      );
     });
   });
 
@@ -757,19 +763,23 @@ describe("generateDatabaseCode", () => {
         () =>
           // @ts-expect-error - Testing invalid input
           generateDatabaseCode(basePostgres, "polars"),
+        "Unsupported library: polars",
       ],
       [
         "throws for invalid port",
         () => generateDatabaseCode({ ...basePostgres, port: -1 }, "sqlmodel"),
+        /port/i,
       ],
       [
         "throws for invalid host",
         () => generateDatabaseCode({ ...basePostgres, host: "" }, "sqlmodel"),
+        /host/i,
       ],
       [
         "throws for port out of range",
         () =>
           generateDatabaseCode({ ...basePostgres, port: 65_536 }, "sqlmodel"),
+        /port/i,
       ],
       [
         "throws for invalid snowflake account",
@@ -778,6 +788,7 @@ describe("generateDatabaseCode", () => {
             { ...snowflakeConnection, account: "" },
             "sqlmodel",
           ),
+        /account/i,
       ],
       [
         "throws for invalid bigquery project",
@@ -786,9 +797,10 @@ describe("generateDatabaseCode", () => {
             { ...bigqueryConnection, project: "" },
             "sqlmodel",
           ),
+        /project/i,
       ],
-    ])("%s", (_name, fn) => {
-      expect(fn).toThrow();
+    ])("%s", (_name, fn, error) => {
+      expect(fn).toThrow(error);
     });
   });
 });

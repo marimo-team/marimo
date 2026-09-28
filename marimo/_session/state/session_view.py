@@ -16,8 +16,9 @@ from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
+    EnvironmentOperationNotification,
+    EnvironmentState,
     EsmSpec,
-    InstallingPackageAlertNotification,
     InterruptedNotification,
     ModelClose,
     ModelLifecycleNotification,
@@ -28,6 +29,7 @@ from marimo._messaging.notification import (
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
+    StartupProgressNotification,
     StorageNamespacesNotification,
     UIElementMessageNotification,
     VariablesNotification,
@@ -47,6 +49,9 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
 )
 from marimo._runtime.layout.layout import LayoutConfig
+from marimo._session.state.environment import (
+    reduce_environment_state,
+)
 from marimo._sql.connection_utils import (
     update_schema_list_in_connection,
     update_table_in_connection,
@@ -199,11 +204,14 @@ class SessionView:
 
         # Startup logs for startup command - only one at a time
         self.startup_logs: StartupLogsNotification | None = None
+        self.startup_progress: StartupProgressNotification | None = None
 
-        # Package installation logs - accumulated per package
-        self.package_logs: dict[
-            str, str
-        ] = {}  # package name -> accumulated logs
+        self._environment_states: dict[
+            Literal["kernel", "server"], EnvironmentState
+        ] = {
+            "kernel": EnvironmentState(restart_required=False, operations=[]),
+            "server": EnvironmentState(restart_required=False, operations=[]),
+        }
 
         # Server-side missing-package alerts already sent this session.
         # NOT reset by _touch() — once alerted we don't re-alert.
@@ -464,6 +472,19 @@ class SessionView:
                 self.model_states.pop(model_id, None)
             # ModelCustom is ephemeral — skip for replay
 
+        elif isinstance(notification, StartupProgressNotification):
+            previous_progress = self.startup_progress
+            logs = notification.logs
+            if (
+                notification.log_mode == "append"
+                and previous_progress is not None
+                and previous_progress.phase == notification.phase
+            ):
+                logs = previous_progress.logs + logs
+            self.startup_progress = StartupProgressNotification(
+                phase=notification.phase, logs=logs, log_mode="replace"
+            )
+
         elif isinstance(notification, StartupLogsNotification):
             prev = self.startup_logs.content if self.startup_logs else ""
             self.startup_logs = StartupLogsNotification(
@@ -471,27 +492,19 @@ class SessionView:
                 status=notification.status,
             )
 
-        elif isinstance(notification, InstallingPackageAlertNotification):
-            # Handle streaming logs if present
-            if notification.logs and notification.log_status:
-                for package_name, new_content in notification.logs.items():
-                    if notification.log_status == "start":
-                        # Start new log for this package
-                        self.package_logs[package_name] = new_content
-                    elif notification.log_status == "append":
-                        # Append to existing log
-                        prev_content = self.package_logs.get(package_name, "")
-                        self.package_logs[package_name] = (
-                            prev_content + new_content
-                        )
-                    elif notification.log_status == "done":
-                        # Append final content and mark as done
-                        prev_content = self.package_logs.get(package_name, "")
-                        self.package_logs[package_name] = (
-                            prev_content + new_content
-                        )
-                        # We could clean up completed logs here if desired,
-                        # but for now keep them for replay purposes
+        elif isinstance(notification, EnvironmentOperationNotification):
+            self._environment_states[notification.source] = (
+                reduce_environment_state(
+                    self._environment_states[notification.source],
+                    notification,
+                )
+            )
+
+    def get_environment_state(
+        self, source: Literal["kernel", "server"]
+    ) -> EnvironmentState:
+        """Snapshot a target environment's attempts and restart requirement."""
+        return copy.deepcopy(self._environment_states[source])
 
     def get_cell_outputs(
         self, ids: list[CellId_t]

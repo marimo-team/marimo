@@ -3,12 +3,21 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import msgspec
+import pytest
+
 from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
 from marimo._messaging.notification import (
     CellNotification,
-    InstallingPackageAlertNotification,
+    EnvironmentOperationNotification,
+    EnvironmentOperationStatus,
     ModelLifecycleNotification,
     ModelOpen,
+    OperationCancelled,
+    OperationFailed,
+    OperationRestartRequired,
+    OperationRunning,
+    OperationSucceeded,
     StartupLogsNotification,
     UIElementMessageNotification,
 )
@@ -16,6 +25,11 @@ from marimo._messaging.notification_utils import (
     CellNotificationUtils,
     broadcast_notification,
 )
+from marimo._messaging.serde import (
+    deserialize_kernel_message,
+    serialize_kernel_message,
+)
+from marimo._messaging.types import KernelMessage
 from marimo._messaging.variables import create_variable_value
 from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.input import slider
@@ -88,30 +102,77 @@ def test_startup_logs_all_statuses() -> None:
         assert startup_log.content == f"Test {status}"
 
 
-def test_installing_package_alert_basic() -> None:
-    """Test basic InstallingPackageAlert without streaming logs."""
-    alert = InstallingPackageAlertNotification(
-        packages={"numpy": "queued", "pandas": "installing"}
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (OperationRunning(), {"kind": "running"}),
+        (OperationSucceeded(), {"kind": "succeeded"}),
+        (
+            OperationRestartRequired(reason="Python version changed"),
+            {"kind": "restart-required", "reason": "Python version changed"},
+        ),
+        (
+            OperationFailed(error="Could not resolve dependencies"),
+            {"kind": "failed", "error": "Could not resolve dependencies"},
+        ),
+        (OperationCancelled(), {"kind": "cancelled"}),
+    ],
+)
+def test_environment_operation_wire_format(
+    status: EnvironmentOperationStatus,
+    expected: dict[str, str],
+) -> None:
+    notification = EnvironmentOperationNotification(
+        action="install",
+        source="kernel",
+        logs={},
+        log_mode="append",
+        operation_id="install",
+        status=status,
+        packages={},
     )
-    assert alert.name == "installing-package-alert"
-    assert alert.packages == {"numpy": "queued", "pandas": "installing"}
-    assert alert.logs is None
-    assert alert.log_status is None
+    encoded = serialize_kernel_message(notification)
+    assert msgspec.json.decode(encoded) == {
+        "op": "environment-operation",
+        "action": "install",
+        "source": "kernel",
+        "logs": {},
+        "log_mode": "append",
+        "operation_id": "install",
+        "status": expected,
+        "packages": {},
+    }
+    assert deserialize_kernel_message(encoded) == notification
 
 
-def test_installing_package_alert_with_logs() -> None:
-    """Test InstallingPackageAlert with streaming logs."""
-    packages = {"numpy": "installing"}
-    logs = {"numpy": "Installing numpy...\n"}
-
-    alert = InstallingPackageAlertNotification(
-        packages=packages, logs=logs, log_status="start"
+@pytest.mark.parametrize(
+    "status",
+    [
+        {"kind": "failed"},
+        {"kind": "restart-required"},
+        {"kind": "succeeded", "error": "Could not resolve dependencies"},
+        "running",
+    ],
+)
+def test_installation_status_rejects_invalid_wire_state(
+    status: object,
+) -> None:
+    message = KernelMessage(
+        msgspec.json.encode(
+            {
+                "op": "environment-operation",
+                "operation_id": "install",
+                "action": "install",
+                "source": "kernel",
+                "logs": {},
+                "log_mode": "append",
+                "packages": {},
+                "status": status,
+            }
+        )
     )
-
-    assert alert.name == "installing-package-alert"
-    assert alert.packages == packages
-    assert alert.logs == logs
-    assert alert.log_status == "start"
+    with pytest.raises(msgspec.ValidationError):
+        deserialize_kernel_message(message)
 
 
 def test_send_ui_element_message_broadcast() -> None:

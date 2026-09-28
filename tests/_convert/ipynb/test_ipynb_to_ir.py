@@ -407,6 +407,25 @@ def test_transform_magic_commands_complex():
     assert result == expected
 
 
+def test_transform_magic_env_strips_quotes_and_spacing():
+    sources = [
+        '%env VAR="hello world"',
+        "%env PATH",
+        "%env FOO=bar",
+        "%env VAR = value",
+    ]
+    result = transform_magic_commands(sources)
+    assert result == [
+        "import os\nos.environ['VAR'] = 'hello world'",
+        (
+            "# magic command not supported in marimo; please file an issue to add support\n"
+            "# %env PATH"
+        ),
+        "import os\nos.environ['FOO'] = 'bar'",
+        "import os\nos.environ['VAR'] = 'value'",
+    ]
+
+
 def test_transform_exclamation_mark_complex():
     sources = [
         "!pip install package1 package2",

@@ -69,14 +69,37 @@ describe("parseTypedCommand", () => {
 });
 
 describe("LSP Server Integration", () => {
+  it.each([undefined, ""])("fails closed without a token: %s", (token) => {
+    const result = childProcess.spawnSync(
+      process.execPath,
+      [
+        "./dist/index.cjs",
+        "--log-file",
+        path.join(os.tmpdir(), "lsp-server-missing-token-test.log"),
+      ],
+      {
+        env: { ...process.env, MARIMO_LSP_TOKEN: token },
+        encoding: "utf8",
+        timeout: 5000,
+      },
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("MARIMO_LSP_TOKEN must be set");
+  });
+
   it("should start and be killable", async () => {
-    const proc = childProcess.spawn("node", [
-      "./dist/index.cjs",
-      "--lsp",
-      "echo hello",
-      "--log-file",
-      path.join(os.tmpdir(), "lsp-server-test.log"),
-    ]);
+    const proc = childProcess.spawn(
+      "node",
+      [
+        "./dist/index.cjs",
+        "--lsp",
+        "echo hello",
+        "--log-file",
+        path.join(os.tmpdir(), "lsp-server-test.log"),
+      ],
+      { env: { ...process.env, MARIMO_LSP_TOKEN: "test-token" } },
+    );
 
     // Register the exit listener BEFORE sending the signal to avoid
     // a race where the process exits before the listener is attached.
@@ -98,13 +121,17 @@ describe("LSP Server Integration", () => {
   });
 
   it("should start with typed copilot command", async () => {
-    const proc = childProcess.spawn("node", [
-      "./dist/index.cjs",
-      "--lsp",
-      "copilot:echo copilot-test",
-      "--log-file",
-      path.join(os.tmpdir(), "lsp-server-copilot-test.log"),
-    ]);
+    const proc = childProcess.spawn(
+      "node",
+      [
+        "./dist/index.cjs",
+        "--lsp",
+        "copilot:echo copilot-test",
+        "--log-file",
+        path.join(os.tmpdir(), "lsp-server-copilot-test.log"),
+      ],
+      { env: { ...process.env, MARIMO_LSP_TOKEN: "test-token" } },
+    );
 
     const exitCode = new Promise<number | null>((resolve) => {
       proc.on("exit", (code) => resolve(code));

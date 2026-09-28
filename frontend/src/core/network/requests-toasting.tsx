@@ -50,7 +50,7 @@ export function createErrorToastingRequests(
     getEnvironmentInfo: "", // No toast
     getFileRoots: "", // RequestingTree surfaces this error
     sendListFiles: "Failed to list files",
-    sendSearchFiles: "Failed to search files",
+    sendSearchFiles: "", // Search callers handle errors
     sendPdb: "Failed to start debug session",
     sendSetBreakpoints: "", // No toast
     sendCreateFileOrFolder: "Failed to create file or folder",
@@ -79,6 +79,9 @@ export function createErrorToastingRequests(
     addPackage: "Failed to add package",
     removePackage: "Failed to remove package",
     getPackageList: "Failed to get package list",
+    getSandbox: "",
+    updateManifest: "",
+    syncSandbox: "",
     getDependencyTree: "Failed to get dependency tree",
     listSecretKeys: "Failed to fetch secrets",
     writeSecret: "Failed to write secret",

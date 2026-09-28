@@ -177,7 +177,7 @@ describe("patchFetch", () => {
       .mockImplementation(Functions.NOOP);
 
     // This should fallback to original fetch and potentially fail
-    await expect(window.fetch("invalid://url")).rejects.toThrow();
+    await expect(window.fetch("invalid://url")).rejects.toThrow(/fetch|url/i);
 
     unpatch();
     loggerSpy.mockRestore();
@@ -276,7 +276,9 @@ describe("patchVegaLoader - loader.load", () => {
   it("should handle missing virtual files gracefully in loader.load", async () => {
     const loader = createLoader();
     const unpatch = patchVegaLoader(loader, {});
-    await expect(loader.load("/non-existent-file.json")).rejects.toThrow();
+    await expect(loader.load("/non-existent-file.json")).rejects.toThrow(
+      /fetch|file|load/i,
+    );
     unpatch();
   });
 
@@ -289,14 +291,10 @@ describe("patchVegaLoader - loader.load", () => {
     const loader = createLoader();
     const unpatch = patchVegaLoader(loader, virtualFiles);
 
-    try {
-      const content = await loader.load("file:///path/to/@file/vega-data.json");
-      expect(content).toBe('{"values": [1, 2, 3]}');
-    } catch (error) {
-      // If it falls back to original loader and fails, that's expected for file:// URLs
-      // The important thing is that the virtual file lookup was attempted
-      expect(error).toBeDefined();
-    }
+    const content = await loader
+      .load("file:///path/to/@file/vega-data.json")
+      .catch(() => undefined);
+    expect([undefined, '{"values": [1, 2, 3]}']).toContain(content);
 
     unpatch();
   });
@@ -338,15 +336,10 @@ describe("patchVegaLoader - loader.load", () => {
     }
 
     // Test file:// URL separately since it might fallback
-    try {
-      const content = await loader.load(
-        "file:///local/path/@file/pattern-test.json",
-      );
-      expect(content).toBe('{"pattern": "test"}');
-    } catch (error) {
-      // Expected if it falls back to original loader
-      expect(error).toBeDefined();
-    }
+    const fileUrlContent = await loader
+      .load("file:///local/path/@file/pattern-test.json")
+      .catch(() => undefined);
+    expect([undefined, '{"pattern": "test"}']).toContain(fileUrlContent);
 
     unpatch();
   });
@@ -592,9 +585,9 @@ describe("maybeGetVirtualFile utility function", () => {
     const unpatch = patchFetch(virtualFiles);
 
     // This file:// URL doesn't contain @file/, so it should fallback to original fetch
-    await expect(
-      window.fetch("file:///simple/path/test.txt"),
-    ).rejects.toThrow();
+    await expect(window.fetch("file:///simple/path/test.txt")).rejects.toThrow(
+      /fetch|file/i,
+    );
 
     unpatch();
   });
@@ -638,12 +631,9 @@ describe("error handling and edge cases", () => {
     expect(window.fetch).toBe(originalFetch);
 
     // Test that the loader functions are functional (they should work normally)
-    try {
-      await loader.load("http://example.com/test.json");
-    } catch (error) {
-      // Expected to fail for non-existent URLs, but the function should be callable
-      expect(error).toBeDefined();
-    }
+    // A network failure is expected for this non-existent URL. A custom loader
+    // may also handle it, so only verify that the restored method is callable.
+    await loader.load("http://example.com/test.json").catch(() => undefined);
   });
 
   it("should handle Request objects in patchFetch", async () => {
@@ -674,13 +664,7 @@ describe("error handling and edge cases", () => {
       .mockImplementation(Functions.NOOP);
 
     // This should catch the error and fallback to original fetch
-    try {
-      await window.fetch("not-a-valid-url");
-      // If it doesn't throw, that's also fine (fallback behavior)
-    } catch (error) {
-      // Expected behavior - invalid URLs should be handled gracefully
-      expect(error).toBeDefined();
-    }
+    await window.fetch("not-a-valid-url").catch(() => undefined);
 
     unpatch();
     loggerSpy.mockRestore();

@@ -16,11 +16,17 @@ export const ExternalLink = ({
     | `https://links.marimo.app/${string}`
     | `https://wandb.ai/${string}`
     | `https://portal.azure.com/${string}`
-    | `https://opencode.ai/${string}`;
+    | `https://opencode.ai/${string}`
+    | `https://pydantic.dev/${string}`;
   children: React.ReactNode;
 }) => {
   return (
-    <a href={href} target="_blank" className="text-link hover:underline">
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="text-link hover:underline"
+    >
       {children}
     </a>
   );

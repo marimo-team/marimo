@@ -104,11 +104,10 @@ nav:
           - Setup References: guides/understanding_errors/setup.md
       - Package management:
           - Package management: guides/package_management/index.md
-          - Importing packages: guides/package_management/importing_packages.md
+          - Working in projects: guides/package_management/projects.md
+          - Working in sandboxes: guides/package_management/sandboxes.md
           - Installing packages: guides/package_management/installing_packages.md
-          - Inlining dependencies: guides/package_management/inlining_dependencies.md
-          - Notebooks in existing projects: guides/package_management/notebooks_in_projects.md
-          - Using uv: guides/package_management/using_uv.md
+          - Importing local code: guides/package_management/importing_local_code.md
       - Generate with AI:
           - Generate with AI: guides/generate_with_ai/index.md
           - Pair with agents via marimo pair: guides/generate_with_ai/marimo_pair.md
@@ -127,7 +126,6 @@ nav:
           - AI tools: guides/editor_features/tools.md
           - Agents: guides/editor_features/agents.md
           - Language Server: guides/editor_features/language_server.md
-          - Package management: guides/editor_features/package_management.md
       - Using your own editor: guides/editor_features/watching.md
       - Run notebooks as apps: guides/apps.md
       - Run notebooks as scripts: guides/scripts.md
@@ -321,7 +319,12 @@ plugins:
         font_family: Roboto
   - tags
   - redirects:
-      redirect_maps: {}
+      redirect_maps:
+        guides/package_management/using_uv.md: guides/package_management/index.md
+        guides/package_management/notebooks_in_projects.md: guides/package_management/projects.md
+        guides/package_management/inlining_dependencies.md: guides/package_management/sandboxes.md
+        guides/package_management/importing_packages.md: guides/package_management/importing_local_code.md
+        guides/editor_features/package_management.md: guides/package_management/installing_packages.md
   - mkdocstrings:
       handlers:
         python:

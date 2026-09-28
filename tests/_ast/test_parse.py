@@ -200,7 +200,7 @@ class TestParser:
         # Non-marimo files that have marimo imports but no App definition
         # should raise MarimoFileError with the expected message
         with pytest.raises(
-            MarimoFileError, match="`marimo.App` definition expected."
+            MarimoFileError, match=r"`marimo\.App` definition expected\."
         ):
             parse_notebook(get_filepath("test_non_marimo").read_text())
 

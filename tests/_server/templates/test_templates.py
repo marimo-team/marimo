@@ -1308,6 +1308,27 @@ class TestReplaceAssetUrls(unittest.TestCase):
         expected = f"""<link crossorigin="anonymous" href="https://cdn.example.com/v{__version__}/assets/style.css" rel="stylesheet">"""
         assert result == expected
 
+    def test_replace_asset_urls_preserves_crossorigin(self) -> None:
+        html = """<script type="module" crossorigin src="./assets/app.js"></script>
+<link href='./assets/style.css' rel='stylesheet' crossorigin='use-credentials'>
+<script src="./assets/other.js" CROSSORIGIN="anonymous"></script>"""
+
+        result = templates._replace_asset_urls(html, "https://cdn.example.com")
+
+        assert result == html.replace(
+            "./assets/", "https://cdn.example.com/assets/"
+        )
+
+    def test_replace_asset_urls_crossorigin_in_attribute_value(self) -> None:
+        html = """<link title="preload > crossorigin='use-credentials'" href='./assets/style.css'>"""
+
+        result = templates._replace_asset_urls(html, "https://cdn.example.com")
+
+        assert (
+            result
+            == """<link title="preload > crossorigin='use-credentials'" crossorigin='anonymous' href='https://cdn.example.com/assets/style.css'>"""
+        )
+
     def test_replace_asset_urls_double_quotes(self) -> None:
         """Test asset URL replacement with double quotes."""
         html = '<link href="./assets/style.css" rel="stylesheet">'

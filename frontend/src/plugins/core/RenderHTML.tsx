@@ -24,6 +24,8 @@ import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
 type TransformFn = NonNullable<HTMLReactParserOptions["transform"]>;
 
+const EMPTY_REPLACEMENTS: readonly ReplacementFn[] = [];
+
 interface Options {
   html: string;
   /**
@@ -31,7 +33,7 @@ interface Options {
    * @default true
    */
   alwaysSanitizeHtml?: boolean;
-  additionalReplacements?: ReplacementFn[];
+  additionalReplacements?: readonly ReplacementFn[];
 }
 
 const replaceValidTags = (domNode: DOMNode) => {
@@ -260,9 +262,29 @@ const wrapTooltipTargets: TransformFn = (
     if (tagName.startsWith("marimo-")) {
       return undefined;
     }
-    const tooltipContent = domNode.attribs["data-tooltip"];
+    const tooltipContent = domNode.attribs["data-tooltip"].replace(
+      /^[\r\n]+|[\r\n]+$/g,
+      "",
+    );
     return (
-      <Tooltip content={tooltipContent}>{reactNode as JSX.Element}</Tooltip>
+      <Tooltip
+        content={
+          tooltipContent.includes("\n") ? (
+            <span className="whitespace-pre-wrap">
+              {tooltipContent.split(/\r?\n/).map((line, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <br />}
+                  {line}
+                </React.Fragment>
+              ))}
+            </span>
+          ) : (
+            tooltipContent
+          )
+        }
+      >
+        {reactNode as JSX.Element}
+      </Tooltip>
     );
   }
 };
@@ -299,7 +321,7 @@ const CopyableCode = ({ children }: { children: ReactNode }) => {
  */
 export const renderHTML = ({
   html,
-  additionalReplacements = [],
+  additionalReplacements = EMPTY_REPLACEMENTS,
   alwaysSanitizeHtml = true,
 }: Options) => {
   return (
@@ -313,7 +335,7 @@ export const renderHTML = ({
 
 const RenderHTML = ({
   html,
-  additionalReplacements = [],
+  additionalReplacements = EMPTY_REPLACEMENTS,
   alwaysSanitizeHtml,
 }: Options) => {
   const shouldSanitizeHtml = useSanitizeHtml();
@@ -333,7 +355,7 @@ const RenderHTML = ({
 
 function parseHtml({
   html,
-  additionalReplacements = [],
+  additionalReplacements = EMPTY_REPLACEMENTS,
 }: Pick<Options, "html" | "additionalReplacements">) {
   const renderFunctions: ReplacementFn[] = [
     replaceValidTags,

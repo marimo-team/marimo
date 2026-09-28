@@ -16,7 +16,7 @@ def is_env_true(key: str, default: bool = False) -> bool:
     return value.strip().lower() in ("true", "1")
 
 
-def env_to_value(key: str) -> tuple[str | None | list[str] | bool] | None:
+def env_to_value(key: str) -> tuple[str | list[str] | bool | None] | None:
     """Return a typed value from environment variables."""
     if key in os.environ:
         value = os.environ[key]

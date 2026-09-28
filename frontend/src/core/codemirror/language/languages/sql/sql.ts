@@ -76,7 +76,22 @@ export interface SQLLanguageAdapterMetadata extends SQLMetadata {
 }
 
 function getLatestEngine(): ConnectionName {
-  return store.get(dataSourceConnectionsAtom).latestEngineSelected;
+  const { latestEngineSelected, connectionsMap } = store.get(
+    dataSourceConnectionsAtom,
+  );
+  if (latestEngineSelected !== null) {
+    return latestEngineSelected;
+  }
+
+  // Map insertion order prefers the most recently discovered connection.
+  const connections = [...connectionsMap.values()].reverse();
+  return (
+    connections.find(
+      (connection) =>
+        !INTERNAL_SQL_ENGINES.has(connection.name) &&
+        connection.source !== "iceberg",
+    )?.name ?? DUCKDB_ENGINE
+  );
 }
 
 /**

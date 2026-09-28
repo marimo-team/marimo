@@ -41,7 +41,10 @@ class RestStore(Store):
                 if response.status >= 400 and response.status < 500:
                     # 400s are fine, they just mean the key doesn't exist
                     return None
-                raise
+                LOGGER.warning(
+                    "GET %s - Unexpected status: %s", url, response.status
+                )
+                return None
         except urllib.error.HTTPError as e:
             if e.code >= 400 and e.code < 500:
                 # 400s are fine, they just mean the key doesn't exist

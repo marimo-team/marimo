@@ -441,7 +441,8 @@ class NarwhalsTableManager(
             exprs.update(
                 {
                     "true": col.sum(),  # type: ignore[dict-item]
-                    "false": nw.len() - col.sum(),  # type: ignore[dict-item]
+                    # nulls are neither true nor false
+                    "false": nw.len() - col.sum() - col.null_count(),  # type: ignore[dict-item]
                 }
             )
         elif (dtype == nw.Date) or is_narwhals_time_type(dtype):

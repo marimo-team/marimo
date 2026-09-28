@@ -69,10 +69,11 @@ notifications
   DataColumnPreviewNotification
   DataSourceConnectionsNotification
   DatasetsNotification
+  EnvironmentOperationNotification
+  EnvironmentStateNotification
   FocusCellNotification
   FunctionCallResultNotification
   HumanReadableStatus
-  InstallingPackageAlertNotification
   InterruptedNotification
   KernelCapabilitiesNotification
   KernelReadyNotification

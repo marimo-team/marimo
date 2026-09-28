@@ -3097,6 +3097,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/packages/manifest": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateManifestRequest"];
+        };
+      };
+      responses: {
+        /** @description Save notebook metadata without changing its cells */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SandboxResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/packages/remove": {
     parameters: {
       query?: never;
@@ -3126,6 +3167,88 @@ export interface paths {
           };
           content: {
             "application/json": components["schemas"]["PackageOperationResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/packages/sandbox": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["SandboxRequest"];
+        };
+      };
+      responses: {
+        /** @description Sandbox manifest, available before kernel startup */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SandboxResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/packages/sync": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["SandboxRequest"];
+        };
+      };
+      responses: {
+        /** @description Apply the saved manifest, or reconnect to retry startup */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SyncSandboxResponse"];
           };
         };
       };
@@ -3740,6 +3863,8 @@ export interface components {
       code: string;
       /** @default null */
       context?: null | components["schemas"]["AiCompletionContext"];
+      /** @default null */
+      id?: string | null;
       includeOtherCode: string;
       /**
        * @default python
@@ -3771,7 +3896,7 @@ export interface components {
      *         - `bedrock`: the Bedrock config
      *         - `azure`: the Azure config
      *         - `ollama`: the Ollama config
-     *         - `github`: the GitHub config
+     *         - `github`: the GitHub Copilot config
      *         - `openrouter`: the OpenRouter config
      *         - `wandb`: the Weights & Biases config
      *         - `opencode_go`: the OpenCode Go config
@@ -3990,6 +4115,8 @@ export interface components {
       /** @default false */
       disabled?: boolean;
       /** @default false */
+      expand_output?: boolean;
+      /** @default false */
       hide_code?: boolean;
     };
     /** Format: cell-id */
@@ -4139,6 +4266,8 @@ export interface components {
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
      */
     ChatRequest: {
+      /** @default null */
+      id?: string | null;
       includeOtherCode: string;
       /** @default null */
       model?: string | null;
@@ -4634,6 +4763,9 @@ export interface components {
     };
     /** DependencyTreeResponse */
     DependencyTreeResponse: {
+      context:
+        | components["schemas"]["SandboxPackageContext"]
+        | components["schemas"]["PackageManagerContext"];
       tree: null | components["schemas"]["DependencyTreeNode"];
     };
     /**
@@ -4740,6 +4872,89 @@ export interface components {
       reference_highlighting?: boolean;
       /** @enum {unknown} */
       theme: "dark" | "light" | "system";
+    };
+    /**
+     * EnvironmentOperation
+     * @description Current progress and logs for one execution of environment work.
+     */
+    EnvironmentOperation: {
+      /** @enum {unknown} */
+      action: "install" | "prepare" | "remove" | "sync";
+      logs: {
+        [key: string]: string;
+      };
+      operation_id: string;
+      packages: {
+        [key: string]:
+          | "failed"
+          | "queued"
+          | "restart-required"
+          | "running"
+          | "succeeded";
+      };
+      /** @enum {unknown} */
+      source: "kernel" | "server";
+      status:
+        | components["schemas"]["OperationRunning"]
+        | components["schemas"]["OperationSucceeded"]
+        | components["schemas"]["OperationRestartRequired"]
+        | components["schemas"]["OperationFailed"]
+        | components["schemas"]["OperationCancelled"];
+    };
+    /**
+     * EnvironmentOperationNotification
+     * @description Current operation progress and changes to its named log streams.
+     *
+     *         Package statuses replace the previous map. Log chunks append to a stream,
+     *         or replace it when `log_mode` is `replace`. The operation status determines
+     *         completion independently of its packages and output streams.
+     */
+    EnvironmentOperationNotification: {
+      /** @enum {unknown} */
+      action: "install" | "prepare" | "remove" | "sync";
+      /** @enum {unknown} */
+      log_mode: "append" | "replace";
+      logs: {
+        [key: string]: string;
+      };
+      /** @enum {unknown} */
+      op: "environment-operation";
+      operation_id: string;
+      packages: {
+        [key: string]:
+          | "failed"
+          | "queued"
+          | "restart-required"
+          | "running"
+          | "succeeded";
+      };
+      /** @enum {unknown} */
+      source: "kernel" | "server";
+      status:
+        | components["schemas"]["OperationRunning"]
+        | components["schemas"]["OperationSucceeded"]
+        | components["schemas"]["OperationRestartRequired"]
+        | components["schemas"]["OperationFailed"]
+        | components["schemas"]["OperationCancelled"];
+    };
+    /**
+     * EnvironmentState
+     * @description Preparation, active operations, the latest mutation, and restarts.
+     */
+    EnvironmentState: {
+      operations: components["schemas"]["EnvironmentOperation"][];
+      restart_required: boolean;
+    };
+    /**
+     * EnvironmentStateNotification
+     * @description Replace the current state for one environment on connection.
+     */
+    EnvironmentStateNotification: {
+      /** @enum {unknown} */
+      op: "environment-state";
+      /** @enum {unknown} */
+      source: "kernel" | "server";
+      state: components["schemas"]["EnvironmentState"];
     };
     /**
      * EnvironmentVariableDiscoveryValue
@@ -5108,6 +5323,8 @@ export interface components {
       includeDirectories?: boolean;
       /** @default true */
       includeFiles?: boolean;
+      /** @default true */
+      includeHidden?: boolean;
       /** @default 100 */
       limit?: number;
       /** @default null */
@@ -5222,12 +5439,12 @@ export interface components {
     GetCacheInfoRequest: Record<string, any>;
     /**
      * GitHubConfig
-     * @description Configuration options for GitHub.
+     * @description Configuration options for GitHub Copilot.
      *
      *         **Keys.**
      *
-     *         - `api_key`: the GitHub API token or an `env:` reference
-     *         - `base_url`: the base URL for the API
+     *         - `api_key`: a GitHub Copilot token or an `env:` reference
+     *         - `base_url`: the base URL for the GitHub Copilot API
      *         - `copilot_settings`: configuration settings for GitHub Copilot LSP.
      *             Supports settings like `http` (proxy configuration), `telemetry`,
      *             and `github-enterprise` (enterprise URI).
@@ -5358,36 +5575,6 @@ export interface components {
       versions: {
         [key: string]: string;
       };
-    };
-    /**
-     * InstallingPackageAlertNotification
-     * @description Package installation progress with streaming logs.
-     *
-     *         Attributes:
-     *             packages: Package name to status (queued/installing/installed/failed).
-     *             logs: Optional streaming logs per package.
-     *             log_status: Log stream status (append/start/done).
-     *             source: Which Python environment packages are installed into.
-     *                     "kernel" (default) installs in the kernel's venv; "server"
-     *                     installs in the server's own Python env.
-     */
-    InstallingPackageAlertNotification: {
-      /** @default null */
-      log_status?: ("append" | "done" | "start") | null;
-      /** @default null */
-      logs?: {
-        [key: string]: string;
-      } | null;
-      /** @enum {unknown} */
-      op: "installing-package-alert";
-      packages: {
-        [key: string]: "failed" | "installed" | "installing" | "queued";
-      };
-      /**
-       * @default kernel
-       * @enum {unknown}
-       */
-      source?: "kernel" | "server";
     };
     /** InstantiateNotebookRequest */
     InstantiateNotebookRequest: {
@@ -5624,8 +5811,10 @@ export interface components {
         | components["schemas"]["AlertNotification"]
         | components["schemas"]["BannerNotification"]
         | components["schemas"]["MissingPackageAlertNotification"]
-        | components["schemas"]["InstallingPackageAlertNotification"]
+        | components["schemas"]["EnvironmentOperationNotification"]
+        | components["schemas"]["EnvironmentStateNotification"]
         | components["schemas"]["StartupLogsNotification"]
+        | components["schemas"]["StartupProgressNotification"]
         | components["schemas"]["KernelStartupErrorNotification"]
         | components["schemas"]["VariablesNotification"]
         | components["schemas"]["VariableValuesNotification"]
@@ -6289,6 +6478,33 @@ export interface components {
           )
         | "markdown-format";
     };
+    /** OperationCancelled */
+    OperationCancelled: {
+      /** @enum {unknown} */
+      kind: "cancelled";
+    };
+    /** OperationFailed */
+    OperationFailed: {
+      error: string;
+      /** @enum {unknown} */
+      kind: "failed";
+    };
+    /** OperationRestartRequired */
+    OperationRestartRequired: {
+      /** @enum {unknown} */
+      kind: "restart-required";
+      reason: string;
+    };
+    /** OperationRunning */
+    OperationRunning: {
+      /** @enum {unknown} */
+      kind: "running";
+    };
+    /** OperationSucceeded */
+    OperationSucceeded: {
+      /** @enum {unknown} */
+      kind: "succeeded";
+    };
     /** PackageDescription */
     PackageDescription: {
       name: string;
@@ -6306,10 +6522,18 @@ export interface components {
       /** @enum {unknown} */
       manager: "pip" | "pixi" | "poetry" | "rye" | "uv";
     };
+    /** PackageManagerContext */
+    PackageManagerContext: {
+      /** @enum {unknown} */
+      kind: "package-manager";
+      name: string;
+    };
     /** PackageOperationResponse */
     PackageOperationResponse: {
       /** @default null */
       error?: string | null;
+      /** @default false */
+      restartRequired?: boolean;
       success: boolean;
     };
     /**
@@ -6582,8 +6806,10 @@ export interface components {
      *             `PYTHONPATH` environment variable, the directories will be included in
      *             where Python will look for imported modules.
      *         - `dotenv`: a list of paths to `.env` files to load.
-     *             If the file does not exist, it will be silently ignored.
-     *             The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
+     *             If the file does not exist, it will be silently ignored. Relative
+     *             paths resolve against the directory holding the `pyproject.toml`,
+     *             or the notebook's directory when there is none. The default is
+     *             `[".env"]`.
      *         - `default_sql_output`: the default output format for SQL queries. Can be one of:
      *             `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
      *             The default is `"auto"`.
@@ -6724,6 +6950,24 @@ export interface components {
       /** @enum {unknown} */
       kind: "safe-literal";
       value: string;
+    };
+    /** SandboxPackageContext */
+    SandboxPackageContext: {
+      /** @enum {unknown} */
+      backend: "pixi" | "uv";
+      /** @enum {unknown} */
+      kind: "sandbox";
+    };
+    /** SandboxRequest */
+    SandboxRequest: {
+      /** @default null */
+      fileKey?: string | null;
+    };
+    /** SandboxResponse */
+    SandboxResponse: {
+      backend: ("pixi" | "uv") | null;
+      filename: string | null;
+      manifest: string | null;
     };
     /** SaveAppConfigurationRequest */
     SaveAppConfigurationRequest: {
@@ -6896,6 +7140,7 @@ export interface components {
       cellId: components["schemas"]["CellId"];
       column: number | null;
       disabled: boolean;
+      expandOutput: boolean;
       hideCode: boolean;
       /** @enum {unknown} */
       type: "set-config";
@@ -7031,6 +7276,22 @@ export interface components {
       op: "startup-logs";
       /** @enum {unknown} */
       status: "append" | "done" | "start";
+    };
+    /**
+     * StartupProgressNotification
+     * @description Current startup phase and its output before the kernel is ready.
+     *
+     *         Output appends within a phase. Snapshots replace it, and changing phases
+     *         starts a new stream. Environment preparation logs belong to its operation.
+     */
+    StartupProgressNotification: {
+      /** @enum {unknown} */
+      log_mode: "append" | "replace";
+      logs: string;
+      /** @enum {unknown} */
+      op: "startup-progress";
+      /** @enum {unknown} */
+      phase: "preparing-environment" | "starting-kernel";
     };
     /** StdinRequest */
     StdinRequest: {
@@ -7268,6 +7529,16 @@ export interface components {
       /** @enum {unknown} */
       type: "sync-graph";
     };
+    /** SyncSandboxResponse */
+    SyncSandboxResponse: {
+      /** @default null */
+      error?: string | null;
+      /** @default false */
+      reconnect?: boolean;
+      /** @default false */
+      restartRequired?: boolean;
+      success: boolean;
+    };
     /**
      * ToolDefinition
      * @description Tool definition compatible with ai-sdk-ui format.
@@ -7401,6 +7672,13 @@ export interface components {
           unknown,
         ];
       };
+    };
+    /** UpdateManifestRequest */
+    UpdateManifestRequest: {
+      contents: string;
+      /** @default null */
+      fileKey?: string | null;
+      previous: string;
     };
     /**
      * UpdateUIElementCommand

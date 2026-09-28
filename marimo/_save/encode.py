@@ -139,7 +139,11 @@ def common_container_to_bytes(value: Any) -> bytes:
 
         if is_primitive(value):
             return primitive_to_bytes(value)
-        return data_to_buffer(value)
+        if is_data_primitive(value):
+            return data_to_buffer(value)
+        raise TypeError(
+            f"Expected numeric array data, got {type(value).__name__}"
+        )
 
     return recurse_container(value)
 

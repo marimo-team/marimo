@@ -27,6 +27,7 @@ export function createCell({
       hide_code: false,
       disabled: false,
       column: null,
+      expand_output: false,
     },
     name: name,
     code: code,
@@ -42,6 +43,7 @@ export function createCellConfig(config?: Partial<CellConfig>): CellConfig {
     hide_code: false,
     disabled: false,
     column: null,
+    expand_output: false,
     ...config,
   };
 }

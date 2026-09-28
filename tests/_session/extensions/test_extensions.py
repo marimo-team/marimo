@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from marimo._messaging.notification import BannerNotification
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._session.events import SessionEventBus
 from marimo._session.extensions.extensions import (
     CacheMode,
@@ -68,7 +69,8 @@ class TestHeartbeatExtension:
 
         task = extension.heartbeat_task
         extension.on_detach()
-        await asyncio.sleep(0.1)
+        with pytest.raises(asyncio.CancelledError):
+            await task
 
         assert task.cancelled()
 
@@ -85,9 +87,17 @@ class TestHeartbeatExtension:
             ),
         )
         extension = HeartbeatExtension()
+        closed = asyncio.Event()
+        mock_session.close.side_effect = closed.set
         extension.on_attach(mock_session, event_bus)
 
-        await asyncio.sleep(1.5)
+        try:
+            await asyncio.wait_for(closed.wait(), timeout=10)
+        finally:
+            extension.on_detach()
+            assert extension.heartbeat_task is not None
+            with pytest.raises(asyncio.CancelledError):
+                await extension.heartbeat_task
 
         mock_session.close.assert_called_once()
         # A persistent banner is broadcast before the session closes, so the
@@ -99,7 +109,6 @@ class TestHeartbeatExtension:
         assert banner.action == "restart"
         assert "out of memory" in banner.description
         assert "restart" in banner.description.lower()
-        extension.on_detach()
 
 
 class TestCachingExtension:
@@ -220,7 +229,7 @@ class TestNotificationListenerExtension:
         return manager
 
     @patch("marimo._session.extensions.extensions.ConnectionDistributor")
-    def test_lifecycle(
+    async def test_lifecycle(
         self, mock_dist, mock_session, event_bus, kernel_manager, queue_manager
     ) -> None:
         """Test distributor creation, start, and stop."""
@@ -239,6 +248,26 @@ class TestNotificationListenerExtension:
 
         mock_distributor.stop.assert_called_once()
         assert extension.distributor is None
+
+    @patch("marimo._session.extensions.extensions.ConnectionDistributor")
+    async def test_detach_drops_pending_notifications(
+        self, mock_dist, mock_session, event_bus, kernel_manager, queue_manager
+    ) -> None:
+        extension = NotificationListenerExtension(
+            kernel_manager, queue_manager
+        )
+        extension.on_attach(mock_session, event_bus)
+        enqueue = mock_dist.return_value.add_consumer.call_args.args[0]
+        enqueue(
+            serialize_kernel_message(
+                BannerNotification(title="Queued", description="")
+            )
+        )
+
+        extension.on_detach()
+        await asyncio.sleep(0)
+
+        mock_session.notify.assert_not_called()
 
     def test_uses_correct_distributor_type(
         self, kernel_manager, queue_manager, queue_manager_with_stream

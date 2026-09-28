@@ -451,7 +451,8 @@ const EditableCellComponent = ({
       cellRuntime.staleInputs) &&
     !cellRuntime.interrupted;
 
-  // Callback to get the editor view.
+  // This getter is called during render, so useEvent cannot be used here.
+  // oxlint-disable-next-line react/preserve-manual-memoization
   const getEditorView = useCallback(() => editorView.current, [editorView]);
 
   // Use the extracted hooks
@@ -761,7 +762,7 @@ const EditableCellComponent = ({
                     href="https://links.marimo.app/reusable-definitions"
                     target="_blank"
                     className="hover:underline text-muted-foreground text-xs font-bold"
-                    rel="noopener"
+                    rel="noreferrer"
                   >
                     reusable
                   </a>
@@ -800,7 +801,7 @@ const EditableCellComponent = ({
                     <a
                       href="https://links.marimo.app/reusable-definitions"
                       target="_blank"
-                      rel="noopener"
+                      rel="noreferrer"
                     >
                       <HelpCircleIcon
                         size={16}
@@ -1096,7 +1097,8 @@ const SetupCellComponent = ({
       cellRuntime.staleInputs) &&
     !cellRuntime.interrupted;
 
-  // Callback to get the editor view.
+  // This getter is called during render, so useEvent cannot be used here.
+  // oxlint-disable-next-line react/preserve-manual-memoization
   const getEditorView = useCallback(() => editorView.current, [editorView]);
 
   const { isCellCodeShown, showHiddenCode } = useCellHiddenLogic({

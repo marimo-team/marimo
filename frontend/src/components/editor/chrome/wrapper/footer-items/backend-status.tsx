@@ -42,7 +42,9 @@ export const BackendConnectionStatus: React.FC = () => {
   const { isFetching, error, data, refetch } = useAsyncData(async () => {
     // If the connection is not connected, return
     if (!isAppConnected(connection)) {
-      setConnectionStatus("disconnected");
+      setConnectionStatus(
+        isAppConnecting(connection) ? "connecting" : "disconnected",
+      );
       return;
     }
 

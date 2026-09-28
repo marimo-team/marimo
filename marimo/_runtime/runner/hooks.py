@@ -44,6 +44,7 @@ class HookPhase(str, Enum):
     PREPARATION = "preparation"
     PRE_EXECUTION = "pre_execution"
     POST_EXECUTION = "post_execution"
+    FINALIZATION = "finalization"
     ON_FINISH = "on_finish"
 
 
@@ -96,7 +97,8 @@ class NotebookCellHooks:
     1. preparation_hooks: Run once before the runner starts
     2. pre_execution_hooks: Run before each cell executes
     3. post_execution_hooks: Run after each cell executes
-    4. on_finish_hooks: Run once after all cells complete
+    4. finalization_hooks: Always run after post-execution, retrying interrupts
+    5. on_finish_hooks: Run once after all cells complete
     """
 
     def __init__(
@@ -132,6 +134,10 @@ class NotebookCellHooks:
     ) -> None:
         self._add(HookPhase.POST_EXECUTION, hook, priority)
 
+    def add_finalization(self, hook: PostExecutionHook) -> None:
+        """Register cleanup that is safe to repeat after an interrupt."""
+        self._add(HookPhase.FINALIZATION, hook, Priority.FINAL)
+
     def add_on_finish(
         self, hook: OnFinishHook, priority: Priority = Priority.NORMAL
     ) -> None:
@@ -156,6 +162,12 @@ class NotebookCellHooks:
         )
 
     @property
+    def finalization_hooks(self) -> Sequence[PostExecutionHook]:
+        return cast(
+            "Sequence[PostExecutionHook]", self._get(HookPhase.FINALIZATION)
+        )
+
+    @property
     def on_finish_hooks(self) -> Sequence[OnFinishHook]:
         return cast("Sequence[OnFinishHook]", self._get(HookPhase.ON_FINISH))
 
@@ -174,6 +186,7 @@ def create_default_hooks() -> NotebookCellHooks:
     """
     from marimo._runtime.runner.hooks_on_finish import ON_FINISH_HOOKS
     from marimo._runtime.runner.hooks_post_execution import (
+        FINALIZATION_HOOKS,
         POST_EXECUTION_HOOKS,
     )
     from marimo._runtime.runner.hooks_pre_execution import (
@@ -193,4 +206,6 @@ def create_default_hooks() -> NotebookCellHooks:
     for phase, hook_list in defaults:
         for hook in hook_list:
             hooks._add(phase, hook, Priority.NORMAL)
+    for hook in FINALIZATION_HOOKS:
+        hooks.add_finalization(hook)
     return hooks

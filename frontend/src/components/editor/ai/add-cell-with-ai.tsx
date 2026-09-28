@@ -124,6 +124,7 @@ export const AddCellWithAI: React.FC<{
           );
           const body = {
             ...completionBody,
+            id: options.id,
             code: "",
             prompt: "", // Don't need prompt since we are using messages
             language: language,

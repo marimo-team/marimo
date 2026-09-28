@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { createModuleWorker } from "@/utils/worker";
 import { getMarimoVersion } from "../meta/globals";
 import workerUrl from "./worker/worker.tsx?worker&url";
 
@@ -47,20 +48,9 @@ export class DefaultWorkerFactory implements WorkerFactory {
    * Creates a new Pyodide worker
    */
   create(): Worker {
-    const js = `import ${JSON.stringify(new URL(this.url, import.meta.url))}`;
-    const blob = new Blob([js], { type: "application/javascript" });
-    const objURL = URL.createObjectURL(blob);
-
-    const worker = new Worker(objURL, {
-      type: "module",
-      /* @vite-ignore */
+    return createModuleWorker(new URL(this.url, import.meta.url), {
       name: this.name,
     });
-
-    // Blob URL can be revoked once the worker has loaded the script
-    URL.revokeObjectURL(objURL);
-
-    return worker;
   }
 
   /**

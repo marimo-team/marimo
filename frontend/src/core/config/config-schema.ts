@@ -171,6 +171,7 @@ export const UserConfigSchema = z
         inline_tooltip: z.boolean().prefault(false),
         allow_provider_config: z.boolean().prefault(true),
         open_ai: AiConfigSchema.optional(),
+        github: AiConfigSchema.optional(),
         anthropic: AiConfigSchema.optional(),
         google: AiConfigSchema.optional(),
         ollama: AiConfigSchema.optional(),

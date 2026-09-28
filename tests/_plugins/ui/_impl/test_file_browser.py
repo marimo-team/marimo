@@ -684,6 +684,81 @@ def test_missing_path_without_restriction_reports_not_found(
         fb._list_directory(ListDirectoryArgs(path=str(tmp_path / "missing")))
 
 
+def test_restricted_update_rejects_value_outside_root(tmp_path: Path) -> None:
+    """A frontend value pointing outside the root must be rejected.
+
+    `_list_directory` blocks browsing outside `initial_path`, but the value can
+    also be set directly through the `set_ui_element_value` API, which calls
+    `_update` -> `_convert_value`. That path must enforce the same restriction,
+    otherwise an app viewer can read any file the server can (MO-7713).
+    """
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    secret = outside / "secret.txt"
+    secret.write_text("secret data here")
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._update(
+            [
+                {
+                    "id": str(secret),
+                    "path": str(secret),
+                    "name": secret.name,
+                    "is_directory": False,
+                }
+            ]
+        )
+
+
+def test_restricted_update_accepts_value_within_root(tmp_path: Path) -> None:
+    """A frontend value inside the root is still accepted after the fix."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    reachable = restricted / "data.txt"
+    reachable.write_text("ok")
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    fb._update(
+        [
+            {
+                "id": str(reachable),
+                "path": str(reachable),
+                "name": reachable.name,
+                "is_directory": False,
+            }
+        ]
+    )
+    assert fb.path() == reachable
+
+
+def test_unrestricted_update_accepts_value_outside_root(
+    tmp_path: Path,
+) -> None:
+    """Without restriction, values outside the root remain allowed."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    target = outside / "data.txt"
+    target.write_text("ok")
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=False)
+    fb._update(
+        [
+            {
+                "id": str(target),
+                "path": str(target),
+                "name": target.name,
+                "is_directory": False,
+            }
+        ]
+    )
+    assert fb.path() == target
+
+
 def test_name_method() -> None:
     fb = file_browser(initial_path=Path.cwd())
     fb._value = [

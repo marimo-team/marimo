@@ -22,8 +22,6 @@ from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._utils.http import HTTPStatus
 
-# https://github.com/pydantic/pydantic-ai/blob/8b9ac2bde2355b0d431abea6cf210a36fffe0c43/pydantic_ai_slim/pydantic_ai/providers/github.py#L41C17-L41C51
-GITHUB_COPILOT_BASE_URL = "https://models.github.ai/inference"
 ENV_SECRET_PREFIX = "env:"
 
 SecretResolver = Callable[[str], str | None]
@@ -144,40 +142,6 @@ class AnyProviderConfig:
         )
 
     @classmethod
-    def for_github(
-        cls,
-        config: AiConfig,
-        *,
-        secret_resolver: SecretResolver | None = None,
-    ) -> AnyProviderConfig:
-        fallback_key = cls._resolve_secret("GITHUB_TOKEN", secret_resolver)
-        result = cls._for_openai_like(
-            config,
-            "github",
-            "GitHub",
-            fallback_key=fallback_key,
-            # Default base URL for GitHub Copilot, taken from
-            fallback_base_url=GITHUB_COPILOT_BASE_URL,
-            require_key=True,
-            secret_resolver=secret_resolver,
-        )
-
-        # Add default extra headers for GitHub, but allow user to override
-        default_headers = {
-            "editor-version": "vscode/1.95.0",
-            "Copilot-Integration-Id": "vscode-chat",
-        }
-
-        # Merge: user headers override defaults
-        if result.extra_headers:
-            merged_headers = {**default_headers, **result.extra_headers}
-        else:
-            merged_headers = default_headers
-
-        result.extra_headers = merged_headers
-        return result
-
-    @classmethod
     def for_openrouter(
         cls,
         config: AiConfig,
@@ -232,6 +196,34 @@ class AnyProviderConfig:
             fallback_key=fallback_key,
             # Default base URL for OpenCode Go
             fallback_base_url="https://opencode.ai/zen/go/v1/",
+            require_key=True,
+            secret_resolver=secret_resolver,
+        )
+
+    @classmethod
+    def for_github(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
+        fallback_key = (
+            cls._resolve_secret("GITHUB_COPILOT_API_KEY", secret_resolver)
+            or cls._resolve_secret("GITHUB_COPILOT_API_TOKEN", secret_resolver)
+            or cls._resolve_secret("COPILOT_GITHUB_TOKEN", secret_resolver)
+        )
+        fallback_base_url = (
+            cls._resolve_secret("GITHUB_COPILOT_BASE_URL", secret_resolver)
+            or cls._resolve_secret("COPILOT_API_URL", secret_resolver)
+            or cls._resolve_secret("GITHUB_COPILOT_API_BASE", secret_resolver)
+            or "https://api.githubcopilot.com"
+        )
+        return cls._for_openai_like(
+            config,
+            "github",
+            "GitHub Copilot",
+            fallback_key=fallback_key,
+            fallback_base_url=fallback_base_url,
             require_key=True,
             secret_resolver=secret_resolver,
         )

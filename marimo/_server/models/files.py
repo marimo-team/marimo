@@ -101,6 +101,8 @@ class FileSearchRequest(msgspec.Struct, rename="camel"):
     include_directories: bool = True
     # Include files
     include_files: bool = True
+    # Include hidden files and traverse hidden directories
+    include_hidden: bool = True
     # Maximum depth to search (default: 3)
     depth: int = 3
     # Maximum number of results to return (default: 100)

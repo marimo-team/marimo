@@ -23,6 +23,8 @@ from marimo._messaging.errors import (
     MarimoSQLError,
     UnknownError,
 )
+from marimo._messaging.notification import InterruptedNotification
+from marimo._messaging.notification_utils import broadcast_notification
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
 from marimo._runtime.context.types import safe_get_context
@@ -62,6 +64,7 @@ if TYPE_CHECKING:
     from collections import deque
 
     from marimo._ast.cell import CellImpl
+    from marimo._runtime.runner.hook_context import PostExecutionHookContext
     from marimo._runtime.runner.hooks import NotebookCellHooks
     from marimo._runtime.state import State
 
@@ -578,7 +581,7 @@ class Runner:
             as sample code to reproduce, will help us debug.
             %s
             """,
-                str(unexpected_failure),
+                unexpected_failure,
             )
 
         # Mark as interrupted if the cell raised a MarimoInterrupt
@@ -718,7 +721,7 @@ class Runner:
 
                 An exception raised attempting to continue debugger (%s).
                 """,
-                str(debugger_error),
+                debugger_error,
             )
 
     def _get_blamed_cell(
@@ -754,6 +757,33 @@ class Runner:
                     return defining_cell_id
         return None
 
+    def _run_post_execution_hooks(
+        self,
+        cell: CellImpl,
+        ctx: PostExecutionHookContext,
+        run_result: RunResult,
+    ) -> None:
+        try:
+            for post_hook in self._hooks.post_execution_hooks:
+                try:
+                    post_hook(cell, ctx, run_result)
+                except KeyboardInterrupt:
+                    self.interrupted = True
+                    LOGGER.info(
+                        "Cell %s interrupted during post-execution hook",
+                        cell.cell_id,
+                    )
+        finally:
+            # Cleanup must complete even if interrupted after updating local
+            # state but before broadcasting it to the frontend.
+            while True:
+                try:
+                    for finalize in self._hooks.finalization_hooks:
+                        finalize(cell, ctx, run_result)
+                    break
+                except KeyboardInterrupt:
+                    self.interrupted = True
+
     async def _run_one(
         self,
         cell_id: CellId_t,
@@ -770,8 +800,9 @@ class Runner:
                 with self.execution_context(cell_id) as exc_ctx:
                     run_result = await self.run(cell_id)
                     run_result.accumulated_output = exc_ctx.output
-                    for post_hook in self._hooks.post_execution_hooks:
-                        post_hook(cell, post_exec_ctx, run_result)
+                    self._run_post_execution_hooks(
+                        cell, post_exec_ctx, run_result
+                    )
             except KeyboardInterrupt:
                 LOGGER.error(
                     "A keyboard interrupt was raised but not handled by "
@@ -779,8 +810,7 @@ class Runner:
                 )
         else:
             run_result = await self.run(cell_id)
-            for post_hook in self._hooks.post_execution_hooks:
-                post_hook(cell, post_exec_ctx, run_result)
+            self._run_post_execution_hooks(cell, post_exec_ctx, run_result)
 
     async def run_all(self) -> None:
         from marimo._runtime.runner.hook_context import (
@@ -837,6 +867,12 @@ class Runner:
                 await self._dispatch_runnable(pre_exec_ctx, post_exec_ctx)
             except KeyboardInterrupt:
                 LOGGER.info("Runner interrupted via SIGINT")
+
+        if self.interrupted:
+            # Sent from normal control flow, not from the SIGINT handler.
+            # The handler can run nested inside itself and must not take
+            # the stream lock that this broadcast needs.
+            broadcast_notification(InterruptedNotification())
 
         finish_ctx = OnFinishHookContext(
             graph=self.graph,

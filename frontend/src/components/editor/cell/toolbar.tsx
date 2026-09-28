@@ -43,8 +43,19 @@ export const ToolbarItem: React.FC<ToolbarItemProps> = ({
 }) => {
   const content = (
     <button
+      type="button"
       disabled={disabled}
       {...rest}
+      onKeyDown={(evt) => {
+        // Preserve native button activation without triggering cell navigation.
+        if (
+          !Events.hasModifier(evt) &&
+          (evt.key === "Enter" || evt.key === " ")
+        ) {
+          evt.stopPropagation();
+        }
+        rest.onKeyDown?.(evt);
+      }}
       onClick={(evt) => {
         if (!disabled) {
           rest.onClick?.(evt);

@@ -116,7 +116,7 @@ describe("WidgetDefRegistry", () => {
   it("should remove from cache on import failure so retry creates new promise", async () => {
     const promise1 = getModule(registry, "http://localhost/a.js", "fail-hash");
     // The URL is rejected by the trusted-URL validator.
-    await expect(promise1).rejects.toThrow();
+    await expect(promise1).rejects.toThrow(/untrusted/i);
     // After failure, cache should be cleared, so next call creates a new promise
     const promise2 = getModule(registry, "http://localhost/a.js", "fail-hash");
     expect(promise1).not.toBe(promise2);

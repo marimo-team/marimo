@@ -22,6 +22,7 @@ export type FileTreeNode = Omit<FileInfo, "children"> & {
   isRoot: boolean;
   rootPath: string;
   isPrimaryRoot: boolean;
+  loadState?: "unloaded" | "loading" | "loaded" | "error";
 };
 
 /**
@@ -66,6 +67,7 @@ export class RequestingTree {
   }
 
   private roots: FileRoot[] = [];
+  private pendingExpansions = new Map<string, Promise<boolean>>();
   private onChange: (data: FileTreeNode[]) => void = Functions.NOOP;
   private path = new PathBuilder("/");
 
@@ -87,12 +89,7 @@ export class RequestingTree {
           const data = await this.callbacks.listFiles({
             path: primaryRoot.path,
           });
-          this.delegate.update({
-            id: this.getPrimaryRootId(),
-            changes: {
-              children: annotateFiles(data.files, primaryRoot),
-            },
-          });
+          this.updateDirectory(this.getPrimaryRootId(), data.files);
         }
       } catch (error) {
         toast({
@@ -105,24 +102,91 @@ export class RequestingTree {
     this.emitChange();
   };
 
-  async expand(id: string): Promise<boolean> {
+  expand(id: string): Promise<boolean> {
+    return this.requestDirectory(id);
+  }
+
+  private requestDirectory(id: string, force = false): Promise<boolean> {
+    const pending = this.pendingExpansions.get(id);
+    if (pending) {
+      return pending;
+    }
     const node = this.delegate.find(id);
     if (!node?.data.isDirectory) {
+      return Promise.resolve(false);
+    }
+
+    if (!force && node.data.loadState === "loaded") {
+      return Promise.resolve(true);
+    }
+
+    const request = this.loadDirectory(id, node.data).finally(() => {
+      this.pendingExpansions.delete(id);
+    });
+    this.pendingExpansions.set(id, request);
+    return request;
+  }
+
+  private async loadDirectory(
+    id: string,
+    node: FileTreeNode,
+  ): Promise<boolean> {
+    this.delegate.update({ id, changes: { loadState: "loading" } });
+    this.emitChange();
+    try {
+      const data = await this.callbacks.listFiles({ path: node.path });
+      this.updateDirectory(id, data.files);
+      return true;
+    } catch (error) {
+      this.delegate.update({ id, changes: { loadState: "error" } });
+      toast({
+        title: `Could not load ${node.name}`,
+        description: prettyError(error),
+      });
+      return false;
+    } finally {
+      this.emitChange();
+    }
+  }
+
+  getRoots(): readonly FileRoot[] {
+    return this.roots;
+  }
+
+  async reveal(node: FileTreeNode): Promise<boolean> {
+    const relative = relativePath(node.path as FilePath, node.rootPath);
+    if (relative === null) {
       return false;
     }
-
-    if (node.children && node.children.length > 0) {
-      return true;
+    let path = node.rootPath as FilePath;
+    const parts = relative.split(pathDelimiter(node.rootPath)).filter(Boolean);
+    if (!node.isDirectory) {
+      parts.pop();
     }
-
-    const data = await this.callbacks.listFiles({ path: node.data.path });
-    this.delegate.update({
-      id,
-      changes: {
-        children: annotateFiles(data.files, this.getRootForNode(node.data)),
-      },
-    });
-    this.emitChange();
+    for (const part of [null, ...parts]) {
+      if (part !== null) {
+        const parentId = fileTreeNodeId(node.rootPath, path);
+        path = joinPath(path, part);
+        // Search sees the live filesystem; a cached parent may not contain
+        // a directory that was created since its last listing.
+        if (!this.delegate.find(fileTreeNodeId(node.rootPath, path))) {
+          if (!(await this.requestDirectory(parentId, true))) {
+            return false;
+          }
+        }
+      }
+      const id = fileTreeNodeId(node.rootPath, path);
+      if (!this.delegate.find(id)) {
+        toast({
+          title: "Could not reveal folder",
+          description: `The folder may have moved or been deleted: ${path}`,
+        });
+        return false;
+      }
+      if (!(await this.expand(id))) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -252,7 +316,13 @@ export class RequestingTree {
         .map((id) => this.delegate.find(id)?.data.path)
         .filter((path): path is string => Boolean(path)),
     ];
-    await this.refreshPaths(paths);
+    await this.refreshPaths(
+      paths,
+      new Set([
+        ...this.roots.map((root) => fileTreeNodeId(root.path, root.path)),
+        ...ids,
+      ]),
+    );
   };
 
   refreshPath = async (path: FilePath): Promise<void> => {
@@ -344,8 +414,13 @@ export class RequestingTree {
     return node;
   }
 
-  private refreshPaths = async (paths: string[]): Promise<void> => {
-    const uniquePaths = [...new Set(paths)];
+  private refreshPaths = async (
+    paths: string[],
+    retainedIds?: ReadonlySet<string>,
+  ): Promise<void> => {
+    const uniquePaths = [...new Set(paths)].toSorted(
+      (left, right) => left.length - right.length,
+    );
     if (uniquePaths.length === 0) {
       return;
     }
@@ -360,29 +435,82 @@ export class RequestingTree {
       if (!result) {
         continue;
       }
-      // The same absolute path may appear below multiple overlapping roots.
-      // Refresh every occurrence, while keeping each occurrence in its own ID
-      // namespace and preserving its root metadata.
+      // Fetch overlapping paths once, but retain loaded folders independently
+      // for each root-qualified occurrence.
       for (const root of this.roots) {
-        const node = this.delegate.find(fileTreeNodeId(root.path, path));
-        if (!node?.data.isDirectory) {
-          continue;
+        const id = fileTreeNodeId(root.path, path);
+        if (!retainedIds || retainedIds.has(id)) {
+          this.updateDirectory(id, result.files, retainedIds);
         }
-        this.delegate.update({
-          id: node.id,
-          changes: {
-            children: annotateFiles(result.files, root),
-          },
-        });
       }
     }
     this.emitChange();
   };
 
+  private updateDirectory(
+    id: string,
+    files: FileInfo[],
+    retainedIds?: ReadonlySet<string>,
+  ): void {
+    const node = this.delegate.find(id)?.data;
+    if (!node?.isDirectory) {
+      return;
+    }
+    const children = mergeDirectoryChildren(
+      annotateFiles(files, this.getRootForNode(node)),
+      node.children,
+    );
+    this.delegate.update({
+      id,
+      changes: {
+        children: retainedIds
+          ? invalidateClosedDirectories(children, retainedIds)
+          : children,
+        loadState: "loaded",
+      },
+    });
+  }
+
   private emitChange(): void {
     const data = this.delegate.data;
-    this.onChange(this.roots.length === 1 ? (data[0]?.children ?? []) : data);
+    // SimpleTree mutates child arrays in place. Publish a new array so React
+    // observes completed directory loads even when the root is flattened.
+    this.onChange(
+      this.roots.length === 1 ? [...(data[0]?.children ?? [])] : data,
+    );
   }
+}
+
+function mergeDirectoryChildren(
+  files: FileTreeNode[],
+  previous: FileTreeNode[],
+): FileTreeNode[] {
+  const byId = new Map(previous.map((node) => [node.id, node]));
+  return files.map((file) => {
+    const old = byId.get(file.id);
+    if (!file.isDirectory || !old?.isDirectory) {
+      return file;
+    }
+    return { ...file, children: old.children, loadState: old.loadState };
+  });
+}
+
+function invalidateClosedDirectories(
+  files: FileTreeNode[],
+  openIds: ReadonlySet<string>,
+): FileTreeNode[] {
+  return files.map((file) => {
+    if (!file.isDirectory) {
+      return file;
+    }
+    if (!openIds.has(file.id)) {
+      return { ...file, children: [], loadState: "unloaded" };
+    }
+    return {
+      ...file,
+      children: invalidateClosedDirectories(file.children, openIds),
+    };
+  });
 }
 
 function toRootNode(root: FileRoot): FileTreeNode {
@@ -396,6 +524,7 @@ function toRootNode(root: FileRoot): FileTreeNode {
     isRoot: true,
     rootPath: root.path,
     isPrimaryRoot: root.isPrimary,
+    loadState: "unloaded",
   };
 }
 
@@ -404,6 +533,7 @@ function annotateFiles(files: FileInfo[], root: FileRoot): FileTreeNode[] {
     ...file,
     id: fileTreeNodeId(root.path, file.path),
     children: annotateFiles(file.children ?? [], root),
+    loadState: file.children?.length ? "loaded" : "unloaded",
     isRoot: false,
     rootPath: root.path,
     isPrimaryRoot: root.isPrimary,

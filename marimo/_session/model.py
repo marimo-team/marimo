@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
+
+StartupPhase = Literal["preparing-environment", "starting-kernel"]
 
 
 class ConnectionState(Enum):

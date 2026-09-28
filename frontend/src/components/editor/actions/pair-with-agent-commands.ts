@@ -3,6 +3,7 @@
 import { assertNever } from "@/utils/assertNever";
 import { KnownQueryParams } from "@/core/constants";
 import { shellQuote } from "@/utils/shell";
+import type { PairPreviewConfig } from "@/core/config/pair";
 
 export type AgentTab = "claude" | "codex" | "opencode" | "prompt";
 
@@ -37,8 +38,9 @@ function getFileFlag(file: string | undefined): string {
 /** Identifies the specific running notebook to pair on. */
 export interface ConnectionInfo {
   url: string;
-  /** The server's file key, when the page URL identifies a notebook. */
+  /** The server's file key or notebook filename, when known. */
   file?: string;
+  session?: string;
 }
 
 /**
@@ -47,19 +49,29 @@ export interface ConnectionInfo {
  */
 export function getTerminalCommand(
   agent: Exclude<AgentTab, "prompt">,
-  { url, file }: ConnectionInfo,
+  { url, file, session }: ConnectionInfo,
   withToken: boolean,
+  preview?: PairPreviewConfig,
 ): string {
-  const fileFlag = getFileFlag(file);
-  const tokenFlag = withToken ? " --with-token" : "";
-  const base = `${getMarimoCommand()} pair prompt --url ${shellQuote(url)}${fileFlag}${tokenFlag}`;
+  const command = preview?.command ?? getMarimoCommand();
+  const prefix = preview ? "MARIMO_PAIR_NEXT=1 " : "";
+  const base = [
+    `${prefix}${command} pair prompt`,
+    `--url ${shellQuote(url)}`,
+    file ? `--file ${shellQuote(file)}` : "",
+    preview && session ? `--session ${shellQuote(session)}` : "",
+    withToken ? "--with-token" : "",
+    preview ? "" : `--${agent}`,
+  ]
+    .filter(Boolean)
+    .join(preview ? " \\\n  " : " ");
   switch (agent) {
     case "claude":
-      return `claude "$(${base} --claude)"`;
+      return `claude "$(${base})"`;
     case "codex":
-      return `codex "$(${base} --codex)"`;
+      return `codex "$(${base})"`;
     case "opencode":
-      return `opencode --prompt "$(${base} --opencode)"`;
+      return `opencode --prompt "$(${base})"`;
     default:
       assertNever(agent);
   }
@@ -71,9 +83,23 @@ export function getTerminalCommand(
  * an agent behaves the same as the terminal commands.
  */
 export function getRawPrompt(
-  { url, file }: ConnectionInfo,
+  { url, file, session }: ConnectionInfo,
   token: string | null,
+  preview?: PairPreviewConfig,
 ): string {
+  if (preview) {
+    const { command, templates } = preview;
+    return formatPrompt(templates.prompt, {
+      command,
+      url,
+      file: file ? formatPrompt(templates.file, { file }) : "",
+      session: session ? formatPrompt(templates.session, { session }) : "",
+      authentication: token
+        ? formatPrompt(templates.token, { token: shellQuote(token) })
+        : "",
+    });
+  }
+
   const fileFlag = getFileFlag(file);
   const fileHint = file ? ` (file ${file})` : "";
   const executeCmd = `execute-code.sh --url ${shellQuote(url)}${fileFlag}`;
@@ -89,6 +115,17 @@ export function getRawPrompt(
     "",
     "Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.",
   ].join("\n");
+}
+
+function formatPrompt(
+  template: string,
+  values: Record<string, string>,
+): string {
+  // Replace once so inserted file names or tokens cannot become placeholders.
+  return template.replaceAll(
+    /\{(\w+)\}/g,
+    (placeholder, key: string) => values[key] ?? placeholder,
+  );
 }
 
 /** Mask all but the last 4 chars of a token for display. */

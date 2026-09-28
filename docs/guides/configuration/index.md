@@ -40,7 +40,7 @@ You can customize the following settings:
 - Completion (auto-completion, AI copilot, etc.)
 - Display (theme, font size, output placement, etc.)
 - Autosave
-- [Package management](../editor_features/package_management.md#package-management)
+- [Package management](../package_management/installing_packages.md)
 - Server settings
 - [VIM keybindings](../editor_features/overview.md#vim-keybindings)
 - Formatting settings

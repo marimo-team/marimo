@@ -407,9 +407,18 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
         os.environ['VAR_NAME'] = 'VALUE'
         """
 
-        del command
-        _key, value = source.split("=", 1)
-        return f"import os\nos.environ[{_key!r}] = {value!r}"
+        if "=" not in source:
+            return magic_remove(source, command)
+        key, value = source.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if (
+            len(value) >= 2
+            and value[0] == value[-1]
+            and value[0] in ("'", '"')
+        ):
+            value = value[1:-1]
+        return f"import os\nos.environ[{key!r}] = {value!r}"
 
     def comment_out_code(source: str) -> str:
         if source.strip():
@@ -1298,10 +1307,11 @@ def bind_cell_metadata(
             CodeCell(
                 source=source,
                 name=name,
-                config=CellConfig(
-                    hide_code=hide_code,
-                    column=marimo_config.get("column"),
-                    disabled=marimo_config.get("disabled", False),
+                # Restore every config key the exporter wrote (column,
+                # disabled, expand_output, ...); hide_code is resolved above
+                # since tags and Jupyter hints can also set it.
+                config=CellConfig.from_dict(
+                    {**marimo_config, "hide_code": hide_code}
                 ),
             )
         )
@@ -1382,8 +1392,8 @@ def build_metadata(
     Uses PyProjectReader utilities to parse existing metadata and properly
     merge dependencies.
     """
+    from marimo._environments import script_metadata
     from marimo._utils.inline_script_metadata import PyProjectReader
-    from marimo._utils.scripts import write_pyproject_to_script
 
     # If no exclamation mark processing happened or no packages found
     if not extra_metadata or not extra_metadata.pip_packages:
@@ -1407,7 +1417,7 @@ def build_metadata(
         project = {"dependencies": pip_packages}
 
     # Convert project dict to PEP 723 format using utility
-    return write_pyproject_to_script(project)
+    return script_metadata.dumps(project)
 
 
 def _transform_sources(

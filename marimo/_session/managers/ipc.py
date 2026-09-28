@@ -7,25 +7,32 @@ via ZeroMQ channels. Each notebook gets its own sandboxed virtual environment.
 
 from __future__ import annotations
 
+import asyncio
 import os
+import signal
 import subprocess
+import sys
+import threading
+from collections import deque
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
+from uuid import uuid4
 
 from marimo import _loggers
-from marimo._cli.sandbox import (
-    build_sandbox_venv,
-    cleanup_sandbox_dir,
-)
 from marimo._config.config import VenvConfig
 from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._environments.overlay import runtime_overlay
+from marimo._messaging.notification import (
+    NotificationMessage,
+    StartupProgressNotification,
+)
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
+from marimo._runtime.packages.operations import environment_operation
 from marimo._session._venv import (
     check_python_version_compatibility,
     get_configured_venv_python,
-    get_ipc_kernel_deps,
     get_kernel_pythonpath,
     has_marimo_installed,
     install_marimo_into_venv,
@@ -35,15 +42,21 @@ from marimo._session.queue import ProcessLike, QueueType, route_control_request
 from marimo._session.types import KernelManager, QueueManager
 from marimo._utils.subprocess import (
     interrupt_kernel_process,
+    stop_subprocess,
     try_kill_process_and_group,
 )
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Literal
+
     from marimo._ast.cell import CellConfig
+    from marimo._environments.sandbox import NotebookSandbox
     from marimo._ipc.queue_manager import QueueManager as IPCQueueManagerType
     from marimo._ipc.types import ConnectionInfo
     from marimo._runtime.commands import AppMetadata
+    from marimo._runtime.virtual_file.storage import VirtualFileStorageType
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
@@ -53,6 +66,56 @@ def _get_venv_config(config_manager: MarimoConfigReader) -> VenvConfig:
     """Get the [tool.marimo.venv] config from a config manager."""
     config = config_manager.get_config(hide_secrets=False)
     return cast(VenvConfig, config.get("venv", {}))
+
+
+# How long close_kernel waits for the kernel to dump its profile, and
+# for a graceful exit, before killing it. Bounded: the live server
+# closes sessions on the event loop, which must not stall indefinitely.
+PROFILE_FLUSH_TIMEOUT: float = 10.0
+GRACEFUL_EXIT_TIMEOUT: float = 5.0
+
+# How long start_kernel waits for KERNEL_READY. Generous by default: a
+# cold uv resolution of the notebook's environment can take minutes.
+KERNEL_STARTUP_TIMEOUT: float = 600.0
+
+
+def _startup_timeout() -> float:
+    raw = os.environ.get("MARIMO_KERNEL_STARTUP_TIMEOUT")
+    if raw:
+        try:
+            return float(raw)
+        except ValueError:
+            LOGGER.warning(
+                "Ignoring invalid MARIMO_KERNEL_STARTUP_TIMEOUT: %s", raw
+            )
+    return KERNEL_STARTUP_TIMEOUT
+
+
+def _profile_path_for(filename: str | None) -> str | None:
+    """Where this kernel dumps profile statistics, if profiling is on."""
+    profile_dir = GLOBAL_SETTINGS.PROFILE_DIR
+    if profile_dir is None:
+        return None
+    basename = (
+        os.path.basename(filename) + str(uuid4())
+        if filename is not None
+        else str(uuid4())
+    )
+    return os.path.join(profile_dir, basename)
+
+
+def _virtual_file_storage() -> VirtualFileStorageType | None:
+    """Storage for the kernel's virtual files.
+
+    Shared memory, so the server's /@file endpoint can read buffers the
+    kernel subprocess wrote. `marimo run` does not preflight shared
+    memory the way `marimo edit` does, so fall back to None (inline data
+    URLs) where it is unavailable rather than failing kernel startup.
+    """
+    from marimo._utils.platform import check_shared_memory_available
+
+    available, _ = check_shared_memory_available()
+    return "shared_memory" if available else None
 
 
 class KernelStartupError(Exception):
@@ -128,6 +191,27 @@ class IPCQueueManagerImpl(QueueManager):
         self.input_queue.put(text)
 
 
+def _decode_tail(tail: deque[bytes]) -> str:
+    return b"".join(tail).decode(errors="replace")
+
+
+def _parse_kernel_info(line: str) -> tuple[int | None, str | None]:
+    """Parses the optional `KERNEL_INFO <pid> <executable>` line.
+
+    Tolerates absence and shorter forms for version skew with kernels
+    that predate the line.
+    """
+    parts = line.split(" ", 2)
+    if len(parts) < 2 or parts[0] != "KERNEL_INFO":
+        return None, None
+    try:
+        pid = int(parts[1])
+    except ValueError:
+        return None, None
+    executable = parts[2] if len(parts) > 2 and parts[2] else None
+    return pid, executable
+
+
 def construct_kernel_env(
     base_env: dict[str, str],
     venv_python: str,
@@ -141,8 +225,8 @@ def construct_kernel_env(
     Args:
         base_env: Starting environment (typically `os.environ.copy()`).
         venv_python: Path to the Python executable in the target venv.
-        is_ephemeral_sandbox: Whether this is an ephemeral sandbox venv
-            built by `build_sandbox_venv`.
+        is_ephemeral_sandbox: Whether the kernel runs in a sandbox venv
+            rather than a configured one.
         writable: Whether the kernel venv supports package installs.
         kernel_pythonpath: Extra PYTHONPATH entries for read-only
             configured venvs that don't have marimo installed.
@@ -151,6 +235,13 @@ def construct_kernel_env(
         A **new** dict with the appropriate overrides applied.
     """
     env = dict(base_env)
+
+    # Sandbox identity is per-kernel, not inherited: a configured venv
+    # kernel inside a sandboxed server must not route package changes
+    # through a script environment it does not run in.
+    env.pop("MARIMO_SANDBOX_MODE", None)
+    env.pop("MARIMO_SANDBOX_BACKEND", None)
+    env.pop("MARIMO_MANAGE_SCRIPT_METADATA", None)
 
     if kernel_pythonpath is not None:
         existing = env.get("PYTHONPATH", "")
@@ -191,6 +282,7 @@ class IPCKernelManagerImpl(KernelManager):
         app_metadata: AppMetadata,
         config_manager: MarimoConfigReader,
         redirect_console_to_browser: bool = True,
+        on_notification: Callable[[NotificationMessage], None] | None = None,
     ) -> None:
         self.queue_manager = queue_manager
         self.connection_info = connection_info
@@ -199,13 +291,24 @@ class IPCKernelManagerImpl(KernelManager):
         self.app_metadata = app_metadata
         self.config_manager = config_manager
         self.redirect_console_to_browser = redirect_console_to_browser
+        self._notify = on_notification or (lambda _: None)
 
         self._process: subprocess.Popen[bytes] | None = None
+        self._start_new_session = False
         self.kernel_task: ProcessLike | None = None
-        self._sandbox_dir: str | None = None
         self._venv_python: str | None = None
+        self._profile_path = _profile_path_for(app_metadata.filename)
+        self._notebook_sandbox: NotebookSandbox | None = None
+        # The kernel's own pid: a launcher such as uv may sit between the
+        # manager and the kernel, so _process.pid is not the kernel.
+        self._kernel_pid: int | None = None
 
-    def start_kernel(self) -> None:
+    @property
+    def notebook_sandbox(self) -> NotebookSandbox | None:
+        """The session-owned notebook sandbox, if this kernel uses one."""
+        return self._notebook_sandbox
+
+    async def start_kernel(self) -> None:
         from marimo._cli.print import echo, muted
         from marimo._ipc.types import KernelArgs
 
@@ -214,149 +317,348 @@ class IPCKernelManagerImpl(KernelManager):
             app_metadata=self.app_metadata,
             user_config=self.config_manager.get_config(hide_secrets=False),
             log_level=GLOBAL_SETTINGS.LOG_LEVEL,
-            profile_path=None,
+            profile_path=self.profile_path,
             connection_info=self.connection_info,
             is_run_mode=self.mode == SessionMode.RUN,
             redirect_console_to_browser=self.redirect_console_to_browser,
             parent_pid=os.getpid(),
+            virtual_file_storage=_virtual_file_storage(),
         )
 
-        venv_config = _get_venv_config(self.config_manager)
-        try:
-            configured_python = get_configured_venv_python(
-                venv_config, base_path=self.app_metadata.filename
+        self._notify(
+            StartupProgressNotification(
+                phase="preparing-environment", logs="", log_mode="replace"
             )
-        except ValueError as e:
-            raise KernelStartupError(str(e)) from e
+        )
+        with environment_operation(
+            "prepare", {}, "kernel", self._notify
+        ) as operation:
+            venv_config = _get_venv_config(self.config_manager)
+            try:
+                configured_python = get_configured_venv_python(
+                    venv_config, base_path=self.app_metadata.filename
+                )
+            except ValueError as e:
+                raise KernelStartupError(str(e)) from e
 
-        # Ephemeral sandboxes are always writable; configured venvs respect the
-        # flag.
-        writable = True
-        is_ephemeral_sandbox = False
-        kernel_pythonpath: str | None = None
+            # Ephemeral sandboxes are always writable; configured venvs respect the
+            # flag.
+            writable = True
+            kernel_pythonpath: str | None = None
 
-        # An explicitly configured venv takes precedence over an ephemeral
-        # sandbox.
-        if configured_python:
-            echo(
-                f"Using configured venv: {muted(configured_python)}",
-                err=True,
-            )
-            venv_python = configured_python
+            # An explicitly configured venv takes precedence over an ephemeral
+            # sandbox.
+            if configured_python:
+                echo(
+                    f"Using configured venv: {muted(configured_python)}",
+                    err=True,
+                )
+                venv_python = configured_python
 
-            writable = venv_config.get("writable", False)
+                writable = venv_config.get("writable", False)
 
-            # Configured environments are assumed to be read-only.
-            # If not, then install marimo by default to ensure that the
-            # environment can spawn a marimo kernel.
-            if writable:
+                # Configured environments are assumed to be read-only.
+                # If not, then install marimo by default to ensure that the
+                # environment can spawn a marimo kernel.
+                if writable:
+                    try:
+                        await install_marimo_into_venv(
+                            venv_python,
+                            on_output=lambda line: operation.update(
+                                {"environment": line}
+                            ),
+                        )
+                    except Exception as e:
+                        raise KernelStartupError(
+                            f"Failed to install marimo into configured venv.\n\n{e}"
+                        ) from e
+                elif not await has_marimo_installed(venv_python):
+                    # Check Python version compatibility for binary deps
+                    if not await check_python_version_compatibility(
+                        venv_python
+                    ):
+                        # If we have gotten to this point
+                        # - We have a prescribed venv
+                        # - The venv is not writable
+                        # - The venv does not contain marimo nor zmq
+                        # As such there is nothing we can do, as we can't get marimo
+                        # into the runtime without installing it somewhere else.
+                        raise KernelStartupError(
+                            f"Configured venv uses a different Python version than marimo.\n"
+                            f"Binary dependencies (pyzmq, msgspec) aren't cross-version compatible.\n\n"
+                            f"Options:\n"
+                            f"  1. Set writable=true in [tool.marimo.venv] to allow marimo to install deps\n"
+                            f"  2. Install marimo in your venv: uv pip install marimo --python {venv_python}\n"
+                            f"  3. Remove [tool.marimo.venv].path to use an ephemeral sandbox instead"
+                        )
+
+                    # Inject PYTHONPATH for marimo and dependencies from the
+                    # current runtime as a last chance effort to expose marimo
+                    # to the kernel.
+                    kernel_pythonpath = get_kernel_pythonpath()
+                # Store the venv python for package manager targeting
+                self._venv_python = venv_python
+                env = construct_kernel_env(
+                    base_env=os.environ.copy(),
+                    venv_python=venv_python,
+                    is_ephemeral_sandbox=False,
+                    writable=writable,
+                    kernel_pythonpath=kernel_pythonpath,
+                )
+                cmd: list[str] = [
+                    venv_python,
+                    "-m",
+                    "marimo._ipc.launch_kernel",
+                ]
+                plan_launched = False
+            else:
+                # The session retains this Interface so rename and package API
+                # operations update the same Manifest binding and Environment.
+                from marimo._environments import backends
+                from marimo._environments.errors import EnvironmentManagerError
+                from marimo._environments.sandbox import NotebookSandbox
+
+                backend = backends.current_backend()
+                kernel_args_list = ["-m", "marimo._ipc.launch_kernel"]
+                overlay = runtime_overlay()
+                filename = self.app_metadata.filename
+                sandbox = NotebookSandbox(filename, backend)
                 try:
-                    install_marimo_into_venv(venv_python)
-                except Exception as e:
+                    plan = await sandbox.launch_async(
+                        kernel_args_list,
+                        overlay=overlay,
+                        base_env=os.environ.copy(),
+                        on_output=lambda line: operation.update(
+                            {"environment": line}
+                        ),
+                    )
+                except EnvironmentManagerError as e:
+                    sandbox.close()
                     raise KernelStartupError(
-                        f"Failed to install marimo into configured venv.\n\n{e}"
+                        f"Failed to build sandbox environment.\n\n{e}"
                     ) from e
-            elif not has_marimo_installed(venv_python):
-                # Check Python version compatibility for binary deps
-                if not check_python_version_compatibility(venv_python):
-                    # If we have gotten to this point
-                    # - We have a prescribed venv
-                    # - The venv is not writable
-                    # - The venv does not contain marimo nor zmq
-                    # As such there is nothing we can do, as we can't get marimo
-                    # into the runtime without installing it somewhere else.
+                except BaseException:
+                    sandbox.close()
+                    raise
+                handle = sandbox.environment
+                if handle is None:
+                    sandbox.close()
                     raise KernelStartupError(
-                        f"Configured venv uses a different Python version than marimo.\n"
-                        f"Binary dependencies (pyzmq, msgspec) aren't cross-version compatible.\n\n"
-                        f"Options:\n"
-                        f"  1. Set writable=true in [tool.marimo.venv] to allow marimo to install deps\n"
-                        f"  2. Install marimo in your venv: uv pip install marimo --python {venv_python}\n"
-                        f"  3. Remove [tool.marimo.venv].path to use an ephemeral sandbox instead"
+                        "Failed to build sandbox environment: no Environment was returned"
                     )
 
-                # Inject PYTHONPATH for marimo and dependencies from the
-                # current runtime as a last chance effort to expose marimo
-                # to the kernel.
-                kernel_pythonpath = get_kernel_pythonpath()
-        else:
-            # Fall back to building ephemeral sandbox venv
-            # with IPC dependencies.
-            # NB. "Ephemeral" sandboxes (or rather tmp sandboxes built by uv)
-            # are always writable, and as such install marimo as a default,
-            # making them much easier than a configured venv we cannot manage.
-            is_ephemeral_sandbox = True
-            try:
-                self._sandbox_dir, venv_python = build_sandbox_venv(
-                    self.app_metadata.filename,
-                    additional_deps=get_ipc_kernel_deps(),
+                self._notebook_sandbox = sandbox
+                self._venv_python = handle.python
+                echo(
+                    f"Running kernel in script environment: {muted(handle.root)}",
+                    err=True,
                 )
-            except Exception as e:
-                cleanup_sandbox_dir(self._sandbox_dir)
-                raise KernelStartupError(
-                    f"Failed to build sandbox environment.\n\n{e}"
-                ) from e
 
-            echo(
-                f"Running kernel in sandbox: {muted(venv_python)}",
-                err=True,
-            )
+                plan_launched = True
+                env = plan.env
+                env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+                env["MARIMO_SANDBOX_MODE"] = "multi"
+                env["MARIMO_SANDBOX_BACKEND"] = backend
+                cmd = list(plan.argv)
 
-        # Store the venv python for package manager targeting
-        self._venv_python = venv_python
-
-        env = construct_kernel_env(
-            base_env=os.environ.copy(),
-            venv_python=venv_python,
-            is_ephemeral_sandbox=is_ephemeral_sandbox,
-            writable=writable,
-            kernel_pythonpath=kernel_pythonpath,
+        self._start_new_session = (
+            plan.start_new_session if plan_launched else False
         )
-
-        cmd = [venv_python, "-m", "marimo._ipc.launch_kernel"]
-
         LOGGER.debug(f"Launching kernel: {' '.join(cmd)}")
+        handshake: asyncio.Future[list[str]] | None = None
+        loop = asyncio.get_running_loop()
+        streaming_startup = True
+
+        def report_startup_output(line: str) -> None:
+            if streaming_startup:
+                self._notify(
+                    StartupProgressNotification(
+                        phase="starting-kernel", logs=line, log_mode="append"
+                    )
+                )
 
         try:
-            self._process = subprocess.Popen(
+            self._notify(
+                StartupProgressNotification(
+                    phase="starting-kernel", logs="", log_mode="replace"
+                )
+            )
+            self._process = subprocess.Popen(  # noqa: ASYNC220 — owns the child before yielding
                 cmd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=env,
+                start_new_session=self._start_new_session,
             )
 
-            # Send connection info via stdin
-            assert self._process.stdin is not None
-            self._process.stdin.write(kernel_args.encode_json())
-            self._process.stdin.flush()
-            self._process.stdin.close()
+            # Drain the kernel's stderr from the very start: uv resolves
+            # the overlay at launch time, and its output can fill the
+            # pipe before the kernel ever prints KERNEL_READY,
+            # deadlocking startup. Tee to the server's stderr as the
+            # kernel's console, keeping a tail for startup diagnostics.
+            process = self._process
+            stderr_tail: deque[bytes] = deque(maxlen=64)
 
-            # Wait for ready signal
-            assert self._process.stdout is not None
-            ready = self._process.stdout.readline().decode().strip()
+            def drain_output(stream: Literal["stdout", "stderr"]) -> None:
+                pipe = process.stderr if stream == "stderr" else process.stdout
+                assert pipe is not None
+                with pipe:
+                    for line in iter(pipe.readline, b""):
+                        if stream == "stderr":
+                            stderr_tail.append(line)
+                            if streaming_startup:
+                                # Windows pipes carry CRLF; keep one stream shape.
+                                text = line.decode(
+                                    "utf-8", errors="replace"
+                                ).replace("\r\n", "\n")
+                                try:
+                                    loop.call_soon_threadsafe(
+                                        report_startup_output, text
+                                    )
+                                except RuntimeError:
+                                    if not loop.is_closed():
+                                        raise
+                        try:
+                            output = getattr(sys, stream).buffer
+                            output.write(line)
+                            output.flush()
+                        except Exception:
+                            pass
+
+            threading.Thread(
+                target=drain_output, args=("stderr",), daemon=True
+            ).start()
+
+            # Pipe I/O stays on a thread for Windows selector loops. EOF
+            # wakes the awaiter just like a handshake; no liveness polling.
+            expected_lines = 2 if plan_launched else 1
+
+            def exchange_handshake() -> list[str]:
+                assert process.stdin is not None
+                assert process.stdout is not None
+                with process.stdin:
+                    process.stdin.write(kernel_args.encode_json())
+                    process.stdin.flush()
+                try:
+                    lines = [
+                        process.stdout.readline().decode().strip()
+                        for _ in range(expected_lines)
+                    ]
+                finally:
+                    # Notebook subprocesses can inherit this pipe for stdout.
+                    # Keep draining it without occupying an executor worker
+                    # for the kernel's lifetime.
+                    threading.Thread(
+                        target=drain_output, args=("stdout",), daemon=True
+                    ).start()
+                if not all(lines):
+                    process.wait()
+                return lines
+
+            handshake = loop.run_in_executor(None, exchange_handshake)
+            exited: asyncio.Future[int] = loop.create_future()
+
+            def report_exit(code: int) -> None:
+                if not exited.done():
+                    exited.set_result(code)
+
+            def watch_exit() -> None:
+                code = process.wait()
+                try:
+                    loop.call_soon_threadsafe(report_exit, code)
+                except RuntimeError:
+                    pass  # The server's event loop has already closed.
+
+            # A descendant can retain the launcher's pipes after it exits.
+            # Watch exit separately so that case fails promptly too. This
+            # daemon must not occupy an executor worker for the kernel's life.
+            threading.Thread(target=watch_exit, daemon=True).start()
+            try:
+                done, _ = await asyncio.wait(
+                    (handshake, exited),
+                    timeout=_startup_timeout(),
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if not done:
+                    raise asyncio.TimeoutError
+                if handshake not in done:
+                    # Let the reader finish lines printed immediately before
+                    # exit, but don't wait on pipes inherited by descendants.
+                    try:
+                        await asyncio.wait_for(asyncio.shield(handshake), 0.5)
+                    except asyncio.TimeoutError:
+                        raise KernelStartupError(
+                            f"Kernel exited during startup (exit code {exited.result()})."
+                        ) from None
+                lines = handshake.result()
+            finally:
+                exited.cancel()
+            if not all(lines):
+                raise KernelStartupError(
+                    f"Kernel exited during startup "
+                    f"(exit code {process.returncode}).\n\n"
+                    f"Command: {' '.join(cmd)}\n\n"
+                    f"Stderr:\n{_decode_tail(stderr_tail)}"
+                )
+            ready = lines[0]
             if ready != "KERNEL_READY":
-                assert self._process.stderr is not None
-                stderr = self._process.stderr.read().decode()
                 raise KernelStartupError(
                     f"Kernel failed to start.\n\n"
                     f"Command: {' '.join(cmd)}\n\n"
-                    f"Stderr:\n{stderr}"
+                    f"Stderr:\n{_decode_tail(stderr_tail)}"
                 )
+
+            if plan_launched:
+                info = lines[1]
+                kernel_pid, kernel_executable = _parse_kernel_info(info)
+                self._kernel_pid = kernel_pid
+                if self._venv_python is None and kernel_executable is not None:
+                    # An ephemeral kernel's environment is only knowable
+                    # from the kernel itself; the server package panel
+                    # targets it.
+                    self._venv_python = kernel_executable
 
             LOGGER.debug("Kernel ready")
 
             # Create a ProcessLike wrapper for the subprocess
             self.kernel_task = _SubprocessWrapper(self._process)
+        except asyncio.TimeoutError as e:
+            raise KernelStartupError(
+                f"Kernel did not become ready within {_startup_timeout():.0f}s "
+                f"(override with MARIMO_KERNEL_STARTUP_TIMEOUT).\n\n"
+                f"Command: {' '.join(cmd)}\n\n"
+                f"Stderr:\n{_decode_tail(stderr_tail)}"
+            ) from e
         except KernelStartupError:
-            # Already a KernelStartupError, just cleanup and re-raise
-            cleanup_sandbox_dir(self._sandbox_dir)
             raise
         except Exception as e:
             # Wrap other exceptions as KernelStartupError
-            cleanup_sandbox_dir(self._sandbox_dir)
             raise KernelStartupError(
                 f"Failed to start kernel subprocess.\n\n{e}"
             ) from e
+        finally:
+            try:
+                if self.kernel_task is None:
+                    await self._cleanup_failed_start(handshake)
+            finally:
+                streaming_startup = False
+
+    async def _cleanup_failed_start(
+        self, handshake: asyncio.Future[list[str]] | None = None
+    ) -> None:
+        """Release resources retained before the startup handshake."""
+        try:
+            if self._process is not None:
+                await stop_subprocess(
+                    self._process,
+                    start_new_session=self._start_new_session,
+                    drain=handshake,
+                )
+        finally:
+            if self._notebook_sandbox is not None:
+                self._notebook_sandbox.close()
+                self._notebook_sandbox = None
 
     @property
     def pid(self) -> int | None:
@@ -366,8 +668,7 @@ class IPCKernelManagerImpl(KernelManager):
 
     @property
     def profile_path(self) -> str | None:
-        # Profiling not currently supported with IPC kernel
-        return None
+        return self._profile_path
 
     @property
     def venv_python(self) -> str | None:
@@ -385,18 +686,47 @@ class IPCKernelManagerImpl(KernelManager):
 
         if self._process.pid is not None and self.is_alive():
             interrupt_kernel_process(
-                self._process.pid,
+                self._kernel_pid or self._process.pid,
                 self.queue_manager.win32_interrupt_queue,
             )
 
     def close_kernel(self, *, graceful: bool = False) -> None:
-        del graceful  # unsupported here: IPC shutdown never waits for exit.
         if self._process is not None:
             self.queue_manager.put_control_request(
                 commands.StopKernelCommand()
             )
+            # A clean stop lets the kernel flush pending work (the
+            # profile dump, cache writes) before we kill it. Unlike the
+            # multiprocessing manager, every wait here is bounded.
+            if self.profile_path is not None and self.is_alive():
+                from marimo._cli.print import echo
+
+                echo(
+                    f"\tWriting profile statistics to {self.profile_path} ..."
+                )
+                # The kernel dumps stats just before exiting, so a
+                # completed exit means a complete file. (The
+                # multiprocessing manager polls for the file instead
+                # because joining its Process hangs; subprocess.wait
+                # has no such problem.)
+                try:
+                    self._process.wait(timeout=PROFILE_FLUSH_TIMEOUT)
+                except subprocess.TimeoutExpired:
+                    pass
             self.queue_manager.close_queues()
+            if graceful and self._process.poll() is None:
+                try:
+                    self._process.wait(timeout=GRACEFUL_EXIT_TIMEOUT)
+                except subprocess.TimeoutExpired:
+                    pass
             if self._process.poll() is None and self.kernel_task is not None:
+                # The kernel leads its own process group; kill it first
+                # so user-code subprocesses die too, then the launcher.
+                if self._kernel_pid is not None and sys.platform != "win32":
+                    try:
+                        os.killpg(os.getpgid(self._kernel_pid), signal.SIGTERM)
+                    except (ProcessLookupError, PermissionError):
+                        pass
                 try:
                     try_kill_process_and_group(self.kernel_task)
                 except ProcessLookupError:
@@ -405,8 +735,8 @@ class IPCKernelManagerImpl(KernelManager):
                     LOGGER.warning(e)
 
         # Always attempt cleanup, even if _process is None
-        cleanup_sandbox_dir(self._sandbox_dir)
-        self._sandbox_dir = None
+        if self._notebook_sandbox is not None:
+            self._notebook_sandbox.close()
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:

@@ -220,6 +220,67 @@ describe("transitionCell serialization", () => {
 });
 
 describe("transitionCell stdin resolution", () => {
+  describe.each([
+    {
+      name: "interrupted",
+      message: {
+        output: {
+          channel: "marimo-error",
+          mimetype: "application/vnd.marimo+error",
+          data: [{ type: "interruption" }],
+          timestamp: 1,
+        },
+      } as CellMessage,
+    },
+    {
+      name: "idle",
+      message: { status: "idle" } as CellMessage,
+    },
+  ])("when $name", ({ name, message }) => {
+    it.each(["text/plain", "text/password"] as const)(
+      "preserves a processed %s prompt",
+      (mimetype) => {
+        const prompt: OutputMessage = {
+          channel: "stdin",
+          mimetype,
+          data: "Enter a value: ",
+          timestamp: 0,
+        };
+        const waiting = transitionCell(
+          createCellRuntimeState({ status: "running" }),
+          { console: prompt } as CellMessage,
+        );
+        const resolved = transitionCell(waiting, message);
+
+        expect(resolved.interrupted).toBe(name === "interrupted");
+        expect(resolved.consoleOutputs[0]).toMatchObject({
+          ...prompt,
+          response: "",
+        });
+      },
+    );
+
+    it.each(["text/plain", "text/password"] as const)(
+      "preserves an existing %s response",
+      (mimetype) => {
+        const prompt = {
+          channel: "stdin" as const,
+          mimetype,
+          data: "Enter a value: ",
+          timestamp: 0,
+          response: "submitted value",
+        };
+        const answered = createCellRuntimeState({
+          status: "running",
+          consoleOutputs: [prompt],
+        });
+        const resolved = transitionCell(answered, message);
+
+        expect(resolved.consoleOutputs).toEqual([prompt]);
+      },
+    );
+  });
+
   function stdinOutput(): OutputMessage {
     return {
       channel: "stdin",

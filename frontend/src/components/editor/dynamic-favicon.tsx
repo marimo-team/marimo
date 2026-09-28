@@ -22,6 +22,19 @@ async function getFaviconUrl(key: FaviconKey): Promise<string> {
   return FAVICON_PATHS[key];
 }
 
+function getOrCreateFavicon(): HTMLLinkElement {
+  const existingFavicon =
+    document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+  if (existingFavicon) {
+    return existingFavicon;
+  }
+
+  const favicon = document.createElement("link");
+  favicon.rel = "icon";
+  document.head.append(favicon);
+  return favicon;
+}
+
 interface Props {
   isRunning: boolean;
 }
@@ -64,16 +77,9 @@ export const DynamicFavicon = (props: Props) => {
   const { isRunning } = props;
   const errors = useCellErrors();
 
-  let favicon: HTMLLinkElement | null =
-    document.querySelector("link[rel~='icon']");
-
-  if (!favicon) {
-    favicon = document.createElement("link");
-    favicon.rel = "icon";
-    document.getElementsByTagName("head")[0].append(favicon);
-  }
-
   useEffect(() => {
+    const favicon = getOrCreateFavicon();
+
     // No change on startup (autorun enabled or not)
     // Treat the default marimo favicon as "idle"
     if (!isRunning && favicon.href.includes("favicon")) {
@@ -105,7 +111,7 @@ export const DynamicFavicon = (props: Props) => {
     };
 
     updateFavicon();
-  }, [isRunning, errors, favicon]);
+  }, [isRunning, errors]);
 
   // Send user notification when run has completed
   const prevRunning = usePrevious(isRunning) ?? isRunning;
@@ -118,6 +124,7 @@ export const DynamicFavicon = (props: Props) => {
   // When notebook comes back in focus, reset favicon
   useEventListener(window, "focus", async (_) => {
     if (!isRunning) {
+      const favicon = getOrCreateFavicon();
       favicon.href = await getFaviconUrl("idle");
     }
   });

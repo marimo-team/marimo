@@ -28,7 +28,7 @@ def test_google_docstring_to_markdown_summary():
 
     Examples:
         ```python
-        print('Hello, world!')
+        print("Hello, world!")
         print(foo, bar)
         ```
     """
@@ -50,7 +50,7 @@ def test_google_docstring_to_markdown_summary():
         "ValueError",
         "# Examples",
         "```python",
-        "print('Hello, world!')",
+        'print("Hello, world!")',
     ]:
         assert substr in md_result
 

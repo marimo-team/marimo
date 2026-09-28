@@ -153,6 +153,7 @@ describe("toDocumentChanges", () => {
             "config": {
               "column": null,
               "disabled": false,
+              "expand_output": false,
               "hide_code": false,
             },
             "name": "_",
@@ -183,6 +184,7 @@ describe("toDocumentChanges", () => {
             "config": {
               "column": null,
               "disabled": false,
+              "expand_output": false,
               "hide_code": false,
             },
             "name": "_",
@@ -229,7 +231,31 @@ describe("toDocumentChanges", () => {
             "cellId": "0",
             "column": null,
             "disabled": false,
+            "expandOutput": false,
             "hideCode": true,
+            "type": "set-config",
+          },
+        ]
+      `);
+    });
+
+    it("maps expand_output to expandOutput in set-config", () => {
+      setup("a");
+      const [a] = state.cellIds.inOrderIds;
+
+      const { changes } = resolve(state, {
+        type: "updateCellConfig",
+        payload: { cellId: a, config: { expand_output: true } },
+      });
+
+      expect(changes).toMatchInlineSnapshot(`
+        [
+          {
+            "cellId": "0",
+            "column": null,
+            "disabled": false,
+            "expandOutput": true,
+            "hideCode": false,
             "type": "set-config",
           },
         ]
@@ -246,13 +272,14 @@ describe("toDocumentChanges", () => {
           before: false,
           code: "hidden",
           newCellId: CellId.create(),
+          config: { expand_output: true },
           hideCode: true,
         },
       });
 
       expect(changes[0]).toMatchObject({
         type: "create-cell",
-        config: { hide_code: true },
+        config: { hide_code: true, expand_output: true },
       });
     });
   });
@@ -273,6 +300,7 @@ describe("toDocumentChanges", () => {
             "cellId": "1",
             "column": 1,
             "disabled": false,
+            "expandOutput": false,
             "hideCode": false,
             "type": "set-config",
           },
@@ -302,6 +330,7 @@ describe("toDocumentChanges", () => {
             "cellId": "1",
             "column": 1,
             "disabled": false,
+            "expandOutput": false,
             "hideCode": false,
             "type": "set-config",
           },
@@ -309,6 +338,7 @@ describe("toDocumentChanges", () => {
             "cellId": "2",
             "column": 1,
             "disabled": false,
+            "expandOutput": false,
             "hideCode": false,
             "type": "set-config",
           },
@@ -343,6 +373,7 @@ describe("toDocumentChanges", () => {
             "cellId": "1",
             "column": 0,
             "disabled": false,
+            "expandOutput": false,
             "hideCode": false,
             "type": "set-config",
           },
@@ -350,6 +381,7 @@ describe("toDocumentChanges", () => {
             "cellId": "2",
             "column": 0,
             "disabled": false,
+            "expandOutput": false,
             "hideCode": false,
             "type": "set-config",
           },
@@ -386,6 +418,7 @@ describe("toDocumentChanges", () => {
             "config": {
               "column": null,
               "disabled": false,
+              "expand_output": false,
               "hide_code": false,
             },
             "name": "_",
@@ -395,6 +428,7 @@ describe("toDocumentChanges", () => {
             "cellId": "1",
             "column": 1,
             "disabled": false,
+            "expandOutput": false,
             "hideCode": false,
             "type": "set-config",
           },
@@ -458,6 +492,7 @@ describe("toDocumentChanges", () => {
             "config": {
               "column": null,
               "disabled": false,
+              "expand_output": false,
               "hide_code": false,
             },
             "name": "_",
@@ -521,6 +556,7 @@ describe("toDocumentChanges", () => {
             "config": {
               "column": null,
               "disabled": false,
+              "expand_output": false,
               "hide_code": false,
             },
             "name": "_",
@@ -559,6 +595,7 @@ describe("toDocumentChanges", () => {
             "config": {
               "column": null,
               "disabled": false,
+              "expand_output": false,
               "hide_code": false,
             },
             "name": "setup",
@@ -648,6 +685,7 @@ describe("coalesceChanges", () => {
         column: null,
         disabled: true,
         hideCode: false,
+        expandOutput: false,
       },
       { type: "move-cell", cellId: X, after: A },
       { type: "delete-cell", cellId: X },

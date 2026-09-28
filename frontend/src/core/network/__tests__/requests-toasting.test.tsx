@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MockRequestClient } from "@/__mocks__/requests";
 import { HTTPError } from "@/utils/errors";
 
 const toastMock = vi.fn();
@@ -42,6 +43,19 @@ describe("createErrorToastingRequests", () => {
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({ variant: "danger" }),
     );
+  });
+
+  it("leaves search errors to callers without a toast per failed root", async () => {
+    const client = MockRequestClient.create();
+    const error = new Error("Storage unavailable");
+    vi.mocked(client.sendSearchFiles).mockRejectedValue(error);
+    const requests = createErrorToastingRequests(client);
+    for (const path of ["/workspace", "/shared"]) {
+      await expect(
+        requests.sendSearchFiles({ query: "report", path }),
+      ).rejects.toBe(error);
+    }
+    expect(toastMock).not.toHaveBeenCalled();
   });
 
   it("leaves file-root errors for the requesting tree to surface", async () => {

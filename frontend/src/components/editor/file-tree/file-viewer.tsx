@@ -156,11 +156,12 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       onDownload={disableFileDownloads ? undefined : handleDownload}
       actions={
         <>
-          {file.isMarimoFile && onOpenNotebook && !isWasm() && (
+          {data.file.isMarimoFile && onOpenNotebook && !isWasm() && (
             <Tooltip content="Open notebook">
               <Button
                 variant="text"
                 size="xs"
+                aria-label="Open notebook"
                 onClick={(evt) => onOpenNotebook(evt)}
               >
                 <ExternalLinkIcon className="h-3.5 w-3.5" />

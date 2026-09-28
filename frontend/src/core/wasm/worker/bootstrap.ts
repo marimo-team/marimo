@@ -41,10 +41,9 @@ export class DefaultWasmController implements WasmController {
     return this.pyodide;
   }
 
-  async bootstrap(opts: {
-    version: string;
-    pyodideVersion: string;
-  }): Promise<PyodideInterface> {
+  async bootstrap(
+    opts: Parameters<WasmController["bootstrap"]>[0],
+  ): Promise<PyodideInterface> {
     const pyodide = await this.loadPyodideAndPackages(opts);
 
     if (MAKE_SNAPSHOT) {
@@ -55,10 +54,9 @@ export class DefaultWasmController implements WasmController {
     return pyodide;
   }
 
-  private async loadPyodideAndPackages(opts: {
-    version: string;
-    pyodideVersion: string;
-  }): Promise<PyodideInterface> {
+  private async loadPyodideAndPackages(
+    opts: Parameters<WasmController["bootstrap"]>[0],
+  ): Promise<PyodideInterface> {
     if (!loadPyodide) {
       throw new Error("loadPyodide is not defined");
     }
@@ -68,7 +66,9 @@ export class DefaultWasmController implements WasmController {
       // Without this, this fails in Firefox with
       // `Could not extract indexURL path from pyodide module`
       // This fixes for Firefox and does not break Chrome/others
-      const indexURL = `https://cdn.jsdelivr.net/pyodide/${opts.pyodideVersion}/full/`;
+      const indexURL =
+        opts.pyodideIndexUrl ??
+        `https://cdn.jsdelivr.net/pyodide/${opts.pyodideVersion}/full/`;
       const pyodide = await loadPyodide({
         // Perf: These get loaded while pyodide is being bootstrapped
         packages: [
@@ -81,16 +81,26 @@ export class DefaultWasmController implements WasmController {
           "packaging",
         ],
         _makeSnapshot: MAKE_SNAPSHOT,
-        lockFileURL: `https://wasm.marimo.app/pyodide-lock.json?v=${opts.version}&pyodide=${opts.pyodideVersion}`,
+        lockFileURL:
+          opts.pyodideLockfileUrl ??
+          `https://wasm.marimo.app/pyodide-lock.json?v=${opts.version}&pyodide=${opts.pyodideVersion}`,
         indexURL,
         // Since Pyodide 0.28.0, when lockFileURL is set, the package base URL
         // defaults to the lockfile's URL (wasm.marimo.app) instead of indexURL.
         // Unlike Node, browsers get no CDN fallback on a failed fetch, so we
-        // should pin packageBaseUrl back to the jsDelivr CDN  to restore
+        // should pin packageBaseUrl to indexURL to restore
         // the resolution akin to pre-0.28.
         packageBaseUrl: indexURL,
         convertNullToNone: true,
       });
+      if (opts.pypiIndexUrl) {
+        const micropip = pyodide.pyimport("micropip");
+        try {
+          micropip.set_index_urls(opts.pypiIndexUrl);
+        } finally {
+          micropip.destroy();
+        }
+      }
       this.pyodide = pyodide;
       span.end("ok");
       return pyodide;

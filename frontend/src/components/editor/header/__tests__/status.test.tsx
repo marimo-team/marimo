@@ -66,24 +66,12 @@ describe("StatusOverlay disconnect indicator", () => {
     expect((button as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it.each([
-    [
-      WebSocketClosedReason.KERNEL_STARTUP_ERROR,
-      "Failed to start kernel sandbox",
-    ],
-  ])(
-    "renders a disabled button for non-recoverable close reason %s",
-    (code, reason) => {
-      const onReconnect = vi.fn();
-      const { getByTestId } = renderOverlay(
-        { state: WebSocketState.CLOSED, code, reason },
-        onReconnect,
-      );
-
-      const button = getByTestId("disconnected-indicator") as HTMLButtonElement;
-      expect(button.disabled).toBe(true);
-      fireEvent.click(button);
-      expect(onReconnect).not.toHaveBeenCalled();
-    },
-  );
+  it("leaves editor startup failures to the inline notice", () => {
+    const { queryByTestId } = renderOverlay({
+      state: WebSocketState.CLOSED,
+      code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+      reason: "Failed to start kernel sandbox",
+    });
+    expect(queryByTestId("disconnected-indicator")).not.toBeInTheDocument();
+  });
 });

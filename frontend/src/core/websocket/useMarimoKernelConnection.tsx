@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { invalidatePackageData } from "@/core/packages/package-data";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useRef } from "react";
 import { useErrorBoundary } from "react-error-boundary";
@@ -63,7 +64,7 @@ import type { SessionId } from "../kernel/session";
 import { initialRunCompletedAtom, kernelStateAtom } from "../kernel/state";
 import { type LayoutState, useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
-import { connectionAtom } from "../network/connection";
+import { connectionAtom, startupProgressAtom } from "../network/connection";
 import type { RequestId } from "../network/DeferredRequestRegistry";
 import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
@@ -221,8 +222,14 @@ export function useMarimoKernelConnection(opts: {
     useDataSourceActions();
   const { setLayoutData } = useLayoutActions();
   const [connection, setConnection] = useAtom(connectionAtom);
+  const updateStartupProgress = useSetAtom(startupProgressAtom);
   const { addBanner } = useBannersActions();
-  const { addPackageAlert, addStartupLog } = useAlertActions();
+  const {
+    addMissingPackageAlert,
+    updateEnvironment,
+    setEnvironment,
+    addStartupLog,
+  } = useAlertActions();
   const setKioskMode = useSetAtom(kioskModeAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
@@ -240,7 +247,21 @@ export function useMarimoKernelConnection(opts: {
       case "reload":
         reloadSafe();
         return;
+      case "startup-progress": {
+        const { phase } = msg.data;
+        updateStartupProgress(msg.data);
+        setConnection((previous) =>
+          previous.state === WebSocketState.OPEN ||
+          (previous.state === WebSocketState.CONNECTING &&
+            previous.phase === phase)
+            ? previous
+            : { state: WebSocketState.CONNECTING, phase },
+        );
+        return;
+      }
       case "kernel-ready": {
+        setKernelStartupError(null);
+        setConnection({ state: WebSocketState.OPEN });
         setInitialRunCompleted(
           Boolean(msg.data.resumed || msg.data.auto_instantiated),
         );
@@ -357,16 +378,25 @@ export function useMarimoKernelConnection(opts: {
         addBanner(msg.data);
         return;
       case "missing-package-alert":
-        addPackageAlert({
+        addMissingPackageAlert({
           ...msg.data,
           kind: "missing",
         });
         return;
-      case "installing-package-alert":
-        addPackageAlert({
-          ...msg.data,
-          kind: "installing",
-        });
+      case "environment-operation":
+        if (
+          msg.data.source === "kernel" &&
+          msg.data.status.kind !== "running"
+        ) {
+          invalidatePackageData();
+        }
+        updateEnvironment(msg.data);
+        return;
+      case "environment-state":
+        setEnvironment(msg.data);
+        if (msg.data.source === "kernel") {
+          invalidatePackageData();
+        }
         return;
       case "startup-logs":
         addStartupLog({
@@ -439,6 +469,8 @@ export function useMarimoKernelConnection(opts: {
         return;
 
       case "reconnected":
+        setKernelStartupError(null);
+        setConnection({ state: WebSocketState.OPEN });
         return;
 
       case "focus-cell":
@@ -482,6 +514,7 @@ export function useMarimoKernelConnection(opts: {
       return;
     }
     shouldTryReconnecting.current = true;
+    setKernelStartupError(null);
     setConnection({ state: WebSocketState.CONNECTING });
     const healthy = await runtimeManager.reconcileFromHealth();
     if (!healthy) {
@@ -513,17 +546,12 @@ export function useMarimoKernelConnection(opts: {
     headers: () => runtimeManager.headers(),
 
     /**
-     * Open callback. Set the connection status to open.
+     * The transport is open; kernel-ready establishes session readiness.
      */
     onOpen: async () => {
+      updateStartupProgress(null);
       // If we are open, we can reset our reconnecting flag.
       shouldTryReconnecting.current = true;
-
-      // DO NOT COMMIT THIS UNCOMMENTED
-      // Uncomment to emulate a slow connection
-      // await new Promise((resolve) => setTimeout(resolve, 10_000));
-
-      setConnection({ state: WebSocketState.OPEN });
     },
 
     /**
@@ -565,7 +593,26 @@ export function useMarimoKernelConnection(opts: {
     onClose: (e) => {
       Logger.warn("WebSocket closed", e.code, e.reason);
       const decision = classifyCloseEvent(e);
-      setConnection(decision.status);
+      setConnection((previous) => {
+        const status = decision.status;
+        if (
+          status.state === WebSocketState.CLOSED &&
+          status.code === WebSocketClosedReason.KERNEL_STARTUP_ERROR &&
+          (previous.state === WebSocketState.CONNECTING ||
+            previous.state === WebSocketState.CLOSED)
+        ) {
+          return { ...status, phase: previous.phase };
+        }
+        if (
+          status.state === WebSocketState.CONNECTING &&
+          (previous.state === WebSocketState.OPEN ||
+            (previous.state === WebSocketState.CONNECTING &&
+              previous.phase === "reconnecting"))
+        ) {
+          return { ...status, phase: "reconnecting" };
+        }
+        return status;
+      });
       if (decision.kind === "terminal" && decision.closeTransport) {
         ws.close(); // close to prevent reconnecting
         return;

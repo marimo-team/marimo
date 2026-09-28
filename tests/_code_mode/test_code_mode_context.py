@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, PropertyMock, patch
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -21,7 +21,9 @@ from marimo._messaging.notebook.document import (
     notebook_document_context,
 )
 from marimo._messaging.notification import (
+    EnvironmentOperationNotification,
     NotebookDocumentTransactionNotification,
+    OperationRunning,
 )
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.packages.package_manager import PackageDescription
@@ -97,6 +99,7 @@ class TestAddCell:
                             "column": None,
                             "disabled": False,
                             "hide_code": True,
+                            "expand_output": False,
                         },
                         "before": None,
                         "after": None,
@@ -323,6 +326,7 @@ class TestUpdateCell:
                         "column": None,
                         "disabled": False,
                         "hideCode": True,
+                        "expandOutput": False,
                     },
                     {"type": "reorder-cells", "cellIds": ("0",)},
                 ]
@@ -823,6 +827,7 @@ class TestPackages:
     async def test_add_and_remove_in_same_batch(self, k: Kernel) -> None:
         """add and remove can coexist in the same batch, executed in order."""
         with _ctx(k) as ctx:
+            _clear_messages(k)
             pm = k.packages_callbacks.package_manager
             assert pm is not None
 
@@ -830,7 +835,7 @@ class TestPackages:
 
             async def track_install(package: str, **_kwargs: object) -> bool:
                 call_order.append(("add", package))
-                return True
+                return package != "missing-package"
 
             async def track_uninstall(package: str, **_kwargs: object) -> bool:
                 call_order.append(("remove", package))
@@ -843,8 +848,51 @@ class TestPackages:
                 async with ctx as nb:
                     nb.packages.add("polars")
                     nb.packages.remove("pandas")
+                    nb.packages.add("numpy", "missing-package")
 
-            assert call_order == [("add", "polars"), ("remove", "pandas")]
+            assert call_order == [
+                ("add", "polars"),
+                ("remove", "pandas"),
+                ("add", "numpy"),
+                ("add", "missing-package"),
+            ]
+            notifications = [
+                notification
+                for notification in k.stream.operations
+                if isinstance(notification, EnvironmentOperationNotification)
+            ]
+            assert [
+                (
+                    notification.action,
+                    notification.packages,
+                    msgspec.to_builtins(notification.status)["kind"],
+                )
+                for notification in notifications
+                if not isinstance(notification.status, OperationRunning)
+            ] == snapshot(
+                [
+                    (
+                        "install",
+                        {"polars": "succeeded"},
+                        "succeeded",
+                    ),
+                    ("remove", {"pandas": "succeeded"}, "succeeded"),
+                    (
+                        "install",
+                        {"numpy": "succeeded", "missing-package": "failed"},
+                        "failed",
+                    ),
+                ]
+            )
+            assert len({n.operation_id for n in notifications}) == 3
+            assert all(
+                n.action in ("install", "remove") for n in notifications
+            )
+            assert any(
+                n.logs
+                == {"missing-package": "Failed to install missing-package\n"}
+                for n in notifications
+            )
 
     async def test_exception_discards_package_ops(self, k: Kernel) -> None:
         """If an exception occurs, queued package ops are discarded."""
@@ -941,6 +989,73 @@ class TestPackages:
 
             captured = capsys.readouterr()  # type: ignore[attr-defined]
             assert "pandas" in captured.out
+
+
+@pytest.mark.parametrize("operation", ["add", "remove"])
+@pytest.mark.parametrize("restart_required", [False, True])
+async def test_package_summary_reports_unsuccessful_outcomes(
+    k: Kernel,
+    capsys: pytest.CaptureFixture[str],
+    operation: str,
+    restart_required: bool,
+) -> None:
+    from marimo._messaging.notification import (
+        EnvironmentOperationNotification,
+        OperationFailed,
+        OperationRestartRequired,
+    )
+
+    with _ctx(k) as ctx:
+        pm = k.packages_callbacks.package_manager
+        assert pm is not None
+        method = "install" if operation == "add" else "uninstall"
+        with (
+            patch.object(
+                pm, method, new_callable=AsyncMock, return_value=False
+            ),
+            patch.object(
+                type(pm),
+                "restart_required",
+                new_callable=PropertyMock,
+                return_value=restart_required,
+            ),
+        ):
+            async with ctx as nb:
+                getattr(nb.packages, operation)("boltons")
+        output = capsys.readouterr().out
+        assert (
+            "changes saved for boltons; restart the kernel"
+            if restart_required
+            else f"failed to {method} boltons"
+        ) in output
+        assert "installed boltons" not in output
+        if operation == "add":
+            alerts = [
+                n
+                for n in k.stream.operations
+                if isinstance(n, EnvironmentOperationNotification)
+            ]
+            operation_id = alerts[0].operation_id
+            assert operation_id is not None
+            assert {alert.operation_id for alert in alerts} == {operation_id}
+            outcome = "restart-required" if restart_required else "failed"
+            assert alerts[-1] == EnvironmentOperationNotification(
+                action="install",
+                source="kernel",
+                logs={},
+                log_mode="append",
+                packages={"boltons": outcome},
+                operation_id=operation_id,
+                status=(
+                    OperationRestartRequired(
+                        reason="Dependency changes are saved; restart the kernel to apply them."
+                    )
+                    if restart_required
+                    else OperationFailed(
+                        error="Could not apply changes to boltons. See operation logs for details."
+                    )
+                ),
+            )
 
 
 class TestAutorunStaleState:

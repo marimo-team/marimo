@@ -9,9 +9,9 @@ import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { generateUUID } from "@/utils/uuid";
+import { createModuleWorker } from "@/utils/worker";
 import { notebookIsRunningAtom } from "../cells/cells";
 import type { CommandMessage } from "../kernel/messages";
-import { getMarimoVersion } from "../meta/globals";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
 import { withDevAssetUrl } from "../network/export-asset-url";
@@ -42,10 +42,14 @@ import { BasicTransport } from "../websocket/transports/basic";
 import type { IConnectionTransport } from "../websocket/transports/transport";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC } from "./rpc";
+import { getWasmRuntimeConfig } from "./runtime-config";
 import { createShareableLink } from "./share";
 import { wasmInitStateAtom } from "./state";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
+import saveWorkerUrl from "./worker/save-worker.ts?worker&url";
+import workerUrl from "./worker/worker.ts?worker&url";
+import { CUSTOM_CONTROLLER_SUFFIX } from "./worker/constants";
 import type { SaveWorkerSchema } from "./worker/save-worker";
 import type { WorkerSchema } from "./worker/worker";
 
@@ -82,19 +86,20 @@ export class PyodideBridge implements RunRequests, EditRequests {
       };
     }
 
+    const runtimeConfig = getWasmRuntimeConfig();
+
     // Create save worker
-    const saveWorker = new Worker(
-      // oxlint-disable-next-line unicorn/relative-url-style
-      new URL("./worker/save-worker.ts", import.meta.url),
+    const saveWorker = createModuleWorker(
+      new URL(saveWorkerUrl, import.meta.url),
       {
-        type: "module",
-        // Pass the version (and optional capability suffix) to the worker
-        /* @vite-ignore */
+        // Pass the optional custom-controller capability to the worker.
         name: getWasmWorkerName(),
       },
     );
 
-    return getWorkerRPC<SaveWorkerSchema>(saveWorker).proxy.request;
+    const rpc = getWorkerRPC<SaveWorkerSchema>(saveWorker);
+    rpc.send.bootstrap(runtimeConfig);
+    return rpc.proxy.request;
   }
 
   private constructor() {
@@ -102,20 +107,17 @@ export class PyodideBridge implements RunRequests, EditRequests {
       return;
     }
 
+    const runtimeConfig = getWasmRuntimeConfig();
+
     // Create a worker
-    const worker = new Worker(
-      // oxlint-disable-next-line unicorn/relative-url-style
-      new URL("./worker/worker.ts", import.meta.url),
-      {
-        type: "module",
-        // Pass the version (and optional capability suffix) to the worker
-        /* @vite-ignore */
-        name: getWasmWorkerName(),
-      },
-    );
+    const worker = createModuleWorker(new URL(workerUrl, import.meta.url), {
+      // Pass the optional custom-controller capability to the worker.
+      name: getWasmWorkerName(),
+    });
 
     // Create the RPC
     this.rpc = getWorkerRPC<WorkerSchema>(worker);
+    this.rpc.send.bootstrap(runtimeConfig);
 
     // Listeners
     this.rpc.addMessageListener("ready", () => {
@@ -635,6 +637,17 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response;
   };
 
+  getSandbox: EditRequests["getSandbox"] = async () => ({
+    backend: null,
+    manifest: null,
+    filename: null,
+  });
+  updateManifest: EditRequests["updateManifest"] = async () => {
+    throw new Error("Sandboxes are not supported in WebAssembly");
+  };
+  syncSandbox: EditRequests["syncSandbox"] = async () => {
+    throw new Error("Sandboxes are not supported in WebAssembly");
+  };
   getDependencyTree: EditRequests["getDependencyTree"] = async () => {
     // WASM doesn't support dependency trees yet
     return {
@@ -644,6 +657,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
         tags: [],
         version: null,
       },
+      context: { kind: "package-manager", name: "micropip" },
     };
   };
 
@@ -707,10 +721,9 @@ export function createPyodideConnection(): IConnectionTransport {
   });
 }
 
-// Compose the worker name. The version prefix is read by getMarimoVersion()
-// in the worker; the optional "::controller" suffix tells getController.ts
-// that the host page provides a custom /wasm/controller.js and that the
-// dynamic import should be attempted. Hosts opt in by setting
+// Compose the worker name. The optional "::controller" suffix tells
+// getController.ts that the host page provides a custom /wasm/controller.js
+// and that the dynamic import should be attempted. Hosts opt in by setting
 // `window.__MARIMO_HAS_WASM_CONTROLLER__ = true` before
 // PyodideBridge/worker initialization.
 export function getWasmWorkerName(): string {
@@ -718,5 +731,5 @@ export function getWasmWorkerName(): string {
     typeof window !== "undefined" &&
     (window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: boolean })
       .__MARIMO_HAS_WASM_CONTROLLER__ === true;
-  return getMarimoVersion() + (hasCustomController ? "::controller" : "");
+  return `marimo${hasCustomController ? CUSTOM_CONTROLLER_SUFFIX : ""}`;
 }

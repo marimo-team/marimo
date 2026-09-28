@@ -17,7 +17,7 @@ export function isRefObject<T>(target: unknown): target is RefObject<T | null> {
 }
 
 export function useEventListener<K extends keyof DocumentEventMap>(
-  targetValue: Document,
+  targetValue: Document | null,
   type: K,
   listener: (ev: DocumentEventMap[K]) => unknown,
   options?: boolean | AddEventListenerOptions,

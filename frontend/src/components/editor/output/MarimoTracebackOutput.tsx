@@ -177,7 +177,7 @@ export const MarimoTracebackOutput = ({
                 <a
                   target="_blank"
                   href="https://marimo.io/discord?ref=notebook"
-                  rel="noopener"
+                  rel="noreferrer"
                 >
                   <MessageCircleIcon className="h-4 w-4 mr-2" />
                   Ask in Discord

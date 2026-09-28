@@ -65,6 +65,33 @@ class RunCommand(ColoredCommand):
         return super().parse_args(ctx, args)
 
 
+def _normalize_sandbox_args(args: list[str]) -> list[str]:
+    """Give a bare `--sandbox` its backwards-compatible uv value.
+
+    Click options cannot reliably accept both an optional value and a
+    following positional argument. Normalize the bare spelling before Click
+    parses it, leaving explicit uv/pixi values for Click to consume.
+    """
+    normalized = list(args)
+    try:
+        limit = normalized.index("--")
+    except ValueError:
+        limit = len(normalized)
+    for index, token in enumerate(normalized[:limit]):
+        if token == "--sandbox" and (
+            index + 1 == limit or normalized[index + 1] not in ("uv", "pixi")
+        ):
+            normalized[index] = "--sandbox=uv"
+    return normalized
+
+
+class SandboxCommand(RunCommand):
+    """Accept `--sandbox` with an optional uv/pixi backend."""
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        return super().parse_args(ctx, _normalize_sandbox_args(args))
+
+
 class ColoredGroup(click.Group):
     """Click Group with colored help output (cargo-style)."""
 

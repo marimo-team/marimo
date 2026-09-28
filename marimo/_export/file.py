@@ -63,11 +63,13 @@ from marimo._runtime.layout.layout import (
 from marimo._runtime.patches import extract_docstring_from_header
 from marimo._schemas.export_options import (
     IPYNBExportOptions,
+    WASMExportOptions,
 )
 from marimo._schemas.serialization import NotebookSerialization
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import load_notebook
 from marimo._session.requests import InstantiateNotebookRequest
+from marimo._session.startup import SessionStartup
 from marimo._types.ids import ConsumerId
 from marimo._utils.inline_script_metadata import (
     pin_pep723_dependencies_for_wasm,
@@ -202,6 +204,33 @@ async def export_ipynb(
     )
 
 
+async def _prepare_wasm_export(
+    code: str, request: WASMFileExportRequest
+) -> tuple[str, WASMExportOptions]:
+    if request.code_transform is not None:
+        code = request.code_transform(code)
+    options = request.options
+    if request.offline_export_dir is not None:
+        from marimo._export.offline import (
+            OfflineExportError,
+            bundle_wasm_runtime,
+        )
+
+        try:
+            code, runtime = await bundle_wasm_runtime(
+                code,
+                request.offline_export_dir,
+                sources=options.runtime,
+                local_wheel_paths=request.local_wheel_paths,
+            )
+        except Exception as error:
+            raise OfflineExportError(
+                f"Offline export failed: {error}"
+            ) from error
+        options = replace(options, runtime=runtime)
+    return code, options
+
+
 async def export_wasm(
     request: WASMFileExportRequest,
 ) -> ExportResult:
@@ -223,8 +252,7 @@ async def export_wasm(
         resolved = config.get_config()
 
         code = app.to_py()
-        if request.code_transform is not None:
-            code = request.code_transform(code)
+        code, options = await _prepare_wasm_export(code, request)
 
         result = Exporter().export_as_wasm(
             WASMExportRequest(
@@ -232,7 +260,7 @@ async def export_wasm(
                 app_config=app.config,
                 display_config=resolved["display"],
                 code=code,
-                options=request.options,
+                options=options,
                 layout=layout,
                 sharing_config=resolved.get("sharing"),
             )
@@ -521,8 +549,7 @@ async def _export_wasm_with_execution(
     code = pin_pep723_dependencies_for_wasm(
         file_manager.app.to_py(), request.path
     )
-    if request.code_transform is not None:
-        code = request.code_transform(code)
+    code, options = await _prepare_wasm_export(code, request)
 
     html, filename = Exporter().export_as_wasm(
         WASMExportRequest(
@@ -530,7 +557,7 @@ async def _export_wasm_with_execution(
             app_config=file_manager.app.config,
             display_config=display_config,
             code=code,
-            options=request.options,
+            options=options,
             layout=layout,
             session_snapshot=snapshot.session,
             notebook_snapshot=snapshot.notebook,
@@ -652,7 +679,8 @@ async def run_notebook(
 
     # Create a session
     session_consumer = RunUntilCompletionSessionConsumer()
-    session = SessionImpl.create(
+    session = await SessionImpl.create(
+        startup=SessionStartup(),
         # Any initialization ID will do
         initialization_id="_any_",
         session_consumer=session_consumer,

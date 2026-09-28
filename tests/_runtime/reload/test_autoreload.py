@@ -11,6 +11,7 @@ from unittest.mock import Mock
 
 from reload_test_utils import update_file
 
+import marimo._runtime.reload.autoreload as autoreload_mod
 from marimo._ast.visitor import ImportData
 from marimo._runtime.reload.autoreload import (
     ModuleDependencyFinder,
@@ -428,14 +429,12 @@ class TestModuleReloaderMethods:
 
 class TestSkipCache:
     def test_is_user_module_stdlib(self):
-        reloader = ModuleReloader()
-        assert reloader._is_user_module(sys.modules["os"]) is False
-        assert reloader._is_user_module(sys.modules["pathlib"]) is False
+        assert autoreload_mod.is_user_module(sys.modules["os"]) is False
+        assert autoreload_mod.is_user_module(sys.modules["pathlib"]) is False
 
     def test_is_user_module_builtin_has_no_file(self):
-        reloader = ModuleReloader()
-        assert reloader._is_user_module(sys.modules["sys"]) is False
-        assert reloader._is_user_module(sys.modules["builtins"]) is False
+        assert autoreload_mod.is_user_module(sys.modules["sys"]) is False
+        assert autoreload_mod.is_user_module(sys.modules["builtins"]) is False
 
     def test_is_user_module_user_code(
         self, tmp_path: pathlib.Path, py_modname: str
@@ -444,8 +443,7 @@ class TestSkipCache:
         py_file = tmp_path / pathlib.Path(py_modname + ".py")
         py_file.write_text("x = 1")
         mod = importlib.import_module(py_modname)
-        reloader = ModuleReloader()
-        assert reloader._is_user_module(mod) is True
+        assert autoreload_mod.is_user_module(mod) is True
 
     def test_both_paths_populate_skip(self):
         # The cache is shared memoization for the classification step;
@@ -494,8 +492,6 @@ class TestSkipCache:
         # `skip_non_user_modules=False` call must still stat it and detect
         # edits. Without this, `auto_reload` users editing files inside an
         # installed package would silently stop getting hot reloads.
-        import marimo._runtime.reload.autoreload as autoreload_mod
-
         sys.path.append(str(tmp_path))
         py_file = tmp_path / pathlib.Path(py_modname + ".py")
         py_file.write_text("x = 1")
@@ -510,7 +506,7 @@ class TestSkipCache:
         )
 
         reloader = ModuleReloader()
-        assert reloader._is_user_module(mod) is False
+        assert autoreload_mod.is_user_module(mod) is False
 
         # Hot path classifies and caches.
         reloader.check(sys.modules, reload=False, skip_non_user_modules=True)

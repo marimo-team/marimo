@@ -19,7 +19,6 @@ from starlette.responses import (
 from starlette.staticfiles import StaticFiles
 
 from marimo import _loggers
-from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
 from marimo._config.reader import find_nearest_pyproject_toml
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -390,11 +389,11 @@ async def index(request: Request) -> Response:
         absolute_filepath = app_manager.filename
 
         # Pre-compute notebook snapshot for faster initial render
-        # Only in EDIT + SandboxMode.MULTI where each notebook gets its own IPC
+        # Only in sandboxed edit mode where each notebook gets its own IPC
         # kernel.
         notebook_snapshot = None
         if (
-            app_state.session_manager.sandbox_mode is SandboxMode.MULTI
+            app_state.session_manager.sandbox
             and app_state.mode == SessionMode.EDIT
             and app_manager.filename
         ):

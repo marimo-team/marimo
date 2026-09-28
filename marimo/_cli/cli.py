@@ -17,17 +17,17 @@ from click.core import ParameterSource
 import marimo._cli.cli_validators as validators
 from marimo import _loggers
 from marimo._ast import codegen
+from marimo._cli.cache.commands import cache
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
 from marimo._cli.errors import (
-    MarimoCLIMissingDependencyError,
     MarimoCLIRuntimeError,
 )
 from marimo._cli.export.commands import export
 from marimo._cli.files.file_path import validate_name
-from marimo._cli.help_formatter import ColoredGroup, RunCommand
+from marimo._cli.help_formatter import ColoredGroup, SandboxCommand
 from marimo._cli.pair.commands import pair
 from marimo._cli.parse_args import parse_args
 from marimo._cli.parser_ux import show_compact_usage_error
@@ -151,7 +151,7 @@ token_password_message = (
 sandbox_message = (
     "Run the notebook in an isolated environment, with dependencies tracked "
     "via PEP 723 inline metadata. If already declared, dependencies will "
-    "install automatically. Requires uv."
+    "install automatically. Choose uv (default) or pixi."
 )
 
 check_message = "Disable a static check of the notebook before running."
@@ -284,7 +284,7 @@ class _OptionalValueOption(click.Option):
             self.flag_value = opt_flag_value
 
 
-@main.command(help=edit_help_msg)
+@main.command(cls=SandboxCommand, help=edit_help_msg)
 @click.option(
     "-p",
     "--port",
@@ -350,11 +350,17 @@ class _OptionalValueOption(click.Option):
     help="Don't check if a new version of marimo is available for download.",
 )
 @click.option(
-    "--sandbox/--no-sandbox",
-    is_flag=True,
+    "--sandbox",
     default=None,
-    type=bool,
+    type=click.Choice(["uv", "pixi"]),
     help=sandbox_message,
+)
+@click.option(
+    "--no-sandbox",
+    is_flag=True,
+    default=False,
+    type=bool,
+    help="Never run in a sandbox, and never prompt to.",
 )
 @click.option(
     "--trusted/--untrusted",
@@ -454,7 +460,8 @@ def edit(
     base_url: str,
     allow_origins: tuple[str, ...] | None,
     skip_update_check: bool,
-    sandbox: bool | None,
+    sandbox: str | None,
+    no_sandbox: bool,
     trusted: bool | None,
     profile_dir: str | None,
     watch: bool,
@@ -470,8 +477,13 @@ def edit(
     name: str | None,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import SandboxMode, resolve_sandbox_mode
+    from marimo._cli.sandbox import (
+        ensure_server_environment,
+        require_sandbox_backend,
+        resolve_sandbox,
+    )
 
+    stdin_notebook = None
     pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
     if (
@@ -484,6 +496,7 @@ def edit(
             "notebook.py", "py", stdin_contents, temp_dir
         )
         name = path.absolute_name
+        stdin_notebook = name
 
     if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
@@ -515,6 +528,19 @@ def edit(
             else:
                 check_app_correctness(name)
         elif not is_dir:
+            # A new notebook has no inline metadata, so the sandbox choice
+            # comes from the flags alone. Check the backend first so a
+            # missing uv/pixi does not leave an empty file behind.
+            new_notebook_backend = resolve_sandbox(
+                sandbox=sandbox, no_sandbox=no_sandbox, name=None
+            )
+            if new_notebook_backend is not None:
+                from marimo._environments.errors import EnvironmentManagerError
+
+                try:
+                    require_sandbox_backend(new_notebook_backend)
+                except EnvironmentManagerError as error:
+                    raise MarimoCLIRuntimeError(str(error)) from error
             # write empty file
             try:
                 with open(name, "w", encoding="utf-8"):
@@ -533,30 +559,10 @@ def edit(
     # We check this after name validation, because this will convert
     # URLs into local file paths
 
-    # Resolve sandbox mode: None, SandboxMode.SINGLE, or SandboxMode.MULTI
-    sandbox_mode = resolve_sandbox_mode(sandbox=sandbox, name=name)
-
-    # Single-file sandbox: wrap with uv run
-    if sandbox_mode is SandboxMode.SINGLE:
-        from marimo._cli.sandbox import run_in_sandbox
-
-        run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
-        return
-
-    # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
-    if sandbox_mode is SandboxMode.MULTI:
-        # Check for pyzmq dependency
-        from marimo._dependencies.dependencies import DependencyManager
-
-        if not DependencyManager.zmq.has():
-            raise MarimoCLIMissingDependencyError(
-                "pyzmq is required when running the marimo edit server on a directory with --sandbox.",
-                "marimo[sandbox]",
-            )
-
-        # Enable script metadata management for sandboxed notebooks
-        os.environ["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
-        GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
+    sandbox_backend = resolve_sandbox(
+        sandbox=sandbox, no_sandbox=no_sandbox, name=name
+    )
+    ensure_server_environment(sandbox_backend, stdin_notebook=stdin_notebook)
 
     # Check shared memory availability early (required for edit mode to
     # communicate between the server process and kernel subprocess)
@@ -616,7 +622,7 @@ def edit(
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         timeout=timeout,
-        sandbox_mode=sandbox_mode,
+        sandbox=sandbox_backend,
         startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
@@ -655,7 +661,7 @@ new_help_msg = "\n".join(
 )
 
 
-@main.command(help=new_help_msg)
+@main.command(cls=SandboxCommand, help=new_help_msg)
 @click.option(
     "-p",
     "--port",
@@ -708,11 +714,17 @@ new_help_msg = "\n".join(
     callback=validators.base_url,
 )
 @click.option(
-    "--sandbox/--no-sandbox",
-    is_flag=True,
+    "--sandbox",
     default=None,
-    type=bool,
+    type=click.Choice(["uv", "pixi"]),
     help=sandbox_message,
+)
+@click.option(
+    "--no-sandbox",
+    is_flag=True,
+    default=False,
+    type=bool,
+    help="Never run in a sandbox, and never prompt to.",
 )
 @click.option(
     "--skew-protection/--no-skew-protection",
@@ -738,17 +750,16 @@ def new(
     token_password: str | None,
     token_password_file: str | None,
     base_url: str,
-    sandbox: bool | None,
+    sandbox: str | None,
+    no_sandbox: bool,
     skew_protection: bool,
     timeout: float | None,
     prompt: str | None,
 ) -> None:
-    if sandbox:
-        from marimo._cli.sandbox import run_in_sandbox
+    from marimo._cli.sandbox import ensure_server_environment, resolve_sandbox
 
-        # TODO: consider adding recommended as well
-        run_in_sandbox(sys.argv[1:], name=None, additional_features=["lsp"])
-        return
+    sandbox_backend = resolve_sandbox(sandbox, no_sandbox, name=None)
+    ensure_server_environment(sandbox_backend)
 
     workspace: NotebookWorkspace | None = None
 
@@ -826,6 +837,7 @@ def new(
         redirect_console_to_browser=True,
         ttl_seconds=None,
         timeout=timeout,
+        sandbox=sandbox_backend,
         startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
@@ -957,7 +969,7 @@ def _create_run_workspace(
 
 
 @main.command(
-    cls=RunCommand,
+    cls=SandboxCommand,
     help="""Run a notebook as an app in read-only mode.
 
 If NAME is a url, the notebook will be downloaded to a temporary file.
@@ -1068,11 +1080,17 @@ Example:
     help="Redirect console logs to the browser console.",
 )
 @click.option(
-    "--sandbox/--no-sandbox",
-    is_flag=True,
+    "--sandbox",
     default=None,
-    type=bool,
+    type=click.Choice(["uv", "pixi"]),
     help=sandbox_message,
+)
+@click.option(
+    "--no-sandbox",
+    is_flag=True,
+    default=False,
+    type=bool,
+    help="Never run in a sandbox, and never prompt to.",
 )
 @click.option(
     "--check/--no-check",
@@ -1137,7 +1155,8 @@ def run(
     base_url: str,
     allow_origins: tuple[str, ...],
     redirect_console_to_browser: bool,
-    sandbox: bool | None,
+    sandbox: str | None,
+    no_sandbox: bool,
     check: bool,
     trusted: bool | None,
     server_startup_command: str | None,
@@ -1148,8 +1167,7 @@ def run(
     args: tuple[str, ...],
 ) -> None:
     from marimo._cli.sandbox import (
-        SandboxMode,
-        resolve_sandbox_mode,
+        resolve_sandbox,
         run_in_sandbox,
     )
 
@@ -1226,35 +1244,17 @@ def run(
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
-    if is_multi:
-        # Gallery mode: use MULTI sandbox (IPC kernels) or None
-        sandbox_mode = SandboxMode.MULTI if sandbox else None
-    else:
-        sandbox_mode = resolve_sandbox_mode(
-            sandbox=sandbox, name=validated_paths[0]
+    sandbox_backend = resolve_sandbox(
+        sandbox, no_sandbox, None if is_multi else validated_paths[0]
+    )
+    if sandbox_backend and not is_multi:
+        sys.exit(
+            run_in_sandbox(
+                sys.argv[1:],
+                name=validated_paths[0],
+                backend=sandbox_backend,
+            )
         )
-        if sandbox_mode is SandboxMode.SINGLE:
-            run_in_sandbox(sys.argv[1:], name=validated_paths[0])
-            return
-
-    # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
-    if sandbox_mode is SandboxMode.MULTI:
-        # Check for pyzmq dependency
-        from marimo._dependencies.dependencies import DependencyManager
-
-        if not DependencyManager.zmq.has():
-            raise MarimoCLIMissingDependencyError(
-                "pyzmq is required when running a gallery with --sandbox.",
-                "marimo[sandbox]",
-            )
-    elif is_multi:
-        from marimo._dependencies.dependencies import DependencyManager
-
-        if not DependencyManager.zmq.has():
-            raise MarimoCLIMissingDependencyError(
-                "pyzmq is required for running multiple notebooks.",
-                "pyzmq",
-            )
 
     workspace = _create_run_workspace(validated_paths, watch=watch)
 
@@ -1285,7 +1285,7 @@ def run(
         redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
-        sandbox_mode=sandbox_mode,
+        sandbox=sandbox_backend,
         startup_tip=choose_startup_tip(click.get_current_context()),
         show_tracebacks=show_tracebacks,
         execute_opengraph_generators=execute_opengraph_generators,
@@ -1603,6 +1603,7 @@ def check(
 
 main.command()(convert)
 main.add_command(export)
+main.add_command(cache)
 main.add_command(config)
 main.add_command(development)
 main.add_command(pair)

@@ -31,7 +31,7 @@ from pymdownx.superfences import (  # type: ignore
 )
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig
+from marimo._ast.cell import CellConfig, CellConfigBooleanKeys
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._convert.common.format import markdown_to_marimo, sql_to_marimo
 from marimo._convert.markdown.flavor import (
@@ -169,13 +169,13 @@ def get_source_from_tag(tag: Element) -> str:
 
 
 def get_cell_config_from_tag(tag: Element, **defaults: bool) -> CellConfig:
-    # Known boolean attributes.
+    # Boolean attributes are serialized as "true"/"false".
     extracted_attrs: dict[str, bool | int] = {
         **defaults,
         **{
             k: v == "true"
             for k, v in tag.attrib.items()
-            if k in ["hide_code", "disabled"]
+            if k in CellConfigBooleanKeys
         },
     }
     # "Column" is not a boolean attribute.
@@ -202,8 +202,8 @@ class SafeWrap(Generic[T]):
 def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
     from marimo._ast.app_config import _AppConfig
     from marimo._ast.parse import NON_MARIMO_MARKDOWN_VIOLATION
+    from marimo._environments.script_metadata import wrap_block
     from marimo._utils import yaml
-    from marimo._utils.scripts import wrap_script_metadata
 
     app_config = app_config_from_root(root)
     config_only = _AppConfig.sanitize(app_config)
@@ -233,7 +233,7 @@ def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
     if frontmatter:
         header_value = yaml.dump(frontmatter, sort_keys=False)
     elif pyproject and not header_str:
-        header_value = wrap_script_metadata(pyproject)
+        header_value = wrap_block(pyproject)
     elif header_str:
         header_value = header_str
     else:

@@ -310,9 +310,236 @@ def test_pytest_result_summary_includes_xfail() -> None:
     assert "XPassed: 1" in result.summary
 
 
+def test_offline_notebook_location(tmp_path: Path) -> None:
+    import subprocess
+
+    notebook_dir = tmp_path / "notebooks"
+    notebook_dir.mkdir()
+    notebook = notebook_dir / "test_location.py"
+    notebook.write_text(
+        """
+import marimo
+app = marimo.App()
+
+with app.setup:
+    import pytest
+
+@app.cell
+def imports():
+    import marimo as mo
+    from pathlib import Path
+    return mo, Path
+
+@app.cell
+def location(mo):
+    directory = mo.notebook_dir()
+    return (directory,)
+
+@app.cell
+def test_cell_location(Path, directory, mo):
+    assert directory == Path(__file__).parent
+    assert mo.notebook_location() == directory
+    assert directory.name == "notebooks"
+
+@app.cell
+def _(Path, directory, mo):
+    @pytest.fixture
+    def location_fixture():
+        assert mo.notebook_dir() == Path(__file__).parent
+        return mo.notebook_location()
+
+    def test_location(location_fixture):
+        assert mo.notebook_dir() == directory == location_fixture
+        assert directory.name == "notebooks"
+
+    @pytest.mark.parametrize("change_cwd", [False, True])
+    def test_location_after_chdir(change_cwd, monkeypatch, tmp_path):
+        if change_cwd:
+            monkeypatch.chdir(tmp_path)
+        assert mo.notebook_dir() == Path(__file__).parent
+        assert mo.app_meta().mode == "test"
+
+    @pytest.mark.xfail(raises=ValueError, strict=True)
+    def test_failure():
+        assert mo.notebook_dir() == Path(__file__).parent
+        raise ValueError("expected failure")
+
+    @pytest.mark.asyncio
+    async def test_async_location():
+        import asyncio
+        await asyncio.sleep(0)
+        assert mo.notebook_location() == Path(__file__).parent
+        assert directory.name == "notebooks"
+
+    class TestLocation:
+        def test_location(self):
+            assert mo.notebook_dir() == Path(__file__).parent
+            assert directory.name == "notebooks"
+
+def test_context_restored():
+    from pathlib import Path
+    from marimo._runtime.context import runtime_context_installed
+    assert not runtime_context_installed()
+    assert marimo.notebook_dir() == Path.cwd()
+    assert marimo.app_meta().mode == "test"
+"""
+    )
+    env = {k: v for k, v in os.environ.items() if k != "PYTEST_CURRENT_TEST"}
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            str(notebook),
+            "-q",
+            "-p",
+            "no:inline_snapshot",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        env=env,
+    )
+    out = proc.stdout + proc.stderr
+    assert proc.returncode == 0, out
+    assert "7 passed, 1 xfailed" in out
+
+
 def test_pytest_result_summary_omits_zero_xfail() -> None:
     from marimo._runtime.pytest import MarimoPytestResult
 
     result = MarimoPytestResult(passed=5, failed=0, errors=0, skipped=0)
     assert "XFailed" not in result.summary
     assert "XPassed" not in result.summary
+
+
+@pytest.mark.parametrize("failure", [None, "cell", "test"])
+def test_sync_hook_closes_event_loop(monkeypatch, failure: str | None) -> None:
+    from marimo._ast.pytest import _make_hook
+
+    loop = asyncio.new_event_loop()
+    monkeypatch.setattr(asyncio, "new_event_loop", lambda: loop)
+
+    def test_function():
+        if failure == "test":
+            raise ValueError("test failed")
+        return "test result"
+
+    async def run_cell():
+        await asyncio.sleep(0)
+        if failure == "cell":
+            raise ValueError("cell failed")
+        return None, {"test_function": test_function}
+
+    hook = _make_hook("test_function", run_cell, __file__)
+    try:
+        if failure:
+            with pytest.raises(ValueError, match=f"{failure} failed"):
+                hook()
+        else:
+            assert hook() == "test result"
+        assert loop.is_closed()
+    finally:
+        loop.close()
+
+
+def test_rerun_keeps_lazily_imported_modules(tmp_path, monkeypatch) -> None:
+    """Installed modules first imported during a run survive to the next run.
+
+    `run_pytest` restores `sys.modules` after each run so project-local
+    imports (conftest, helpers) reload with edits. Installed packages must be
+    kept: evicting one that a test imported lazily (e.g. `torch.manual_seed`
+    -> `torch._dynamo` -> `TORCH_LIBRARY` registration) re-executes its body
+    next run, while state outside the Python module (C++ dispatcher) persists,
+    raising "Only a single TORCH_LIBRARY can be used to register the
+    namespace".
+    """
+    import marimo
+    from marimo._runtime.pytest import run_pytest
+    from marimo._runtime.reload import autoreload
+
+    # Stand in for an installed package: extend the stdlib/site-packages
+    # roots so `fake_torch` classifies as non-user code.
+    roots = autoreload._non_user_module_roots()
+    installed = os.path.normcase(os.path.realpath(tmp_path / "installed"))
+    monkeypatch.setattr(
+        autoreload,
+        "_non_user_module_roots",
+        lambda: roots + (installed + os.sep,),
+    )
+    (tmp_path / "installed").mkdir()
+    pkg = tmp_path / "installed" / "fake_torch"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text(
+        "from . import _C\n\n"
+        "def seed():\n"
+        "    # Lazy submodule import, as in torch._compile\n"
+        "    import fake_torch._dynamo  # noqa: F401\n"
+    )
+    # Registry state outliving the Python module, like the C++ dispatcher.
+    (pkg / "_C.py").write_text(
+        "REGISTERED: set[str] = set()\n\n"
+        "def dispatch_library(ns):\n"
+        "    if ns in REGISTERED:\n"
+        "        raise RuntimeError(f'Only a single TORCH_LIBRARY for {ns}')\n"
+        "    REGISTERED.add(ns)\n"
+    )
+    (pkg / "_dynamo.py").write_text(
+        "from . import _C\n\n_C.dispatch_library('_inductor_test')\n"
+    )
+    # Project-local helper, imported lazily by the test.
+    (tmp_path / "local_helper.py").write_text("VALUE = 1\n")
+    monkeypatch.syspath_prepend(str(tmp_path / "installed"))
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    app = marimo.App()
+
+    @app.cell
+    def _():
+        import fake_torch  # type: ignore[import-not-found]
+
+        return (fake_torch,)
+
+    @app.cell
+    def _(fake_torch):
+        def test_seed():
+            import local_helper  # type: ignore[import-not-found]
+
+            fake_torch.seed()
+            assert local_helper.VALUE == 1
+
+        return
+
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("import marimo\napp = marimo.App()\n")
+
+    previous = os.environ.get("PYTEST_CURRENT_TEST", "")
+    os.environ.pop("PYTEST_CURRENT_TEST", None)
+    asyncio.run(asyncio.sleep(0.1))
+    try:
+        _, lcls = app.run()
+        lcls = dict(lcls)
+        results = [
+            run_pytest(defs={"test_seed"}, lcls=lcls, notebook_path=notebook)
+            for _ in range(2)
+        ]
+        dynamo_kept = "fake_torch._dynamo" in sys.modules
+        helper_kept = "local_helper" in sys.modules
+    finally:
+        if previous:
+            os.environ["PYTEST_CURRENT_TEST"] = previous
+        for name in [
+            n
+            for n in sys.modules
+            if n.startswith("fake_torch") or n == "local_helper"
+        ]:
+            del sys.modules[name]
+
+    for run, result in enumerate(results, start=1):
+        assert (result.passed, result.failed, result.errors) == (1, 0, 0), (
+            f"run {run}: {result.output}"
+        )
+    # Installed modules survive the run; project-local ones are evicted so
+    # edits are picked up on the next run.
+    assert dynamo_kept
+    assert not helper_kept

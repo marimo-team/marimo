@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from marimo._config.manager import MarimoConfigManager
+    from marimo._environments.sandbox import NotebookSandbox
     from marimo._messaging.notebook.document import NotebookDocument
     from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
     from marimo._session.queue import ProcessLike, QueueType
     from marimo._session.room import Room
     from marimo._session.state.session_view import SessionView
-    from marimo._types.ids import ConsumerId
+    from marimo._types.ids import ConsumerId, StableSessionId
     from marimo._utils.typed_connection import TypedConnection
 
 
@@ -66,7 +67,7 @@ class KernelManager(Protocol):
     kernel_task: ProcessLike | threading.Thread | None
     mode: SessionMode
 
-    def start_kernel(self) -> None:
+    async def start_kernel(self) -> None:
         """Start the kernel process or thread."""
         ...
 
@@ -140,6 +141,25 @@ class Session(Protocol):
     ttl_seconds: int
     scratchpad_lock: asyncio.Lock
     room: Room
+
+    @property
+    def stable_id(self) -> StableSessionId:
+        """Opaque, server-generated identity for this session instance.
+
+        Remains unchanged across consumer disconnects, browser resumes, and
+        notebook renames. Each new session gets a fresh ID, even for the same
+        notebook; IDs are not persisted across server restarts.
+
+        This is separate from the browser-supplied `SessionId`, which can
+        change on resume, and `initialization_id`, the notebook's creation
+        key. Internal only: not used for routing or exposed to clients.
+        """
+        ...
+
+    @property
+    def notebook_sandbox(self) -> NotebookSandbox | None:
+        """The retained sandbox binding used by this session, if any."""
+        ...
 
     @property
     def document(self) -> NotebookDocument:

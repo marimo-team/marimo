@@ -20,7 +20,6 @@ import { Maps } from "@/utils/maps";
 import { maxFractionalDigits } from "@/utils/numbers";
 import { Objects } from "@/utils/objects";
 import { parseContent } from "@/utils/url-parser";
-import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { JsonOutput } from "../editor/output/JsonOutput";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Button } from "../ui/button";
@@ -412,76 +411,74 @@ const PopoutColumn = ({
     : rawStringValue;
 
   return (
-    <EmotionCacheProvider container={null}>
-      <Popover>
-        <PopoverTrigger
-          ref={triggerRef}
-          className={cn(cellStyles, "max-w-fit outline-hidden")}
-          onClick={selectCell}
-          onMouseDown={(e) => {
-            // Prevent cell underneath from being selected
-            e.stopPropagation();
-          }}
-        >
-          <span
-            className={cn(
-              "cursor-pointer hover:text-link",
-              wrapped && COLUMN_WRAPPING_STYLES,
-            )}
-            title={rawStringValue}
-          >
-            {edges ? <WhitespaceMarkers value={edges.leading} /> : null}
-            {displayText}
-            {edges ? <WhitespaceMarkers value={edges.trailing} /> : null}
-          </span>
-        </PopoverTrigger>
-        <PopoverContent
+    <Popover>
+      <PopoverTrigger
+        ref={triggerRef}
+        className={cn(cellStyles, "max-w-fit outline-hidden")}
+        onClick={selectCell}
+        onMouseDown={(e) => {
+          // Prevent cell underneath from being selected
+          e.stopPropagation();
+        }}
+      >
+        <span
           className={cn(
-            contentClassName,
-            scrollable && "flex flex-col overflow-hidden",
+            "cursor-pointer hover:text-link",
+            wrapped && COLUMN_WRAPPING_STYLES,
           )}
-          align="start"
-          alignOffset={10}
-          onInteractOutside={(event) => {
-            // Radix sees the shadow host as the target. Resolve the original
-            // target so pointer-down does not dismiss before click toggles.
-            const target = Events.composedTarget(event.detail.originalEvent);
-            if (triggerRef.current?.contains(target)) {
-              event.preventDefault();
-            }
-          }}
+          title={rawStringValue}
         >
-          <div
-            className={cn(
-              "flex -mt-3 -mr-2",
-              scrollable ? "shrink-0 justify-end" : "float-right",
-            )}
-          >
-            <CopyClipboardIcon
-              value={rawStringValue}
-              className="size-3 hover:text-link"
-              buttonClassName="flex size-5 items-center justify-center"
-              tooltip={false}
-            />
-            <PopoverClose asChild={true}>
-              <Button
-                variant="link"
-                size="xs"
-                className={cn("size-5 p-0", !buttonText && "ml-1.5 mr-1")}
-                aria-label="Close"
-              >
-                {buttonText ?? "Close"}
-              </Button>
-            </PopoverClose>
-          </div>
-          {scrollable ? (
-            <div className="min-h-0 overflow-auto">{children}</div>
-          ) : (
-            children
+          {edges ? <WhitespaceMarkers value={edges.leading} /> : null}
+          {displayText}
+          {edges ? <WhitespaceMarkers value={edges.trailing} /> : null}
+        </span>
+      </PopoverTrigger>
+      <PopoverContent
+        className={cn(
+          contentClassName,
+          scrollable && "flex flex-col overflow-hidden",
+        )}
+        align="start"
+        alignOffset={10}
+        onInteractOutside={(event) => {
+          // Radix sees the shadow host as the target. Resolve the original
+          // target so pointer-down does not dismiss before click toggles.
+          const target = Events.composedTarget(event.detail.originalEvent);
+          if (triggerRef.current?.contains(target)) {
+            event.preventDefault();
+          }
+        }}
+      >
+        <div
+          className={cn(
+            "flex -mt-3 -mr-2",
+            scrollable ? "shrink-0 justify-end" : "float-right",
           )}
-        </PopoverContent>
-      </Popover>
-    </EmotionCacheProvider>
+        >
+          <CopyClipboardIcon
+            value={rawStringValue}
+            className="size-3 hover:text-link"
+            buttonClassName="flex size-5 items-center justify-center"
+            tooltip={false}
+          />
+          <PopoverClose asChild={true}>
+            <Button
+              variant="link"
+              size="xs"
+              className={cn("size-5 p-0", !buttonText && "ml-1.5 mr-1")}
+              aria-label="Close"
+            >
+              {buttonText ?? "Close"}
+            </Button>
+          </PopoverClose>
+        </div>
+        {scrollable ? (
+          <div className="min-h-0 overflow-auto">{children}</div>
+        ) : (
+          children
+        )}
+      </PopoverContent>
+    </Popover>
   );
 };
 

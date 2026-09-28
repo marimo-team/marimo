@@ -189,6 +189,8 @@ export const MediaRenderer: React.FC<MediaSource & { mimeType: string }> = ({
  * based on MIME type. Used by both the local file viewer and the
  * storage file viewer.
  */
+const EMPTY_EXTENSIONS: readonly Extension[] = [];
+
 export const FileContentRenderer: React.FC<{
   mimeType: string;
   filename?: string;
@@ -199,7 +201,7 @@ export const FileContentRenderer: React.FC<{
   readOnly?: boolean;
   onChange?: (value: string) => void;
   /** Additional CodeMirror extensions (e.g. save hotkey). */
-  extensions?: Extension[];
+  extensions?: readonly Extension[];
 }> = ({
   mimeType,
   filename,
@@ -207,7 +209,7 @@ export const FileContentRenderer: React.FC<{
   mediaSource,
   readOnly = true,
   onChange,
-  extensions = [],
+  extensions = EMPTY_EXTENSIONS,
 }) => {
   const { theme } = useTheme();
 

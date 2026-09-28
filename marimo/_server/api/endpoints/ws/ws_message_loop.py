@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
@@ -77,7 +77,7 @@ def prepare_wire_message(data: KernelMessage, *, is_kiosk: bool) -> str | None:
     try:
         return format_wire_message(op, data)
     except Exception as e:
-        LOGGER.error("Failed to deserialize message: %s", str(e))
+        LOGGER.error("Failed to deserialize message: %s", e)
         LOGGER.error("Message: %s", data)
         return None
 
@@ -90,16 +90,12 @@ class WebSocketMessageLoop:
         websocket: WebSocket,
         message_queue: asyncio.Queue[KernelMessage],
         is_kiosk: Callable[[], bool],
-        on_disconnect: Callable[[Exception, Callable[[], Any]], None],
         on_check_status_update: Callable[[], None],
     ):
         self.websocket = websocket
         self.message_queue = message_queue
         self.is_kiosk = is_kiosk
-        self.on_disconnect = on_disconnect
         self.on_check_status_update = on_check_status_update
-        self._listen_messages_task: asyncio.Task[None] | None = None
-        self._listen_disconnect_task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
         """Start the message loops.
@@ -108,17 +104,22 @@ class WebSocketMessageLoop:
         - listen_for_messages: Sends messages from kernel to frontend
         - listen_for_disconnect: Detects when WebSocket disconnects
         """
-        self._listen_messages_task = asyncio.create_task(
-            self._listen_for_messages()
+        tasks = (
+            asyncio.create_task(self._listen_for_messages()),
+            asyncio.create_task(self._listen_for_disconnect()),
         )
-        self._listen_disconnect_task = asyncio.create_task(
-            self._listen_for_disconnect()
-        )
-
-        await asyncio.gather(
-            self._listen_messages_task,
-            self._listen_disconnect_task,
-        )
+        try:
+            done, _ = await asyncio.wait(
+                tasks, return_when=asyncio.FIRST_COMPLETED
+            )
+            for task in done:
+                task.result()
+        except WebSocketDisconnect:
+            pass
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _listen_for_messages(self) -> None:
         """Listen for messages from kernel and send to frontend."""
@@ -131,9 +132,7 @@ class WebSocketMessageLoop:
             # Send to WebSocket
             try:
                 await self.websocket.send_text(text)
-            except WebSocketDisconnect as e:
-                self.on_disconnect(e, self._cancel_disconnect_task)
-            except RuntimeError as e:
+            except RuntimeError:
                 # Starlette can raise a runtime error if a message is sent
                 # when the socket is closed. In case the disconnection
                 # error hasn't made its way to listen_for_disconnect, do
@@ -142,40 +141,11 @@ class WebSocketMessageLoop:
                     self.websocket.application_state
                     == WebSocketState.DISCONNECTED
                 ):
-                    self.on_disconnect(e, self._cancel_disconnect_task)
-                else:
-                    LOGGER.error(
-                        "Error sending message to frontend: %s", str(e)
-                    )
-            except Exception as e:
-                LOGGER.error("Error sending message to frontend: %s", str(e))
+                    return
                 raise
 
     async def _listen_for_disconnect(self) -> None:
         """Listen for WebSocket disconnect."""
-        try:
-            # Check for marimo updates when connection starts
-            self.on_check_status_update()
-            # Wait for disconnection
+        self.on_check_status_update()
+        while True:
             await self.websocket.receive_text()
-        except WebSocketDisconnect as e:
-            self.on_disconnect(e, self._cancel_messages_task)
-        except Exception as e:
-            LOGGER.error("Error listening for disconnect: %s", str(e))
-            raise
-
-    def _cancel_messages_task(self) -> None:
-        """Cancel the messages task."""
-        if (
-            self._listen_messages_task
-            and not self._listen_messages_task.done()
-        ):
-            self._listen_messages_task.cancel()
-
-    def _cancel_disconnect_task(self) -> None:
-        """Cancel the disconnect task."""
-        if (
-            self._listen_disconnect_task
-            and not self._listen_disconnect_task.done()
-        ):
-            self._listen_disconnect_task.cancel()

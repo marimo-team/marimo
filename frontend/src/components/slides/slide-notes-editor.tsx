@@ -89,6 +89,7 @@ export const SlideNotesEditor = ({
   };
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Prevent slide navigation while editing speaker notes.
     <section
       className={cn(
         "h-full min-h-0 flex flex-col bg-muted/40 dark:bg-muted/20 border-t",

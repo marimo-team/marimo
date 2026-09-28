@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -127,7 +128,7 @@ async def list_files(
     # for the browser.
     directory = app_state.session_manager.workspace.directory
     root = body.path or directory or file_system.get_root()
-    files = file_system.list_files(root)
+    files = await asyncio.to_thread(file_system.list_files, root)
     return FileListResponse(files=files, root=root)
 
 
@@ -446,11 +447,13 @@ async def search_files(
                         $ref: "#/components/schemas/FileSearchResponse"
     """
     body = await parse_request(request, cls=FileSearchRequest)
-    files = file_system.search(
+    files = await asyncio.to_thread(
+        file_system.search,
         query=body.query,
         path=body.path,
         include_directories=body.include_directories,
         include_files=body.include_files,
+        include_hidden=body.include_hidden,
         depth=body.depth,
         limit=body.limit,
     )

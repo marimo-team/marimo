@@ -126,7 +126,15 @@ export function transitionCell(
     nextCell.debuggerActive = false;
     consoleOutputs = consoleOutputs.map((output) => {
       if (output.channel === "stdin") {
-        return { ...output, response: output.response ?? "" };
+        // StatefulOutputMessage exposes data through a getter, which object
+        // spread would omit.
+        return {
+          channel: output.channel,
+          mimetype: output.mimetype,
+          data: output.data,
+          timestamp: output.timestamp,
+          response: output.response ?? "",
+        };
       }
       return output;
     });

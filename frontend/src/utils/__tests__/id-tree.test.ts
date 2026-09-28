@@ -558,7 +558,9 @@ describe("CollapsibleTree", () => {
     expect(collapsed.after("four")).toBeUndefined();
 
     // Should throw for collapsed children that aren't top-level
-    expect(() => collapsed.after("three")).toThrow();
+    expect(() => collapsed.after("three")).toThrow(
+      "Node three not found in tree. Valid ids: one,two,four",
+    );
   });
 
   it("handles before correctly", () => {
@@ -585,7 +587,9 @@ describe("CollapsibleTree", () => {
     expect(collapsed.before("one")).toBeUndefined();
 
     // Should throw for collapsed children that aren't top-level
-    expect(() => collapsed.before("three")).toThrow();
+    expect(() => collapsed.before("three")).toThrow(
+      "Node three not found in tree. Valid ids: one,two,four",
+    );
   });
 
   it("handles slice on empty tree", () => {
@@ -704,8 +708,8 @@ describe("CollapsibleTree edge cases", () => {
     expect(tree.first()).toBe("A");
     expect(tree.last()).toBe("D");
     tree = CollapsibleTree.from([]);
-    expect(() => tree.first()).toThrow();
-    expect(() => tree.last()).toThrow();
+    expect(() => tree.first()).toThrow("Node at index 0 not found in tree");
+    expect(() => tree.last()).toThrow("Node at index -1 not found in tree");
   });
 
   it("handles inOrderIds with nested structure", () => {
@@ -1045,7 +1049,9 @@ describe("MultiColumn", () => {
       "Cell Z1 not found in any column",
     );
     expect(multiColumn.colLength).toBeGreaterThan(2);
-    expect(() => multiColumn.delete("123" as CellColumnId)).toThrow();
+    expect(() => multiColumn.delete("123" as CellColumnId)).toThrow(
+      /Column 123 not found/,
+    );
   });
 
   it("checks if it's empty", () => {
@@ -1070,7 +1076,7 @@ describe("MultiColumn", () => {
     expect(multiColumn.at(1)?.topLevelIds).toEqual(["B1", "B2"]);
     expect(multiColumn.atOrThrow(1).topLevelIds).toEqual(["B1", "B2"]);
     expect(multiColumn.at(5)).toBeUndefined();
-    expect(() => multiColumn.atOrThrow(5)).toThrow();
+    expect(() => multiColumn.atOrThrow(5)).toThrow("Column 5 not found");
   });
 
   it("handles moving the last item in a column", () => {

@@ -12,35 +12,22 @@ in marimo's sandbox mode. It handles:
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
-from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._cli.print import echo
-from marimo._utils.uv import find_uv_bin
+from marimo._environments.process import run_command
+from marimo._environments.uv import UvCommandError, uv_async
 from marimo._version import __version__
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._config.config import VenvConfig
 
 LOGGER = _loggers.marimo_logger()
-
-
-def get_ipc_kernel_deps() -> list[str]:
-    """Get dependencies required for IPC kernel communication.
-
-    Returns pyzmq pinned to the currently installed version to ensure
-    compatibility between host and sandbox environments.
-    """
-    try:
-        pyzmq_version = version("pyzmq")
-        return [f"pyzmq=={pyzmq_version}"]
-    except Exception:
-        # Fallback if pyzmq not installed
-        return ["pyzmq>=27.1.0"]
 
 
 def _find_python_in_venv(venv_path: str) -> str | None:
@@ -138,7 +125,7 @@ def get_kernel_pythonpath() -> str:
     return os.pathsep.join(paths)
 
 
-def has_marimo_installed(venv_python: str) -> bool:
+async def has_marimo_installed(venv_python: str) -> bool:
     """Check if marimo and its IPC deps are installed in the venv.
 
     Args:
@@ -147,14 +134,12 @@ def has_marimo_installed(venv_python: str) -> bool:
     Returns:
         True if marimo, msgspec, and zmq can all be imported.
     """
-    result = subprocess.run(
+    result = await run_command(
         [
             venv_python,
             "-c",
             "import marimo, msgspec, zmq; print(marimo.__version__)",
         ],
-        capture_output=True,
-        text=True,
     )
     if result.returncode != 0:
         return False
@@ -172,7 +157,7 @@ def has_marimo_installed(venv_python: str) -> bool:
     return True
 
 
-def check_python_version_compatibility(venv_python: str) -> bool:
+async def check_python_version_compatibility(venv_python: str) -> bool:
     """Check if venv Python version matches current Python.
 
     Binary dependencies (pyzmq, msgspec) aren't cross-version compatible,
@@ -184,14 +169,12 @@ def check_python_version_compatibility(venv_python: str) -> bool:
     Returns:
         True if versions match, False otherwise.
     """
-    result = subprocess.run(
+    result = await run_command(
         [
             venv_python,
             "-c",
             "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
         ],
-        capture_output=True,
-        text=True,
     )
     venv_version = result.stdout.strip()
     current_version = f"{sys.version_info.major}.{sys.version_info.minor}"
@@ -199,26 +182,25 @@ def check_python_version_compatibility(venv_python: str) -> bool:
     return venv_version == current_version
 
 
-def install_marimo_into_venv(venv_python: str) -> None:
-    """Install marimo and IPC dependencies into a venv.
-
-    Installs marimo and IPC dependencies (pyzmq) into the specified venv.
+async def install_marimo_into_venv(
+    venv_python: str, *, on_output: Callable[[str], None] | None = None
+) -> None:
+    """Install marimo into a venv.
 
     Args:
         venv_python: Path to the venv's Python interpreter.
+        on_output: Receive installation progress as it is produced.
     """
-    uv_bin = find_uv_bin()
-
-    packages = [f"marimo=={__version__}"] + get_ipc_kernel_deps()
+    packages = [f"marimo=={__version__}"]
 
     echo("Installing marimo into configured venv...", err=True)
 
-    result = subprocess.run(
-        [uv_bin, "pip", "install", "--python", venv_python] + packages,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
+    try:
+        await uv_async(
+            ["pip", "install", "--python", venv_python] + packages,
+            on_output=on_output,
+        )
+    except UvCommandError as e:
         LOGGER.warning(
-            f"Failed to install marimo into configured venv: {result.stderr}"
+            f"Failed to install marimo into configured venv: {e.stderr}"
         )

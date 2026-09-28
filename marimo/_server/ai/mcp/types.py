@@ -8,8 +8,8 @@ MCPToolValue: TypeAlias = (
     | int
     | float
     | bool
-    | None
     | list["MCPToolValue"]
     | dict[str, "MCPToolValue"]
+    | None
 )
 MCPToolArgs: TypeAlias = dict[str, MCPToolValue] | None

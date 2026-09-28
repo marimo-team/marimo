@@ -14,6 +14,7 @@ const buttonVariants = cva(
   cn(
     "disabled:opacity-50 disabled:pointer-events-none",
     "inline-flex items-center justify-center rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background",
+    "forced-color-adjust-none forced-colors:border-[ButtonText] forced-colors:bg-[ButtonFace] forced-colors:text-[ButtonText] forced-colors:hover:bg-[Highlight] forced-colors:hover:text-[HighlightText] forced-colors:disabled:border-[GrayText] forced-colors:disabled:text-[GrayText]",
   ),
   {
     variants: {

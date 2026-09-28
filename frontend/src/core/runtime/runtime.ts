@@ -183,8 +183,13 @@ export class RuntimeManager {
   /**
    * The WebSocket URL of the terminal.
    */
-  getTerminalWsURL(): URL {
-    return this.formatWsURL("/terminal/ws");
+  getTerminalWsURL(size?: { rows: number; cols: number }): URL {
+    const url = this.formatWsURL("/terminal/ws");
+    if (size) {
+      url.searchParams.set("rows", String(size.rows));
+      url.searchParams.set("cols", String(size.cols));
+    }
+    return url;
   }
 
   /**
