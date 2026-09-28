@@ -158,7 +158,10 @@ class date(UIElement[str, dt.date]):
             return value
         if isinstance(value, dt.datetime):
             return value.date()
-        return dt.date.fromisoformat(value)
+        # This is date-only input; preserve `strptime`'s accepted formats.
+        return dt.datetime.strptime(  # noqa: DTZ007
+            value, self.DATE_FORMAT
+        ).date()
 
     @property
     def start(self) -> dt.date:
@@ -473,7 +476,10 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
             return value
         if isinstance(value, dt.datetime):
             return value.date()
-        return dt.date.fromisoformat(value)
+        # This is date-only input; preserve `strptime`'s accepted formats.
+        return dt.datetime.strptime(  # noqa: DTZ007
+            value, self.DATEFORMAT
+        ).date()
 
     @property
     def start(self) -> dt.date:
