@@ -660,3 +660,71 @@ describe("ExportActions dialog", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
+
+const LONG_GEOMETRY_WKT = `LINESTRING (${Array.from(
+  { length: 160 },
+  (_, index) => `${index} ${index % 17}`,
+).join(", ")})`;
+const jsonRows = [{ row_label: "long", geometry: LONG_GEOMETRY_WKT }];
+
+describe("ExportActions clipboard geometry", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    downloadAs.mockResolvedValue({
+      url: "https://example.test/export",
+      filename: "geometry",
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    {
+      label: "CSV",
+      sourceFormat: "csv" as const,
+      sourceText: `row_label,geometry\nlong,"${LONG_GEOMETRY_WKT}"\n`,
+      expectedText: `row_label,geometry\nlong,"${LONG_GEOMETRY_WKT}"\n`,
+    },
+    {
+      label: "TSV",
+      sourceFormat: "tsv" as const,
+      sourceText: `row_label\tgeometry\nlong\t${LONG_GEOMETRY_WKT}\n`,
+      expectedText: `row_label\tgeometry\nlong\t${LONG_GEOMETRY_WKT}\n`,
+    },
+    {
+      label: "JSON",
+      sourceFormat: "json" as const,
+      sourceText: JSON.stringify(jsonRows),
+      expectedText: JSON.stringify(jsonRows, null, 2),
+    },
+    {
+      label: "Markdown",
+      sourceFormat: "json" as const,
+      sourceText: JSON.stringify(jsonRows),
+      expectedText: jsonToMarkdown(jsonRows),
+    },
+  ])(
+    "copies complete geometry text as $label",
+    async ({ label, sourceFormat, sourceText, expectedText }) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          text: vi.fn().mockResolvedValue(sourceText),
+        }),
+      );
+      renderExportActions();
+      await openDialog();
+
+      fireEvent.click(screen.getByRole("button", { name: `Copy ${label}` }));
+
+      await waitFor(() => {
+        expect(copyToClipboard).toHaveBeenCalledWith(expectedText);
+      });
+      expect(downloadAs).toHaveBeenCalledWith({ format: sourceFormat });
+      expect(expectedText).toContain(LONG_GEOMETRY_WKT);
+    },
+  );
+});
