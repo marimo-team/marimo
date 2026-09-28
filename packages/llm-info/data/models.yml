@@ -2,7 +2,7 @@ anthropic:
 
   - name: Claude Opus 5.5
     model: claude-opus-5-5
-    description: ""
+    description: "Anthropic's strongest Opus model for coding, agents, and knowledge work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -12,7 +12,7 @@ anthropic:
 
   - name: Claude Fable 5.1
     model: claude-fable-5-1
-    description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
+    description: "Anthropic model for ambitious, long-running coding, agentic, research, and enterprise workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -123,7 +123,7 @@ anthropic:
 openai:
   - name: GPT-6 Luna
     model: gpt-6-luna
-    description: ""
+    description: "OpenAI's most efficient model for focused, high-volume tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -133,7 +133,7 @@ openai:
 
   - name: GPT-6 Sol
     model: gpt-6-sol
-    description: ""
+    description: "OpenAI reasoning model for demanding tasks that balances capability, latency, and cost"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -143,7 +143,7 @@ openai:
 
   - name: Daybreak Blue
     model: gpt-daybreak-blue-latest
-    description: ""
+    description: "OpenAI model alias for authorized defensive cybersecurity work with reduced refusals"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -153,7 +153,7 @@ openai:
 
   - name: Daybreak Red
     model: gpt-daybreak-red-latest
-    description: ""
+    description: "OpenAI model alias for advanced authorized cybersecurity work, including penetration testing and exploit validation"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -273,7 +273,7 @@ openai:
 google:
   - name: Claude Opus 5.5
     model: claude-opus-5-5@default
-    description: ""
+    description: "Anthropic's strongest Opus model for coding, agents, and knowledge work, available through Vertex AI only"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -303,7 +303,7 @@ google:
 
   - name: Claude Fable 5.1
     model: claude-fable-5-1@default
-    description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows, available through Vertex AI only"
+    description: "Anthropic model for ambitious, long-running coding, agentic, research, and enterprise workflows, available through Vertex AI only"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -460,39 +460,9 @@ google:
     cost: {input: 5, output: 25}
 
 bedrock:
-  - name: Claude Opus 5.5
-    model: anthropic.claude-opus-5-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-09-22
-    cost: {input: 4, output: 20}
-
-  - name: Claude Opus 5.5 (AU)
-    model: au.anthropic.claude-opus-5-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-09-22
-    cost: {input: 4.4, output: 22}
-
-  - name: Claude Opus 5.5 (EU)
-    model: eu.anthropic.claude-opus-5-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-09-22
-    cost: {input: 4.4, output: 22}
-
   - name: Claude Opus 5.5 (Global)
     model: global.anthropic.claude-opus-5-5
-    description: ""
+    description: "Anthropic's strongest Opus model for coding, agents, and knowledge work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -502,7 +472,7 @@ bedrock:
 
   - name: GPT-6 Luna (Global)
     model: global.openai.gpt-6-luna
-    description: ""
+    description: "OpenAI's most efficient model for focused, high-volume tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -532,7 +502,7 @@ bedrock:
 
   - name: Claude Fable 5.1 (Global)
     model: global.anthropic.claude-fable-5-1
-    description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
+    description: "Anthropic model for ambitious, long-running coding, agentic, research, and enterprise workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -723,7 +693,7 @@ bedrock:
 azure:
   - name: Claude Opus 5.5
     model: claude-opus-5-5
-    description: ""
+    description: "Anthropic's strongest Opus model for coding, agents, and knowledge work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -733,7 +703,7 @@ azure:
 
   - name: GPT-6 Luna
     model: gpt-6-luna
-    description: ""
+    description: "OpenAI's most efficient model for focused, high-volume tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -743,7 +713,7 @@ azure:
 
   - name: GPT-6 Sol
     model: gpt-6-sol
-    description: ""
+    description: "OpenAI reasoning model for demanding tasks that balances capability, latency, and cost"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -753,7 +723,7 @@ azure:
 
   - name: GPT Image 2.5 Flare
     model: gpt-image-2.5-flare
-    description: ""
+    description: "Small image generation and editing model optimized for speed and high-quality everyday use"
     roles: [chat, edit]
     capabilities: []
     input_types: [text, image]
@@ -763,7 +733,7 @@ azure:
 
   - name: GPT Image 2.5 Sunburst
     model: gpt-image-2.5-sunburst
-    description: ""
+    description: "Image generation and editing model optimized for quality, precise editing, and subject preservation"
     roles: [chat, edit]
     capabilities: []
     input_types: [text, image]
@@ -783,7 +753,7 @@ azure:
 
   - name: Claude Fable 5.1
     model: claude-fable-5-1
-    description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
+    description: "Anthropic model for ambitious, long-running coding, agentic, research, and enterprise workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -1156,7 +1126,7 @@ ollama:
 wandb:
   - name: DeepSeek V4.1 Flash
     model: deepseek-ai/DeepSeek-V4.1-Flash
-    description: ""
+    description: "Sparse Mixture-of-Experts model from DeepSeek built on a Causal Encoder-Decoder architecture"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1387,7 +1357,7 @@ wandb:
 opencode-go:
   - name: LongCat 2.5 Preview Free
     model: longcat-2.5-preview-free
-    description: ""
+    description: "Multimodal reasoning model from Meituan for coding and agentic workflows, with a one-million-token context window"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1397,7 +1367,7 @@ opencode-go:
 
   - name: Space Bunny Free
     model: space-bunny-free
-    description: ""
+    description: "Anonymous model with fast inference, strong coding capabilities, native multimodal input, and adjustable reasoning effort"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1407,7 +1377,7 @@ opencode-go:
 
   - name: GPT-6 Luna
     model: gpt-6-luna
-    description: ""
+    description: "OpenAI's most efficient model for focused, high-volume tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -1417,7 +1387,7 @@ opencode-go:
 
   - name: MiMo-V2.6-Flash
     model: mimo-v2.6-flash
-    description: ""
+    description: "Open-source Mixture-of-Experts foundation model from Xiaomi with 309B total parameters and 15B activated per token"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1427,7 +1397,7 @@ opencode-go:
 
   - name: MiMo-V2.6-Pro
     model: mimo-v2.6-pro
-    description: ""
+    description: "Xiaomi's flagship foundation model with over one trillion parameters, designed for demanding coding and agentic tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1624,23 +1594,3 @@ opencode-go:
     output_types: [text]
     release_date: 2026-05-31
     cost: {input: 0.1, output: 0.4}
-
-  - name: MiMo V2.5
-    model: mimo-v2.5
-    description: "Native omnimodal model from Xiaomi delivering Pro-level agentic performance at roughly half the inference cost"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-04-22
-    cost: {input: 0.4, output: 2}
-
-  - name: MiMo V2.5 Pro
-    model: mimo-v2.5-pro
-    description: "Xiaomi's flagship model, delivering strong performance in general agentic capabilities, complex software engineering, and long-horizon tasks, with top rankings on benchmarks such as ClawEval, GDPVal,…"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text]
-    output_types: [text]
-    release_date: 2026-04-22
-    cost: {input: 1, output: 3}
