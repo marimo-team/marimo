@@ -1814,7 +1814,10 @@ def test_download_duckdb_geometry_as_complete_text(
             params=[LONG_GEOMETRY_WKT, POINT_GEOMETRY_WKT],
         )
 
-        rows = _download_text_rows(ui.table(source), format_type)
+        with patch.object(
+            DependencyManager.shapely, "has", return_value=False
+        ):
+            rows = _download_text_rows(ui.table(source), format_type)
 
         _assert_complete_geometry_rows(rows, format_type, LONG_GEOMETRY_WKT)
         assert str(source.types[1]) == "GEOMETRY"
