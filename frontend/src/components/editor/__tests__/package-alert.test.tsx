@@ -17,7 +17,7 @@ import { PackageAlert } from "../package-alert";
 
 vi.mock("@/hooks/usePackageMetadata", () => ({
   usePackageMetadata: () => ({
-    data: { versions: [], extras: [] },
+    data: { versions: ["1.2.3"], extras: [] },
     error: null,
     isPending: false,
   }),
@@ -95,6 +95,29 @@ it("keeps the configured package manager selectable outside a sandbox", () => {
   const managerSelect = screen.getByTestId("install-package-manager-select");
   expect(managerSelect).toHaveValue("uv");
   expect(managerSelect).not.toBeDisabled();
+});
+
+it("installs a selected version in a Pixi sandbox", () => {
+  const client = mountPackageAlert({
+    configuredManager: "uv",
+    sandboxBackend: "pixi",
+  });
+
+  fireEvent.change(screen.getByDisplayValue("latest"), {
+    target: { value: "1.2.3" },
+  });
+  fireEvent.click(screen.getByTestId("install-packages-button"));
+  expect(client.sendInstallMissingPackages).toHaveBeenCalledExactlyOnceWith({
+    manager: "pixi",
+    versions: { polars: "1.2.3" },
+    source: "kernel",
+  });
+});
+
+it("does not offer version selection for Pixi outside a sandbox", () => {
+  mountPackageAlert({ configuredManager: "pixi", sandboxBackend: null });
+
+  expect(screen.queryByDisplayValue("latest")).not.toBeInTheDocument();
 });
 
 it("does not offer a package manager for a server installation", () => {

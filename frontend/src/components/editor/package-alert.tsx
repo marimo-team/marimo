@@ -140,7 +140,9 @@ export const PackageAlert: React.FC = () => {
   const packageManager =
     sandboxPackageManager ?? userConfig.package_management.manager;
   const doesSupportVersioning =
-    packageAlert.source === "server" || packageManager !== "pixi";
+    packageAlert.source === "server" ||
+    sandbox !== null ||
+    packageManager !== "pixi";
 
   if (isMissingPackageAlert(packageAlert)) {
     return (
