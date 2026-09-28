@@ -1,5 +1,4 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* oxlint-disable react/jsx-no-comment-textnodes */
 
 import { useAtomValue } from "jotai";
 import { CopyIcon, DownloadIcon } from "lucide-react";
