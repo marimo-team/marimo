@@ -292,13 +292,12 @@ def start(
             GLOBAL_SETTINGS.SANDBOX_MODE = "multi"
 
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+        backend = sandbox or GLOBAL_SETTINGS.SANDBOX_BACKEND
+        package_manager: Backend = "pixi" if backend == "pixi" else "uv"
         config_reader = config_reader.with_overrides(
             {
-                # Currently, only uv is supported for managing script metadata
-                # If this changes, instead we should only update the config
-                # if the user's package manager does not support sandboxes.
                 "package_management": {
-                    "manager": "uv",
+                    "manager": package_manager,
                 }
             }
         )
