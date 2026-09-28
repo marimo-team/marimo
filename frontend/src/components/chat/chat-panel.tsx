@@ -168,7 +168,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       </Tooltip>
       <div className="flex items-center gap-2">
         <Tooltip content="Connect your agent">
-          <PairWithAgentButton />
+          <PairWithAgentButton className="mr-1" label="Connect" />
         </Tooltip>
         <MCPStatusIndicator />
         <Tooltip content="AI Settings">
@@ -500,7 +500,7 @@ const PairWithAgentCallout: React.FC<{
       onClick={onPairWithAgent}
     >
       <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
-      <span>Connect your agent</span>
+      <span>Connect your own agent to this notebook</span>
       <ArrowRightIcon className="h-3 w-3 shrink-0" />
     </Button>
   );
