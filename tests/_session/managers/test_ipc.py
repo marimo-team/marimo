@@ -66,6 +66,7 @@ class TestIPCKernelManagerImpl:
 
         # Create IPCKernelManagerImpl without starting kernel
         kernel_manager = IPCKernelManagerImpl(
+            sandbox=True,
             queue_manager=queue_manager,
             connection_info=connection_info,
             mode=SessionMode.EDIT,
@@ -297,6 +298,7 @@ def _make_manager(filename: str | None = None) -> object:
     app_metadata = MagicMock()
     app_metadata.filename = filename
     return IPCKernelManagerImpl(
+        sandbox=True,
         queue_manager=IPCQueueManagerImpl(MagicMock()),
         connection_info=MagicMock(),
         mode=SessionMode.EDIT,
@@ -554,6 +556,7 @@ async def test_startup_owns_kernel_process_and_pipes(
     )
     queues, connection_info = QueueManager.create()
     manager = IPCKernelManagerImpl(
+        sandbox=not configured,
         queue_manager=IPCQueueManagerImpl.from_ipc(queues),
         connection_info=connection_info,
         mode=SessionMode.EDIT,

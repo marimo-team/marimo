@@ -6577,12 +6577,12 @@ components:
       title: VariablesNotification
       type: object
     VenvConfig:
-      description: "Configuration for external Python environment in home sandbox\
-        \ mode.\n\n    Allows specifying an existing virtualenv to use instead of\
-        \ creating\n    ephemeral sandboxes per notebook. Only applies in home sandbox\
-        \ mode.\n\n    **Keys.**\n\n    - `path`: path to a virtualenv directory (absolute\
-        \ or relative to\n      pyproject.toml)\n    - `writable`: if true, marimo\
-        \ will manage script metadata (inline\n      dependencies). Defaults to false."
+      description: "Configuration for an external Python environment in edit mode.\n\n\
+        \    Launches the notebook kernel in an existing virtualenv. Applies to\n    single\
+        \ notebooks and directories when editing without `--sandbox`.\n\n    **Keys.**\n\
+        \n    - `path`: path to a virtualenv directory (absolute or relative to\n    \
+        \  pyproject.toml)\n    - `writable`: if true, marimo will manage script metadata\
+        \ (inline\n      dependencies). Defaults to false."
       properties:
         path:
           type: string
