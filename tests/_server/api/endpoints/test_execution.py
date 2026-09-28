@@ -35,6 +35,8 @@ from tests._server.mocks import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
     from starlette.testclient import TestClient
 
 SESSION_ID = SessionId("session-123")
@@ -42,6 +44,7 @@ HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
 }
+STABLE_SESSION_HEADER = "Marimo-Stable-Session-Id"
 
 
 def _count_execute_interrupts(
@@ -259,6 +262,85 @@ class TestExecutionRoutes_EditMode:
         assert response.status_code == 200, response.text
         assert response.headers["content-type"] == "application/json"
         assert "success" in response.json()
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_with_stable_session_id(client: TestClient) -> None:
+        from unittest.mock import patch
+
+        from marimo._server import scratchpad as scratchpad_mod
+
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        async def empty_stream(
+            self: object,  # noqa: ARG001
+        ) -> AsyncGenerator[str, None]:
+            if False:
+                yield ""
+
+        with (
+            patch.object(session, "put_control_request"),
+            patch.object(
+                scratchpad_mod.ScratchCellListener,
+                "stream",
+                empty_stream,
+            ),
+        ):
+            response = client.post(
+                "/api/kernel/execute",
+                headers={
+                    STABLE_SESSION_HEADER: session.stable_id,
+                    **token_header("fake-token"),
+                },
+                json={"code": "x = 1"},
+            )
+
+        assert response.status_code == 200, response.text
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_rejects_conflicting_session_ids(
+        client: TestClient,
+    ) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        response = client.post(
+            "/api/kernel/execute",
+            headers={
+                **HEADERS,
+                STABLE_SESSION_HEADER: session.stable_id,
+            },
+            json={"code": "x = 1"},
+        )
+
+        assert response.status_code == 400, response.text
+        assert response.json() == {
+            "detail": (
+                "Marimo-Stable-Session-Id cannot be combined with "
+                "Marimo-Session-Id."
+            )
+        }
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_rejects_unknown_stable_session_id(
+        client: TestClient,
+    ) -> None:
+        response = client.post(
+            "/api/kernel/execute",
+            headers={
+                STABLE_SESSION_HEADER: "sess-unknown",
+                **token_header("fake-token"),
+            },
+            json={"code": "x = 1"},
+        )
+
+        assert response.status_code == 404, response.text
+        assert response.json() == {
+            "detail": "Invalid stable session id: sess-unknown"
+        }
 
     @staticmethod
     @with_session(SESSION_ID)
