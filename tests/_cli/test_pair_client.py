@@ -737,6 +737,27 @@ def test_raise_for_status_maps_missing_legacy_header_to_upgrade() -> None:
     assert response.closed
 
 
+def test_raise_for_status_uses_json_detail() -> None:
+    response = FakeStatusResponse(
+        500, json.dumps({"detail": "Some other server error"}).encode()
+    )
+
+    with pytest.raises(PairError, match="Some other server error") as error:
+        client._raise_for_status(response)
+
+    assert type(error.value) is PairError
+    assert response.closed
+
+
+def test_raise_for_status_falls_back_to_status_code() -> None:
+    response = FakeStatusResponse(502, b"<html>Bad Gateway</html>")
+
+    with pytest.raises(PairError, match=r"Server returned 502\."):
+        client._raise_for_status(response)
+
+    assert response.closed
+
+
 def test_resolve_session_returns_only_stable_session_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
