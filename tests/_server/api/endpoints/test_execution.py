@@ -268,10 +268,16 @@ class TestExecutionRoutes_EditMode:
     def test_execute_with_stable_session_id(client: TestClient) -> None:
         from unittest.mock import patch
 
+        from marimo._runtime.commands import ExecuteScratchpadCommand
         from marimo._server import scratchpad as scratchpad_mod
 
         session = get_session_manager(client).get_session(SESSION_ID)
         assert session is not None
+
+        captured: list[object] = []
+
+        def capture(req: object, from_consumer_id: object) -> None:  # noqa: ARG001
+            captured.append(req)
 
         async def empty_stream(
             self: object,  # noqa: ARG001
@@ -280,7 +286,7 @@ class TestExecutionRoutes_EditMode:
                 yield ""
 
         with (
-            patch.object(session, "put_control_request"),
+            patch.object(session, "put_control_request", side_effect=capture),
             patch.object(
                 scratchpad_mod.ScratchCellListener,
                 "stream",
@@ -297,6 +303,13 @@ class TestExecutionRoutes_EditMode:
             )
 
         assert response.status_code == 200, response.text
+        scratchpad_commands = [
+            command
+            for command in captured
+            if isinstance(command, ExecuteScratchpadCommand)
+        ]
+        assert len(scratchpad_commands) == 1
+        assert scratchpad_commands[0].code == "x = 1"
 
     @staticmethod
     @with_session(SESSION_ID)
