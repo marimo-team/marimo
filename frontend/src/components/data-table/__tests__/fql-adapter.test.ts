@@ -1,7 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import { adaptFqlFilter, type FqlColumn } from "../filters/fql";
+import conformanceCasesJson from "../../../../../marimo/_server/ai/table_filter_conformance_cases.json";
+import {
+  adaptFqlFilter,
+  TableFilterConformanceSuiteSchema,
+  type FqlColumn,
+} from "../filters/fql";
 
 const COLUMNS = [
   {
@@ -25,6 +30,23 @@ const COLUMNS = [
   },
 ] satisfies FqlColumn[];
 
+const conformanceSuite =
+  TableFilterConformanceSuiteSchema.parse(conformanceCasesJson);
+
+function nativeCondition(
+  columnId: string,
+  operator: string,
+  value?: unknown,
+): unknown {
+  return {
+    type: "condition",
+    column_id: columnId,
+    operator,
+    ...(value === undefined ? {} : { value }),
+    negate: false,
+  };
+}
+
 function expectedCondition(
   columnId: string,
   operator: string,
@@ -35,15 +57,7 @@ function expectedCondition(
     filter: {
       type: "group",
       operator: "and",
-      children: [
-        {
-          type: "condition",
-          column_id: columnId,
-          operator,
-          ...(value === undefined ? {} : { value }),
-          negate: false,
-        },
-      ],
+      children: [nativeCondition(columnId, operator, value)],
       negate: false,
     },
   };
@@ -268,6 +282,159 @@ describe("adaptFqlFilter", () => {
     );
   });
 
+  it("flattens nested groups with the same operator", () => {
+    expect(
+      adaptFqlFilter("quantity=1 AND (price=2 AND active:true)", COLUMNS),
+    ).toEqual({
+      ok: true,
+      filter: {
+        type: "group",
+        operator: "and",
+        children: [
+          nativeCondition("quantity", "==", 1),
+          nativeCondition("price", "==", 2),
+          nativeCondition("active", "is_true"),
+        ],
+        negate: false,
+      },
+    });
+  });
+
+  it("flattens nested OR groups", () => {
+    expect(
+      adaptFqlFilter("quantity=1 OR (price=2 OR active:true)", COLUMNS),
+    ).toEqual({
+      ok: true,
+      filter: {
+        type: "group",
+        operator: "or",
+        children: [
+          nativeCondition("quantity", "==", 1),
+          nativeCondition("price", "==", 2),
+          nativeCondition("active", "is_true"),
+        ],
+        negate: false,
+      },
+    });
+  });
+
+  it("preserves nested groups with a different operator", () => {
+    expect(
+      adaptFqlFilter(
+        'active:true AND (vehicle_make="chevrolet" OR price>1500)',
+        COLUMNS,
+      ),
+    ).toEqual({
+      ok: true,
+      filter: {
+        type: "group",
+        operator: "and",
+        children: [
+          nativeCondition("active", "is_true"),
+          {
+            type: "group",
+            operator: "or",
+            children: [
+              nativeCondition("vehicle make", "equals", "chevrolet"),
+              nativeCondition("price", ">", 1500),
+            ],
+            negate: false,
+          },
+        ],
+        negate: false,
+      },
+    });
+  });
+
+  it("preserves paired bounds as separate conditions", () => {
+    expect(adaptFqlFilter("quantity>=2 AND quantity<=4", COLUMNS)).toEqual({
+      ok: true,
+      filter: {
+        type: "group",
+        operator: "and",
+        children: [
+          nativeCondition("quantity", ">=", 2),
+          nativeCondition("quantity", "<=", 4),
+        ],
+        negate: false,
+      },
+    });
+  });
+
+  it.each([
+    ['NOT vehicle_make:("ford","null")', "vehicle make", ["ford", "null"]],
+    ["NOT quantity:(1,2)", "quantity", [1, 2]],
+    ["NOT price:(1.5,2.5)", "price", [1.5, 2.5]],
+  ])("converts negated list membership in %s", (query, columnId, values) => {
+    expect(adaptFqlFilter(query, COLUMNS)).toEqual(
+      expectedCondition(columnId, "not_in", values),
+    );
+  });
+
+  it.each([
+    ["vehicle_make", "vehicle make"],
+    ["active", "active"],
+    ["quantity", "quantity"],
+    ["price", "price"],
+    ["order_date", "order date"],
+    ["created_at", "created at"],
+    ["dispatch_time", "dispatch time"],
+  ])("converts NOT null for %s", (alias, columnId) => {
+    expect(adaptFqlFilter(`NOT ${alias}:null`, COLUMNS)).toEqual(
+      expectedCondition(columnId, "is_not_null"),
+    );
+  });
+
+  it("preserves nullable membership as OR", () => {
+    expect(
+      adaptFqlFilter(
+        'vehicle_make:("chevrolet","ford") OR vehicle_make:null',
+        COLUMNS,
+      ),
+    ).toEqual({
+      ok: true,
+      filter: {
+        type: "group",
+        operator: "or",
+        children: [
+          nativeCondition("vehicle make", "in", ["chevrolet", "ford"]),
+          nativeCondition("vehicle make", "is_null"),
+        ],
+        negate: false,
+      },
+    });
+  });
+
+  it("preserves nullable exclusion as AND", () => {
+    expect(
+      adaptFqlFilter(
+        'NOT vehicle_make:("ford","null") AND NOT vehicle_make:null',
+        COLUMNS,
+      ),
+    ).toEqual({
+      ok: true,
+      filter: {
+        type: "group",
+        operator: "and",
+        children: [
+          nativeCondition("vehicle make", "not_in", ["ford", "null"]),
+          nativeCondition("vehicle make", "is_not_null"),
+        ],
+        negate: false,
+      },
+    });
+  });
+
+  it.each(conformanceSuite.cases)(
+    "converts conformance case $id",
+    ({ fql, expected_filter }) => {
+      expect(adaptFqlFilter(fql, conformanceSuite.table.columns)).toEqual({
+        ok: true,
+        filter: expected_filter,
+      });
+    },
+  );
+
   it.each([
     ["", "Enter a filter."],
     ["chevrolet", "Use a column alias and an operation."],
@@ -299,8 +466,11 @@ describe("adaptFqlFilter", () => {
       'order_date:("2026-09-12","2026-09-13")',
       'The date column "order date" does not support this operation.',
     ],
-    ["NOT vehicle_make:null", "NOT filters are not supported."],
-    ["quantity=1 AND price=2", "Boolean filter groups are not supported."],
+    ["NOT quantity=1", "NOT can only be applied to a list or null filter."],
+    [
+      "NOT (quantity=1 OR price=2)",
+      "NOT can only be applied to a list or null filter.",
+    ],
   ])("rejects %s", (query, reason) => {
     expect(adaptFqlFilter(query, COLUMNS)).toEqual({ ok: false, reason });
   });
