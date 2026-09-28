@@ -7,5 +7,5 @@ interface Props {
 }
 
 export const VideoOutput = ({ src, className }: Props): JSX.Element => {
-  return <iframe className={className} src={src} />;
+  return <iframe className={className} src={src} title="Video output" />;
 };
