@@ -3,8 +3,14 @@
 import { describe, expect, it } from "vitest";
 import conformanceCasesJson from "../../../../../marimo/_server/ai/table_filter_conformance_cases.json";
 import {
+  FilterConditionSchema,
+  type FilterConditionType,
+} from "@/plugins/impl/data-frames/schema";
+import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
+import {
   adaptFqlFilter,
   TableFilterConformanceSuiteSchema,
+  type FqlAdapterResult,
   type FqlColumn,
 } from "../filters/fql";
 
@@ -35,23 +41,23 @@ const conformanceSuite =
 
 function nativeCondition(
   columnId: string,
-  operator: string,
-  value?: unknown,
-): unknown {
-  return {
+  operator: OperatorType,
+  value?: string | number | Array<string | number>,
+): FilterConditionType {
+  return FilterConditionSchema.parse({
     type: "condition",
     column_id: columnId,
     operator,
     ...(value === undefined ? {} : { value }),
     negate: false,
-  };
+  });
 }
 
 function expectedCondition(
   columnId: string,
-  operator: string,
-  value?: unknown,
-): unknown {
+  operator: OperatorType,
+  value?: string | number | Array<string | number>,
+): FqlAdapterResult {
   return {
     ok: true,
     filter: {
@@ -158,7 +164,7 @@ describe("adaptFqlFilter", () => {
       operator: "contains",
       value: "\\",
     },
-  ])("converts $name", ({ query, operator, value }) => {
+  ] as const)("converts $name", ({ query, operator, value }) => {
     expect(adaptFqlFilter(query, COLUMNS)).toEqual(
       expectedCondition("vehicle make", operator, value),
     );
@@ -205,15 +211,15 @@ describe("adaptFqlFilter", () => {
       dataType: "datetime",
       alias: "created_at",
       columnId: "created at",
-      source: '"2026-09-12T14:30:00.123+05:30"',
-      expected: "2026-09-12T14:30:00.123+05:30",
+      source: '"2026-09-12T14:30:00.123456+05:30"',
+      expected: "2026-09-12T14:30:00.123456+05:30",
     },
     {
       dataType: "time",
       alias: "dispatch_time",
       columnId: "dispatch time",
-      source: '"10:30:00.123"',
-      expected: "10:30:00.123",
+      source: '"10:30:00.123456"',
+      expected: "10:30:00.123456",
     },
   ])(
     "converts every comparison for $dataType",
@@ -225,7 +231,7 @@ describe("adaptFqlFilter", () => {
         [">=", ">="],
         ["<", "<"],
         ["<=", "<="],
-      ];
+      ] as const;
       for (const [fqlOperator, nativeOperator] of operators) {
         expect(
           adaptFqlFilter(`${alias}${fqlOperator}${source}`, COLUMNS),
@@ -276,7 +282,7 @@ describe("adaptFqlFilter", () => {
   it.each([
     ["active:true", "is_true"],
     ["active:false", "is_false"],
-  ])("converts %s", (query, operator) => {
+  ] as const)("converts %s", (query, operator) => {
     expect(adaptFqlFilter(query, COLUMNS)).toEqual(
       expectedCondition("active", operator),
     );
@@ -445,17 +451,26 @@ describe("adaptFqlFilter", () => {
       'The string column "vehicle make" does not support this operation.',
     ],
     ['quantity="4.5"', "Expected a valid integer value."],
+    ["quantity=1.0000000000000001", "Expected a valid integer value."],
+    ["quantity:(1.0000000000000001,2)", "Expected a valid integer value."],
     ["quantity=9007199254740992", "Expected a valid integer value."],
     ['price="NaN"', "Expected a valid number value."],
     ['order_date="2026-02-30"', "Expected a valid date value."],
+    ['order_date="0000-01-01"', "Expected a valid date value."],
     ['created_at="2026-09-12T25:00:00"', "Expected a valid datetime value."],
     ['created_at="2026-09-12T14:30"', "Expected a valid datetime value."],
+    ['created_at="0000-01-01T00:00:00"', "Expected a valid datetime value."],
+    [
+      'created_at="2026-09-12T14:30:00.123456789"',
+      "Expected a valid datetime value.",
+    ],
     [
       'created_at="2026-09-12T14:30:00.1234567890"',
       "Expected a valid datetime value.",
     ],
     ['dispatch_time="10:60:00"', "Expected a valid time value."],
     ['dispatch_time="10:30"', "Expected a valid time value."],
+    ['dispatch_time="10:30:00.1234567"', "Expected a valid time value."],
     ["active:yes", "Expected the boolean value true or false."],
     ['vehicle_make:"//"', "A regular expression must contain a pattern."],
     [

@@ -15,8 +15,6 @@ import {
  * The catalog and conformance suite are supporting data, not new native filter models.
  */
 
-// Adapter input
-
 /** Marimo data types that have defined FQL operations. */
 export const FilterableDataTypeSchema = z
   .enum(DATA_TYPES)
@@ -39,16 +37,40 @@ export const FqlColumnSchema = z.object({
 });
 export type FqlColumn = z.infer<typeof FqlColumnSchema>;
 
-// Shared JSON documents
-
 /**
  * One operation that the adapter can translate from FQL to a native filter.
  *
  * The syntax fields describe the FQL form. The native fields define the
  * target operator and its supported column types.
  */
+const TableFilterOperationIdSchema = z.enum([
+  "exact_text",
+  "not_exact_text",
+  "contains_text",
+  "starts_with_text",
+  "ends_with_text",
+  "regex_text",
+  "contains_empty_text",
+  "empty_text",
+  "scalar_equal",
+  "scalar_not_equal",
+  "greater_than",
+  "greater_than_or_equal",
+  "less_than",
+  "less_than_or_equal",
+  "in_list",
+  "not_in_list",
+  "is_null",
+  "is_not_null",
+  "boolean_true",
+  "boolean_false",
+]);
+export type TableFilterOperationId = z.infer<
+  typeof TableFilterOperationIdSchema
+>;
+
 const TableFilterOperationSchema = z.object({
-  id: z.string().regex(/^[a-z][a-z0-9_]*$/),
+  id: TableFilterOperationIdSchema,
   fql_form: z.string().min(1),
   example: z.string().min(1),
   native_operator: FilterConditionSchema.shape.operator,
@@ -84,7 +106,7 @@ const TableFilterConformanceCaseSchema = z.object({
   id: z.string().regex(/^[a-z][a-z0-9_]*$/),
   request: z.string().min(1),
   fql: z.string().min(1),
-  operation_ids: z.array(z.string()).min(1),
+  operation_ids: z.array(TableFilterOperationIdSchema).min(1),
   expected_filter: FilterGroupSchema,
   expected_row_ids: z.array(z.string()),
 });
@@ -103,8 +125,6 @@ export const TableFilterConformanceSuiteSchema = z.object({
   }),
   cases: z.array(TableFilterConformanceCaseSchema).min(1),
 });
-
-// Adapter output
 
 /**
  * Public result from FQL conversion.

@@ -2,6 +2,7 @@
 
 import type { ScalarValue } from "better-filter-bar";
 import { z } from "zod";
+import { assertNever } from "@/utils/assertNever";
 import type { FilterableDataType } from "./contracts";
 
 export type ValueConversionResult<T> =
@@ -16,8 +17,8 @@ export interface WildcardPattern {
 const INTEGER_PATTERN = /^[+-]?\d+$/;
 const NUMBER_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 const DATETIME_PATTERN =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})?$/;
-const TIME_PATTERN = /^\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?$/;
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})?$/;
+const TIME_PATTERN = /^\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?$/;
 
 const DATE_SCHEMA = z.iso.date();
 const DATETIME_SCHEMA = z.iso
@@ -33,15 +34,15 @@ function validValue<T>(value: T): ValueConversionResult<T> {
   return { ok: true, value };
 }
 
-function scalarText(value: ScalarValue): string {
-  return String(value.value);
+function hasBackendSupportedYear(value: string): boolean {
+  return !value.startsWith("0000-");
 }
 
 export function convertScalarValue(
   value: ScalarValue,
   dataType: FilterableDataType,
 ): ValueConversionResult<string | number> {
-  const text = scalarText(value);
+  const text = String(value.value);
   const reason = `Expected a valid ${dataType} value.`;
 
   switch (dataType) {
@@ -66,11 +67,13 @@ export function convertScalarValue(
         : invalidValue(reason);
     }
     case "date":
-      return DATE_SCHEMA.safeParse(text).success
+      return DATE_SCHEMA.safeParse(text).success &&
+        hasBackendSupportedYear(text)
         ? validValue(text)
         : invalidValue(reason);
     case "datetime":
-      return DATETIME_SCHEMA.safeParse(text).success
+      return DATETIME_SCHEMA.safeParse(text).success &&
+        hasBackendSupportedYear(text)
         ? validValue(text)
         : invalidValue(reason);
     case "time":
@@ -79,6 +82,8 @@ export function convertScalarValue(
         : invalidValue(reason);
     case "boolean":
       return invalidValue(reason);
+    default:
+      return assertNever(dataType);
   }
 }
 

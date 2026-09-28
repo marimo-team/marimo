@@ -5,7 +5,6 @@ import {
   parseQuery,
   type BooleanNode,
   type ExprNode,
-  type FieldDef,
   type FilterNode,
   type FilterSchema,
   type NotNode,
@@ -18,17 +17,20 @@ import {
   type FilterGroupType,
 } from "@/plugins/impl/data-frames/schema";
 import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
+import { assertNever } from "@/utils/assertNever";
 import {
   FqlColumnSchema,
   TableFilterOperationCatalogSchema,
   type FqlAdapterResult,
   type FqlColumn,
+  type TableFilterOperationId,
 } from "./contracts";
 import {
   convertExactList,
   convertScalarValue,
   decodeWildcardPattern,
   type ValueConversionResult,
+  type WildcardPattern,
 } from "./value-conversion";
 
 const operationCatalog =
@@ -37,14 +39,13 @@ const operationsById = new Map(
   operationCatalog.operations.map((operation) => [operation.id, operation]),
 );
 
-type LeafResult =
-  | { ok: true; condition: FilterConditionType }
-  | { ok: false; reason: string };
 type Rejection = Extract<FqlAdapterResult, { ok: false }>;
 type NativeFilterNode = FilterConditionType | FilterGroupType;
-type ExpressionResult =
-  | { ok: true; node: NativeFilterNode }
-  | { ok: false; reason: string };
+type ConversionResult<T extends NativeFilterNode> =
+  | { ok: true; node: T }
+  | Rejection;
+type ConditionResult = ConversionResult<FilterConditionType>;
+type ExpressionResult = ConversionResult<NativeFilterNode>;
 
 function reject(reason: string): Rejection {
   return { ok: false, reason };
@@ -60,26 +61,8 @@ function hasSyntaxError(query: string): boolean {
   return false;
 }
 
-function toFqlField(column: FqlColumn): FieldDef {
-  const base = { name: column.alias, label: String(column.column_id) };
-  switch (column.data_type) {
-    case "string":
-      return { ...base, type: "text" };
-    case "boolean":
-      return { ...base, type: "boolean" };
-    case "integer":
-    case "number":
-      return { ...base, type: "number" };
-    case "date":
-      return { ...base, type: "date" };
-    case "datetime":
-    case "time":
-      return { ...base, type: "date", includeTime: true };
-  }
-}
-
 function nativeOperator(
-  operationId: string,
+  operationId: TableFilterOperationId,
   column: FqlColumn,
 ): ValueConversionResult<OperatorType> {
   const operation = operationsById.get(operationId);
@@ -90,10 +73,7 @@ function nativeOperator(
     };
   }
   if (!operation.supported_types.includes(column.data_type)) {
-    return {
-      ok: false,
-      reason: `The ${column.data_type} column "${String(column.column_id)}" does not support this operation.`,
-    };
+    return unsupportedOperation(column);
   }
   return { ok: true, value: operation.native_operator };
 }
@@ -113,17 +93,17 @@ function condition(
 }
 
 function conditionFor(
-  operationId: string,
+  operationId: TableFilterOperationId,
   column: FqlColumn,
   value?: string | number | Array<string | number>,
-): LeafResult {
+): ConditionResult {
   const operator = nativeOperator(operationId, column);
   if (!operator.ok) {
     return operator;
   }
   return {
     ok: true,
-    condition: condition(column, operator.value, value),
+    node: condition(column, operator.value, value),
   };
 }
 
@@ -131,54 +111,66 @@ function isNullValue(value: ScalarValue): boolean {
   return value.value === "null";
 }
 
+function unsupportedOperation(column: FqlColumn): Rejection {
+  return reject(
+    `The ${column.data_type} column "${String(column.column_id)}" does not support this operation.`,
+  );
+}
+
 function convertList(
-  node: FilterNode,
+  fqlOperator: FilterNode["operator"],
+  values: ScalarValue[],
   column: FqlColumn,
   operationId: "in_list" | "not_in_list" = "in_list",
-): LeafResult {
-  if (node.operator !== ":" || !Array.isArray(node.value)) {
-    return reject(
-      `The ${column.data_type} column "${String(column.column_id)}" does not support this operation.`,
-    );
+): ConditionResult {
+  if (fqlOperator !== ":") {
+    return unsupportedOperation(column);
   }
 
-  const operator = nativeOperator(operationId, column);
-  if (!operator.ok) {
-    return operator;
+  const operatorResult = nativeOperator(operationId, column);
+  if (!operatorResult.ok) {
+    return operatorResult;
   }
-  const values = convertExactList(node.value, column.data_type);
-  if (!values.ok) {
-    return values;
+  const convertedValues = convertExactList(values, column.data_type);
+  if (!convertedValues.ok) {
+    return convertedValues;
   }
   return {
     ok: true,
-    condition: condition(column, operator.value, values.value),
+    node: condition(column, operatorResult.value, convertedValues.value),
   };
 }
 
-function convertText(node: FilterNode, column: FqlColumn): LeafResult {
-  if (Array.isArray(node.value)) {
-    return convertList(node, column);
-  }
+const WILDCARD_OPERATION_IDS: Record<
+  WildcardPattern["operator"],
+  TableFilterOperationId
+> = {
+  contains: "contains_text",
+  starts_with: "starts_with_text",
+  ends_with: "ends_with_text",
+};
 
-  const value = convertScalarValue(node.value, column.data_type);
+function convertText(
+  operator: FilterNode["operator"],
+  scalar: ScalarValue,
+  column: FqlColumn,
+): ConditionResult {
+  const value = convertScalarValue(scalar, column.data_type);
   if (!value.ok) {
     return value;
   }
   const text = String(value.value);
 
-  if (node.operator === "=") {
+  if (operator === "=") {
     return conditionFor("exact_text", column, text);
   }
-  if (node.operator === "!=") {
+  if (operator === "!=") {
     return conditionFor("not_exact_text", column, text);
   }
-  if (node.operator !== ":") {
-    return reject(
-      `The string column "${String(column.column_id)}" does not support this operation.`,
-    );
+  if (operator !== ":") {
+    return unsupportedOperation(column);
   }
-  if (isNullValue(node.value)) {
+  if (isNullValue(scalar)) {
     return conditionFor("is_null", column);
   }
   if (text === "") {
@@ -199,16 +191,16 @@ function convertText(node: FilterNode, column: FqlColumn): LeafResult {
     return conditionFor("exact_text", column, text);
   }
 
-  const operationId =
+  const operationId: TableFilterOperationId =
     pattern.value.value === "" && pattern.value.operator === "contains"
       ? "contains_empty_text"
-      : `${pattern.value.operator}_text`;
+      : WILDCARD_OPERATION_IDS[pattern.value.operator];
   return conditionFor(operationId, column, pattern.value.value);
 }
 
 function comparisonOperationId(
   operator: Exclude<FilterNode["operator"], ":">,
-): string {
+): TableFilterOperationId {
   switch (operator) {
     case "=":
       return "scalar_equal";
@@ -222,71 +214,69 @@ function comparisonOperationId(
       return "less_than";
     case "<=":
       return "less_than_or_equal";
+    default:
+      return assertNever(operator);
   }
 }
 
-function convertTypedScalar(node: FilterNode, column: FqlColumn): LeafResult {
-  if (Array.isArray(node.value)) {
-    return convertList(node, column);
-  }
-  if (node.operator === ":") {
-    if (isNullValue(node.value)) {
+function convertTypedScalar(
+  operator: FilterNode["operator"],
+  scalar: ScalarValue,
+  column: FqlColumn,
+): ConditionResult {
+  if (operator === ":") {
+    if (isNullValue(scalar)) {
       return conditionFor("is_null", column);
     }
-    return reject(
-      `The ${column.data_type} column "${String(column.column_id)}" does not support this operation.`,
-    );
+    return unsupportedOperation(column);
   }
 
-  const value = convertScalarValue(node.value, column.data_type);
+  const value = convertScalarValue(scalar, column.data_type);
   if (!value.ok) {
     return value;
   }
-  return conditionFor(
-    comparisonOperationId(node.operator),
-    column,
-    value.value,
-  );
+  return conditionFor(comparisonOperationId(operator), column, value.value);
 }
 
-function convertBoolean(node: FilterNode, column: FqlColumn): LeafResult {
-  if (Array.isArray(node.value)) {
-    return convertList(node, column);
+function convertBoolean(
+  operator: FilterNode["operator"],
+  scalar: ScalarValue,
+  column: FqlColumn,
+): ConditionResult {
+  if (operator !== ":") {
+    return unsupportedOperation(column);
   }
-  if (node.operator !== ":") {
-    return reject(
-      `The boolean column "${String(column.column_id)}" does not support this operation.`,
-    );
-  }
-  if (isNullValue(node.value)) {
+  if (isNullValue(scalar)) {
     return conditionFor("is_null", column);
   }
-  if (node.value.value === "true") {
+  if (scalar.value === "true") {
     return conditionFor("boolean_true", column);
   }
-  if (node.value.value === "false") {
+  if (scalar.value === "false") {
     return conditionFor("boolean_false", column);
   }
   return reject("Expected the boolean value true or false.");
 }
 
-function convertLeaf(node: FilterNode, column: FqlColumn): LeafResult {
+function convertLeaf(node: FilterNode, column: FqlColumn): ConditionResult {
+  if (Array.isArray(node.value)) {
+    return convertList(node.operator, node.value, column);
+  }
+
   switch (column.data_type) {
     case "string":
-      return convertText(node, column);
+      return convertText(node.operator, node.value, column);
     case "boolean":
-      return convertBoolean(node, column);
+      return convertBoolean(node.operator, node.value, column);
     case "integer":
     case "number":
     case "date":
     case "datetime":
     case "time":
-      return convertTypedScalar(node, column);
+      return convertTypedScalar(node.operator, node.value, column);
+    default:
+      return assertNever(column.data_type);
   }
-}
-
-function expressionFromLeaf(result: LeafResult): ExpressionResult {
-  return result.ok ? { ok: true, node: result.condition } : result;
 }
 
 function columnFor(
@@ -307,7 +297,7 @@ function convertFilter(
   if (!column.ok) {
     return column;
   }
-  return expressionFromLeaf(convertLeaf(node, column.value));
+  return convertLeaf(node, column.value);
 }
 
 function convertNot(
@@ -323,12 +313,15 @@ function convertNot(
     return column;
   }
   if (Array.isArray(node.operand.value)) {
-    return expressionFromLeaf(
-      convertList(node.operand, column.value, "not_in_list"),
+    return convertList(
+      node.operand.operator,
+      node.operand.value,
+      column.value,
+      "not_in_list",
     );
   }
   if (node.operand.operator === ":" && isNullValue(node.operand.value)) {
-    return expressionFromLeaf(conditionFor("is_not_null", column.value));
+    return conditionFor("is_not_null", column.value);
   }
   return reject("NOT can only be applied to a list or null filter.");
 }
@@ -383,6 +376,8 @@ function convertExpression(
       return convertNot(node, columnsByAlias);
     case "filter":
       return convertFilter(node, columnsByAlias);
+    default:
+      return assertNever(node);
   }
 }
 
@@ -414,7 +409,11 @@ export function adaptFqlFilter(
   }
 
   const schema: FilterSchema = {
-    fields: parsedColumns.data.map(toFqlField),
+    fields: parsedColumns.data.map((column) => ({
+      name: column.alias,
+      label: String(column.column_id),
+      type: "text",
+    })),
     allowUnknownFields: false,
     implicitOperator: "AND",
   };

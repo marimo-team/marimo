@@ -249,8 +249,8 @@ importers:
         specifier: ^6.0.6
         version: 6.0.6
       better-filter-bar:
-        specifier: link:../../../better-filter-bar/geneva
-        version: link:../../../better-filter-bar/geneva
+        specifier: ^0.1.2
+        version: 0.1.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5076,6 +5076,17 @@ packages:
 
   before-after-hook@2.2.3:
     resolution: {integrity: sha512-NzUnlZexiaH/46WDhANlyR2bXRopNg4F/zuSA3OpZnllCUgRaOF2znDioDWrmbNVsuZk6l9pMquQB38cfBZwkQ==}
+
+  better-filter-bar@0.1.2:
+    resolution: {integrity: sha512-3rmdeWO1wXKiEit+ZVhQj3DjW3b/MC3QlYB3shPts37APXF6Q3LjREdieRrmk2yAhUo0ocJfL/R+Uhfd9ynVYQ==}
+    peerDependencies:
+      react: ^19.2.8
+      react-dom: ^19.2.8
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
 
   big-integer@1.6.52:
     resolution: {integrity: sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg==}
@@ -14714,6 +14725,21 @@ snapshots:
       tweetnacl: 0.14.5
 
   before-after-hook@2.2.3: {}
+
+  better-filter-bar@0.1.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+    dependencies:
+      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/commands': 6.11.0
+      '@codemirror/language': 6.12.4
+      '@codemirror/lint': 6.9.7
+      '@codemirror/state': 6.7.1
+      '@codemirror/view': 6.43.9
+      '@lezer/common': 1.5.2
+      '@lezer/lr': 1.4.10
+      codemirror: 6.0.2
+    optionalDependencies:
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
 
   big-integer@1.6.52: {}
 
