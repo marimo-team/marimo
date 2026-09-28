@@ -302,7 +302,7 @@ export const AddCellWithAI: React.FC<{
           showAddCustomModelDocs={true}
         />
         {languageDropdown}
-        <PairWithAgentButton label="Pair" />
+        <PairWithAgentButton />
       </div>
       <div className="flex flex-row items-center">
         {files.length > 0 && (

@@ -302,6 +302,7 @@ export function useNotebookActions({
       handle: async () => {
         openModal(<PairWithAgentModal onClose={closeModal} />);
       },
+      additionalKeywords: ["connect"],
     },
 
     {

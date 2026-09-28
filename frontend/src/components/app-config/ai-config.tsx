@@ -2006,10 +2006,7 @@ export const AiConfig: React.FC<AiConfigProps> = ({
       {aiEnabled !== false && (
         <>
           <TabsContent value="ai-providers">
-            <PairWithAgentBanner
-              label="Pair with an agent instead"
-              className="mb-4"
-            />
+            <PairWithAgentBanner className="mb-4" />
             <AiProvidersConfig
               form={form}
               config={config}

@@ -33,7 +33,7 @@ export const usePairWithAgentModal = () => {
 
 export const PairWithAgentButton: React.FC<
   ButtonProps & { label?: string }
-> = ({ className, label = "Pair with an agent", onClick, ...props }) => {
+> = ({ className, label = "Connect your agent", onClick, ...props }) => {
   const openPairWithAgentModal = usePairWithAgentModal();
 
   if (isWasm()) {
@@ -62,7 +62,7 @@ export const PairWithAgentButton: React.FC<
 export const PairWithAgentBanner: React.FC<{
   label?: string;
   className?: string;
-}> = ({ label = "Pair with an agent", className }) => {
+}> = ({ label = "Connect your agent", className }) => {
   const openPairWithAgentModal = usePairWithAgentModal();
 
   if (isWasm()) {
@@ -102,14 +102,18 @@ export const PairWithAgentBanner: React.FC<{
           ))}
         </fieldset>
       </div>
-      <button
-        type="button"
-        onClick={openPairWithAgentModal}
-        className="mt-1 text-left text-xs leading-relaxed underline-offset-4 text-link hover:underline"
-      >
-        Use Claude Code, Codex, OpenCode, or any agent to work with this
-        notebook.
-      </button>
+      <div className="mt-1 text-xs leading-relaxed">
+        <p className="inline">
+          Use your AI coding agent to pair-program on this notebook.
+        </p>
+        <button
+          type="button"
+          onClick={openPairWithAgentModal}
+          className="text-link hover:underline ml-1"
+        >
+          Learn more.
+        </button>
+      </div>
     </div>
   );
 };
