@@ -3,11 +3,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_PUBLISH_BYTES, stageForPublish } from "../stage-for-publish";
 
+// Opaque to the client; the shapes here are deliberately not molab's.
 const PENDING = {
-  pendingId: "pend_1",
-  presignedUrl: "https://bucket.example/pending/pend_1?sig=abc",
-  claimUrl:
-    "https://molab.marimo.io/artifacts/upload?pending=pend_1&name=nb.html",
+  pendingId: "id-1",
+  presignedUrl: "https://upload.example/put?token=abc",
+  claimUrl: "https://claim.example/abc",
   expiresAt: "2026-01-01T00:00:00Z",
 };
 

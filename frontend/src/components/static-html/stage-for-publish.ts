@@ -9,7 +9,7 @@ interface PendingUploadResponse {
   expiresAt: string;
 }
 
-// Keep in sync with molab's MAX_ARTIFACT_BYTES.
+// Keep in sync with molab.
 export const MAX_PUBLISH_BYTES = 100 * 1024 * 1024;
 
 /**
