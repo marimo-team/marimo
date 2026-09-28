@@ -133,14 +133,12 @@
     // === JSX A11y ===
     // TODO: re-enable the remaining rules as error
     "jsx-a11y/click-events-have-key-events": "off",
-    "jsx-a11y/heading-has-content": "off",
     "jsx-a11y/iframe-has-title": "error",
     "jsx-a11y/media-has-caption": "off",
     "jsx-a11y/no-autofocus": "off",
     "jsx-a11y/no-noninteractive-tabindex": "warn",
     "jsx-a11y/no-static-element-interactions": "off",
     "jsx-a11y/prefer-tag-over-role": "warn",
-    "jsx-a11y/role-has-required-aria-props": "warn",
 
     "react/no-danger": "off",
 
