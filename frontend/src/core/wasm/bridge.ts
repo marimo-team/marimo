@@ -2,7 +2,7 @@
 /* oxlint-disable typescript/no-explicit-any */
 
 import { toast } from "@/components/ui/use-toast";
-import { userConfigAtom } from "@/core/config/config";
+import { appConfigAtom, userConfigAtom } from "@/core/config/config";
 import { serializeBlob } from "@/utils/blob";
 import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
@@ -275,7 +275,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendRun: EditRequests["sendRun"] = async (request) => {
-    await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
+    await this.rpc.proxy.request.loadPackages({
+      code: request.codes.join("\n"),
+      sqlOutput: store.get(appConfigAtom).sql_output,
+    });
 
     await this.putControlRequest({
       type: "execute-cells",
@@ -284,7 +287,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
   sendRunScratchpad: EditRequests["sendRunScratchpad"] = async (request) => {
-    await this.rpc.proxy.request.loadPackages(request.code);
+    await this.rpc.proxy.request.loadPackages({
+      code: request.code,
+      sqlOutput: store.get(appConfigAtom).sql_output,
+    });
 
     await this.putControlRequest({
       type: "execute-scratchpad",

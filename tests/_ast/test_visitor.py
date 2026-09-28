@@ -1331,6 +1331,132 @@ def test_sql_statement_with_rf_string() -> None:
     assert v.refs == {"cars", "mo", "name"}
 
 
+@pytest.mark.skipif(not HAS_SQLGLOT, reason="Requires sqlglot")
+def test_polars_sql_refs_do_not_require_duckdb(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        DependencyManager.duckdb, "has_at_version", lambda **_: False
+    )
+    code = (
+        "df = mo.sql(f'SELECT * FROM orders WHERE amount > {minimum}', "
+        "engine='polars')"
+    )
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(code))
+
+    assert v.defs == {"df"}
+    assert v.refs == {"minimum", "mo", "orders"}
+
+
+def test_polars_sql_refs_before_sqlglot_is_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(DependencyManager.sqlglot, "has", lambda: False)
+    code = """result = mo.sql(
+        '''
+        WITH selected AS (SELECT * FROM orders)
+        SELECT * FROM selected JOIN customers USING (customer_id)
+        ''',
+        engine='polars',
+    )"""
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(code))
+
+    assert v.refs == {"customers", "mo", "orders"}
+
+
+@pytest.mark.parametrize(
+    ("sql", "expected_refs"),
+    [
+        (
+            "SELECT * FROM orders AS o, customers c",
+            {"customers", "orders"},
+        ),
+        (
+            'SELECT "FROM ghost" FROM försäljning JOIN `kunder` USING (id)',
+            {"försäljning", "kunder"},
+        ),
+        (
+            (
+                "SELECT * FROM orders CROSS JOIN "
+                "(WITH orders AS (SELECT * FROM inner_table) "
+                "SELECT * FROM orders) AS nested"
+            ),
+            {"inner_table", "orders"},
+        ),
+        (
+            "WITH orders AS (SELECT * FROM orders) SELECT * FROM orders",
+            {"orders"},
+        ),
+        (
+            "WITH Orders AS (SELECT * FROM orders) SELECT * FROM Orders",
+            {"orders"},
+        ),
+        ("SELECT * FROM 'orders'", {"orders"}),
+        (
+            "SELECT EXTRACT(YEAR FROM created_at) FROM orders",
+            {"orders"},
+        ),
+    ],
+)
+def test_polars_sql_fallback_refs(
+    monkeypatch: pytest.MonkeyPatch,
+    sql: str,
+    expected_refs: set[str],
+) -> None:
+    monkeypatch.setattr(DependencyManager.sqlglot, "has", lambda: False)
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(f"result = mo.sql({sql!r}, engine='polars')"))
+
+    assert v.refs == expected_refs | {"mo"}
+
+
+@pytest.mark.parametrize("has_sqlglot", [False, True])
+@pytest.mark.parametrize("quote", ["", '"', "`"])
+@pytest.mark.parametrize("cte_name", ["orders", "Orders"])
+def test_polars_sql_cte_names_are_case_sensitive(
+    monkeypatch: pytest.MonkeyPatch,
+    has_sqlglot: bool,
+    quote: str,
+    cte_name: str,
+) -> None:
+    """Keep differently cased frame dependencies with and without SQLGlot."""
+    if has_sqlglot and not HAS_SQLGLOT:
+        pytest.skip("Requires sqlglot")
+    monkeypatch.setattr(DependencyManager.sqlglot, "has", lambda: has_sqlglot)
+    query = (
+        f"WITH {quote}{cte_name}{quote} AS (SELECT 1 AS amount) "
+        f"SELECT * FROM {quote}orders{quote}"
+    )
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(f"result = mo.sql({query!r}, engine='polars')"))
+
+    assert v.refs == ({"mo"} if cte_name == "orders" else {"mo", "orders"})
+
+
+@pytest.mark.skipif(not HAS_SQLGLOT, reason="Requires sqlglot")
+def test_polars_sql_refs_with_keyword_query() -> None:
+    code = "result = mo.sql(query='SELECT * FROM orders', engine='polars')"
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(code))
+
+    assert v.refs == {"mo", "orders"}
+
+
+@pytest.mark.skipif(not HAS_SQLGLOT, reason="Requires sqlglot")
+def test_polars_sql_does_not_define_persistent_tables() -> None:
+    code = (
+        "df = mo.sql('CREATE TABLE created AS SELECT * FROM orders', "
+        "engine='polars')"
+    )
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(code))
+
+    assert v.defs == {"df"}
+    assert v.refs == {"mo", "orders"}
+
+
 def test_print_f_string() -> None:
     import ast
 

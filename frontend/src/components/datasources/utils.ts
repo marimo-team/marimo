@@ -173,6 +173,7 @@ function getFormatter(dialect: string): SqlCodeFormatter {
     case "singlestoredb":
     case "databricks":
     case "datafusion":
+    case "polars":
       return defaultFormatter;
     default:
       logNever(dialect);

@@ -3,6 +3,8 @@ export function dbDisplayName(name: string) {
   switch (name) {
     case "duckdb":
       return "DuckDB";
+    case "polars":
+      return "Polars";
     case "motherduck":
       return "MotherDuck";
     case "sqlite":

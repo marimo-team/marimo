@@ -42,6 +42,7 @@ import {
   type ConnectionName,
   DUCKDB_ENGINE,
   INTERNAL_SQL_ENGINES,
+  POLARS_ENGINE,
 } from "@/core/datasets/engines";
 import { ValidateSQL } from "@/core/datasets/request-registry";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -67,12 +68,24 @@ import { isKnownDialect } from "./utils";
 
 const DEFAULT_DIALECT = DuckDBDialect;
 const DEFAULT_PARSER_DIALECT: ParserDialects = "DuckDB";
+const POLARS_ENGINE_EXPRESSION = '"polars"';
 
 // A compartment for the SQL config, so we can update the config of codemirror
 const sqlConfigCompartment = new Compartment();
 
 export interface SQLLanguageAdapterMetadata extends SQLMetadata {
   engine: ConnectionName;
+}
+
+function fromPythonEngine(engine: string): ConnectionName {
+  if (engine === '"polars"' || engine === "'polars'") {
+    return POLARS_ENGINE;
+  }
+  return engine as ConnectionName;
+}
+
+function toPythonEngine(engine: ConnectionName): string {
+  return engine === POLARS_ENGINE ? POLARS_ENGINE_EXPRESSION : engine;
 }
 
 function getLatestEngine(): ConnectionName {
@@ -116,7 +129,7 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
   get defaultCode(): string {
     const engine = getLatestEngine();
     if (engine && engine !== DUCKDB_ENGINE) {
-      return `_df = mo.sql(f"""SELECT * FROM """, engine=${engine})`;
+      return `_df = mo.sql(f"""SELECT * FROM """, engine=${toPythonEngine(engine)})`;
     }
     return this.parser.defaultCode;
   }
@@ -130,11 +143,14 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
     queryStartOffset: number,
     metadata: SQLLanguageAdapterMetadata,
   ] {
-    this.parser.defaultMetadata.engine = getLatestEngine() || DUCKDB_ENGINE;
+    this.parser.defaultMetadata.engine = toPythonEngine(
+      getLatestEngine() || DUCKDB_ENGINE,
+    );
     const result = this.parser.transformIn(pythonCode);
 
     // Handle engine selection side effect
     const metadata = result.metadata as SQLLanguageAdapterMetadata;
+    metadata.engine = fromPythonEngine(metadata.engine);
 
     if (metadata.engine && metadata.engine !== DUCKDB_ENGINE) {
       setLatestEngineSelected(metadata.engine);
@@ -147,7 +163,10 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
     code: string,
     metadata: SQLLanguageAdapterMetadata,
   ): [string, number] {
-    const result = this.parser.transformOut(code, metadata);
+    const result = this.parser.transformOut(code, {
+      ...metadata,
+      engine: toPythonEngine(metadata.engine),
+    });
     return [result.code, result.offset];
   }
 
@@ -428,9 +447,7 @@ class CustomSqlParser extends NodeSqlParser {
         try {
           // For validate mode, we run EXPLAIN queries on the engine, which can be
           // expensive for remote databases. So, we only run for internal engines.
-          const sqlMode = INTERNAL_SQL_ENGINES.has(engine)
-            ? getSQLMode()
-            : "default";
+          const sqlMode = engine === DUCKDB_ENGINE ? getSQLMode() : "default";
           const result = await validateSQL(sql, engine, dialect, sqlMode);
           if (result.error) {
             Logger.error("Failed to validate SQL", { error: result.error });
@@ -644,6 +661,8 @@ function connectionNameToParserDialect(
     case "mongodb":
     case "noql":
       return "Noql";
+    case "polars":
+      return null;
     case "oracle":
     case "oracledb":
     case "timescaledb":
@@ -692,7 +711,7 @@ function sqlValidationExtension(): Extension {
         const connectionName = metadata.engine;
 
         // Currently only DuckDB is supported
-        if (!INTERNAL_SQL_ENGINES.has(connectionName)) {
+        if (connectionName !== DUCKDB_ENGINE) {
           return;
         }
 

@@ -17,6 +17,7 @@ import { DATA_TYPE_ICON, resolveDataType } from "@/components/datasets/icons";
 import { Badge } from "@/components/ui/badge";
 import {
   type ConnectionName,
+  DUCKDB_ENGINE,
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import type {
@@ -559,8 +560,10 @@ export const renderDatasourceInfo = (
   });
 
   let title = connection.name;
-  if (INTERNAL_SQL_ENGINES.has(connection.name as ConnectionName)) {
+  if (connection.name === DUCKDB_ENGINE) {
     title = "In-Memory";
+  } else if (INTERNAL_SQL_ENGINES.has(connection.name as ConnectionName)) {
+    title = connection.display_name;
   }
 
   const dataframeItems = dataframes?.map((table) => (

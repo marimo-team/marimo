@@ -241,9 +241,12 @@ export const AppConfigForm: React.FC = () => {
                     <FormMessage />
                   </FormItem>
                   <FormDescription>
-                    The Python type returned by a SQL cell. For best performance
-                    with large datasets, we recommend using{" "}
-                    <Kbd className="inline">native</Kbd>. See the{" "}
+                    The Python type returned by a SQL cell. For DuckDB queries
+                    over large datasets, we recommend using{" "}
+                    <Kbd className="inline">native</Kbd>. Polars-engine queries
+                    remain lazy with <Kbd className="inline">auto</Kbd>,{" "}
+                    <Kbd className="inline">native</Kbd>, or{" "}
+                    <Kbd className="inline">lazy-polars</Kbd>. See the{" "}
                     <ExternalLink href="https://docs.marimo.io/guides/working_with_data/sql">
                       SQL guide
                     </ExternalLink>{" "}

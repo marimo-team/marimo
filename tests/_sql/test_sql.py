@@ -285,9 +285,8 @@ class TestDefaultDuckDBDeps:
 
 
 @pytest.mark.usefixtures("fake_dependency_has")
-class TestDefaultDuckDBDepsEndToEnd:
-    """End-to-end: verify `mo.sql(...)` bundles all missing installs into a
-    single ManyModulesNotFoundError, so the user only gets prompted once."""
+class TestSQLDepsEndToEnd:
+    """Verify `mo.sql(...)` bundles missing installs into one error."""
 
     def test_sql_raises_single_bundled_error_when_all_missing(
         self, fake_sql_output: dict[str, str]
@@ -302,6 +301,35 @@ class TestDefaultDuckDBDepsEndToEnd:
             "polars[pyarrow]",
         ]
         assert excinfo.value.source == "kernel"
+
+    @pytest.mark.parametrize(
+        "sql_output", ["auto", "native", "lazy-polars", "polars"]
+    )
+    def test_polars_sql_raises_single_bundled_error(
+        self,
+        fake_sql_output: dict[str, str],
+        sql_output: SqlOutputType,
+    ) -> None:
+        fake_sql_output["value"] = sql_output
+        with pytest.raises(ManyModulesNotFoundError) as excinfo:
+            sql("SELECT 1", engine="polars")
+
+        assert excinfo.value.package_names == ["polars", "sqlglot"]
+        assert excinfo.value.source == "kernel"
+
+    def test_polars_pandas_output_bundles_conversion_dependencies(
+        self, fake_sql_output: dict[str, str]
+    ) -> None:
+        fake_sql_output["value"] = "pandas"
+        with pytest.raises(ManyModulesNotFoundError) as excinfo:
+            sql("SELECT 1", engine="polars")
+
+        assert excinfo.value.package_names == [
+            "polars",
+            "sqlglot",
+            "pandas",
+            "pyarrow",
+        ]
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -431,10 +459,17 @@ def test_query_includes_limit() -> None:
 
 
 @patch("marimo._sql.sql.replace")
-@pytest.mark.requires("polars", "duckdb")
-def test_applies_limit(mock_replace: MagicMock) -> None:
+@pytest.mark.requires("polars", "duckdb", "pandas", "sqlglot")
+@pytest.mark.parametrize("sql_output", ["auto", "polars", "pandas"])
+def test_applies_limit(
+    mock_replace: MagicMock,
+    fake_sql_output: dict[str, str],
+    sql_output: SqlOutputType,
+) -> None:
+    """Preserve DuckDB row counts and pagination for eager output formats."""
     import duckdb
 
+    fake_sql_output["value"] = sql_output
     with patch.dict(os.environ, {"MARIMO_SQL_DEFAULT_LIMIT": "300"}):
         duckdb.sql("CREATE OR REPLACE TABLE t AS SELECT * FROM range(1000)")
         mock_replace.assert_not_called()
@@ -445,6 +480,7 @@ def test_applies_limit(mock_replace: MagicMock) -> None:
         assert len(sql("SELECT * FROM t")) == 300
         mock_replace.assert_called_once()
         table = mock_replace.call_args[0][0]
+        assert table._lazy is False
         assert table._component_args["total-rows"] == "too_many"
         assert table._component_args["pagination"] is True
         assert len(table._data) == 300
@@ -482,6 +518,58 @@ def test_applies_limit(mock_replace: MagicMock) -> None:
     assert table._component_args["pagination"] is True
     assert len(table._data) == 25_000
     assert table._searched_manager.get_num_rows() == 25_000
+
+
+@pytest.mark.requires("polars", "duckdb", "pyarrow", "sqlglot")
+@pytest.mark.parametrize("sql_output", ["native", "lazy-polars"])
+@patch("marimo._sql.sql.replace")
+def test_applies_limit_to_lazy_duckdb_results(
+    mock_replace: MagicMock,
+    fake_sql_output: dict[str, str],
+    sql_output: SqlOutputType,
+) -> None:
+    """Keep native DuckDB and lazy Polars results in the lazy renderer."""
+    import duckdb
+    import polars as pl
+
+    fake_sql_output["value"] = sql_output
+    with patch.dict(os.environ, {"MARIMO_SQL_DEFAULT_LIMIT": "2"}):
+        result = sql("SELECT * FROM range(3)")
+
+    mock_replace.assert_called_once()
+    rendered_table = mock_replace.call_args.args[0]
+    assert rendered_table._lazy is True
+    assert rendered_table._component_args["preload"] is True
+    if sql_output == "native":
+        assert isinstance(result, duckdb.DuckDBPyRelation)
+        assert result.fetchall() == [(0,), (1,)]
+    else:
+        assert isinstance(result, pl.LazyFrame)
+        assert result.collect().to_dict(as_series=False) == {"range": [0, 1]}
+
+
+@pytest.mark.requires("pandas", "sqlglot")
+def test_applies_limit_to_pandas(
+    fake_sql_output: dict[str, str],
+) -> None:
+    import sqlite3
+
+    import pandas as pd
+
+    fake_sql_output["value"] = "pandas"
+    connection = sqlite3.connect(":memory:")
+    try:
+        with patch.dict(os.environ, {"MARIMO_SQL_DEFAULT_LIMIT": "2"}):
+            result = sql(
+                "SELECT 1 AS value UNION ALL SELECT 2 UNION ALL SELECT 3",
+                engine=connection,
+                output=False,
+            )
+    finally:
+        connection.close()
+
+    assert isinstance(result, pd.DataFrame)
+    assert result["value"].tolist() == [1, 2]
 
 
 @pytest.mark.skipif(

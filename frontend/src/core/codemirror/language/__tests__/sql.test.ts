@@ -20,7 +20,11 @@ import {
   exportedForTesting as dataSourceTesting,
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
-import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
+import {
+  type ConnectionName,
+  DUCKDB_ENGINE,
+  POLARS_ENGINE,
+} from "@/core/datasets/engines";
 import { ValidateSQL } from "@/core/datasets/request-registry";
 import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
@@ -189,6 +193,24 @@ describe("SQLLanguageAdapter", () => {
       expect(innerCode2).toBe("SELECT * FROM table");
       expect(offset2).toBe(16);
       expect(metadata2.engine).toBe("postgres_engine");
+    });
+
+    it("should map the Polars literal to the built-in engine", () => {
+      const previousState = store.get(dataSourceConnectionsAtom);
+      const pythonCode =
+        '_df = mo.sql("""SELECT * FROM orders""", engine="polars")';
+      try {
+        const [innerCode, , metadata] = adapter.transformIn(pythonCode);
+
+        expect(innerCode).toBe("SELECT * FROM orders");
+        expect(metadata.engine).toBe(POLARS_ENGINE);
+
+        const [outCode] = adapter.transformOut(innerCode, metadata);
+        expect(outCode).toContain('engine="polars"');
+        expect(outCode).not.toContain(POLARS_ENGINE);
+      } finally {
+        store.set(dataSourceConnectionsAtom, previousState);
+      }
     });
 
     it("should handle engine param with output flag", () => {
@@ -602,6 +624,33 @@ _df = mo.sql(
       expect(outCode).toContain(`engine=${engine}`);
     });
 
+    it.each([true, false])(
+      "preserves the query and output=%s when switching DuckDB and Polars",
+      (showOutput) => {
+        const query = "SELECT * FROM orders WHERE amount > {minimum}";
+        const pythonCode = `result = mo.sql(f\"\"\"${query}\"\"\"${showOutput ? "" : ", output=False"})`;
+        const [innerCode, , metadata] = adapter.transformIn(pythonCode);
+
+        const [polarsCode] = adapter.transformOut(innerCode, {
+          ...metadata,
+          engine: POLARS_ENGINE,
+        });
+        expect(polarsCode).toContain('engine="polars"');
+        const [polarsQuery, , polarsMetadata] = adapter.transformIn(polarsCode);
+        expect(polarsQuery).toBe(innerCode);
+        expect(polarsMetadata).toEqual({ ...metadata, engine: POLARS_ENGINE });
+
+        const [duckdbCode] = adapter.transformOut(polarsQuery, {
+          ...polarsMetadata,
+          engine: DUCKDB_ENGINE,
+        });
+        expect(duckdbCode).not.toContain("engine=");
+        const [duckdbQuery, , duckdbMetadata] = adapter.transformIn(duckdbCode);
+        expect(duckdbQuery).toBe(innerCode);
+        expect(duckdbMetadata).toEqual(metadata);
+      },
+    );
+
     it("should maintain engine when transforming empty string", () => {
       const engine = "postgres_engine" as ConnectionName;
       setLatestEngineSelected(engine);
@@ -695,6 +744,14 @@ _df = mo.sql(
       setLatestEngineSelected(engine);
       expect(adapter.defaultCode).toBe(
         `_df = mo.sql(f"""SELECT * FROM """, engine=${engine})`,
+      );
+    });
+
+    it("should serialize a selected Polars engine as a string literal", () => {
+      setLatestEngineSelected(POLARS_ENGINE);
+      expect(adapter.defaultMetadata.engine).toBe(POLARS_ENGINE);
+      expect(adapter.defaultCode).toBe(
+        '_df = mo.sql(f"""SELECT * FROM """, engine="polars")',
       );
     });
 
@@ -1244,6 +1301,22 @@ describe("CustomSqlParser", () => {
     await expect(parser.parse(query, { state })).resolves.toMatchObject({
       success: false,
     });
+  });
+
+  it("does not route Polars through backend DuckDB validation", async () => {
+    const query = "SELECT * FROM orders";
+    const state = createNamedConnectionState({
+      doc: query,
+      engine: POLARS_ENGINE,
+      dialect: "polars",
+    });
+    const request = vi.spyOn(ValidateSQL, "request");
+    const parser = new exportedForTesting.CustomSqlParser();
+    parser.setFocusState(true);
+
+    await parser.validateSql(query, { state });
+
+    expect(request).not.toHaveBeenCalled();
   });
 
   it("preserves client-side parsing for an unregistered connection", async () => {
@@ -2439,22 +2512,22 @@ describe("tablesCompletionSource", () => {
 
         it("should include local datasets in completions", async () => {
           const mockConnection: DataSourceConnection = {
-            name: TEST_ENGINE,
-            dialect: "duckdb",
-            display_name: "duckdb",
-            source: "duckdb",
+            name: POLARS_ENGINE,
+            dialect: "polars",
+            display_name: "Polars",
+            source: "polars",
             databases: [],
           };
 
           store.set(dataSourceConnectionsAtom, {
-            connectionsMap: new Map([[TEST_ENGINE, mockConnection]]),
-            latestEngineSelected: TEST_ENGINE,
+            connectionsMap: new Map([[POLARS_ENGINE, mockConnection]]),
+            latestEngineSelected: POLARS_ENGINE,
           });
 
           store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
           const state = createEditorState("SELECT * FROM d", {
-            engine: TEST_ENGINE,
+            engine: POLARS_ENGINE,
           });
           const ctx = createCompletionContext(state, 15);
 
