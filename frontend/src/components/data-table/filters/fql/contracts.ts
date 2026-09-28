@@ -110,7 +110,7 @@ export const TableFilterConformanceSuiteSchema = z.object({
  * Public result from FQL conversion.
  *
  * Successful results contain the native filter group that table search accepts.
- * Rejections contain a reason that the UI or CLI can display.
+ * Rejections contain a reason that the caller can display.
  */
 export type FqlAdapterResult =
   | { ok: true; filter: FilterGroupType }
