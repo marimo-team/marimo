@@ -17,53 +17,7 @@ import { getExportLayout } from "@/core/export/layout";
 import { useRequestClient } from "@/core/network/requests";
 import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
 import { Spinner } from "../icons/spinner";
-
-interface PendingUploadResponse {
-  pendingId: string;
-  presignedUrl: string;
-  claimUrl: string;
-  expiresAt: string;
-}
-
-async function stageForPublish(
-  fileName: string,
-  html: string,
-): Promise<string> {
-  const blob = new Blob([html], { type: "text/html" });
-  // Keep in sync with molab.
-  const maxBytes = 100 * 1024 * 1024;
-  if (blob.size > maxBytes) {
-    throw new Error("File is too large. Maximum size is 100 MB.");
-  }
-
-  const staged = await fetch(`${Constants.molab}/api/artifacts/pending`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fileName, fileSize: blob.size }),
-  });
-  if (!staged.ok) {
-    const body = (await staged.json().catch(() => null)) as {
-      error?: string;
-    } | null;
-    throw new Error(
-      body?.error ??
-        (staged.status === 429
-          ? "Too many uploads, try again later"
-          : "Failed to prepare the upload"),
-    );
-  }
-  const { presignedUrl, claimUrl } =
-    (await staged.json()) as PendingUploadResponse;
-
-  // The presigned PUT is capped to the declared size; the browser sends the
-  // matching Content-Length automatically from the blob.
-  const put = await fetch(presignedUrl, { method: "PUT", body: blob });
-  if (!put.ok) {
-    throw new Error("Failed to upload the notebook export");
-  }
-
-  return claimUrl;
-}
+import { stageForPublish } from "./stage-for-publish";
 
 export const ShareStaticNotebookModal: React.FC<{
   onClose: () => void;
