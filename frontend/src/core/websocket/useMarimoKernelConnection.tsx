@@ -60,7 +60,11 @@ import {
   handleRemoveUIElements,
 } from "../kernel/handlers";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
-import type { SessionId } from "../kernel/session";
+import {
+  type SessionId,
+  type StableSessionId,
+  stableSessionIdAtom,
+} from "../kernel/session";
 import { initialRunCompletedAtom, kernelStateAtom } from "../kernel/state";
 import { type LayoutState, useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
@@ -231,6 +235,7 @@ export function useMarimoKernelConnection(opts: {
     addStartupLog,
   } = useAlertActions();
   const setKioskMode = useSetAtom(kioskModeAtom);
+  const setStableSessionId = useSetAtom(stableSessionIdAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
   const transportType = useAtomValue(connectionTransportTypeAtom);
@@ -284,6 +289,10 @@ export function useMarimoKernelConnection(opts: {
           invalidateDataSourceDiscovery();
         }
         setKioskMode(msg.data.kiosk);
+        setStableSessionId(
+          (msg.data.stable_session_id as StableSessionId | null | undefined) ??
+            null,
+        );
         // A freshly started kernel has no breakpoints of its own; re-push
         // the client's set so they still apply, and clear the stale
         // highlighted line from the previous kernel instance.
