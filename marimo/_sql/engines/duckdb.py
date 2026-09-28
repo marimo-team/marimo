@@ -5,8 +5,14 @@ from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import _loggers
-from marimo._data.get_datasets import get_table_columns
-from marimo._data.models import Database, DataTable, Schema
+from marimo._data.get_datasets import _db_type_to_data_type, get_table_columns
+from marimo._data.models import (
+    Database,
+    DataTable,
+    DataTableColumn,
+    DataTableType,
+    Schema,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
@@ -203,9 +209,18 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
                             schema_name,
                             database_name,
                             include_tables=tables_resolved,
-                            include_table_details=details_resolved,
+                            include_table_details=False,
                         )
                     )
+        if details_resolved:
+            self._load_table_details(
+                {
+                    (database.name, schema.name, table.name): table
+                    for database in databases.values()
+                    for schema in database.schemas
+                    for table in schema.tables
+                }
+            )
         return list(databases.values())
 
     def _query_catalog(
@@ -282,30 +297,81 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
     ) -> list[DataTable]:
         """List table and view names without eagerly loading their columns."""
         del schema_path
-        qualified_schema = quote_qualified_name(database, schema)
-        rows = self._query_catalog(f"SHOW TABLES FROM {qualified_schema}")
-        tables: list[DataTable] = []
-        for (name,) in rows:
-            if include_table_details:
-                table = self.get_table_details(
-                    table_name=name,
-                    schema_name=schema,
-                    database_name=database,
-                )
-                if table is None:
-                    continue
-            else:
-                table = self._make_table(name, database)
-            tables.append(table)
-        return tables
+        rows = self._query_catalog(
+            "SELECT table_name, table_type FROM information_schema.tables "
+            "WHERE table_catalog = ? AND table_schema = ? ORDER BY table_name",
+            [database, schema],
+        )
+        tables = {
+            (database, schema, name): self._make_table(
+                name,
+                database,
+                table_type="view" if kind == "VIEW" else "table",
+            )
+            for name, kind in rows
+        }
+        if include_table_details:
+            self._load_table_details(tables, database=database, schema=schema)
+        return list(tables.values())
 
-    def _make_table(self, name: str, database: str) -> DataTable:
+    def _load_table_details(
+        self,
+        tables: dict[tuple[str, str, str], DataTable],
+        *,
+        database: str | None = None,
+        schema: str | None = None,
+    ) -> None:
+        if not tables:
+            return
+        query = (
+            "SELECT database_name, schema_name, table_name, column_name, data_type "
+            "FROM duckdb_columns() WHERE NOT internal"
+        )
+        params: list[str] = []
+        if database is not None:
+            query += " AND database_name = ?"
+            params.append(database)
+        if schema is not None:
+            query += " AND schema_name = ?"
+            params.append(schema)
+        query += (
+            " ORDER BY database_name, schema_name, table_name, column_index"
+        )
+        try:
+            rows = self._query_catalog(query, params)
+        except Exception:
+            # A metadata failure must not hide tables already enumerated.
+            LOGGER.warning("Failed to get DuckDB columns", exc_info=True)
+            return
+        for db_name, schema_name, table_name, column_name, dtype in rows:
+            table = tables.get((db_name, schema_name, table_name))
+            if table is not None:
+                table.columns.append(
+                    DataTableColumn(
+                        name=column_name,
+                        type=_db_type_to_data_type(dtype),
+                        external_type=dtype,
+                        sample_values=[],
+                    )
+                )
+        for (_, schema_name, _), table in tables.items():
+            # Some Iceberg catalogs expose a placeholder instead of columns.
+            if len(table.columns) == 1 and table.columns[0].name == "__":
+                table.columns = []
+                self._describe_table(table, schema_name)
+            if table.columns:
+                table.num_columns = len(table.columns)
+
+    def _make_table(
+        self, name: str, database: str, *, table_type: DataTableType = "table"
+    ) -> DataTable:
         return DataTable(
             source_type="duckdb"
             if self._engine_name is None
             else "connection",
             source=database,
             name=name,
+            type=table_type,
             num_rows=None,
             num_columns=None,
             variable_name=None,
@@ -323,19 +389,29 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
     ) -> DataTable | None:
         """Describe only the requested table, including remote catalog tables."""
         del schema_path
+        rows = self._query_catalog(
+            "SELECT table_type FROM information_schema.tables "
+            "WHERE table_catalog = ? AND table_schema = ? AND table_name = ?",
+            [database_name, schema_name, table_name],
+        )
+        if not rows:
+            return None
+        table = self._make_table(
+            table_name,
+            database_name,
+            table_type="view" if rows[0][0] == "VIEW" else "table",
+        )
+        self._describe_table(table, schema_name)
+        return table if table.columns else None
+
+    def _describe_table(self, table: DataTable, schema: str) -> None:
         import duckdb
 
         connection = cast(
             duckdb.DuckDBPyConnection, self._connection or duckdb
         )
-        qualified_name = quote_qualified_name(
-            database_name, schema_name, table_name
-        )
+        qualified_name = quote_qualified_name(table.source, schema, table.name)
         with self._install_connection(connection):
-            columns = get_table_columns(connection, qualified_name)
-        if not columns:
-            return None
-        table = self._make_table(table_name, database_name)
-        table.columns = columns
-        table.num_columns = len(columns)
-        return table
+            table.columns = get_table_columns(connection, qualified_name)
+        if table.columns:
+            table.num_columns = len(table.columns)

@@ -507,8 +507,14 @@ def test_duckdb_discovery_depth(
         assert sum("duckdb_schemas()" in sql for sql in queries) == int(
             schemas_enabled
         )
-        assert any("SHOW TABLES" in sql for sql in queries) == tables_enabled
-        assert details.call_count == int(details_enabled)
+        assert (
+            any("information_schema.tables" in sql for sql in queries)
+            == tables_enabled
+        )
+        assert sum("duckdb_columns()" in sql for sql in queries) == int(
+            details_enabled
+        )
+        assert details.call_count == 0
         assert not any("SHOW ALL TABLES" in sql for sql in queries)
 
 
@@ -555,7 +561,10 @@ def test_duckdb_deferred_discovery() -> None:
         tables = engine.get_tables_in_schema(
             database=database, schema=schema, include_table_details=False
         )
-        assert [table.name for table in tables] == ["a_view", table_name]
+        assert [(table.name, table.type) for table in tables] == [
+            ("a_view", "view"),
+            (table_name, "table"),
+        ]
         assert all(
             table.columns == [] and table.num_columns is None
             for table in tables
@@ -566,6 +575,7 @@ def test_duckdb_deferred_discovery() -> None:
         expected.source = database
         for name in (table_name, "a_view"):
             expected.name = name
+            expected.type = "view" if name == "a_view" else "table"
             assert (
                 engine.get_table_details(
                     database_name=database, schema_name=schema, table_name=name
@@ -706,3 +716,124 @@ def test_duckdb_discovers_schemas_once_for_all_databases() -> None:
             )
             == 1
         )
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+@pytest.mark.parametrize("all_databases", [False, True])
+def test_duckdb_batches_column_discovery(all_databases: bool) -> None:
+    import duckdb
+
+    with duckdb.connect() as connection:
+        connection.execute("ATTACH ':memory:' AS attached")
+        for database in ("memory", "attached"):
+            connection.execute(f"CREATE SCHEMA {database}.extra")
+            for schema in ("main", "extra"):
+                connection.execute(
+                    f"CREATE TABLE {database}.{schema}.example (z INTEGER, a VARCHAR)"
+                )
+                connection.execute(
+                    f"CREATE VIEW {database}.{schema}.example_view AS SELECT * FROM {database}.{schema}.example"
+                )
+        engine = DuckDBEngine(connection)
+        with (
+            mock.patch.object(
+                engine, "_query_catalog", wraps=engine._query_catalog
+            ) as query,
+            mock.patch.object(
+                engine, "_describe_table", wraps=engine._describe_table
+            ) as describe,
+        ):
+            if all_databases:
+                databases = engine.get_databases(
+                    include_schemas=True,
+                    include_tables=True,
+                    include_table_details=True,
+                )
+                tables = [
+                    table
+                    for database in databases
+                    for schema in database.schemas
+                    for table in schema.tables
+                ]
+            else:
+                tables = engine.get_tables_in_schema(
+                    database="attached",
+                    schema="main",
+                    include_table_details=True,
+                )
+        assert len(tables) == (8 if all_databases else 2)
+        for table in tables:
+            assert table.columns == [
+                DataTableColumn(
+                    name="z",
+                    type="integer",
+                    external_type="INTEGER",
+                    sample_values=[],
+                ),
+                DataTableColumn(
+                    name="a",
+                    type="string",
+                    external_type="VARCHAR",
+                    sample_values=[],
+                ),
+            ]
+            assert table.num_columns == 2
+            assert table.type == (
+                "view" if table.name == "example_view" else "table"
+            )
+        assert (
+            sum(
+                "duckdb_columns()" in call.args[0]
+                for call in query.call_args_list
+            )
+            == 1
+        )
+        describe.assert_not_called()
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+@pytest.mark.parametrize("failure", ["query", "missing", "placeholder"])
+def test_duckdb_keeps_tables_when_column_discovery_fails(failure: str) -> None:
+    import duckdb
+
+    with duckdb.connect() as connection:
+        connection.execute("CREATE TABLE example (id INTEGER)")
+        engine = DuckDBEngine(connection)
+        query = engine._query_catalog
+
+        def failing_columns(
+            sql: str, params: list[Any] | None = None
+        ) -> list[Any]:
+            if "duckdb_columns()" in sql:
+                if failure == "query":
+                    raise duckdb.NotImplementedException(
+                        "Column metadata unavailable"
+                    )
+                if failure == "placeholder":
+                    return [("memory", "main", "example", "__", "INTEGER")]
+                return []
+            return query(sql, params)
+
+        with (
+            mock.patch.object(
+                engine, "_query_catalog", side_effect=failing_columns
+            ),
+            mock.patch(
+                "marimo._sql.engines.duckdb.get_table_columns", return_value=[]
+            ) as describe,
+        ):
+            tables = engine.get_tables_in_schema(
+                database="memory", schema="main", include_table_details=True
+            )
+        assert tables == [
+            DataTable(
+                name="example",
+                source="memory",
+                source_type="duckdb",
+                num_rows=None,
+                num_columns=None,
+                variable_name=None,
+                columns=[],
+            )
+        ]
+        assert describe.call_count == int(failure == "placeholder")
