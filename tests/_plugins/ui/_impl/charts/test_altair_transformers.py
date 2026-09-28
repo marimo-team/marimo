@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import datetime
 import json
+import os
 import sys
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
@@ -210,7 +211,9 @@ def test_to_marimo_arrow_with_duration_export_failure(error: type[Exception]):
 
     assert result == {"url": "test.csv", "format": {"type": "csv"}}
     export_csv.assert_called_once_with(
-        b"a.b,n,d\n1.0,1,1 days\n2.0,2,2 days\n3.0,3,3 days\n"
+        os.linesep.join(
+            ("a.b,n,d", "1.0,1,1 days", "2.0,2,2 days", "3.0,3,3 days", "")
+        ).encode()
     )
 
 
@@ -366,7 +369,9 @@ def test_to_marimo_arrow_with_duration_without_pyarrow():
 
     assert result == {"url": "test.csv", "format": {"type": "csv"}}
     export_csv.assert_called_once_with(
-        b"a.b,n,d\n1.0,1,1 days\n2.0,2,2 days\n3.0,3,3 days\n"
+        os.linesep.join(
+            ("a.b,n,d", "1.0,1,1 days", "2.0,2,2 days", "3.0,3,3 days", "")
+        ).encode()
     )
 
 
@@ -393,7 +398,11 @@ def test_to_marimo_arrow_csv_fallback_preserves_infinities():
         result = _to_marimo_arrow(df)
 
     assert result == {"url": "test.csv", "format": {"type": "csv"}}
-    export_csv.assert_called_once_with(b"a.b,n\n1.0,1\ninf,2\n-inf,3\n,4\n")
+    export_csv.assert_called_once_with(
+        os.linesep.join(
+            ("a.b,n", "1.0,1", "inf,2", "-inf,3", ",4", "")
+        ).encode()
+    )
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
