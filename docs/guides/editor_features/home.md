@@ -40,10 +40,10 @@ Each environment is prepared from the notebook's requirements when you open it.
 See [working in sandboxes](../package_management/sandboxes.md#open-a-directory-of-notebooks)
 for setup with uv or Pixi.
 
-### Using custom virtual environments
+## Using custom virtual environments
 
-When using Sandboxed Home, you can specify an existing virtual environment
-for a notebook instead of having marimo create one automatically.
+You can specify an existing virtual environment for each notebook when editing
+a directory or a single notebook with `marimo edit --no-sandbox`.
 This is configured using `[tool.marimo.venv]` in your script metadata:
 
 ```python
@@ -54,20 +54,20 @@ This is configured using `[tool.marimo.venv]` in your script metadata:
 # ///
 ```
 
-This configuration also applies when editing a single file with
-`marimo edit --sandbox notebook.py`. The configured environment takes precedence
-over creating an environment from inline requirements. To use an activated
+With `--sandbox`, uv or Pixi provisions the environment from the notebook's
+manifest. The editor ignores `[tool.marimo.venv]` and prints a warning.
+Use `--no-sandbox` to use the configured environment. To use an activated
 environment directly, see
 [using an existing environment](../package_management/projects.md#use-an-existing-environment).
 
-#### Configuration options
+### Configuration options
 
 | Option | Description |
 |--------|-------------|
 | `path` | Path to the virtual environment (relative or absolute) |
 | `writable` | Whether marimo can install packages into the venv (default: `false`) |
 
-#### Behavior
+### Behavior
 
 | `writable` | marimo installed? | What happens |
 |:-----------|:------------------|:-------------|

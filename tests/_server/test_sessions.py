@@ -1168,6 +1168,123 @@ async def test_session_with_script_config_overrides(
     session.close()
 
 
+@pytest.mark.requires("zmq")
+@pytest.mark.parametrize("backend", ["uv", "pixi"])
+@pytest.mark.parametrize("config_source", ["script", "project"])
+@pytest.mark.parametrize("existing_venv", [False, True])
+async def test_sandbox_ignores_configured_venv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    backend: str,
+    config_source: str,
+    existing_venv: bool,
+) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._environments.environment import Environment, ProcessPlan
+    from marimo._environments.sandbox import BackendAdapter, NotebookSandbox
+
+    venv_path = Path(sys.prefix) if existing_venv else tmp_path / "missing"
+    config = (
+        f"[tool.marimo.venv]\npath = {venv_path.as_posix()!r}\n"
+        "writable = false\n"
+    )
+    if config_source == "project":
+        (tmp_path / "pyproject.toml").write_text(config)
+    header = "# /// script\n# dependencies = []\n"
+    if config_source == "script":
+        header += "".join(f"# {line}\n" for line in config.splitlines())
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(header + "# ///\n")
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_BACKEND", backend)
+
+    environment = Environment(sys.executable, sys.prefix, "unchanged")
+    adapter = MagicMock(spec=BackendAdapter)
+    adapter.name = backend
+    adapter.sync_async.return_value = environment
+    adapter.launch.return_value = ProcessPlan(
+        (sys.executable, "-m", "marimo._ipc.launch_kernel"), os.environ.copy()
+    )
+    monkeypatch.setattr(
+        "marimo._environments.backends.adapter_for", lambda *_: adapter
+    )
+
+    session = await SessionImpl.create(
+        initialization_id=str(notebook),
+        startup=SessionStartup(),
+        session_consumer=None,
+        mode=SessionMode.EDIT,
+        app_metadata=AppMetadata(
+            query_params={},
+            filename=str(notebook),
+            cli_args={},
+            app_config=_AppConfig(),
+        ),
+        app_file_manager=AppFileManager(filename=str(notebook)),
+        config_manager=get_default_config_manager(current_path=str(tmp_path)),
+        virtual_file_storage=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+        auto_instantiate=False,
+        sandbox=True,
+    )
+    try:
+        assert session._kernel_manager.is_alive()
+        sandbox = session.notebook_sandbox
+        assert isinstance(sandbox, NotebookSandbox)
+        assert sandbox.backend == backend
+        assert sandbox.environment == environment
+        adapter.sync_async.assert_awaited_once()
+        assert "ignoring [tool.marimo.venv]" in capsys.readouterr().err
+        assert (
+            session.config_manager.get_config()["venv"]["path"]
+            == venv_path.as_posix()
+        )
+    finally:
+        session.close()
+
+
+@pytest.mark.requires("zmq")
+async def test_configured_venv_launches_editor_kernel_without_sandbox(
+    tmp_path: Path,
+) -> None:
+    from marimo._session.managers.ipc import IPCKernelManagerImpl
+
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        "# /// script\n# [tool.marimo.venv]\n"
+        f"# path = {str(Path(sys.prefix).as_posix())!r}\n# ///\n"
+    )
+    session = await SessionImpl.create(
+        initialization_id=str(notebook),
+        startup=SessionStartup(),
+        session_consumer=None,
+        mode=SessionMode.EDIT,
+        app_metadata=AppMetadata(
+            query_params={},
+            filename=str(notebook),
+            cli_args={},
+            app_config=_AppConfig(),
+        ),
+        app_file_manager=AppFileManager(filename=str(notebook)),
+        config_manager=get_default_config_manager(current_path=str(tmp_path)),
+        virtual_file_storage=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+        auto_instantiate=False,
+        sandbox=False,
+    )
+    try:
+        manager = session._kernel_manager
+        assert isinstance(manager, IPCKernelManagerImpl)
+        assert manager.is_alive()
+        assert manager.venv_python is not None
+        assert Path(manager.venv_python).parent.parent == Path(sys.prefix)
+        assert session.notebook_sandbox is None
+    finally:
+        session.close()
+
+
 async def test_session_script_dotenv_reaches_the_kernel_config(
     tmp_path: Path,
 ) -> None:

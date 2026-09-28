@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Virtual environment configuration utilities.
 
-This module provides utilities for working with configured virtual environments
-in marimo's sandbox mode. It handles:
+This module provides utilities for launching editor kernels in configured
+virtual environments. It handles:
 - Finding Python interpreters in virtual environments
 - Checking marimo installation status in venvs
 - PYTHONPATH injection for kernel subprocesses
