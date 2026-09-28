@@ -51,7 +51,7 @@ def _prepare_pandas_export(
     manager: NarwhalsTableManager[Any, Any],
     geometry_columns: dict[str, GeometryColumnInfo],
 ) -> TableManager[Any]:
-    import geopandas as gpd  # type: ignore[import-untyped]
+    import geopandas as gpd  # type: ignore[import-not-found,import-untyped,unused-ignore]
     import pandas as pd
 
     native = manager.as_frame().to_native()
