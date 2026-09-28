@@ -2,6 +2,7 @@
 import type { Cell, RowData, Table } from "@tanstack/react-table";
 import {
   type ReactNode,
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -39,12 +40,12 @@ export function useTableHoverTooltip<TData extends RowData>({
   // click/drag-select focus doesn't show a tooltip (keyboard focus still does).
   const pointerDown = useRef(false);
 
-  const clearTimer = () => {
+  const clearTimer = useCallback(() => {
     if (timer.current != null) {
       clearTimeout(timer.current);
       timer.current = null;
     }
-  };
+  }, []);
 
   const hideTooltip = useEvent(() => {
     clearTimer();
@@ -145,7 +146,7 @@ export function useTableHoverTooltip<TData extends RowData>({
     };
   }, [hideTooltip]);
 
-  useEffect(() => clearTimer, []);
+  useEffect(() => clearTimer, [clearTimer]);
 
   return {
     tooltipState,

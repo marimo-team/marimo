@@ -33,7 +33,7 @@ export const StartupLogsAlert: React.FC = () => {
         window.clearTimeout(timeout);
       }
     };
-  }, [isDone]);
+  }, [handleClear, isDone]);
 
   if (startupLogsAlert === null || hasCleared) {
     return null;

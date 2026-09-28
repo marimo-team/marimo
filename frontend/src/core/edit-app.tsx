@@ -80,7 +80,7 @@ export const EditApp: React.FC<AppProps> = ({
     return () => {
       RuntimeState.INSTANCE.stop();
     };
-  }, []);
+  }, [sendComponentValues]);
 
   const { connection, reconnect } = useMarimoKernelConnection({
     autoInstantiate: userConfig.runtime.auto_instantiate,

@@ -49,7 +49,7 @@ export const RunApp: React.FC<AppProps> = ({ appConfig, hideHeader }) => {
     return () => {
       RuntimeState.INSTANCE.stop();
     };
-  }, []);
+  }, [sendComponentValues]);
 
   const { connection, reconnect } = useMarimoKernelConnection({
     autoInstantiate: true,

@@ -62,7 +62,7 @@ export function useDebounceControlledState<T>(opts: {
     if (debouncedValue !== initialValue) {
       onUpdate(debouncedValue);
     }
-  }, [debouncedValue, disabled, onUpdate]);
+  }, [debouncedValue, disabled, initialValue, onUpdate]);
 
   // If disabled, just pass through the initialValue and onChange
   if (disabled) {
