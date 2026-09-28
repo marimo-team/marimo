@@ -173,6 +173,8 @@ async def test_handoff_requires_a_live_attachment() -> None:
 
 async def test_ttl_ends_attachment_but_keeps_record() -> None:
     registry = ParticipantRegistry(ttl_seconds=0.01)
+    snapshots = []
+    registry.set_presence_callback(snapshots.append)
     await registry.attach("p1", harness="claude", kind="agent")
 
     await asyncio.sleep(0.02)
@@ -181,6 +183,23 @@ async def test_ttl_ends_attachment_but_keeps_record() -> None:
     assert state is not None
     assert state.participant_id == "p1"
     assert state.attached is False
+    assert [snapshot.attached for snapshot in snapshots] == [True, False]
+    registry.close()
+
+
+async def test_presence_snapshot_fields_use_wall_time() -> None:
+    snapshots = []
+    registry = ParticipantRegistry(wall_clock=lambda: 1_234.5)
+    registry.set_presence_callback(snapshots.append)
+
+    attached = await registry.attach("p1", harness="claude", kind="agent")
+    detached = await registry.detach("p1")
+
+    assert snapshots == [attached, detached]
+    assert attached.last_contact_at == 1_234.5
+    assert attached.listening is False
+    assert attached.active is False
+    assert attached.active_since is None
     registry.close()
 
 

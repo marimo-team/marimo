@@ -283,6 +283,7 @@ function handleMessage(
         return;
 
       case "consumer-capabilities":
+      case "participant-presence":
         return;
       default:
         logNever(msg);

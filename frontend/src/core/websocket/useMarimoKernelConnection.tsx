@@ -498,6 +498,8 @@ export function useMarimoKernelConnection(opts: {
       case "consumer-capabilities":
         setKioskMode(!msg.data.consumer_capabilities.edit);
         return;
+      case "participant-presence":
+        return;
       default:
         logNever(msg.data);
     }

@@ -52,7 +52,10 @@ class ParticipantState:
     kind: ParticipantKind
     cursor: int
     attached: bool
+    listening: bool
+    active: bool
     last_contact_at: float
+    active_since: float | None
 
 
 @dataclass(frozen=True)
@@ -100,6 +103,9 @@ class _ParticipantRecord:
     cursor: int = 0
     next_seq: int = 1
     attached: bool = False
+    listening: bool = False
+    active: bool = False
+    active_since: float | None = None
     expires_at: float | None = None
     attachment_generation: int = 0
     events: list[HandoffEvent] = field(default_factory=list)
@@ -112,7 +118,10 @@ class _ParticipantRecord:
             kind=self.kind,
             cursor=self.cursor,
             attached=self.attached,
+            listening=self.listening,
+            active=self.active,
             last_contact_at=self.last_contact_at,
+            active_since=self.active_since,
         )
 
 
@@ -130,6 +139,7 @@ class ParticipantRegistry:
         inline_budget_bytes: int = 32 * 1024,
         inactive_record_limit: int = 4,
         clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], float] = time.time,
     ) -> None:
         self.limits = ParticipantLimits(
             payload_cap_bytes=payload_cap_bytes,
@@ -141,6 +151,10 @@ class ParticipantRegistry:
             inactive_record_limit=inactive_record_limit,
         )
         self._clock = clock
+        self._wall_clock = wall_clock
+        self._presence_callback: Callable[[ParticipantState], None] | None = (
+            None
+        )
         self._records: dict[str, _ParticipantRecord] = {}
         self._expiry_tasks: dict[str, asyncio.Task[None]] = {}
         self._lock = asyncio.Lock()
@@ -164,24 +178,27 @@ class ParticipantRegistry:
                 raise ParticipantConflictError(holder.harness)
 
             record = self._records.get(participant_id)
+            contacted_at = self._wall_clock()
             if record is None:
                 record = _ParticipantRecord(
                     participant_id=participant_id,
                     harness=harness,
                     kind=kind,
-                    last_contact_at=now,
+                    last_contact_at=contacted_at,
                     order=self._next_order,
                 )
                 self._next_order += 1
                 self._records[participant_id] = record
 
-            record.last_contact_at = now
+            record.last_contact_at = contacted_at
             record.attached = True
             record.expires_at = now + self.limits.ttl_seconds
             record.attachment_generation += 1
             self._prune_inactive_records()
             self._schedule_expiry(record)
-            return record.state()
+            state = record.state()
+            self._emit_presence(state)
+            return state
 
     async def detach(self, participant_id: str) -> ParticipantState:
         """End an attachment while retaining its record and handoff log."""
@@ -190,6 +207,12 @@ class ParticipantRegistry:
             record = self._record(participant_id)
             self._end_attachment(record)
             return record.state()
+
+    def set_presence_callback(
+        self, callback: Callable[[ParticipantState], None]
+    ) -> None:
+        """Send future presence transitions through the owning Session."""
+        self._presence_callback = callback
 
     async def append_handoff(self, payload: HandoffPayload) -> HandoffEvent:
         """Append one structured handoff to the live participant's log."""
@@ -284,6 +307,7 @@ class ParticipantRegistry:
         if self._closed:
             return
         self._closed = True
+        self._presence_callback = None
         for task in self._expiry_tasks.values():
             task.cancel()
         self._expiry_tasks.clear()
@@ -302,11 +326,17 @@ class ParticipantRegistry:
         )
 
     def _end_attachment(self, record: _ParticipantRecord) -> None:
+        presence_changed = record.attached or record.listening or record.active
         record.attached = False
+        record.listening = False
+        record.active = False
+        record.active_since = None
         record.expires_at = None
         task = self._expiry_tasks.pop(record.participant_id, None)
         if task is not None and task is not asyncio.current_task():
             task.cancel()
+        if presence_changed:
+            self._emit_presence(record.state())
 
     def _schedule_expiry(self, record: _ParticipantRecord) -> None:
         previous = self._expiry_tasks.pop(record.participant_id, None)
@@ -393,3 +423,8 @@ class ParticipantRegistry:
     def _ensure_open(self) -> None:
         if self._closed:
             raise ParticipantRegistryClosedError
+
+    def _emit_presence(self, state: ParticipantState) -> None:
+        callback = self._presence_callback
+        if callback is not None:
+            callback(state)
