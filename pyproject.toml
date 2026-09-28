@@ -330,6 +330,7 @@ exclude = [
     "marimo/_smoke_tests",
     "marimo/_snippets/data",
     "marimo/_static/export_demos/wasm-intro.py",
+    "marimo/_template_catalog/notebooks",
     "marimo/_test_utils/_tutorials",
     "marimo/_test_utils/codegen_data",
     "marimo/_tutorials",
@@ -512,6 +513,7 @@ exclude = [
     'tests/_runtime/runtime_data',
     'marimo/_snippets/data/',
     'marimo/_smoke_tests/',
+    'marimo/_template_catalog/notebooks/',
 ]
 warn_unused_ignores = false
 
