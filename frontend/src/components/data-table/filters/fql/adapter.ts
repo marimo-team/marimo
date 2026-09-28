@@ -3,16 +3,19 @@
 import {
   fqlLanguage,
   parseQuery,
+  type BooleanNode,
   type ExprNode,
   type FieldDef,
   type FilterNode,
   type FilterSchema,
+  type NotNode,
   type ScalarValue,
 } from "better-filter-bar";
 import operationCatalogJson from "../../../../../../marimo/_server/ai/table_filter_operation_catalog.json";
 import {
   FilterConditionSchema,
   type FilterConditionType,
+  type FilterGroupType,
 } from "@/plugins/impl/data-frames/schema";
 import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
 import {
@@ -38,6 +41,10 @@ type LeafResult =
   | { ok: true; condition: FilterConditionType }
   | { ok: false; reason: string };
 type Rejection = Extract<FqlAdapterResult, { ok: false }>;
+type NativeFilterNode = FilterConditionType | FilterGroupType;
+type ExpressionResult =
+  | { ok: true; node: NativeFilterNode }
+  | { ok: false; reason: string };
 
 function reject(reason: string): Rejection {
   return { ok: false, reason };
@@ -124,14 +131,18 @@ function isNullValue(value: ScalarValue): boolean {
   return value.value === "null";
 }
 
-function convertList(node: FilterNode, column: FqlColumn): LeafResult {
+function convertList(
+  node: FilterNode,
+  column: FqlColumn,
+  operationId: "in_list" | "not_in_list" = "in_list",
+): LeafResult {
   if (node.operator !== ":" || !Array.isArray(node.value)) {
     return reject(
       `The ${column.data_type} column "${String(column.column_id)}" does not support this operation.`,
     );
   }
 
-  const operator = nativeOperator("in_list", column);
+  const operator = nativeOperator(operationId, column);
   if (!operator.ok) {
     return operator;
   }
@@ -274,18 +285,104 @@ function convertLeaf(node: FilterNode, column: FqlColumn): LeafResult {
   }
 }
 
-function unsupportedExpression(node: ExprNode): FqlAdapterResult {
+function expressionFromLeaf(result: LeafResult): ExpressionResult {
+  return result.ok ? { ok: true, node: result.condition } : result;
+}
+
+function columnFor(
+  node: FilterNode,
+  columnsByAlias: ReadonlyMap<string, FqlColumn>,
+): ValueConversionResult<FqlColumn> {
+  const column = columnsByAlias.get(node.field.toLowerCase());
+  return column
+    ? { ok: true, value: column }
+    : reject(`Unknown column alias: ${node.field}.`);
+}
+
+function convertFilter(
+  node: FilterNode,
+  columnsByAlias: ReadonlyMap<string, FqlColumn>,
+): ExpressionResult {
+  const column = columnFor(node, columnsByAlias);
+  if (!column.ok) {
+    return column;
+  }
+  return expressionFromLeaf(convertLeaf(node, column.value));
+}
+
+function convertNot(
+  node: NotNode,
+  columnsByAlias: ReadonlyMap<string, FqlColumn>,
+): ExpressionResult {
+  if (node.operand.type !== "filter") {
+    return reject("NOT can only be applied to a list or null filter.");
+  }
+
+  const column = columnFor(node.operand, columnsByAlias);
+  if (!column.ok) {
+    return column;
+  }
+  if (Array.isArray(node.operand.value)) {
+    return expressionFromLeaf(
+      convertList(node.operand, column.value, "not_in_list"),
+    );
+  }
+  if (node.operand.operator === ":" && isNullValue(node.operand.value)) {
+    return expressionFromLeaf(conditionFor("is_not_null", column.value));
+  }
+  return reject("NOT can only be applied to a list or null filter.");
+}
+
+function appendChild(
+  children: FilterGroupType["children"],
+  node: NativeFilterNode,
+  operator: FilterGroupType["operator"],
+): void {
+  if (node.type === "group" && node.operator === operator && !node.negate) {
+    children.push(...node.children);
+    return;
+  }
+  children.push(node);
+}
+
+function convertBooleanExpression(
+  node: BooleanNode,
+  columnsByAlias: ReadonlyMap<string, FqlColumn>,
+): ExpressionResult {
+  const left = convertExpression(node.left, columnsByAlias);
+  if (!left.ok) {
+    return left;
+  }
+  const right = convertExpression(node.right, columnsByAlias);
+  if (!right.ok) {
+    return right;
+  }
+
+  const operator = node.operator === "AND" ? "and" : "or";
+  const children: FilterGroupType["children"] = [];
+  appendChild(children, left.node, operator);
+  appendChild(children, right.node, operator);
+  return {
+    ok: true,
+    node: { type: "group", operator, children, negate: false },
+  };
+}
+
+function convertExpression(
+  node: ExprNode,
+  columnsByAlias: ReadonlyMap<string, FqlColumn>,
+): ExpressionResult {
   switch (node.type) {
     case "empty":
       return reject("Enter a filter.");
     case "free_text":
       return reject("Use a column alias and an operation.");
     case "boolean":
-      return reject("Boolean filter groups are not supported.");
+      return convertBooleanExpression(node, columnsByAlias);
     case "not":
-      return reject("NOT filters are not supported.");
+      return convertNot(node, columnsByAlias);
     case "filter":
-      return reject("The filter condition is not supported.");
+      return convertFilter(node, columnsByAlias);
   }
 }
 
@@ -322,25 +419,20 @@ export function adaptFqlFilter(
     implicitOperator: "AND",
   };
   const ast = parseQuery(query, schema);
-  if (ast.type !== "filter") {
-    return unsupportedExpression(ast);
-  }
-
-  const column = columnsByAlias.get(ast.field.toLowerCase());
-  if (!column) {
-    return reject(`Unknown column alias: ${ast.field}.`);
-  }
-  const converted = convertLeaf(ast, column);
+  const converted = convertExpression(ast, columnsByAlias);
   if (!converted.ok) {
     return converted;
   }
   return {
     ok: true,
-    filter: {
-      type: "group",
-      operator: "and",
-      children: [converted.condition],
-      negate: false,
-    },
+    filter:
+      converted.node.type === "group"
+        ? converted.node
+        : {
+            type: "group",
+            operator: "and",
+            children: [converted.node],
+            negate: false,
+          },
   };
 }
