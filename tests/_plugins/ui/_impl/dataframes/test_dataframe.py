@@ -64,10 +64,17 @@ def is_not_narwhals_dataframe(df: IntoDataFrame | IntoLazyFrame) -> bool:
 
 @pytest.mark.requires("geopandas")
 @pytest.mark.parametrize("format_type", ["csv", "tsv", "json"])
+@pytest.mark.parametrize(
+    "as_pandas_dataframe",
+    [False, True],
+    ids=["geodataframe", "pandas-geometry-dtype"],
+)
 def test_dataframe_downloads_transformed_geometry_as_complete_text(
     format_type: str,
+    as_pandas_dataframe: bool,
 ) -> None:
     import geopandas as gpd
+    import pandas as pd
     from shapely import from_wkt
 
     long_wkt = (
@@ -78,7 +85,7 @@ def test_dataframe_downloads_transformed_geometry_as_complete_text(
         + ")"
     )
     long_geometry = from_wkt(long_wkt)
-    source = gpd.GeoDataFrame(
+    geopandas_source = gpd.GeoDataFrame(
         {
             "row_label": ["long", "point", "null"],
             "geometry": [
@@ -89,7 +96,14 @@ def test_dataframe_downloads_transformed_geometry_as_complete_text(
         },
         geometry="geometry",
         crs="EPSG:4326",
+        index=[3, 5, 8],
     )
+    source = (
+        pd.DataFrame(geopandas_source)
+        if as_pandas_dataframe
+        else geopandas_source
+    )
+    original = source.copy(deep=True)
     subject = ui.dataframe(source)
     subject._value = source.iloc[[0, 2]].copy()
 
@@ -108,10 +122,17 @@ def test_dataframe_downloads_transformed_geometry_as_complete_text(
     assert rows[0]["row_label"] == "long"
     assert rows[0]["geometry"] == long_geometry.wkt
     assert rows[1]["row_label"] == "null"
-    assert rows[1]["geometry"] is (None if format_type == "json" else "")
-    assert source.geometry.iloc[0].equals_exact(long_geometry, tolerance=0)
-    assert str(source.geometry.dtype) == "geometry"
-    assert source.crs == "EPSG:4326"
+    if format_type == "json":
+        assert rows[1]["geometry"] is None
+    else:
+        assert rows[1]["geometry"] == ""
+    assert source["geometry"].iloc[0].equals_exact(long_geometry, tolerance=0)
+    assert str(source["geometry"].dtype) == "geometry"
+    assert source["geometry"].array.crs == "EPSG:4326"
+    if as_pandas_dataframe:
+        assert type(source) is pd.DataFrame
+        assert not hasattr(source["geometry"], "to_wkt")
+    pd.testing.assert_frame_equal(source, original)
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
