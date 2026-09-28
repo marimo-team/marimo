@@ -5677,6 +5677,8 @@ export interface components {
      *             kiosk: Whether running in kiosk mode.
      *             capabilities: Available kernel capabilities.
      *             auto_instantiated: Whether cells already executed (run mode).
+     *             stable_session_id: Server-owned Session identity that survives
+     *                 browser reconnects. None where no server Session exists.
      */
     KernelReadyNotification: {
       app_config: components["schemas"]["_AppConfig"];
@@ -5699,6 +5701,8 @@ export interface components {
       /** @enum {unknown} */
       op: "kernel-ready";
       resumed: boolean;
+      /** @default null */
+      stable_session_id?: string | null;
       ui_values: Record<string, any> | null;
     };
     /**
