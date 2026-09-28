@@ -76,7 +76,7 @@ describe("PairWithAgent", () => {
     );
 
     expect(
-      screen.getByRole("dialog", { name: "Connect your agent" }),
+      screen.getByRole("dialog", { name: "Pair with an agent" }),
     ).toBeVisible();
   });
 
@@ -89,7 +89,7 @@ describe("PairWithAgent", () => {
 
     expect(onClick).toHaveBeenCalledOnce();
     expect(
-      screen.getByRole("dialog", { name: "Connect your agent" }),
+      screen.getByRole("dialog", { name: "Pair with an agent" }),
     ).toBeVisible();
   });
 
