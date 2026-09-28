@@ -120,8 +120,8 @@ it("does not offer version selection for Pixi outside a sandbox", () => {
   expect(screen.queryByDisplayValue("latest")).not.toBeInTheDocument();
 });
 
-it("does not offer a package manager for a server installation", () => {
-  mountPackageAlert({
+it("uses the configured package manager for a server installation", () => {
+  const client = mountPackageAlert({
     configuredManager: "uv",
     sandboxBackend: "pixi",
     source: "server",
@@ -130,4 +130,11 @@ it("does not offer a package manager for a server installation", () => {
   expect(
     screen.queryByTestId("install-package-manager-select"),
   ).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByTestId("install-packages-button"));
+  expect(client.sendInstallMissingPackages).toHaveBeenCalledExactlyOnceWith({
+    manager: "uv",
+    versions: { polars: "" },
+    source: "server",
+  });
 });
