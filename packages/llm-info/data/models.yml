@@ -1,5 +1,15 @@
 anthropic:
 
+  - name: Claude Opus 5.5
+    model: claude-opus-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 4, output: 20}
+
   - name: Claude Fable 5.1
     model: claude-fable-5-1
     description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
@@ -111,6 +121,46 @@ anthropic:
     cost: {input: 3, output: 15}
 
 openai:
+  - name: GPT-6 Luna
+    model: gpt-6-luna
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 0.1, output: 0.5}
+
+  - name: GPT-6 Sol
+    model: gpt-6-sol
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 2, output: 10}
+
+  - name: Daybreak Blue
+    model: gpt-daybreak-blue-latest
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-08-07
+    cost: {input: 4, output: 20}
+
+  - name: Daybreak Red
+    model: gpt-daybreak-red-latest
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-07
+    cost: {input: 12.5, output: 75}
+
   - name: GPT-6 Astra
     model: gpt-6-astra
     description: "OpenAI model for advanced analysis, software engineering, deep research, scientific work, and document creation"
@@ -221,6 +271,16 @@ openai:
     release_date: 2025-12-16
 
 google:
+  - name: Claude Opus 5.5
+    model: claude-opus-5-5@default
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 4, output: 20}
+
   - name: Grok 4.6
     model: xai/grok-4.6
     description: "xAI frontier model for coding, knowledge work, and STEM"
@@ -400,6 +460,56 @@ google:
     cost: {input: 5, output: 25}
 
 bedrock:
+  - name: Claude Opus 5.5
+    model: anthropic.claude-opus-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 4, output: 20}
+
+  - name: Claude Opus 5.5 (AU)
+    model: au.anthropic.claude-opus-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 4.4, output: 22}
+
+  - name: Claude Opus 5.5 (EU)
+    model: eu.anthropic.claude-opus-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 4.4, output: 22}
+
+  - name: Claude Opus 5.5 (Global)
+    model: global.anthropic.claude-opus-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 4, output: 20}
+
+  - name: GPT-6 Luna (Global)
+    model: global.openai.gpt-6-luna
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 0.1, output: 0.5}
+
   - name: GPT-6 Astra (Global)
     model: global.openai.gpt-6-astra
     description: "OpenAI model for advanced analysis, software engineering, deep research, scientific work, and document creation"
@@ -611,6 +721,56 @@ bedrock:
     cost: {input: 3, output: 15}
 
 azure:
+  - name: Claude Opus 5.5
+    model: claude-opus-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 4, output: 20}
+
+  - name: GPT-6 Luna
+    model: gpt-6-luna
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 0.1, output: 0.5}
+
+  - name: GPT-6 Sol
+    model: gpt-6-sol
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 2, output: 10}
+
+  - name: GPT Image 2.5 Flare
+    model: gpt-image-2.5-flare
+    description: ""
+    roles: [chat, edit]
+    capabilities: []
+    input_types: [text, image]
+    output_types: [image]
+    release_date: 2026-09-08
+    cost: {input: 5, output: 30}
+
+  - name: GPT Image 2.5 Sunburst
+    model: gpt-image-2.5-sunburst
+    description: ""
+    roles: [chat, edit]
+    capabilities: []
+    input_types: [text, image]
+    output_types: [image]
+    release_date: 2026-09-08
+    cost: {input: 5, output: 30}
+
   - name: GPT-6 Astra
     model: gpt-6-astra
     description: "OpenAI model for advanced analysis, software engineering, deep research, scientific work, and document creation"
@@ -994,6 +1154,16 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
+  - name: DeepSeek V4.1 Flash
+    model: deepseek-ai/DeepSeek-V4.1-Flash
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-10
+    cost: {input: 0.2, output: 0.65}
+
   - name: GLM 5.3 Flash
     model: zai-org/GLM-5.3-Flash
     description: "Native multimodal model from Z.ai optimized for efficient coding and long-horizon agent tasks"
@@ -1215,6 +1385,56 @@ wandb:
     cost: {input: 0.05, output: 0.1}
 
 opencode-go:
+  - name: LongCat 2.5 Preview Free
+    model: longcat-2.5-preview-free
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-25
+    cost: {input: 0, output: 0}
+
+  - name: Space Bunny Free
+    model: space-bunny-free
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-23
+    cost: {input: 0, output: 0}
+
+  - name: GPT-6 Luna
+    model: gpt-6-luna
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 0.1, output: 0.5}
+
+  - name: MiMo-V2.6-Flash
+    model: mimo-v2.6-flash
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 0.14, output: 0.28}
+
+  - name: MiMo-V2.6-Pro
+    model: mimo-v2.6-pro
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-22
+    cost: {input: 0.435, output: 0.87}
+
   - name: DeepSeek V4.1 Flash
     model: deepseek-v4.1-flash
     description: "Sparse Mixture-of-Experts model from DeepSeek built on a Causal Encoder-Decoder architecture"
