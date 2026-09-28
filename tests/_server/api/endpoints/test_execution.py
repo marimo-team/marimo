@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import time
-from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -36,8 +37,12 @@ from tests._server.mocks import (
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
+    from contextlib import AbstractContextManager
 
+    from httpx import Response
     from starlette.testclient import TestClient
+
+    from marimo._session import Session
 
 SESSION_ID = SessionId("session-123")
 HEADERS = {
@@ -45,6 +50,55 @@ HEADERS = {
     **token_header("fake-token"),
 }
 STABLE_SESSION_HEADER = "Marimo-Stable-Session-Id"
+PARTICIPANT_ID_HEADER = "Marimo-Participant-Id"
+PAIR_PREVIEW_ENV = "MARIMO_PAIR_NEXT"
+
+
+def _pair_preview_enabled() -> AbstractContextManager[Any]:
+    return patch.dict(os.environ, {PAIR_PREVIEW_ENV: "1"})
+
+
+def _pair_preview_disabled() -> AbstractContextManager[Any]:
+    environ = {k: v for k, v in os.environ.items() if k != PAIR_PREVIEW_ENV}
+    return patch.dict(os.environ, environ, clear=True)
+
+
+def _participant_headers(
+    session: Session, participant_id: str, *, harness: str = "claude"
+) -> dict[str, str]:
+    return {
+        STABLE_SESSION_HEADER: session.stable_id,
+        PARTICIPANT_ID_HEADER: participant_id,
+        "Marimo-Participant-Harness": harness,
+        **token_header("fake-token"),
+    }
+
+
+def _execute_without_kernel(
+    client: TestClient, session: Session, headers: dict[str, str]
+) -> Response:
+    """POST `/api/kernel/execute` with kernel dispatch and streaming replaced.
+
+    The request still passes authentication, session resolution, and the
+    participant guard.
+    """
+    from marimo._server import scratchpad as scratchpad_mod
+
+    async def empty_stream(
+        self: object,  # noqa: ARG001
+    ) -> AsyncGenerator[str, None]:
+        if False:
+            yield ""
+
+    with (
+        patch.object(session, "put_control_request"),
+        patch.object(
+            scratchpad_mod.ScratchCellListener, "stream", empty_stream
+        ),
+    ):
+        return client.post(
+            "/api/kernel/execute", headers=headers, json={"code": "x = 1"}
+        )
 
 
 def _count_execute_interrupts(
@@ -354,6 +408,123 @@ class TestExecutionRoutes_EditMode:
         assert response.json() == {
             "detail": "Invalid stable session id: sess-unknown"
         }
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_with_participant_records_contact(
+        client: TestClient,
+    ) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        with _pair_preview_enabled():
+            first = _execute_without_kernel(
+                client, session, _participant_headers(session, "p1")
+            )
+            first_presence = session.session_view.participant_presence
+            second = _execute_without_kernel(
+                client, session, _participant_headers(session, "p1")
+            )
+
+        assert first.status_code == 200, first.text
+        assert second.status_code == 200, second.text
+        assert first_presence is not None
+        presence = session.session_view.participant_presence
+        assert presence is not None
+        assert presence.participant_id == "p1"
+        assert presence.harness == "claude"
+        assert presence.kind == "agent"
+        assert presence.attached is True
+        assert presence.last_contact_at >= first_presence.last_contact_at
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_rejects_second_live_participant(
+        client: TestClient,
+    ) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        with _pair_preview_enabled():
+            first = _execute_without_kernel(
+                client, session, _participant_headers(session, "p1")
+            )
+            second = _execute_without_kernel(
+                client,
+                session,
+                _participant_headers(session, "p2", harness="codex"),
+            )
+
+        assert first.status_code == 200, first.text
+        assert second.status_code == 409, second.text
+        assert second.json() == {
+            "detail": (
+                "Another participant (claude) is attached to this session."
+            )
+        }
+        presence = session.session_view.participant_presence
+        assert presence is not None
+        assert presence.participant_id == "p1"
+        assert presence.attached is True
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_participant_requires_stable_session_header(
+        client: TestClient,
+    ) -> None:
+        with _pair_preview_enabled():
+            response = client.post(
+                "/api/kernel/execute",
+                headers={**HEADERS, PARTICIPANT_ID_HEADER: "p1"},
+                json={"code": "x = 1"},
+            )
+
+        assert response.status_code == 400, response.text
+        assert response.json() == {
+            "detail": (
+                "Marimo-Participant-Id requires Marimo-Stable-Session-Id."
+            )
+        }
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_rejects_unknown_participant_kind(
+        client: TestClient,
+    ) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        with _pair_preview_enabled():
+            response = _execute_without_kernel(
+                client,
+                session,
+                {
+                    **_participant_headers(session, "p1"),
+                    "Marimo-Participant-Kind": "robot",
+                },
+            )
+
+        assert response.status_code == 400, response.text
+        assert response.json() == {
+            "detail": "Marimo-Participant-Kind must be one of human, agent."
+        }
+        assert session.session_view.participant_presence is None
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_ignores_participant_header_without_preview(
+        client: TestClient,
+    ) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        with _pair_preview_disabled():
+            response = _execute_without_kernel(
+                client, session, _participant_headers(session, "p1")
+            )
+
+        assert response.status_code == 200, response.text
+        assert session.session_view.participant_presence is None
 
     @staticmethod
     @with_session(SESSION_ID)
