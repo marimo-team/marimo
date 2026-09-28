@@ -1,0 +1,227 @@
+# Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
+import asyncio
+from unittest.mock import MagicMock
+
+import pytest
+
+from marimo._messaging.participants import HandoffPayload
+from marimo._session.participants import (
+    HandoffTooLargeError,
+    NoAttachedParticipantError,
+    ParticipantConflictError,
+    ParticipantLimits,
+    ParticipantRegistry,
+    ParticipantRegistryClosedError,
+)
+from marimo._session.session import SessionImpl
+from marimo._session.state.session_view import SessionView
+from marimo._session.types import KernelManager
+
+
+def payload(value: str = "error") -> HandoffPayload:
+    return HandoffPayload(
+        cell_id="cell-1",
+        error=value,
+        code="raise RuntimeError()",
+        traceback="Traceback\nRuntimeError",
+    )
+
+
+async def test_record_survives_detach_and_resumes_delivery() -> None:
+    registry = ParticipantRegistry()
+    first = await registry.attach("p1", harness="claude", kind="agent")
+    event = await registry.append_handoff(payload())
+
+    detached = await registry.detach("p1")
+    before_resume = await registry.delivery_status("p1", event.seq)
+    resumed = await registry.attach("p1", harness="changed", kind="human")
+    after_resume = await registry.delivery_status("p1", event.seq)
+    result = await registry.read_events("p1")
+
+    assert first.cursor == 0
+    assert detached.attached is False
+    assert before_resume == "not_delivered"
+    assert resumed.harness == "claude"
+    assert resumed.kind == "agent"
+    assert resumed.attached is True
+    assert after_resume == "queued"
+    assert result.events == (event,)
+    assert result.cursor == event.seq
+    assert await registry.delivery_status("p1", event.seq) == "delivered"
+    registry.close()
+
+
+async def test_different_live_participant_is_rejected() -> None:
+    registry = ParticipantRegistry()
+    await registry.attach("p1", harness="claude", kind="agent")
+
+    with pytest.raises(ParticipantConflictError) as error:
+        await registry.attach("p2", harness="codex", kind="agent")
+
+    assert error.value.holder_harness == "claude"
+    assert await registry.state("p2") is None
+    registry.close()
+
+
+async def test_reads_use_cursor_since_and_limit() -> None:
+    registry = ParticipantRegistry()
+    await registry.attach("p1", harness="claude", kind="agent")
+    events = tuple(
+        [
+            await registry.append_handoff(payload(str(index)))
+            for index in range(3)
+        ]
+    )
+
+    first = await registry.read_events("p1", limit=1)
+    rest = await registry.read_events("p1")
+    replay = await registry.read_events("p1", since=0, limit=2)
+
+    assert first.events == events[:1]
+    assert first.cursor == 1
+    assert first.remaining == 2
+    assert rest.events == events[1:]
+    assert rest.cursor == 3
+    assert rest.remaining == 0
+    assert replay.events == events[:2]
+    assert replay.cursor == 3
+    assert replay.remaining == 1
+    registry.close()
+
+
+async def test_retention_drops_oldest_without_false_delivery() -> None:
+    registry = ParticipantRegistry(retained_event_limit=2)
+    await registry.attach("p1", harness="claude", kind="agent")
+    first = await registry.append_handoff(payload("first"))
+    second = await registry.append_handoff(payload("second"))
+    third = await registry.append_handoff(payload("third"))
+
+    result = await registry.read_events("p1")
+
+    assert result.events == (second, third)
+    assert result.cursor == third.seq
+    assert await registry.delivery_status("p1", first.seq) == ("not_delivered")
+    registry.close()
+
+
+async def test_delivered_history_can_be_evicted() -> None:
+    registry = ParticipantRegistry(retained_event_limit=1)
+    await registry.attach("p1", harness="claude", kind="agent")
+    first = await registry.append_handoff(payload("first"))
+    await registry.read_events("p1")
+
+    second = await registry.append_handoff(payload("second"))
+
+    assert await registry.delivery_status("p1", first.seq) == "delivered"
+    assert (await registry.read_events("p1")).events == (second,)
+    registry.close()
+
+
+async def test_inactive_record_bound_drops_oldest_on_attach() -> None:
+    registry = ParticipantRegistry(inactive_record_limit=1)
+    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.detach("p1")
+    await registry.attach("p2", harness="codex", kind="agent")
+    await registry.detach("p2")
+
+    current = await registry.attach("p3", harness="opencode", kind="agent")
+
+    assert await registry.state("p1") is None
+    assert await registry.state("p2") is not None
+    assert current.participant_id == "p3"
+    registry.close()
+
+
+async def test_sequence_is_monotonic_per_participant() -> None:
+    registry = ParticipantRegistry()
+    await registry.attach("p1", harness="claude", kind="agent")
+    first = await registry.append_handoff(payload())
+    await registry.detach("p1")
+    await registry.attach("p2", harness="codex", kind="agent")
+    other = await registry.append_handoff(payload())
+    await registry.detach("p2")
+    await registry.attach("p1", harness="claude", kind="agent")
+    second = await registry.append_handoff(payload())
+
+    assert (first.seq, second.seq) == (1, 2)
+    assert other.seq == 1
+    registry.close()
+
+
+async def test_payload_cap_rejects_handoff_before_append() -> None:
+    registry = ParticipantRegistry(payload_cap_bytes=150)
+    await registry.attach("p1", harness="claude", kind="agent")
+
+    with pytest.raises(HandoffTooLargeError):
+        await registry.append_handoff(payload("x" * 100))
+
+    event = await registry.append_handoff(payload("x"))
+    assert event.seq == 1
+    registry.close()
+
+
+async def test_handoff_requires_a_live_attachment() -> None:
+    registry = ParticipantRegistry()
+
+    with pytest.raises(NoAttachedParticipantError):
+        await registry.append_handoff(payload())
+
+    registry.close()
+
+
+async def test_ttl_ends_attachment_but_keeps_record() -> None:
+    registry = ParticipantRegistry(ttl_seconds=0.01)
+    await registry.attach("p1", harness="claude", kind="agent")
+
+    await asyncio.sleep(0.02)
+
+    state = await registry.current_state()
+    assert state is not None
+    assert state.participant_id == "p1"
+    assert state.attached is False
+    registry.close()
+
+
+def test_limits_validate_bounds() -> None:
+    with pytest.raises(ValueError, match="positive"):
+        ParticipantLimits(ttl_seconds=0)
+    with pytest.raises(ValueError, match="negative"):
+        ParticipantLimits(inactive_record_limit=-1)
+
+
+def test_registry_exposes_approved_default_limits() -> None:
+    registry = ParticipantRegistry()
+
+    assert registry.limits == ParticipantLimits(
+        payload_cap_bytes=256 * 1024,
+        retained_event_limit=500,
+        ttl_seconds=120,
+        listener_grace_seconds=10,
+        sse_keepalive_seconds=15,
+        inline_budget_bytes=32 * 1024,
+        inactive_record_limit=4,
+    )
+    registry.close()
+
+
+async def test_session_close_releases_participant_records() -> None:
+    registry = ParticipantRegistry()
+    await registry.attach("p1", harness="claude", kind="agent")
+    session = SessionImpl(
+        initialization_id="notebook.py",
+        session_consumer=None,
+        session_view=SessionView(),
+        kernel_manager=MagicMock(spec=KernelManager),
+        app_file_manager=MagicMock(),
+        config_manager=MagicMock(),
+        ttl_seconds=None,
+        extensions=[],
+        participant_registry=registry,
+    )
+
+    session.close()
+
+    with pytest.raises(ParticipantRegistryClosedError):
+        await registry.state("p1")

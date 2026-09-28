@@ -53,6 +53,7 @@ from marimo._session.managers import (
 )
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
+from marimo._session.participants import ParticipantRegistry
 from marimo._session.room import Room
 from marimo._session.startup import SessionStartup
 from marimo._session.state.session_view import SessionView
@@ -247,6 +248,7 @@ class SessionImpl(Session):
         config_manager: MarimoConfigManager,
         ttl_seconds: int | None,
         extensions: list[SessionExtension],
+        participant_registry: ParticipantRegistry | None = None,
     ) -> None:
         """Initialize kernel and client connection to it."""
         # The notebook's creation key is used to find resumable sessions.
@@ -254,6 +256,7 @@ class SessionImpl(Session):
         self._stable_id = _new_stable_session_id()
         self.app_file_manager = app_file_manager
         self.room = Room()
+        self.participants = participant_registry or ParticipantRegistry()
         self._kernel_manager = kernel_manager
         self.ttl_seconds = (
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
@@ -511,6 +514,7 @@ class SessionImpl(Session):
 
         self._closed = True
 
+        self.participants.close()
         # Close extensions
         self._detach_extensions()
         # Close the room
