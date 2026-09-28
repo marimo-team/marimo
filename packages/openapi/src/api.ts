@@ -3615,6 +3615,85 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/templates/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List bundled templates */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["TemplateCatalogResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/templates/{template_id}/preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          template_id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Read a bundled template preview */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "image/png": string;
+          };
+        };
+        /** @description Template not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/usage": {
     parameters: {
       query?: never;
@@ -7538,6 +7617,26 @@ export interface components {
       /** @default false */
       restartRequired?: boolean;
       success: boolean;
+    };
+    /** TemplateCatalogResponse */
+    TemplateCatalogResponse: {
+      categories: components["schemas"]["TemplateCategory"][];
+      featuredIds: string[];
+      templates: components["schemas"]["TemplateSummary"][];
+    };
+    /** TemplateCategory */
+    TemplateCategory: {
+      description: string;
+      id: string;
+      title: string;
+    };
+    /** TemplateSummary */
+    TemplateSummary: {
+      categoryIds: string[];
+      description: string;
+      id: string;
+      previewUrl: string;
+      title: string;
     };
     /**
      * ToolDefinition

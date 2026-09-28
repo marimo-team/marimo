@@ -6095,6 +6095,62 @@ components:
       - success
       title: SyncSandboxResponse
       type: object
+    TemplateCatalogResponse:
+      properties:
+        categories:
+          items:
+            $ref: '#/components/schemas/TemplateCategory'
+          type: array
+        featuredIds:
+          items:
+            type: string
+          type: array
+        templates:
+          items:
+            $ref: '#/components/schemas/TemplateSummary'
+          type: array
+      required:
+      - categories
+      - templates
+      - featuredIds
+      title: TemplateCatalogResponse
+      type: object
+    TemplateCategory:
+      properties:
+        description:
+          type: string
+        id:
+          type: string
+        title:
+          type: string
+      required:
+      - id
+      - title
+      - description
+      title: TemplateCategory
+      type: object
+    TemplateSummary:
+      properties:
+        categoryIds:
+          items:
+            type: string
+          type: array
+        description:
+          type: string
+        id:
+          type: string
+        previewUrl:
+          type: string
+        title:
+          type: string
+      required:
+      - id
+      - title
+      - description
+      - categoryIds
+      - previewUrl
+      title: TemplateSummary
+      type: object
     ToolDefinition:
       description: Tool definition compatible with ai-sdk-ui format.
       properties:
@@ -8279,6 +8335,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: List storage entries at a prefix
+  /api/templates/:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateCatalogResponse'
+          description: List bundled templates
+  /api/templates/{template_id}/preview:
+    get:
+      parameters:
+      - in: path
+        name: template_id
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            image/png:
+              schema:
+                format: binary
+                type: string
+          description: Read a bundled template preview
+        404:
+          description: Template not found
   /api/usage:
     get:
       responses:

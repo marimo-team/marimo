@@ -245,6 +245,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models,
         packages,
         secrets,
+        templates,
     )
     from marimo._session import requests as session_requests
     from marimo._snippets import snippets
@@ -405,6 +406,9 @@ def _generate_server_api_schema() -> dict[str, Any]:
         home.ShutdownSessionRequest,
         home.WorkspaceFilesRequest,
         home.WorkspaceFilesResponse,
+        templates.TemplateCategory,
+        templates.TemplateSummary,
+        templates.TemplateCatalogResponse,
         commands.ClearCacheCommand,
         commands.CodeCompletionCommand,
         commands.DebugCellCommand,
