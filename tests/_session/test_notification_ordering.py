@@ -17,6 +17,7 @@ from marimo._messaging.notification import (
     EnvironmentState,
     EnvironmentStateNotification,
     OperationRunning,
+    ParticipantPresenceNotification,
 )
 from marimo._messaging.serde import (
     deserialize_kernel_message,
@@ -112,6 +113,32 @@ def test_notification_is_retained_before_consumer_receives_it(
     )
 
     assert observed == [_state("Downloading\n")]
+
+
+async def test_participant_presence_uses_session_notification_path(
+    session_and_consumer: tuple[SessionImpl, Mock],
+) -> None:
+    session, consumer = session_and_consumer
+
+    state = await session.participants.attach(
+        "p1", harness="claude", kind="agent"
+    )
+
+    notification = deserialize_kernel_message(
+        consumer.notify.call_args.args[0]
+    )
+    assert notification == ParticipantPresenceNotification(
+        participant_id="p1",
+        harness="claude",
+        kind="agent",
+        attached=True,
+        listening=False,
+        active=False,
+        last_contact_at=state.last_contact_at,
+        active_since=None,
+    )
+    assert session.session_view.participant_presence == notification
+    assert notification in session.session_view.notifications
 
 
 async def test_queued_kernel_messages_update_and_deliver_on_session_loop(

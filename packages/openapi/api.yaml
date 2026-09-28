@@ -3283,6 +3283,7 @@ components:
           - $ref: '#/components/schemas/RemoveUIElementsNotification'
           - $ref: '#/components/schemas/ReloadNotification'
           - $ref: '#/components/schemas/ReconnectedNotification'
+          - $ref: '#/components/schemas/ParticipantPresenceNotification'
           - $ref: '#/components/schemas/InterruptedNotification'
           - $ref: '#/components/schemas/CompletedRunNotification'
           - $ref: '#/components/schemas/KernelReadyNotification'
@@ -3344,6 +3345,7 @@ components:
               missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
               model-lifecycle: '#/components/schemas/ModelLifecycleNotification'
               notebook-document-transaction: '#/components/schemas/NotebookDocumentTransactionNotification'
+              participant-presence: '#/components/schemas/ParticipantPresenceNotification'
               query-params-append: '#/components/schemas/QueryParamsAppendNotification'
               query-params-clear: '#/components/schemas/QueryParamsClearNotification'
               query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
@@ -4540,6 +4542,44 @@ components:
       required:
       - success
       title: PackageOperationResponse
+      type: object
+    ParticipantPresenceNotification:
+      description: Replace the current Pair participant presence snapshot.
+      properties:
+        active:
+          type: boolean
+        active_since:
+          anyOf:
+          - type: number
+          - type: 'null'
+        attached:
+          type: boolean
+        harness:
+          type: string
+        kind:
+          enum:
+          - agent
+          - human
+        last_contact_at:
+          type: number
+        listening:
+          type: boolean
+        op:
+          enum:
+          - participant-presence
+        participant_id:
+          type: string
+      required:
+      - op
+      - participant_id
+      - harness
+      - kind
+      - attached
+      - listening
+      - active
+      - last_contact_at
+      - active_since
+      title: ParticipantPresenceNotification
       type: object
     PreviewDatasetColumnCommand:
       description: "Preview a dataset column.\n\n    Retrieves and displays data from\

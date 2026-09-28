@@ -25,6 +25,7 @@ from marimo._messaging.notification import (
     ModelOpen,
     ModelUpdate,
     NotificationMessage,
+    ParticipantPresenceNotification,
     SQLSchemaListPreviewNotification,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
@@ -205,6 +206,11 @@ class SessionView:
         # Startup logs for startup command - only one at a time
         self.startup_logs: StartupLogsNotification | None = None
         self.startup_progress: StartupProgressNotification | None = None
+
+        # The latest Pair participant snapshot for reconnect replay.
+        self.participant_presence: ParticipantPresenceNotification | None = (
+            None
+        )
 
         self._environment_states: dict[
             Literal["kernel", "server"], EnvironmentState
@@ -504,6 +510,8 @@ class SessionView:
                     notification,
                 )
             )
+        elif isinstance(notification, ParticipantPresenceNotification):
+            self.participant_presence = notification
 
     def get_environment_state(
         self, source: Literal["kernel", "server"]
@@ -616,6 +624,8 @@ class SessionView:
             all_notifications.append(self.data_connectors)
         if self.external_storage_namespaces.namespaces:
             all_notifications.append(self.external_storage_namespaces)
+        if self.participant_presence is not None:
+            all_notifications.append(self.participant_presence)
 
         # Model messages must come before cell notifications to ensure
         # the model exists before the view tries to use it.

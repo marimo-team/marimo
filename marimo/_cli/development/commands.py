@@ -309,6 +309,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         notifications.MissingPackageAlertNotification,
         notifications.EnvironmentOperationNotification,
         notifications.ReconnectedNotification,
+        notifications.ParticipantPresenceNotification,
         notifications.BannerNotification,
         notifications.ReloadNotification,
         notifications.VariableDeclarationNotification,
