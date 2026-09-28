@@ -135,8 +135,8 @@ export const ShareStaticNotebookModal: React.FC<{
           >
             molab
           </a>
-          . Nothing is public yet: a new tab will open where you sign in, choose
-          a name, and confirm the publish.
+          . A new tab will open where you sign in, choose a name, and confirm
+          the publish.
         </DialogDescription>
       </DialogHeader>
       <DialogFooter>
