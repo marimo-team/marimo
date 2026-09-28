@@ -6129,6 +6129,14 @@ components:
       - description
       title: TemplateCategory
       type: object
+    TemplateLaunchResponse:
+      properties:
+        fileKey:
+          type: string
+      required:
+      - fileKey
+      title: TemplateLaunchResponse
+      type: object
     TemplateSummary:
       properties:
         categoryIds:
@@ -8344,6 +8352,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/TemplateCatalogResponse'
           description: List bundled templates
+  /api/templates/{template_id}/launch:
+    post:
+      parameters:
+      - in: path
+        name: template_id
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateLaunchResponse'
+          description: Create an unnamed template launch
+        404:
+          description: Template not found
   /api/templates/{template_id}/preview:
     get:
       parameters:

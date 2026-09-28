@@ -94,6 +94,24 @@ def test_new_notebook_advances_document_version() -> None:
     assert fm.app.cell_manager.document.version > 0
 
 
+def test_from_source_loads_unnamed_notebook() -> None:
+    source = _NOTEBOOK_SOURCE.replace(
+        "marimo.App()", 'marimo.App(width="medium")'
+    )
+
+    fm = AppFileManager.from_source(source)
+
+    assert fm.path is None
+    assert fm.filename is None
+    assert fm.app.config.width == "medium"
+    assert [cell.code for cell in fm.app.cell_manager.cell_data()] == ["x = 1"]
+
+
+def test_from_source_rejects_invalid_notebook() -> None:
+    with pytest.raises(ValueError, match="valid marimo notebook"):
+        AppFileManager.from_source("this is not Python")
+
+
 def test_read_css_file_expands_home_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -50,9 +50,14 @@ from marimo._session.session import Session, SessionImpl
 from marimo._session.session_repository import SessionRepository
 from marimo._session.startup import SessionStartup
 from marimo._session.types import KernelState
+from marimo._template_catalog import (
+    TemplateLaunchNotFoundError,
+    TemplateManager,
+)
 from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.asyncio_utils import fire_and_forget
 from marimo._utils.file_watcher import FileWatcherManager
+from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -101,6 +106,7 @@ class SessionManager:
         sandbox: bool = False,
         isolate_apps: bool = False,
         execute_opengraph_generators: bool = False,
+        template_manager: TemplateManager | None = None,
     ) -> None:
         # Core configuration
         self.workspace = workspace
@@ -115,6 +121,7 @@ class SessionManager:
         self._config_manager = config_manager
         self.sandbox = sandbox
         self.execute_opengraph_generators = execute_opengraph_generators
+        self.templates = template_manager or TemplateManager()
 
         # When running multiple apps, each app runs in an isolated  host
         # process, to avoid collisions in sys.modules and other Python global
@@ -185,7 +192,27 @@ class SessionManager:
 
     def app_manager(self, key: MarimoFileKey) -> AppFileManager:
         """Get the app manager for the given key."""
+        return self._load_app_manager(key)
+
+    def _load_app_manager(self, key: MarimoFileKey) -> AppFileManager:
+        """Load an existing session, template launch, or workspace notebook."""
+        from marimo._session.notebook import AppFileManager
+
+        existing = self.get_session_by_file_key(key)
+        if existing is not None:
+            return existing.app_file_manager
+
         defaults = AppDefaults.from_config_manager(self._config_manager)
+        try:
+            source = self.templates.resolve_launch(key)
+        except TemplateLaunchNotFoundError as error:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail="Template launch expired or not found",
+            ) from error
+        if source is not None:
+            return AppFileManager.from_source(source, defaults)
+
         if self.mode is SessionMode.EDIT and not key.startswith(NEW_FILE):
             self.workspace.register_allowed_path(key)
         return self.workspace.load(key, defaults)
@@ -346,11 +373,8 @@ class SessionManager:
         """Create a new session."""
         LOGGER.debug("Creating new session for id %s", session_id)
 
-        # Get app file manager
-        defaults = AppDefaults.from_config_manager(self._config_manager)
-        if self.mode is SessionMode.EDIT and not file_key.startswith(NEW_FILE):
-            self.workspace.register_allowed_path(file_key)
-        app_file_manager = self.workspace.load(file_key, defaults)
+        # Page bootstrap and session creation must resolve the same notebook.
+        app_file_manager = self._load_app_manager(file_key)
 
         # Create the session
         from marimo._runtime.commands import AppMetadata
@@ -404,6 +428,7 @@ class SessionManager:
 
         # Add to repository
         self._repository.add_sync(session_id, session)
+        self.templates.consume_launch(file_key)
 
         # Emit session created event (triggers file watcher attachment, recents, etc.)
         fire_and_forget(

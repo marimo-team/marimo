@@ -11,13 +11,11 @@ from marimo._server.api.deps import AppState
 from marimo._server.models.templates import (
     TemplateCatalogResponse,
     TemplateCategory,
+    TemplateLaunchResponse,
     TemplateSummary,
 )
 from marimo._server.router import APIRouter
-from marimo._template_catalog import (
-    TemplateNotFoundError,
-    load_default_catalog,
-)
+from marimo._template_catalog import TemplateNotFoundError
 from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
@@ -38,8 +36,9 @@ async def list_templates(*, request: Request) -> TemplateCatalogResponse:
                     schema:
                         $ref: "#/components/schemas/TemplateCatalogResponse"
     """
-    catalog = load_default_catalog()
-    base_url = AppState(request).base_url.rstrip("/")
+    app_state = AppState(request)
+    catalog = app_state.session_manager.templates.catalog
+    base_url = app_state.base_url.rstrip("/")
     return TemplateCatalogResponse(
         categories=[
             TemplateCategory(
@@ -86,7 +85,9 @@ async def template_preview(*, request: Request) -> FileResponse:
     """
     template_id = str(request.path_params["template_id"])
     try:
-        entry = load_default_catalog().get(template_id)
+        entry = AppState(request).session_manager.templates.catalog.get(
+            template_id
+        )
     except TemplateNotFoundError as error:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -96,3 +97,36 @@ async def template_preview(*, request: Request) -> FileResponse:
         entry.preview_path,
         headers={"Cache-Control": "public, max-age=3600"},
     )
+
+
+@router.post("/{template_id}/launch")
+@requires("edit")
+async def launch_template(*, request: Request) -> TemplateLaunchResponse:
+    """
+    parameters:
+        - in: path
+          name: template_id
+          schema:
+              type: string
+          required: true
+    responses:
+        200:
+            description: Create an unnamed template launch
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/TemplateLaunchResponse"
+        404:
+            description: Template not found
+    """
+    template_id = str(request.path_params["template_id"])
+    try:
+        file_key = AppState(request).session_manager.templates.create_launch(
+            template_id
+        )
+    except TemplateNotFoundError as error:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Template {template_id!r} not found",
+        ) from error
+    return TemplateLaunchResponse(file_key=file_key)

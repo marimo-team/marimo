@@ -23,3 +23,7 @@ class TemplateCatalogResponse(msgspec.Struct, frozen=True, rename="camel"):
     categories: list[TemplateCategory]
     templates: list[TemplateSummary]
     featured_ids: list[str]
+
+
+class TemplateLaunchResponse(msgspec.Struct, frozen=True, rename="camel"):
+    file_key: str

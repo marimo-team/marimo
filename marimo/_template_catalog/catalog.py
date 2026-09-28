@@ -4,6 +4,10 @@
 from __future__ import annotations
 
 import re
+import secrets
+import threading
+import time
+from collections import OrderedDict
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import TYPE_CHECKING
@@ -14,11 +18,14 @@ from marimo._convert.converters import MarimoConvert
 from marimo._utils.paths import marimo_package_path
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
     from pathlib import Path
 
 _ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _SCRIPT_METADATA_PATTERN = re.compile(r"(?m)^# /// script\r?$")
+_LAUNCH_KEY_PREFIX = "__marimo_template__"
+_DEFAULT_LAUNCH_TTL_SECONDS = 5 * 60
+_DEFAULT_MAX_LAUNCHES = 100
 
 
 class CatalogValidationError(ValueError):
@@ -27,6 +34,10 @@ class CatalogValidationError(ValueError):
 
 class TemplateNotFoundError(KeyError):
     """A template ID is not present in the catalog."""
+
+
+class TemplateLaunchNotFoundError(KeyError):
+    """A template launch key is invalid or expired."""
 
 
 @dataclass(frozen=True)
@@ -44,6 +55,12 @@ class CatalogEntry:
     category_ids: tuple[str, ...]
     notebook_path: Path
     preview_path: Path
+
+
+@dataclass(frozen=True)
+class _TemplateLaunch:
+    source: str
+    expires_at: float
 
 
 class _ManifestCategory(msgspec.Struct, forbid_unknown_fields=True):
@@ -154,6 +171,81 @@ class TemplateCatalog:
             return self._entries_by_id[template_id]
         except KeyError as error:
             raise TemplateNotFoundError(template_id) from error
+
+
+class TemplateManager:
+    """Provides catalog access and short-lived template launches."""
+
+    def __init__(
+        self,
+        catalog: TemplateCatalog | None = None,
+        *,
+        launch_ttl_seconds: float = _DEFAULT_LAUNCH_TTL_SECONDS,
+        max_launches: int = _DEFAULT_MAX_LAUNCHES,
+        clock: Callable[[], float] = time.monotonic,
+        token_factory: Callable[[], str] = lambda: secrets.token_urlsafe(32),
+    ) -> None:
+        if launch_ttl_seconds <= 0:
+            raise ValueError("Template launch lifetime must be positive")
+        if max_launches <= 0:
+            raise ValueError("Template launch limit must be positive")
+        self.catalog = catalog or load_default_catalog()
+        self._launch_ttl_seconds = launch_ttl_seconds
+        self._max_launches = max_launches
+        self._clock = clock
+        self._token_factory = token_factory
+        self._launches: OrderedDict[str, _TemplateLaunch] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def create_launch(self, template_id: str) -> str:
+        """Create an opaque launch key for a bundled template."""
+        entry = self.catalog.get(template_id)
+        source = entry.notebook_path.read_text(encoding="utf-8")
+        now = self._clock()
+        with self._lock:
+            self._remove_expired(now)
+            while len(self._launches) >= self._max_launches:
+                self._launches.popitem(last=False)
+            key = self._new_launch_key()
+            self._launches[key] = _TemplateLaunch(
+                source=source,
+                expires_at=now + self._launch_ttl_seconds,
+            )
+        return key
+
+    def resolve_launch(self, key: str) -> str | None:
+        """Return template source for a launch key, or `None` for other keys."""
+        if not key.startswith(_LAUNCH_KEY_PREFIX):
+            return None
+        now = self._clock()
+        with self._lock:
+            self._remove_expired(now)
+            launch = self._launches.get(key)
+            if launch is None:
+                raise TemplateLaunchNotFoundError(key)
+            return launch.source
+
+    def consume_launch(self, key: str) -> None:
+        """Remove a launch after a session takes ownership of its notebook."""
+        if not key.startswith(_LAUNCH_KEY_PREFIX):
+            return
+        with self._lock:
+            self._launches.pop(key, None)
+
+    def _new_launch_key(self) -> str:
+        while True:
+            key = f"{_LAUNCH_KEY_PREFIX}{self._token_factory()}"
+            if key not in self._launches:
+                return key
+
+    def _remove_expired(self, now: float) -> None:
+        expired = [
+            key
+            for key, launch in self._launches.items()
+            if launch.expires_at <= now
+        ]
+        for key in expired:
+            del self._launches[key]
 
 
 def _validate_categories(categories: tuple[CatalogCategory, ...]) -> None:

@@ -5,6 +5,8 @@ from marimo._template_catalog.catalog import (
     CatalogEntry,
     CatalogValidationError,
     TemplateCatalog,
+    TemplateLaunchNotFoundError,
+    TemplateManager,
     TemplateNotFoundError,
     load_default_catalog,
 )
@@ -14,6 +16,8 @@ __all__ = [
     "CatalogEntry",
     "CatalogValidationError",
     "TemplateCatalog",
+    "TemplateLaunchNotFoundError",
+    "TemplateManager",
     "TemplateNotFoundError",
     "load_default_catalog",
 ]

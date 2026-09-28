@@ -409,6 +409,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         templates.TemplateCategory,
         templates.TemplateSummary,
         templates.TemplateCatalogResponse,
+        templates.TemplateLaunchResponse,
         commands.ClearCacheCommand,
         commands.CodeCompletionCommand,
         commands.DebugCellCommand,

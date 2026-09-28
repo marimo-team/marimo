@@ -3650,6 +3650,50 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/templates/{template_id}/launch": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          template_id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Create an unnamed template launch */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["TemplateLaunchResponse"];
+          };
+        };
+        /** @description Template not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/templates/{template_id}/preview": {
     parameters: {
       query?: never;
@@ -7629,6 +7673,10 @@ export interface components {
       description: string;
       id: string;
       title: string;
+    };
+    /** TemplateLaunchResponse */
+    TemplateLaunchResponse: {
+      fileKey: string;
     };
     /** TemplateSummary */
     TemplateSummary: {

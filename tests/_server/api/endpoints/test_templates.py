@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from urllib.parse import quote
 
 from inline_snapshot import snapshot
 
-from tests._server.mocks import token_header, with_session
+from tests._server.mocks import (
+    get_session_manager,
+    token_header,
+    with_session,
+)
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -92,3 +97,37 @@ def test_unknown_template_preview(client: TestClient) -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Template 'missing' not found"}
+
+
+@with_session(SESSION_ID)
+def test_launch_template(client: TestClient) -> None:
+    response = client.post(
+        "/api/templates/interactive-controls/launch", headers=HEADERS
+    )
+
+    assert response.status_code == 200
+    file_key = response.json()["fileKey"]
+    source = get_session_manager(client).templates.resolve_launch(file_key)
+    assert source is not None
+    assert 'label="Number of stars"' in source
+
+    page = client.get(f"/?file={quote(file_key)}", headers=HEADERS)
+    assert page.status_code == 200
+    assert "<marimo-filename hidden></marimo-filename>" in page.text
+    assert '"width": "medium"' in page.text
+
+
+@with_session(SESSION_ID)
+def test_unknown_template_launch(client: TestClient) -> None:
+    response = client.post("/api/templates/missing/launch", headers=HEADERS)
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Template 'missing' not found"}
+
+
+def test_template_launch_requires_edit_authorization(
+    client: TestClient,
+) -> None:
+    response = client.post("/api/templates/interactive-controls/launch")
+
+    assert response.status_code == 401

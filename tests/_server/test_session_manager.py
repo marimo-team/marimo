@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from textwrap import dedent
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from unittest.mock import MagicMock, Mock
 
 import pytest
@@ -22,6 +22,7 @@ from marimo._session.consumer import SessionConsumer
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
 from marimo._session.room import Room
+from marimo._template_catalog import TemplateLaunchNotFoundError
 from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:
@@ -129,6 +130,108 @@ async def test_create_session_absolute_url(
     assert session_manager.get_session(session_id) is session
     # Close ourselves to finish the test
     session.close()
+
+
+def test_template_launch_bootstraps_unnamed_notebook(
+    session_manager: SessionManager,
+) -> None:
+    key = session_manager.templates.create_launch("interactive-controls")
+
+    first = session_manager.app_manager(key)
+    second = session_manager.app_manager(key)
+
+    assert first is not second
+    assert first.filename is None
+    assert first.app.config.width == "medium"
+    assert [cell.code for cell in first.app.cell_manager.cell_data()] == [
+        cell.code for cell in second.app.cell_manager.cell_data()
+    ]
+    assert any(
+        "Number of stars" in cell.code
+        for cell in first.app.cell_manager.cell_data()
+    )
+
+
+def test_template_launches_create_independent_notebooks(
+    session_manager: SessionManager,
+) -> None:
+    first_key = session_manager.templates.create_launch("interactive-controls")
+    second_key = session_manager.templates.create_launch(
+        "interactive-controls"
+    )
+
+    first = session_manager.app_manager(first_key)
+    second = session_manager.app_manager(second_key)
+
+    assert first is not second
+    assert first.app.cell_manager is not second.app.cell_manager
+    assert (
+        first.app.cell_manager.document is not second.app.cell_manager.document
+    )
+
+
+def test_normal_blank_notebook_still_loads(
+    session_manager: SessionManager,
+) -> None:
+    manager = session_manager.app_manager(f"{NEW_FILE}blank-session")
+
+    assert manager.filename is None
+    assert len(list(manager.app.cell_manager.cell_data())) == 1
+
+
+def test_named_notebook_reopening_uses_live_session(
+    session_manager: SessionManager,
+    mock_session: Session,
+    tmp_path: Path,
+) -> None:
+    notebook_path = tmp_path / "saved.py"
+    notebook_path.write_text(
+        "import marimo\napp = marimo.App()\n@app.cell\ndef _():\n    return\n"
+    )
+    manager = AppFileManager(notebook_path)
+    mock_session.initialization_id = "__marimo_template__used"
+    mock_session.app_file_manager = manager
+    add_session(session_manager, session_id, mock_session)
+
+    assert session_manager.app_manager(str(notebook_path)) is manager
+
+
+async def test_template_launch_is_consumed_after_session_owns_notebook(
+    session_manager: SessionManager,
+    mock_session: Session,
+    mock_session_consumer: SessionConsumer,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._session.session import SessionImpl
+
+    key = session_manager.templates.create_launch("interactive-controls")
+    captured_manager: AppFileManager | None = None
+
+    async def create(**kwargs: object) -> Session:
+        nonlocal captured_manager
+        captured_manager = cast(AppFileManager, kwargs["app_file_manager"])
+        mock_session.initialization_id = key
+        mock_session.app_file_manager = captured_manager
+        return mock_session
+
+    monkeypatch.setattr(SessionImpl, "create", create)
+
+    session = await session_manager.create_session(
+        session_id,
+        mock_session_consumer,
+        query_params={},
+        file_key=key,
+        auto_instantiate=False,
+    )
+
+    assert session is mock_session
+    assert captured_manager is not None
+    assert captured_manager.filename is None
+    assert session_manager.get_session_by_file_key(key) is mock_session
+    with pytest.raises(TemplateLaunchNotFoundError):
+        session_manager.templates.resolve_launch(key)
+    assert session_manager.app_manager(key) is captured_manager
+    session_manager.close_session(session_id)
 
 
 def test_maybe_resume_session_for_new_file(

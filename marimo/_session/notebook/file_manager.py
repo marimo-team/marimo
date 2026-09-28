@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import threading
 from contextlib import nullcontext
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -127,6 +128,23 @@ class AppFileManager:
             os.path.abspath(str(filename)) if filename is not None else None
         )
         manager.app = app
+        return manager
+
+    @classmethod
+    def from_source(
+        cls,
+        source: str,
+        defaults: AppDefaults | None = None,
+    ) -> AppFileManager:
+        """Create an unnamed manager from marimo notebook source."""
+        from marimo._convert.converters import MarimoConvert
+
+        notebook = MarimoConvert.from_py(source).to_ir()
+        if not notebook.valid:
+            raise ValueError("Source is not a valid marimo notebook")
+        app = load.load_notebook_ir(replace(notebook, filename=None))
+        manager = cls(None, defaults=defaults)
+        manager.app = manager._prepare_app(app)
         return manager
 
     def reload(self) -> tuple[Transaction, set[CellId_t]]:
@@ -282,8 +300,10 @@ class AppFileManager:
         Returns:
             Loaded InternalApp instance
         """
-        # Load app using existing loader
-        app = load.load_app(path)
+        return self._prepare_app(load.load_app(path))
+
+    def _prepare_app(self, app: App | None) -> InternalApp:
+        """Apply normal defaults and cell invariants to a loaded app."""
         default = overloads_from_env()
 
         if app is None:
