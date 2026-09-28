@@ -67,8 +67,7 @@ export const ShareStaticNotebookModal: React.FC<{
           <DialogTitle>Finish publishing</DialogTitle>
           <DialogDescription>
             We opened the confirmation page in a new tab. If it didn't appear,
-            open it below. You'll sign in, choose a name, and confirm the
-            publish there.
+            open it below.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
