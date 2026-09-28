@@ -237,14 +237,12 @@ def create_sql_error_from_exception(
     if hasattr(cell, "sqls") and cell.sqls:
         sql_statement = str(cell.sqls[0])
 
-    # Check if this is a MarimoSQLException with structured hint data
-    if isinstance(exception, MarimoSQLException) and exception.hint:
-        # Use the structured hint data from the exception
+    if isinstance(exception, MarimoSQLException):
         from marimo._messaging.errors import MarimoSQLError
 
         return MarimoSQLError(
             msg=str(exception),
-            sql_statement=exception.sql_statement,
+            sql_statement=exception.sql_statement or sql_statement,
             hint=exception.hint,
             sql_line=exception.sql_line,
             sql_col=exception.sql_col,

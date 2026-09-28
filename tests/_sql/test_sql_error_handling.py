@@ -300,6 +300,69 @@ class TestErrorMessageQuality:
 class TestIntegrationAndEdgeCases:
     """Test complete error flow and edge cases."""
 
+    def test_sql_preserves_structured_marimo_exception(self):
+        query = "SELECT nope FROM test"
+        original = MarimoSQLException(
+            "Column `nope` does not exist.",
+            sql_line=0,
+            sql_col=7,
+            hint="Available columns: id, name.",
+        )
+
+        class Cursor:
+            description = None
+
+            def execute(
+                self, _query: str, _parameters: tuple[object, ...]
+            ) -> None:
+                raise original
+
+            def fetchall(self) -> list[object]:
+                return []
+
+            def close(self) -> None:
+                pass
+
+        class Connection:
+            def cursor(self) -> Cursor:
+                return Cursor()
+
+            def commit(self) -> None:
+                pass
+
+            def rollback(self) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+        with pytest.raises(MarimoSQLException) as exc_info:
+            sql(query, engine=Connection())
+
+        assert exc_info.value is original
+        assert exc_info.value.hint == "Available columns: id, name."
+        assert exc_info.value.sql_line == 0
+        assert exc_info.value.sql_col == 7
+        assert exc_info.value.sql_statement == query
+
+    def test_position_only_marimo_exception_is_preserved(self):
+        class MockCell:
+            sqls = ["SELECT nope FROM test"]
+
+        error = create_sql_error_from_exception(
+            MarimoSQLException(
+                "Column `nope` does not exist.",
+                sql_line=0,
+                sql_col=7,
+            ),
+            MockCell(),
+        )
+
+        assert error.sql_statement == "SELECT nope FROM test"
+        assert error.hint is None
+        assert error.sql_line == 0
+        assert error.sql_col == 7
+
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
     def test_sql_function_error_flow(self, duckdb_conn):
         """Test complete error flow through mo.sql() function."""

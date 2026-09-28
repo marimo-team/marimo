@@ -130,6 +130,10 @@ def sql(
 
     try:
         df = sql_engine.execute(query)
+    except MarimoSQLException as e:
+        if not e.sql_statement:
+            e.sql_statement = query
+        raise
     except Exception as e:
         if is_sql_parse_error(e):
             # NB. raising _from_ creates a noisier stack trace, but preserves
