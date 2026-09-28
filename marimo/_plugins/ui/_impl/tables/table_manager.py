@@ -169,7 +169,12 @@ class TableManager(abc.ABC, Generic[T]):
             return 0
         n = min(total_rows, sample_rows)
         try:
-            sample = self.take(n, 0).to_json_str(
+            from marimo._plugins.ui._impl.tables.geometry_export import (
+                prepare_geometry_text_export,
+            )
+
+            sample_manager = prepare_geometry_text_export(self.take(n, 0))
+            sample = sample_manager.to_json_str(
                 strict_json=True, ensure_ascii=True
             )
         except Exception:

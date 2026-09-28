@@ -915,15 +915,21 @@ sys.path.insert(0, sys.argv[1])
 class BlockedDependency:
     def find_spec(self, fullname, path=None, target=None):
         del path, target
-        if fullname.partition(".")[0] in {"geopandas", "shapely"}:
+        root = fullname.partition(".")[0]
+        if root == "geopandas":
             raise RuntimeError(f"blocked import: {fullname}")
+        if root == "shapely":
+            raise ModuleNotFoundError(fullname)
         return None
 
 
 sys.meta_path.insert(0, BlockedDependency())
 
 import pyarrow as pa
+from marimo._plugins import ui
+from marimo._plugins.ui._impl.table import DownloadAsArgs
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
+from marimo._utils.data_uri import from_data_uri
 
 wkb = bytes.fromhex("0101000000000000000000f03f0000000000000040")
 schema = pa.schema(
@@ -951,6 +957,11 @@ assert stats.total == 2
 assert stats.nulls == 1
 assert stats.unique is None
 assert stats.min is None
+
+url = ui.table(table)._download_as(DownloadAsArgs(format="json")).url
+downloaded = json.loads(from_data_uri(url)[1])
+assert downloaded[0]["geom"] == wkb.hex()
+assert downloaded[1]["geom"] is None
 """
     try:
         subprocess.run(
