@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "@/components/ui/use-toast";
 import { Constants } from "@/core/constants";
 import { getExportLayout } from "@/core/export/layout";
 import { useRequestClient } from "@/core/network/requests";
@@ -19,14 +18,20 @@ import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
 import { Spinner } from "../icons/spinner";
 import { stageForPublish } from "./stage-for-publish";
 
+type PublishState =
+  | { kind: "idle" }
+  | { kind: "publishing" }
+  | { kind: "staged"; claimUrl: string }
+  | { kind: "failed"; message: string };
+
 export const ShareStaticNotebookModal: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
-  const [isPublishing, setIsPublishing] = useState(false);
+  const [state, setState] = useState<PublishState>({ kind: "idle" });
   const { exportAsHTML } = useRequestClient();
 
   const handlePublish = async () => {
-    setIsPublishing(true);
+    setState({ kind: "publishing" });
     try {
       const { contents: html, filename } = await exportAsHTML({
         download: false,
@@ -42,38 +47,55 @@ export const ShareStaticNotebookModal: React.FC<{
 
       const claimUrl = await stageForPublish(filename, html);
 
-      onClose();
-      // Popup blockers may swallow window.open after async work, so the
-      // toast always carries the link as a fallback.
+      // Best effort: after the async work above, browsers may treat this as a
+      // popup and block it. The dialog keeps the link either way.
       window.open(claimUrl, "_blank", "noopener,noreferrer");
-      toast({
-        title: "Notebook staged",
-        description: (
-          <div>
-            Finish publishing in the tab that just opened, or{" "}
-            <a
-              href={claimUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline"
-            >
-              open the confirmation page
-            </a>
-            .
-          </div>
-        ),
-      });
+      setState({ kind: "staged", claimUrl });
     } catch (error) {
-      toast({
-        title: "Publish failed",
-        description:
+      setState({
+        kind: "failed",
+        message:
           error instanceof Error ? error.message : "Something went wrong",
-        variant: "danger",
       });
-    } finally {
-      setIsPublishing(false);
     }
   };
+
+  if (state.kind === "staged") {
+    return (
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>Finish publishing</DialogTitle>
+          <DialogDescription>
+            We opened the confirmation page in a new tab. If it didn't appear,
+            open it below. You'll sign in, choose a name, and confirm the
+            publish there.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            data-testid="done-share-static-notebook-button"
+            variant="secondary"
+            onClick={onClose}
+          >
+            Done
+          </Button>
+          <Button asChild={true} variant="default">
+            <a
+              data-testid="open-claim-page-link"
+              href={state.claimUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLinkIcon size={14} strokeWidth={1.5} className="mr-2" />
+              Open confirmation page
+            </a>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    );
+  }
+
+  const isPublishing = state.kind === "publishing";
 
   return (
     <DialogContent className="sm:max-w-[480px]">
@@ -93,6 +115,15 @@ export const ShareStaticNotebookModal: React.FC<{
           the publish.
         </DialogDescription>
       </DialogHeader>
+      {state.kind === "failed" && (
+        <p
+          role="alert"
+          className="text-sm text-destructive"
+          data-testid="share-static-notebook-error"
+        >
+          Publish failed: {state.message}
+        </p>
+      )}
       <DialogFooter>
         <Button
           data-testid="cancel-share-static-notebook-button"
@@ -116,7 +147,7 @@ export const ShareStaticNotebookModal: React.FC<{
           ) : (
             <>
               <ExternalLinkIcon size={14} strokeWidth={1.5} className="mr-2" />
-              Publish
+              {state.kind === "failed" ? "Try again" : "Publish"}
             </>
           )}
         </Button>
