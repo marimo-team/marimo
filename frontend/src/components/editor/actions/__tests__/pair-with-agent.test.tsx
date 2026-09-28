@@ -9,6 +9,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { store } from "@/core/state/jotai";
 import { PairWithAgentBanner, PairWithAgentButton } from "../pair-with-agent";
 
+const mocks = vi.hoisted(() => ({
+  isWasm: vi.fn(() => false),
+}));
+
+vi.mock("@/core/wasm/utils", () => ({
+  isWasm: mocks.isWasm,
+}));
+
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
@@ -27,7 +35,11 @@ function stubTokenFetch() {
 }
 
 describe("PairWithAgent", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    mocks.isWasm.mockReset();
+    mocks.isWasm.mockReturnValue(false);
+  });
 
   it("shows local agent options", () => {
     render(<PairWithAgentBanner />, { wrapper });
@@ -48,7 +60,7 @@ describe("PairWithAgent", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("button", {
-        name: /any agent to work with this notebook/,
+        name: "Learn more.",
       }),
     ).toBeVisible();
   });
@@ -59,12 +71,12 @@ describe("PairWithAgent", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: /any agent to work with this notebook/,
+        name: "Learn more.",
       }),
     );
 
     expect(
-      screen.getByRole("dialog", { name: "Pair with an agent" }),
+      screen.getByRole("dialog", { name: "Connect your agent" }),
     ).toBeVisible();
   });
 
@@ -73,11 +85,23 @@ describe("PairWithAgent", () => {
     stubTokenFetch();
     render(<PairWithAgentButton onClick={onClick} />, { wrapper });
 
-    fireEvent.click(screen.getByRole("button", { name: "Pair with an agent" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect your agent" }));
 
     expect(onClick).toHaveBeenCalledOnce();
     expect(
-      screen.getByRole("dialog", { name: "Pair with an agent" }),
+      screen.getByRole("dialog", { name: "Connect your agent" }),
     ).toBeVisible();
+  });
+
+  it("hides pairing controls in WASM", () => {
+    mocks.isWasm.mockReturnValue(true);
+
+    const { container, rerender } = render(<PairWithAgentButton />, {
+      wrapper,
+    });
+    expect(container).toBeEmptyDOMElement();
+
+    rerender(<PairWithAgentBanner />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

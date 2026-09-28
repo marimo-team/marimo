@@ -64,7 +64,10 @@ import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
-import { PairWithAgentButton } from "../editor/actions/pair-with-agent";
+import {
+  PairWithAgentBanner,
+  PairWithAgentButton,
+} from "../editor/actions/pair-with-agent";
 import { PairWithAgentModal } from "../editor/actions/pair-with-agent-modal";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import {
@@ -165,7 +168,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       </Tooltip>
       <div className="flex items-center gap-2">
         <Tooltip content="Connect your agent">
-          <PairWithAgentButton label="Pair" />
+          <PairWithAgentButton />
         </Tooltip>
         <MCPStatusIndicator />
         <Tooltip content="AI Settings">
@@ -497,7 +500,7 @@ const PairWithAgentCallout: React.FC<{
       onClick={onPairWithAgent}
     >
       <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
-      <span>Work on this notebook with your own agent</span>
+      <span>Connect your agent</span>
       <ArrowRightIcon className="h-3 w-3 shrink-0" />
     </Button>
   );
@@ -522,6 +525,7 @@ const ChatPanel = () => {
             >
               Edit AI settings
             </Button>
+            <PairWithAgentBanner />
           </div>
         }
         icon={<BotMessageSquareIcon />}
