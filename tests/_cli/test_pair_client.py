@@ -17,6 +17,7 @@ from marimo._cli.pair.client import (
     PairError,
     PairInputError,
     SSEEvent,
+    StableSessionUnsupportedError,
     StaleSessionError,
 )
 
@@ -210,7 +211,7 @@ def test_execute_sends_request_and_streams_in_event_order(
             "url": "https://example.com/base/api/kernel/execute?access_token=query-token",
             "headers": {
                 "Content-Type": "application/json",
-                "Marimo-Session-Id": "session-1",
+                "Marimo-Stable-Session-Id": "session-1",
                 "Authorization": "Bearer secret-token",
             },
             "body": json.dumps({"code": "print(1)"}).encode(),
@@ -453,11 +454,16 @@ def test_list_sessions_sends_request_and_parses_response(
         json.dumps(
             {
                 "session-1": {
+                    "session_id": "sess-stable-1",
                     "filename": "analysis.py",
                     "path": "/work/analysis.py",
                     "state": "idle",
                 },
-                "session-2": {"filename": None, "path": None},
+                "session-2": {
+                    "session_id": "sess-stable-2",
+                    "filename": None,
+                    "path": None,
+                },
             }
         ).encode()
     )
@@ -473,10 +479,15 @@ def test_list_sessions_sends_request_and_parses_response(
 
     assert sessions == {
         "session-1": {
+            "session_id": "sess-stable-1",
             "filename": "analysis.py",
             "path": "/work/analysis.py",
         },
-        "session-2": {"filename": None, "path": None},
+        "session-2": {
+            "session_id": "sess-stable-2",
+            "filename": None,
+            "path": None,
+        },
     }
     assert calls == [
         {
@@ -510,10 +521,39 @@ def test_list_sessions_omits_authorization_without_token(
         [],
         {"session-1": None},
         {"session-1": {}},
-        {"session-1": {"filename": "analysis.py"}},
-        {"session-1": {"path": "/work/analysis.py"}},
-        {"session-1": {"filename": [], "path": None}},
-        {"session-1": {"filename": None, "path": []}},
+        {
+            "session-1": {
+                "session_id": "sess-stable",
+                "filename": "analysis.py",
+            }
+        },
+        {
+            "session-1": {
+                "session_id": "sess-stable",
+                "path": "/work/analysis.py",
+            }
+        },
+        {
+            "session-1": {
+                "session_id": "sess-stable",
+                "filename": [],
+                "path": None,
+            }
+        },
+        {
+            "session-1": {
+                "session_id": "sess-stable",
+                "filename": None,
+                "path": [],
+            }
+        },
+        {
+            "session-1": {
+                "session_id": None,
+                "filename": None,
+                "path": None,
+            }
+        },
     ],
 )
 def test_list_sessions_rejects_malformed_response(
@@ -553,6 +593,27 @@ def test_list_sessions_rejects_invalid_json(
         "Unexpected response from http://localhost:2718/api/sessions."
     )
     assert "secret" not in str(exc_info.value)
+    assert response.closed
+
+
+def test_list_sessions_rejects_server_without_stable_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = io.BytesIO(
+        json.dumps(
+            {
+                "session-1": {
+                    "filename": "analysis.py",
+                    "path": "/work/analysis.py",
+                }
+            }
+        ).encode()
+    )
+    _patch_response(monkeypatch, response)
+
+    with pytest.raises(StableSessionUnsupportedError):
+        client.list_sessions(url="http://localhost:2718", token=None)
+
     assert response.closed
 
 
@@ -652,73 +713,47 @@ def test_raise_for_status_maps_invalid_session_id() -> None:
     assert response.closed
 
 
-def test_raise_for_status_uses_json_detail() -> None:
+def test_raise_for_status_maps_invalid_stable_session_id() -> None:
+    response = FakeStatusResponse(
+        404,
+        json.dumps({"detail": "Invalid stable session id: sess-old"}).encode(),
+    )
+
+    with pytest.raises(StaleSessionError, match="Invalid stable session id"):
+        client._raise_for_status(response)
+
+    assert response.closed
+
+
+def test_raise_for_status_maps_missing_legacy_header_to_upgrade() -> None:
     response = FakeStatusResponse(
         500,
         json.dumps({"detail": "Missing Marimo-Session-Id header"}).encode(),
     )
 
-    with pytest.raises(
-        PairError, match="Internal: should not happen after resolution"
-    ):
+    with pytest.raises(StableSessionUnsupportedError):
         client._raise_for_status(response)
 
+    assert response.closed
 
-def test_resolve_session_matches_path(
+
+def test_resolve_session_returns_only_stable_session_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
         client,
         "list_sessions",
         lambda **_kwargs: {
-            "s_one": {"filename": "analysis.py", "path": "/work/analysis.py"}
-        },
-    )
-
-    assert (
-        client.resolve_session(
-            url="http://one", token=None, file="/work/analysis.py"
-        )
-        == "s_one"
-    )
-
-
-def test_resolve_session_matches_filename(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        client,
-        "list_sessions",
-        lambda **_kwargs: {
-            "s_one": {"filename": "nb.py", "path": "/work/nb.py"}
-        },
-    )
-
-    assert (
-        client.resolve_session(url="http://one", token=None, file="nb.py")
-        == "s_one"
-    )
-
-
-def test_resolve_session_matches_abspath(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    notebook = tmp_path / "nb.py"
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(
-        client,
-        "list_sessions",
-        lambda **_kwargs: {
-            "s_one": {
-                "filename": "other.py",
-                "path": str(notebook.resolve()),
+            "routing-id": {
+                "session_id": "sess-stable",
+                "filename": "analysis.py",
+                "path": "/work/analysis.py",
             }
         },
     )
 
-    assert (
-        client.resolve_session(url="http://one", token=None, file="nb.py")
-        == "s_one"
+    assert client.resolve_session(url="http://one", token=None) == (
+        "sess-stable"
     )
 
 
@@ -727,34 +762,15 @@ def test_resolve_session_zero_matches(
 ) -> None:
     monkeypatch.setattr(client, "list_sessions", lambda **_kwargs: {})
 
-    with pytest.raises(NoSessionError, match=r"gone\.py") as exc_info:
+    with pytest.raises(NoSessionError, match="No running session") as exc_info:
         client.resolve_session(
             url="http://user:password@one?access_token=secret",
             token=None,
-            file="gone.py",
         )
 
     assert exc_info.value.url == "http://one"
     assert "password" not in str(exc_info.value)
     assert "secret" not in str(exc_info.value)
-
-
-def test_resolve_session_stops_at_first_matching_tier(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        client,
-        "list_sessions",
-        lambda **_kwargs: {
-            "s_exact": {"filename": "other.py", "path": "nb.py"},
-            "s_filename": {"filename": "nb.py", "path": "/work/nb.py"},
-        },
-    )
-
-    assert (
-        client.resolve_session(url="http://one", token=None, file="nb.py")
-        == "s_exact"
-    )
 
 
 def test_resolve_session_many_matches(
@@ -764,12 +780,20 @@ def test_resolve_session_many_matches(
         client,
         "list_sessions",
         lambda **_kwargs: {
-            "s_b": {"filename": "nb.py", "path": "/b/nb.py"},
-            "s_a": {"filename": "nb.py", "path": "/a/nb.py"},
+            "routing-b": {
+                "session_id": "sess-b",
+                "filename": "nb.py",
+                "path": "/b/nb.py",
+            },
+            "routing-a": {
+                "session_id": "sess-a",
+                "filename": "nb.py",
+                "path": "/a/nb.py",
+            },
         },
     )
 
     with pytest.raises(AmbiguousSessionError) as exc_info:
-        client.resolve_session(url="http://one", token=None, file="nb.py")
+        client.resolve_session(url="http://one", token=None)
 
-    assert exc_info.value.candidates == ("s_a", "s_b")
+    assert exc_info.value.candidates == ("sess-a", "sess-b")
