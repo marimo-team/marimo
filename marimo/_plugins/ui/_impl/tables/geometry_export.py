@@ -51,6 +51,7 @@ def _prepare_pandas_export(
     manager: NarwhalsTableManager[Any, Any],
     geometry_columns: dict[str, GeometryColumnInfo],
 ) -> TableManager[Any]:
+    import geopandas as gpd  # type: ignore[import-untyped]
     import pandas as pd
 
     native = manager.as_frame().to_native()
@@ -60,7 +61,11 @@ def _prepare_pandas_export(
     for column, info in geometry_columns.items():
         if info.encoding != "objects":
             continue
-        export_frame[column] = native[column].to_wkt(rounding_precision=-1)
+        geometry = gpd.GeoSeries(
+            native[column].array,
+            index=native.index,
+        )
+        export_frame[column] = geometry.to_wkt(rounding_precision=-1)
         converted = True
 
     return _with_native_data(manager, export_frame) if converted else manager

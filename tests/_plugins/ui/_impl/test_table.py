@@ -1666,7 +1666,10 @@ def _assert_complete_geometry_rows(
     by_label = {row["row_label"]: row["geometry"] for row in rows}
     assert by_label["long"] == expected_long
     assert by_label["point"] == POINT_GEOMETRY_WKT
-    assert by_label["null"] is (None if format_type == "json" else "")
+    if format_type == "json":
+        assert by_label["null"] is None
+    else:
+        assert by_label["null"] == ""
 
 
 @pytest.mark.requires("geopandas")
@@ -1694,6 +1697,42 @@ def test_download_geopandas_geometry_as_complete_text(
     assert source.geometry.iloc[0].equals_exact(long_geometry, tolerance=0)
     assert str(source.geometry.dtype) == "geometry"
     assert source.crs == "EPSG:4326"
+
+
+@pytest.mark.requires("geopandas")
+@pytest.mark.parametrize("format_type", TEXT_DOWNLOAD_FORMATS)
+def test_download_pandas_geometry_dtype_as_complete_text(
+    format_type: str,
+) -> None:
+    import geopandas as gpd
+    import pandas as pd
+    from shapely import from_wkt
+
+    long_geometry = from_wkt(LONG_GEOMETRY_WKT)
+    geopandas_source = gpd.GeoDataFrame(
+        {
+            "row_label": ["long", "point", "null"],
+            "geometry": [
+                long_geometry,
+                from_wkt(POINT_GEOMETRY_WKT),
+                None,
+            ],
+        },
+        geometry="geometry",
+        crs="EPSG:4326",
+        index=[3, 5, 8],
+    )
+    source = pd.DataFrame(geopandas_source)
+    original = source.copy(deep=True)
+
+    rows = _download_text_rows(ui.table(source), format_type)
+
+    _assert_complete_geometry_rows(rows, format_type, long_geometry.wkt)
+    assert type(source) is pd.DataFrame
+    assert not hasattr(source["geometry"], "to_wkt")
+    assert str(source["geometry"].dtype) == "geometry"
+    assert source["geometry"].array.crs == "EPSG:4326"
+    pd.testing.assert_frame_equal(source, original)
 
 
 @pytest.mark.requires("pyarrow")
