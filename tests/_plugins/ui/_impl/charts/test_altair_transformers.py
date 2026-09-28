@@ -184,6 +184,36 @@ def test_data_to_json_string_with_special_characters(
     assert parsed[2]["B"] == "e\nf" or parsed[2]["B"] == "ef"
 
 
+@pytest.mark.skipif(
+    not HAS_DEPS or not DependencyManager.pyarrow.has(),
+    reason="optional dependencies not installed",
+)
+@pytest.mark.parametrize("error", [ValueError, NotImplementedError])
+def test_to_marimo_arrow_with_duration_export_failure(error: type[Exception]):
+    import narwhals.stable.v2 as nw
+    import pandas as pd
+
+    df = pd.DataFrame({"a.b": [1.0, 2.0, 3.0], "n": [1, 2, 3]})
+    df["d"] = pd.to_timedelta([1, 2, 3], unit="D")
+
+    with (
+        patch(
+            "marimo._plugins.ui._impl.tables.pandas_table._dataframe_to_arrow_ipc",
+            side_effect=error("Arrow export failed"),
+        ),
+        patch(
+            "marimo._plugins.ui._impl.charts.altair_transformer.mo_data.csv"
+        ) as export_csv,
+    ):
+        export_csv.return_value.url = "test.csv"
+        result = _to_marimo_arrow(nw.from_native(df))
+
+    assert result == {"url": "test.csv", "format": {"type": "csv"}}
+    export_csv.assert_called_once_with(
+        b"a.b,n,d\n1.0,1,1 days\n2.0,2,2 days\n3.0,3,3 days\n"
+    )
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
@@ -291,6 +321,79 @@ def test_to_marimo_arrow_fallback(df: IntoDataFrame):
     assert "url" in result
     assert "format" in result
     assert result["format"] == {"type": "csv"}
+
+
+@pytest.mark.skipif(
+    not HAS_DEPS or not DependencyManager.pyarrow.has(),
+    reason="optional dependencies not installed",
+)
+def test_to_marimo_arrow_with_duration():
+    import narwhals.stable.v2 as nw
+    import pandas as pd
+    import pyarrow as pa
+
+    df = pd.DataFrame({"a.b": [1.0, 2.0, 3.0], "n": [1, 2, 3]})
+    df["d"] = pd.to_timedelta([1, 2, 3], unit="D")
+
+    with patch(
+        "marimo._plugins.ui._impl.charts.altair_transformer.mo_data.arrow"
+    ) as export_arrow:
+        result = _to_marimo_arrow(nw.from_native(df))
+
+    assert result["format"] == {"type": "arrow"}
+    export_arrow.assert_called_once()
+    exported = pa.ipc.open_file(export_arrow.call_args.args[0]).read_all()
+    pd.testing.assert_frame_equal(exported.to_pandas(), df)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_to_marimo_arrow_with_duration_without_pyarrow():
+    import narwhals.stable.v2 as nw
+    import pandas as pd
+
+    df = pd.DataFrame({"a.b": [1.0, 2.0, 3.0], "n": [1, 2, 3]})
+    df["d"] = pd.to_timedelta([1, 2, 3], unit="D")
+    wrapped = nw.from_native(df)
+
+    with (
+        patch.dict(sys.modules, {"pyarrow": None}),
+        patch(
+            "marimo._plugins.ui._impl.charts.altair_transformer.mo_data.csv"
+        ) as export_csv,
+    ):
+        export_csv.return_value.url = "test.csv"
+        result = _to_marimo_arrow(wrapped)
+
+    assert result == {"url": "test.csv", "format": {"type": "csv"}}
+    export_csv.assert_called_once_with(
+        b"a.b,n,d\n1.0,1,1 days\n2.0,2,2 days\n3.0,3,3 days\n"
+    )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_to_marimo_arrow_csv_fallback_preserves_infinities():
+    import narwhals.stable.v2 as nw
+    import pandas as pd
+
+    df = nw.from_native(
+        pd.DataFrame(
+            {
+                "a.b": [1.0, float("inf"), float("-inf"), None],
+                "n": [1, 2, 3, 4],
+            }
+        )
+    )
+    with (
+        patch.dict(sys.modules, {"pyarrow": None}),
+        patch(
+            "marimo._plugins.ui._impl.charts.altair_transformer.mo_data.csv"
+        ) as export_csv,
+    ):
+        export_csv.return_value.url = "test.csv"
+        result = _to_marimo_arrow(df)
+
+    assert result == {"url": "test.csv", "format": {"type": "csv"}}
+    export_csv.assert_called_once_with(b"a.b,n\n1.0,1\ninf,2\n-inf,3\n,4\n")
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
