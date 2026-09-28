@@ -136,6 +136,7 @@ export const TransformPanel: React.FC<Props> = ({
     if (lazy) {
       return;
     }
+    // oxlint-disable-next-line react/incompatible-library -- TODO: Remove when React Hook Form supports React Compiler.
     const subscription = watch(() => {
       handleApply();
     });

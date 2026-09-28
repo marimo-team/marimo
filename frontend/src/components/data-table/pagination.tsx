@@ -375,6 +375,7 @@ const VirtualizedPageList = ({
 
   const currentIndex = mapping.indexOfPage(currentPage);
 
+  // oxlint-disable-next-line react/incompatible-library -- TODO: Remove when TanStack Virtual supports React Compiler.
   const virtualizer = useVirtualizer({
     count: mapping.count,
     getScrollElement: () => parentRef.current,

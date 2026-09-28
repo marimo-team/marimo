@@ -108,6 +108,7 @@ export const DataTableBody = <TData,>({
   }, []);
 
   // Always call useVirtualizer (rules of hooks); count=0 when not virtualizing
+  // oxlint-disable-next-line react/incompatible-library -- TODO: Remove when TanStack Virtual supports React Compiler.
   const virtualizer = useVirtualizer({
     count: virtualize ? rows.length : 0,
     getScrollElement: () => scrollElement,

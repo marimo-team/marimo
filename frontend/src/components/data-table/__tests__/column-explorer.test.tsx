@@ -42,6 +42,7 @@ function PanelHarness({
   totalColumns = 3,
   initiallyHidden = EMPTY_HIDDEN_COLUMNS,
 }: HarnessProps) {
+  // oxlint-disable-next-line react/incompatible-library -- TODO: Remove when TanStack Table supports React Compiler.
   const table = useReactTable<Row>({
     data: [],
     columns: TEST_COLUMNS,

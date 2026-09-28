@@ -13,6 +13,7 @@ function renderWithTable(opts: {
   hiddenColumns?: string[];
 }) {
   const Wrapper = () => {
+    // oxlint-disable-next-line react/incompatible-library -- TODO: Remove when TanStack Table supports React Compiler.
     const table = useReactTable({
       data: [] as Array<Record<string, unknown>>,
       columns: Array.from({ length: opts.totalColumns }, (_, i) => ({

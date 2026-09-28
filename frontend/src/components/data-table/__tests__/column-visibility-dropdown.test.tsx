@@ -56,6 +56,7 @@ function Harness({
   initiallyHidden = EMPTY_COLUMN_IDS,
   nonHideable = EMPTY_COLUMN_IDS,
 }: HarnessProps) {
+  // oxlint-disable-next-line react/incompatible-library -- TODO: Remove when TanStack Table supports React Compiler.
   const table = useReactTable<Row>({
     data: [],
     columns: TEST_COLUMNS.map((column) =>

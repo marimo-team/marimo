@@ -263,6 +263,7 @@ export const VariableTable: React.FC<Props> = memo(
       });
     }, [resolvedVariables, sorting, cellIds]);
 
+    // oxlint-disable-next-line react/incompatible-library -- TODO: Remove when TanStack Table supports React Compiler.
     const table = useReactTable({
       data: sortedVariables,
       columns: COLUMNS,

@@ -230,6 +230,7 @@ const DataTableInternal = <TData,>({
     return idx + offset;
   }
 
+  // oxlint-disable-next-line react/incompatible-library -- TODO: Remove when TanStack Table supports React Compiler.
   const table = useReactTable<TData>({
     _features: [
       ColumnPinning,

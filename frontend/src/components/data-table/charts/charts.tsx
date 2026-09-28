@@ -370,6 +370,7 @@ export const ChartPanel: React.FC<{
     // Re-run when the data table changes
   }, [tableData, renderLargeCharts, csvFieldTypes]);
 
+  // oxlint-disable-next-line react/incompatible-library -- TODO: Remove when React Hook Form supports React Compiler.
   const formValues = form.watch();
 
   // This ensures the chart re-renders when the actual values change
