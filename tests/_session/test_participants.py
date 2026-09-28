@@ -187,6 +187,25 @@ async def test_ttl_ends_attachment_but_keeps_record() -> None:
     registry.close()
 
 
+async def test_repeat_contact_renews_ttl() -> None:
+    now = 0.0
+    registry = ParticipantRegistry(ttl_seconds=120, clock=lambda: now)
+    await registry.attach("p1", harness="claude", kind="agent")
+
+    now = 100.0
+    await registry.attach("p1", harness="claude", kind="agent")
+    now = 130.0
+    renewed = await registry.current_state()
+    now = 221.0
+    expired = await registry.current_state()
+
+    assert renewed is not None
+    assert renewed.attached is True
+    assert expired is not None
+    assert expired.attached is False
+    registry.close()
+
+
 async def test_presence_snapshot_fields_use_wall_time() -> None:
     snapshots = []
     registry = ParticipantRegistry(wall_clock=lambda: 1_234.5)
