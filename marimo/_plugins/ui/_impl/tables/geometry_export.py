@@ -37,13 +37,15 @@ def prepare_geometry_text_export(
     if not geometry_columns:
         return manager
 
+    source_frame = manager.data
+    if source_frame.implementation.is_duckdb():
+        return _prepare_duckdb_export(manager, geometry_columns)
+
     frame = manager.as_frame()
     if frame.implementation.is_pandas():
         return _prepare_pandas_export(manager, geometry_columns)
     if frame.implementation.is_pyarrow():
         return _prepare_arrow_export(manager, geometry_columns)
-    if frame.implementation.is_duckdb():
-        return _prepare_duckdb_export(manager, geometry_columns)
     return manager
 
 
@@ -141,7 +143,7 @@ def _prepare_duckdb_export(
     manager: NarwhalsTableManager[Any, Any],
     geometry_columns: dict[str, GeometryColumnInfo],
 ) -> TableManager[Any]:
-    relation = manager.as_frame().to_native()
+    relation = manager.data.to_native()
     expressions: list[str] = []
     converted = False
 
