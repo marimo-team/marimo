@@ -17,6 +17,7 @@ from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.notification import ConsumerCapabilities
+from marimo._messaging.participants import HandoffPayload
 from marimo._runtime.commands import ExecuteCellsCommand
 from marimo._server.api.utils import enforce_consumer_capability
 from marimo._types.ids import CellId_t, SessionId
@@ -101,8 +102,25 @@ def _execute_without_kernel(
         )
 
 
+def _done_payload(response: Response) -> dict[str, Any]:
+    for block in response.text.strip().split("\n\n"):
+        lines = block.splitlines()
+        if lines and lines[0] == "event: done":
+            data = "\n".join(
+                line.removeprefix("data: ")
+                for line in lines[1:]
+                if line.startswith("data: ")
+            )
+            return json.loads(data)
+    raise AssertionError("Response did not include a done event.")
+
+
 def _count_execute_interrupts(
-    client: TestClient, *, watcher_fires: bool, stream_cancelled: bool
+    client: TestClient,
+    *,
+    watcher_fires: bool,
+    stream_cancelled: bool,
+    headers: dict[str, str] | None = None,
 ) -> int:
     """POST `/api/kernel/execute` with a simulated client disconnect and
     return how many times the session interrupted the kernel.
@@ -111,6 +129,8 @@ def _count_execute_interrupts(
         client (TestClient): Client with a live session `SESSION_ID`.
         watcher_fires (bool): The disconnect watcher sees the disconnect.
         stream_cancelled (bool): The response stream is cancelled.
+        headers (dict[str, str], optional): Request headers. Defaults to the
+            browser routing headers.
     """
     from unittest.mock import patch
 
@@ -142,7 +162,7 @@ def _count_execute_interrupts(
     ):
         response = client.post(
             "/api/kernel/execute",
-            headers=HEADERS,
+            headers=HEADERS if headers is None else headers,
             json={"code": "x = 1"},
         )
 
@@ -439,6 +459,122 @@ class TestExecutionRoutes_EditMode:
 
     @staticmethod
     @with_session(SESSION_ID)
+    def test_execute_marks_activity_and_inlines_handoffs(
+        client: TestClient,
+    ) -> None:
+        from marimo._server import scratchpad as scratchpad_mod
+
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        headers = _participant_headers(session, "p1")
+        observed_active: list[bool] = []
+
+        with _pair_preview_enabled():
+            attached = _execute_without_kernel(client, session, headers)
+            asyncio.run(
+                session.participants.append_handoff(
+                    HandoffPayload(
+                        cell_id="cell-1",
+                        error="RuntimeError",
+                        code="raise RuntimeError()",
+                        traceback="Traceback\nRuntimeError",
+                    )
+                )
+            )
+
+            async def observe_stream(
+                self: object,  # noqa: ARG001
+            ) -> AsyncGenerator[str, None]:
+                state = await session.participants.state("p1")
+                assert state is not None
+                observed_active.append(state.active)
+                if False:
+                    yield ""
+
+            with (
+                patch.object(session, "put_control_request"),
+                patch.object(
+                    scratchpad_mod.ScratchCellListener,
+                    "stream",
+                    observe_stream,
+                ),
+            ):
+                response = client.post(
+                    "/api/kernel/execute",
+                    headers=headers,
+                    json={"code": "x = 1"},
+                )
+
+        assert attached.status_code == 200, attached.text
+        assert response.status_code == 200, response.text
+        assert observed_active == [True]
+        done = _done_payload(response)
+        assert done["handoffs"]["remaining"] == 0
+        assert done["handoffs"]["events"][0]["error"] == "RuntimeError"
+        state = asyncio.run(session.participants.state("p1"))
+        assert state is not None
+        assert state.active is False
+        assert state.cursor == 1
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_detach_omits_inline_handoffs(
+        client: TestClient,
+    ) -> None:
+        from marimo._server import scratchpad as scratchpad_mod
+
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        headers = _participant_headers(session, "p1")
+        event_seqs: list[int] = []
+
+        async def detach_during_stream(
+            self: object,  # noqa: ARG001
+        ) -> AsyncGenerator[str, None]:
+            event = await session.participants.append_handoff(
+                HandoffPayload(
+                    cell_id="cell-1",
+                    error="RuntimeError",
+                    code="raise RuntimeError()",
+                    traceback="Traceback\nRuntimeError",
+                )
+            )
+            event_seqs.append(event.seq)
+            await session.participants.detach("p1")
+            if False:
+                yield ""
+
+        with (
+            _pair_preview_enabled(),
+            patch.object(session, "put_control_request"),
+            patch.object(
+                scratchpad_mod.ScratchCellListener,
+                "stream",
+                detach_during_stream,
+            ),
+        ):
+            response = client.post(
+                "/api/kernel/execute",
+                headers=headers,
+                json={"code": "x = 1"},
+            )
+
+        assert response.status_code == 200, response.text
+        assert "handoffs" not in _done_payload(response)
+        assert event_seqs == [1]
+        assert (
+            asyncio.run(
+                session.participants.delivery_status("p1", event_seqs[0])
+            )
+            == "not_delivered"
+        )
+        state = asyncio.run(session.participants.state("p1"))
+        assert state is not None
+        assert state.attached is False
+        assert state.active is False
+
+    @staticmethod
+    @with_session(SESSION_ID)
     def test_execute_rejects_second_live_participant(
         client: TestClient,
     ) -> None:
@@ -703,6 +839,27 @@ class TestExecutionRoutes_EditMode:
             )
             == 1
         )
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_cancelled_execute_clears_participant_activity(
+        client: TestClient,
+    ) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        with _pair_preview_enabled():
+            interrupts = _count_execute_interrupts(
+                client,
+                watcher_fires=False,
+                stream_cancelled=True,
+                headers=_participant_headers(session, "p1"),
+            )
+
+        state = asyncio.run(session.participants.state("p1"))
+        assert interrupts == 1
+        assert state is not None
+        assert state.active is False
 
     @staticmethod
     @with_session(SESSION_ID)

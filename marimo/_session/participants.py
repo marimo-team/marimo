@@ -106,6 +106,8 @@ class _ParticipantRecord:
     listening: bool = False
     active: bool = False
     active_since: float | None = None
+    active_requests: set[int] = field(default_factory=set)
+    next_request_token: int = 1
     expires_at: float | None = None
     attachment_generation: int = 0
     listener_generation: int = 0
@@ -326,6 +328,84 @@ class ParticipantRegistry:
                 participant_id, generation, delivered_seq=delivered_seq
             )
 
+    async def read_inline_events(
+        self, participant_id: str, request_token: int
+    ) -> EventRead | None:
+        """Read pending events within the inline byte budget.
+
+        Return None when the participant detached while the request was in
+        flight. In that case the response must not consume retained events.
+        """
+        async with self._lock:
+            self._ensure_open()
+            record = self._records.get(participant_id)
+            if (
+                record is None
+                or not record.attached
+                or request_token not in record.active_requests
+            ):
+                return None
+
+            pending = [
+                event for event in record.events if event.seq > record.cursor
+            ]
+            selected: list[HandoffEvent] = []
+            encoded_size = 2  # JSON array brackets
+            for event in pending:
+                event_size = len(msgspec.json.encode(event))
+                separator_size = 1 if selected else 0
+                if (
+                    encoded_size + separator_size + event_size
+                    > self.limits.inline_budget_bytes
+                ):
+                    break
+                selected.append(event)
+                encoded_size += separator_size + event_size
+
+            if selected:
+                record.cursor = max(record.cursor, selected[-1].seq)
+            return EventRead(
+                events=tuple(selected),
+                cursor=record.cursor,
+                remaining=len(pending) - len(selected),
+            )
+
+    async def begin_request(self, participant_id: str) -> int | None:
+        """Mark one identified execute request active."""
+        async with self._lock:
+            self._ensure_open()
+            record = self._records.get(participant_id)
+            if record is None or not record.attached:
+                return None
+            token = record.next_request_token
+            record.next_request_token += 1
+            was_active = record.active
+            record.active_requests.add(token)
+            record.active = True
+            if not was_active:
+                record.active_since = self._wall_clock()
+                self._emit_presence(record.state())
+            return token
+
+    async def end_request(self, participant_id: str, token: int) -> None:
+        """End one execute request without reviving a detached participant."""
+        async with self._lock:
+            if self._closed:
+                return
+            record = self._records.get(participant_id)
+            if (
+                record is None
+                or not record.attached
+                or token not in record.active_requests
+            ):
+                return
+            record.active_requests.remove(token)
+            if record.active_requests:
+                return
+            record.active = False
+            record.active_since = None
+            self._emit_presence(record.state())
+
     async def delivery_status(
         self, participant_id: str, seq: int
     ) -> DeliveryStatus:
@@ -390,6 +470,7 @@ class ParticipantRegistry:
         record.listening = False
         record.active = False
         record.active_since = None
+        record.active_requests.clear()
         record.expires_at = None
         record.listener_generation += 1
         record.stream_signal.set()
