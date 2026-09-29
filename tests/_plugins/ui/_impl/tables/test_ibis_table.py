@@ -13,6 +13,7 @@ from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.ibis_table import (
     IbisTableManagerFactory,
+    _date_from_epoch_seconds,
 )
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from tests.mocks import snapshotter
@@ -20,6 +21,19 @@ from tests.mocks import snapshotter
 HAS_DEPS = DependencyManager.ibis.has()
 
 snapshot = snapshotter(__file__)
+
+
+@pytest.mark.parametrize(
+    ("seconds", "expected"),
+    [
+        (0, datetime.date(1970, 1, 1)),
+        (-2_208_988_800, datetime.date(1900, 1, 1)),
+    ],
+)
+def test_date_from_epoch_seconds(
+    seconds: float, expected: datetime.date
+) -> None:
+    assert _date_from_epoch_seconds(seconds) == expected
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

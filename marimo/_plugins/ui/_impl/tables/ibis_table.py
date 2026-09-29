@@ -23,6 +23,16 @@ if TYPE_CHECKING:
     from ibis import DataType  # type: ignore
 
 
+def _date_from_epoch_seconds(seconds: float) -> datetime.date:
+    try:
+        return datetime.datetime.fromtimestamp(
+            seconds, tz=datetime.timezone.utc
+        ).date()
+    except (OSError, OverflowError, ValueError):
+        epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+        return (epoch + datetime.timedelta(seconds=seconds)).date()
+
+
 class IbisTableManagerFactory(TableManagerFactory):
     @staticmethod
     def package_name() -> str:
@@ -167,12 +177,8 @@ class IbisTableManagerFactory(TableManagerFactory):
 
                 for row in numeric_bin_values.itertuples(index=False):
                     if dtype.is_date():
-                        bin_start = datetime.datetime.fromtimestamp(
-                            row.bin_start, tz=datetime.timezone.utc
-                        ).date()
-                        bin_end = datetime.datetime.fromtimestamp(
-                            row.bin_end, tz=datetime.timezone.utc
-                        ).date()
+                        bin_start = _date_from_epoch_seconds(row.bin_start)
+                        bin_end = _date_from_epoch_seconds(row.bin_end)
                     elif dtype.is_time():
                         bin_start = _convert_seconds_to_time(
                             int(row.bin_start)

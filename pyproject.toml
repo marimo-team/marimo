@@ -419,6 +419,7 @@ extend-select = [
     "PT",    # flake8-pytest-style rules
     "TID25", # flake8-tidy-imports rules
     # Per rule enables
+    "DTZ012", # Require timezone-aware epoch-to-date conversion
     # "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     # "D101", # Missing docstring in public class

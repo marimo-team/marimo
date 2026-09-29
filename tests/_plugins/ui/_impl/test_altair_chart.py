@@ -5,6 +5,7 @@ import datetime
 import io
 import json
 import sys
+import time
 import unittest.mock
 from contextlib import redirect_stderr
 from typing import TYPE_CHECKING, Any
@@ -36,6 +37,8 @@ from tests.conftest import ExecReqProvider
 from tests.mocks import snapshotter
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
 snapshot = snapshotter(__file__)
@@ -68,6 +71,19 @@ def maybe_collect(df: IntoDataFrame | IntoLazyFrame) -> nw.DataFrame[Any]:
     return nw_df
 
 
+@pytest.fixture(name="_non_utc_timezone")
+def non_utc_timezone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[None]:
+    with monkeypatch.context() as patch:
+        patch.setenv("TZ", "UTC+8")
+        time.tzset()
+        yield
+    time.tzset()
+
+
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="requires time.tzset")
+@pytest.mark.usefixtures("_non_utc_timezone")
 def test_coerce_epoch_milliseconds_to_utc_date() -> None:
     assert _coerce_value(0, nw.Date) == datetime.date(1970, 1, 1)
     assert _coerce_value(-1, nw.Date) == datetime.date(1969, 12, 31)

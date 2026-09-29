@@ -39,11 +39,25 @@ from tests._data.mocks import (
 from tests.mocks import snapshotter
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from narwhals.stable.v1.typing import DataFrameT
 
 HAS_DEPS = DependencyManager.polars.has()
 
 snapshot = snapshotter(__file__)
+
+
+@pytest.fixture(name="_non_utc_timezone")
+def non_utc_timezone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[None]:
+    with monkeypatch.context() as patch:
+        patch.setenv("TZ", "UTC+8")
+        time.tzset()
+        yield
+    time.tzset()
+
 
 SUPPORTED_LIBS: list[DFType] = [
     "pandas",
@@ -1338,6 +1352,19 @@ class TestGetBinValuesTemporal:
 
         assert len(bin_values) == 1
         assert bin_values[0].count == 5
+
+    @pytest.mark.skipif(
+        not hasattr(time, "tzset"), reason="requires time.tzset"
+    )
+    @pytest.mark.usefixtures("_non_utc_timezone")
+    def test_dates_multiple_uses_utc(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("dates_multiple", 3)
+
+        bin_end = bin_values[0].bin_end
+        if isinstance(bin_end, datetime.datetime):
+            pytest.skip("backend represents date objects as datetimes")
+        assert bin_end == datetime.date(2021, 1, 1)
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
