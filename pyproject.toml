@@ -222,7 +222,8 @@ test-optional = [
     "jupytext>=1.17.2",
     # For standard scientific computing/ ML
     # flax 0.10 requires jax>=0.4.27, so keep the floors compatible.
-    "jax>=0.4.27; python_version == '3.12'",
+    # TODO: Remove <0.11.2 after Flax 0.12.10 enters CI's 7-day window (2026-10-01).
+    "jax>=0.4.27,<0.11.2; python_version == '3.12'",
     "flax>=0.10.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
