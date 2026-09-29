@@ -224,7 +224,9 @@ class AppState(AppStateBase):
             )
         return session
 
-    async def require_participant_session(self) -> ParticipantSession:
+    async def require_participant_session(
+        self, *, participant_required: bool = False
+    ) -> ParticipantSession:
         """Resolve the Session and record contact for an identified request.
 
         A request that carries `Marimo-Participant-Id` must also carry the
@@ -235,7 +237,17 @@ class AppState(AppStateBase):
         only.
         """
         participant_id = self.request.headers.get(PARTICIPANT_ID_HEADER)
-        if participant_id is None or not is_env_true(PAIR_PREVIEW_ENV):
+        if participant_id is None:
+            if participant_required:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail=f"Missing {PARTICIPANT_ID_HEADER} header.",
+                )
+            return ParticipantSession(
+                session=self.require_current_session_with_stable_id(),
+                participant=None,
+            )
+        if not is_env_true(PAIR_PREVIEW_ENV):
             return ParticipantSession(
                 session=self.require_current_session_with_stable_id(),
                 participant=None,

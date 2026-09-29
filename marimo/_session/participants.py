@@ -18,7 +18,7 @@ from marimo._messaging.participants import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import AsyncGenerator, Callable
 
 
 @dataclass(frozen=True)
@@ -108,6 +108,8 @@ class _ParticipantRecord:
     active_since: float | None = None
     expires_at: float | None = None
     attachment_generation: int = 0
+    listener_generation: int = 0
+    stream_signal: asyncio.Event = field(default_factory=asyncio.Event)
     events: list[HandoffEvent] = field(default_factory=list)
     evicted_unread_ranges: list[tuple[int, int]] = field(default_factory=list)
 
@@ -238,6 +240,8 @@ class ParticipantRegistry:
             record.next_seq += 1
             record.events.append(event)
             self._trim_events(record)
+            record.stream_signal.set()
+            record.stream_signal = asyncio.Event()
             return event
 
     async def read_events(
@@ -267,6 +271,59 @@ class ParticipantRegistry:
                 events=tuple(selected),
                 cursor=record.cursor,
                 remaining=len(pending) - len(selected),
+            )
+
+    async def stream_events(
+        self, participant_id: str
+    ) -> AsyncGenerator[HandoffEvent | None, None]:
+        """Stream retained and future events until detach or Session close.
+
+        `None` is a keepalive tick. Opening a replacement stream closes the
+        previous stream without letting its cleanup clear the new listener.
+        """
+        generation = await self._open_stream(participant_id)
+        delivered_seq: int | None = None
+        try:
+            while True:
+                async with self._lock:
+                    if delivered_seq is not None:
+                        record = self._records.get(participant_id)
+                        if record is not None:
+                            record.cursor = max(record.cursor, delivered_seq)
+                        delivered_seq = None
+
+                    if self._closed:
+                        return
+                    record = self._records.get(participant_id)
+                    if (
+                        record is None
+                        or not record.attached
+                        or record.listener_generation != generation
+                    ):
+                        return
+                    event = next(
+                        (
+                            event
+                            for event in record.events
+                            if event.seq > record.cursor
+                        ),
+                        None,
+                    )
+                    signal = record.stream_signal
+                    keepalive = self.limits.sse_keepalive_seconds
+
+                if event is not None:
+                    delivered_seq = event.seq
+                    yield event
+                    continue
+
+                try:
+                    await asyncio.wait_for(signal.wait(), timeout=keepalive)
+                except TimeoutError:
+                    yield None
+        finally:
+            await self._close_stream(
+                participant_id, generation, delivered_seq=delivered_seq
             )
 
     async def delivery_status(
@@ -308,6 +365,8 @@ class ParticipantRegistry:
             return
         self._closed = True
         self._presence_callback = None
+        for record in self._records.values():
+            record.stream_signal.set()
         for task in self._expiry_tasks.values():
             task.cancel()
         self._expiry_tasks.clear()
@@ -332,6 +391,9 @@ class ParticipantRegistry:
         record.active = False
         record.active_since = None
         record.expires_at = None
+        record.listener_generation += 1
+        record.stream_signal.set()
+        record.stream_signal = asyncio.Event()
         task = self._expiry_tasks.pop(record.participant_id, None)
         if task is not None and task is not asyncio.current_task():
             task.cancel()
@@ -413,6 +475,51 @@ class ParticipantRegistry:
                 ranges[-1] = (ranges[-1][0], end)
             else:
                 ranges.append((start, end))
+
+    async def _open_stream(self, participant_id: str) -> int:
+        async with self._lock:
+            self._ensure_open()
+            record = self._record(participant_id)
+            record.stream_signal.set()
+            record.stream_signal = asyncio.Event()
+            record.listener_generation += 1
+            generation = record.listener_generation
+            presence_changed = not record.listening
+            record.listening = True
+            record.expires_at = None
+            task = self._expiry_tasks.pop(participant_id, None)
+            if task is not None:
+                task.cancel()
+            if presence_changed:
+                self._emit_presence(record.state())
+            return generation
+
+    async def _close_stream(
+        self,
+        participant_id: str,
+        generation: int,
+        *,
+        delivered_seq: int | None,
+    ) -> None:
+        async with self._lock:
+            if self._closed:
+                return
+            record = self._records.get(participant_id)
+            if record is None:
+                return
+            if delivered_seq is not None:
+                record.cursor = max(record.cursor, delivered_seq)
+            if (
+                record.listener_generation != generation
+                or not record.listening
+            ):
+                return
+            record.listening = False
+            if record.attached:
+                record.expires_at = self._clock() + self.limits.ttl_seconds
+                record.attachment_generation += 1
+                self._schedule_expiry(record)
+            self._emit_presence(record.state())
 
     @staticmethod
     def _was_evicted_unread(record: _ParticipantRecord, seq: int) -> bool:

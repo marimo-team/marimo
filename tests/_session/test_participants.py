@@ -206,6 +206,89 @@ async def test_repeat_contact_renews_ttl() -> None:
     registry.close()
 
 
+async def test_stream_delivers_retained_and_future_events() -> None:
+    registry = ParticipantRegistry()
+    await registry.attach("p1", harness="claude", kind="agent")
+    first = await registry.append_handoff(payload("first"))
+    stream = registry.stream_events("p1")
+
+    assert await anext(stream) == first
+    second = await registry.append_handoff(payload("second"))
+    assert await anext(stream) == second
+    await stream.aclose()
+
+    state = await registry.state("p1")
+    assert state is not None
+    assert state.cursor == second.seq
+    assert state.listening is False
+    assert state.attached is True
+    registry.close()
+
+
+async def test_detach_closes_event_stream() -> None:
+    registry = ParticipantRegistry(sse_keepalive_seconds=60)
+    await registry.attach("p1", harness="claude", kind="agent")
+    stream = registry.stream_events("p1")
+    waiting = asyncio.create_task(anext(stream))
+    await asyncio.sleep(0)
+
+    listening = await registry.state("p1")
+    assert listening is not None
+    assert listening.listening is True
+
+    await registry.detach("p1")
+
+    with pytest.raises(StopAsyncIteration):
+        await asyncio.wait_for(waiting, timeout=1)
+    registry.close()
+
+
+async def test_session_close_closes_event_stream() -> None:
+    registry = ParticipantRegistry(sse_keepalive_seconds=60)
+    await registry.attach("p1", harness="claude", kind="agent")
+    stream = registry.stream_events("p1")
+    waiting = asyncio.create_task(anext(stream))
+    await asyncio.sleep(0)
+
+    registry.close()
+
+    with pytest.raises(StopAsyncIteration):
+        await asyncio.wait_for(waiting, timeout=1)
+
+
+async def test_replacement_stream_keeps_new_listener_active() -> None:
+    registry = ParticipantRegistry(sse_keepalive_seconds=60)
+    await registry.attach("p1", harness="claude", kind="agent")
+    first_stream = registry.stream_events("p1")
+    first_waiting = asyncio.create_task(anext(first_stream))
+    await asyncio.sleep(0)
+    second_stream = registry.stream_events("p1")
+    second_waiting = asyncio.create_task(anext(second_stream))
+    await asyncio.sleep(0)
+
+    with pytest.raises(StopAsyncIteration):
+        await asyncio.wait_for(first_waiting, timeout=1)
+    state = await registry.state("p1")
+    assert state is not None
+    assert state.listening is True
+
+    event = await registry.append_handoff(payload())
+    assert await asyncio.wait_for(second_waiting, timeout=1) == event
+    await second_stream.aclose()
+    registry.close()
+
+
+async def test_event_stream_emits_keepalive_ticks() -> None:
+    registry = ParticipantRegistry(sse_keepalive_seconds=0.01)
+    await registry.attach("p1", harness="claude", kind="agent")
+    stream = registry.stream_events("p1")
+
+    assert await anext(stream) is None
+
+    await stream.aclose()
+    registry.close()
+
+
 async def test_presence_snapshot_fields_use_wall_time() -> None:
     snapshots = []
     registry = ParticipantRegistry(wall_clock=lambda: 1_234.5)
