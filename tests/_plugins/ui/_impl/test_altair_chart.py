@@ -17,6 +17,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.altair_chart import (
     ChartDataType,
     ChartSelection,
+    _coerce_value,
     _filter_dataframe,
     _get_binned_fields,
     _has_binning,
@@ -65,6 +66,11 @@ def maybe_collect(df: IntoDataFrame | IntoLazyFrame) -> nw.DataFrame[Any]:
     if is_narwhals_lazyframe(nw_df):
         return nw_df.collect()
     return nw_df
+
+
+def test_coerce_epoch_milliseconds_to_utc_date() -> None:
+    assert _coerce_value(0, nw.Date) == datetime.date(1970, 1, 1)
+    assert _coerce_value(-1, nw.Date) == datetime.date(1969, 12, 31)
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

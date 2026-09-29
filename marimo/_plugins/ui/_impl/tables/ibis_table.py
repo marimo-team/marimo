@@ -167,8 +167,12 @@ class IbisTableManagerFactory(TableManagerFactory):
 
                 for row in numeric_bin_values.itertuples(index=False):
                     if dtype.is_date():
-                        bin_start = datetime.date.fromtimestamp(row.bin_start)
-                        bin_end = datetime.date.fromtimestamp(row.bin_end)
+                        bin_start = datetime.datetime.fromtimestamp(
+                            row.bin_start, tz=datetime.timezone.utc
+                        ).date()
+                        bin_end = datetime.datetime.fromtimestamp(
+                            row.bin_end, tz=datetime.timezone.utc
+                        ).date()
                     elif dtype.is_time():
                         bin_start = _convert_seconds_to_time(
                             int(row.bin_start)

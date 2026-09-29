@@ -656,7 +656,9 @@ class NarwhalsTableManager(
                 # Use timedelta to handle dates before Unix epoch (1970)
                 # which cause OSError on Windows with fromtimestamp
                 try:
-                    bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
+                    bin_end = datetime.datetime.fromtimestamp(
+                        bin_end / ms_time, tz=datetime.timezone.utc
+                    ).date()
                 except (OSError, OverflowError, ValueError):
                     # Fall back to timedelta calculation for old dates
                     epoch = datetime.datetime(

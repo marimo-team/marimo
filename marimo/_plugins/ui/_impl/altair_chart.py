@@ -386,7 +386,9 @@ def _coerce_value(value: Any, dtype: Any) -> Any:
             # Value is milliseconds since epoch
             # so we convert to seconds since epoch
             if isinstance(value, (int, float)):
-                return datetime.date.fromtimestamp(value / 1000)
+                return datetime.datetime.fromtimestamp(
+                    value / 1000, tz=datetime.timezone.utc
+                ).date()
             # If value is already a date or datetime, return as-is
             if isinstance(value, datetime.date):
                 return value
