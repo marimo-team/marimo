@@ -75,6 +75,17 @@ def _graph_codes(k: Kernel) -> dict[str, str]:
 
 
 class TestAddCell:
+    @pytest.mark.parametrize("name", ["Load data", "class", "segment-change"])
+    async def test_rejects_invalid_name(self, k: Kernel, name: str) -> None:
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                with pytest.raises(
+                    ValueError, match="valid Python identifiers"
+                ):
+                    nb.create_cell("x = 1", name=name)
+
+            assert not k.graph.cells
+
     async def test_add_into_empty(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
             _clear_messages(k)
@@ -259,6 +270,18 @@ class TestDeleteCell:
 
 
 class TestUpdateCell:
+    async def test_rejects_invalid_name(self, k: Kernel) -> None:
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                with pytest.raises(
+                    ValueError, match="valid Python identifiers"
+                ):
+                    nb.edit_cell("0", name="Analysis summary")
+
+            assert _graph_codes(k) == {"0": "x = 1"}
+
     async def test_update_code(self, k: Kernel) -> None:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
         assert k.globals["x"] == 1

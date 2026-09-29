@@ -29,6 +29,7 @@ from marimo._server.utils import initialize_mimetypes
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._server.workspace import NEW_FILE
 from marimo._session.model import SessionMode
+from marimo._tracer import force_flush_traces
 from marimo._utils.asyncio_utils import cancel_and_wait, supervised_task
 from marimo._utils.subprocess import cancel_pending_reaps
 
@@ -42,6 +43,18 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 background_tasks: set[asyncio.Task[Any]] = set()
+
+
+@contextlib.asynccontextmanager
+async def tracing(app: Starlette) -> AsyncIterator[None]:
+    """Flush completed spans after the server has drained its requests."""
+    del app
+    try:
+        yield
+    finally:
+        flushed = await asyncio.to_thread(force_flush_traces)
+        if not flushed:
+            LOGGER.warning("Timed out while flushing OpenTelemetry spans")
 
 
 @contextlib.asynccontextmanager

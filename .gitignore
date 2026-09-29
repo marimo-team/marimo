@@ -83,6 +83,7 @@ ipython_config.py
 
 # Environments
 .env
+.ai-eval-runs/
 .venv
 env/
 venv/

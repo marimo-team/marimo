@@ -130,6 +130,12 @@ otel = [
 ]
 
 [dependency-groups]
+ai-eval = [
+    "altair>=5.4.0",
+    "pandas>=1.5.3",
+    "python-dotenv>=1.0.1",
+]
+
 dev = [
     # Typo checking
     "typos~=1.23.6",
@@ -321,7 +327,7 @@ wheel-exclude = ["marimo/_smoke_tests/**"]
 
 [tool.ruff]
 line-length = 79
-include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py"]
+include = ["marimo/**/*.py", "tests/**/*.py", "benchmarks/**/*.py", "dagger/**/*.py"]
 exclude = [
     "build",
     "docs",

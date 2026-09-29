@@ -309,6 +309,29 @@ def is_tracing_enabled() -> bool:
     return _TRACING_AVAILABLE
 
 
+def force_flush_traces(timeout_millis: int = 10_000) -> bool:
+    """Export all completed spans before the process exits.
+
+    Batch span processors normally export on a timer. Servers can shut down
+    before that timer fires, particularly after a final streaming response,
+    so shutdown paths must flush explicitly.
+    """
+    if not is_tracing_enabled():
+        return True
+
+    try:
+        from opentelemetry import trace
+
+        provider = trace.get_tracer_provider()
+        force_flush = getattr(provider, "force_flush", None)
+        if not callable(force_flush):
+            return True
+        return force_flush(timeout_millis=timeout_millis) is not False
+    except Exception as e:
+        LOGGER.debug("Failed to flush traces", exc_info=e)
+        return False
+
+
 @contextmanager
 def attach_trace_context(
     headers: Mapping[str, str] | None,

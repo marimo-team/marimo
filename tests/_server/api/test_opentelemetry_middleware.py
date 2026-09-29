@@ -2,18 +2,19 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import patch
 
 import pytest
 from starlette.applications import Starlette
-from starlette.responses import PlainTextResponse
+from starlette.responses import PlainTextResponse, StreamingResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import AsyncIterator, Sequence
 
+    from opentelemetry.sdk.trace.export import SpanExporter
     from starlette.requests import Request
 
 
@@ -54,7 +55,9 @@ def _setup_tracing() -> tuple[Any, _CollectingExporter]:
 
     exporter = _CollectingExporter()
     provider = TracerProvider()
-    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    provider.add_span_processor(
+        SimpleSpanProcessor(cast("SpanExporter", cast(object, exporter)))
+    )
     trace.set_tracer_provider(provider)
 
     tracer = trace.get_tracer("marimo.server")
@@ -134,6 +137,85 @@ class TestOpenTelemetryMiddleware:
         assert response.status_code == 200
         assert len(exporter.spans) == 1
         assert exporter.spans[0].parent is None
+        assert response.headers["X-Marimo-Trace-Id"] == format(
+            exporter.spans[0].context.trace_id, "032x"
+        )
+
+    def test_stream_spans_remain_children_of_request_span(self) -> None:
+        from marimo._server.api.middleware import OpenTelemetryMiddleware
+
+        tracer, exporter = _setup_tracing()
+
+        async def stream_response(request: Request) -> StreamingResponse:  # noqa: ARG001
+            async def body() -> AsyncIterator[bytes]:
+                with tracer.start_as_current_span("stream-child"):
+                    yield b"ok"
+
+            return StreamingResponse(body())
+
+        with (
+            patch(
+                "marimo._server.api.middleware.is_tracing_enabled",
+                return_value=True,
+            ),
+            patch("marimo._server.api.middleware.server_tracer", tracer),
+        ):
+            app = Starlette(routes=[Route("/stream", stream_response)])
+            app.add_middleware(OpenTelemetryMiddleware)
+            response = TestClient(app).get("/stream")
+
+        spans = {span.name: span for span in exporter.spans}
+        request_span = spans["GET /stream"]
+        child_span = spans["stream-child"]
+        assert child_span.parent == request_span.context
+        assert response.headers["X-Marimo-Trace-Id"] == format(
+            request_span.context.trace_id, "032x"
+        )
+
+    def test_ai_request_span_includes_session_id(self) -> None:
+        from marimo._server.api.middleware import OpenTelemetryMiddleware
+
+        tracer, exporter = _setup_tracing()
+
+        async def ai_response(request: Request) -> PlainTextResponse:  # noqa: ARG001
+            return PlainTextResponse("ok")
+
+        with (
+            patch(
+                "marimo._server.api.middleware.is_tracing_enabled",
+                return_value=True,
+            ),
+            patch("marimo._server.api.middleware.server_tracer", tracer),
+        ):
+            app = Starlette(
+                routes=[Route("/api/ai/chat", ai_response, methods=["POST"])]
+            )
+            app.add_middleware(OpenTelemetryMiddleware)
+            response = TestClient(app).post(
+                "/api/ai/chat",
+                headers={
+                    "Marimo-Session-Id": "eval-trial-123",
+                    "Marimo-AI-Eval-Run-Id": "run-123",
+                    "Marimo-AI-Eval-Scenario-Id": "scenario-123",
+                    "Marimo-AI-Eval-Turn": "2",
+                    "Marimo-AI-Eval-Trial-Id": "scenario-123-baseline-r001",
+                    "Marimo-AI-Eval-Variant-Id": "baseline",
+                    "Marimo-AI-Eval-Repetition": "1",
+                },
+            )
+
+        assert response.status_code == 200
+        attributes = dict(exporter.spans[0].attributes or {})
+        assert attributes["marimo.ai.session_id"] == "eval-trial-123"
+        assert attributes["gen_ai.conversation.id"] == "eval-trial-123"
+        assert attributes["marimo.ai.eval.run_id"] == "run-123"
+        assert attributes["marimo.ai.eval.scenario_id"] == "scenario-123"
+        assert attributes["marimo.ai.eval.turn"] == 2
+        assert attributes["marimo.ai.eval.trial_id"] == (
+            "scenario-123-baseline-r001"
+        )
+        assert attributes["marimo.ai.eval.variant_id"] == "baseline"
+        assert attributes["marimo.ai.eval.repetition"] == 1
 
     def test_noop_when_tracing_disabled(self) -> None:
         tracer, exporter = _setup_tracing()

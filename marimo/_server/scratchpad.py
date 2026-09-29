@@ -104,6 +104,7 @@ class ScratchCellListener(EventAwareExtension):
         self._run_id = run_id
         self.timed_out = False
         self.child_error_summaries: list[str] = []
+        self.child_stderr: list[str] = []
 
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
@@ -131,6 +132,17 @@ class ScratchCellListener(EventAwareExtension):
                 # Stream console output from cells run by _code_mode
                 # during this scratchpad execution.
                 self._queue.put_nowait(msg)
+                console_outputs = (
+                    msg.console
+                    if isinstance(msg.console, list)
+                    else [msg.console]
+                )
+                self.child_stderr.extend(
+                    str(output.data)
+                    for output in console_outputs
+                    if output is not None
+                    and output.channel == CellChannel.STDERR
+                )
             if (
                 msg.output is not None
                 and msg.output.channel == CellChannel.MARIMO_ERROR
@@ -149,8 +161,15 @@ class ScratchCellListener(EventAwareExtension):
                         getattr(err, "exception_type", None)
                         or type(err).__name__
                     )
+                    detail = str(getattr(err, "msg", "") or "").strip()
+                    if detail.startswith(f"{exc_type}:"):
+                        error = detail
+                    elif detail:
+                        error = f"{exc_type}: {detail}"
+                    else:
+                        error = exc_type
                     self.child_error_summaries.append(
-                        f"cell '{msg.cell_id}' raised {exc_type}"
+                        f"cell '{msg.cell_id}' raised {error}"
                     )
 
     async def stream(self) -> AsyncGenerator[str, None]:
@@ -318,6 +337,7 @@ def extract_result(
 
     # Include child cell error summaries.
     if listener:
+        stderr.extend(listener.child_stderr)
         errors.extend(listener.child_error_summaries)
 
     return CodeExecutionResult(

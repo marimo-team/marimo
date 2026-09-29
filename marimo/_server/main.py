@@ -18,6 +18,7 @@ from marimo._server.api.auth import (
     on_auth_error,
 )
 from marimo._server.api.middleware import (
+    TRACE_ID_HEADER,
     AuthBackend,
     OpenTelemetryMiddleware,
     ProxyMiddleware,
@@ -94,7 +95,7 @@ def create_starlette_app(
                 allow_credentials=allow_credentials,
                 allow_methods=["*"],
                 allow_headers=["*"],
-                expose_headers=["Content-Disposition"],
+                expose_headers=["Content-Disposition", TRACE_ID_HEADER],
             ),
         ]
     )

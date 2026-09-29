@@ -338,6 +338,8 @@ def start(
     log_level = "info" if development_mode else "error"
 
     lifespans_list = [
+        # Enter first so trace export is flushed after all other cleanup.
+        lifespans.tracing,
         lifespans.lsp,
         lifespans.mcp,
         lifespans.etc,

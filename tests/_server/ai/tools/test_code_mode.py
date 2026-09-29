@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
 from collections.abc import Awaitable, Callable
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -19,6 +20,86 @@ def test_build_execute_code_toolset_exposes_single_execute_code_tool() -> None:
     # The model is told how to use the tool via its description.
     assert tool.description
     assert "scratchpad" in tool.description
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_build_hybrid_toolset_exposes_editor_tools() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        build_hybrid_code_mode_toolset,
+    )
+
+    toolset = build_hybrid_code_mode_toolset(MagicMock(), MagicMock())
+
+    assert list(toolset.tools) == [
+        "execute_code",
+        "inspect_notebook",
+        "apply_notebook_patch",
+        "run_cells",
+        "manage_packages",
+        "set_ui_value",
+        "configure_notebook",
+    ]
+    assert (
+        "without changing cells" in toolset.tools["execute_code"].description
+    )
+    inspect_signature = inspect.signature(
+        toolset.tools["inspect_notebook"].function
+    )
+    assert list(inspect_signature.parameters) == ["scope"]
+
+
+def test_get_tool_strategy_defaults_to_code_mode() -> None:
+    from marimo._server.ai.tools.code_mode import get_tool_strategy
+
+    request = MagicMock()
+    request.headers = {}
+
+    assert get_tool_strategy(request) == "code_mode"
+
+
+def test_get_tool_strategy_rejects_legacy_hybrid_header() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        TOOL_STRATEGY_HEADER,
+        get_tool_strategy,
+    )
+
+    request = MagicMock()
+    request.headers = {TOOL_STRATEGY_HEADER: "hybrid"}
+
+    assert get_tool_strategy(request) == "code_mode"
+
+
+def test_get_tool_strategy_accepts_balanced_hybrid_header() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        TOOL_STRATEGY_HEADER,
+        get_tool_strategy,
+    )
+
+    request = MagicMock()
+    request.headers = {TOOL_STRATEGY_HEADER: "hybrid_balanced"}
+
+    assert get_tool_strategy(request) == "hybrid_balanced"
+
+
+def test_get_tool_strategy_rejects_unknown_header() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        TOOL_STRATEGY_HEADER,
+        get_tool_strategy,
+    )
+
+    request = MagicMock()
+    request.headers = {TOOL_STRATEGY_HEADER: "unknown"}
+
+    assert get_tool_strategy(request) == "code_mode"
+
+
+def test_hybrid_execute_code_rejects_code_mode_import() -> None:
+    from marimo._server.ai.tools.code_mode import _imports_code_mode
+
+    assert _imports_code_mode("import marimo._code_mode as cm")
+    assert _imports_code_mode("from marimo import _code_mode")
+    assert _imports_code_mode("from marimo._code_mode import get_context")
+    assert not _imports_code_mode("import marimo as mo")
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -62,6 +143,159 @@ async def test_execute_code_tool_routes_to_scratchpad_with_credentials() -> (
         server_url="http://localhost:2718",
         auth_token="secret-token",
     )
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_hybrid_patch_compiles_to_one_code_mode_transaction() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        NotebookCellPatch,
+        build_hybrid_code_mode_toolset,
+    )
+
+    session = MagicMock()
+    request = MagicMock()
+    sentinel_result = MagicMock(name="CodeExecutionResult")
+
+    with (
+        patch(
+            "marimo._server.ai.tools.code_mode.get_code_mode_credentials",
+            return_value=("http://localhost:2718", "secret-token"),
+        ),
+        patch(
+            "marimo._server.ai.tools.code_mode.run_scratchpad_code",
+            new_callable=AsyncMock,
+            return_value=sentinel_result,
+        ) as mock_run,
+    ):
+        toolset = build_hybrid_code_mode_toolset(session, request)
+        apply_notebook_patch = cast(
+            Callable[..., Awaitable[object]],
+            toolset.tools["apply_notebook_patch"].function,
+        )
+        result = await apply_notebook_patch(
+            [
+                NotebookCellPatch(code="answer = 42", cell_id="cell-1"),
+                NotebookCellPatch(
+                    code="double = answer * 2",
+                    after_cell_id="cell-1",
+                ),
+            ],
+            delete_cell_ids=["cell-old"],
+        )
+
+    assert result is sentinel_result
+    source = mock_run.await_args.kwargs["code"]
+    assert "'cell_id': 'cell-1'" in source
+    assert "'code': 'answer = 42'" in source
+    assert "'code': 'double = answer * 2'" in source
+    assert "_ctx.edit_cell(" in source
+    assert "_ctx.create_cell(" in source
+    assert "_ctx.delete_cell(_cell_id)" in source
+    assert "[*_stale_ids, *_edited_ids, *_created_ids]" in source
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_hybrid_patch_rejects_conflicting_operations() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        NotebookCellPatch,
+        build_hybrid_code_mode_toolset,
+    )
+
+    toolset = build_hybrid_code_mode_toolset(MagicMock(), MagicMock())
+    apply_notebook_patch = cast(
+        Callable[..., Awaitable[object]],
+        toolset.tools["apply_notebook_patch"].function,
+    )
+
+    result = await apply_notebook_patch(
+        [NotebookCellPatch(code="answer = 42", cell_id="cell-1")],
+        delete_cell_ids=["cell-1"],
+    )
+
+    assert result.success is False
+    assert result.errors == ["Patch has conflicting cell operations: cell-1"]
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_balanced_tools_compile_to_code_mode_operations() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        NotebookCellConfiguration,
+        build_hybrid_code_mode_toolset,
+    )
+
+    with (
+        patch(
+            "marimo._server.ai.tools.code_mode.get_code_mode_credentials",
+            return_value=("http://localhost:2718", "secret-token"),
+        ),
+        patch(
+            "marimo._server.ai.tools.code_mode.run_scratchpad_code",
+            new_callable=AsyncMock,
+        ) as mock_run,
+    ):
+        toolset = build_hybrid_code_mode_toolset(MagicMock(), MagicMock())
+        manage_packages = cast(
+            Callable[..., Awaitable[object]],
+            toolset.tools["manage_packages"].function,
+        )
+        set_ui_value = cast(
+            Callable[..., Awaitable[object]],
+            toolset.tools["set_ui_value"].function,
+        )
+        configure_notebook = cast(
+            Callable[..., Awaitable[object]],
+            toolset.tools["configure_notebook"].function,
+        )
+
+        await manage_packages(add=["local.whl"], remove=["old-package"])
+        package_source = mock_run.await_args.kwargs["code"]
+        await set_ui_value("multiplier", 4)
+        ui_source = mock_run.await_args.kwargs["code"]
+        await configure_notebook(
+            [
+                NotebookCellConfiguration(
+                    cell_id="chart",
+                    expand_output=True,
+                    move_after_cell_id="summary",
+                )
+            ]
+        )
+        configuration_source = mock_run.await_args.kwargs["code"]
+
+    assert "_ctx.packages.add(_packages_to_add)" in package_source
+    assert "_ctx.packages.remove(_packages_to_remove)" in package_source
+    assert (
+        "_ctx.set_ui_value(_ctx.globals[_variable_name], _value)" in ui_source
+    )
+    assert "_ctx.edit_cell(_cell_id, **_overrides)" in configuration_source
+    assert "after=_configuration['move_after_cell_id']" in configuration_source
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_configure_notebook_rejects_ambiguous_move() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        NotebookCellConfiguration,
+        build_hybrid_code_mode_toolset,
+    )
+
+    toolset = build_hybrid_code_mode_toolset(MagicMock(), MagicMock())
+    configure_notebook = cast(
+        Callable[..., Awaitable[object]],
+        toolset.tools["configure_notebook"].function,
+    )
+
+    result = await configure_notebook(
+        [
+            NotebookCellConfiguration(
+                cell_id="chart",
+                move_before_cell_id="summary",
+                move_after_cell_id="summary",
+            )
+        ]
+    )
+
+    assert result.success is False
+    assert result.errors == ["Cells cannot move both before and after: chart"]
 
 
 @pytest.mark.requires("pydantic_ai")

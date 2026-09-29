@@ -25,6 +25,7 @@ class SpanInfo:
     mode: CopilotMode | None = None
     language: str | None = None
     session_id: str | None = None
+    conversation_id: str | None = None
     tool_count: int | None = None
 
 
@@ -41,6 +42,8 @@ def build_attributes(span_info: SpanInfo) -> dict[str, AttributeValue]:
         attributes["marimo.ai.language"] = span_info.language
     if span_info.session_id:
         attributes["marimo.ai.session_id"] = span_info.session_id
+    if span_info.conversation_id:
+        attributes["gen_ai.conversation.id"] = span_info.conversation_id
     if span_info.tool_count is not None:
         attributes["marimo.ai.tool_count"] = span_info.tool_count
     return attributes

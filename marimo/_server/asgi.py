@@ -573,6 +573,7 @@ def create_asgi_app(
                 lifespan=Lifespans(
                     [
                         # Not all lifespans are needed for run mode
+                        lifespans.tracing,
                         lifespans.etc,
                         lifespans.signal_handler,
                         *LIFESPAN_REGISTRY.get_all(),

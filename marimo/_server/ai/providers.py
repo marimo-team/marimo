@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace
 from typing import (
     TYPE_CHECKING,
+    Any,
     Generic,
     Literal,
     TypeVar,
@@ -80,12 +81,15 @@ if TYPE_CHECKING:
         BaseGoogleProvider as PydanticGoogleProvider,
     )
     from pydantic_ai.providers.openai import OpenAIProvider as PydanticOpenAI
+    from pydantic_ai.run import AgentRunResult
     from pydantic_ai.settings import ModelSettings, ThinkingLevel
     from pydantic_ai.toolsets import AbstractToolset
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
     from pydantic_ai.ui.vercel_ai.response_types import (
+        BaseChunk,
         FinishReason as VercelFinishReason,
     )
+    from pydantic_ai.usage import RunUsage
     from starlette.requests import Request
     from starlette.responses import StreamingResponse
 
@@ -101,6 +105,7 @@ class StreamOptions:
     text_only: bool = False
     format_stream: bool = False
     accept: str | None = None
+    include_usage: bool = False
 
 
 @dataclass(frozen=True)
@@ -129,6 +134,30 @@ def _structured_completion_finish_reason(
             # Preserve the stream if Pydantic AI adds a new finish reason.
             log_never(finish_reason)
             return "other"
+
+
+async def _stream_usage(
+    result: AgentRunResult[Any],
+) -> AsyncIterator[BaseChunk]:
+    """Expose complete run usage to callers that explicitly request it."""
+    from pydantic_ai.ui.vercel_ai.response_types import DataChunk
+
+    yield DataChunk(
+        type="data-marimo-usage",
+        data=_usage_data(result.usage),
+        transient=True,
+    )
+
+
+def _usage_data(usage: RunUsage) -> dict[str, int]:
+    return {
+        "requests": usage.requests,
+        "input_tokens": usage.input_tokens,
+        "output_tokens": usage.output_tokens,
+        "reasoning_tokens": usage.details.get("reasoning_tokens", 0),
+        "cache_read_tokens": usage.cache_read_tokens,
+        "cache_write_tokens": usage.cache_write_tokens,
+    }
 
 
 class PydanticProvider(ABC, Generic[ProviderT_co]):
@@ -237,7 +266,6 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         from pydantic_ai.ui.vercel_ai import VercelAIAdapter
         from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
         from pydantic_ai.ui.vercel_ai.response_types import (
-            BaseChunk,
             DataChunk,
             DoneChunk,
             ErrorChunk,
@@ -257,7 +285,8 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         stream_options.span_info.tool_count = 0
 
         run_input = SubmitMessage(
-            id=generate_id("submit-message"),
+            id=stream_options.span_info.conversation_id
+            or generate_id("submit-message"),
             trigger="submit-message",
             messages=self.convert_messages(messages),
         )
@@ -287,6 +316,13 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
                         data=data,
                         transient=True,
                     )
+
+            if stream_options.include_usage:
+                yield DataChunk(
+                    type="data-marimo-usage",
+                    data=_usage_data(result.usage),
+                    transient=True,
+                )
 
             yield FinishStepChunk()
             yield FinishChunk(
@@ -385,7 +421,8 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
 
         run_input = SubmitMessage(
-            id=generate_id("submit-message"),
+            id=stream_options.span_info.conversation_id
+            or generate_id("submit-message"),
             trigger="submit-message",
             messages=self.convert_messages(messages),
         )
@@ -395,7 +432,9 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             accept=stream_options.accept,
             sdk_version=AI_SDK_VERSION,
         )
-        event_stream = adapter.run_stream()
+        event_stream = adapter.run_stream(
+            on_complete=_stream_usage if stream_options.include_usage else None
+        )
         event_stream = trace_stream(event_stream, stream_options.span_info)
         return adapter.streaming_response(event_stream)
 
@@ -429,6 +468,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             result = await agent.run(
                 user_prompt=None,
                 message_history=VercelAIAdapter.load_messages(messages),
+                conversation_id=span_info.conversation_id,
                 model_settings={"thinking": thinking}
                 if thinking is not None
                 else None,
@@ -450,21 +490,28 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         """Return code-mode streaming responses"""
         from marimo._server.ai.tools.code_mode import (
             build_execute_code_toolset,
+            build_hybrid_code_mode_toolset,
+            get_tool_strategy,
             references_capability,
         )
+
+        tool_strategy = get_tool_strategy(request)
+        if tool_strategy == "hybrid_balanced":
+            toolset = build_hybrid_code_mode_toolset(session, request)
+        else:
+            toolset = build_execute_code_toolset(session, request)
 
         agent = self.create_agent(
             name=stream_options.span_info.endpoint,
             max_tokens=max_tokens,
             tools=[],
-            toolsets=[build_execute_code_toolset(session, request)],
+            toolsets=[toolset],
             extra_capabilities=references_capability(),
             enable_capabilities=enable_capabilities,
             system_prompt=system_prompt,
         )
 
-        # One for the execute code toolset, plus the agent's native capabilities
-        stream_options.span_info.tool_count = 1 + len(
+        stream_options.span_info.tool_count = len(toolset.tools) + len(
             agent.root_capability.capabilities
         )
 

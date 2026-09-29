@@ -60,6 +60,7 @@ if TYPE_CHECKING:
 
 # Taken from pydantic_ai.ui import SSE_CONTENT_TYPE
 SSE_CONTENT_TYPE = "text/event-stream"
+INCLUDE_USAGE_HEADER = "Marimo-AI-Include-Usage"
 
 
 LOGGER = _loggers.marimo_logger()
@@ -162,10 +163,11 @@ async def ai_completion(
     )
 
     model = get_edit_model(ai_config)
+    conversation_id = body.id or f"{session_id}:completion"
     provider = get_completion_provider(
         get_provider_config(model, config),
         model=model,
-        session_id=body.id or f"{session_id}:completion",
+        session_id=conversation_id,
     )
 
     # These models require the optional Pydantic AI dependency checked above.
@@ -192,12 +194,16 @@ async def ai_completion(
         output_type=output_type,
         data_type=data_type,
         stream_options=StreamOptions(
+            include_usage=(
+                request.headers.get(INCLUDE_USAGE_HEADER) == "true"
+            ),
             span_info=SpanInfo(
                 endpoint="completion",
                 model=model,
                 language=body.language,
                 session_id=session_id,
-            )
+                conversation_id=conversation_id,
+            ),
         ),
     )
 
@@ -235,20 +241,27 @@ async def ai_chat(
     custom_rules = ai_config.get("rules", None)
 
     mode: CopilotMode = ai_config.get("mode", "manual")
+    tool_strategy: Literal["code_mode", "hybrid_balanced"] = "code_mode"
+    if mode == "code_mode":
+        from marimo._server.ai.tools.code_mode import get_tool_strategy
+
+        tool_strategy = get_tool_strategy(request)
     system_prompt = get_chat_system_prompt(
         custom_rules=custom_rules,
         include_other_code=body.include_other_code,
         mode=mode,
         session_id=session_id,
+        tool_strategy=tool_strategy,
     )
 
     max_tokens = get_max_tokens(config)
 
     model = body.model or get_chat_model(ai_config)
+    conversation_id = body.id or f"{session_id}:chat"
     provider = get_completion_provider(
         get_provider_config(model, config),
         model=model,
-        session_id=body.id or f"{session_id}:chat",
+        session_id=conversation_id,
     )
     additional_tools = body.tools or []
 
@@ -256,11 +269,13 @@ async def ai_chat(
         format_stream=True,
         text_only=False,
         accept=accept,
+        include_usage=request.headers.get(INCLUDE_USAGE_HEADER) == "true",
         span_info=SpanInfo(
             endpoint="chat",
             model=model,
             mode=mode,
             session_id=session_id,
+            conversation_id=conversation_id,
         ),
     )
     enable_capabilities = body.options.web_search
@@ -353,6 +368,7 @@ async def ai_inline_completion(
                 model=model,
                 language=body.language,
                 session_id=session_id,
+                conversation_id=f"{session_id}:inline_completion",
             ),
         )
     except Exception as e:

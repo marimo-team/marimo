@@ -23,6 +23,7 @@ Usage::
 
 from __future__ import annotations
 
+import keyword
 import sys
 from dataclasses import dataclass
 from enum import Enum
@@ -108,6 +109,16 @@ if TYPE_CHECKING:
     from marimo._code_mode.screenshot import _ScreenshotSession
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
+
+
+def _validate_cell_name(name: str | None) -> None:
+    if name is None or name == "":
+        return
+    if not name.isidentifier() or keyword.iskeyword(name):
+        raise ValueError(
+            f"Invalid cell name {name!r}. Cell names must be valid Python "
+            "identifiers, such as 'load_data'."
+        )
 
 
 @helpable
@@ -1100,15 +1111,17 @@ class AsyncCodeModeContext:
             expand_output (bool): Show the cell's output in full instead of
                 clamping it to a fixed height. Defaults to False.
             column (int, optional): Column index for multi-column layouts.
-            name (str, optional): Cell names are a human-facing label,
-                reserved for special cases (e.g. `"setup"`). Prefer
-                referencing cells by the returned cell ID unless
-                naming is important for the user.
+            name (str, optional): Stable cell name. Must be a valid Python
+                identifier, such as `"load_data"`; display titles with spaces
+                are not valid names. Reserved for special cases (for example,
+                `"setup"`). Prefer the returned cell ID unless naming is
+                important.
         """
         self._require_entered()
         if before is not None and after is not None:
             raise ValueError("Cannot specify both 'before' and 'after'")
 
+        _validate_cell_name(name)
         cell_id, resolved_name = self._resolve_new_cell(name)
 
         config = CellConfig(
@@ -1202,9 +1215,12 @@ class AsyncCodeModeContext:
             expand_output (bool, optional): Show the cell's output in full
                 instead of clamping it to a fixed height. None keeps existing.
             column (int, optional): Column index for multi-column layouts. None keeps existing.
-            name (str, optional): New name for the cell. None keeps existing.
+            name (str, optional): New stable cell name. Must be a valid Python
+                identifier, such as `"analysis_summary"`; display titles with
+                spaces are not valid names. None keeps the existing name.
         """
         self._require_entered()
+        _validate_cell_name(name)
         cell_id = self._resolve_target(target)
 
         # Handle cell-id migration when converting to a setup cell.

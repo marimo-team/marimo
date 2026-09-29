@@ -11,6 +11,16 @@ from marimo._server.api import lifespans
 from marimo._session.model import SessionMode
 
 
+async def test_tracing_flushes_after_lifespan_shutdown() -> None:
+    with patch.object(
+        lifespans, "force_flush_traces", return_value=True
+    ) as force_flush:
+        async with lifespans.tracing(MagicMock()):
+            force_flush.assert_not_called()
+
+    force_flush.assert_called_once_with()
+
+
 async def test_browser_launch_does_not_block_event_loop_or_lifespan() -> None:
     state = MagicMock()
     state.headless = False

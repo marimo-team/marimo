@@ -25,7 +25,6 @@ from starlette.background import BackgroundTask
 from starlette.middleware.base import (
     BaseHTTPMiddleware,
     DispatchFunction,
-    RequestResponseEndpoint,
 )
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
@@ -45,9 +44,17 @@ from marimo._utils.print import print_tabbed
 if TYPE_CHECKING:
     from starlette.datastructures import State
     from starlette.requests import HTTPConnection
-    from starlette.types import ASGIApp, Receive, Scope, Send
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 LOGGER = _loggers.marimo_logger()
+
+TRACE_ID_HEADER = "X-Marimo-Trace-Id"
+_EVAL_RUN_HEADER = "Marimo-AI-Eval-Run-Id"
+_EVAL_SCENARIO_HEADER = "Marimo-AI-Eval-Scenario-Id"
+_EVAL_TURN_HEADER = "Marimo-AI-Eval-Turn"
+_EVAL_TRIAL_HEADER = "Marimo-AI-Eval-Trial-Id"
+_EVAL_VARIANT_HEADER = "Marimo-AI-Eval-Variant-Id"
+_EVAL_REPETITION_HEADER = "Marimo-AI-Eval-Repetition"
 
 
 def _handle_proxy_connection_error(
@@ -173,11 +180,16 @@ class SkewProtectionMiddleware:
         return await self.app(scope, receive, send)
 
 
-class OpenTelemetryMiddleware(BaseHTTPMiddleware):
-    def __init__(
-        self, app: ASGIApp, dispatch: DispatchFunction | None = None
-    ) -> None:
-        super().__init__(app, dispatch)
+class OpenTelemetryMiddleware:
+    """Trace the complete lifetime of each HTTP request.
+
+    This is pure ASGI middleware instead of `BaseHTTPMiddleware` so a request
+    span remains current while a streaming response sends its body. AI model
+    and tool spans created by the stream therefore inherit the request span.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
 
         self._tracing_enabled = is_tracing_enabled()
         if not self._tracing_enabled:
@@ -191,35 +203,84 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
         self.Status = Status
         self.StatusCode = StatusCode
 
-    async def dispatch(
+    async def __call__(
         self,
-        request: Request,
-        call_next: RequestResponseEndpoint,
-    ) -> Response:
-        if not self._tracing_enabled:
-            return await call_next(request)
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        if not self._tracing_enabled or scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
         from opentelemetry.propagate import extract
 
+        request = Request(scope)
         ctx = extract(carrier=request.headers)
+
+        attributes: dict[str, str | int] = {
+            "http.method": request.method,
+            "http.target": request.url.path or "",
+        }
+        session_id = request.headers.get("Marimo-Session-Id")
+        if session_id and request.url.path.startswith("/api/ai/"):
+            attributes["marimo.ai.session_id"] = session_id
+            if session_id.startswith("eval-"):
+                attributes["gen_ai.conversation.id"] = session_id
+                run_id = request.headers.get(_EVAL_RUN_HEADER)
+                scenario_id = request.headers.get(_EVAL_SCENARIO_HEADER)
+                turn = request.headers.get(_EVAL_TURN_HEADER)
+                trial_id = request.headers.get(_EVAL_TRIAL_HEADER)
+                variant_id = request.headers.get(_EVAL_VARIANT_HEADER)
+                repetition = request.headers.get(_EVAL_REPETITION_HEADER)
+                if run_id:
+                    attributes["marimo.ai.eval.run_id"] = run_id[:200]
+                if scenario_id:
+                    attributes["marimo.ai.eval.scenario_id"] = scenario_id[
+                        :200
+                    ]
+                if turn and turn.isdecimal():
+                    attributes["marimo.ai.eval.turn"] = int(turn)
+                if trial_id:
+                    attributes["marimo.ai.eval.trial_id"] = trial_id[:200]
+                if variant_id:
+                    attributes["marimo.ai.eval.variant_id"] = variant_id[:200]
+                if repetition and repetition.isdecimal():
+                    attributes["marimo.ai.eval.repetition"] = int(repetition)
 
         with server_tracer.start_as_current_span(
             f"{request.method} {request.url.path}",
             kind=self.trace.SpanKind.SERVER,
             context=ctx,
-            attributes={
-                "http.method": request.method,
-                "http.target": request.url.path or "",
-            },
+            attributes=attributes,
         ) as span:
+            span_context = span.get_span_context()
+            trace_id = (
+                format(span_context.trace_id, "032x")
+                if span_context.is_valid
+                else ""
+            )
+
+            async def send_with_trace_id(message: Message) -> None:
+                if message["type"] == "http.response.start":
+                    span.set_attribute("http.status_code", message["status"])
+                    if trace_id:
+                        headers = list(message.get("headers", []))
+                        headers.append(
+                            (
+                                TRACE_ID_HEADER.lower().encode("ascii"),
+                                trace_id.encode("ascii"),
+                            )
+                        )
+                        message["headers"] = headers
+                await send(message)
+
             try:
-                response = await call_next(request)
-                span.set_attribute("http.status_code", response.status_code)
+                await self.app(scope, receive, send_with_trace_id)
                 span.set_status(self.Status(self.StatusCode.OK))
             except Exception as e:
                 span.set_status(self.Status(self.StatusCode.ERROR, str(e)))
                 raise
-            return response
 
 
 @dataclass
