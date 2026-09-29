@@ -125,14 +125,9 @@ def _check_modules(
     sys_modules: dict[str, types.ModuleType],
 ) -> dict[str, int]:
     """Returns the modules used by the graph that depend on a modified
-    module, each mapped to the reload generation a cell must have run under
-    to hold the modified code.
-
-    The kernel may have reloaded a modification before this poll noticed
-    it, and the dependency crawl below can take seconds, during which the
-    kernel may reload and rerun cells. Either way, the generation lets the
-    caller skip cells that already ran against the new code.
-    """
+    module, each mapped to the reload generation that holds the change."""
+    # NB. scan and read under one lock hold, so the generation matches the
+    # change this scan saw.
     with reloader.lock:
         modified_modules = reloader.check_for_watcher(modules=sys_modules)
         generations = {
@@ -157,8 +152,8 @@ def _check_modules(
                 excludes=excludes,
                 reloader=reloader,
             ):
-                # A module depending on several modified modules holds all
-                # of them only from the latest of their reloads.
+                # NB. a module with several modified targets holds them all
+                # only from the latest reload.
                 stale_modules[modname] = max(
                     stale_modules.get(modname, generation), generation
                 )
@@ -216,8 +211,7 @@ def watch_modules(
                 for modname, generation in stale_modules.items():
                     # prune definitions that are derived from stale modules
                     cell_id = modname_to_cell_id[modname]
-                    # Ran under the reload that brought the change in, or
-                    # a later one: its imports are current.
+                    # Reran with the new code, so its imports are current.
                     if reloader.cell_ran_at_or_after(cell_id, generation):
                         continue
                     cell = graph.cells[cell_id]

@@ -88,10 +88,9 @@ class AutoreloadManager:
     def cell_scope(self, cell_id: CellId_t | None) -> Iterator[None]:
         """Reload modified modules on entry; record mtimes for newly-imported modules on exit.
 
-        `cell_id` is the cell whose top-level code is about to run. Pass
-        `None` for other work done in a cell's context (UI callbacks, RPCs,
-        the debugger): modules still reload, but the cell is not recorded as
-        having rerun, so the watcher will still mark it stale.
+        `cell_id` is the cell whose top-level code runs inside the scope.
+        Pass `None` for other work in a cell's context, such as a UI
+        callback, to avoid recording a rerun.
         """
         if self._reloader is None:
             yield
@@ -99,15 +98,13 @@ class AutoreloadManager:
         snapshot = set(sys.modules)
         # Entry: skip stdlib/site-packages so cells don't pay for stat-ing
         # them. This is the perf-critical call.
-        # Reload and record under one lock hold: the watcher must never
-        # observe the reload without the record, or it would mark this
-        # cell stale while it is running against the new code.
+        # NB. one lock hold, so the watcher cannot see the reload before
+        # the record.
         with self._reloader.lock:
             self._reloader.check(
                 modules=sys.modules, reload=True, skip_non_user_modules=True
             )
             if cell_id is not None:
-                # The cell now runs against the freshly reloaded modules.
                 self._reloader.record_cell_run(cell_id)
         try:
             yield

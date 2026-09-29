@@ -430,7 +430,7 @@ class TestModuleReloaderMethods:
         self, tmp_path: pathlib.Path, py_modname: str
     ):
         """Until the kernel reloads an edit, only a future reload can bring
-        it in; after the reload, cells run under that generation hold it."""
+        it in. After the reload, cells run under that generation hold it."""
         sys.path.append(str(tmp_path))
         py_file = tmp_path / pathlib.Path(py_modname + ".py")
         py_file.write_text("x = 1")
@@ -579,11 +579,9 @@ class TestSkipCache:
     def test_watcher_mtimes_cleared_when_module_rebound(
         self, tmp_path: pathlib.Path, py_modname: str
     ):
-        # The watcher tracks its own baselines in `watcher_modules_mtimes`.
-        # A rebind must clear that map too, otherwise a replacement file
-        # with an older mtime, and every subsequent edit to it, stays
-        # invisible to the watcher until its timestamp passes the previous
-        # file's.
+        # A rebind must also clear the watcher's baseline, or the watcher
+        # misses a replacement file with an older mtime and every later
+        # edit until its mtime exceeds the old file's.
         sys.path.append(str(tmp_path))
         user_file = tmp_path / pathlib.Path(py_modname + ".py")
         user_file.write_text("x = 1")
@@ -601,8 +599,8 @@ class TestSkipCache:
         # Synthetic far-future baseline standing in for the old file's mtime.
         reloader.watcher_modules_mtimes[py_modname] = 1e12
 
-        # Rebind to the real user module; check() detects the rebind and
-        # must drop the watcher's baseline along with its own.
+        # Rebind to the real user module. check() detects the rebind and
+        # drops the watcher's baseline along with its own.
         sys.modules[py_modname] = user_mod
         reloader.check(sys.modules, reload=False)
         assert reloader.watcher_modules_mtimes.get(py_modname, 0) < 1e12

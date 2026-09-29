@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from reload_test_utils import random_modname, update_file
 
+import marimo._runtime.reload.module_watcher as mw
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.commands import UpdateUserConfigCommand
@@ -34,8 +35,6 @@ INTERVAL = 0.2
 @pytest.fixture(autouse=True)
 def _setup_test_sleep():
     """Automatically set up faster sleep interval for all tests in this module"""
-    import marimo._runtime.reload.module_watcher as mw
-
     old_interval = mw._TEST_SLEEP_INTERVAL
     mw._TEST_SLEEP_INTERVAL = INTERVAL
     yield
@@ -621,7 +620,6 @@ async def test_reload_function_in_import_block(
     assert k.globals["y"] == y
 
 
-@pytest.mark.flaky(reruns=3)
 async def test_reload_self_import_cycle(
     tmp_path: pathlib.Path,
     py_modname: str,
@@ -666,15 +664,7 @@ async def test_reload_self_import_cycle(
     assert k.globals["x"] == 10
     update_file(py_file, "def func(): return 2")
 
-    # wait for the watcher to pick up the change
-    retries = 0
-    while retries < 15:
-        await asyncio.sleep(INTERVAL)
-        retries += 1
-        if k.graph.cells[er_1.cell_id].stale:
-            break
-
-    assert k.graph.cells[er_1.cell_id].stale
+    assert await _wait_for(lambda: k.graph.cells[er_1.cell_id].stale)
     assert k.graph.cells[er_2.cell_id].stale
     await k.run_stale_cells()
     assert k.globals["x"] == 4
@@ -683,16 +673,11 @@ async def test_reload_self_import_cycle(
 def _park_watcher(
     monkeypatch: pytest.MonkeyPatch, reloader: ModuleReloader, modname: str
 ) -> tuple[threading.Event, threading.Event]:
-    """Hold the watcher before its next scan once it has an mtime baseline
+    """Pause the watcher before its next scan, once it has an mtime baseline
     for `modname`.
 
-    Returns `(parked, release)`: `parked` is set when the watcher is
-    waiting, and setting `release` lets it scan again. While parked, a
-    test can edit `modname` and run cells knowing the kernel, not the
-    watcher, will be first to see the edit.
+    `parked` is set while the watcher waits. Set `release` to let it scan.
     """
-    import marimo._runtime.reload.module_watcher as mw
-
     parked = threading.Event()
     release = threading.Event()
     real_check_modules = mw._check_modules
@@ -704,6 +689,27 @@ def _park_watcher(
         return real_check_modules(**kwargs)
 
     monkeypatch.setattr(mw, "_check_modules", gated)
+    return parked, release
+
+
+def _park_watcher_in_crawl(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[threading.Event, threading.Event]:
+    """Pause the watcher inside its dependency crawl, between detecting a
+    change and marking cells stale.
+
+    `parked` is set while the watcher waits. Set `release` to let it mark.
+    """
+    parked = threading.Event()
+    release = threading.Event()
+    real_depends_on = mw._depends_on
+
+    def held(**kwargs: Any) -> bool:
+        parked.set()
+        release.wait(timeout=10)
+        return real_depends_on(**kwargs)
+
+    monkeypatch.setattr(mw, "_depends_on", held)
     return parked, release
 
 
@@ -723,8 +729,8 @@ async def test_reload_self_import_cycle_race_with_other_cell(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """A cell run that reloads the edited module must not hide the edit
-    from the watcher: cells importing modules that depend on it still
-    need to be marked stale (#10191)."""
+    from the watcher. Cells that import dependents of the module are still
+    marked stale (#10191)."""
     k = execution_kernel
     sys.path.append(str(tmp_path))
 
@@ -768,7 +774,7 @@ async def test_reload_self_import_cycle_race_with_other_cell(
     parked, release = _park_watcher(monkeypatch, reloader, py_modname)
     assert await _wait_for(parked.is_set)
 
-    # The unrelated cell's run reloads the edited module first, consuming
+    # The unrelated cell's run reloads the edited module first and consumes
     # the mtime change the kernel tracks.
     update_file(py_file, "def func(): return 2")
     await k.run([exec_req.get_with_id(er_3.cell_id, "pass")])
@@ -1374,18 +1380,13 @@ async def test_watcher_does_not_restale_cells_rerun_after_reload(
     exec_req: ExecReqProvider,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A rerun that reloads a module must not be flagged stale afterwards.
+    """Cells that rerun while the watcher crawls dependencies are not marked
+    stale afterwards.
 
-    The watcher detects a modification, then crawls module dependencies
-    before marking cells stale. If the file changes again inside that gap
-    (format-on-save, a second save), the kernel may reload and rerun the
-    importing cells first; the watcher's late marking then flags cells that
-    are already fresh.
+    The gap between detection and marking can hold a second save, such as
+    format-on-save. The kernel then reloads and reruns the importing cells
+    before the watcher marks them.
     """
-    import threading
-
-    import marimo._runtime.reload.module_watcher as mw
-
     k = execution_kernel
     sys.path.append(str(tmp_path))
     py_file = tmp_path / pathlib.Path(py_modname + ".py")
@@ -1402,50 +1403,28 @@ async def test_watcher_does_not_restale_cells_rerun_after_reload(
     )
     assert k.globals["x"] == 1
 
-    # First edit: let the watcher mark the cells stale as usual.
+    # The watcher marks the first edit stale as usual.
     update_file(py_file, "def foo():\n    return 2\n")
-    for _ in range(25):
-        await asyncio.sleep(INTERVAL)
-        if k.graph.cells[er_1.cell_id].stale:
-            break
-    assert k.graph.cells[er_1.cell_id].stale
+    assert await _wait_for(lambda: k.graph.cells[er_1.cell_id].stale)
 
-    # Hold the watcher inside its dependency crawl so the kernel can reload
-    # and rerun before the watcher marks.
-    crawl_started = threading.Event()
-    release_crawl = threading.Event()
-    real_depends_on = mw._depends_on
+    parked, release = _park_watcher_in_crawl(monkeypatch)
 
-    def held_depends_on(**kwargs: Any) -> bool:
-        # Only park on the iteration that detected a modification.
-        if kwargs["target_modules"]:
-            crawl_started.set()
-            release_crawl.wait(timeout=10)
-        return real_depends_on(**kwargs)
-
-    monkeypatch.setattr(mw, "_depends_on", held_depends_on)
-
-    # Second edit: the watcher detects it and parks in the crawl.
+    # The watcher detects the second edit and parks in its crawl.
     update_file(py_file, "def foo():\n    return 3\n")
-    for _ in range(25):
-        await asyncio.sleep(INTERVAL)
-        if crawl_started.is_set():
-            break
-    assert crawl_started.is_set()
+    assert await _wait_for(parked.is_set)
 
     await k.run_stale_cells()
     assert k.globals["x"] == 3
     assert not k.graph.cells[er_1.cell_id].stale
     assert not k.graph.cells[er_2.cell_id].stale
 
-    release_crawl.set()
-    for _ in range(5):
-        await asyncio.sleep(INTERVAL)
+    release.set()
+    await asyncio.sleep(5 * INTERVAL)
 
     assert not k.graph.cells[er_1.cell_id].stale
     assert not k.graph.cells[er_2.cell_id].stale
-    # The late marking must not prune the import block's metadata either;
-    # otherwise its next run would needlessly rerun every descendant.
+    # The late marking must not prune the import block's metadata either.
+    # Otherwise its next run reruns every descendant.
     assert k.graph.cells[er_1.cell_id].import_workspace.imported_defs == {
         "foo"
     }
@@ -1458,13 +1437,8 @@ async def test_watcher_marks_cell_whose_context_ran_without_rerun(
     exec_req: ExecReqProvider,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """UI callbacks, RPCs and the debugger enter a cell's execution context
-    without rerunning its top-level code. That must not count as a rerun,
-    or the watcher would skip marking the cell stale."""
-    import threading
-
-    import marimo._runtime.reload.module_watcher as mw
-
+    """A UI callback enters the cell's execution context without running
+    its code. No rerun occurs, so the watcher still marks the cell stale."""
     k = execution_kernel
     sys.path.append(str(tmp_path))
     py_file = tmp_path / pathlib.Path(py_modname + ".py")
@@ -1475,37 +1449,18 @@ async def test_watcher_marks_cell_whose_context_ran_without_rerun(
     k.set_user_config(UpdateUserConfigCommand(config=config))
     await k.run([er_1 := exec_req.get(f"from {py_modname} import foo")])
 
-    crawl_started = threading.Event()
-    release_crawl = threading.Event()
-    real_depends_on = mw._depends_on
-
-    def held_depends_on(**kwargs: Any) -> bool:
-        if kwargs["target_modules"]:
-            crawl_started.set()
-            release_crawl.wait(timeout=10)
-        return real_depends_on(**kwargs)
-
-    monkeypatch.setattr(mw, "_depends_on", held_depends_on)
-
+    parked, release = _park_watcher_in_crawl(monkeypatch)
     update_file(py_file, "def foo():\n    return 2\n")
-    for _ in range(25):
-        await asyncio.sleep(INTERVAL)
-        if crawl_started.is_set():
-            break
-    assert crawl_started.is_set()
+    assert await _wait_for(parked.is_set)
 
-    # Non-cell work in the cell's context: reloads, but the cell's code
-    # did not rerun.
+    # Non-cell work in the cell's context reloads modules but does not
+    # rerun the cell.
     with k._install_execution_context(er_1.cell_id):
         pass
     assert not k.graph.cells[er_1.cell_id].stale
 
-    release_crawl.set()
-    for _ in range(25):
-        await asyncio.sleep(INTERVAL)
-        if k.graph.cells[er_1.cell_id].stale:
-            break
-    assert k.graph.cells[er_1.cell_id].stale
+    release.set()
+    assert await _wait_for(lambda: k.graph.cells[er_1.cell_id].stale)
 
 
 async def test_watcher_skips_cell_that_reran_before_its_poll(
@@ -1518,10 +1473,9 @@ async def test_watcher_skips_cell_that_reran_before_its_poll(
     """Edit a module, then rerun its importing cell before the watcher
     polls.
 
-    The rerun reloads the module, so the cell already holds the new code.
-    The watcher still notices the edit against its own mtime baseline; it
-    must leave that cell, its imported definitions, and its descendants
-    alone.
+    The rerun reloads the module, so the cell holds the new code. The
+    watcher sees the edit against its own mtime baseline but leaves that
+    cell, its imported definitions, and its descendants alone.
     """
     k = execution_kernel
     sys.path.append(str(tmp_path))
@@ -1553,7 +1507,7 @@ async def test_watcher_skips_cell_that_reran_before_its_poll(
     assert not k.graph.cells[er_2.cell_id].stale
 
     release.set()
-    # Wait until the watcher has scanned the edit, then give it a poll to
+    # Wait until the watcher scans the edit, then give it one poll to
     # finish marking.
     assert await _wait_for(
         lambda: (
@@ -1581,8 +1535,6 @@ async def test_watcher_marks_descendant_when_import_cell_did_not_rerun(
 ):
     """A descendant that reruns before the watcher marks still reads the
     importing cell's old binding, so it must be marked stale with it."""
-    import marimo._runtime.reload.module_watcher as mw
-
     k = execution_kernel
     sys.path.append(str(tmp_path))
     py_file = tmp_path / pathlib.Path(py_modname + ".py")
@@ -1599,26 +1551,16 @@ async def test_watcher_marks_descendant_when_import_cell_did_not_rerun(
     )
     assert k.globals["y"] == 1
 
-    crawl_started = threading.Event()
-    release_crawl = threading.Event()
-    real_depends_on = mw._depends_on
-
-    def held_depends_on(**kwargs: Any) -> bool:
-        crawl_started.set()
-        release_crawl.wait(timeout=10)
-        return real_depends_on(**kwargs)
-
-    monkeypatch.setattr(mw, "_depends_on", held_depends_on)
-
+    parked, release = _park_watcher_in_crawl(monkeypatch)
     update_file(py_file, "value = 2\n")
-    assert await _wait_for(crawl_started.is_set)
+    assert await _wait_for(parked.is_set)
 
     # Only the descendant reruns. Its run reloads the module, but it still
     # reads the import cell's old binding.
     await k.run([exec_req.get_with_id(er_2.cell_id, "y = value")])
     assert k.globals["y"] == 1
 
-    release_crawl.set()
+    release.set()
     assert await _wait_for(lambda: k.graph.cells[er_1.cell_id].stale)
     assert k.graph.cells[er_2.cell_id].stale
 

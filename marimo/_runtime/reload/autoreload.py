@@ -210,17 +210,14 @@ class ModuleReloader:
         self.modules_mtimes: dict[str, float] = {}
         # set of modules names known to be stale but haven't been reloaded
         self.stale_modules: set[str] = set()
-        # Bumped on every reload. Cells record the generation they ran
-        # under so the watcher can tell a cell rerun after a reload apart
-        # from one that still holds the old code.
+        # Incremented once per reload. Cells record the generation they
+        # ran under.
         self.reload_generation = 0
         self._cell_generations: dict[CellId_t, int] = {}
-        # source path -> (mtime, generation) of its last successful reload.
-        # Lets the watcher tell whether a change it notices was already
-        # reloaded by the kernel, and if so under which generation.
+        # source path -> (mtime, generation) of its last successful reload
         self._reloaded_sources: dict[str, tuple[float, int]] = {}
-        # for thread-safety; reentrant so callers can compose `check` with
-        # a read of `reload_generation` atomically.
+        # NB. reentrant, so a caller can hold it across a reload and the
+        # bookkeeping that follows.
         self.lock = threading.RLock()
         self._module_dependency_finder = ModuleDependencyFinder()
         # modname -> cached `__file__` for modules classified as non-user.
@@ -231,9 +228,9 @@ class ModuleReloader:
         # module shadowing an installed package).
         self._skip: dict[str, str | None] = {}
 
-        # module-name -> mtime observed by the module watcher. The watcher
-        # needs an independent baseline because a cell reload can advance
-        # `modules_mtimes` between watcher polls.
+        # module name -> mtime last seen by the module watcher
+        # NB. cell reloads advance `modules_mtimes` between watcher polls,
+        # so the watcher keeps its own baseline.
         self.watcher_modules_mtimes: dict[str, float] = {}
 
         # Timestamp existing modules
@@ -274,7 +271,7 @@ class ModuleReloader:
         return ModuleMTime(py_filename, pymtime)
 
     def record_cell_run(self, cell_id: CellId_t) -> None:
-        """Note that `cell_id` is running against the current generation."""
+        """Record that `cell_id` runs under the current generation."""
         with self.lock:
             self._cell_generations[cell_id] = self.reload_generation
 
@@ -289,19 +286,15 @@ class ModuleReloader:
             return self._cell_generations.get(cell_id, 0) >= generation
 
     def required_generation(self, module: types.ModuleType) -> int:
-        """The generation a cell must have run under to hold `module`'s
-        current source.
-
-        If the kernel already reloaded the source now on disk, that is the
-        generation of that reload. Otherwise no cell holds it yet, and the
-        answer is the next generation, which the reload will bump to.
-        """
+        """The generation a cell must have run under to hold the source of
+        `module` now on disk."""
         with self.lock:
             module_mtime = self.filename_and_mtime(module)
             if module_mtime is None:
                 return self.reload_generation + 1
             reloaded = self._reloaded_sources.get(module_mtime.name)
             if reloaded is None or reloaded[0] != module_mtime.mtime:
+                # NB. not reloaded yet, so only the next reload brings it in.
                 return self.reload_generation + 1
             return reloaded[1]
 
@@ -475,13 +468,9 @@ class ModuleReloader:
     def check_for_watcher(
         self, modules: dict[str, types.ModuleType]
     ) -> set[types.ModuleType]:
-        """Check modules against the watcher's independent mtime baseline.
-
-        A single scan updates the normal reload state and returns modules that
-        changed since the previous watcher poll. This prevents cell reloads
-        from consuming changes before the watcher can compute transitive
-        staleness.
-        """
+        """Return modules that changed since the previous watcher poll."""
+        # NB. one scan updates both mtime baselines, so each module is
+        # stat-ed once per poll.
         return self._check(
             modules,
             reload=False,

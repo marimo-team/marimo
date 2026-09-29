@@ -840,6 +840,9 @@ class Kernel:
                 ...
         except KeyboardInterrupt:
             ...
+
+        `is_cell_run` is True only when the cell's own code runs, so that
+        autoreload records the run.
         """
         ctx = get_context()
         assert isinstance(ctx, KernelRuntimeContext)
