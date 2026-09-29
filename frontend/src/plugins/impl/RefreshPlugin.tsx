@@ -72,16 +72,17 @@ const OFF = "off";
 
 let count = 0;
 
-const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
+const RefreshComponent = (props: IPluginProps<Value, Data>) => {
+  const defaultInterval = props.data.defaultInterval;
+  const selectionKey = `${typeof defaultInterval}:${defaultInterval ?? OFF}`;
+  return <RefreshContent key={selectionKey} {...props} />;
+};
+
+const RefreshContent = ({ setValue, data }: IPluginProps<Value, Data>) => {
   // internal selection
   const [selected, setSelected] = useState<string | number>(
     data.defaultInterval ?? OFF,
   );
-
-  // reset selection when defaultInterval changes
-  useEffect(() => {
-    setSelected(data.defaultInterval ?? OFF);
-  }, [data.defaultInterval]);
 
   const [spin, setSpin] = useState(false);
 
