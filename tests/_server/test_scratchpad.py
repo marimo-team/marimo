@@ -666,6 +666,32 @@ class TestScratchCellListener:
         assert name == "stderr"
         assert payload["data"] == "error trace\n"
 
+        assert listener.child_stderr == ["error trace\n"]
+
+    def test_captures_child_stderr_in_emission_order(self) -> None:
+        """Only stderr is retained, in its original notification order."""
+        from marimo._messaging.serde import serialize_kernel_message
+
+        listener = ScratchCellListener(run_id=_TEST_RUN_ID)
+        session = MagicMock()
+
+        notification = CellNotification(
+            cell_id="other_cell_id",
+            console=[
+                CellOutput.stderr("first error\n"),
+                CellOutput.stdout("ordinary output\n"),
+                CellOutput.stderr("second error\n"),
+            ],
+        )
+        listener.on_notification_sent(
+            session, serialize_kernel_message(notification)
+        )
+
+        assert listener.child_stderr == [
+            "first error\n",
+            "second error\n",
+        ]
+
     @pytest.mark.asyncio
     async def test_stream_cancelled_on_disconnect(self) -> None:
         """stream() can be cancelled externally (simulating client disconnect)."""
@@ -914,12 +940,33 @@ class TestRunScratchpadCode:
         assert lock_held_during_interrupt == [True]
 
     @pytest.mark.asyncio
-    async def test_child_cell_errors_flow_into_result_errors(self) -> None:
+    @pytest.mark.parametrize(
+        ("message", "expected_error"),
+        [
+            (
+                "division by zero",
+                "cell 'child-cell' raised ZeroDivisionError: division by zero",
+            ),
+            (
+                "ZeroDivisionError: division by zero",
+                "cell 'child-cell' raised ZeroDivisionError: division by zero",
+            ),
+            (
+                "ZeroDivisionError",
+                "cell 'child-cell' raised ZeroDivisionError",
+            ),
+            ("", "cell 'child-cell' raised ZeroDivisionError"),
+        ],
+    )
+    async def test_child_cell_diagnostics_flow_into_result(
+        self, message: str, expected_error: str
+    ) -> None:
         """End-to-end: child-cell errors captured by the listener during
-        execution must surface in `result.errors` — otherwise the AI
-        never learns its `run_cell` calls failed. This pins down the
-        `extract_result(session, listener)` plumbing as well; dropping
-        the `listener` arg silently loses every child-cell error."""
+        execution must surface in the result with their message and traceback.
+        Otherwise the AI learns only the exception type, not what failed or
+        where. This also pins down the `extract_result(session, listener)`
+        plumbing; dropping the listener silently loses every child-cell error.
+        """
         from marimo._types.ids import CellId_t
 
         session = _FakeSession()
@@ -941,10 +988,22 @@ class TestRunScratchpadCode:
         session.emit(
             CellNotification(
                 cell_id=CellId_t("child-cell"),
+                console=CellOutput.stderr(
+                    "Traceback (most recent call last):\n"
+                    '  File "<cell-child-cell>", line 2, in <module>\n'
+                    "    return 1 / 0\n"
+                    "           ~~^~~\n"
+                    "ZeroDivisionError: division by zero\n"
+                ),
+            )
+        )
+        session.emit(
+            CellNotification(
+                cell_id=CellId_t("child-cell"),
                 output=CellOutput.errors(
                     [
                         MarimoExceptionRaisedError(
-                            msg="division by zero",
+                            msg=message,
                             exception_type="ZeroDivisionError",
                             raising_cell=None,
                         )
@@ -964,7 +1023,16 @@ class TestRunScratchpadCode:
         )
 
         assert result.success is False
-        assert result.errors == ["cell 'child-cell' raised ZeroDivisionError"]
+        assert result.errors == [expected_error]
+        assert result.stderr == [
+            (
+                "Traceback (most recent call last):\n"
+                '  File "<cell-child-cell>", line 2, in <module>\n'
+                "    return 1 / 0\n"
+                "           ~~^~~\n"
+                "ZeroDivisionError: division by zero\n"
+            )
+        ]
 
     @pytest.mark.asyncio
     async def test_listener_registered_only_while_lock_held(self) -> None:
