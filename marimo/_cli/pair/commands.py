@@ -20,6 +20,7 @@ from marimo._cli.pair.client import (
     PairInputError,
     StableSessionUnsupportedError,
     StaleSessionError,
+    attach_participant,
     display_url,
     execute as execute_code,
     list_sessions,
@@ -211,6 +212,13 @@ class _DocsCommand(ColoredCommand):
       execute and notebook list command. Pass the path, not the file contents.
 
     \b
+    Agent identity:
+      Attach once with a participant ID and self-described harness metadata.
+      Pass the same --participant-id to later execute commands. The server
+      caches the metadata for that participant. Without --participant-id,
+      execute works as a regular Pair session.
+
+    \b
     Workflow:
       If no server is running, start one in the background:
         marimo edit <notebook.py> --no-token
@@ -293,6 +301,11 @@ def pair() -> None:
     help="Read the server token from a local file.",
 )
 @click.option(
+    "--participant-id",
+    metavar="ID",
+    help="Participant ID from marimo pair attach.",
+)
+@click.option(
     "-c",
     "code",
     help="Inline Python.",
@@ -314,6 +327,7 @@ def execute(
     url: str,
     session_id: str | None,
     token_file: Path | None,
+    participant_id: str | None,
     code: str | None,
     code_file: str | None,
     stream: bool,
@@ -344,6 +358,7 @@ def execute(
             stdout=sys.stdout,
             stderr=sys.stderr,
             stream=stream,
+            participant_id=participant_id,
         )
     except PairError as error:
         error_text, next_text = _failure_guidance(
@@ -387,6 +402,92 @@ def execute(
     click.echo(json.dumps(payload, indent=2))
     if not result.success:
         ctx.exit(1)
+
+
+@click.command(
+    cls=ColoredCommand,
+    help="Attach an agent and cache its self-described identity.",
+)
+@click.option("--url", required=True, metavar="URL", help="Server URL.")
+@click.option(
+    "--session",
+    "session_id",
+    metavar="ID",
+    help="Stable session_id from marimo pair notebook list.",
+)
+@click.option(
+    "--token-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    metavar="PATH",
+    help="Read the server token from a local file. Otherwise use MARIMO_TOKEN, if set.",
+)
+@click.option(
+    "--participant-id", required=True, metavar="ID", help="Stable agent ID."
+)
+@click.option(
+    "--harness-id",
+    default="unknown",
+    show_default=True,
+    metavar="ID",
+    help="Machine-readable harness ID.",
+)
+@click.option(
+    "--harness-name",
+    default="Agent",
+    show_default=True,
+    metavar="NAME",
+    help="Harness display name for one agent.",
+)
+@click.pass_context
+def attach(
+    ctx: click.Context,
+    url: str,
+    session_id: str | None,
+    token_file: Path | None,
+    participant_id: str,
+    harness_id: str,
+    harness_name: str,
+) -> None:
+    try:
+        token = load_token(token_file, os.environ)
+        if session_id is None:
+            session_id = resolve_session(url=url, token=token)
+        result = attach_participant(
+            url=url,
+            session_id=session_id,
+            token=token,
+            participant_id=participant_id,
+            harness_id=harness_id,
+            harness_name=harness_name,
+        )
+    except PairError as error:
+        error_text, next_text = _failure_guidance(
+            error, url=url, session_id=session_id
+        )
+        _emit_failure(
+            error_text, next_text, session_id=session_id, stream=False
+        )
+        ctx.exit(2)
+
+    click.echo(
+        json.dumps(
+            {
+                "attached": result.attached,
+                "record_created": result.record_created,
+                "cursor": result.cursor,
+                "session": {"id": session_id},
+                "participant": {
+                    "id": result.participant_id,
+                    "kind": result.kind,
+                    "harness": {
+                        "id": result.harness_id,
+                        "display_name": result.harness_name,
+                    },
+                },
+            },
+            indent=2,
+        )
+    )
 
 
 _TOKEN_NEXT = (
@@ -846,6 +947,7 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
 
 
 notebook.add_command(list_notebooks)
+pair.add_command(attach)
 pair.add_command(execute)
 pair.add_command(docs)
 pair.add_command(notebook)

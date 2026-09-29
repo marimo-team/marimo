@@ -6,12 +6,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from marimo._messaging.participants import HandoffPayload
+from marimo._messaging.participants import (
+    HandoffPayload,
+    HarnessMetadata,
+    ParticipantMetadata,
+)
 from marimo._session.participants import (
     HandoffTooLargeError,
     NoAttachedParticipantError,
     ParticipantConflictError,
     ParticipantLimits,
+    ParticipantNotFoundError,
     ParticipantRegistry,
     ParticipantRegistryClosedError,
 )
@@ -29,23 +34,35 @@ def payload(value: str = "error") -> HandoffPayload:
     )
 
 
+def metadata(
+    harness_id: str = "claude", display_name: str = "Claude Code"
+) -> ParticipantMetadata:
+    return ParticipantMetadata(
+        harness=HarnessMetadata(id=harness_id, display_name=display_name)
+    )
+
+
 async def test_record_survives_detach_and_resumes_delivery() -> None:
     registry = ParticipantRegistry()
-    first = await registry.attach("p1", harness="claude", kind="agent")
+    first = await registry.attach("p1", metadata=metadata())
     event = await registry.append_handoff(payload())
 
     detached = await registry.detach("p1")
     before_resume = await registry.delivery_status("p1", event.seq)
-    resumed = await registry.attach("p1", harness="changed", kind="human")
+    resumed = await registry.attach("p1")
     after_resume = await registry.delivery_status("p1", event.seq)
     result = await registry.read_events("p1")
 
-    assert first.cursor == 0
+    assert first.state.cursor == 0
+    assert first.record_created is True
     assert detached.attached is False
     assert before_resume == "not_delivered"
-    assert resumed.harness == "claude"
-    assert resumed.kind == "agent"
-    assert resumed.attached is True
+    assert resumed.state.harness == HarnessMetadata(
+        id="claude", display_name="Claude Code"
+    )
+    assert resumed.state.kind == "agent"
+    assert resumed.state.attached is True
+    assert resumed.record_created is False
     assert after_resume == "queued"
     assert result.events == (event,)
     assert result.cursor == event.seq
@@ -53,21 +70,39 @@ async def test_record_survives_detach_and_resumes_delivery() -> None:
     registry.close()
 
 
+async def test_resume_requires_known_record_and_keeps_harness() -> None:
+    registry = ParticipantRegistry()
+    with pytest.raises(ParticipantNotFoundError):
+        await registry.resume("p1")
+    assert await registry.current_state() is None
+
+    attached = await registry.attach("p1", metadata=metadata())
+    await registry.detach("p1")
+    resumed = await registry.resume("p1")
+
+    assert attached.record_created is True
+    assert resumed.harness == HarnessMetadata(
+        id="claude", display_name="Claude Code"
+    )
+    assert resumed.attached is True
+    registry.close()
+
+
 async def test_different_live_participant_is_rejected() -> None:
     registry = ParticipantRegistry()
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
 
     with pytest.raises(ParticipantConflictError) as error:
-        await registry.attach("p2", harness="codex", kind="agent")
+        await registry.attach("p2", metadata=metadata("codex", "Codex"))
 
-    assert error.value.holder_harness == "claude"
+    assert error.value.holder_display_name == "Claude Code"
     assert await registry.state("p2") is None
     registry.close()
 
 
 async def test_reads_use_cursor_since_and_limit() -> None:
     registry = ParticipantRegistry()
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     events = tuple(
         [
             await registry.append_handoff(payload(str(index)))
@@ -93,7 +128,7 @@ async def test_reads_use_cursor_since_and_limit() -> None:
 
 async def test_retention_drops_oldest_without_false_delivery() -> None:
     registry = ParticipantRegistry(retained_event_limit=2)
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     first = await registry.append_handoff(payload("first"))
     second = await registry.append_handoff(payload("second"))
     third = await registry.append_handoff(payload("third"))
@@ -108,7 +143,7 @@ async def test_retention_drops_oldest_without_false_delivery() -> None:
 
 async def test_delivered_history_can_be_evicted() -> None:
     registry = ParticipantRegistry(retained_event_limit=1)
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     first = await registry.append_handoff(payload("first"))
     await registry.read_events("p1")
 
@@ -121,28 +156,30 @@ async def test_delivered_history_can_be_evicted() -> None:
 
 async def test_inactive_record_bound_drops_oldest_on_attach() -> None:
     registry = ParticipantRegistry(inactive_record_limit=1)
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     await registry.detach("p1")
-    await registry.attach("p2", harness="codex", kind="agent")
+    await registry.attach("p2", metadata=metadata("codex", "Codex"))
     await registry.detach("p2")
 
-    current = await registry.attach("p3", harness="opencode", kind="agent")
+    current = await registry.attach(
+        "p3", metadata=metadata("opencode", "OpenCode")
+    )
 
     assert await registry.state("p1") is None
     assert await registry.state("p2") is not None
-    assert current.participant_id == "p3"
+    assert current.state.participant_id == "p3"
     registry.close()
 
 
 async def test_sequence_is_monotonic_per_participant() -> None:
     registry = ParticipantRegistry()
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     first = await registry.append_handoff(payload())
     await registry.detach("p1")
-    await registry.attach("p2", harness="codex", kind="agent")
+    await registry.attach("p2", metadata=metadata("codex", "Codex"))
     other = await registry.append_handoff(payload())
     await registry.detach("p2")
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     second = await registry.append_handoff(payload())
 
     assert (first.seq, second.seq) == (1, 2)
@@ -152,7 +189,7 @@ async def test_sequence_is_monotonic_per_participant() -> None:
 
 async def test_payload_cap_rejects_handoff_before_append() -> None:
     registry = ParticipantRegistry(payload_cap_bytes=150)
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
 
     with pytest.raises(HandoffTooLargeError):
         await registry.append_handoff(payload("x" * 100))
@@ -175,7 +212,7 @@ async def test_ttl_ends_attachment_but_keeps_record() -> None:
     registry = ParticipantRegistry(ttl_seconds=0.01)
     snapshots = []
     registry.set_presence_callback(snapshots.append)
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
 
     await asyncio.sleep(0.02)
 
@@ -190,10 +227,10 @@ async def test_ttl_ends_attachment_but_keeps_record() -> None:
 async def test_repeat_contact_renews_ttl() -> None:
     now = 0.0
     registry = ParticipantRegistry(ttl_seconds=120, clock=lambda: now)
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
 
     now = 100.0
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     now = 130.0
     renewed = await registry.current_state()
     now = 221.0
@@ -208,7 +245,7 @@ async def test_repeat_contact_renews_ttl() -> None:
 
 async def test_stream_delivers_retained_and_future_events() -> None:
     registry = ParticipantRegistry()
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     first = await registry.append_handoff(payload("first"))
     stream = registry.stream_events("p1")
 
@@ -227,7 +264,7 @@ async def test_stream_delivers_retained_and_future_events() -> None:
 
 async def test_detach_closes_event_stream() -> None:
     registry = ParticipantRegistry(sse_keepalive_seconds=60)
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     stream = registry.stream_events("p1")
     waiting = asyncio.create_task(anext(stream))
     await asyncio.sleep(0)
@@ -245,7 +282,7 @@ async def test_detach_closes_event_stream() -> None:
 
 async def test_session_close_closes_event_stream() -> None:
     registry = ParticipantRegistry(sse_keepalive_seconds=60)
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     stream = registry.stream_events("p1")
     waiting = asyncio.create_task(anext(stream))
     await asyncio.sleep(0)
@@ -258,7 +295,7 @@ async def test_session_close_closes_event_stream() -> None:
 
 async def test_replacement_stream_keeps_new_listener_active() -> None:
     registry = ParticipantRegistry(sse_keepalive_seconds=60)
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     first_stream = registry.stream_events("p1")
     first_waiting = asyncio.create_task(anext(first_stream))
     await asyncio.sleep(0)
@@ -280,7 +317,7 @@ async def test_replacement_stream_keeps_new_listener_active() -> None:
 
 async def test_event_stream_emits_keepalive_ticks() -> None:
     registry = ParticipantRegistry(sse_keepalive_seconds=0.01)
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     stream = registry.stream_events("p1")
 
     assert await anext(stream) is None
@@ -291,7 +328,7 @@ async def test_event_stream_emits_keepalive_ticks() -> None:
 
 async def test_inline_read_respects_budget_and_advances_cursor() -> None:
     registry = ParticipantRegistry(inline_budget_bytes=300)
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     token = await registry.begin_request("p1")
     assert token is not None
     first = await registry.append_handoff(payload("x" * 100))
@@ -310,7 +347,7 @@ async def test_inline_read_respects_budget_and_advances_cursor() -> None:
 
 async def test_inline_read_omits_detached_participant() -> None:
     registry = ParticipantRegistry()
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     token = await registry.begin_request("p1")
     assert token is not None
     event = await registry.append_handoff(payload())
@@ -325,12 +362,12 @@ async def test_inline_read_omits_detached_participant() -> None:
 
 async def test_stale_request_does_not_consume_after_reattach() -> None:
     registry = ParticipantRegistry()
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     stale_token = await registry.begin_request("p1")
     assert stale_token is not None
     event = await registry.append_handoff(payload())
     await registry.detach("p1")
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
 
     result = await registry.read_inline_events("p1", stale_token)
 
@@ -343,7 +380,7 @@ async def test_overlapping_requests_keep_activity_until_the_last_end() -> None:
     registry = ParticipantRegistry(wall_clock=lambda: 1_234.5)
     snapshots = []
     registry.set_presence_callback(snapshots.append)
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
 
     first = await registry.begin_request("p1")
     second = await registry.begin_request("p1")
@@ -366,7 +403,7 @@ async def test_overlapping_requests_keep_activity_until_the_last_end() -> None:
 
 async def test_request_end_after_detach_is_ignored() -> None:
     registry = ParticipantRegistry()
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     token = await registry.begin_request("p1")
     assert token is not None
 
@@ -384,14 +421,14 @@ async def test_presence_snapshot_fields_use_wall_time() -> None:
     registry = ParticipantRegistry(wall_clock=lambda: 1_234.5)
     registry.set_presence_callback(snapshots.append)
 
-    attached = await registry.attach("p1", harness="claude", kind="agent")
+    attached = await registry.attach("p1", metadata=metadata())
     detached = await registry.detach("p1")
 
-    assert snapshots == [attached, detached]
-    assert attached.last_contact_at == 1_234.5
-    assert attached.listening is False
-    assert attached.active is False
-    assert attached.active_since is None
+    assert snapshots == [attached.state, detached]
+    assert attached.state.last_contact_at == 1_234.5
+    assert attached.state.listening is False
+    assert attached.state.active is False
+    assert attached.state.active_since is None
     registry.close()
 
 
@@ -419,7 +456,7 @@ def test_registry_exposes_approved_default_limits() -> None:
 
 async def test_session_close_releases_participant_records() -> None:
     registry = ParticipantRegistry()
-    await registry.attach("p1", harness="claude", kind="agent")
+    await registry.attach("p1", metadata=metadata())
     session = SessionImpl(
         initialization_id="notebook.py",
         session_consumer=None,

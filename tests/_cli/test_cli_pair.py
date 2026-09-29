@@ -18,6 +18,7 @@ from marimo._cli.cli import main as cli_main
 from marimo._cli.pair import commands
 from marimo._cli.pair.client import (
     AmbiguousSessionError,
+    AttachmentResult,
     ExecutionResult,
     NoSessionError,
     PairError,
@@ -61,6 +62,12 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
   Authentication:
     If a token-file path is supplied, add --token-file <PATH> to every
     execute and notebook list command. Pass the path, not the file contents.
+
+  Agent identity:
+    Attach once with a participant ID and self-described harness metadata.
+    Pass the same --participant-id to later execute commands. The server
+    caches the metadata for that participant. Without --participant-id,
+    execute works as a regular Pair session.
 
   Workflow:
     If no server is running, start one in the background:
@@ -115,6 +122,7 @@ Options:
   -h, --help  Show this message and exit.
 
 Commands:
+  attach    Attach an agent and cache its...
   docs      Read notebook guidance on demand.
   execute   Run Python in a live notebook session.
   notebook  Find active notebooks and their sessions.
@@ -130,6 +138,80 @@ Commands:
         assert "--opencode" in result.output
         assert "--file" not in result.output
         assert "--session" in result.output
+
+
+class TestPairAttach:
+    def test_attach_reports_cached_identity(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[dict[str, Any]] = []
+
+        def fake_attach(**kwargs: Any) -> AttachmentResult:
+            calls.append(kwargs)
+            return AttachmentResult(
+                participant_id="p1",
+                cursor=0,
+                attached=True,
+                record_created=True,
+                kind="agent",
+                harness_id="pi",
+                harness_name="Pi",
+            )
+
+        monkeypatch.setattr(commands, "attach_participant", fake_attach)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "attach",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "--participant-id",
+                "p1",
+                "--harness-id",
+                "pi",
+                "--harness-name",
+                "Pi",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls == [
+            {
+                "url": TEST_URL,
+                "session_id": "session-1",
+                "token": None,
+                "participant_id": "p1",
+                "harness_id": "pi",
+                "harness_name": "Pi",
+            }
+        ]
+        assert json.loads(result.output)["record_created"] is True
+        assert json.loads(result.output)["participant"] == {
+            "id": "p1",
+            "kind": "agent",
+            "harness": {"id": "pi", "display_name": "Pi"},
+        }
+
+    def test_attach_has_no_model_options(self) -> None:
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "attach",
+                "--url",
+                TEST_URL,
+                "--participant-id",
+                "p1",
+                "--model-name",
+                "Kimi K3",
+            ],
+        )
+
+        assert result.exit_code == 2
+        assert "unexpected argument '--model-name'" in result.output
 
 
 class TestPairExecute:
@@ -154,15 +236,16 @@ Usage: main pair execute [OPTIONS]
   Run Python in the selected live notebook kernel's scratchpad.
 
 Options:
-  --url URL          Server URL.  [required]
-  --session ID       Stable session_id from marimo pair notebook list.
-  --token-file PATH  Read the server token from a local file.
-  -c TEXT            Inline Python.
-  --code-file PATH   Read Python from a UTF-8 file, or from stdin when PATH is
-                     '-'. Supply exactly one input option.
-  --stream           Write stdout and stderr as they arrive. Default: print one
-                     JSON result.
-  -h, --help         Show this message and exit.
+  --url URL            Server URL.  [required]
+  --session ID         Stable session_id from marimo pair notebook list.
+  --token-file PATH    Read the server token from a local file.
+  --participant-id ID  Participant ID from marimo pair attach.
+  -c TEXT              Inline Python.
+  --code-file PATH     Read Python from a UTF-8 file, or from stdin when PATH is
+                       '-'. Supply exactly one input option.
+  --stream             Write stdout and stderr as they arrive. Default: print
+                       one JSON result.
+  -h, --help           Show this message and exit.
 """)
 
     @pytest.mark.parametrize(

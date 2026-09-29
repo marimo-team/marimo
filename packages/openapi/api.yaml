@@ -2781,6 +2781,18 @@ components:
       - user
       title: HTTPRequest
       type: object
+    HarnessMetadata:
+      description: Harness identity supplied by the participant.
+      properties:
+        displayName:
+          type: string
+        id:
+          type: string
+      required:
+      - id
+      - displayName
+      title: HarnessMetadata
+      type: object
     HumanReadableStatus:
       description: "Human-readable status for operation results.\n\n    Attributes:\n\
         \        code: Status code (\"ok\" or \"error\").\n        title: Optional\
@@ -4555,7 +4567,7 @@ components:
         attached:
           type: boolean
         harness:
-          type: string
+          $ref: '#/components/schemas/HarnessMetadata'
         kind:
           enum:
           - agent

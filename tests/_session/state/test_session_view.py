@@ -50,6 +50,7 @@ from marimo._messaging.notification import (
     VariableValue,
     VariableValuesNotification,
 )
+from marimo._messaging.participants import HarnessMetadata
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.variables import create_variable_value
 from marimo._runtime.commands import (
@@ -104,9 +105,10 @@ def test_session_view_cell_notification(session_view: SessionView) -> None:
 def test_session_view_replays_latest_participant_presence(
     session_view: SessionView,
 ) -> None:
+    harness = HarnessMetadata(id="claude", display_name="Claude Code")
     attached = ParticipantPresenceNotification(
         participant_id="p1",
-        harness="claude",
+        harness=harness,
         kind="agent",
         attached=True,
         listening=False,
@@ -116,7 +118,7 @@ def test_session_view_replays_latest_participant_presence(
     )
     detached = ParticipantPresenceNotification(
         participant_id="p1",
-        harness="claude",
+        harness=harness,
         kind="agent",
         attached=False,
         listening=False,

@@ -12,17 +12,14 @@ import {
   type ParticipantPresence,
   participantPresenceAtom,
 } from "@/core/participants/state";
-import {
-  getHarnessLabel,
-  ParticipantStatus,
-} from "../footer-items/participant-status";
+import { ParticipantStatus } from "../footer-items/participant-status";
 
 const CONNECTED: ParticipantPresence = {
   op: "participant-presence",
   active: false,
   active_since: null,
   attached: true,
-  harness: "claude",
+  harness: { id: "pi", displayName: "Pi" },
   kind: "agent",
   last_contact_at: Date.now() / 1000,
   listening: false,
@@ -66,34 +63,39 @@ describe("ParticipantStatus", () => {
     renderStatus();
 
     const item = screen.getByTestId("footer-participant-status");
-    expect(item).toHaveTextContent("Claude Code");
-    expect(item).toHaveAccessibleName("Claude Code: Connected");
+    expect(item).toHaveTextContent("Pi");
+    expect(item).toHaveAccessibleName("Pi: Connected");
 
     fireEvent.click(item);
     expect(screen.getByText("Connected")).toBeInTheDocument();
     expect(
-      screen.getByText("Claude Code connects through marimo pair."),
+      screen.getByText("Pi connects through marimo pair."),
     ).toBeInTheDocument();
     expect(screen.getByText("Last contact")).toBeInTheDocument();
     expect(screen.getByText("abcdef12")).toBeInTheDocument();
+    expect(screen.queryByText("Model")).not.toBeInTheDocument();
   });
 
   it("shows a disconnected participant", () => {
     renderStatus({ presence: { ...CONNECTED, attached: false } });
 
     const item = screen.getByTestId("footer-participant-status");
-    expect(item).toHaveAccessibleName("Claude Code: Disconnected");
+    expect(item).toHaveAccessibleName("Pi: Disconnected");
     fireEvent.click(item);
     expect(screen.getByText("Disconnected")).toBeInTheDocument();
   });
 
-  it.each([
-    ["claude", "Claude Code"],
-    ["codex", "Codex"],
-    ["opencode", "OpenCode"],
-    ["unknown", "Agent"],
-    ["third-party", "Agent"],
-  ])("maps the %s harness to %s", (harness, label) => {
-    expect(getHarnessLabel(harness)).toBe(label);
+  it("uses the self-described harness name", () => {
+    renderStatus({
+      presence: {
+        ...CONNECTED,
+        harness: { id: "custom", displayName: "My Agent" },
+      },
+    });
+
+    const item = screen.getByTestId("footer-participant-status");
+    expect(item).toHaveTextContent("My Agent");
+    fireEvent.click(item);
+    expect(screen.queryByText("Model")).not.toBeInTheDocument();
   });
 });

@@ -5499,6 +5499,14 @@ export interface components {
       user: unknown;
     };
     /**
+     * HarnessMetadata
+     * @description Harness identity supplied by the participant.
+     */
+    HarnessMetadata: {
+      displayName: string;
+      id: string;
+    };
+    /**
      * HumanReadableStatus
      * @description Human-readable status for operation results.
      *
@@ -6549,7 +6557,7 @@ export interface components {
       active: boolean;
       active_since: number | null;
       attached: boolean;
-      harness: string;
+      harness: components["schemas"]["HarnessMetadata"];
       /** @enum {unknown} */
       kind: "agent" | "human";
       last_contact_at: number;

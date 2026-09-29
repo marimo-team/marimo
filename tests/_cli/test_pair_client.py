@@ -190,6 +190,7 @@ def test_execute_sends_request_and_streams_in_event_order(
         stdout=stdout,
         stderr=stderr,
         stream=True,
+        participant_id="p1",
     )
 
     assert result == client.ExecutionResult(
@@ -212,6 +213,7 @@ def test_execute_sends_request_and_streams_in_event_order(
             "headers": {
                 "Content-Type": "application/json",
                 "Marimo-Stable-Session-Id": "session-1",
+                "Marimo-Participant-Id": "p1",
                 "Authorization": "Bearer secret-token",
             },
             "body": json.dumps({"code": "print(1)"}).encode(),
@@ -219,6 +221,49 @@ def test_execute_sends_request_and_streams_in_event_order(
     ]
     assert "secret-token" not in calls[0]["url"]
     assert b"secret-token" not in calls[0]["body"]
+    assert response.closed
+
+
+def test_attach_participant_sends_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = io.BytesIO(
+        json.dumps(
+            {
+                "participantId": "p1",
+                "cursor": 3,
+                "attached": True,
+                "recordCreated": True,
+                "kind": "agent",
+                "harness": {"id": "pi", "displayName": "Pi"},
+            }
+        ).encode()
+    )
+    calls = _patch_response(monkeypatch, response)
+
+    result = client.attach_participant(
+        url="https://example.com",
+        session_id="session-1",
+        token="secret-token",
+        participant_id="p1",
+        harness_id="pi",
+        harness_name="Pi",
+    )
+
+    assert result == client.AttachmentResult(
+        participant_id="p1",
+        cursor=3,
+        attached=True,
+        record_created=True,
+        kind="agent",
+        harness_id="pi",
+        harness_name="Pi",
+    )
+    assert calls[0]["headers"]["Marimo-Participant-Id"] == "p1"
+    assert json.loads(calls[0]["body"]) == {
+        "kind": "agent",
+        "harness": {"id": "pi", "displayName": "Pi"},
+    }
     assert response.closed
 
 

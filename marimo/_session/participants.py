@@ -11,10 +11,13 @@ from typing import TYPE_CHECKING
 import msgspec
 
 from marimo._messaging.participants import (
+    DEFAULT_PARTICIPANT_METADATA,
     DeliveryStatus,
     HandoffEvent,
     HandoffPayload,
+    HarnessMetadata,
     ParticipantKind,
+    ParticipantMetadata,
 )
 
 if TYPE_CHECKING:
@@ -48,7 +51,7 @@ class ParticipantLimits:
 @dataclass(frozen=True)
 class ParticipantState:
     participant_id: str
-    harness: str
+    harness: HarnessMetadata
     kind: ParticipantKind
     cursor: int
     attached: bool
@@ -56,6 +59,12 @@ class ParticipantState:
     active: bool
     last_contact_at: float
     active_since: float | None
+
+
+@dataclass(frozen=True)
+class ParticipantAttachResult:
+    state: ParticipantState
+    record_created: bool
 
 
 @dataclass(frozen=True)
@@ -76,9 +85,9 @@ class ParticipantRegistryClosedError(ParticipantRegistryError):
 class ParticipantConflictError(ParticipantRegistryError):
     """A different participant has a live attachment."""
 
-    def __init__(self, holder_harness: str) -> None:
-        super().__init__(holder_harness)
-        self.holder_harness = holder_harness
+    def __init__(self, holder_display_name: str) -> None:
+        super().__init__(holder_display_name)
+        self.holder_display_name = holder_display_name
 
 
 class ParticipantNotFoundError(ParticipantRegistryError):
@@ -96,7 +105,7 @@ class HandoffTooLargeError(ParticipantRegistryError):
 @dataclass
 class _ParticipantRecord:
     participant_id: str
-    harness: str
+    harness: HarnessMetadata
     kind: ParticipantKind
     last_contact_at: float
     order: int
@@ -169,30 +178,49 @@ class ParticipantRegistry:
         self,
         participant_id: str,
         *,
-        harness: str,
-        kind: ParticipantKind,
-    ) -> ParticipantState:
+        metadata: ParticipantMetadata | None = None,
+    ) -> ParticipantAttachResult:
         """Create or resume a record and start a new attachment."""
+        return await self._contact(participant_id, metadata=metadata)
+
+    async def resume(self, participant_id: str) -> ParticipantState:
+        """Renew a known participant without creating a record."""
+        return (await self._contact(participant_id, create=False)).state
+
+    async def _contact(
+        self,
+        participant_id: str,
+        *,
+        metadata: ParticipantMetadata | None = None,
+        create: bool = True,
+    ) -> ParticipantAttachResult:
         async with self._lock:
             self._ensure_open()
             now = self._clock()
             self._expire_due(now)
             holder = self._attached_record()
             if holder is not None and holder.participant_id != participant_id:
-                raise ParticipantConflictError(holder.harness)
+                raise ParticipantConflictError(holder.harness.display_name)
 
             record = self._records.get(participant_id)
+            record_created = record is None
             contacted_at = self._wall_clock()
             if record is None:
+                if not create:
+                    raise ParticipantNotFoundError(participant_id)
+                resolved_metadata = metadata or DEFAULT_PARTICIPANT_METADATA
                 record = _ParticipantRecord(
                     participant_id=participant_id,
-                    harness=harness,
-                    kind=kind,
+                    harness=resolved_metadata.harness,
+                    kind=resolved_metadata.kind,
                     last_contact_at=contacted_at,
                     order=self._next_order,
                 )
                 self._next_order += 1
                 self._records[participant_id] = record
+            elif metadata is not None:
+                record.harness = metadata.harness
+                record.kind = metadata.kind
 
             record.last_contact_at = contacted_at
             record.attached = True
@@ -202,7 +230,9 @@ class ParticipantRegistry:
             self._schedule_expiry(record)
             state = record.state()
             self._emit_presence(state)
-            return state
+            return ParticipantAttachResult(
+                state=state, record_created=record_created
+            )
 
     async def detach(self, participant_id: str) -> ParticipantState:
         """End an attachment while retaining its record and handoff log."""

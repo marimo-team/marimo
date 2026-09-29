@@ -18,17 +18,6 @@ import { useTimeAgo } from "@/hooks/useFormatting";
 import { cn } from "@/utils/cn";
 import { FooterItem } from "../footer-item";
 
-const HARNESS_LABELS: Record<string, string> = {
-  claude: "Claude Code",
-  codex: "Codex",
-  opencode: "OpenCode",
-  unknown: "Agent",
-};
-
-export function getHarnessLabel(harness: string): string {
-  return HARNESS_LABELS[harness.toLowerCase()] ?? "Agent";
-}
-
 export const ParticipantStatus: React.FC = () => {
   const pairPreview = useAtomValue(pairPreviewAtom);
   const presence = useAtomValue(participantPresenceAtom);
@@ -45,7 +34,7 @@ const ParticipantStatusItem: React.FC<{ presence: ParticipantPresence }> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const timeAgo = useTimeAgo();
-  const label = getHarnessLabel(presence.harness);
+  const label = presence.harness.displayName;
   const status = presence.attached ? "Connected" : "Disconnected";
 
   return (

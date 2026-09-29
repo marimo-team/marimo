@@ -19,6 +19,7 @@ from marimo._messaging.notification import (
     OperationRunning,
     ParticipantPresenceNotification,
 )
+from marimo._messaging.participants import HarnessMetadata, ParticipantMetadata
 from marimo._messaging.serde import (
     deserialize_kernel_message,
     serialize_kernel_message,
@@ -120,21 +121,22 @@ async def test_participant_presence_uses_session_notification_path(
 ) -> None:
     session, consumer = session_and_consumer
 
-    state = await session.participants.attach(
-        "p1", harness="claude", kind="agent"
+    metadata = ParticipantMetadata(
+        harness=HarnessMetadata(id="claude", display_name="Claude Code")
     )
+    state = await session.participants.attach("p1", metadata=metadata)
 
     notification = deserialize_kernel_message(
         consumer.notify.call_args.args[0]
     )
     assert notification == ParticipantPresenceNotification(
         participant_id="p1",
-        harness="claude",
+        harness=metadata.harness,
         kind="agent",
         attached=True,
         listening=False,
         active=False,
-        last_contact_at=state.last_contact_at,
+        last_contact_at=state.state.last_contact_at,
         active_since=None,
     )
     assert session.session_view.participant_presence == notification
