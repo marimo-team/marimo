@@ -896,3 +896,97 @@ from the executable benchmark and runtime configuration. Its four atomic
 tools remain the foundation of `hybrid_balanced`, which now always includes
 the three grouped editor operations. Historical four-tool results above are
 retained as the ablation record.
+
+## Experiment 17: full-suite breadth confirmation
+
+Date: 2026-09-30
+
+Model: `deepseek-ai/DeepSeek-V4.1-Flash`
+
+Runs: `20260929T191122Z-994a5b9b` and targeted repeat
+`20260929T193341Z-a730fa05`
+
+Ran all ten data scenarios once with baseline and the seven-tool hybrid. All
+20 trials passed their semantic contracts and `marimo check`.
+
+| Variant | Passed | Mean duration | Mean tools | Mean errors | Mean requests | Mean input | Mean output | Mean reasoning |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Baseline | 10/10 | 128.8s | 15.5 | 1.10 | 17.4 | 404,393 | 20,794 | 13,923 |
+| Balanced hybrid | 10/10 | 124.8s | 17.7 | 0.60 | 18.2 | 693,830 | 21,019 | 13,597 |
+
+Correctness was equal. The hybrid was 3.2% faster and had 45.5% fewer tool
+errors, but used 14.2% more tools, 4.6% more model requests, 71.6% more input
+tokens, and 1.1% more output tokens. Reasoning tokens were 2.3% lower. The
+input regression was dominated by one high-cost long-retail trajectory.
+
+| Length | Variant | Passed | Mean duration | Mean tools | Mean errors | Mean input |
+|---|---|---:|---:|---:|---:|---:|
+| Short | Baseline | 3/3 | 52.2s | 8.7 | 1.00 | 103,432 |
+| Short | Hybrid | 3/3 | 44.3s | 8.7 | 0.67 | 57,885 |
+| Medium | Baseline | 4/4 | 90.2s | 11.5 | 1.25 | 183,806 |
+| Medium | Hybrid | 4/4 | 61.6s | 8.3 | 0.25 | 55,612 |
+| Long | Baseline | 3/3 | 257.0s | 27.7 | 1.00 | 999,471 |
+| Long | Hybrid | 3/3 | 289.3s | 39.3 | 1.00 | 2,180,731 |
+
+The hybrid was strong on short and medium tasks: 15.1% and 31.7% faster, with
+44.0% and 69.7% fewer input tokens respectively. The long aggregate moved in
+the other direction: 12.6% slower, 42.2% more tools, and 118.2% more input
+tokens.
+
+| Scenario | Baseline duration / input | Hybrid duration / input | Result |
+|---|---:|---:|---|
+| Athletes prescribed | 74.8s / 138,135 | 36.4s / 40,948 | Both pass |
+| Inventory inspection | 32.5s / 64,830 | 24.3s / 36,579 | Both pass |
+| Support-ticket repair | 49.3s / 107,331 | 72.3s / 96,129 | Both pass |
+| Retail short | 67.4s / 86,598 | 115.0s / 109,406 | Both pass |
+| Dirty dates | 152.0s / 477,134 | 47.8s / 41,166 | Both pass |
+| Missing dimensions | 87.6s / 88,116 | 45.7s / 49,433 | Both pass |
+| Reactive repair | 53.9s / 83,376 | 38.0s / 22,443 | Both pass |
+| Retail long | 359.7s / 1,205,474 | 513.5s / 4,197,342 | Both pass |
+| SaaS reversal | 217.8s / 769,137 | 136.1s / 789,412 | Both pass |
+| Operations context | 193.3s / 1,023,803 | 218.5s / 1,555,440 | Both pass |
+
+Long retail was repeated because the hybrid's first run used 4.20 million
+input tokens despite only two tool errors. The repeat reversed the expensive
+trajectory: baseline took 475.3 seconds, 43 tools, and 2,514,869 input tokens;
+hybrid took 246.8 seconds, 27 tools, zero errors, and 1,066,080 input tokens.
+
+Across the two long-retail observations, both variants passed 2/2. Baseline
+averaged 417.5 seconds, 36 tools, 1.5 errors, and 1,860,172 input tokens.
+Hybrid averaged 380.1 seconds, 39.5 tools, one error, and 2,631,711 input
+tokens. Hybrid was 9.0% faster but still used 41.5% more input tokens. This is
+high trajectory variance, not a stable four-million-token cost, but the
+remaining token difference is large enough to retain as a concern.
+
+Replacing the breadth run's retail value with the two-run retail mean gives a
+scenario-weighted sensitivity aggregate:
+
+| Variant | Passed trials | Mean duration | Mean tools | Mean errors | Mean requests | Mean input | Mean output | Mean reasoning |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Baseline | 11/11 | 134.6s | 16.20 | 1.05 | 18.25 | 469,863 | 21,943 | 14,607 |
+| Balanced hybrid | 11/11 | 111.4s | 16.45 | 0.50 | 17.05 | 537,267 | 18,307 | 11,662 |
+
+Under this sensitivity view, the hybrid is 17.2% faster, uses 52.4% fewer
+tool errors, 6.6% fewer requests, 16.6% fewer output tokens, and 20.2% fewer
+reasoning tokens. It uses 1.5% more tools and 14.3% more input tokens. After
+subtracting cache reads, the input regression is 8.4%, so repeated context is
+most of the difference but not all of it.
+
+Logfire recorded 153 baseline `execute_code` calls. Hybrid used 82
+`execute_code`, 33 `apply_notebook_patch`, 33 `inspect_notebook`, 11
+`configure_notebook`, 11 capability loads, four `run_cells`, two
+`set_ui_value`, and one `manage_packages` call. The two UI calls occurred in
+the expensive long-retail turn while validating a reactive scope toggle; the
+model later removed that toggle after the requirement changed. The trajectory
+also repeatedly verified and corrected visual cell ordering. This was useful
+work taken too far, rather than a tool-error recovery loop.
+
+All 52 turn traces in the full-suite run had exactly one root span and 8--46
+connected spans.
+
+Conclusion: the full suite confirms correctness breadth and strong short- and
+medium-task efficiency. It weakens the simpler claim that the hybrid always
+reduces tokens: long conversations can accumulate more repeated context when
+the model performs many typed inspection and configuration cycles. Keep the
+seven-tool hybrid as the leading architecture, but treat long-horizon context
+growth and verification discipline as the next optimization target.
