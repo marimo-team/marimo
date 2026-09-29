@@ -107,7 +107,7 @@ const OPTIONAL_DEPENDENCIES: OptionalFeature[] = [
   },
   {
     id: "lens",
-    packagesRequired: [{ name: "marimo-lens", minVersion: "0.2.0" }],
+    packagesRequired: [{ name: "marimo-lens", minVersion: "0.2.3" }],
     additionalPackageInstalls: [],
     description: "Select outputs for agents",
   },
