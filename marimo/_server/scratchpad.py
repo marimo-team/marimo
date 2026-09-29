@@ -35,7 +35,6 @@ if TYPE_CHECKING:
     from marimo._messaging.notebook.document import NotebookCell
     from marimo._messaging.types import KernelMessage
     from marimo._session.session import Session
-    from marimo._types.ids import CellId_t
 
 EXECUTION_TIMEOUT = (
     30.0  # seconds — used only by wait(); stream() has no timeout
@@ -105,7 +104,6 @@ class ScratchCellListener(EventAwareExtension):
         self._run_id = run_id
         self._scratch_started = False
         self._completed = False
-        self._child_cell_ids: set[CellId_t] = set()
         self.timed_out = False
         self.child_error_summaries: list[str] = []
         self.stderr: list[str] = []
@@ -139,13 +137,17 @@ class ScratchCellListener(EventAwareExtension):
             # cannot execute before the scratch cell itself starts.
             if not self._scratch_started:
                 return
-            if self._completed and msg.cell_id not in self._child_cell_ids:
-                return
-            self._child_cell_ids.add(msg.cell_id)
             if msg.console is not None:
                 # Stream console output from cells run by _code_mode
                 # during this scratchpad execution.
                 self._queue.put_nowait(msg)
+
+        # Keep the existing SSE grace period for trailing console output, but
+        # freeze structured diagnostics at this request's completion boundary.
+        if self._completed:
+            return
+
+        if msg.cell_id != SCRATCH_CELL_ID:
             if (
                 msg.output is not None
                 and msg.output.channel == CellChannel.MARIMO_ERROR
@@ -166,6 +168,9 @@ class ScratchCellListener(EventAwareExtension):
                     )
                     raw_detail = getattr(err, "msg", "")
                     detail = str(raw_detail or "").strip()
+                    empty_detail = f"This cell raised an exception: {exc_type}"
+                    if detail == empty_detail:
+                        detail = ""
                     if detail == exc_type or detail.startswith(f"{exc_type}:"):
                         diagnostic = detail
                     elif detail:

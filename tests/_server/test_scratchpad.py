@@ -768,7 +768,7 @@ class TestScratchCellListener:
                 session, serialize_kernel_message(notification)
             )
 
-        assert listener.stderr == ["during\n", "trailing\n"]
+        assert listener.stderr == ["during\n"]
 
     @pytest.mark.asyncio
     async def test_stream_cancelled_on_disconnect(self) -> None:
@@ -1034,6 +1034,10 @@ class TestRunScratchpadCode:
                 "cell 'child-cell' raised ZeroDivisionError",
             ),
             ("", "cell 'child-cell' raised ZeroDivisionError"),
+            (
+                "This cell raised an exception: ZeroDivisionError",
+                "cell 'child-cell' raised ZeroDivisionError",
+            ),
         ],
     )
     async def test_child_cell_diagnostics_flow_into_result(
