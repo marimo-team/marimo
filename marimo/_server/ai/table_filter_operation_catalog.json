@@ -53,9 +53,9 @@
       "id": "contains_empty_text",
       "fql_form": "column:\"**\"",
       "example": "text_value:\"**\"",
-      "native_operator": "contains",
+      "native_operator": "is_not_null",
       "supported_types": ["string"],
-      "meaning": "Match text that contains the empty string."
+      "meaning": "Match every non-null text value."
     },
     {
       "id": "empty_text",
@@ -131,7 +131,7 @@
     },
     {
       "id": "is_null",
-      "fql_form": "column:null",
+      "fql_form": "column:null or column:\"null\"",
       "example": "text_value:null",
       "native_operator": "is_null",
       "supported_types": [
@@ -143,7 +143,7 @@
         "datetime",
         "time"
       ],
-      "meaning": "Match a missing value."
+      "meaning": "Match a missing value. The colon form reserves quoted null too; use column=\"null\" to match that exact text."
     },
     {
       "id": "is_not_null",

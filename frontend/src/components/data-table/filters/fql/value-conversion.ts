@@ -16,8 +16,7 @@ export interface WildcardPattern {
 
 const INTEGER_PATTERN = /^[+-]?\d+$/;
 const NUMBER_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
-const DATETIME_PATTERN =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})?$/;
+const DATETIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?$/;
 const TIME_PATTERN = /^\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?$/;
 
 const DATE_SCHEMA = z.iso.date();
@@ -133,7 +132,7 @@ export function decodeWildcardPattern(
 
   const start = hasLeadingMarker ? 1 : 0;
   const end = hasTrailingMarker ? value.length - 1 : value.length;
-  const decodedValue = value.slice(start, end).replace(/\\([\\*])/g, "$1");
+  const decodedValue = decodeWildcardEscapes(value.slice(start, end));
   const operator =
     hasLeadingMarker && hasTrailingMarker
       ? "contains"
@@ -142,4 +141,8 @@ export function decodeWildcardPattern(
         : "starts_with";
 
   return validValue({ operator, value: decodedValue });
+}
+
+export function decodeWildcardEscapes(value: string): string {
+  return value.replace(/\\([\\*])/g, "$1");
 }
