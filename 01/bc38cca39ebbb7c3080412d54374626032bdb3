@@ -1,0 +1,22 @@
+tests/_runtime/test_lens_autoload.py
+  s_31b1c84cd2fa0e::t_83cad1b5cfb6b2 2,4-7,15-35,37-40,46-60,62,65-72,74-76,80-86,89,102,106,108,113-116,139,148-151,154
+marimo/_runtime/runner/hooks_lens.py
+  s_31b1c84cd2fa0e::t_5e33f9f0a1f6a6 18,22-23,28-31,37-38
+  s_31b1c84cd2fa0e::t_d5d93216793dcf 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "01bc38cca39ebbb7c3080412d54374626032bdb3",
+  "prompts": {},
+  "sessions": {
+    "s_31b1c84cd2fa0e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7c6ec822-0dce-459f-8d20-ee24f822508c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
