@@ -61,8 +61,12 @@ export const Radio = (props: RadioProps): JSX.Element => {
         disabled={props.disabled}
       >
         {props.options.map((option, i) => (
-          <div className="flex items-center space-x-2" key={i}>
-            <RadioGroupItem value={option} id={`${id}-${i.toString()}`} />
+          <div className="flex items-start space-x-2" key={i}>
+            <RadioGroupItem
+              value={option}
+              id={`${id}-${i.toString()}`}
+              className="shrink-0"
+            />
             <Label
               htmlFor={`${id}-${i.toString()}`}
               className="text-sm font-normal"
