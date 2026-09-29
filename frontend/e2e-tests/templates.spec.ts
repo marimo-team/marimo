@@ -135,3 +135,74 @@ test("featured template opens, saves, reopens, and stays isolated", async ({
   ).toHaveCount(0);
   await independentCopy.close();
 });
+
+test("template browser retries, searches, and restores focus", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 480, height: 720 });
+  let shouldFailCatalog = true;
+  await page.route("**/api/templates/", async (route) => {
+    if (shouldFailCatalog) {
+      shouldFailCatalog = false;
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Controlled catalog failure" }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto(homeUrl);
+  await expect(page.getByText("Templates are unavailable.")).toBeVisible();
+  await page.getByRole("button", { name: "Retry loading templates" }).click();
+
+  const browseButton = page.getByRole("button", {
+    name: "Browse all templates",
+  });
+  await expect(browseButton).toBeVisible();
+  await browseButton.click();
+
+  const dialog = page.getByRole("dialog", { name: "Browse templates" });
+  const search = dialog.getByRole("textbox", { name: "Search templates" });
+  await expect(search).toBeFocused();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    )
+    .toBe(true);
+
+  await search.fill("not a real template");
+  await expect(dialog.getByText("No templates match")).toBeVisible();
+  await search.fill("embedded sample");
+  const dataExplorerCard = dialog.getByRole("button", {
+    name: "Use template: Explore a small dataset",
+  });
+  await expect(dataExplorerCard).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: `Use template: ${templateName}` }),
+  ).toHaveCount(0);
+
+  const popup = page.waitForEvent("popup");
+  await dataExplorerCard.click();
+  const templatePage = await popup;
+  await expect(
+    templatePage.getByRole("textbox").filter({ hasText: 'label="City"' }),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(dialog).toHaveCount(0);
+  await templatePage.close();
+
+  await browseButton.click();
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(browseButton).toBeFocused();
+  expect(page.context().pages()).toHaveLength(1);
+
+  await browseButton.click();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(browseButton).toBeFocused();
+  expect(page.context().pages()).toHaveLength(1);
+});

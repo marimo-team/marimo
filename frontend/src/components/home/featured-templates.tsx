@@ -1,63 +1,31 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { components } from "@marimo-team/marimo-api";
-import { ExternalLinkIcon, LayoutTemplateIcon } from "lucide-react";
+import { LayoutTemplateIcon } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { prettyError } from "@/utils/errors";
 import { asURL } from "@/utils/url";
 import { Header } from "./components";
-import { launchTemplate, listTemplates } from "./template-client";
-
-type TemplateSummary = components["schemas"]["TemplateSummary"];
+import {
+  launchTemplate,
+  listTemplates,
+  type TemplateCatalogResponse,
+} from "./template-client";
+import { TemplateBrowserDialog } from "./template-browser-dialog";
+import { TemplateCard, type TemplateSummary } from "./template-card";
 
 export const FeaturedTemplates = () => {
   const catalog = useAsyncData(listTemplates, []);
-
-  if (catalog.error) {
-    return (
-      <Banner kind="danger" className="rounded p-4">
-        Templates are unavailable. You can still create a blank notebook.
-      </Banner>
-    );
-  }
-
-  if (!catalog.data) {
-    return null;
-  }
-
-  const templatesById = new Map(
-    catalog.data.templates.map((template) => [template.id, template]),
+  const [isBrowserOpen, setIsBrowserOpen] = useState(false);
+  const [launchingTemplateIds, setLaunchingTemplateIds] = useState(
+    () => new Set<string>(),
   );
-  const featured = catalog.data.featuredIds.flatMap((id) => {
-    const template = templatesById.get(id);
-    return template ? [template] : [];
-  });
 
-  if (featured.length === 0) {
-    return null;
-  }
-
-  return (
-    <section className="flex flex-col gap-2" aria-labelledby="templates-title">
-      <Header Icon={LayoutTemplateIcon}>
-        <span id="templates-title">Start with a template</span>
-      </Header>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {featured.map((template) => (
-          <FeaturedTemplateCard key={template.id} template={template} />
-        ))}
-      </div>
-    </section>
-  );
-};
-
-const FeaturedTemplateCard = ({ template }: { template: TemplateSummary }) => {
-  const [isLaunching, setIsLaunching] = useState(false);
-
-  const handleLaunch = async () => {
+  const handleLaunch = async (template: TemplateSummary): Promise<boolean> => {
     const reservedTab = window.open("about:blank", "_blank");
     if (!reservedTab) {
       toast({
@@ -65,15 +33,16 @@ const FeaturedTemplateCard = ({ template }: { template: TemplateSummary }) => {
         description: "Allow pop-ups for this site and try again.",
         variant: "danger",
       });
-      return;
+      return false;
     }
     reservedTab.opener = null;
-    setIsLaunching(true);
+    setLaunchingTemplateIds((ids) => new Set(ids).add(template.id));
     try {
       const fileKey = await launchTemplate(template.id);
       reservedTab.location.href = asURL(
         `?file=${encodeURIComponent(fileKey)}`,
       ).toString();
+      return true;
     } catch (error) {
       reservedTab.close();
       toast({
@@ -81,32 +50,99 @@ const FeaturedTemplateCard = ({ template }: { template: TemplateSummary }) => {
         description: prettyError(error),
         variant: "danger",
       });
+      return false;
     } finally {
-      setIsLaunching(false);
+      setLaunchingTemplateIds((ids) => {
+        const nextIds = new Set(ids);
+        nextIds.delete(template.id);
+        return nextIds;
+      });
     }
   };
 
+  const featured = getFeaturedTemplates(catalog.data);
+
   return (
-    <button
-      type="button"
-      aria-label={`Use template: ${template.title}`}
-      data-testid={`template-card-${template.id}`}
-      disabled={isLaunching}
-      onClick={handleLaunch}
-      className="group overflow-hidden rounded-lg border bg-background text-left shadow-xs transition-colors hover:bg-accent/20 disabled:cursor-wait disabled:opacity-70"
-    >
-      <img
-        src={template.previewUrl}
-        alt=""
-        className="h-28 w-full border-b bg-(--slate-2) object-cover"
-      />
-      <div className="relative flex min-h-24 flex-col gap-1 p-4 pr-10">
-        <h3 className="font-medium text-foreground">{template.title}</h3>
-        <p className="text-sm text-muted-foreground">
-          {isLaunching ? "Opening template…" : template.description}
-        </p>
-        <ExternalLinkIcon className="absolute right-4 top-4 h-5 w-5 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
+    <section className="flex flex-col gap-2" aria-labelledby="templates-title">
+      <div className="flex items-center justify-between gap-4">
+        <Header Icon={LayoutTemplateIcon}>
+          <span id="templates-title">Start with a template</span>
+        </Header>
+        {catalog.data && (
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => setIsBrowserOpen(true)}
+          >
+            Browse all templates
+          </Button>
+        )}
       </div>
-    </button>
+      {catalog.isPending && <TemplateCardSkeletons />}
+      {catalog.error && (
+        <Banner
+          kind="danger"
+          className="flex items-center justify-between gap-4 rounded p-4"
+        >
+          <span>
+            Templates are unavailable. You can still create a blank notebook.
+          </span>
+          <Button
+            variant="outlineDestructive"
+            size="xs"
+            onClick={catalog.refetch}
+          >
+            Retry loading templates
+          </Button>
+        </Banner>
+      )}
+      {featured.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {featured.map((template) => (
+            <TemplateCard
+              key={template.id}
+              template={template}
+              isLaunching={launchingTemplateIds.has(template.id)}
+              onLaunch={handleLaunch}
+            />
+          ))}
+        </div>
+      )}
+      {catalog.data && (
+        <TemplateBrowserDialog
+          catalog={catalog.data}
+          open={isBrowserOpen}
+          onOpenChange={setIsBrowserOpen}
+          launchingTemplateIds={launchingTemplateIds}
+          onLaunch={handleLaunch}
+        />
+      )}
+    </section>
   );
 };
+
+const getFeaturedTemplates = (
+  catalog: TemplateCatalogResponse | undefined,
+): TemplateSummary[] => {
+  if (!catalog) {
+    return [];
+  }
+  const templatesById = new Map(
+    catalog.templates.map((template) => [template.id, template]),
+  );
+  return catalog.featuredIds.flatMap((id) => {
+    const template = templatesById.get(id);
+    return template ? [template] : [];
+  });
+};
+
+const TemplateCardSkeletons = () => (
+  <div
+    className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+    aria-label="Loading templates"
+  >
+    {[0, 1, 2].map((index) => (
+      <Skeleton key={index} className="h-52 rounded-lg" />
+    ))}
+  </div>
+);
