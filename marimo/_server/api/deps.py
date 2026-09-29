@@ -2,18 +2,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, cast, get_args
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers as loggers
 from marimo._cli.tips import CliTip
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
-from marimo._messaging.participants import ParticipantKind
+from marimo._messaging.participants import ParticipantMetadata
 from marimo._server.config import StarletteServerState
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._session.participants import (
     ParticipantConflictError,
+    ParticipantNotFoundError,
     ParticipantRegistryClosedError,
     ParticipantState,
 )
@@ -34,12 +35,7 @@ LOGGER = loggers.marimo_logger()
 
 STABLE_SESSION_ID_HEADER = "Marimo-Stable-Session-Id"
 PARTICIPANT_ID_HEADER = "Marimo-Participant-Id"
-PARTICIPANT_HARNESS_HEADER = "Marimo-Participant-Harness"
-PARTICIPANT_KIND_HEADER = "Marimo-Participant-Kind"
 PAIR_PREVIEW_ENV = "MARIMO_PAIR_NEXT"
-
-UNKNOWN_HARNESS = "unknown"
-DEFAULT_PARTICIPANT_KIND: ParticipantKind = "agent"
 
 
 @dataclass(frozen=True)
@@ -52,6 +48,7 @@ class ParticipantSession:
 
     session: Session
     participant: ParticipantState | None
+    record_created: bool = False
 
 
 class AppStateBase:
@@ -225,16 +222,20 @@ class AppState(AppStateBase):
         return session
 
     async def require_participant_session(
-        self, *, participant_required: bool = False
+        self,
+        *,
+        participant_required: bool = False,
+        attach_request: bool = False,
+        metadata: ParticipantMetadata | None = None,
     ) -> ParticipantSession:
         """Resolve the Session and record contact for an identified request.
 
         A request that carries `Marimo-Participant-Id` must also carry the
-        stable session header. The participant record is created or resumed,
-        the one-agent check runs, the attachment TTL is renewed, and the
-        contact time is recorded. A request without the participant header,
-        or any request while the Pair preview is off, resolves the Session
-        only.
+        stable session header. An attach request can create a record. Other
+        identified requests resume a known record. Every identified request
+        checks the live holder, renews the attachment TTL, and records
+        contact. A request without the participant header, or any request
+        while the Pair preview is off, resolves the Session only.
         """
         participant_id = self.request.headers.get(PARTICIPANT_ID_HEADER)
         if participant_id is None:
@@ -261,21 +262,21 @@ class AppState(AppStateBase):
                 ),
             )
         session = self.require_current_session_with_stable_id()
-        harness = (
-            self.request.headers.get(PARTICIPANT_HARNESS_HEADER)
-            or UNKNOWN_HARNESS
-        )
-        kind = self._participant_kind()
-
         try:
-            state = await session.participants.attach(
-                participant_id, harness=harness, kind=kind
-            )
+            if attach_request:
+                result = await session.participants.attach(
+                    participant_id, metadata=metadata
+                )
+                state = result.state
+                record_created = result.record_created
+            else:
+                state = await session.participants.resume(participant_id)
+                record_created = False
         except ParticipantConflictError as error:
             raise HTTPException(
                 status_code=HTTPStatus.CONFLICT,
                 detail=(
-                    f"Another participant ({error.holder_harness}) is "
+                    f"Another participant ({error.holder_display_name}) is "
                     "attached to this session."
                 ),
             ) from error
@@ -284,22 +285,16 @@ class AppState(AppStateBase):
                 status_code=HTTPStatus.NOT_FOUND,
                 detail=f"Session {session.stable_id} is closed.",
             ) from error
-        return ParticipantSession(session=session, participant=state)
-
-    def _participant_kind(self) -> ParticipantKind:
-        raw = self.request.headers.get(PARTICIPANT_KIND_HEADER)
-        if raw is None:
-            return DEFAULT_PARTICIPANT_KIND
-        allowed = get_args(ParticipantKind)
-        if raw not in allowed:
+        except ParticipantNotFoundError as error:
             raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail=(
-                    f"{PARTICIPANT_KIND_HEADER} must be one of "
-                    f"{', '.join(allowed)}."
-                ),
-            )
-        return cast(ParticipantKind, raw)
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"Unknown participant ID: {participant_id}.",
+            ) from error
+        return ParticipantSession(
+            session=session,
+            participant=state,
+            record_created=record_created,
+        )
 
     def require_query_params(self, param: str) -> str:
         """Get a query parameter or raise an error."""

@@ -65,14 +65,18 @@ def _pair_preview_disabled() -> AbstractContextManager[Any]:
 
 
 def _participant_headers(
-    session: Session, participant_id: str, *, harness: str = "claude"
+    session: Session, participant_id: str
 ) -> dict[str, str]:
     return {
         STABLE_SESSION_HEADER: session.stable_id,
         PARTICIPANT_ID_HEADER: participant_id,
-        "Marimo-Participant-Harness": harness,
         **token_header("fake-token"),
     }
+
+
+def _attach_participant(session: Session, participant_id: str) -> None:
+    result = asyncio.run(session.participants.attach(participant_id))
+    assert result.record_created
 
 
 def _execute_without_kernel(
@@ -438,6 +442,7 @@ class TestExecutionRoutes_EditMode:
         assert session is not None
 
         with _pair_preview_enabled():
+            _attach_participant(session, "p1")
             first = _execute_without_kernel(
                 client, session, _participant_headers(session, "p1")
             )
@@ -452,10 +457,28 @@ class TestExecutionRoutes_EditMode:
         presence = session.session_view.participant_presence
         assert presence is not None
         assert presence.participant_id == "p1"
-        assert presence.harness == "claude"
+        assert presence.harness.id == "unknown"
+        assert presence.harness.display_name == "Agent"
         assert presence.kind == "agent"
         assert presence.attached is True
         assert presence.last_contact_at >= first_presence.last_contact_at
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_rejects_unknown_participant_before_dispatch(
+        client: TestClient,
+    ) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        with _pair_preview_enabled():
+            response = _execute_without_kernel(
+                client, session, _participant_headers(session, "p1")
+            )
+
+        assert response.status_code == 404, response.text
+        assert response.json() == {"detail": "Unknown participant ID: p1."}
+        assert session.session_view.participant_presence is None
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -470,7 +493,7 @@ class TestExecutionRoutes_EditMode:
         observed_active: list[bool] = []
 
         with _pair_preview_enabled():
-            attached = _execute_without_kernel(client, session, headers)
+            _attach_participant(session, "p1")
             asyncio.run(
                 session.participants.append_handoff(
                     HandoffPayload(
@@ -505,7 +528,6 @@ class TestExecutionRoutes_EditMode:
                     json={"code": "x = 1"},
                 )
 
-        assert attached.status_code == 200, attached.text
         assert response.status_code == 200, response.text
         assert observed_active == [True]
         done = _done_payload(response)
@@ -553,6 +575,7 @@ class TestExecutionRoutes_EditMode:
                 detach_during_stream,
             ),
         ):
+            _attach_participant(session, "p1")
             response = client.post(
                 "/api/kernel/execute",
                 headers=headers,
@@ -582,20 +605,21 @@ class TestExecutionRoutes_EditMode:
         assert session is not None
 
         with _pair_preview_enabled():
+            _attach_participant(session, "p1")
             first = _execute_without_kernel(
                 client, session, _participant_headers(session, "p1")
             )
             second = _execute_without_kernel(
                 client,
                 session,
-                _participant_headers(session, "p2", harness="codex"),
+                _participant_headers(session, "p2"),
             )
 
         assert first.status_code == 200, first.text
         assert second.status_code == 409, second.text
         assert second.json() == {
             "detail": (
-                "Another participant (claude) is attached to this session."
+                "Another participant (Agent) is attached to this session."
             )
         }
         presence = session.session_view.participant_presence
@@ -621,30 +645,6 @@ class TestExecutionRoutes_EditMode:
                 "Marimo-Participant-Id requires Marimo-Stable-Session-Id."
             )
         }
-
-    @staticmethod
-    @with_session(SESSION_ID)
-    def test_execute_rejects_unknown_participant_kind(
-        client: TestClient,
-    ) -> None:
-        session = get_session_manager(client).get_session(SESSION_ID)
-        assert session is not None
-
-        with _pair_preview_enabled():
-            response = _execute_without_kernel(
-                client,
-                session,
-                {
-                    **_participant_headers(session, "p1"),
-                    "Marimo-Participant-Kind": "robot",
-                },
-            )
-
-        assert response.status_code == 400, response.text
-        assert response.json() == {
-            "detail": "Marimo-Participant-Kind must be one of human, agent."
-        }
-        assert session.session_view.participant_presence is None
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -849,6 +849,7 @@ class TestExecutionRoutes_EditMode:
         assert session is not None
 
         with _pair_preview_enabled():
+            _attach_participant(session, "p1")
             interrupts = _count_execute_interrupts(
                 client,
                 watcher_fires=False,

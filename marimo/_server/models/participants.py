@@ -3,13 +3,20 @@ from __future__ import annotations
 
 import msgspec
 
-from marimo._messaging.participants import HandoffEvent
+from marimo._messaging.participants import (
+    HandoffEvent,
+    HarnessMetadata,
+    ParticipantKind,
+)
 
 
 class ParticipantAttachResponse(msgspec.Struct, rename="camel"):
     participant_id: str
     cursor: int
     attached: bool
+    record_created: bool
+    kind: ParticipantKind
+    harness: HarnessMetadata
 
 
 class ParticipantDetachResponse(msgspec.Struct, rename="camel"):

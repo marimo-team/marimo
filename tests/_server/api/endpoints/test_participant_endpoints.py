@@ -68,8 +68,14 @@ def _participant_headers(
     return {
         "Marimo-Stable-Session-Id": session.stable_id,
         "Marimo-Participant-Id": participant_id,
-        "Marimo-Participant-Harness": "claude",
         **token_header("fake-token"),
+    }
+
+
+def _participant_metadata() -> dict[str, object]:
+    return {
+        "kind": "agent",
+        "harness": {"id": "pi", "displayName": "Pi"},
     }
 
 
@@ -95,7 +101,9 @@ def test_attach_handoff_read_and_detach(client: TestClient) -> None:
     }
 
     attached = client.post(
-        "/api/participants/attach", headers=participant_headers
+        "/api/participants/attach",
+        headers=participant_headers,
+        json=_participant_metadata(),
     )
     handed_off = client.post(
         "/api/participants/handoff",
@@ -114,6 +122,9 @@ def test_attach_handoff_read_and_detach(client: TestClient) -> None:
         "participantId": "p1",
         "cursor": 0,
         "attached": True,
+        "recordCreated": True,
+        "kind": "agent",
+        "harness": {"id": "pi", "displayName": "Pi"},
     }
     assert handed_off.status_code == 200, handed_off.text
     assert handed_off.json() == {"seq": 1}
@@ -121,8 +132,52 @@ def test_attach_handoff_read_and_detach(client: TestClient) -> None:
     assert events.json()["cursor"] == 1
     assert events.json()["remaining"] == 0
     assert events.json()["events"][0]["error"] == "RuntimeError"
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session is not None
+    presence = session.session_view.participant_presence
+    assert presence is not None
+    assert presence.harness.id == "pi"
+    assert presence.harness.display_name == "Pi"
     assert detached.status_code == 200, detached.text
     assert detached.json() == {"participantId": "p1", "attached": False}
+
+
+@with_session(SESSION_ID)
+def test_attach_reports_record_creation_and_keeps_harness(
+    client: TestClient,
+) -> None:
+    headers = _participant_headers(client)
+    first = client.post(
+        "/api/participants/attach",
+        headers=headers,
+        json=_participant_metadata(),
+    )
+    second = client.post("/api/participants/attach", headers=headers)
+    resumed = client.get("/api/participants/events", headers=headers)
+
+    assert first.status_code == 200, first.text
+    assert first.json()["recordCreated"] is True
+    assert second.status_code == 200, second.text
+    assert second.json()["recordCreated"] is False
+    assert second.json()["harness"] == {
+        "id": "pi",
+        "displayName": "Pi",
+    }
+    assert resumed.status_code == 200, resumed.text
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session is not None
+    assert session.session_view.participant_presence is not None
+    assert session.session_view.participant_presence.harness.id == "pi"
+
+
+@with_session(SESSION_ID)
+def test_events_reject_unknown_participant(client: TestClient) -> None:
+    response = client.get(
+        "/api/participants/events", headers=_participant_headers(client)
+    )
+
+    assert response.status_code == 404, response.text
+    assert response.json() == {"detail": "Unknown participant ID: p1."}
 
 
 @with_session(SESSION_ID)
@@ -158,6 +213,7 @@ def test_participant_route_requires_identity_headers(
             "Marimo-Stable-Session-Id": session.stable_id,
             **token_header("fake-token"),
         },
+        json=_participant_metadata(),
     )
     missing_stable_session = client.post(
         "/api/participants/attach",
@@ -165,6 +221,7 @@ def test_participant_route_requires_identity_headers(
             "Marimo-Participant-Id": "p1",
             **token_header("fake-token"),
         },
+        json=_participant_metadata(),
     )
 
     assert missing_participant.status_code == 400
@@ -178,10 +235,42 @@ def test_participant_route_requires_identity_headers(
 
 
 @with_session(SESSION_ID)
+def test_attach_validates_participant_metadata(client: TestClient) -> None:
+    metadata = _participant_metadata()
+    metadata["kind"] = "robot"
+
+    response = client.post(
+        "/api/participants/attach",
+        headers=_participant_headers(client),
+        json=metadata,
+    )
+
+    assert response.status_code == 400, response.text
+
+
+@with_session(SESSION_ID)
+def test_attach_rejects_control_characters_in_harness_name(
+    client: TestClient,
+) -> None:
+    metadata = _participant_metadata()
+    metadata["harness"] = {"id": "pi", "displayName": "Pi\nAgent"}
+
+    response = client.post(
+        "/api/participants/attach",
+        headers=_participant_headers(client),
+        json=metadata,
+    )
+
+    assert response.status_code == 400, response.text
+
+
+@with_session(SESSION_ID)
 def test_handoff_enforces_payload_cap(client: TestClient) -> None:
     participant_headers = _participant_headers(client)
     attached = client.post(
-        "/api/participants/attach", headers=participant_headers
+        "/api/participants/attach",
+        headers=participant_headers,
+        json=_participant_metadata(),
     )
     assert attached.status_code == 200, attached.text
 
@@ -204,6 +293,12 @@ def test_handoff_enforces_payload_cap(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_events_validate_query_parameters(client: TestClient) -> None:
+    attached = client.post(
+        "/api/participants/attach",
+        headers=_participant_headers(client),
+        json=_participant_metadata(),
+    )
+    assert attached.status_code == 200, attached.text
     response = client.get(
         "/api/participants/events?since=-1",
         headers=_participant_headers(client),
@@ -220,7 +315,11 @@ def test_event_stream_uses_sse_framing(client: TestClient) -> None:
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session is not None
     headers = _participant_headers(client)
-    attached = client.post("/api/participants/attach", headers=headers)
+    attached = client.post(
+        "/api/participants/attach",
+        headers=headers,
+        json=_participant_metadata(),
+    )
     assert attached.status_code == 200, attached.text
     event = HandoffEvent(
         seq=1,

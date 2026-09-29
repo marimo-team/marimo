@@ -7,7 +7,7 @@ import msgspec
 from starlette.authentication import requires
 from starlette.responses import StreamingResponse
 
-from marimo._messaging.participants import HandoffPayload
+from marimo._messaging.participants import HandoffPayload, ParticipantMetadata
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.participants import (
@@ -60,14 +60,30 @@ def _optional_nonnegative_int(request: Request, name: str) -> int | None:
 @requires("edit")
 async def attach(request: Request) -> ParticipantAttachResponse:
     """Attach or renew the participant identified by the request headers."""
+    try:
+        metadata = (
+            await parse_request(request, cls=ParticipantMetadata)
+            if await request.body()
+            else None
+        )
+    except (msgspec.DecodeError, msgspec.ValidationError, ValueError) as error:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Invalid participant metadata.",
+        ) from error
     resolved = await AppState(request).require_participant_session(
-        participant_required=True
+        participant_required=True,
+        attach_request=True,
+        metadata=metadata,
     )
     assert resolved.participant is not None
     return ParticipantAttachResponse(
         participant_id=resolved.participant.participant_id,
         cursor=resolved.participant.cursor,
         attached=resolved.participant.attached,
+        record_created=resolved.record_created,
+        kind=resolved.participant.kind,
+        harness=resolved.participant.harness,
     )
 
 

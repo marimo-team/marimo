@@ -231,7 +231,7 @@ describe("useMarimoKernelConnection messages", () => {
             data: {
               op: "participant-presence",
               participant_id: "abcdef1234567890",
-              harness: "codex",
+              harness: { id: "codex", displayName: "Codex" },
               kind: "agent",
               attached: false,
               listening: false,
@@ -247,7 +247,7 @@ describe("useMarimoKernelConnection messages", () => {
     expect(store.get(participantPresenceAtom)).toEqual({
       op: "participant-presence",
       participant_id: "abcdef1234567890",
-      harness: "codex",
+      harness: { id: "codex", displayName: "Codex" },
       kind: "agent",
       attached: false,
       listening: false,
@@ -313,7 +313,7 @@ it("clears stale participant presence when a new kernel becomes ready", () => {
   store.set(participantPresenceAtom, {
     op: "participant-presence",
     participant_id: "stale-participant",
-    harness: "claude",
+    harness: { id: "claude", displayName: "Claude Code" },
     kind: "agent",
     attached: true,
     listening: false,

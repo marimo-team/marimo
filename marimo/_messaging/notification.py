@@ -34,7 +34,10 @@ from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.context import RUN_ID_CTX, RunId_t
 from marimo._messaging.notebook.changes import Transaction
-from marimo._messaging.participants import ParticipantKind
+from marimo._messaging.participants import (
+    HarnessMetadata,
+    ParticipantKind,
+)
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
@@ -622,7 +625,7 @@ class ParticipantPresenceNotification(
 
     name: ClassVar[str] = "participant-presence"
     participant_id: str
-    harness: str
+    harness: HarnessMetadata
     kind: ParticipantKind
     attached: bool
     listening: bool

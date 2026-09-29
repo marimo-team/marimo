@@ -62,6 +62,17 @@ class ExecutionResult:
     stderr: str
 
 
+@dataclass(frozen=True)
+class AttachmentResult:
+    participant_id: str
+    cursor: int
+    attached: bool
+    record_created: bool
+    kind: str
+    harness_id: str
+    harness_name: str
+
+
 def load_token(
     token_file: Path | None, environ: Mapping[str, str]
 ) -> str | None:
@@ -206,6 +217,7 @@ def execute(
     stdout: TextIO,
     stderr: TextIO,
     stream: bool,
+    participant_id: str | None = None,
 ) -> ExecutionResult:
     request_url = _endpoint_url(url, "/api/kernel/execute")
     headers = {
@@ -214,6 +226,8 @@ def execute(
     }
     if token is not None:
         headers["Authorization"] = f"Bearer {token}"
+    if participant_id is not None:
+        headers["Marimo-Participant-Id"] = participant_id
     body = json.dumps({"code": code}).encode("utf-8")
     response = open_response(
         method="POST",
@@ -277,6 +291,52 @@ def execute(
         raise PairError(
             "The execution response ended before completion was confirmed."
         )
+    finally:
+        response.close()
+
+
+def attach_participant(
+    *,
+    url: str,
+    session_id: str,
+    token: str | None,
+    participant_id: str,
+    harness_id: str,
+    harness_name: str,
+) -> AttachmentResult:
+    request_url = _endpoint_url(url, "/api/participants/attach")
+    headers = {
+        "Content-Type": "application/json",
+        "Marimo-Stable-Session-Id": session_id,
+        "Marimo-Participant-Id": participant_id,
+    }
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
+    body = json.dumps(
+        {
+            "kind": "agent",
+            "harness": {"id": harness_id, "displayName": harness_name},
+        }
+    ).encode("utf-8")
+    response = open_response(
+        method="POST", url=request_url, headers=headers, body=body
+    )
+    try:
+        payload = json.load(response)
+        harness = payload["harness"]
+        return AttachmentResult(
+            participant_id=str(payload["participantId"]),
+            cursor=int(payload["cursor"]),
+            attached=bool(payload["attached"]),
+            record_created=bool(payload["recordCreated"]),
+            kind=str(payload["kind"]),
+            harness_id=str(harness["id"]),
+            harness_name=str(harness["displayName"]),
+        )
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise PairError(
+            "The server returned an invalid attach response."
+        ) from error
     finally:
         response.close()
 

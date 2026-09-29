@@ -27,7 +27,7 @@ function participantPresence(sessionGeneration: number): IslandsKernelMessage {
       data: {
         op: "participant-presence",
         participant_id: "abcdef1234567890",
-        harness: "claude",
+        harness: { id: "claude", displayName: "Claude Code" },
         kind: "agent",
         attached: true,
         listening: false,
@@ -96,7 +96,7 @@ describe("initializeIslands", () => {
     store.set(participantPresenceAtom, {
       op: "participant-presence",
       participant_id: "stale-participant",
-      harness: "codex",
+      harness: { id: "codex", displayName: "Codex" },
       kind: "agent",
       attached: true,
       listening: false,
@@ -120,7 +120,7 @@ describe("initializeIslands", () => {
     expect(store.get(participantPresenceAtom)).toEqual({
       op: "participant-presence",
       participant_id: "abcdef1234567890",
-      harness: "claude",
+      harness: { id: "claude", displayName: "Claude Code" },
       kind: "agent",
       attached: true,
       listening: false,
