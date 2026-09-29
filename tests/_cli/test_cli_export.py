@@ -390,13 +390,18 @@ class TestExportHTML:
         [
             ("./pyodide/", "Expected an http(s) URL"),
             ("file:///tmp/pyodide/", "Expected an http(s) URL"),
+            ("http://[::1/simple/", "Expected an http(s) URL"),
             (
                 "https://user:secret-token@mirror.example/simple/",
                 "Credentials in the URL are not supported",
             ),
+            (
+                "https://mirror.example/simple/?token=secret-token",
+                "Expected a URL without a query or fragment",
+            ),
         ],
     )
-    def test_cli_export_html_wasm_sources_must_be_anonymous_http(
+    def test_cli_export_html_wasm_rejects_invalid_source_urls(
         tmp_path: Path, url: str, message: str
     ) -> None:
         notebook = tmp_path / "notebook.py"

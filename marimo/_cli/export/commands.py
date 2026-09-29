@@ -907,17 +907,24 @@ def _source_url(
     del ctx, param
     if value is None:
         return None
-    url = urlparse(value)
+    not_http = (
+        "Expected an http(s) URL. Serve a local directory with "
+        "`python -m http.server`."
+    )
+    try:
+        url = urlparse(value)
+    except ValueError:
+        raise click.BadParameter(not_http) from None
     if url.scheme not in ("http", "https") or not url.hostname:
-        raise click.BadParameter(
-            "Expected an http(s) URL. Serve a local directory with "
-            "`python -m http.server`."
-        )
+        raise click.BadParameter(not_http)
     if url.username or url.password:
         raise click.BadParameter(
             "Credentials in the URL are not supported. Use a mirror that "
             "allows anonymous downloads."
         )
+    # Sources are base URLs that get file names and package paths appended.
+    if url.query or url.fragment:
+        raise click.BadParameter("Expected a URL without a query or fragment.")
     return value
 
 
