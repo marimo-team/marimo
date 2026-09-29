@@ -7,37 +7,73 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
+    import altair as alt
     import marimo as mo
+    from vega_datasets import data
 
-    return (mo,)
-
-
-@app.cell
-def _():
-    temperatures = {
-        "Bangkok": 31,
-        "London": 16,
-        "Nairobi": 24,
-        "Tokyo": 22,
-    }
-    return (temperatures,)
+    return alt, data, mo
 
 
 @app.cell
-def _(mo, temperatures):
-    city = mo.ui.dropdown(
-        options=list(temperatures),
-        value="Bangkok",
-        label="City",
+def _(mo):
+    mo.md("""
+    # Create an interactive chart
+
+    Explore fuel economy and horsepower in the Vega cars dataset.
+
+    Click a legend value to highlight an origin. Drag to pan and scroll to zoom.
+    """)
+    return
+
+
+@app.cell
+def _(data):
+    cars = data.cars()
+    return (cars,)
+
+
+@app.cell
+def _(alt, cars):
+    origin = alt.selection_point(fields=["Origin"], bind="legend")
+    chart = (
+        alt.Chart(cars)
+        .mark_circle(size=80)
+        .encode(
+            x=alt.X(
+                "Horsepower:Q",
+                scale=alt.Scale(zero=False),
+            ),
+            y=alt.Y(
+                "Miles_per_Gallon:Q",
+                title="Miles per gallon",
+                scale=alt.Scale(zero=False),
+            ),
+            color=alt.Color("Origin:N", title="Origin"),
+            opacity=alt.condition(
+                origin,
+                alt.value(0.85),
+                alt.value(0.12),
+            ),
+            tooltip=[
+                alt.Tooltip("Name:N", title="Car"),
+                alt.Tooltip("Origin:N", title="Origin"),
+                alt.Tooltip("Horsepower:Q", format=".0f"),
+                alt.Tooltip(
+                    "Miles_per_Gallon:Q",
+                    title="Miles per gallon",
+                    format=".1f",
+                ),
+            ],
+        )
+        .add_params(origin)
+        .properties(
+            height=340,
+            title="Fuel economy vs. horsepower",
+            width="container",
+        )
+        .interactive()
     )
-    city
-    return (city,)
-
-
-@app.cell
-def _(city, mo, temperatures):
-    temperature = temperatures[city.value]
-    mo.md(f"## {city.value}\n\nSample temperature: **{temperature}°C**")
+    chart
     return
 
 

@@ -156,7 +156,7 @@ const TemplateCardSkeletons = () => (
     className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
     aria-label="Loading templates"
   >
-    {[0, 1, 2].map((index) => (
+    {[0, 1, 2, 3, 4, 5].map((index) => (
       <Skeleton key={index} className="h-52 rounded-lg" />
     ))}
   </div>

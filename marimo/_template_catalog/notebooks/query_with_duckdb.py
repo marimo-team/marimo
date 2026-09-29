@@ -14,6 +14,16 @@ def _():
 
 @app.cell
 def _(mo):
+    mo.md("""
+    # Query data with SQL
+
+    Adjust the threshold to update the query.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
     minimum_units = mo.ui.slider(
         start=5,
         stop=20,

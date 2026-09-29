@@ -4,14 +4,18 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { expect, type Page, test } from "@playwright/test";
 
-const homeUrl = "http://127.0.0.1:2718";
+const homeUrl =
+  process.env.MARIMO_TEMPLATE_E2E_URL ?? "http://127.0.0.1:2718";
 const savedNotebook = "e2e-tests/template-flow-output.py";
 const savedNotebookPath = path.join(process.cwd(), savedNotebook);
-const templateName = "Build an interactive control";
+const templateName = "Build a calculator";
 const featuredTemplateNames = [
+  "Explore a CSV",
+  "Filter and summarize data",
+  "Query data with SQL",
+  "Create an interactive chart",
+  "Build a dashboard",
   templateName,
-  "Filter tabular data",
-  "Query data with DuckDB",
 ];
 const editedSource = 'import marimo as mo\ncopy_marker = "saved template copy"';
 
@@ -28,7 +32,7 @@ async function openFeaturedTemplate(page: Page): Promise<Page> {
   await expect(
     templatePage
       .getByRole("textbox")
-      .filter({ hasText: 'label="Number of stars"' }),
+      .filter({ hasText: 'label="Team size"' }),
   ).toBeVisible({ timeout: 15_000 });
   return templatePage;
 }
@@ -175,12 +179,11 @@ test("template browser retries, searches, and restores focus", async ({
       ),
     )
     .toBe(true);
-
   await search.fill("not a real template");
   await expect(dialog.getByText("No templates match")).toBeVisible();
-  await search.fill("embedded sample");
+  await search.fill("fuel economy");
   const dataExplorerCard = dialog.getByRole("button", {
-    name: "Use template: Explore a small dataset",
+    name: "Use template: Create an interactive chart",
   });
   await expect(dataExplorerCard).toBeVisible();
   await expect(
@@ -191,7 +194,9 @@ test("template browser retries, searches, and restores focus", async ({
   await dataExplorerCard.click();
   const templatePage = await popup;
   await expect(
-    templatePage.getByRole("textbox").filter({ hasText: 'label="City"' }),
+    templatePage
+      .getByRole("textbox")
+      .filter({ hasText: "from vega_datasets import data" }),
   ).toBeVisible({ timeout: 15_000 });
   await expect(dialog).toHaveCount(0);
   await templatePage.close();
@@ -276,7 +281,7 @@ test("option C keeps notebook access across workspace states and themes", async 
   await blankNotebook.focus();
   await page.keyboard.press("Tab");
   await expect(
-    page.getByRole("button", { name: `Use template: ${templateName}` }),
+    page.getByRole("button", { name: "Use template: Explore a CSV" }),
   ).toBeFocused();
   await expect
     .poll(() =>

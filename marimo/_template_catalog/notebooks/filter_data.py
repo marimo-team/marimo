@@ -15,12 +15,12 @@ def _():
 @app.cell
 def _():
     records = [
-        {"city": "Bangkok", "region": "Asia", "temperature_c": 31},
-        {"city": "London", "region": "Europe", "temperature_c": 16},
-        {"city": "Nairobi", "region": "Africa", "temperature_c": 24},
-        {"city": "New York", "region": "Americas", "temperature_c": 21},
-        {"city": "Sydney", "region": "Oceania", "temperature_c": 23},
-        {"city": "Tokyo", "region": "Asia", "temperature_c": 22},
+        {"region": "Americas", "product": "Notebook", "revenue": 228},
+        {"region": "Asia", "product": "Notebook", "revenue": 333},
+        {"region": "Europe", "product": "Pen set", "revenue": 108},
+        {"region": "Oceania", "product": "Desk pad", "revenue": 360},
+        {"region": "Africa", "product": "Pen set", "revenue": 81},
+        {"region": "Asia", "product": "Desk pad", "revenue": 288},
     ]
     return (records,)
 
@@ -32,7 +32,7 @@ def _(mo, records):
         value=["Asia"],
         label="Regions",
     )
-    regions
+    mo.vstack([mo.md("# Filter and summarize data"), regions])
     return (regions,)
 
 
@@ -43,7 +43,18 @@ def _(mo, records, regions):
         for row in records
         if not regions.value or row["region"] in regions.value
     ]
-    mo.ui.table(filtered_records, selection=None)
+    sales_table = mo.ui.table(filtered_records, selection="multi")
+    sales_table
+    return (sales_table,)
+
+
+@app.cell
+def _(mo, sales_table):
+    selected_revenue = sum(row["revenue"] for row in sales_table.value)
+    mo.md(
+        f"**Selected:** {len(sales_table.value)} rows · "
+        f"**Revenue:** ${selected_revenue:,.0f}"
+    )
     return
 
 

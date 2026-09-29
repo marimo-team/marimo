@@ -36,7 +36,7 @@ export const TemplateCard = ({
       <img
         src={template.previewUrl}
         alt=""
-        className="h-28 w-full border-b bg-(--slate-2) object-cover"
+        className="h-28 w-full border-b bg-(--slate-2) object-cover object-top"
       />
       <div className="relative flex min-h-24 flex-col gap-1 p-4 pr-10">
         <h3 className="font-medium text-foreground">{template.title}</h3>

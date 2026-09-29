@@ -14,24 +14,36 @@ def _():
 
 @app.cell
 def _(mo):
-    stars = mo.ui.slider(
+    team_size = mo.ui.slider(
         start=1,
-        stop=10,
-        value=4,
-        label="Number of stars",
+        stop=50,
+        value=8,
+        label="Team size",
     )
-    stars
-    return (stars,)
+    cost_per_person = mo.ui.number(
+        start=0,
+        value=25,
+        label="Monthly cost per person ($)",
+    )
+    fixed_cost = mo.ui.number(
+        start=0,
+        value=100,
+        label="Fixed monthly cost ($)",
+    )
+    mo.vstack([team_size, cost_per_person, fixed_cost])
+    return cost_per_person, fixed_cost, team_size
 
 
 @app.cell
-def _(mo, stars):
+def _(cost_per_person, fixed_cost, mo, team_size):
+    monthly_total = fixed_cost.value + team_size.value * cost_per_person.value
     mo.md(f"""
-    # Your interactive notebook
+    # Monthly budget calculator
 
-    {"⭐" * stars.value}
+    **Estimated monthly cost: ${monthly_total:,.0f}**
 
-    Move the slider. marimo updates this output automatically.
+    {team_size.value} people × ${cost_per_person.value:,.0f}, plus
+    ${fixed_cost.value:,.0f} in fixed costs.
     """)
     return
 
