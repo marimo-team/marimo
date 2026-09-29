@@ -5,6 +5,7 @@ import asyncio
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+import msgspec
 from starlette.authentication import requires
 from starlette.responses import JSONResponse, StreamingResponse
 
@@ -339,6 +340,11 @@ async def execute_code(
     body = await parse_request(request, cls=ExecuteScratchpadRequest)
     participant_session = await app_state.require_participant_session()
     session = participant_session.session
+    participant_id = (
+        participant_session.participant.participant_id
+        if participant_session.participant is not None
+        else None
+    )
 
     # Register cells into the graph without executing them so that
     # code_mode's run_cell can resolve dependencies. The kernel
@@ -350,6 +356,11 @@ async def execute_code(
 
     async def sse_generator() -> AsyncGenerator[str, None]:
         interrupt_sent = False
+        activity_token = (
+            await session.participants.begin_request(participant_id)
+            if participant_id is not None
+            else None
+        )
 
         def interrupt_once() -> None:
             # The disconnect watcher and the response cancellation can
@@ -405,7 +416,22 @@ async def execute_code(
                     async for event in listener.stream():
                         yield event
 
-                yield build_done_event(session, listener)
+                handoffs = None
+                if participant_id is not None and activity_token is not None:
+                    inline = await session.participants.read_inline_events(
+                        participant_id, activity_token
+                    )
+                    if inline is not None and (
+                        inline.events or inline.remaining
+                    ):
+                        handoffs = {
+                            "events": [
+                                msgspec.to_builtins(event)
+                                for event in inline.events
+                            ],
+                            "remaining": inline.remaining,
+                        }
+                yield build_done_event(session, listener, handoffs=handoffs)
         except asyncio.CancelledError:
             # On ASGI spec < 2.4 (uvicorn), Starlette cancels this
             # generator when the client disconnects. On spec >= 2.4 it
@@ -414,6 +440,10 @@ async def execute_code(
             interrupt_once()
             raise
         finally:
+            if participant_id is not None and activity_token is not None:
+                await session.participants.end_request(
+                    participant_id, activity_token
+                )
             await cancel_and_wait(disconnect_task)
 
     return StreamingResponse(sse_generator(), media_type="text/event-stream")

@@ -289,6 +289,96 @@ async def test_event_stream_emits_keepalive_ticks() -> None:
     registry.close()
 
 
+async def test_inline_read_respects_budget_and_advances_cursor() -> None:
+    registry = ParticipantRegistry(inline_budget_bytes=300)
+    await registry.attach("p1", harness="claude", kind="agent")
+    token = await registry.begin_request("p1")
+    assert token is not None
+    first = await registry.append_handoff(payload("x" * 100))
+    second = await registry.append_handoff(payload("y" * 100))
+
+    result = await registry.read_inline_events("p1", token)
+
+    assert result is not None
+    assert result.events == (first,)
+    assert result.cursor == first.seq
+    assert result.remaining == 1
+    assert await registry.delivery_status("p1", first.seq) == "delivered"
+    assert await registry.delivery_status("p1", second.seq) == "queued"
+    registry.close()
+
+
+async def test_inline_read_omits_detached_participant() -> None:
+    registry = ParticipantRegistry()
+    await registry.attach("p1", harness="claude", kind="agent")
+    token = await registry.begin_request("p1")
+    assert token is not None
+    event = await registry.append_handoff(payload())
+    await registry.detach("p1")
+
+    result = await registry.read_inline_events("p1", token)
+
+    assert result is None
+    assert await registry.delivery_status("p1", event.seq) == "not_delivered"
+    registry.close()
+
+
+async def test_stale_request_does_not_consume_after_reattach() -> None:
+    registry = ParticipantRegistry()
+    await registry.attach("p1", harness="claude", kind="agent")
+    stale_token = await registry.begin_request("p1")
+    assert stale_token is not None
+    event = await registry.append_handoff(payload())
+    await registry.detach("p1")
+    await registry.attach("p1", harness="claude", kind="agent")
+
+    result = await registry.read_inline_events("p1", stale_token)
+
+    assert result is None
+    assert await registry.delivery_status("p1", event.seq) == "queued"
+    registry.close()
+
+
+async def test_overlapping_requests_keep_activity_until_the_last_end() -> None:
+    registry = ParticipantRegistry(wall_clock=lambda: 1_234.5)
+    snapshots = []
+    registry.set_presence_callback(snapshots.append)
+    await registry.attach("p1", harness="claude", kind="agent")
+
+    first = await registry.begin_request("p1")
+    second = await registry.begin_request("p1")
+    assert first is not None
+    assert second is not None
+    await registry.end_request("p1", first)
+    still_active = await registry.state("p1")
+    await registry.end_request("p1", second)
+    inactive = await registry.state("p1")
+
+    assert still_active is not None
+    assert still_active.active is True
+    assert still_active.active_since == 1_234.5
+    assert inactive is not None
+    assert inactive.active is False
+    assert inactive.active_since is None
+    assert [snapshot.active for snapshot in snapshots] == [False, True, False]
+    registry.close()
+
+
+async def test_request_end_after_detach_is_ignored() -> None:
+    registry = ParticipantRegistry()
+    await registry.attach("p1", harness="claude", kind="agent")
+    token = await registry.begin_request("p1")
+    assert token is not None
+
+    detached = await registry.detach("p1")
+    await registry.end_request("p1", token)
+    after_end = await registry.state("p1")
+
+    assert detached.active is False
+    assert after_end == detached
+    registry.close()
+
+
 async def test_presence_snapshot_fields_use_wall_time() -> None:
     snapshots = []
     registry = ParticipantRegistry(wall_clock=lambda: 1_234.5)

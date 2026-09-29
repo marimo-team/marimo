@@ -573,6 +573,24 @@ class TestBuildDoneEvent:
             }
         )
 
+    def test_includes_inline_handoffs_when_present(self) -> None:
+        handoffs = {
+            "events": [{"seq": 1, "error": "RuntimeError"}],
+            "remaining": 2,
+        }
+
+        _, data = _parse_sse(
+            build_done_event(_make_session(), handoffs=handoffs)
+        )
+
+        assert data == snapshot(
+            {
+                "success": True,
+                "output": self._EMPTY,
+                "handoffs": handoffs,
+            }
+        )
+
 
 class TestScratchCellListener:
     @pytest.mark.asyncio
