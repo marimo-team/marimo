@@ -38,12 +38,12 @@ vi.stubGlobal(
 
 // Create a mock URL class that works as a constructor
 class MockURL {
-  href: string;
-  constructor(url: string, base?: string | URL) {
+  public href: string;
+  public constructor(url: string, base?: string | URL) {
     this.href = base ? `${base}/${url}` : url;
   }
-  static createObjectURL = vi.fn(() => "blob:mock-url");
-  static revokeObjectURL = vi.fn();
+  public static createObjectURL = vi.fn(() => "blob:mock-url");
+  public static revokeObjectURL = vi.fn();
 }
 vi.stubGlobal("URL", MockURL);
 

@@ -39,7 +39,7 @@ export class DefaultWorkerFactory implements WorkerFactory {
   private readonly url: string;
   private readonly name: string;
 
-  constructor(config: DefaultWorkerFactoryConfig = {}) {
+  public constructor(config: DefaultWorkerFactoryConfig = {}) {
     this.url = config.workerUrl || this.getDefaultWorkerUrl();
     this.name = config.workerName || getMarimoVersion();
   }
@@ -47,7 +47,7 @@ export class DefaultWorkerFactory implements WorkerFactory {
   /**
    * Creates a new Pyodide worker
    */
-  create(): Worker {
+  public create(): Worker {
     return createModuleWorker(new URL(this.url, import.meta.url), {
       name: this.name,
     });

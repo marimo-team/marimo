@@ -20,15 +20,15 @@ interface Data {
 }
 
 export class CarouselPlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-carousel";
+  public tagName = "marimo-carousel";
 
-  validator = z.object({
+  public validator = z.object({
     index: z.string().nullish(),
     height: z.union([z.string(), z.number()]).nullish(),
   });
 
   // TODO: Move async when we support async css
-  cssStyles = [
+  public cssStyles = [
     swiperCss,
     swiperCssVirtual,
     swiperCssNavigation,
@@ -38,7 +38,7 @@ export class CarouselPlugin implements IStatelessPlugin<Data> {
     swiperSlidesCss,
   ];
 
-  render(props: IStatelessPluginProps<Data>): JSX.Element {
+  public render(props: IStatelessPluginProps<Data>): JSX.Element {
     return (
       <LazySlidesComponent {...props.data} wrapAround={true}>
         {props.children}

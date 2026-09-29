@@ -52,7 +52,7 @@ export class SseTransport implements IConnectionTransport {
   private userClosed = false;
   private state: WebSocket["readyState"] = WebSocket.CLOSED;
 
-  constructor(
+  public constructor(
     urlProvider: () => string,
     headersProvider: () => Record<string, string> = () => ({}),
   ) {
@@ -60,11 +60,11 @@ export class SseTransport implements IConnectionTransport {
     this.headersProvider = headersProvider;
   }
 
-  get readyState(): WebSocket["readyState"] {
+  public get readyState(): WebSocket["readyState"] {
     return this.state;
   }
 
-  reconnect(_code?: number, _reason?: string): void {
+  public reconnect(_code?: number, _reason?: string): void {
     this.userClosed = false;
     this.retryCount = 0;
     this.clearRetryTimer();
@@ -72,7 +72,7 @@ export class SseTransport implements IConnectionTransport {
     this.connect();
   }
 
-  close(): void {
+  public close(): void {
     this.userClosed = true;
     this.clearRetryTimer();
     this.state = WebSocket.CLOSED;
@@ -80,13 +80,13 @@ export class SseTransport implements IConnectionTransport {
     this.abortController = null;
   }
 
-  send(_data: string | ArrayBuffer | Blob | ArrayBufferView): void {
+  public send(_data: string | ArrayBuffer | Blob | ArrayBufferView): void {
     // The kernel connection is receive-only; all client requests go over
     // HTTP POST endpoints.
     Logger.warn("SseTransport does not support send(); dropping message");
   }
 
-  addEventListener<T extends ConnectionEvent>(
+  public addEventListener<T extends ConnectionEvent>(
     event: T,
     callback: ConnectionTransportCallback<T>,
   ): void {
@@ -96,7 +96,7 @@ export class SseTransport implements IConnectionTransport {
     );
   }
 
-  removeEventListener<T extends ConnectionEvent>(
+  public removeEventListener<T extends ConnectionEvent>(
     event: T,
     callback: ConnectionTransportCallback<T>,
   ): void {

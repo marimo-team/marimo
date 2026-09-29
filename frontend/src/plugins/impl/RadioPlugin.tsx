@@ -25,9 +25,9 @@ interface Data {
 type S = string | null;
 
 export class RadioPlugin implements IPlugin<S, Data> {
-  tagName = "marimo-radio";
+  public tagName = "marimo-radio";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.string().nullable(),
     inline: z.boolean().default(false),
     label: z.string().nullable(),
@@ -35,7 +35,7 @@ export class RadioPlugin implements IPlugin<S, Data> {
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<S, Data>): JSX.Element {
+  public render(props: IPluginProps<S, Data>): JSX.Element {
     return (
       <Radio {...props.data} value={props.value} setValue={props.setValue} />
     );

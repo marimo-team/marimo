@@ -20,9 +20,9 @@ interface Data {
 }
 
 export class NumberPlugin implements IPlugin<T | null, Data> {
-  tagName = "marimo-number";
+  public tagName = "marimo-number";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.number().nullish(),
     label: z.string().nullable(),
     start: z.number().nullish(),
@@ -33,7 +33,7 @@ export class NumberPlugin implements IPlugin<T | null, Data> {
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T | null, Data>): JSX.Element {
+  public render(props: IPluginProps<T | null, Data>): JSX.Element {
     return (
       <NumberComponent
         {...props.data}

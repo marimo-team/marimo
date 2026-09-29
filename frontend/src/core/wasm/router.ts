@@ -1,17 +1,17 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 class URLPyodideRouter {
-  getFilename(): string | null {
+  public getFilename(): string | null {
     return this.getSearchParam("filename");
   }
-  setFilename(filename: string) {
+  public setFilename(filename: string) {
     this.setSearchParam("filename", filename);
   }
 
-  getCodeFromSearchParam(): string | null {
+  public getCodeFromSearchParam(): string | null {
     return this.getSearchParam("code");
   }
 
-  getCodeFromHash(): string | null {
+  public getCodeFromHash(): string | null {
     const hash = window.location.hash;
     const prefix = "#code/";
     if (!hash.startsWith(prefix)) {
@@ -20,7 +20,7 @@ class URLPyodideRouter {
     return hash.slice(prefix.length);
   }
 
-  setCodeForHash(code: string) {
+  public setCodeForHash(code: string) {
     window.location.hash = `#code/${code}`;
   }
 

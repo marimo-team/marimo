@@ -22,11 +22,11 @@ vi.mock("../state", async (importOriginal) => {
 
 class MockTransport implements Transport {
   private readonly handlers = new Set<(message: JSONRPCMessage) => void>();
-  readonly sent: JSONRPCMessage[] = [];
+  public readonly sent: JSONRPCMessage[] = [];
 
-  connect = vi.fn().mockResolvedValue(undefined);
-  close = vi.fn();
-  send = vi.fn((message: JSONRPCMessage) => {
+  public connect = vi.fn().mockResolvedValue(undefined);
+  public close = vi.fn();
+  public send = vi.fn((message: JSONRPCMessage) => {
     this.sent.push(message);
     if (isRequest(message) && message.method === "initialize") {
       queueMicrotask(() => {
@@ -39,14 +39,14 @@ class MockTransport implements Transport {
     }
   });
 
-  onMessage(handler: (message: JSONRPCMessage) => void): () => void {
+  public onMessage(handler: (message: JSONRPCMessage) => void): () => void {
     this.handlers.add(handler);
     return () => {
       this.handlers.delete(handler);
     };
   }
 
-  emit(message: JSONRPCMessage) {
+  public emit(message: JSONRPCMessage) {
     for (const handler of this.handlers) {
       handler(message);
     }

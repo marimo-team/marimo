@@ -261,25 +261,25 @@ const pyrightClient = once((_: LSPConfig) => {
 export class PythonLanguageAdapter implements LanguageAdapter<{}> {
   private parser = new PythonParser();
 
-  readonly type = "python";
-  readonly defaultCode = this.parser.defaultCode;
-  readonly defaultMetadata = this.parser.defaultMetadata;
+  public readonly type = "python";
+  public readonly defaultCode = this.parser.defaultCode;
+  public readonly defaultMetadata = this.parser.defaultMetadata;
 
-  transformIn(code: string): [string, number, {}] {
+  public transformIn(code: string): [string, number, {}] {
     const result = this.parser.transformIn(code);
     return [result.code, result.offset, result.metadata];
   }
 
-  transformOut(code: string, metadata: {}): [string, number] {
+  public transformOut(code: string, metadata: {}): [string, number] {
     const result = this.parser.transformOut(code, metadata);
     return [result.code, result.offset];
   }
 
-  isSupported(code: string): boolean {
+  public isSupported(code: string): boolean {
     return this.parser.isSupported(code);
   }
 
-  getExtension(
+  public getExtension(
     cellId: CellId,
     completionConfig: CompletionConfig,
     hotkeys: HotkeyProvider,

@@ -19,9 +19,9 @@ interface Data {
 }
 
 export class DateRangePickerPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-date-range";
+  public tagName = "marimo-date-range";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.tuple([z.string(), z.string()]),
     label: z.string().nullable(),
     start: z.string(),
@@ -31,7 +31,7 @@ export class DateRangePickerPlugin implements IPlugin<T, Data> {
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <DateRangePickerComponent
         {...props.data}

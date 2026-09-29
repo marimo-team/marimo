@@ -90,15 +90,15 @@ const HighlightMargin = 250;
 
 export const searchHighlighter = ViewPlugin.fromClass(
   class {
-    decorations: DecorationSet;
-    readonly view: EditorView;
+    public decorations: DecorationSet;
+    public readonly view: EditorView;
 
-    constructor(view: EditorView) {
+    public constructor(view: EditorView) {
       this.view = view;
       this.decorations = this.highlight(view.state.field(searchState));
     }
 
-    update(update: ViewUpdate) {
+    public update(update: ViewUpdate) {
       const state = update.state.field(searchState);
       if (
         state !== update.startState.field(searchState) ||
@@ -110,7 +110,7 @@ export const searchHighlighter = ViewPlugin.fromClass(
       }
     }
 
-    highlight(query: QueryType) {
+    public highlight(query: QueryType) {
       if (!query.spec.valid) {
         return Decoration.none;
       }

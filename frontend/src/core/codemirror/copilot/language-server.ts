@@ -117,7 +117,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   private lastOpenedDocument: DidOpenTextDocumentParams | undefined;
   private copilotSettings: Record<string, unknown> = {};
 
-  constructor(
+  public constructor(
     options: ConstructorParameters<typeof LanguageServerClient>[0] & {
       copilotSettings?: Record<string, unknown>;
     },
@@ -140,7 +140,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
    * Re-run the LSP initialize handshake and send configuration.
    * Called by the transport's onReconnect callback after reconnecting.
    */
-  async reInitialize(): Promise<void> {
+  public async reInitialize(): Promise<void> {
     logger.log("#reInitialize: Re-initializing LSP connection");
     this.initializePromise = this.initialize();
     await this.initializePromise;
@@ -186,7 +186,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     return this.notify(method, params);
   }
 
-  override getInitializationOptions() {
+  public override getInitializationOptions() {
     const info = {
       name: "marimo",
       version: "0.1.0",
@@ -208,7 +208,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     return !isCopilotEnabled();
   }
 
-  override async textDocumentDidOpen(
+  public override async textDocumentDidOpen(
     params: DidOpenTextDocumentParams,
   ): Promise<boolean> {
     if (this.isDisabled()) {
@@ -223,7 +223,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     return super.textDocumentDidOpen(params);
   }
 
-  override async textDocumentDidClose(
+  public override async textDocumentDidClose(
     params: DidCloseTextDocumentParams,
   ): Promise<void> {
     if (this.openDocumentCount === 0) {
@@ -233,14 +233,14 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     return super.textDocumentDidClose(params);
   }
 
-  override async textDocumentCompletion(
+  public override async textDocumentCompletion(
     params: CompletionParams,
   ): Promise<CompletionList | CompletionItem[]> {
     // Not used in Copilot
     return [];
   }
 
-  override async textDocumentDidChange(
+  public override async textDocumentDidChange(
     params: DidChangeTextDocumentParams,
   ): Promise<void> {
     if (this.isDisabled()) {
@@ -304,17 +304,17 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     });
   }
 
-  override textDocumentHover(params: HoverParams): Promise<Hover> {
+  public override textDocumentHover(params: HoverParams): Promise<Hover> {
     // Not used in Copilot
     return Promise.resolve({ contents: [] });
   }
 
   // AUTH
-  signOut() {
+  public signOut() {
     return this._request("signOut", {});
   }
 
-  async signInInitiate() {
+  public async signInInitiate() {
     logger.log("#signInInitiate: Starting sign-in flow");
     try {
       const result = await this._request("signIn", {});
@@ -326,7 +326,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     }
   }
 
-  async signInConfirm(params: GitHubCopilotSignInConfirmParams) {
+  public async signInConfirm(params: GitHubCopilotSignInConfirmParams) {
     logger.log("#signInConfirm: Confirming sign-in");
     try {
       const result = await this._request("signInConfirm", params);
@@ -338,7 +338,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     }
   }
 
-  async signedIn() {
+  public async signedIn() {
     try {
       const { status } = await this._request("checkStatus", {});
       logger.log("#checkStatus: Status check completed", { status });
@@ -375,7 +375,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     200,
   );
 
-  async getCompletion(
+  public async getCompletion(
     params: InlineCompletionParams,
   ): Promise<InlineCompletionList | InlineCompletionItem[] | null> {
     if (this.isDisabled()) {

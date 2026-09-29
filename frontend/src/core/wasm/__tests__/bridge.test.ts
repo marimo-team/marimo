@@ -35,8 +35,8 @@ vi.stubGlobal(
 );
 
 class MockURL extends URL {
-  static override createObjectURL = vi.fn(() => "blob:mock-url");
-  static override revokeObjectURL = vi.fn();
+  public static override createObjectURL = vi.fn(() => "blob:mock-url");
+  public static override revokeObjectURL = vi.fn();
 }
 vi.stubGlobal("URL", MockURL);
 

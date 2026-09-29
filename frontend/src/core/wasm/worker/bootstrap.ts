@@ -36,12 +36,12 @@ export class DefaultWasmController implements WasmController {
   private sessionGeneration = 0;
   private activeSessionStops = new Set<PyCallable>();
 
-  get requirePyodide() {
+  public get requirePyodide() {
     invariant(this.pyodide, "Pyodide not loaded");
     return this.pyodide;
   }
 
-  async bootstrap(
+  public async bootstrap(
     opts: Parameters<WasmController["bootstrap"]>[0],
   ): Promise<PyodideInterface> {
     const pyodide = await this.loadPyodideAndPackages(opts);
@@ -110,7 +110,10 @@ export class DefaultWasmController implements WasmController {
     }
   }
 
-  async mountFilesystem(opts: { code: string; filename: string | null }) {
+  public async mountFilesystem(opts: {
+    code: string;
+    filename: string | null;
+  }) {
     const span = t.startSpan("mountFilesystem");
     // Set up the filesystem
     WasmFileSystem.createHomeDir(this.requirePyodide);
@@ -124,7 +127,7 @@ export class DefaultWasmController implements WasmController {
     });
   }
 
-  async startSession(opts: {
+  public async startSession(opts: {
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
@@ -250,7 +253,7 @@ export class DefaultWasmController implements WasmController {
     return bridgeProxy as unknown as SerializedBridge;
   }
 
-  async stopSession(): Promise<void> {
+  public async stopSession(): Promise<void> {
     this.sessionGeneration += 1;
     const stops = [...this.activeSessionStops];
     let hasFailure = false;

@@ -38,7 +38,7 @@ export interface LazyWebsocketTransportOptions {
  * Copilot-specific readiness checks, retries, and user-facing errors.
  */
 export class LazyWebsocketTransport extends ReconnectingWebSocketTransport {
-  constructor(options: LazyWebsocketTransportOptions) {
+  public constructor(options: LazyWebsocketTransportOptions) {
     super({
       getWsUrl: options.getWsUrl,
       waitForConnection: options.waitForReady,

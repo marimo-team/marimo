@@ -17,9 +17,9 @@ interface Data {
 }
 
 export class DropdownPlugin implements IPlugin<string[], Data> {
-  tagName = "marimo-dropdown";
+  public tagName = "marimo-dropdown";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.array(z.string()),
     label: z.string().nullable(),
     options: z.array(z.string()),
@@ -29,7 +29,7 @@ export class DropdownPlugin implements IPlugin<string[], Data> {
     disabled: z.boolean().default(false),
   });
 
-  render(props: IPluginProps<string[], Data>): JSX.Element {
+  public render(props: IPluginProps<string[], Data>): JSX.Element {
     if (props.data.searchable) {
       const value = props.value.length > 0 ? props.value[0] : null;
       const setValue = (newValue: string | null) =>
