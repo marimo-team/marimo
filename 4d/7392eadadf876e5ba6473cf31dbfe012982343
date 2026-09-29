@@ -1,0 +1,23 @@
+marimo/_cli/export/commands.py
+  s_bd7687a880b9a7::t_bf3705b2743472 910-917,919,925-927
+tests/_cli/test_cli_export.py
+  s_bd7687a880b9a7::t_5285bf7e96af92 393,398-401,404
+tests/_export/test_offline.py
+  s_bd7687a880b9a7::t_5285bf7e96af92 433-447
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4d7392eadadf876e5ba6473cf31dbfe012982343",
+  "prompts": {},
+  "sessions": {
+    "s_bd7687a880b9a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ccbc698e-3de2-41b3-8b37-3bfb4d26278b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
