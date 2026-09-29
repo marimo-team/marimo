@@ -14,6 +14,8 @@ import { z } from "zod";
 import {
   type DownloadAsArgs,
   DownloadAsSchema,
+  type GetExportMetadata,
+  GetExportMetadataSchema,
 } from "@/components/data-table/schemas";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
@@ -83,6 +85,7 @@ type PluginFunctions = {
     total_rows: number;
   }>;
   download_as: DownloadAsArgs;
+  get_export_metadata: GetExportMetadata;
   get_size_bytes: (opts: Record<string, never>) => Promise<{
     size_bytes?: number | null;
   }>;
@@ -153,6 +156,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         }),
       ),
     download_as: DownloadAsSchema,
+    get_export_metadata: GetExportMetadataSchema,
     get_size_bytes: rpc
       .input(z.object({}))
       .output(z.object({ size_bytes: z.number().nullish() })),
@@ -194,6 +198,7 @@ export const DataFrameComponent = memo(
     get_column_values,
     search,
     download_as,
+    get_export_metadata,
     get_size_bytes,
     host,
   }: DataTableProps): JSX.Element => {
@@ -337,6 +342,7 @@ export const DataFrameComponent = memo(
           rowHeaders={row_headers || Arrays.EMPTY}
           showDownload={showDownload}
           download_as={download_as}
+          get_export_metadata={get_export_metadata}
           get_size_bytes={get_size_bytes}
           showSearch={false}
           showFilters={false}
