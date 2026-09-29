@@ -5,7 +5,6 @@ import asyncio
 import hashlib
 import json
 import re
-import socket
 import threading
 from unittest import mock
 from urllib.parse import urlparse
@@ -431,12 +430,18 @@ async def test_resolver_loads_packages_from_mirrors_without_cors(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_resolver_fails_fast_when_mirror_is_unreachable(tmp_path):
-    with socket.socket() as released:
-        released.bind(("127.0.0.1", 0))
-        port = released.getsockname()[1]
-    with pytest.raises(Exception, match="mirror unavailable"):
-        await _resolve_with_stub(
-            tmp_path,
-            load_package=_load_from(f"http://127.0.0.1:{port}/package.whl"),
-        )
+async def test_resolver_fails_fast_when_mirror_connections_fail(tmp_path):
+    # Holding the port avoids reuse races, and closing each connection fails
+    # the request at once on every platform.
+    mirror = await asyncio.start_server(
+        lambda _reader, writer: writer.close(), "127.0.0.1", 0
+    )
+    port = mirror.sockets[0].getsockname()[1]
+    async with mirror:
+        with pytest.raises(Exception, match="mirror unavailable"):
+            await _resolve_with_stub(
+                tmp_path,
+                load_package=_load_from(
+                    f"http://127.0.0.1:{port}/package.whl"
+                ),
+            )
