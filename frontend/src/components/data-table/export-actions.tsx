@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { CopyIcon, DownloadIcon } from "lucide-react";
+import { AlertCircleIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import React from "react";
 import { downloadSizeLimitAtom } from "./download-policy/atoms";
 import { logNever } from "@/utils/assertNever";
@@ -15,6 +15,7 @@ import {
   jsonToMarkdown,
 } from "@/utils/json/json-parser";
 import { MissingPackagePrompt } from "../datasources/missing-package-prompt";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -69,6 +70,24 @@ const EXPORT_OPTIONS = [
 type ExportFormat = (typeof EXPORT_OPTIONS)[number]["format"];
 type DownloadFormat = Exclude<ExportFormat, "markdown">;
 type CopyFormat = Exclude<ExportFormat, "parquet">;
+type ExportAction =
+  | { destination: "download"; format: DownloadFormat }
+  | { destination: "copy"; format: CopyFormat };
+
+type ExportFailure =
+  | {
+      kind: "error";
+      title: string;
+      description: string;
+    }
+  | {
+      kind: "missing-packages";
+      title: string;
+      description?: string | null;
+      packages: string[];
+      featureName: string;
+      action: ExportAction;
+    };
 
 // Each clipboard-copy format fetches from a backend download format, then
 // transforms the payload client-side as needed.
@@ -97,8 +116,18 @@ export interface ExportActionProps {
 const labelForFormat = (format: ExportFormat): string =>
   EXPORT_OPTIONS.find((option) => option.format === format)?.label ?? format;
 
+const failureTitleForAction = (action: ExportAction): string =>
+  action.destination === "download"
+    ? "Failed to download"
+    : "Failed to copy to clipboard";
+
+const failureDescription = (error: unknown): string =>
+  typeof error === "string" ? error : prettyError(error);
+
 export const ExportActions: React.FC<ExportActionProps> = (props) => {
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
+  const [failure, setFailure] = React.useState<ExportFailure | null>(null);
+  const latestActionId = React.useRef(0);
   const policy = useAtomValue(downloadSizeLimitAtom);
   const overLimit = !!(
     policy &&
@@ -128,38 +157,46 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     </Button>
   );
 
+  const beginAction = () => {
+    const actionId = latestActionId.current + 1;
+    latestActionId.current = actionId;
+    setFailure(null);
+    return actionId;
+  };
+
+  const setActionFailure = (actionId: number, nextFailure: ExportFailure) => {
+    if (actionId === latestActionId.current) {
+      setFailure(nextFailure);
+    }
+  };
+
   const resolveDownloadUrl = async (
     format: DownloadFormat,
-    onRetry: () => void,
+    action: ExportAction,
+    actionId: number,
   ): Promise<{
     url: string;
     filename: string;
   } | null> => {
-    let response: Awaited<ReturnType<typeof props.downloadAs>>;
-    try {
-      response = await props.downloadAs({ format });
-    } catch (error) {
-      toast({
-        title: "Failed to download",
-        description:
-          error != null && typeof error === "object" && "message" in error
-            ? String(error.message)
-            : String(error),
+    const response = await props.downloadAs({ format });
+
+    if (response.missing_packages && response.missing_packages.length > 0) {
+      setActionFailure(actionId, {
+        kind: "missing-packages",
+        title: "Export failed",
+        packages: response.missing_packages,
+        featureName: `${labelForFormat(action.format)} export`,
+        description: response.error,
+        action,
       });
       return null;
     }
 
-    if (response.missing_packages && response.missing_packages.length > 0) {
-      toast({
-        title: "Export failed",
-        description: (
-          <MissingPackagePrompt
-            packages={response.missing_packages}
-            featureName={`${labelForFormat(format)} export`}
-            description={response.error}
-            onInstall={onRetry}
-          />
-        ),
+    if (response.error) {
+      setActionFailure(actionId, {
+        kind: "error",
+        title: failureTitleForAction(action),
+        description: response.error,
       });
       return null;
     }
@@ -171,49 +208,59 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   };
 
   const handleDownload = async (format: DownloadFormat) => {
+    const action: ExportAction = { destination: "download", format };
+    const actionId = beginAction();
     const label = labelForFormat(format);
-    const ok = await withLoadingToast(
-      `Preparing ${label} export...`,
-      async () => {
-        const result = await resolveDownloadUrl(format, () => {
-          void handleDownload(format);
-        });
-        if (!result) {
-          return false;
-        }
-        const rawName = (result.filename ?? "").trim();
-        const baseName = Filenames.withoutExtension(rawName) || "download";
-        const downloadName = `${baseName}.${format}`;
-        // Append ?download=1 so the server returns Content-Disposition: attachment.
-        // This forces a save even when <a download> is ignored — e.g., inside
-        // sandboxed iframes that lack `allow-downloads`. Skip for data: URLs
-        // (used in pyodide/wasm) since query params would corrupt the payload.
-        let downloadUrl = result.url;
-        if (!downloadUrl.startsWith("data:")) {
-          const separator = downloadUrl.includes("?") ? "&" : "?";
-          const params = new URLSearchParams({
-            download: "1",
-            filename: downloadName,
-          });
-          downloadUrl = `${downloadUrl}${separator}${params.toString()}`;
-        }
-        downloadByURL(downloadUrl, downloadName);
-        return true;
-      },
-    );
-    if (ok) {
-      toast({ title: `${label} download started` });
+    try {
+      const ok = await withLoadingToast(
+        `Preparing ${label} export...`,
+        async () => {
+          const result = await resolveDownloadUrl(format, action, actionId);
+          if (!result) {
+            return false;
+          }
+          const rawName = (result.filename ?? "").trim();
+          const baseName = Filenames.withoutExtension(rawName) || "download";
+          const downloadName = `${baseName}.${format}`;
+          // Append ?download=1 so the server returns Content-Disposition: attachment.
+          // This forces a save even when <a download> is ignored — e.g., inside
+          // sandboxed iframes that lack `allow-downloads`. Skip for data: URLs
+          // (used in pyodide/wasm) since query params would corrupt the payload.
+          let downloadUrl = result.url;
+          if (!downloadUrl.startsWith("data:")) {
+            const separator = downloadUrl.includes("?") ? "&" : "?";
+            const params = new URLSearchParams({
+              download: "1",
+              filename: downloadName,
+            });
+            downloadUrl = `${downloadUrl}${separator}${params.toString()}`;
+          }
+          downloadByURL(downloadUrl, downloadName);
+          return true;
+        },
+      );
+      if (ok) {
+        toast({ title: `${label} download started` });
+      }
+    } catch (error) {
+      setActionFailure(actionId, {
+        kind: "error",
+        title: failureTitleForAction(action),
+        description: failureDescription(error),
+      });
     }
   };
 
-  const handleClipboardCopy = async (format: CopyFormat) => {
+  const handleClipboardCopy = async (
+    format: CopyFormat,
+    action: ExportAction,
+    actionId: number,
+  ) => {
     await withLoadingToast(
       `Preparing ${labelForFormat(format)} for clipboard...`,
       async () => {
         const sourceFormat = COPY_SOURCE_FORMAT[format];
-        const result = await resolveDownloadUrl(sourceFormat, () => {
-          void handleClipboardCopy(format);
-        });
+        const result = await resolveDownloadUrl(sourceFormat, action, actionId);
         if (!result) {
           return;
         }
@@ -248,19 +295,37 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   };
 
   const handleCopyAction = async (format: CopyFormat) => {
+    const action: ExportAction = { destination: "copy", format };
+    const actionId = beginAction();
     try {
-      await handleClipboardCopy(format);
+      await handleClipboardCopy(format, action, actionId);
     } catch (error) {
-      toast({
-        title: "Failed to copy to clipboard",
-        description: prettyError(error),
-        variant: "danger",
+      setActionFailure(actionId, {
+        kind: "error",
+        title: failureTitleForAction(action),
+        description: failureDescription(error),
       });
     }
   };
 
+  const retryAction = (action: ExportAction) => {
+    if (action.destination === "download") {
+      void handleDownload(action.format);
+    } else {
+      void handleCopyAction(action.format);
+    }
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setExportDialogOpen(open);
+    if (!open) {
+      latestActionId.current += 1;
+      setFailure(null);
+    }
+  };
+
   return (
-    <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+    <Dialog open={exportDialogOpen} onOpenChange={handleDialogOpenChange}>
       <Tooltip content={tooltipContent}>
         {disabled ? (
           // Keep the host-limit reason reachable when the nested button is disabled.
@@ -276,7 +341,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
         className="print:hidden gap-4 sm:max-w-[660px]"
         onKeyDown={(event) => {
           if (event.key === "Escape") {
-            setExportDialogOpen(false);
+            handleDialogOpenChange(false);
           }
         }}
       >
@@ -358,12 +423,33 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
             </li>
           ))}
         </ul>
+        {failure && (
+          <Alert variant="destructive">
+            <AlertCircleIcon className="h-4 w-4" />
+            <div>
+              <AlertTitle>{failure.title}</AlertTitle>
+              <AlertDescription>
+                {failure.kind === "missing-packages" ? (
+                  <MissingPackagePrompt
+                    packages={failure.packages}
+                    featureName={failure.featureName}
+                    description={failure.description}
+                    onInstall={() => retryAction(failure.action)}
+                    className="items-start"
+                  />
+                ) : (
+                  failure.description
+                )}
+              </AlertDescription>
+            </div>
+          </Alert>
+        )}
         <DialogFooter>
           <Button
             type="button"
             variant="outline"
             size="xs"
-            onClick={() => setExportDialogOpen(false)}
+            onClick={() => handleDialogOpenChange(false)}
           >
             Close
           </Button>
