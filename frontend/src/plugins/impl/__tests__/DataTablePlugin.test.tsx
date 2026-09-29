@@ -69,6 +69,7 @@ describe("LoadingDataTableComponent", () => {
               cell_hover_texts: null,
             })}
             download_as={vi.fn() as DownloadAsArgs}
+            get_export_metadata={vi.fn()}
             get_column_summaries={vi.fn()}
             get_data_url={vi.fn() as GetDataUrl}
             get_row_ids={vi.fn() as GetRowIds}
@@ -123,6 +124,7 @@ describe("LoadingDataTableComponent", () => {
       value: [] as (number | string | { rowId: string; columnName?: string })[],
       setValue: vi.fn(),
       download_as: vi.fn() as DownloadAsArgs,
+      get_export_metadata: vi.fn(),
       get_column_summaries: vi.fn(),
       get_data_url: vi.fn() as GetDataUrl,
       get_row_ids: vi.fn() as GetRowIds,
@@ -264,6 +266,7 @@ describe("LoadingDataTableComponent", () => {
       value: [] as (number | string | { rowId: string; columnName?: string })[],
       setValue,
       download_as: vi.fn() as DownloadAsArgs,
+      get_export_metadata: vi.fn(),
       get_column_summaries: vi.fn().mockResolvedValue({
         data: null,
         stats: {},
@@ -380,6 +383,7 @@ describe("static notebook control suppression", () => {
         cell_hover_texts: null,
       }),
       download_as: vi.fn() as DownloadAsArgs,
+      get_export_metadata: vi.fn(),
       get_column_summaries: vi.fn().mockResolvedValue({
         data: null,
         stats: {},

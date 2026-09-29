@@ -41,6 +41,10 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
     validate_operator_for_dtype,
 )
+from marimo._plugins.ui._impl.tables.geometry_export import (
+    ExportMetadata,
+    get_export_metadata,
+)
 from marimo._plugins.ui._impl.tables.selection import (
     INDEX_COLUMN_NAME,
     add_selection_column,
@@ -133,6 +137,7 @@ class DownloadAsOptions:
 class DownloadAsArgs:
     format: Literal["csv", "tsv", "json", "parquet"]
     options: DownloadAsOptions | None = None
+    geometry_column: str | None = None
 
 
 @dataclass
@@ -968,6 +973,11 @@ class table(
                     function=self._download_as,
                 ),
                 Function(
+                    name="get_export_metadata",
+                    arg_cls=EmptyArgs,
+                    function=self._get_export_metadata,
+                ),
+                Function(
                     name="get_column_summaries",
                     arg_cls=ColumnSummariesArgs,
                     function=self._get_column_summaries,
@@ -1059,6 +1069,10 @@ class table(
         manager = self._searched_manager or self._manager
         return GetSizeBytesResponse(size_bytes=manager.estimate_size_bytes())
 
+    def _get_export_metadata(self, args: EmptyArgs) -> ExportMetadata:
+        del args
+        return get_export_metadata(self._manager)
+
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the table data in the specified format.
 
@@ -1143,6 +1157,7 @@ class table(
                 drop_marimo_index=True,
                 options=options,
                 filename=bound_filename,
+                geometry_column=args.geometry_column,
             )
             return DownloadAsResponse(url=url, filename=filename)
         else:
