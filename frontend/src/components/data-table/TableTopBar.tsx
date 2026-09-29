@@ -19,7 +19,7 @@ import {
 import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
 import { ColumnVisibilityDropdown } from "./column-visibility-dropdown";
-import { type ExportActionProps, ExportMenu } from "./export-actions";
+import { type ExportActionProps, ExportActions } from "./export-actions";
 
 const NOOP_ON_SEARCH = () => {
   /** no-op*/
@@ -130,7 +130,7 @@ export const TableTopBar = <TData,>({
           </Button>
         )}
         {downloadAs && (
-          <ExportMenu
+          <ExportActions
             downloadAs={downloadAs}
             sizeBytes={sizeBytes}
             sizeBytesIsLoading={sizeBytesIsLoading}

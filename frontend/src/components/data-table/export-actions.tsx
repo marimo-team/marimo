@@ -1,13 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import {
-  BracesIcon,
-  BrickWallIcon,
-  DownloadIcon,
-  FileTextIcon,
-  TableIcon,
-} from "lucide-react";
+import { CopyIcon, DownloadIcon } from "lucide-react";
 import React from "react";
 import { downloadSizeLimitAtom } from "./download-policy/atoms";
 import { logNever } from "@/utils/assertNever";
@@ -23,64 +17,58 @@ import {
 import { MissingPackagePrompt } from "../datasources/missing-package-prompt";
 import { Button } from "../ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
 import { Tooltip } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 
-const FILE_TYPES = {
-  CSV: {
+const EXPORT_OPTIONS = [
+  {
     label: "CSV",
     format: "csv",
     description: "Comma-separated values",
-    icon: TableIcon,
+    canDownload: true,
+    canCopy: true,
   },
-  JSON: {
-    label: "JSON",
-    format: "json",
-    description: "Raw JSON data",
-    icon: BracesIcon,
-  },
-  PARQUET: {
-    label: "Parquet",
-    format: "parquet",
-    description: "Columnar binary format",
-    icon: BrickWallIcon,
-  },
-  TSV: {
+  {
     label: "TSV",
     format: "tsv",
     description: "Best for Excel and Google Sheets",
-    icon: TableIcon,
+    canDownload: true,
+    canCopy: true,
   },
-  MARKDOWN: {
+  {
+    label: "JSON",
+    format: "json",
+    description: "Raw JSON data",
+    canDownload: true,
+    canCopy: true,
+  },
+  {
+    label: "Parquet",
+    format: "parquet",
+    description: "Columnar binary format",
+    canDownload: true,
+    canCopy: false,
+  },
+  {
     label: "Markdown",
     format: "markdown",
     description: "Preserves hyperlinks and formatting",
-    icon: FileTextIcon,
+    canDownload: false,
+    canCopy: true,
   },
-} as const;
+] as const;
 
-const downloadOptions = [
-  FILE_TYPES.CSV,
-  FILE_TYPES.TSV,
-  FILE_TYPES.JSON,
-  FILE_TYPES.PARQUET,
-];
-const copyOptions = [
-  FILE_TYPES.TSV,
-  FILE_TYPES.JSON,
-  FILE_TYPES.CSV,
-  FILE_TYPES.MARKDOWN,
-];
-
-type DownloadFormat = (typeof downloadOptions)[number]["format"];
-type CopyFormat = (typeof copyOptions)[number]["format"];
+type ExportFormat = (typeof EXPORT_OPTIONS)[number]["format"];
+type DownloadFormat = Exclude<ExportFormat, "markdown">;
+type CopyFormat = Exclude<ExportFormat, "parquet">;
 
 // Each clipboard-copy format fetches from a backend download format, then
 // transforms the payload client-side as needed.
@@ -106,13 +94,11 @@ export interface ExportActionProps {
   sizeBytesIsLoading?: boolean;
 }
 
-const labelForDownloadFormat = (format: DownloadFormat): string =>
-  downloadOptions.find((opt) => opt.format === format)?.label ?? format;
-const labelForCopyFormat = (format: CopyFormat): string =>
-  copyOptions.find((opt) => opt.format === format)?.label ?? format;
+const labelForFormat = (format: ExportFormat): string =>
+  EXPORT_OPTIONS.find((option) => option.format === format)?.label ?? format;
 
-export const ExportMenu: React.FC<ExportActionProps> = (props) => {
-  const [downloadMenuOpen, setDownloadMenuOpen] = React.useState(false);
+export const ExportActions: React.FC<ExportActionProps> = (props) => {
+  const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
   const policy = useAtomValue(downloadSizeLimitAtom);
   const overLimit = !!(
     policy &&
@@ -134,7 +120,7 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
       disabled={disabled}
       className={cn(
         "print:hidden text-xs gap-1",
-        downloadMenuOpen ? "text-primary" : "text-muted-foreground",
+        exportDialogOpen ? "text-primary" : "text-muted-foreground",
       )}
     >
       <DownloadIcon className="w-3.5 h-3.5" />
@@ -169,7 +155,7 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
         description: (
           <MissingPackagePrompt
             packages={response.missing_packages}
-            featureName={`${labelForDownloadFormat(format)} export`}
+            featureName={`${labelForFormat(format)} export`}
             description={response.error}
             onInstall={onRetry}
           />
@@ -185,7 +171,7 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
   };
 
   const handleDownload = async (format: DownloadFormat) => {
-    const label = labelForDownloadFormat(format);
+    const label = labelForFormat(format);
     const ok = await withLoadingToast(
       `Preparing ${label} export...`,
       async () => {
@@ -222,7 +208,7 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
 
   const handleClipboardCopy = async (format: CopyFormat) => {
     await withLoadingToast(
-      `Preparing ${labelForCopyFormat(format)} for clipboard...`,
+      `Preparing ${labelForFormat(format)} for clipboard...`,
       async () => {
         const sourceFormat = COPY_SOURCE_FORMAT[format];
         const result = await resolveDownloadUrl(sourceFormat, () => {
@@ -261,72 +247,129 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
     );
   };
 
+  const handleCopyAction = async (format: CopyFormat) => {
+    try {
+      await handleClipboardCopy(format);
+    } catch (error) {
+      toast({
+        title: "Failed to copy to clipboard",
+        description: prettyError(error),
+        variant: "danger",
+      });
+    }
+  };
+
   return (
-    <DropdownMenu
-      modal={false}
-      open={downloadMenuOpen}
-      onOpenChange={setDownloadMenuOpen}
-    >
-      <Tooltip
-        content={tooltipContent}
-        open={downloadMenuOpen ? false : undefined}
-      >
-        <DropdownMenuTrigger asChild={true} disabled={disabled}>
-          <span tabIndex={disabled ? 0 : -1} className="inline-flex">
+    <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+      <Tooltip content={tooltipContent}>
+        {disabled ? (
+          // Keep the host-limit reason reachable when the nested button is disabled.
+          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+          <span tabIndex={0} className="inline-flex">
             {button}
           </span>
-        </DropdownMenuTrigger>
+        ) : (
+          <DialogTrigger asChild={true}>{button}</DialogTrigger>
+        )}
       </Tooltip>
-      <DropdownMenuContent side="bottom" className="print:hidden">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">
-          Download
-        </DropdownMenuLabel>
-        {downloadOptions.map((option) => (
-          <DropdownMenuItem
-            key={option.label}
-            onSelect={() => {
-              void handleDownload(option.format);
-            }}
+      <DialogContent
+        className="print:hidden gap-4 sm:max-w-[660px]"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            setExportDialogOpen(false);
+          }
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Export table</DialogTitle>
+          <DialogDescription>Choose one export action.</DialogDescription>
+        </DialogHeader>
+        <ul
+          aria-label="Export formats"
+          className="list-none overflow-hidden rounded-lg border bg-card"
+        >
+          {EXPORT_OPTIONS.map((option) => (
+            <li
+              key={option.format}
+              data-testid={`export-row-${option.format}`}
+              className="grid min-h-[62px] grid-cols-[28px_1fr_auto] items-center border-b px-2.5 last:border-b-0 hover:bg-accent/50"
+            >
+              <span aria-hidden={true} className="h-8 w-7" />
+              <div className="grid gap-0.5 pl-1">
+                <span className="text-sm font-medium">{option.label}</span>
+                <span className="text-xs text-muted-foreground">
+                  {option.description}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Tooltip
+                  content={
+                    option.canDownload
+                      ? `Download ${option.label}`
+                      : `${option.label} is available for copy only.`
+                  }
+                >
+                  <span className="inline-flex">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Download ${option.label}`}
+                      disabled={!option.canDownload}
+                      onClick={
+                        option.canDownload
+                          ? () => {
+                              void handleDownload(option.format);
+                            }
+                          : undefined
+                      }
+                    >
+                      <DownloadIcon className="h-4 w-4" />
+                    </Button>
+                  </span>
+                </Tooltip>
+                <Tooltip
+                  content={
+                    option.canCopy
+                      ? `Copy ${option.label}`
+                      : `${option.label} is available for download only.`
+                  }
+                >
+                  <span className="inline-flex">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Copy ${option.label}`}
+                      disabled={!option.canCopy}
+                      onClick={
+                        option.canCopy
+                          ? () => {
+                              void handleCopyAction(option.format);
+                            }
+                          : undefined
+                      }
+                    >
+                      <CopyIcon className="h-4 w-4" />
+                    </Button>
+                  </span>
+                </Tooltip>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={() => setExportDialogOpen(false)}
           >
-            <option.icon className="mo-dropdown-icon" />
-            <div className="flex flex-col">
-              <span>{option.label}</span>
-              <span className="text-xs text-muted-foreground">
-                {option.description}
-              </span>
-            </div>
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs text-muted-foreground">
-          Copy to clipboard
-        </DropdownMenuLabel>
-        {copyOptions.map((option) => (
-          <DropdownMenuItem
-            key={option.label}
-            onSelect={async () => {
-              try {
-                await handleClipboardCopy(option.format);
-              } catch (error) {
-                toast({
-                  title: "Failed to copy to clipboard",
-                  description: prettyError(error),
-                  variant: "danger",
-                });
-              }
-            }}
-          >
-            <option.icon className="mo-dropdown-icon" />
-            <div className="flex flex-col">
-              <span>{option.label}</span>
-              <span className="text-xs text-muted-foreground">
-                {option.description}
-              </span>
-            </div>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

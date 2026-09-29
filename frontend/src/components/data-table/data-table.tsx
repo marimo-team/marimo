@@ -86,7 +86,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   // Pagination
   totalRows: number | TooManyRows;
   // JSON-serialized size of the currently-rendered data. Forwarded to
-  // ExportMenu so hosts can size-gate the Export button via downloadSizeLimitAtom.
+  // ExportActions so hosts can size-gate the Export button via downloadSizeLimitAtom.
   sizeBytes?: number | null;
   sizeBytesIsLoading?: boolean;
   totalColumns: number;
