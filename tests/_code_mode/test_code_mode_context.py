@@ -75,6 +75,52 @@ def _graph_codes(k: Kernel) -> dict[str, str]:
 
 
 class TestAddCell:
+    @pytest.mark.parametrize(
+        ("name", "expected_name"),
+        [
+            (None, ""),
+            ("", ""),
+            ("load_data", "load_data"),
+            ("_private", "_private"),
+            ("K", "K"),
+            ("résumé", "résumé"),
+            ("match", "match"),
+        ],
+    )
+    async def test_accepts_valid_name(
+        self, k: Kernel, name: str | None, expected_name: str
+    ) -> None:
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.create_cell("x = 1", name=name)
+
+            create = next(
+                op for op in _tx_ops(k) if op["type"] == "create-cell"
+            )
+            assert create["name"] == expected_name
+
+    @pytest.mark.parametrize(
+        ("name", "message"),
+        [
+            ("Load data", "valid, non-keyword Python identifiers"),
+            ("class", "valid, non-keyword Python identifiers"),
+            ("segment-change", "valid, non-keyword Python identifiers"),
+            ("123_cell", "valid, non-keyword Python identifiers"),
+            ("_", "reserved for unnamed cells"),
+            ("__", "reserved for unnamed cells"),
+            ("K", "NFKC-normalized"),
+        ],
+    )
+    async def test_rejects_invalid_name(
+        self, k: Kernel, name: str, message: str
+    ) -> None:
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                with pytest.raises(ValueError, match=message):
+                    nb.create_cell("x = 1", name=name)
+
+            assert not k.graph.cells
+
     async def test_add_into_empty(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
             _clear_messages(k)
@@ -259,6 +305,53 @@ class TestDeleteCell:
 
 
 class TestUpdateCell:
+    @pytest.mark.parametrize(
+        "name", [None, "", "analysis_summary", "K", "résumé", "match"]
+    )
+    async def test_accepts_valid_name(
+        self, k: Kernel, name: str | None
+    ) -> None:
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            _clear_messages(k)
+            async with ctx as nb:
+                nb.edit_cell("0", name=name)
+
+            name_ops = [op for op in _tx_ops(k) if op["type"] == "set-name"]
+            if name is None:
+                assert not name_ops
+            else:
+                assert name_ops == [
+                    {"type": "set-name", "cellId": "0", "name": name}
+                ]
+
+    @pytest.mark.parametrize(
+        ("name", "message"),
+        [
+            ("Analysis summary", "valid, non-keyword Python identifiers"),
+            ("for", "valid, non-keyword Python identifiers"),
+            ("analysis-summary", "valid, non-keyword Python identifiers"),
+            ("1st_cell", "valid, non-keyword Python identifiers"),
+            ("_", "reserved for unnamed cells"),
+            ("__", "reserved for unnamed cells"),
+            ("K", "NFKC-normalized"),
+        ],
+    )
+    async def test_rejects_invalid_name(
+        self, k: Kernel, name: str, message: str
+    ) -> None:
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            _clear_messages(k)
+            async with ctx as nb:
+                with pytest.raises(ValueError, match=message):
+                    nb.edit_cell("0", name=name)
+
+            assert _graph_codes(k) == {"0": "x = 1"}
+            assert not _tx_ops(k)
+
     async def test_update_code(self, k: Kernel) -> None:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
         assert k.globals["x"] == 1
