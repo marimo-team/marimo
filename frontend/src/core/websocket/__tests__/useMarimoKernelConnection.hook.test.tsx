@@ -51,6 +51,7 @@ import type { NotificationPayload } from "@/core/kernel/messages";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { initialRunCompletedAtom } from "../../kernel/state";
 import { connectionAtom, startupProgressAtom } from "../../network/connection";
+import { participantPresenceAtom } from "../../participants/state";
 import type { SessionId } from "../../kernel/session";
 import { WebSocketClosedReason, WebSocketState } from "../types";
 import type { IConnectionTransport } from "../transports/transport";
@@ -209,6 +210,52 @@ describe("useMarimoKernelConnection messages", () => {
     });
     expect(store.get(initialRunCompletedAtom)).toBe(true);
   });
+
+  it("replaces participant presence from a snapshot", () => {
+    const store = createStore();
+    vi.mocked(useConnectionTransport).mockClear();
+    vi.mocked(useConnectionTransport).mockReturnValue(
+      makeTransport(WebSocket.OPEN),
+    );
+    vi.mocked(useRuntimeManager).mockReturnValue(
+      makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
+    );
+    renderConnectionHook(store);
+
+    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)?.[0];
+    act(() => {
+      options?.onMessage(
+        new MessageEvent("message", {
+          data: JSON.stringify({
+            op: "participant-presence",
+            data: {
+              op: "participant-presence",
+              participant_id: "abcdef1234567890",
+              harness: "codex",
+              kind: "agent",
+              attached: false,
+              listening: false,
+              active: false,
+              last_contact_at: 1_700_000_000,
+              active_since: null,
+            },
+          }),
+        }),
+      );
+    });
+
+    expect(store.get(participantPresenceAtom)).toEqual({
+      op: "participant-presence",
+      participant_id: "abcdef1234567890",
+      harness: "codex",
+      kind: "agent",
+      attached: false,
+      listening: false,
+      active: false,
+      last_contact_at: 1_700_000_000,
+      active_since: null,
+    });
+  });
 });
 
 it.each(["kernel-ready", "reconnected"])(
@@ -260,6 +307,59 @@ it.each(["kernel-ready", "reconnected"])(
     expect(store.get(connectionAtom).state).toBe(WebSocketState.OPEN);
   },
 );
+
+it("clears stale participant presence when a new kernel becomes ready", () => {
+  const store = createStore();
+  store.set(participantPresenceAtom, {
+    op: "participant-presence",
+    participant_id: "stale-participant",
+    harness: "claude",
+    kind: "agent",
+    attached: true,
+    listening: false,
+    active: false,
+    last_contact_at: 1,
+    active_since: null,
+  });
+  vi.mocked(useConnectionTransport).mockClear();
+  vi.mocked(useConnectionTransport).mockReturnValue(
+    makeTransport(WebSocket.OPEN),
+  );
+  vi.mocked(useRuntimeManager).mockReturnValue(
+    makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
+  );
+  renderConnectionHook(store);
+  const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
+
+  act(() => {
+    options.onMessage(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          op: "kernel-ready",
+          data: {
+            op: "kernel-ready",
+            cell_ids: [],
+            codes: [],
+            names: [],
+            configs: [],
+            layout: null,
+            resumed: true,
+            ui_values: {},
+            last_executed_code: {},
+            last_execution_time: {},
+            app_config: { width: "normal" },
+            kiosk: false,
+            capabilities: { terminal: false },
+            auto_instantiated: false,
+            consumer_capabilities: { edit: true, interact: true },
+          },
+        }),
+      }),
+    );
+  });
+
+  expect(store.get(participantPresenceAtom)).toBeNull();
+});
 
 describe("connection notice", () => {
   beforeEach(() => vi.useFakeTimers());

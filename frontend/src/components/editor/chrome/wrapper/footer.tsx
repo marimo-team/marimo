@@ -18,6 +18,7 @@ import {
 } from "./footer-items/backend-status";
 import { CopilotStatusIcon } from "./footer-items/copilot-status";
 import { MachineStats } from "./footer-items/machine-stats";
+import { ParticipantStatus } from "./footer-items/participant-status";
 import { PyodideStatus } from "./footer-items/pyodide-status";
 import { RTCStatus } from "./footer-items/rtc-status";
 import { RuntimeSettings } from "./footer-items/runtime-settings";
@@ -109,6 +110,7 @@ export const Footer: React.FC = () => {
         <MachineStats />
         <AIStatusIcon />
         <CopilotStatusIcon />
+        <ParticipantStatus />
         <RTCStatus />
       </div>
     </footer>
