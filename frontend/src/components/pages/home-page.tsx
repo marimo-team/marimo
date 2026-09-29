@@ -59,7 +59,6 @@ import { prettyError } from "@/utils/errors";
 import { Maps } from "@/utils/maps";
 import { Paths } from "@/utils/paths";
 import { asURL } from "@/utils/url";
-import { newNotebookURL } from "@/utils/urls";
 import { ConfigButton } from "../app-config/app-config-button";
 import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
@@ -124,16 +123,17 @@ const HomePage: React.FC = () => {
           setRunningNotebooks: runningResponse.setData,
         }}
       >
-        <div className="absolute top-3 right-5 flex gap-3 z-50">
-          <OpenTutorialDropDown />
-          <ConfigButton showAppConfig={false} />
-          <ShutdownButton
-            description={`This will shutdown the notebook server and terminate all running notebooks (${running.size}). You'll lose all data that's in memory.`}
-          />
-        </div>
         <div className="flex flex-col gap-6 max-w-6xl container pt-5 pb-20 z-10">
-          <img src="logo.png" alt="marimo logo" className="w-48 mb-2" />
-          <CreateNewNotebook />
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
+            <img src="logo.png" alt="marimo logo" className="w-40 sm:w-48" />
+            <div className="flex items-center gap-2">
+              <OpenTutorialDropDown />
+              <ConfigButton showAppConfig={false} />
+              <ShutdownButton
+                description={`This will shutdown the notebook server and terminate all running notebooks (${running.size}). You'll lose all data that's in memory.`}
+              />
+            </div>
+          </div>
           <FeaturedTemplates />
           <ResourceLinks />
           <NotebookList
@@ -610,26 +610,6 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
         <PowerOffIcon size={14} />
       </Button>
     </Tooltip>
-  );
-};
-
-const CreateNewNotebook: React.FC = () => {
-  const url = newNotebookURL();
-  return (
-    <a
-      className="relative rounded-lg p-6 group
-      text-primary hover:bg-(--blue-2) shadow-md-solid shadow-accent border bg-(--blue-1)
-      transition-all duration-300 cursor-pointer
-      "
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-    >
-      <h2 className="text-lg font-semibold">Create a new notebook</h2>
-      <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300">
-        <ExternalLinkIcon size={24} />
-      </div>
-    </a>
   );
 };
 

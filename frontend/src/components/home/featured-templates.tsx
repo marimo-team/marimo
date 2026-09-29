@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { LayoutTemplateIcon } from "lucide-react";
+import { ArrowRightIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,7 +9,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { prettyError } from "@/utils/errors";
 import { asURL } from "@/utils/url";
-import { Header } from "./components";
+import { newNotebookURL } from "@/utils/urls";
 import {
   launchTemplate,
   listTemplates,
@@ -63,20 +63,22 @@ export const FeaturedTemplates = () => {
   const featured = getFeaturedTemplates(catalog.data);
 
   return (
-    <section className="flex flex-col gap-2" aria-labelledby="templates-title">
-      <div className="flex items-center justify-between gap-4">
-        <Header Icon={LayoutTemplateIcon}>
-          <span id="templates-title">Start with a template</span>
-        </Header>
-        {catalog.data && (
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={() => setIsBrowserOpen(true)}
-          >
-            Browse all templates
-          </Button>
-        )}
+    <section className="flex flex-col gap-3" aria-labelledby="templates-title">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <h1 id="templates-title" className="text-xl font-semibold">
+            What will you explore?
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Start from a working example and make it your own.
+          </p>
+        </div>
+        <Button variant="outline" asChild={true}>
+          <a href={newNotebookURL()} target="_blank" rel="noreferrer">
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Blank notebook
+          </a>
+        </Button>
       </div>
       {catalog.isPending && <TemplateCardSkeletons />}
       {catalog.error && (
@@ -106,6 +108,19 @@ export const FeaturedTemplates = () => {
               onLaunch={handleLaunch}
             />
           ))}
+        </div>
+      )}
+      {catalog.data && (
+        <div className="flex justify-end">
+          <Button
+            variant="link"
+            size="sm"
+            className="px-0"
+            onClick={() => setIsBrowserOpen(true)}
+          >
+            Browse all templates
+            <ArrowRightIcon className="ml-2 h-4 w-4" />
+          </Button>
         </div>
       )}
       {catalog.data && (

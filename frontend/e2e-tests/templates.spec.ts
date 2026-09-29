@@ -62,7 +62,7 @@ test("featured template opens, saves, reopens, and stays isolated", async ({
   await templateCard.click();
   await expect(page.getByText("Could not open template")).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Create a new notebook" }),
+    page.getByRole("link", { name: "Blank notebook" }),
   ).toBeVisible();
   await expect.poll(() => page.context().pages().length).toBe(1);
   await page.unroute("**/api/templates/interactive-controls/launch");
@@ -162,7 +162,8 @@ test("template browser retries, searches, and restores focus", async ({
     name: "Browse all templates",
   });
   await expect(browseButton).toBeVisible();
-  await browseButton.click();
+  await browseButton.focus();
+  await page.keyboard.press("Enter");
 
   const dialog = page.getByRole("dialog", { name: "Browse templates" });
   const search = dialog.getByRole("textbox", { name: "Search templates" });
@@ -205,4 +206,101 @@ test("template browser retries, searches, and restores focus", async ({
   await expect(dialog).toHaveCount(0);
   await expect(browseButton).toBeFocused();
   expect(page.context().pages()).toHaveLength(1);
+});
+
+test("option C keeps notebook access across workspace states and themes", async ({
+  page,
+}) => {
+  let populated = false;
+  await page.route("**/api/home/workspace_files", async (route) => {
+    await route.fulfill({
+      json: {
+        root: "/workspace",
+        files: populated
+          ? [
+              {
+                id: "/workspace/workspace.py",
+                path: "/workspace/workspace.py",
+                name: "workspace.py",
+                isDirectory: false,
+                isMarimoFile: true,
+              },
+            ]
+          : [],
+        hasMore: false,
+        fileCount: populated ? 1 : 0,
+      },
+    });
+  });
+  await page.route("**/api/home/running_notebooks", async (route) => {
+    await route.fulfill({
+      json: {
+        files: populated
+          ? [
+              {
+                name: "running.py",
+                path: "running.py",
+                sessionId: "running-session",
+              },
+            ]
+          : [],
+      },
+    });
+  });
+  await page.route("**/api/home/recent_files", async (route) => {
+    await route.fulfill({
+      json: {
+        files: populated
+          ? [{ name: "recent.py", path: "recent.py" }]
+          : [],
+      },
+    });
+  });
+
+  await page.setViewportSize({ width: 390, height: 720 });
+  await page.goto(`${homeUrl}?theme=light`);
+  await expect(page.locator("body")).toHaveAttribute("data-theme", "light");
+  await expect(
+    page.getByRole("heading", { name: "What will you explore?" }),
+  ).toBeVisible();
+  const blankNotebook = page.getByRole("link", { name: "Blank notebook" });
+  await expect(blankNotebook).toBeVisible();
+  await expect(page.getByText("No files in this workspace")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Running notebooks" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Recent notebooks" }),
+  ).toHaveCount(0);
+
+  await blankNotebook.focus();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: `Use template: ${templateName}` }),
+  ).toBeFocused();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    )
+    .toBe(true);
+
+  populated = true;
+  await page.goto(`${homeUrl}?theme=dark`);
+  await expect(page.locator("body")).toHaveAttribute("data-theme", "dark");
+  await expect(
+    page.getByRole("link", { name: /^running\.py/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /^recent\.py/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /^workspace\.py/ }),
+  ).toBeVisible();
+  await expect(page.getByText("No files in this workspace")).toHaveCount(0);
+  await expect(blankNotebook).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Browse all templates" }),
+  ).toBeVisible();
 });

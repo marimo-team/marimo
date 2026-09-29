@@ -31,7 +31,7 @@ export const TemplateCard = ({
       data-testid={`template-card-${template.id}`}
       disabled={isLaunching}
       onClick={handleLaunch}
-      className="group overflow-hidden rounded-lg border bg-background text-left shadow-xs transition-colors hover:bg-accent/20 disabled:cursor-wait disabled:opacity-70"
+      className="group overflow-hidden rounded-lg border bg-background text-left shadow-xs transition-colors hover:bg-accent/20 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70"
     >
       <img
         src={template.previewUrl}
@@ -43,7 +43,7 @@ export const TemplateCard = ({
         <p className="text-sm text-muted-foreground">
           {isLaunching ? "Opening template…" : template.description}
         </p>
-        <ExternalLinkIcon className="absolute right-4 top-4 h-5 w-5 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
+        <ExternalLinkIcon className="absolute right-4 top-4 h-5 w-5 text-primary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
       </div>
     </button>
   );
