@@ -344,7 +344,7 @@ def test_sql_preserves_structured_error_details(
 
     original_execute = DuckDBEngine.execute
 
-    def raising_execute(self: object, query: str) -> object:
+    def raising_execute(_engine: object, query: str) -> object:
         raise MarimoSQLException(
             message="boom",
             sql_statement=query,
