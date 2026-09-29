@@ -234,18 +234,19 @@ def watch_modules(
                 relatives = dataflow.get_import_block_relatives(graph)
                 required_generation: dict[CellId_t, int] = {}
                 for modname, generation in stale_modules.items():
+                    cell_id = modname_to_cell_id[modname]
+                    if not reloader.cell_ran_at_or_after(cell_id, generation):
+                        # NB. descendants read the import cell's old
+                        # bindings, however recently they ran.
+                        generation = sys.maxsize
                     for cid in dataflow.transitive_closure(
-                        graph,
-                        {modname_to_cell_id[modname]},
-                        relatives=relatives,
+                        graph, {cell_id}, relatives=relatives
                     ):
                         required_generation[cid] = max(
                             required_generation.get(cid, generation),
                             generation,
                         )
                 for cid, generation in required_generation.items():
-                    # Ran under that reload or a later one: already holds
-                    # the new code.
                     if reloader.cell_ran_at_or_after(cid, generation):
                         continue
                     graph.cells[cid].set_stale(stale=True, stream=stream)

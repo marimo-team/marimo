@@ -1570,3 +1570,57 @@ async def test_watcher_skips_cell_that_reran_before_its_poll(
     assert k.graph.cells[er_1.cell_id].import_workspace.imported_defs == {
         "foo"
     }
+
+
+async def test_watcher_marks_descendant_when_import_cell_did_not_rerun(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A descendant that reruns before the watcher marks still reads the
+    importing cell's old binding, so it must be marked stale with it."""
+    import marimo._runtime.reload.module_watcher as mw
+
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text("value = 1\n")
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run(
+        [
+            er_1 := exec_req.get(f"from {py_modname} import value"),
+            er_2 := exec_req.get("y = value"),
+        ]
+    )
+    assert k.globals["y"] == 1
+
+    crawl_started = threading.Event()
+    release_crawl = threading.Event()
+    real_depends_on = mw._depends_on
+
+    def held_depends_on(**kwargs: Any) -> bool:
+        crawl_started.set()
+        release_crawl.wait(timeout=10)
+        return real_depends_on(**kwargs)
+
+    monkeypatch.setattr(mw, "_depends_on", held_depends_on)
+
+    update_file(py_file, "value = 2\n")
+    assert await _wait_for(crawl_started.is_set)
+
+    # Only the descendant reruns. Its run reloads the module, but it still
+    # reads the import cell's old binding.
+    await k.run([exec_req.get_with_id(er_2.cell_id, "y = value")])
+    assert k.globals["y"] == 1
+
+    release_crawl.set()
+    assert await _wait_for(lambda: k.graph.cells[er_1.cell_id].stale)
+    assert k.graph.cells[er_2.cell_id].stale
+
+    await k.run_stale_cells()
+    assert k.globals["y"] == 2
