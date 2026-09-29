@@ -171,6 +171,7 @@ test("template browser retries, searches, and restores focus", async ({
 
   const dialog = page.getByRole("dialog", { name: "Browse templates" });
   const search = dialog.getByRole("textbox", { name: "Search templates" });
+  const scrollRegion = dialog.getByTestId("template-browser-scroll-region");
   await expect(search).toBeFocused();
   await expect
     .poll(() =>
@@ -179,6 +180,19 @@ test("template browser retries, searches, and restores focus", async ({
       ),
     )
     .toBe(true);
+  await expect
+    .poll(() =>
+      scrollRegion.evaluate(
+        (element) => element.scrollHeight > element.clientHeight,
+      ),
+    )
+    .toBe(true);
+  await scrollRegion.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(
+    dialog.getByRole("heading", { name: "Apps and reports" }),
+  ).toBeVisible();
   await search.fill("not a real template");
   await expect(dialog.getByText("No templates match")).toBeVisible();
   await search.fill("fuel economy");
@@ -202,7 +216,7 @@ test("template browser retries, searches, and restores focus", async ({
   await templatePage.close();
 
   await browseButton.click();
-  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
   await expect(browseButton).toBeFocused();
   expect(page.context().pages()).toHaveLength(1);
 

@@ -45,7 +45,7 @@ export const TemplateBrowserDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-h-[90vh] overflow-hidden gap-0 p-0 sm:max-w-5xl sm:top-[5vh]">
+      <DialogContent className="w-[calc(100vw-2rem)] h-[calc(100vh-2rem)] max-h-[90vh] grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden gap-0 p-0 sm:max-w-5xl sm:top-[5vh]">
         <DialogHeader className="p-6 pb-4 pr-12">
           <DialogTitle>Browse templates</DialogTitle>
           <DialogDescription>
@@ -59,7 +59,10 @@ export const TemplateBrowserDialog = ({
           onChange={(event) => setQuery(event.target.value)}
           rootClassName="border-y px-5 py-1"
         />
-        <div className="min-h-48 overflow-y-auto p-6">
+        <div
+          className="min-h-0 overflow-y-auto p-6"
+          data-testid="template-browser-scroll-region"
+        >
           {groups.length === 0 ? (
             <div className="flex min-h-36 items-center justify-center text-sm text-muted-foreground">
               No templates match “{query}”.
