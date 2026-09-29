@@ -127,6 +127,8 @@ const failureDescription = (error: unknown): string =>
 export const ExportActions: React.FC<ExportActionProps> = (props) => {
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
   const [failure, setFailure] = React.useState<ExportFailure | null>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const dialogRef = React.useRef<HTMLDivElement>(null);
   const latestActionId = React.useRef(0);
   const policy = useAtomValue(downloadSizeLimitAtom);
   const overLimit = !!(
@@ -143,6 +145,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
 
   const button = (
     <Button
+      ref={triggerRef}
       data-testid="export-button"
       size="xs"
       variant="text"
@@ -338,7 +341,16 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
         )}
       </Tooltip>
       <DialogContent
+        ref={dialogRef}
         className="print:hidden gap-4 sm:max-w-[660px]"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          dialogRef.current?.focus();
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          triggerRef.current?.focus();
+        }}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             handleDialogOpenChange(false);

@@ -103,6 +103,17 @@ describe("ExportActions dialog", () => {
     }
   });
 
+  it("opens without showing an action tooltip", async () => {
+    renderExportActions();
+    const dialog = await openDialog();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+
+    expect(dialog).toHaveFocus();
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
   it("uses named icon buttons and reserves unavailable actions", async () => {
     renderExportActions();
     await openDialog();
@@ -452,7 +463,6 @@ describe("ExportActions dialog", () => {
   it("closes with the footer action and restores trigger focus", async () => {
     renderExportActions();
     const trigger = screen.getByTestId("export-button");
-    trigger.focus();
     const dialog = await openDialog();
 
     fireEvent.click(within(dialog).getByText("Close", { selector: "button" }));
