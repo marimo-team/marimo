@@ -1,0 +1,52 @@
+tests/_cli/test_cli_export.py
+  s_bd7687a880b9a7::t_a3751a229154fe 388-419
+  s_bd7687a880b9a7::t_6bac233d095be5 26,291-313,331,354,364-385
+marimo/_cli/export/commands.py
+  s_bd7687a880b9a7::t_a9da4ffd23d7b2 1013-1014,1017,1020-1023,1026,1029-1030,1049-1050,1058-1060
+  s_bd7687a880b9a7::t_700938d539824c 1018-1019
+  s_bd7687a880b9a7::t_7113ba71ea6bab 1202-1205
+  s_bd7687a880b9a7::t_d03aa3b1fe0093 88
+  s_bd7687a880b9a7::t_a3e340081caa36 73-76
+  s_bd7687a880b9a7::t_6bf7db71b638d7 11,904-923,1015-1016,1024-1025,1027-1028
+marimo/_export/offline.py
+  s_bd7687a880b9a7::t_a3e340081caa36 45-48,50,268
+  s_bd7687a880b9a7::t_0dafc326097340 62,76-77,95,269,337-341,343,345-349
+  s_bd7687a880b9a7::t_43bb5b72a973c8 255-256,258
+  s_bd7687a880b9a7::t_72a1c67a987e1d 260,280
+  s_bd7687a880b9a7::t_52ca635be3fb6f 138-146,148
+  s_bd7687a880b9a7::t_662a3dc73b598b 55
+  s_bd7687a880b9a7::t_15e755fe20009c 49,66,73-75,78,89,94,97,101-104,108-129,132-137,190-191
+  s_bd7687a880b9a7::t_341c6034c45106 130-131
+  s_bd7687a880b9a7::t_206187d85b4eef 350-359,393
+  s_bd7687a880b9a7::t_b9cce010ab7e9c 13,24-25,181-189,192-205,257
+tests/_export/test_offline.py
+  s_bd7687a880b9a7::t_341c6034c45106 215
+  s_bd7687a880b9a7::t_86c5ba5f0c64e5 414-415
+  s_bd7687a880b9a7::t_2febbc46ef4e79 8,22,24,355-358,366,368,371-373,377-378,385-410,416-429,431-434
+  s_bd7687a880b9a7::t_42ce510586b62c 435-442
+  s_bd7687a880b9a7::t_cde6082bb59de7 114-116,118-140
+  s_bd7687a880b9a7::t_9a433cc7d920e8 117,411,413
+  s_bd7687a880b9a7::t_a3751a229154fe 11,15-18,53,83-84,141-162,164-166,168-175,179-214,216-253,369-370,412,430
+  s_bd7687a880b9a7::t_7f55ad5642901b 7
+  s_bd7687a880b9a7::t_a0d482b576ac50 163,167,176-178,254-255
+docs/guides/publishing/self_host_wasm.md
+  s_bd7687a880b9a7::t_f6498c0c6259a6 27,54-65,83-84,87
+  s_bd7687a880b9a7::t_341c6034c45106 77-80
+  s_bd7687a880b9a7::t_d3ce451de5b69c 26,66-76,81-82,85-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cedf4838c537de3671e9c0d125403d358d2ecc6a",
+  "prompts": {},
+  "sessions": {
+    "s_bd7687a880b9a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ccbc698e-3de2-41b3-8b37-3bfb4d26278b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
