@@ -3,9 +3,24 @@
 import z from "zod";
 import { rpc } from "@/plugins/core/rpc";
 
-export type DownloadAsArgs = (req: {
-  format: "csv" | "json" | "parquet" | "tsv";
-}) => Promise<{
+export type DownloadFormat = "csv" | "json" | "parquet" | "tsv";
+
+/**
+ * Per-request export options. Each field is optional. A missing field keeps
+ * the widget's default for that setting.
+ */
+export interface DownloadAsOptions {
+  separator?: string;
+  encoding?: string;
+  ensure_ascii?: boolean;
+}
+
+export interface DownloadAsRequest {
+  format: DownloadFormat;
+  options?: DownloadAsOptions;
+}
+
+export type DownloadAsArgs = (req: DownloadAsRequest) => Promise<{
   url: string;
   filename: string;
   error?: string | null;
@@ -16,6 +31,13 @@ export const DownloadAsSchema = rpc
   .input(
     z.object({
       format: z.enum(["csv", "json", "parquet", "tsv"]),
+      options: z
+        .object({
+          separator: z.string().optional(),
+          encoding: z.string().optional(),
+          ensure_ascii: z.boolean().optional(),
+        })
+        .optional(),
     }),
   )
   .output(

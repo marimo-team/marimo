@@ -85,7 +85,7 @@ describe("ExportActions dialog", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows formats in the approved order with reserved disclosure space", async () => {
+  it("shows formats in the approved order with an options toggle where supported", async () => {
     renderExportActions();
     const dialog = await openDialog();
     const list = within(dialog).getByRole("list", { name: "Export formats" });
@@ -98,9 +98,143 @@ describe("ExportActions dialog", () => {
       "export-row-parquet",
       "export-row-markdown",
     ]);
-    for (const row of rows) {
-      expect(row.querySelector('[aria-hidden="true"]')).toBeInTheDocument();
+    for (const label of ["CSV", "TSV", "JSON"]) {
+      expect(
+        screen.getByRole("button", { name: `${label} options` }),
+      ).toHaveAttribute("aria-expanded", "false");
     }
+    for (const label of ["Parquet", "Markdown"]) {
+      expect(
+        screen.queryByRole("button", { name: `${label} options` }),
+      ).not.toBeInTheDocument();
+    }
+    expect(within(dialog).queryByRole("group")).not.toBeInTheDocument();
+  });
+
+  it("expands one options panel at a time", async () => {
+    renderExportActions();
+    const dialog = await openDialog();
+
+    fireEvent.click(screen.getByRole("button", { name: "CSV options" }));
+    expect(
+      within(dialog).getByRole("group", { name: "CSV options" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Delimiter" })).toHaveValue(
+      ",",
+    );
+    expect(screen.getByRole("combobox", { name: "Encoding" })).toHaveValue(
+      "utf-8",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "JSON options" }));
+    expect(
+      within(dialog).queryByRole("group", { name: "CSV options" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("group", { name: "JSON options" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("switch", { name: "Escape non-ASCII" }),
+    ).toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: "JSON options" }));
+    expect(within(dialog).queryByRole("group")).not.toBeInTheDocument();
+  });
+
+  it("sends only changed CSV options with a download", async () => {
+    renderExportActions();
+    await openDialog();
+    expect(screen.getByTestId("export-summary-csv")).toHaveTextContent(
+      "Comma · UTF-8",
+    );
+    expect(screen.queryByTestId("export-summary-parquet")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "CSV options" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Delimiter" }), {
+      target: { value: ";" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Encoding" }), {
+      target: { value: "utf-8-sig" },
+    });
+    expect(screen.getByTestId("export-summary-csv")).toHaveTextContent(
+      "Semicolon · UTF-8 with BOM",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
+
+    await waitFor(() => {
+      expect(downloadByURL).toHaveBeenCalled();
+    });
+    expect(downloadAs).toHaveBeenCalledWith({
+      format: "csv",
+      options: { separator: ";", encoding: "utf-8-sig" },
+    });
+  });
+
+  it("keeps the delimiter but drops the encoding for a CSV copy", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue("name;value\n"),
+      }),
+    );
+    renderExportActions();
+    await openDialog();
+
+    fireEvent.click(screen.getByRole("button", { name: "CSV options" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Delimiter" }), {
+      target: { value: ";" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Encoding" }), {
+      target: { value: "latin-1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Copy CSV" }));
+
+    await waitFor(() => {
+      expect(copyToClipboard).toHaveBeenCalledWith("name;value\n");
+    });
+    expect(downloadAs).toHaveBeenCalledWith({
+      format: "csv",
+      options: { separator: ";" },
+    });
+  });
+
+  it("sends the JSON escape setting only when turned off", async () => {
+    renderExportActions();
+    await openDialog();
+
+    fireEvent.click(screen.getByRole("button", { name: "JSON options" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Escape non-ASCII" }));
+    fireEvent.click(screen.getByRole("button", { name: "Download JSON" }));
+
+    await waitFor(() => {
+      expect(downloadByURL).toHaveBeenCalled();
+    });
+    expect(downloadAs).toHaveBeenCalledWith({
+      format: "json",
+      options: { ensure_ascii: false },
+    });
+  });
+
+  it("resets options and panels when the dialog closes", async () => {
+    renderExportActions();
+    let dialog = await openDialog();
+
+    fireEvent.click(screen.getByRole("button", { name: "CSV options" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Delimiter" }), {
+      target: { value: "|" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    dialog = await openDialog();
+    expect(within(dialog).queryByRole("group")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
+    await waitFor(() => {
+      expect(downloadAs).toHaveBeenCalledWith({ format: "csv" });
+    });
   });
 
   it("opens without showing an action tooltip", async () => {
@@ -233,9 +367,23 @@ describe("ExportActions dialog", () => {
       });
       expect(downloadAs).toHaveBeenCalledWith({ format: sourceFormat });
       expect(toast).toHaveBeenCalledWith({ title: "Copied to clipboard" });
-      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
     },
   );
+
+  it("shows the failure inside the affected format row", async () => {
+    downloadAs.mockRejectedValueOnce(new Error("Kernel disconnected"));
+    renderExportActions();
+    await openDialog();
+
+    fireEvent.click(screen.getByRole("button", { name: "Download JSON" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(screen.getByTestId("export-row-json")).toContainElement(alert);
+    expect(screen.getByTestId("export-row-csv")).not.toContainElement(alert);
+  });
 
   it("shows download request failures inside the dialog", async () => {
     downloadAs.mockRejectedValueOnce(new Error("Kernel disconnected"));
@@ -400,7 +548,7 @@ describe("ExportActions dialog", () => {
       "Second failure",
     );
 
-    fireEvent.click(within(dialog).getByText("Close", { selector: "button" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
@@ -448,7 +596,7 @@ describe("ExportActions dialog", () => {
     const dialog = await openDialog();
 
     fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
-    fireEvent.click(within(dialog).getByText("Close", { selector: "button" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
@@ -460,12 +608,12 @@ describe("ExportActions dialog", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("closes with the footer action and restores trigger focus", async () => {
+  it("closes with the close button and restores trigger focus", async () => {
     renderExportActions();
     const trigger = screen.getByTestId("export-button");
     const dialog = await openDialog();
 
-    fireEvent.click(within(dialog).getByText("Close", { selector: "button" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
 
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -478,9 +626,7 @@ describe("ExportActions dialog", () => {
     const trigger = screen.getByTestId("export-button");
     trigger.focus();
     const dialog = await openDialog();
-    const closeButton = within(dialog).getByText("Close", {
-      selector: "button",
-    });
+    const closeButton = within(dialog).getByRole("button", { name: "Close" });
     closeButton.focus();
 
     fireEvent.keyDown(closeButton, { key: "Escape" });

@@ -16,6 +16,7 @@ from marimo._plugins.ui._impl.dataframes.dataframe import (
 )
 from marimo._plugins.ui._impl.table import (
     DownloadAsArgs,
+    DownloadAsOptions,
     SearchTableArgs,
     TableSearchError,
 )
@@ -368,6 +369,36 @@ class TestDataframes:
         csv_text = from_data_uri(csv_url)[1].decode("utf-8")
         assert "A;B" in csv_text
         assert "1;x" in csv_text
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_request_options_layer_over_defaults() -> None:
+        df = pd.DataFrame({"A": [1, 2], "B": ["こんにちは", "y"]})
+        subject = ui.dataframe(
+            df,
+            download_csv_separator=";",
+            download_csv_encoding="utf-8-sig",
+        )
+
+        # A request field replaces the widget default for that setting.
+        url = subject._download_as(
+            DownloadAsArgs(
+                format="csv", options=DownloadAsOptions(separator="|")
+            )
+        ).url
+        csv_bytes = from_data_uri(url)[1]
+        assert csv_bytes.startswith(b"\xef\xbb\xbf")
+        assert "A|B" in csv_bytes.decode("utf-8-sig")
+
+        # An empty request keeps every widget default.
+        url = subject._download_as(
+            DownloadAsArgs(format="csv", options=DownloadAsOptions())
+        ).url
+        csv_bytes = from_data_uri(url)[1]
+        assert csv_bytes.startswith(b"\xef\xbb\xbf")
+        assert "A;B" in csv_bytes.decode("utf-8-sig")
 
     @staticmethod
     @pytest.mark.skipif(

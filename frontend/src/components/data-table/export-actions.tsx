@@ -1,9 +1,20 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { AlertCircleIcon, ClipboardCopyIcon, DownloadIcon } from "lucide-react";
+import {
+  AlertCircleIcon,
+  ChevronRightIcon,
+  ClipboardCopyIcon,
+  DownloadIcon,
+  InfoIcon,
+} from "lucide-react";
 import React from "react";
 import { downloadSizeLimitAtom } from "./download-policy/atoms";
+import type {
+  DownloadAsArgs,
+  DownloadAsOptions,
+  DownloadFormat,
+} from "./schemas";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -21,11 +32,13 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
+import { Label } from "../ui/label";
+import { NativeSelect } from "../ui/native-select";
+import { Switch } from "../ui/switch";
 import { Tooltip } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 
@@ -68,7 +81,6 @@ const EXPORT_OPTIONS = [
 ] as const;
 
 type ExportFormat = (typeof EXPORT_OPTIONS)[number]["format"];
-type DownloadFormat = Exclude<ExportFormat, "markdown">;
 type CopyFormat = Exclude<ExportFormat, "parquet">;
 type ExportAction =
   | { destination: "download"; format: DownloadFormat }
@@ -79,6 +91,7 @@ type ExportFailure =
       kind: "error";
       title: string;
       description: string;
+      action: ExportAction;
     }
   | {
       kind: "missing-packages";
@@ -98,13 +111,117 @@ const COPY_SOURCE_FORMAT: Record<CopyFormat, DownloadFormat> = {
   markdown: "json",
 };
 
+const SEPARATORS = [
+  { value: ",", label: "Comma" },
+  { value: ";", label: "Semicolon" },
+  { value: "|", label: "Pipe" },
+] as const;
+
+const ENCODINGS = [
+  { value: "utf-8", label: "UTF-8" },
+  { value: "utf-8-sig", label: "UTF-8 with BOM" },
+  { value: "latin-1", label: "Latin-1" },
+] as const;
+
+type Separator = (typeof SEPARATORS)[number]["value"];
+type Encoding = (typeof ENCODINGS)[number]["value"];
+
+interface ExportSettings {
+  csv: { separator: Separator; encoding: Encoding };
+  tsv: { encoding: Encoding };
+  json: { ensureAscii: boolean };
+}
+
+const DEFAULT_SETTINGS: ExportSettings = {
+  csv: { separator: ",", encoding: "utf-8" },
+  tsv: { encoding: "utf-8" },
+  json: { ensureAscii: true },
+};
+
+type ConfigurableFormat = keyof ExportSettings;
+
+const isConfigurable = (format: ExportFormat): format is ConfigurableFormat =>
+  format in DEFAULT_SETTINGS;
+
+/**
+ * Build the request options for one action. Only settings that differ from
+ * the defaults are sent, so the backend keeps its own defaults otherwise.
+ *
+ * Clipboard copies never send an encoding. The browser decodes the fetched
+ * payload as UTF-8, so any other encoding would corrupt the copied text.
+ */
+function requestOptions(
+  settings: ExportSettings,
+  format: DownloadFormat,
+  destination: ExportAction["destination"],
+): DownloadAsOptions | undefined {
+  const options: DownloadAsOptions = {};
+  switch (format) {
+    case "csv":
+      if (settings.csv.separator !== DEFAULT_SETTINGS.csv.separator) {
+        options.separator = settings.csv.separator;
+      }
+      if (
+        destination === "download" &&
+        settings.csv.encoding !== DEFAULT_SETTINGS.csv.encoding
+      ) {
+        options.encoding = settings.csv.encoding;
+      }
+      break;
+    case "tsv":
+      if (
+        destination === "download" &&
+        settings.tsv.encoding !== DEFAULT_SETTINGS.tsv.encoding
+      ) {
+        options.encoding = settings.tsv.encoding;
+      }
+      break;
+    case "json":
+      if (settings.json.ensureAscii !== DEFAULT_SETTINGS.json.ensureAscii) {
+        options.ensure_ascii = settings.json.ensureAscii;
+      }
+      break;
+    case "parquet":
+      break;
+    default:
+      logNever(format);
+  }
+  return Object.keys(options).length > 0 ? options : undefined;
+}
+
+const labelForValue = (
+  items: ReadonlyArray<{ value: string; label: string }>,
+  value: string,
+): string => items.find((item) => item.value === value)?.label ?? value;
+
+/** Short summary of the current settings, shown next to the format label. */
+function settingsSummary(
+  settings: ExportSettings,
+  format: ExportFormat,
+): string | null {
+  switch (format) {
+    case "csv":
+      return [
+        labelForValue(SEPARATORS, settings.csv.separator),
+        labelForValue(ENCODINGS, settings.csv.encoding),
+      ].join(" · ");
+    case "tsv":
+      return labelForValue(ENCODINGS, settings.tsv.encoding);
+    case "json":
+      return settings.json.ensureAscii
+        ? "Escapes non-ASCII"
+        : "Keeps non-ASCII";
+    case "parquet":
+    case "markdown":
+      return null;
+    default:
+      logNever(format);
+      return null;
+  }
+}
+
 export interface ExportActionProps {
-  downloadAs: (req: { format: DownloadFormat }) => Promise<{
-    url: string;
-    filename: string;
-    error?: string | null;
-    missing_packages?: string[] | null;
-  }>;
+  downloadAs: DownloadAsArgs;
   // JSON-serialized size of the currently-rendered data. Used together with
   // downloadSizeLimitAtom to disable the Export button when a host (e.g.,
   // marimo-lsp inside VS Code) declares a download size cap. Null/undefined
@@ -127,6 +244,10 @@ const failureDescription = (error: unknown): string =>
 export const ExportActions: React.FC<ExportActionProps> = (props) => {
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
   const [failure, setFailure] = React.useState<ExportFailure | null>(null);
+  const [settings, setSettings] =
+    React.useState<ExportSettings>(DEFAULT_SETTINGS);
+  const [expandedFormat, setExpandedFormat] =
+    React.useState<ConfigurableFormat | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const dialogRef = React.useRef<HTMLDivElement>(null);
   const latestActionId = React.useRef(0);
@@ -160,6 +281,16 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     </Button>
   );
 
+  const handleDialogOpenChange = (open: boolean) => {
+    setExportDialogOpen(open);
+    if (!open) {
+      latestActionId.current += 1;
+      setFailure(null);
+      setExpandedFormat(null);
+      setSettings(DEFAULT_SETTINGS);
+    }
+  };
+
   const beginAction = () => {
     const actionId = latestActionId.current + 1;
     latestActionId.current = actionId;
@@ -181,7 +312,10 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     url: string;
     filename: string;
   } | null> => {
-    const response = await props.downloadAs({ format });
+    const options = requestOptions(settings, format, action.destination);
+    const response = await props.downloadAs(
+      options ? { format, options } : { format },
+    );
 
     if (response.missing_packages && response.missing_packages.length > 0) {
       setActionFailure(actionId, {
@@ -200,6 +334,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
         kind: "error",
         title: failureTitleForAction(action),
         description: response.error,
+        action,
       });
       return null;
     }
@@ -250,6 +385,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
         kind: "error",
         title: failureTitleForAction(action),
         description: failureDescription(error),
+        action,
       });
     }
   };
@@ -293,6 +429,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
         toast({
           title: "Copied to clipboard",
         });
+        handleDialogOpenChange(false);
       },
     );
   };
@@ -307,6 +444,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
         kind: "error",
         title: failureTitleForAction(action),
         description: failureDescription(error),
+        action,
       });
     }
   };
@@ -319,12 +457,11 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     }
   };
 
-  const handleDialogOpenChange = (open: boolean) => {
-    setExportDialogOpen(open);
-    if (!open) {
-      latestActionId.current += 1;
-      setFailure(null);
+  const toggleExpanded = (format: ExportFormat) => {
+    if (!isConfigurable(format)) {
+      return;
     }
+    setExpandedFormat((current) => (current === format ? null : format));
   };
 
   return (
@@ -342,7 +479,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
       </Tooltip>
       <DialogContent
         ref={dialogRef}
-        className="print:hidden gap-4 sm:max-w-[660px]"
+        className="print:hidden gap-4 sm:max-w-[540px]"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           dialogRef.current?.focus();
@@ -359,117 +496,305 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
       >
         <DialogHeader>
           <DialogTitle>Export table</DialogTitle>
-          <DialogDescription>Choose one export action.</DialogDescription>
+          <DialogDescription>
+            Download a file or copy to the clipboard.
+          </DialogDescription>
         </DialogHeader>
         <ul
           aria-label="Export formats"
-          className="list-none overflow-hidden rounded-lg border bg-card"
+          className="list-none overflow-hidden rounded-md border divide-y"
         >
-          {EXPORT_OPTIONS.map((option) => (
-            <li
-              key={option.format}
-              data-testid={`export-row-${option.format}`}
-              className="grid min-h-[62px] grid-cols-[28px_1fr_auto] items-center border-b px-2.5 last:border-b-0 hover:bg-accent/50"
-            >
-              <span aria-hidden={true} className="h-8 w-7" />
-              <div className="grid gap-0.5 pl-1">
-                <span className="text-sm font-medium">{option.label}</span>
-                <span className="text-xs text-muted-foreground">
-                  {option.description}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Tooltip
-                  content={
-                    option.canDownload
-                      ? `Download ${option.label}`
-                      : `${option.label} is available for copy only.`
-                  }
-                >
-                  <span className="inline-flex">
+          {EXPORT_OPTIONS.map((option) => {
+            const configurableFormat = isConfigurable(option.format)
+              ? option.format
+              : null;
+            const expanded =
+              configurableFormat !== null &&
+              expandedFormat === configurableFormat;
+            const panelId = `export-options-${option.format}`;
+            const rowFailure =
+              failure?.action.format === option.format ? failure : null;
+            const summary = settingsSummary(settings, option.format);
+            return (
+              <li
+                key={option.format}
+                data-testid={`export-row-${option.format}`}
+                className={cn(expanded && "bg-muted/40")}
+              >
+                <div className="grid min-h-[60px] grid-cols-[28px_1fr_auto] items-center gap-x-1 px-2.5 py-2 hover:bg-accent/50">
+                  {configurableFormat ? (
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      aria-label={`Download ${option.label}`}
-                      disabled={!option.canDownload}
-                      onClick={
+                      aria-label={`${option.label} options`}
+                      aria-expanded={expanded}
+                      aria-controls={panelId}
+                      onClick={() => toggleExpanded(option.format)}
+                    >
+                      <ChevronRightIcon
+                        className={cn(
+                          "h-4 w-4 text-muted-foreground transition-transform",
+                          expanded && "rotate-90",
+                        )}
+                      />
+                    </Button>
+                  ) : (
+                    <span aria-hidden={true} className="h-6 w-6" />
+                  )}
+                  <div className="grid gap-1 pl-1">
+                    <span className="flex items-baseline gap-x-2">
+                      <span className="text-sm font-medium leading-tight">
+                        {option.label}
+                      </span>
+                      {summary && (
+                        <span
+                          data-testid={`export-summary-${option.format}`}
+                          className="text-xs text-muted-foreground"
+                        >
+                          {summary}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-xs text-muted-foreground leading-tight">
+                      {option.description}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    <Tooltip
+                      content={
                         option.canDownload
-                          ? () => {
-                              void handleDownload(option.format);
-                            }
-                          : undefined
+                          ? `Download ${option.label}`
+                          : `${option.label} is available for copy only.`
                       }
                     >
-                      <DownloadIcon className="h-4 w-4" />
-                    </Button>
-                  </span>
-                </Tooltip>
-                <Tooltip
-                  content={
-                    option.canCopy
-                      ? `Copy ${option.label}`
-                      : `${option.label} is available for download only.`
-                  }
-                >
-                  <span className="inline-flex">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Copy ${option.label}`}
-                      disabled={!option.canCopy}
-                      onClick={
+                      <span className="inline-flex">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Download ${option.label}`}
+                          disabled={!option.canDownload}
+                          onClick={
+                            option.canDownload
+                              ? () => {
+                                  void handleDownload(option.format);
+                                }
+                              : undefined
+                          }
+                        >
+                          <DownloadIcon className="h-4 w-4" />
+                        </Button>
+                      </span>
+                    </Tooltip>
+                    <Tooltip
+                      content={
                         option.canCopy
-                          ? () => {
-                              void handleCopyAction(option.format);
-                            }
-                          : undefined
+                          ? `Copy ${option.label}`
+                          : `${option.label} is available for download only.`
                       }
                     >
-                      <ClipboardCopyIcon className="h-4 w-4" />
-                    </Button>
-                  </span>
-                </Tooltip>
-              </div>
-            </li>
-          ))}
-        </ul>
-        {failure && (
-          <Alert variant="destructive">
-            <AlertCircleIcon className="h-4 w-4" />
-            <div>
-              <AlertTitle>{failure.title}</AlertTitle>
-              <AlertDescription>
-                {failure.kind === "missing-packages" ? (
-                  <MissingPackagePrompt
-                    packages={failure.packages}
-                    featureName={failure.featureName}
-                    description={failure.description}
-                    onInstall={() => retryAction(failure.action)}
-                    className="items-start"
-                  />
-                ) : (
-                  failure.description
+                      <span className="inline-flex">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Copy ${option.label}`}
+                          disabled={!option.canCopy}
+                          onClick={
+                            option.canCopy
+                              ? () => {
+                                  void handleCopyAction(option.format);
+                                }
+                              : undefined
+                          }
+                        >
+                          <ClipboardCopyIcon className="h-4 w-4" />
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  </div>
+                </div>
+                {expanded && configurableFormat && (
+                  <fieldset
+                    id={panelId}
+                    className="grid grid-cols-2 gap-3 border-t bg-muted/50 px-3.5 py-3.5 pl-[52px]"
+                  >
+                    <legend className="sr-only">{option.label} options</legend>
+                    <ExportSettingsFields
+                      format={configurableFormat}
+                      settings={settings}
+                      onChange={setSettings}
+                    />
+                  </fieldset>
                 )}
-              </AlertDescription>
-            </div>
-          </Alert>
-        )}
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            onClick={() => handleDialogOpenChange(false)}
-          >
-            Close
-          </Button>
-        </DialogFooter>
+                {rowFailure && (
+                  <div className="border-t px-3 py-2 pl-[42px]">
+                    <Alert
+                      variant="destructive"
+                      className="p-3 has-[svg]:pl-9 [&>svg]:left-3 [&>svg]:top-3"
+                    >
+                      <AlertCircleIcon className="h-4 w-4" />
+                      <div>
+                        <AlertTitle className="text-sm">
+                          {rowFailure.title}
+                        </AlertTitle>
+                        <AlertDescription className="text-xs">
+                          {rowFailure.kind === "missing-packages" ? (
+                            <MissingPackagePrompt
+                              packages={rowFailure.packages}
+                              featureName={rowFailure.featureName}
+                              description={rowFailure.description}
+                              onInstall={() => retryAction(rowFailure.action)}
+                              className="items-start"
+                            />
+                          ) : (
+                            rowFailure.description
+                          )}
+                        </AlertDescription>
+                      </div>
+                    </Alert>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       </DialogContent>
     </Dialog>
   );
 };
+
+interface ExportSettingsFieldsProps {
+  format: ConfigurableFormat;
+  settings: ExportSettings;
+  onChange: React.Dispatch<React.SetStateAction<ExportSettings>>;
+}
+
+const ExportSettingsFields: React.FC<ExportSettingsFieldsProps> = ({
+  format,
+  settings,
+  onChange,
+}) => {
+  const id = React.useId();
+
+  const encodingField = (encoding: Encoding, key: "csv" | "tsv") => (
+    <SettingField
+      id={`${id}-encoding`}
+      label="Encoding"
+      help="Text encoding of the saved file. Pick UTF-8 with BOM when Excel shows garbled accents. Copies always use UTF-8."
+    >
+      <NativeSelect
+        id={`${id}-encoding`}
+        className="mb-0 w-full"
+        value={encoding}
+        onChange={(event) => {
+          const next = event.target.value as Encoding;
+          onChange((current) => ({
+            ...current,
+            [key]: { ...current[key], encoding: next },
+          }));
+        }}
+      >
+        {ENCODINGS.map((item) => (
+          <option key={item.value} value={item.value}>
+            {item.label}
+          </option>
+        ))}
+      </NativeSelect>
+    </SettingField>
+  );
+
+  switch (format) {
+    case "csv":
+      return (
+        <>
+          <SettingField
+            id={`${id}-separator`}
+            label="Delimiter"
+            help="Character between fields. Semicolon suits spreadsheets in locales that use a comma as the decimal separator."
+          >
+            <NativeSelect
+              id={`${id}-separator`}
+              className="mb-0 w-full"
+              value={settings.csv.separator}
+              onChange={(event) => {
+                const next = event.target.value as Separator;
+                onChange((current) => ({
+                  ...current,
+                  csv: { ...current.csv, separator: next },
+                }));
+              }}
+            >
+              {SEPARATORS.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </SettingField>
+          {encodingField(settings.csv.encoding, "csv")}
+        </>
+      );
+    case "tsv":
+      return encodingField(settings.tsv.encoding, "tsv");
+    case "json":
+      return (
+        <SettingField
+          id={`${id}-ensure-ascii`}
+          label="Escape non-ASCII"
+          help="Write characters outside ASCII as \\u escapes. Turn off to keep accents and symbols readable in the file."
+        >
+          <Switch
+            id={`${id}-ensure-ascii`}
+            size="xs"
+            checked={settings.json.ensureAscii}
+            onCheckedChange={(checked) => {
+              onChange((current) => ({
+                ...current,
+                json: { ensureAscii: checked },
+              }));
+            }}
+          />
+        </SettingField>
+      );
+    default:
+      logNever(format);
+      return null;
+  }
+};
+
+interface SettingFieldProps {
+  id: string;
+  label: string;
+  help: string;
+  children: React.ReactNode;
+}
+
+const SettingField: React.FC<SettingFieldProps> = ({
+  id,
+  label,
+  help,
+  children,
+}) => (
+  <div className="grid gap-1.5">
+    <span className="flex items-center gap-1">
+      <Label htmlFor={id} className="text-xs font-medium">
+        {label}
+      </Label>
+      <Tooltip content={help}>
+        <button
+          type="button"
+          className="inline-flex text-muted-foreground hover:text-foreground"
+          aria-label={`${label} help`}
+        >
+          <InfoIcon className="h-3 w-3" />
+        </button>
+      </Tooltip>
+    </span>
+    <span className="flex items-center">{children}</span>
+  </div>
+);
 
 function fetchJson(url: string): Promise<Record<string, unknown>[]> {
   return fetchText(url).then(
