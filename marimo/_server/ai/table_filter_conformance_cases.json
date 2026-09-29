@@ -394,6 +394,26 @@
       "expected_row_ids": ["r5"]
     },
     {
+      "id": "contains_empty_text",
+      "request": "Show every vehicle with a present make.",
+      "fql": "vehicle_make:\"**\"",
+      "operation_ids": ["contains_empty_text"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "vehicle make",
+            "operator": "is_not_null",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r0", "r1", "r2", "r3", "r4", "r5", "r7"]
+    },
+    {
       "id": "exact_membership",
       "request": "Show Chevrolet or Ford vehicles.",
       "fql": "vehicle_make:(\"chevrolet\",\"ford\")",

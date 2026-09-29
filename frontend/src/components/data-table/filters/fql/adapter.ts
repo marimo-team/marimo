@@ -28,6 +28,7 @@ import {
 import {
   convertExactList,
   convertScalarValue,
+  decodeWildcardEscapes,
   decodeWildcardPattern,
   type ValueConversionResult,
   type WildcardPattern,
@@ -108,7 +109,18 @@ function conditionFor(
 }
 
 function isNullValue(value: ScalarValue): boolean {
+  // The parser normalizes bare and quoted strings to the same scalar value,
+  // so the colon form reserves both `null` and `"null"` for null checks.
   return value.value === "null";
+}
+
+function validateRegex(pattern: string): Rejection | undefined {
+  try {
+    RegExp(pattern);
+    return undefined;
+  } catch {
+    return reject("Expected a valid regular expression.");
+  }
 }
 
 function unsupportedOperation(column: FqlColumn): Rejection {
@@ -150,6 +162,18 @@ const WILDCARD_OPERATION_IDS: Record<
   ends_with: "ends_with_text",
 };
 
+const COMPARISON_OPERATION_IDS: Record<
+  Exclude<FilterNode["operator"], ":">,
+  TableFilterOperationId
+> = {
+  "=": "scalar_equal",
+  "!=": "scalar_not_equal",
+  ">": "greater_than",
+  ">=": "greater_than_or_equal",
+  "<": "less_than",
+  "<=": "less_than_or_equal",
+};
+
 function convertText(
   operator: FilterNode["operator"],
   scalar: ScalarValue,
@@ -180,7 +204,9 @@ function convertText(
     return reject("A regular expression must contain a pattern.");
   }
   if (text.length >= 3 && text.startsWith("/") && text.endsWith("/")) {
-    return conditionFor("regex_text", column, text.slice(1, -1));
+    const regex = text.slice(1, -1);
+    const invalidRegex = validateRegex(regex);
+    return invalidRegex ?? conditionFor("regex_text", column, regex);
   }
 
   const pattern = decodeWildcardPattern(text);
@@ -188,35 +214,14 @@ function convertText(
     return pattern;
   }
   if (!pattern.value) {
-    return conditionFor("exact_text", column, text);
+    return conditionFor("exact_text", column, decodeWildcardEscapes(text));
   }
 
-  const operationId: TableFilterOperationId =
-    pattern.value.value === "" && pattern.value.operator === "contains"
-      ? "contains_empty_text"
-      : WILDCARD_OPERATION_IDS[pattern.value.operator];
+  if (pattern.value.value === "" && pattern.value.operator === "contains") {
+    return conditionFor("contains_empty_text", column);
+  }
+  const operationId = WILDCARD_OPERATION_IDS[pattern.value.operator];
   return conditionFor(operationId, column, pattern.value.value);
-}
-
-function comparisonOperationId(
-  operator: Exclude<FilterNode["operator"], ":">,
-): TableFilterOperationId {
-  switch (operator) {
-    case "=":
-      return "scalar_equal";
-    case "!=":
-      return "scalar_not_equal";
-    case ">":
-      return "greater_than";
-    case ">=":
-      return "greater_than_or_equal";
-    case "<":
-      return "less_than";
-    case "<=":
-      return "less_than_or_equal";
-    default:
-      return assertNever(operator);
-  }
 }
 
 function convertTypedScalar(
@@ -235,7 +240,7 @@ function convertTypedScalar(
   if (!value.ok) {
     return value;
   }
-  return conditionFor(comparisonOperationId(operator), column, value.value);
+  return conditionFor(COMPARISON_OPERATION_IDS[operator], column, value.value);
 }
 
 function convertBoolean(

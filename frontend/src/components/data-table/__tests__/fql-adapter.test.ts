@@ -128,8 +128,7 @@ describe("adaptFqlFilter", () => {
     {
       name: "contains empty text",
       query: 'vehicle_make:"**"',
-      operator: "contains",
-      value: "",
+      operator: "is_not_null",
     },
     {
       name: "empty text",
@@ -142,7 +141,7 @@ describe("adaptFqlFilter", () => {
       operator: "is_null",
     },
     {
-      name: "quoted missing text",
+      name: "quoted null keyword",
       query: 'vehicle_make:"null"',
       operator: "is_null",
     },
@@ -163,6 +162,18 @@ describe("adaptFqlFilter", () => {
       query: String.raw`vehicle_make:"*\\\\*"`,
       operator: "contains",
       value: "\\",
+    },
+    {
+      name: "literal star in exact text",
+      query: String.raw`vehicle_make:"a\\*b"`,
+      operator: "equals",
+      value: "a*b",
+    },
+    {
+      name: "literal backslash in exact text",
+      query: String.raw`vehicle_make:"a\\\\b"`,
+      operator: "equals",
+      value: String.raw`a\b`,
     },
   ] as const)("converts $name", ({ query, operator, value }) => {
     expect(adaptFqlFilter(query, COLUMNS)).toEqual(
@@ -211,8 +222,8 @@ describe("adaptFqlFilter", () => {
       dataType: "datetime",
       alias: "created_at",
       columnId: "created at",
-      source: '"2026-09-12T14:30:00.123456+05:30"',
-      expected: "2026-09-12T14:30:00.123456+05:30",
+      source: '"2026-09-12T14:30:00.123456"',
+      expected: "2026-09-12T14:30:00.123456",
     },
     {
       dataType: "time",
@@ -459,6 +470,11 @@ describe("adaptFqlFilter", () => {
     ['order_date="0000-01-01"', "Expected a valid date value."],
     ['created_at="2026-09-12T25:00:00"', "Expected a valid datetime value."],
     ['created_at="2026-09-12T14:30"', "Expected a valid datetime value."],
+    ['created_at="2026-09-12T14:30:00Z"', "Expected a valid datetime value."],
+    [
+      'created_at="2026-09-12T14:30:00+05:30"',
+      "Expected a valid datetime value.",
+    ],
     ['created_at="0000-01-01T00:00:00"', "Expected a valid datetime value."],
     [
       'created_at="2026-09-12T14:30:00.123456789"',
@@ -473,6 +489,7 @@ describe("adaptFqlFilter", () => {
     ['dispatch_time="10:30:00.1234567"', "Expected a valid time value."],
     ["active:yes", "Expected the boolean value true or false."],
     ['vehicle_make:"//"', "A regular expression must contain a pattern."],
+    ['vehicle_make:"/[/"', "Expected a valid regular expression."],
     [
       'vehicle_make:"*"',
       "A lone star is ambiguous. Use two stars for an empty pattern.",
