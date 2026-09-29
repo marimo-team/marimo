@@ -101,7 +101,7 @@ export const ShareStaticNotebookModal: React.FC<{
       <DialogHeader>
         <DialogTitle>Publish HTML to web</DialogTitle>
         <DialogDescription>
-          Publish a static, non-interactive snapshot of this notebook through{" "}
+          Publish a static snapshot of this notebook to{" "}
           <a
             href={Constants.molab}
             target="_blank"
@@ -110,8 +110,7 @@ export const ShareStaticNotebookModal: React.FC<{
           >
             molab
           </a>
-          . A new tab will open where you sign in, choose a name, and confirm
-          the publish.
+          . Snapshots can be viewed by anyone on the internet.
         </DialogDescription>
       </DialogHeader>
       {state.kind === "failed" && (
@@ -141,7 +140,7 @@ export const ShareStaticNotebookModal: React.FC<{
           {isPublishing ? (
             <>
               <Spinner className="mr-2" size="small" />
-              Staging notebook...
+              Snapshotting notebook ...
             </>
           ) : (
             <>
