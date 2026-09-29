@@ -124,12 +124,13 @@ class SessionImpl(Session):
         config_manager = config_manager.with_partial(
             ScriptConfigManager(app_file_manager.path)
         )
+        config = config_manager.get_config(hide_secrets=False)
+        configured_venv = config.get("venv", {}).get("path")
 
         configs = app_file_manager.app.cell_manager.config_map()
 
         # Create kernel manager
         # AppHost path handles multi-app run mode (both sandbox and non-sandbox).
-        # Sandboxed edit sessions use IPC kernels.
         queue_manager: QueueManager
         kernel_manager: KernelManager
         if app_host_context is not None and mode == SessionMode.RUN:
@@ -157,8 +158,7 @@ class SessionImpl(Session):
                 config_manager=config_manager,
                 redirect_console_to_browser=redirect_console_to_browser,
             )
-        elif sandbox:
-            # IPC kernel path — edit mode with sandbox
+        elif sandbox or (mode == SessionMode.EDIT and configured_venv):
             # (AppHostPool is never created in edit mode)
             from marimo._ipc import QueueManager as IPCQueueManager
             from marimo._session.managers import (
@@ -169,6 +169,7 @@ class SessionImpl(Session):
             ipc_queue_manager, connection_info = IPCQueueManager.create()
             queue_manager = IPCQueueManagerImpl.from_ipc(ipc_queue_manager)
             kernel_manager = IPCKernelManagerImpl(
+                sandbox=sandbox,
                 queue_manager=queue_manager,
                 connection_info=connection_info,
                 mode=mode,

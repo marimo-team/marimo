@@ -2,7 +2,7 @@
 """IPC-based managers using ZeroMQ.
 
 These implementations launch the kernel as a subprocess and communicate
-via ZeroMQ channels. Each notebook gets its own sandboxed virtual environment.
+via ZeroMQ channels.
 """
 
 from __future__ import annotations
@@ -236,9 +236,7 @@ def construct_kernel_env(
     """
     env = dict(base_env)
 
-    # Sandbox identity is per-kernel, not inherited: a configured venv
-    # kernel inside a sandboxed server must not route package changes
-    # through a script environment it does not run in.
+    # Sandbox identity is per-kernel, not inherited.
     env.pop("MARIMO_SANDBOX_MODE", None)
     env.pop("MARIMO_SANDBOX_BACKEND", None)
     env.pop("MARIMO_MANAGE_SCRIPT_METADATA", None)
@@ -266,15 +264,12 @@ def construct_kernel_env(
 
 
 class IPCKernelManagerImpl(KernelManager):
-    """IPC-based kernel manager to spawn sandboxed kernels.
-
-    Launches the kernel as a subprocess and communicates via ZeroMQ channels.
-    Each notebook gets its own sandboxed virtual environment.
-    """
+    """Launches a kernel subprocess and communicates via ZeroMQ channels."""
 
     def __init__(
         self,
         *,
+        sandbox: bool,
         queue_manager: IPCQueueManagerImpl,
         connection_info: ConnectionInfo,
         mode: SessionMode,
@@ -284,6 +279,7 @@ class IPCKernelManagerImpl(KernelManager):
         redirect_console_to_browser: bool = True,
         on_notification: Callable[[NotificationMessage], None] | None = None,
     ) -> None:
+        self._sandbox = sandbox
         self.queue_manager = queue_manager
         self.connection_info = connection_info
         self.mode = mode
@@ -334,20 +330,26 @@ class IPCKernelManagerImpl(KernelManager):
             "prepare", {}, "kernel", self._notify
         ) as operation:
             venv_config = _get_venv_config(self.config_manager)
+            if self._sandbox and venv_config.get("path"):
+                echo(
+                    "Warning: ignoring [tool.marimo.venv] in sandbox mode. "
+                    "Use --no-sandbox to edit with the configured environment.",
+                    err=True,
+                )
             try:
-                configured_python = get_configured_venv_python(
-                    venv_config, base_path=self.app_metadata.filename
+                configured_python = (
+                    None
+                    if self._sandbox
+                    else get_configured_venv_python(
+                        venv_config, base_path=self.app_metadata.filename
+                    )
                 )
             except ValueError as e:
                 raise KernelStartupError(str(e)) from e
 
-            # Ephemeral sandboxes are always writable; configured venvs respect the
-            # flag.
             writable = True
             kernel_pythonpath: str | None = None
 
-            # An explicitly configured venv takes precedence over an ephemeral
-            # sandbox.
             if configured_python:
                 echo(
                     f"Using configured venv: {muted(configured_python)}",
@@ -389,7 +391,7 @@ class IPCKernelManagerImpl(KernelManager):
                             f"Options:\n"
                             f"  1. Set writable=true in [tool.marimo.venv] to allow marimo to install deps\n"
                             f"  2. Install marimo in your venv: uv pip install marimo --python {venv_python}\n"
-                            f"  3. Remove [tool.marimo.venv].path to use an ephemeral sandbox instead"
+                            f"  3. Launch with --sandbox to use the notebook's requirements"
                         )
 
                     # Inject PYTHONPATH for marimo and dependencies from the
