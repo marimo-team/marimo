@@ -1,7 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { AlertCircleIcon, CopyIcon, DownloadIcon } from "lucide-react";
+import {
+  AlertCircleIcon,
+  ClipboardCopyIcon,
+  DownloadIcon,
+} from "lucide-react";
 import React from "react";
 import { downloadSizeLimitAtom } from "./download-policy/atoms";
 import { logNever } from "@/utils/assertNever";
@@ -427,7 +431,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                           : undefined
                       }
                     >
-                      <CopyIcon className="h-4 w-4" />
+                      <ClipboardCopyIcon className="h-4 w-4" />
                     </Button>
                   </span>
                 </Tooltip>
