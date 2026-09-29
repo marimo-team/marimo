@@ -26,12 +26,12 @@ export type StatusValue = "success" | "error" | "warning";
  * );
  */
 export class ToolExecutionError extends Error {
-  readonly code: string;
-  readonly isRetryable: boolean;
-  readonly suggestedFix?: string;
-  readonly meta?: Record<string, unknown>;
+  public readonly code: string;
+  public readonly isRetryable: boolean;
+  public readonly suggestedFix?: string;
+  public readonly meta?: Record<string, unknown>;
 
-  constructor(
+  public constructor(
     message: string,
     code = "TOOL_ERROR",
     isRetryable = false,
@@ -46,7 +46,7 @@ export class ToolExecutionError extends Error {
     this.meta = meta;
   }
 
-  toStructuredString(): string {
+  public toStructuredString(): string {
     const stringError = JSON.stringify({
       message: this.message,
       code: this.code,

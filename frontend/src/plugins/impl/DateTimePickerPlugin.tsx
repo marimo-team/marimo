@@ -20,9 +20,9 @@ interface Data {
 }
 
 export class DateTimePickerPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-datetime";
+  public tagName = "marimo-datetime";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.string(),
     label: z.string().nullable(),
     start: z.string(),
@@ -33,7 +33,7 @@ export class DateTimePickerPlugin implements IPlugin<T, Data> {
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <DateTimePickerComponent
         {...props.data}

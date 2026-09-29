@@ -22,7 +22,7 @@ export class CachingRequestRegistry<REQ, RES> {
   private toKey: ToKey<REQ>;
   private cache: LRUCache<string, Promise<RES>>;
 
-  static jsonStringifySortKeys<T>(): ToKey<T> {
+  public static jsonStringifySortKeys<T>(): ToKey<T> {
     return (o: T) => {
       if (typeof o !== "object" || o === null) {
         return String(o);
@@ -31,7 +31,7 @@ export class CachingRequestRegistry<REQ, RES> {
     };
   }
 
-  constructor(
+  public constructor(
     delegate: DeferredRequestRegistry<REQ, RES>,
     options: CachingOptions<REQ> = {},
   ) {

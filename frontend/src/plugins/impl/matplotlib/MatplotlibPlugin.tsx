@@ -11,9 +11,9 @@ import {
 } from "./matplotlib-renderer";
 
 export class MatplotlibPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-matplotlib";
+  public tagName = "marimo-matplotlib";
 
-  validator = z.object({
+  public validator = z.object({
     chartBase64: z.string(),
     xBounds: z.tuple([z.number(), z.number()]),
     yBounds: z.tuple([z.number(), z.number()]),
@@ -28,7 +28,7 @@ export class MatplotlibPlugin implements IPlugin<T, Data> {
     yScale: z.enum(["linear", "log"]).default("linear"),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <MatplotlibComponent
         {...props.data}

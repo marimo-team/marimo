@@ -41,23 +41,23 @@ export const MARKDOWN_INITIAL_HIDE_CODE = true;
 export class MarkdownLanguageAdapter implements LanguageAdapter<MarkdownLanguageAdapterMetadata> {
   private parser = new MarkdownParser();
 
-  readonly type = "markdown";
-  readonly defaultCode = this.parser.defaultCode;
-  readonly defaultMetadata: MarkdownLanguageAdapterMetadata =
+  public readonly type = "markdown";
+  public readonly defaultCode = this.parser.defaultCode;
+  public readonly defaultMetadata: MarkdownLanguageAdapterMetadata =
     this.parser.defaultMetadata;
 
-  static fromMarkdown(markdown: string) {
+  public static fromMarkdown(markdown: string) {
     return MarkdownParser.fromMarkdown(markdown);
   }
 
-  transformIn(
+  public transformIn(
     pythonCode: string,
   ): [string, number, MarkdownLanguageAdapterMetadata] {
     const result = this.parser.transformIn(pythonCode);
     return [result.code, result.offset, result.metadata];
   }
 
-  transformOut(
+  public transformOut(
     code: string,
     metadata: MarkdownLanguageAdapterMetadata,
   ): [string, number] {
@@ -65,11 +65,11 @@ export class MarkdownLanguageAdapter implements LanguageAdapter<MarkdownLanguage
     return [result.code, result.offset];
   }
 
-  isSupported(pythonCode: string): boolean {
+  public isSupported(pythonCode: string): boolean {
     return this.parser.isSupported(pythonCode);
   }
 
-  getExtension(
+  public getExtension(
     _cellId: CellId,
     _completionConfig: CompletionConfig,
     hotkeys: HotkeyProvider,

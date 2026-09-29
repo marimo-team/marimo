@@ -14,15 +14,15 @@ interface Data {
 }
 
 export class MermaidPlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-mermaid";
+  public tagName = "marimo-mermaid";
 
-  validator = z.object({
+  public validator = z.object({
     diagram: z.string(),
     theme: z.string().optional(),
     theme_variables: z.record(z.string(), z.string()).optional(),
   });
 
-  render(props: IStatelessPluginProps<Data>): JSX.Element {
+  public render(props: IStatelessPluginProps<Data>): JSX.Element {
     return (
       <LazyMermaid
         diagram={props.data.diagram}

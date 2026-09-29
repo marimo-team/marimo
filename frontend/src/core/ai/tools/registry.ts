@@ -36,11 +36,11 @@ export class FrontendToolRegistry {
   /** All registered tools */
   private tools = new Map<string, StoredTool>();
 
-  constructor(tools: StoredTool[] = []) {
+  public constructor(tools: StoredTool[] = []) {
     this.tools = new Map(tools.map((tool) => [tool.name, tool]));
   }
 
-  has(toolName: string) {
+  public has(toolName: string) {
     return this.tools.has(toolName);
   }
 
@@ -52,7 +52,7 @@ export class FrontendToolRegistry {
     return tool;
   }
 
-  async invoke<TName extends string>({
+  public async invoke<TName extends string>({
     toolName,
     rawArgs,
     toolContext,
@@ -127,7 +127,7 @@ export class FrontendToolRegistry {
   }
 
   @Memoize()
-  getToolSchemas(mode: CopilotMode): FrontendToolDefinition[] {
+  public getToolSchemas(mode: CopilotMode): FrontendToolDefinition[] {
     const tools = [...this.tools.values()].filter((tool) =>
       tool.mode.includes(mode),
     );

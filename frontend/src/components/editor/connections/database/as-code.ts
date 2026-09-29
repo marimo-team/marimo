@@ -36,7 +36,7 @@ abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
   protected orm: ConnectionLibrary;
   protected secrets: SecretContainer;
 
-  constructor(
+  public constructor(
     connection: Extract<DatabaseConnection, { type: T }>,
     orm: ConnectionLibrary,
     secrets: SecretContainer,
@@ -46,7 +46,7 @@ abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
     this.secrets = secrets;
   }
 
-  get imports(): Set<string> {
+  public get imports(): Set<string> {
     const imports = new Set<string>(this.generateImports());
     switch (this.orm) {
       case "sqlalchemy":
@@ -67,7 +67,7 @@ abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
 
   protected abstract generateImports(): string[];
 
-  abstract generateConnectionCode(): string;
+  public abstract generateConnectionCode(): string;
 }
 
 const makePrivate = (name: string) => `_${name}`;
@@ -75,14 +75,14 @@ const makePrivate = (name: string) => `_${name}`;
 class SecretContainer {
   private secrets: Record<string, string> = {};
 
-  get imports(): Set<string> {
+  public get imports(): Set<string> {
     if (Object.keys(this.secrets).length === 0) {
       return new Set<string>();
     }
     return new Set<string>(["import os"]);
   }
 
-  print(
+  public print(
     varName: string,
     secretKeyOrValue: string | number | boolean,
     defaultValue?: string | undefined,
@@ -119,7 +119,7 @@ class SecretContainer {
     return `"${secretKeyOrValue}"`;
   }
 
-  printInFString(
+  public printInFString(
     varName: string,
     secretKeyOrValue: string | number | undefined | boolean,
     defaultValue?: string | undefined,
@@ -171,7 +171,7 @@ class SecretContainer {
    * f"db://sample:access_token@sample.com"
    * ```
    */
-  printPassword(
+  public printPassword(
     password: string | undefined,
     passwordPlaceholder: string,
     inFString: boolean,
@@ -187,11 +187,11 @@ class SecretContainer {
       : printMethod(variableName || "password", passwordPlaceholder, password);
   }
 
-  getSecrets(): Record<string, string> {
+  public getSecrets(): Record<string, string> {
     return this.secrets;
   }
 
-  formatSecrets(): string {
+  public formatSecrets(): string {
     if (Object.keys(this.secrets).length === 0) {
       return "";
     }
@@ -203,11 +203,11 @@ class SecretContainer {
 }
 
 class PostgresGenerator extends CodeGenerator<"postgres"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return [];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const ssl = this.connection.ssl
       ? ", connect_args={'sslmode': 'require'}"
       : "";
@@ -235,11 +235,11 @@ class PostgresGenerator extends CodeGenerator<"postgres"> {
 }
 
 class MySQLGenerator extends CodeGenerator<"mysql"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return [];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const ssl = this.connection.ssl
       ? ", connect_args={'ssl': {'ssl-mode': 'preferred'}}"
       : "";
@@ -267,11 +267,11 @@ class MySQLGenerator extends CodeGenerator<"mysql"> {
 }
 
 class SQLiteGenerator extends CodeGenerator<"sqlite"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return [];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const database = this.connection.database
       ? this.secrets.printInFString("database", this.connection.database)
       : "";
@@ -289,11 +289,11 @@ class SQLiteGenerator extends CodeGenerator<"sqlite"> {
 }
 
 class SnowflakeGenerator extends CodeGenerator<"snowflake"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return ["from snowflake.sqlalchemy import URL"];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const { authType, account, database, warehouse, schema, role } =
       this.connection;
     const baseParams: Record<string, string | undefined> = {
@@ -422,11 +422,11 @@ class BigQueryGenerator extends CodeGenerator<"bigquery"> {
     );
   }
 
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return this.credential.kind === "path" ? [] : ["import json"];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const project = this.secrets.printInFString(
       "project",
       this.connection.project,
@@ -451,11 +451,11 @@ class BigQueryGenerator extends CodeGenerator<"bigquery"> {
 }
 
 class DuckDBGenerator extends CodeGenerator<"duckdb"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return [];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const database = this.secrets.printInFString(
       "database",
       this.connection.database || ":memory:",
@@ -469,11 +469,11 @@ class DuckDBGenerator extends CodeGenerator<"duckdb"> {
 }
 
 class MotherDuckGenerator extends CodeGenerator<"motherduck"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return [];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const database = this.secrets.printInFString(
       "database",
       this.connection.database,
@@ -497,11 +497,11 @@ class MotherDuckGenerator extends CodeGenerator<"motherduck"> {
 }
 
 class ClickHouseGenerator extends CodeGenerator<"clickhouse_connect"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return ["import clickhouse_connect"];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const password = this.secrets.printPassword(
       this.connection.password,
       "CLICKHOUSE_PASSWORD",
@@ -530,11 +530,11 @@ ${formatUrlParams(params, (inner) => `        ${inner}`)},
 }
 
 class TimeplusGenerator extends CodeGenerator<"timeplus"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return [];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const password = this.secrets.printPassword(
       this.connection.password,
       "TIMEPLUS_PASSWORD",
@@ -555,11 +555,11 @@ class TimeplusGenerator extends CodeGenerator<"timeplus"> {
 }
 
 class ChDBGenerator extends CodeGenerator<"chdb"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return ["import chdb"];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const database =
       this.secrets.print("database", this.connection.database) || '""';
 
@@ -570,13 +570,13 @@ class ChDBGenerator extends CodeGenerator<"chdb"> {
 }
 
 class TrinoGenerator extends CodeGenerator<"trino"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return this.connection.async_support
       ? ["import aiotrino"]
       : ["import trino.sqlalchemy"];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const trinoExtension = this.connection.async_support ? "aiotrino" : "trino";
     const schema = this.connection.schema ? `/${this.connection.schema}` : "";
 
@@ -614,7 +614,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
     );
   }
 
-  generateImports(): string[] {
+  public generateImports(): string[] {
     if (Object.keys(this.getCatalogOptions()).length === 0) {
       return ["from pyiceberg.catalog import load_catalog"];
     }
@@ -635,7 +635,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
     }
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const name = `"${this.connection.name}"`;
     const options = this.getCatalogOptions();
     if (Object.keys(options).length === 0) {
@@ -705,12 +705,12 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
 }
 
 class DataFusionGenerator extends CodeGenerator<"datafusion"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     // To trigger installation of ibis-datafusion
     return ["from datafusion import SessionContext"];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     if (this.connection.sessionContext) {
       return dedent(`
         ctx = SessionContext()
@@ -727,11 +727,11 @@ class DataFusionGenerator extends CodeGenerator<"datafusion"> {
 }
 
 class PySparkGenerator extends CodeGenerator<"pyspark"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return ["from pyspark.sql import SparkSession"];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     if (this.connection.host || this.connection.port) {
       const host = this.secrets.printInFString("host", this.connection.host);
       const port = this.secrets.printInFString("port", this.connection.port);
@@ -747,11 +747,11 @@ class PySparkGenerator extends CodeGenerator<"pyspark"> {
 }
 
 class RedshiftGenerator extends CodeGenerator<"redshift"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return ["import redshift_connector"];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const host = this.secrets.print("host", this.connection.host);
     const port = this.secrets.print("port", this.connection.port);
     const database = this.secrets.print("database", this.connection.database);
@@ -819,11 +819,11 @@ ${formatUrlParams(params, (inner) => `          ${inner}`)},
 }
 
 class DatabricksGenerator extends CodeGenerator<"databricks"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     return [];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const useFString = this.orm !== "ibis";
 
     const accessToken = this.secrets.printPassword(
@@ -883,14 +883,14 @@ class DatabricksGenerator extends CodeGenerator<"databricks"> {
 }
 
 class SupabaseGenerator extends CodeGenerator<"supabase"> {
-  generateImports(): string[] {
+  public generateImports(): string[] {
     if (this.connection.disable_client_pooling) {
       return ["from sqlalchemy.pool import NullPool"];
     }
     return [];
   }
 
-  generateConnectionCode(): string {
+  public generateConnectionCode(): string {
     const password = this.secrets.printPassword(
       this.connection.password,
       "SUPABASE_PASSWORD",
@@ -921,7 +921,7 @@ class SupabaseGenerator extends CodeGenerator<"supabase"> {
 class CodeGeneratorFactory {
   public secrets = new SecretContainer();
 
-  createGenerator(
+  public createGenerator(
     connection: DatabaseConnection,
     orm: ConnectionLibrary,
   ): CodeGenerator<DatabaseConnection["type"]> {

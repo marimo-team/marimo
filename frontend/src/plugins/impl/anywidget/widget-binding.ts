@@ -59,7 +59,7 @@ class WidgetDefRegistry {
    * `kernelAuthored: true` only for URLs from an `EsmSpec`; it widens
    * the import gate to remote and data URLs.
    */
-  getModule(options: {
+  public getModule(options: {
     jsUrl: string;
     jsHash: string;
     kernelAuthored?: boolean;
@@ -80,7 +80,7 @@ class WidgetDefRegistry {
     return promise;
   }
 
-  invalidate(jsHash: string): void {
+  public invalidate(jsHash: string): void {
     this.#cache.delete(jsHash);
   }
 
@@ -180,7 +180,7 @@ export class WidgetBinding<T extends ModelState = ModelState> {
    * `controller`'s signal. Aborting the controller mid-initialize
    * still runs any legacy cleanup callback, and `create` rejects.
    */
-  static async create<T extends ModelState>({
+  public static async create<T extends ModelState>({
     widgetDef,
     model,
     createHost,
@@ -261,7 +261,7 @@ export class WidgetBinding<T extends ModelState = ModelState> {
    * The object returned from `initialize`, or `undefined` if it
    * returned a cleanup function or nothing.
    */
-  get exports(): unknown {
+  public get exports(): unknown {
     return this.#exports;
   }
 
@@ -273,7 +273,7 @@ export class WidgetBinding<T extends ModelState = ModelState> {
    * `render` reads current state via `model.get`; change listeners
    * observe only subsequent changes, matching Jupyter semantics.
    */
-  async createView(
+  public async createView(
     target: { el: HTMLElement },
     options: { signal: AbortSignal },
   ): Promise<void> {
@@ -346,7 +346,7 @@ export class WidgetBinding<T extends ModelState = ModelState> {
    * Destroy this generation, running initialize/render cleanups and
    * clearing listeners registered through its model proxies.
    */
-  async destroy(): Promise<void> {
+  public async destroy(): Promise<void> {
     Logger.debug("[WidgetBinding] Destroying binding generation");
     this.#controller.abort();
     await Promise.allSettled(this.#viewTasks);

@@ -21,13 +21,13 @@ interface Data {
 }
 
 export class RoutesPlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-routes";
+  public tagName = "marimo-routes";
 
-  validator = z.object({
+  public validator = z.object({
     routes: z.array(z.string()),
   });
 
-  render(props: IStatelessPluginProps<Data>): React.ReactElement {
+  public render(props: IStatelessPluginProps<Data>): React.ReactElement {
     return <RoutesComponent {...props.data}>{props.children}</RoutesComponent>;
   }
 }

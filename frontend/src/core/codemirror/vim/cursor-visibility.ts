@@ -23,7 +23,7 @@ export class VimCursorVisibilityPlugin implements PluginValue {
   private view: EditorView;
   private abortController = new AbortController();
 
-  constructor(options: VimCursorVisibilityPluginOptions) {
+  public constructor(options: VimCursorVisibilityPluginOptions) {
     this.view = options.view;
     this.view.dom.addEventListener(
       "focus",
@@ -38,7 +38,7 @@ export class VimCursorVisibilityPlugin implements PluginValue {
     this.update();
   }
 
-  update() {
+  public update() {
     const vimCursorLayer = this.view.dom.querySelector(".cm-vimCursorLayer");
     if (vimCursorLayer instanceof HTMLElement) {
       // Hide all vim cursors when in command mode
@@ -52,7 +52,7 @@ export class VimCursorVisibilityPlugin implements PluginValue {
     }
   }
 
-  destroy(): void {
+  public destroy(): void {
     this.abortController.abort();
   }
 }

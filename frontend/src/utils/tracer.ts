@@ -22,7 +22,10 @@ interface Span {
 export class Tracer {
   private spans: Span[] = [];
 
-  startSpan(name: string, attributes: Record<string, unknown> = {}): Span {
+  public startSpan(
+    name: string,
+    attributes: Record<string, unknown> = {},
+  ): Span {
     const span: Span = {
       name,
       startTime: Date.now(),
@@ -33,16 +36,16 @@ export class Tracer {
     return span;
   }
 
-  endSpan(span: Span, status: SpanStatus = "ok"): void {
+  public endSpan(span: Span, status: SpanStatus = "ok"): void {
     span.endTime = Date.now();
     span.status = status;
   }
 
-  getSpans(): Span[] {
+  public getSpans(): Span[] {
     return this.spans;
   }
 
-  wrap<T>(
+  public wrap<T>(
     fn: () => T,
     name?: string,
     attributes: Record<string, unknown> = {},
@@ -58,7 +61,7 @@ export class Tracer {
     }
   }
 
-  wrapAsync<T extends (...args: any[]) => Promise<any>>(
+  public wrapAsync<T extends (...args: any[]) => Promise<any>>(
     fn: T,
     name?: string,
     attributes: Record<string, unknown> = {},
@@ -76,7 +79,7 @@ export class Tracer {
     }) as T;
   }
 
-  logSpans(): void {
+  public logSpans(): void {
     if (process.env.NODE_ENV !== "development") {
       return;
     }

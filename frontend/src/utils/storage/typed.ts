@@ -16,12 +16,12 @@ export class TypedLocalStorage<T> implements ITypedStorage<T> {
   private defaultValue: T;
   private storage: Storage;
 
-  constructor(defaultValue: T, storage = availableStorage) {
+  public constructor(defaultValue: T, storage = availableStorage) {
     this.defaultValue = defaultValue;
     this.storage = storage;
   }
 
-  get(key: string): T {
+  public get(key: string): T {
     try {
       const item = this.storage.getItem(key);
       return item ? (JSON.parse(item) as T) : this.defaultValue;
@@ -30,11 +30,11 @@ export class TypedLocalStorage<T> implements ITypedStorage<T> {
     }
   }
 
-  set(key: string, value: T) {
+  public set(key: string, value: T) {
     this.storage.setItem(key, JSON.stringify(value));
   }
 
-  remove(key: string) {
+  public remove(key: string) {
     this.storage.removeItem(key);
   }
 }
@@ -44,7 +44,7 @@ export class ZodLocalStorage<T> implements ITypedStorage<T> {
   private getDefaultValue: () => T;
   private storage: Storage;
 
-  constructor(
+  public constructor(
     schema: ZodType<T>,
     getDefaultValue: () => T,
     storage = availableStorage,
@@ -54,7 +54,7 @@ export class ZodLocalStorage<T> implements ITypedStorage<T> {
     this.storage = storage;
   }
 
-  get(key: string): T {
+  public get(key: string): T {
     try {
       const item = this.storage.getItem(key);
       if (item == null) {
@@ -72,11 +72,11 @@ export class ZodLocalStorage<T> implements ITypedStorage<T> {
     }
   }
 
-  set(key: string, value: T) {
+  public set(key: string, value: T) {
     this.storage.setItem(key, JSON.stringify(value));
   }
 
-  remove(key: string) {
+  public remove(key: string) {
     this.storage.removeItem(key);
   }
 }
@@ -89,7 +89,11 @@ export class NotebookScopedLocalStorage<T> extends ZodLocalStorage<T> {
   private filename: string | null;
   private unsubscribeFromFilename: (() => void) | null;
 
-  constructor(key: string, schema: ZodType<T>, getDefaultValue: () => T) {
+  public constructor(
+    key: string,
+    schema: ZodType<T>,
+    getDefaultValue: () => T,
+  ) {
     const filename = store.get(filenameAtom);
     super(schema, getDefaultValue);
     this.filename = filename;
@@ -104,15 +108,15 @@ export class NotebookScopedLocalStorage<T> extends ZodLocalStorage<T> {
     }
   }
 
-  override get(key: string) {
+  public override get(key: string) {
     return super.get(this.createScopedKey(key, this.filename));
   }
 
-  override set(key: string, value: T) {
+  public override set(key: string, value: T) {
     super.set(this.createScopedKey(key, this.filename), value);
   }
 
-  override remove(key: string) {
+  public override remove(key: string) {
     super.remove(this.createScopedKey(key, this.filename));
   }
 

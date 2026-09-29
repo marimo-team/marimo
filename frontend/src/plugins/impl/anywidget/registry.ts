@@ -41,7 +41,10 @@ export class WidgetRegistry implements WidgetResolver {
   #timeout: number;
   #isEditMode: () => boolean;
 
-  constructor(timeout = 10_000, isEditMode: () => boolean = defaultIsEditMode) {
+  public constructor(
+    timeout = 10_000,
+    isEditMode: () => boolean = defaultIsEditMode,
+  ) {
     this.#timeout = timeout;
     this.#isEditMode = isEditMode;
   }
@@ -71,7 +74,7 @@ export class WidgetRegistry implements WidgetResolver {
    * hasn't arrived yet. Rejects after the registry timeout so a ref to
    * a model that never opens fails loudly instead of hanging.
    */
-  getModel(key: WidgetModelId): Promise<Model<ModelState>> {
+  public getModel(key: WidgetModelId): Promise<Model<ModelState>> {
     return this.#getOrCreateRuntime(key).getModel();
   }
 
@@ -79,7 +82,7 @@ export class WidgetRegistry implements WidgetResolver {
    * Get a model synchronously if it exists and has been resolved.
    * Returns undefined if the model doesn't exist or is still pending.
    */
-  getModelSync(key: WidgetModelId): Model<ModelState> | undefined {
+  public getModelSync(key: WidgetModelId): Model<ModelState> | undefined {
     return this.#runtimes.get(key)?.getModelSync();
   }
 
@@ -87,14 +90,14 @@ export class WidgetRegistry implements WidgetResolver {
    * Create a model with a managed lifecycle signal.
    * The signal is aborted when the entry is deleted.
    */
-  createModel(
+  public createModel(
     key: WidgetModelId,
     factory: (signal: AbortSignal) => Model<ModelState>,
   ): void {
     this.#getOrCreateRuntime(key).createModel(factory);
   }
 
-  setModel(key: WidgetModelId, model: Model<ModelState>): void {
+  public setModel(key: WidgetModelId, model: Model<ModelState>): void {
     this.#getOrCreateRuntime(key).setModel(model);
   }
 
@@ -105,15 +108,15 @@ export class WidgetRegistry implements WidgetResolver {
    * Specs only come from kernel-authored notifications; model state
    * must never be treated as code (it is client-writable).
    */
-  setSpec(key: WidgetModelId, spec: EsmSpec): void {
+  public setSpec(key: WidgetModelId, spec: EsmSpec): void {
     this.#getOrCreateRuntime(key).setSpec(spec);
   }
 
-  getWidget<T = unknown>(key: WidgetModelId) {
+  public getWidget<T = unknown>(key: WidgetModelId) {
     return this.#getOrCreateRuntime(key).getWidget<T>();
   }
 
-  createView(options: {
+  public createView(options: {
     modelId: WidgetModelId;
     el: HTMLElement;
     signal: AbortSignal;
@@ -125,7 +128,7 @@ export class WidgetRegistry implements WidgetResolver {
    * Tear down everything known about `key`: the model's lifecycle
    * signal and the current generation.
    */
-  delete(key: WidgetModelId): void {
+  public delete(key: WidgetModelId): void {
     const runtime = this.#runtimes.get(key);
     if (!runtime) {
       return;

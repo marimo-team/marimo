@@ -51,13 +51,13 @@ const OutlineContent: React.FC<{ label?: string }> = ({ label }) => {
 };
 
 export class OutlinePlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-outline";
+  public tagName = "marimo-outline";
 
-  validator = z.object({
+  public validator = z.object({
     label: z.string().optional(),
   });
 
-  render(props: IStatelessPluginProps<Data>): JSX.Element {
+  public render(props: IStatelessPluginProps<Data>): JSX.Element {
     const { label } = props.data;
 
     return (

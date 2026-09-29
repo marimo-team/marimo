@@ -195,7 +195,7 @@ const NavigationMenuViewportPortal = ({
 };
 
 export class NavigationMenuPlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-nav-menu";
+  public tagName = "marimo-nav-menu";
 
   private menuItemValidator = z.object({
     label: z.string(),
@@ -208,14 +208,14 @@ export class NavigationMenuPlugin implements IStatelessPlugin<Data> {
     items: z.array(this.menuItemValidator),
   });
 
-  validator = z.object({
+  public validator = z.object({
     items: z.array(
       z.union([this.menuItemValidator, this.menuItemGroupValidator]),
     ),
     orientation: z.enum(["horizontal", "vertical"]),
   });
 
-  render(props: IStatelessPluginProps<Data>): JSX.Element {
+  public render(props: IStatelessPluginProps<Data>): JSX.Element {
     return <NavMenuComponent {...props.data} />;
   }
 }

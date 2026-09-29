@@ -14,7 +14,7 @@ export class RuntimeManager {
   private config: RuntimeConfig;
   private lazy: boolean;
 
-  constructor(config: RuntimeConfig, lazy = false) {
+  public constructor(config: RuntimeConfig, lazy = false) {
     this.config = config;
     this.lazy = lazy;
     // Validate the URL on construction
@@ -32,15 +32,15 @@ export class RuntimeManager {
     }
   }
 
-  get isLazy(): boolean {
+  public get isLazy(): boolean {
     return this.lazy;
   }
 
-  get httpURL(): URL {
+  public get httpURL(): URL {
     return new URL(this.config.url);
   }
 
-  get isSameOrigin(): boolean {
+  public get isSameOrigin(): boolean {
     return this.httpURL.origin === window.location.origin;
   }
 
@@ -51,7 +51,7 @@ export class RuntimeManager {
   /**
    * The base URL of the runtime.
    */
-  formatHttpURL({
+  public formatHttpURL({
     path = "",
     searchParams,
     restrictToKnownQueryParams = true,
@@ -105,7 +105,10 @@ export class RuntimeManager {
    * An HTTP URL for requests made by browser navigation (e.g. anchor-click
    * downloads), which cannot attach auth headers.
    */
-  formatNavigableHttpURL(path: string, searchParams?: URLSearchParams): URL {
+  public formatNavigableHttpURL(
+    path: string,
+    searchParams?: URLSearchParams,
+  ): URL {
     const url = this.formatHttpURL({ path, searchParams });
     // Drop any token inherited from the current page's query params; re-add it
     // only when cross-origin. Same-origin downloads authenticate via the
@@ -115,7 +118,7 @@ export class RuntimeManager {
     return this.appendCrossOriginAuth(url);
   }
 
-  formatWsURL(path: string, searchParams?: URLSearchParams): URL {
+  public formatWsURL(path: string, searchParams?: URLSearchParams): URL {
     // We don't restrict to known query parameters, since mo.query_params()
     // can accept arbitrary parameters.
     const url = this.formatHttpURL({
@@ -150,7 +153,7 @@ export class RuntimeManager {
   /**
    * The WebSocket URL of the runtime.
    */
-  getWsURL(sessionId: SessionId): URL {
+  public getWsURL(sessionId: SessionId): URL {
     return this.formatWsURL("/ws", this.getSessionSearchParams(sessionId));
   }
 
@@ -160,7 +163,7 @@ export class RuntimeManager {
    * can send headers, so auth travels in the Authorization header
    * (see `headers()`) instead of the URL.
    */
-  getSseURL(sessionId: SessionId): URL {
+  public getSseURL(sessionId: SessionId): URL {
     const url = this.formatHttpURL({
       path: "/sse",
       searchParams: this.getSessionSearchParams(sessionId),
@@ -176,14 +179,14 @@ export class RuntimeManager {
   /**
    * The WebSocket Sync URL of the runtime, for real-time updates.
    */
-  getWsSyncURL(sessionId: SessionId): URL {
+  public getWsSyncURL(sessionId: SessionId): URL {
     return this.formatWsURL("/ws_sync", this.getSessionSearchParams(sessionId));
   }
 
   /**
    * The WebSocket URL of the terminal.
    */
-  getTerminalWsURL(size?: { rows: number; cols: number }): URL {
+  public getTerminalWsURL(size?: { rows: number; cols: number }): URL {
     const url = this.formatWsURL("/terminal/ws");
     if (size) {
       url.searchParams.set("rows", String(size.rows));
@@ -195,7 +198,9 @@ export class RuntimeManager {
   /**
    * The URL of the copilot server.
    */
-  getLSPURL(lsp: "pylsp" | "basedpyright" | "copilot" | "ty" | "pyrefly"): URL {
+  public getLSPURL(
+    lsp: "pylsp" | "basedpyright" | "copilot" | "ty" | "pyrefly",
+  ): URL {
     if (lsp === "copilot") {
       // For copilot, strip all query parameters except the auth token.
       // Copilot doesn't understand arbitrary query params, but we still
@@ -211,14 +216,14 @@ export class RuntimeManager {
     return this.formatWsURL(`/lsp/${lsp}`);
   }
 
-  getAiURL(path: "completion" | "chat"): URL {
+  public getAiURL(path: "completion" | "chat"): URL {
     return this.formatHttpURL({ path: `/api/ai/${path}` });
   }
 
   /**
    * The URL of the health check endpoint.
    */
-  healthURL(): URL {
+  public healthURL(): URL {
     return this.formatHttpURL({ path: "/health" });
   }
 
@@ -234,7 +239,7 @@ export class RuntimeManager {
     }
   }
 
-  async reconcileFromHealth(): Promise<boolean> {
+  public async reconcileFromHealth(): Promise<boolean> {
     // Always healthy if WASM, Islands, or a static notebook (no server)
     if (this.isServerless) {
       return true;
@@ -261,7 +266,7 @@ export class RuntimeManager {
     return response.ok;
   }
 
-  async probeHealth(): Promise<boolean> {
+  public async probeHealth(): Promise<boolean> {
     // Always healthy if WASM, Islands, or a static notebook (no server)
     if (this.isServerless) {
       return true;
@@ -304,7 +309,7 @@ export class RuntimeManager {
     }
   }
 
-  async init(options?: { disableRetryDelay?: boolean }) {
+  public async init(options?: { disableRetryDelay?: boolean }) {
     Logger.debug("Initializing runtime...");
     let retries = 0;
     // This matches backoff logic elsewhere.
@@ -335,11 +340,11 @@ export class RuntimeManager {
   /**
    * Wait for the runtime to be healthy.
    */
-  async waitForHealthy(): Promise<void> {
+  public async waitForHealthy(): Promise<void> {
     return this.initialHealthyCheck.promise;
   }
 
-  headers(): KnownHeaders {
+  public headers(): KnownHeaders {
     const headers: KnownHeaders = {
       "Marimo-Session-Id": getSessionId(),
       "Marimo-Server-Token": this.config.serverToken ?? "",
@@ -356,7 +361,7 @@ export class RuntimeManager {
     return headers;
   }
 
-  sessionHeaders(): Pick<KnownHeaders, "Marimo-Session-Id"> {
+  public sessionHeaders(): Pick<KnownHeaders, "Marimo-Session-Id"> {
     return {
       "Marimo-Session-Id": getSessionId(),
     };

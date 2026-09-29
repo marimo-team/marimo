@@ -305,11 +305,11 @@ class StagedCellReconciler {
   private readonly actions: StagedCellReconcilerActions;
   private marimoImportCellId: CellId | null = null;
 
-  constructor(actions: StagedCellReconcilerActions) {
+  public constructor(actions: StagedCellReconcilerActions) {
     this.actions = actions;
   }
 
-  reconcile(completionCells: GeneratedCell[]) {
+  public reconcile(completionCells: GeneratedCell[]) {
     for (const [idx, cell] of completionCells.entries()) {
       if (idx < this.createdCells.length) {
         const existingCell = this.createdCells[idx];
@@ -336,7 +336,7 @@ class StagedCellReconciler {
     this.syncMarimoImport(completionCells);
   }
 
-  discard(stagedCells: StagedAICells) {
+  public discard(stagedCells: StagedAICells) {
     for (const { cellId } of this.createdCells.toReversed()) {
       if (stagedCells.has(cellId)) {
         this.actions.deleteStagedCell(cellId);
@@ -350,17 +350,17 @@ class StagedCellReconciler {
     this.marimoImportCellId = null;
   }
 
-  accept() {
+  public accept() {
     for (const cellId of this.stagedCellIds()) {
       this.actions.removeStagedCell(cellId);
     }
   }
 
-  hasStagedCells(stagedCells: StagedAICells) {
+  public hasStagedCells(stagedCells: StagedAICells) {
     return this.stagedCellIds().some((cellId) => stagedCells.has(cellId));
   }
 
-  stagedCellIds() {
+  public stagedCellIds() {
     const cellIds = this.createdCells.map(({ cellId }) => cellId);
     if (this.marimoImportCellId) {
       cellIds.push(this.marimoImportCellId);

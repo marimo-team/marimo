@@ -9,7 +9,7 @@ export class TimedCache<T> {
   private ttl: number;
   private cache = new Map<string, { data: T; timestamp: number }>();
 
-  constructor(options: TimedCacheOptions) {
+  public constructor(options: TimedCacheOptions) {
     this.ttl = options.ttl;
   }
 
@@ -22,7 +22,7 @@ export class TimedCache<T> {
     }
   }
 
-  get(key: string): T | undefined {
+  public get(key: string): T | undefined {
     this.cleanupExpiredEntries();
 
     const cached = this.cache.get(key);
@@ -39,14 +39,14 @@ export class TimedCache<T> {
     return cached.data;
   }
 
-  set(key: string, data: T): void {
+  public set(key: string, data: T): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
     });
   }
 
-  clear(): void {
+  public clear(): void {
     this.cache.clear();
   }
 }
