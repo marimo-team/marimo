@@ -10,7 +10,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from pathlib import Path
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 from urllib.parse import quote, unquote, urljoin, urlparse
 
 from marimo._environments import script_metadata
@@ -20,6 +20,9 @@ from marimo._schemas.export_options import WASMRuntimeConfig
 from marimo._utils import requests
 from marimo._utils.inline_script_metadata import PyProjectReader
 from marimo._version import __version__
+
+if TYPE_CHECKING:
+    from playwright.async_api import Route  # type: ignore[import-not-found]
 
 
 class OfflineExportError(RuntimeError):
@@ -39,30 +42,41 @@ class _Lockfile(TypedDict):
     packages: dict[str, _Package]
 
 
-_RESOLVE_PACKAGES = r"""async ({ indexURL, packageBaseUrl, lockfile, pypiIndexUrl, code, requirements }) => {
-    const { loadPyodide } = await import(indexURL + "pyodide.mjs");
+_RESOLVE_PACKAGES = r"""async ({ indexURL, packageBaseUrl, lockfile, pypiIndexUrl, pyodideVersion, marimoVersion, code, requirements }) => {
+    const { loadPyodide, version } = await import(indexURL + "pyodide.mjs");
+    // The exported page loads this runtime with the frontend's Pyodide API.
+    if (version !== pyodideVersion) {
+        throw new Error(`${packageBaseUrl} serves Pyodide ${version}, but marimo needs Pyodide ${pyodideVersion}.`);
+    }
     const pyodide = await loadPyodide({ indexURL, packageBaseUrl, lockFileContents: lockfile });
     const errors = [];
     const callbacks = { errorCallback: message => errors.push(message) };
     await pyodide.loadPackage(
-        ["micropip", "marimo-base", "docutils", "pygments", "jedi", "pyodide-http", "black"],
+        ["micropip", "packaging", "docutils", "pygments", "jedi", "pyodide-http"],
         callbacks,
     );
     if (errors.length) throw new Error(errors.join("\n"));
     pyodide.globals.set("requirements_json", JSON.stringify(requirements));
     pyodide.globals.set("index_url", pypiIndexUrl);
     pyodide.globals.set("base_url", location.href);
+    pyodide.globals.set("marimo_version", marimoVersion);
     await pyodide.runPythonAsync(`
 import json
 import micropip
+import micropip.package_index
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 from urllib.parse import urljoin
 
 if index_url:
     micropip.set_index_urls(index_url)
+    # micropip checks pyodide-lock.json first only for its default index. Keep
+    # that order for mirrors so Pyodide-built pins such as pydantic-core hold.
+    micropip.package_index.DEFAULT_INDEX_URLS[:] = [index_url]
+# Stock Pyodide lockfiles lack marimo's packages, so micropip may use the index.
+await micropip.install([f"marimo-base=={marimo_version}", "black"])
+required = ["marimo-base", "black"]
 requirements = []
-requirement_names = []
 for value in json.loads(requirements_json):
     requirement = Requirement(value)
     if requirement.marker and not requirement.marker.evaluate():
@@ -72,26 +86,66 @@ for value in json.loads(requirements_json):
     if requirement.url:
         requirement.url = urljoin(base_url, requirement.url)
     requirements.append(str(requirement))
-    requirement_names.append(canonicalize_name(requirement.name))
+    required.append(canonicalize_name(requirement.name))
 await micropip.install(requirements)
 `);
     // Keep the same SQL dependency policy as shouldLoadDuckDBPackages.
     const usesDuckDB = /(^|\n)\s*(?:import\s+[^\n#]*\bduckdb\b|from\s+duckdb\b|[^\n#]*\bduckdb\s*\.)/.test(code);
-    if (code.includes("mo.sql") || usesDuckDB || pyodide.runPython('"duckdb" in requirement_names')) {
-        code += "\nimport duckdb, pandas, sqlglot";
+    if (code.includes("mo.sql") || usesDuckDB || pyodide.runPython('"duckdb" in required')) {
+        code += "\nimport duckdb, pandas";
         if (code.includes("polars")) code += "\nimport pyarrow";
+        await pyodide.runPythonAsync('await micropip.install("sqlglot")\nrequired.append("sqlglot")');
     }
     await pyodide.loadPackagesFromImports(code, callbacks);
     if (errors.length) throw new Error(errors.join("\n"));
-    const frozen = JSON.parse(pyodide.runPython("micropip.freeze()"));
-    const loaded = new Set([...Object.keys(pyodide.loadedPackages), "marimo-base"].map(name => name.toLowerCase().replace(/[-_.]+/g, "-")));
-    frozen.packages = Object.fromEntries(Object.entries(frozen.packages).filter(([name]) => loaded.has(name)));
-    return frozen;
+    return {
+        lockfile: JSON.parse(pyodide.runPython("micropip.freeze()")),
+        required: [...Object.keys(pyodide.loadedPackages), ...JSON.parse(pyodide.runPython("json.dumps(required)"))],
+    };
 }"""
 
 
+class _Resolution(TypedDict):
+    lockfile: _Lockfile
+    required: list[str]
+
+
+def _lock_required(resolution: _Resolution) -> _Lockfile:
+    """Keep the lockfile entries in the dependency closure of `required`.
+
+    micropip only logs lockfile packages that fail to download, so the bundle
+    follows what the notebook needs rather than what loaded in the browser.
+    """
+    from packaging.utils import canonicalize_name
+
+    available = resolution["lockfile"]["packages"]
+    packages: dict[str, _Package] = {}
+    pending = list(resolution["required"])
+    while pending:
+        name = canonicalize_name(pending.pop())
+        if name in packages:
+            continue
+        if name not in available:
+            raise OfflineExportError(
+                f"No resolved package is named {name}. Check that direct "
+                "references use the wheel's project name."
+            )
+        packages[name] = available[name]
+        pending.extend(packages[name]["depends"])
+    return {"info": resolution["lockfile"]["info"], "packages": packages}
+
+
+def _fetch(url: str) -> bytes:
+    try:
+        return requests.get(url, timeout=60).raise_for_status().content
+    except (requests.RequestError, OSError) as error:
+        raise OfflineExportError(
+            f"Could not download {url}: {error}"
+        ) from error
+
+
 def _download(url: str, target: Path, sha256: str | None = None) -> str:
-    data = requests.get(url, timeout=60).raise_for_status().content
+    data = _fetch(url)
     digest = hashlib.sha256(data).hexdigest()
     if sha256 and digest != sha256:
         raise ValueError(f"Checksum mismatch for {url}")
@@ -122,6 +176,33 @@ async def _download_all(
         with suppress(Exception):
             await asyncio.shield(task)
         raise
+
+
+async def _fetch_in_python(route: Route) -> None:
+    """Fulfill a resolver page request from Python, so sources need no CORS."""
+    try:
+        response = await asyncio.to_thread(
+            requests.get,
+            route.request.url,
+            headers={"Accept": route.request.headers.get("accept", "*/*")},
+            timeout=60,
+        )
+    except Exception:
+        # An unsettled route stalls the page until the resolver timeout.
+        await route.abort()
+        return
+    headers = {key.lower(): value for key, value in response.headers.items()}
+    await route.fulfill(
+        status=response.status_code,
+        body=response.content,
+        headers={
+            "access-control-allow-origin": "*",
+            # micropip picks the index page parser by content type.
+            "content-type": headers.get(
+                "content-type", "application/octet-stream"
+            ),
+        },
+    )
 
 
 def _rewrite_requirements(code: str, packages: dict[str, _Package]) -> str:
@@ -171,8 +252,12 @@ async def _resolve_packages(
         browser = await playwright.chromium.launch()
         try:
             page = await browser.new_page()
+            origin = urljoin(page_url, "/")
+            await page.route(
+                lambda url: not url.startswith(origin), _fetch_in_python
+            )
             await page.goto(page_url)
-            return await asyncio.wait_for(
+            resolution = await asyncio.wait_for(
                 page.evaluate(
                     _RESOLVE_PACKAGES,
                     {
@@ -180,6 +265,8 @@ async def _resolve_packages(
                         "packageBaseUrl": package_base_url,
                         "lockfile": lockfile,
                         "pypiIndexUrl": pypi_index_url,
+                        "pyodideVersion": PYODIDE_VERSION,
+                        "marimoVersion": __version__,
                         "code": code,
                         "requirements": PyProjectReader.from_script(
                             code
@@ -190,6 +277,7 @@ async def _resolve_packages(
             )
         finally:
             await browser.close()
+    return _lock_required(resolution)
 
 
 def _publish_bundle(
@@ -246,19 +334,29 @@ async def bundle_wasm_runtime(
     local_wheel_paths: tuple[Path, ...] = (),
 ) -> tuple[str, WASMRuntimeConfig]:
     """Resolve packages in Pyodide and vendor them without executing cells."""
-    index_url = sources.pyodide_index_url or (
-        f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full/"
-    )
-    index_url = index_url.rstrip("/") + "/"
-    lockfile_url = sources.pyodide_lockfile_url or (
-        f"https://wasm.marimo.app/pyodide-lock.json?v={__version__}"
-        f"&pyodide=v{PYODIDE_VERSION}"
-    )
-    lockfile = await asyncio.to_thread(
-        lambda: (
-            requests.get(lockfile_url, timeout=60).raise_for_status().json()
+    if sources.pyodide_index_url:
+        index_url = sources.pyodide_index_url.rstrip("/") + "/"
+        # marimo's hosted lockfile only describes the default distribution.
+        default_lockfile_url = index_url + "pyodide-lock.json"
+    else:
+        index_url = (
+            f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full/"
         )
-    )
+        default_lockfile_url = (
+            f"https://wasm.marimo.app/pyodide-lock.json?v={__version__}"
+            f"&pyodide=v{PYODIDE_VERSION}"
+        )
+    lockfile_url = sources.pyodide_lockfile_url or default_lockfile_url
+    try:
+        lockfile = json.loads(await asyncio.to_thread(_fetch, lockfile_url))
+    except json.JSONDecodeError as error:
+        raise OfflineExportError(
+            f"{lockfile_url} is not a Pyodide lockfile: {error}"
+        ) from error
+    pypi_index_url = sources.pypi_index_url
+    if pypi_index_url and "{package_name}" not in pypi_index_url:
+        # micropip appends "/<name>/", so pip-style trailing slashes would double.
+        pypi_index_url = pypi_index_url.rstrip("/")
     await asyncio.to_thread(output_dir.mkdir, parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(
         prefix=".marimo-offline-", dir=output_dir
@@ -292,7 +390,7 @@ async def bundle_wasm_runtime(
                 index_url=f"{server.base_url}/pyodide/",
                 package_base_url=index_url,
                 lockfile=lockfile,
-                pypi_index_url=sources.pypi_index_url,
+                pypi_index_url=pypi_index_url,
             )
             downloads: dict[Path, tuple[str, str | None]] = {}
             for package in resolved["packages"].values():
