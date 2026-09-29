@@ -113,14 +113,17 @@ order. The default remains `--jobs 1`.
 Results are written to `.ai-eval-runs/`. Local artifacts contain the candidate
 model, scenario hash, variant configuration, repetition count, deterministic
 scores, source contracts, final notebooks, diffs, conversation IDs, one
-Logfire trace ID per turn, and token usage. Usage includes model requests,
-input tokens, output tokens, reasoning tokens, cache reads, and cache writes. A
-turn's usage is the sum over every model request in its agent loop; output
-tokens include reasoning tokens when the model provider reports reasoning as a
-subset of output. Each result also retains the observed `analysis_summary`,
-which lets grading rules be audited or recalculated without interpreting
-notebook output. Trial artifacts are nested under scenario, variant, and
-repetition. Full model and tool trajectories remain in Logfire.
+Logfire trace ID per turn, token usage, raw and effective history sizes, full
+assistant-message sizes, and per-tool input/output sizes. Raw history is the UI
+payload sent by the client; effective history is what remains after server-side
+compaction. Usage includes model requests, input tokens, output tokens,
+reasoning tokens, cache reads, and cache writes. A turn's usage is the sum over
+every model request in its agent loop; output tokens include reasoning tokens
+when the model provider reports reasoning as a subset of output. Each result
+also retains the observed `analysis_summary`, which lets grading rules be
+audited or recalculated without interpreting notebook output. Trial artifacts
+are nested under scenario, variant, and repetition. Full model and tool
+trajectories remain in Logfire.
 
 Each turn is a complete, server-owned trace rooted at `POST /api/ai/chat`.
 Streaming, model, and tool spans are children of that request span. Long

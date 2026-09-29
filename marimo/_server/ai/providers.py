@@ -491,6 +491,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         from marimo._server.ai.tools.code_mode import (
             build_execute_code_toolset,
             build_hybrid_code_mode_toolset,
+            compact_hybrid_history,
             get_tool_strategy,
             references_capability,
         )
@@ -498,6 +499,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         tool_strategy = get_tool_strategy(request)
         if tool_strategy == "hybrid_balanced":
             toolset = build_hybrid_code_mode_toolset(session, request)
+            messages = compact_hybrid_history(messages)
         else:
             toolset = build_execute_code_toolset(session, request)
 

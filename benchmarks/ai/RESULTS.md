@@ -990,3 +990,149 @@ reduces tokens: long conversations can accumulate more repeated context when
 the model performs many typed inspection and configuration cycles. Keep the
 seven-tool hybrid as the leading architecture, but treat long-horizon context
 growth and verification discipline as the next optimization target.
+
+## Experiment 18: long-horizon payload and history optimization
+
+Date: 2026-09-30
+
+Model: `deepseek-ai/DeepSeek-V4.1-Flash`
+
+Runs: control `20260929T195048Z-849cd2e9`, scoped inspection
+`20260929T200126Z-c843abf2`, combined candidate
+`20260929T200959Z-b005a301`, SaaS confirmation
+`20260929T201410Z-d0a2d523`, and operations repeat
+`20260929T201718Z-75dfe842`
+
+Added artifact-level payload instrumentation before changing behavior. Every
+turn now records raw request-history size, effective history size after
+server-side compaction, full assistant-message size, and the input/output size
+and error state of every tool call. Summary aggregates include totals and a
+per-tool breakdown. Character counts are a stable payload proxy; provider
+token usage remains the authoritative cost metric.
+
+The fresh two-case control confirmed that notebook snapshots dominate tool
+output. Across long retail and operations, `inspect_notebook` produced 180,367
+of 242,971 tool-output characters (74.2%). Mutation postconditions were already
+small: all 13 `apply_notebook_patch` returns totaled 4,488 characters (1.8% of
+tool output). Patch *inputs*, not returns, were the other repeated source cost:
+75,391 of 107,872 tool-input characters (69.9%). Therefore the proposed richer
+automatic mutation representations were rejected. They would enlarge the
+small side of the transcript and duplicate the existing execution summary.
+
+Added three scopes to the existing inspection tool instead of another tool:
+
+- `all` returns complete source and dependency metadata.
+- `outline` omits source but retains IDs, status, dependencies, and source
+  lengths.
+- `errors` returns source only for failing or non-idle cells.
+
+The hybrid instructions now treat a successful typed mutation and its
+execution summary as a postcondition, prefer narrow inspection scopes, forbid
+a full inspection used only as ritual verification, and tell the model to stop
+once the request and necessary checks are satisfied.
+
+The scoped-only run shows both the mechanism and the trajectory risk:
+
+| Scenario | Control duration / input | Scoped duration / input | Control inspect output | Scoped inspect output |
+|---|---:|---:|---:|---:|
+| Retail investigation | 202.5s / 770,480 | 458.2s / 4,050,840 | 42,285 chars | 42,185 chars |
+| Operations context | 547.7s / 3,104,216 | 337.6s / 1,813,313 | 138,082 chars | 5,412 chars |
+
+Both runs passed. Operations used one full inspection, three error
+inspections, and one outline inspection, reducing inspection output by 96.1%
+and input tokens by 41.6%. Retail used the narrow scopes correctly but entered
+an unrelated 64-tool trajectory with repeated live UI changes. Its 15
+inspections still emitted about the same output as seven full control
+inspections. The aggregate prompt-only result was worse, so prompt discipline
+alone is not a reliable optimization. Keep the scopes because they provide
+substantially better information density when selected; do not claim that the
+prompt guarantees efficient planning.
+
+Next added conservative server-side history compaction for the hybrid. It
+keeps the immediately previous assistant turn, every exploratory result, and
+every error verbatim. In older completed turns it:
+
+- replaces successful full notebook inspection results with a short marker;
+- replaces successful patch source with cell IDs, placement, and source
+  lengths; and
+- preserves tool-call IDs and result pairing, so the model history remains a
+  valid tool transcript.
+
+Current state remains recoverable from the live notebook. Compaction starts
+only after two completed assistant turns, so the active loop and the most
+recent user interaction are untouched.
+
+The same retail and operations cases both passed with the combined candidate:
+
+| Candidate | Passed | Mean duration | Mean tools | Mean errors | Mean requests | Mean input | Mean output | Mean reasoning |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Fresh control | 2/2 | 375.1s | 36.0 | 1.5 | 41.0 | 1,937,348 | 53,762 | 31,616 |
+| Scoped only | 2/2 | 397.9s | 53.0 | 4.5 | 56.5 | 2,932,077 | 68,244 | 46,804 |
+| Scoped + history | 2/2 | 226.1s | 29.5 | 1.5 | 33.0 | 1,161,583 | 38,995 | 26,922 |
+
+Against the fresh control, the combined candidate was 39.7% faster, used
+18.1% fewer tools, 19.5% fewer model requests, 40.0% fewer input tokens, 27.5%
+fewer output tokens, and 14.8% fewer reasoning tokens with equal correctness
+and errors. Retail landed near its good control trajectory (799,344 versus
+770,480 input tokens), so the aggregate gain is not evidence that every
+conversation becomes cheaper. Operations supplied the strong long-history
+signal.
+
+Operations was repeated once with the combined candidate. Both compacted
+trials passed and averaged 196.5 seconds, 33 tools, one error, 36.5 requests,
+and 1,149,358 input tokens. The scoped-only observation used 1,813,313 input
+tokens; the untouched control used 3,104,216. The repeat itself used 774,895
+input tokens and 166.2 seconds. This is still a small stochastic sample, but
+two consecutive correct compacted trajectories both beat both non-compacted
+observations.
+
+The third six-turn case, SaaS requirement reversal, also passed with no tool
+errors in 173.8 seconds and 678,523 input tokens. Experiment 17's un-compacted
+observation was faster at 136.1 seconds but used 789,412 input tokens. This
+supports the narrower conclusion: compaction consistently limits token growth,
+but latency remains sensitive to the model's trajectory.
+
+Decision:
+
+- Keep payload instrumentation; it changed the design decision and makes
+  future token regressions explainable.
+- Keep scoped inspection as a backward-compatible extension of the existing
+  tool. It can reduce snapshot output by orders of magnitude, but prompts are
+  not sufficient to ensure the model chooses an efficient trajectory.
+- Keep the conservative history compactor. It produced the clearest repeated
+  long-conversation improvement while retaining recent state, exploration,
+  failures, and valid tool-call pairing.
+- Keep existing mutation postconditions unchanged. Do not add automatic rich
+  representations or inspection-helper tools based on these results.
+- Do not add caching of `execute_code`. Repeated calls often represent changed
+  live state or deliberate exploration, and stale cached results would trade
+  correctness for an unmeasured optimization.
+
+Before enabling this by default outside the experimental hybrid, run a full
+suite regression. Short and one-turn cases should be behaviorally unaffected
+because compaction has no eligible history, but they still guard the shared
+inspection schema. The focused second-model check below tests transcript
+compatibility, while its efficiency result also identifies an important limit.
+
+### Second-model boundary check
+
+Model: `Qwen/Qwen3.5-35B-A3B`
+
+Run: `20260929T202127Z-06d02565`
+
+Ran the seven-turn operations case once after the DeepSeek decision. It passed
+all semantic and source checks in 173.2 seconds, so the compacted transcript
+retained enough information for a second model. It used 38 tools, 13 errors,
+45 model requests, and 1,574,574 input tokens. This is worse than Experiment
+16's un-compacted Qwen observation of 653,878 input tokens and does not support
+an efficiency claim across models from one sample.
+
+The artifact explains why: turns one through four used only six tools and no
+errors. Turn five then used 24 tools, including repeated patch recovery, and
+accounted for 932,286 input tokens and ten errors. Because that work happened
+inside the active agent loop, no history processor could compact it safely.
+Raw versus effective history differed by only 15,910 characters on the final
+turn. This is evidence for a boundary rather than a compaction regression:
+the strategy addresses repeated completed-turn state, not same-turn planning
+or error-recovery loops. Keep the history processor, but treat bounded patch
+recovery on weaker tool-use models as a separate future experiment.

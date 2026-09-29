@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import ast
+import copy
 from dataclasses import asdict, dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._server.ai.skills.utils import load_reference
@@ -77,6 +78,88 @@ def _imports_code_mode(code: str) -> bool:
             ):
                 return True
     return False
+
+
+def compact_hybrid_history(
+    messages: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Compact obsolete notebook snapshots in completed chat turns.
+
+    The latest assistant turn stays intact. Older successful inspections can
+    be recreated from the live notebook, and older patch source is superseded
+    by the notebook state. Exploration results and every error stay verbatim.
+    """
+    assistant_indexes = [
+        index
+        for index, message in enumerate(messages)
+        if message.get("role") == "assistant"
+    ]
+    if len(assistant_indexes) < 2:
+        return messages
+
+    compacted = copy.deepcopy(messages)
+    for message in compacted[: assistant_indexes[-1]]:
+        if message.get("role") != "assistant":
+            continue
+        parts = message.get("parts")
+        if not isinstance(parts, list):
+            continue
+        for part in parts:
+            if not isinstance(part, dict):
+                continue
+            tool_type = part.get("type")
+            output = part.get("output")
+            if (
+                part.get("state") != "output-available"
+                or not isinstance(tool_type, str)
+                or not isinstance(output, dict)
+                or output.get("success") is not True
+            ):
+                continue
+            if tool_type == "tool-inspect_notebook":
+                part["output"] = {
+                    "success": True,
+                    "output": (
+                        "Earlier notebook inspection compacted. Inspect the "
+                        "live notebook again if current state is required."
+                    ),
+                    "stdout": [],
+                    "stderr": [],
+                    "errors": [],
+                    "error": None,
+                }
+            elif tool_type == "tool-apply_notebook_patch":
+                part["input"] = _compact_patch_input(part.get("input"))
+    return compacted
+
+
+def _compact_patch_input(value: object) -> object:
+    if not isinstance(value, dict):
+        return value
+    cells = value.get("cells")
+    if not isinstance(cells, list):
+        return value
+    compacted_cells: list[dict[str, object]] = []
+    for cell in cells:
+        if not isinstance(cell, dict):
+            continue
+        code = cell.get("code")
+        code_chars = len(code) if isinstance(code, str) else 0
+        compacted_cells.append(
+            {
+                "cell_id": cell.get("cell_id"),
+                "after_cell_id": cell.get("after_cell_id"),
+                "code": (
+                    "# Earlier patch source compacted "
+                    f"({code_chars} characters). Inspect the live notebook "
+                    "for current source."
+                ),
+            }
+        )
+    return {
+        "cells": compacted_cells,
+        "delete_cell_ids": value.get("delete_cell_ids"),
+    }
 
 
 def build_execute_code_toolset(
@@ -163,17 +246,19 @@ def build_hybrid_code_mode_toolset(
         return await run(code)
 
     async def inspect_notebook(
-        scope: Literal["all"],
+        scope: Literal["all", "outline", "errors"],
     ) -> CodeExecutionResult:
-        """Return notebook cells. Pass `scope="all"`.
+        """Inspect notebook structure, complete source, or failing cells.
 
-        Each cell includes its stable ID, name, status, errors, and source.
+        Use `all` when source is required for an edit, `outline` for compact
+        structure and dependency metadata, or `errors` for non-idle cells and
+        their source. Every scope includes stable IDs, status, and errors.
         """
-        del scope
         return await run(
             "import json as _json\n"
             "import marimo._code_mode as _cm\n"
             "from marimo._ast.compiler import compile_cell as _compile_cell\n"
+            f"_scope = {_python_literal(scope)}\n"
             "async with _cm.get_context() as _ctx:\n"
             "    _raw_cells = []\n"
             "    for _cell in _ctx.cells:\n"
@@ -214,8 +299,16 @@ def build_hybrid_code_mode_toolset(
             "            'references': sorted(_impl.refs) if _impl else [],\n"
             "            'parents': _parents[str(_cell.id)],\n"
             "            'children': sorted(_children[str(_cell.id)]),\n"
-            "            'code': _cell.code,\n"
+            "            'code_chars': len(_cell.code),\n"
+            "            **({'code': _cell.code} if _scope != 'outline' "
+            "else {}),\n"
             "        } for _cell, _impl, _compile_error in _raw_cells]\n"
+            "    if _scope == 'errors':\n"
+            "        _cells = [\n"
+            "            _cell for _cell in _cells\n"
+            "            if _cell['errors'] or _cell['status'] not in "
+            "('idle', 'disabled')\n"
+            "        ]\n"
             "print(_json.dumps({'cells': _cells}, default=str))"
         )
 

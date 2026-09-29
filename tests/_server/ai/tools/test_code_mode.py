@@ -48,6 +48,36 @@ def test_build_hybrid_toolset_exposes_editor_tools() -> None:
     assert list(inspect_signature.parameters) == ["scope"]
 
 
+@pytest.mark.requires("pydantic_ai")
+async def test_inspect_notebook_compiles_requested_scope() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        build_hybrid_code_mode_toolset,
+    )
+
+    with (
+        patch(
+            "marimo._server.ai.tools.code_mode.get_code_mode_credentials",
+            return_value=("http://localhost:2718", "secret-token"),
+        ),
+        patch(
+            "marimo._server.ai.tools.code_mode.run_scratchpad_code",
+            new_callable=AsyncMock,
+        ) as mock_run,
+    ):
+        toolset = build_hybrid_code_mode_toolset(MagicMock(), MagicMock())
+        inspect_notebook = cast(
+            Callable[..., Awaitable[object]],
+            toolset.tools["inspect_notebook"].function,
+        )
+
+        await inspect_notebook(scope="outline")
+
+    source = mock_run.await_args.kwargs["code"]
+    assert "_scope = 'outline'" in source
+    assert "'code_chars': len(_cell.code)" in source
+    assert "if _scope == 'errors'" in source
+
+
 def test_get_tool_strategy_defaults_to_code_mode() -> None:
     from marimo._server.ai.tools.code_mode import get_tool_strategy
 
@@ -100,6 +130,92 @@ def test_hybrid_execute_code_rejects_code_mode_import() -> None:
     assert _imports_code_mode("from marimo import _code_mode")
     assert _imports_code_mode("from marimo._code_mode import get_context")
     assert not _imports_code_mode("import marimo as mo")
+
+
+def test_compact_hybrid_history_preserves_latest_turn_and_errors() -> None:
+    from marimo._server.ai.tools.code_mode import compact_hybrid_history
+
+    messages = [
+        {"role": "user", "parts": [{"type": "text", "text": "first"}]},
+        {
+            "role": "assistant",
+            "parts": [
+                {
+                    "type": "tool-inspect_notebook",
+                    "state": "output-available",
+                    "input": {"scope": "all"},
+                    "output": {"success": True, "stdout": ["large source"]},
+                },
+                {
+                    "type": "tool-apply_notebook_patch",
+                    "state": "output-available",
+                    "input": {
+                        "cells": [
+                            {
+                                "cell_id": "cell-1",
+                                "after_cell_id": None,
+                                "code": "answer = 42",
+                            }
+                        ],
+                        "delete_cell_ids": [],
+                    },
+                    "output": {"success": True},
+                },
+                {
+                    "type": "tool-execute_code",
+                    "state": "output-error",
+                    "input": {"code": "missing"},
+                    "errorText": "NameError",
+                },
+            ],
+        },
+        {"role": "user", "parts": [{"type": "text", "text": "second"}]},
+        {
+            "role": "assistant",
+            "parts": [
+                {
+                    "type": "tool-inspect_notebook",
+                    "state": "output-available",
+                    "input": {"scope": "all"},
+                    "output": {"success": True, "stdout": ["latest"]},
+                }
+            ],
+        },
+        {"role": "user", "parts": [{"type": "text", "text": "third"}]},
+    ]
+
+    compacted = compact_hybrid_history(messages)
+
+    old_parts = compacted[1]["parts"]
+    assert old_parts[0]["output"]["output"].startswith("Earlier notebook")
+    assert old_parts[1]["input"] == {
+        "cells": [
+            {
+                "cell_id": "cell-1",
+                "after_cell_id": None,
+                "code": (
+                    "# Earlier patch source compacted (11 characters). "
+                    "Inspect the live notebook for current source."
+                ),
+            }
+        ],
+        "delete_cell_ids": [],
+    }
+    assert old_parts[2]["errorText"] == "NameError"
+    assert compacted[3] == messages[3]
+    assert messages[1]["parts"][0]["output"]["stdout"] == ["large source"]
+
+
+def test_compact_hybrid_history_leaves_one_turn_unchanged() -> None:
+    from marimo._server.ai.tools.code_mode import compact_hybrid_history
+
+    messages = [
+        {"role": "user", "parts": []},
+        {"role": "assistant", "parts": []},
+        {"role": "user", "parts": []},
+    ]
+
+    assert compact_hybrid_history(messages) is messages
 
 
 @pytest.mark.requires("pydantic_ai")

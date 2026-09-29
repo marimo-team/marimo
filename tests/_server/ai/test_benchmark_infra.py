@@ -13,6 +13,7 @@ from benchmarks.ai.models import (
     ScenarioResult,
     ScenarioWorkspace,
     TokenUsage,
+    ToolCallMetrics,
 )
 from benchmarks.ai.runner import (
     _compare_summary,
@@ -63,6 +64,14 @@ data: {"type":"finish","finishReason":"stop"}"""
     }
     assert builder.tool_calls == 1
     assert builder.tool_errors == 0
+    assert builder.tool_metrics == (
+        ToolCallMetrics(
+            name="execute_code",
+            input_chars=len('{"code":"1 + 1"}'),
+            output_chars=len('{"success":true}'),
+            errored=False,
+        ),
+    )
     assert builder.usage == TokenUsage(
         requests=2,
         input_tokens=12,
@@ -264,6 +273,10 @@ def test_summary_aggregates_repeated_trials(tmp_path: Path) -> None:
     assert aggregate["total_model_requests"] == 3
     assert aggregate["mean_input_tokens"] == 150
     assert aggregate["total_output_tokens"] == 30
+    assert aggregate["total_request_history_chars"] == 0
+    assert aggregate["total_effective_history_chars"] == 0
+    assert aggregate["total_tool_output_chars"] == 0
+    assert aggregate["tool_payloads"] == {}
     assert summary["variant_aggregates"][0]["pass_rate"] == 1.0
     assert summary["length_aggregates"][0]["scenario_length"] == "short"
 

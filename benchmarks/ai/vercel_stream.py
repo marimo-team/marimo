@@ -4,7 +4,12 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from benchmarks.ai.models import TokenUsage
+from benchmarks.ai.models import TokenUsage, ToolCallMetrics
+
+
+def serialized_chars(value: Any) -> int:
+    """Return the compact JSON size used as a stable payload proxy."""
+    return len(json.dumps(value, separators=(",", ":"), default=str))
 
 
 def parse_sse(body: str) -> list[dict[str, Any]]:
@@ -131,6 +136,34 @@ class AssistantMessageBuilder:
             )
             for part in self._tools.values()
         )
+
+    @property
+    def tool_metrics(self) -> tuple[ToolCallMetrics, ...]:
+        metrics: list[ToolCallMetrics] = []
+        for part in self._tools.values():
+            state = part.get("state")
+            output = part.get("output")
+            errored = state == "output-error" or (
+                isinstance(output, dict)
+                and (
+                    output.get("success") is False
+                    or output.get("is_error") is True
+                )
+            )
+            output_value = (
+                part.get("errorText") if state == "output-error" else output
+            )
+            metrics.append(
+                ToolCallMetrics(
+                    name=str(part.get("type", "tool-unknown")).removeprefix(
+                        "tool-"
+                    ),
+                    input_chars=serialized_chars(part.get("input")),
+                    output_chars=serialized_chars(output_value),
+                    errored=errored,
+                )
+            )
+        return tuple(metrics)
 
 
 def _token_count(usage: dict[str, Any], *keys: str) -> int:

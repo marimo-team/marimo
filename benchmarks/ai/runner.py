@@ -28,9 +28,11 @@ from benchmarks.ai.models import (
     ScenarioResult,
     ScenarioWorkspace,
     TokenUsage,
+    ToolCallMetrics,
     TurnMetrics,
 )
 from benchmarks.ai.server import MarimoServer
+from benchmarks.ai.vercel_stream import serialized_chars
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -201,6 +203,7 @@ def run_scenario(
                     nonlocal tool_calls
                     nonlocal tool_errors
                     messages.append(_message("user", turn))
+                    request_history_chars = serialized_chars(messages)
                     turn_started = time.monotonic()
                     chat_turn = server.chat(messages, turn_number=turn_number)
                     if chat_turn.trace_id:
@@ -218,6 +221,14 @@ def run_scenario(
                         tool_errors=chat_turn.tool_errors,
                         usage=chat_turn.usage,
                         response_chars=len(chat_turn.text),
+                        request_history_chars=request_history_chars,
+                        effective_history_chars=(
+                            chat_turn.effective_history_chars
+                        ),
+                        assistant_message_chars=serialized_chars(
+                            chat_turn.message
+                        ),
+                        tool_metrics=chat_turn.tool_metrics,
                     )
                     turn_metrics.append(metrics)
                     if on_turn is not None:
@@ -342,7 +353,7 @@ def create_run_directory(
     except Exception:
         git_sha = ""
     manifest = {
-        "schema_version": 3,
+        "schema_version": 4,
         "run_id": run_dir.name,
         "logfire_query": logfire_run_query(run_dir.name),
         "model": model,
@@ -366,6 +377,21 @@ def write_summary(run_dir: Path, results: list[ScenarioResult]) -> None:
         total_usage = sum(
             (trial.usage for trial in trials), start=TokenUsage()
         )
+        turn_metrics = [
+            turn for trial in trials for turn in trial.turn_metrics
+        ]
+        tool_metrics: list[ToolCallMetrics] = [
+            tool for turn in turn_metrics for tool in turn.tool_metrics
+        ]
+        tool_payloads: dict[str, dict[str, int]] = {}
+        for tool in tool_metrics:
+            payload = tool_payloads.setdefault(
+                tool.name,
+                {"calls": 0, "input_chars": 0, "output_chars": 0},
+            )
+            payload["calls"] += 1
+            payload["input_chars"] += tool.input_chars
+            payload["output_chars"] += tool.output_chars
         return {
             "trials": len(trials),
             "passed": sum(trial.passed for trial in trials),
@@ -393,6 +419,34 @@ def write_summary(run_dir: Path, results: list[ScenarioResult]) -> None:
             "total_cache_write_tokens": total_usage.cache_write_tokens,
             "mean_cache_write_tokens": total_usage.cache_write_tokens
             / len(trials),
+            "total_request_history_chars": sum(
+                turn.request_history_chars for turn in turn_metrics
+            ),
+            "mean_final_request_history_chars": statistics.mean(
+                trial.turn_metrics[-1].request_history_chars
+                if trial.turn_metrics
+                else 0
+                for trial in trials
+            ),
+            "total_effective_history_chars": sum(
+                turn.effective_history_chars for turn in turn_metrics
+            ),
+            "mean_final_effective_history_chars": statistics.mean(
+                trial.turn_metrics[-1].effective_history_chars
+                if trial.turn_metrics
+                else 0
+                for trial in trials
+            ),
+            "total_assistant_message_chars": sum(
+                turn.assistant_message_chars for turn in turn_metrics
+            ),
+            "total_tool_input_chars": sum(
+                tool.input_chars for tool in tool_metrics
+            ),
+            "total_tool_output_chars": sum(
+                tool.output_chars for tool in tool_metrics
+            ),
+            "tool_payloads": tool_payloads,
         }
 
     scenario_groups: dict[tuple[str, str], list[ScenarioResult]] = {}

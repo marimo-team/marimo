@@ -441,6 +441,8 @@ def test_chat_system_prompt_balanced_hybrid_uses_typed_tool_skill():
     assert load_skill("marimo-pair") not in prompt
     assert 'inspect_notebook(scope="all")' in prompt
     assert "Use `manage_packages`" in prompt
+    assert "do not follow a successful patch with a full inspection" in prompt
+    assert "Prefer the `errors` or `outline` scope" in prompt
 
 
 def test_chat_system_prompt_code_mode_includes_extras():

@@ -90,6 +90,14 @@ class TokenUsage:
 
 
 @dataclass(frozen=True)
+class ToolCallMetrics:
+    name: str
+    input_chars: int
+    output_chars: int
+    errored: bool
+
+
+@dataclass(frozen=True)
 class TurnMetrics:
     turn_number: int
     trace_id: str
@@ -98,6 +106,10 @@ class TurnMetrics:
     tool_errors: int
     usage: TokenUsage
     response_chars: int
+    request_history_chars: int = 0
+    effective_history_chars: int = 0
+    assistant_message_chars: int = 0
+    tool_metrics: tuple[ToolCallMetrics, ...] = ()
 
 
 @dataclass

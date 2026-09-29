@@ -16,8 +16,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Self, cast
 
-from benchmarks.ai.models import HarnessVariant, JSONValue, TokenUsage
-from benchmarks.ai.vercel_stream import AssistantMessageBuilder, parse_sse
+from benchmarks.ai.models import (
+    HarnessVariant,
+    JSONValue,
+    TokenUsage,
+    ToolCallMetrics,
+)
+from benchmarks.ai.vercel_stream import (
+    AssistantMessageBuilder,
+    parse_sse,
+    serialized_chars,
+)
 
 
 def _free_port() -> int:
@@ -87,6 +96,8 @@ class ChatTurn:
     tool_errors: int
     usage: TokenUsage
     trace_id: str
+    tool_metrics: tuple[ToolCallMetrics, ...]
+    effective_history_chars: int
 
 
 @dataclass(frozen=True)
@@ -311,6 +322,13 @@ base_url = "https://api.inference.wandb.ai/v1/"
         *,
         turn_number: int,
     ) -> ChatTurn:
+        effective_messages = messages
+        if self.variant.tool_strategy == "hybrid_balanced":
+            from marimo._server.ai.tools.code_mode import (
+                compact_hybrid_history,
+            )
+
+            effective_messages = compact_hybrid_history(messages)
         body = {
             "id": self.session_id,
             "includeOtherCode": "",
@@ -342,6 +360,8 @@ base_url = "https://api.inference.wandb.ai/v1/"
             tool_errors=builder.tool_errors,
             usage=builder.usage,
             trace_id=response.trace_id,
+            tool_metrics=builder.tool_metrics,
+            effective_history_chars=serialized_chars(effective_messages),
         )
 
     def inspect_summary(self) -> dict[str, JSONValue]:
