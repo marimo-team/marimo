@@ -1,11 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import {
-  AlertCircleIcon,
-  ClipboardCopyIcon,
-  DownloadIcon,
-} from "lucide-react";
+import { AlertCircleIcon, ClipboardCopyIcon, DownloadIcon } from "lucide-react";
 import React from "react";
 import { downloadSizeLimitAtom } from "./download-policy/atoms";
 import { logNever } from "@/utils/assertNever";
