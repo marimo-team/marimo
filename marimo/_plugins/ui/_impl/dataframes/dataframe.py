@@ -35,6 +35,10 @@ from marimo._plugins.ui._impl.table import (
     TableSearchError,
 )
 from marimo._plugins.ui._impl.tables.format import FormatMapping
+from marimo._plugins.ui._impl.tables.geometry_export import (
+    ExportMetadata,
+    get_export_metadata,
+)
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldTypes,
     TableManager,
@@ -231,6 +235,11 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                     function=self._download_as,
                 ),
                 Function(
+                    name="get_export_metadata",
+                    arg_cls=EmptyArgs,
+                    function=self._get_export_metadata,
+                ),
+                Function(
                     name="get_size_bytes",
                     arg_cls=EmptyArgs,
                     function=self._get_size_bytes,
@@ -348,6 +357,10 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             total_rows=result.get_num_rows(force=True) or 0,
         )
 
+    def _get_export_metadata(self, args: EmptyArgs) -> ExportMetadata:
+        del args
+        return get_export_metadata(get_table_manager(self._value))
+
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the transformed dataframe in the specified format.
 
@@ -384,6 +397,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             args.format,
             options=options,
             filename=bound_filename,
+            geometry_column=args.geometry_column,
         )
         return DownloadAsResponse(url=url, filename=filename)
 

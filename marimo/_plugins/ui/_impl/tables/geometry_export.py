@@ -1,12 +1,18 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import narwhals.stable.v2 as nw
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl.tables.geometry import GeometryColumnInfo
+from marimo._plugins.ui._impl.tables.geometry import (
+    GeometryColumnInfo,
+    GeometryEncoding,
+    find_geometry_columns,
+)
 from marimo._plugins.ui._impl.tables.narwhals_table import (
     NarwhalsTableManager,
 )
@@ -15,6 +21,156 @@ from marimo._sql.sql_quoting import quote_sql_identifier
 
 if TYPE_CHECKING:
     import pyarrow as pa
+
+
+@dataclass(frozen=True)
+class GeometryExportColumn:
+    """Geometry declared by the export source.
+
+    Args:
+        name (str): Name of the geometry column.
+        encoding (GeometryEncoding): Declared value encoding.
+        crs (str | dict[str, Any] | None): Declared CRS, when available.
+    """
+
+    name: str
+    encoding: GeometryEncoding
+    crs: str | dict[str, Any] | None
+
+
+@dataclass(frozen=True)
+class ExportFormatEligibility:
+    """Known prerequisites for a format.
+
+    Args:
+        available (bool): Whether the source can use the format.
+        reason (str | None): Reason when the format is unavailable.
+        missing_packages (list[str]): Packages needed for the format.
+    """
+
+    available: bool
+    reason: str | None = None
+    missing_packages: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ExportMetadata:
+    """Schema-level geometry and format metadata for an export source.
+
+    Args:
+        geometry_columns (list[GeometryExportColumn]): All declared geometry
+            columns, including columns outside the visible preview.
+        primary_geometry_column (str | None): Valid source primary, if any.
+        default_geometry_column (str | None): Primary or sole geometry.
+        formats (dict[str, ExportFormatEligibility]): Eligibility for
+            geometry-aware formats. The serializer checks values separately.
+    """
+
+    geometry_columns: list[GeometryExportColumn] = field(default_factory=list)
+    primary_geometry_column: str | None = None
+    default_geometry_column: str | None = None
+    formats: dict[str, ExportFormatEligibility] = field(default_factory=dict)
+
+
+def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
+    """Read geometry declarations without materializing source rows.
+
+    Args:
+        manager (TableManager[Any]): Manager for the export source.
+    """
+    if not isinstance(manager, NarwhalsTableManager):
+        return ExportMetadata()
+
+    info_by_name = find_geometry_columns(manager.data)
+    if not info_by_name:
+        return ExportMetadata()
+
+    source = manager.data
+    primary: str | None = None
+    columns: list[GeometryExportColumn] = []
+    if source.implementation.is_pandas():
+        native = source.to_native()
+        candidate = getattr(native, "_geometry_column_name", None)
+        if isinstance(candidate, str) and candidate in info_by_name:
+            primary = candidate
+        for name, info in info_by_name.items():
+            crs = native[name].array.crs
+            columns.append(
+                GeometryExportColumn(
+                    name=name,
+                    encoding=info.encoding,
+                    crs=crs.to_string() if crs is not None else None,
+                )
+            )
+        is_geodataframe = DependencyManager.geopandas.has() and isinstance(
+            native, _geodataframe_type()
+        )
+    elif source.implementation.is_pyarrow():
+        native = source.to_native()
+        for name, info in info_by_name.items():
+            columns.append(
+                GeometryExportColumn(
+                    name=name,
+                    encoding=info.encoding,
+                    crs=_arrow_crs(native.schema.field(name).metadata),
+                )
+            )
+        is_geodataframe = False
+    else:
+        columns = [
+            GeometryExportColumn(name=name, encoding=info.encoding, crs=None)
+            for name, info in info_by_name.items()
+        ]
+        is_geodataframe = False
+
+    if not is_geodataframe:
+        parquet = ExportFormatEligibility(
+            available=False,
+            reason=(
+                "GeoParquet export requires a GeoDataFrame source. "
+                "Convert the source to a GeoDataFrame before export."
+            ),
+        )
+    elif not DependencyManager.pyarrow.has():
+        parquet = ExportFormatEligibility(
+            available=False,
+            reason="GeoParquet export requires pyarrow.",
+            missing_packages=["pyarrow"],
+        )
+    else:
+        parquet = ExportFormatEligibility(available=True)
+
+    default = primary or (columns[0].name if len(columns) == 1 else None)
+    return ExportMetadata(
+        geometry_columns=columns,
+        primary_geometry_column=primary,
+        default_geometry_column=default,
+        formats={"parquet": parquet},
+    )
+
+
+def _geodataframe_type() -> type[Any]:
+    import geopandas as gpd  # type: ignore[import-not-found,import-untyped,unused-ignore]
+
+    return gpd.GeoDataFrame  # type: ignore[no-any-return]
+
+
+def _arrow_crs(
+    metadata: dict[bytes, bytes] | None,
+) -> str | dict[str, Any] | None:
+    if not metadata:
+        return None
+    raw = metadata.get(b"ARROW:extension:metadata")
+    if raw is None:
+        return None
+    try:
+        declaration = json.loads(raw)
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if not isinstance(declaration, dict):
+        return None
+    crs = declaration.get("crs")
+    return crs if isinstance(crs, (str, dict)) else None
 
 
 def prepare_geometry_text_export(
