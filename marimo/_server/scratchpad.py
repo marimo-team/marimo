@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from marimo._messaging.notebook.document import NotebookCell
     from marimo._messaging.types import KernelMessage
     from marimo._session.session import Session
+    from marimo._types.ids import CellId_t
 
 EXECUTION_TIMEOUT = (
     30.0  # seconds — used only by wait(); stream() has no timeout
@@ -102,9 +103,12 @@ class ScratchCellListener(EventAwareExtension):
         super().__init__()
         self._queue: asyncio.Queue[CellNotification | None] = asyncio.Queue()
         self._run_id = run_id
+        self._scratch_started = False
+        self._completed = False
+        self._child_cell_ids: set[CellId_t] = set()
         self.timed_out = False
         self.child_error_summaries: list[str] = []
-        self.child_stderr: list[str] = []
+        self.stderr: list[str] = []
 
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
@@ -119,6 +123,7 @@ class ScratchCellListener(EventAwareExtension):
         # unrelated commands — skip them.
         if isinstance(msg, CompletedRunNotification):
             if msg.run_id == self._run_id:
+                self._completed = True
                 self._queue.put_nowait(None)
             return
 
@@ -126,25 +131,21 @@ class ScratchCellListener(EventAwareExtension):
             return
 
         if msg.cell_id == SCRATCH_CELL_ID:
+            self._scratch_started = True
             self._queue.put_nowait(msg)
         else:
+            # Ignore notifications from an execution that was already active
+            # when this listener was attached. Child cells run by _code_mode
+            # cannot execute before the scratch cell itself starts.
+            if not self._scratch_started:
+                return
+            if self._completed and msg.cell_id not in self._child_cell_ids:
+                return
+            self._child_cell_ids.add(msg.cell_id)
             if msg.console is not None:
                 # Stream console output from cells run by _code_mode
                 # during this scratchpad execution.
                 self._queue.put_nowait(msg)
-                console_outputs = (
-                    msg.console
-                    if isinstance(msg.console, list)
-                    else [msg.console]
-                )
-                # `wait()` consumes queued notifications without formatting
-                # them, so retain stderr for the non-streaming tool result.
-                self.child_stderr.extend(
-                    str(output.data)
-                    for output in console_outputs
-                    if output is not None
-                    and output.channel == CellChannel.STDERR
-                )
             if (
                 msg.output is not None
                 and msg.output.channel == CellChannel.MARIMO_ERROR
@@ -174,6 +175,19 @@ class ScratchCellListener(EventAwareExtension):
                     self.child_error_summaries.append(
                         f"cell '{msg.cell_id}' raised {diagnostic}"
                     )
+
+        if msg.console is not None:
+            console_outputs = (
+                msg.console if isinstance(msg.console, list) else [msg.console]
+            )
+            # `wait()` consumes queued notifications without formatting them,
+            # so retain stderr in notification order for the structured tool
+            # result.
+            self.stderr.extend(
+                str(output.data)
+                for output in console_outputs
+                if output is not None and output.channel == CellChannel.STDERR
+            )
 
     async def stream(self) -> AsyncGenerator[str, None]:
         """Yield SSE-formatted stdout/stderr events until execution completes.
@@ -328,7 +342,7 @@ def extract_result(
             continue
         if out.channel == CellChannel.STDOUT:
             stdout.append(str(out.data))
-        elif out.channel == CellChannel.STDERR:
+        elif out.channel == CellChannel.STDERR and listener is None:
             stderr.append(str(out.data))
 
     errors: list[str] = []
@@ -340,7 +354,7 @@ def extract_result(
 
     # Include child cell error summaries.
     if listener:
-        stderr.extend(listener.child_stderr)
+        stderr.extend(listener.stderr)
         errors.extend(listener.child_error_summaries)
 
     return CodeExecutionResult(

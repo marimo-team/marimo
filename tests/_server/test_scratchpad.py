@@ -312,6 +312,29 @@ class TestExtractResult:
         assert result.stdout == ["out1", "out2"]
         assert result.stderr == ["err1"]
 
+    def test_listener_stderr_preserves_cross_cell_order(self) -> None:
+        notif = CellNotification(
+            cell_id=SCRATCH_CELL_ID,
+            output=None,
+            console=[
+                CellOutput.stderr("scratch before\n"),
+                CellOutput.stderr("scratch after\n"),
+            ],
+            status="idle",
+        )
+        listener = ScratchCellListener(run_id=_TEST_RUN_ID)
+        listener.stderr.extend(
+            ["scratch before\n", "child\n", "scratch after\n"]
+        )
+
+        result = extract_result(_make_session(notif), listener)
+
+        assert result.stderr == [
+            "scratch before\n",
+            "child\n",
+            "scratch after\n",
+        ]
+
     def test_errors(self) -> None:
         err_obj = MagicMock()
         err_obj.msg = "NameError: x is not defined"
@@ -644,6 +667,12 @@ class TestScratchCellListener:
         session = MagicMock()
         listener.on_attach(session, event_bus)
 
+        listener.on_notification_sent(
+            session,
+            serialize_kernel_message(
+                CellNotification(cell_id=SCRATCH_CELL_ID, status="running")
+            ),
+        )
         other_console = CellNotification(
             cell_id="other_cell_id",
             console=CellOutput.stderr("error trace\n"),
@@ -666,31 +695,80 @@ class TestScratchCellListener:
         assert name == "stderr"
         assert payload["data"] == "error trace\n"
 
-        assert listener.child_stderr == ["error trace\n"]
+        assert listener.stderr == ["error trace\n"]
 
-    def test_captures_child_stderr_in_emission_order(self) -> None:
-        """Only stderr is retained, in its original notification order."""
+    @pytest.mark.asyncio
+    async def test_captures_stderr_in_emission_order(self) -> None:
+        """Scratch and child stderr retain their notification order."""
         from marimo._messaging.serde import serialize_kernel_message
 
         listener = ScratchCellListener(run_id=_TEST_RUN_ID)
         session = MagicMock()
 
-        notification = CellNotification(
-            cell_id="other_cell_id",
-            console=[
-                CellOutput.stderr("first error\n"),
-                CellOutput.stdout("ordinary output\n"),
-                CellOutput.stderr("second error\n"),
-            ],
-        )
-        listener.on_notification_sent(
-            session, serialize_kernel_message(notification)
-        )
-
-        assert listener.child_stderr == [
-            "first error\n",
-            "second error\n",
+        notifications = [
+            CellNotification(
+                cell_id=SCRATCH_CELL_ID,
+                console=CellOutput.stderr("scratch before\n"),
+            ),
+            CellNotification(
+                cell_id="other_cell_id",
+                console=[
+                    CellOutput.stderr("first child error\n"),
+                    CellOutput.stdout("ordinary output\n"),
+                    CellOutput.stderr("second child error\n"),
+                ],
+            ),
+            CellNotification(
+                cell_id=SCRATCH_CELL_ID,
+                console=CellOutput.stderr("scratch after\n"),
+            ),
         ]
+        for notification in notifications:
+            listener.on_notification_sent(
+                session, serialize_kernel_message(notification)
+            )
+
+        assert listener.stderr == [
+            "scratch before\n",
+            "first child error\n",
+            "second child error\n",
+            "scratch after\n",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_ignores_stderr_outside_scratch_run(self) -> None:
+        """Unrelated stderr before or after the scratch run is ignored."""
+        from marimo._messaging.serde import serialize_kernel_message
+
+        listener = ScratchCellListener(run_id=_TEST_RUN_ID)
+        session = MagicMock()
+
+        notifications: list[NotificationMessage] = [
+            CellNotification(
+                cell_id="browser-cell",
+                console=CellOutput.stderr("before\n"),
+            ),
+            CellNotification(cell_id=SCRATCH_CELL_ID, status="running"),
+            CellNotification(
+                cell_id="child-cell",
+                console=CellOutput.stderr("during\n"),
+            ),
+            _completed_run(),
+            CellNotification(
+                cell_id="child-cell",
+                console=CellOutput.stderr("trailing\n"),
+            ),
+            CellNotification(
+                cell_id="browser-cell",
+                console=CellOutput.stderr("after\n"),
+            ),
+        ]
+        for notification in notifications:
+            listener.on_notification_sent(
+                session, serialize_kernel_message(notification)
+            )
+
+        assert listener.stderr == ["during\n", "trailing\n"]
 
     @pytest.mark.asyncio
     async def test_stream_cancelled_on_disconnect(self) -> None:
@@ -984,6 +1062,9 @@ class TestRunScratchpadCode:
                 console=None,
                 status="idle",
             )
+        )
+        session.emit(
+            CellNotification(cell_id=SCRATCH_CELL_ID, status="running")
         )
         session.emit(
             CellNotification(
