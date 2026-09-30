@@ -2287,3 +2287,60 @@ production experiment. `ProcessHistory` remains useful as an intra-run
 emergency limit, not as the primary long-conversation mechanism. Do not add
 request-local summarization, tiered clearing, or Harness compaction to the
 production sidebar based on these results.
+
+## Experiment 33: direct marathon baseline comparison
+
+Date: 2026-09-30
+
+Model: `deepseek-ai/DeepSeek-V4.1-Flash`
+
+Run: `20260930T145748Z-b19ba6a5`
+
+Ran a contemporaneous three-way comparison on both extreme-conversation
+scenarios, with two independent repetitions per scenario:
+
+- The original expressive `execute_code` baseline.
+- The seven-tool hybrid with semantic history trimming.
+- The same seven-tool hybrid with the custom persistent checkpoint.
+
+All 12 trials passed their semantic, source, and notebook-health contracts.
+The aggregate across four trials per variant was:
+
+| Variant | Passed | Mean duration | Mean tools | Mean errors | Mean requests | Mean input | Mean output | Mean reasoning |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Original baseline | 4/4 | 265.6s | 34.25 | 3.00 | 44.75 | 1,234,884 | 33,013 | 20,328 |
+| Semantic hybrid | 4/4 | 243.0s | 33.00 | 1.25 | 43.75 | 929,796 | 28,992 | 17,602 |
+| Persistent checkpoint hybrid | 4/4 | 203.1s | 29.25 | 1.75 | 41.25 | 611,191 | 34,548 | 21,285 |
+
+Against the original baseline, the checkpoint stack was 23.5% faster, used
+14.6% fewer tools, 41.7% fewer tool errors, 7.8% fewer model requests, and
+50.5% fewer input tokens. Correctness was equal at 4/4. It used 4.6% more
+output tokens and 4.7% more reasoning tokens, so the result is specifically a
+large repeated-context reduction, not a reduction in every token category.
+
+The same-tools comparison isolates the checkpoint contribution. Against the
+semantic hybrid, persistent checkpoints were 16.4% faster, used 11.4% fewer
+tools, 5.7% fewer requests, and 34.3% fewer input tokens. Tool errors increased
+from 1.25 to 1.75 per trial, and output and reasoning tokens increased by 19%
+and 21%, respectively. The checkpoint summarized eight times across 44 user
+turns and added 28.4 seconds of direct summary latency.
+
+Both individual scenarios showed the same duration and input-token direction:
+
+| Scenario | Variant | Passed | Duration | Tools / errors | Requests | Input tokens | Checkpoints |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Multi-task | Baseline | 2/2 | 340.8s | 32 / 1 | 43.5 | 1,088,199 | 0 |
+| Multi-task | Semantic hybrid | 2/2 | 341.6s | 37 / 2 | 48.5 | 1,173,119 | 0 |
+| Multi-task | Checkpoint hybrid | 2/2 | 278.4s | 34 / 3 | 47.5 | 838,895 | 5 |
+| Recall | Baseline | 2/2 | 190.5s | 36.5 / 5 | 46.0 | 1,381,568 | 0 |
+| Recall | Semantic hybrid | 2/2 | 144.3s | 29 / 0.5 | 39.0 | 686,474 | 0 |
+| Recall | Checkpoint hybrid | 2/2 | 127.9s | 24.5 / 0.5 | 35.0 | 383,487 | 3 |
+
+Conclusion: on the tested extreme conversations, the full checkpoint stack is
+better than the original baseline, and checkpointing independently improves
+the seven-tool hybrid's duration and input-token cost. This closes the direct
+comparison gap from Experiment 32. It does not justify checkpointing short
+threads: the policy should remain dormant below a token-aware high-water mark.
+The four-trial sample supports the architecture direction, while more models
+and production-shaped storage tests are still required before selecting a
+universal threshold.
