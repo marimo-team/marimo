@@ -210,11 +210,15 @@ class ModuleReloader:
         self.modules_mtimes: dict[str, float] = {}
         # set of modules names known to be stale but haven't been reloaded
         self.stale_modules: set[str] = set()
-        # Incremented once per reload. Cells record the generation they
-        # ran under.
+        # Incremented once per reload. A cell that last ran under an older
+        # generation still holds code from before that reload.
         self.reload_generation = 0
-        self._cell_generations: dict[CellId_t, int] = {}
+        # cell -> (generation, ordinal) of its last run. The ordinal orders
+        # runs within one generation.
+        self._cell_runs: dict[CellId_t, tuple[int, int]] = {}
+        self._run_counter = 0
         # source path -> (mtime, generation) of its last successful reload
+        # NB. tells the watcher whether an edit it sees was already reloaded.
         self._reloaded_sources: dict[str, tuple[float, int]] = {}
         # NB. reentrant, so a caller can hold it across a reload and the
         # bookkeeping that follows.
@@ -271,19 +275,35 @@ class ModuleReloader:
         return ModuleMTime(py_filename, pymtime)
 
     def record_cell_run(self, cell_id: CellId_t) -> None:
-        """Record that `cell_id` runs under the current generation."""
+        """Record a run of `cell_id` under the current generation."""
         with self.lock:
-            self._cell_generations[cell_id] = self.reload_generation
+            self._run_counter += 1
+            self._cell_runs[cell_id] = (
+                self.reload_generation,
+                self._run_counter,
+            )
 
     def forget_cell(self, cell_id: CellId_t) -> None:
         """Drop the run record of a cell that left the graph."""
         with self.lock:
-            self._cell_generations.pop(cell_id, None)
+            self._cell_runs.pop(cell_id, None)
 
     def cell_ran_at_or_after(self, cell_id: CellId_t, generation: int) -> bool:
         """Whether `cell_id` last ran under `generation` or a later one."""
         with self.lock:
-            return self._cell_generations.get(cell_id, 0) >= generation
+            return self._cell_runs.get(cell_id, (0, 0))[0] >= generation
+
+    def cell_ran_after(self, cell_id: CellId_t, other: CellId_t) -> bool:
+        """Whether the last run of `cell_id` came after the last run of
+        `other`. False when either cell has no recorded run."""
+        with self.lock:
+            run = self._cell_runs.get(cell_id)
+            other_run = self._cell_runs.get(other)
+            return (
+                run is not None
+                and other_run is not None
+                and run[1] > other_run[1]
+            )
 
     def required_generation(self, module: types.ModuleType) -> int:
         """The generation a cell must have run under to hold the source of

@@ -29,6 +29,7 @@ from marimo._runtime.reload.autoreload import (
     update_instances,
     update_property,
 )
+from marimo._types.ids import CellId_t
 
 
 def test_reload_function(tmp_path: pathlib.Path, py_modname: str):
@@ -451,6 +452,23 @@ class TestModuleReloaderMethods:
         # The next edit is pending again, under the generation after this.
         update_file(py_file, "x = 3")
         assert reloader.required_generation(mod) == pending + 1
+
+    def test_cell_run_records(self):
+        reloader = ModuleReloader()
+        first, second = CellId_t("0"), CellId_t("1")
+        reloader.reload_generation = 1
+        reloader.record_cell_run(first)
+        reloader.record_cell_run(second)
+        assert reloader.cell_ran_at_or_after(first, 1)
+        assert not reloader.cell_ran_at_or_after(first, 2)
+        assert reloader.cell_ran_after(second, first)
+        assert not reloader.cell_ran_after(first, second)
+
+        reloader.forget_cell(first)
+        assert not reloader.cell_ran_at_or_after(first, 1)
+        assert not reloader.cell_ran_after(second, first)
+        # Forgetting an unknown cell is a no-op.
+        reloader.forget_cell(first)
 
 
 class TestSkipCache:

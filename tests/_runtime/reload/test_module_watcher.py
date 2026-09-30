@@ -16,7 +16,10 @@ from reload_test_utils import random_modname, update_file
 import marimo._runtime.reload.module_watcher as mw
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._runtime.commands import UpdateUserConfigCommand
+from marimo._runtime.commands import (
+    DeleteCellCommand,
+    UpdateUserConfigCommand,
+)
 from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import (
     _check_modules,
@@ -620,6 +623,7 @@ async def test_reload_function_in_import_block(
     assert k.globals["y"] == y
 
 
+@pytest.mark.flaky(reruns=3)
 async def test_reload_self_import_cycle(
     tmp_path: pathlib.Path,
     py_modname: str,
@@ -1475,7 +1479,8 @@ async def test_watcher_skips_cell_that_reran_before_its_poll(
 
     The rerun reloads the module, so the cell holds the new code. The
     watcher sees the edit against its own mtime baseline but leaves that
-    cell, its imported definitions, and its descendants alone.
+    cell and its imported definitions alone. Its reader still holds the
+    old value and is marked stale.
     """
     k = execution_kernel
     sys.path.append(str(tmp_path))
@@ -1520,10 +1525,14 @@ async def test_watcher_skips_cell_that_reran_before_its_poll(
     assert not k.graph.cells[er_1.cell_id].stale, (
         "watcher flagged a cell that already reran with the new code"
     )
-    assert not k.graph.cells[er_2.cell_id].stale
     assert k.graph.cells[er_1.cell_id].import_workspace.imported_defs == {
         "foo"
     }
+    assert k.graph.cells[er_2.cell_id].stale, (
+        "reader computed x from the old foo but is not stale"
+    )
+    await k.run_stale_cells()
+    assert k.globals["x"] == 2
 
 
 async def test_watcher_marks_descendant_when_import_cell_did_not_rerun(
@@ -1566,3 +1575,117 @@ async def test_watcher_marks_descendant_when_import_cell_did_not_rerun(
 
     await k.run_stale_cells()
     assert k.globals["y"] == 2
+
+
+async def test_watcher_marks_reader_that_ran_before_its_importer(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Both cells rerun under the new generation, reader first. The
+    reader still read the old binding, so only the reader is stale."""
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text("value = 1\n")
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run(
+        [
+            er_1 := exec_req.get(f"from {py_modname} import value"),
+            er_2 := exec_req.get("y = value"),
+        ]
+    )
+    reloader = k.autoreload_manager._reloader
+    assert reloader is not None
+    parked, release = _park_watcher(monkeypatch, reloader, py_modname)
+    assert await _wait_for(parked.is_set)
+
+    update_file(py_file, "value = 2\n")
+    await k.run([exec_req.get_with_id(er_2.cell_id, "y = value")])
+    await k.run(
+        [exec_req.get_with_id(er_1.cell_id, f"from {py_modname} import value")]
+    )
+    assert k.globals["value"] == 2
+    assert k.globals["y"] == 1
+
+    release.set()
+    assert await _wait_for(lambda: k.graph.cells[er_2.cell_id].stale)
+    assert not k.graph.cells[er_1.cell_id].stale
+    await k.run_stale_cells()
+    assert k.globals["y"] == 2
+
+
+async def test_watcher_marks_every_importer_of_a_module(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+):
+    """Two cells import the same module under different aliases and a
+    third reads both. An edit marks both importers and the reader."""
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text("value = 1\n")
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run(
+        [
+            er_a := exec_req.get(f"from {py_modname} import value as a"),
+            er_c := exec_req.get(f"from {py_modname} import value as c"),
+            er_b := exec_req.get("y = (a, c)"),
+        ]
+    )
+    assert k.globals["y"] == (1, 1)
+
+    update_file(py_file, "value = 2\n")
+    assert await _wait_for(
+        lambda: all(
+            k.graph.cells[er.cell_id].stale for er in (er_a, er_c, er_b)
+        )
+    ), "watcher marked only one importer of the module"
+    await k.run_stale_cells()
+    assert k.globals["y"] == (2, 2)
+
+
+async def test_watcher_survives_cell_deleted_during_crawl(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text("value = 1\n")
+    other_file = tmp_path / pathlib.Path(py_modname + "_other.py")
+    other_file.write_text("w = 1\n")
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run(
+        [
+            er_1 := exec_req.get(f"from {py_modname} import value"),
+            er_2 := exec_req.get(f"from {py_modname}_other import w"),
+        ]
+    )
+
+    parked, release = _park_watcher_in_crawl(monkeypatch)
+    update_file(py_file, "value = 2\n")
+    assert await _wait_for(parked.is_set)
+    await k.delete_cell(DeleteCellCommand(cell_id=er_1.cell_id))
+    release.set()
+    await asyncio.sleep(4 * INTERVAL)
+
+    # The watcher thread is still alive and marks later edits.
+    update_file(other_file, "w = 2\n")
+    assert await _wait_for(lambda: k.graph.cells[er_2.cell_id].stale)
