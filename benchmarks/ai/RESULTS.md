@@ -1136,3 +1136,84 @@ turn. This is evidence for a boundary rather than a compaction regression:
 the strategy addresses repeated completed-turn state, not same-turn planning
 or error-recovery loops. Keep the history processor, but treat bounded patch
 recovery on weaker tool-use models as a separate future experiment.
+
+## Experiment 19: optimized full-suite confirmation
+
+Date: 2026-09-30
+
+Model: `deepseek-ai/DeepSeek-V4.1-Flash`
+
+Run: `20260930T014128Z-4ae81ab1`
+
+Compared the production baseline with the optimized seven-tool hybrid across
+all ten data scenarios. The candidate includes scoped inspection, verification
+discipline, and conservative completed-turn history compaction. The runner used
+four concurrent workers. All 20 trials passed their semantic contracts, source
+contracts, and `marimo check`.
+
+| Variant | Passed | Mean duration | Mean tools | Mean errors | Mean requests | Mean input | Mean output | Mean reasoning |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Baseline | 10/10 | 146.9s | 17.4 | 1.5 | 19.8 | 593,947 | 26,410 | 18,413 |
+| Optimized hybrid | 10/10 | 82.9s | 12.7 | 0.4 | 13.9 | 215,648 | 12,602 | 8,010 |
+
+With equal correctness, the optimized hybrid was 43.6% faster, used 27.0%
+fewer tools, 73.3% fewer tool errors, 29.8% fewer model requests, 63.7% fewer
+input tokens, 52.3% fewer output tokens, and 56.5% fewer reasoning tokens.
+After subtracting cache reads, mean uncached input was 215,221 tokens for
+baseline and 131,642 for hybrid, a 38.8% reduction. Every individual scenario
+used fewer input tokens and completed faster with the hybrid in this run.
+
+| Length | Variant | Passed | Mean duration | Mean tools | Mean errors | Mean input |
+|---|---|---:|---:|---:|---:|---:|
+| Short | Baseline | 3/3 | 35.9s | 7.3 | 1.00 | 71,650 |
+| Short | Hybrid | 3/3 | 27.0s | 6.0 | 0.33 | 33,410 |
+| Medium | Baseline | 4/4 | 88.2s | 13.0 | 2.00 | 198,647 |
+| Medium | Hybrid | 4/4 | 52.1s | 7.5 | 0.25 | 52,317 |
+| Long | Baseline | 3/3 | 336.1s | 33.3 | 1.33 | 1,643,311 |
+| Long | Hybrid | 3/3 | 179.9s | 26.3 | 0.67 | 615,661 |
+
+The hybrid reduced input tokens by 53.4% on short cases, 73.7% on medium
+cases, and 62.5% on long cases. The long result directly resolves the concern
+from Experiment 17, where the pre-optimization hybrid used more than twice the
+baseline's long-case input because of one expensive retail trajectory.
+
+| Scenario | Baseline duration / input | Hybrid duration / input | Result |
+|---|---:|---:|---|
+| Athletes prescribed | 25.3s / 69,738 | 23.9s / 36,411 | Both pass |
+| Inventory inspection | 34.4s / 68,258 | 29.1s / 32,634 | Both pass |
+| Support-ticket repair | 48.1s / 76,954 | 28.1s / 31,186 | Both pass |
+| Retail short | 127.1s / 291,910 | 90.6s / 96,717 | Both pass |
+| Dirty dates | 94.6s / 259,546 | 32.1s / 21,712 | Both pass |
+| Missing dimensions | 70.8s / 118,119 | 57.0s / 63,778 | Both pass |
+| Reactive repair | 60.2s / 125,012 | 28.6s / 27,060 | Both pass |
+| Retail long | 381.0s / 1,904,470 | 252.6s / 956,223 | Both pass |
+| SaaS reversal | 362.4s / 1,457,885 | 158.2s / 386,500 | Both pass |
+| Operations context | 265.0s / 1,567,578 | 129.1s / 504,260 | Both pass |
+
+The optimized hybrid used 61 exploratory executions, 29 atomic patches, 21
+inspections, nine capability loads, five configuration calls, and two explicit
+cell runs. It never selected package or UI-state tools in data tasks where they
+were irrelevant. Baseline used 172 exploratory executions.
+
+History compaction reduced the hybrid's accumulated raw long-case history from
+1,233,604 to 1,130,601 characters (8.3%) and reduced mean final long-case
+history from 125,544 to 109,369 characters (12.9%). Those direct reductions
+are useful but smaller than the token improvement against baseline. The full
+gain belongs to the combined strategy: typed mutations, fewer recovery calls,
+narrower inspections, verification discipline, compaction, and stochastic
+trajectory differences. It should not be attributed to compaction alone.
+
+Logfire contained 52 turn traces for the run. Each trace contained 6--40
+spans, exactly one root span, and zero child spans whose parent was unavailable.
+
+This is one observation per scenario, and four-way parallel execution makes
+absolute latency sensitive to endpoint contention. Exact percentages are not
+population estimates. Token counts are less affected by concurrency, and the
+direction is unusually consistent: equal correctness and lower input in every
+scenario, supported by the repeated long-case experiments above.
+
+Conclusion: the optimized seven-tool hybrid is now the best demonstrated
+strategy and has passed the requested full-suite gate. Keep it as the leading
+architecture. The next optimization target should not be more history work or
+more tools; it should be bounded same-turn recovery for models that repeatedly
+submit failing patches, measured separately on the Qwen failure-heavy case.
