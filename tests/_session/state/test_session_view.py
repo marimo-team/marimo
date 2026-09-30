@@ -7,7 +7,7 @@ from unittest.mock import patch
 import msgspec
 import pytest
 
-from marimo._ast.cell import RuntimeStateType
+from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._data.models import (
     Database,
     DataSourceConnection,
@@ -58,6 +58,7 @@ from marimo._runtime.commands import (
     ModelCommand,
     ModelCustomMessage,
     ModelUpdateMessage,
+    ReplaceCellCommand,
     UpdateUIElementCommand,
 )
 from marimo._runtime.layout.layout import LayoutConfig
@@ -2428,3 +2429,27 @@ def test_preparation_remains_available_after_package_changes(
             logs={},
         ),
     ]
+
+
+def test_replacement_does_not_replay_previous_cell_execution(
+    session_view: SessionView,
+) -> None:
+    for cid in (cell_id, CellId_t("setup"), CellId_t("other")):
+        session_view.add_control_request(
+            ExecuteCellsCommand(cell_ids=[cid], codes=["x = 1"])
+        )
+        session_view.add_notification(
+            CellNotification(cell_id=cid, output=initial_output, status="idle")
+        )
+        session_view.last_execution_time[cid] = 1.0
+    session_view.add_control_request(
+        ReplaceCellCommand(
+            cell_id=cell_id,
+            new_cell_id="setup",
+            code="x = 2",
+            config=CellConfig(),
+        )
+    )
+    assert session_view.last_executed_code == {"other": "x = 1"}
+    assert session_view.last_execution_time == {"other": 1.0}
+    assert set(session_view.cell_notifications) == {"other"}

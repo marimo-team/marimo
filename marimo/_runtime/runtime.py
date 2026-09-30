@@ -110,6 +110,7 @@ from marimo._runtime.commands import (
     ExecuteStaleCellsCommand,
     InvokeFunctionCommand,
     OutOfBandCommand,
+    ReplaceCellCommand,
     SetBreakpointsCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
@@ -1632,6 +1633,28 @@ class Kernel:
                     execution_requests=[], deletion_requests=[request]
                 )
             )
+
+    async def replace_cell(self, request: ReplaceCellCommand) -> None:
+        """Replace a cell atomically, leaving it and its dependents stale."""
+        if request.cell_id == request.new_cell_id:
+            raise ValueError("Replacement must have a different cell ID")
+        if request.new_cell_id in self.graph.cells:
+            raise ValueError("Replacement cell already exists")
+
+        self._uninstantiated_execution_requests.pop(request.cell_id, None)
+        self.cell_metadata[request.new_cell_id] = CellMetadata(
+            config=request.config
+        )
+        stale = self.mutate_graph(
+            execution_requests=[
+                ExecuteCellCommand(
+                    cell_id=request.new_cell_id, code=request.code
+                )
+            ],
+            deletion_requests=[DeleteCellCommand(cell_id=request.cell_id)],
+            cells_starting_stale={request.new_cell_id},
+        )
+        self.graph.set_stale(stale, prune_imports=True)
 
     @kernel_tracer.start_as_current_span("sync_graph")
     async def sync_graph(

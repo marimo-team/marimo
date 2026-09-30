@@ -345,6 +345,16 @@ export function toDocumentChanges(
     case "moveToNextCell":
       return newCellChanges(prevState, newState);
 
+    case "convertCell":
+      if (prevState === newState) {
+        return [];
+      }
+      return [
+        ...newCellChanges(prevState, newState),
+        ...deletedCellChanges(prevState, newState),
+        ...columnChanges(prevState, newState),
+      ];
+
     // addSetupCellIfDoesntExist: creates setup cell if missing.
     case "addSetupCellIfDoesntExist":
       return newCellChanges(prevState, newState);

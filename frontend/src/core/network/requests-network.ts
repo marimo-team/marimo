@@ -150,6 +150,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    sendReplaceCell: (request) => {
+      return getClient()
+        .POST("/api/kernel/replace_cell", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     sendDeleteCell: (request) => {
       return getClient()
         .POST("/api/kernel/delete", {

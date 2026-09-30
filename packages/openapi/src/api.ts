@@ -2430,6 +2430,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/replace_cell": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ReplaceCellRequest"];
+        };
+      };
+      responses: {
+        /** @description Replace a cell without executing it */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/kernel/restart_session": {
     parameters: {
       query?: never;
@@ -5750,6 +5791,7 @@ export interface components {
         | components["schemas"]["DebugCellCommand"]
         | components["schemas"]["SetBreakpointsCommand"]
         | components["schemas"]["DeleteCellCommand"]
+        | components["schemas"]["ReplaceCellCommand"]
         | components["schemas"]["SyncGraphCommand"]
         | components["schemas"]["UpdateCellConfigCommand"]
         | components["schemas"]["InstallPackagesCommand"]
@@ -6765,6 +6807,25 @@ export interface components {
       cellIds: components["schemas"]["CellId"][];
       /** @enum {unknown} */
       type: "reorder-cells";
+    };
+    /**
+     * ReplaceCellCommand
+     * @description Replace a cell's identity and code without executing the notebook.
+     */
+    ReplaceCellCommand: {
+      cellId: string;
+      code: string;
+      config: components["schemas"]["CellConfig"];
+      newCellId: string;
+      /** @enum {unknown} */
+      type: "replace-cell";
+    };
+    /** ReplaceCellRequest */
+    ReplaceCellRequest: {
+      cellId: components["schemas"]["CellId"];
+      code: string;
+      config: components["schemas"]["CellConfig"];
+      newCellId: components["schemas"]["CellId"];
     };
     /** Format: request-id */
     RequestId: TypedString<"RequestId">;

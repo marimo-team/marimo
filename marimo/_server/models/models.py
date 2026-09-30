@@ -26,6 +26,7 @@ from marimo._runtime.commands import (
     ModelCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
+    ReplaceCellCommand,
     SetBreakpointsCommand,
     StorageDownloadCommand,
     StorageListEntriesCommand,
@@ -194,6 +195,16 @@ class UpdateUserConfigRequest(UpdateUserConfigCommand, tag=False):
 class DeleteCellRequest(DeleteCellCommand, tag=False):
     def as_command(self) -> DeleteCellCommand:
         return DeleteCellCommand(cell_id=self.cell_id)
+
+
+class ReplaceCellRequest(ReplaceCellCommand, tag=False):
+    def as_command(self) -> ReplaceCellCommand:
+        return ReplaceCellCommand(
+            cell_id=self.cell_id,
+            new_cell_id=self.new_cell_id,
+            code=self.code,
+            config=self.config,
+        )
 
 
 class InstallPackagesRequest(InstallPackagesCommand, tag=False):

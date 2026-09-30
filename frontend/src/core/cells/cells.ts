@@ -21,6 +21,7 @@ import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
 import {
+  getEditorCodeAsPython,
   splitEditor,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
@@ -36,6 +37,7 @@ import { prepareCellForExecution, transitionCell } from "./cell";
 import { documentTransactionMiddleware } from "./document-changes";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
+import { DEFAULT_CELL_NAME } from "./names";
 import {
   focusAndScrollCellIntoView,
   scrollToBottom,
@@ -1556,6 +1558,76 @@ const {
       cellRuntime: newCellRuntime,
     };
   },
+  convertCell: (
+    state,
+    action: {
+      cellId: CellId;
+      newCellId: CellId;
+      restore?: {
+        name: string;
+        config: CellConfig;
+        columnId: CellColumnId;
+        index: CellIndex;
+      };
+    },
+  ) => {
+    const { cellId, newCellId, restore } = action;
+    const ids = state.cellIds.inOrderIds;
+    if (
+      !ids.includes(cellId) ||
+      ids.includes(newCellId) ||
+      (cellId !== SETUP_CELL_ID && newCellId !== SETUP_CELL_ID)
+    ) {
+      return state;
+    }
+
+    const cell = state.cellData[cellId];
+    const view = state.cellHandles[cellId].current?.editorView;
+    const code = view ? getEditorCodeAsPython(view) : cell.code;
+    const serializedEditorState = view?.state.toJSON({ history: historyField });
+    if (serializedEditorState) {
+      serializedEditorState.doc = code;
+    }
+    const columnId =
+      restore && state.cellIds.get(restore.columnId)
+        ? restore.columnId
+        : state.cellIds.atOrThrow(0).id;
+    const cellIds = state.cellIds
+      .deleteById(cellId)
+      .insertId(newCellId, columnId, restore?.index ?? 0);
+    releaseCellAtoms(cellId);
+    return {
+      ...state,
+      cellIds,
+      cellData: {
+        ...state.cellData,
+        [newCellId]: createCell({
+          id: newCellId,
+          name:
+            newCellId === SETUP_CELL_ID
+              ? SETUP_CELL_ID
+              : (restore?.name ?? DEFAULT_CELL_NAME),
+          code,
+          edited: true,
+          serializedEditorState,
+          config: restore?.config ?? {
+            ...cell.config,
+            column: 0,
+            disabled: false,
+          },
+        }),
+      },
+      cellRuntime: {
+        ...state.cellRuntime,
+        [newCellId]: createCellRuntimeState(),
+      },
+      cellHandles: {
+        ...state.cellHandles,
+        [newCellId]: createRef(),
+      },
+      scrollKey: newCellId,
+    };
+  },
   addSetupCellIfDoesntExist: (state, action: { code?: string }) => {
     const { code } = action;
 
@@ -1710,6 +1782,9 @@ export const addLogs = imperativeActions.addLogs;
 /// ATOMS
 
 export const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
+export const hasSetupCellAtom = atom((get) =>
+  get(cellIdsAtom).setupCellExists(),
+);
 
 export const hasOnlyOneCellAtom = atom((get) =>
   get(cellIdsAtom).hasOnlyOneId(),

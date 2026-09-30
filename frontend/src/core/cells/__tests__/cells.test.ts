@@ -2858,6 +2858,88 @@ describe("cell reducer", () => {
     expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
   });
 
+  it("converts the only cell in both directions without losing editor contents", () => {
+    const view = state.cellHandles[firstCellId].current?.editorView;
+    view?.dispatch({ changes: { from: 0, insert: "import math" } });
+    actions.updateCellName({ cellId: firstCellId, name: "imports" });
+    actions.updateCellConfig({
+      cellId: firstCellId,
+      config: { hide_code: true, disabled: true },
+    });
+    actions.convertCell({ cellId: firstCellId, newCellId: SETUP_CELL_ID });
+    expect(state.cellIds.inOrderIds).toEqual([SETUP_CELL_ID]);
+    expect(state.cellData[SETUP_CELL_ID]).toMatchObject({
+      id: SETUP_CELL_ID,
+      name: "setup",
+      code: "import math",
+      edited: true,
+      lastCodeRun: null,
+      config: { hide_code: true, disabled: false, column: 0 },
+      serializedEditorState: { doc: "import math" },
+    });
+    expect(state.scrollKey).toBe(SETUP_CELL_ID);
+    expect(state.history).toEqual([]);
+
+    const regularId = CellId.create();
+    actions.convertCell({ cellId: SETUP_CELL_ID, newCellId: regularId });
+    expect(state.cellIds.inOrderIds).toEqual([regularId]);
+    expect(state.cellData[regularId]).toMatchObject({
+      id: regularId,
+      name: "_",
+      code: "import math",
+      edited: true,
+      lastCodeRun: null,
+      config: { hide_code: true, disabled: false, column: 0 },
+    });
+    expect(state.scrollKey).toBe(regularId);
+  });
+
+  it("does not overwrite an existing setup cell or convert a deleted cell", () => {
+    actions.addSetupCellIfDoesntExist({ code: "x = 1" });
+    const previous = state;
+    actions.convertCell({ cellId: firstCellId, newCellId: SETUP_CELL_ID });
+    expect(state).toBe(previous);
+    actions.convertCell({
+      cellId: cellId("missing"),
+      newCellId: SETUP_CELL_ID,
+    });
+    expect(state).toBe(previous);
+  });
+
+  it("restores a converted cell's name, configuration, and column on undo", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+      code: "import math",
+      name: "imports",
+    });
+    const id = state.cellIds.inOrderIds[1];
+    actions.addColumnBreakpoint({ cellId: id });
+    const cell = state.cellData[id];
+    const column = state.cellIds.findWithId(id);
+    const restore = {
+      name: cell.name,
+      config: cell.config,
+      columnId: column.id,
+      index: column.indexOfOrThrow(id),
+    };
+    actions.convertCell({ cellId: id, newCellId: SETUP_CELL_ID });
+    expect(state.cellIds.getColumns().map((c) => c.inOrderIds)).toEqual([
+      [SETUP_CELL_ID, firstCellId],
+      [],
+    ]);
+    actions.convertCell({ cellId: SETUP_CELL_ID, newCellId: id, restore });
+    expect(state.cellIds.getColumns().map((c) => c.inOrderIds)).toEqual([
+      [firstCellId],
+      [id],
+    ]);
+    expect(state.cellData[id]).toMatchObject({
+      name: cell.name,
+      config: cell.config,
+      code: cell.code,
+    });
+  });
+
   it("can delete and undelete the setup cell", () => {
     // Create the setup cell
     actions.addSetupCellIfDoesntExist({ code: "# Setup code" });

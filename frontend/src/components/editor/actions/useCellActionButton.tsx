@@ -12,6 +12,7 @@ import {
   Code2Icon,
   Columns2Icon,
   DatabaseIcon,
+  DiamondIcon,
   EyeIcon,
   EyeOffIcon,
   ImageIcon,
@@ -37,7 +38,12 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
+import {
+  hasOnlyOneCellAtom,
+  hasSetupCellAtom,
+  notebookIsRunningAtom,
+  useCellActions,
+} from "@/core/cells/cells";
 import { type CellId, SETUP_CELL_ID } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
 import { formatEditorViews } from "@/core/codemirror/format";
@@ -59,6 +65,7 @@ import { canLinkToCell, createCellLink } from "@/utils/cell-urls";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadCellOutputAsImage } from "@/utils/download";
 import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
+import { useConvertCell } from "../cell/useConvertCell";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { useRunCell } from "../cell/useRunCells";
 import { useSplitCellCallback } from "../cell/useSplitCell";
@@ -94,6 +101,9 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     markUntouched,
   } = useCellActions();
   const splitCell = useSplitCellCallback();
+  const { convertCell, converting } = useConvertCell();
+  const hasSetupCell = useAtomValue(hasSetupCellAtom);
+  const notebookIsRunning = useAtomValue(notebookIsRunningAtom);
   const runCell = useRunCell(cell?.cellId);
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
   const canDelete = !hasOnlyOneCell;
@@ -212,6 +222,18 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
 
     // View as
     [
+      {
+        icon: <DiamondIcon size={13} strokeWidth={1.5} />,
+        label: isSetupCell
+          ? "Convert to regular cell"
+          : "Convert to setup cell",
+        hidden: !isSetupCell && hasSetupCell,
+        disabled: converting || notebookIsRunning || status === "queued",
+        tooltip: isSetupCell
+          ? "Move this code to a regular cell. Functions and classes that use it may no longer be importable."
+          : "Setup runs before other cells and cannot depend on their variables.",
+        handle: () => convertCell(cellId),
+      },
       {
         icon: <MarkdownIcon />,
         label: "Convert to Markdown",

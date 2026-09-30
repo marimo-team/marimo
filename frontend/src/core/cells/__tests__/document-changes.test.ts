@@ -48,7 +48,7 @@ import {
   toDocumentChanges,
   withDocumentSave,
 } from "../document-changes";
-import { CellId } from "../ids";
+import { CellId, SETUP_CELL_ID } from "../ids";
 
 const { initialNotebookState, reducer } = exportedForTesting;
 
@@ -1136,5 +1136,73 @@ describe("document transaction middleware", () => {
     expect(sent.at(-1)).toEqual([
       { type: "set-code", cellId: x, code: "x = 3" },
     ]);
+  });
+});
+
+describe("cell conversion transactions", () => {
+  it("creates the replacement before deleting the only cell", () => {
+    setup("import math");
+    const original = state.cellIds.inOrderIds[0];
+    const { next, changes } = resolve(state, {
+      type: "convertCell",
+      payload: { cellId: original, newCellId: SETUP_CELL_ID },
+    });
+    expect(changes).toEqual([
+      {
+        type: "create-cell",
+        cellId: SETUP_CELL_ID,
+        code: "import math",
+        name: "setup",
+        config: next.cellData[SETUP_CELL_ID].config,
+      },
+      { type: "delete-cell", cellId: original },
+      {
+        type: "set-config",
+        cellId: SETUP_CELL_ID,
+        column: 0,
+        disabled: false,
+        hideCode: false,
+        expandOutput: false,
+      },
+      { type: "reorder-cells", cellIds: [SETUP_CELL_ID] },
+    ]);
+    const restored = resolve(next, {
+      type: "convertCell",
+      payload: { cellId: SETUP_CELL_ID, newCellId: original },
+    });
+    expect(restored.changes).toEqual([
+      {
+        type: "create-cell",
+        cellId: original,
+        code: "import math",
+        name: "_",
+        config: restored.next.cellData[original].config,
+      },
+      { type: "delete-cell", cellId: SETUP_CELL_ID },
+      {
+        type: "set-config",
+        cellId: original,
+        column: 0,
+        disabled: false,
+        hideCode: false,
+        expandOutput: false,
+      },
+      { type: "reorder-cells", cellIds: [original] },
+    ]);
+  });
+
+  it("does not send changes when a setup cell already exists", () => {
+    setup("x = 1");
+    const original = state.cellIds.inOrderIds[0];
+    const { next } = resolve(state, {
+      type: "addSetupCellIfDoesntExist",
+      payload: { code: "import math" },
+    });
+    expect(
+      resolve(next, {
+        type: "convertCell",
+        payload: { cellId: original, newCellId: SETUP_CELL_ID },
+      }).changes,
+    ).toEqual([]);
   });
 });

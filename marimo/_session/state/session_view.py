@@ -45,6 +45,7 @@ from marimo._runtime.commands import (
     ExecuteCellsCommand,
     ModelCommand,
     ModelUpdateMessage,
+    ReplaceCellCommand,
     SyncGraphCommand,
     UpdateUIElementCommand,
 )
@@ -240,6 +241,12 @@ class SessionView:
         elif isinstance(request, (ExecuteCellsCommand, SyncGraphCommand)):
             for execution_request in request.execution_requests:
                 self._add_last_run_code(execution_request)
+        elif isinstance(request, ReplaceCellCommand):
+            # Setup conversions can reuse an ID that has previously run.
+            for cell_id in (request.cell_id, request.new_cell_id):
+                self.cell_notifications.pop(cell_id, None)
+                self.last_executed_code.pop(cell_id, None)
+                self.last_execution_time.pop(cell_id, None)
         elif isinstance(request, CreateNotebookCommand):
             for (
                 object_id,

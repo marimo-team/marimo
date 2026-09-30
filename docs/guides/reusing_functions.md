@@ -54,6 +54,16 @@ import numpy as np
 ```
 
 To add a setup cell in the editor, open the notebook menu and select "Add setup cell".
+You can also open a regular cell's actions menu and select **Convert to setup
+cell**, provided the notebook does not already have one. The converted cell
+moves to the top of the notebook. Setup cells cannot depend on variables defined
+in other cells.
+
+To turn a setup cell back into a regular cell, select **Convert to regular
+cell** in its actions menu. Converting preserves the code and leaves the cell
+needing a run; it does not execute code. Demoting a setup cell may make functions
+and classes that depend on its definitions no longer importable.
+
 (The setup cell is guaranteed to run before other cells.)
 
 ### 2. Define your function

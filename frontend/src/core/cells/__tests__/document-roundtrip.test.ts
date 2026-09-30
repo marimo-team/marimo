@@ -31,7 +31,7 @@ import {
   applyTransactionChanges,
   exportedForTesting as middlewareExports,
 } from "../document-changes";
-import { CellId } from "../ids";
+import { CellId, SETUP_CELL_ID } from "../ids";
 
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
 const { drainChanges } = middlewareExports;
@@ -178,6 +178,19 @@ function documentSnapshot(state: NotebookState) {
 }
 
 describe("document round-trip", () => {
+  it("converts the only cell in both directions on all clients", () => {
+    setup("import math");
+    const original = primary.cellIds.inOrderIds[0];
+    primaryActions.convertCell({ cellId: original, newCellId: SETUP_CELL_ID });
+    sync();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
+    expect(replica.cellIds.inOrderIds).toEqual([SETUP_CELL_ID]);
+    primaryActions.convertCell({ cellId: SETUP_CELL_ID, newCellId: original });
+    sync();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
+    expect(replica.cellIds.inOrderIds).toEqual([original]);
+  });
+
   it("initial setup converges", () => {
     setup("a", "b", "c");
     expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));

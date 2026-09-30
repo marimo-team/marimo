@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from marimo._ast.cell import CellConfig
 from marimo._ast.variables import is_mangled_local
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
@@ -36,6 +37,7 @@ from marimo._runtime.commands import (
     CreateNotebookCommand,
     DeleteCellCommand,
     ExecuteCellCommand,
+    ReplaceCellCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
 )
@@ -1160,6 +1162,102 @@ except NameError:
         assert "x" not in k.globals
         assert set(k.errors.keys()) == {"0", "1"}
         assert not k.graph.cells["1"].stale
+
+    @pytest.mark.parametrize(
+        ("source", "target"), [("0", "setup"), ("setup", "0")]
+    )
+    async def test_replace_cell_leaves_dependencies_stale(
+        self, any_kernel: Kernel, source: str, target: str
+    ) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id=source, code="x = 1"),
+                ExecuteCellCommand(cell_id="child", code="y = x + 1"),
+            ]
+        )
+        await k.replace_cell(
+            ReplaceCellCommand(
+                cell_id=source,
+                new_cell_id=target,
+                code="x = 3",
+                config=CellConfig(hide_code=True),
+            )
+        )
+        assert set(k.graph.cells) == {target, "child"}
+        assert k.graph.get_stale() == {target, "child"}
+        assert not k.errors
+        assert "x" not in k.globals
+        assert k.globals["y"] == 2
+        assert k.graph.cells[target].config.hide_code
+
+        await k.run([ExecuteCellCommand(cell_id=target, code="x = 3")])
+        if k.lazy():
+            await k.run_stale_cells()
+        assert k.globals["y"] == 4
+        assert not k.graph.get_stale()
+        assert not k.errors
+
+    async def test_demoting_invalid_setup_recovers_dependencies(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="parent", code="x = 1"),
+                ExecuteCellCommand(cell_id="0", code="y = x + 1"),
+            ]
+        )
+        await k.replace_cell(
+            ReplaceCellCommand(
+                cell_id="0",
+                new_cell_id="setup",
+                code="y = x + 1",
+                config=CellConfig(),
+            )
+        )
+        assert "setup" in k.errors
+        await k.replace_cell(
+            ReplaceCellCommand(
+                cell_id="setup",
+                new_cell_id="0",
+                code="y = x + 1",
+                config=CellConfig(),
+            )
+        )
+        assert not k.errors
+        await k.run([ExecuteCellCommand(cell_id="0", code="y = x + 1")])
+        assert k.globals["y"] == 2
+        assert set(k.graph.cells) == {"parent", "0"}
+
+    async def test_replace_uninstantiated_cell(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreateNotebookCommand(
+                execution_requests=(
+                    ExecuteCellCommand(cell_id="0", code="x = 1"),
+                ),
+                cell_ids=("0",),
+                set_ui_element_value_request=UpdateUIElementCommand(
+                    object_ids=[], values=[]
+                ),
+                auto_run=False,
+            )
+        )
+        await k.replace_cell(
+            ReplaceCellCommand(
+                cell_id="0",
+                new_cell_id="setup",
+                code="x = 2",
+                config=CellConfig(),
+            )
+        )
+        await k.run_stale_cells()
+        assert set(k.graph.cells) == {"setup"}
+        assert k.globals["x"] == 2
+        assert not k.errors
 
     async def test_setup_runs(self, any_kernel: Kernel) -> None:
         k = any_kernel

@@ -26,6 +26,7 @@ from marimo._runtime.commands import (
     InvokeFunctionCommand,
     ModelCommand,
     RenameNotebookCommand,
+    ReplaceCellCommand,
     StopKernelCommand,
     SyncGraphCommand,
     UpdateCellConfigCommand,
@@ -55,6 +56,7 @@ class KernelRequestHandlers:
         k = self._kernel
         router.register(CreateNotebookCommand, self._handle_instantiate)
         router.register(DeleteCellCommand, k.delete_cell)
+        router.register(ReplaceCellCommand, k.replace_cell)
         router.register(ExecuteCellsCommand, self._handle_execute_multiple)
         router.register(SyncGraphCommand, self._handle_sync_graph)
         router.register(

@@ -20,6 +20,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
 from marimo._messaging.notebook.document import NotebookCell
@@ -591,6 +592,15 @@ class DeleteCellCommand(Command):
     cell_id: CellId_t
 
 
+class ReplaceCellCommand(Command):
+    """Replace a cell's identity and code without executing the notebook."""
+
+    cell_id: CellId_t
+    new_cell_id: CellId_t
+    code: str
+    config: CellConfig
+
+
 class StopKernelCommand(Command):
     """Stop kernel execution.
 
@@ -954,6 +964,7 @@ CommandMessage = (
     | DebugCellCommand
     | SetBreakpointsCommand
     | DeleteCellCommand
+    | ReplaceCellCommand
     | SyncGraphCommand
     | UpdateCellConfigCommand
     # Package management

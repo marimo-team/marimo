@@ -53,6 +53,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendInstantiate: "startConnectionWithoutKernel",
   sendRun: "startConnection",
   sendDeleteCell: "startConnection",
+  sendReplaceCell: "startConnection",
   sendRunScratchpad: "startConnection",
   saveAppConfig: "startConnection",
   saveCellConfig: "startConnection",

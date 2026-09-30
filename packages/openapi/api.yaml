@@ -3172,6 +3172,7 @@ components:
           - $ref: '#/components/schemas/DebugCellCommand'
           - $ref: '#/components/schemas/SetBreakpointsCommand'
           - $ref: '#/components/schemas/DeleteCellCommand'
+          - $ref: '#/components/schemas/ReplaceCellCommand'
           - $ref: '#/components/schemas/SyncGraphCommand'
           - $ref: '#/components/schemas/UpdateCellConfigCommand'
           - $ref: '#/components/schemas/InstallPackagesCommand'
@@ -3216,6 +3217,7 @@ components:
               preview-sql-table: '#/components/schemas/PreviewSQLTableCommand'
               refresh-secrets: '#/components/schemas/RefreshSecretsCommand'
               rename-notebook: '#/components/schemas/RenameNotebookCommand'
+              replace-cell: '#/components/schemas/ReplaceCellCommand'
               set-breakpoints: '#/components/schemas/SetBreakpointsCommand'
               stop-kernel: '#/components/schemas/StopKernelCommand'
               storage-download: '#/components/schemas/StorageDownloadCommand'
@@ -4878,6 +4880,45 @@ components:
       - type
       - cellIds
       title: ReorderCells
+      type: object
+    ReplaceCellCommand:
+      description: Replace a cell's identity and code without executing the notebook.
+      properties:
+        cellId:
+          type: string
+        code:
+          type: string
+        config:
+          $ref: '#/components/schemas/CellConfig'
+        newCellId:
+          type: string
+        type:
+          enum:
+          - replace-cell
+      required:
+      - type
+      - cellId
+      - newCellId
+      - code
+      - config
+      title: ReplaceCellCommand
+      type: object
+    ReplaceCellRequest:
+      properties:
+        cellId:
+          $ref: '#/components/schemas/CellId'
+        code:
+          type: string
+        config:
+          $ref: '#/components/schemas/CellConfig'
+        newCellId:
+          $ref: '#/components/schemas/CellId'
+      required:
+      - cellId
+      - newCellId
+      - code
+      - config
+      title: ReplaceCellRequest
       type: object
     RequestId:
       format: request-id
@@ -7746,6 +7787,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Rename the current app
+  /api/kernel/replace_cell:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceCellRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Replace a cell without executing it
   /api/kernel/restart_session:
     post:
       parameters:

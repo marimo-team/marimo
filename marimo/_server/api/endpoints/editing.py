@@ -22,6 +22,7 @@ from marimo._server.models.models import (
     FormatCellsRequest,
     FormatResponse,
     InstallPackagesRequest,
+    ReplaceCellRequest,
     StdinRequest,
     SuccessResponse,
     UpdateCellConfigRequest,
@@ -86,6 +87,32 @@ async def delete_cell(request: Request) -> BaseResponse:
                         $ref: "#/components/schemas/SuccessResponse"
     """
     return await dispatch_control_request(request, DeleteCellRequest)
+
+
+@router.post("/replace_cell")
+@requires("edit")
+async def replace_cell(request: Request) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ReplaceCellRequest"
+    responses:
+        200:
+            description: Replace a cell without executing it
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    return await dispatch_control_request(request, ReplaceCellRequest)
 
 
 @router.post("/focus_cell")
