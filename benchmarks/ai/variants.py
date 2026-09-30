@@ -33,35 +33,6 @@ VARIANTS = (
         history_strategy="incremental_checkpoint",
         checkpoint_threshold_chars=60_000,
     ),
-    HarnessVariant(
-        id="harness_checkpoint",
-        description=(
-            "Harness compact_now summaries persisted across sidebar turns."
-        ),
-        tool_strategy="hybrid_balanced",
-        history_strategy="harness_checkpoint",
-        checkpoint_threshold_chars=60_000,
-    ),
-    HarnessVariant(
-        id="hybrid_checkpoint_forced",
-        description=(
-            "Custom persistent checkpoint forced at 25,000 characters for "
-            "models with compact responses."
-        ),
-        tool_strategy="hybrid_balanced",
-        history_strategy="incremental_checkpoint",
-        checkpoint_threshold_chars=25_000,
-    ),
-    HarnessVariant(
-        id="harness_checkpoint_forced",
-        description=(
-            "Harness persistent checkpoint forced at 25,000 characters for "
-            "models with compact responses."
-        ),
-        tool_strategy="hybrid_balanced",
-        history_strategy="harness_checkpoint",
-        checkpoint_threshold_chars=25_000,
-    ),
 )
 
 

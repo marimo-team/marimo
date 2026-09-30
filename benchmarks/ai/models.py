@@ -84,7 +84,6 @@ class HarnessVariant:
         "none",
         "semantic",
         "incremental_checkpoint",
-        "harness_checkpoint",
     ] = "none"
     checkpoint_threshold_chars: int | None = None
 

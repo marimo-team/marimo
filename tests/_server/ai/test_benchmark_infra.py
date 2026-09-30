@@ -4,14 +4,10 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 
 import pytest
 
-from benchmarks.ai.checkpoint import (
-    HarnessCheckpointCompactor,
-    IncrementalCheckpointCompactor,
-)
+from benchmarks.ai.checkpoint import IncrementalCheckpointCompactor
 from benchmarks.ai.models import (
     FileAttachment,
     HarnessVariant,
@@ -62,27 +58,6 @@ class _FakeCheckpointCompactor(IncrementalCheckpointCompactor):
         )
 
 
-class _FakeHarnessCheckpointCompactor(HarnessCheckpointCompactor):
-    async def _compact(
-        self, messages: list[dict[str, Any]]
-    ) -> tuple[list[dict[str, Any]], TokenUsage]:
-        return (
-            [
-                {
-                    "id": "summary",
-                    "role": "assistant",
-                    "parts": [
-                        {
-                            "type": "text",
-                            "text": f"compacted {len(messages)} messages",
-                        }
-                    ],
-                }
-            ],
-            TokenUsage(requests=1, input_tokens=60, output_tokens=12),
-        )
-
-
 def test_incremental_checkpoint_reuses_completed_prefix() -> None:
     compactor = _FakeCheckpointCompactor(
         model="provider/model",
@@ -125,45 +100,6 @@ def test_incremental_checkpoint_reuses_completed_prefix() -> None:
     assert not repeated.generated
     assert second.generated
     assert "checkpoint from" in second.messages[1]["parts"][0]["text"]
-
-
-def test_harness_checkpoint_persists_compacted_history() -> None:
-    compactor = _FakeHarnessCheckpointCompactor(
-        model="provider/model",
-        threshold_chars=1,
-        minimum_completed_turns=1,
-    )
-    messages = [
-        {"role": "user", "parts": [{"type": "text", "text": "one"}]},
-        {
-            "role": "assistant",
-            "parts": [{"type": "text", "text": "done one"}],
-        },
-        {"role": "user", "parts": [{"type": "text", "text": "two"}]},
-    ]
-
-    first = compactor.prepare(messages)
-    repeated = compactor.prepare(messages)
-    messages.extend(
-        [
-            {
-                "role": "assistant",
-                "parts": [{"type": "text", "text": "done two"}],
-            },
-            {
-                "role": "user",
-                "parts": [{"type": "text", "text": "three"}],
-            },
-        ]
-    )
-    second = compactor.prepare(messages)
-
-    assert first.generated
-    assert first.messages[0]["parts"][0]["text"] == "compacted 3 messages"
-    assert not repeated.generated
-    assert repeated.messages == first.messages
-    assert second.generated
-    assert second.messages[0]["parts"][0]["text"] == "compacted 3 messages"
 
 
 def test_reconstructs_ui_message_from_vercel_stream() -> None:

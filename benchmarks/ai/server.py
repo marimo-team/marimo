@@ -16,10 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Self, cast
 
-from benchmarks.ai.checkpoint import (
-    HarnessCheckpointCompactor,
-    IncrementalCheckpointCompactor,
-)
+from benchmarks.ai.checkpoint import IncrementalCheckpointCompactor
 from benchmarks.ai.models import (
     HarnessVariant,
     JSONValue,
@@ -159,9 +156,9 @@ class MarimoServer:
     _stop_drain: threading.Event = field(default_factory=threading.Event)
     _cell_ids_by_name: dict[str, str] = field(default_factory=dict)
     _cell_codes_by_name: dict[str, str] = field(default_factory=dict)
-    _checkpoint_compactor: (
-        IncrementalCheckpointCompactor | HarnessCheckpointCompactor | None
-    ) = field(default=None, init=False)
+    _checkpoint_compactor: IncrementalCheckpointCompactor | None = field(
+        default=None, init=False
+    )
 
     def __enter__(self) -> Self:
         self._write_config()
@@ -418,17 +415,9 @@ base_url = "https://api.inference.wandb.ai/v1/"
         checkpoint_duration_seconds = 0.0
         checkpoint_input_chars = 0
         checkpoint_usage = TokenUsage()
-        if self.variant.history_strategy in {
-            "incremental_checkpoint",
-            "harness_checkpoint",
-        }:
+        if self.variant.history_strategy == "incremental_checkpoint":
             if self._checkpoint_compactor is None:
-                compactor_type = (
-                    HarnessCheckpointCompactor
-                    if self.variant.history_strategy == "harness_checkpoint"
-                    else IncrementalCheckpointCompactor
-                )
-                self._checkpoint_compactor = compactor_type(
+                self._checkpoint_compactor = IncrementalCheckpointCompactor(
                     model=self.model,
                     threshold_chars=(
                         self.variant.checkpoint_threshold_chars or 80_000
@@ -467,7 +456,7 @@ base_url = "https://api.inference.wandb.ai/v1/"
                 HISTORY_STRATEGY_HEADER: (
                     "semantic"
                     if self.variant.history_strategy
-                    in {"incremental_checkpoint", "harness_checkpoint"}
+                    == "incremental_checkpoint"
                     else self.variant.history_strategy
                 ),
                 INCLUDE_USAGE_HEADER: "true",
