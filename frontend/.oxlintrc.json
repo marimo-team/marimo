@@ -77,7 +77,6 @@
     "no-inner-declarations": "error",
     "no-useless-constructor": "error",
 
-    "no-redeclare": "off",
     "no-empty": "warn",
     "no-cond-assign": "warn",
     "prefer-const": "error",
