@@ -130,6 +130,13 @@ otel = [
 ]
 
 [dependency-groups]
+ai-eval = [
+    "altair>=5.4.0",
+    "pandas>=1.5.3",
+    "pillow>=10.2.0,!=11.3.0",
+    "python-dotenv>=1.0.1",
+]
+
 dev = [
     # Typo checking
     "typos~=1.23.6",
@@ -322,7 +329,7 @@ wheel-exclude = ["marimo/_smoke_tests/**"]
 
 [tool.ruff]
 line-length = 79
-include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py"]
+include = ["marimo/**/*.py", "tests/**/*.py", "benchmarks/**/*.py", "dagger/**/*.py"]
 exclude = [
     "build",
     "docs",
@@ -537,7 +544,10 @@ markers = [
 omit = ["marimo/_tutorials/*"]
 
 [tool.typos.default]
-extend-ignore-re = ["[0-9a-zA-Z_-]{43}"]
+extend-ignore-re = [
+    "[0-9a-zA-Z_-]{43}",
+    "[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}",
+]
 
 [tool.typos.default.extend-words]
 wheres = "wheres"

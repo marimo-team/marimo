@@ -23,6 +23,7 @@ Usage::
 
 from __future__ import annotations
 
+import keyword
 import sys
 from dataclasses import dataclass
 from enum import Enum
@@ -108,6 +109,16 @@ if TYPE_CHECKING:
     from marimo._code_mode.screenshot import _ScreenshotSession
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
+
+
+def _validate_cell_name(name: str | None) -> None:
+    if name is None or name == "":
+        return
+    if not name.isidentifier() or keyword.iskeyword(name):
+        raise ValueError(
+            f"Invalid cell name {name!r}. Cell names must be valid Python "
+            "identifiers, such as 'load_data'."
+        )
 
 
 @helpable
@@ -1100,15 +1111,17 @@ class AsyncCodeModeContext:
             expand_output (bool): Show the cell's output in full instead of
                 clamping it to a fixed height. Defaults to False.
             column (int, optional): Column index for multi-column layouts.
-            name (str, optional): Cell names are a human-facing label,
-                reserved for special cases (e.g. `"setup"`). Prefer
-                referencing cells by the returned cell ID unless
-                naming is important for the user.
+            name (str, optional): Stable cell name. Must be a valid Python
+                identifier, such as `"load_data"`; display titles with spaces
+                are not valid names. Reserved for special cases (for example,
+                `"setup"`). Prefer the returned cell ID unless naming is
+                important.
         """
         self._require_entered()
         if before is not None and after is not None:
             raise ValueError("Cannot specify both 'before' and 'after'")
 
+        _validate_cell_name(name)
         cell_id, resolved_name = self._resolve_new_cell(name)
 
         config = CellConfig(
@@ -1202,9 +1215,12 @@ class AsyncCodeModeContext:
             expand_output (bool, optional): Show the cell's output in full
                 instead of clamping it to a fixed height. None keeps existing.
             column (int, optional): Column index for multi-column layouts. None keeps existing.
-            name (str, optional): New name for the cell. None keeps existing.
+            name (str, optional): New stable cell name. Must be a valid Python
+                identifier, such as `"analysis_summary"`; display titles with
+                spaces are not valid names. None keeps the existing name.
         """
         self._require_entered()
+        _validate_cell_name(name)
         cell_id = self._resolve_target(target)
 
         # Handle cell-id migration when converting to a setup cell.
@@ -1734,11 +1750,26 @@ class AsyncCodeModeContext:
         # Let mutate_graph handle all graph mutations: it properly
         # cleans up globals, UI elements, and lifecycle hooks for
         # deleted/replaced cells via _delete_cell / _deactivate_cell.
+        _run_set = explicit_run or set()
         execution_requests = [
             ExecuteCellCommand(cell_id=e.cell_id, code=e.code)
             for e in code_entries
             if e.code is not None
         ]
+        requested_ids = {request.cell_id for request in execution_requests}
+        # An open notebook can contain cells that have not entered the kernel
+        # graph yet. Register explicitly requested document-only cells in this
+        # mutation so dependency sorting can see them before execution.
+        execution_requests.extend(
+            ExecuteCellCommand(
+                cell_id=entry.cell_id,
+                code=existing_code[entry.cell_id],
+            )
+            for entry in plan
+            if entry.cell_id in _run_set
+            and entry.cell_id not in self.graph.cells
+            and entry.cell_id not in requested_ids
+        )
         deletion_requests = [
             DeleteCellCommand(cell_id=cid)
             for cid in existing_id_set - plan_ids
@@ -1747,6 +1778,23 @@ class AsyncCodeModeContext:
         cells_to_run = self._kernel.mutate_graph(
             execution_requests, deletion_requests
         )
+
+        for entry in code_entries:
+            if entry.cell_id not in existing_id_set:
+                continue
+            prior = self._document.get_cell(entry.cell_id)
+            self._kernel.agent.revisions.record(
+                entry.cell_id,
+                code=existing_code[entry.cell_id],
+                name=prior.name,
+            )
+        for cell_id in existing_id_set - plan_ids:
+            prior = self._document.get_cell(cell_id)
+            self._kernel.agent.revisions.record(
+                cell_id,
+                code=existing_code[cell_id],
+                name=prior.name,
+            )
 
         # Restore cell ordering in the graph to match the plan.
         # mutate_graph may reorder cells: _deactivate_cell removes a cell
@@ -1793,7 +1841,6 @@ class AsyncCodeModeContext:
 
         # Run queued cells (explicit run_cell + autorun descendants),
         # filtered to cells that still exist after structural ops.
-        _run_set = explicit_run or set()
         if _run_set and self._kernel.reactive_execution_mode == "autorun":
             _run_set = _run_set | cells_to_run
         if _run_set:

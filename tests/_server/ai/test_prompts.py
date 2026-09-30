@@ -428,6 +428,28 @@ def test_chat_system_prompt_code_mode():
     assert "before the inspection succeeds" in prompt
 
 
+def test_chat_system_prompt_balanced_hybrid_uses_typed_tool_skill():
+    prompt = get_chat_system_prompt(
+        custom_rules=None,
+        include_other_code="",
+        mode="code_mode",
+        session_id=SessionId("s_test"),
+        tool_strategy="hybrid_balanced",
+    )
+
+    assert load_skill("marimo-hybrid") in prompt
+    assert load_skill("marimo-pair") not in prompt
+    assert 'inspect_notebook(scope="all")' in prompt
+    assert "Use `manage_packages`" in prompt
+    assert (
+        "do not follow a successful patch with a full inspection"
+        in prompt.replace("\n", " ")
+    )
+    assert "Prefer the `errors` or `outline` scope" in prompt.replace(
+        "\n", " "
+    )
+
+
 def test_chat_system_prompt_code_mode_includes_extras():
     prompt = get_chat_system_prompt(
         custom_rules="Always be polite.",

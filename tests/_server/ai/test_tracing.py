@@ -101,6 +101,7 @@ class TestBuildAttributes:
                 model="openai/gpt-4o",
                 language="python",
                 session_id="session-123",
+                conversation_id="conversation-456",
                 tool_count=3,
             )
         )
@@ -110,6 +111,7 @@ class TestBuildAttributes:
             "marimo.ai.model": "gpt-4o",
             "marimo.ai.language": "python",
             "marimo.ai.session_id": "session-123",
+            "gen_ai.conversation.id": "conversation-456",
             "marimo.ai.tool_count": 3,
         }
 

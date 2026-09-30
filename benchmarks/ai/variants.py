@@ -1,0 +1,29 @@
+from __future__ import annotations
+
+from benchmarks.ai.models import HarnessVariant
+
+VARIANTS = (
+    HarnessVariant(
+        id="baseline",
+        description="Current production code-mode harness and prompts.",
+    ),
+    HarnessVariant(
+        id="hybrid_balanced",
+        description=(
+            "Atomic hybrid tools plus grouped package, UI-state, and cell "
+            "configuration capabilities."
+        ),
+        tool_strategy="hybrid_balanced",
+    ),
+)
+
+
+def get_variants(ids: set[str] | None = None) -> tuple[HarnessVariant, ...]:
+    if not ids:
+        return (VARIANTS[0],)
+    variants = tuple(variant for variant in VARIANTS if variant.id in ids)
+    missing = ids - {variant.id for variant in variants}
+    if missing:
+        names = ", ".join(sorted(missing))
+        raise ValueError(f"Unknown variant(s): {names}")
+    return variants

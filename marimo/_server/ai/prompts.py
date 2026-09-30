@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Literal
+
 from marimo._config.config import CopilotMode
 from marimo._server.ai.skills.utils import load_skill
 from marimo._server.models.completion import (
@@ -434,11 +436,29 @@ def get_chat_system_prompt(
     include_other_code: str,
     mode: CopilotMode,
     session_id: SessionId,
+    tool_strategy: Literal["code_mode", "hybrid_balanced"] = "code_mode",
 ) -> str:
     # Code mode runs against the live kernel, so it leans on the marimo-pair
     # skill instead of the static notebook guide.
     if mode == "code_mode":
-        skill_md = load_skill("marimo-pair")
+        skill_name = (
+            "marimo-hybrid"
+            if tool_strategy == "hybrid_balanced"
+            else "marimo-pair"
+        )
+        skill_md = load_skill(skill_name)
+        if tool_strategy == "hybrid_balanced":
+            skill_md += """
+
+## Extended operations
+
+Use `manage_packages` for dependency installation and removal; never invoke
+`pip` or `uv` from exploratory code. Complete package changes before patching
+cells that import them. Use `set_ui_value` for live `mo.ui` interactions
+without editing widget defaults. Use `configure_notebook` for presentation
+configuration and visual cell ordering; these changes do not alter the
+reactive dependency graph.
+"""
         intro = _get_mode_intro_message(mode)
         skill_section = (
             "The following information explains how to work with marimo "

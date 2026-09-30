@@ -665,6 +665,7 @@ class TestScratchCellListener:
         name, payload = _parse_sse(events[0])
         assert name == "stderr"
         assert payload["data"] == "error trace\n"
+        assert listener.child_stderr == ["error trace\n"]
 
     @pytest.mark.asyncio
     async def test_stream_cancelled_on_disconnect(self) -> None:
@@ -941,6 +942,16 @@ class TestRunScratchpadCode:
         session.emit(
             CellNotification(
                 cell_id=CellId_t("child-cell"),
+                console=CellOutput.stderr(
+                    'File "<cell-child-cell>", line 1\n'
+                    "    1 / 0\n"
+                    "ZeroDivisionError: division by zero\n"
+                ),
+            )
+        )
+        session.emit(
+            CellNotification(
+                cell_id=CellId_t("child-cell"),
                 output=CellOutput.errors(
                     [
                         MarimoExceptionRaisedError(
@@ -964,7 +975,16 @@ class TestRunScratchpadCode:
         )
 
         assert result.success is False
-        assert result.errors == ["cell 'child-cell' raised ZeroDivisionError"]
+        assert result.errors == [
+            "cell 'child-cell' raised ZeroDivisionError: division by zero"
+        ]
+        assert result.stderr == [
+            (
+                'File "<cell-child-cell>", line 1\n'
+                "    1 / 0\n"
+                "ZeroDivisionError: division by zero\n"
+            )
+        ]
 
     @pytest.mark.asyncio
     async def test_listener_registered_only_while_lock_held(self) -> None:

@@ -35,6 +35,7 @@ from marimo._server.ai.providers import (
     _infer_provider_name_from_base_url,
     _normalize_base_url,
     _require_github_copilot_dependency,
+    _stream_usage,
     _structured_completion_finish_reason,
     get_completion_provider,
 )
@@ -127,7 +128,8 @@ async def test_stream_structured_completion_emits_validated_data(
     config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
     provider = OpenAIProvider("gpt-4", config)
     stream_options = StreamOptions(
-        span_info=SpanInfo(endpoint="completion", model="openai/gpt-4")
+        include_usage=True,
+        span_info=SpanInfo(endpoint="completion", model="openai/gpt-4"),
     )
 
     with patch.object(
@@ -156,6 +158,7 @@ async def test_stream_structured_completion_emits_validated_data(
         for chunk in chunks
     )
     assert '"type":"data-cell-completion"' in body
+    assert '"type":"data-marimo-usage"' in body
     assert "print('```')" in body
     assert '"transient":true' in body
 
@@ -897,6 +900,22 @@ async def test_completion_thinking_override(thinking: bool | None) -> None:
 
 
 @pytest.mark.requires("pydantic_ai")
+def test_wandb_completion_disables_chat_template_thinking() -> None:
+    config = AnyProviderConfig(
+        api_key="test-key",
+        base_url="https://api.inference.wandb.ai/v1/",
+    )
+    provider = CustomProvider(
+        AiModelId.from_model("wandb/Qwen/Qwen3.5-35B-A3B"), config
+    )
+
+    assert provider._completion_model_settings(False) == {
+        "thinking": False,
+        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+    }
+
+
+@pytest.mark.requires("pydantic_ai")
 async def test_completion_tool_count_includes_capabilities() -> None:
     """`completion` reports tools plus the agent's native capabilities, so its
     telemetry matches the streaming paths."""
@@ -1170,11 +1189,17 @@ async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
     session = MagicMock(name="session")
     request = MagicMock(name="request")
     toolset = MagicMock(name="toolset")
+    toolset.tools = {"execute_code": MagicMock()}
     streaming_response = MagicMock(name="streaming_response")
     adapter: MagicMock = MagicMock(name="adapter")
     adapter.streaming_response = MagicMock(return_value=streaming_response)
     stream_options = StreamOptions(
-        span_info=SpanInfo(endpoint="chat", model="openai/gpt-4"),
+        include_usage=True,
+        span_info=SpanInfo(
+            endpoint="chat",
+            model="openai/gpt-4",
+            conversation_id="conversation-123",
+        ),
     )
 
     def build_mock_agent(*_args: Any, **kwargs: Any) -> MagicMock:
@@ -1199,7 +1224,7 @@ async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
         patch(
             "pydantic_ai.ui.vercel_ai.VercelAIAdapter",
             return_value=adapter,
-        ),
+        ) as mock_adapter,
     ):
         result = await provider.stream_completion_harness(
             messages=[],
@@ -1213,6 +1238,8 @@ async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
 
     assert result is streaming_response
     assert stream_options.span_info.tool_count == 4
+    assert mock_adapter.call_args.kwargs["run_input"].id == "conversation-123"
+    assert adapter.run_stream.call_args.kwargs["on_complete"] is _stream_usage
     # The toolset is bound to the caller's session and request.
     mock_build_toolset.assert_called_once_with(session, request)
 
