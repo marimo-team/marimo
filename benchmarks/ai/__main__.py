@@ -50,15 +50,161 @@ def _list_models() -> int:
     return 0
 
 
+def _add_surface_parser(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+    name: str,
+    help_text: str,
+) -> None:
+    parser = subparsers.add_parser(name, help=help_text)
+    parser.add_argument(
+        "--model",
+        action="append",
+        dest="models",
+        required=True,
+        help="Model ID to run; repeat to compare multiple models",
+    )
+    parser.add_argument(
+        "--scenario",
+        action="append",
+        dest="scenarios",
+        help="Scenario ID to run; repeat to select more than one",
+    )
+    parser.add_argument("--repeat", type=int, default=1)
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path(".ai-eval-runs")
+    )
+    parser.add_argument("--timeout", type=float, default=600.0)
+    parser.add_argument("--jobs", type=int, default=1)
+
+
+def _run_surface(args: argparse.Namespace) -> int:
+    from benchmarks.ai.surface_models import (
+        GenerateScenario,
+        InlineScenario,
+        SurfaceResult,
+    )
+    from benchmarks.ai.surface_runner import (
+        create_surface_run_directory,
+        run_generate_scenario,
+        run_inline_scenario,
+        write_surface_summary,
+    )
+    from benchmarks.ai.surface_scenarios import (
+        get_generate_scenarios,
+        get_inline_scenarios,
+    )
+
+    if args.repeat < 1:
+        raise ValueError("--repeat must be at least 1")
+    if args.jobs < 1:
+        raise ValueError("--jobs must be at least 1")
+    selected = set(args.scenarios) if args.scenarios else None
+    scenarios: tuple[GenerateScenario, ...] | tuple[InlineScenario, ...]
+    if args.command == "generate":
+        scenarios = get_generate_scenarios(selected)
+    else:
+        scenarios = get_inline_scenarios(selected)
+    run_dir = create_surface_run_directory(
+        args.output_dir,
+        surface=args.command,
+        models=tuple(args.models),
+        scenarios=scenarios,
+        repetitions=args.repeat,
+    )
+    trials = [
+        (number, model, scenario, repetition)
+        for number, (model, scenario, repetition) in enumerate(
+            (
+                (model, scenario, repetition)
+                for model in args.models
+                for scenario in scenarios
+                for repetition in range(1, args.repeat + 1)
+            ),
+            start=1,
+        )
+    ]
+    output_lock = threading.Lock()
+
+    def execute(trial: tuple[int, str, Any, int]) -> tuple[int, SurfaceResult]:
+        number, model, scenario, repetition = trial
+        prefix = f"[{number}/{len(trials)}]"
+        with output_lock:
+            sys.stdout.write(
+                f"{prefix} {model} / {scenario.id} / repetition {repetition}\n"
+            )
+            sys.stdout.flush()
+        if args.command == "generate":
+            result = run_generate_scenario(
+                scenario,
+                model=model,
+                repetition=repetition,
+                output_dir=run_dir,
+                timeout_seconds=args.timeout,
+            )
+        else:
+            result = run_inline_scenario(
+                scenario,
+                model=model,
+                repetition=repetition,
+                output_dir=run_dir,
+                timeout_seconds=args.timeout,
+            )
+        with output_lock:
+            status = "PASS" if result.passed else "FAIL"
+            sys.stdout.write(
+                f"{prefix} {status} {result.duration_seconds:.1f}s, "
+                f"trace={result.trace_id or 'unavailable'}\n"
+            )
+            if result.error:
+                sys.stdout.write(f"{prefix} {result.error}\n")
+            sys.stdout.flush()
+        return number, result
+
+    numbered_results: list[tuple[int, SurfaceResult]] = []
+    if args.jobs == 1:
+        numbered_results = [execute(trial) for trial in trials]
+    else:
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=min(args.jobs, len(trials)),
+            thread_name_prefix=f"marimo-ai-{args.command}-eval",
+        ) as executor:
+            futures = [executor.submit(execute, trial) for trial in trials]
+            for future in concurrent.futures.as_completed(futures):
+                numbered_results.append(future.result())
+    results = [
+        result
+        for _, result in sorted(numbered_results, key=lambda item: item[0])
+    ]
+    write_surface_summary(run_dir, results)
+    sys.stdout.write(f"Results: {run_dir}\n")
+    return 0 if all(result.passed for result in results) else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run local benchmarks against marimo's editor AI"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("models", help="List model IDs available from W&B")
+    _add_surface_parser(
+        subparsers,
+        "generate",
+        "Evaluate Generate with AI through /api/ai/completion",
+    )
+    _add_surface_parser(
+        subparsers,
+        "inline",
+        "Evaluate inline completion through /api/ai/inline_completion",
+    )
 
     run_parser = subparsers.add_parser("run", help="Run benchmark scenarios")
-    run_parser.add_argument("--model", required=True)
+    run_parser.add_argument(
+        "--model",
+        action="append",
+        dest="models",
+        required=True,
+        help="Model ID to run; repeat to compare multiple models",
+    )
     run_parser.add_argument(
         "--scenario",
         action="append",
@@ -105,6 +251,11 @@ def main() -> int:
     _load_repository_env()
     if args.command == "models":
         return _list_models()
+    if args.command in ("generate", "inline"):
+        try:
+            return _run_surface(args)
+        except ValueError as exc:
+            parser.error(str(exc))
 
     from benchmarks.ai.models import (
         HarnessVariant,
@@ -129,14 +280,17 @@ def main() -> int:
     scenarios = get_scenarios(scenario_ids, suite=args.suite)
     variants = get_variants(set(args.variants) if args.variants else None)
     run_dir = create_run_directory(
-        args.output_dir, args.model, scenarios, variants, args.repeat
+        args.output_dir, tuple(args.models), scenarios, variants, args.repeat
     )
-    total_trials = len(scenarios) * len(variants) * args.repeat
+    total_trials = (
+        len(args.models) * len(scenarios) * len(variants) * args.repeat
+    )
     trials = [
-        (trial_number, scenario, variant, repetition)
-        for trial_number, (scenario, variant, repetition) in enumerate(
+        (trial_number, model, scenario, variant, repetition)
+        for trial_number, (model, scenario, variant, repetition) in enumerate(
             (
-                (scenario, variant, repetition)
+                (model, scenario, variant, repetition)
+                for model in args.models
                 for scenario in scenarios
                 for variant in variants
                 for repetition in range(1, args.repeat + 1)
@@ -152,12 +306,12 @@ def main() -> int:
             sys.stdout.flush()
 
     def execute_trial(
-        trial: tuple[int, Scenario, HarnessVariant, int],
+        trial: tuple[int, str, Scenario, HarnessVariant, int],
     ) -> tuple[int, ScenarioResult]:
-        trial_number, scenario, variant, repetition = trial
+        trial_number, model, scenario, variant, repetition = trial
         prefix = f"[{trial_number}/{total_trials}]"
         write_output(
-            f"{prefix} {scenario.id} / {variant.id} / "
+            f"{prefix} {model} / {scenario.id} / {variant.id} / "
             f"repetition {repetition}\n"
         )
 
@@ -176,7 +330,7 @@ def main() -> int:
 
         result = run_scenario(
             scenario,
-            model=args.model,
+            model=model,
             variant=variant,
             repetition=repetition,
             output_dir=run_dir,

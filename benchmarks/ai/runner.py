@@ -47,6 +47,13 @@ def logfire_run_query(run_id: str) -> str:
     return f"attributes->>'marimo.ai.eval.run_id' = '{run_id}'"
 
 
+def model_key(model: str) -> str:
+    """Return a readable, collision-resistant artifact key for a model ID."""
+    readable = re.sub(r"[^a-zA-Z0-9._-]+", "-", model).strip("-")
+    digest = hashlib.sha256(model.encode()).hexdigest()[:8]
+    return f"{readable[:80]}-{digest}"
+
+
 def _message(
     role: str,
     text: str,
@@ -218,7 +225,9 @@ def run_scenario(
         before = workspace.notebook.read_text(encoding="utf-8")
         responses: list[str] = []
         trace_ids: list[str] = []
-        trial_id = f"{scenario.id}-{variant.id}-r{repetition:03d}"
+        trial_id = (
+            f"{scenario.id}-{variant.id}-{model_key(model)}-r{repetition:03d}"
+        )
         conversation_id = f"eval-{output_dir.name}-{trial_id}"
         error: str | None = None
         checks: list[CheckResult] = []
@@ -351,6 +360,7 @@ def _write_trial_artifacts(
     trial_dir = (
         output_dir
         / "trials"
+        / model_key(result.model)
         / scenario.id
         / result.variant_id
         / f"repetition-{result.repetition:03d}"
@@ -375,7 +385,7 @@ def _write_trial_artifacts(
 
 def create_run_directory(
     base: Path,
-    model: str,
+    models: tuple[str, ...],
     scenarios: tuple[Scenario, ...],
     variants: tuple[HarnessVariant, ...],
     repetitions: int,
@@ -423,10 +433,10 @@ def create_run_directory(
     except Exception:
         git_sha = ""
     manifest = {
-        "schema_version": 4,
+        "schema_version": 5,
         "run_id": run_dir.name,
         "logfire_query": logfire_run_query(run_dir.name),
-        "model": model,
+        "models": list(models),
         "variants": [asdict(variant) for variant in variants],
         "repetitions": repetitions,
         "scenario_ids": [scenario.id for scenario in scenarios],
@@ -442,8 +452,34 @@ def create_run_directory(
 
 
 def write_summary(run_dir: Path, results: list[ScenarioResult]) -> None:
+    def mean_ci95(values: list[float]) -> tuple[float, float]:
+        mean = statistics.mean(values)
+        if len(values) < 2:
+            return mean, mean
+        margin = 1.96 * statistics.stdev(values) / math.sqrt(len(values))
+        return mean - margin, mean + margin
+
+    def wilson_ci95(successes: int, total: int) -> tuple[float, float]:
+        if total == 0:
+            return 0.0, 0.0
+        z = 1.96
+        rate = successes / total
+        denominator = 1 + z**2 / total
+        centre = (rate + z**2 / (2 * total)) / denominator
+        margin = (
+            z
+            * math.sqrt(rate * (1 - rate) / total + z**2 / (4 * total**2))
+            / denominator
+        )
+        return max(0.0, centre - margin), min(1.0, centre + margin)
+
     def metrics(trials: list[ScenarioResult]) -> dict[str, JSONValue]:
         durations = [trial.duration_seconds for trial in trials]
+        input_tokens = [float(trial.usage.input_tokens) for trial in trials]
+        passed = sum(trial.passed for trial in trials)
+        pass_ci = wilson_ci95(passed, len(trials))
+        duration_ci = mean_ci95(durations)
+        input_ci = mean_ci95(input_tokens)
         total_usage = sum(
             (trial.usage for trial in trials), start=TokenUsage()
         )
@@ -464,10 +500,14 @@ def write_summary(run_dir: Path, results: list[ScenarioResult]) -> None:
             payload["output_chars"] += tool.output_chars
         return {
             "trials": len(trials),
-            "passed": sum(trial.passed for trial in trials),
-            "pass_rate": sum(trial.passed for trial in trials) / len(trials),
+            "passed": passed,
+            "pass_rate": passed / len(trials),
+            "pass_rate_ci95_low": pass_ci[0],
+            "pass_rate_ci95_high": pass_ci[1],
             "mean_duration_seconds": statistics.mean(durations),
             "duration_stddev_seconds": statistics.pstdev(durations),
+            "mean_duration_ci95_low": duration_ci[0],
+            "mean_duration_ci95_high": duration_ci[1],
             "mean_tool_calls": statistics.mean(
                 trial.tool_calls for trial in trials
             ),
@@ -478,6 +518,9 @@ def write_summary(run_dir: Path, results: list[ScenarioResult]) -> None:
             "mean_model_requests": total_usage.requests / len(trials),
             "total_input_tokens": total_usage.input_tokens,
             "mean_input_tokens": total_usage.input_tokens / len(trials),
+            "input_tokens_stddev": statistics.pstdev(input_tokens),
+            "mean_input_tokens_ci95_low": input_ci[0],
+            "mean_input_tokens_ci95_high": input_ci[1],
             "total_output_tokens": total_usage.output_tokens,
             "mean_output_tokens": total_usage.output_tokens / len(trials),
             "total_reasoning_tokens": total_usage.reasoning_tokens,
@@ -519,39 +562,49 @@ def write_summary(run_dir: Path, results: list[ScenarioResult]) -> None:
             "tool_payloads": cast(JSONValue, tool_payloads),
         }
 
-    scenario_groups: dict[tuple[str, str], list[ScenarioResult]] = {}
-    variant_groups: dict[str, list[ScenarioResult]] = {}
-    length_groups: dict[tuple[str, str], list[ScenarioResult]] = {}
+    scenario_groups: dict[tuple[str, str, str], list[ScenarioResult]] = {}
+    variant_groups: dict[tuple[str, str], list[ScenarioResult]] = {}
+    model_groups: dict[str, list[ScenarioResult]] = {}
+    length_groups: dict[tuple[str, str, str], list[ScenarioResult]] = {}
     for result in results:
         scenario_groups.setdefault(
-            (result.scenario_id, result.variant_id), []
+            (result.model, result.scenario_id, result.variant_id), []
         ).append(result)
-        variant_groups.setdefault(result.variant_id, []).append(result)
+        variant_groups.setdefault(
+            (result.model, result.variant_id), []
+        ).append(result)
+        model_groups.setdefault(result.model, []).append(result)
         length_groups.setdefault(
-            (result.scenario_length, result.variant_id), []
+            (result.model, result.scenario_length, result.variant_id), []
         ).append(result)
 
     scenario_aggregates = [
         {
+            "model": model,
             "scenario_id": scenario_id,
             "variant_id": variant_id,
             **metrics(trials),
         }
-        for (scenario_id, variant_id), trials in sorted(
+        for (model, scenario_id, variant_id), trials in sorted(
             scenario_groups.items()
         )
     ]
     variant_aggregates = [
-        {"variant_id": variant_id, **metrics(trials)}
-        for variant_id, trials in sorted(variant_groups.items())
+        {"model": model, "variant_id": variant_id, **metrics(trials)}
+        for (model, variant_id), trials in sorted(variant_groups.items())
+    ]
+    model_aggregates = [
+        {"model": model, **metrics(trials)}
+        for model, trials in sorted(model_groups.items())
     ]
     length_aggregates = [
         {
+            "model": model,
             "scenario_length": scenario_length,
             "variant_id": variant_id,
             **metrics(trials),
         }
-        for (scenario_length, variant_id), trials in sorted(
+        for (model, scenario_length, variant_id), trials in sorted(
             length_groups.items()
         )
     ]
@@ -561,6 +614,7 @@ def write_summary(run_dir: Path, results: list[ScenarioResult]) -> None:
         "passed": all(result.passed for result in results),
         "scenario_aggregates": scenario_aggregates,
         "variant_aggregates": variant_aggregates,
+        "model_aggregates": model_aggregates,
         "length_aggregates": length_aggregates,
         "cases": [result.to_dict() for result in results],
     }

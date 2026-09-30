@@ -1889,3 +1889,185 @@ does not express directly. The result is not an unconditional dominance claim:
 the initial 9/10 hybrid result and token variance justify retaining repeated
 critical cases and reporting confidence intervals once the harness supports
 enough repetitions.
+
+## Experiment 29: Generate with AI and inline-completion foundations
+
+Date: 2026-09-30
+
+Models: `deepseek-ai/DeepSeek-V4.1-Flash` and `Qwen/Qwen3.5-35B-A3B`
+
+Runs: corrected DeepSeek Generate
+`20260930T071817Z-ad0f0606`; DeepSeek inline
+`20260930T071217Z-48d2fed2`; Qwen Generate
+`20260930T071547Z-5e85f387`; Qwen inline
+`20260930T071542Z-95105ba2`; repeated cross-model inline
+`20260930T071741Z-dc205b94`; Qwen 2,048-token probe
+`20260930T072010Z-db7da58c`; Qwen template-thinking fix
+`20260930T073135Z-a4269f65`; three-repetition confirmation
+`20260930T073156Z-cf9ff925`
+
+Added production-path suites for the two editor AI surfaces that were not
+covered by the code-mode benchmark. Generate trials call
+`/api/ai/completion`, consume the structured multi-cell stream, execute Python
+cells in order, and grade the resulting summary. Inline trials call
+`/api/ai/inline_completion`, apply the editor's exact prefix/suffix cleanup,
+compose the candidate source, and grade syntax and behavior. Each suite starts
+with one short, one medium, and one long case.
+
+The runner now accepts repeated `--model` arguments. Model-qualified trial IDs
+and artifact paths prevent cross-model collisions. Summaries group scenarios
+and variants per model and report Wilson pass-rate intervals plus duration and
+input-token confidence intervals. HTTP failures retain the server detail and
+trace ID. The production APIs do not expose a deterministic sampling seed, so
+the runner uses honest independent repetitions instead of a nonfunctional
+seed flag.
+
+Two defects in the first Generate draft were corrected before comparison. A
+substring check incorrectly treated `paid_orders =` as a redefinition of
+`orders`; the contract now uses anchored regular expressions. The sales prompt
+also requested “net revenue” without defining it, so it now states `gross -
+returns`. File-based Generate cases now provide column schemas through the
+existing completion context channel. Generate has no inspection tools and
+cannot discover a local CSV schema from a filename alone.
+
+The single-pass surface results before the W&B inline fix were:
+
+| Surface | Model | Passed | Mean duration | Mean input | Mean output |
+|---|---|---:|---:|---:|---:|
+| Generate | DeepSeek | 3/3 | 18.6s | 1,002 | 3,085 |
+| Generate | Qwen | 2/3 | 5.2s | 995 | 494 |
+| Inline | DeepSeek | 3/3 | 5.1s | unavailable | unavailable |
+| Inline | Qwen | 1/3 | 6.3s | unavailable | unavailable |
+
+Qwen's long Generate failure was substantive. It emitted Polars code that
+called a nonexistent `DataFrame.first()` method; it also represented
+`activated_accounts` as a list instead of the requested count. The executable
+grader rejected the result without relying on source style.
+
+Qwen's inline failures initially looked like model-route incompatibility with
+the endpoint's fixed 1,024-token budget. The medium and long cases consumed the
+budget before emitting any text. In a repeated two-model short-case run,
+DeepSeek passed 2/2 at a 5.9-second mean while Qwen failed 0/2 at an 8.4-second
+mean for the same reason. Qwen had passed that short case once earlier.
+
+Temporarily doubling the inline budget to 2,048 tokens did not help: Qwen
+failed 0/3, consumed the larger budget before producing text each time, and
+mean failure latency increased to 13.3 seconds. The production constant was
+restored to 1,024.
+
+The actual issue was provider translation. Inline completion already passed
+the unified `thinking=False` setting, but W&B's OpenAI-compatible chat route
+requires `extra_body.chat_template_kwargs.enable_thinking=false` for Qwen's
+chat template. Added that request field only for W&B completion calls whose
+caller explicitly disables thinking. Normal chat, structured Generate calls,
+and other providers are unchanged.
+
+With the template switch, Qwen passed 3/3 at a 3.3-second mean. A subsequent
+three-repetition matrix passed 9/9 at a 3.0-second mean with a 0.12-second
+population standard deviation. The 95% Wilson lower bound improved from 0 for
+the failed two-trial observation to 0.70 over nine successes. This is both more
+reliable and faster than increasing the token budget.
+
+Logfire contained 19 traces across the six final comparison and token-budget
+runs. Every trace had exactly one root span, and no span had a missing parent.
+Failed inline requests retained their trace IDs in local artifacts after the
+benchmark HTTP diagnostic change.
+
+The 12 post-fix Qwen traces also each had exactly one root span and no missing
+parent.
+
+Conclusion: stop changing the seven-tool code-mode strategy for now. The next
+evaluation work should add independently authored surface holdouts and run
+repeated cross-model matrices. The first surface data already shows why the
+three products need separate strategies: code-mode benefits from tools and
+state inspection, Generate needs explicit context, and inline completion is
+dominated by low-latency provider configuration and model compatibility.
+
+## Experiment 30: Pydantic AI Harness capabilities
+
+Date: 2026-09-30
+
+Model: `deepseek-ai/DeepSeek-V4.1-Flash`
+
+Runs: Code Mode smoke `20260930T083823Z-aeecae80`; initial long comparison
+`20260930T083937Z-70e73cb2`; paired confirmation
+`20260930T085601Z-0d0c314c`
+
+Tested two hypotheses from `pydantic-ai-harness` 0.34.0 against the optimized
+seven-tool hybrid:
+
+- `ClearToolResults` as a generic replacement for marimo's semantic history
+  compactor. It triggered at an estimated 20,000 tokens, retained eight recent
+  tool pairs, cleared old tool inputs, and exempted exploratory
+  `execute_code` results and capability loads.
+- `CodeMode` around the six typed editor tools. Exploratory `execute_code`
+  remained native because it executes Python in the live notebook kernel;
+  Harness `run_code` executed orchestration in Monty with a 20-call nested
+  tool budget.
+
+The Code Mode smoke passed the short inventory task, proving that Monty could
+marshal marimo's structured tool results. It took 57.5 seconds, seven visible
+tools, six model requests, and 45,404 input tokens. The two long Code Mode
+trials also passed, but both were materially less efficient than the current
+hybrid:
+
+| Two long cases | Current hybrid | Harness Code Mode | Change |
+|---|---:|---:|---:|
+| Passed | 2/2 | 2/2 | Equal |
+| Mean duration | 369.6s | 470.3s | +27.2% |
+| Mean tools | 36.0 | 48.0 | +33.3% |
+| Mean tool errors | 2.5 | 5.0 | +100.0% |
+| Mean model requests | 42.0 | 54.0 | +28.6% |
+| Mean input tokens | 1,561,789 | 2,536,297 | +62.4% |
+| Mean output tokens | 60,560 | 80,776 | +33.4% |
+
+The model used `run_code`, but it did not consolidate notebook work. Across
+the two long trials Logfire recorded 37 `run_code` calls, 57 native
+`execute_code` calls, 23 nested inspections, and 14 nested patches. The extra
+sandbox layer introduced another planning representation while the workflow
+still required model decisions after notebook execution. This workload lacks
+the large independent fan-out where programmatic tool calling is strongest.
+
+Generic clearing was close in the initial comparison, so it was repeated.
+Across two observations of both long scenarios, both strategies passed 4/4:
+
+| Four long trials | Current hybrid | Harness clearing | Change |
+|---|---:|---:|---:|
+| Mean duration | 313.0s | 382.2s | +22.1% |
+| Mean tools | 31.75 | 35.50 | +11.8% |
+| Mean tool errors | 2.00 | 0.75 | -62.5% |
+| Mean model requests | 37.50 | 40.00 | +6.7% |
+| Mean input tokens | 1,261,768 | 1,476,791 | +17.0% |
+| Mean output tokens | 51,219 | 64,487 | +25.9% |
+| Mean reasoning tokens | 36,089 | 45,202 | +25.3% |
+
+Logfire recorded 34 `compact_messages` spans for the generic variant, so the
+result is not an inactive-threshold artifact. Generic clearing reduced errors
+but retained recent redundant snapshots and patch bodies based only on pair
+recency. Marimo's compactor understands that old notebook inspections and
+successful patch source are superseded by live notebook state, and removes
+them before Pydantic AI begins the next request. That domain knowledge was
+more useful than a generic token threshold on these conversations.
+
+`ToolOutputLimits` was not run as a third variant. Its default lossless spill
+uses a process-local store, while marimo creates a new agent and capability
+instance for every sidebar HTTP request. A handle emitted in one user turn
+would not have a reader in a later turn without a conversation-scoped durable
+store. Lossy truncation would discard notebook source that the semantic
+compactor already handles more safely.
+
+Trace verification across both long runs found 65 complete turn traces and
+1,059 spans. Every trace had exactly one root and no child span had a missing
+parent. Nested `run_code` calls remained visible as ordinary tool spans, so
+observability was not the reason to reject Code Mode. [Open the initial
+comparison in Logfire](https://logfire-us.pydantic.dev/shahmir/marimo-ai/?q=attributes-%3E%3E%27marimo.ai.eval.run_id%27+%3D+%2720260930T083937Z-70e73cb2%27&since=2026-09-30T08%3A35%3A00Z&until=2026-09-30T08%3A58%3A00Z)
+and [the confirmation
+run](https://logfire-us.pydantic.dev/shahmir/marimo-ai/?q=attributes-%3E%3E%27marimo.ai.eval.run_id%27+%3D+%2720260930T085601Z-0d0c314c%27&since=2026-09-30T08%3A55%3A00Z&until=2026-09-30T09%3A05%3A00Z).
+
+Conclusion: retain the optimized seven-tool hybrid and its semantic history
+compactor. Do not add Harness Code Mode, generic clearing, or a Harness runtime
+dependency to the chat sidebar based on this evidence. Harness remains useful
+as a design reference, especially for tool lifecycle hooks and traceable
+nested calls, but its generic capabilities did not outperform marimo's
+notebook-aware architecture. The rejected executable variants and dependency
+were removed after recording the results.

@@ -379,6 +379,13 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         del model
         return True
 
+    def _completion_model_settings(
+        self, thinking: ThinkingLevel | None
+    ) -> ModelSettings | None:
+        if thinking is None:
+            return None
+        return {"thinking": thinking}
+
     def convert_messages(
         self, messages: list[ServerUIMessage]
     ) -> list[UIMessage]:
@@ -469,9 +476,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
                 user_prompt=None,
                 message_history=VercelAIAdapter.load_messages(messages),
                 conversation_id=span_info.conversation_id,
-                model_settings={"thinking": thinking}
-                if thinking is not None
-                else None,
+                model_settings=self._completion_model_settings(thinking),
             )
 
         return str(result.output)
@@ -1162,6 +1167,19 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         if self._is_openai_compatible():
             return None
         return super()._default_thinking(model)
+
+    @override
+    def _completion_model_settings(
+        self, thinking: ThinkingLevel | None
+    ) -> ModelSettings | None:
+        settings = super()._completion_model_settings(thinking)
+        if thinking is False and self._provider_name == "wandb":
+            if settings is None:
+                settings = {}
+            settings["extra_body"] = {
+                "chat_template_kwargs": {"enable_thinking": False}
+            }
+        return settings
 
 
 class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):

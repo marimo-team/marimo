@@ -24,6 +24,7 @@ from benchmarks.ai.models import (
 )
 from benchmarks.ai.vercel_stream import (
     AssistantMessageBuilder,
+    StructuredCompletionBuilder,
     parse_sse,
     serialized_chars,
 )
@@ -103,6 +104,27 @@ class ChatTurn:
 @dataclass(frozen=True)
 class HttpResponse:
     body: str
+    trace_id: str
+
+
+class HttpRequestError(RuntimeError):
+    def __init__(self, status_code: int, body: str, trace_id: str) -> None:
+        super().__init__(f"HTTP {status_code}: {body}")
+        self.status_code = status_code
+        self.body = body
+        self.trace_id = trace_id
+
+
+@dataclass(frozen=True)
+class GenerateTurn:
+    cells: tuple[dict[str, str], ...]
+    usage: TokenUsage
+    trace_id: str
+
+
+@dataclass(frozen=True)
+class InlineTurn:
+    completion: str
     trace_id: str
 
 
@@ -259,6 +281,8 @@ mode = "{self.variant.mode}"
 
 [tool.marimo.ai.models]
 chat_model = "{model}"
+edit_model = "{model}"
+autocomplete_model = "{model}"
 
 [tool.marimo.ai.wandb]
 api_key = "env:WANDB_API_KEY"
@@ -420,6 +444,88 @@ base_url = "https://api.inference.wandb.ai/v1/"
             effective_history_chars=serialized_chars(effective_messages),
         )
 
+    def generate(
+        self,
+        prompt: str,
+        *,
+        include_other_code: str,
+        context_plain_text: str,
+    ) -> GenerateTurn:
+        response = self._post(
+            "/api/ai/completion",
+            {
+                "id": self.session_id,
+                "prompt": "",
+                "code": "",
+                "includeOtherCode": include_other_code,
+                "context": {
+                    "plainText": context_plain_text,
+                    "schema": [],
+                    "variables": [],
+                },
+                "language": "python",
+                "uiMessages": [
+                    {
+                        "id": f"user-{uuid.uuid4().hex[:12]}",
+                        "role": "user",
+                        "parts": [{"type": "text", "text": prompt}],
+                    }
+                ],
+            },
+            headers=self._eval_headers(turn=1, variant_id="generate"),
+        )
+        builder = StructuredCompletionBuilder(
+            data_type="data-notebook-cells-completion"
+        )
+        for chunk in parse_sse(response.body):
+            builder.add(chunk)
+        payload = builder.result()
+        raw_cells = payload.get("cells")
+        if not isinstance(raw_cells, list):
+            raise TypeError("Generate with AI returned an invalid cells value")
+        cells: list[dict[str, str]] = []
+        for raw_cell in raw_cells:
+            if not isinstance(raw_cell, dict):
+                raise TypeError("Generate with AI returned an invalid cell")
+            language = raw_cell.get("language")
+            code = raw_cell.get("code")
+            if not isinstance(language, str) or not isinstance(code, str):
+                raise TypeError("Generate with AI returned an invalid cell")
+            cells.append({"language": language, "code": code})
+        return GenerateTurn(
+            cells=tuple(cells),
+            usage=builder.usage,
+            trace_id=response.trace_id,
+        )
+
+    def inline(
+        self,
+        *,
+        prefix: str,
+        suffix: str,
+        language: str,
+    ) -> InlineTurn:
+        response = self._post(
+            "/api/ai/inline_completion",
+            {"prefix": prefix, "suffix": suffix, "language": language},
+            headers=self._eval_headers(turn=1, variant_id="inline"),
+        )
+        return InlineTurn(
+            completion=response.body,
+            trace_id=response.trace_id,
+        )
+
+    def _eval_headers(self, *, turn: int, variant_id: str) -> dict[str, str]:
+        return {
+            EVAL_RUN_HEADER: self.eval_run_id,
+            EVAL_SCENARIO_HEADER: self.scenario_id,
+            EVAL_TURN_HEADER: str(turn),
+            EVAL_TRIAL_HEADER: self.trial_id,
+            EVAL_VARIANT_HEADER: variant_id,
+            EVAL_REPETITION_HEADER: str(self.repetition),
+            INCLUDE_USAGE_HEADER: "true",
+        }
+
     def inspect_summary(self) -> dict[str, JSONValue]:
         code = (
             "import json\n"
@@ -447,10 +553,15 @@ base_url = "https://api.inference.wandb.ai/v1/"
             data=json.dumps(body).encode(),
             headers=request_headers,
         )
-        with urllib.request.urlopen(
-            request, timeout=self.timeout_seconds
-        ) as response:
-            return HttpResponse(
-                body=response.read().decode(),
-                trace_id=response.headers.get(TRACE_ID_HEADER, ""),
-            )
+        try:
+            with urllib.request.urlopen(
+                request, timeout=self.timeout_seconds
+            ) as response:
+                return HttpResponse(
+                    body=response.read().decode(),
+                    trace_id=response.headers.get(TRACE_ID_HEADER, ""),
+                )
+        except urllib.error.HTTPError as exc:
+            response_body = exc.read().decode(errors="replace")
+            trace_id = exc.headers.get(TRACE_ID_HEADER, "")
+            raise HttpRequestError(exc.code, response_body, trace_id) from exc

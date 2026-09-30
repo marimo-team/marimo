@@ -20,13 +20,33 @@ from benchmarks.ai.runner import (
     _compare_summary,
     _message,
     _source_contract_checks,
+    create_run_directory,
     logfire_run_query,
+    model_key,
     write_summary,
 )
 from benchmarks.ai.scenarios import get_scenarios
-from benchmarks.ai.server import MarimoServer, parse_summary_response
+from benchmarks.ai.server import (
+    HttpRequestError,
+    MarimoServer,
+    parse_summary_response,
+)
+from benchmarks.ai.surface_runner import (
+    _evaluate_python,
+    _generate_checks,
+    _trim_inline_response,
+    create_surface_run_directory,
+)
+from benchmarks.ai.surface_scenarios import (
+    get_generate_scenarios,
+    get_inline_scenarios,
+)
 from benchmarks.ai.variants import get_variants
-from benchmarks.ai.vercel_stream import AssistantMessageBuilder, parse_sse
+from benchmarks.ai.vercel_stream import (
+    AssistantMessageBuilder,
+    StructuredCompletionBuilder,
+    parse_sse,
+)
 
 
 def test_reconstructs_ui_message_from_vercel_stream() -> None:
@@ -98,6 +118,36 @@ def test_reads_legacy_usage_from_finish_chunk() -> None:
     assert builder.usage == TokenUsage(input_tokens=12, output_tokens=7)
 
 
+def test_reads_structured_completion_and_usage() -> None:
+    builder = StructuredCompletionBuilder(
+        data_type="data-notebook-cells-completion"
+    )
+    for chunk in parse_sse(
+        """data: {"type":"data-notebook-cells-completion","data":{"cells":[{"language":"python","code":"x = 1"}]}}
+
+data: {"type":"data-marimo-usage","data":{"requests":1,"input_tokens":20,"output_tokens":5}}
+
+data: {"type":"finish","finishReason":"stop"}
+"""
+    ):
+        builder.add(chunk)
+
+    assert builder.result() == {
+        "cells": [{"language": "python", "code": "x = 1"}]
+    }
+    assert builder.usage == TokenUsage(
+        requests=1, input_tokens=20, output_tokens=5
+    )
+
+
+def test_structured_completion_requires_successful_finish() -> None:
+    builder = StructuredCompletionBuilder(data_type="data-cell-completion")
+    builder.add({"type": "data-cell-completion", "data": {"code": "x = 1"}})
+
+    with pytest.raises(RuntimeError, match="final validation"):
+        builder.result()
+
+
 def test_compare_summary_supports_numeric_tolerance() -> None:
     checks = _compare_summary(
         {"revenue": 10.0000001, "segment": "enterprise"},
@@ -142,10 +192,28 @@ data: {"success":false}
         parse_summary_response(body)
 
 
+def test_http_request_error_retains_diagnostics() -> None:
+    error = HttpRequestError(500, '{"detail":"token limit"}', "trace-123")
+
+    assert error.status_code == 500
+    assert error.body == '{"detail":"token limit"}'
+    assert error.trace_id == "trace-123"
+    assert str(error) == 'HTTP 500: {"detail":"token limit"}'
+
+
 def test_logfire_run_query_selects_eval_run_attribute() -> None:
     assert logfire_run_query("run-123") == (
         "attributes->>'marimo.ai.eval.run_id' = 'run-123'"
     )
+
+
+def test_model_key_is_readable_and_collision_resistant() -> None:
+    first = model_key("provider/model")
+    second = model_key("provider:model")
+
+    assert first.startswith("provider-model-")
+    assert second.startswith("provider-model-")
+    assert first != second
 
 
 def test_retail_fixture_contains_known_join_trap(tmp_path: Path) -> None:
@@ -181,6 +249,30 @@ def test_scenario_suite_has_intentional_length_distribution() -> None:
     assert sum(scenario.length == "long" for scenario in scenarios) == 3
     assert all(scenario.failure_modes for scenario in scenarios)
     assert len({scenario.id for scenario in scenarios}) == len(scenarios)
+
+
+def test_generate_and_inline_suites_cover_each_request_length() -> None:
+    generate = get_generate_scenarios()
+    inline = get_inline_scenarios()
+
+    assert {scenario.length for scenario in generate} == {
+        "short",
+        "medium",
+        "long",
+    }
+    assert {scenario.length for scenario in inline} == {
+        "short",
+        "medium",
+        "long",
+    }
+    assert all(scenario.failure_modes for scenario in (*generate, *inline))
+
+
+def test_surface_scenario_selection_reports_unknown_ids() -> None:
+    with pytest.raises(ValueError, match="Unknown generate scenario"):
+        get_generate_scenarios({"missing"})
+    with pytest.raises(ValueError, match="Unknown inline scenario"):
+        get_inline_scenarios({"missing"})
 
 
 def test_quick_suite_avoids_long_scenarios() -> None:
@@ -427,6 +519,66 @@ def _():
     assert not check.passed
 
 
+def test_inline_cleanup_matches_editor_behavior() -> None:
+    assert (
+        _trim_inline_response("prefixmiddle suffix", "prefix", " suffix")
+        == "middle"
+    )
+
+
+def test_surface_python_evaluator_checks_behavior(tmp_path: Path) -> None:
+    checks = _evaluate_python(
+        'value = 6 * 7\nanalysis_summary = {"value": value}',
+        {"value": 42},
+        root=tmp_path,
+    )
+
+    assert all(check.passed for check in checks)
+
+
+def test_generate_grader_checks_cells_source_and_behavior(
+    tmp_path: Path,
+) -> None:
+    workspace = get_generate_scenarios({"generate_existing_context"})[0].setup(
+        tmp_path
+    )
+    cells = (
+        {
+            "language": "python",
+            "code": 'paid = [order for order in orders if order["status"] == "paid"]',
+        },
+        {
+            "language": "python",
+            "code": (
+                "analysis_summary = {\n"
+                '    "paid_count": len(paid),\n'
+                '    "net_after_fees": sum(order["amount"] for order in paid) * (1 - fee_rate),\n'
+                "}"
+            ),
+        },
+    )
+
+    checks, _ = _generate_checks(cells, workspace, root=tmp_path)
+
+    assert all(check.passed for check in checks)
+
+
+def test_surface_manifest_records_multiple_models(tmp_path: Path) -> None:
+    scenarios = get_inline_scenarios({"inline_filter_expression"})
+    run_dir = create_surface_run_directory(
+        tmp_path,
+        surface="inline",
+        models=("provider/one", "provider/two"),
+        scenarios=scenarios,
+        repetitions=3,
+    )
+
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    assert manifest["models"] == ["provider/one", "provider/two"]
+    assert manifest["repetitions"] == 3
+    assert manifest["surface"] == "inline"
+
+
 def test_variant_selection_defaults_to_baseline() -> None:
     assert [variant.id for variant in get_variants()] == ["baseline"]
     assert [variant.id for variant in get_variants({"hybrid_balanced"})] == [
@@ -465,19 +617,41 @@ def test_summary_aggregates_repeated_trials(tmp_path: Path) -> None:
     summary = json.loads((tmp_path / "summary.json").read_text())
     aggregate = summary["scenario_aggregates"][0]
     assert aggregate["trials"] == 2
+    assert aggregate["model"] == "provider/model"
     assert aggregate["pass_rate"] == 1.0
+    assert 0 < aggregate["pass_rate_ci95_low"] < 1
+    assert aggregate["pass_rate_ci95_high"] == 1.0
     assert aggregate["mean_duration_seconds"] == 12.0
     assert aggregate["duration_stddev_seconds"] == 2.0
+    assert aggregate["mean_duration_ci95_low"] < 12.0
+    assert aggregate["mean_duration_ci95_high"] > 12.0
     assert aggregate["mean_tool_calls"] == 3
     assert aggregate["total_model_requests"] == 3
     assert aggregate["mean_input_tokens"] == 150
+    assert aggregate["input_tokens_stddev"] == 50
     assert aggregate["total_output_tokens"] == 30
     assert aggregate["total_request_history_chars"] == 0
     assert aggregate["total_effective_history_chars"] == 0
     assert aggregate["total_tool_output_chars"] == 0
     assert aggregate["tool_payloads"] == {}
     assert summary["variant_aggregates"][0]["pass_rate"] == 1.0
+    assert summary["model_aggregates"][0]["model"] == "provider/model"
     assert summary["length_aggregates"][0]["scenario_length"] == "short"
+
+
+def test_chat_manifest_records_multiple_models(tmp_path: Path) -> None:
+    run_dir = create_run_directory(
+        tmp_path,
+        ("provider/one", "provider/two"),
+        get_scenarios(suite="quick"),
+        get_variants({"baseline"}),
+        2,
+    )
+
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    assert manifest["schema_version"] == 5
+    assert manifest["models"] == ["provider/one", "provider/two"]
+    assert manifest["repetitions"] == 2
 
 
 def test_server_config_isolates_user_preferences(tmp_path: Path) -> None:
@@ -503,6 +677,8 @@ def test_server_config_isolates_user_preferences(tmp_path: Path) -> None:
     assert (tmp_path / ".marimo.toml").read_text() == ""
     config = (tmp_path / "pyproject.toml").read_text()
     assert 'chat_model = "wandb/provider/model"' in config
+    assert 'edit_model = "wandb/provider/model"' in config
+    assert 'autocomplete_model = "wandb/provider/model"' in config
     assert 'api_key = "env:WANDB_API_KEY"' in config
     assert 'rules = "Inspect before editing."' in config
     assert "max_tokens" not in config

@@ -900,6 +900,22 @@ async def test_completion_thinking_override(thinking: bool | None) -> None:
 
 
 @pytest.mark.requires("pydantic_ai")
+def test_wandb_completion_disables_chat_template_thinking() -> None:
+    config = AnyProviderConfig(
+        api_key="test-key",
+        base_url="https://api.inference.wandb.ai/v1/",
+    )
+    provider = CustomProvider(
+        AiModelId.from_model("wandb/Qwen/Qwen3.5-35B-A3B"), config
+    )
+
+    assert provider._completion_model_settings(False) == {
+        "thinking": False,
+        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+    }
+
+
+@pytest.mark.requires("pydantic_ai")
 async def test_completion_tool_count_includes_capabilities() -> None:
     """`completion` reports tools plus the agent's native capabilities, so its
     telemetry matches the streaming paths."""

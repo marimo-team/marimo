@@ -166,6 +166,46 @@ class AssistantMessageBuilder:
         return tuple(metrics)
 
 
+@dataclass
+class StructuredCompletionBuilder:
+    """Collect the last validated structured output from an AI SDK stream."""
+
+    data_type: str
+    data: dict[str, Any] | None = None
+    usage: TokenUsage = field(default_factory=TokenUsage)
+    finish_reason: str | None = None
+
+    def add(self, chunk: dict[str, Any]) -> None:
+        chunk_type = chunk.get("type")
+        if chunk_type == self.data_type:
+            data = chunk.get("data")
+            if isinstance(data, dict):
+                self.data = data
+        elif chunk_type == "data-marimo-usage":
+            usage = chunk.get("data")
+            if isinstance(usage, dict):
+                self.usage = _token_usage(usage)
+        elif chunk_type == "error":
+            message = _value(chunk, "errorText", "error_text") or chunk.get(
+                "error"
+            )
+            raise RuntimeError(str(message or "AI stream failed"))
+        elif chunk_type == "finish":
+            self.finish_reason = str(
+                _value(chunk, "finishReason", "finish_reason") or ""
+            )
+
+    def result(self) -> dict[str, Any]:
+        if self.finish_reason != "stop":
+            raise RuntimeError(
+                "AI completion ended before final validation: "
+                f"{self.finish_reason or 'missing finish event'}"
+            )
+        if self.data is None:
+            raise RuntimeError("AI completion returned no structured output")
+        return self.data
+
+
 def _token_count(usage: dict[str, Any], *keys: str) -> int:
     for key in keys:
         value = usage.get(key)

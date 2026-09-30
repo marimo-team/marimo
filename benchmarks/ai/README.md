@@ -119,6 +119,58 @@ uv run --group ai-eval python -m benchmarks.ai run \
   --repeat 3
 ```
 
+Repeat `--model` to run the same matrix against multiple models in one run.
+Trial IDs and artifact paths include a collision-resistant model key, and the
+summary reports per-model scenario and variant aggregates. Pass rates use a
+95% Wilson interval; duration and input-token means include 95% confidence
+intervals. A one-trial interval is intentionally uninformative, so use at
+least three repetitions before interpreting it as a stability estimate.
+
+```bash
+uv run --group ai-eval python -m benchmarks.ai run \
+  --model <first-model-id> \
+  --model <second-model-id> \
+  --suite quick \
+  --variant baseline \
+  --variant hybrid_balanced \
+  --repeat 3 \
+  --jobs 4
+```
+
+The production API does not expose a deterministic sampling seed. The runner
+therefore records independent repetitions instead of presenting a seed option
+that would not control model sampling.
+
+## Generate with AI and inline completion
+
+The `generate` suite calls `/api/ai/completion` with the structured multi-cell
+request used by Generate with AI. It validates the returned cell count and
+source constraints, executes the generated Python cells in order, and grades
+the resulting `analysis_summary`:
+
+```bash
+uv run --group ai-eval python -m benchmarks.ai generate \
+  --model <model-id> \
+  --repeat 3
+```
+
+The `inline` suite calls `/api/ai/inline_completion`, applies the same exact
+prefix and suffix cleanup as the editor, composes the candidate source, and
+grades syntax and behavior:
+
+```bash
+uv run --group ai-eval python -m benchmarks.ai inline \
+  --model <model-id> \
+  --repeat 3
+```
+
+Both suites begin with one short, one medium, and one long scenario. Use
+`--scenario` to select cases, repeat `--model` for a cross-model run, and use
+`--jobs` for bounded concurrency. Inline completion currently has no usage
+metadata in its production HTTP response, so its artifacts report latency,
+output size, correctness, and trace IDs; token usage remains available in
+Logfire. Generate with AI includes usage in its structured stream.
+
 Ongoing strategy results and decisions are recorded in
 [`RESULTS.md`](RESULTS.md).
 
@@ -155,9 +207,10 @@ reasoning tokens, cache reads, and cache writes. A turn's usage is the sum over
 every model request in its agent loop; output tokens include reasoning tokens
 when the model provider reports reasoning as a subset of output. Each result
 also retains the observed `analysis_summary`, which lets grading rules be
-audited or recalculated without interpreting notebook output. Trial artifacts
-are nested under scenario, variant, and repetition. Full model and tool
-trajectories remain in Logfire.
+audited or recalculated without interpreting notebook output. Chat trial
+artifacts are nested under model, scenario, variant, and repetition. Generate
+and inline artifacts are nested under model, scenario, and repetition. Full
+model and tool trajectories remain in Logfire.
 
 The scenario hash covers the complete source files that define the selected
 setup functions, as well as the prompts and metadata. It therefore changes
