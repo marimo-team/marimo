@@ -1528,7 +1528,7 @@ describe("cell reducer", () => {
     });
 
     expect(cells[0].consoleOutputs).toEqual([
-      { ...prompt, response: expect.any(String) },
+      { ...prompt, response: "" },
     ]);
     expect(JSON.stringify(cells[0].consoleOutputs)).not.toContain(secret);
   });
