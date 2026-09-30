@@ -134,6 +134,7 @@ ai-eval = [
     "altair>=5.4.0",
     "pandas>=1.5.3",
     "pillow>=10.2.0,!=11.3.0",
+    "pydantic-ai-harness==0.34.0",
     "python-dotenv>=1.0.1",
 ]
 

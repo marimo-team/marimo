@@ -1688,6 +1688,226 @@ REGRESSION_SCENARIOS = (
 )
 
 
+def _setup_multi_task_marathon(root: Path) -> ScenarioWorkspace:
+    _write_csv(
+        root / "data" / "orders.csv",
+        ["order_id", "region", "revenue", "cost", "is_internal"],
+        [
+            {
+                "order_id": "o1",
+                "region": "North",
+                "revenue": 120,
+                "cost": 70,
+                "is_internal": "false",
+            },
+            {
+                "order_id": "o2",
+                "region": "South",
+                "revenue": 200,
+                "cost": 100,
+                "is_internal": "false",
+            },
+            {
+                "order_id": "o3",
+                "region": "North",
+                "revenue": 1000,
+                "cost": 10,
+                "is_internal": "true",
+            },
+            {
+                "order_id": "o4",
+                "region": "West",
+                "revenue": 180,
+                "cost": 120,
+                "is_internal": "false",
+            },
+            {
+                "order_id": "o5",
+                "region": "South",
+                "revenue": 220,
+                "cost": 150,
+                "is_internal": "false",
+            },
+        ],
+    )
+    _write_csv(
+        root / "data" / "returns.csv",
+        ["order_id", "refund"],
+        [
+            {"order_id": "o2", "refund": 20},
+            {"order_id": "o4", "refund": 10},
+            {"order_id": "o5", "refund": 50},
+            {"order_id": "unknown", "refund": 999},
+        ],
+    )
+    _write_csv(
+        root / "data" / "tickets.csv",
+        ["ticket_id", "team", "resolution_hours", "sla_hours"],
+        [
+            {
+                "ticket_id": "t1",
+                "team": "Core",
+                "resolution_hours": 4,
+                "sla_hours": 4,
+            },
+            {
+                "ticket_id": "t2",
+                "team": "Core",
+                "resolution_hours": 6,
+                "sla_hours": 4,
+            },
+            {
+                "ticket_id": "t3",
+                "team": "Data",
+                "resolution_hours": 10,
+                "sla_hours": 8,
+            },
+            {
+                "ticket_id": "t4",
+                "team": "Data",
+                "resolution_hours": 3,
+                "sla_hours": 4,
+            },
+            {
+                "ticket_id": "t5",
+                "team": "Core",
+                "resolution_hours": 9,
+                "sla_hours": 8,
+            },
+        ],
+    )
+    _write_csv(
+        root / "data" / "campaigns.csv",
+        ["campaign", "channel", "collected_revenue", "is_internal"],
+        [
+            {
+                "campaign": "c1",
+                "channel": "Search",
+                "collected_revenue": 300,
+                "is_internal": "false",
+            },
+            {
+                "campaign": "c2",
+                "channel": "Email",
+                "collected_revenue": 250,
+                "is_internal": "false",
+            },
+            {
+                "campaign": "c3",
+                "channel": "Search",
+                "collected_revenue": 900,
+                "is_internal": "true",
+            },
+            {
+                "campaign": "c4",
+                "channel": "Partner",
+                "collected_revenue": 500,
+                "is_internal": "false",
+            },
+        ],
+    )
+    return _workspace(
+        root,
+        {
+            "net_external_revenue": 640,
+            "top_region": "South",
+            "breach_count": 3,
+            "worst_team": "Core",
+            "top_channel": "Partner",
+            "ignored_return_count": 1,
+        },
+        required_source_fragments=(
+            "net_external_revenue",
+            "breach_count",
+            "top_channel",
+        ),
+    )
+
+
+def _setup_recall_marathon(root: Path) -> ScenarioWorkspace:
+    _write_csv(
+        root / "data" / "regions.csv",
+        ["region", "sales", "is_internal"],
+        [
+            {"region": "North", "sales": 120, "is_internal": "false"},
+            {"region": "South", "sales": 190, "is_internal": "false"},
+            {"region": "West", "sales": 800, "is_internal": "true"},
+        ],
+    )
+    return _workspace(
+        root,
+        {"method": "bounded-12-91", "quality_score": 46.333},
+        notebook_source=_REVISION_HISTORY_NOTEBOOK,
+        required_source_fragments=("regional_summary",),
+        required_exact_cell_sources=(
+            _REVISION_HISTORY_METRIC_SOURCE,
+            _REVISION_HISTORY_AUDIT_SOURCE,
+        ),
+        forbidden_source_fragments=(
+            "statistics.median",
+            '"method": "trimmed-one-each"',
+        ),
+    )
+
+
+EXTREME_SCENARIOS = (
+    Scenario(
+        id="multi_task_marathon",
+        description=(
+            "Complete several unrelated analyses in one persistent thread."
+        ),
+        length="long",
+        failure_modes=(
+            "extreme_conversation_length",
+            "task_switching",
+            "early_constraint_recall",
+            "context_growth",
+        ),
+        setup=_setup_multi_task_marathon,
+        turns=(
+            "Inspect all four CSV files in data/. Do not edit yet. For every future task, exclude internal records, count an SLA breach only when resolution_hours is strictly greater than sla_hours, and use collected campaign revenue. Confirm these policies concisely.",
+            "Build the external order analysis with gross revenue, cost, margin, and the top region by gross revenue.",
+            "Incorporate returns into the order analysis. Ignore return rows whose order_id is absent from the external orders, report that ignored count, and rank regions by net revenue.",
+            "Do not edit anything. Briefly explain why the unknown return must not reduce external revenue.",
+            "Add a separate support-ticket analysis with breach count and the team with the most breaches. Preserve the order analysis.",
+            "Add a separate campaign analysis using the revenue basis I specified at the beginning. Report revenue by channel and the top channel. Preserve the prior analyses.",
+            "Add one compact combined KPI table covering orders, support, and campaigns without duplicating the underlying calculations.",
+            "Update currency outputs to two decimal places and ensure top_region is based on net, not gross, revenue. Do not change the SLA or campaign policies.",
+            "Hide code for the raw-data loading cells and keep the combined KPI presentation after all calculations.",
+            "Do not edit the notebook. State the three policies from my first message and say which current calculation enforces each one.",
+            "Audit the notebook for duplicated definitions or stale intermediate calculations. Fix only real issues and preserve all requested outputs.",
+            "Finish by verifying the notebook and setting analysis_summary to exactly these keys: net_external_revenue, top_region, breach_count, worst_team, top_channel, and ignored_return_count.",
+        ),
+    ),
+    Scenario(
+        id="recall_marathon",
+        description=(
+            "Return to exact early notebook state after several intervening tasks."
+        ),
+        length="long",
+        failure_modes=(
+            "extreme_conversation_length",
+            "historical_source_recall",
+            "task_switching",
+            "exact_source_restoration",
+        ),
+        setup=_setup_recall_marathon,
+        turns=(
+            "Inspect the notebook carefully and remember the exact metric and audit implementations. Do not edit anything yet.",
+            "Replace the headline metric with the median of raw_scores, set method='median', and delete the audit cell.",
+            "Now work on a separate task: analyze data/regions.csv, exclude internal rows, and add regional_summary with total_sales and top_region. Preserve the current metric.",
+            "Add a compact regional sales table. Do not alter the metric task.",
+            "Change the headline metric again: sort raw_scores, remove one value from each tail, average the rest, and set method='trimmed-one-each'.",
+            "Without editing, compare the current trimmed metric with the original bounded metric and explain the tradeoff briefly.",
+            "Re-check the regional analysis against the source CSV and correct it only if internal rows are included.",
+            "Hide code for the regional data-loading cell and keep its table after the regional calculation.",
+            "Do not edit. State the original clamp bounds, method label, and rounding precision from the first turn.",
+            "Restore the original metric cell and deleted audit cell exactly from revision history. Keep the regional analysis, remove median- and trimmed-only code, and verify everything.",
+        ),
+    ),
+)
+
+
 _QUICK_SCENARIO_IDS = {
     "athletes_prescribed",
     "retail_investigation_short",
@@ -1703,6 +1923,7 @@ def get_scenarios(
         "capabilities",
         "holdout",
         "regression",
+        "extreme",
         "all",
     ] = "full",
 ) -> tuple[Scenario, ...]:
@@ -1711,6 +1932,7 @@ def get_scenarios(
         *CAPABILITY_SCENARIOS,
         *HOLDOUT_SCENARIOS,
         *REGRESSION_SCENARIOS,
+        *EXTREME_SCENARIOS,
     )
     selected_ids = ids
     if selected_ids is None and suite == "quick":
@@ -1723,6 +1945,8 @@ def get_scenarios(
         return HOLDOUT_SCENARIOS
     if selected_ids is None and suite == "regression":
         return REGRESSION_SCENARIOS
+    if selected_ids is None and suite == "extreme":
+        return EXTREME_SCENARIOS
     if selected_ids is None and suite == "all":
         return all_scenarios
     assert selected_ids is not None

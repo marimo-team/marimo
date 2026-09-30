@@ -14,6 +14,53 @@ VARIANTS = (
             "configuration capabilities."
         ),
         tool_strategy="hybrid_balanced",
+        history_strategy="semantic",
+    ),
+    HarnessVariant(
+        id="hybrid_uncompacted",
+        description=(
+            "Seven-tool hybrid with complete conversation history retained."
+        ),
+        tool_strategy="hybrid_balanced",
+    ),
+    HarnessVariant(
+        id="hybrid_checkpoint",
+        description=(
+            "Seven-tool hybrid with semantic tool trimming and incremental "
+            "completed-task checkpoints."
+        ),
+        tool_strategy="hybrid_balanced",
+        history_strategy="incremental_checkpoint",
+        checkpoint_threshold_chars=60_000,
+    ),
+    HarnessVariant(
+        id="harness_checkpoint",
+        description=(
+            "Harness compact_now summaries persisted across sidebar turns."
+        ),
+        tool_strategy="hybrid_balanced",
+        history_strategy="harness_checkpoint",
+        checkpoint_threshold_chars=60_000,
+    ),
+    HarnessVariant(
+        id="hybrid_checkpoint_forced",
+        description=(
+            "Custom persistent checkpoint forced at 25,000 characters for "
+            "models with compact responses."
+        ),
+        tool_strategy="hybrid_balanced",
+        history_strategy="incremental_checkpoint",
+        checkpoint_threshold_chars=25_000,
+    ),
+    HarnessVariant(
+        id="harness_checkpoint_forced",
+        description=(
+            "Harness persistent checkpoint forced at 25,000 characters for "
+            "models with compact responses."
+        ),
+        tool_strategy="hybrid_balanced",
+        history_strategy="harness_checkpoint",
+        checkpoint_threshold_chars=25_000,
     ),
 )
 

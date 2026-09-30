@@ -196,6 +196,19 @@ Output lines include the trial number when jobs overlap. Results are written in
 the original scenario, variant, and repetition order regardless of completion
 order. The default remains `--jobs 1`.
 
+Use `--suite extreme` for long-lived-thread cases. These combine many
+independent tasks and later revisit requirements or exact source from an early
+turn. The `hybrid_uncompacted`, `hybrid_balanced`, and `hybrid_checkpoint`
+variants isolate history handling while keeping the same seven editor tools.
+`hybrid_checkpoint` is a benchmark-only prototype: it uses a recorded
+character threshold and incremental summaries of completed turns.
+`harness_checkpoint` calls Harness `compact_now` between turns and reuses the
+resulting model-facing history on later requests. The forced checkpoint
+variants use a lower threshold to exercise compaction for models with shorter
+responses. Harness is in the `ai-eval` dependency group only; these strategies
+do not add it to marimo's production dependencies. Rejected request-local
+Harness variants are documented in `RESULTS.md` but are no longer exposed.
+
 Results are written to `.ai-eval-runs/`. Local artifacts contain the candidate
 model, scenario hash, variant configuration, repetition count, deterministic
 scores, source contracts, final notebooks, diffs, conversation IDs, one

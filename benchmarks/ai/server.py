@@ -16,6 +16,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Self, cast
 
+from benchmarks.ai.checkpoint import (
+    HarnessCheckpointCompactor,
+    IncrementalCheckpointCompactor,
+)
 from benchmarks.ai.models import (
     HarnessVariant,
     JSONValue,
@@ -44,6 +48,7 @@ EVAL_TRIAL_HEADER = "Marimo-AI-Eval-Trial-Id"
 EVAL_VARIANT_HEADER = "Marimo-AI-Eval-Variant-Id"
 EVAL_REPETITION_HEADER = "Marimo-AI-Eval-Repetition"
 TOOL_STRATEGY_HEADER = "Marimo-AI-Tool-Strategy"
+HISTORY_STRATEGY_HEADER = "Marimo-AI-History-Strategy"
 INCLUDE_USAGE_HEADER = "Marimo-AI-Include-Usage"
 _SUMMARY_MARKER = "__MARIMO_AI_EVAL__"
 
@@ -99,6 +104,9 @@ class ChatTurn:
     trace_id: str
     tool_metrics: tuple[ToolCallMetrics, ...]
     effective_history_chars: int
+    checkpoint_generated: bool
+    checkpoint_duration_seconds: float
+    checkpoint_input_chars: int
 
 
 @dataclass(frozen=True)
@@ -151,6 +159,9 @@ class MarimoServer:
     _stop_drain: threading.Event = field(default_factory=threading.Event)
     _cell_ids_by_name: dict[str, str] = field(default_factory=dict)
     _cell_codes_by_name: dict[str, str] = field(default_factory=dict)
+    _checkpoint_compactor: (
+        IncrementalCheckpointCompactor | HarnessCheckpointCompactor | None
+    ) = field(default=None, init=False)
 
     def __enter__(self) -> Self:
         self._write_config()
@@ -403,7 +414,33 @@ base_url = "https://api.inference.wandb.ai/v1/"
         turn_number: int,
     ) -> ChatTurn:
         effective_messages = messages
-        if self.variant.tool_strategy == "hybrid_balanced":
+        checkpoint_generated = False
+        checkpoint_duration_seconds = 0.0
+        checkpoint_input_chars = 0
+        checkpoint_usage = TokenUsage()
+        if self.variant.history_strategy in {
+            "incremental_checkpoint",
+            "harness_checkpoint",
+        }:
+            if self._checkpoint_compactor is None:
+                compactor_type = (
+                    HarnessCheckpointCompactor
+                    if self.variant.history_strategy == "harness_checkpoint"
+                    else IncrementalCheckpointCompactor
+                )
+                self._checkpoint_compactor = compactor_type(
+                    model=self.model,
+                    threshold_chars=(
+                        self.variant.checkpoint_threshold_chars or 80_000
+                    ),
+                )
+            preparation = self._checkpoint_compactor.prepare(messages)
+            effective_messages = preparation.messages
+            checkpoint_generated = preparation.generated
+            checkpoint_duration_seconds = preparation.duration_seconds
+            checkpoint_input_chars = preparation.input_chars
+            checkpoint_usage = preparation.usage
+        elif self.variant.history_strategy == "semantic":
             from marimo._server.ai.tools.code_mode import (
                 compact_hybrid_history,
             )
@@ -412,7 +449,7 @@ base_url = "https://api.inference.wandb.ai/v1/"
         body = {
             "id": self.session_id,
             "includeOtherCode": "",
-            "uiMessages": messages,
+            "uiMessages": effective_messages,
             "options": {"webSearch": False},
         }
         response = self._post(
@@ -427,6 +464,12 @@ base_url = "https://api.inference.wandb.ai/v1/"
                 EVAL_VARIANT_HEADER: self.variant.id,
                 EVAL_REPETITION_HEADER: str(self.repetition),
                 TOOL_STRATEGY_HEADER: self.variant.tool_strategy,
+                HISTORY_STRATEGY_HEADER: (
+                    "semantic"
+                    if self.variant.history_strategy
+                    in {"incremental_checkpoint", "harness_checkpoint"}
+                    else self.variant.history_strategy
+                ),
                 INCLUDE_USAGE_HEADER: "true",
             },
         )
@@ -438,10 +481,13 @@ base_url = "https://api.inference.wandb.ai/v1/"
             text=builder.text(),
             tool_calls=builder.tool_calls,
             tool_errors=builder.tool_errors,
-            usage=builder.usage,
+            usage=builder.usage + checkpoint_usage,
             trace_id=response.trace_id,
             tool_metrics=builder.tool_metrics,
             effective_history_chars=serialized_chars(effective_messages),
+            checkpoint_generated=checkpoint_generated,
+            checkpoint_duration_seconds=checkpoint_duration_seconds,
+            checkpoint_input_chars=checkpoint_input_chars,
         )
 
     def generate(

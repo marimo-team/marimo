@@ -219,6 +219,7 @@ def main() -> int:
             "capabilities",
             "holdout",
             "regression",
+            "extreme",
             "all",
         ),
         default="quick",

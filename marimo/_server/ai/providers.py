@@ -497,14 +497,17 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             build_execute_code_toolset,
             build_hybrid_code_mode_toolset,
             compact_hybrid_history,
+            get_history_strategy,
             get_tool_strategy,
             references_capability,
         )
 
         tool_strategy = get_tool_strategy(request)
+        history_strategy = get_history_strategy(request)
         if tool_strategy == "hybrid_balanced":
             toolset = build_hybrid_code_mode_toolset(session, request)
-            messages = compact_hybrid_history(messages)
+            if history_strategy == "semantic":
+                messages = compact_hybrid_history(messages)
         else:
             toolset = build_execute_code_toolset(session, request)
 

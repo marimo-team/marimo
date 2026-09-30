@@ -2071,3 +2071,219 @@ as a design reference, especially for tool lifecycle hooks and traceable
 nested calls, but its generic capabilities did not outperform marimo's
 notebook-aware architecture. The rejected executable variants and dependency
 were removed after recording the results.
+
+## Experiment 31: incremental checkpoints for extreme conversations
+
+Date: 2026-09-30
+
+Model: `deepseek-ai/DeepSeek-V4.1-Flash`
+
+Runs: initial 80,000-character workspace comparison
+`20260930T101843Z-99a9a2f5`; repaired checkpoint transport
+`20260930T102448Z-412045b8`; below-threshold recall comparison
+`20260930T103127Z-43fb7d68`; forced recall comparison
+`20260930T103540Z-eeb3fc63`; final hysteresis trials
+`20260930T103946Z-197d52af`
+
+Tested whether one sidebar thread can remain useful across many unrelated
+tasks without summarizing the entire conversation on every request. Added two
+holdouts:
+
+- `multi_task_marathon` performs twelve turns across order, return, support,
+  campaign, presentation, configuration, explanation, and audit tasks. It
+  must retain three policies stated only in the first turn.
+- `recall_marathon` performs ten turns across metric rewrites and an unrelated
+  regional analysis, then restores two first-turn cells byte-for-byte.
+
+All variants used the same seven editor tools. `hybrid_uncompacted` retained
+the complete transcript, `hybrid_balanced` used the existing semantic tool
+compactor, and `hybrid_checkpoint` added a benchmark-only incremental
+checkpoint. The final checkpoint policy used a 60,000-character high-water
+mark, kept the most recent five messages verbatim, and required at least two
+newly completed turns between checkpoints. The complete transcript remained
+in the runner; only the model-facing view changed.
+
+The final checkpoint trials both passed:
+
+| Scenario | Duration | Tools / errors | Requests | Input tokens | Checkpoints | Summary time | Final effective history |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Multi-task marathon | 341.4s | 38 / 1 | 52 | 977,885 | 3 | 21.1s | 82,918 chars |
+| Recall marathon | 132.0s | 22 / 0 | 33 | 333,477 | 1 | 5.4s | 20,675 chars |
+
+The recall checkpoint happened on turn eight, before the final exact restore.
+The model still restored the original bounded metric and deleted audit cell
+byte-for-byte through bounded revision history. This supports the intended
+separation: summaries preserve semantic task context, while revision storage
+preserves exact source.
+
+Against the contemporaneous forced-recall comparison, checkpointing reduced
+input tokens by 15.1% versus semantic compaction and 21.4% versus retaining
+everything, while preserving correctness. The final hysteresis repeat had a
+cheaper trajectory still: 333,477 input tokens and 132.0 seconds. On the
+multi-task case, checkpointing reduced input by 33.2% versus the semantic
+observation but used 14.7% more than the unusually cheap uncompacted
+trajectory. It was also slower than both controls. This is high agent
+trajectory variance, not evidence that a smaller context always makes an
+individual run faster.
+
+Across the two final checkpoint trials, summarization ran four times in 22
+turns and added 26.5 seconds. It did not run on every request. Reusing a
+watermark avoided re-summarizing old turns, and the two-turn hysteresis
+prevented adjacent checkpoints. The first direct `urllib` W&B request was
+rejected with HTTP 403; using the same OpenAI-compatible client stack as
+marimo fixed the benchmark transport.
+
+Conclusions:
+
+- Keep the two extreme-conversation cases and history metrics.
+- Keep incremental checkpoints as a benchmark experiment, not a production
+  change yet. They bound model-facing history and preserved early semantic
+  requirements and exact revision recovery, but latency and token gains are
+  not consistent enough from this sample.
+- Any production design should persist a checkpoint plus a watermark, retain
+  the UI transcript separately, use hysteresis, and retrieve exact source
+  from revision history rather than a summary.
+- Repeat the comparison across another model and more repetitions before
+  choosing a threshold or conversation-state storage architecture.
+
+## Experiment 32: Pydantic AI history processing and persistent compaction
+
+Date: 2026-09-30
+
+Model: `deepseek-ai/DeepSeek-V4.1-Flash`
+
+Runs: initial request-local comparison
+`20260930T105556Z-531bdc59`; corrected ProcessHistory and semantic-summary
+comparison `20260930T110116Z-04699e1b`; corrected request-local summary
+comparison `20260930T110712Z-2a5d0161`; persistent Harness checkpoint
+`20260930T111927Z-23bb8aa3`
+
+Tested the history APIs in Pydantic AI 2.46.0 and
+`pydantic-ai-harness` 0.34.0 against the two extreme-conversation holdouts.
+The strategies were:
+
+- `ProcessHistory` wrapping a 15,000-token sliding window.
+- Request-local `SummarizingCompaction` with an 8,000-token retained tail.
+- Marimo semantic tool trimming followed by the same summary.
+- `TieredCompaction`, clearing old tool pairs before summarizing.
+- Harness `compact_now` at a turn boundary, with the compacted history and a
+  source-history watermark persisted across subsequent sidebar requests.
+
+The summary model was explicitly run without thinking and allowed 4,096
+output tokens. An initial 1,600-token limit failed during the multi-task case
+because the nested summary exhausted its output budget before returning any
+text. Provider-native `Model.compact_messages()` was not tested because the
+W&B OpenAI chat transport does not implement it.
+
+All corrected variants passed the delayed-recall case, but their costs were
+materially different:
+
+| Recall strategy | Duration | Tools / errors | Requests | Input tokens |
+|---|---:|---:|---:|---:|
+| Persistent custom checkpoint | 132.0s | 22 / 0 | 33 | 333,477 |
+| ProcessHistory sliding window | 133.4s | 38 / 1 | 47 | 466,768 |
+| Request-local summary | 248.7s | 29 / 1 | 44 | 411,819 |
+| Semantic + request-local summary | 160.3s | 25 / 0 | 44 | 350,932 |
+| Request-local tiered summary | 176.5s | 26 / 0 | 42 | 396,685 |
+| Persistent Harness checkpoint | 97.7s | 24 / 0 | 34 | 444,749 |
+
+`ProcessHistory` did not solve the sidebar lifecycle problem. Marimo creates a
+new Pydantic AI agent for each HTTP request and the browser sends the complete
+UI transcript again. A capability can compact the repeated model requests in
+one tool loop, but its transformed history is not the next user turn's input.
+The sliding window also removed useful causal context and caused substantially
+more notebook re-inspection and tool use.
+
+Request-local summaries have the same lifecycle mismatch. Logfire recorded
+18 `compact_messages` spans and 18 summary-agent invocations for the 12-turn
+multi-task trial, plus eight of each for the 10-turn recall trial. Thus 22 user
+turns generated 26 summaries, sometimes more than once in one tool loop. Both
+trials passed, but the multi-task trial used 55 tools and 81 model requests;
+the recall trial took 248.7 seconds. Combining semantic trimming with generic
+summarization and adding a clearing tier did not remove the repeated work.
+
+The persistent Harness experiment used `compact_now` between agent runs and
+round-tripped Pydantic model messages through `VercelAIAdapter`. Marimo retained
+the complete UI transcript separately and persisted only the compacted
+model-facing history plus a watermark. It summarized four times in 22 turns,
+not on every request, and both trials passed:
+
+| Scenario | Duration | Tools / errors | Requests | Input tokens | Checkpoints | Summary time | Final effective history |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Multi-task marathon | 274.6s | 38 / 1 | 49 | 879,632 | 3 | 13.3s | 45,273 chars |
+| Recall marathon | 97.7s | 24 / 0 | 34 | 444,749 | 1 | 6.1s | 57,341 chars |
+
+Compared with request-local Harness summarization, the persistent form reduced
+model requests by 40% and tools by 31% on the multi-task trial, and reduced
+latency by 61% on recall. Its multi-task input was 8% higher, so minimizing
+tokens inside one run is not the same objective as minimizing repeated
+conversation work.
+
+Compared with the custom persistent checkpoint from Experiment 31, Harness
+`compact_now` was 20% faster and used 10% fewer input tokens on multi-task,
+with the same tool count. On recall it was 26% faster but used 33% more input
+tokens and two more tools. With one observation per trajectory, this does not
+establish that either summarizer is uniformly better. It does establish that
+persistence across turns is the important architectural choice.
+
+A second-model comparison used `Qwen/Qwen3.5-35B-A3B`. At the normal
+60,000-character threshold, neither recall variant compacted: Qwen's shorter
+responses kept the effective history below the threshold. The initial
+multi-task attempts were also not useful architecture comparisons. Both
+variants repeatedly exhausted the single retry for `apply_notebook_patch`
+before compaction activated. One Harness trial completed, but still generated
+no checkpoint.
+
+The comparison was therefore repeated on the more stable recall scenario with
+an explicit 25,000-character threshold. This found and corrected two benchmark
+problems:
+
+- The custom checkpoint summarizer had not disabled Qwen's thinking template,
+  and once consumed its output budget without returning visible text. It now
+  uses the same 4,096-token non-thinking settings as the Harness summarizer.
+- Harness's fixed 8,000-token retained tail could exceed the entire
+  conversation even after the character threshold fired. The wrapper now
+  scales the retained tail with the threshold and does not count or persist a
+  no-op compaction.
+
+After those corrections, three independent forced-threshold recall trials per
+strategy produced:
+
+| Qwen recall, three trials | Custom checkpoint | Harness `compact_now` |
+|---|---:|---:|
+| Passed | 3/3 | 2/3 |
+| Mean duration | 62.9s | 80.5s |
+| Mean tools | 26.0 | 32.0 |
+| Mean tool errors | 2.3 | 4.7 |
+| Mean model requests | 37.0 | 44.0 |
+| Mean input tokens | 220,082 | 282,265 |
+| Mean output tokens | 7,981 | 10,649 |
+| Mean checkpoints | 1.3 | 3.0 |
+
+Runs: inactive-threshold and unstable multi-task comparison
+`20260930T124810Z-17fa22ea`; multi-task rerun
+`20260930T124935Z-76bdc293`; custom summary failure before the thinking fix
+`20260930T125057Z-74780552`; corrected no-op probe
+`20260930T125359Z-e20e6fb1`; corrected forced comparison
+`20260930T125545Z-65ac34b9`; two-repetition confirmation
+`20260930T125743Z-3e2e2778`.
+
+The failed Harness trial produced correct values but did not restore the two
+first-turn cells byte-for-byte. The model claimed exact restoration after
+inspection and revision-history use, but the executable source contract found
+formatting or source differences. More frequent generic summaries did not
+improve recall and instead increased requests and exploration.
+
+Conclusion: use a conversation-scoped history manager as the production
+boundary. It should retain the immutable UI transcript, maintain a separate
+model-facing checkpoint and source-history watermark, compact only after a
+high-water mark with hysteresis, and execute compaction under the triggering
+turn's trace. Harness `compact_now` is a good implementation candidate because
+it operates explicitly between agent runs, but the cross-model results do not
+justify its runtime dependency or generic summary policy. The custom
+notebook-aware checkpoint is the better current prototype. Replace its fixed
+character trigger with a model-context or estimated-token budget before a
+production experiment. `ProcessHistory` remains useful as an intra-run
+emergency limit, not as the primary long-conversation mechanism. Do not add
+request-local summarization, tiered clearing, or Harness compaction to the
+production sidebar based on these results.

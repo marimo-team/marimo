@@ -293,6 +293,13 @@ def run_scenario(
                         assistant_message_chars=serialized_chars(
                             chat_turn.message
                         ),
+                        checkpoint_generated=(chat_turn.checkpoint_generated),
+                        checkpoint_duration_seconds=(
+                            chat_turn.checkpoint_duration_seconds
+                        ),
+                        checkpoint_input_chars=(
+                            chat_turn.checkpoint_input_chars
+                        ),
                         tool_metrics=chat_turn.tool_metrics,
                     )
                     turn_metrics.append(metrics)
@@ -552,6 +559,15 @@ def write_summary(run_dir: Path, results: list[ScenarioResult]) -> None:
             ),
             "total_assistant_message_chars": sum(
                 turn.assistant_message_chars for turn in turn_metrics
+            ),
+            "checkpoint_count": sum(
+                turn.checkpoint_generated for turn in turn_metrics
+            ),
+            "checkpoint_duration_seconds": sum(
+                turn.checkpoint_duration_seconds for turn in turn_metrics
+            ),
+            "checkpoint_input_chars": sum(
+                turn.checkpoint_input_chars for turn in turn_metrics
             ),
             "total_tool_input_chars": sum(
                 tool.input_chars for tool in tool_metrics

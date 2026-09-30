@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 
 ToolStrategy = Literal["code_mode", "hybrid_balanced"]
 TOOL_STRATEGY_HEADER = "Marimo-AI-Tool-Strategy"
+HistoryStrategy = Literal["none", "semantic"]
+HISTORY_STRATEGY_HEADER = "Marimo-AI-History-Strategy"
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,14 @@ def get_tool_strategy(request: Request) -> ToolStrategy:
     if strategy == "hybrid_balanced":
         return "hybrid_balanced"
     return "code_mode"
+
+
+def get_history_strategy(request: Request) -> HistoryStrategy:
+    """Return the requested experimental history strategy."""
+    strategy = request.headers.get(HISTORY_STRATEGY_HEADER)
+    if strategy == "none":
+        return "none"
+    return "semantic"
 
 
 def _python_literal(value: object) -> str:

@@ -172,6 +172,27 @@ def test_get_tool_strategy_rejects_unknown_header() -> None:
     assert get_tool_strategy(request) == "code_mode"
 
 
+def test_get_history_strategy_defaults_to_semantic() -> None:
+    from marimo._server.ai.tools.code_mode import get_history_strategy
+
+    request = MagicMock()
+    request.headers = {}
+
+    assert get_history_strategy(request) == "semantic"
+
+
+def test_get_history_strategy_accepts_uncompacted_control() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        HISTORY_STRATEGY_HEADER,
+        get_history_strategy,
+    )
+
+    request = MagicMock()
+    request.headers = {HISTORY_STRATEGY_HEADER: "none"}
+
+    assert get_history_strategy(request) == "none"
+
+
 def test_hybrid_execute_code_rejects_code_mode_import() -> None:
     from marimo._server.ai.tools.code_mode import _imports_code_mode
 

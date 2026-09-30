@@ -80,6 +80,13 @@ class HarnessVariant:
     max_tokens: int | None = None
     custom_rules: str | None = None
     tool_strategy: Literal["code_mode", "hybrid_balanced"] = "code_mode"
+    history_strategy: Literal[
+        "none",
+        "semantic",
+        "incremental_checkpoint",
+        "harness_checkpoint",
+    ] = "none"
+    checkpoint_threshold_chars: int | None = None
 
 
 @dataclass(frozen=True)
@@ -130,6 +137,9 @@ class TurnMetrics:
     request_history_chars: int = 0
     effective_history_chars: int = 0
     assistant_message_chars: int = 0
+    checkpoint_generated: bool = False
+    checkpoint_duration_seconds: float = 0.0
+    checkpoint_input_chars: int = 0
     tool_metrics: tuple[ToolCallMetrics, ...] = ()
 
 
