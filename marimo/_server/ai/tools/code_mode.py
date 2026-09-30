@@ -25,11 +25,18 @@ TOOL_STRATEGY_HEADER = "Marimo-AI-Tool-Strategy"
 
 
 @dataclass(frozen=True)
-class NotebookCellPatch:
-    """One cell replacement or insertion in an atomic notebook patch."""
+class NotebookCellReplacement:
+    """Complete source replacement for one existing cell."""
 
     code: str
-    cell_id: str | None = None
+    cell_id: str
+
+
+@dataclass(frozen=True)
+class NotebookCellInsertion:
+    """One new anonymous cell in an atomic notebook patch."""
+
+    code: str
     after_cell_id: str | None = None
 
 
@@ -136,30 +143,41 @@ def compact_hybrid_history(
 def _compact_patch_input(value: object) -> object:
     if not isinstance(value, dict):
         return value
-    cells = value.get("cells")
-    if not isinstance(cells, list):
-        return value
-    compacted_cells: list[dict[str, object]] = []
-    for cell in cells:
-        if not isinstance(cell, dict):
-            continue
-        code = cell.get("code")
-        code_chars = len(code) if isinstance(code, str) else 0
-        compacted_cells.append(
-            {
-                "cell_id": cell.get("cell_id"),
-                "after_cell_id": cell.get("after_cell_id"),
-                "code": (
-                    "# Earlier patch source compacted "
-                    f"({code_chars} characters). Inspect the live notebook "
-                    "for current source."
-                ),
+
+    def compact_cells(key: str) -> list[dict[str, object]] | None:
+        cells = value.get(key)
+        if not isinstance(cells, list):
+            return None
+        compacted_cells: list[dict[str, object]] = []
+        for cell in cells:
+            if not isinstance(cell, dict):
+                continue
+            code = cell.get("code")
+            code_chars = len(code) if isinstance(code, str) else 0
+            compacted_cell = {
+                field: cell.get(field)
+                for field in ("cell_id", "after_cell_id")
+                if field in cell
             }
-        )
-    return {
-        "cells": compacted_cells,
-        "delete_cell_ids": value.get("delete_cell_ids"),
+            compacted_cell["code"] = (
+                "# Earlier patch source compacted "
+                f"({code_chars} characters). Inspect the live notebook for "
+                "current source."
+            )
+            compacted_cells.append(compacted_cell)
+        return compacted_cells
+
+    compacted: dict[str, object] = {
+        "delete_cell_ids": value.get("delete_cell_ids")
     }
+    # Retain support for conversations created before the patch schema split.
+    if (legacy_cells := compact_cells("cells")) is not None:
+        compacted["cells"] = legacy_cells
+    if (replacements := compact_cells("replacements")) is not None:
+        compacted["replacements"] = replacements
+    if (insertions := compact_cells("insertions")) is not None:
+        compacted["insertions"] = insertions
+    return compacted
 
 
 def build_execute_code_toolset(
@@ -313,19 +331,25 @@ def build_hybrid_code_mode_toolset(
         )
 
     async def apply_notebook_patch(
-        cells: list[NotebookCellPatch],
+        replacements: list[NotebookCellReplacement] | None = None,
+        insertions: list[NotebookCellInsertion] | None = None,
         delete_cell_ids: list[str] | None = None,
     ) -> CodeExecutionResult:
         """Atomically apply cell edits, inserts, and deletes, then execute once.
 
-        A cell with `cell_id` replaces that cell's complete source. A cell
-        without `cell_id` is inserted anonymously, optionally after
-        `after_cell_id`. All structural changes validate as one transaction.
-        Stale existing cells and patched cells then execute together in
-        dependency order. Returns IDs created by the server.
+        Put edits to existing stable IDs in `replacements`. Put new cells in
+        `insertions`; new cells never accept a caller-supplied ID and may be
+        placed after an existing `after_cell_id`. Batch every coherent edit
+        and insertion in this one call rather than patching one cell at a time.
+        Public top-level names must be unique across cells; prefix cell-local
+        variables, including loop targets, with `_`. All structural changes
+        validate as one transaction. Stale existing cells and patched cells
+        then execute together in dependency order. Returns server-created IDs.
         """
+        replacement_cells = replacements or []
+        inserted_cells = insertions or []
         delete_ids = delete_cell_ids or []
-        edited_ids = [cell.cell_id for cell in cells if cell.cell_id]
+        edited_ids = [cell.cell_id for cell in replacement_cells]
         duplicate_edits = {
             cell_id for cell_id in edited_ids if edited_ids.count(cell_id) > 1
         }
@@ -341,22 +365,14 @@ def build_hybrid_code_mode_toolset(
                 success=False,
                 errors=["Patch contains duplicate delete_cell_ids"],
             )
-        invalid_placements = [
-            cell.cell_id
-            for cell in cells
-            if cell.cell_id is not None and cell.after_cell_id is not None
-        ]
-        if invalid_placements:
-            return CodeExecutionResult(
-                success=False,
-                errors=["after_cell_id is only valid for inserted cells"],
-            )
 
-        patch_values = [asdict(cell) for cell in cells]
+        replacement_values = [asdict(cell) for cell in replacement_cells]
+        insertion_values = [asdict(cell) for cell in inserted_cells]
         return await run(
             "import json as _json\n"
             "import marimo._code_mode as _cm\n"
-            f"_patches = {_python_literal(patch_values)}\n"
+            f"_replacements = {_python_literal(replacement_values)}\n"
+            f"_insertions = {_python_literal(insertion_values)}\n"
             f"_delete_ids = {_python_literal(delete_ids)}\n"
             "async with _cm.get_context() as _ctx:\n"
             "    _stale_ids = [\n"
@@ -366,21 +382,20 @@ def build_hybrid_code_mode_toolset(
             "    ]\n"
             "    _created_ids = []\n"
             "    _edited_ids = []\n"
-            "    for _patch in _patches:\n"
-            "        _cell_id = _patch['cell_id']\n"
-            "        if _cell_id is None:\n"
-            "            _cell_id = str(_ctx.create_cell(\n"
-            "                _patch['code'],\n"
-            "                after=_patch['after_cell_id'],\n"
-            "                hide_code=False,\n"
-            "            ))\n"
-            "            _created_ids.append(_cell_id)\n"
-            "        else:\n"
-            "            _ctx.cells[_cell_id].code\n"
-            "            _ctx.edit_cell(\n"
-            "                _cell_id, code=_patch['code']\n"
-            "            )\n"
-            "            _edited_ids.append(_cell_id)\n"
+            "    for _replacement in _replacements:\n"
+            "        _cell_id = _replacement['cell_id']\n"
+            "        _ctx.cells[_cell_id].code\n"
+            "        _ctx.edit_cell(\n"
+            "            _cell_id, code=_replacement['code']\n"
+            "        )\n"
+            "        _edited_ids.append(_cell_id)\n"
+            "    for _insertion in _insertions:\n"
+            "        _cell_id = str(_ctx.create_cell(\n"
+            "            _insertion['code'],\n"
+            "            after=_insertion['after_cell_id'],\n"
+            "            hide_code=False,\n"
+            "        ))\n"
+            "        _created_ids.append(_cell_id)\n"
             "    for _cell_id in _delete_ids:\n"
             "        _ctx.cells[_cell_id].code\n"
             "        _ctx.delete_cell(_cell_id)\n"

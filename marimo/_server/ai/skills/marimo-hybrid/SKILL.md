@@ -27,11 +27,13 @@ Use only these typed tools for persistent changes:
   one validated structural transaction, then executes once.
 - `run_cells` executes existing cells as one reactive batch.
 
-Prefer one `apply_notebook_patch` call for a coherent user request. For each
-entry in `cells`, include `cell_id` to replace an existing cell, or omit it to
-insert an anonymous new cell. An inserted cell can include `after_cell_id`.
-The returned stable ID is its handle; a cell name is metadata and would not
-define a Python variable. Use `delete_cell_ids` for removals. The server runs
+Use exactly one `apply_notebook_patch` call for a coherent user request when
+possible; include all new cells together in its `insertions` list. Put edits
+to existing cells in `replacements`, using only stable IDs returned by
+inspection. Do not invent IDs for new cells. An insertion can include the
+stable ID of an existing cell in `after_cell_id`.
+The returned server-created ID is its handle; a cell name is metadata and
+would not define a Python variable. Use `delete_cell_ids` for removals. The server runs
 initially stale cells and all patched cells together in dependency order, so
 do not manually stage dependent inserts across calls. Its execution summary
 is the postcondition; do not follow a successful patch with a full inspection.
@@ -47,7 +49,8 @@ either is enough.
 - A cell name identifies a cell; it does not define a Python variable. Assign
   every requested public variable in the cell body.
 - Use private names, prefixed with `_`, for same-cell intermediates that no
-  other cell needs.
+  other cell needs. This includes top-level loop targets, context-manager
+  targets, and exception names, because marimo treats them as definitions.
 - Submit cell contents, not saved-file `@app.cell` wrappers.
 - Preserve useful existing structure and make the smallest coherent change.
 - Existing cells can initially be stale. Run required upstream cells before a

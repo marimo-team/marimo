@@ -46,6 +46,14 @@ def test_build_hybrid_toolset_exposes_editor_tools() -> None:
         toolset.tools["inspect_notebook"].function
     )
     assert list(inspect_signature.parameters) == ["scope"]
+    patch_signature = inspect.signature(
+        toolset.tools["apply_notebook_patch"].function
+    )
+    assert list(patch_signature.parameters) == [
+        "replacements",
+        "insertions",
+        "delete_cell_ids",
+    ]
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -264,7 +272,8 @@ async def test_execute_code_tool_routes_to_scratchpad_with_credentials() -> (
 @pytest.mark.requires("pydantic_ai")
 async def test_hybrid_patch_compiles_to_one_code_mode_transaction() -> None:
     from marimo._server.ai.tools.code_mode import (
-        NotebookCellPatch,
+        NotebookCellInsertion,
+        NotebookCellReplacement,
         build_hybrid_code_mode_toolset,
     )
 
@@ -289,9 +298,11 @@ async def test_hybrid_patch_compiles_to_one_code_mode_transaction() -> None:
             toolset.tools["apply_notebook_patch"].function,
         )
         result = await apply_notebook_patch(
-            [
-                NotebookCellPatch(code="answer = 42", cell_id="cell-1"),
-                NotebookCellPatch(
+            replacements=[
+                NotebookCellReplacement(code="answer = 42", cell_id="cell-1"),
+            ],
+            insertions=[
+                NotebookCellInsertion(
                     code="double = answer * 2",
                     after_cell_id="cell-1",
                 ),
@@ -313,7 +324,7 @@ async def test_hybrid_patch_compiles_to_one_code_mode_transaction() -> None:
 @pytest.mark.requires("pydantic_ai")
 async def test_hybrid_patch_rejects_conflicting_operations() -> None:
     from marimo._server.ai.tools.code_mode import (
-        NotebookCellPatch,
+        NotebookCellReplacement,
         build_hybrid_code_mode_toolset,
     )
 
@@ -324,7 +335,9 @@ async def test_hybrid_patch_rejects_conflicting_operations() -> None:
     )
 
     result = await apply_notebook_patch(
-        [NotebookCellPatch(code="answer = 42", cell_id="cell-1")],
+        replacements=[
+            NotebookCellReplacement(code="answer = 42", cell_id="cell-1")
+        ],
         delete_cell_ids=["cell-1"],
     )
 

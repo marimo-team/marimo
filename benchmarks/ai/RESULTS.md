@@ -1217,3 +1217,81 @@ strategy and has passed the requested full-suite gate. Keep it as the leading
 architecture. The next optimization target should not be more history work or
 more tools; it should be bounded same-turn recovery for models that repeatedly
 submit failing patches, measured separately on the Qwen failure-heavy case.
+
+## Experiment 20: patch ambiguity and same-turn recovery
+
+Date: 2026-09-30
+
+Models: `Qwen/Qwen3.5-35B-A3B` and
+`deepseek-ai/DeepSeek-V4.1-Flash`
+
+Runs: original Qwen failure-heavy observation
+`20260929T202127Z-06d02565`, explicit patch schema
+`20260930T015528Z-d7f628df`, schema plus focused guidance
+`20260930T020123Z-2dda4f16`, and DeepSeek regression
+`20260930T015831Z-594c90bc`
+
+Inspected Qwen's 24-tool turn in Logfire before adding a retry policy. The
+first seven large patch failures had the same cause: the model supplied
+invented names such as `cell_join_cardinality` in `cell_id` for cells it
+intended to create. The old patch item represented both operations with one
+optional field: a present `cell_id` meant replacement and an omitted one meant
+insertion. The tool returned the exact available stable ID and the hybrid skill
+already said to omit IDs for new cells, but Qwen repeatedly reconstructed the
+same ambiguous object incorrectly.
+
+Changed the single atomic patch tool without adding another tool:
+
+- `replacements` accepts complete source plus a required existing stable ID.
+- `insertions` accepts complete source plus an optional existing
+  `after_cell_id`; it cannot accept a caller-created ID.
+- `delete_cell_ids` remains unchanged.
+
+The implementation still compiles all three groups into one existing
+`_code_mode` transaction and one reactive execution batch. Historical
+compaction understands both the old and new argument shapes so conversations
+created before the schema change remain compactable.
+
+| Qwen candidate | Passed | Duration | Tools | Errors | Requests | Input | Output |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Optional `cell_id` | Yes | 173.2s | 38 | 13 | 45 | 1,574,574 | 28,245 |
+| Explicit insert/replace | Yes | 140.1s | 38 | 11 | 46 | 927,035 | 24,718 |
+| Explicit schema + guidance | Yes | 117.1s | 27 | 12 | 34 | 717,989 | 18,736 |
+
+The explicit schema reduced input by 41.1% while preserving correctness. Tool
+count did not initially fall because Qwen then inserted cells incrementally and
+hit genuine marimo graph validation: public loop targets such as `region`,
+`status`, and `count` were defined in multiple cells. Added local guidance to
+batch coherent insertions in one patch and to prefix top-level loop,
+context-manager, and exception targets with `_`. With both changes, input was
+54.4% below the original observation, duration was 32.4% lower, tools were
+28.9% lower, requests were 24.4% lower, and output was 33.7% lower.
+
+Errors remained high and moved between turns. The final guided Qwen turn made
+nine calls with seven errors, recovered, and the scenario passed. This is
+direct counterevidence to a blind per-turn error budget: a cap below eight
+would have converted a correct result into a failure. Error count alone does
+not distinguish a productive correction sequence from a repeated strategy.
+Do not add a hard retry cutoff without a semantic repeated-failure detector or
+a resumable fallback.
+
+Ran focused DeepSeek regressions after the schema and guidance change:
+
+| Scenario | Passed | Duration | Tools | Errors | Input |
+|---|---:|---:|---:|---:|---:|
+| Athletes prescribed | Yes | 38.3s | 7 | 0 | 36,651 |
+| Retail short | Yes | 44.6s | 9 | 1 | 62,135 |
+| Operations context | Yes | 160.2s | 32 | 0 | 772,384 |
+
+All three passed. Operations had zero errors and its input was effectively the
+same as the earlier 774,895-token compacted repeat, although higher than the
+particularly cheap 504,260-token full-suite trajectory. This is consistent
+with model variance rather than a clear regression.
+
+Conclusion: keep the explicit patch groups and focused naming/batching
+guidance. They address observed, generalizable interface ambiguity while
+preserving atomicity and the seven-tool budget. Reject a blind retry cap. The
+remaining Qwen errors are primarily notebook-graph design mistakes inside a
+complex generation turn; improving recovery further requires classifying
+repeated failure signatures and supplying targeted corrective guidance, not
+silently stopping or adding more editor tools.
