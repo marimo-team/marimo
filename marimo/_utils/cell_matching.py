@@ -80,31 +80,88 @@ def pop_local(available: list[tuple[int, CellId_t]], idx: int) -> CellId_t:
 
 
 # Above this size the exact O(n^3) solver gets slow on dense, tie-heavy cost
-# matrices -- in particular the zero-padded matrices produced when many more
-# cells are added than removed (~0.5s at n=500 for a realistic matrix, several
-# seconds for the padded worst case). Such large simultaneous edits are rare and
-# a slightly sub-optimal match there is harmless, so fall back to a fast O(n^2)
-# greedy assignment above the cutoff.
+# matrices, in particular the zero-padded ones produced when many more cells
+# are added than removed. Large edits like that are rare, so use the faster
+# approximate assignment there.
 _MAX_OPTIMAL_ASSIGNMENT_SIZE = 50
 
 
-def _greedy_assignment(scores: list[list[float]]) -> list[int]:
-    """Fast approximate assignment; `result[column] = row`, same convention as
-    `_hungarian_algorithm`."""
-    n = len(scores)
-    result = [-1] * n
-    used_row = [False] * n
-    # Assign the most decisive columns (smallest best cost) first.
-    for j in sorted(
-        range(n), key=lambda c: min(scores[r][c] for r in range(n))
-    ):
-        best_row, best_cost = -1, float("inf")
+def _approximate_assignment(scores: list[list[float]]) -> list[int]:
+    """Fast approximate assignment, used for large inputs.
+
+    A Hungarian-style heuristic that is quick but does not always find the
+    minimum-cost matching. Returns `result[column] = row`, the same convention
+    as `_hungarian_algorithm`.
+    """
+    score_matrix = [row[:] for row in scores]
+    n = len(score_matrix)
+
+    # Step 1: Subtract row minima
+    for i in range(n):
+        min_value = min(score_matrix[i])
+        for j in range(n):
+            score_matrix[i][j] -= min_value
+
+    # Step 2: Subtract column minima
+    for j in range(n):
+        min_value = min(score_matrix[i][j] for i in range(n))
         for i in range(n):
-            if not used_row[i] and scores[i][j] < best_cost:
-                best_cost, best_row = scores[i][j], i
-        if best_row != -1:
-            used_row[best_row] = True
-            result[j] = best_row
+            score_matrix[i][j] -= min_value
+
+    # Step 3: Find initial assignment
+    row_assignment = [-1] * n
+    col_assignment = [-1] * n
+
+    # Find independent zeros
+    for i in range(n):
+        for j in range(n):
+            if (
+                score_matrix[i][j] == 0
+                and row_assignment[i] == -1
+                and col_assignment[j] == -1
+            ):
+                row_assignment[i] = j
+                col_assignment[j] = i
+
+    # Step 4: Improve assignment iteratively
+    while True:
+        assigned_count = sum(1 for x in row_assignment if x != -1)
+        if assigned_count == n:
+            break
+
+        # Find minimum uncovered value
+        min_uncovered = float("inf")
+        for i in range(n):
+            for j in range(n):
+                if row_assignment[i] == -1 and col_assignment[j] == -1:
+                    min_uncovered = min(min_uncovered, score_matrix[i][j])
+
+        if min_uncovered == float("inf"):
+            break
+
+        # Update matrix
+        for i in range(n):
+            for j in range(n):
+                if row_assignment[i] == -1 and col_assignment[j] == -1:
+                    score_matrix[i][j] -= min_uncovered
+                elif row_assignment[i] != -1 and col_assignment[j] != -1:
+                    score_matrix[i][j] += min_uncovered
+
+        # Try to find new assignments
+        for i in range(n):
+            if row_assignment[i] == -1:
+                for j in range(n):
+                    if score_matrix[i][j] == 0 and col_assignment[j] == -1:
+                        row_assignment[i] = j
+                        col_assignment[j] = i
+                        break
+
+    # Convert to result format
+    result = [-1] * n
+    for i in range(n):
+        if row_assignment[i] != -1:
+            result[row_assignment[i]] = i
+
     return result
 
 
@@ -269,10 +326,10 @@ def _match_cell_ids_by_similarity(
                     # NB. transposed indices for Hungarian
                     scores[y][x] = score
 
-    # Use the exact assignment for small problems, and a fast greedy fallback
-    # for large ones where the exact O(n^3) solver would be too slow.
+    # Use the exact assignment for small problems, and the faster approximate
+    # one for large problems where the exact O(n^3) solver would be too slow.
     matches = (
-        _greedy_assignment(scores)
+        _approximate_assignment(scores)
         if n > _MAX_OPTIMAL_ASSIGNMENT_SIZE
         else _hungarian_algorithm(scores)
     )
