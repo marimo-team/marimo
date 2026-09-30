@@ -235,6 +235,26 @@ class TestErrorUtilityFunctions:
             # Hint field should exist (may be None for this error)
             assert hasattr(error, "hint")
 
+    def test_create_sql_error_forwards_position_without_hint(self):
+        """Coordinates (sql_line/sql_col) must be forwarded even when hint is
+        None — engines may report position without a hint (issue #10987)."""
+
+        class MockCell:
+            sqls = ["SELECT * FROM t"]
+
+        exception = MarimoSQLException(
+            message="syntax error",
+            sql_statement="SELECT * FROM t",
+            sql_line=3,
+            sql_col=12,
+            hint=None,
+        )
+        error = create_sql_error_from_exception(exception, MockCell())
+        assert error.sql_line == 3
+        assert error.sql_col == 12
+        assert error.sql_statement == "SELECT * FROM t"
+        assert error.hint is None
+
     @pytest.mark.requires("duckdb")
     def test_create_sql_error_long_statement(self, duckdb_conn):
         """Test SQL statement truncation in error creation."""
