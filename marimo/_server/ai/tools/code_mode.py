@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import ast
+import base64
+import binascii
 import copy
-from dataclasses import asdict, dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from dataclasses import asdict, dataclass, replace
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._server.ai.skills.utils import load_reference
@@ -13,17 +15,26 @@ from marimo._server.api.utils import get_code_mode_credentials
 from marimo._server.scratchpad import run_scratchpad_code
 
 if TYPE_CHECKING:
-    from pydantic_ai import FunctionToolset
+    from pydantic_ai import FunctionToolset, ToolReturn
     from pydantic_ai.capabilities import Capability
     from starlette.requests import Request
 
     from marimo._session.session import Session
+
+    InspectNotebookResult: TypeAlias = (
+        CodeExecutionResult | ToolReturn[list[Any]]
+    )
+else:
+    InspectNotebookResult: TypeAlias = Any
 
 
 ToolStrategy = Literal["code_mode", "hybrid_balanced"]
 TOOL_STRATEGY_HEADER = "Marimo-AI-Tool-Strategy"
 HistoryStrategy = Literal["none", "semantic"]
 HISTORY_STRATEGY_HEADER = "Marimo-AI-History-Strategy"
+EXPLORATION_TIMEOUT_SECONDS = 60.0
+NOTEBOOK_OPERATION_TIMEOUT_SECONDS = 300.0
+PACKAGE_OPERATION_TIMEOUT_SECONDS = 600.0
 
 
 @dataclass(frozen=True)
@@ -58,7 +69,7 @@ class NotebookCellConfiguration:
 def get_tool_strategy(request: Request) -> ToolStrategy:
     """Return the requested experimental code-mode tool strategy."""
     strategy = request.headers.get(TOOL_STRATEGY_HEADER)
-    if strategy == "hybrid_balanced":
+    if strategy is None or strategy == "hybrid_balanced":
         return "hybrid_balanced"
     return "code_mode"
 
@@ -97,6 +108,57 @@ def _imports_code_mode(code: str) -> bool:
     return False
 
 
+def _screenshot_tool_return(
+    result: CodeExecutionResult,
+    *,
+    cell_id: str | None,
+) -> InspectNotebookResult:
+    """Convert a screenshot data URL into a multimodal tool result."""
+    if not result.success:
+        return result
+
+    candidate = (result.output or "").strip()
+    prefix = "data:image/png;base64,"
+    if not candidate.startswith(prefix):
+        return replace(
+            result,
+            success=False,
+            errors=[
+                *result.errors,
+                "Screenshot did not return a PNG data URL",
+            ],
+        )
+
+    try:
+        image = base64.b64decode(candidate[len(prefix) :], validate=True)
+    except (binascii.Error, ValueError) as error:
+        return replace(
+            result,
+            success=False,
+            errors=[*result.errors, f"Invalid screenshot data: {error}"],
+        )
+    if not image.startswith(b"\x89PNG\r\n\x1a\n"):
+        return replace(
+            result,
+            success=False,
+            errors=[*result.errors, "Screenshot data is not a PNG image"],
+        )
+
+    from pydantic_ai import BinaryImage, ToolReturn
+
+    target = repr(cell_id) if cell_id is not None else "the last cell"
+    summary = replace(
+        result,
+        output=f"Captured {len(image)} PNG bytes from {target}",
+    )
+    return ToolReturn(
+        return_value=[
+            asdict(summary),
+            BinaryImage(data=image, media_type="image/png"),
+        ]
+    )
+
+
 def compact_hybrid_history(
     messages: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
@@ -126,11 +188,18 @@ def compact_hybrid_history(
                 continue
             tool_type = part.get("type")
             output = part.get("output")
+            structured_output = (
+                output[0]
+                if isinstance(output, list)
+                and output
+                and isinstance(output[0], dict)
+                else output
+            )
             if (
                 part.get("state") != "output-available"
                 or not isinstance(tool_type, str)
-                or not isinstance(output, dict)
-                or output.get("success") is not True
+                or not isinstance(structured_output, dict)
+                or structured_output.get("success") is not True
             ):
                 continue
             if tool_type == "tool-inspect_notebook":
@@ -220,6 +289,7 @@ def build_execute_code_toolset(
             code=code,
             server_url=server_url,
             auth_token=auth_token,
+            timeout=EXPLORATION_TIMEOUT_SECONDS,
         )
 
     toolset.add_function(
@@ -244,7 +314,11 @@ def build_hybrid_code_mode_toolset(
 
     toolset: FunctionToolset = FunctionToolset()
 
-    async def run(code: str) -> CodeExecutionResult:
+    async def run(
+        code: str,
+        *,
+        timeout: float = NOTEBOOK_OPERATION_TIMEOUT_SECONDS,
+    ) -> CodeExecutionResult:
         server_url, auth_token = get_code_mode_credentials(
             AppState(request), request
         )
@@ -254,6 +328,7 @@ def build_hybrid_code_mode_toolset(
             code=code,
             server_url=server_url,
             auth_token=auth_token,
+            timeout=timeout,
         )
 
     async def execute_code(code: str) -> CodeExecutionResult:
@@ -273,12 +348,15 @@ def build_hybrid_code_mode_toolset(
                     )
                 ],
             )
-        return await run(code)
+        return await run(code, timeout=EXPLORATION_TIMEOUT_SECONDS)
 
     async def inspect_notebook(
-        scope: Literal["all", "outline", "errors", "history"],
-    ) -> CodeExecutionResult:
-        """Inspect notebook structure, source, failures, or prior revisions.
+        scope: Literal[
+            "all", "outline", "errors", "history", "rendered_output"
+        ],
+        cell_id: str | None = None,
+    ) -> InspectNotebookResult:
+        """Inspect notebook state or view one cell's rendered output.
 
         Use `all` when source is required for an edit, `outline` for compact
         structure and dependency metadata, or `errors` for non-idle cells and
@@ -287,8 +365,29 @@ def build_hybrid_code_mode_toolset(
         `source_diverged`; source-bearing scopes also include `runtime_code`.
         Use `history` only to restore source replaced or deleted by an earlier
         agent mutation. It returns a bounded, chronological revision list and
-        reports whether older revisions were truncated.
+        reports whether older revisions were truncated. Use `rendered_output`
+        to visually inspect a chart, widget, image, or layout; pass its stable
+        `cell_id`, or omit it to capture the last cell.
         """
+        if scope != "rendered_output" and cell_id is not None:
+            return CodeExecutionResult(
+                success=False,
+                errors=["cell_id is only valid when scope='rendered_output'"],
+            )
+        if scope == "rendered_output":
+            result = await run(
+                "import marimo._code_mode as _cm\n"
+                "from marimo._code_mode.screenshot import "
+                "_ScreenshotOutput\n"
+                f"_target_cell_id = {_python_literal(cell_id)}\n"
+                "async with _cm.get_context() as _ctx:\n"
+                "    _image = await _ctx.screenshot(\n"
+                "        _target_cell_id\n"
+                "    )\n"
+                "_ScreenshotOutput(_image)",
+                timeout=NOTEBOOK_OPERATION_TIMEOUT_SECONDS,
+            )
+            return _screenshot_tool_return(result, cell_id=cell_id)
         if scope == "history":
             return await run(
                 "import json as _json\n"
@@ -398,7 +497,8 @@ def build_hybrid_code_mode_toolset(
         validate as one transaction. Stale existing cells and patched cells
         then execute together in dependency order. Returns server-created IDs.
         A clean patch stays compact; a warning appears only when an edited
-        cell unexpectedly loses its visible output.
+        cell unexpectedly loses its visible output. For visual work, follow
+        with `inspect_notebook(scope="rendered_output", cell_id=...)`.
         """
         replacement_cells = replacements or []
         inserted_cells = insertions or []
@@ -501,12 +601,27 @@ def build_hybrid_code_mode_toolset(
             "                f'Cell {_cell_id!r} previously ended in a '\n"
             "                'display expression; the replacement does not'\n"
             "            )\n"
+            "    _affected_ids = list(dict.fromkeys(\n"
+            "        [*_stale_ids, *_edited_ids, *_created_ids]\n"
+            "    ))\n"
+            "    _cell_results = [{\n"
+            "        'cell_id': _cell_id,\n"
+            "        'status': _verify_ctx.cells[_cell_id].status,\n"
+            "        'errors': [\n"
+            "            str(_error)\n"
+            "            for _error in _verify_ctx.cells[_cell_id].errors\n"
+            "        ],\n"
+            "        'has_output': (\n"
+            "            _verify_ctx.cells[_cell_id].output is not None\n"
+            "        ),\n"
+            "    } for _cell_id in _affected_ids]\n"
             "_result = {\n"
             "    'operation': 'patch',\n"
             "    'created_cell_ids': _created_ids,\n"
             "    'edited_cell_ids': _edited_ids,\n"
             "    'deleted_cell_ids': _delete_ids,\n"
             "    'executed_stale_cell_ids': _stale_ids,\n"
+            "    'cells': _cell_results,\n"
             "}\n"
             "if _warnings:\n"
             "    _result['warnings'] = _warnings\n"
@@ -514,56 +629,132 @@ def build_hybrid_code_mode_toolset(
         )
 
     async def run_cells(cell_ids: list[str]) -> CodeExecutionResult:
-        """Run existing cells by stable ID as one reactive batch."""
+        """Run existing cells by stable ID and report their final state.
+
+        For visual work, follow with `inspect_notebook` using the
+        `rendered_output` scope for the relevant cell.
+        """
         return await run(
             "import json as _json\n"
             "import marimo._code_mode as _cm\n"
             f"_cell_ids = {_python_literal(cell_ids)}\n"
             "async with _cm.get_context() as _ctx:\n"
             "    for _cell_id in _cell_ids:\n"
+            "        _ctx.cells[_cell_id].code\n"
             "        _ctx.run_cell(_cell_id)\n"
-            "print(_json.dumps({'operation': 'run', "
-            "'cell_ids': _cell_ids}))"
+            "async with _cm.get_context() as _verify_ctx:\n"
+            "    _cell_results = [{\n"
+            "        'cell_id': _cell_id,\n"
+            "        'status': _verify_ctx.cells[_cell_id].status,\n"
+            "        'errors': [\n"
+            "            str(_error)\n"
+            "            for _error in _verify_ctx.cells[_cell_id].errors\n"
+            "        ],\n"
+            "        'has_output': (\n"
+            "            _verify_ctx.cells[_cell_id].output is not None\n"
+            "        ),\n"
+            "    } for _cell_id in _cell_ids]\n"
+            "print(_json.dumps({\n"
+            "    'operation': 'run',\n"
+            "    'cells': _cell_results,\n"
+            "}, default=str))"
         )
 
     async def manage_packages(
         add: list[str] | None = None,
         remove: list[str] | None = None,
+        verify_imports: list[str] | None = None,
     ) -> CodeExecutionResult:
-        """Install or remove notebook packages as one environment operation.
+        """Apply and verify one coherent package-environment change.
 
         Package strings may include version constraints or local paths.
-        Environment changes happen before later notebook patches and may
-        report that a kernel restart is required.
+        `verify_imports` names modules that must import in a fresh Python
+        process. The result reports actual package outcomes, environment
+        changes, import origins, and whether the live kernel should restart.
+        Package managers without rollback can still partially apply a batch;
+        inspect `outcomes` before continuing.
         """
         packages_to_add = add or []
         packages_to_remove = remove or []
+        modules_to_verify = verify_imports or []
         if not packages_to_add and not packages_to_remove:
             return CodeExecutionResult(
                 success=False,
                 errors=["Specify at least one package to add or remove"],
             )
+        conflicting_packages = set(packages_to_add) & set(packages_to_remove)
+        if conflicting_packages:
+            names = ", ".join(sorted(conflicting_packages))
+            return CodeExecutionResult(
+                success=False,
+                errors=[f"Cannot add and remove the same package: {names}"],
+            )
         return await run(
+            "from dataclasses import asdict as _asdict\n"
             "import json as _json\n"
             "import marimo._code_mode as _cm\n"
             f"_packages_to_add = {_python_literal(packages_to_add)}\n"
             f"_packages_to_remove = {_python_literal(packages_to_remove)}\n"
+            f"_modules_to_verify = {_python_literal(modules_to_verify)}\n"
             "async with _cm.get_context() as _ctx:\n"
+            "    _before = {\n"
+            "        _package.name: _package.version\n"
+            "        for _package in _ctx.packages.list()\n"
+            "    }\n"
             "    if _packages_to_add:\n"
             "        _ctx.packages.add(_packages_to_add)\n"
             "    if _packages_to_remove:\n"
             "        _ctx.packages.remove(_packages_to_remove)\n"
+            "_outcomes = [{\n"
+            "    'action': _result.action,\n"
+            "    'package': _result.package,\n"
+            "    'outcome': _result.outcome,\n"
+            "} for _result in _ctx.packages.results]\n"
+            "async with _cm.get_context() as _verify_ctx:\n"
+            "    _after = {\n"
+            "        _package.name: _package.version\n"
+            "        for _package in _verify_ctx.packages.list()\n"
+            "    }\n"
+            "    _import_checks = [\n"
+            "        _asdict(_check)\n"
+            "        for _check in await _verify_ctx.packages.verify_imports(\n"
+            "            _modules_to_verify\n"
+            "        )\n"
+            "    ]\n"
+            "_changed_packages = [{\n"
+            "    'package': _name,\n"
+            "    'before': _before.get(_name),\n"
+            "    'after': _after.get(_name),\n"
+            "} for _name in sorted(_before.keys() | _after.keys())\n"
+            "if _before.get(_name) != _after.get(_name)]\n"
+            "_kernel_restart_required = bool(_changed_packages) or any(\n"
+            "    _result['outcome'] == 'restart-required'\n"
+            "    for _result in _outcomes\n"
+            ")\n"
             "print(_json.dumps({\n"
             "    'operation': 'packages',\n"
             "    'requested_additions': _packages_to_add,\n"
             "    'requested_removals': _packages_to_remove,\n"
-            "}))"
+            "    'outcomes': _outcomes,\n"
+            "    'changed_packages': _changed_packages,\n"
+            "    'import_checks': _import_checks,\n"
+            "    'kernel_restart_required': _kernel_restart_required,\n"
+            "}, default=str))\n"
+            "if any(_result['outcome'] == 'failed' for _result in _outcomes):\n"
+            "    raise RuntimeError('One or more package operations failed')\n"
+            "if any(not _check.get('success', False) for _check in _import_checks):\n"
+            "    raise RuntimeError('One or more fresh-process imports failed')",
+            timeout=PACKAGE_OPERATION_TIMEOUT_SECONDS,
         )
 
     async def set_ui_value(
         variable_name: str, value: object
     ) -> CodeExecutionResult:
-        """Set one live `mo.ui` element by its notebook variable name."""
+        """Set one live `mo.ui` element by its notebook variable name.
+
+        To verify a visual state change, inspect its defining cell with the
+        `rendered_output` notebook scope after this call.
+        """
         return await run(
             "import json as _json\n"
             "import marimo._code_mode as _cm\n"
@@ -589,6 +780,7 @@ def build_hybrid_code_mode_toolset(
 
         Configuration fields left as `None` remain unchanged. A cell may move
         before or after another stable cell ID, but not both.
+        Inspect the relevant `rendered_output` after visual configuration.
         """
         conflicting_moves = [
             cell.cell_id

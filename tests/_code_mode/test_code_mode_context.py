@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import subprocess
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, PropertyMock, patch
@@ -767,6 +768,33 @@ class TestPackages:
             async with ctx as nb:
                 assert nb.packages is not None
 
+    def test_fresh_process_import_results_are_typed(self) -> None:
+        from marimo._code_mode._packages import (
+            _verify_imports_in_fresh_process,
+        )
+
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=(
+                '[{"module": "jscatter", "success": true, '
+                '"origin": null, "is_namespace": true, '
+                '"distributions": ["jupyter-scatter"]}]'
+            ),
+            stderr="",
+        )
+        with patch(
+            "marimo._code_mode._packages.run_package_command",
+            return_value=completed,
+        ):
+            checks = _verify_imports_in_fresh_process(["jscatter"])
+
+        assert len(checks) == 1
+        assert checks[0].module == "jscatter"
+        assert checks[0].success is True
+        assert checks[0].is_namespace is True
+        assert checks[0].distributions == ("jupyter-scatter",)
+
     async def test_add_single(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
             pm = k.packages_callbacks.package_manager
@@ -782,6 +810,10 @@ class TestPackages:
 
             assert mock_install.call_count == 1
             assert mock_install.call_args_list[0].args[0] == "pandas"
+            assert len(nb.packages.results) == 1
+            assert nb.packages.results[0].action == "add"
+            assert nb.packages.results[0].package == "pandas"
+            assert nb.packages.results[0].outcome == "success"
 
     async def test_add_multiple(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
@@ -794,10 +826,8 @@ class TestPackages:
                 async with ctx as nb:
                     nb.packages.add("pandas", "numpy>=1.26")
 
-            assert mock_install.call_count == 2
-            installed = [call.args[0] for call in mock_install.call_args_list]
-            assert "pandas" in installed
-            assert "numpy>=1.26" in installed
+            assert mock_install.call_count == 1
+            assert mock_install.call_args.args[0] == "pandas numpy>=1.26"
 
     async def test_add_queued_before_cell_ops(self, k: Kernel) -> None:
         """Packages are installed before cell ops so imports work."""
@@ -850,10 +880,8 @@ class TestPackages:
                 async with ctx as nb:
                     nb.packages.remove("pandas", "numpy")
 
-            assert mock_uninstall.call_count == 2
-            removed = [call.args[0] for call in mock_uninstall.call_args_list]
-            assert "pandas" in removed
-            assert "numpy" in removed
+            assert mock_uninstall.call_count == 1
+            assert mock_uninstall.call_args.args[0] == "pandas numpy"
 
     async def test_add_accepts_list(self, k: Kernel) -> None:
         """add() accepts a list of package names."""
@@ -867,10 +895,8 @@ class TestPackages:
                 async with ctx as nb:
                     nb.packages.add(["pandas", "numpy>=1.26"])
 
-            assert mock_install.call_count == 2
-            installed = [call.args[0] for call in mock_install.call_args_list]
-            assert "pandas" in installed
-            assert "numpy>=1.26" in installed
+            assert mock_install.call_count == 1
+            assert mock_install.call_args.args[0] == "pandas numpy>=1.26"
 
     async def test_add_mixes_strings_and_lists(self, k: Kernel) -> None:
         """add() accepts a mix of strings and lists."""
@@ -884,9 +910,8 @@ class TestPackages:
                 async with ctx as nb:
                     nb.packages.add("polars", ["pandas", "numpy"])
 
-            assert mock_install.call_count == 3
-            installed = [call.args[0] for call in mock_install.call_args_list]
-            assert set(installed) == {"polars", "pandas", "numpy"}
+            assert mock_install.call_count == 1
+            assert mock_install.call_args.args[0] == "polars pandas numpy"
 
     async def test_remove_accepts_list(self, k: Kernel) -> None:
         """remove() accepts a list of package names."""
@@ -900,10 +925,8 @@ class TestPackages:
                 async with ctx as nb:
                     nb.packages.remove(["pandas", "numpy"])
 
-            assert mock_uninstall.call_count == 2
-            removed = [call.args[0] for call in mock_uninstall.call_args_list]
-            assert "pandas" in removed
-            assert "numpy" in removed
+            assert mock_uninstall.call_count == 1
+            assert mock_uninstall.call_args.args[0] == "pandas numpy"
 
     async def test_list_returns_installed_packages(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
@@ -966,7 +989,7 @@ class TestPackages:
 
             async def track_install(package: str, **_kwargs: object) -> bool:
                 call_order.append(("add", package))
-                return package != "missing-package"
+                return "missing-package" not in package
 
             async def track_uninstall(package: str, **_kwargs: object) -> bool:
                 call_order.append(("remove", package))
@@ -984,8 +1007,7 @@ class TestPackages:
             assert call_order == [
                 ("add", "polars"),
                 ("remove", "pandas"),
-                ("add", "numpy"),
-                ("add", "missing-package"),
+                ("add", "numpy missing-package"),
             ]
             notifications = [
                 notification
@@ -1010,7 +1032,7 @@ class TestPackages:
                     ("remove", {"pandas": "succeeded"}, "succeeded"),
                     (
                         "install",
-                        {"numpy": "succeeded", "missing-package": "failed"},
+                        {"numpy": "failed", "missing-package": "failed"},
                         "failed",
                     ),
                 ]
@@ -1020,8 +1042,8 @@ class TestPackages:
                 n.action in ("install", "remove") for n in notifications
             )
             assert any(
-                n.logs
-                == {"missing-package": "Failed to install missing-package\n"}
+                n.logs.get("missing-package")
+                == "Failed to install missing-package\n"
                 for n in notifications
             )
 
@@ -1088,9 +1110,10 @@ class TestPackages:
                     # again.
                     nb.install_packages("requests")
 
-            assert mock_install.call_count == 4
-            installed = [call.args[0] for call in mock_install.call_args_list]
-            assert set(installed) == {"pandas", "numpy", "polars", "requests"}
+            assert mock_install.call_count == 1
+            assert mock_install.call_args.args[0] == (
+                "pandas numpy polars requests"
+            )
 
             # The nudge is written to stderr exactly once.
             captured = capsys.readouterr()

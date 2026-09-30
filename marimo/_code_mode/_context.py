@@ -45,7 +45,6 @@ from marimo._code_mode._better_inspect import _HelpableEnumMeta, helpable
 from marimo._code_mode._packages import (
     PackageResult,
     Packages,
-    _AddPackage,
 )
 from marimo._code_mode._plan import (
     _AddOp,
@@ -59,6 +58,7 @@ from marimo._code_mode._plan import (
 )
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.cell_output import CellOutput
@@ -859,24 +859,19 @@ class AsyncCodeModeContext:
         lines: list[str] = []
 
         for result in package_ops:
-            pkg_op = result.op
             if result.outcome == "restart-required":
                 lines.append(
-                    f"changes saved for {pkg_op.package}; restart the kernel to use them"
+                    f"changes saved for {result.package}; restart the kernel to use them"
                 )
                 continue
             if result.outcome == "failed":
-                action = (
-                    "install"
-                    if isinstance(pkg_op, _AddPackage)
-                    else "uninstall"
-                )
-                lines.append(f"failed to {action} {pkg_op.package}")
+                action = "install" if result.action == "add" else "uninstall"
+                lines.append(f"failed to {action} {result.package}")
                 continue
-            if isinstance(pkg_op, _AddPackage):
-                lines.append(f"installed {pkg_op.package}")
+            if result.action == "add":
+                lines.append(f"installed {result.package}")
             else:
-                lines.append(f"uninstalled {pkg_op.package}")
+                lines.append(f"uninstalled {result.package}")
 
         _run = cells_to_run or set()
         op_cell_ids: set[CellId_t] = set()
@@ -1485,12 +1480,16 @@ class AsyncCodeModeContext:
         screenshot_auth_token = cast(
             "str | None", request.meta.get(SCREENSHOT_AUTH_TOKEN_KEY)
         )
+        screenshot_file = cast(
+            "str | None", request.meta.get(SCREENSHOT_FILE_KEY)
+        )
 
         # Lazy-init the screenshot session (browser reuse).
         if self._screenshot_session is None:
             self._screenshot_session = _ScreenshotSession(
                 server_url,
                 screenshot_auth_token=screenshot_auth_token,
+                file_key=screenshot_file,
             )
 
         image = await self._screenshot_session.capture(

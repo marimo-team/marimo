@@ -2344,3 +2344,58 @@ threads: the policy should remain dormant below a token-aware high-water mark.
 The four-trial sample supports the architecture direction, while more models
 and production-shaped storage tests are still required before selecting a
 universal threshold.
+
+## Experiment 34: rendered-output inspection
+
+Date: 2026-10-01
+
+Model: `Qwen/Qwen3.5-35B-A3B`
+
+Runs: paired visual comparison `20260930T203611Z-35e8fcd8`; hybrid
+reliability repetitions `20260930T203935Z-21024587`.
+
+Added `rendered_output_review`, a visual-only notebook case whose review
+requirements exist in a rendered PNG but not in notebook source. The agent
+must inspect the live cell output, recover five exact requirements, edit the
+chart and summary, and leave the notebook healthy. This exercises the same
+path as a human asking the sidebar to review a chart or dashboard output.
+
+The paired comparison was:
+
+| Scenario | Variant | Passed | Duration | Tools / errors | Requests | Input tokens | Output tokens |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Rendered output | Original baseline | 0/1 | 167.8s | 47 / 13 | 48 | 1,394,854 | 19,593 |
+| Rendered output | Hybrid balanced | 1/1 | 36.0s | 10 / 1 | 11 | 92,192 | 1,771 |
+| Attached image | Original baseline | 0/1 | 22.3s | 9 / 2 | 10 | 81,672 | 2,597 |
+| Attached image | Hybrid balanced | 1/1 | 12.7s | 3 / 0 | 4 | 19,034 | 606 |
+
+The rendered-output baseline could not recover the exact visual requirements
+and guessed changes through `execute_code`. The hybrid used the typed
+`inspect_notebook` screenshot path, recovered the title, width, label angle,
+sort direction, and review code, and satisfied every deterministic source and
+runtime contract. On the attached-image control, the baseline omitted the
+descending-sort contract despite claiming completion; the hybrid passed.
+
+Two further hybrid repetitions of `rendered_output_review` both passed:
+
+| Hybrid reliability | Passed | Mean duration | Mean tools | Mean errors | Mean requests | Mean input | Mean output |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Two repetitions | 2/2 | 35.0s | 10.0 | 2.0 | 11.0 | 97,763 | 1,722 |
+
+Across the paired run and the two repetitions, the hybrid passed 3/3 live
+rendered-output trials, with 10 tools and 11 model requests on average. The
+follow-up repetitions each made two invalid early inspection attempts before
+recovering, so cell-selection and not-yet-rendered guidance remain an
+efficiency opportunity. They were not correctness failures.
+
+The transport was also checked independently of the model: the runtime
+returned `image/png`, the decoded bytes matched the captured PNG exactly, no
+HTML wrapper was introduced, and Pydantic AI received a top-level binary image
+part. This closes the malformed `&#x27;data:image/png;base64,...` failure mode.
+
+Conclusion: rendered-output inspection is a material capability of the typed
+hybrid, not just a convenience wrapper. In this small model sample it was both
+more reliable and dramatically more efficient than asking the expressive
+baseline to reconstruct visual state indirectly. The 3/3 result validates the
+transport and case design, but is not broad statistical evidence across
+models or arbitrary frontend outputs.

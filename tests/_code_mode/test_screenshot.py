@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
@@ -14,12 +15,14 @@ from marimo._code_mode._context import (
 )
 from marimo._code_mode.screenshot import (
     ScreenshotError,
+    _ScreenshotOutput,
     _ScreenshotSession,
     _to_data_url,
 )
 from marimo._messaging.notebook.document import (
     NotebookCell as _DocNotebookCell,
 )
+from marimo._output.formatting import try_format
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -39,6 +42,17 @@ class TestToDataUrl:
         assert result == "data:image/png;base64,"
 
 
+class TestScreenshotOutput:
+    def test_formats_png_without_html_wrapper(self) -> None:
+        png = b"\x89PNG\r\n\x1a\n" + b"payload"
+
+        output = try_format(_ScreenshotOutput(png))
+
+        assert output.mimetype == "image/png"
+        assert output.data == _to_data_url(png)
+        assert "<pre" not in output.data
+
+
 class TestScreenshotSessionAuthUrl:
     def test_url_without_auth(self) -> None:
         session = _ScreenshotSession("http://localhost:1234")
@@ -54,23 +68,22 @@ class TestScreenshotSessionAuthUrl:
     def test_page_url_includes_screenshot_auth_token(self) -> None:
         """The kiosk page URL must include the access_token query param."""
         session = _ScreenshotSession(
-            "http://localhost:9999", screenshot_auth_token="secret"
+            "http://localhost:9999",
+            screenshot_auth_token="secret",
+            file_key="notebooks/my notebook.py",
         )
-        # Replicate the URL-building logic from _ensure_ready.
-        params = "kiosk=true"
-        if session._screenshot_auth_token:
-            params += f"&access_token={session._screenshot_auth_token}"
-        page_url = f"{session._server_url}?{params}"
+        page_url = session._page_url()
+        query = parse_qs(urlparse(page_url).query)
 
-        assert "access_token=secret" in page_url
-        assert "kiosk=true" in page_url
+        assert query == {
+            "access_token": ["secret"],
+            "file": ["notebooks/my notebook.py"],
+            "kiosk": ["true"],
+        }
 
     def test_page_url_omits_token_when_none(self) -> None:
         session = _ScreenshotSession("http://localhost:9999")
-        params = "kiosk=true"
-        if session._screenshot_auth_token:
-            params += f"&access_token={session._screenshot_auth_token}"
-        page_url = f"{session._server_url}?{params}"
+        page_url = session._page_url()
 
         assert "access_token" not in page_url
         assert page_url == "http://localhost:9999?kiosk=true"

@@ -10,7 +10,9 @@ from __future__ import annotations
 import asyncio
 import base64
 import time
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlencode
 
 from marimo import _loggers
 from marimo._export._pdf_raster import (
@@ -19,6 +21,7 @@ from marimo._export._pdf_raster import (
 )
 
 if TYPE_CHECKING:
+    from marimo._messaging.mimetypes import KnownMimeType
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
@@ -62,6 +65,16 @@ def _to_data_url(image: bytes) -> str:
     return f"data:image/png;base64,{encoded}"
 
 
+@dataclass(frozen=True)
+class _ScreenshotOutput:
+    """Carry PNG bytes through marimo's formatter without HTML wrapping."""
+
+    image: bytes
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        return ("image/png", _to_data_url(self.image))
+
+
 def _require_playwright() -> Any:
     """Import `async_playwright`, raising :class:`ScreenshotError` if missing."""
     from marimo._dependencies.dependencies import DependencyManager
@@ -98,10 +111,15 @@ class _ScreenshotSession:
     """
 
     def __init__(
-        self, server_url: str, screenshot_auth_token: str | None = None
+        self,
+        server_url: str,
+        screenshot_auth_token: str | None = None,
+        *,
+        file_key: str | None = None,
     ) -> None:
         self._server_url = server_url
         self._screenshot_auth_token = screenshot_auth_token
+        self._file_key = file_key
         self._playwright: Any = None
         self._browser: Any = None
         self._page: Any = None
@@ -171,10 +189,7 @@ class _ScreenshotSession:
         """Navigate (initial=True) or reload (initial=False) the kiosk page."""
         assert self._page is not None
 
-        params = "kiosk=true"
-        if self._screenshot_auth_token:
-            params += f"&access_token={self._screenshot_auth_token}"
-        page_url = f"{self._server_url}?{params}"
+        page_url = self._page_url()
         if initial:
             LOGGER.debug(
                 "Screenshot session: navigating to %s", self._server_url
@@ -199,6 +214,18 @@ class _ScreenshotSession:
             )
         except Exception:
             pass
+
+    def _page_url(self) -> str:
+        """Build a kiosk URL that attaches to the active notebook session."""
+        params = {"kiosk": "true"}
+        # Do not pass the editor's session ID: browser session IDs are also
+        # consumer IDs, so reusing it would replace the main consumer. The
+        # kiosk creates its own ID and joins the live session by file key.
+        if self._file_key is not None:
+            params["file"] = self._file_key
+        if self._screenshot_auth_token:
+            params["access_token"] = self._screenshot_auth_token
+        return f"{self._server_url}?{urlencode(params)}"
 
     async def capture(
         self,

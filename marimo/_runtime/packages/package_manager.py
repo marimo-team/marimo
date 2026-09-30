@@ -133,6 +133,25 @@ class PackageManager(abc.ABC):
             log_callback=log_callback,
         )
 
+    async def install_many(
+        self,
+        packages: list[str],
+        *,
+        upgrade: bool = False,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
+    ) -> bool:
+        """Install several requirements in one resolver invocation."""
+        if not packages:
+            return True
+        return await self.install(
+            " ".join(packages),
+            version=None,
+            upgrade=upgrade,
+            group=group,
+            log_callback=log_callback,
+        )
+
     async def stream_install(
         self,
         packages: list[str],
@@ -175,6 +194,14 @@ class PackageManager(abc.ABC):
         Returns True if the package was uninstalled, else False.
         """
         ...
+
+    async def uninstall_many(
+        self, packages: list[str], group: str | None = None
+    ) -> bool:
+        """Uninstall several requirements in one package-manager call."""
+        if not packages:
+            return True
+        return await self.uninstall(" ".join(packages), group=group)
 
     def attempted_to_install(self, package: str) -> bool:
         """True iff package installation was previously attempted."""

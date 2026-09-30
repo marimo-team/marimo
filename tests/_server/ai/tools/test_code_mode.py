@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
+import base64
 import inspect
 from collections.abc import Awaitable, Callable
 from typing import cast
@@ -49,7 +51,7 @@ def test_build_hybrid_toolset_exposes_editor_tools() -> None:
     inspect_signature = inspect.signature(
         toolset.tools["inspect_notebook"].function
     )
-    assert list(inspect_signature.parameters) == ["scope"]
+    assert list(inspect_signature.parameters) == ["scope", "cell_id"]
     patch_signature = inspect.signature(
         toolset.tools["apply_notebook_patch"].function
     )
@@ -127,11 +129,105 @@ async def test_inspect_notebook_compiles_revision_history() -> None:
     assert "'truncated': _history_truncated" in source
 
 
-def test_get_tool_strategy_defaults_to_code_mode() -> None:
+@pytest.mark.requires("pydantic_ai")
+async def test_inspect_notebook_returns_rendered_output_as_image() -> None:
+    from pydantic_ai import BinaryImage, ToolReturn, ToolReturnPart
+
+    from marimo._ai._tools.types import CodeExecutionResult
+    from marimo._server.ai.tools.code_mode import (
+        build_hybrid_code_mode_toolset,
+    )
+
+    png = b"\x89PNG\r\n\x1a\n"
+    data_url = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+    result = CodeExecutionResult(
+        success=True,
+        output=data_url,
+    )
+    with (
+        patch(
+            "marimo._server.ai.tools.code_mode.get_code_mode_credentials",
+            return_value=("http://localhost:2718", "secret-token"),
+        ),
+        patch(
+            "marimo._server.ai.tools.code_mode.run_scratchpad_code",
+            new_callable=AsyncMock,
+            return_value=result,
+        ) as mock_run,
+    ):
+        toolset = build_hybrid_code_mode_toolset(MagicMock(), MagicMock())
+        inspect_notebook = cast(
+            Callable[..., Awaitable[object]],
+            toolset.tools["inspect_notebook"].function,
+        )
+
+        returned = await inspect_notebook(
+            scope="rendered_output", cell_id="chart"
+        )
+
+    assert isinstance(returned, ToolReturn)
+    structured_result, image = returned.return_value
+    assert structured_result["success"] is True
+    assert structured_result["output"] == ("Captured 8 PNG bytes from 'chart'")
+    assert isinstance(image, BinaryImage)
+    assert image.data == png
+    tool_part = ToolReturnPart(
+        tool_name="inspect_notebook",
+        tool_call_id="call-1",
+        content=returned.return_value,
+    )
+    _, model_content = tool_part.model_response_str_and_user_content()
+    assert image in model_content
+    source = mock_run.await_args.kwargs["code"]
+    assert "_ScreenshotOutput(_image)" in source
+    assert "await _ctx.screenshot(" in source
+    assert "_target_cell_id = 'chart'" in source
+    assert mock_run.await_args.kwargs["timeout"] == 300.0
+    compile(
+        source,
+        "<inspect_notebook rendered_output>",
+        "exec",
+        ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+    )
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_inspect_notebook_rejects_cell_id_for_text_scope() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        build_hybrid_code_mode_toolset,
+    )
+
+    toolset = build_hybrid_code_mode_toolset(MagicMock(), MagicMock())
+    inspect_notebook = cast(
+        Callable[..., Awaitable[object]],
+        toolset.tools["inspect_notebook"].function,
+    )
+
+    result = await inspect_notebook(scope="outline", cell_id="chart")
+
+    assert result.success is False
+    assert result.errors == [
+        "cell_id is only valid when scope='rendered_output'"
+    ]
+
+
+def test_get_tool_strategy_defaults_to_balanced_hybrid() -> None:
     from marimo._server.ai.tools.code_mode import get_tool_strategy
 
     request = MagicMock()
     request.headers = {}
+
+    assert get_tool_strategy(request) == "hybrid_balanced"
+
+
+def test_get_tool_strategy_accepts_explicit_code_mode_header() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        TOOL_STRATEGY_HEADER,
+        get_tool_strategy,
+    )
+
+    request = MagicMock()
+    request.headers = {TOOL_STRATEGY_HEADER: "code_mode"}
 
     assert get_tool_strategy(request) == "code_mode"
 
@@ -288,6 +384,48 @@ def test_compact_hybrid_history_leaves_one_turn_unchanged() -> None:
     assert compact_hybrid_history(messages) is messages
 
 
+def test_compact_hybrid_history_removes_old_rendered_images() -> None:
+    from marimo._server.ai.tools.code_mode import compact_hybrid_history
+
+    messages = [
+        {"role": "user", "parts": []},
+        {
+            "role": "assistant",
+            "parts": [
+                {
+                    "type": "tool-inspect_notebook",
+                    "state": "output-available",
+                    "input": {
+                        "scope": "rendered_output",
+                        "cell_id": "chart",
+                    },
+                    "output": [
+                        {"success": True, "output": "Captured PNG"},
+                        {"kind": "binary", "data": "large-base64-image"},
+                    ],
+                }
+            ],
+        },
+        {"role": "user", "parts": []},
+        {"role": "assistant", "parts": []},
+        {"role": "user", "parts": []},
+    ]
+
+    compacted = compact_hybrid_history(messages)
+
+    assert compacted[1]["parts"][0]["output"] == {
+        "success": True,
+        "output": (
+            "Earlier notebook inspection compacted. Inspect the live "
+            "notebook again if current state is required."
+        ),
+        "stdout": [],
+        "stderr": [],
+        "errors": [],
+        "error": None,
+    }
+
+
 @pytest.mark.requires("pydantic_ai")
 async def test_execute_code_tool_routes_to_scratchpad_with_credentials() -> (
     None
@@ -328,6 +466,7 @@ async def test_execute_code_tool_routes_to_scratchpad_with_credentials() -> (
         code="print('hi')",
         server_url="http://localhost:2718",
         auth_token="secret-token",
+        timeout=60.0,
     )
 
 
@@ -386,6 +525,14 @@ async def test_hybrid_patch_compiles_to_one_code_mode_transaction() -> None:
     assert "previously produced visible" in source
     assert "previously ended in a" in source
     assert "if _warnings:" in source
+    assert "'cells': _cell_results" in source
+    assert mock_run.await_args.kwargs["timeout"] == 300.0
+    compile(
+        source,
+        "<apply_notebook_patch>",
+        "exec",
+        ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+    )
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -443,8 +590,13 @@ async def test_balanced_tools_compile_to_code_mode_operations() -> None:
             toolset.tools["configure_notebook"].function,
         )
 
-        await manage_packages(add=["local.whl"], remove=["old-package"])
+        await manage_packages(
+            add=["local.whl"],
+            remove=["old-package"],
+            verify_imports=["local_package"],
+        )
         package_source = mock_run.await_args.kwargs["code"]
+        package_timeout = mock_run.await_args.kwargs["timeout"]
         await set_ui_value("multiplier", 4)
         ui_source = mock_run.await_args.kwargs["code"]
         await configure_notebook(
@@ -460,6 +612,19 @@ async def test_balanced_tools_compile_to_code_mode_operations() -> None:
 
     assert "_ctx.packages.add(_packages_to_add)" in package_source
     assert "_ctx.packages.remove(_packages_to_remove)" in package_source
+    assert "_ctx.packages.results" in package_source
+    assert "'changed_packages': _changed_packages" in package_source
+    assert (
+        "'kernel_restart_required': _kernel_restart_required" in package_source
+    )
+    assert "_verify_ctx.packages.verify_imports(" in package_source
+    assert package_timeout == 600.0
+    compile(
+        package_source,
+        "<manage_packages>",
+        "exec",
+        ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+    )
     assert (
         "_ctx.set_ui_value(_ctx.globals[_variable_name], _value)" in ui_source
     )

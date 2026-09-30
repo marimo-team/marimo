@@ -84,8 +84,9 @@ same live execution endpoint used by the editor, and waits for the kernel to
 return to idle before the next chat turn.
 
 The regression suite contains cases that were created from observed failures
-and are safe to tune against. It currently exercises exact restoration across
-multiple revisions of one cell and restoration of a deleted cell:
+and are safe to tune against. It currently exercises live rendered-output
+inspection, exact restoration across multiple revisions of one cell, and
+restoration of a deleted cell:
 
 ```bash
 uv run --group ai-eval python -m benchmarks.ai run \

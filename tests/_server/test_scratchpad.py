@@ -14,6 +14,7 @@ from inline_snapshot import snapshot
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -165,6 +166,8 @@ class _FakeSession:
     _pre_complete_notifs: list[NotificationMessage]
 
     def __init__(self, *, auto_complete: bool = True) -> None:
+        self.initialization_id = "fake.py"
+        self.app_file_manager = SimpleNamespace(path=None)
         self.cell_outputs = {}
         self.console_outputs = {}
         self.document = SimpleNamespace(cells=(), cell_ids=())
@@ -751,6 +754,7 @@ class TestRunScratchpadCode:
             "http://localhost:1234"
         )
         assert cmd.request.meta[SCREENSHOT_AUTH_TOKEN_KEY] == "fake-token"
+        assert cmd.request.meta[SCREENSHOT_FILE_KEY] == "fake.py"
 
     @pytest.mark.asyncio
     async def test_snapshots_cell_outputs_onto_command(self) -> None:

@@ -1221,6 +1221,142 @@ def _setup_static_visual_review(root: Path) -> ScenarioWorkspace:
     )
 
 
+_RENDERED_OUTPUT_REVIEW_NOTEBOOK = """import marimo
+
+__generated_with = "0.25.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    import altair as alt
+    import marimo as mo
+    import pandas as pd
+    return alt, mo, pd
+
+
+@app.cell
+def _(mo):
+    review_card = mo.image("fixtures/rendered-output-review.png")
+    review_card
+    return (review_card,)
+
+
+@app.cell
+def _(pd):
+    revenue = pd.DataFrame(
+        {
+            "product": ["Alpha", "Beta", "Gamma"],
+            "revenue": [60, 75, 100],
+        }
+    )
+    return (revenue,)
+
+
+@app.cell
+def _(alt, revenue):
+    chart = (
+        alt.Chart(revenue)
+        .mark_bar()
+        .encode(
+            x=alt.X("product:N", axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("revenue:Q"),
+        )
+        .properties(width=300, title="Revenue")
+    )
+    chart
+    return (chart,)
+
+
+@app.cell
+def _(revenue):
+    analysis_summary = {
+        "top_product": revenue.loc[revenue["revenue"].idxmax(), "product"],
+        "total_revenue": int(revenue["revenue"].sum()),
+        "review_code": "pending",
+    }
+    return (analysis_summary,)
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+
+
+def _write_rendered_output_review_image(path: Path) -> None:
+    from PIL import Image, ImageDraw, ImageFont
+
+    image = Image.new("RGB", (900, 500), "white")
+    draw = ImageDraw.Draw(image)
+    try:
+        title_font = ImageFont.truetype("DejaVuSans.ttf", 34)
+        body_font = ImageFont.truetype("DejaVuSans.ttf", 28)
+    except OSError:
+        title_font = ImageFont.load_default()
+        body_font = ImageFont.load_default()
+    draw.rounded_rectangle(
+        (25, 25, 875, 475),
+        radius=20,
+        fill="#eff6ff",
+        outline="#2563eb",
+        width=4,
+    )
+    draw.text(
+        (60, 60),
+        "RENDERED OUTPUT REVIEW",
+        fill="#1e3a8a",
+        font=title_font,
+    )
+    instructions = (
+        "TITLE: Quarterly Revenue",
+        "WIDTH: 720",
+        "LABEL ANGLE: -30",
+        "SORT: descending revenue",
+        "REVIEW CODE: MANGO-47",
+    )
+    for index, instruction in enumerate(instructions):
+        draw.text(
+            (75, 145 + index * 58),
+            instruction,
+            fill="#111827",
+            font=body_font,
+        )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(path, format="PNG")
+
+
+def _setup_rendered_output_review(root: Path) -> ScenarioWorkspace:
+    image = root / "fixtures" / "rendered-output-review.png"
+    _write_rendered_output_review_image(image)
+    return _workspace(
+        root,
+        {
+            "top_product": "Gamma",
+            "total_revenue": 235,
+            "review_code": "MANGO-47",
+        },
+        notebook_source=_RENDERED_OUTPUT_REVIEW_NOTEBOOK,
+        required_source_fragments=(
+            'title="Quarterly Revenue"',
+            "width=720",
+            "labelAngle=-30",
+            '"review_code": "MANGO-47"',
+        ),
+        required_source_patterns=(
+            (
+                r"(?:sort\s*=\s*[\"']-y[\"']|"
+                r"sort_values\([\"']revenue[\"'],\s*ascending=False\))"
+            ),
+        ),
+        forbidden_source_fragments=(
+            'title="Revenue"',
+            "width=300",
+            "labelAngle=0",
+            '"review_code": "pending"',
+        ),
+    )
+
+
 _SUMMARY_CONTRACT = """Keep the analysis reproducible and validate inputs and
 totals before drawing a conclusion. Store the final headline values in a public
 dictionary named `analysis_summary`; do not estimate them from a chart. Display
@@ -1664,6 +1800,29 @@ def _setup_revision_history_restore(root: Path) -> ScenarioWorkspace:
 
 
 REGRESSION_SCENARIOS = (
+    Scenario(
+        id="rendered_output_review",
+        description=(
+            "Read visual-only instructions from a live rendered cell output."
+        ),
+        length="short",
+        failure_modes=(
+            "rendered_output_inspection",
+            "tool_result_multimodality",
+            "visual_instruction_following",
+        ),
+        setup=_setup_rendered_output_review,
+        requires_vision=True,
+        turns=(
+            (
+                "Inspect the live rendered output of the review_card cell. The "
+                "instructions are present only in that rendered image; do not "
+                "read the fixture file directly. Apply every instruction to "
+                "the chart and analysis_summary, preserve the data, and verify "
+                "the notebook."
+            ),
+        ),
+    ),
     Scenario(
         id="revision_history_restore",
         description=(

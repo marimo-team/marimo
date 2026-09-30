@@ -12,6 +12,7 @@ import pytest
 
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.notification import ConsumerCapabilities
@@ -313,6 +314,11 @@ class TestExecutionRoutes_EditMode:
             "http://localhost:1234"
         )
         assert http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] == "fake-token"
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        assert http_req.meta[SCREENSHOT_FILE_KEY] == (
+            session.app_file_manager.path or session.initialization_id
+        )
 
     @staticmethod
     @with_session(SESSION_ID)

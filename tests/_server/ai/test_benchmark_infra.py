@@ -382,7 +382,16 @@ def test_holdout_suite_covers_unseen_generalization_risks() -> None:
 
 
 def test_regression_suite_covers_revision_restoration(tmp_path: Path) -> None:
-    [scenario] = get_scenarios(suite="regression")
+    scenarios = get_scenarios(suite="regression")
+    assert {scenario.id for scenario in scenarios} == {
+        "rendered_output_review",
+        "revision_history_restore",
+    }
+    scenario = next(
+        scenario
+        for scenario in scenarios
+        if scenario.id == "revision_history_restore"
+    )
 
     assert scenario.id == "revision_history_restore"
     assert {
@@ -404,6 +413,22 @@ def test_regression_suite_covers_revision_restoration(tmp_path: Path) -> None:
     assert all(
         check.reason == "exact cell source matched" for check in exact_checks
     )
+
+
+def test_rendered_output_review_fixture_has_visual_only_contract(
+    tmp_path: Path,
+) -> None:
+    [scenario] = get_scenarios({"rendered_output_review"})
+    workspace = scenario.setup(tmp_path)
+
+    assert scenario.requires_vision is True
+    assert workspace.turn_attachments == {}
+    assert (tmp_path / "fixtures" / "rendered-output-review.png").exists()
+    source = workspace.notebook.read_text()
+    assert "MANGO-47" not in source
+    assert "Quarterly Revenue" not in source
+    checks = _source_contract_checks(source, workspace)
+    assert any(not check.passed for check in checks)
 
 
 def test_holdout_fixtures_have_expected_contracts(tmp_path: Path) -> None:

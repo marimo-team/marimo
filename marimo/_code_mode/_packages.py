@@ -9,6 +9,9 @@ cell operations.
 from __future__ import annotations
 
 import asyncio
+import json
+import subprocess
+import sys
 from dataclasses import dataclass
 from functools import partial
 from itertools import groupby
@@ -28,7 +31,7 @@ from marimo._runtime.packages.package_manager import (
     PackageDescription,
     PackageManager,
 )
-from marimo._runtime.packages.utils import split_packages
+from marimo._runtime.packages.utils import run_package_command, split_packages
 
 if TYPE_CHECKING:
     from marimo._code_mode._context import AsyncCodeModeContext
@@ -45,29 +48,142 @@ class _RemovePackage:
 
 
 PackageOp = Union[_AddPackage, _RemovePackage]
+PackageOpList = list[PackageOp]
+ModuleList = list[str]
 PackageOutcome = Literal["success", "failed", "restart-required"]
 
 
 @dataclass(frozen=True, slots=True)
 class PackageResult:
-    op: PackageOp
+    action: Literal["add", "remove"]
+    package: str
     outcome: PackageOutcome
 
     @classmethod
     def succeeded(cls, op: PackageOp) -> PackageResult:
-        return cls(op, "success")
+        return cls(_action(op), op.package, "success")
 
     @classmethod
     def failed(cls, op: PackageOp) -> PackageResult:
-        return cls(op, "failed")
+        return cls(_action(op), op.package, "failed")
 
     @classmethod
     def restart_required(cls, op: PackageOp) -> PackageResult:
-        return cls(op, "restart-required")
+        return cls(_action(op), op.package, "restart-required")
+
+
+def _action(op: PackageOp) -> Literal["add", "remove"]:
+    return "add" if isinstance(op, _AddPackage) else "remove"
 
 
 # `Packages.list` shadows the builtin in method annotations.
 PackageResultList = list[PackageResult]
+
+
+@dataclass(frozen=True, slots=True)
+class PackageImportCheck:
+    """Result of importing one module in a fresh Python interpreter."""
+
+    module: str
+    success: bool
+    origin: str | None = None
+    is_namespace: bool | None = None
+    distributions: tuple[str, ...] = ()
+    stdout: str = ""
+    stderr: str = ""
+    error: str | None = None
+
+
+_FRESH_IMPORT_CHECK_PROGRAM = """
+import contextlib
+import importlib
+import importlib.metadata
+import io
+import json
+import sys
+
+results = []
+distributions = importlib.metadata.packages_distributions()
+for name in json.loads(sys.argv[1]):
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            module = importlib.import_module(name)
+        spec = module.__spec__
+        results.append({
+            "module": name,
+            "success": True,
+            "origin": None if spec is None else spec.origin,
+            "is_namespace": bool(spec is not None and spec.origin is None),
+            "distributions": distributions.get(name.split(".")[0], []),
+            "stdout": stdout.getvalue(),
+            "stderr": stderr.getvalue(),
+        })
+    except BaseException as error:
+        results.append({
+            "module": name,
+            "success": False,
+            "stdout": stdout.getvalue(),
+            "stderr": stderr.getvalue(),
+            "error": f"{type(error).__name__}: {error}",
+        })
+print(json.dumps(results))
+"""
+
+
+def _verify_imports_in_fresh_process(
+    modules: list[str],
+) -> list[PackageImportCheck]:
+    try:
+        completed = run_package_command(
+            [
+                sys.executable,
+                "-c",
+                _FRESH_IMPORT_CHECK_PROGRAM,
+                json.dumps(modules),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        message = f"{type(error).__name__}: {error}"
+        return [
+            PackageImportCheck(module=module, success=False, error=message)
+            for module in modules
+        ]
+
+    if completed.returncode != 0:
+        message = (
+            completed.stderr.strip() or "Fresh interpreter verification failed"
+        )
+        return [
+            PackageImportCheck(module=module, success=False, error=message)
+            for module in modules
+        ]
+
+    try:
+        raw_results = json.loads(completed.stdout)
+        return [
+            PackageImportCheck(
+                module=result["module"],
+                success=result["success"],
+                origin=result.get("origin"),
+                is_namespace=result.get("is_namespace"),
+                distributions=tuple(result.get("distributions", ())),
+                stdout=result.get("stdout", ""),
+                stderr=result.get("stderr", ""),
+                error=result.get("error"),
+            )
+            for result in raw_results
+        ]
+    except (KeyError, TypeError, json.JSONDecodeError) as error:
+        message = f"Invalid verification response: {error}"
+        return [
+            PackageImportCheck(module=module, success=False, error=message)
+            for module in modules
+        ]
 
 
 def _flatten_packages(
@@ -104,11 +220,17 @@ class Packages:
     called before any :meth:`add` or :meth:`remove` in the same batch.
     """
 
-    __slots__ = ("_ctx", "_ops")
+    __slots__ = ("_ctx", "_ops", "_results")
 
     def __init__(self, ctx: AsyncCodeModeContext) -> None:
         self._ctx = ctx
-        self._ops: list[PackageOp] = []
+        self._ops: PackageOpList = []
+        self._results: PackageResultList = []
+
+    @property
+    def results(self) -> tuple[PackageResult, ...]:
+        """Outcomes from the most recently flushed package batch."""
+        return tuple(self._results)
 
     def add(self, *packages: str | list[str] | tuple[str, ...]) -> None:
         """Queue packages for installation on context exit.
@@ -174,12 +296,29 @@ class Packages:
             return []
         return pm.list_packages()
 
+    async def verify_imports(
+        self, modules: ModuleList
+    ) -> tuple[PackageImportCheck, ...]:
+        """Import modules in a fresh interpreter and report their origins."""
+        self._ctx._require_entered()
+        if self._ops:
+            raise RuntimeError(
+                "Cannot verify imports while package operations are pending. "
+                "Exit this context to apply them, then verify in a new one."
+            )
+        checks = await asyncio.to_thread(
+            _verify_imports_in_fresh_process, modules
+        )
+        return tuple(checks)
+
     def _reset(self) -> None:
         self._ops = []
+        self._results = []
 
     async def _flush(self) -> PackageResultList:
         """Execute queued ops in order and retain their actual outcomes."""
         if not self._ops:
+            self._results = []
             return []
 
         ops = self._ops
@@ -187,11 +326,13 @@ class Packages:
 
         pm = self._ctx._kernel.packages_callbacks.package_manager
         if pm is None:
-            return [PackageResult.failed(op) for op in ops]
+            self._results = [PackageResult.failed(op) for op in ops]
+            return self._results
 
         if not pm.is_manager_installed():
             pm.alert_not_installed()
-            return [PackageResult.failed(op) for op in ops]
+            self._results = [PackageResult.failed(op) for op in ops]
+            return self._results
 
         filename = self._ctx._kernel.app_metadata.filename
         manage_metadata = (
@@ -217,10 +358,10 @@ class Packages:
                     broadcast_notification, stream=self._ctx._kernel.stream
                 ),
             ) as operation:
+                success = await self._run_batch(
+                    batch, pm, operation, manage_metadata
+                )
                 for op in batch:
-                    success = await self._run_operation(
-                        op, pm, operation, manage_metadata
-                    )
                     if success:
                         results.append(PackageResult.succeeded(op))
                     elif pm.restart_required:
@@ -228,52 +369,84 @@ class Packages:
                     else:
                         results.append(PackageResult.failed(op))
 
+        self._results = results
         return results
 
-    async def _run_operation(
+    async def _run_batch(
         self,
-        op: PackageOp,
+        ops: PackageOpList,
         pm: PackageManager,
         operation: EnvironmentOperationReporter,
         manage_metadata: bool,
     ) -> bool:
-        pkg = op.package
-        installing = isinstance(op, _AddPackage)
-        operation.packages[pkg] = "running"
+        assert ops
+        installing = isinstance(ops[0], _AddPackage)
+        packages = [op.package for op in ops]
+        for package in packages:
+            operation.packages[package] = "running"
         operation.update(
-            {pkg: f"{'Installing' if installing else 'Removing'} {pkg}...\n"},
+            {
+                package: (
+                    f"{'Installing' if installing else 'Removing'} "
+                    f"{package}...\n"
+                )
+                for package in packages
+            },
             replace=True,
         )
         if installing:
-            success = await pm.install(
-                pkg,
-                version=None,
-                log_callback=lambda line: operation.update({pkg: line}),
+            success = await pm.install_many(
+                packages,
+                log_callback=lambda line: operation.update(
+                    dict.fromkeys(packages, line)
+                ),
             )
         else:
-            success = await pm.uninstall(pkg)
+            success = await pm.uninstall_many(packages)
+        status: Literal["succeeded", "restart-required", "failed"] = (
+            "succeeded"
+            if success
+            else "restart-required"
+            if pm.restart_required
+            else "failed"
+        )
+        for package in packages:
+            operation.packages[package] = status
         if success:
-            operation.packages[pkg] = "succeeded"
             filename = self._ctx._kernel.app_metadata.filename
             if manage_metadata and filename is not None:
                 await asyncio.to_thread(
                     pm.update_notebook_script_metadata,
                     filepath=filename,
                     **(
-                        {"packages_to_add": split_packages(pkg)}
+                        {
+                            "packages_to_add": [
+                                requirement
+                                for package in packages
+                                for requirement in split_packages(package)
+                            ]
+                        }
                         if installing
-                        else {"packages_to_remove": split_packages(pkg)}
+                        else {
+                            "packages_to_remove": [
+                                requirement
+                                for package in packages
+                                for requirement in split_packages(package)
+                            ]
+                        }
                     ),
                     upgrade=False,
                 )
-            message = f"Successfully {'installed' if installing else 'removed'} {pkg}\n"
-        elif pm.restart_required:
-            operation.packages[pkg] = "restart-required"
-            message = f"Dependency changes saved for {pkg}; restart the kernel to use them.\n"
-        else:
-            operation.packages[pkg] = "failed"
             message = (
-                f"Failed to {'install' if installing else 'remove'} {pkg}\n"
+                f"Successfully {'installed' if installing else 'removed'}"
             )
-        operation.update({pkg: message})
+        elif pm.restart_required:
+            message = (
+                "Dependency changes saved; restart the kernel to use them"
+            )
+        else:
+            message = f"Failed to {'install' if installing else 'remove'}"
+        operation.update(
+            {package: f"{message} {package}\n" for package in packages}
+        )
         return success
