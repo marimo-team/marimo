@@ -35,6 +35,7 @@ class ScenarioWorkspace:
     required_source_patterns: tuple[str, ...] = ()
     forbidden_source_fragments: tuple[str, ...] = ()
     required_source_order: tuple[tuple[str, str], ...] = ()
+    required_exact_cell_sources: tuple[str, ...] = ()
     turn_attachments: dict[int, tuple[FileAttachment, ...]] = field(
         default_factory=dict
     )

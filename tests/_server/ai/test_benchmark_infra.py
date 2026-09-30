@@ -158,6 +158,13 @@ def test_retail_fixture_contains_known_join_trap(tmp_path: Path) -> None:
     assert workspace.expected_summary["q2_net_revenue"] == 1750.0
 
 
+def test_orders_scenario_names_its_input_files() -> None:
+    scenario = get_scenarios({"orders_missing_dimensions"})[0]
+
+    assert "data/products.csv" in scenario.turns[0]
+    assert "data/orders.csv" in scenario.turns[0]
+
+
 def test_scenario_selection_reports_unknown_ids() -> None:
     with pytest.raises(ValueError, match="Unknown scenario") as exc_info:
         get_scenarios({"missing"})
@@ -227,6 +234,31 @@ def test_holdout_suite_covers_unseen_generalization_risks() -> None:
         mode for scenario in scenarios for mode in scenario.failure_modes
     }
     assert len(failure_modes) >= 10
+
+
+def test_regression_suite_covers_revision_restoration(tmp_path: Path) -> None:
+    [scenario] = get_scenarios(suite="regression")
+
+    assert scenario.id == "revision_history_restore"
+    assert {
+        "multiple_cell_revisions",
+        "deleted_cell_restoration",
+        "exact_source_restoration",
+    }.issubset(scenario.failure_modes)
+
+    workspace = scenario.setup(tmp_path)
+    source = workspace.notebook.read_text()
+    checks = _source_contract_checks(source, workspace)
+    exact_checks = [
+        check
+        for check in checks
+        if check.name.startswith("exact_cell_source:")
+    ]
+    assert len(exact_checks) == 2
+    assert all(check.passed for check in exact_checks)
+    assert all(
+        check.reason == "exact cell source matched" for check in exact_checks
+    )
 
 
 def test_holdout_fixtures_have_expected_contracts(tmp_path: Path) -> None:
@@ -349,14 +381,50 @@ def test_source_contract_checks_content_and_order(tmp_path: Path) -> None:
         required_source_patterns=(r"old|legacy",),
         forbidden_source_fragments=("old_package",),
         required_source_order=(("def summary", "def chart"),),
+        required_exact_cell_sources=("value = 1",),
     )
 
     checks = _source_contract_checks(
-        "@app.cell(hide_code=True)\n# legacy\ndef summary(): ...\ndef chart(): ...",
+        """import marimo
+
+app = marimo.App()
+
+@app.cell(hide_code=True)
+def summary():
+    value = 1
+    return value
+
+@app.cell
+def chart(value):
+    # legacy
+    return value
+""",
         workspace,
     )
 
     assert all(check.passed for check in checks)
+
+
+def test_source_contract_checks_exact_cell_source(tmp_path: Path) -> None:
+    source = """import marimo
+
+app = marimo.App()
+
+@app.cell
+def _():
+    value = 2
+    return value
+"""
+    workspace = ScenarioWorkspace(
+        notebook=tmp_path / "analysis.py",
+        expected_summary={},
+        required_exact_cell_sources=("value = 1",),
+    )
+
+    [check] = _source_contract_checks(source, workspace)
+
+    assert check.name.startswith("exact_cell_source:")
+    assert not check.passed
 
 
 def test_variant_selection_defaults_to_baseline() -> None:

@@ -53,6 +53,7 @@ def _workspace(
     required_source_patterns: tuple[str, ...] = (),
     forbidden_source_fragments: tuple[str, ...] = (),
     required_source_order: tuple[tuple[str, str], ...] = (),
+    required_exact_cell_sources: tuple[str, ...] = (),
     turn_attachments: dict[int, tuple[FileAttachment, ...]] | None = None,
 ) -> ScenarioWorkspace:
     return ScenarioWorkspace(
@@ -62,6 +63,7 @@ def _workspace(
         required_source_patterns=required_source_patterns,
         forbidden_source_fragments=forbidden_source_fragments,
         required_source_order=required_source_order,
+        required_exact_cell_sources=required_exact_cell_sources,
         turn_attachments=turn_attachments or {},
     )
 
@@ -802,6 +804,13 @@ if __name__ == "__main__":
     app.run()
 """
 
+_HISTORICAL_RESTORE_CELL_SOURCE = """_bounded_scores = [max(12, min(_score, 91)) for _score in raw_scores]
+quality_score = round(sum(_bounded_scores) / len(_bounded_scores), 3)
+analysis_summary = {
+    "method": "bounded-12-91",
+    "quality_score": quality_score,
+}"""
+
 
 def _setup_historical_restore(root: Path) -> ScenarioWorkspace:
     return _workspace(
@@ -811,6 +820,7 @@ def _setup_historical_restore(root: Path) -> ScenarioWorkspace:
         required_source_fragments=('"method": "bounded-12-91"',),
         required_source_patterns=(r"max\(12,\s*min\([A-Za-z_]\w*,\s*91\)\)",),
         forbidden_source_fragments=("statistics.median", "trimmed_mean"),
+        required_exact_cell_sources=(_HISTORICAL_RESTORE_CELL_SOURCE,),
     )
 
 
@@ -1315,11 +1325,11 @@ Report active MRR, valid January activations, and invalid record count in
         ),
         setup=_setup_orders,
         turns=(
-            """Analyze products and orders. Normalize category whitespace and
-case to title case, label missing categories Unknown, and exclude orders whose
-unit price is missing. Chart revenue by category. Set `analysis_summary` with
-`top_category`, `top_category_revenue`, `total_valid_revenue`, and
-`excluded_order_count`.
+            """Analyze `data/products.csv` and `data/orders.csv`. Normalize
+category whitespace and case to title case, label missing categories Unknown,
+and exclude orders whose unit price is missing. Chart revenue by category. Set
+`analysis_summary` with `top_category`, `top_category_revenue`,
+`total_valid_revenue`, and `excluded_order_count`.
 
 """
             + _SUMMARY_CONTRACT,
@@ -1572,6 +1582,112 @@ HOLDOUT_SCENARIOS = (
 )
 
 
+_REVISION_HISTORY_NOTEBOOK = """import marimo
+
+__generated_with = "0.25.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    raw_scores = [3, 18, 27, 42, 88, 130]
+    return (raw_scores,)
+
+
+@app.cell
+def _(raw_scores):
+    _bounded_scores = [max(12, min(_score, 91)) for _score in raw_scores]
+    quality_score = round(sum(_bounded_scores) / len(_bounded_scores), 3)
+    analysis_summary = {
+        "method": "bounded-12-91",
+        "quality_score": quality_score,
+    }
+    return (analysis_summary, quality_score)
+
+
+@app.cell
+def _(raw_scores):
+    audit_rows = [
+        {
+            "raw_score": _score,
+            "within_bounds": 12 <= _score <= 91,
+        }
+        for _score in raw_scores
+    ]
+    audit_summary = {
+        "outside_bounds": sum(
+            not _row["within_bounds"] for _row in audit_rows
+        )
+    }
+    return audit_rows, audit_summary
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+
+_REVISION_HISTORY_METRIC_SOURCE = """_bounded_scores = [max(12, min(_score, 91)) for _score in raw_scores]
+quality_score = round(sum(_bounded_scores) / len(_bounded_scores), 3)
+analysis_summary = {
+    "method": "bounded-12-91",
+    "quality_score": quality_score,
+}"""
+
+_REVISION_HISTORY_AUDIT_SOURCE = """audit_rows = [
+    {
+        "raw_score": _score,
+        "within_bounds": 12 <= _score <= 91,
+    }
+    for _score in raw_scores
+]
+audit_summary = {
+    "outside_bounds": sum(
+        not _row["within_bounds"] for _row in audit_rows
+    )
+}"""
+
+
+def _setup_revision_history_restore(root: Path) -> ScenarioWorkspace:
+    return _workspace(
+        root,
+        {"method": "bounded-12-91", "quality_score": 46.333},
+        notebook_source=_REVISION_HISTORY_NOTEBOOK,
+        required_exact_cell_sources=(
+            _REVISION_HISTORY_METRIC_SOURCE,
+            _REVISION_HISTORY_AUDIT_SOURCE,
+        ),
+        forbidden_source_fragments=(
+            "statistics.median",
+            '"method": "trimmed-one-each"',
+        ),
+    )
+
+
+REGRESSION_SCENARIOS = (
+    Scenario(
+        id="revision_history_restore",
+        description=(
+            "Restore the oldest of several cell revisions and a deleted cell."
+        ),
+        length="long",
+        failure_modes=(
+            "historical_source_recall",
+            "multiple_cell_revisions",
+            "deleted_cell_restoration",
+            "exact_source_restoration",
+        ),
+        setup=_setup_revision_history_restore,
+        turns=(
+            "Inspect the notebook carefully and remember the exact metric and audit implementations. Do not edit anything yet.",
+            "Replace the headline metric with the median of raw_scores and update analysis_summary to method='median'. Delete the audit cell.",
+            "Change the headline metric again: sort raw_scores, remove one value from each tail, and average the rest. Update analysis_summary to method='trimmed-one-each'. Keep the audit cell deleted.",
+            "Without editing the notebook, briefly compare the current trimmed metric with the original bounded metric.",
+            "Restore both the original first-turn metric cell and the deleted audit cell exactly from revision history. Remove median- and trimmed-only code, and verify the restored notebook.",
+        ),
+    ),
+)
+
+
 _QUICK_SCENARIO_IDS = {
     "athletes_prescribed",
     "retail_investigation_short",
@@ -1581,9 +1697,21 @@ _QUICK_SCENARIO_IDS = {
 def get_scenarios(
     ids: set[str] | None = None,
     *,
-    suite: Literal["quick", "full", "capabilities", "holdout", "all"] = "full",
+    suite: Literal[
+        "quick",
+        "full",
+        "capabilities",
+        "holdout",
+        "regression",
+        "all",
+    ] = "full",
 ) -> tuple[Scenario, ...]:
-    all_scenarios = (*SCENARIOS, *CAPABILITY_SCENARIOS, *HOLDOUT_SCENARIOS)
+    all_scenarios = (
+        *SCENARIOS,
+        *CAPABILITY_SCENARIOS,
+        *HOLDOUT_SCENARIOS,
+        *REGRESSION_SCENARIOS,
+    )
     selected_ids = ids
     if selected_ids is None and suite == "quick":
         selected_ids = _QUICK_SCENARIO_IDS
@@ -1593,6 +1721,8 @@ def get_scenarios(
         return CAPABILITY_SCENARIOS
     if selected_ids is None and suite == "holdout":
         return HOLDOUT_SCENARIOS
+    if selected_ids is None and suite == "regression":
+        return REGRESSION_SCENARIOS
     if selected_ids is None and suite == "all":
         return all_scenarios
     assert selected_ids is not None

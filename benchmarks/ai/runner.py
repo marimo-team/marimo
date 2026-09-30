@@ -36,6 +36,7 @@ from benchmarks.ai.models import (
 )
 from benchmarks.ai.server import MarimoServer
 from benchmarks.ai.vercel_stream import serialized_chars
+from marimo._ast.parse import parse_notebook
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -175,6 +176,26 @@ def _source_contract_checks(
         )
         for before, after in workspace.required_source_order
     )
+    notebook = parse_notebook(source)
+    cell_sources = (
+        {cell.code for cell in notebook.cells} if notebook else set()
+    )
+    for required in workspace.required_exact_cell_sources:
+        passed = required in cell_sources
+        checks.append(
+            CheckResult(
+                name=(
+                    "exact_cell_source:"
+                    f"{hashlib.sha256(required.encode()).hexdigest()[:12]}"
+                ),
+                passed=passed,
+                reason=(
+                    "exact cell source matched"
+                    if passed
+                    else "required exact cell source was not found"
+                ),
+            )
+        )
     return checks
 
 

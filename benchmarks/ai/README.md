@@ -83,6 +83,17 @@ The live-edit case sends the intervening edit through `/api/kernel/run`, the
 same live execution endpoint used by the editor, and waits for the kernel to
 return to idle before the next chat turn.
 
+The regression suite contains cases that were created from observed failures
+and are safe to tune against. It currently exercises exact restoration across
+multiple revisions of one cell and restoration of a deleted cell:
+
+```bash
+uv run --group ai-eval python -m benchmarks.ai run \
+  --model <model-id> \
+  --suite regression \
+  --variant hybrid_balanced
+```
+
 `hybrid_balanced` exposes exploratory execution, typed inspection, atomic cell
 patches, cell execution, and grouped operations for packages, live UI state,
 and cell configuration.

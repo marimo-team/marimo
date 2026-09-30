@@ -1496,3 +1496,396 @@ work suggested by these results is not another tool: expose live
 document/runtime divergence during inspection and strengthen final
 verification to confirm requested outputs remain rendered and headline cells
 are live.
+
+## Experiment 23: anomaly-only output verification
+
+Date: 2026-09-30
+
+Models: `Qwen/Qwen3.5-35B-A3B` and
+`deepseek-ai/DeepSeek-V4.1-Flash`
+
+Runs: Qwen warning prototype `20260930T041706Z-59306cda`; Qwen revised
+candidate `20260930T041944Z-458a8d24` and
+`20260930T042022Z-6e7ab937`; DeepSeek nonvisual control
+`20260930T042105Z-5d917ebd`
+
+Experiment 22 showed that a successful patch and error-free cells do not prove
+that a requested visual result is correct. The first prototype compared every
+cell's pre/post runtime status and returned warnings for new problems plus lost
+output. This duplicated the exact runtime diagnostics already present in a
+failed tool result. It added no useful evidence and was removed.
+
+The revised candidate keeps successful patch output unchanged. It emits a
+warning only when an edited cell previously had rich output or ended in a
+display expression and the replacement loses that behavior. This source-level
+check also works when the initial notebook has not executed and therefore has
+no captured runtime output. The hybrid completion guidance now distinguishes
+runtime health from semantic correctness and asks the model to inspect the
+live object or serialized specification for rich-output behavior that
+execution alone cannot establish.
+
+The first warning prototype remained mixed on the visual case:
+
+| Candidate | Passed | Mean duration | Mean tools | Mean errors | Mean requests | Mean input | Mean output |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Original hybrid, Experiment 22 | 0/1 | 15.4s | 8.00 | 4.00 | 9.00 | 51,734 | 1,352 |
+| Broad status warnings | 1/2 | 18.3s | 7.00 | 1.00 | 8.00 | 41,678 | 1,346 |
+| Sparse warning + semantic guidance | 4/4 | 13.8s | 6.25 | 1.75 | 7.25 | 37,006 | 1,102 |
+
+All four revised trials applied the descending sort, `labelAngle=-35`, width
+650, preserved the trailing chart display expression, kept
+`analysis_summary` live, and passed `marimo check`. Compared with the original
+failed observation, the four-run mean used 21.9% fewer tools, 56.3% fewer tool
+errors, 19.4% fewer requests, and 28.5% fewer input tokens. These percentages
+compare different sample sizes and are directional rather than population
+estimates.
+
+Trace inspection limits the causal claim. No lost-output warning fired in the
+four revised trials because every first patch preserved the display
+expression. Both trials in the first revised pair generated the correct
+descending dataframe before any semantic check. One later tried to inspect
+`chart.spec`, which is not an Altair API and raised `AttributeError`; the other
+only checked for cell errors. Therefore the 4/4 result supports the combined
+candidate but does not prove that the warning caused the improvement. The
+concise instruction may have improved initial planning, and ordinary model
+variance remains plausible.
+
+Two nonvisual DeepSeek controls both passed:
+
+| Scenario | Current duration / tools / input | Experiment 19 duration / input |
+|---|---:|---:|
+| Retail short | 94.9s / 9 / 58,633 | 90.6s / 96,717 |
+| Reactive repair | 42.5s / 6 / 42,514 | 28.6s / 27,060 |
+
+The controls are mixed but show no runaway verification loop. Retail duration
+was close while input fell; reactive repair was slower and used more input
+than its prior single observation. More nonvisual repetitions would be needed
+to estimate a small prompt-level regression, but the current evidence does not
+justify another broad suite.
+
+Every visual trial exposed a separate execution-order issue: the atomic patch
+queued initially stale import, data, chart, and summary cells together, but
+the first execution frequently ran the data cell before its `pandas` import
+was live. The exact `NameError` allowed recovery through `run_cells`, but this
+accounted for at least one avoidable error and model request per trial. Fixing
+dependency-ordered initial execution is a clearer next optimization than
+adding more verification output.
+
+Logfire contained eight trial traces for this experiment, with 12--22 spans
+each. Every trace had exactly one root and zero unavailable parents.
+
+Conclusion: reject broad notebook-health reporting as duplicate transcript
+bloat. Retain the concise semantic-verification guidance and the sparse
+lost-visible-output warning as a regression signal. Treat the visual task as
+a regression case, not an unseen holdout, and do not claim that arbitrary user
+semantics are automatically verified.
+
+## Experiment 24: register document-only cells before atomic execution
+
+Date: 2026-09-30
+
+Models: `Qwen/Qwen3.5-35B-A3B` and
+`deepseek-ai/DeepSeek-V4.1-Flash`
+
+Runs: Qwen visual confirmation `20260930T043650Z-d372fd79`; DeepSeek
+nonvisual control `20260930T043738Z-b323d2c8`
+
+Every visual trial in Experiment 23 initially failed with `NameError: pd is
+not defined`. The patch tool correctly requested all initially stale cells,
+but `_code_mode` filtered unchanged cells that existed in the notebook
+document but had not yet entered the kernel graph. The data cell was
+registered because it was edited; its unchanged import ancestor was not.
+Without that graph node, dependency sorting could not order the import first.
+
+The fix registers explicitly requested document-only cells in the same graph
+mutation as edited cells. The existing scheduler then performs the normal
+topological ordering. A focused regression test reproduces the prior failure
+with an unchanged `import math` ancestor and an edited document-only consumer;
+it failed before the change and passes afterward. The full code-mode context
+and hybrid-tool selection ran 87 tests successfully.
+
+Two fresh visual trials both passed with a successful first atomic patch and
+no recovery call:
+
+| Candidate | Passed | Mean duration | Mean tools | Mean errors | Mean requests | Mean input | Mean output |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Before registration fix, Experiment 23 | 4/4 | 13.8s | 6.25 | 1.75 | 7.25 | 37,006 | 1,102 |
+| After registration fix | 2/2 | 11.6s | 3.50 | 0.00 | 4.50 | 19,115 | 680 |
+
+The post-fix observations used 44.0% fewer tools, 37.9% fewer requests, 48.3%
+fewer input tokens, and no tool errors. Both patch spans returned
+`success=true`, empty `stderr`, and empty error lists. Neither trajectory used
+`run_cells`. One trial verified the result by evaluating `chart` directly;
+marimo's rich representation returned the complete Vega-Lite specification,
+including the ordered data, `labelAngle=-35`, and width 650. This supports
+direct live-object inspection as the general semantic-verification primitive.
+
+The nonvisual reactive-repair control also passed with zero tool errors, seven
+tools, and 59,673 input tokens. Its 68.8-second duration and token use were
+higher than the immediately preceding single observation, so the run supports
+correctness and error elimination but not a broad latency claim.
+
+Conclusion: retain the runtime fix. It removes a deterministic recovery cause
+at the transaction layer, applies to arbitrary initially unexecuted notebooks,
+and does not add tools, prompts, or model-visible output.
+
+## Experiment 25: explicit document/runtime source divergence
+
+Date: 2026-09-30
+
+Model: `deepseek-ai/DeepSeek-V4.1-Flash`
+
+Run: `20260930T044020Z-676c031e`
+
+The live-human-edit holdout previously forced agents to reconcile stale
+document source with newer kernel values indirectly. Inspection now adds
+fields only when the notebook document and executing graph disagree:
+`source_diverged=true`, `runtime_code_chars`, and `runtime_code` for
+source-bearing scopes. Ordinary synchronized cells receive no additional
+fields. Outline inspection reports only the divergence flag and length.
+
+The hybrid guidance treats `runtime_code` as the current human edit and asks
+the model to preserve it while synchronizing durable source through the typed
+patch tool. One fresh two-turn trial passed:
+
+| Hybrid | Passed | Duration | Tools | Errors | Requests | Input | Output |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Experiment 22 | Yes | 108.8s | 21 | 1 | 20 | 229,097 | 15,817 |
+| Explicit divergence | Yes | 28.8s | 8 | 0 | 9 | 51,281 | 3,456 |
+
+The revised trajectory was 73.5% faster, used 61.9% fewer tools, eliminated
+the tool error, used 55.0% fewer model requests, and used 77.6% fewer input
+tokens. This is one comparison against one prior observation, so exact
+percentages are directional.
+
+The second-turn trace validates the mechanism. Its first inspection reported
+the document's `paid-only` policy beside the exact live
+`paid-and-settled` runtime source. The next call copied that runtime code into
+the policy replacement, updated `analysis_summary`, and returned a successful
+atomic patch with empty errors. One exploratory call then verified policy,
+total revenue 450, and top region `East`. There was no filesystem search,
+session-cache search, or stale-source rerun.
+
+Conclusion: retain divergence reporting. It is sparse, describes a general
+notebook consistency condition rather than a benchmark-specific value, and
+turns an ambiguous state-recovery problem into a direct synchronization task.
+
+## Experiment 26: bounded revision-aware restoration
+
+Date: 2026-09-30
+
+Models: `deepseek-ai/DeepSeek-V4.1-Flash` and `Qwen/Qwen3.5-35B-A3B`
+
+Runs: DeepSeek `20260930T044537Z-784f4bcf`; Qwen reconstruction
+`20260930T044803Z-91f8bcf0`; rejected availability cue
+`20260930T044940Z-9842605c`; Qwen explicit restoration rule
+`20260930T045048Z-bec7e052`
+
+Experiment 21 showed that compacted conversation history is not a reliable
+source archive. The historical restore passed semantically only after the
+hybrid searched session state and temporary directories, consumed 948,327
+input tokens over the conversation, and reconstructed rather than recovered
+the original source.
+
+The candidate stores source replaced or deleted by agent-authored notebook
+mutations in existing per-kernel agent state. History is deduplicated and
+bounded to ten revisions per cell, 100 revisions per kernel, and 200,000
+aggregate source characters. Oldest revisions are evicted globally, and
+explicit history output reports when truncation occurred. It does not record
+ordinary human edits or add information to normal inspection results. The
+existing `inspect_notebook` tool exposes the archive only through an explicit
+`scope="history"` request, returning a flat chronological list with sequence,
+cell ID, name, and source. This avoids adding another tool to the model's tool
+selection problem.
+
+The fresh DeepSeek historical holdout passed all semantic and source checks:
+
+| Hybrid | Passed | Duration | Tools | Errors | Requests | Input | Output |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Experiment 21 | Yes | 145.0s | 23 | 4 | 27 | 948,327 | 16,229 |
+| Revision-aware | Yes | 65.7s | 14 | 0 | 17 | 166,665 | 8,071 |
+
+The new observation was 54.7% faster, used 39.1% fewer tools, eliminated all
+four tool errors, used 37.0% fewer model requests, and used 82.4% fewer input
+tokens. These percentages compare one run with one prior run and are
+directional, not variance estimates.
+
+The final-turn trace validates the intended mechanism. The first call was
+`inspect_notebook(scope="history")`, which returned the original bounded-mean
+cell source. The next call used that source verbatim in one atomic replacement
+and deleted the later median table. One exploratory call verified the values
+and absence of median-only globals, and a compact outline confirmed the final
+two-cell graph. There was no filesystem, session-cache, or temporary-directory
+search. The trace had one root span and every child had an available parent.
+
+Cross-model testing exposed a discoverability failure. The first Qwen run
+passed the old semantic contract but never called history; it reconstructed an
+equivalent bounded mean with different source. A sparse
+`restorable_revision_count` field did not help because the model mutated before
+performing normal inspection, and that field was removed as output bloat. An
+explicit rule—undo, revert, and exact restoration must start with history and
+must not reconstruct from prose—made history the first final-turn call. Qwen
+then copied the exact stored source in one patch and passed in 31.9 seconds
+with 10 tools, two errors, 17 requests, 98,664 input tokens, and 3,686 output
+tokens. Its final trace had one root and connected children.
+
+The grader now parses the saved marimo notebook and requires the complete
+metric cell body to equal the original source. Regrading the saved artifacts
+correctly rejects Qwen's semantically equivalent reconstruction and accepts
+the history-based restoration. This closes the gap between the scenario name
+and its automated contract.
+
+The focused benchmark, revision, code-mode context, and hybrid-tool suites
+pass 123 tests; the changed production files pass Ruff and mypy.
+
+Conclusion: retain the bounded revision store and explicit history scope. It
+solves a general undo/restore requirement without retaining unbounded chat
+history, expanding the tool count, or bloating ordinary inspection. The next
+valuable work is broader regression coverage, not another prompt tweak or a
+separate restore tool.
+
+## Experiment 27: multi-revision and deleted-cell regression
+
+Date: 2026-09-30
+
+Models: `deepseek-ai/DeepSeek-V4.1-Flash` and `Qwen/Qwen3.5-35B-A3B`
+
+Runs: Qwen `20260930T050209Z-df0e7e80`; DeepSeek initial
+`20260930T050210Z-ebb203a2`; DeepSeek private-name guidance
+`20260930T050401Z-17cb4604`
+
+Added a dedicated `regression` suite for cases derived from observed failures,
+separate from the frozen holdout suite. Its first case makes two successive
+changes to the same metric cell, deletes an independent audit cell, includes a
+non-editing explanation turn, and then requires the oldest metric revision and
+the deleted audit source to be restored exactly. The final grader compares both
+complete cell bodies rather than semantic fragments.
+
+Both models passed on the first regression run:
+
+| Model | Duration | Tools | Errors | Requests | Input | Output |
+|---|---:|---:|---:|---:|---:|---:|
+| Qwen | 27.0s | 8 | 0 | 13 | 60,868 | 3,695 |
+| DeepSeek | 57.1s | 13 | 1 | 18 | 127,197 | 6,301 |
+
+Both final turns called `inspect_notebook(scope="history")` first. History
+contained three ordered records: the original metric, the deleted audit cell,
+and the intermediate median metric. Each model selected the first two, used
+one atomic patch to replace the current metric and insert the deleted audit
+source, and passed both exact-cell checks. This verifies retrieval across
+multiple revisions of one stable cell and recreation of a deleted cell with a
+new server-generated ID.
+
+DeepSeek's single error came from exploratory verification after the correct
+patch. It tried to read `_bounded_scores` from the scratchpad, but marimo
+private names are cell-scoped and are intentionally renamed. Added one sentence
+to the exploratory tool description: private `_` names cannot be read there;
+verify public outputs or recompute the intermediate. A repeat still passed and
+removed the error:
+
+| DeepSeek | Duration | Tools | Errors | Requests | Input | Output |
+|---|---:|---:|---:|---:|---:|---:|
+| Before guidance | 57.1s | 13 | 1 | 18 | 127,197 | 6,301 |
+| After guidance | 43.9s | 11 | 0 | 15 | 120,500 | 6,920 |
+
+The repeat was 23.1% faster, used two fewer tools and three fewer model
+requests, and eliminated the private-name recovery. Input fell 5.3% while
+output rose 9.8%; one pair is directional evidence only. Trace inspection
+confirmed no private-name access in the repeat's restoration turn. The Qwen
+and final DeepSeek restoration traces each contained 12 spans, exactly one
+root, and no missing parents.
+
+The experiment also corrected exact-source check reporting: successful checks
+now say `exact cell source matched` instead of displaying the failure-oriented
+`was not found` reason.
+
+Conclusion: keep the regression suite, exact multi-cell contracts, and concise
+private-name guidance. The revision design handles the two principal restore
+shapes without a new tool. Further regression additions should come from new
+observed failures rather than synthetic permutations of the same workflow.
+
+## Experiment 28: current-branch broad regression gate
+
+Date: 2026-09-30
+
+Models: `deepseek-ai/DeepSeek-V4.1-Flash` and `Qwen/Qwen3.5-35B-A3B`
+
+Runs: hybrid data suite `20260930T050908Z-34cebf27`; unchanged orders
+retry `20260930T051436Z-8054ac59`; capabilities
+`20260930T051438Z-0b632efd`; text holdouts
+`20260930T051528Z-ebc77425`; visual holdout
+`20260930T051530Z-293eaf6b`; fresh baseline data suite
+`20260930T051933Z-03335fdd`; clarified orders hybrid
+`20260930T052712Z-c9486e81`; clarified orders baseline
+`20260930T052720Z-bfc7d204`
+
+Reran the accumulated current branch across the ten data scenarios, all three
+capability scenarios, all six holdouts, and a fresh paired baseline. The data
+suites used four concurrent workers. Capability and text-holdout concurrency
+was capped so no more than four real-model trials ran at once.
+
+The raw current-branch data comparison was:
+
+| Variant | Passed | Mean duration | Mean tools | Mean errors | Mean requests | Mean input | Mean output | Mean reasoning |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Baseline | 10/10 | 108.6s | 16.8 | 1.10 | 18.7 | 482,003 | 20,726 | 14,357 |
+| Current hybrid | 9/10 | 92.4s | 15.3 | 0.70 | 16.5 | 408,899 | 18,612 | 12,375 |
+
+The hybrid was 14.9% faster, used 8.9% fewer tools, 36.4% fewer tool errors,
+11.8% fewer model requests, 15.2% fewer input tokens, 10.2% fewer output
+tokens, and 13.8% fewer reasoning tokens. These are contemporaneous runs, but
+one observation per scenario and concurrent execution still make the effect
+sizes directional.
+
+The hybrid's raw miss was `orders_missing_dimensions`. With no tool errors, it
+created a documented sample dataset rather than loading the fixture. The
+scenario prompt said only “Analyze products and orders” and did not name
+`data/products.csv` or `data/orders.csv`; its calculations were internally
+correct for the invented data. The same unchanged hybrid scenario passed on
+immediate retry. Corrected the benchmark instruction to name both fixture
+paths and added a contract test. Both variants then passed, with the following
+single-case trajectories:
+
+| Clarified orders | Duration | Tools | Errors | Requests | Input | Output |
+|---|---:|---:|---:|---:|---:|---:|
+| Hybrid | 48.8s | 8 | 0 | 7 | 51,566 | 8,477 |
+| Baseline | 173.4s | 27 | 4 | 26 | 742,141 | 26,302 |
+
+The correction means the intended data behavior passes for both strategies,
+but it does not erase the hybrid's initial first-attempt miss. Treat the raw
+9/10 versus 10/10 result as reliability evidence and the clarified pair as
+evidence that the miss came from benchmark ambiguity rather than an inability
+to solve the task.
+
+Every broader editor surface passed:
+
+| Suite | Model | Passed | Mean duration | Mean tools | Mean errors | Mean input |
+|---|---|---:|---:|---:|---:|---:|
+| Capabilities | DeepSeek | 3/3 | 20.0s | 9.0 | 0.67 | 101,584 |
+| Text holdouts | DeepSeek | 5/5 | 65.7s | 12.4 | 0.80 | 203,278 |
+| Visual holdout | Qwen | 1/1 | 8.2s | 3.0 | 0.00 | 16,895 |
+
+The text holdouts include exact historical restoration, the 26-cell graph,
+mixed package/UI/configuration operations, delayed clarification, and an
+out-of-band live edit. The visual case applied all image-only chart
+requirements with one patch and no errors. Together with Experiment 27's
+multi-revision regression, every current scenario has a passing current-hybrid
+observation.
+
+Token efficiency is weaker than the unusually cheap Experiment 19 hybrid run
+(215,648 mean input) but remains better than the fresh baseline. The long data
+cases account for nearly all of the variance: current hybrid mean input was
+1,254,223 versus 1,643,311 in the older baseline comparison and 615,661 in the
+best prior hybrid observation. This reinforces that single-run token deltas
+are noisy even when architecture and correctness are stable.
+
+Logfire contained 77 traces across the broad hybrid and baseline runs audited
+here. Every trace had exactly one root span and no child with a missing parent.
+
+Conclusion: the seven-tool hybrid remains the best demonstrated architecture.
+It is broadly correct and still more efficient than a fresh baseline across
+the main data suite, while handling editor capabilities that baseline code mode
+does not express directly. The result is not an unconditional dominance claim:
+the initial 9/10 hybrid result and token variance justify retaining repeated
+critical cases and reporting confidence intervals once the harness supports
+enough repetitions.
