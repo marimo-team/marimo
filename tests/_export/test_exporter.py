@@ -596,6 +596,53 @@ def test_export_as_html_code_inclusion(
         assert text not in html
 
 
+def test_export_as_html_omits_getpass_response(
+    session_view: SessionView,
+) -> None:
+    app = App()
+
+    @app.cell()
+    def _():
+        import getpass
+
+        _password = getpass.getpass("Password: ")
+        return
+
+    internal_app = InternalApp(app)
+    cell_id = next(iter(internal_app.cell_manager.cell_ids()))
+    session_view.add_notification(
+        CellNotification(
+            cell_id=cell_id,
+            console=CellOutput.stdin("Password: ", password=True),
+        )
+    )
+    secret = "getpass-regression-secret"
+    session_view.add_stdin(secret)
+
+    html, _ = Exporter().export_as_html(
+        _html_export_request(
+            filename="getpass.py",
+            app=internal_app,
+            session_view=session_view,
+            display_config=DEFAULT_CONFIG["display"],
+            request=ExportAsHTMLRequest(
+                download=False, files=[], include_code=True
+            ),
+        )
+    )
+
+    assert secret not in html
+    assert secret not in encode_json_str(session_view.notifications)
+    assert parse_mount_config(html)["session"]["cells"][0]["console"] == [
+        {
+            "type": "stream",
+            "name": "stdout",
+            "text": "Password: \n",
+            "mimetype": "text/plain",
+        }
+    ]
+
+
 def test_export_as_html_with_serialization(session_view: SessionView) -> None:
     """Test HTML export uses new serialization approach correctly."""
 

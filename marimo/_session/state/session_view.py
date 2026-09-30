@@ -290,7 +290,12 @@ class SessionView:
             for cell_output in console_outputs:
                 if cell_output.channel == CellChannel.STDIN:
                     cell_output.channel = CellChannel.STDOUT
-                    cell_output.data = f"{cell_output.data} {stdin}\n"
+                    if cell_output.mimetype == "text/password":
+                        # This state is reused for replay, exports, and caches.
+                        cell_output.data = f"{cell_output.data}\n"
+                        cell_output.mimetype = "text/plain"
+                    else:
+                        cell_output.data = f"{cell_output.data} {stdin}\n"
                     return
 
     def add_notification(self, notification: NotificationMessage) -> None:

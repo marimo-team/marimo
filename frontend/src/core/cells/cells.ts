@@ -1114,7 +1114,8 @@ const {
           mimetype: stdinOutput.mimetype,
           data: stdinOutput.data,
           timestamp: stdinOutput.timestamp,
-          response,
+          // An empty response resolves the prompt without retaining the secret.
+          response: stdinOutput.mimetype === "text/password" ? "" : response,
         };
 
         return {
