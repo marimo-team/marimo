@@ -1504,6 +1504,35 @@ describe("cell reducer", () => {
     ]);
   });
 
+  it("resolves password prompts without retaining the response", () => {
+    const prompt: OutputMessage = {
+      channel: "stdin",
+      mimetype: "text/password",
+      data: "Password: ",
+      timestamp: 1,
+    };
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: undefined,
+      console: prompt,
+      status: "running",
+      stale_inputs: null,
+      timestamp: 1 as Seconds,
+    });
+
+    const secret = "getpass-regression-secret";
+    actions.setStdinResponse({
+      cellId: firstCellId,
+      outputIndex: 0,
+      response: secret,
+    });
+
+    expect(cells[0].consoleOutputs).toEqual([
+      { ...prompt, response: expect.any(String) },
+    ]);
+    expect(JSON.stringify(cells[0].consoleOutputs)).not.toContain(secret);
+  });
+
   it("does not crash when setStdinResponse has out-of-bounds outputIndex", () => {
     const STDOUT: OutputMessage = {
       channel: "stdout",

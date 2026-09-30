@@ -285,6 +285,9 @@ def deserialize_session(
         # Convert console
         console_outputs: list[CellOutput] = []
         for console in cell["console"]:
+            # Older caches combined password prompts and responses in one string.
+            if console.get("mimetype") == "text/password":
+                continue
             if console["name"] == "media":
                 console_outputs.append(
                     CellOutput(
