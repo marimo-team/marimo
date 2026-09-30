@@ -15,6 +15,7 @@ from tests._cli._pair_server import PairTestServer, pair_test_server
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from pathlib import Path
 
 
 @pytest.fixture(scope="module")
@@ -97,6 +98,53 @@ def test_executes_by_stable_session_id(server: PairTestServer) -> None:
     payload = json.loads(result.stdout)
     assert payload["stdout"] == "stable\n"
     assert payload["session"]["id"] == server.stable_session_id
+
+
+def test_connect_persists_across_cli_processes(tmp_path: Path) -> None:
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in ("MARIMO_PAIR_HARNESS", "MARIMO_PAIR_CONVERSATION_ID")
+    }
+    environment["XDG_STATE_HOME"] = str(tmp_path / "state")
+
+    with pair_test_server(tmp_path, pair_preview=True) as server:
+        connected = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "marimo",
+                "pair",
+                "connect",
+                "--url",
+                server.url,
+                "--session",
+                server.stable_session_id,
+            ],
+            env=environment,
+            text=True,
+            capture_output=True,
+            timeout=20,
+            check=False,
+        )
+        executed = subprocess.run(
+            _command(server, "-c", "print('connected')"),
+            env=environment,
+            text=True,
+            capture_output=True,
+            timeout=20,
+            check=False,
+        )
+
+    assert connected.returncode == 0, connected.stderr
+    assert json.loads(connected.stdout)["record_created"] is True
+    assert executed.returncode == 0, executed.stderr
+    payload = json.loads(executed.stdout)
+    assert payload["stdout"] == "connected\n"
+    assert payload["participant"] == {
+        "harness": "unknown",
+        "scope": "harness",
+    }
 
 
 @pytest.mark.skipif(os.name != "posix", reason="SIGINT requires POSIX")

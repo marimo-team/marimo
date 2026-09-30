@@ -16,9 +16,11 @@ from marimo._cli.pair.client import (
     NoSessionError,
     PairError,
     PairInputError,
+    ParticipantChannelOffError,
     SSEEvent,
     StableSessionUnsupportedError,
     StaleSessionError,
+    UnknownParticipantError,
 )
 
 if TYPE_CHECKING:
@@ -265,6 +267,23 @@ def test_attach_participant_sends_metadata(
         "harness": {"id": "pi", "displayName": "Pi"},
     }
     assert response.closed
+
+
+def test_attach_reports_channel_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    def missing_route(**kwargs: Any) -> None:
+        del kwargs
+        raise PairError("Not Found")
+
+    monkeypatch.setattr(client, "open_response", missing_route)
+    with pytest.raises(ParticipantChannelOffError):
+        client.attach_participant(
+            url="https://example.com",
+            session_id="session-1",
+            token=None,
+            participant_id="p1",
+            harness_id="unknown",
+            harness_name="Agent",
+        )
 
 
 def test_execute_omits_authorization_without_token(
@@ -765,6 +784,18 @@ def test_raise_for_status_maps_invalid_stable_session_id() -> None:
     )
 
     with pytest.raises(StaleSessionError, match="Invalid stable session id"):
+        client._raise_for_status(response)
+
+    assert response.closed
+
+
+def test_raise_for_status_maps_unknown_participant() -> None:
+    response = FakeStatusResponse(
+        404,
+        json.dumps({"detail": "Unknown participant ID: p1."}).encode(),
+    )
+
+    with pytest.raises(UnknownParticipantError, match="Unknown participant"):
         client._raise_for_status(response)
 
     assert response.closed

@@ -15,11 +15,14 @@ import click
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._cli.pair.client import (
     AmbiguousSessionError,
+    ExecutionResult,
     NoSessionError,
     PairError,
     PairInputError,
+    ParticipantChannelOffError,
     StableSessionUnsupportedError,
     StaleSessionError,
+    UnknownParticipantError,
     attach_participant,
     display_url,
     execute as execute_code,
@@ -27,6 +30,11 @@ from marimo._cli.pair.client import (
     load_token,
     registry_urls,
     resolve_session,
+)
+from marimo._cli.pair.connection import (
+    ConnectionStore,
+    participant_id as derive_participant_id,
+    resolve_identity,
 )
 from marimo._cli.pair.prompts import render_prompt
 from marimo._server.ai.skills import utils as skills_utils
@@ -209,14 +217,14 @@ class _DocsCommand(ColoredCommand):
     \b
     Authentication:
       If a token-file path is supplied, add --token-file <PATH> to every
-      execute and notebook list command. Pass the path, not the file contents.
+      marimo pair command. Pass the path, not the file contents.
+      Otherwise, these commands use MARIMO_TOKEN when set.
 
     \b
     Agent identity:
-      Attach once with a participant ID and self-described harness metadata.
-      Pass the same --participant-id to later execute commands. The server
-      caches the metadata for that participant. Without --participant-id,
-      execute works as a regular Pair session.
+      Connect once to appear as the agent in the notebook. Later execute
+      commands use that connection without a participant ID flag. Without
+      a connection, execute works as a regular Pair session.
 
     \b
     Workflow:
@@ -224,6 +232,7 @@ class _DocsCommand(ColoredCommand):
         marimo edit <notebook.py> --no-token
       If you do not have the server URL or session:
         marimo pair notebook list
+      marimo pair connect --url <URL> --session <SESSION>
       marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
       import marimo._code_mode as cm
       async with cm.get_context() as ctx:
@@ -346,21 +355,60 @@ def execute(
     if not code:
         raise click.UsageError("Code must not be empty.")
 
+    selected = None
+    connection_reset = False
     try:
         token = load_token(token_file, os.environ)
         if session_id is None:
             session_id = resolve_session(url=url, token=token)
-        result = execute_code(
-            url=url,
-            session_id=session_id,
-            token=token,
-            code=code,
-            stdout=sys.stdout,
-            stderr=sys.stderr,
-            stream=stream,
-            participant_id=participant_id,
-        )
+        if participant_id is None:
+            identity = resolve_identity(os.environ)
+            store = ConnectionStore()
+            selected = store.load(
+                url=url, stable_session_id=session_id, identity=identity
+            )
+            if selected is not None:
+                participant_id = selected.connection.participant_id
+                selected = store.touch(selected)
+
+        def run() -> ExecutionResult:
+            return execute_code(
+                url=url,
+                session_id=session_id,
+                token=token,
+                code=code,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+                stream=stream,
+                participant_id=participant_id,
+            )
+
+        try:
+            result = run()
+        except UnknownParticipantError:
+            if selected is None:
+                raise
+            connection = selected.connection
+            attachment = attach_participant(
+                url=url,
+                session_id=session_id,
+                token=token,
+                participant_id=connection.participant_id,
+                harness_id=connection.harness.id,
+                harness_name=connection.harness.display_name,
+            )
+            if attachment.participant_id != connection.participant_id:
+                raise PairError(
+                    "The server returned a different participant ID."
+                ) from None
+            connection_reset = attachment.record_created
+            result = run()
     except PairError as error:
+        if isinstance(error, StaleSessionError) and selected is not None:
+            try:
+                ConnectionStore().remove(selected)
+            except PairInputError:
+                pass
         error_text, next_text = _failure_guidance(
             error, url=url, session_id=session_id
         )
@@ -379,6 +427,11 @@ def execute(
         )
 
     if stream:
+        if connection_reset:
+            click.echo(
+                "Pair connection reset: the server created a new participant record.",
+                err=True,
+            )
         if not result.success:
             if next_text:
                 _emit_failure(
@@ -397,11 +450,106 @@ def execute(
         "stderr": result.stderr,
         "session": {"id": session_id},
     }
+    if selected is not None:
+        participant: dict[str, object] = {
+            "harness": selected.connection.harness.id,
+            "scope": selected.connection.scope,
+        }
+        if connection_reset:
+            participant["record_created"] = True
+        payload["participant"] = participant
+    elif participant_id is not None:
+        payload["participant"] = {"id": participant_id}
     if next_text:
         payload["next"] = next_text
     click.echo(json.dumps(payload, indent=2))
     if not result.success:
         ctx.exit(1)
+
+
+@click.command(
+    cls=ColoredCommand,
+    help="Connect this agent to one live notebook Session.",
+)
+@click.option("--url", required=True, metavar="URL", help="Server URL.")
+@click.option(
+    "--session",
+    "session_id",
+    metavar="ID",
+    help="Stable session_id from marimo pair notebook list.",
+)
+@click.option(
+    "--token-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    metavar="PATH",
+    help="Read the server token from a local file. Otherwise use MARIMO_TOKEN, if set.",
+)
+@click.option("--harness-id", metavar="ID", help="Advisory harness ID.")
+@click.option("--harness-name", metavar="NAME", help="Harness display name.")
+@click.pass_context
+def connect(
+    ctx: click.Context,
+    url: str,
+    session_id: str | None,
+    token_file: Path | None,
+    harness_id: str | None,
+    harness_name: str | None,
+) -> None:
+    try:
+        token = load_token(token_file, os.environ)
+        if session_id is None:
+            session_id = resolve_session(url=url, token=token)
+        identity = resolve_identity(
+            os.environ, harness_id=harness_id, harness_name=harness_name
+        )
+        derived_id = derive_participant_id(session_id, identity)
+        attached = attach_participant(
+            url=url,
+            session_id=session_id,
+            token=token,
+            participant_id=derived_id,
+            harness_id=identity.harness.id,
+            harness_name=identity.harness.display_name,
+        )
+        if attached.participant_id != derived_id:
+            raise PairError("The server returned a different participant ID.")
+        ConnectionStore().save(
+            url=url,
+            stable_session_id=session_id,
+            identity=identity,
+            participant=derived_id,
+        )
+    except PairError as error:
+        error_text, next_text = _failure_guidance(
+            error, url=url, session_id=session_id
+        )
+        _emit_failure(
+            error_text, next_text, session_id=session_id, stream=False
+        )
+        ctx.exit(2)
+
+    if identity.scope == "harness":
+        click.echo(
+            "No conversation ID is available. Agents with this harness and "
+            "Session share one participant.",
+            err=True,
+        )
+    click.echo(
+        json.dumps(
+            {
+                "connected": True,
+                "record_created": attached.record_created,
+                "cursor": attached.cursor,
+                "session": {"id": session_id},
+                "participant": {
+                    "harness": identity.harness.id,
+                    "name": identity.harness.display_name,
+                    "scope": identity.scope,
+                },
+            },
+            indent=2,
+        )
+    )
 
 
 @click.command(
@@ -612,6 +760,11 @@ def _failure_guidance(
                 "The notebook was closed or restarted."
             ),
             f"marimo pair notebook list --url {safe_url}",
+        )
+    if isinstance(error, ParticipantChannelOffError):
+        return (
+            f"The participant channel is off on {safe_url}.",
+            "Set MARIMO_PAIR_NEXT=1 on the server and restart it.",
         )
     message = str(error)
     if message == "Authentication failed.":
@@ -948,6 +1101,7 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
 
 notebook.add_command(list_notebooks)
 pair.add_command(attach)
+pair.add_command(connect)
 pair.add_command(execute)
 pair.add_command(docs)
 pair.add_command(notebook)
