@@ -250,6 +250,8 @@ def build_hybrid_code_mode_toolset(
         """Run exploratory Python in the live kernel without changing cells.
 
         Use the typed notebook tools for every persistent notebook mutation.
+        Notebook-private names beginning with `_` are cell-scoped and cannot
+        be read here; verify public outputs or recompute the intermediate.
         """
         if _imports_code_mode(code):
             return CodeExecutionResult(
@@ -264,14 +266,44 @@ def build_hybrid_code_mode_toolset(
         return await run(code)
 
     async def inspect_notebook(
-        scope: Literal["all", "outline", "errors"],
+        scope: Literal["all", "outline", "errors", "history"],
     ) -> CodeExecutionResult:
-        """Inspect notebook structure, complete source, or failing cells.
+        """Inspect notebook structure, source, failures, or prior revisions.
 
         Use `all` when source is required for an edit, `outline` for compact
         structure and dependency metadata, or `errors` for non-idle cells and
-        their source. Every scope includes stable IDs, status, and errors.
+        their source. Every scope includes stable IDs, status, and errors. If
+        an unsaved live edit differs from the document, inspection reports
+        `source_diverged`; source-bearing scopes also include `runtime_code`.
+        Use `history` only to restore source replaced or deleted by an earlier
+        agent mutation. It returns a bounded, chronological revision list and
+        reports whether older revisions were truncated.
         """
+        if scope == "history":
+            return await run(
+                "import json as _json\n"
+                "import marimo._code_mode as _cm\n"
+                "async with _cm.get_context() as _ctx:\n"
+                "    _revisions = [\n"
+                "        {\n"
+                "            'sequence': _revision.sequence,\n"
+                "            'cell_id': str(_cell_id),\n"
+                "            'name': _revision.name,\n"
+                "            'code': _revision.code,\n"
+                "        }\n"
+                "        for _cell_id, _cell_revisions in "
+                "_ctx._kernel.agent.revisions.all().items()\n"
+                "        for _revision in _cell_revisions\n"
+                "    ]\n"
+                "    _history_truncated = "
+                "_ctx._kernel.agent.revisions.truncated\n"
+                "_revisions.sort(key=lambda _revision: "
+                "_revision['sequence'])\n"
+                "print(_json.dumps({\n"
+                "    'revisions': _revisions,\n"
+                "    'truncated': _history_truncated,\n"
+                "}))"
+            )
         return await run(
             "import json as _json\n"
             "import marimo._code_mode as _cm\n"
@@ -320,6 +352,16 @@ def build_hybrid_code_mode_toolset(
             "            'code_chars': len(_cell.code),\n"
             "            **({'code': _cell.code} if _scope != 'outline' "
             "else {}),\n"
+            "            **({\n"
+            "                'source_diverged': True,\n"
+            "                'runtime_code_chars': len(_impl.code),\n"
+            "                **(\n"
+            "                    {'runtime_code': _impl.code}\n"
+            "                    if _scope != 'outline' else {}\n"
+            "                ),\n"
+            "            } if (\n"
+            "                _impl is not None and _cell.code != _impl.code\n"
+            "            ) else {}),\n"
             "        } for _cell, _impl, _compile_error in _raw_cells]\n"
             "    if _scope == 'errors':\n"
             "        _cells = [\n"
@@ -345,6 +387,8 @@ def build_hybrid_code_mode_toolset(
         variables, including loop targets, with `_`. All structural changes
         validate as one transaction. Stale existing cells and patched cells
         then execute together in dependency order. Returns server-created IDs.
+        A clean patch stays compact; a warning appears only when an edited
+        cell unexpectedly loses its visible output.
         """
         replacement_cells = replacements or []
         inserted_cells = insertions or []
@@ -369,12 +413,31 @@ def build_hybrid_code_mode_toolset(
         replacement_values = [asdict(cell) for cell in replacement_cells]
         insertion_values = [asdict(cell) for cell in inserted_cells]
         return await run(
+            "import ast as _ast\n"
             "import json as _json\n"
             "import marimo._code_mode as _cm\n"
+            "def _has_display_expression(_code):\n"
+            "    try:\n"
+            "        _body = _ast.parse(_code).body\n"
+            "    except SyntaxError:\n"
+            "        return False\n"
+            "    if not _body or not isinstance(_body[-1], _ast.Expr):\n"
+            "        return False\n"
+            "    _value = _body[-1].value\n"
+            "    return not (\n"
+            "        isinstance(_value, _ast.Constant)\n"
+            "        and isinstance(_value.value, str)\n"
+            "    )\n"
             f"_replacements = {_python_literal(replacement_values)}\n"
             f"_insertions = {_python_literal(insertion_values)}\n"
             f"_delete_ids = {_python_literal(delete_ids)}\n"
             "async with _cm.get_context() as _ctx:\n"
+            "    _before = {str(_cell.id): {\n"
+            "        'has_output': _cell.output is not None,\n"
+            "        'has_display_expression': (\n"
+            "            _has_display_expression(_cell.code)\n"
+            "        ),\n"
+            "    } for _cell in _ctx.cells}\n"
             "    _stale_ids = [\n"
             "        str(_cell.id) for _cell in _ctx.cells\n"
             "        if _cell.status == 'stale' and str(_cell.id) not in "
@@ -403,13 +466,41 @@ def build_hybrid_code_mode_toolset(
             "        [*_stale_ids, *_edited_ids, *_created_ids]\n"
             "    ):\n"
             "        _ctx.run_cell(_cell_id)\n"
-            "print(_json.dumps({\n"
+            "_warnings = []\n"
+            "async with _cm.get_context() as _verify_ctx:\n"
+            "    for _cell_id in _edited_ids:\n"
+            "        _cell = _verify_ctx.cells[_cell_id]\n"
+            "        _prior = _before.get(_cell_id)\n"
+            "        if (\n"
+            "            _prior is not None\n"
+            "            and _cell.status == 'idle'\n"
+            "            and _prior['has_output']\n"
+            "            and _cell.output is None\n"
+            "        ):\n"
+            "            _warnings.append(\n"
+            "                f'Cell {_cell_id!r} previously produced visible '\n"
+            "                'output; it now produces none'\n"
+            "            )\n"
+            "        elif (\n"
+            "            _prior is not None\n"
+            "            and _cell.status == 'idle'\n"
+            "            and _prior['has_display_expression']\n"
+            "            and not _has_display_expression(_cell.code)\n"
+            "        ):\n"
+            "            _warnings.append(\n"
+            "                f'Cell {_cell_id!r} previously ended in a '\n"
+            "                'display expression; the replacement does not'\n"
+            "            )\n"
+            "_result = {\n"
             "    'operation': 'patch',\n"
             "    'created_cell_ids': _created_ids,\n"
             "    'edited_cell_ids': _edited_ids,\n"
             "    'deleted_cell_ids': _delete_ids,\n"
             "    'executed_stale_cell_ids': _stale_ids,\n"
-            "}))"
+            "}\n"
+            "if _warnings:\n"
+            "    _result['warnings'] = _warnings\n"
+            "print(_json.dumps(_result))"
         )
 
     async def run_cells(cell_ids: list[str]) -> CodeExecutionResult:

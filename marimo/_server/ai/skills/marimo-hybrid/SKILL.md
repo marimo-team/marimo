@@ -13,7 +13,15 @@ Start by calling `inspect_notebook(scope="all")` when you need existing source
 to answer or edit the notebook. Use `scope="outline"` when IDs, status, and
 dependencies are sufficient. Use `scope="errors"` to diagnose failing or
 non-idle cells without returning every cell's source. Do not call `help()`
-first.
+first. When inspection reports `source_diverged`, `runtime_code` is the live
+human edit; preserve it and synchronize the document through a typed patch.
+
+For an undo, revert, or exact restoration request, first call
+`inspect_notebook(scope="history")`. Restore from the returned source; do not
+reconstruct it from conversation summaries or current code. Inspect current
+source separately when restoration also requires removing or changing newer
+cells. If history reports `truncated=true` and the requested revision is not
+present, explain that exact restoration is unavailable instead of guessing.
 
 Use `execute_code` for exploratory Python and reading live values. Follow its
 tool description for the lifetime of top-level assignments: the default tool
@@ -33,13 +41,13 @@ to existing cells in `replacements`, using only stable IDs returned by
 inspection. Do not invent IDs for new cells. An insertion can include the
 stable ID of an existing cell in `after_cell_id`.
 The returned server-created ID is its handle; a cell name is metadata and
-would not define a Python variable. Use `delete_cell_ids` for removals. The server runs
-initially stale cells and all patched cells together in dependency order, so
-do not manually stage dependent inserts across calls. Its execution summary
-is the postcondition; do not follow a successful patch with a full inspection.
-Inspect again only when the next task requires source that you do not have, or
-when the patch reports an error. Prefer the `errors` or `outline` scope when
-either is enough.
+would not define a Python variable. Use `delete_cell_ids` for removals. The
+server runs initially stale cells and all patched cells together in dependency
+order, so do not manually stage dependent inserts across calls. Its execution
+summary is the runtime postcondition; do not follow a successful patch with a
+full inspection. Inspect again only when the next task requires source that
+you do not have, or when the patch reports an error. Prefer the `errors` or
+`outline` scope when either is enough.
 
 ## Notebook contract
 
@@ -60,9 +68,10 @@ either is enough.
 ## Completion
 
 Treat tool failures as actionable feedback. Correct the next call instead of
-repeating it unchanged. Trust a successful typed mutation and its execution
-summary. Do not add a full-notebook inspection solely to verify it. Directly
-inspect requested headline values in the live kernel when their correctness
-is not already established by the successful execution result. Once the user
+repeating it unchanged. A successful mutation establishes runtime health, not
+that every requested semantic change is correct. Do not add a full-notebook
+inspection solely to verify it. Directly inspect requested headline values;
+for changed rich output, inspect the resulting live object or serialized spec
+when execution alone does not establish the requested behavior. Once the user
 request and necessary checks are satisfied, stop. Keep committed cells
 readable, reproducible, and useful to a human.

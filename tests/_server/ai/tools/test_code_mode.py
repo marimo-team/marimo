@@ -42,6 +42,10 @@ def test_build_hybrid_toolset_exposes_editor_tools() -> None:
     assert (
         "without changing cells" in toolset.tools["execute_code"].description
     )
+    assert (
+        "private names beginning with `_`"
+        in toolset.tools["execute_code"].description
+    )
     inspect_signature = inspect.signature(
         toolset.tools["inspect_notebook"].function
     )
@@ -83,7 +87,44 @@ async def test_inspect_notebook_compiles_requested_scope() -> None:
     source = mock_run.await_args.kwargs["code"]
     assert "_scope = 'outline'" in source
     assert "'code_chars': len(_cell.code)" in source
+    assert "'source_diverged': True" in source
+    assert "'runtime_code': _impl.code" in source
+    assert "_cell.code != _impl.code" in source
     assert "if _scope == 'errors'" in source
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_inspect_notebook_compiles_revision_history() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        build_hybrid_code_mode_toolset,
+    )
+
+    with (
+        patch(
+            "marimo._server.ai.tools.code_mode.get_code_mode_credentials",
+            return_value=("http://localhost:2718", "secret-token"),
+        ),
+        patch(
+            "marimo._server.ai.tools.code_mode.run_scratchpad_code",
+            new_callable=AsyncMock,
+        ) as mock_run,
+    ):
+        toolset = build_hybrid_code_mode_toolset(MagicMock(), MagicMock())
+        inspect_notebook = cast(
+            Callable[..., Awaitable[object]],
+            toolset.tools["inspect_notebook"].function,
+        )
+
+        await inspect_notebook(scope="history")
+
+    source = mock_run.await_args.kwargs["code"]
+    assert "_ctx._kernel.agent.revisions.all()" in source
+    assert "'sequence': _revision.sequence" in source
+    assert "'code': _revision.code" in source
+    assert (
+        "_history_truncated = _ctx._kernel.agent.revisions.truncated" in source
+    )
+    assert "'truncated': _history_truncated" in source
 
 
 def test_get_tool_strategy_defaults_to_code_mode() -> None:
@@ -319,6 +360,11 @@ async def test_hybrid_patch_compiles_to_one_code_mode_transaction() -> None:
     assert "_ctx.create_cell(" in source
     assert "_ctx.delete_cell(_cell_id)" in source
     assert "[*_stale_ids, *_edited_ids, *_created_ids]" in source
+    assert "_cell.output is not None" in source
+    assert "_has_display_expression(_cell.code)" in source
+    assert "previously produced visible" in source
+    assert "previously ended in a" in source
+    assert "if _warnings:" in source
 
 
 @pytest.mark.requires("pydantic_ai")

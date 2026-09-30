@@ -4,7 +4,11 @@ from __future__ import annotations
 from marimo._ast.cell import CellConfig
 from marimo._messaging.notebook.changes import SetCode, Transaction
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
-from marimo._runtime.agent import Agent, AgentReadTracker
+from marimo._runtime.agent import (
+    Agent,
+    AgentReadTracker,
+    AgentRevisionStore,
+)
 from marimo._types.ids import CellId_t
 
 
@@ -90,3 +94,50 @@ class TestAgent:
         a1.read_tracker.record_read(CellId_t("a"), 1)
         assert a1.read_tracker.has_read(CellId_t("a"), 1)
         assert not a2.read_tracker.has_read(CellId_t("a"), 1)
+
+
+def test_revision_store_is_deduplicated_and_bounded() -> None:
+    store = AgentRevisionStore()
+    cell_id = CellId_t("cell")
+
+    store.record(cell_id, code="value = 0", name="metric")
+    store.record(cell_id, code="value = 0", name="metric")
+    for value in range(1, 12):
+        store.record(cell_id, code=f"value = {value}", name="metric")
+
+    revisions = store.all()[cell_id]
+    assert len(revisions) == 10
+    assert revisions[0].code == "value = 2"
+    assert revisions[-1].code == "value = 11"
+    assert [revision.sequence for revision in revisions] == list(range(3, 13))
+    assert store.truncated
+
+
+def test_revision_store_is_globally_bounded() -> None:
+    store = AgentRevisionStore()
+
+    for index in range(101):
+        store.record(
+            CellId_t(str(index)),
+            code=f"value = {index}",
+            name="_",
+        )
+
+    revisions = store.all()
+    assert len(revisions) == 100
+    assert CellId_t("0") not in revisions
+    assert CellId_t("100") in revisions
+    assert store.truncated
+
+
+def test_revision_store_rejects_source_larger_than_total_budget() -> None:
+    store = AgentRevisionStore()
+
+    store.record(
+        CellId_t("large"),
+        code="x" * (store._MAX_TOTAL_SOURCE_CHARS + 1),
+        name="_",
+    )
+
+    assert store.all() == {}
+    assert store.truncated

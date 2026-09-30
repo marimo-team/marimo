@@ -1750,11 +1750,26 @@ class AsyncCodeModeContext:
         # Let mutate_graph handle all graph mutations: it properly
         # cleans up globals, UI elements, and lifecycle hooks for
         # deleted/replaced cells via _delete_cell / _deactivate_cell.
+        _run_set = explicit_run or set()
         execution_requests = [
             ExecuteCellCommand(cell_id=e.cell_id, code=e.code)
             for e in code_entries
             if e.code is not None
         ]
+        requested_ids = {request.cell_id for request in execution_requests}
+        # An open notebook can contain cells that have not entered the kernel
+        # graph yet. Register explicitly requested document-only cells in this
+        # mutation so dependency sorting can see them before execution.
+        execution_requests.extend(
+            ExecuteCellCommand(
+                cell_id=entry.cell_id,
+                code=existing_code[entry.cell_id],
+            )
+            for entry in plan
+            if entry.cell_id in _run_set
+            and entry.cell_id not in self.graph.cells
+            and entry.cell_id not in requested_ids
+        )
         deletion_requests = [
             DeleteCellCommand(cell_id=cid)
             for cid in existing_id_set - plan_ids
@@ -1763,6 +1778,23 @@ class AsyncCodeModeContext:
         cells_to_run = self._kernel.mutate_graph(
             execution_requests, deletion_requests
         )
+
+        for entry in code_entries:
+            if entry.cell_id not in existing_id_set:
+                continue
+            prior = self._document.get_cell(entry.cell_id)
+            self._kernel.agent.revisions.record(
+                entry.cell_id,
+                code=existing_code[entry.cell_id],
+                name=prior.name,
+            )
+        for cell_id in existing_id_set - plan_ids:
+            prior = self._document.get_cell(cell_id)
+            self._kernel.agent.revisions.record(
+                cell_id,
+                code=existing_code[cell_id],
+                name=prior.name,
+            )
 
         # Restore cell ordering in the graph to match the plan.
         # mutate_graph may reorder cells: _deactivate_cell removes a cell
@@ -1809,7 +1841,6 @@ class AsyncCodeModeContext:
 
         # Run queued cells (explicit run_cell + autorun descendants),
         # filtered to cells that still exist after structural ops.
-        _run_set = explicit_run or set()
         if _run_set and self._kernel.reactive_execution_mode == "autorun":
             _run_set = _run_set | cells_to_run
         if _run_set:

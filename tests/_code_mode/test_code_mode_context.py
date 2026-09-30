@@ -225,6 +225,8 @@ class TestDeleteCell:
                 nb.delete_cell("1")
 
             assert _graph_codes(k) == snapshot({"0": "a = 1", "2": "c = 3"})
+            revision = k.agent.revisions.all()[CellId_t("1")][0]
+            assert revision.code == "b = 2"
 
             assert _tx_ops(k) == snapshot(
                 [
@@ -295,6 +297,8 @@ class TestUpdateCell:
 
             assert k.globals["x"] == 42
             assert _graph_codes(k) == snapshot({"0": "x = 42"})
+            revision = k.agent.revisions.all()[CellId_t("0")][0]
+            assert revision.code == "x = 1"
 
             assert _tx_ops(k) == snapshot(
                 [
@@ -1284,6 +1288,32 @@ class TestDocumentKernelDivergence:
                 nb.run_cell("ghost")
 
         assert k.globals["z"] == 42
+
+    async def test_edit_and_run_with_doc_only_ancestor(
+        self, k: Kernel
+    ) -> None:
+        """Explicit document-only ancestors join the graph before running."""
+        imports = NotebookCell(
+            id=CellId_t("imports"),
+            code="import math",
+            name="",
+            config=CellConfig(),
+        )
+        calculation = NotebookCell(
+            id=CellId_t("calculation"),
+            code="result = math.sqrt(4)",
+            name="",
+            config=CellConfig(),
+        )
+
+        with _ctx(k, extra_doc_cells=[imports, calculation]) as ctx:
+            async with ctx as nb:
+                _ = nb.cells["calculation"].code
+                nb.edit_cell("calculation", code="result = math.sqrt(9)")
+                nb.run_cell("imports")
+                nb.run_cell("calculation")
+
+        assert k.globals["result"] == 3
 
     async def test_create_cell_no_collision_with_doc_only_ids(
         self, k: Kernel
