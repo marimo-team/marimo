@@ -60,6 +60,29 @@ uv run --group ai-eval python -m benchmarks.ai run \
   --variant hybrid_balanced
 ```
 
+The holdout suite is separate from prompt and tool iteration. It probes exact
+historical restoration, a large reactive graph, combined editor operations,
+a conversation with clarification and non-mutating turns, an out-of-band live
+cell edit, and a static-image design review. Treat the first run of a frozen
+strategy as the useful result; tuning against a failed holdout turns it into a
+regression case rather than an unseen evaluation:
+
+```bash
+uv run --group ai-eval python -m benchmarks.ai run \
+  --model <model-id> \
+  --suite holdout \
+  --variant baseline \
+  --variant hybrid_balanced
+```
+
+`static_visual_review` requires a model and provider route that accept image
+inputs. Run the other holdouts independently when comparing text-only models.
+The visual fixture is a deterministic PNG attached in the same `FileUIPart`
+format as the chat sidebar; it does not require frontend assets or Playwright.
+The live-edit case sends the intervening edit through `/api/kernel/run`, the
+same live execution endpoint used by the editor, and waits for the kernel to
+return to idle before the next chat turn.
+
 `hybrid_balanced` exposes exploratory execution, typed inspection, atomic cell
 patches, cell execution, and grouped operations for packages, live UI state,
 and cell configuration.
@@ -124,6 +147,10 @@ also retains the observed `analysis_summary`, which lets grading rules be
 audited or recalculated without interpreting notebook output. Trial artifacts
 are nested under scenario, variant, and repetition. Full model and tool
 trajectories remain in Logfire.
+
+The scenario hash covers the complete source files that define the selected
+setup functions, as well as the prompts and metadata. It therefore changes
+when fixture data, expected answers, or source contracts change.
 
 Each turn is a complete, server-owned trace rooted at `POST /api/ai/chat`.
 Streaming, model, and tool spans are children of that request span. Long

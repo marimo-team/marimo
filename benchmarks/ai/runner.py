@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import base64
 import difflib
 import hashlib
 import inspect
 import json
 import math
 import platform
+import re
 import shutil
 import statistics
 import subprocess
@@ -16,11 +18,12 @@ import uuid
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from benchmarks.ai.models import (
     CheckResult,
     ExpectedValue,
+    FileAttachment,
     HarnessVariant,
     JSONValue,
     NumericExpectation,
@@ -43,11 +46,26 @@ def logfire_run_query(run_id: str) -> str:
     return f"attributes->>'marimo.ai.eval.run_id' = '{run_id}'"
 
 
-def _message(role: str, text: str) -> dict[str, Any]:
+def _message(
+    role: str,
+    text: str,
+    attachments: tuple[FileAttachment, ...] = (),
+) -> dict[str, Any]:
+    parts: list[dict[str, Any]] = [{"type": "text", "text": text}]
+    for attachment in attachments:
+        encoded = base64.b64encode(attachment.path.read_bytes()).decode()
+        parts.append(
+            {
+                "type": "file",
+                "mediaType": attachment.media_type,
+                "filename": attachment.filename,
+                "url": f"data:{attachment.media_type};base64,{encoded}",
+            }
+        )
     return {
         "id": f"{role}-{uuid.uuid4().hex[:12]}",
         "role": role,
-        "parts": [{"type": "text", "text": text}],
+        "parts": parts,
     }
 
 
@@ -131,6 +149,14 @@ def _source_contract_checks(
     ]
     checks.extend(
         CheckResult(
+            name=f"source_matches:{pattern}",
+            passed=re.search(pattern, source) is not None,
+            reason=f"required notebook source pattern: {pattern!r}",
+        )
+        for pattern in workspace.required_source_patterns
+    )
+    checks.extend(
+        CheckResult(
             name=f"source_excludes:{fragment}",
             passed=fragment not in source,
             reason=f"forbidden notebook source fragment: {fragment!r}",
@@ -202,7 +228,16 @@ def run_scenario(
                     nonlocal usage
                     nonlocal tool_calls
                     nonlocal tool_errors
-                    messages.append(_message("user", turn))
+                    for edit in scenario.live_cell_edits:
+                        if edit.before_turn == turn_number:
+                            server.edit_cell(edit.cell_name, edit.code)
+                    messages.append(
+                        _message(
+                            "user",
+                            turn,
+                            workspace.turn_attachments.get(turn_number, ()),
+                        )
+                    )
                     request_history_chars = serialized_chars(messages)
                     turn_started = time.monotonic()
                     chat_turn = server.chat(messages, turn_number=turn_number)
@@ -327,20 +362,34 @@ def create_run_directory(
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_dir = base / f"{timestamp}-{uuid.uuid4().hex[:8]}"
     run_dir.mkdir(parents=True)
+    scenario_source_files = {
+        Path(source_file).resolve()
+        for scenario in scenarios
+        if (source_file := inspect.getsourcefile(scenario.setup)) is not None
+    }
     scenario_hash = hashlib.sha256(
-        "\n".join(
+        (
             "\n".join(
-                (
-                    scenario.id,
-                    scenario.description,
-                    scenario.length,
-                    *scenario.failure_modes,
-                    *scenario.turns,
-                    str(scenario.isolated_environment),
-                    inspect.getsource(scenario.setup),
-                )
+                path.read_text(encoding="utf-8")
+                for path in sorted(scenario_source_files)
             )
-            for scenario in scenarios
+            + "\n"
+            + "\n".join(
+                "\n".join(
+                    (
+                        scenario.id,
+                        scenario.description,
+                        scenario.length,
+                        *scenario.failure_modes,
+                        *scenario.turns,
+                        str(scenario.isolated_environment),
+                        str(scenario.requires_vision),
+                        *(repr(edit) for edit in scenario.live_cell_edits),
+                        inspect.getsource(scenario.setup),
+                    )
+                )
+                for scenario in scenarios
+            )
         ).encode()
     ).hexdigest()
     try:
@@ -446,7 +495,7 @@ def write_summary(run_dir: Path, results: list[ScenarioResult]) -> None:
             "total_tool_output_chars": sum(
                 tool.output_chars for tool in tool_metrics
             ),
-            "tool_payloads": tool_payloads,
+            "tool_payloads": cast(JSONValue, tool_payloads),
         }
 
     scenario_groups: dict[tuple[str, str], list[ScenarioResult]] = {}

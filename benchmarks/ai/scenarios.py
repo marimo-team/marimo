@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Literal
 
 from benchmarks.ai.models import (
     ExpectedValue,
+    FileAttachment,
+    LiveCellEdit,
     NumericExpectation,
     Scenario,
     ScenarioWorkspace,
@@ -48,15 +50,19 @@ def _workspace(
     *,
     notebook_source: str = _EMPTY_NOTEBOOK,
     required_source_fragments: tuple[str, ...] = (),
+    required_source_patterns: tuple[str, ...] = (),
     forbidden_source_fragments: tuple[str, ...] = (),
     required_source_order: tuple[tuple[str, str], ...] = (),
+    turn_attachments: dict[int, tuple[FileAttachment, ...]] | None = None,
 ) -> ScenarioWorkspace:
     return ScenarioWorkspace(
         notebook=_write_notebook(root, notebook_source),
         expected_summary=expected_summary,
         required_source_fragments=required_source_fragments,
+        required_source_patterns=required_source_patterns,
         forbidden_source_fragments=forbidden_source_fragments,
         required_source_order=required_source_order,
+        turn_attachments=turn_attachments or {},
     )
 
 
@@ -769,6 +775,442 @@ def _setup_layout_configuration(root: Path) -> ScenarioWorkspace:
     )
 
 
+_HISTORICAL_RESTORE_NOTEBOOK = """import marimo
+
+__generated_with = "0.25.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    raw_scores = [3, 18, 27, 42, 88, 130]
+    return (raw_scores,)
+
+
+@app.cell
+def _(raw_scores):
+    _bounded_scores = [max(12, min(_score, 91)) for _score in raw_scores]
+    quality_score = round(sum(_bounded_scores) / len(_bounded_scores), 3)
+    analysis_summary = {
+        "method": "bounded-12-91",
+        "quality_score": quality_score,
+    }
+    return (analysis_summary, quality_score)
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+
+
+def _setup_historical_restore(root: Path) -> ScenarioWorkspace:
+    return _workspace(
+        root,
+        {"method": "bounded-12-91", "quality_score": 46.333},
+        notebook_source=_HISTORICAL_RESTORE_NOTEBOOK,
+        required_source_fragments=('"method": "bounded-12-91"',),
+        required_source_patterns=(r"max\(12,\s*min\([A-Za-z_]\w*,\s*91\)\)",),
+        forbidden_source_fragments=("statistics.median", "trimmed_mean"),
+    )
+
+
+def _large_reactive_notebook() -> str:
+    cells = [
+        """@app.cell
+def _():
+    seed = 10
+    return (seed,)
+"""
+    ]
+    for index in range(1, 25):
+        previous = "seed" if index == 1 else f"stage_{index - 1}"
+        increment = 90 if index == 13 else index
+        cells.append(
+            f"""@app.cell
+def _({previous}):
+    stage_{index} = {previous} + {increment}
+    return (stage_{index},)
+"""
+        )
+    cells.append(
+        """@app.cell
+def _(stage_8, stage_16, stage_24):
+    checkpoints = {"stage_8": stage_8, "stage_16": stage_16}
+    analysis_summary = {
+        "stage_8": stage_8,
+        "stage_16": stage_16,
+        "final_value": stage_24,
+    }
+    return (analysis_summary, checkpoints)
+"""
+    )
+    return (
+        'import marimo\n\n__generated_with = "0.25.0"\n'
+        "app = marimo.App()\n\n\n"
+        + "\n\n".join(cells)
+        + '\n\nif __name__ == "__main__":\n    app.run()\n'
+    )
+
+
+def _setup_large_reactive_graph(root: Path) -> ScenarioWorkspace:
+    return _workspace(
+        root,
+        {"stage_8": 46, "stage_16": 146, "final_value": 310},
+        notebook_source=_large_reactive_notebook(),
+        required_source_fragments=("stage_13 = stage_12 + 13",),
+        required_source_patterns=(
+            (
+                r"(?:[\"']stage_24[\"']\s*:\s*stage_24|"
+                r"checkpoints\[[\"']stage_24[\"']\]\s*=\s*stage_24)"
+            ),
+        ),
+        forbidden_source_fragments=("stage_13 = stage_12 + 90",),
+    )
+
+
+_MIXED_CAPABILITY_NOTEBOOK = """import marimo
+
+__generated_with = "0.25.0"
+app = marimo.App()
+
+
+@app.cell
+def imports():
+    import marimo as mo
+    import pandas as pd
+    return mo, pd
+
+
+@app.cell
+def controls(mo):
+    multiplier = mo.ui.slider(1, 5, value=2, label="Multiplier")
+    multiplier
+    return (multiplier,)
+
+
+@app.cell
+def load_data(pd):
+    measurements = pd.read_csv("data/measurements.csv")
+    return (measurements,)
+
+
+@app.cell
+def summary(measurements, multiplier):
+    scaled_total = float(measurements["value"].sum() * multiplier.value)
+    analysis_summary = {
+        "selected_multiplier": multiplier.value,
+        "scaled_total": scaled_total,
+    }
+    analysis_summary
+    return (analysis_summary,)
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+
+
+def _setup_mixed_capabilities(root: Path) -> ScenarioWorkspace:
+    _write_csv(
+        root / "data" / "measurements.csv",
+        ["value"],
+        [{"value": 4}, {"value": 7}, {"value": 9}],
+    )
+    _write_local_wheel(
+        root,
+        distribution="eval_scaler",
+        module="eval_scaler",
+        source=(
+            "def scaled_total(values, multiplier):\n"
+            "    return float(sum(values) * multiplier)\n"
+        ),
+    )
+    return _workspace(
+        root,
+        {
+            "package_name": "eval-scaler",
+            "selected_multiplier": 4,
+            "scaled_total": 80.0,
+        },
+        notebook_source=_MIXED_CAPABILITY_NOTEBOOK,
+        required_source_fragments=(
+            "eval_scaler.scaled_total",
+            '"package_name": "eval-scaler"',
+            "value=2",
+            "hide_code=True",
+        ),
+        forbidden_source_fragments=("value=4",),
+        required_source_order=(("def controls", "def load_data"),),
+    )
+
+
+def _setup_campaign_clarification(root: Path) -> ScenarioWorkspace:
+    _write_csv(
+        root / "data" / "campaigns.csv",
+        ["campaign", "segment", "spend", "booked", "collected", "internal"],
+        [
+            {
+                "campaign": "alpha",
+                "segment": "SMB",
+                "spend": 100,
+                "booked": 260,
+                "collected": 220,
+                "internal": "false",
+            },
+            {
+                "campaign": "beta",
+                "segment": "Enterprise",
+                "spend": 200,
+                "booked": 500,
+                "collected": 360,
+                "internal": "false",
+            },
+            {
+                "campaign": "demo",
+                "segment": "Internal",
+                "spend": 50,
+                "booked": 1000,
+                "collected": 1000,
+                "internal": "true",
+            },
+            {
+                "campaign": "gamma",
+                "segment": "SMB",
+                "spend": 150,
+                "booked": 300,
+                "collected": 180,
+                "internal": "false",
+            },
+        ],
+    )
+    return _workspace(
+        root,
+        {
+            "revenue_basis": "collected",
+            "total_spend": 450,
+            "total_revenue": 760,
+            "roas": NumericExpectation(1.6889, 0.0001),
+            "top_segment": "SMB",
+        },
+    )
+
+
+_LIVE_EDIT_NOTEBOOK = """import marimo
+
+__generated_with = "0.25.0"
+app = marimo.App()
+
+
+@app.cell
+def load_orders():
+    import pandas as pd
+    orders = pd.read_csv("data/orders.csv")
+    return orders, pd
+
+
+@app.cell
+def policy(orders):
+    eligible_orders = orders[orders["status"] == "paid"].copy()
+    revenue_policy = "paid-only"
+    return eligible_orders, revenue_policy
+
+
+@app.cell
+def summary(eligible_orders, revenue_policy):
+    analysis_summary = {
+        "revenue_policy": revenue_policy,
+        "total_revenue": float(eligible_orders["revenue"].sum()),
+    }
+    analysis_summary
+    return (analysis_summary,)
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+
+
+_LIVE_POLICY_EDIT = """eligible_orders = orders[
+    orders["status"].isin(["paid", "settled"])
+].copy()
+revenue_policy = "paid-and-settled"
+"""
+
+
+def _setup_live_human_edit(root: Path) -> ScenarioWorkspace:
+    _write_csv(
+        root / "data" / "orders.csv",
+        ["order_id", "region", "status", "revenue"],
+        [
+            {
+                "order_id": "o1",
+                "region": "East",
+                "status": "paid",
+                "revenue": 120,
+            },
+            {
+                "order_id": "o2",
+                "region": "West",
+                "status": "settled",
+                "revenue": 150,
+            },
+            {
+                "order_id": "o3",
+                "region": "East",
+                "status": "paid",
+                "revenue": 180,
+            },
+            {
+                "order_id": "o4",
+                "region": "West",
+                "status": "open",
+                "revenue": 900,
+            },
+        ],
+    )
+    return _workspace(
+        root,
+        {
+            "revenue_policy": "paid-and-settled",
+            "total_revenue": 450.0,
+            "top_region": "East",
+        },
+        notebook_source=_LIVE_EDIT_NOTEBOOK,
+        required_source_fragments=("paid-and-settled", "top_region"),
+    )
+
+
+_VISUAL_REVIEW_NOTEBOOK = """import marimo
+
+__generated_with = "0.25.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    import altair as alt
+    import pandas as pd
+    return alt, pd
+
+
+@app.cell
+def _(pd):
+    revenue = pd.DataFrame(
+        {
+            "product": [
+                "Team Collaboration Suite",
+                "Enterprise Analytics Platform",
+                "Workflow Automation Studio",
+                "Customer Intelligence Cloud",
+            ],
+            "revenue": [42, 91, 58, 73],
+        }
+    )
+    return (revenue,)
+
+
+@app.cell
+def _(alt, revenue):
+    chart = (
+        alt.Chart(revenue)
+        .mark_bar()
+        .encode(
+            x=alt.X("product:N", axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("revenue:Q"),
+        )
+        .properties(width=240, title="Revenue by product")
+    )
+    chart
+    return (chart,)
+
+
+@app.cell
+def _(revenue):
+    analysis_summary = {
+        "top_product": revenue.loc[revenue["revenue"].idxmax(), "product"],
+        "total_revenue": int(revenue["revenue"].sum()),
+    }
+    return (analysis_summary,)
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+
+
+def _write_visual_review_image(path: Path) -> None:
+    from PIL import Image, ImageDraw
+
+    image = Image.new("RGB", (900, 560), "white")
+    draw = ImageDraw.Draw(image)
+    draw.text((32, 22), "DESIGN REVIEW: Revenue by product", fill="#111827")
+    baseline = 380
+    products = (
+        "Team Collaboration",
+        "Enterprise Analytics",
+        "Workflow Automation",
+        "Customer Intelligence",
+    )
+    values = (42, 91, 58, 73)
+    for index, (product, value) in enumerate(
+        zip(products, values, strict=True)
+    ):
+        left = 70 + index * 115
+        top = baseline - value * 3
+        draw.rectangle((left, top, left + 72, baseline), fill="#4c78a8")
+        # Horizontal labels deliberately collide, matching the notebook bug.
+        draw.text((left - 8, baseline + 8), product, fill="#111827")
+    draw.line((55, baseline, 545, baseline), fill="#111827", width=2)
+    draw.rounded_rectangle(
+        (585, 90, 870, 360),
+        radius=14,
+        fill="#fff1f2",
+        outline="#e11d48",
+        width=3,
+    )
+    draw.text((610, 118), "REQUIRED FIXES", fill="#9f1239")
+    draw.text((610, 165), "1. Sort bars high to low", fill="#111827")
+    draw.text((610, 205), "2. Rotate labels to -35 deg", fill="#111827")
+    draw.text((610, 245), "3. Widen chart to 650 px", fill="#111827")
+    draw.line((600, 295, 520, 410), fill="#e11d48", width=4)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(path, format="PNG")
+
+
+def _setup_static_visual_review(root: Path) -> ScenarioWorkspace:
+    image = root / "fixtures" / "visual-review.png"
+    _write_visual_review_image(image)
+    return _workspace(
+        root,
+        {
+            "top_product": "Enterprise Analytics Platform",
+            "total_revenue": 264,
+        },
+        notebook_source=_VISUAL_REVIEW_NOTEBOOK,
+        required_source_fragments=(
+            "labelAngle=-35",
+            "width=650",
+        ),
+        required_source_patterns=(
+            (
+                r"(?:sort\s*=\s*[\"']-y[\"']|"
+                r"sort_values\([\"']revenue[\"'],\s*ascending=False\))"
+            ),
+            r"\n\s+chart\s*\n\s+return",
+        ),
+        forbidden_source_fragments=("width=240", "labelAngle=0"),
+        turn_attachments={
+            1: (
+                FileAttachment(
+                    path=image,
+                    media_type="image/png",
+                    filename="visual-review.png",
+                ),
+            )
+        },
+    )
+
+
 _SUMMARY_CONTRACT = """Keep the analysis reproducible and validate inputs and
 totals before drawing a conclusion. Store the final headline values in a public
 dictionary named `analysis_summary`; do not estimate them from a chart. Display
@@ -1018,6 +1460,118 @@ cell so it appears directly after the `summary` cell. Verify that
 )
 
 
+HOLDOUT_SCENARIOS = (
+    Scenario(
+        id="historical_exact_restore",
+        description="Restore exact source inspected before several revisions.",
+        length="long",
+        failure_modes=(
+            "historical_source_recall",
+            "requirement_reversal",
+            "context_retention",
+        ),
+        setup=_setup_historical_restore,
+        turns=(
+            "Inspect the existing notebook carefully so you understand its current metric implementation. Do not edit it and do not explain the implementation yet; just confirm when you are ready.",
+            "Replace the current metric with the median of raw_scores and update analysis_summary to identify the method as median.",
+            "Without editing, explain when a median is preferable to a bounded mean.",
+            "Add a compact table that shows every raw score and whether it is above or below the median. Keep the median headline metric.",
+            "Without editing, describe the current notebook dependency flow in one short paragraph.",
+            "Restore the metric cell and analysis_summary exactly to the implementation you inspected in the first turn, including its original algorithm, constants, method label, and rounding. Remove the median-only table and imports. Verify the restored result.",
+        ),
+    ),
+    Scenario(
+        id="large_reactive_graph_repair",
+        description="Repair and extend a 26-cell reactive dependency graph.",
+        length="medium",
+        failure_modes=(
+            "large_notebook_inspection",
+            "reactive_dependencies",
+            "targeted_edit",
+        ),
+        setup=_setup_large_reactive_graph,
+        turns=(
+            "Inspect the existing reactive notebook. One numbered stage uses the wrong increment: every stage N should add N to the preceding value. Repair only that stage, preserve the graph, and verify the final summary.",
+            "Extend the existing checkpoints dictionary in place to include stage_24 without defining a second checkpoints variable. Keep analysis_summary unchanged and verify the notebook.",
+        ),
+    ),
+    Scenario(
+        id="mixed_editor_capabilities",
+        description="Combine package, UI-state, cell-edit, and layout operations.",
+        length="medium",
+        failure_modes=(
+            "package_installation",
+            "ui_interaction",
+            "cell_configuration",
+            "tool_selection",
+        ),
+        setup=_setup_mixed_capabilities,
+        isolated_environment=True,
+        turns=(
+            "Install packages/eval_scaler-0.1.0-py3-none-any.whl through notebook package management. Update the summary cell to use eval_scaler.scaled_total and include package_name='eval-scaler' in analysis_summary. Preserve the current live UI behavior.",
+            "Set the live multiplier control to 4 without changing its source default. Hide the code for load_data, keep controls before load_data, and verify analysis_summary reports the package name, selected multiplier, and scaled total.",
+        ),
+    ),
+    Scenario(
+        id="campaign_clarification_long",
+        description="Delay implementation through ambiguity and explanation turns.",
+        length="long",
+        failure_modes=(
+            "clarification",
+            "non_mutating_turns",
+            "context_retention",
+            "requirement_revision",
+        ),
+        setup=_setup_campaign_clarification,
+        turns=(
+            "Inspect data/campaigns.csv. I want campaign ROAS, but I have not decided whether revenue means booked or collected. Do not edit the notebook until I clarify the revenue basis; tell me what decision you need.",
+            "Use collected revenue. Build a reproducible campaign and segment analysis with total spend, total revenue, and ROAS.",
+            "Do not edit anything. Briefly explain how booked-revenue ROAS would differ conceptually from collected-revenue ROAS.",
+            "Add a segment comparison and identify the segment with the most collected revenue.",
+            "Correction: internal campaigns must be excluded from every headline calculation and comparison. Update the analysis in place.",
+            "Finish with analysis_summary containing revenue_basis='collected', total_spend, total_revenue, roas rounded to four decimals, and top_segment. Validate the exclusion and totals before finishing.",
+        ),
+    ),
+    Scenario(
+        id="live_human_edit",
+        description="Respond to a human edit made in the live notebook between turns.",
+        length="medium",
+        failure_modes=(
+            "concurrent_human_edit",
+            "stale_conversation_state",
+            "reactive_execution",
+        ),
+        setup=_setup_live_human_edit,
+        live_cell_edits=(
+            LiveCellEdit(
+                before_turn=2,
+                cell_name="policy",
+                code=_LIVE_POLICY_EDIT,
+            ),
+        ),
+        turns=(
+            "Inspect the existing order analysis. Add a region comparison and identify the top region while preserving the current revenue policy.",
+            "I edited the policy cell in the live notebook while we were talking. Re-read the live notebook rather than relying on the earlier conversation. Respect my new policy, update downstream analysis in place, and set analysis_summary to revenue_policy, total_revenue, and top_region.",
+        ),
+    ),
+    Scenario(
+        id="static_visual_review",
+        description="Apply chart corrections communicated only in an attached image.",
+        length="short",
+        failure_modes=(
+            "multimodal_input",
+            "visual_instruction_following",
+            "chart_editing",
+        ),
+        setup=_setup_static_visual_review,
+        requires_vision=True,
+        turns=(
+            "The attached design-review image contains the required corrections for the existing chart. Apply every annotated correction to the chart cell, preserve the data and analysis_summary, and verify the notebook.",
+        ),
+    ),
+)
+
+
 _QUICK_SCENARIO_IDS = {
     "athletes_prescribed",
     "retail_investigation_short",
@@ -1027,9 +1581,9 @@ _QUICK_SCENARIO_IDS = {
 def get_scenarios(
     ids: set[str] | None = None,
     *,
-    suite: Literal["quick", "full", "capabilities", "all"] = "full",
+    suite: Literal["quick", "full", "capabilities", "holdout", "all"] = "full",
 ) -> tuple[Scenario, ...]:
-    all_scenarios = (*SCENARIOS, *CAPABILITY_SCENARIOS)
+    all_scenarios = (*SCENARIOS, *CAPABILITY_SCENARIOS, *HOLDOUT_SCENARIOS)
     selected_ids = ids
     if selected_ids is None and suite == "quick":
         selected_ids = _QUICK_SCENARIO_IDS
@@ -1037,6 +1591,8 @@ def get_scenarios(
         return SCENARIOS
     if selected_ids is None and suite == "capabilities":
         return CAPABILITY_SCENARIOS
+    if selected_ids is None and suite == "holdout":
+        return HOLDOUT_SCENARIOS
     if selected_ids is None and suite == "all":
         return all_scenarios
     assert selected_ids is not None

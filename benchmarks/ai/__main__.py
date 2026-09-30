@@ -67,7 +67,7 @@ def main() -> int:
     )
     run_parser.add_argument(
         "--suite",
-        choices=("quick", "full", "capabilities", "all"),
+        choices=("quick", "full", "capabilities", "holdout", "all"),
         default="quick",
         help="Scenario suite to use when --scenario is not provided",
     )

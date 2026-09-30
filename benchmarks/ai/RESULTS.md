@@ -1295,3 +1295,204 @@ remaining Qwen errors are primarily notebook-graph design mistakes inside a
 complex generation turn; improving recovery further requires classifying
 repeated failure signatures and supplying targeted corrective guidance, not
 silently stopping or adding more editor tools.
+
+## Experiment 21: frozen holdout generalization
+
+Date: 2026-09-30
+
+Model: `deepseek-ai/DeepSeek-V4.1-Flash`
+
+Run: `20260930T022200Z-a2e2f948`
+
+Created a separate four-case holdout before running either variant. The cases
+targeted risks not represented in the development suite:
+
+- restoring an exact implementation inspected before five intervening turns;
+- repairing and extending a 26-cell reactive graph;
+- combining package management, a live UI update, a source edit, and cell
+  configuration in one task;
+- delaying mutation through an ambiguous request and retaining requirements
+  across explanation-only turns.
+
+The current runner cannot faithfully simulate a human editing the live
+notebook between chat turns or grade screenshots, so those proposed holdouts
+remain future work. Disk rewrites were deliberately not used as a substitute
+for a real live-editor mutation.
+
+The first frozen run reported baseline 2/4 and hybrid 1/4. Audit found that
+three failures came from invalid grader assumptions, not incorrect notebooks:
+
+- the expected bounded mean was entered as `46.833`; the fixture's original
+  calculation is `46.333`, which both variants restored;
+- the graph contract accepted only an assignment to
+  `checkpoints["stage_24"]`, rejecting the hybrid's equivalent dictionary
+  literal entry;
+- the package contract required `from eval_scaler import scaled_total`,
+  rejecting the valid `import eval_scaler` form used by both variants.
+
+Corrected the arithmetic and changed the two syntax-specific checks to
+semantic source patterns. Regrading the saved final notebooks, without model
+reruns or strategy changes, gives 4/4 for both variants. The raw result remains
+in the run artifact and is part of the benchmark provenance. The scenario hash
+was also strengthened before this run: it now includes the complete source
+files that define fixtures and contracts, not only prompts and setup-function
+bodies.
+
+| Variant | Adjudicated pass | Mean duration | Mean tools | Mean errors | Mean requests | Mean input | Mean output | Mean reasoning |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Baseline | 4/4 | 103.4s | 17.75 | 2.25 | 21.50 | 370,981 | 16,356 | 10,906 |
+| Hybrid | 4/4 | 90.7s | 17.25 | 1.75 | 19.25 | 384,805 | 12,638 | 8,039 |
+
+With equal corrected correctness, the hybrid was 12.3% faster, used 2.8%
+fewer tools, 22.2% fewer tool errors, 10.5% fewer model requests, 22.7% fewer
+output tokens, and 26.3% fewer reasoning tokens. Unlike the development-suite
+run, total input increased by 3.7%. After subtracting cache reads, mean
+uncached input increased from 146,629 to 172,005 tokens, or 17.3%. This is a
+real warning against generalizing Experiment 19's exact efficiency gains.
+
+| Scenario | Baseline duration / input | Hybrid duration / input | Adjudicated result |
+|---|---:|---:|---|
+| Historical exact restore | 121.7s / 497,064 | 145.0s / 948,327 | Both pass |
+| Large reactive graph | 50.0s / 129,711 | 14.3s / 51,770 | Both pass |
+| Mixed editor capabilities | 101.7s / 403,818 | 57.1s / 166,964 | Both pass |
+| Campaign clarification | 140.1s / 453,331 | 146.4s / 372,160 | Both pass |
+
+The hybrid generalized strongly on structure and tool selection. It repaired
+the 26-cell graph with 60.1% fewer input tokens and 71.4% less time. It used
+the intended typed package, UI, configuration, inspection, patch, and run
+operations in the combined capability case, reducing input by 58.7% and time
+by 43.9%. Both variants correctly avoided tools on the explicit
+explanation-only campaign turn. On the historical case, the hybrid also used
+zero tools on both explanation-only turns, while the baseline made one
+exploratory call on each.
+
+The historical restore exposed the principal weakness. Conservative history
+compaction removed the literal first-turn inspection. On the final turn, the
+hybrid explicitly reported that the inspection had been compacted, searched
+the current notebook, session cache, server log, sibling temporary
+directories, and finally the entire temporary directory tree for a previous
+copy. One directory listing returned 193,036 characters and another search
+returned 42,191 characters. That final turn consumed 799,143 input tokens and
+ten tool calls, compared with baseline's 121,737 input tokens and three calls.
+The model still reconstructed the correct algorithm, constants, label, and
+rounding because its earlier natural-language response had restated those
+details. It could not restore byte-identical source and correctly disclosed
+that limitation.
+
+This is not evidence to discard compaction: excluding the historical-restore
+case, hybrid input was 40.1% lower and duration was 25.3% lower across the
+other three holdouts. It is evidence that conversation history is not a
+version-control system. Exact restoration needs notebook revision storage and
+a narrow way to retrieve a prior cell revision; retaining every old tool
+payload indefinitely would trade correctness in one workflow for unbounded
+cost in ordinary long conversations.
+
+Logfire contained 32 turn traces for the run, each with 4--38 spans, exactly
+one root, and no unavailable parent spans. The anomalous restore trajectory
+was verified directly from trace `335413f0e0d7694cd198e5728d6dddcc`.
+
+Conclusion: the seven-tool hybrid generalizes beyond the development cases,
+especially to large graphs and mixed editor operations, but the holdout
+invalidates any claim that it is uniformly cheaper. Freeze these cases as a
+regression suite now that they have been observed. The next architecture
+experiment should be revision-aware restoration, not another prompt tweak or
+broader unstructured filesystem access. A second independent holdout and
+additional models are still required before estimating production win rates.
+
+## Experiment 22: live human edit and static-image holdouts
+
+Date: 2026-09-30
+
+Runs: DeepSeek live edit `20260930T030403Z-e42ff843`; Qwen static image
+`20260930T030707Z-78990e7e`
+
+Added the two holdouts deferred from Experiment 21.
+
+The live-edit runner sends a replacement through `/api/kernel/run`, the same
+endpoint used by the editor to run changed cell code, between chat turns. It
+waits for `/api/kernel/status` to return to idle before sending the next user
+message. A model-free integration check confirmed that the active kernel
+changed from `paid-only / 300` to `paid-and-settled / 450` without modifying
+the notebook file.
+
+The visual runner attaches a deterministic 14,526-byte PNG as a Vercel
+`FileUIPart` in the user message. The prompt does not repeat the corrections;
+the image says to sort bars high-to-low, rotate labels to -35 degrees, and
+widen the chart to 650 pixels. This avoids frontend and Playwright variance
+while exercising the same image attachment format as the chat sidebar. Qwen
+3.5 35B A3B was selected because [W&B lists it as a multimodal
+model](https://site.wandb.ai/inference/).
+
+### Live human edit
+
+Model: `deepseek-ai/DeepSeek-V4.1-Flash`
+
+| Variant | Passed | Duration | Tools | Errors | Requests | Input | Output | Reasoning |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Baseline | Yes | 160.4s | 37 | 8 | 39 | 846,672 | 22,416 | 15,184 |
+| Hybrid | Yes | 108.8s | 21 | 1 | 20 | 229,097 | 15,817 | 13,017 |
+
+Both variants respected the out-of-band policy change and finished with
+`revenue_policy='paid-and-settled'`, total revenue `450`, and top region
+`East`. The hybrid used 72.9% fewer input tokens, 43.2% fewer tools, 87.5%
+fewer tool errors, and 48.7% fewer model requests; it was 32.2% faster.
+
+The intervention also exposed a real consistency boundary. `/api/kernel/run`
+updated the executing kernel, but the unsaved notebook document and disk file
+still contained the prior source. Both agents initially saw stale source while
+the live globals contained the new policy. Re-running the stale policy cell
+temporarily reverted the runtime value. Both eventually treated the user's
+live value as authoritative, rewrote the policy source, and saved a coherent
+notebook.
+
+This case represents the important race where a user has run an edit but it
+has not yet autosaved. It should remain in the suite. A later scenario can
+separately model a completed edit-plus-save transaction. The harness would
+benefit from an inspection result that explicitly reports document/runtime
+divergence instead of forcing filesystem and session-cache exploration.
+
+### Static visual review
+
+Model: `Qwen/Qwen3.5-35B-A3B`
+
+The first run reported both variants as failures. Audit found the baseline had
+implemented a valid descending sort by pre-sorting the DataFrame, while the
+grader accepted only Altair's `sort="-y"` spelling. Corrected the source
+contract to accept both semantic forms and regraded the saved notebook without
+rerunning the model.
+
+| Variant | Adjudicated result | Duration | Tools | Errors | Requests | Input | Output |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Baseline | Pass | 25.0s | 15 | 4 | 16 | 141,556 | 2,525 |
+| Hybrid | Fail | 15.4s | 8 | 4 | 9 | 51,734 | 1,352 |
+
+Both variants demonstrably read the attachment: each independently repeated
+all three image-only corrections before editing. The baseline applied all
+three, preserved the chart display expression, executed the notebook, and
+preserved `analysis_summary`.
+
+The hybrid failure was genuine. It first tried an invalid `transform_sort`,
+then changed the encoding to `sort="revenue"` rather than a descending sort,
+and removed the trailing `chart` display expression. It also left the summary
+cell unexecuted, so final live-kernel grading could not find
+`analysis_summary`. Despite this, its final response claimed the notebook was
+error-free and verified. The result identifies a verification failure rather
+than a multimodal transport failure.
+
+The result is one Qwen observation and should not be read as a general claim
+that the baseline handles images better. It does show that the seven-tool
+hybrid's successful mutation postcondition is insufficient evidence of
+task-level success: a patch can execute while removing the requested visual
+output or leaving an unrelated required cell stale. Visual tasks need a final
+check that the target cell still produces a rendered output, followed by a
+task-level summary check.
+
+Logfire contained six turn traces across the two runs, each with 19--54 spans,
+exactly one root, and no unavailable parent spans.
+
+Conclusion: the remaining holdout infrastructure works. Keep the unsaved
+live-edit race and static-image case as regression tests. The next harness
+work suggested by these results is not another tool: expose live
+document/runtime divergence during inspection and strengthen final
+verification to confirm requested outputs remain rendered and headline cells
+are live.

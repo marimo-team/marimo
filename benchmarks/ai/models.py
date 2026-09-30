@@ -32,8 +32,26 @@ class ScenarioWorkspace:
     notebook: Path
     expected_summary: dict[str, ExpectedValue]
     required_source_fragments: tuple[str, ...] = ()
+    required_source_patterns: tuple[str, ...] = ()
     forbidden_source_fragments: tuple[str, ...] = ()
     required_source_order: tuple[tuple[str, str], ...] = ()
+    turn_attachments: dict[int, tuple[FileAttachment, ...]] = field(
+        default_factory=dict
+    )
+
+
+@dataclass(frozen=True)
+class FileAttachment:
+    path: Path
+    media_type: str
+    filename: str
+
+
+@dataclass(frozen=True)
+class LiveCellEdit:
+    before_turn: int
+    cell_name: str
+    code: str
 
 
 class WorkspaceFactory(Protocol):
@@ -49,6 +67,8 @@ class Scenario:
     turns: tuple[str, ...]
     setup: WorkspaceFactory
     isolated_environment: bool = False
+    live_cell_edits: tuple[LiveCellEdit, ...] = ()
+    requires_vision: bool = False
 
 
 @dataclass(frozen=True)

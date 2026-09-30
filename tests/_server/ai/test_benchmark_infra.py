@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from benchmarks.ai.models import (
+    FileAttachment,
     HarnessVariant,
     NumericExpectation,
     ScenarioResult,
@@ -17,6 +18,7 @@ from benchmarks.ai.models import (
 )
 from benchmarks.ai.runner import (
     _compare_summary,
+    _message,
     _source_contract_checks,
     logfire_run_query,
     write_summary,
@@ -199,6 +201,134 @@ def test_capability_suite_covers_distinct_editor_operations() -> None:
     assert package_scenario.isolated_environment is True
 
 
+def test_holdout_suite_covers_unseen_generalization_risks() -> None:
+    scenarios = get_scenarios(suite="holdout")
+
+    assert {scenario.id for scenario in scenarios} == {
+        "historical_exact_restore",
+        "large_reactive_graph_repair",
+        "mixed_editor_capabilities",
+        "campaign_clarification_long",
+        "live_human_edit",
+        "static_visual_review",
+    }
+    assert sum(scenario.length == "long" for scenario in scenarios) == 2
+    visual = next(
+        scenario
+        for scenario in scenarios
+        if scenario.id == "static_visual_review"
+    )
+    assert visual.requires_vision is True
+    live_edit = next(
+        scenario for scenario in scenarios if scenario.id == "live_human_edit"
+    )
+    assert live_edit.live_cell_edits[0].before_turn == 2
+    failure_modes = {
+        mode for scenario in scenarios for mode in scenario.failure_modes
+    }
+    assert len(failure_modes) >= 10
+
+
+def test_holdout_fixtures_have_expected_contracts(tmp_path: Path) -> None:
+    (tmp_path / "graph").mkdir()
+    (tmp_path / "mixed").mkdir()
+    graph = get_scenarios({"large_reactive_graph_repair"})[0].setup(
+        tmp_path / "graph"
+    )
+    mixed = get_scenarios({"mixed_editor_capabilities"})[0].setup(
+        tmp_path / "mixed"
+    )
+
+    assert graph.expected_summary["final_value"] == 310
+    assert "stage_13 = stage_12 + 90" in graph.notebook.read_text()
+    assert mixed.expected_summary["scaled_total"] == 80.0
+    wheel = (
+        tmp_path / "mixed" / "packages" / "eval_scaler-0.1.0-py3-none-any.whl"
+    )
+    assert wheel.exists()
+
+
+def test_visual_fixture_is_attached_as_a_ui_file_part(tmp_path: Path) -> None:
+    (tmp_path / "visual").mkdir()
+    workspace = get_scenarios({"static_visual_review"})[0].setup(
+        tmp_path / "visual"
+    )
+
+    attachment = workspace.turn_attachments[1][0]
+    message = _message("user", "Review this", (attachment,))
+
+    assert message["parts"][0] == {"type": "text", "text": "Review this"}
+    file_part = message["parts"][1]
+    assert file_part["type"] == "file"
+    assert file_part["mediaType"] == "image/png"
+    assert file_part["filename"] == "visual-review.png"
+    assert file_part["url"].startswith("data:image/png;base64,iVBOR")
+
+    pandas_sort = _source_contract_checks(
+        """def cell():
+    chart = alt.Chart(revenue.sort_values("revenue", ascending=False))
+    chart.encode(x=alt.X("product:N", axis=alt.Axis(labelAngle=-35)))
+    chart.properties(width=650)
+    chart
+    return
+""",
+        workspace,
+    )
+    assert all(check.passed for check in pandas_sort)
+
+
+def test_message_supports_direct_fixture_attachment(tmp_path: Path) -> None:
+    path = tmp_path / "tiny.png"
+    path.write_bytes(b"png")
+
+    message = _message(
+        "user",
+        "image",
+        (FileAttachment(path, "image/png", "tiny.png"),),
+    )
+
+    assert message["parts"][1]["url"] == "data:image/png;base64,cG5n"
+
+
+def test_live_edit_uses_editor_run_endpoint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    server = MarimoServer(
+        root=tmp_path,
+        notebook=tmp_path / "analysis.py",
+        model="provider/model",
+        timeout_seconds=1,
+        eval_run_id="run",
+        scenario_id="scenario",
+        trial_id="trial",
+        repetition=1,
+        variant=HarnessVariant(id="baseline", description="baseline"),
+    )
+    server._cell_ids_by_name = {"policy": "cell-policy"}
+    calls: list[tuple[str, dict[str, object]]] = []
+    statuses = iter(("running", "idle"))
+
+    def record_post(
+        path: str,
+        body: dict[str, object],
+        **_: object,
+    ) -> object:
+        calls.append((path, body))
+        return object()
+
+    monkeypatch.setattr(server, "_post", record_post)
+    monkeypatch.setattr(server, "_kernel_status", lambda: next(statuses))
+
+    server.edit_cell("policy", "value = 2")
+
+    assert calls == [
+        (
+            "/api/kernel/run",
+            {"cellIds": ["cell-policy"], "codes": ["value = 2"]},
+        )
+    ]
+
+
 def test_package_scenario_builds_local_wheels(tmp_path: Path) -> None:
     scenario = get_scenarios({"package_lifecycle"})[0]
 
@@ -216,12 +346,13 @@ def test_source_contract_checks_content_and_order(tmp_path: Path) -> None:
         notebook=tmp_path / "analysis.py",
         expected_summary={},
         required_source_fragments=("hide_code=True",),
+        required_source_patterns=(r"old|legacy",),
         forbidden_source_fragments=("old_package",),
         required_source_order=(("def summary", "def chart"),),
     )
 
     checks = _source_contract_checks(
-        "@app.cell(hide_code=True)\ndef summary(): ...\ndef chart(): ...",
+        "@app.cell(hide_code=True)\n# legacy\ndef summary(): ...\ndef chart(): ...",
         workspace,
     )
 

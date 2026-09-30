@@ -127,6 +127,8 @@ class MarimoServer:
     _websocket: Any = None
     _drain_thread: threading.Thread | None = None
     _stop_drain: threading.Event = field(default_factory=threading.Event)
+    _cell_ids_by_name: dict[str, str] = field(default_factory=dict)
+    _cell_codes_by_name: dict[str, str] = field(default_factory=dict)
 
     def __enter__(self) -> Self:
         self._write_config()
@@ -300,6 +302,25 @@ base_url = "https://api.inference.wandb.ai/v1/"
         while time.monotonic() < deadline:
             message = json.loads(self._websocket.recv(timeout=5))
             if message.get("op") == "kernel-ready":
+                data = message.get("data", {})
+                self._cell_ids_by_name = {
+                    str(name): str(cell_id)
+                    for name, cell_id in zip(
+                        data.get("names", ()),
+                        data.get("cell_ids", ()),
+                        strict=True,
+                    )
+                    if name != "_"
+                }
+                self._cell_codes_by_name = {
+                    str(name): str(code)
+                    for name, code in zip(
+                        data.get("names", ()),
+                        data.get("codes", ()),
+                        strict=True,
+                    )
+                    if name != "_"
+                }
                 break
         else:
             raise TimeoutError("kernel-ready was not received")
@@ -315,6 +336,41 @@ base_url = "https://api.inference.wandb.ai/v1/"
 
         self._drain_thread = threading.Thread(target=drain, daemon=True)
         self._drain_thread.start()
+
+    def edit_cell(self, cell_name: str, code: str) -> None:
+        """Apply an out-of-band edit through the editor's live run API."""
+        try:
+            cell_id = self._cell_ids_by_name[cell_name]
+        except KeyError as exc:
+            available = ", ".join(sorted(self._cell_ids_by_name))
+            raise ValueError(
+                f"Unknown named cell {cell_name!r}; available: {available}"
+            ) from exc
+
+        self._post(
+            "/api/kernel/run",
+            {"cellIds": [cell_id], "codes": [code]},
+        )
+        self._cell_codes_by_name[cell_name] = code
+
+        # The run endpoint queues work. Give the kernel a chance to observe
+        # the command, then wait on the same status endpoint used by clients.
+        time.sleep(0.1)
+        deadline = time.monotonic() + self.timeout_seconds
+        while time.monotonic() < deadline:
+            if self._kernel_status() == "idle":
+                return
+            time.sleep(0.05)
+        raise TimeoutError(f"Live edit of cell {cell_name!r} did not finish")
+
+    def _kernel_status(self) -> str:
+        request = urllib.request.Request(
+            f"{self.base_url}/api/kernel/status",
+            headers={"Marimo-Session-Id": self.session_id},
+        )
+        with urllib.request.urlopen(request, timeout=10) as response:
+            payload = json.load(response)
+        return str(payload["state"])
 
     def chat(
         self,
