@@ -48,6 +48,14 @@ class StableSessionUnsupportedError(PairError):
     """The server cannot resolve stable session IDs."""
 
 
+class UnknownParticipantError(PairError):
+    """The server no longer has the selected participant record."""
+
+
+class ParticipantChannelOffError(PairError):
+    """The server has no participant attach route."""
+
+
 @dataclass(frozen=True)
 class SSEEvent:
     name: str
@@ -203,6 +211,10 @@ def _raise_for_status(response: HTTPResponse) -> None:
         raise StaleSessionError(detail)
     if detail == "Missing Marimo-Session-Id header":
         raise StableSessionUnsupportedError
+    if isinstance(detail, str) and detail.startswith(
+        "Unknown participant ID:"
+    ):
+        raise UnknownParticipantError(detail)
     if detail:
         raise PairError(detail)
     raise PairError(f"Server returned {response.status}.")
@@ -318,9 +330,14 @@ def attach_participant(
             "harness": {"id": harness_id, "displayName": harness_name},
         }
     ).encode("utf-8")
-    response = open_response(
-        method="POST", url=request_url, headers=headers, body=body
-    )
+    try:
+        response = open_response(
+            method="POST", url=request_url, headers=headers, body=body
+        )
+    except PairError as error:
+        if str(error) in ("Not Found", "Server returned 404."):
+            raise ParticipantChannelOffError from error
+        raise
     try:
         payload = json.load(response)
         harness = payload["harness"]
