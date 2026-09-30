@@ -200,8 +200,12 @@ Use `--suite extreme` for long-lived-thread cases. These combine many
 independent tasks and later revisit requirements or exact source from an early
 turn. The `hybrid_uncompacted`, `hybrid_balanced`, and `hybrid_checkpoint`
 variants isolate history handling while keeping the same seven editor tools.
-`hybrid_checkpoint` is a benchmark-only prototype: it uses a recorded
-character threshold and incremental summaries of completed turns.
+They are evaluation configurations, not three proposed production modes:
+`hybrid_uncompacted` is a control, `hybrid_balanced` represents normal history
+below the compaction threshold, and `hybrid_checkpoint` extends that behavior
+with incremental checkpoints only after a long conversation crosses the
+threshold. The checkpoint implementation remains a benchmark-only prototype
+and currently uses a recorded character threshold.
 Rejected Pydantic AI Harness strategies and forced-threshold variants are
 documented in `RESULTS.md` but are no longer exposed.
 

@@ -19,15 +19,15 @@ VARIANTS = (
     HarnessVariant(
         id="hybrid_uncompacted",
         description=(
-            "Seven-tool hybrid with complete conversation history retained."
+            "Evaluation control retaining complete conversation history."
         ),
         tool_strategy="hybrid_balanced",
     ),
     HarnessVariant(
         id="hybrid_checkpoint",
         description=(
-            "Seven-tool hybrid with semantic tool trimming and incremental "
-            "completed-task checkpoints."
+            "Adaptive seven-tool hybrid: semantic trimming normally, with "
+            "incremental checkpoints after the long-history threshold."
         ),
         tool_strategy="hybrid_balanced",
         history_strategy="incremental_checkpoint",
