@@ -31,7 +31,6 @@ export function createErrorToastingRequests(
     sendShutdown: "Failed to shutdown",
     sendFormat: "Failed to format",
     sendDeleteCell: "Failed to delete cell",
-    sendReplaceCell: "Failed to convert cell",
     sendCodeCompletionRequest: "Failed to complete code",
     saveUserConfig: "Failed to save user config",
     saveAppConfig: "Failed to save app config",

@@ -50,7 +50,14 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
-from marimo._messaging.notebook.changes import ReorderCells, Transaction
+from marimo._messaging.notebook.changes import (
+    CreateCell,
+    DeleteCell,
+    ReorderCells,
+    SetCode,
+    SetConfig,
+    Transaction,
+)
 from marimo._messaging.notification import (
     HumanReadableStatus,
     NotebookDocumentTransactionNotification,
@@ -100,6 +107,7 @@ from marimo._runtime.callbacks import (
     cache_cells_enabled,
 )
 from marimo._runtime.commands import (
+    ApplyDocumentChangesCommand,
     AppMetadata,
     BatchableCommand,
     CodeCompletionCommand,
@@ -110,7 +118,6 @@ from marimo._runtime.commands import (
     ExecuteStaleCellsCommand,
     InvokeFunctionCommand,
     OutOfBandCommand,
-    ReplaceCellCommand,
     SetBreakpointsCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
@@ -1634,26 +1641,60 @@ class Kernel:
                 )
             )
 
-    async def replace_cell(self, request: ReplaceCellCommand) -> None:
-        """Replace a cell atomically, leaving it and its dependents stale."""
-        if request.cell_id == request.new_cell_id:
-            raise ValueError("Replacement must have a different cell ID")
-        if request.new_cell_id in self.graph.cells:
-            raise ValueError("Replacement cell already exists")
-
-        self._uninstantiated_execution_requests.pop(request.cell_id, None)
-        self.cell_metadata[request.new_cell_id] = CellMetadata(
-            config=request.config
-        )
-        stale = self.mutate_graph(
-            execution_requests=[
-                ExecuteCellCommand(
-                    cell_id=request.new_cell_id, code=request.code
+    async def apply_document_changes(
+        self, request: ApplyDocumentChangesCommand
+    ) -> None:
+        """Apply document mutations together, leaving affected cells stale."""
+        codes: dict[CellId_t, str] = {}
+        configs: dict[CellId_t, CellConfig] = {}
+        deleted: set[CellId_t] = set()
+        for change in request.changes:
+            if isinstance(change, CreateCell):
+                codes[change.cell_id] = change.code
+                configs[change.cell_id] = change.config
+                deleted.discard(change.cell_id)
+            elif isinstance(change, DeleteCell):
+                codes.pop(change.cell_id, None)
+                configs.pop(change.cell_id, None)
+                deleted.add(change.cell_id)
+            elif isinstance(change, SetCode):
+                codes[change.cell_id] = change.code
+            elif isinstance(change, SetConfig):
+                configs[change.cell_id] = CellConfig(
+                    column=change.column,
+                    disabled=change.disabled,
+                    hide_code=change.hide_code,
+                    expand_output=change.expand_output,
                 )
-            ],
-            deletion_requests=[DeleteCellCommand(cell_id=request.cell_id)],
-            cells_starting_stale={request.new_cell_id},
+
+        for cell_id in codes.keys() | deleted:
+            self._uninstantiated_execution_requests.pop(cell_id, None)
+        for cell_id, config in configs.items():
+            self.cell_metadata[cell_id] = CellMetadata(config=config)
+
+        stale = (
+            self.mutate_graph(
+                execution_requests=[
+                    ExecuteCellCommand(cell_id=cell_id, code=code)
+                    for cell_id, code in codes.items()
+                ],
+                deletion_requests=[
+                    DeleteCellCommand(cell_id=cell_id) for cell_id in deleted
+                ],
+                cells_starting_stale=set(codes),
+            )
+            if codes or deleted
+            else set()
         )
+        for cell_id, config in configs.items():
+            cell = self.graph.cells.get(cell_id)
+            if cell is None:
+                continue
+            cell.configure(config)
+            if config.disabled:
+                self.graph.disable_cell(cell_id)
+            else:
+                stale |= self.graph.enable_cell(cell_id)
         self.graph.set_stale(stale, prune_imports=True)
 
     @kernel_tracer.start_as_current_span("sync_graph")

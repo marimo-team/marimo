@@ -73,3 +73,49 @@ def test_delete_of_missing_cell_is_a_no_op(client: TestClient) -> None:
         )
         assert response.status_code == 200, response.text
         assert session.document.cell_ids == cell_ids_before
+
+
+def test_kernel_sync_is_opt_in_and_uses_reconciled_changes(
+    client: TestClient,
+) -> None:
+    from unittest.mock import patch
+
+    from marimo._messaging.notebook.changes import SetCode
+    from marimo._runtime.commands import ApplyDocumentChangesCommand
+    from marimo._types.ids import ConsumerId
+
+    with client.websocket_connect(
+        "/ws?session_id=123", headers=_HEADERS
+    ) as websocket:
+        assert_kernel_ready_response(websocket.receive_json())
+        session = next(
+            iter(client.app.state.session_manager.sessions.values())
+        )
+        cell_id = session.document.cell_ids[0]
+        with patch.object(session, "put_control_request") as send:
+            for sync_kernel in (False, True):
+                response = client.post(
+                    "/api/document/transaction",
+                    headers=HEADERS,
+                    json={
+                        "syncKernel": sync_kernel,
+                        "changes": [
+                            {
+                                "type": "set-code",
+                                "cellId": cell_id,
+                                "code": "x = 2",
+                            },
+                            {"type": "delete-cell", "cellId": "missing"},
+                        ],
+                    },
+                )
+                assert response.status_code == 200, response.text
+                assert session.document.get_cell(cell_id).code == "x = 2"
+                if not sync_kernel:
+                    send.assert_not_called()
+            send.assert_called_once_with(
+                ApplyDocumentChangesCommand(
+                    changes=(SetCode(cell_id, "x = 2"),)
+                ),
+                from_consumer_id=ConsumerId("123"),
+            )

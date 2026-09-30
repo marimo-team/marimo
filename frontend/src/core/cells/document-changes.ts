@@ -653,7 +653,7 @@ export function coalesceChanges(changes: DocumentChange[]): DocumentChange[] {
 // ---------------------------------------------------------------------------
 
 let pendingChanges: DocumentChange[] = [];
-let stagedTransactions: DocumentChange[][] = [];
+let stagedTransactions: NotebookDocumentTransactionRequest[] = [];
 let transactionQueue: Promise<void> = Promise.resolve();
 let transactionGeneration = 0;
 let activeDocumentSave: Deferred<void> | null = null;
@@ -665,7 +665,7 @@ type TransactionSyncState =
 interface DocumentResync {
   failure: Extract<TransactionSyncState, { status: "failed" }>;
   includedChanges: DocumentChange[];
-  includedTransactions: DocumentChange[][];
+  includedTransactions: NotebookDocumentTransactionRequest[];
 }
 
 let transactionSyncState: TransactionSyncState = { status: "synchronized" };
@@ -677,7 +677,7 @@ function stagePendingTransaction(): void {
   const changes = coalesceChanges(pendingChanges);
   pendingChanges = [];
   if (changes.length > 0) {
-    stagedTransactions.push(changes);
+    stagedTransactions.push({ changes });
   }
 }
 
@@ -690,10 +690,10 @@ async function sendStagedTransactions(generation: number): Promise<void> {
   }
 
   while (stagedTransactions.length > 0) {
-    const changes = stagedTransactions[0];
+    const transaction = stagedTransactions[0];
 
     try {
-      await getRequestClient().sendDocumentTransaction({ changes });
+      await getRequestClient().sendDocumentTransaction(transaction);
     } catch (error) {
       if (generation !== transactionGeneration) {
         return;
@@ -861,7 +861,17 @@ export function documentTransactionMiddleware(
   newState: NotebookState,
   action: CellAction,
 ): void {
-  for (const change of toDocumentChanges(prevState, newState, action)) {
+  const changes = toDocumentChanges(prevState, newState, action);
+  if (action.type === "convertCell" && changes.length > 0) {
+    if (store.get(kioskModeAtom)) {
+      return;
+    }
+    stagePendingTransaction();
+    stagedTransactions.push({ changes, syncKernel: true });
+    flushChanges();
+    return;
+  }
+  for (const change of changes) {
     enqueue(change);
   }
 }
@@ -947,7 +957,11 @@ export const exportedForTesting = {
   },
   drainChanges: (): DocumentChange[] => {
     flushChanges.cancel();
-    const drained = pendingChanges;
+    const drained = [
+      ...stagedTransactions.flatMap((transaction) => transaction.changes),
+      ...pendingChanges,
+    ];
+    stagedTransactions = [];
     pendingChanges = [];
     return drained;
   },

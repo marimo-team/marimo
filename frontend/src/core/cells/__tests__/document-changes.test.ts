@@ -777,6 +777,47 @@ describe("document transaction middleware", () => {
     vi.useRealTimers();
   });
 
+  it("keeps kernel synchronization scoped to conversions between buffered edits", async () => {
+    setup("x = 1");
+    const [original] = state.cellIds.inOrderIds;
+    middlewareExports.cancelPendingChanges();
+    const send = vi.fn().mockResolvedValue(null);
+    store.set(requestClientAtom, {
+      sendDocumentTransaction: send,
+    } as unknown as EditRequests & RunRequests);
+
+    const view = state.cellHandles[original].current!.editorView!;
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: "x = 2" },
+    });
+    updateCode(original, "x = 2");
+    state = dispatch(state, {
+      type: "convertCell",
+      payload: { cellId: original, newCellId: SETUP_CELL_ID },
+    });
+    updateCode(SETUP_CELL_ID, "x = 3");
+    await flushDocumentChanges();
+
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(send.mock.calls[0][0]).toEqual({
+      changes: [{ type: "set-code", cellId: original, code: "x = 2" }],
+    });
+    expect(send.mock.calls[1][0]).toMatchObject({
+      syncKernel: true,
+      changes: expect.arrayContaining([
+        expect.objectContaining({
+          type: "create-cell",
+          cellId: SETUP_CELL_ID,
+          code: "x = 2",
+        }),
+        { type: "delete-cell", cellId: original },
+      ]),
+    });
+    expect(send.mock.calls[2][0]).toEqual({
+      changes: [{ type: "set-code", cellId: SETUP_CELL_ID, code: "x = 3" }],
+    });
+  });
+
   it("coalesces edit + delete of the same cell within one debounce window", async () => {
     setup("x = 1");
     const [x] = state.cellIds.inOrderIds;
@@ -931,7 +972,7 @@ describe("document transaction middleware", () => {
     abortDocumentResync(firstResync);
     const secondResync = beginDocumentResync();
     expect(secondResync?.includedTransactions).toEqual([
-      [{ type: "set-code", cellId: x, code: "x = 3" }],
+      { changes: [{ type: "set-code", cellId: x, code: "x = 3" }] },
     ]);
     expect(secondResync?.includedChanges).toEqual([
       { type: "set-code", cellId: x, code: "x = 4" },

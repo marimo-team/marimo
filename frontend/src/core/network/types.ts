@@ -17,7 +17,6 @@ export type CellConfig = schemas["CellConfig"];
 export type RuntimeState = schemas["CellNotification"]["status"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
 export type DeleteCellRequest = schemas["DeleteCellRequest"];
-export type ReplaceCellRequest = schemas["ReplaceCellRequest"];
 export type AutoExportAsIPYNBRequest = schemas["AutoExportAsIPYNBRequest"];
 export type AutoExportAsMarkdownRequest =
   schemas["AutoExportAsMarkdownRequest"];
@@ -175,7 +174,6 @@ export interface EditRequests {
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatCellsRequest) => Promise<FormatResponse>;
   sendDeleteCell: (request: DeleteCellRequest) => Promise<null>;
-  sendReplaceCell: (request: ReplaceCellRequest) => Promise<null>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;
   saveUserConfig: (request: SaveUserConfigurationRequest) => Promise<null>;
   saveAppConfig: (request: SaveAppConfigurationRequest) => Promise<null>;

@@ -60,11 +60,16 @@ describe("useConvertCell", () => {
     const { result } = renderHook(useConvertCell, { wrapper });
     await act(() => result.current.convertCell(id));
     expect(getNotebook().cellIds.inOrderIds).toEqual([SETUP_CELL_ID]);
-    expect(requests.sendReplaceCell).toHaveBeenLastCalledWith({
-      cellId: id,
-      newCellId: SETUP_CELL_ID,
-      code: "import math",
-      config: getNotebook().cellData[SETUP_CELL_ID].config,
+    expect(requests.sendDocumentTransaction).toHaveBeenLastCalledWith({
+      syncKernel: true,
+      changes: expect.arrayContaining([
+        expect.objectContaining({
+          type: "create-cell",
+          cellId: SETUP_CELL_ID,
+          code: "import math",
+        }),
+        { type: "delete-cell", cellId: id },
+      ]),
     });
     await act(() => result.current.convertCell(SETUP_CELL_ID));
     const regularId = getNotebook().cellIds.inOrderIds[0];
@@ -72,7 +77,9 @@ describe("useConvertCell", () => {
     await act(() => result.current.convertCell(regularId));
     expect(getNotebook().cellIds.inOrderIds).toEqual([SETUP_CELL_ID]);
     expect(requests.sendDocumentTransaction).toHaveBeenCalledTimes(3);
-    expect(requests.sendReplaceCell).toHaveBeenCalledTimes(3);
+    for (const [transaction] of requests.sendDocumentTransaction.mock.calls) {
+      expect(transaction.syncKernel).toBe(true);
+    }
     expect(requests.sendRun).not.toHaveBeenCalled();
     expect(requests.sendDeleteCell).not.toHaveBeenCalled();
   });
@@ -95,8 +102,10 @@ describe("useConvertCell", () => {
     });
   });
 
-  it("restores the source when the kernel request fails", async () => {
-    requests.sendReplaceCell.mockRejectedValueOnce(new Error("offline"));
+  it("restores the source when the document transaction fails", async () => {
+    requests.sendDocumentTransaction.mockRejectedValueOnce(
+      new Error("offline"),
+    );
     const { result } = renderHook(useConvertCell, { wrapper });
     await act(() => result.current.convertCell(id));
     expect(getNotebook().cellIds.inOrderIds).toEqual([id]);
@@ -104,7 +113,7 @@ describe("useConvertCell", () => {
       name: "imports",
       code: "import math",
     });
-    await flushDocumentChanges();
-    expect(requests.sendDocumentTransaction).toHaveBeenCalledTimes(2);
+    await expect(flushDocumentChanges()).rejects.toThrow("offline");
+    expect(requests.sendDocumentTransaction).toHaveBeenCalledTimes(1);
   });
 });

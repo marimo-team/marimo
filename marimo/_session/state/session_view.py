@@ -12,6 +12,7 @@ from marimo import _loggers
 from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleTuple
+from marimo._messaging.notebook.changes import CreateCell, DeleteCell, SetCode
 from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
@@ -39,13 +40,13 @@ from marimo._messaging.notification import (
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._runtime.commands import (
+    ApplyDocumentChangesCommand,
     CommandMessage,
     CreateNotebookCommand,
     ExecuteCellCommand,
     ExecuteCellsCommand,
     ModelCommand,
     ModelUpdateMessage,
-    ReplaceCellCommand,
     SyncGraphCommand,
     UpdateUIElementCommand,
 )
@@ -241,9 +242,11 @@ class SessionView:
         elif isinstance(request, (ExecuteCellsCommand, SyncGraphCommand)):
             for execution_request in request.execution_requests:
                 self._add_last_run_code(execution_request)
-        elif isinstance(request, ReplaceCellCommand):
-            # Setup conversions can reuse an ID that has previously run.
-            for cell_id in (request.cell_id, request.new_cell_id):
+        elif isinstance(request, ApplyDocumentChangesCommand):
+            for change in request.changes:
+                if not isinstance(change, (CreateCell, DeleteCell, SetCode)):
+                    continue
+                cell_id = change.cell_id
                 self.cell_notifications.pop(cell_id, None)
                 self.last_executed_code.pop(cell_id, None)
                 self.last_execution_time.pop(cell_id, None)

@@ -50,7 +50,6 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendShutdown: throwNotInEditMode,
     sendFormat: throwNotInEditMode,
     sendDeleteCell: throwNotInEditMode,
-    sendReplaceCell: throwNotInEditMode,
     sendCodeCompletionRequest: throwNotInEditMode,
     saveUserConfig: throwNotInEditMode,
     saveAppConfig: throwNotInEditMode,

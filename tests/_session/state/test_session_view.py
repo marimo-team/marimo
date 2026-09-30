@@ -18,6 +18,10 @@ from marimo._data.models import (
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import UnknownError
 from marimo._messaging.msgspec_encoder import asdict as serialize
+from marimo._messaging.notebook.changes import (
+    CreateCell,
+    DeleteCell,
+)
 from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
@@ -52,13 +56,13 @@ from marimo._messaging.notification import (
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.variables import create_variable_value
 from marimo._runtime.commands import (
+    ApplyDocumentChangesCommand,
     CreateNotebookCommand,
     ExecuteCellCommand,
     ExecuteCellsCommand,
     ModelCommand,
     ModelCustomMessage,
     ModelUpdateMessage,
-    ReplaceCellCommand,
     UpdateUIElementCommand,
 )
 from marimo._runtime.layout.layout import LayoutConfig
@@ -2431,7 +2435,7 @@ def test_preparation_remains_available_after_package_changes(
     ]
 
 
-def test_replacement_does_not_replay_previous_cell_execution(
+def test_document_changes_do_not_replay_previous_cell_execution(
     session_view: SessionView,
 ) -> None:
     for cid in (cell_id, CellId_t("setup"), CellId_t("other")):
@@ -2443,11 +2447,16 @@ def test_replacement_does_not_replay_previous_cell_execution(
         )
         session_view.last_execution_time[cid] = 1.0
     session_view.add_control_request(
-        ReplaceCellCommand(
-            cell_id=cell_id,
-            new_cell_id="setup",
-            code="x = 2",
-            config=CellConfig(),
+        ApplyDocumentChangesCommand(
+            changes=(
+                CreateCell(
+                    cell_id="setup",
+                    code="x = 2",
+                    name="_",
+                    config=CellConfig(),
+                ),
+                DeleteCell(cell_id=cell_id),
+            )
         )
     )
     assert session_view.last_executed_code == {"other": "x = 1"}

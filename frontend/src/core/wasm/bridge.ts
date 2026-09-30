@@ -315,11 +315,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FormatResponse;
   };
 
-  public sendReplaceCell: EditRequests["sendReplaceCell"] = async (request) => {
-    await this.putControlRequest({ type: "replace-cell", ...request });
-    return null;
-  };
-
   public sendDeleteCell: EditRequests["sendDeleteCell"] = async (request) => {
     await this.putControlRequest({
       type: "delete-cell",
@@ -638,7 +633,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  public sendDocumentTransaction = () => Promise.resolve(null);
+  public sendDocumentTransaction: EditRequests["sendDocumentTransaction"] =
+    async (request) => {
+      if (request.syncKernel) {
+        await this.putControlRequest({
+          type: "apply-document-changes",
+          changes: request.changes,
+        });
+      }
+      return null;
+    };
 
   public addPackage: EditRequests["addPackage"] = async (request) => {
     return this.rpc.proxy.request.addPackage(request);

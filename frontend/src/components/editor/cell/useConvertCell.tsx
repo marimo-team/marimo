@@ -11,7 +11,6 @@ import { notebookQueueOrRunningCount } from "@/core/cells/utils";
 import { waitForKernelToBeInstantiated } from "@/core/kernel/state";
 import { waitForConnectionOpen } from "@/core/network/connection";
 import { useConnectToRuntime } from "@/core/runtime/config";
-import { useRequestClient } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
 
@@ -19,7 +18,6 @@ const convertingCellAtom = atom(false);
 
 export function useConvertCell() {
   const { convertCell } = useCellActions();
-  const { sendReplaceCell } = useRequestClient();
   const converting = useAtomValue(convertingCellAtom);
   const connect = useConnectToRuntime();
 
@@ -36,7 +34,7 @@ export function useConvertCell() {
       await connect();
       await waitForConnectionOpen();
       await waitForKernelToBeInstantiated();
-      // Keep repeated conversions of the reserved setup ID in separate transactions.
+      // Flush earlier edits before changing the local cell identity.
       await flushDocumentChanges();
       const notebook = getNotebook();
       const ids = notebook.cellIds.inOrderIds;
@@ -64,13 +62,6 @@ export function useConvertCell() {
       };
       convertCell(undo ?? { cellId, newCellId });
       await flushDocumentChanges();
-      const replacement = getNotebook().cellData[newCellId];
-      await sendReplaceCell({
-        cellId,
-        newCellId,
-        code: replacement.code,
-        config: replacement.config,
-      });
       if (!undo) {
         const restore = rollback;
         const { dismiss } = toast({

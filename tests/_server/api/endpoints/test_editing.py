@@ -6,10 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from marimo._ast.cell import CellConfig
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._runtime.commands import ReplaceCellCommand
-from marimo._types.ids import ConsumerId
 from tests._server.api.endpoints.ws_helpers import receive_until
 from tests._server.mocks import token_header, with_session
 
@@ -53,33 +50,6 @@ def test_delete_cell(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert "success" in response.json()
-
-
-@with_session(SESSION_ID)
-def test_replace_cell(client: TestClient) -> None:
-    with patch(
-        "marimo._server.api.deps.AppState.require_current_session"
-    ) as require_session:
-        response = client.post(
-            "/api/kernel/replace_cell",
-            headers=HEADERS,
-            json={
-                "cellId": "cell-123",
-                "newCellId": "setup",
-                "code": "import math",
-                "config": {"hide_code": True},
-            },
-        )
-        assert response.status_code == 200, response.text
-        require_session.return_value.put_control_request.assert_called_once_with(
-            ReplaceCellCommand(
-                cell_id="cell-123",
-                new_cell_id="setup",
-                code="import math",
-                config=CellConfig(hide_code=True),
-            ),
-            from_consumer_id=ConsumerId(SESSION_ID),
-        )
 
 
 @pytest.mark.skipif(not HAS_FORMATTER, reason="ruff or black not installed")

@@ -26,6 +26,12 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     MultipleDefinitionError,
 )
+from marimo._messaging.notebook.changes import (
+    CreateCell,
+    DeleteCell,
+    SetCode,
+    SetConfig,
+)
 from marimo._messaging.notification import (
     CellNotification,
     VariablesNotification,
@@ -34,10 +40,10 @@ from marimo._messaging.serde import deserialize_kernel_message
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.commands import (
+    ApplyDocumentChangesCommand,
     CreateNotebookCommand,
     DeleteCellCommand,
     ExecuteCellCommand,
-    ReplaceCellCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
 )
@@ -1166,7 +1172,7 @@ except NameError:
     @pytest.mark.parametrize(
         ("source", "target"), [("0", "setup"), ("setup", "0")]
     )
-    async def test_replace_cell_leaves_dependencies_stale(
+    async def test_document_changes_leave_dependencies_stale(
         self, any_kernel: Kernel, source: str, target: str
     ) -> None:
         k = any_kernel
@@ -1176,12 +1182,17 @@ except NameError:
                 ExecuteCellCommand(cell_id="child", code="y = x + 1"),
             ]
         )
-        await k.replace_cell(
-            ReplaceCellCommand(
-                cell_id=source,
-                new_cell_id=target,
-                code="x = 3",
-                config=CellConfig(hide_code=True),
+        await k.apply_document_changes(
+            ApplyDocumentChangesCommand(
+                changes=(
+                    CreateCell(
+                        cell_id=target,
+                        code="x = 3",
+                        name="_",
+                        config=CellConfig(hide_code=True),
+                    ),
+                    DeleteCell(cell_id=source),
+                )
             )
         )
         assert set(k.graph.cells) == {target, "child"}
@@ -1208,21 +1219,31 @@ except NameError:
                 ExecuteCellCommand(cell_id="0", code="y = x + 1"),
             ]
         )
-        await k.replace_cell(
-            ReplaceCellCommand(
-                cell_id="0",
-                new_cell_id="setup",
-                code="y = x + 1",
-                config=CellConfig(),
+        await k.apply_document_changes(
+            ApplyDocumentChangesCommand(
+                changes=(
+                    CreateCell(
+                        cell_id="setup",
+                        code="y = x + 1",
+                        name="_",
+                        config=CellConfig(),
+                    ),
+                    DeleteCell(cell_id="0"),
+                )
             )
         )
         assert "setup" in k.errors
-        await k.replace_cell(
-            ReplaceCellCommand(
-                cell_id="setup",
-                new_cell_id="0",
-                code="y = x + 1",
-                config=CellConfig(),
+        await k.apply_document_changes(
+            ApplyDocumentChangesCommand(
+                changes=(
+                    CreateCell(
+                        cell_id="0",
+                        code="y = x + 1",
+                        name="_",
+                        config=CellConfig(),
+                    ),
+                    DeleteCell(cell_id="setup"),
+                )
             )
         )
         assert not k.errors
@@ -1230,7 +1251,7 @@ except NameError:
         assert k.globals["y"] == 2
         assert set(k.graph.cells) == {"parent", "0"}
 
-    async def test_replace_uninstantiated_cell(
+    async def test_document_changes_remove_uninstantiated_cell(
         self, any_kernel: Kernel
     ) -> None:
         k = any_kernel
@@ -1246,18 +1267,80 @@ except NameError:
                 auto_run=False,
             )
         )
-        await k.replace_cell(
-            ReplaceCellCommand(
-                cell_id="0",
-                new_cell_id="setup",
-                code="x = 2",
-                config=CellConfig(),
+        await k.apply_document_changes(
+            ApplyDocumentChangesCommand(
+                changes=(
+                    CreateCell(
+                        cell_id="setup",
+                        code="x = 2",
+                        name="_",
+                        config=CellConfig(),
+                    ),
+                    DeleteCell(cell_id="0"),
+                )
             )
         )
         await k.run_stale_cells()
         assert set(k.graph.cells) == {"setup"}
         assert k.globals["x"] == 2
         assert not k.errors
+
+    async def test_document_changes_update_code_and_config_without_running(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="x = 1"),
+                ExecuteCellCommand(cell_id="child", code="y = x + 1"),
+            ]
+        )
+        await k.apply_document_changes(
+            ApplyDocumentChangesCommand(
+                changes=(
+                    SetCode(cell_id="0", code="x = 2"),
+                    SetCode(cell_id="0", code="x = 3"),
+                    SetConfig(
+                        cell_id="0",
+                        column=0,
+                        disabled=True,
+                        hide_code=True,
+                        expand_output=False,
+                    ),
+                    CreateCell(
+                        cell_id="cancelled",
+                        code="raise RuntimeError()",
+                        name="_",
+                        config=CellConfig(),
+                    ),
+                    DeleteCell(cell_id="cancelled"),
+                )
+            )
+        )
+        assert set(k.graph.cells) == {"0", "child"}
+        assert k.graph.get_stale() == {"0", "child"}
+        assert k.graph.cells["0"].config.disabled
+        assert k.graph.cells["0"].config.hide_code
+        assert "x" not in k.globals
+        assert k.globals["y"] == 2
+
+        await k.apply_document_changes(
+            ApplyDocumentChangesCommand(
+                changes=(
+                    SetConfig(
+                        cell_id="0",
+                        column=0,
+                        disabled=False,
+                        hide_code=True,
+                        expand_output=False,
+                    ),
+                )
+            )
+        )
+        assert not k.graph.cells["0"].config.disabled
+        assert "x" not in k.globals
+        await k.run_stale_cells()
+        assert k.globals["y"] == 4
 
     async def test_setup_runs(self, any_kernel: Kernel) -> None:
         k = any_kernel

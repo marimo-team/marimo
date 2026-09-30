@@ -242,3 +242,23 @@ describe("getWasmWorkerName", () => {
     expect(getWasmWorkerName()).toBe("marimo");
   });
 });
+
+describe("PyodideBridge.sendDocumentTransaction", () => {
+  it("only forwards transactions that request kernel synchronization", async () => {
+    mockBridge.mockReset();
+    mockBridge.mockResolvedValue(null);
+    const changes = [
+      { type: "set-code" as const, cellId: cellId("cell-1"), code: "x = 2" },
+    ];
+    await PyodideBridge.INSTANCE.sendDocumentTransaction({ changes });
+    expect(mockBridge).not.toHaveBeenCalled();
+    await PyodideBridge.INSTANCE.sendDocumentTransaction({
+      changes,
+      syncKernel: true,
+    });
+    expect(mockBridge).toHaveBeenCalledExactlyOnceWith({
+      functionName: "put_control_request",
+      payload: { type: "apply-document-changes", changes },
+    });
+  });
+});

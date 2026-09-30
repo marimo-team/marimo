@@ -10,6 +10,7 @@ from marimo._messaging.notebook.reconcile import reconcile_transaction
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
 )
+from marimo._runtime.commands import ApplyDocumentChangesCommand
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.models import (
@@ -57,6 +58,11 @@ async def document_transaction(request: Request) -> BaseResponse:
     sanitized = reconcile_transaction(tuple(body.changes), session.document)
     transaction = Transaction(changes=sanitized, source="frontend")
     applied = session.document.apply(transaction)
+    if body.sync_kernel and applied.changes:
+        session.put_control_request(
+            ApplyDocumentChangesCommand(changes=applied.changes),
+            from_consumer_id=ConsumerId(session_id),
+        )
     session.notify(
         NotebookDocumentTransactionNotification(transaction=applied),
         from_consumer_id=ConsumerId(session_id),

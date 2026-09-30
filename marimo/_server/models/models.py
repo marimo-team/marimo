@@ -26,7 +26,6 @@ from marimo._runtime.commands import (
     ModelCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
-    ReplaceCellCommand,
     SetBreakpointsCommand,
     StorageDownloadCommand,
     StorageListEntriesCommand,
@@ -197,16 +196,6 @@ class DeleteCellRequest(DeleteCellCommand, tag=False):
         return DeleteCellCommand(cell_id=self.cell_id)
 
 
-class ReplaceCellRequest(ReplaceCellCommand, tag=False):
-    def as_command(self) -> ReplaceCellCommand:
-        return ReplaceCellCommand(
-            cell_id=self.cell_id,
-            new_cell_id=self.new_cell_id,
-            code=self.code,
-            config=self.config,
-        )
-
-
 class InstallPackagesRequest(InstallPackagesCommand, tag=False):
     def as_command(self) -> InstallPackagesCommand:
         return InstallPackagesCommand(
@@ -267,6 +256,7 @@ class RenameNotebookRequest(msgspec.Struct, rename="camel"):
 
 class NotebookDocumentTransactionRequest(msgspec.Struct, rename="camel"):
     changes: list[DocumentChange]
+    sync_kernel: bool = False
 
 
 class FocusCellRequest(msgspec.Struct, rename="camel"):

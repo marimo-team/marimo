@@ -17,6 +17,7 @@ from marimo._messaging.notification import (
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._plugins.ui._impl.anywidget.init import WIDGET_COMM_MANAGER
 from marimo._runtime.commands import (
+    ApplyDocumentChangesCommand,
     CreateNotebookCommand,
     DebugCellCommand,
     DeleteCellCommand,
@@ -26,7 +27,6 @@ from marimo._runtime.commands import (
     InvokeFunctionCommand,
     ModelCommand,
     RenameNotebookCommand,
-    ReplaceCellCommand,
     StopKernelCommand,
     SyncGraphCommand,
     UpdateCellConfigCommand,
@@ -56,7 +56,7 @@ class KernelRequestHandlers:
         k = self._kernel
         router.register(CreateNotebookCommand, self._handle_instantiate)
         router.register(DeleteCellCommand, k.delete_cell)
-        router.register(ReplaceCellCommand, k.replace_cell)
+        router.register(ApplyDocumentChangesCommand, k.apply_document_changes)
         router.register(ExecuteCellsCommand, self._handle_execute_multiple)
         router.register(SyncGraphCommand, self._handle_sync_graph)
         router.register(
