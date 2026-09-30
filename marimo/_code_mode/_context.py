@@ -23,7 +23,9 @@ Usage::
 
 from __future__ import annotations
 
+import keyword
 import sys
+import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, overload
@@ -39,7 +41,7 @@ from marimo._ast.cell import (
 )
 from marimo._ast.cell_id import CellIdGenerator
 from marimo._ast.compiler import compile_cell
-from marimo._ast.names import SETUP_CELL_NAME
+from marimo._ast.names import SETUP_CELL_NAME, is_internal_cell_name
 from marimo._code_mode._better_inspect import _HelpableEnumMeta, helpable
 from marimo._code_mode._packages import (
     PackageResult,
@@ -108,6 +110,26 @@ if TYPE_CHECKING:
     from marimo._code_mode.screenshot import _ScreenshotSession
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
+
+
+def _validate_cell_name(name: str | None) -> None:
+    if name is None or name == "":
+        return
+    if is_internal_cell_name(name):
+        raise ValueError(
+            f"Invalid cell name {name!r}. {name!r} is reserved for unnamed "
+            "cells."
+        )
+    if unicodedata.normalize("NFKC", name) != name:
+        raise ValueError(
+            f"Invalid cell name {name!r}. Cell names must be NFKC-normalized."
+        )
+    if not name.isidentifier() or keyword.iskeyword(name):
+        raise ValueError(
+            f"Invalid cell name {name!r}. Cell names must be valid, "
+            "non-keyword Python identifiers, such as 'load_data' or "
+            "'analysis_summary'."
+        )
 
 
 @helpable
@@ -1100,15 +1122,16 @@ class AsyncCodeModeContext:
             expand_output (bool): Show the cell's output in full instead of
                 clamping it to a fixed height. Defaults to False.
             column (int, optional): Column index for multi-column layouts.
-            name (str, optional): Cell names are a human-facing label,
-                reserved for special cases (e.g. `"setup"`). Prefer
-                referencing cells by the returned cell ID unless
-                naming is important for the user.
+            name (str, optional): New name for the cell. Must be a valid Python
+                identifier. `None` creates an unnamed cell. Names are reserved
+                for special cases (for example, `"setup"`). Prefer the
+                returned cell ID unless naming is important.
         """
         self._require_entered()
         if before is not None and after is not None:
             raise ValueError("Cannot specify both 'before' and 'after'")
 
+        _validate_cell_name(name)
         cell_id, resolved_name = self._resolve_new_cell(name)
 
         config = CellConfig(
@@ -1202,9 +1225,11 @@ class AsyncCodeModeContext:
             expand_output (bool, optional): Show the cell's output in full
                 instead of clamping it to a fixed height. None keeps existing.
             column (int, optional): Column index for multi-column layouts. None keeps existing.
-            name (str, optional): New name for the cell. None keeps existing.
+            name (str, optional): New name for the cell. Must be a valid Python
+                identifier. `None` keeps the existing name.
         """
         self._require_entered()
+        _validate_cell_name(name)
         cell_id = self._resolve_target(target)
 
         # Handle cell-id migration when converting to a setup cell.
