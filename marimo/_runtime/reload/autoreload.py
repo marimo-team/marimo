@@ -210,19 +210,15 @@ class ModuleReloader:
         self.modules_mtimes: dict[str, float] = {}
         # set of modules names known to be stale but haven't been reloaded
         self.stale_modules: set[str] = set()
-        # Incremented once per reload. A cell that last ran under an older
-        # generation still holds code from before that reload.
+        # for thread-safety
+        self.lock = threading.RLock()
+        # Incremented once per reload.
         self.reload_generation = 0
-        # cell -> (generation, ordinal) of its last run. The ordinal orders
-        # runs within one generation.
+        # cell -> (generation, ordinal) of its last run.
         self._cell_runs: dict[CellId_t, tuple[int, int]] = {}
         self._run_counter = 0
         # source path -> (mtime, generation) of its last successful reload
-        # NB. tells the watcher whether an edit it sees was already reloaded.
         self._reloaded_sources: dict[str, tuple[float, int]] = {}
-        # NB. reentrant, so a caller can hold it across a reload and the
-        # bookkeeping that follows.
-        self.lock = threading.RLock()
         self._module_dependency_finder = ModuleDependencyFinder()
         # modname -> cached `__file__` for modules classified as non-user.
         # Populated by every `check()` call (memoizing `is_user_module`);
@@ -233,8 +229,6 @@ class ModuleReloader:
         self._skip: dict[str, str | None] = {}
 
         # module name -> mtime last seen by the module watcher
-        # NB. cell reloads advance `modules_mtimes` between watcher polls,
-        # so the watcher keeps its own baseline.
         self.watcher_modules_mtimes: dict[str, float] = {}
 
         # Timestamp existing modules
@@ -428,12 +422,7 @@ class ModuleReloader:
                     self.stale_modules.add(modname)
                     self._module_dependency_finder.evict_from_cache(m)
 
-                detected_change = (
-                    watcher_detected_change
-                    if for_watcher
-                    else reloader_detected_change
-                )
-                if detected_change:
+                if watcher_detected_change or reloader_detected_change:
                     modified_modules.add(m)
 
             if not reload:

@@ -15,7 +15,10 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from marimo._ast.cell import CellImpl
-    from marimo._runtime.runner.hook_context import OnFinishHookContext
+    from marimo._runtime.runner.hook_context import (
+        OnFinishHookContext,
+        PreExecutionHookContext,
+    )
     from marimo._runtime.runtime import Kernel
     from marimo._types.ids import CellId_t
 
@@ -30,6 +33,7 @@ class AutoreloadManager:
         self._reloader: ModuleReloader | None = None
         self._watcher: ModuleWatcher | None = None
 
+        kernel._hooks.add_pre_execution(self._pre_execution_hook)
         # Re-arm the watcher after every kernel run, regardless of trigger.
         kernel._hooks.add_on_finish(self._on_finish_hook)
 
@@ -84,35 +88,36 @@ class AutoreloadManager:
         if self._reloader is not None:
             self._reloader.forget_cell(cell_id)
 
-    @contextlib.contextmanager
-    def cell_scope(self, cell_id: CellId_t | None) -> Iterator[None]:
-        """Reload modified modules on entry; record mtimes for newly-imported modules on exit.
-
-        `cell_id` is the cell whose top-level code runs inside the scope.
-        Pass `None` for other work in a cell's context, such as a UI
-        callback, to avoid recording a rerun.
-        """
+    def _pre_execution_hook(
+        self, cell: CellImpl, ctx: PreExecutionHookContext
+    ) -> None:
+        """Reload modified modules and record the run of `cell`."""
+        del ctx
         if self._reloader is None:
-            yield
             return
-        snapshot = set(sys.modules)
-        # Entry: skip stdlib/site-packages so cells don't pay for stat-ing
-        # them. This is the perf-critical call.
+        # Skip stdlib/site-packages so cells don't pay for stat-ing them.
+        # This is the perf-critical call.
         # NB. one lock hold, so the watcher cannot see the reload before
         # the record.
         with self._reloader.lock:
             self._reloader.check(
                 modules=sys.modules, reload=True, skip_non_user_modules=True
             )
-            if cell_id is not None:
-                self._reloader.record_cell_run(cell_id)
+            self._reloader.record_cell_run(cell.cell_id)
+
+    @contextlib.contextmanager
+    def cell_scope(self) -> Iterator[None]:
+        """Record mtimes for modules first imported inside the scope."""
+        if self._reloader is None:
+            yield
+            return
+        snapshot = set(sys.modules)
         try:
             yield
         finally:
-            # Exit: record mtimes for modules the cell just imported. Don't
-            # skip here — `new_modules` is small (typically 0-3) and we need
-            # an mtime baseline for newly-imported installed packages so the
-            # next edit isn't silently treated as the initial state.
+            # Don't skip here: `new_modules` is small (typically 0-3) and we
+            # need an mtime baseline for newly-imported installed packages so
+            # the next edit isn't silently treated as the initial state.
             new_modules = set(sys.modules) - snapshot
             self._reloader.check(
                 modules={m: sys.modules[m] for m in new_modules},
