@@ -107,6 +107,25 @@ describe("DataEditorPlugin", () => {
     });
   });
 
+  it("normalizes explicitly configured boolean columns", async () => {
+    const data = DataEditorPlugin.validator.parse({
+      initialValue: { edits: [] },
+      label: null,
+      data: [{ active: "No" }, { active: "YES" }],
+      fieldTypes: null,
+      columnNames: ["active"],
+      columnTypes: { active: "boolean" },
+      editableColumns: "all",
+    });
+    render(renderPlugin(data, { edits: [] }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("editor-data")).toHaveTextContent(
+        JSON.stringify([{ active: false }, { active: true }]),
+      );
+    });
+  });
+
   it("applies edit updates after data has loaded", async () => {
     const data = DataEditorPlugin.validator.parse({
       initialValue: { edits: [] },

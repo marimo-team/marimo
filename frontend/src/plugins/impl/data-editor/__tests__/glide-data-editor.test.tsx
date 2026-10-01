@@ -10,6 +10,7 @@ interface MockDataEditorProps {
   portalElementRef?: React.RefObject<HTMLElement>;
   onCellEdited?: (cell: [number, number], value: { data: unknown }) => void;
   onRowAppended?: () => void;
+  getCellContent?: (cell: [number, number]) => Record<string, unknown>;
 }
 
 const captureDataEditorProps = vi.hoisted(() =>
@@ -25,6 +26,9 @@ const capturedDataEditor = {
   },
   get onRowAppended() {
     return captureDataEditorProps.mock.lastCall?.[0].onRowAppended;
+  },
+  get getCellContent() {
+    return captureDataEditorProps.mock.lastCall?.[0].getCellContent;
   },
 };
 
@@ -109,6 +113,27 @@ describe("GlideDataEditor portal", () => {
 
     expect(onAddEdits).toHaveBeenCalledWith([
       { rowIdx: 0, columnId: "name", value: "bob" },
+    ]);
+  });
+
+  it("normalizes edits for a configured boolean column", () => {
+    const onAddEdits = vi.fn();
+    render(
+      <TooltipProvider>
+        <GlideDataEditor
+          {...editorProps}
+          data={[{ active: false }]}
+          columnFields={new Map([["active", "boolean" as const]])}
+          columnTypes={new Map([["active", "boolean" as const]])}
+          onAddEdits={onAddEdits}
+        />
+      </TooltipProvider>,
+    );
+
+    act(() => capturedDataEditor.onCellEdited?.([0, 0], { data: "YES" }));
+
+    expect(onAddEdits).toHaveBeenCalledWith([
+      { rowIdx: 0, columnId: "active", value: true },
     ]);
   });
 

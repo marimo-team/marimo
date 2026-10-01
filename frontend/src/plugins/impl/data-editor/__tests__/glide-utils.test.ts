@@ -3,6 +3,7 @@
 import type { GridSelection } from "@glideapps/glide-data-grid";
 import { CompactSelection, GridCellKind } from "@glideapps/glide-data-grid";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { normalizeBoolean } from "../column-types";
 import { isValidCellValue, pasteCells } from "../glide-utils";
 import type { ModifiedGridColumn } from "../types";
 
@@ -33,6 +34,34 @@ describe("isValidCellValue", () => {
     expect(isValidCellValue("integer", "9007199254740993.1")).toBe(false);
     expect(isValidCellValue("integer", "1.0000000000000001")).toBe(false);
     expect(isValidCellValue("integer", "1e-324")).toBe(false);
+  });
+});
+
+describe("normalizeBoolean", () => {
+  it.each([
+    [true, true],
+    [false, false],
+    [2, true],
+    [0, false],
+    ["true", true],
+    [" t ", true],
+    ["YES", true],
+    ["y", true],
+    ["1", true],
+    ["false", false],
+    ["f", false],
+    ["No", false],
+    ["n", false],
+    ["0", false],
+    ["", false],
+  ])("normalizes %j", (value, expected) => {
+    expect(normalizeBoolean(value, "active")).toBe(expected);
+  });
+
+  it("reports the configured column for invalid values", () => {
+    expect(() => normalizeBoolean("maybe", "active")).toThrow(
+      "Invalid boolean value for column 'active': maybe",
+    );
   });
 });
 
@@ -190,6 +219,27 @@ describe("pasteCells", () => {
       expect(mockOnAddEdits).toHaveBeenCalledWith([
         { rowIdx: 0, columnId: "name", value: "Frank" },
         { rowIdx: 0, columnId: "age", value: 30 },
+        { rowIdx: 0, columnId: "active", value: true },
+      ]);
+    });
+  });
+
+  it("normalizes aliases pasted into configured boolean columns", async () => {
+    mockClipboard.readText.mockResolvedValue("yes");
+    const mockOnAddEdits = vi.fn();
+    const columns = createMockColumns();
+    columns[2].configuredType = "boolean";
+
+    pasteCells({
+      selection: createMockSelection(2, 0),
+      data: createMockData(),
+      columns,
+      editableColumns: "all",
+      onAddEdits: mockOnAddEdits,
+    });
+
+    await vi.waitFor(() => {
+      expect(mockOnAddEdits).toHaveBeenCalledWith([
         { rowIdx: 0, columnId: "active", value: true },
       ]);
     });

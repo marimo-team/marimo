@@ -88,6 +88,27 @@ describe("applyEditorEdits", () => {
     ]);
   });
 
+  it("renames and removes configured column types", () => {
+    const state = {
+      data: [{ A: true, B: "b" }],
+      columnFields: new Map([
+        ["A", "boolean"],
+        ["B", "string"],
+      ]) as FieldTypes,
+      columnTypes: new Map([["A", "boolean" as const]]),
+    };
+
+    const renamed = applyEditorEdits(state, [
+      { columnIdx: 0, type: "rename", newName: "C" },
+    ]);
+    expect([...renamed.columnTypes]).toEqual([["C", "boolean"]]);
+
+    const removed = applyEditorEdits(renamed, [
+      { columnIdx: 0, type: "remove" },
+    ]);
+    expect([...removed.columnTypes]).toEqual([]);
+  });
+
   it("does not mutate the previous state", () => {
     const state = {
       data: [{ A: "before" }],

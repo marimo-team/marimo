@@ -82,6 +82,77 @@ def test_data_editor_with_column_oriented_data():
     assert editor._data == data
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (True, True),
+        (False, False),
+        (2, True),
+        (0, False),
+        ("true", True),
+        (" t ", True),
+        ("YES", True),
+        ("y", True),
+        ("1", True),
+        ("false", False),
+        ("f", False),
+        ("No", False),
+        ("n", False),
+        ("0", False),
+        ("", False),
+    ],
+)
+def test_data_editor_normalizes_explicit_boolean_column(value, expected):
+    editor = data_editor([{"A": value}], column_types={"A": "boolean"})
+
+    assert editor._component_args["column-types"] == {"A": "boolean"}
+    assert editor._convert_value({"edits": []}) == [{"A": expected}]
+
+
+def test_data_editor_rejects_invalid_initial_explicit_boolean_value():
+    with pytest.raises(
+        ValueError, match="Invalid boolean value 'maybe' for column 'A'"
+    ):
+        data_editor([{"A": "maybe"}], column_types={"A": "boolean"})
+
+
+def test_data_editor_rejects_invalid_explicit_boolean_edit():
+    editor = data_editor([{"A": True}], column_types={"A": "boolean"})
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "A", "value": "maybe"}]
+    }
+
+    with pytest.raises(
+        ValueError, match="Invalid boolean value 'maybe' for column 'A'"
+    ):
+        editor._convert_value(edits)
+
+
+def test_data_editor_rejects_unknown_column_type_column():
+    with pytest.raises(ValueError, match="Column B is not in the data"):
+        data_editor([{"A": True}], column_types={"B": "boolean"})
+
+
+def test_data_editor_tracks_explicit_type_on_rename_and_remove():
+    editor = data_editor([{"A": True}], column_types={"A": "boolean"})
+    renamed: DataEdits = {
+        "edits": [
+            {"columnIdx": 0, "type": "rename", "newName": "B"},
+            {"rowIdx": 0, "columnId": "B", "value": "no"},
+        ]
+    }
+    removed: DataEdits = {
+        "edits": [
+            {"columnIdx": 0, "type": "remove"},
+            {"columnIdx": 0, "type": "insert", "newName": "A"},
+            {"rowIdx": 0, "columnId": "A", "value": "maybe"},
+        ]
+    }
+
+    assert editor._convert_value(renamed) == [{"B": False}]
+    assert editor._convert_value(removed) == [{"A": "maybe"}]
+
+
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )
