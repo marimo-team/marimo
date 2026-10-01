@@ -105,7 +105,7 @@ def test_dataframe_with_integer_columns() -> None:
     import numpy as np
     import pandas as pd
 
-    df = pd.DataFrame(np.random.randn(3, 3))
+    df = pd.DataFrame(np.random.default_rng().standard_normal((3, 3)))
     # Must not raise
     result = deterministic_dumps(df, hash_type="sha256")
     assert isinstance(result, bytes)
