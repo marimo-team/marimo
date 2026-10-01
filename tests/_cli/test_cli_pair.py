@@ -20,9 +20,11 @@ from marimo._cli.pair.client import (
     AmbiguousSessionError,
     AttachmentResult,
     ExecutionResult,
+    HandoffBatch,
     NoSessionError,
     PairError,
     PairInputError,
+    ParticipantChannelOffError,
     StableSessionUnsupportedError,
     StaleSessionError,
     UnknownParticipantError,
@@ -35,6 +37,7 @@ from marimo._cli.pair.commands import (
     _plugin_skill_dirs,
     pair_agents,
 )
+from marimo._messaging.participants import HandoffEvent
 
 _runner = CliRunner()
 
@@ -131,8 +134,11 @@ Options:
 Commands:
   attach    Attach an agent and cache its...
   connect   Connect this agent to one live notebook...
+  detach    End this agent's attachment.
   docs      Read notebook guidance on demand.
+  events    Print pending handoffs and mark them...
   execute   Run Python in a live notebook session.
+  listen    Hold a stream of handoffs for an adapter.
   notebook  Find active notebooks and their sessions.
   prompt    Generate a prompt for pair programming on...
 """)
@@ -468,6 +474,270 @@ class TestPairConnect:
         assert executed.exit_code == 2
         assert "No session session-1" in executed.stdout
         assert not list(state_dir.glob("*.json"))
+
+
+def _connect_for_handoff_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_attach(**kwargs: Any) -> AttachmentResult:
+        return AttachmentResult(
+            participant_id=kwargs["participant_id"],
+            cursor=0,
+            attached=True,
+            record_created=True,
+            kind="agent",
+            harness_id=kwargs["harness_id"],
+            harness_name=kwargs["harness_name"],
+        )
+
+    monkeypatch.setattr(commands, "attach_participant", fake_attach)
+    result = _runner.invoke(
+        cli_main,
+        ["pair", "connect", "--url", TEST_URL, "--session", "session-1"],
+    )
+    assert result.exit_code == 0, result.output
+
+
+def _handoff_event() -> HandoffEvent:
+    return HandoffEvent(
+        seq=42,
+        created_at=0.0,
+        cell_id="AbCd",
+        error="NameError",
+        code="df.head()",
+        traceback="Traceback\nNameError",
+    )
+
+
+class TestPairHandoffs:
+    def test_connect_reports_live_agent_conflict(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def conflict(**kwargs: Any) -> None:
+            del kwargs
+            raise PairError(
+                "Another participant (Pi) is attached to this session."
+            )
+
+        monkeypatch.setattr(commands, "attach_participant", conflict)
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "connect", "--url", TEST_URL, "--session", "session-1"],
+        )
+
+        assert result.exit_code == 2
+        payload = json.loads(result.stdout)
+        assert payload["error"] == (
+            "Another agent (Pi) is attached to this session."
+        )
+        assert "Do not change identity to take over" in payload["next"]
+
+    def test_events_renders_pending_handoffs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+        calls: list[dict[str, Any]] = []
+
+        def fake_read(**kwargs: Any) -> HandoffBatch:
+            calls.append(kwargs)
+            return HandoffBatch(events=(_handoff_event(),), remaining=2)
+
+        monkeypatch.setattr(commands, "read_participant_events", fake_read)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "events",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "--since",
+                "40",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls[0]["since"] == 40
+        payload = json.loads(result.stdout)
+        assert payload["participant"] == {
+            "harness": "unknown",
+            "scope": "harness",
+        }
+        assert payload["handoffs"]["events"][0]["seq"] == 42
+        assert (
+            "Code:\n    df.head()" in payload["handoffs"]["events"][0]["text"]
+        )
+        assert payload["handoffs"]["remaining"] == 2
+        assert "pair events" in payload["handoffs"]["next"]
+        assert "tok123" not in result.stdout
+
+    def test_events_reports_channel_off(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+
+        def channel_off(**kwargs: Any) -> None:
+            del kwargs
+            raise ParticipantChannelOffError
+
+        monkeypatch.setattr(commands, "read_participant_events", channel_off)
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "events", "--url", TEST_URL, "--session", "session-1"],
+        )
+
+        assert result.exit_code == 2
+        payload = json.loads(result.stdout)
+        assert payload["error"] == (
+            "The participant channel is off on https://localhost:8000."
+        )
+        assert "MARIMO_PAIR_NEXT=1" in payload["next"]
+
+    def test_events_restore_unknown_server_record_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+        calls = 0
+
+        def fake_read(**kwargs: Any) -> HandoffBatch:
+            nonlocal calls
+            del kwargs
+            calls += 1
+            if calls == 1:
+                raise UnknownParticipantError("Unknown participant ID: p1")
+            return HandoffBatch(events=(), remaining=0)
+
+        monkeypatch.setattr(commands, "read_participant_events", fake_read)
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "events", "--url", TEST_URL, "--session", "session-1"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls == 2
+        assert json.loads(result.stdout)["handoffs"] == {
+            "events": [],
+            "remaining": 0,
+        }
+        assert (
+            json.loads(result.stdout)["participant"]["record_created"] is True
+        )
+
+    def test_listen_once_prints_one_handoff(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+        closed = False
+
+        def fake_stream(**kwargs: Any) -> Any:
+            nonlocal closed
+            del kwargs
+            try:
+                yield _handoff_event()
+                yield _handoff_event()
+            finally:
+                closed = True
+
+        monkeypatch.setattr(commands, "stream_participant_events", fake_stream)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "listen",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "--once",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert result.stdout.count("Handoff 42:") == 1
+        assert closed
+
+    def test_listen_exits_quietly_for_gone_session(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+
+        def stale_stream(**kwargs: Any) -> Any:
+            del kwargs
+            raise StaleSessionError("Invalid stable session id: session-1")
+            yield
+
+        monkeypatch.setattr(
+            commands, "stream_participant_events", stale_stream
+        )
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "listen",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "--once",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert result.output == ""
+
+    def test_detach_clears_local_connection(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+        calls: list[dict[str, Any]] = []
+
+        def fake_detach(**kwargs: Any) -> bool:
+            calls.append(kwargs)
+            return False
+
+        monkeypatch.setattr(commands, "detach_participant", fake_detach)
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "detach", "--url", TEST_URL, "--session", "session-1"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout)["attached"] is False
+        assert calls[0]["participant_id"].startswith("p1_")
+        assert not list((tmp_path / "marimo" / "pair").rglob("*.json"))
+
+    def test_execute_renders_inline_handoffs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+
+        def fake_execute(**kwargs: Any) -> ExecutionResult:
+            del kwargs
+            return ExecutionResult(
+                success=True,
+                output=None,
+                stdout="",
+                stderr="",
+                handoffs=HandoffBatch(events=(_handoff_event(),), remaining=0),
+            )
+
+        monkeypatch.setattr(commands, "execute_code", fake_execute)
+        arguments = [
+            "pair",
+            "execute",
+            "--url",
+            TEST_URL,
+            "--session",
+            "session-1",
+            "-c",
+            "pass",
+        ]
+        regular = _runner.invoke(cli_main, arguments)
+        streamed = _runner.invoke(cli_main, [*arguments, "--stream"])
+
+        assert regular.exit_code == 0, regular.output
+        assert json.loads(regular.stdout)["handoffs"]["events"][0]["seq"] == 42
+        assert streamed.exit_code == 0, streamed.output
+        assert "\nhandoffs:\nHandoff 42:" in streamed.stdout
 
 
 class TestPairExecute:

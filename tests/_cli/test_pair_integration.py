@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import signal
@@ -8,6 +9,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -145,6 +147,92 @@ def test_connect_persists_across_cli_processes(tmp_path: Path) -> None:
         "harness": "unknown",
         "scope": "harness",
     }
+
+
+def test_handoff_events_stream_and_detach_across_processes(
+    tmp_path: Path,
+) -> None:
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in ("MARIMO_PAIR_HARNESS", "MARIMO_PAIR_CONVERSATION_ID")
+    }
+    environment["XDG_STATE_HOME"] = str(tmp_path / "state")
+
+    def run_pair(
+        server: PairTestServer, *arguments: str
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "marimo",
+                "pair",
+                *arguments,
+                "--url",
+                server.url,
+                "--session",
+                server.stable_session_id,
+            ],
+            env=environment,
+            text=True,
+            capture_output=True,
+            timeout=20,
+            check=False,
+        )
+
+    def send_handoff(server: PairTestServer, cell_id: str) -> None:
+        parsed = urlsplit(server.url)
+        connection = http.client.HTTPConnection(parsed.hostname, parsed.port)
+        try:
+            connection.request(
+                "POST",
+                "/api/participants/handoff",
+                body=json.dumps(
+                    {
+                        "cellId": cell_id,
+                        "error": "NameError",
+                        "code": "df.head()",
+                        "traceback": "Traceback\nNameError",
+                    }
+                ),
+                headers={
+                    "Content-Type": "application/json",
+                    "Marimo-Stable-Session-Id": server.stable_session_id,
+                },
+            )
+            response = connection.getresponse()
+            assert response.status == 200, response.read()
+        finally:
+            connection.close()
+
+    with pair_test_server(tmp_path, pair_preview=True) as server:
+        connected = run_pair(server, "connect")
+        assert connected.returncode == 0, connected.stderr
+
+        send_handoff(server, "cell-one")
+        events = run_pair(server, "events")
+        assert events.returncode == 0, events.stderr
+        assert (
+            "cell-one"
+            in json.loads(events.stdout)["handoffs"]["events"][0]["text"]
+        )
+
+        empty = run_pair(server, "events")
+        assert empty.returncode == 0, empty.stderr
+        assert json.loads(empty.stdout)["handoffs"]["events"] == []
+
+        send_handoff(server, "cell-two")
+        listened = run_pair(server, "listen", "--once")
+        assert listened.returncode == 0, listened.stderr
+        assert "cell-two" in listened.stdout
+
+        detached = run_pair(server, "detach")
+        assert detached.returncode == 0, detached.stderr
+        assert json.loads(detached.stdout)["attached"] is False
+        assert not list(
+            (tmp_path / "state" / "marimo" / "pair").rglob("*.json")
+        )
 
 
 @pytest.mark.skipif(os.name != "posix", reason="SIGINT requires POSIX")
