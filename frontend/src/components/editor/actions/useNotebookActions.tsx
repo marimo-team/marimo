@@ -7,6 +7,8 @@ import {
   CheckIcon,
   ChevronDownCircleIcon,
   ChevronRightCircleIcon,
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
   ClipboardCopyIcon,
   CodeIcon,
   CommandIcon,
@@ -100,6 +102,7 @@ import type { ActionButton } from "./types";
 import { useCopyNotebook } from "./useCopyNotebook";
 import { useRestartKernel } from "./useRestartKernel";
 import { useSetCodeVisibility } from "./useSetCodeVisibility";
+import { useSetOutputsExpanded } from "./useSetOutputsExpanded";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -118,6 +121,7 @@ export function useNotebookActions({
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const setCodeVisibility = useSetCodeVisibility();
+  const setOutputsExpanded = useSetOutputsExpanded();
   const [resolvedConfig] = useResolvedMarimoConfig();
   const capabilities = useAtomValue(capabilitiesAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
@@ -594,6 +598,22 @@ export function useNotebookActions({
       label: "Hide all markdown code",
       hotkey: "global.hideAllMarkdownCode",
       handle: () => setCodeVisibility(true, "markdown"),
+      redundant: true,
+    },
+    {
+      icon: <ChevronsUpDownIcon size={14} strokeWidth={1.5} />,
+      label: "Expand all outputs",
+      hotkey: "global.expandAllOutputs",
+      hidden: viewState.mode !== "edit",
+      handle: () => setOutputsExpanded(true),
+      redundant: true,
+    },
+    {
+      icon: <ChevronsDownUpIcon size={14} strokeWidth={1.5} />,
+      label: "Clamp all outputs",
+      hotkey: "global.clampAllOutputs",
+      hidden: viewState.mode !== "edit",
+      handle: () => setOutputsExpanded(false),
       redundant: true,
     },
     {

@@ -389,6 +389,18 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: NOT_SET,
   },
+  "global.expandAllOutputs": {
+    name: "Expand all outputs",
+    group: "Editing",
+    key: NOT_SET,
+    additionalKeywords: ["show full output", "unclamp"],
+  },
+  "global.clampAllOutputs": {
+    name: "Clamp all outputs",
+    group: "Editing",
+    key: NOT_SET,
+    additionalKeywords: ["collapse outputs", "shrink outputs"],
+  },
   "global.collapseAllSections": {
     name: "Collapse all sections",
     group: "Editing",
