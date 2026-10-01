@@ -73,17 +73,15 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     marimo pair command. Pass the path, not the file contents.
     Otherwise, these commands use MARIMO_TOKEN when set.
 
-  Agent identity:
-    Connect once to appear as the agent in the notebook. Later execute
-    commands use that connection without a participant ID flag. Without
-    a connection, execute works as a regular Pair session.
-
   Workflow:
     If no server is running, start one in the background:
-      marimo edit <notebook.py> --no-token
+      MARIMO_PAIR_NEXT=1 marimo edit <notebook.py> --no-token
     If you do not have the server URL or session:
       marimo pair notebook list
-    marimo pair connect --url <URL> --session <SESSION>
+    If you start the server yourself, run it with MARIMO_PAIR_NEXT=1 so the
+    notebook can send you handoffs.
+    To appear as the agent in the notebook, connect once:
+      marimo pair connect --url <URL> --session <SESSION>
     marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
     import marimo._code_mode as cm
     async with cm.get_context() as ctx:
@@ -106,6 +104,15 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     If one notebook has several sessions, ask the user which one.
     Do not switch sessions after authentication or connection errors,
     or when execution is unconfirmed.
+
+  Handoffs:
+    The user can send a cell's error to you from the notebook. Pending handoffs
+    print at the end of every execute result under "handoffs". Read them before
+    your next step. A cell can change after a handoff: read it before you edit it.
+    To check for handoffs without running code:
+      marimo pair events --url <URL> --session <SESSION>
+    When the user ends the pairing:
+      marimo pair detach --url <URL> --session <SESSION>
 
   Rules:
     Cells are the unit of work. The scratchpad is temporary; only code mode edits persist.
@@ -133,12 +140,12 @@ Options:
 
 Commands:
   attach    Attach an agent and cache its...
-  connect   Connect this agent to one live notebook...
+  connect   Connect this agent conversation to a live...
   detach    End this agent's attachment.
   docs      Read notebook guidance on demand.
   events    Print pending handoffs and mark them...
   execute   Run Python in a live notebook session.
-  listen    Hold a stream of handoffs for an adapter.
+  listen    Hold a stream and print each handoff as it...
   notebook  Find active notebooks and their sessions.
   prompt    Generate a prompt for pair programming on...
 """)
@@ -152,6 +159,78 @@ Commands:
         assert "--opencode" in result.output
         assert "--file" not in result.output
         assert "--session" in result.output
+
+    def test_connect_help(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "connect", "--help"])
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Usage: main pair connect [OPTIONS]
+
+  Connect this agent conversation to a live notebook Session.
+
+Options:
+  --url URL            Server URL.  [required]
+  --session ID         Stable session_id from marimo pair notebook list.
+  --harness-id ID      Advisory harness ID when no adapter identifies the
+                       harness.
+  --harness-name NAME  Advisory display name when no adapter identifies the
+                       harness.
+  --token-file PATH    Read the server token from a local file. Otherwise use
+                       MARIMO_TOKEN, if set.
+  -h, --help           Show this message and exit.
+""")
+
+    def test_events_help(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "events", "--help"])
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Usage: main pair events [OPTIONS]
+
+  Print pending handoffs and mark them delivered.
+
+Options:
+  --url URL          Server URL.  [required]
+  --session ID       Stable session_id from marimo pair notebook list.
+  --since N          Replay from sequence N. The cursor never moves backward.
+                     [x>=0]
+  --token-file PATH  Read the server token from a local file. Otherwise use
+                     MARIMO_TOKEN, if set.
+  -h, --help         Show this message and exit.
+""")
+
+    def test_listen_help(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "listen", "--help"])
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Usage: main pair listen [OPTIONS]
+
+  Hold a stream and print each handoff as it arrives. Used by harness adapters.
+
+Options:
+  --url URL          Server URL.  [required]
+  --session ID       Stable session_id from marimo pair notebook list.
+  --once             Exit after the first handoff.
+  --token-file PATH  Read the server token from a local file. Otherwise use
+                     MARIMO_TOKEN, if set.
+  -h, --help         Show this message and exit.
+""")
+
+    def test_detach_help(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "detach", "--help"])
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Usage: main pair detach [OPTIONS]
+
+  End this agent's attachment. Pending handoffs and the cursor survive until the
+  notebook session ends. Run marimo pair connect again to resume them.
+
+Options:
+  --url URL          Server URL.  [required]
+  --session ID       Stable session_id from marimo pair notebook list.
+  --token-file PATH  Read the server token from a local file. Otherwise use
+                     MARIMO_TOKEN, if set.
+  -h, --help         Show this message and exit.
+""")
 
 
 class TestPairAttach:
