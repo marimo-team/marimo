@@ -2399,3 +2399,66 @@ more reliable and dramatically more efficient than asking the expressive
 baseline to reconstruct visual state indirectly. The 3/3 result validates the
 transport and case design, but is not broad statistical evidence across
 models or arbitrary frontend outputs.
+
+## Experiment 35: safe history and rendered-output lifecycle
+
+Date: 2026-10-01
+
+Model: `Qwen/Qwen3.5-35B-A3B`
+
+Runs: paired regression `20260930T210259Z-9272820a`; rendered-output
+iterations `20260930T210524Z-9d843d72`, `20260930T210653Z-1df6985d`, and
+`20260930T210804Z-eb3065a2`.
+
+An observed production-shaped trace exposed two independent harness issues.
+Semantic compaction replaced old `apply_notebook_patch` arguments with a
+comment placeholder, and the model later copied that placeholder back into a
+live notebook. Compaction now preserves every historical mutation input and
+only shortens safe, successful inspection results. A separate intra-run
+processor removes screenshot binary content only after a model response has
+consumed it; the newest unconsumed screenshot and unrelated image inputs stay
+intact.
+
+Rendered-output inspection also treated marimo's canonical empty
+`CellOutput` as visible and waited for a browser container that could never
+exist. The shared `NotebookCell.has_output` contract now drives screenshot
+preflight and mutation/run postconditions. `inspect_notebook` additionally
+normalizes `cell_id` to rendered-output inspection and accepts a uniquely
+defined public variable without changing the stable-ID contract for mutation
+tools.
+
+The paired regression run passed both cases:
+
+| Scenario | Passed | Duration | Tools / errors | Requests | Input tokens | Output tokens |
+|---|---:|---:|---:|---:|---:|---:|
+| Rendered output | 1/1 | 40.9s | 17 / 3 | 17 | 117,235 | 2,870 |
+| Five-turn revision restore | 1/1 | 32.6s | 11 / 0 | 16 | 87,463 | 4,455 |
+
+The revision case restored exact historical source after multiple edits and a
+deletion. No placeholder source appeared, and all five turns completed with
+zero tool errors. In the first rendered run, impossible screenshots failed in
+73–107ms rather than waiting roughly 15 seconds for Chromium. The additional
+calls were useful visual verification: the model noticed that dataframe row
+order did not force Altair category order and corrected the chart.
+
+Successive API/lifecycle fixes reduced the same rendered-output case while
+preserving correctness:
+
+| Iteration | Passed | Duration | Tools / errors | Requests | Input tokens |
+|---|---:|---:|---:|---:|---:|
+| Empty-output preflight | 1/1 | 40.9s | 17 / 3 | 17 | 117,235 |
+| `cell_id` implies rendered output | 1/1 | 21.8s | 10 / 2 | 11 | 72,707 |
+| Public-variable resolver, graph only | 1/1 | 20.8s | 9 / 2 | 9 | 56,967 |
+| Public-variable resolver with source fallback | 1/1 | 18.6s | 6 / 1 | 7 | 36,254 |
+
+The final remaining error is intentional: the first visual inspection occurs
+before the stale notebook has executed. It resolves `review_card` directly to
+cell `MJUe`, reports the absent rendered output in 149ms, and tells the model
+to run the cell. Inspection remains read-only instead of silently executing
+user code. Relative to the first iteration, the final run used 65% fewer
+tools, 59% fewer model requests, 69% fewer input tokens, and 55% less time.
+
+Conclusion: history compaction must preserve executable mutation provenance,
+while consumed multimodal payloads can be evicted safely within a run. For
+visual inspection, accurate lifecycle postconditions and forgiving read-only
+addressing produce larger gains than adding another specialized tool.

@@ -19,9 +19,11 @@ from marimo._code_mode.screenshot import (
     _ScreenshotSession,
     _to_data_url,
 )
+from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.notebook.document import (
     NotebookCell as _DocNotebookCell,
 )
+from marimo._messaging.notebook.outputs import CellOutputs
 from marimo._output.formatting import try_format
 from marimo._types.ids import CellId_t
 
@@ -122,7 +124,11 @@ class _FakeCells:
 
 def _fake_ctx(cell_ids: list[str], names: dict[str, str] | None = None) -> Any:
     """Build an object usable as `self` for the resolver method."""
-    return SimpleNamespace(cells=_FakeCells(cell_ids, names))
+    return SimpleNamespace(
+        cells=_FakeCells(cell_ids, names),
+        graph=SimpleNamespace(cells={}),
+        _document=SimpleNamespace(cells=[]),
+    )
 
 
 def _resolve(ctx: Any, target: Any) -> CellId_t:
@@ -172,9 +178,40 @@ class TestResolveScreenshotTarget:
         ctx = _fake_ctx(["cell-a", "cell-b"], names={"cell-b": "my_cell"})
         assert _resolve(ctx, "my_cell") == CellId_t("cell-b")
 
+    def test_str_resolves_uniquely_defined_variable(self) -> None:
+        ctx = _fake_ctx(["cell-a", "cell-b"])
+        ctx._document.cells = [
+            _DocNotebookCell(
+                id=CellId_t("cell-a"),
+                code="source = [1, 2, 3]",
+                name="",
+                config=CellConfig(),
+            ),
+            _DocNotebookCell(
+                id=CellId_t("cell-b"),
+                code="chart = source",
+                name="",
+                config=CellConfig(),
+            ),
+        ]
+
+        assert _resolve(ctx, "chart") == CellId_t("cell-b")
+
+    def test_str_does_not_resolve_ambiguous_variable(self) -> None:
+        ctx = _fake_ctx(["cell-a", "cell-b"])
+        ctx.graph.cells = {
+            CellId_t("cell-a"): SimpleNamespace(defs={"chart"}),
+            CellId_t("cell-b"): SimpleNamespace(defs={"chart"}),
+        }
+
+        with pytest.raises(ScreenshotError, match="uniquely defined variable"):
+            _resolve(ctx, "chart")
+
     def test_str_unknown_raises(self) -> None:
         ctx = _fake_ctx(["cell-a"])
-        with pytest.raises(ScreenshotError, match="Unknown cell ID or name"):
+        with pytest.raises(
+            ScreenshotError, match="Unknown cell ID, name, or uniquely"
+        ):
             _resolve(ctx, "does-not-exist")
 
     def test_notebook_cell_target(self) -> None:
@@ -194,3 +231,71 @@ class TestResolveScreenshotTarget:
             _resolve(ctx, 3.14)
         with pytest.raises(TypeError, match="Unsupported"):
             _resolve(ctx, object())
+
+
+def test_notebook_cell_distinguishes_empty_rendered_output() -> None:
+    cell_id = CellId_t("cell-a")
+    doc_cell = _DocNotebookCell(
+        id=cell_id,
+        code="value = 1",
+        name="",
+        config=CellConfig(),
+    )
+    empty_cell = NotebookCell(
+        doc_cell,
+        cell_impl=None,
+        outputs=CellOutputs(
+            output={cell_id: CellOutput.empty()},
+            console_outputs={},
+        ),
+    )
+    visible_cell = NotebookCell(
+        doc_cell,
+        cell_impl=None,
+        outputs=CellOutputs(
+            output={
+                cell_id: CellOutput(
+                    channel=CellOutput.empty().channel,
+                    mimetype="text/plain",
+                    data="1",
+                )
+            },
+            console_outputs={},
+        ),
+    )
+
+    assert empty_cell.has_output is False
+    assert visible_cell.has_output is True
+
+
+@pytest.mark.asyncio
+async def test_screenshot_rejects_missing_output_before_browser() -> None:
+    ctx = SimpleNamespace(
+        _resolve_screenshot_target=lambda _target: CellId_t("cell-a"),
+        _outputs=CellOutputs(output={}, console_outputs={}),
+        cells={"cell-a": SimpleNamespace(has_output=False)},
+    )
+
+    with pytest.raises(
+        ScreenshotError,
+        match="exists but has no recorded rendered output",
+    ):
+        await AsyncCodeModeContext.screenshot(ctx, "cell-a")
+
+
+@pytest.mark.asyncio
+async def test_screenshot_rejects_empty_output_before_browser() -> None:
+    ctx = SimpleNamespace(
+        _resolve_screenshot_target=lambda _target: CellId_t("cell-a"),
+        _outputs=CellOutputs(
+            output={CellId_t("cell-a"): CellOutput.empty()},
+            console_outputs={},
+        ),
+        cells={"cell-a": SimpleNamespace(has_output=False)},
+    )
+
+    with pytest.raises(
+        ScreenshotError,
+        match="exists but has no recorded rendered output",
+    ):
+        await AsyncCodeModeContext.screenshot(ctx, "cell-a")

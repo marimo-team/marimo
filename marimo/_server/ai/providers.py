@@ -493,9 +493,12 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         enable_capabilities: bool = False,
     ) -> StreamingResponse:
         """Return code-mode streaming responses"""
+        from pydantic_ai.capabilities import ProcessHistory
+
         from marimo._server.ai.tools.code_mode import (
             build_execute_code_toolset,
             build_hybrid_code_mode_toolset,
+            compact_consumed_screenshot_images,
             compact_hybrid_history,
             get_history_strategy,
             get_tool_strategy,
@@ -504,6 +507,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
 
         tool_strategy = get_tool_strategy(request)
         history_strategy = get_history_strategy(request)
+
         if tool_strategy == "hybrid_balanced":
             toolset = build_hybrid_code_mode_toolset(session, request)
             if history_strategy == "semantic":
@@ -516,7 +520,14 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             max_tokens=max_tokens,
             tools=[],
             toolsets=[toolset],
-            extra_capabilities=references_capability(),
+            extra_capabilities=[
+                *references_capability(),
+                *(
+                    [ProcessHistory(compact_consumed_screenshot_images)]
+                    if tool_strategy == "hybrid_balanced"
+                    else []
+                ),
+            ],
             enable_capabilities=enable_capabilities,
             system_prompt=system_prompt,
         )

@@ -165,8 +165,12 @@ def compact_hybrid_history(
     """Compact obsolete notebook snapshots in completed chat turns.
 
     The latest assistant turn stays intact. Older successful inspections can
-    be recreated from the live notebook, and older patch source is superseded
-    by the notebook state. Exploration results and every error stay verbatim.
+    be recreated from the live notebook. Patch calls, exploration results,
+    and every error stay verbatim.
+
+    Historical patch inputs deliberately remain untouched. Replacing their
+    `code` fields with placeholder source is unsafe: a model can replay the
+    placeholder as a real notebook mutation.
     """
     assistant_indexes = [
         index
@@ -214,49 +218,76 @@ def compact_hybrid_history(
                     "errors": [],
                     "error": None,
                 }
-            elif tool_type == "tool-apply_notebook_patch":
-                part["input"] = _compact_patch_input(part.get("input"))
     return compacted
 
 
-def _compact_patch_input(value: object) -> object:
-    if not isinstance(value, dict):
-        return value
+def compact_consumed_screenshot_images(messages: list[Any]) -> list[Any]:
+    """Remove screenshot bytes after a model has consumed them once.
 
-    def compact_cells(key: str) -> list[dict[str, object]] | None:
-        cells = value.get(key)
-        if not isinstance(cells, list):
-            return None
-        compacted_cells: list[dict[str, object]] = []
-        for cell in cells:
-            if not isinstance(cell, dict):
+    A screenshot in the newest request must reach the next model call. Once a
+    later model response exists, retaining the same PNG only repeats a large
+    binary payload on every subsequent tool loop. This processor performs
+    structural sharing and replaces only affected Pydantic AI messages.
+    """
+    from pydantic_ai.messages import (
+        BinaryContent,
+        ModelRequest,
+        ModelResponse,
+        ToolReturnPart,
+    )
+
+    processed = list(messages)
+    response_seen_after = False
+    changed = False
+
+    for message_index in range(len(processed) - 1, -1, -1):
+        message = processed[message_index]
+        if isinstance(message, ModelResponse):
+            response_seen_after = True
+            continue
+        if not response_seen_after or not isinstance(message, ModelRequest):
+            continue
+
+        parts = list(message.parts)
+        request_changed = False
+        for part_index, part in enumerate(parts):
+            if not isinstance(part, ToolReturnPart):
                 continue
-            code = cell.get("code")
-            code_chars = len(code) if isinstance(code, str) else 0
-            compacted_cell = {
-                field: cell.get(field)
-                for field in ("cell_id", "after_cell_id")
-                if field in cell
-            }
-            compacted_cell["code"] = (
-                "# Earlier patch source compacted "
-                f"({code_chars} characters). Inspect the live notebook for "
-                "current source."
-            )
-            compacted_cells.append(compacted_cell)
-        return compacted_cells
+            if part.tool_name != "inspect_notebook":
+                continue
 
-    compacted: dict[str, object] = {
-        "delete_cell_ids": value.get("delete_cell_ids")
-    }
-    # Retain support for conversations created before the patch schema split.
-    if (legacy_cells := compact_cells("cells")) is not None:
-        compacted["cells"] = legacy_cells
-    if (replacements := compact_cells("replacements")) is not None:
-        compacted["replacements"] = replacements
-    if (insertions := compact_cells("insertions")) is not None:
-        compacted["insertions"] = insertions
-    return compacted
+            content = part.content
+            if isinstance(content, list):
+                retained = [
+                    item
+                    for item in content
+                    if not isinstance(item, BinaryContent)
+                ]
+                if len(retained) == len(content):
+                    continue
+                replacement_content: Any = retained
+            elif isinstance(content, BinaryContent):
+                replacement_content = {
+                    "success": True,
+                    "output": (
+                        "Earlier rendered output was consumed; its image was "
+                        "omitted from subsequent model requests."
+                    ),
+                }
+            else:
+                continue
+
+            parts[part_index] = replace(
+                part,
+                content=replacement_content,
+            )
+            request_changed = True
+
+        if request_changed:
+            processed[message_index] = replace(message, parts=parts)
+            changed = True
+
+    return processed if changed else messages
 
 
 def build_execute_code_toolset(
@@ -353,7 +384,7 @@ def build_hybrid_code_mode_toolset(
     async def inspect_notebook(
         scope: Literal[
             "all", "outline", "errors", "history", "rendered_output"
-        ],
+        ] = "all",
         cell_id: str | None = None,
     ) -> InspectNotebookResult:
         """Inspect notebook state or view one cell's rendered output.
@@ -367,13 +398,13 @@ def build_hybrid_code_mode_toolset(
         agent mutation. It returns a bounded, chronological revision list and
         reports whether older revisions were truncated. Use `rendered_output`
         to visually inspect a chart, widget, image, or layout; pass its stable
-        `cell_id`, or omit it to capture the last cell.
+        `cell_id`, configured cell name, or uniquely defined public variable;
+        omit it to capture the last cell. Supplying `cell_id` always selects
+        rendered-output inspection, so callers do not need to coordinate two
+        arguments.
         """
-        if scope != "rendered_output" and cell_id is not None:
-            return CodeExecutionResult(
-                success=False,
-                errors=["cell_id is only valid when scope='rendered_output'"],
-            )
+        if cell_id is not None:
+            scope = "rendered_output"
         if scope == "rendered_output":
             result = await run(
                 "import marimo._code_mode as _cm\n"
@@ -543,7 +574,7 @@ def build_hybrid_code_mode_toolset(
             f"_delete_ids = {_python_literal(delete_ids)}\n"
             "async with _cm.get_context() as _ctx:\n"
             "    _before = {str(_cell.id): {\n"
-            "        'has_output': _cell.output is not None,\n"
+            "        'has_output': _cell.has_output,\n"
             "        'has_display_expression': (\n"
             "            _has_display_expression(_cell.code)\n"
             "        ),\n"
@@ -585,7 +616,7 @@ def build_hybrid_code_mode_toolset(
             "            _prior is not None\n"
             "            and _cell.status == 'idle'\n"
             "            and _prior['has_output']\n"
-            "            and _cell.output is None\n"
+            "            and not _cell.has_output\n"
             "        ):\n"
             "            _warnings.append(\n"
             "                f'Cell {_cell_id!r} previously produced visible '\n"
@@ -611,9 +642,7 @@ def build_hybrid_code_mode_toolset(
             "            str(_error)\n"
             "            for _error in _verify_ctx.cells[_cell_id].errors\n"
             "        ],\n"
-            "        'has_output': (\n"
-            "            _verify_ctx.cells[_cell_id].output is not None\n"
-            "        ),\n"
+            "        'has_output': _verify_ctx.cells[_cell_id].has_output,\n"
             "    } for _cell_id in _affected_ids]\n"
             "_result = {\n"
             "    'operation': 'patch',\n"
@@ -650,9 +679,7 @@ def build_hybrid_code_mode_toolset(
             "            str(_error)\n"
             "            for _error in _verify_ctx.cells[_cell_id].errors\n"
             "        ],\n"
-            "        'has_output': (\n"
-            "            _verify_ctx.cells[_cell_id].output is not None\n"
-            "        ),\n"
+            "        'has_output': _verify_ctx.cells[_cell_id].has_output,\n"
             "    } for _cell_id in _cell_ids]\n"
             "print(_json.dumps({\n"
             "    'operation': 'run',\n"

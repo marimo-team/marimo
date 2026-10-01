@@ -192,23 +192,30 @@ async def test_inspect_notebook_returns_rendered_output_as_image() -> None:
 
 
 @pytest.mark.requires("pydantic_ai")
-async def test_inspect_notebook_rejects_cell_id_for_text_scope() -> None:
+async def test_inspect_notebook_cell_id_selects_rendered_output() -> None:
+    from marimo._ai._tools.types import CodeExecutionResult
     from marimo._server.ai.tools.code_mode import (
         build_hybrid_code_mode_toolset,
     )
 
+    png = b"\x89PNG\r\n\x1a\n"
+    data_url = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
     toolset = build_hybrid_code_mode_toolset(MagicMock(), MagicMock())
     inspect_notebook = cast(
         Callable[..., Awaitable[object]],
         toolset.tools["inspect_notebook"].function,
     )
 
-    result = await inspect_notebook(scope="outline", cell_id="chart")
+    with patch(
+        "marimo._server.ai.tools.code_mode.run_scratchpad_code",
+        new_callable=AsyncMock,
+        return_value=CodeExecutionResult(success=True, output=data_url),
+    ) as mock_run:
+        await inspect_notebook(scope="all", cell_id="chart")
 
-    assert result.success is False
-    assert result.errors == [
-        "cell_id is only valid when scope='rendered_output'"
-    ]
+    source = mock_run.await_args.kwargs["code"]
+    assert "_ScreenshotOutput(_image)" in source
+    assert "_target_cell_id = 'chart'" in source
 
 
 def test_get_tool_strategy_defaults_to_balanced_hybrid() -> None:
@@ -354,19 +361,7 @@ def test_compact_hybrid_history_preserves_latest_turn_and_errors() -> None:
 
     old_parts = compacted[1]["parts"]
     assert old_parts[0]["output"]["output"].startswith("Earlier notebook")
-    assert old_parts[1]["input"] == {
-        "cells": [
-            {
-                "cell_id": "cell-1",
-                "after_cell_id": None,
-                "code": (
-                    "# Earlier patch source compacted (11 characters). "
-                    "Inspect the live notebook for current source."
-                ),
-            }
-        ],
-        "delete_cell_ids": [],
-    }
+    assert old_parts[1]["input"] == messages[1]["parts"][1]["input"]
     assert old_parts[2]["errorText"] == "NameError"
     assert compacted[3] == messages[3]
     assert messages[1]["parts"][0]["output"]["stdout"] == ["large source"]
@@ -424,6 +419,78 @@ def test_compact_hybrid_history_removes_old_rendered_images() -> None:
         "errors": [],
         "error": None,
     }
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_compact_consumed_screenshot_images_only_after_response() -> None:
+    from pydantic_ai import BinaryImage
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        ToolReturnPart,
+    )
+
+    from marimo._server.ai.tools.code_mode import (
+        compact_consumed_screenshot_images,
+    )
+
+    screenshot = ToolReturnPart(
+        tool_name="inspect_notebook",
+        tool_call_id="screenshot-1",
+        content=[
+            {"success": True, "output": "Captured PNG"},
+            BinaryImage(data=b"png-bytes", media_type="image/png"),
+        ],
+    )
+    request = ModelRequest(parts=[screenshot])
+
+    assert compact_consumed_screenshot_images([request]) == [request]
+
+    response = ModelResponse(parts=[TextPart(content="I inspected it")])
+    compacted = compact_consumed_screenshot_images([request, response])
+
+    compacted_request = compacted[0]
+    assert isinstance(compacted_request, ModelRequest)
+    compacted_part = compacted_request.parts[0]
+    assert isinstance(compacted_part, ToolReturnPart)
+    assert compacted_part.content == [
+        {"success": True, "output": "Captured PNG"}
+    ]
+    assert screenshot.files
+    assert not compacted_part.files
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_compact_consumed_screenshot_images_preserves_other_images() -> None:
+    from pydantic_ai import BinaryImage
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        ToolReturnPart,
+    )
+
+    from marimo._server.ai.tools.code_mode import (
+        compact_consumed_screenshot_images,
+    )
+
+    image = BinaryImage(data=b"image", media_type="image/png")
+    request = ModelRequest(
+        parts=[
+            ToolReturnPart(
+                tool_name="some_other_tool",
+                tool_call_id="other-1",
+                content=[image],
+            )
+        ]
+    )
+    response = ModelResponse(parts=[TextPart(content="done")])
+
+    assert compact_consumed_screenshot_images([request, response]) == [
+        request,
+        response,
+    ]
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -520,7 +587,7 @@ async def test_hybrid_patch_compiles_to_one_code_mode_transaction() -> None:
     assert "_ctx.create_cell(" in source
     assert "_ctx.delete_cell(_cell_id)" in source
     assert "[*_stale_ids, *_edited_ids, *_created_ids]" in source
-    assert "_cell.output is not None" in source
+    assert "_cell.has_output" in source
     assert "_has_display_expression(_cell.code)" in source
     assert "previously produced visible" in source
     assert "previously ended in a" in source

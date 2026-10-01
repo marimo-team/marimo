@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import keyword
 import sys
+from contextlib import suppress
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, overload
@@ -61,7 +62,7 @@ from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
-from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import Error
 from marimo._messaging.notebook.changes import (
     CreateCell,
@@ -308,6 +309,8 @@ class NotebookCell:
         scratchpad-start, not refreshed when `ctx.run_cell` produces
         new outputs in the same batch. Re-enter `cm.get_context()` to
         see fresh outputs.
+    has_output : bool
+        Whether the cell has a non-empty rendered output.
     console_outputs : list[CellOutput]
         Buffered stdout/stderr outputs from the cell's last execution.
         Same frozen-snapshot caveat as `output`.
@@ -451,6 +454,18 @@ class NotebookCell:
         if self._outputs is None:
             return None
         return self._outputs.output.get(self._cell.id)
+
+    @property
+    def has_output(self) -> bool:
+        """Whether the cell has a non-empty rendered output."""
+        output = self.output
+        if output is None:
+            return False
+        return not (
+            output.channel == CellChannel.OUTPUT
+            and output.mimetype == "text/plain"
+            and output.data == ""
+        )
 
     @property
     def console_outputs(self) -> list[CellOutput]:
@@ -1426,7 +1441,8 @@ class AsyncCodeModeContext:
 
                 - `None` — last cell.
                 - `int` — cell index (negative OK).
-                - `str` — cell ID or name.
+                - `str` — cell ID, cell name, or a uniquely defined public
+                  variable.
                 - `NotebookCell` — e.g. `ctx.cells[0]`.
 
                 For an object defined by a cell, resolve first::
@@ -1456,6 +1472,14 @@ class AsyncCodeModeContext:
         from marimo._messaging.context import HTTP_REQUEST_CTX
 
         cell_id = self._resolve_screenshot_target(target)
+
+        if self._outputs is not None and not self.cells[cell_id].has_output:
+            raise ScreenshotError(
+                f"Cell {cell_id!r} exists but has no recorded rendered "
+                "output.\nFix: run the cell, ensure its final expression "
+                "returns a displayable value, then re-enter the code-mode "
+                "context before capturing it."
+            )
 
         # Resolve server URL from the current HTTP request context.
         request = HTTP_REQUEST_CTX.get(None)
@@ -1557,8 +1581,28 @@ class AsyncCodeModeContext:
             try:
                 return self.cells._resolve(target)
             except KeyError as exc:
+                graph = getattr(self, "graph", None)
+                defining_cells: set[CellId_t] = set()
+                if graph is not None:
+                    defining_cells.update(
+                        CellId_t(cell_id)
+                        for cell_id, cell in graph.cells.items()
+                        if target in cell.defs
+                    )
+                document = getattr(self, "_document", None)
+                if document is not None:
+                    for cell in document.cells:
+                        # A broken unrelated cell must not prevent resolving
+                        # a healthy target from the rest of the notebook.
+                        with suppress(Exception):
+                            compiled = compile_cell(cell.code, cell_id=cell.id)
+                            if target in compiled.defs:
+                                defining_cells.add(cell.id)
+                if len(defining_cells) == 1:
+                    return next(iter(defining_cells))
                 raise ScreenshotError(
-                    f"Unknown cell ID or name: {target!r}."
+                    f"Unknown cell ID, name, or uniquely defined variable: "
+                    f"{target!r}."
                 ) from exc
 
         if isinstance(target, NotebookCell):
@@ -1566,8 +1610,8 @@ class AsyncCodeModeContext:
 
         raise TypeError(
             f"Unsupported screenshot target type: {type(target).__name__}. "
-            "Pass a cell ID (str), cell name (str), integer index, "
-            "or NotebookCell."
+            "Pass a cell ID, cell name, uniquely defined public variable, "
+            "integer index, or NotebookCell."
         )
 
     def find_cell_defining_object(self, obj: Any) -> CellId_t | None:
