@@ -844,6 +844,7 @@ const DataTableComponent = ({
   paginationState,
   setPaginationState,
   download_as: downloadAs,
+  get_export_metadata: getExportMetadata,
   columnSummaries,
   className,
   setValue,
@@ -1172,6 +1173,7 @@ const DataTableComponent = ({
             hoverTemplate={hoverTemplate}
             cellHoverTexts={cellHoverTexts}
             downloadAs={showDownload ? downloadAs : undefined}
+            getExportMetadata={showDownload ? getExportMetadata : undefined}
             showSearch={showSearch}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
