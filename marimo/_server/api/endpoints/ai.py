@@ -287,6 +287,8 @@ async def ai_chat(
             session=session,
             request=request,
             max_tokens=max_tokens,
+            history_manager=app_state.session_manager.ai_history_manager,
+            history_key=(session_id, conversation_id),
             enable_capabilities=enable_capabilities,
             stream_options=stream_options,
         )

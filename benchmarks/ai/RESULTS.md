@@ -2462,3 +2462,234 @@ Conclusion: history compaction must preserve executable mutation provenance,
 while consumed multimodal payloads can be evicted safely within a run. For
 visual inspection, accurate lifecycle postconditions and forgiving read-only
 addressing produce larger gains than adding another specialized tool.
+
+## Experiment 36: external-agent execution lifecycle
+
+Date: 2026-10-01
+
+An external code-mode MCP trace exposed an inherited 30-second blocking
+timeout. This was not an agent-quality assumption: the same deadline had
+already been removed from the streaming execution endpoint because it was too
+short for legitimate work. Worse, the MCP-specific implementation returned on
+timeout without interrupting the kernel, so the timed-out code could continue
+in the background while a later tool call began.
+
+The MCP tool now uses the same shared scratchpad command lifecycle as the chat
+sidebar. Its explicit external-agent budget is five minutes. Timeout and
+caller cancellation interrupt the kernel while the per-session scratchpad
+lock is still held; normal completion releases the lock without interruption.
+The tool description states this contract so agents need not infer it by
+trial and error.
+
+Verification covered the protocol and execution layers:
+
+- A protocol-level MCP call delegates to the shared runner with a 300-second
+  budget.
+- A delayed command completes after a shorter legacy deadline without being
+  interrupted.
+- Existing timeout and cancellation tests confirm exactly one interrupt while
+  the scratchpad lock is held.
+- All 106 MCP, scratchpad, and real-kernel execution endpoint tests passed.
+
+MCP clients may still impose their own absolute request deadline. Progress
+notifications do not reset the installed SDK client's deadline, so emitting
+synthetic heartbeats would add complexity without fixing that class of
+timeout. Such clients must permit calls longer than 30 seconds; marimo now
+correctly supports them up to its five-minute server budget.
+
+## Experiment 37: conversation-scoped sidebar checkpoints
+
+Date: 2026-10-01
+
+Moved the notebook-aware checkpoint prototype across the real sidebar
+boundary. The browser still owns and submits the immutable UI transcript, but
+the server now keeps a bounded, in-memory model checkpoint per notebook
+session and chat ID. A checkpoint fingerprint covers the exact compacted UI
+prefix; edited, regenerated, shortened, or model-switched conversations reset
+the derived state rather than applying a stale summary. Failed summaries fall
+back to semantic history without failing the user's chat request.
+
+The experiment is opt-in with
+`MARIMO_AI_HISTORY_STRATEGY=checkpoint` or the corresponding request header.
+Activation is based on an estimated-token budget: 60% of a known model context
+window, capped at 32,000 tokens, with a 20,000-token fallback. The benchmark
+uses a forced 15,000-token threshold so both marathon cases cross it. Recent
+turns remain verbatim, and at least two newly completed assistant turns are
+required between checkpoints. State is bounded to 128 conversations and is
+intentionally not durable across server restarts yet.
+
+The benchmark's `hybrid_checkpoint` variant now exercises this server path,
+instead of compacting inside the benchmark client. Response metadata records
+checkpoint count, duration, input size, usage, and effective-history size.
+The first probe (`20261001T081803Z-9aa8a3cd`) passed but exposed a benchmark
+telemetry bug: HTTP header names lost case-insensitive lookup after conversion
+to a plain dictionary. The corrected results below exclude that probe.
+
+Model: `deepseek-ai/DeepSeek-V4.1-Flash`
+
+Runs: corrected recall checkpoint
+`20261001T082135Z-5fd11d9f`; recall semantic control
+`20261001T082540Z-ff18bec6`; parallel multi-task comparison
+`20261001T082857Z-b013a2af`.
+
+| Scenario | History | Passed | Duration | Tools / errors | Requests | Input tokens | Output / reasoning | Checkpoints |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| Recall | Semantic | 1/1 | 172.0s | 32 / 3 | 42 | 953,042 | 27,500 / 17,340 | 0 |
+| Recall | Server checkpoint | 1/1 | 218.4s | 32 / 1 | 43 | 460,644 | 24,663 / 13,767 | 2 |
+| Multi-task | Semantic | 1/1 | 368.1s | 49 / 4 | 60 | 1,855,447 | 46,615 / 27,649 | 0 |
+| Multi-task | Server checkpoint | 1/1 | 303.4s | 44 / 0 | 59 | 798,706 | 40,089 / 21,838 | 5 |
+
+Across the two scenarios, both strategies passed 2/2. Server checkpoints used
+1,259,350 input tokens versus 2,808,489 for semantic history, a 55.2%
+reduction. They used 6.2% fewer tools, reduced tool errors from seven to one,
+and kept total model requests equal at 102. Aggregate duration improved only
+3.4%; recall was slower while multi-task was faster, so this sample does not
+establish a latency win. Direct checkpoint generation accounted for 31.7
+seconds across the seven checkpoints.
+
+On recall, the final effective history fell from 123,272 characters to 25,184
+while exact source restoration still passed. Some multi-task turns retained a
+single very large recent assistant message, so the checkpoint could not always
+reduce effective history below the threshold without splitting a UI message.
+It still removed repeated older payloads and cut total input tokens by 57% in
+that case.
+
+Focused unit, provider, endpoint, and benchmark tests cover reuse across HTTP
+requests, incremental updates, branch invalidation, summary failure fallback,
+environment activation, token-threshold parsing, response telemetry, and
+short-history no-ops. The architecture is now suitable for continued live
+sidebar testing, but should remain opt-in until durable lifecycle semantics
+and additional model repetitions settle the default threshold and latency
+tradeoff.
+
+## Experiment 38: default-readiness verification
+
+Date: 2026-10-01
+
+Tested whether conversation checkpoints were sufficiently better than semantic
+history to become the sidebar default. Verification covered both extreme
+scenarios with DeepSeek V4.1 Flash and Qwen 3.5 35B, followed by targeted
+repetitions of the Qwen multi-task case that exposed the main correctness
+risk.
+
+The initial cross-model run (`20261001T083947Z-38046bc9`) found that the
+summary-only checkpoint was not safe enough. Qwen's checkpoint multi-task
+trial failed `net_external_revenue`: an incorrect metric interpretation was
+introduced before checkpointing and survived after the original conversation
+prefix was removed. Retaining old user text verbatim did not fix the issue in
+two repetitions (`20261001T084659Z-8a4d28a8`). Matched semantic controls were
+also unstable, passing one of two repetitions
+(`20261001T084910Z-11f9a8a1`), but checkpointing could not become the default
+while its observed correctness was worse.
+
+The safer design retains every compacted user message plus up to 32,000
+characters of earlier assistant prose verbatim. Assistant text is explicitly
+labelled as a historical claim, while old tool payloads remain represented by
+the notebook-aware checkpoint. This preserves exact requirements and compact
+metric or variable meanings without repeatedly sending large inspections.
+
+The revised Qwen multi-task case produced three completed passes across
+`20261001T085513Z-c81854e4` and `20261001T085730Z-eadb7dde`; one parallel
+trial failed on turn six before any checkpoint because
+`apply_notebook_patch` exhausted its single retry. A fresh two-model matrix
+then passed all four trials (`20261001T085933Z-8d6a2233`). Against the
+contemporaneous semantic controls from the initial matrix, however, the 15k
+checkpoint policy showed a tradeoff rather than a uniform win:
+
+| Model | History | Passed | Mean duration | Mean tools / errors | Mean requests | Mean input tokens |
+|---|---|---:|---:|---:|---:|---:|
+| DeepSeek | Semantic | 2/2 | 199.9s | 35.5 / 1.0 | 45.0 | 994,532 |
+| DeepSeek | Checkpoint + transcript | 2/2 | 231.8s | 40.5 / 1.5 | 54.0 | 867,949 |
+| Qwen | Semantic | 2/2 | 92.4s | 43.5 / 9.0 | 54.5 | 772,703 |
+| Qwen | Checkpoint + transcript | 2/2 | 102.9s | 39.0 / 9.0 | 51.0 | 690,505 |
+
+Input tokens fell 12.7% for DeepSeek and 10.6% for Qwen, but mean duration
+rose 16.0% and 11.4%, respectively. The transcript skeleton restored
+correctness but necessarily retained more context than the summary-only
+prototype.
+
+A 25k-token threshold (`20261001T090555Z-4b40af24`) did not reduce DeepSeek's
+five-checkpoint cadence because individual recent tool turns already exceeded
+the threshold. Qwen multi-task again selected a regional value for the
+ambiguous final total and failed one deterministic check. Threshold alone was
+therefore not the right control.
+
+The final policy requires four newly completed assistant turns between
+checkpoints instead of two. In `20261001T091227Z-42fdb8cf`, all three trials
+that reached checkpointing passed; Qwen recall failed on turn three before
+checkpoint activation because `apply_notebook_patch` exhausted its retry.
+DeepSeek generated two multi-task checkpoints and one recall checkpoint,
+instead of five and two. Compared with the semantic DeepSeek controls, this
+policy used 27.2% fewer input tokens, but remained 13.6% slower and used 5.6%
+more tools and 3.3% more model requests.
+
+Conclusion: persistent checkpoints are validated as an opt-in long-context
+safety mechanism, and the bounded transcript skeleton fixes the observed
+summary-only recall weakness. They are not yet proven better as the universal
+default: token usage consistently improves, while latency and exploration do
+not. Keep semantic history as the default, retain checkpoint mode for live
+testing, and revisit default activation with a model-context emergency
+threshold or a longer scenario that actually exceeds the uncheckpointed
+context window.
+
+## Experiment 39: provider-aware and prefetched compaction
+
+Date: 2026-10-01
+
+Tested a more native history architecture with two independent changes:
+
+1. use Pydantic AI's `OpenAICompaction` and `AnthropicCompaction` capabilities
+   for providers that implement their native compaction contracts; and
+2. for portable model providers, prepare a checkpoint concurrently below the
+   normal threshold and adopt it on the next request.
+
+The first prefetch attempt triggered at the same threshold as blocking
+compaction. It therefore sent one extra uncompressed turn and was rejected
+immediately. In the matched DeepSeek recall run
+`20261001T092950Z-ad5ff49e`, both variants passed, but prefetch used 835,454
+input tokens and 229.5 seconds versus 426,325 tokens and 90.4 seconds for the
+blocking checkpoint.
+
+The corrected version prefetched at 70% of the normal threshold and required
+the result at the original threshold. Two repetitions per strategy in
+`20261001T093509Z-fcb960a5` all passed:
+
+| Strategy | Passed | Mean duration | Mean tools / errors | Mean requests | Mean input tokens |
+|---|---:|---:|---:|---:|---:|
+| Blocking checkpoint | 2/2 | 139.9s | 29.5 / 1.0 | 37.0 | 545,495 |
+| Prefetched checkpoint | 2/2 | 167.0s | 29.0 / 1.0 | 37.5 | 530,539 |
+
+Prefetch reduced input tokens by 2.7% and fully overlapped the roughly
+3.5-second checkpoint calls, but mean end-to-end latency was 19.4% worse.
+The remaining difference came from model behavior rather than foreground
+checkpoint waiting.
+
+The provider-aware `hybrid_automatic_history` strategy then ran through the
+W&B OpenAI-compatible route. Because that route does not implement OpenAI
+Responses compaction, every turn correctly reported the
+`portable-checkpoint` backend. A one-off Qwen multi-task run
+(`20261001T094243Z-4c260178`) passed in 103.0 seconds with 705,450 input
+tokens. The full matrix (`20261001T094508Z-c156d6cd`) passed all four trials:
+
+| Model | Passed | Mean duration | Mean tools / errors | Mean requests | Mean input tokens |
+|---|---:|---:|---:|---:|---:|
+| DeepSeek | 2/2 | 328.2s | 38.0 / 1.0 | 49.5 | 965,811 |
+| Qwen | 2/2 | 91.1s | 37.5 / 4.5 | 49.0 | 576,581 |
+
+The DeepSeek multi-task trial entered a long but successful exploratory path.
+Against the blocking-checkpoint DeepSeek matrix from Experiment 38, the
+prefetch aggregate was 44.5% slower and used 33.4% more input tokens, with
+nearly unchanged tool counts. Prefetch therefore is not a reliable portable
+default and its implementation was removed after the experiment.
+
+The provider-native branch remains because it is materially different: it
+does not add a separate summarizer request, and its `CompactionPart` is the
+provider's durable history boundary. Unit coverage verifies provider
+selection and a complete `CompactionPart` to Vercel UI message and back
+round-trip. No direct OpenAI or Anthropic API credential was available in the
+benchmark environment, so native quality and latency are not yet established.
+
+Conclusion: keep semantic history as the production default. Retain
+provider-aware automatic history as an opt-in experiment, using native
+compaction for direct OpenAI Responses or Anthropic providers and the proven
+blocking portable checkpoint elsewhere. Do not retain portable prefetch.

@@ -5,6 +5,7 @@ import ast
 import base64
 import binascii
 import copy
+import os
 from dataclasses import asdict, dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
@@ -30,8 +31,21 @@ else:
 
 ToolStrategy = Literal["code_mode", "hybrid_balanced"]
 TOOL_STRATEGY_HEADER = "Marimo-AI-Tool-Strategy"
-HistoryStrategy = Literal["none", "semantic"]
+HistoryStrategy = Literal[
+    "none",
+    "semantic",
+    "checkpoint",
+    "automatic",
+]
 HISTORY_STRATEGY_HEADER = "Marimo-AI-History-Strategy"
+HISTORY_STRATEGY_ENV = "MARIMO_AI_HISTORY_STRATEGY"
+HISTORY_CHECKPOINT_THRESHOLD_HEADER = (
+    "Marimo-AI-History-Checkpoint-Threshold-Tokens"
+)
+HISTORY_CHECKPOINT_THRESHOLD_ENV = (
+    "MARIMO_AI_HISTORY_CHECKPOINT_THRESHOLD_TOKENS"
+)
+HISTORY_BACKEND_HEADER = "Marimo-AI-History-Backend"
 EXPLORATION_TIMEOUT_SECONDS = 60.0
 NOTEBOOK_OPERATION_TIMEOUT_SECONDS = 300.0
 PACKAGE_OPERATION_TIMEOUT_SECONDS = 600.0
@@ -76,10 +90,30 @@ def get_tool_strategy(request: Request) -> ToolStrategy:
 
 def get_history_strategy(request: Request) -> HistoryStrategy:
     """Return the requested experimental history strategy."""
-    strategy = request.headers.get(HISTORY_STRATEGY_HEADER)
+    strategy = request.headers.get(HISTORY_STRATEGY_HEADER) or os.environ.get(
+        HISTORY_STRATEGY_ENV
+    )
     if strategy == "none":
         return "none"
+    if strategy == "checkpoint":
+        return "checkpoint"
+    if strategy == "automatic":
+        return "automatic"
     return "semantic"
+
+
+def get_history_checkpoint_threshold(request: Request) -> int | None:
+    """Return an optional token threshold for checkpoint experiments."""
+    value = request.headers.get(
+        HISTORY_CHECKPOINT_THRESHOLD_HEADER
+    ) or os.environ.get(HISTORY_CHECKPOINT_THRESHOLD_ENV)
+    if value is None:
+        return None
+    try:
+        threshold = int(value)
+    except ValueError:
+        return None
+    return threshold if threshold > 0 else None
 
 
 def _python_literal(value: object) -> str:

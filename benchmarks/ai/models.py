@@ -83,9 +83,10 @@ class HarnessVariant:
     history_strategy: Literal[
         "none",
         "semantic",
-        "incremental_checkpoint",
+        "checkpoint",
+        "automatic",
     ] = "none"
-    checkpoint_threshold_chars: int | None = None
+    checkpoint_threshold_tokens: int | None = None
 
 
 @dataclass(frozen=True)
@@ -139,6 +140,7 @@ class TurnMetrics:
     checkpoint_generated: bool = False
     checkpoint_duration_seconds: float = 0.0
     checkpoint_input_chars: int = 0
+    history_backend: str = "uncompacted"
     tool_metrics: tuple[ToolCallMetrics, ...] = ()
 
 

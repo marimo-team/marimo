@@ -205,8 +205,20 @@ They are evaluation configurations, not three proposed production modes:
 `hybrid_uncompacted` is a control, `hybrid_balanced` represents normal history
 below the compaction threshold, and `hybrid_checkpoint` extends that behavior
 with incremental checkpoints only after a long conversation crosses the
-threshold. The checkpoint implementation remains a benchmark-only prototype
-and currently uses a recorded character threshold.
+threshold. The checkpoint variant exercises the same opt-in, server-scoped
+history manager used by the sidebar experiment and uses a token-estimate
+threshold. Set `MARIMO_AI_HISTORY_STRATEGY=checkpoint` to exercise that path
+from the live sidebar; it remains disabled by default. Compacted prefixes keep
+all user text plus a bounded verbatim assistant-text skeleton, while large old
+tool payloads are represented by a notebook-aware checkpoint. At least four
+new completed turns are required before another checkpoint can be generated.
+`hybrid_automatic_history` is the provider-aware prototype: direct OpenAI
+Responses and Anthropic providers use Pydantic AI's native compaction
+capability, while providers without that contract use the portable checkpoint.
+The response header `Marimo-AI-History-Backend` records `native`,
+`portable-checkpoint`, `semantic`, or `uncompacted` for every turn. Native
+compaction remains experimental until it has been exercised against real
+OpenAI and Anthropic credentials.
 Rejected Pydantic AI Harness strategies and forced-threshold variants are
 documented in `RESULTS.md` but are no longer exposed.
 

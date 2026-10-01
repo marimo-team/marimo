@@ -359,7 +359,7 @@ async def run_scratchpad_code(
     auth_token: str,
     timeout: float = EXECUTION_TIMEOUT,
 ) -> CodeExecutionResult:
-    """Drive the kernel scratchpad on behalf of code-mode"""
+    """Drive the kernel scratchpad on behalf of sidebar code-mode."""
     http_req = HTTPRequest.from_request(request)
     http_req.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
     http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
@@ -372,6 +372,29 @@ async def run_scratchpad_code(
         http_request=http_req,
     )
 
+    return await run_scratchpad_command(
+        session,
+        code=code,
+        request=http_req,
+        timeout=timeout,
+    )
+
+
+async def run_scratchpad_command(
+    session: Session,
+    *,
+    code: str,
+    request: HTTPRequest | None = None,
+    timeout: float = EXECUTION_TIMEOUT,
+) -> CodeExecutionResult:
+    """Execute one scratchpad command with bounded, safe cancellation.
+
+    This is the shared lifecycle for blocking callers such as the sidebar
+    harness and the external code-mode MCP server. A timeout or caller
+    cancellation interrupts the kernel before releasing the per-session
+    scratchpad lock.
+    """
+
     run_id = str(uuid4())
     listener = ScratchCellListener(run_id=run_id)
 
@@ -383,7 +406,7 @@ async def run_scratchpad_code(
             session.put_control_request(
                 ExecuteScratchpadCommand(
                     code=code,
-                    request=http_req,
+                    request=request,
                     notebook_cells=notebook_cells,
                     cell_outputs=cell_outputs,
                     run_id=run_id,

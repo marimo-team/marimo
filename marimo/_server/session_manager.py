@@ -57,6 +57,7 @@ from marimo._utils.file_watcher import FileWatcherManager
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from marimo._server.ai.history import ConversationHistoryManager
     from marimo._session.notebook import AppFileManager
 
 LOGGER = _loggers.marimo_logger()
@@ -126,6 +127,13 @@ class SessionManager:
             )
 
         self._repository = SessionRepository()
+        # Experimental model-facing checkpoints live at server scope so they
+        # survive the fresh Pydantic AI agent created for each chat request.
+        from marimo._server.ai.history import ConversationHistoryManager
+
+        self.ai_history_manager: ConversationHistoryManager = (
+            ConversationHistoryManager()
+        )
         self._pending: dict[str, _PendingSession] = {}
         self._connection_locks: WeakValueDictionary[str, asyncio.Lock] = (
             WeakValueDictionary()

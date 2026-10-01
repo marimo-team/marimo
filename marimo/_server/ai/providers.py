@@ -93,6 +93,11 @@ if TYPE_CHECKING:
     from starlette.requests import Request
     from starlette.responses import StreamingResponse
 
+    from marimo._server.ai.history import (
+        CheckpointSummary,
+        ConversationHistoryManager,
+        ConversationKey,
+    )
     from marimo._session import Session
 
 
@@ -490,16 +495,20 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         request: Request,
         max_tokens: int | None,
         stream_options: StreamOptions,
+        history_manager: ConversationHistoryManager,
+        history_key: ConversationKey,
         enable_capabilities: bool = False,
     ) -> StreamingResponse:
         """Return code-mode streaming responses"""
         from pydantic_ai.capabilities import ProcessHistory
 
         from marimo._server.ai.tools.code_mode import (
+            HISTORY_BACKEND_HEADER,
             build_execute_code_toolset,
             build_hybrid_code_mode_toolset,
             compact_consumed_screenshot_images,
             compact_hybrid_history,
+            get_history_checkpoint_threshold,
             get_history_strategy,
             get_tool_strategy,
             references_capability,
@@ -507,11 +516,45 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
 
         tool_strategy = get_tool_strategy(request)
         history_strategy = get_history_strategy(request)
+        checkpoint_threshold = get_history_checkpoint_threshold(request)
+        history_preparation = None
+        native_history_capabilities: list[AbstractCapability[None]] = []
+        history_backend = "uncompacted"
 
         if tool_strategy == "hybrid_balanced":
             toolset = build_hybrid_code_mode_toolset(session, request)
-            if history_strategy == "semantic":
-                messages = compact_hybrid_history(messages)
+            if history_strategy in (
+                "semantic",
+                "checkpoint",
+                "automatic",
+            ):
+                semantic_messages = compact_hybrid_history(messages)
+                if history_strategy == "automatic":
+                    native_history_capabilities = (
+                        self._native_history_capabilities(checkpoint_threshold)
+                    )
+                use_portable_checkpoint = history_strategy == "checkpoint" or (
+                    history_strategy == "automatic"
+                    and not native_history_capabilities
+                )
+                if use_portable_checkpoint:
+                    preparation = await history_manager.prepare(
+                        key=history_key,
+                        model=stream_options.span_info.model,
+                        messages=messages,
+                        semantic_messages=semantic_messages,
+                        summarize=self.create_history_checkpoint,
+                        context_window=self._model_context_window(),
+                        threshold_tokens=checkpoint_threshold,
+                    )
+                    messages = preparation.messages
+                    history_preparation = preparation
+                    history_backend = "portable-checkpoint"
+                else:
+                    messages = semantic_messages
+                    history_backend = (
+                        "native" if native_history_capabilities else "semantic"
+                    )
         else:
             toolset = build_execute_code_toolset(session, request)
 
@@ -527,6 +570,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
                     if tool_strategy == "hybrid_balanced"
                     else []
                 ),
+                *native_history_capabilities,
             ],
             enable_capabilities=enable_capabilities,
             system_prompt=system_prompt,
@@ -536,7 +580,94 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             agent.root_capability.capabilities
         )
 
-        return self._vercel_streaming_response(agent, messages, stream_options)
+        response = self._vercel_streaming_response(
+            agent, messages, stream_options
+        )
+        response.headers[HISTORY_BACKEND_HEADER] = history_backend
+        if history_preparation is not None:
+            from marimo._server.ai.history import (
+                CHECKPOINT_DURATION_HEADER,
+                CHECKPOINT_GENERATED_HEADER,
+                CHECKPOINT_INPUT_CHARS_HEADER,
+                CHECKPOINT_INPUT_TOKENS_HEADER,
+                CHECKPOINT_OUTPUT_TOKENS_HEADER,
+                CHECKPOINT_REASONING_TOKENS_HEADER,
+                CHECKPOINT_REQUESTS_HEADER,
+                CHECKPOINT_RESET_HEADER,
+                EFFECTIVE_HISTORY_TOKENS_HEADER,
+            )
+
+            response.headers[CHECKPOINT_GENERATED_HEADER] = str(
+                history_preparation.checkpoint_generated
+            ).lower()
+            response.headers[CHECKPOINT_RESET_HEADER] = str(
+                history_preparation.checkpoint_reset
+            ).lower()
+            response.headers[CHECKPOINT_DURATION_HEADER] = str(
+                history_preparation.checkpoint_duration_seconds
+            )
+            response.headers[CHECKPOINT_INPUT_CHARS_HEADER] = str(
+                history_preparation.checkpoint_input_chars
+            )
+            response.headers[CHECKPOINT_REQUESTS_HEADER] = str(
+                history_preparation.checkpoint_requests
+            )
+            response.headers[CHECKPOINT_INPUT_TOKENS_HEADER] = str(
+                history_preparation.checkpoint_input_tokens
+            )
+            response.headers[CHECKPOINT_OUTPUT_TOKENS_HEADER] = str(
+                history_preparation.checkpoint_output_tokens
+            )
+            response.headers[CHECKPOINT_REASONING_TOKENS_HEADER] = str(
+                history_preparation.checkpoint_reasoning_tokens
+            )
+            response.headers[EFFECTIVE_HISTORY_TOKENS_HEADER] = str(
+                history_preparation.effective_tokens_estimate
+            )
+        return response
+
+    async def create_history_checkpoint(
+        self, input_text: str
+    ) -> CheckpointSummary:
+        """Summarize a completed conversation prefix without agent tools."""
+        from marimo._server.ai.history import CheckpointSummary
+
+        agent = self.create_agent(
+            name="history_checkpoint",
+            max_tokens=4096,
+            tools=[],
+            enable_capabilities=False,
+            system_prompt=(
+                "Create a compact checkpoint for an AI notebook editor. "
+                "The caller separately retains all earlier user text verbatim. "
+                "Summarize execution state: completed work, decisions made by "
+                "the user, meanings and definitions of important variables or "
+                "metrics, stable notebook cell or artifact identifiers, and "
+                "unresolved work. Do not treat numeric values from assistant "
+                "claims as authoritative, and do not copy notebook source or "
+                "large tool output: the live notebook and bounded revision "
+                "history are available. Distinguish completed tasks from active "
+                "work. Return only concise Markdown with factual bullets."
+            ),
+        )
+        result = await agent.run(
+            input_text,
+            model_settings=self._completion_model_settings(False),
+        )
+        usage = result.usage
+        return CheckpointSummary(
+            text=str(result.output),
+            requests=usage.requests,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
+            reasoning_tokens=usage.details.get("reasoning_tokens", 0),
+        )
+
+    def _model_context_window(self) -> int | None:
+        value = profile_get(
+            self.create_model().profile, "context_window", None
+        )
+        return value if isinstance(value, int) else None
 
     def _build_agent_capabilities(
         self, model: Model
@@ -576,6 +707,13 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             "Capabilities: %s for model: %s", capabilities, self.model
         )
         return capabilities
+
+    def _native_history_capabilities(
+        self, threshold_tokens: int | None
+    ) -> list[AbstractCapability[None]]:
+        """Return provider-owned compaction capabilities when available."""
+        del threshold_tokens
+        return []
 
     def _resolve_agent_toolsets(
         self,
@@ -793,6 +931,22 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
         ):
             return None
         return super()._default_thinking(model)
+
+    @override
+    def _native_history_capabilities(
+        self, threshold_tokens: int | None
+    ) -> list[AbstractCapability[None]]:
+        # Azure and arbitrary OpenAI-compatible endpoints do not necessarily
+        # implement the Responses API compaction contract.
+        if type(self) is not OpenAIProvider or (
+            self.config.base_url
+            and "api.openai.com" not in self.config.base_url
+        ):
+            return []
+
+        from pydantic_ai.models.openai import OpenAICompaction
+
+        return [OpenAICompaction(token_threshold=threshold_tokens)]
 
 
 class AzureOpenAIProvider(OpenAIProvider):
@@ -1210,6 +1364,18 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
         from pydantic_ai.models.anthropic import AnthropicModel
 
         return AnthropicModel(model_name=self.model, provider=self.provider)
+
+    @override
+    def _native_history_capabilities(
+        self, threshold_tokens: int | None
+    ) -> list[AbstractCapability[None]]:
+        from pydantic_ai.models.anthropic import AnthropicCompaction
+
+        if threshold_tokens is None:
+            return [AnthropicCompaction()]
+        return [
+            AnthropicCompaction(token_threshold=max(50_000, threshold_tokens))
+        ]
 
     @override
     def _build_model_settings(

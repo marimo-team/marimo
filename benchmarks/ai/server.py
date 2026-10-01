@@ -16,7 +16,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Self, cast
 
-from benchmarks.ai.checkpoint import IncrementalCheckpointCompactor
 from benchmarks.ai.models import (
     HarnessVariant,
     JSONValue,
@@ -28,6 +27,20 @@ from benchmarks.ai.vercel_stream import (
     StructuredCompletionBuilder,
     parse_sse,
     serialized_chars,
+)
+from marimo._server.ai.history import (
+    CHECKPOINT_DURATION_HEADER,
+    CHECKPOINT_GENERATED_HEADER,
+    CHECKPOINT_INPUT_CHARS_HEADER,
+    CHECKPOINT_INPUT_TOKENS_HEADER,
+    CHECKPOINT_OUTPUT_TOKENS_HEADER,
+    CHECKPOINT_REASONING_TOKENS_HEADER,
+    CHECKPOINT_REQUESTS_HEADER,
+    EFFECTIVE_HISTORY_TOKENS_HEADER,
+)
+from marimo._server.ai.tools.code_mode import (
+    HISTORY_BACKEND_HEADER,
+    HISTORY_CHECKPOINT_THRESHOLD_HEADER,
 )
 
 
@@ -104,12 +117,14 @@ class ChatTurn:
     checkpoint_generated: bool
     checkpoint_duration_seconds: float
     checkpoint_input_chars: int
+    history_backend: str
 
 
 @dataclass(frozen=True)
 class HttpResponse:
     body: str
     trace_id: str
+    headers: dict[str, str]
 
 
 class HttpRequestError(RuntimeError):
@@ -156,9 +171,6 @@ class MarimoServer:
     _stop_drain: threading.Event = field(default_factory=threading.Event)
     _cell_ids_by_name: dict[str, str] = field(default_factory=dict)
     _cell_codes_by_name: dict[str, str] = field(default_factory=dict)
-    _checkpoint_compactor: IncrementalCheckpointCompactor | None = field(
-        default=None, init=False
-    )
 
     def __enter__(self) -> Self:
         self._write_config()
@@ -411,25 +423,7 @@ base_url = "https://api.inference.wandb.ai/v1/"
         turn_number: int,
     ) -> ChatTurn:
         effective_messages = messages
-        checkpoint_generated = False
-        checkpoint_duration_seconds = 0.0
-        checkpoint_input_chars = 0
-        checkpoint_usage = TokenUsage()
-        if self.variant.history_strategy == "incremental_checkpoint":
-            if self._checkpoint_compactor is None:
-                self._checkpoint_compactor = IncrementalCheckpointCompactor(
-                    model=self.model,
-                    threshold_chars=(
-                        self.variant.checkpoint_threshold_chars or 80_000
-                    ),
-                )
-            preparation = self._checkpoint_compactor.prepare(messages)
-            effective_messages = preparation.messages
-            checkpoint_generated = preparation.generated
-            checkpoint_duration_seconds = preparation.duration_seconds
-            checkpoint_input_chars = preparation.input_chars
-            checkpoint_usage = preparation.usage
-        elif self.variant.history_strategy == "semantic":
+        if self.variant.history_strategy == "semantic":
             from marimo._server.ai.tools.code_mode import (
                 compact_hybrid_history,
             )
@@ -453,14 +447,36 @@ base_url = "https://api.inference.wandb.ai/v1/"
                 EVAL_VARIANT_HEADER: self.variant.id,
                 EVAL_REPETITION_HEADER: str(self.repetition),
                 TOOL_STRATEGY_HEADER: self.variant.tool_strategy,
-                HISTORY_STRATEGY_HEADER: (
-                    "semantic"
-                    if self.variant.history_strategy
-                    == "incremental_checkpoint"
-                    else self.variant.history_strategy
+                HISTORY_STRATEGY_HEADER: self.variant.history_strategy,
+                **(
+                    {
+                        HISTORY_CHECKPOINT_THRESHOLD_HEADER: str(
+                            self.variant.checkpoint_threshold_tokens
+                        )
+                    }
+                    if self.variant.checkpoint_threshold_tokens is not None
+                    else {}
                 ),
                 INCLUDE_USAGE_HEADER: "true",
             },
+        )
+        checkpoint_usage = TokenUsage(
+            requests=int(
+                response.headers.get(CHECKPOINT_REQUESTS_HEADER.lower(), 0)
+            ),
+            input_tokens=int(
+                response.headers.get(CHECKPOINT_INPUT_TOKENS_HEADER.lower(), 0)
+            ),
+            output_tokens=int(
+                response.headers.get(
+                    CHECKPOINT_OUTPUT_TOKENS_HEADER.lower(), 0
+                )
+            ),
+            reasoning_tokens=int(
+                response.headers.get(
+                    CHECKPOINT_REASONING_TOKENS_HEADER.lower(), 0
+                )
+            ),
         )
         builder = AssistantMessageBuilder()
         for chunk in parse_sse(response.body):
@@ -473,10 +489,28 @@ base_url = "https://api.inference.wandb.ai/v1/"
             usage=builder.usage + checkpoint_usage,
             trace_id=response.trace_id,
             tool_metrics=builder.tool_metrics,
-            effective_history_chars=serialized_chars(effective_messages),
-            checkpoint_generated=checkpoint_generated,
-            checkpoint_duration_seconds=checkpoint_duration_seconds,
-            checkpoint_input_chars=checkpoint_input_chars,
+            effective_history_chars=(
+                int(
+                    response.headers.get(
+                        EFFECTIVE_HISTORY_TOKENS_HEADER.lower(),
+                        serialized_chars(effective_messages) // 4,
+                    )
+                )
+                * 4
+            ),
+            checkpoint_generated=(
+                response.headers.get(CHECKPOINT_GENERATED_HEADER.lower())
+                == "true"
+            ),
+            checkpoint_duration_seconds=float(
+                response.headers.get(CHECKPOINT_DURATION_HEADER.lower(), 0)
+            ),
+            checkpoint_input_chars=int(
+                response.headers.get(CHECKPOINT_INPUT_CHARS_HEADER.lower(), 0)
+            ),
+            history_backend=response.headers.get(
+                HISTORY_BACKEND_HEADER.lower(), "uncompacted"
+            ),
         )
 
     def generate(
@@ -595,6 +629,10 @@ base_url = "https://api.inference.wandb.ai/v1/"
                 return HttpResponse(
                     body=response.read().decode(),
                     trace_id=response.headers.get(TRACE_ID_HEADER, ""),
+                    headers={
+                        name.lower(): value
+                        for name, value in response.headers.items()
+                    },
                 )
         except urllib.error.HTTPError as exc:
             response_body = exc.read().decode(errors="replace")

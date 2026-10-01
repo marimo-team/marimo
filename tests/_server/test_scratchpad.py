@@ -38,6 +38,7 @@ from marimo._server.scratchpad import (
     build_done_event,
     extract_result,
     run_scratchpad_code,
+    run_scratchpad_command,
     snapshot_for_scratchpad,
 )
 from marimo._session.requests import InstantiateNotebookRequest
@@ -859,6 +860,36 @@ class TestRunScratchpadCode:
             )
         )
         assert session.interrupt_count == 1
+
+    @pytest.mark.asyncio
+    async def test_command_can_complete_after_a_shorter_legacy_budget(
+        self,
+    ) -> None:
+        """A caller-selected long budget must not inherit the old short
+        blocking timeout used by external-agent execution."""
+        session = _FakeSession(auto_complete=False)
+        task = asyncio.create_task(
+            run_scratchpad_command(
+                session.as_session(),
+                code="slow_work()",
+                timeout=0.2,
+            )
+        )
+
+        await asyncio.sleep(0)
+        command = self._execute_command(session)
+        await asyncio.sleep(0.075)
+        assert session._active_listener is not None
+        session._active_listener.on_notification_sent(
+            session.as_session(),
+            serialize_kernel_message(
+                CompletedRunNotification(run_id=command.run_id)
+            ),
+        )
+
+        result = await task
+        assert result.success is True
+        assert session.interrupt_count == 0
 
     @pytest.mark.asyncio
     async def test_cancelled_wait_interrupts_kernel(self) -> None:

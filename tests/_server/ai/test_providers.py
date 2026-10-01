@@ -1232,6 +1232,8 @@ async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
             session=session,
             request=request,
             max_tokens=1234,
+            history_manager=MagicMock(),
+            history_key=("session-123", "conversation-123"),
             stream_options=stream_options,
             enable_capabilities=False,
         )
@@ -1256,6 +1258,233 @@ async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
         "rich-representations",
     }
     assert all(capability.defer_loading for capability in capabilities)
+
+
+@pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize("history_strategy", ["checkpoint", "automatic"])
+async def test_stream_completion_harness_uses_persistent_checkpoint(
+    history_strategy: str,
+) -> None:
+    from marimo._server.ai.history import (
+        CHECKPOINT_GENERATED_HEADER,
+        EFFECTIVE_HISTORY_TOKENS_HEADER,
+        HistoryPreparation,
+    )
+    from marimo._server.ai.tools.code_mode import (
+        HISTORY_BACKEND_HEADER,
+        HISTORY_CHECKPOINT_THRESHOLD_HEADER,
+        HISTORY_STRATEGY_HEADER,
+        TOOL_STRATEGY_HEADER,
+    )
+
+    provider = OpenAIProvider(
+        "gpt-4",
+        AnyProviderConfig(api_key="test-key", base_url="http://test-url"),
+    )
+    messages = [{"id": "user-1", "role": "user", "parts": []}]
+    semantic_messages = [
+        {"id": "user-1", "role": "user", "parts": [{"type": "text"}]}
+    ]
+    prepared_messages = [
+        {"id": "checkpoint", "role": "assistant", "parts": []}
+    ]
+    history_manager = MagicMock()
+    history_manager.prepare = AsyncMock(
+        return_value=HistoryPreparation(
+            messages=prepared_messages,
+            checkpoint_generated=True,
+            effective_tokens_estimate=321,
+        )
+    )
+    request = MagicMock()
+    request.headers = {
+        TOOL_STRATEGY_HEADER: "hybrid_balanced",
+        HISTORY_STRATEGY_HEADER: history_strategy,
+        HISTORY_CHECKPOINT_THRESHOLD_HEADER: "1234",
+    }
+    toolset = MagicMock()
+    toolset.tools = {}
+    agent = MagicMock()
+    agent.root_capability.capabilities = []
+    response = MagicMock()
+    response.headers = {}
+    stream_options = StreamOptions(
+        span_info=SpanInfo(
+            endpoint="chat",
+            model="openai/gpt-4",
+            conversation_id="conversation-123",
+        )
+    )
+
+    with (
+        patch(
+            "marimo._server.ai.tools.code_mode.build_hybrid_code_mode_toolset",
+            return_value=toolset,
+        ),
+        patch(
+            "marimo._server.ai.tools.code_mode.compact_hybrid_history",
+            return_value=semantic_messages,
+        ),
+        patch.object(provider, "create_agent", return_value=agent),
+        patch.object(provider, "_model_context_window", return_value=128_000),
+        patch.object(
+            provider, "_vercel_streaming_response", return_value=response
+        ) as stream_response,
+    ):
+        result = await provider.stream_completion_harness(
+            messages=messages,
+            system_prompt="system",
+            session=MagicMock(),
+            request=request,
+            max_tokens=4096,
+            stream_options=stream_options,
+            history_manager=history_manager,
+            history_key=("session-123", "conversation-123"),
+        )
+
+    assert result is response
+    history_manager.prepare.assert_awaited_once_with(
+        key=("session-123", "conversation-123"),
+        model="openai/gpt-4",
+        messages=messages,
+        semantic_messages=semantic_messages,
+        summarize=provider.create_history_checkpoint,
+        context_window=128_000,
+        threshold_tokens=1234,
+    )
+    assert stream_response.call_args.args[1] == prepared_messages
+    assert response.headers[CHECKPOINT_GENERATED_HEADER] == "true"
+    assert response.headers[EFFECTIVE_HISTORY_TOKENS_HEADER] == "321"
+    assert response.headers[HISTORY_BACKEND_HEADER] == "portable-checkpoint"
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_native_history_capabilities_are_provider_specific() -> None:
+    from pydantic_ai.models.anthropic import AnthropicCompaction
+    from pydantic_ai.models.openai import OpenAICompaction
+
+    openai = OpenAIProvider(
+        "gpt-5", AnyProviderConfig(api_key="test-key", base_url="")
+    )
+    openai_capabilities = openai._native_history_capabilities(72_000)
+    assert len(openai_capabilities) == 1
+    assert isinstance(openai_capabilities[0], OpenAICompaction)
+    assert openai_capabilities[0].token_threshold == 72_000
+
+    compatible = OpenAIProvider(
+        "custom-model",
+        AnyProviderConfig(
+            api_key="test-key", base_url="https://example.com/v1"
+        ),
+    )
+    assert compatible._native_history_capabilities(72_000) == []
+
+    anthropic = AnthropicProvider(
+        "claude-sonnet-4-5",
+        AnyProviderConfig(api_key="test-key", base_url=""),
+    )
+    anthropic_capabilities = anthropic._native_history_capabilities(15_000)
+    assert len(anthropic_capabilities) == 1
+    assert isinstance(anthropic_capabilities[0], AnthropicCompaction)
+    assert anthropic_capabilities[0].token_threshold == 50_000
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_native_compaction_round_trips_through_vercel_messages() -> None:
+    from pydantic_ai.messages import CompactionPart, ModelResponse
+    from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+
+    messages = [
+        ModelResponse(
+            parts=[
+                CompactionPart(
+                    content="durable summary",
+                    provider_name="anthropic",
+                )
+            ]
+        )
+    ]
+
+    ui_messages = VercelAIAdapter.dump_messages(messages, sdk_version=6)
+    assert ui_messages[0].parts[0].type == "data-compaction"
+
+    loaded = VercelAIAdapter.load_messages(ui_messages)
+    assert len(loaded) == 1
+    loaded_part = loaded[0].parts[0]
+    assert isinstance(loaded_part, CompactionPart)
+    assert loaded_part.content == "durable summary"
+    assert loaded_part.provider_name == "anthropic"
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_automatic_history_uses_native_provider_capability() -> None:
+    from pydantic_ai.models.openai import OpenAICompaction
+
+    from marimo._server.ai.tools.code_mode import (
+        HISTORY_BACKEND_HEADER,
+        HISTORY_STRATEGY_HEADER,
+        TOOL_STRATEGY_HEADER,
+    )
+
+    provider = OpenAIProvider(
+        "gpt-5", AnyProviderConfig(api_key="test-key", base_url="")
+    )
+    messages = [{"id": "user-1", "role": "user", "parts": []}]
+    semantic_messages = [
+        {"id": "user-1", "role": "user", "parts": [{"type": "text"}]}
+    ]
+    request = MagicMock()
+    request.headers = {
+        TOOL_STRATEGY_HEADER: "hybrid_balanced",
+        HISTORY_STRATEGY_HEADER: "automatic",
+    }
+    history_manager = MagicMock()
+    history_manager.prepare = AsyncMock()
+    toolset = MagicMock()
+    toolset.tools = {}
+    agent = MagicMock()
+    agent.root_capability.capabilities = []
+    response = MagicMock()
+    response.headers = {}
+
+    with (
+        patch(
+            "marimo._server.ai.tools.code_mode.build_hybrid_code_mode_toolset",
+            return_value=toolset,
+        ),
+        patch(
+            "marimo._server.ai.tools.code_mode.compact_hybrid_history",
+            return_value=semantic_messages,
+        ),
+        patch.object(provider, "create_agent", return_value=agent) as create,
+        patch.object(
+            provider, "_vercel_streaming_response", return_value=response
+        ) as stream_response,
+    ):
+        await provider.stream_completion_harness(
+            messages=messages,
+            system_prompt="system",
+            session=MagicMock(),
+            request=request,
+            max_tokens=4096,
+            stream_options=StreamOptions(
+                span_info=SpanInfo(
+                    endpoint="chat",
+                    model="openai/gpt-5",
+                    conversation_id="conversation-123",
+                )
+            ),
+            history_manager=history_manager,
+            history_key=("session-123", "conversation-123"),
+        )
+
+    history_manager.prepare.assert_not_awaited()
+    capabilities = create.call_args.kwargs["extra_capabilities"]
+    assert any(
+        isinstance(capability, OpenAICompaction) for capability in capabilities
+    )
+    assert stream_response.call_args.args[1] == semantic_messages
+    assert response.headers[HISTORY_BACKEND_HEADER] == "native"
 
 
 @pytest.mark.requires("pydantic_ai")

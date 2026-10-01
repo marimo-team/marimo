@@ -30,8 +30,18 @@ VARIANTS = (
             "incremental checkpoints after the long-history threshold."
         ),
         tool_strategy="hybrid_balanced",
-        history_strategy="incremental_checkpoint",
-        checkpoint_threshold_chars=60_000,
+        history_strategy="checkpoint",
+        checkpoint_threshold_tokens=15_000,
+    ),
+    HarnessVariant(
+        id="hybrid_automatic_history",
+        description=(
+            "Provider-native compaction when supported, otherwise the "
+            "portable checkpoint fallback."
+        ),
+        tool_strategy="hybrid_balanced",
+        history_strategy="automatic",
+        checkpoint_threshold_tokens=15_000,
     ),
 )
 

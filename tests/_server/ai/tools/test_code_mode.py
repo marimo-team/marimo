@@ -275,9 +275,12 @@ def test_get_tool_strategy_rejects_unknown_header() -> None:
     assert get_tool_strategy(request) == "code_mode"
 
 
-def test_get_history_strategy_defaults_to_semantic() -> None:
+def test_get_history_strategy_defaults_to_semantic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from marimo._server.ai.tools.code_mode import get_history_strategy
 
+    monkeypatch.delenv("MARIMO_AI_HISTORY_STRATEGY", raising=False)
     request = MagicMock()
     request.headers = {}
 
@@ -294,6 +297,48 @@ def test_get_history_strategy_accepts_uncompacted_control() -> None:
     request.headers = {HISTORY_STRATEGY_HEADER: "none"}
 
     assert get_history_strategy(request) == "none"
+
+
+def test_get_history_strategy_accepts_checkpoint_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._server.ai.tools.code_mode import get_history_strategy
+
+    monkeypatch.setenv("MARIMO_AI_HISTORY_STRATEGY", "checkpoint")
+    request = MagicMock()
+    request.headers = {}
+
+    assert get_history_strategy(request) == "checkpoint"
+
+
+def test_get_history_strategy_accepts_automatic() -> None:
+    from marimo._server.ai.tools.code_mode import (
+        HISTORY_STRATEGY_HEADER,
+        get_history_strategy,
+    )
+
+    request = MagicMock()
+    request.headers = {HISTORY_STRATEGY_HEADER: "automatic"}
+
+    assert get_history_strategy(request) == "automatic"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("15000", 15000), ("0", None), ("invalid", None)],
+)
+def test_get_history_checkpoint_threshold(
+    value: str, expected: int | None
+) -> None:
+    from marimo._server.ai.tools.code_mode import (
+        HISTORY_CHECKPOINT_THRESHOLD_HEADER,
+        get_history_checkpoint_threshold,
+    )
+
+    request = MagicMock()
+    request.headers = {HISTORY_CHECKPOINT_THRESHOLD_HEADER: value}
+
+    assert get_history_checkpoint_threshold(request) == expected
 
 
 def test_hybrid_execute_code_rejects_code_mode_import() -> None:

@@ -300,6 +300,7 @@ def run_scenario(
                         checkpoint_input_chars=(
                             chat_turn.checkpoint_input_chars
                         ),
+                        history_backend=chat_turn.history_backend,
                         tool_metrics=chat_turn.tool_metrics,
                     )
                     turn_metrics.append(metrics)
@@ -440,7 +441,7 @@ def create_run_directory(
     except Exception:
         git_sha = ""
     manifest = {
-        "schema_version": 5,
+        "schema_version": 7,
         "run_id": run_dir.name,
         "logfire_query": logfire_run_query(run_dir.name),
         "models": list(models),

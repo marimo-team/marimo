@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from benchmarks.ai.checkpoint import IncrementalCheckpointCompactor
 from benchmarks.ai.models import (
     FileAttachment,
     HarnessVariant,
@@ -48,58 +47,6 @@ from benchmarks.ai.vercel_stream import (
     StructuredCompletionBuilder,
     parse_sse,
 )
-
-
-class _FakeCheckpointCompactor(IncrementalCheckpointCompactor):
-    def _generate_checkpoint(self, input_text: str) -> tuple[str, TokenUsage]:
-        return (
-            f"checkpoint from {len(input_text)} characters",
-            TokenUsage(requests=1, input_tokens=50, output_tokens=10),
-        )
-
-
-def test_incremental_checkpoint_reuses_completed_prefix() -> None:
-    compactor = _FakeCheckpointCompactor(
-        model="provider/model",
-        threshold_chars=1,
-        recent_messages=1,
-        minimum_completed_turns=1,
-    )
-    messages = [
-        {"role": "user", "parts": [{"type": "text", "text": "one"}]},
-        {
-            "role": "assistant",
-            "parts": [{"type": "text", "text": "done one"}],
-        },
-        {"role": "user", "parts": [{"type": "text", "text": "two"}]},
-    ]
-
-    first = compactor.prepare(messages)
-    repeated = compactor.prepare(messages)
-    messages.extend(
-        [
-            {
-                "role": "assistant",
-                "parts": [{"type": "text", "text": "done two"}],
-            },
-            {
-                "role": "user",
-                "parts": [{"type": "text", "text": "three"}],
-            },
-        ]
-    )
-    second = compactor.prepare(messages)
-
-    assert first.generated
-    assert first.usage.requests == 1
-    assert [message["role"] for message in first.messages] == [
-        "user",
-        "assistant",
-        "user",
-    ]
-    assert not repeated.generated
-    assert second.generated
-    assert "checkpoint from" in second.messages[1]["parts"][0]["text"]
 
 
 def test_reconstructs_ui_message_from_vercel_stream() -> None:
@@ -727,7 +674,7 @@ def test_chat_manifest_records_multiple_models(tmp_path: Path) -> None:
     )
 
     manifest = json.loads((run_dir / "manifest.json").read_text())
-    assert manifest["schema_version"] == 5
+    assert manifest["schema_version"] == 7
     assert manifest["models"] == ["provider/one", "provider/two"]
     assert manifest["repetitions"] == 2
 
