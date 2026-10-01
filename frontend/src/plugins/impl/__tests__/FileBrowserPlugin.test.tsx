@@ -370,7 +370,9 @@ function rowFor(name: string): HTMLElement {
 
 describe("FileBrowserPlugin breadcrumbs", () => {
   function breadcrumbs() {
-    return within(screen.getByRole("navigation", { name: "Current directory" }));
+    return within(
+      screen.getByRole("navigation", { name: "Current directory" }),
+    );
   }
 
   it("renders a crumb per ancestor with the current directory last", async () => {
