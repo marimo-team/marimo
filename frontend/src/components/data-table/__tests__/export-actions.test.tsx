@@ -79,6 +79,14 @@ async function openDialog() {
   return screen.findByRole("dialog", { name: "Export table" });
 }
 
+function selectGeometry(name: string) {
+  const select = screen.getByRole("combobox", { name: "Primary geometry" });
+  const option = within(select).getByRole("option", {
+    name,
+  }) as HTMLOptionElement;
+  fireEvent.change(select, { target: { value: option.value } });
+}
+
 const geometryMetadata: ExportMetadata = {
   geometry_columns: [
     { name: "location", encoding: "objects", crs: "EPSG:4326" },
@@ -117,12 +125,7 @@ describe("ExportActions dialog", () => {
       "location",
     );
     fireEvent.click(screen.getByRole("button", { name: "GeoParquet options" }));
-    fireEvent.change(
-      screen.getByRole("combobox", { name: "Primary geometry" }),
-      {
-        target: { value: "boundary" },
-      },
-    );
+    selectGeometry("boundary");
     fireEvent.click(
       screen.getByRole("button", { name: "Download GeoParquet" }),
     );
@@ -167,12 +170,7 @@ describe("ExportActions dialog", () => {
       ),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "GeoParquet options" }));
-    fireEvent.change(
-      screen.getByRole("combobox", { name: "Primary geometry" }),
-      {
-        target: { value: "boundary" },
-      },
-    );
+    selectGeometry("boundary");
     expect(
       screen.getByRole("button", { name: "Download GeoParquet" }),
     ).toBeEnabled();
@@ -185,7 +183,7 @@ describe("ExportActions dialog", () => {
         formats: {
           parquet: {
             available: false,
-            reason: "GeoParquet export requires GeoPandas geometry columns.",
+            reason: "GeoParquet export from Arrow tables is not supported yet.",
             missing_packages: [],
           },
         },
@@ -194,7 +192,7 @@ describe("ExportActions dialog", () => {
     await openDialog();
     expect(
       await screen.findByText(
-        "GeoParquet export requires GeoPandas geometry columns.",
+        "GeoParquet export from Arrow tables is not supported yet.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -224,18 +222,17 @@ describe("ExportActions dialog", () => {
     await openDialog();
     await screen.findByRole("button", { name: "GeoParquet options" });
     fireEvent.click(screen.getByRole("button", { name: "GeoParquet options" }));
-    fireEvent.change(
-      screen.getByRole("combobox", { name: "Primary geometry" }),
-      {
-        target: { value: "boundary" },
-      },
-    );
+    selectGeometry("boundary");
     fireEvent.click(
       screen.getByRole("button", { name: "Download GeoParquet" }),
     );
     expect(
       await screen.findByText("GeoParquet export requires pyarrow."),
     ).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Download GeoParquet" }),
+    ).toBeDisabled();
     expect(downloadByURL).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Install pyarrow" }));
     expect(mocks.handleInstallPackages).toHaveBeenCalledWith(
@@ -251,6 +248,101 @@ describe("ExportActions dialog", () => {
     expect(downloadAs).toHaveBeenLastCalledWith({
       format: "parquet",
       geometry_column: "boundary",
+    });
+  });
+
+  it("refreshes eligibility after package installation", async () => {
+    const getExportMetadata = vi.fn().mockResolvedValue({
+      ...geometryMetadata,
+      formats: {
+        parquet: {
+          available: false,
+          reason: "GeoParquet export requires pyarrow.",
+          missing_packages: ["pyarrow"],
+        },
+      },
+    });
+    renderExportActions({ getExportMetadata });
+    await openDialog();
+    await screen.findByRole("button", { name: "GeoParquet options" });
+    expect(
+      screen.getByRole("button", { name: "Download GeoParquet" }),
+    ).toBeDisabled();
+    expect(
+      screen.getAllByText("GeoParquet export requires pyarrow."),
+    ).toHaveLength(1);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(downloadAs).not.toHaveBeenCalled();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Install pyarrow" }),
+    );
+    getExportMetadata.mockResolvedValue(geometryMetadata);
+    await act(async () => {
+      mocks.handleInstallPackages.mock.calls[0][1]();
+    });
+    await waitFor(() => {
+      expect(downloadByURL).toHaveBeenCalled();
+    });
+    expect(getExportMetadata).toHaveBeenCalledTimes(2);
+    expect(
+      screen.queryByText("GeoParquet export requires pyarrow."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the install prompt when the package is still missing", async () => {
+    const getExportMetadata = vi.fn().mockResolvedValue({
+      ...geometryMetadata,
+      formats: {
+        parquet: {
+          available: false,
+          reason: "GeoParquet export requires pyarrow.",
+          missing_packages: ["pyarrow"],
+        },
+      },
+    });
+    renderExportActions({ getExportMetadata });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Install pyarrow" }),
+    );
+    await act(async () => {
+      mocks.handleInstallPackages.mock.calls[0][1]();
+    });
+    await waitFor(() => {
+      expect(getExportMetadata).toHaveBeenCalledTimes(2);
+    });
+    expect(
+      screen.getByRole("button", { name: "Install pyarrow" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Download GeoParquet" }),
+    ).toBeDisabled();
+    expect(downloadAs).not.toHaveBeenCalled();
+  });
+
+  it("can select a geometry column with an empty name", async () => {
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue({
+        ...geometryMetadata,
+        geometry_columns: [
+          geometryMetadata.geometry_columns[0],
+          { name: "", encoding: "objects", crs: null },
+        ],
+      }),
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "GeoParquet options" }),
+    );
+    selectGeometry("(unnamed geometry)");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Download GeoParquet" }),
+    );
+    await waitFor(() => {
+      expect(downloadAs).toHaveBeenCalledWith({
+        format: "parquet",
+        geometry_column: "",
+      });
     });
   });
 
@@ -271,12 +363,7 @@ describe("ExportActions dialog", () => {
     await openDialog();
     await screen.findByRole("button", { name: "GeoParquet options" });
     fireEvent.click(screen.getByRole("button", { name: "GeoParquet options" }));
-    fireEvent.change(
-      screen.getByRole("combobox", { name: "Primary geometry" }),
-      {
-        target: { value: "boundary" },
-      },
-    );
+    selectGeometry("boundary");
 
     rerenderExportActions({
       getExportMetadata: second,
@@ -289,7 +376,7 @@ describe("ExportActions dialog", () => {
     });
     expect(
       screen.getByRole("combobox", { name: "Primary geometry" }),
-    ).toHaveValue("region");
+    ).toHaveDisplayValue("region");
     fireEvent.click(
       screen.getByRole("button", { name: "Download GeoParquet" }),
     );
@@ -301,6 +388,26 @@ describe("ExportActions dialog", () => {
     });
     expect(first).toHaveBeenCalledTimes(1);
     expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a still-valid geometry override when metadata refreshes", async () => {
+    const getExportMetadata = vi.fn().mockResolvedValue(geometryMetadata);
+    const { rerenderExportActions } = renderExportActions({
+      getExportMetadata,
+      metadataSource: "first",
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "GeoParquet options" }),
+    );
+    selectGeometry("boundary");
+    rerenderExportActions({ getExportMetadata, metadataSource: "second" });
+    await waitFor(() => {
+      expect(getExportMetadata).toHaveBeenCalledTimes(2);
+    });
+    expect(
+      screen.getByRole("combobox", { name: "Primary geometry" }),
+    ).toHaveDisplayValue("boundary");
   });
 
   it("does not publish an artifact for a structured failure without an error message", async () => {
@@ -757,11 +864,14 @@ describe("ExportActions dialog", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Download Parquet" }));
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Parquet export requires pyarrow.");
-    fireEvent.click(
-      within(alert).getByRole("button", { name: "Install pyarrow" }),
-    );
+    expect(
+      await screen.findByText("Parquet export requires pyarrow."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Download Parquet" }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Install pyarrow" }));
     expect(mocks.handleInstallPackages).toHaveBeenCalledWith(
       ["pyarrow"],
       expect.any(Function),
@@ -793,12 +903,16 @@ describe("ExportActions dialog", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Download Parquet" }));
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(
-      "Parquet export isn't available in this notebook",
-    );
-    expect(alert).not.toHaveTextContent("pyarrow");
-    expect(within(alert).queryByRole("button")).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Parquet export isn't available in this notebook",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("pyarrow")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Install/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("clears stale failures before a new action and after close", async () => {

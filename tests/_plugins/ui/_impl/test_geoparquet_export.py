@@ -70,6 +70,45 @@ def test_geoparquet_keeps_every_geometry_and_crs(
 
 
 @pytest.mark.requires("geopandas", "pyarrow")
+def test_geoparquet_uses_writer_supported_by_geopandas_014(
+    widget: Any,
+) -> None:
+    import geopandas as gpd
+    import pyarrow.parquet as pq
+
+    original_writer = gpd.GeoDataFrame.to_parquet
+
+    def old_writer(
+        self: Any,
+        path: Any,
+        *,
+        index: bool | None = None,
+        schema_version: str | None = None,
+    ) -> None:
+        original_writer(self, path, index=index, schema_version=schema_version)
+
+    with patch.object(gpd.GeoDataFrame, "to_parquet", old_writer):
+        artifact, _ = _artifact(widget(fixtures.gdf_multi_geometry()))
+
+    geo = json.loads(pq.read_metadata(io.BytesIO(artifact)).metadata[b"geo"])
+    assert geo["version"] == "1.0.0"
+    assert all(
+        column["encoding"] == "WKB" for column in geo["columns"].values()
+    )
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+def test_empty_name_is_a_valid_explicit_primary(widget: Any) -> None:
+    import pyarrow.parquet as pq
+
+    source = fixtures.gdf_multi_geometry().rename(columns={"geom_b": ""})
+    artifact, _ = _artifact(widget(source), "")
+    geo = json.loads(pq.read_metadata(io.BytesIO(artifact)).metadata[b"geo"])
+    assert geo["primary_column"] == ""
+    assert set(geo["columns"]) == {"geom_a", ""}
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
 def test_ambiguous_pandas_geometry_requires_choice(widget: Any) -> None:
     import pandas as pd
 
