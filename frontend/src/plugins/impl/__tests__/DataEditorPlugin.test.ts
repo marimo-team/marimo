@@ -62,6 +62,19 @@ describe("DataEditorPlugin", () => {
     expect(result.fieldTypes).toEqual([["geom", ["unknown", "geometry"]]]);
   });
 
+  it("parses dropdown column types", () => {
+    const result = DataEditorPlugin.validator.parse({
+      initialValue: { edits: [] },
+      label: null,
+      data: [],
+      fieldTypes: null,
+      editableColumns: "all",
+      columnTypes: { status: ["open", "closed"] },
+    });
+
+    expect(result.columnTypes).toEqual({ status: ["open", "closed"] });
+  });
+
   it("keeps the geometry field type", () => {
     const result = DataEditorPlugin.validator.parse({
       initialValue: { edits: [] },

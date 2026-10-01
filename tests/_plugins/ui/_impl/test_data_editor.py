@@ -73,6 +73,112 @@ def test_data_editor_editable_columns():
         data_editor(data=data, editable_columns=["C"])
 
 
+def test_data_editor_dropdown_column_type():
+    data = [{"priority": "low"}, {"priority": "high"}]
+    options = ["low", "medium", "high"]
+
+    editor = data_editor(data=data, column_types={"priority": options})
+
+    assert editor._component_args["column-types"] == {"priority": options}
+    options.append("urgent")
+    assert editor._component_args["column-types"] == {
+        "priority": ["low", "medium", "high"]
+    }
+
+
+@pytest.mark.parametrize(
+    ("column_types", "match"),
+    [
+        ({"missing": ["x"]}, "Column missing is not in the data"),
+        ({"status": []}, "column 'status' must not be empty"),
+        ({"status": ["open", "open"]}, "column 'status' must be unique"),
+        ({"status": ["open", 1]}, "column 'status' must all be strings"),
+    ],
+)
+def test_data_editor_rejects_invalid_dropdown_configuration(
+    column_types: Any, match: str
+):
+    with pytest.raises(ValueError, match=match):
+        data_editor([{"status": "open"}], column_types=column_types)
+
+
+def test_data_editor_rejects_dropdown_initial_value():
+    with pytest.raises(
+        ValueError,
+        match="Invalid initial value for column 'status': 'closed'",
+    ):
+        data_editor(
+            [{"status": "closed"}],
+            column_types={"status": ["open"]},
+        )
+
+
+def test_data_editor_rejects_forged_dropdown_edit():
+    editor = data_editor(
+        [{"status": "open"}], column_types={"status": ["open", "closed"]}
+    )
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "status", "value": "invalid"}]
+    }
+
+    with pytest.raises(
+        ValueError, match="Invalid value for column 'status': 'invalid'"
+    ):
+        editor._convert_value(edits)
+
+    assert editor.data == [{"status": "open"}]
+
+
+def test_dropdown_allows_empty_string_only_when_configured():
+    editor = data_editor(
+        [{"status": "open"}], column_types={"status": ["", "open"]}
+    )
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "status", "value": ""}]
+    }
+
+    assert editor._convert_value(edits) == [{"status": ""}]
+
+
+def test_dropdown_configuration_tracks_rename_and_remove():
+    editor = data_editor(
+        [{"status": "open"}], column_types={"status": ["open", "closed"]}
+    )
+    renamed_edits: DataEdits = {
+        "edits": [
+            {"columnIdx": 0, "type": "rename", "newName": "state"},
+            {"rowIdx": 0, "columnId": "state", "value": "invalid"},
+        ]
+    }
+    with pytest.raises(ValueError, match="column 'state'"):
+        editor._convert_value(renamed_edits)
+
+    removed_edits: DataEdits = {
+        "edits": [
+            {"columnIdx": 0, "type": "remove"},
+            {"columnIdx": 0, "type": "insert", "newName": "status"},
+            {"rowIdx": 0, "columnId": "status", "value": "free-form"},
+        ]
+    }
+    assert editor._convert_value(removed_edits) == [{"status": "free-form"}]
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+def test_data_editor_dropdown_dataframe():
+    import pandas as pd
+
+    editor = data_editor(
+        pd.DataFrame({"status": ["open", "closed"]}),
+        column_types={"status": ["open", "closed"]},
+    )
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "status", "value": "closed"}]
+    }
+
+    result = editor._convert_value(edits)
+    assert result["status"].tolist() == ["closed", "closed"]
+
+
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )

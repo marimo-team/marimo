@@ -35,6 +35,14 @@ describe("isValidCellValue", () => {
     expect(isValidCellValue("integer", "1.0000000000000001")).toBe(false);
     expect(isValidCellValue("integer", "1e-324")).toBe(false);
   });
+
+  it("accepts only configured dropdown strings", () => {
+    const options = ["open", "closed"];
+    expect(isValidCellValue("string", "open", options)).toBe(true);
+    expect(isValidCellValue("string", "", options)).toBe(false);
+    expect(isValidCellValue("string", null, options)).toBe(false);
+    expect(isValidCellValue("string", "", ["", "open"])).toBe(true);
+  });
 });
 
 describe("normalizeBoolean", () => {
@@ -453,6 +461,29 @@ describe("pasteCells", () => {
         { rowIdx: 1, columnId: "name", value: "Rachel" },
         { rowIdx: 1, columnId: "age", value: 25 },
         { rowIdx: 1, columnId: "active", value: false },
+      ]);
+    });
+  });
+
+  it("should paste only configured dropdown options", async () => {
+    mockClipboard.readText.mockResolvedValue("invalid\t30\nclosed\t31");
+    const columns = createMockColumns();
+    columns[0].configuredType = ["open", "closed"];
+    const mockOnAddEdits = vi.fn();
+
+    pasteCells({
+      selection: createMockSelection(0, 0),
+      data: createMockData(),
+      columns,
+      editableColumns: "all",
+      onAddEdits: mockOnAddEdits,
+    });
+
+    await vi.waitFor(() => {
+      expect(mockOnAddEdits).toHaveBeenCalledWith([
+        { rowIdx: 0, columnId: "age", value: 30 },
+        { rowIdx: 1, columnId: "name", value: "closed" },
+        { rowIdx: 1, columnId: "age", value: 31 },
       ]);
     });
   });

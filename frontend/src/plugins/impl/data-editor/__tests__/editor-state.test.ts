@@ -58,6 +58,27 @@ describe("applyEditorEdits", () => {
     expect([...result.columnFields]).toEqual([["D", "string"]]);
   });
 
+  it("moves and removes column type configuration with its column", () => {
+    const state = {
+      data: [{ status: "open", other: "x" }],
+      columnFields: new Map([
+        ["status", "string"],
+        ["other", "string"],
+      ]) as FieldTypes,
+      columnTypes: new Map([["status", ["open", "closed"]]]),
+    };
+
+    const renamed = applyEditorEdits(state, [
+      { columnIdx: 0, type: "rename", newName: "state" },
+    ]);
+    expect([...renamed.columnTypes]).toEqual([["state", ["open", "closed"]]]);
+
+    const removed = applyEditorEdits(renamed, [
+      { columnIdx: 0, type: "remove" },
+    ]);
+    expect([...removed.columnTypes]).toEqual([]);
+  });
+
   it("preserves inserted column order through later edits", () => {
     const result = applyEditorEdits(
       {
