@@ -3684,26 +3684,33 @@ class TestSQL:
             if part
         )
 
-        await k.run(
-            [
-                ExecuteCellCommand(
-                    cell_id=CellId_t("0"), code="import marimo as mo"
-                ),
-                ExecuteCellCommand(
-                    cell_id=CellId_t("1"),
-                    code=(
-                        f"mo.sql('CREATE OR REPLACE TABLE {qualified_name} "
-                        "AS SELECT 1 AS a')"
+        try:
+            await k.run(
+                [
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("0"), code="import marimo as mo"
                     ),
-                ),
-            ]
-        )
-        assert not k.errors
-        assert table_exists()
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("1"),
+                        code=(
+                            "mo.sql('CREATE OR REPLACE TABLE "
+                            f"{qualified_name} AS SELECT 1 AS a')"
+                        ),
+                    ),
+                ]
+            )
+            assert not k.errors
+            assert table_exists()
 
-        # Deleting the defining cell triggers cleanup of the in-memory table.
-        await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
-        assert not table_exists()
+            # Deleting the defining cell triggers cleanup of the in-memory
+            # table.
+            await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
+            assert not table_exists()
+        finally:
+            if resolved_schema != "main":
+                duckdb.execute(
+                    f'DROP SCHEMA IF EXISTS memory."{resolved_schema}" CASCADE'
+                )
 
     async def test_sql_table_on_attached_catalog_is_not_dropped(
         self, k: Kernel
