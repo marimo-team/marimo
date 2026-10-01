@@ -46,6 +46,7 @@ import {
 import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
 import { AIFixButton, buildFixInChatPrompt } from "../errors/auto-fix";
 import { MangledSegments } from "../errors/mangled-local-chip";
+import { SendErrorReportButton } from "../errors/send-error-report-button";
 import { CellLinkTraceback } from "../links/cell-link";
 import type { OnRefactorWithAI } from "../Output";
 
@@ -131,6 +132,12 @@ export const MarimoTracebackOutput = ({
         </div>
       )}
       <div className="flex gap-2">
+        <SendErrorReportButton
+          cellId={cellId}
+          error={lastTracebackLine}
+          traceback={traceback}
+          useLastRunCode={true}
+        />
         {showAIFix && (
           <AIFixButton
             tooltip="Fix with AI"
