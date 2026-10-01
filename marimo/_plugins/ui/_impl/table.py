@@ -55,6 +55,9 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._plugins.ui._impl.utils.dataframe import (
+    DelimitedOptions,
+    DownloadOptions,
+    JsonOptions,
     ListOrTuple,
     TableData,
     download_as,
@@ -92,8 +95,44 @@ class TableSearchError(Exception):
 
 
 @dataclass
+class DownloadAsOptions:
+    """Per-request export options chosen in the export dialog.
+
+    Every field is optional. A `None` field keeps the widget's default for
+    that setting.
+
+    Args:
+        separator (str, optional): Field separator for CSV output.
+        encoding (str, optional): Text encoding for CSV and TSV output.
+        ensure_ascii (bool, optional): Whether JSON output escapes
+            non-ASCII characters.
+    """
+
+    separator: str | None = None
+    encoding: str | None = None
+    ensure_ascii: bool | None = None
+
+    def resolve(self, defaults: DownloadOptions) -> DownloadOptions:
+        """Layer the request options over the widget defaults."""
+        return DownloadOptions(
+            delimited=DelimitedOptions(
+                encoding=self.encoding or defaults.delimited.encoding,
+                separator=self.separator or defaults.delimited.separator,
+            ),
+            json=JsonOptions(
+                ensure_ascii=(
+                    defaults.json.ensure_ascii
+                    if self.ensure_ascii is None
+                    else self.ensure_ascii
+                )
+            ),
+        )
+
+
+@dataclass
 class DownloadAsArgs:
     format: Literal["csv", "tsv", "json", "parquet"]
+    options: DownloadAsOptions | None = None
 
 
 @dataclass
@@ -1036,7 +1075,8 @@ class table(
         user to install the dependency and retry.
 
         Args:
-            args (DownloadAsArgs): The requested download format. Must be
+            args (DownloadAsArgs): The requested download format and
+                optional per-request export options. The format must be
                 one of `'csv'`, `'tsv'`, `'json'`, or `'parquet'`.
 
         Returns:
@@ -1094,10 +1134,14 @@ class table(
         if isinstance(manager_candidate, TableManager):
             bound_filename = get_bound_name(self._id)
 
+            options = (args.options or DownloadAsOptions()).resolve(
+                DownloadOptions()
+            )
             url, filename = download_as(
                 manager_candidate,
                 args.format,
                 drop_marimo_index=True,
+                options=options,
                 filename=bound_filename,
             )
             return DownloadAsResponse(url=url, filename=filename)

@@ -3158,6 +3158,15 @@ components:
             - json
             - parquet
             - tsv
+        options:
+          type: object
+          properties:
+            separator:
+              type: string
+            encoding:
+              type: string
+            ensure_ascii:
+              type: boolean
       required:
         - format
     marimo-dataframe.download_as.output:
@@ -4640,6 +4649,15 @@ components:
             - json
             - parquet
             - tsv
+        options:
+          type: object
+          properties:
+            separator:
+              type: string
+            encoding:
+              type: string
+            ensure_ascii:
+              type: boolean
       required:
         - format
     marimo-table.download_as.output:

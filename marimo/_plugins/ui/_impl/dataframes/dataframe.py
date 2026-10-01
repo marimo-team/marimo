@@ -26,6 +26,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 )
 from marimo._plugins.ui._impl.table import (
     DownloadAsArgs,
+    DownloadAsOptions,
     DownloadAsResponse,
     GetSizeBytesResponse,
     SearchTableArgs,
@@ -367,18 +368,21 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
 
         bound_filename = get_bound_name(self._id)
 
+        widget_defaults = DownloadOptions(
+            delimited=DelimitedOptions(
+                encoding=self._download_csv_encoding,
+                separator=self._download_csv_separator,
+            ),
+            json=JsonOptions(ensure_ascii=self._download_json_ensure_ascii),
+        )
+        options = (args.options or DownloadAsOptions()).resolve(
+            widget_defaults
+        )
+
         url, filename = download_as(
             manager,
             args.format,
-            options=DownloadOptions(
-                delimited=DelimitedOptions(
-                    encoding=self._download_csv_encoding,
-                    separator=self._download_csv_separator,
-                ),
-                json=JsonOptions(
-                    ensure_ascii=self._download_json_ensure_ascii
-                ),
-            ),
+            options=options,
             filename=bound_filename,
         )
         return DownloadAsResponse(url=url, filename=filename)
