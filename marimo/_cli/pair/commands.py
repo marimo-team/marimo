@@ -208,10 +208,11 @@ class _DocsCommand(ColoredCommand):
     Authentication:
       If a token-file path is supplied, add --token-file <PATH> to every
       execute and notebook list command. Pass the path, not the file contents.
-      Otherwise, these commands use MARIMO_TOKEN when set.
 
     \b
     Workflow:
+      If no server is running, start one in the background:
+        marimo edit <notebook.py> --no-token
       If you do not have the server URL or notebook file:
         marimo pair notebook list
       marimo pair execute --url <URL> --file <FILE> --code-file - <<'PY'
@@ -250,6 +251,7 @@ class _DocsCommand(ColoredCommand):
       the project; confirm when the user did not ask.
       If an empty cell exists, edit_cell it instead of creating one.
       delete_cell drops the cell's variables. Ask before deleting.
+      Do not edit the notebook file directly. Code mode is the only write path.
 
     \b
     Code-mode API:
@@ -297,7 +299,7 @@ def pair() -> None:
     "--token-file",
     type=click.Path(path_type=Path, dir_okay=False),
     metavar="PATH",
-    help="Read the server token from a local file. Otherwise use MARIMO_TOKEN, if set.",
+    help="Read the server token from a local file.",
 )
 @click.option(
     "-c",
@@ -398,9 +400,9 @@ def execute(
 
 
 _TOKEN_NEXT = (
-    "Pass --token-file <path> or set MARIMO_TOKEN. "
-    'Check it with `test -n "$MARIMO_TOKEN"`. Never print the token. '
-    "If you have no token, ask the user."
+    "Pass --token-file <path>. If no file exists, check for MARIMO_TOKEN "
+    'with `test -n "$MARIMO_TOKEN"`; the commands use it when set. '
+    "Never print the token. If you have no token, ask the user."
 )
 _HEADLESS_NEXT = (
     "A headless server has no session until a browser opens the notebook."
@@ -808,7 +810,7 @@ def notebook() -> None:
     "--token-file",
     type=click.Path(path_type=Path, dir_okay=False),
     metavar="PATH",
-    help="Read the server token from a local file. Otherwise use MARIMO_TOKEN, if set.",
+    help="Read the server token from a local file.",
 )
 def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     try:
@@ -836,14 +838,16 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     listing: dict[str, object] = {"notebooks": notebooks, "warnings": warnings}
     if any("Authentication failed" in warning for warning in warnings):
         listing["next"] = (
-            "Pass --token-file <path> or set MARIMO_TOKEN, then run notebook "
-            "list --url again. Never print the token."
+            "Pass --token-file <path>, then run notebook list --url again. "
+            "If no file exists, check for MARIMO_TOKEN with "
+            '`test -n "$MARIMO_TOKEN"`. Never print the token.'
         )
     elif not notebooks:
         listing["next"] = (
-            f"No sessions found. {_HEADLESS_NEXT} If you know the server "
-            "URL, pass --url. If the server needs a token, pass --token-file "
-            "or set MARIMO_TOKEN."
+            "No sessions found. If a server is running, pass --url, and "
+            "--token-file <path> if it needs a token. Otherwise start one in "
+            "the background: `marimo edit <notebook.py> --no-token`, then run "
+            "`marimo pair notebook list` again."
         )
     click.echo(json.dumps(listing, indent=2))
 
