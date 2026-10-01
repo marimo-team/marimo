@@ -9,29 +9,29 @@ import "blob-polyfill";
 // if we need to test ResizeObserver functionality
 // we can use a library like "resize-observer-polyfill"
 globalThis.ResizeObserver ??= class {
-  observe(_target: Element) {
+  public observe(_target: Element) {
     /* noop */
   }
-  unobserve(_target: Element) {
+  public unobserve(_target: Element) {
     /* noop */
   }
-  disconnect() {
+  public disconnect() {
     /* noop */
   }
 } as never;
 
 // mock implementation because jsdom doesn't support IntersectionObserver
 globalThis.IntersectionObserver ??= class {
-  observe(_target: Element) {
+  public observe(_target: Element) {
     /* noop */
   }
-  unobserve(_target: Element) {
+  public unobserve(_target: Element) {
     /* noop */
   }
-  disconnect() {
+  public disconnect() {
     /* noop */
   }
-  takeRecords() {
+  public takeRecords() {
     return [];
   }
 } as never;

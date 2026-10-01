@@ -158,7 +158,10 @@ class date(UIElement[str, dt.date]):
             return value
         if isinstance(value, dt.datetime):
             return value.date()
-        return dt.datetime.strptime(value, self.DATE_FORMAT).date()
+        # This is date-only input; preserve `strptime`'s accepted formats.
+        return dt.datetime.strptime(  # noqa: DTZ007
+            value, self.DATE_FORMAT
+        ).date()
 
     @property
     def start(self) -> dt.date:
@@ -254,7 +257,8 @@ class datetime(UIElement[str | None, dt.datetime | None]):
 
         if value is None:
             if start is None and stop is None:
-                value = dt.datetime.today()
+                # HTML datetime-local values intentionally use local naïve time.
+                value = dt.datetime.today()  # noqa: DTZ002
             elif start is not None:
                 value = start
             else:
@@ -313,7 +317,9 @@ class datetime(UIElement[str | None, dt.datetime | None]):
         ]
         for fmt in POSSIBLE_FORMATS:
             try:
-                return dt.datetime.strptime(value, fmt)
+                # The browser's datetime-local input intentionally represents
+                # wall-clock time without a timezone.
+                return dt.datetime.strptime(value, fmt)  # noqa: DTZ007
             except ValueError:
                 pass
         raise ValueError(f"Invalid datetime format: {value}")
@@ -470,7 +476,10 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
             return value
         if isinstance(value, dt.datetime):
             return value.date()
-        return dt.datetime.strptime(value, self.DATEFORMAT).date()
+        # This is date-only input; preserve `strptime`'s accepted formats.
+        return dt.datetime.strptime(  # noqa: DTZ007
+            value, self.DATEFORMAT
+        ).date()
 
     @property
     def start(self) -> dt.date:

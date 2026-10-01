@@ -2,7 +2,7 @@
 
 import type { NotificationMessageData } from "../kernel/messages";
 
-type ConnectionPhase =
+export type ConnectionPhase =
   | NotificationMessageData<"startup-progress">["phase"]
   | "reconnecting";
 

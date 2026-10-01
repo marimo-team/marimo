@@ -502,32 +502,106 @@ class MissingPackageAlertNotification(
     source: Literal["kernel", "server"] = "kernel"
 
 
-# package name => installation status
+# Package name => progress within the current operation
 PackageStatusType = dict[
     str,
-    Literal["queued", "installing", "installed", "failed", "restart-required"],
+    Literal["queued", "running", "succeeded", "failed", "restart-required"],
 ]
 
 
-class InstallingPackageAlertNotification(
-    Notification, tag="installing-package-alert"
+class _EnvironmentOperationStatus(
+    msgspec.Struct,
+    tag_field="kind",
+    frozen=True,
+    forbid_unknown_fields=True,
 ):
-    """Package installation progress with streaming logs.
+    pass
 
-    Attributes:
-        packages: Package name to status (queued/installing/installed/failed).
-        logs: Optional streaming logs per package.
-        log_status: Log stream status (append/start/done).
-        source: Which Python environment packages are installed into.
-                "kernel" (default) installs in the kernel's venv; "server"
-                installs in the server's own Python env.
+
+class OperationRunning(
+    _EnvironmentOperationStatus, tag="running", frozen=True
+):
+    pass
+
+
+class OperationSucceeded(
+    _EnvironmentOperationStatus, tag="succeeded", frozen=True
+):
+    pass
+
+
+class OperationRestartRequired(
+    _EnvironmentOperationStatus, tag="restart-required", frozen=True
+):
+    reason: str
+
+
+class OperationFailed(_EnvironmentOperationStatus, tag="failed", frozen=True):
+    error: str
+
+
+class OperationCancelled(
+    _EnvironmentOperationStatus, tag="cancelled", frozen=True
+):
+    pass
+
+
+EnvironmentOperationStatus = (
+    OperationRunning
+    | OperationSucceeded
+    | OperationRestartRequired
+    | OperationFailed
+    | OperationCancelled
+)
+
+
+EnvironmentAction = Literal["prepare", "install", "remove", "sync"]
+
+
+class EnvironmentOperation(msgspec.Struct, frozen=True):
+    """Current progress and logs for one execution of environment work."""
+
+    operation_id: str
+    action: EnvironmentAction
+    status: EnvironmentOperationStatus
+    packages: PackageStatusType
+    logs: dict[str, str]
+    source: Literal["kernel", "server"]
+
+
+class EnvironmentState(msgspec.Struct, frozen=True):
+    """Preparation, active operations, the latest mutation, and restarts."""
+
+    restart_required: bool
+    operations: list[EnvironmentOperation]
+
+
+class EnvironmentStateNotification(Notification, tag="environment-state"):
+    """Replace the current state for one environment on connection."""
+
+    name: ClassVar[str] = "environment-state"
+    source: Literal["kernel", "server"]
+    state: EnvironmentState
+
+
+class EnvironmentOperationNotification(
+    Notification, tag="environment-operation"
+):
+    """Current operation progress and changes to its named log streams.
+
+    Package statuses replace the previous map. Log chunks append to a stream,
+    or replace it when `log_mode` is `replace`. The operation status determines
+    completion independently of its packages and output streams.
     """
 
-    name: ClassVar[str] = "installing-package-alert"
+    name: ClassVar[str] = "environment-operation"
+    operation_id: str
+    action: EnvironmentAction
+    status: EnvironmentOperationStatus
+    source: Literal["kernel", "server"]
     packages: PackageStatusType
-    logs: dict[str, str] | None = None  # package name -> log content
-    log_status: Literal["append", "start", "done"] | None = None
-    source: Literal["kernel", "server"] = "kernel"
+    logs: dict[str, str]
+    log_mode: Literal["append", "replace"]
 
 
 class ReconnectedNotification(Notification, tag="reconnected"):
@@ -567,10 +641,16 @@ class BannerNotification(Notification, tag="banner"):
 
 
 class StartupProgressNotification(Notification, tag="startup-progress"):
-    """Progress reported before a session's kernel is ready."""
+    """Current startup phase and its output before the kernel is ready.
+
+    Output appends within a phase. Snapshots replace it, and changing phases
+    starts a new stream. Environment preparation logs belong to its operation.
+    """
 
     name: ClassVar[str] = "startup-progress"
     phase: StartupPhase
+    logs: str
+    log_mode: Literal["append", "replace"]
 
 
 class KernelStartupErrorNotification(Notification, tag="kernel-startup-error"):
@@ -1024,7 +1104,8 @@ NotificationMessage = (
     | AlertNotification
     | BannerNotification
     | MissingPackageAlertNotification
-    | InstallingPackageAlertNotification
+    | EnvironmentOperationNotification
+    | EnvironmentStateNotification
     | StartupLogsNotification
     | StartupProgressNotification
     | KernelStartupErrorNotification

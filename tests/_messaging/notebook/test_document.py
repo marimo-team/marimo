@@ -455,6 +455,7 @@ class TestCellVersion:
                     column=None,
                     disabled=True,
                     hide_code=False,
+                    expand_output=False,
                 )
             )
         )
@@ -500,11 +501,30 @@ class TestSetConfig:
                     column=None,
                     disabled=False,
                     hide_code=True,
+                    expand_output=False,
                 )
             )
         )
         cfg = doc.get_cell(CellId_t("a")).config
         assert cfg == CellConfig(column=None, disabled=False, hide_code=True)
+
+    def test_sets_expand_output(self) -> None:
+        doc = _doc("a")
+        doc.apply(
+            _tx(
+                SetConfig(
+                    cell_id=CellId_t("a"),
+                    column=None,
+                    disabled=False,
+                    hide_code=False,
+                    expand_output=True,
+                )
+            )
+        )
+        cfg = doc.get_cell(CellId_t("a")).config
+        assert cfg == CellConfig(
+            column=None, disabled=False, hide_code=False, expand_output=True
+        )
 
     def test_sets_disabled(self) -> None:
         doc = _doc("a")
@@ -515,6 +535,7 @@ class TestSetConfig:
                     column=None,
                     disabled=True,
                     hide_code=False,
+                    expand_output=False,
                 )
             )
         )
@@ -531,7 +552,12 @@ class TestSetConfig:
                     id=CellId_t("a"),
                     code="",
                     name="__",
-                    config=CellConfig(column=2, disabled=True, hide_code=True),
+                    config=CellConfig(
+                        column=2,
+                        disabled=True,
+                        hide_code=True,
+                        expand_output=True,
+                    ),
                 )
             ]
         )
@@ -542,11 +568,14 @@ class TestSetConfig:
                     column=0,
                     disabled=False,
                     hide_code=False,
+                    expand_output=False,
                 )
             )
         )
         cfg = doc.get_cell(CellId_t("a")).config
-        assert cfg == CellConfig(column=0, disabled=False, hide_code=False)
+        assert cfg == CellConfig(
+            column=0, disabled=False, hide_code=False, expand_output=False
+        )
 
     def test_column_reset_to_none(self) -> None:
         doc = NotebookDocument(
@@ -566,6 +595,7 @@ class TestSetConfig:
                     column=None,
                     disabled=False,
                     hide_code=False,
+                    expand_output=False,
                 )
             )
         )

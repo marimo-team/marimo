@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.24.2"
+version = "0.25.0"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments; we need a very compelling reason for each dependency added.
@@ -104,6 +104,7 @@ sandbox = [
 recommended = [
     "marimo[sql]",
     "marimo[sandbox]",                           # For `marimo edit --sandbox DIRECTORY`
+    "marimo-lens>=0.2.3",                        # Inspect and select notebook outputs
     "cryptography>=42.0.0",                      # Ed25519 signing of persistent cache manifests
     "altair>=5.4.0",                             # Plotting in datasource viewer
     "pydantic-ai-slim[openai]>=1.107.0,<3.0.0",  # AI features
@@ -221,7 +222,8 @@ test-optional = [
     "jupytext>=1.17.2",
     # For standard scientific computing/ ML
     # flax 0.10 requires jax>=0.4.27, so keep the floors compatible.
-    "jax>=0.4.27; python_version == '3.12'",
+    # TODO: Remove <0.11.2 after Flax 0.12.10 enters CI's 7-day window (2026-10-01).
+    "jax>=0.4.27,<0.11.2; python_version == '3.12'",
     "flax>=0.10.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
@@ -307,6 +309,7 @@ docs = [
 # Mirror CI's dependency window (UV_EXCLUDE_NEWER in .github/workflows) so local
 # resolution reproduces what CI resolves at setup time, including the ruff version.
 exclude-newer = "7 days"
+exclude-newer-package = { agent-plugins = false, marimo-lens = false }
 
 [tool.uv.sources]
 marimo_docs = { path = "./docs", editable = true }
@@ -368,15 +371,11 @@ ignore = [
     "RUF012", # Mutable class default
     "S102", # Use of `exec`
     "DTZ005", # `datetime.now()` called without `tzinfo`
-    "SIM115", # Open file without context handler
     "DTZ006", # `datetime.fromtimestamp()` called without `tzinfo`
-    "DTZ007", # `datetime.strptime()` called without zone
     "DTZ011", # `date.today()` used
     "UP007", # Use `X | Y` for type annotations
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
     "DTZ901", # `datetime.min` / `datetime.max` used
-    "PLW1509", # `subprocess` `preexec_fn` argument
-    "DTZ002", # `datetime.today()` called without tz
     "D421", # Property docstring should not start with a verb (preview rule)
 
     # Restored to Ruff's default rule set in 0.16.6; enable incrementally

@@ -25,9 +25,9 @@ interface Data {
 }
 
 export class TextAreaPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-text-area";
+  public tagName = "marimo-text-area";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.string(),
     placeholder: z.string(),
     label: z.string().nullable(),
@@ -39,7 +39,7 @@ export class TextAreaPlugin implements IPlugin<T, Data> {
     fullWidth: z.boolean().default(false),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <TextAreaComponent
         {...props.data}

@@ -298,6 +298,12 @@ class WebSocketHandler(SessionHandler):
         websocket in that state raises `AttributeError`. The connection
         is cleaned up when the handler returns regardless.
         """
+        if self.websocket.client_state is WebSocketState.DISCONNECTED:
+            # The client already closed the transport (for example, it
+            # navigated away while the kernel was still starting). Sending
+            # another close would make uvicorn raise
+            # "Unexpected ASGI message 'websocket.close'".
+            return
         try:
             await self.websocket.close(code, reason)
         except WebSocketDisconnect:

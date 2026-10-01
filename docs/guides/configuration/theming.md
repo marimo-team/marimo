@@ -8,6 +8,8 @@ To include a custom CSS file, in the configuration dropdown, add the relative fi
 app = marimo.App(css_file="custom.css")
 ```
 
+CSS paths also support `~` for your home directory, e.g. `~/theme.css`.
+
 ## Theming at the project level
 
 You may also set the `custom_css` field in your project configuration to apply a custom CSS file. This theme won't be applied if the notebook is shared with someone else, but it will be applied to all notebooks open inside the project.

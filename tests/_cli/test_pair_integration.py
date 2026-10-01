@@ -123,11 +123,7 @@ def test_interrupt_disconnects_and_kernel_recovers(
 def test_missing_input_does_not_read_stdin_or_execute(
     server: PairTestServer,
 ) -> None:
-    result = _run(
-        server,
-        code_input="print('must not run')\n",
-        timeout=2,
-    )
+    result = _run(server, code_input="print('must not run')\n")
 
     assert result.returncode == 2
     assert "error: specify -c or --code-file" in result.stderr

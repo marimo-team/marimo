@@ -297,11 +297,12 @@ export function useNotebookActions({
 
     {
       icon: <SparklesIcon size={14} strokeWidth={1.5} />,
-      label: "Pair with an agent",
+      label: "Connect your agent",
       hidden: isWasm(),
       handle: async () => {
         openModal(<PairWithAgentModal onClose={closeModal} />);
       },
+      additionalKeywords: ["connect"],
     },
 
     {

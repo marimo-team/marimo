@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { atom } from "jotai";
+import { atomWithReducer } from "jotai/utils";
+import type { NotificationMessageData } from "../kernel/messages";
 import { isNotebookPage } from "../mode";
 import { waitFor } from "../state/jotai";
 import { type ConnectionStatus, WebSocketState } from "../websocket/types";
@@ -11,6 +13,23 @@ import { type ConnectionStatus, WebSocketState } from "../websocket/types";
 export const connectionAtom = atom<ConnectionStatus>({
   state: WebSocketState.NOT_STARTED,
 });
+
+type StartupProgress = NotificationMessageData<"startup-progress">;
+
+export const startupProgressAtom = atomWithReducer<
+  Pick<StartupProgress, "phase" | "logs"> | null,
+  StartupProgress | null
+>(null, (previous, update: StartupProgress | null) =>
+  update === null
+    ? null
+    : {
+        phase: update.phase,
+        logs:
+          update.log_mode === "append" && previous?.phase === update.phase
+            ? previous.logs + update.logs
+            : update.logs,
+      },
+);
 
 export function waitForConnectionOpen() {
   return waitFor(connectionAtom, (value) => {

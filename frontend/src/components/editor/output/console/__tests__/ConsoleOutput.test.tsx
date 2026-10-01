@@ -120,6 +120,65 @@ describe("ConsoleOutput pdb history", () => {
     expect(newInput).toHaveValue("next");
   });
 
+  it("submits passwords without making them available to input history", () => {
+    const passwordPrompt: WithResponse<OutputMessage> = {
+      ...stdinPrompt("Password: "),
+      mimetype: "text/password",
+    };
+    const onSubmitDebugger = vi.fn();
+    const { rerender } = renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={[stdinPrompt("Name: ")]}
+        onSubmitDebugger={onSubmitDebugger}
+      />,
+    );
+    const nameInput = screen.getByTestId("console-input");
+    fireEvent.change(nameInput, { target: { value: "marimo" } });
+    fireEvent.keyDown(nameInput, { key: "Enter" });
+
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={[stdinPrompt("Name: ", "marimo"), passwordPrompt]}
+          onSubmitDebugger={onSubmitDebugger}
+        />
+      </TooltipProvider>,
+    );
+    const input = screen.getByTestId("console-input");
+    expect(input).toHaveAttribute("type", "password");
+    fireEvent.change(input, { target: { value: "getpass-regression-secret" } });
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(input).toHaveValue("getpass-regression-secret");
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(input).toHaveValue("getpass-regression-secret");
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onSubmitDebugger).toHaveBeenLastCalledWith(
+      "getpass-regression-secret",
+      1,
+    );
+    expect(input).toHaveValue("");
+
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={[
+            stdinPrompt("Name: ", "marimo"),
+            { ...passwordPrompt, response: "" },
+            stdinPrompt("Name: "),
+          ]}
+        />
+      </TooltipProvider>,
+    );
+    const nextInput = screen.getByTestId("console-input");
+    fireEvent.keyDown(nextInput, { key: "ArrowUp" });
+    expect(nextInput).toHaveValue("marimo");
+    fireEvent.keyDown(nextInput, { key: "ArrowDown" });
+    expect(nextInput).toHaveValue("");
+  });
+
   it("should submit an empty string when Enter is pressed with no input", () => {
     // Many CLIs prompt "Press Enter to continue" and expect "" back.
     const onSubmitDebugger = vi.fn();

@@ -225,7 +225,7 @@ export class VerticalElementsBuilder implements ElementsBuilder {
     };
   }
 
-  createElements(
+  public createElements(
     cellIds: CellId[],
     cellAtoms: Atom<CellData>[],
     variables: Variables,
@@ -311,7 +311,7 @@ export class TreeElementsBuilder implements ElementsBuilder {
     };
   }
 
-  createElements(
+  public createElements(
     cellIds: CellId[],
     cellAtoms: Atom<CellData>[],
     variables: Variables,

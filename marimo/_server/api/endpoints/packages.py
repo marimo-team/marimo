@@ -14,6 +14,11 @@ from marimo._environments.errors import (
     SandboxRestartRequired,
 )
 from marimo._environments.sandbox import Backend, NotebookSandbox
+from marimo._messaging.notification import (
+    EnvironmentOperationNotification,
+    PackageStatusType,
+)
+from marimo._runtime.packages.operations import environment_operation
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.sandbox_package_manager import (
@@ -40,6 +45,8 @@ from marimo._server.router import APIRouter
 from marimo._utils.http import HTTPException
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from starlette.requests import Request
 
 # Router for packages endpoints
@@ -73,36 +80,54 @@ async def add_package(request: Request) -> PackageOperationResponse:
             f"Check out the docs for installation instructions: {package_manager.docs_url}"
         )
 
-    upgrade = body.upgrade or False
-    group = body.group or None
-    success = await package_manager.install(
-        body.package, version=None, upgrade=upgrade, group=group
-    )
-
-    # Update the script metadata
-    filename = _get_filename(request)
-    if (
-        success
-        and filename is not None
-        and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
-    ):
-        await asyncio.to_thread(
-            package_manager.update_notebook_script_metadata,
-            filepath=filename,
-            packages_to_add=split_packages(body.package),
+    packages: PackageStatusType = {body.package: "running"}
+    with environment_operation(
+        "install", packages, "kernel", _operation_notifier(request)
+    ) as operation:
+        upgrade = body.upgrade or False
+        group = body.group or None
+        success = await package_manager.install(
+            body.package,
+            version=None,
             upgrade=upgrade,
+            group=group,
+            log_callback=lambda line: operation.update({body.package: line}),
         )
 
-    if success:
-        return PackageOperationResponse.of_success()
+        # Update the script metadata
+        filename = _get_filename(request)
+        if (
+            success
+            and filename is not None
+            and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
+        ):
+            await asyncio.to_thread(
+                package_manager.update_notebook_script_metadata,
+                filepath=filename,
+                packages_to_add=split_packages(body.package),
+                upgrade=upgrade,
+            )
 
-    if package_manager.restart_required:
-        return PackageOperationResponse(success=False, restart_required=True)
+        packages[body.package] = (
+            "succeeded"
+            if success
+            else "restart-required"
+            if package_manager.restart_required
+            else "failed"
+        )
 
-    return PackageOperationResponse.of_failure(
-        _failure_message(package_manager)
-        or f"Failed to install {body.package}. See terminal for error logs."
-    )
+        if success:
+            return PackageOperationResponse.of_success()
+
+        if package_manager.restart_required:
+            return PackageOperationResponse(
+                success=False, restart_required=True
+            )
+
+        return PackageOperationResponse.of_failure(
+            _failure_message(package_manager)
+            or f"Failed to install {body.package}. See terminal for error logs."
+        )
 
 
 @router.post("/remove")
@@ -133,33 +158,62 @@ async def remove_package(request: Request) -> PackageOperationResponse:
             f"Check out the docs for installation instructions: {package_manager.docs_url}"
         )
 
-    group = body.group or None
-    success = await package_manager.uninstall(body.package, group=group)
-
-    # Update the script metadata
-    filename = _get_filename(request)
-    if (
-        success
-        and filename is not None
-        and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
+    packages: PackageStatusType = {body.package: "running"}
+    with environment_operation(
+        "remove", packages, "kernel", _operation_notifier(request)
     ):
-        await asyncio.to_thread(
-            package_manager.update_notebook_script_metadata,
-            filepath=filename,
-            packages_to_remove=split_packages(body.package),
-            upgrade=False,
+        group = body.group or None
+        success = await package_manager.uninstall(body.package, group=group)
+
+        # Update the script metadata
+        filename = _get_filename(request)
+        if (
+            success
+            and filename is not None
+            and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
+        ):
+            await asyncio.to_thread(
+                package_manager.update_notebook_script_metadata,
+                filepath=filename,
+                packages_to_remove=split_packages(body.package),
+                upgrade=False,
+            )
+
+        packages[body.package] = (
+            "succeeded"
+            if success
+            else "restart-required"
+            if package_manager.restart_required
+            else "failed"
         )
 
-    if success:
-        return PackageOperationResponse.of_success()
+        if success:
+            return PackageOperationResponse.of_success()
 
-    if package_manager.restart_required:
-        return PackageOperationResponse(success=False, restart_required=True)
+        if package_manager.restart_required:
+            return PackageOperationResponse(
+                success=False, restart_required=True
+            )
 
-    return PackageOperationResponse.of_failure(
-        _failure_message(package_manager)
-        or f"Failed to uninstall {body.package}. See terminal for error logs."
-    )
+        return PackageOperationResponse.of_failure(
+            _failure_message(package_manager)
+            or f"Failed to uninstall {body.package}. See terminal for error logs."
+        )
+
+
+def _operation_notifier(
+    request: Request,
+) -> Callable[[EnvironmentOperationNotification], None]:
+    session = AppState(request).get_current_session()
+    loop = asyncio.get_running_loop()
+
+    def notify(notification: EnvironmentOperationNotification) -> None:
+        if session is not None:
+            # Package-manager output may arrive on a worker thread. Keep it
+            # ordered with snapshots and other notifications on the session loop.
+            loop.call_soon_threadsafe(session.notify, notification, None)
+
+    return notify
 
 
 def _failure_message(package_manager: PackageManager) -> str | None:
@@ -267,8 +321,13 @@ def _sandbox_source(
 ) -> tuple[NotebookSandbox | None, str | None, Backend | None]:
     state = AppState(request)
     manager = state.session_manager
-    if mutation and manager.is_session_starting(
-        state.require_current_session_id()
+    key = file_key or manager.workspace.get_unique_file_key()
+    if (
+        mutation
+        and key is not None
+        and manager.is_session_starting(
+            state.require_current_session_id(), key
+        )
     ):
         raise HTTPException(409, "Wait for sandbox preparation to finish.")
     session = state.get_current_session()
@@ -279,7 +338,6 @@ def _sandbox_source(
         return None, None, None
     if not manager.sandbox:
         return None, None, None
-    key = file_key or manager.workspace.get_unique_file_key()
     path = manager.workspace.resolve(key) if key else None
     return None, path, current_backend()
 
@@ -397,7 +455,12 @@ async def sync_sandbox(request: Request) -> SyncSandboxResponse:
         # Connection creation owns provisioning and streams its progress.
         return SyncSandboxResponse(success=True, reconnect=True)
     try:
-        await sandbox.sync_async()
+        with environment_operation(
+            "sync", {}, "kernel", _operation_notifier(request)
+        ) as operation:
+            await sandbox.sync_async(
+                on_output=lambda line: operation.update({"environment": line})
+            )
     except SandboxRestartRequired as error:
         return SyncSandboxResponse(
             success=False, error=str(error), restart_required=True

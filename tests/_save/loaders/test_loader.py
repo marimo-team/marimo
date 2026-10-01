@@ -611,7 +611,7 @@ class TestLazyLoader(ABCTestLoader):
     @pytest.mark.skipif(
         not DependencyManager.has("polars"), reason="polars required"
     )
-    @pytest.mark.parametrize("stored_version", [None, 5])
+    @pytest.mark.parametrize("stored_version", [None, 5, 6])
     def test_polars_cache_versions_reuse_values(
         self, stored_version: int | None
     ) -> None:
@@ -632,7 +632,9 @@ class TestLazyLoader(ABCTestLoader):
         restored = loader.cache_attempt({"frame"}, cache.key, set())
         assert restored.hit
         assert restored.defs["frame"].equals(frame)
-        assert restored.meta["version"] == (6 if stored_version is None else 5)
+        assert restored.meta["version"] == (
+            MARIMO_CACHE_VERSION if stored_version is None else stored_version
+        )
 
     @pytest.mark.skipif(
         not DependencyManager.has("pandas"), reason="pandas required"

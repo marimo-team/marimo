@@ -337,7 +337,9 @@ class NotebookSandbox:
         self._environment_source = self._source
         return self._launch_plan(environment, args, overlay, base_env)
 
-    async def sync_async(self) -> None:
+    async def sync_async(
+        self, *, on_output: Callable[[str], None] | None = None
+    ) -> None:
         """Apply the saved manifest to the environment used by this kernel."""
         await self._adapter.ensure_available_async()
         async with script_metadata.materialized_for_environment_async(
@@ -353,7 +355,7 @@ class NotebookSandbox:
             environment = await self._adapter.sync_async(
                 target,
                 python_override=None,
-                on_output=None,
+                on_output=on_output,
                 active_environment=self._environment,
             )
         self._environment = environment

@@ -43,6 +43,7 @@ from marimo._server.workspace import (
     FixedFilesWorkspace,
 )
 from marimo._templates import get_version
+from marimo._utils.env import is_env_true
 from marimo._utils.platform import is_windows
 from marimo._utils.toml import toml_reader
 
@@ -2136,6 +2137,71 @@ def test_shell_completion(
 
 
 HAS_DOCKER = DependencyManager.which("docker")
+
+
+@pytest.mark.parametrize("backend", ["uv", "pixi"])
+def test_cli_edit_remote_sandbox_prompts_for_docker_once(
+    backend: str, temp_marimo_file: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+
+    args = [
+        "edit",
+        "https://example.com/notebook.py",
+        f"--sandbox={backend}",
+        "--headless",
+        "--skip-update-check",
+    ]
+    monkeypatch.setattr(sys, "argv", ["marimo", *args])
+    monkeypatch.delenv("MARIMO_SERVER_OVERLAY", raising=False)
+    monkeypatch.delenv("MARIMO_MANAGE_SCRIPT_METADATA", raising=False)
+    monkeypatch.setattr(GLOBAL_SETTINGS, "IN_SECURE_ENVIRONMENT", False)
+    monkeypatch.setattr(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", False)
+
+    with (
+        patch("marimo._cli.run_docker.sys") as terminal,
+        patch(
+            "marimo._cli.run_docker.click.confirm", return_value=False
+        ) as confirm,
+        patch(
+            "marimo._cli.cli.validate_name",
+            return_value=(temp_marimo_file, None),
+        ),
+        patch("marimo._cli.sandbox.require_sandbox_backend"),
+        patch(
+            "marimo._environments.backends._uv_launcher",
+            return_value=(backend,),
+        ),
+        patch("marimo._cli.sandbox._wait_on_plan", return_value=0) as wait,
+        patch(
+            "marimo._utils.platform.check_shared_memory_available",
+            return_value=(True, None),
+        ),
+        patch("marimo._cli.cli.start") as start_server,
+    ):
+        terminal.stdin.isatty.return_value = True
+        runner = CliRunner()
+        outer = runner.invoke(cli_main, args)
+        assert outer.exit_code == 0, outer.output
+        confirm.assert_called_once()
+        start_server.assert_not_called()
+
+        plan = wait.call_args.args[0]
+        child_args = list(plan.argv[plan.argv.index("-m") + 2 :])
+        with patch.dict(os.environ, plan.env):
+            # CliRunner reuses the interpreter; refresh the setting that a
+            # child process would initialize from its environment at import.
+            monkeypatch.setattr(
+                GLOBAL_SETTINGS,
+                "MANAGE_SCRIPT_METADATA",
+                is_env_true("MARIMO_MANAGE_SCRIPT_METADATA"),
+            )
+            inner = runner.invoke(cli_main, child_args)
+        assert inner.exit_code == 0, inner.output
+        confirm.assert_called_once()
+        wait.assert_called_once()
+        start_server.assert_called_once()
+        assert start_server.call_args.kwargs["sandbox"] == backend
 
 
 @pytest.mark.skipif(

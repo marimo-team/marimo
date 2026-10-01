@@ -31,9 +31,9 @@ interface Data {
 }
 
 export class SliderPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-slider";
+  public tagName = "marimo-slider";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.number(),
     label: z.string().nullable(),
     start: z.number(),
@@ -48,7 +48,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     // Create the valueMap function
     const valueMap = (sliderValue: number): number => {
       const { steps } = props.data;

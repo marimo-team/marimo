@@ -88,6 +88,12 @@ class SessionConnector:
         if self.params.kiosk:
             return self._connect_kiosk()
 
+        # A completed launch may still be waiting for its first connection.
+        if self.manager.is_session_starting(
+            self.params.session_id, self.params.file_key
+        ):
+            return await self._create_new_session()
+
         # 2. Reconnect to existing session with same ID
         existing_by_id = self.manager.get_session(self.params.session_id)
         if existing_by_id is not None:

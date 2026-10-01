@@ -164,6 +164,7 @@ function columnChanges(
         column: newCol,
         disabled: cell?.config.disabled ?? false,
         hideCode: cell?.config.hide_code ?? false,
+        expandOutput: cell?.config.expand_output ?? false,
       });
     }
   }
@@ -277,6 +278,7 @@ export function toDocumentChanges(
           column: cell.config.column ?? null,
           disabled: cell.config.disabled ?? false,
           hideCode: cell.config.hide_code ?? false,
+          expandOutput: cell.config.expand_output ?? false,
         },
       ];
     }
@@ -452,7 +454,11 @@ export function fromDocumentChanges(
             payload: { cellId: change.cellId, name: change.name },
           });
         }
-        if (change.config?.disabled != null || change.config?.column != null) {
+        if (
+          change.config?.disabled != null ||
+          change.config?.column != null ||
+          change.config?.expand_output != null
+        ) {
           actions.push({
             type: "updateCellConfig",
             payload: {
@@ -463,6 +469,9 @@ export function fromDocumentChanges(
                 }),
                 ...(change.config.column != null && {
                   column: change.config.column,
+                }),
+                ...(change.config.expand_output != null && {
+                  expand_output: change.config.expand_output,
                 }),
               },
             },
@@ -560,6 +569,7 @@ export function fromDocumentChanges(
               column: change.column,
               disabled: change.disabled,
               hide_code: change.hideCode,
+              expand_output: change.expandOutput,
             },
           },
         });

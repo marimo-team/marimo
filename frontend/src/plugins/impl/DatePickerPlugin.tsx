@@ -19,9 +19,9 @@ interface Data {
 }
 
 export class DatePickerPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-date";
+  public tagName = "marimo-date";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.string(),
     label: z.string().nullable(),
     start: z.string(),
@@ -31,7 +31,7 @@ export class DatePickerPlugin implements IPlugin<T, Data> {
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <DatePickerComponent
         {...props.data}

@@ -13,11 +13,13 @@ export class BasicTransport implements IConnectionTransport {
   private subscriptions = new ConnectionSubscriptions();
   private producer?: MessageProducer;
 
-  static withProducerCallback(producer: MessageProducer): IConnectionTransport {
+  public static withProducerCallback(
+    producer: MessageProducer,
+  ): IConnectionTransport {
     return new BasicTransport(producer);
   }
 
-  static empty(): IConnectionTransport {
+  public static empty(): IConnectionTransport {
     return new BasicTransport();
   }
 
@@ -39,21 +41,26 @@ export class BasicTransport implements IConnectionTransport {
     });
   }
 
-  get readyState(): WebSocket["readyState"] {
+  public get readyState(): WebSocket["readyState"] {
     return WebSocket.OPEN;
   }
 
-  reconnect(_code?: number | undefined, _reason?: string | undefined): void {
+  public reconnect(
+    _code?: number | undefined,
+    _reason?: string | undefined,
+  ): void {
     this.close();
     this.connect();
     return;
   }
 
-  close(): void {
+  public close(): void {
     this.subscriptions.notify("close", new Event("close"));
   }
 
-  send(data: string | ArrayBuffer | Blob | ArrayBufferView): Promise<void> {
+  public send(
+    data: string | ArrayBuffer | Blob | ArrayBufferView,
+  ): Promise<void> {
     this.subscriptions.notify(
       "message",
       new MessageEvent("message", {
@@ -63,7 +70,7 @@ export class BasicTransport implements IConnectionTransport {
     return Promise.resolve();
   }
 
-  addEventListener<T extends ConnectionEvent>(
+  public addEventListener<T extends ConnectionEvent>(
     event: T,
     callback: ConnectionTransportCallback<T>,
   ): void {
@@ -83,7 +90,7 @@ export class BasicTransport implements IConnectionTransport {
     }
   }
 
-  removeEventListener<T extends ConnectionEvent>(
+  public removeEventListener<T extends ConnectionEvent>(
     event: T,
     callback: ConnectionTransportCallback<T>,
   ): void {

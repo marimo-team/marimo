@@ -76,28 +76,26 @@ def is_data_primitive(value: Any) -> bool:
     if is_instance_by_name(value, "torch.Tensor"):
         return str(value.device) == "cpu"
 
-    # Series follow the same numeric-schema policy as dataframes.
-    if is_instance_by_name(value, "polars.series.series.Series"):
-        return bool(value.dtype.is_numeric())
-
+    is_polars = type(value).__module__.startswith("polars.")
     # If a numpy like array, ensure that it's not an object array.
-    if hasattr(value, "dtype"):
+    if hasattr(value, "dtype") and not is_polars:
         return not (
             value.dtype is None
             or (hasattr(value.dtype, "hasobject") and value.dtype.hasobject)
         )
-    elif hasattr(value, "dtypes"):
+    elif hasattr(value, "dtypes") or is_polars:
         # Bit of discrepancy between objects like polars and pandas, so use
         # narwhals to normalize the dataframe.
         import narwhals.stable.v2 as nw
 
         try:
+            frame = nw.from_native(value, allow_series=True)
+            if isinstance(frame, nw.Series):
+                frame = frame.to_frame()
             return bool(
                 all(
                     dtype.is_numeric()
-                    for dtype in nw.from_native(value)
-                    .collect_schema()
-                    .dtypes()
+                    for dtype in frame.collect_schema().dtypes()
                 )
             )
         except Exception:

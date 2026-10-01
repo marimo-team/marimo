@@ -146,6 +146,7 @@ def ensure_server_environment(
                 base_env={
                     **os.environ,
                     "MARIMO_SERVER_OVERLAY": "1",
+                    "MARIMO_MANAGE_SCRIPT_METADATA": "true",
                     "MARIMO_ANCESTOR_PID": str(os.getpid()),
                 },
             )
@@ -411,9 +412,11 @@ def require_sandbox_backend(backend: SandboxBackend) -> None:
             if backend == "pixi"
             else "https://docs.astral.sh/uv/getting-started/installation/"
         )
+        # uv and pixi are standalone tools, not Python packages, so skip the
+        # generic `pip install <package>` hint and point at their installers.
         raise MarimoCLIMissingDependencyError(
             f"{backend} must be installed to use {option}.",
-            backend,
+            [],
             additional_tip=f"Install {backend} from {install_url}",
         ) from e
 
@@ -471,14 +474,13 @@ def run_in_sandbox(
             write_constraint_file,
         )
 
-        constraint_tmp = tempfile.NamedTemporaryFile(
+        with tempfile.NamedTemporaryFile(
             mode="w",
             delete=False,
             suffix="-pyodide-constraints.txt",
             encoding="utf-8",
-        )
-        constraint_tmp.close()
-        constraint_path = constraint_tmp.name
+        ) as constraint_tmp:
+            constraint_path = constraint_tmp.name
         if write_constraint_file(constraint_path):
             # Resolution happens in the child uv process; see below.
             env["UV_CONSTRAINT"] = constraint_path

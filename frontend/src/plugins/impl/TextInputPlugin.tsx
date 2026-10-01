@@ -33,9 +33,9 @@ interface Data {
 const MASK_PLACEHOLDER = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
 
 export class TextInputPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-text";
+  public tagName = "marimo-text";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.string(),
     placeholder: z.string(),
     label: z.string().nullable(),
@@ -48,7 +48,7 @@ export class TextInputPlugin implements IPlugin<T, Data> {
     passwordHasValue: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     // Force remount on cell re-run so masked state resets cleanly
     const remountKey =
       props.data.kind === "password"

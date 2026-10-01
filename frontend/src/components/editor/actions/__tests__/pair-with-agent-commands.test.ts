@@ -129,7 +129,7 @@ describe("getTerminalCommand", () => {
           PAIR_PREVIEW,
         ),
       ).toBe(
-        String.raw`codex "$(MARIMO_PAIR_NEXT=1 uv run marimo pair prompt \
+        String.raw`codex "$(MARIMO_PAIR_NEXT=1 uvx marimo@latest pair prompt \
   --url http://localhost:8000)"`,
       );
     } finally {
@@ -152,7 +152,7 @@ describe("getTerminalCommand", () => {
           PAIR_PREVIEW,
         ),
       ).toBe(
-        String.raw`${cli} "$(MARIMO_PAIR_NEXT=1 uv run marimo pair prompt \
+        String.raw`${cli} "$(MARIMO_PAIR_NEXT=1 uvx marimo@latest pair prompt \
   --url http://localhost:8000 \
   --file notebooks/example.py \
   --session s_ab12cd \
@@ -264,8 +264,8 @@ describe("getRawPrompt", () => {
     expect(getRawPrompt(connection, null, PAIR_PREVIEW)).toBe(
       "Pair with me on this running marimo notebook.\n\n" +
         `URL: http://localhost:8000\n${fields}\n` +
-        "Run `uv run marimo pair --help` first.\n" +
-        "Use `uv run marimo` for all marimo commands.\n\n" +
+        "Run `uvx marimo@latest pair --help` first.\n" +
+        "Use `uvx marimo@latest` for all marimo commands.\n\n" +
         "Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).",
     );
   });
@@ -278,8 +278,8 @@ describe("getRawPrompt", () => {
         "URL: http://localhost:8000\n" +
         "File: notebooks/example.py\n" +
         "Session: s_ab12cd\n\n" +
-        "Run `uv run marimo pair --help` first.\n" +
-        "Use `uv run marimo` for all marimo commands.\n\n" +
+        "Run `uvx marimo@latest pair --help` first.\n" +
+        "Use `uvx marimo@latest` for all marimo commands.\n\n" +
         "Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).",
     );
   });

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import threading
 from functools import partial
@@ -11,6 +12,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from marimo._environments import backends
+from marimo._environments.environment import Environment, ProcessPlan
+from marimo._environments.sandbox import BackendAdapter
 from marimo._messaging.notification import (
     AlertNotification,
     StartupProgressNotification,
@@ -303,32 +307,37 @@ async def test_sandbox_progress_during_preparation(
     tmp_path: Path,
     outcome: str,
 ) -> None:
-    from marimo._session.managers import ipc
-
+    preparing = asyncio.Event()
     release = asyncio.Event()
     cleaned_up = asyncio.Event()
+    python = (
+        sys.executable
+        if outcome == "ready"
+        else str(tmp_path / "missing-python")
+    )
+    environment = Environment(python, sys.prefix, "unchanged")
 
-    async def check_environment(_python: str) -> bool:
+    async def prepare_environment(*_args: Any, **_kwargs: Any) -> Environment:
+        preparing.set()
         try:
             await release.wait()
-            return True
+            return environment
         finally:
             cleaned_up.set()
 
-    # A configured interpreter that disappears before launch lets the test
-    # observe both phases and a real launch failure without spawning a kernel.
-    monkeypatch.setattr(
-        ipc,
-        "get_configured_venv_python",
-        lambda *_args, **_kwargs: (
-            sys.executable
-            if outcome == "ready"
-            else str(tmp_path / "missing-python")
-        ),
+    # Control sandbox preparation while exercising real kernel startup.
+    # A missing interpreter triggers a launch failure after preparation succeeds.
+    adapter = MagicMock(spec=BackendAdapter)
+    adapter.name = backends.current_backend()
+    adapter.sync_async.side_effect = prepare_environment
+    adapter.launch.return_value = ProcessPlan(
+        (python, "-m", "marimo._ipc.launch_kernel"), os.environ.copy()
     )
-    monkeypatch.setattr(ipc, "has_marimo_installed", check_environment)
+    monkeypatch.setattr(backends, "adapter_for", lambda *_: adapter)
     manager = get_session_manager(client)
     manager.sandbox = True
+    if outcome == "disconnect":
+        manager.ttl_seconds = 0
 
     async with _connect(client) as connection:
         event = await connection.next_event()
@@ -337,20 +346,35 @@ async def test_sandbox_progress_during_preparation(
             "data": {
                 "op": "startup-progress",
                 "phase": "preparing-environment",
+                "logs": "",
+                "log_mode": "replace",
             },
         }
+        running = json.loads((await connection.next_event())["data"])
+        assert running["op"] == "environment-operation"
+        assert running["data"]["action"] == "prepare"
+        assert running["data"]["status"] == {"kind": "running"}
         assert not manager.sessions
+        await asyncio.wait_for(preparing.wait(), timeout=5)
         if outcome == "disconnect":
             connection.disconnect()
             await asyncio.wait_for(cleaned_up.wait(), timeout=5)
         else:
             release.set()
+            completed = json.loads((await connection.next_event())["data"])
+            assert (
+                completed["data"]["operation_id"]
+                == running["data"]["operation_id"]
+            )
+            assert completed["data"]["status"] == {"kind": "succeeded"}
             event = await connection.next_event()
             assert json.loads(event["data"]) == {
                 "op": "startup-progress",
                 "data": {
                     "op": "startup-progress",
                     "phase": "starting-kernel",
+                    "logs": "",
+                    "log_mode": "replace",
                 },
             }
             event = await connection.next_event()
@@ -513,7 +537,9 @@ async def test_disconnect_during_startup_progress_detaches_session() -> None:
     session = handler.manager.get_session.return_value
     handler.notify(
         serialize_kernel_message(
-            StartupProgressNotification(phase="starting-kernel")
+            StartupProgressNotification(
+                phase="starting-kernel", logs="", log_mode="replace"
+            )
         )
     )
 

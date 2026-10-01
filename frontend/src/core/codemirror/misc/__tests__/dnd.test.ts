@@ -66,11 +66,11 @@ describe("dnd", () => {
 });
 
 class DragEvent extends Event {
-  dataTransfer: DataTransfer;
-  clientX: number;
-  clientY: number;
+  public dataTransfer: DataTransfer;
+  public clientX: number;
+  public clientY: number;
 
-  constructor(
+  public constructor(
     type: string,
     {
       dataTransfer,
@@ -86,14 +86,14 @@ class DragEvent extends Event {
 }
 
 class DataTransfer {
-  data: Record<string, string> = {};
-  _items: File[] = [];
+  public data: Record<string, string> = {};
+  public _items: File[] = [];
 
-  setData(type: string, data: string) {
+  public setData(type: string, data: string) {
     this.data[type] = data;
   }
 
-  get items() {
+  public get items() {
     return {
       add: (file: File) => {
         this._items.push(file);
@@ -101,11 +101,11 @@ class DataTransfer {
     };
   }
 
-  get files() {
+  public get files() {
     return this._items;
   }
 
-  getData(type: string) {
+  public getData(type: string) {
     return this.data[type];
   }
 }

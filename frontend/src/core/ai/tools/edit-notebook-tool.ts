@@ -76,13 +76,13 @@ export class EditNotebookTool implements AiTool<
   EditNotebookInput,
   ToolOutputBase
 > {
-  readonly name = "edit_notebook_tool";
-  readonly description = description;
-  readonly schema = editNotebookSchema;
-  readonly outputSchema = toolOutputBaseSchema;
-  readonly mode: CopilotMode[] = ["agent"];
+  public readonly name = "edit_notebook_tool";
+  public readonly description = description;
+  public readonly schema = editNotebookSchema;
+  public readonly outputSchema = toolOutputBaseSchema;
+  public readonly mode: CopilotMode[] = ["agent"];
 
-  handler = async (
+  public handler = async (
     { edit }: EditNotebookInput,
     toolContext: ToolNotebookContext,
   ): Promise<ToolOutputBase> => {

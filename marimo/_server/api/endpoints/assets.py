@@ -124,19 +124,14 @@ except RuntimeError:
 
 FILE_QUERY_PARAM_KEY = "file"
 
-# Hardening headers for HTML page responses in edit/home mode. These
-# supplement the token-stripping redirect below by preventing any outbound
-# fetch from the HTML page from leaking a transiently-present access_token
-# via `Referer`, and by disabling MIME sniffing on the HTML response.
+# Hardening headers for HTML page responses. They supplement the
+# token-stripping redirect below and disable MIME sniffing.
 #
-# Use "same-origin" instead of "no-referrer" to avoid Chrome 147+ on macOS
-# treating localhost pages as private-network requests without a valid
-# referrer, which triggers Local Network Access checks and "Error code 5".
-# "same-origin" still prevents cross-origin referrer leakage while
-# preserving the referrer for same-origin navigations.
-# See: https://github.com/marimo-team/marimo/issues/9455
+# Preserve same-origin referrers. Limit cross-origin referrers to the
+# origin so services that gate on Referer, such as map tile servers, can
+# identify the source without receiving notebook paths or query parameters.
 _HTML_SECURITY_HEADERS: dict[str, str] = {
-    "Referrer-Policy": "same-origin",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
     "X-Content-Type-Options": "nosniff",
 }
 

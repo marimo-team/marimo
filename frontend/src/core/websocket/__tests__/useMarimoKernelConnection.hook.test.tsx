@@ -42,6 +42,7 @@ vi.mock("@/core/runtime/config", async () => {
 
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
+import { alertAtom, getPackageAlert } from "@/core/alerts/state";
 import { notebookAtom } from "@/core/cells/cells";
 import { AppConfigSchema } from "@/core/config/config-schema";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
@@ -49,7 +50,7 @@ import { kernelStartupErrorAtom } from "@/core/errors/state";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { initialRunCompletedAtom } from "../../kernel/state";
-import { connectionAtom } from "../../network/connection";
+import { connectionAtom, startupProgressAtom } from "../../network/connection";
 import type { SessionId } from "../../kernel/session";
 import { WebSocketClosedReason, WebSocketState } from "../types";
 import type { IConnectionTransport } from "../transports/transport";
@@ -306,7 +307,12 @@ describe("connection notice", () => {
 
   it("keeps elapsed time across startup phases and leaves reconnection to the footer once cells are available", () => {
     const { store, options, send } = renderNotice();
-    send({ op: "startup-progress", phase: "preparing-environment" });
+    send({
+      op: "startup-progress",
+      phase: "preparing-environment",
+      logs: "",
+      log_mode: "replace",
+    });
     expect(
       screen.queryByRole("region", { name: "Notebook startup" }),
     ).not.toBeInTheDocument();
@@ -324,8 +330,13 @@ describe("connection notice", () => {
         }),
       ),
     );
-    send({ op: "startup-progress", phase: "starting-kernel" });
-    expect(screen.getByRole("status")).toHaveTextContent("Starting notebook");
+    send({
+      op: "startup-progress",
+      phase: "starting-kernel",
+      logs: "",
+      log_mode: "replace",
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Starting kernel");
     expect(screen.getByText("Elapsed 35s")).toBeInTheDocument();
     send({ op: "reconnected" });
     expect(
@@ -342,11 +353,71 @@ describe("connection notice", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("restores startup output before appending live chunks and resets it for a new attempt", () => {
+    const { store, send } = renderNotice();
+    const snapshot = {
+      op: "startup-progress",
+      phase: "starting-kernel",
+      logs: "Downloading runtime\n",
+      log_mode: "replace",
+    } as const;
+    send(snapshot);
+    send(snapshot);
+    const connection = store.get(connectionAtom);
+    send({ ...snapshot, logs: "Loading kernel\n", log_mode: "append" });
+    expect(store.get(startupProgressAtom)).toEqual({
+      phase: "starting-kernel",
+      logs: "Downloading runtime\nLoading kernel\n",
+    });
+    expect(store.get(connectionAtom)).toBe(connection);
+    expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+
+    send({ ...snapshot, phase: "preparing-environment", logs: "" });
+    expect(store.get(startupProgressAtom)).toEqual({
+      phase: "preparing-environment",
+      logs: "",
+    });
+  });
+
+  it("restores completed startup output without putting a connected kernel back into startup", async () => {
+    const { store, options, send } = renderNotice();
+    send({ op: "reconnected" });
+    send({
+      op: "startup-progress",
+      phase: "starting-kernel",
+      logs: "Kernel startup output\n",
+      log_mode: "replace",
+    });
+    expect(store.get(connectionAtom)).toEqual({ state: WebSocketState.OPEN });
+    expect(store.get(startupProgressAtom)).toEqual({
+      phase: "starting-kernel",
+      logs: "Kernel startup output\n",
+    });
+    act(() => vi.advanceTimersByTime(500));
+    expect(
+      screen.queryByRole("region", { name: "Notebook startup" }),
+    ).not.toBeInTheDocument();
+
+    // A new transport starts from the next session's authoritative snapshot.
+    await act(async () => options.onOpen(new Event("open")));
+    expect(store.get(startupProgressAtom)).toBeNull();
+  });
+
   it("does not flash a notice when startup finishes within the delay", () => {
     const { send } = renderNotice();
-    send({ op: "startup-progress", phase: "preparing-environment" });
+    send({
+      op: "startup-progress",
+      phase: "preparing-environment",
+      logs: "",
+      log_mode: "replace",
+    });
     act(() => vi.advanceTimersByTime(200));
-    send({ op: "startup-progress", phase: "starting-kernel" });
+    send({
+      op: "startup-progress",
+      phase: "starting-kernel",
+      logs: "",
+      log_mode: "replace",
+    });
     act(() => vi.advanceTimersByTime(200));
     expect(
       screen.queryByRole("region", { name: "Notebook startup" }),
@@ -365,7 +436,7 @@ describe("connection notice", () => {
     "keeps a %s failure available until the user retries",
     async (phase, title) => {
       const { store, transport, options, send } = renderNotice();
-      send({ op: "startup-progress", phase });
+      send({ op: "startup-progress", phase, logs: "", log_mode: "replace" });
       const error = "A full diagnostic\nwith <stderr> details";
       send({ op: "kernel-startup-error", error });
       transport.readyState = WebSocket.CLOSED;
@@ -389,7 +460,12 @@ describe("connection notice", () => {
       expect(
         screen.queryByRole("button", { name: "Try again" }),
       ).not.toBeInTheDocument();
-      send({ op: "startup-progress", phase: "preparing-environment" });
+      send({
+        op: "startup-progress",
+        phase: "preparing-environment",
+        logs: "",
+        log_mode: "replace",
+      });
       act(() => vi.advanceTimersByTime(500));
       expect(screen.getByRole("status")).toHaveTextContent(
         "Preparing environment",
@@ -397,4 +473,119 @@ describe("connection notice", () => {
       expect(screen.getByText("Elapsed 0s")).toBeInTheDocument();
     },
   );
+});
+
+it("replaces environment state from snapshots, then continues live progress", () => {
+  const store = createStore();
+  vi.mocked(useConnectionTransport).mockClear();
+  vi.mocked(useConnectionTransport).mockReturnValue(
+    makeTransport(WebSocket.OPEN),
+  );
+  vi.mocked(useRuntimeManager).mockReturnValue(
+    makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
+  );
+  renderConnectionHook(store);
+  const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)?.[0];
+  function receive(data: NotificationPayload["data"]) {
+    act(() =>
+      options?.onMessage(
+        new MessageEvent("message", {
+          data: JSON.stringify({ op: data.op, data }),
+        }),
+      ),
+    );
+  }
+  receive({
+    op: "environment-operation",
+    source: "kernel",
+    operation_id: "old",
+    action: "install",
+    status: { kind: "running" },
+    packages: { pandas: "running" },
+    logs: { pandas: "stale" },
+    log_mode: "append",
+  });
+  const operation = {
+    operation_id: "new",
+    action: "install",
+    source: "kernel",
+    status: { kind: "running" },
+    packages: { numpy: "running" },
+    logs: { numpy: "Downloading\n" },
+  } as const;
+  const serverOperation = {
+    ...operation,
+    operation_id: "server",
+    action: "install",
+    source: "server",
+    status: { kind: "succeeded" },
+    packages: { numpy: "succeeded" },
+    logs: { numpy: "Server logs\n" },
+  } as const;
+  receive({
+    op: "environment-state",
+    source: "server",
+    state: {
+      restart_required: false,
+      operations: [serverOperation],
+    },
+  });
+  const snapshot = {
+    op: "environment-state",
+    source: "kernel",
+    state: { restart_required: false, operations: [operation] },
+  } as const;
+  // Receiving a snapshot twice must not duplicate logs.
+  receive({
+    ...snapshot,
+    state: { ...snapshot.state, operations: [operation] },
+  });
+  receive({
+    ...snapshot,
+    state: { ...snapshot.state, operations: [operation] },
+  });
+  receive({
+    op: "environment-operation",
+    operation_id: "new",
+    action: "install",
+    source: "kernel",
+    status: { kind: "failed", error: "Network unavailable" },
+    packages: { numpy: "running" },
+    logs: { numpy: "Failed\n" },
+    log_mode: "append",
+  });
+  expect(getPackageAlert(store.get(alertAtom))).toEqual({
+    ...operation,
+    id: "new",
+    kind: "environment",
+    restartRequired: false,
+    status: { kind: "failed", error: "Network unavailable" },
+    logs: { numpy: "Downloading\nFailed\n" },
+  });
+  receive({
+    op: "environment-state",
+    source: "kernel",
+    state: {
+      restart_required: false,
+      operations: [],
+    },
+  });
+  // Clearing the active environment must not promote an old server success.
+  expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+  expect(store.get(alertAtom).environments.server.operations).toEqual([
+    serverOperation,
+  ]);
+  receive({
+    op: "environment-state",
+    source: "server",
+    state: {
+      restart_required: false,
+      operations: [],
+    },
+  });
+  expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+  expect(store.get(alertAtom).environments).toEqual({
+    kernel: { restart_required: false, operations: [] },
+    server: { restart_required: false, operations: [] },
+  });
 });

@@ -203,7 +203,7 @@ describe("PairWithAgentModal", () => {
     );
     await waitFor(() =>
       expect(copyToClipboard).toHaveBeenCalledWith(
-        String.raw`claude "$(MARIMO_PAIR_NEXT=1 uv run marimo pair prompt \
+        String.raw`claude "$(MARIMO_PAIR_NEXT=1 uvx marimo@latest pair prompt \
   --url http://localhost:8000/ \
   --file notebook.py \
   --session ${getSessionId()} \

@@ -236,11 +236,11 @@ export class MockWorkerFactory implements WorkerFactory {
   public workers: Worker[] = [];
   private readonly mockWorker?: Worker;
 
-  constructor(mockWorker?: Worker) {
+  public constructor(mockWorker?: Worker) {
     this.mockWorker = mockWorker;
   }
 
-  create(): Worker {
+  public create(): Worker {
     const worker = this.mockWorker || this.createMockWorker();
     this.workers.push(worker);
     return worker;
@@ -259,11 +259,11 @@ export class MockWorkerFactory implements WorkerFactory {
     } as unknown as Worker;
   }
 
-  getCreatedWorkers(): Worker[] {
+  public getCreatedWorkers(): Worker[] {
     return this.workers;
   }
 
-  terminateAll(): void {
+  public terminateAll(): void {
     for (const worker of this.workers) {
       worker.terminate();
     }

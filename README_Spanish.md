@@ -55,7 +55,7 @@ pip install marimo && marimo tutorial intro
 
 _¡Prueba marimo en [nuestro entorno de pruebas](https://marimo.app/l/c7h6pz), se ejecuta completamente en el navegador!_
 
-_[Inicia rápido](#quickstart) para una introducción sobre nuestro CLI._
+_[Inicia rápido](#inicio-rápido) para una introducción sobre nuestro CLI._
 
 ## Un entorno de programación reactivo
 

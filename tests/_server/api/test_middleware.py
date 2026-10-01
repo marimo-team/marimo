@@ -9,6 +9,7 @@ import sys
 import time
 from multiprocessing import Process
 from typing import TYPE_CHECKING, Any
+from unittest.mock import AsyncMock
 from urllib.parse import quote
 
 import pytest
@@ -23,6 +24,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from uvicorn import Config, Server
 
 from marimo._config.manager import MarimoConfigManager, UserConfigManager
+from marimo._server._pylsp import create_server
 from marimo._server.api.auth import TOKEN_QUERY_PARAM
 from marimo._server.api.middleware import (
     ProxyMiddleware,
@@ -39,7 +41,7 @@ from marimo._server.main import (
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._session.model import SessionMode
-from tests._server.conftest import join_kernel_thread_tasks
+from tests._server.conftest import join_kernel_thread_tasks, serve_in_thread
 from tests._server.mocks import get_mock_session_manager, token_header
 
 if TYPE_CHECKING:
@@ -825,7 +827,7 @@ class TestLspProxyMiddleware:
 
         assert len(middlewares) == 1
         assert middlewares[0].kwargs["proxy_path"] == "/lsp/test-lsp"
-        assert middlewares[0].kwargs["target_url"] == "http://localhost:8888"
+        assert middlewares[0].kwargs["target_url"] == "http://127.0.0.1:8888"
 
     def test_lsp_proxy_with_base_url(self) -> None:
         middlewares = list(
@@ -836,7 +838,7 @@ class TestLspProxyMiddleware:
 
         assert len(middlewares) == 1
         assert middlewares[0].kwargs["proxy_path"] == "/foo/lsp/test-lsp"
-        assert middlewares[0].kwargs["target_url"] == "http://localhost:8888"
+        assert middlewares[0].kwargs["target_url"] == "http://127.0.0.1:8888"
 
     def test_lsp_proxy_multiple_servers(self) -> None:
         middlewares = list(
@@ -851,9 +853,9 @@ class TestLspProxyMiddleware:
 
         assert len(middlewares) == 2
         assert middlewares[0].kwargs["proxy_path"] == "/app/lsp/pylsp"
-        assert middlewares[0].kwargs["target_url"] == "http://localhost:8888"
+        assert middlewares[0].kwargs["target_url"] == "http://127.0.0.1:8888"
         assert middlewares[1].kwargs["proxy_path"] == "/app/lsp/copilot"
-        assert middlewares[1].kwargs["target_url"] == "http://localhost:8889"
+        assert middlewares[1].kwargs["target_url"] == "http://127.0.0.1:8889"
 
     def test_lsp_proxy_integration(self) -> None:
         """Verify LSP proxy works with create_starlette_app."""
@@ -870,7 +872,7 @@ class TestLspProxyMiddleware:
         ]
 
         assert len(proxy_mw) == 1
-        assert proxy_mw[0].kwargs["target_url"] == "http://localhost:8888"
+        assert proxy_mw[0].kwargs["target_url"] == "http://127.0.0.1:8888"
 
 
 class TestLspProxyAuth:
@@ -934,6 +936,25 @@ class TestLspProxyAuth:
                 pass
         assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
 
+    def test_private_lsp_token_cannot_bypass_marimo_auth(
+        self, lsp_app: Starlette, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        proxy = next(
+            mw for mw in lsp_app.user_middleware if mw.cls == ProxyMiddleware
+        )
+        connect = AsyncMock()
+        monkeypatch.setattr("marimo._server.api.middleware.connect", connect)
+        client = TestClient(lsp_app)
+        with pytest.raises(WebSocketDisconnect) as exc:
+            with client.websocket_connect(
+                "/lsp/test-lsp/ws", headers=proxy.kwargs["websocket_headers"]
+            ):
+                pytest.fail(
+                    "Private upstream token bypassed marimo authentication"
+                )
+        assert exc.value.code == WebSocketCodes.UNAUTHORIZED
+        connect.assert_not_called()
+
     def test_http_authenticated_is_forwarded(self, lsp_app: Starlette) -> None:
         # The mock LSP server points at an unused port, so the upstream
         # connection fails with 503. We only care that auth let the
@@ -944,6 +965,49 @@ class TestLspProxyAuth:
             headers=token_header("fake-token"),
         )
         assert response.status_code != 401, response.text
+
+    async def test_websocket_injects_private_credential(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        lsp = _mock_lsp_server("test-lsp", 0)
+        assert lsp.auth_token != _mock_lsp_server("other-lsp", 0).auth_token
+
+        def echo(websocket):
+            for message in websocket:
+                websocket.send(message)
+
+        monkeypatch.setattr("marimo._server._pylsp.pylsp_connection", echo)
+        with (
+            create_server(0, lsp.auth_token) as upstream,
+            serve_in_thread(upstream),
+        ):
+            lsp.port = upstream.socket.getsockname()[1]
+            app = create_starlette_app(
+                base_url="/notebook", lsp_servers=[lsp], skew_protection=False
+            )
+            with_server(app)
+            init_state(
+                session_manager=get_mock_session_manager(
+                    mode=SessionMode.EDIT
+                ),
+                skew_protection=False,
+                base_url="/notebook",
+            ).apply(app.state)
+
+            def exchange():
+                client = TestClient(app)
+                with client.websocket_connect(
+                    "/notebook/lsp/test-lsp/ws",
+                    headers={
+                        **token_header("fake-token"),
+                        "Marimo-LSP-Token": "client-cannot-override-this",
+                        "Origin": "http://testserver",
+                    },
+                ) as websocket:
+                    websocket.send_text("LSP message")
+                    assert websocket.receive_text() == "LSP message"
+
+            await asyncio.wait_for(asyncio.to_thread(exchange), timeout=10)
 
     def test_proxy_middleware_defaults_require_auth(self) -> None:
         async def _noop_app(

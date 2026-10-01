@@ -17,6 +17,7 @@ import {
   sandboxSyncAtom,
 } from "./sandbox-state";
 import {
+  RESTART_REQUIRED_DESCRIPTION,
   showPackageRestartToast,
   showSandboxSyncToast,
 } from "./toast-components";
@@ -63,15 +64,24 @@ export function useSandboxController(onReconnect: () => Promise<void>) {
   }, [requests, filename, connection.state, setSandbox]);
 
   const sync = useEvent(async () => {
-    if (inFlight.current || connection.state === WebSocketState.CONNECTING) {
+    if (
+      inFlight.current ||
+      operation.kind === "running" ||
+      connection.state === WebSocketState.CONNECTING
+    ) {
       return false;
     }
     inFlight.current = true;
-    setOperation((value) => ({ ...value, pending: true, error: null }));
+    setOperation({ kind: "running" });
     try {
       const result = await requests.syncSandbox({ fileKey: filename });
       if (result.restartRequired) {
+        setOperation({
+          kind: "restart-required",
+          reason: result.error ?? RESTART_REQUIRED_DESCRIPTION,
+        });
         showPackageRestartToast();
+        return false;
       }
       if (!result.success) {
         throw new Error(result.error ?? "Sandbox sync failed.");
@@ -85,6 +95,7 @@ export function useSandboxController(onReconnect: () => Promise<void>) {
             value.state === WebSocketState.CLOSED,
         );
         if (status.state === WebSocketState.CLOSED) {
+          setOperation({ kind: "idle" });
           return false;
         }
       }
@@ -92,13 +103,13 @@ export function useSandboxController(onReconnect: () => Promise<void>) {
         invalidatePackageData();
       }
       showSandboxSyncToast();
+      setOperation({ kind: "succeeded" });
       return true;
     } catch (cause) {
-      setOperation((value) => ({ ...value, error: prettyError(cause) }));
+      setOperation({ kind: "failed", error: prettyError(cause) });
       return false;
     } finally {
       inFlight.current = false;
-      setOperation((value) => ({ ...value, pending: false }));
     }
   });
 
@@ -135,7 +146,7 @@ export function useSandboxController(onReconnect: () => Promise<void>) {
   }, [sync, editManifest, setActions]);
 
   const saveAndSync = async () => {
-    if (!document || loading || saving || operation.pending) {
+    if (!document || loading || saving || operation.kind === "running") {
       return;
     }
     setSaving(true);
@@ -165,9 +176,18 @@ export function useSandboxController(onReconnect: () => Promise<void>) {
   const pending =
     saving ||
     loading ||
-    operation.pending ||
+    operation.kind === "running" ||
     connection.state === WebSocketState.CONNECTING;
-  const diagnostic = error ?? operation.error ?? startupError;
+  const diagnostic =
+    error ??
+    (operation.kind === "failed"
+      ? operation.error
+      : operation.kind === "restart-required"
+        ? operation.reason
+        : operation.kind === "cancelled"
+          ? "Sandbox sync was interrupted."
+          : null) ??
+    startupError;
   return {
     filename,
     open,

@@ -1,16 +1,27 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
+import threading
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import msgspec
 import pytest
 
+from marimo._environments.errors import (
+    EnvironmentManagerError,
+    SandboxRestartRequired,
+)
+from marimo._environments.sandbox import NotebookSandbox
+from marimo._messaging.notification import EnvironmentOperationNotification
 from marimo._runtime.packages.package_manager import PackageManager
+from marimo._server.api.deps import AppState
+from marimo._session.state.session_view import SessionView
 from tests._server.mocks import token_header
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from unittest.mock import Mock
 
     from starlette.testclient import TestClient
@@ -106,7 +117,11 @@ def test_add_package(client: TestClient, mock_package_manager: Mock) -> None:
         "restartRequired": False,
     }
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=False, group=None
+        "test-package",
+        log_callback=ANY,
+        version=None,
+        upgrade=False,
+        group=None,
     )
 
 
@@ -233,7 +248,11 @@ def test_add_package_with_upgrade(
         "restartRequired": False,
     }
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=True, group=None
+        "test-package",
+        log_callback=ANY,
+        version=None,
+        upgrade=True,
+        group=None,
     )
 
 
@@ -253,7 +272,11 @@ def test_add_package_without_upgrade(
         "restartRequired": False,
     }
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=False, group=None
+        "test-package",
+        log_callback=ANY,
+        version=None,
+        upgrade=False,
+        group=None,
     )
 
 
@@ -650,7 +673,7 @@ def test_add_package_with_spaced_extras_updates_metadata(
         "restartRequired": False,
     }
     mock_package_manager_with_metadata.install.assert_awaited_once_with(
-        package, version=None, upgrade=True, group=None
+        package, log_callback=ANY, version=None, upgrade=True, group=None
     )
     mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once_with(
         filepath="test.py",
@@ -822,7 +845,11 @@ def test_add_package_with_dev_dependency(
         "restartRequired": False,
     }
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=True, group="dev"
+        "test-package",
+        log_callback=ANY,
+        version=None,
+        upgrade=True,
+        group="dev",
     )
 
 
@@ -1062,3 +1089,139 @@ def test_manifest_file_errors_are_reported(
     )
     assert response.status_code == 400
     assert "Permission denied for notebook manifest" in response.text
+
+
+@pytest.fixture
+def operation_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Mock, SessionView]:
+
+    view = SessionView()
+    session = MagicMock()
+    session.app_file_manager.filename = None
+    session.notify.side_effect = lambda notification, _: view.add_notification(
+        notification
+    )
+    monkeypatch.setattr(AppState, "get_current_session", lambda _: session)
+    return session, view
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "action"), [("add", "install"), ("remove", "remove")]
+)
+@pytest.mark.parametrize(
+    "outcome", ["succeeded", "failed", "restart-required"]
+)
+def test_package_changes_retain_outcome_and_worker_logs(
+    client: TestClient,
+    mock_package_manager: Mock,
+    operation_session: tuple[Mock, SessionView],
+    endpoint: str,
+    action: str,
+    outcome: str,
+) -> None:
+    session, view = operation_session
+    mock_package_manager.restart_required = outcome == "restart-required"
+
+    async def change(*_args: Any, **kwargs: Any) -> bool:
+        owner_thread = threading.get_ident()
+
+        def notify(
+            notification: EnvironmentOperationNotification, _: object
+        ) -> None:
+            assert threading.get_ident() == owner_thread
+            view.add_notification(notification)
+
+        session.notify.side_effect = notify
+        if callback := kwargs.get("log_callback"):
+            await asyncio.to_thread(callback, "Resolving\n")
+            await asyncio.to_thread(callback, "Applying\n")
+        return outcome == "succeeded"
+
+    getattr(
+        mock_package_manager, "install" if endpoint == "add" else "uninstall"
+    ).side_effect = change
+    response = client.post(
+        f"/api/packages/{endpoint}", headers=HEADERS, json={"package": "numpy"}
+    )
+    assert response.status_code == 200
+    status = {"kind": outcome}
+    if outcome == "failed":
+        status["error"] = (
+            "Could not apply changes to numpy. See operation logs for details."
+        )
+    elif outcome == "restart-required":
+        status["reason"] = (
+            "Dependency changes are saved; restart the kernel to apply them."
+        )
+    assert msgspec.to_builtins(view.get_environment_state("kernel")) == {
+        "restart_required": outcome == "restart-required",
+        "operations": [
+            {
+                "operation_id": ANY,
+                "action": action,
+                "status": status,
+                "source": "kernel",
+                "packages": {"numpy": outcome},
+                "logs": {"numpy": "Resolving\nApplying\n"}
+                if endpoint == "add"
+                else {},
+            }
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    "outcome", ["succeeded", "failed", "restart-required"]
+)
+def test_sync_retains_outcome_and_logs_without_a_package_list(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    operation_session: tuple[Mock, SessionView],
+    outcome: str,
+) -> None:
+    _, view = operation_session
+    sandbox = MagicMock(spec=NotebookSandbox)
+
+    async def sync(*, on_output: Callable[[str], None]) -> None:
+        on_output("Syncing saved dependencies\n")
+        if outcome == "failed":
+            raise EnvironmentManagerError("Resolution failed")
+        if outcome == "restart-required":
+            raise SandboxRestartRequired("Python changed")
+
+    sandbox.sync_async.side_effect = sync
+    monkeypatch.setattr(
+        "marimo._server.api.endpoints.packages._sandbox_source",
+        lambda *_args, **_kwargs: (sandbox, "notebook.py", "uv"),
+    )
+    response = client.post("/api/packages/sync", headers=HEADERS, json={})
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": outcome == "succeeded",
+        "error": {
+            "succeeded": None,
+            "failed": "Resolution failed",
+            "restart-required": "Python changed",
+        }[outcome],
+        "restartRequired": outcome == "restart-required",
+        "reconnect": False,
+    }
+    status = {"kind": outcome}
+    if outcome == "failed":
+        status["error"] = "Resolution failed"
+    elif outcome == "restart-required":
+        status["reason"] = "Python changed"
+    assert msgspec.to_builtins(view.get_environment_state("kernel")) == {
+        "restart_required": outcome == "restart-required",
+        "operations": [
+            {
+                "operation_id": ANY,
+                "action": "sync",
+                "status": status,
+                "source": "kernel",
+                "packages": {},
+                "logs": {"environment": "Syncing saved dependencies\n"},
+            }
+        ],
+    }

@@ -336,7 +336,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
     private pluginRef = createRef<PluginSlotHandle>();
     protected __type__ = customElementLocator;
 
-    constructor() {
+    public constructor() {
       super();
       // Create a shadow root so we can store the React tree on the shadow root, while the original
       // element's children are still on the DOM
@@ -349,7 +349,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
       });
     }
 
-    connectedCallback() {
+    public connectedCallback() {
       // Skip mounting if this element is in the light DOM of another
       // marimo custom element. The parent element's shadow DOM will
       // re-create this element via getChildren() -> renderHTML(), so
@@ -383,7 +383,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
       });
     }
 
-    disconnectedCallback() {
+    public disconnectedCallback() {
       this.observer.disconnect();
       this.root?.unmount();
       if (this.mounted) {
@@ -419,7 +419,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
      * Reset the plugin initial value and data.
      * And then re-render the plugin.
      */
-    reset() {
+    public reset() {
       this.dispatchEvent(
         createInputEvent(parseAttrValue(this.dataset.initialValue), this),
       );
@@ -429,7 +429,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
     /**
      * Re-render the plugin.
      */
-    rerender() {
+    public rerender() {
       this.pluginRef.current?.reset();
     }
 

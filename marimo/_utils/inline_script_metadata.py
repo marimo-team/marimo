@@ -210,8 +210,8 @@ def _pyproject_toml_to_requirements_txt(
 
 
 def is_marimo_dependency(dependency: str) -> bool:
-    # Split on any version specifier
-    without_version = re.split(r"[=<>~]+", dependency)[0]
+    # Split on any version specifier (including the "!=" exclusion operator)
+    without_version = re.split(r"[!=<>~]+", dependency)[0]
     # Match marimo and marimo[extras], but not marimo-<something-else>
     return without_version == "marimo" or without_version.startswith("marimo[")
 

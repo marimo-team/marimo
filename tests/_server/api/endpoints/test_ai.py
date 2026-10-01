@@ -402,6 +402,7 @@ class TestOpenAiEndpoints:
             mock_completion.assert_called_once()
             # Assert the messages contain FIM format
             call_kwargs = mock_completion.call_args.kwargs
+            assert call_kwargs["thinking"] is False
             messages = call_kwargs["messages"]
             assert len(messages) == 1
             # Verify FIM format is used

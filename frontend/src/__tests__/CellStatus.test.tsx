@@ -57,7 +57,7 @@ describe("CellStatusComponent", () => {
 
   beforeEach(() => {
     global.Date = class extends Date {
-      static override now() {
+      public static override now() {
         return mockDate.getTime();
       }
     } as typeof Date;

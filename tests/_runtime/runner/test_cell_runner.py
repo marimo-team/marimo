@@ -7,6 +7,10 @@ import pytest
 from marimo._ast.cell import CellImpl
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.errors import MarimoSQLError
+from marimo._messaging.notification import (
+    CellNotification,
+    InterruptedNotification,
+)
 from marimo._messaging.notification_utils import CellNotificationUtils
 from marimo._runtime.capture import capture_stderr
 from marimo._runtime.runner.cell_runner import Runner
@@ -495,6 +499,46 @@ async def test_runner_interrupted_flag_flips_on_async_cell_cancellation(
         await runner.run(er.cell_id)
 
     assert runner.interrupted is True
+
+
+async def test_run_all_sends_one_interrupted_notification_after_idle(
+    mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+) -> None:
+    """An interrupted run sends exactly one `InterruptedNotification`,
+    and it follows the cell's `idle` status. The runner sends it from
+    normal control flow, not from the signal handler."""
+    k = mocked_kernel.k
+    await k.run([er := exec_req.get("raise KeyboardInterrupt")])
+    mocked_kernel.stream.messages.clear()
+
+    runner = Runner(
+        roots={er.cell_id},
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=create_default_hooks(),
+        execution_context=k._install_execution_context,
+    )
+    with capture_stderr():
+        await runner.run_all()
+
+    operations = mocked_kernel.stream.parsed_operations
+    interrupted = [
+        i
+        for i, op in enumerate(operations)
+        if isinstance(op, InterruptedNotification)
+    ]
+    idle = [
+        i
+        for i, op in enumerate(operations)
+        if isinstance(op, CellNotification)
+        and op.cell_id == er.cell_id
+        and op.status == "idle"
+    ]
+    assert runner.interrupted
+    assert len(interrupted) == 1
+    assert idle
+    assert idle[-1] < interrupted[0]
 
 
 @pytest.mark.parametrize("with_execution_context", [True, False])

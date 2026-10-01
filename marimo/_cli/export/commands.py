@@ -55,6 +55,10 @@ from marimo._export.local_wheels import (
     wheel_dependency_names,
     with_wheel_dependencies,
 )
+from marimo._export.offline import (
+    OfflineExportError,
+    check_offline_export_browser,
+)
 from marimo._export.requests import (
     ExportResult,
     HTMLFileExportRequest,
@@ -79,6 +83,7 @@ from marimo._schemas.export_options import (
     WASMMode,
 )
 from marimo._server.utils import asyncio_run
+from marimo._templates import get_default_asset_url
 from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import maybe_make_dirs
@@ -89,7 +94,10 @@ if TYPE_CHECKING:
 
     class _ExportWithCodeTransform(Protocol):
         def __call__(
-            self, *, code_transform: Callable[[str], str]
+            self,
+            *,
+            code_transform: Callable[[str], str],
+            local_wheel_paths: tuple[Path, ...],
         ) -> ExportResult: ...
 
 
@@ -896,17 +904,17 @@ Example:
 
     marimo export html-wasm notebook.py -o notebook.wasm.html
 
-The exported HTML file will run the notebook using WebAssembly, making it
-completely self-contained and executable in the browser. This lets you
-share interactive notebooks on the web without setting up
-infrastructure to run Python code.
+The exported HTML file runs the notebook using WebAssembly, without a local
+Python or marimo installation. This lets you share interactive notebooks on
+the web without setting up infrastructure to run Python code. By default, the
+browser downloads the Python runtime and packages from hosted sources.
 
 The exported notebook runs using Pyodide, which supports most
 but not all Python packages. To learn more, see the Pyodide
 documentation.
 
-In order for this file to be able to run, it must be served over HTTP,
-and cannot be opened directly from the file system (e.g. file://).
+By default, the export must be served over HTTP. Use --single-file to load
+assets from a CDN and open the HTML file directly. Internet access is required.
 """,
 )
 @click.option(
@@ -914,7 +922,12 @@ and cannot be opened directly from the file system (e.g. file://).
     "--output",
     type=click.Path(path_type=Path),
     required=True,
-    help="Output directory to save the HTML to.",
+    help="Output directory or HTML file.",
+)
+@click.option(
+    "--single-file",
+    is_flag=True,
+    help="Export one HTML file with CDN assets that can be opened directly.",
 )
 @click.option(
     "--mode",
@@ -967,6 +980,11 @@ and cannot be opened directly from the file system (e.g. file://).
         "packages when possible."
     ),
 )
+@click.option(
+    "--offline",
+    is_flag=True,
+    help="Download the Python runtime and notebook packages into the export directory.",
+)
 @click.argument(
     "name",
     required=True,
@@ -976,6 +994,7 @@ and cannot be opened directly from the file system (e.g. file://).
 def html_wasm(
     name: str,
     output: Path,
+    single_file: bool,
     mode: WASMMode,
     watch: bool,
     show_code: bool,
@@ -983,9 +1002,18 @@ def html_wasm(
     sandbox: bool | None,
     force: bool,
     execute: bool,
+    offline: bool,
     args: tuple[str, ...],
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
+    if single_file and offline:
+        raise click.UsageError(
+            "--single-file and --offline cannot be used together."
+        )
+    if single_file and include_cloudflare:
+        raise click.UsageError(
+            "--single-file and --include-cloudflare cannot be used together."
+        )
     if execute and watch:
         raise click.UsageError(
             "--execute and --watch cannot be used together."
@@ -1004,6 +1032,7 @@ def html_wasm(
                 run_in_sandbox(
                     sys.argv[1:],
                     name=name,
+                    command_deps=["playwright"] if offline else None,
                     pyodide_constraints=True,
                     python_version_override=PYODIDE_PYTHON_VERSION,
                     extra_env={_BOOTSTRAPPED_ENV: "1"},
@@ -1025,7 +1054,30 @@ def html_wasm(
             sandbox = maybe_prompt_run_in_sandbox(name)
 
         if sandbox:
-            sys.exit(run_in_sandbox(sys.argv[1:], name=name))
+            sys.exit(
+                run_in_sandbox(
+                    sys.argv[1:],
+                    name=name,
+                    command_deps=["playwright"] if offline else None,
+                )
+            )
+
+    if offline:
+        if not DependencyManager.playwright.has():
+            raise MarimoCLIMissingDependencyError(
+                "Playwright is required to resolve packages for offline WASM export.",
+                "playwright",
+                followup_commands=get_playwright_chromium_setup_commands(),
+            )
+        try:
+            asyncio_run(check_offline_export_browser())
+        except Exception as error:
+            setup_command = get_playwright_chromium_setup_commands()[0]
+            raise click.ClickException(
+                "Chromium could not start for offline WASM export.\n"
+                f"Install the browser with: {setup_command}\n\n{error}"
+            ) from error
+        echo("Downloading the Python runtime and notebook packages...")
 
     out_dir = output
     filename = "index.html"
@@ -1059,30 +1111,46 @@ def html_wasm(
                 ),
             ) from error
 
+        if single_file and (modules or metadata_wheels):
+            raise click.UsageError(
+                "Local modules and wheels require a directory export. "
+                "Omit --single-file."
+            )
+
         try:
             with build_local_module_wheels(modules) as local_wheels:
                 wheel_dependencies = (
                     *metadata_wheels,
                     *auto_wheel_dependencies(local_wheels),
                 )
+                wheel_paths = tuple(
+                    dependency.path for dependency in wheel_dependencies
+                )
                 result = export_callback(
                     code_transform=partial(
                         with_wheel_dependencies,
                         wheel_dependencies=wheel_dependencies,
-                    )
-                )
-                copy_local_wheels(
-                    out_dir,
-                    tuple(
-                        dependency.path for dependency in wheel_dependencies
                     ),
-                    source_wheel_dir=file_path.path.parent / WASM_WHEEL_DIR,
+                    local_wheel_paths=wheel_paths,
                 )
+                if not single_file:
+                    copy_local_wheels(
+                        out_dir,
+                        wheel_paths,
+                        source_wheel_dir=file_path.path.parent
+                        / WASM_WHEEL_DIR,
+                    )
                 return result
         except LocalWheelError as error:
             raise click.UsageError(str(error)) from error
+        except OfflineExportError as error:
+            raise click.ClickException(str(error)) from error
 
-    wasm_options = WASMExportOptions(mode=mode, show_code=show_code)
+    wasm_options = WASMExportOptions(
+        mode=mode,
+        show_code=show_code,
+        asset_url=get_default_asset_url() if single_file else None,
+    )
 
     if execute:
         cli_args = parse_args(args)
@@ -1101,18 +1169,21 @@ def html_wasm(
             file_path: MarimoPath,
             *,
             code_transform: Callable[[str], str],
+            local_wheel_paths: tuple[Path, ...],
         ) -> ExportResult:
             return asyncio_run(
                 export_wasm(
                     WASMFileExportRequest(
                         path=file_path,
                         options=wasm_options,
+                        offline_export_dir=out_dir if offline else None,
+                        local_wheel_paths=local_wheel_paths,
                         execution=NotebookExecutionOptions(
                             cli_args=cli_args,
                             argv=list(args),
                             stderr=STDERR,
                         ),
-                        cache_export_dir=out_dir,
+                        cache_export_dir=None if single_file else out_dir,
                         code_transform=code_transform,
                         stdout=STDOUT,
                     )
@@ -1132,12 +1203,15 @@ def html_wasm(
             file_path: MarimoPath,
             *,
             code_transform: Callable[[str], str],
+            local_wheel_paths: tuple[Path, ...],
         ) -> ExportResult:
             return asyncio_run(
                 export_wasm(
                     WASMFileExportRequest(
                         path=file_path,
                         options=wasm_options,
+                        offline_export_dir=out_dir if offline else None,
+                        local_wheel_paths=local_wheel_paths,
                         code_transform=code_transform,
                         stdout=STDOUT,
                     )
@@ -1149,6 +1223,14 @@ def html_wasm(
                 file_path,
                 partial(export_unexecuted_wasm, file_path),
             )
+
+    if single_file:
+        echo(
+            "Open the exported HTML file in a browser. Internet access is required."
+        )
+        return watch_and_export(
+            marimo_file, out_dir / filename, watch, export_callback, force
+        )
 
     # Export assets first
     Exporter().export_assets(out_dir)

@@ -373,12 +373,14 @@ class ProxyMiddleware:
         | None = None,
         *,
         require_auth: bool = True,
+        websocket_headers: dict[str, str] | None = None,
     ) -> None:
         self.app = app
         self.path = proxy_path.rstrip("/")
         self.target_url = target_url
         self.path_rewrite = path_rewrite
         self.require_auth = require_auth
+        self.websocket_headers = websocket_headers
         self.connection_error_handler = (
             connection_error_handler
             if connection_error_handler
@@ -576,7 +578,9 @@ class ProxyMiddleware:
 
                 for attempt in range(max_retries):
                     try:
-                        ws_client = await connect(ws_url)
+                        ws_client = await connect(
+                            ws_url, additional_headers=self.websocket_headers
+                        )
                         LOGGER.debug(f"Successfully connected to {ws_url}")
                         return ws_client
                     except Exception as e:

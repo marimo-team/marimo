@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Virtual environment configuration utilities.
 
-This module provides utilities for working with configured virtual environments
-in marimo's sandbox mode. It handles:
+This module provides utilities for launching editor kernels in configured
+virtual environments. It handles:
 - Finding Python interpreters in virtual environments
 - Checking marimo installation status in venvs
 - PYTHONPATH injection for kernel subprocesses
@@ -23,6 +23,8 @@ from marimo._environments.uv import UvCommandError, uv_async
 from marimo._version import __version__
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._config.config import VenvConfig
 
 LOGGER = _loggers.marimo_logger()
@@ -180,18 +182,24 @@ async def check_python_version_compatibility(venv_python: str) -> bool:
     return venv_version == current_version
 
 
-async def install_marimo_into_venv(venv_python: str) -> None:
+async def install_marimo_into_venv(
+    venv_python: str, *, on_output: Callable[[str], None] | None = None
+) -> None:
     """Install marimo into a venv.
 
     Args:
         venv_python: Path to the venv's Python interpreter.
+        on_output: Receive installation progress as it is produced.
     """
     packages = [f"marimo=={__version__}"]
 
     echo("Installing marimo into configured venv...", err=True)
 
     try:
-        await uv_async(["pip", "install", "--python", venv_python] + packages)
+        await uv_async(
+            ["pip", "install", "--python", venv_python] + packages,
+            on_output=on_output,
+        )
     except UvCommandError as e:
         LOGGER.warning(
             f"Failed to install marimo into configured venv: {e.stderr}"

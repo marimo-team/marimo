@@ -246,6 +246,7 @@ class NotebookDocument:
                 column=change.column,
                 disabled=change.disabled,
                 hide_code=change.hide_code,
+                expand_output=change.expand_output,
             )
         else:
             assert_never(change)

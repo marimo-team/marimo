@@ -762,7 +762,7 @@ const EditableCellComponent = ({
                     href="https://links.marimo.app/reusable-definitions"
                     target="_blank"
                     className="hover:underline text-muted-foreground text-xs font-bold"
-                    rel="noopener"
+                    rel="noreferrer"
                   >
                     reusable
                   </a>
@@ -801,7 +801,7 @@ const EditableCellComponent = ({
                     <a
                       href="https://links.marimo.app/reusable-definitions"
                       target="_blank"
-                      rel="noopener"
+                      rel="noreferrer"
                     >
                       <HelpCircleIcon
                         size={16}

@@ -4115,6 +4115,8 @@ export interface components {
       /** @default false */
       disabled?: boolean;
       /** @default false */
+      expand_output?: boolean;
+      /** @default false */
       hide_code?: boolean;
     };
     /** Format: cell-id */
@@ -4872,6 +4874,89 @@ export interface components {
       theme: "dark" | "light" | "system";
     };
     /**
+     * EnvironmentOperation
+     * @description Current progress and logs for one execution of environment work.
+     */
+    EnvironmentOperation: {
+      /** @enum {unknown} */
+      action: "install" | "prepare" | "remove" | "sync";
+      logs: {
+        [key: string]: string;
+      };
+      operation_id: string;
+      packages: {
+        [key: string]:
+          | "failed"
+          | "queued"
+          | "restart-required"
+          | "running"
+          | "succeeded";
+      };
+      /** @enum {unknown} */
+      source: "kernel" | "server";
+      status:
+        | components["schemas"]["OperationRunning"]
+        | components["schemas"]["OperationSucceeded"]
+        | components["schemas"]["OperationRestartRequired"]
+        | components["schemas"]["OperationFailed"]
+        | components["schemas"]["OperationCancelled"];
+    };
+    /**
+     * EnvironmentOperationNotification
+     * @description Current operation progress and changes to its named log streams.
+     *
+     *         Package statuses replace the previous map. Log chunks append to a stream,
+     *         or replace it when `log_mode` is `replace`. The operation status determines
+     *         completion independently of its packages and output streams.
+     */
+    EnvironmentOperationNotification: {
+      /** @enum {unknown} */
+      action: "install" | "prepare" | "remove" | "sync";
+      /** @enum {unknown} */
+      log_mode: "append" | "replace";
+      logs: {
+        [key: string]: string;
+      };
+      /** @enum {unknown} */
+      op: "environment-operation";
+      operation_id: string;
+      packages: {
+        [key: string]:
+          | "failed"
+          | "queued"
+          | "restart-required"
+          | "running"
+          | "succeeded";
+      };
+      /** @enum {unknown} */
+      source: "kernel" | "server";
+      status:
+        | components["schemas"]["OperationRunning"]
+        | components["schemas"]["OperationSucceeded"]
+        | components["schemas"]["OperationRestartRequired"]
+        | components["schemas"]["OperationFailed"]
+        | components["schemas"]["OperationCancelled"];
+    };
+    /**
+     * EnvironmentState
+     * @description Preparation, active operations, the latest mutation, and restarts.
+     */
+    EnvironmentState: {
+      operations: components["schemas"]["EnvironmentOperation"][];
+      restart_required: boolean;
+    };
+    /**
+     * EnvironmentStateNotification
+     * @description Replace the current state for one environment on connection.
+     */
+    EnvironmentStateNotification: {
+      /** @enum {unknown} */
+      op: "environment-state";
+      /** @enum {unknown} */
+      source: "kernel" | "server";
+      state: components["schemas"]["EnvironmentState"];
+    };
+    /**
      * EnvironmentVariableDiscoveryValue
      * @description A reference to an environment variable, never its value.
      */
@@ -5491,41 +5576,6 @@ export interface components {
         [key: string]: string;
       };
     };
-    /**
-     * InstallingPackageAlertNotification
-     * @description Package installation progress with streaming logs.
-     *
-     *         Attributes:
-     *             packages: Package name to status (queued/installing/installed/failed).
-     *             logs: Optional streaming logs per package.
-     *             log_status: Log stream status (append/start/done).
-     *             source: Which Python environment packages are installed into.
-     *                     "kernel" (default) installs in the kernel's venv; "server"
-     *                     installs in the server's own Python env.
-     */
-    InstallingPackageAlertNotification: {
-      /** @default null */
-      log_status?: ("append" | "done" | "start") | null;
-      /** @default null */
-      logs?: {
-        [key: string]: string;
-      } | null;
-      /** @enum {unknown} */
-      op: "installing-package-alert";
-      packages: {
-        [key: string]:
-          | "failed"
-          | "installed"
-          | "installing"
-          | "queued"
-          | "restart-required";
-      };
-      /**
-       * @default kernel
-       * @enum {unknown}
-       */
-      source?: "kernel" | "server";
-    };
     /** InstantiateNotebookRequest */
     InstantiateNotebookRequest: {
       /** @default true */
@@ -5761,7 +5811,8 @@ export interface components {
         | components["schemas"]["AlertNotification"]
         | components["schemas"]["BannerNotification"]
         | components["schemas"]["MissingPackageAlertNotification"]
-        | components["schemas"]["InstallingPackageAlertNotification"]
+        | components["schemas"]["EnvironmentOperationNotification"]
+        | components["schemas"]["EnvironmentStateNotification"]
         | components["schemas"]["StartupLogsNotification"]
         | components["schemas"]["StartupProgressNotification"]
         | components["schemas"]["KernelStartupErrorNotification"]
@@ -6427,6 +6478,33 @@ export interface components {
           )
         | "markdown-format";
     };
+    /** OperationCancelled */
+    OperationCancelled: {
+      /** @enum {unknown} */
+      kind: "cancelled";
+    };
+    /** OperationFailed */
+    OperationFailed: {
+      error: string;
+      /** @enum {unknown} */
+      kind: "failed";
+    };
+    /** OperationRestartRequired */
+    OperationRestartRequired: {
+      /** @enum {unknown} */
+      kind: "restart-required";
+      reason: string;
+    };
+    /** OperationRunning */
+    OperationRunning: {
+      /** @enum {unknown} */
+      kind: "running";
+    };
+    /** OperationSucceeded */
+    OperationSucceeded: {
+      /** @enum {unknown} */
+      kind: "succeeded";
+    };
     /** PackageDescription */
     PackageDescription: {
       name: string;
@@ -6728,8 +6806,10 @@ export interface components {
      *             `PYTHONPATH` environment variable, the directories will be included in
      *             where Python will look for imported modules.
      *         - `dotenv`: a list of paths to `.env` files to load.
-     *             If the file does not exist, it will be silently ignored.
-     *             The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
+     *             If the file does not exist, it will be silently ignored. Relative
+     *             paths resolve against the directory holding the `pyproject.toml`,
+     *             or the notebook's directory when there is none. The default is
+     *             `[".env"]`.
      *         - `default_sql_output`: the default output format for SQL queries. Can be one of:
      *             `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
      *             The default is `"auto"`.
@@ -7060,6 +7140,7 @@ export interface components {
       cellId: components["schemas"]["CellId"];
       column: number | null;
       disabled: boolean;
+      expandOutput: boolean;
       hideCode: boolean;
       /** @enum {unknown} */
       type: "set-config";
@@ -7198,9 +7279,15 @@ export interface components {
     };
     /**
      * StartupProgressNotification
-     * @description Progress reported before a session's kernel is ready.
+     * @description Current startup phase and its output before the kernel is ready.
+     *
+     *         Output appends within a phase. Snapshots replace it, and changing phases
+     *         starts a new stream. Environment preparation logs belong to its operation.
      */
     StartupProgressNotification: {
+      /** @enum {unknown} */
+      log_mode: "append" | "replace";
+      logs: string;
       /** @enum {unknown} */
       op: "startup-progress";
       /** @enum {unknown} */
@@ -7764,10 +7851,10 @@ export interface components {
     };
     /**
      * VenvConfig
-     * @description Configuration for external Python environment in home sandbox mode.
+     * @description Configuration for an external Python environment in edit mode.
      *
-     *         Allows specifying an existing virtualenv to use instead of creating
-     *         ephemeral sandboxes per notebook. Only applies in home sandbox mode.
+     *         Launches the notebook kernel in an existing virtualenv. Applies to
+     *         single notebooks and directories when editing without `--sandbox`.
      *
      *         **Keys.**
      *

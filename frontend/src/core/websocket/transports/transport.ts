@@ -33,7 +33,7 @@ export class ConnectionSubscriptions {
     Set<ConnectionTransportCallback<ConnectionEvent>>
   >();
 
-  addSubscription(
+  public addSubscription(
     event: ConnectionEvent,
     callback: ConnectionTransportCallback<ConnectionEvent>,
   ): void {
@@ -43,14 +43,14 @@ export class ConnectionSubscriptions {
     this.subscriptions.get(event)?.add(callback);
   }
 
-  removeSubscription(
+  public removeSubscription(
     event: ConnectionEvent,
     callback: ConnectionTransportCallback<ConnectionEvent>,
   ): void {
     this.subscriptions.get(event)?.delete(callback);
   }
 
-  notify(
+  public notify(
     event: ConnectionEvent,
     data: IConnectionTransportMap[ConnectionEvent],
   ): void {

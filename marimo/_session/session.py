@@ -18,7 +18,6 @@ from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
     NotificationMessage,
-    StartupProgressNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -55,6 +54,7 @@ from marimo._session.managers import (
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
 from marimo._session.room import Room
+from marimo._session.startup import SessionStartup
 from marimo._session.state.session_view import SessionView
 from marimo._session.types import (
     KernelExitInfo,
@@ -100,7 +100,8 @@ class SessionImpl(Session):
         cls,
         *,
         initialization_id: str,
-        session_consumer: SessionConsumer,
+        session_consumer: SessionConsumer | None,
+        startup: SessionStartup,
         mode: SessionMode,
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
@@ -116,17 +117,20 @@ class SessionImpl(Session):
         """
         Create a new session.
         """
-        # Inherit config from the session manager
-        # and override with any script-level config
-        config_manager = config_manager.with_overrides(
-            ScriptConfigManager(app_file_manager.path).get_config()
+        # Inherit config from the session manager and override with any
+        # script-level config. The reader is layered on as-is: snapshotting
+        # its masked get_config() would turn runtime.dotenv into [] and that
+        # empty list would then win the merge the kernel reads unmasked.
+        config_manager = config_manager.with_partial(
+            ScriptConfigManager(app_file_manager.path)
         )
+        config = config_manager.get_config(hide_secrets=False)
+        configured_venv = config.get("venv", {}).get("path")
 
         configs = app_file_manager.app.cell_manager.config_map()
 
         # Create kernel manager
         # AppHost path handles multi-app run mode (both sandbox and non-sandbox).
-        # Sandboxed edit sessions use IPC kernels.
         queue_manager: QueueManager
         kernel_manager: KernelManager
         if app_host_context is not None and mode == SessionMode.RUN:
@@ -154,8 +158,7 @@ class SessionImpl(Session):
                 config_manager=config_manager,
                 redirect_console_to_browser=redirect_console_to_browser,
             )
-        elif sandbox:
-            # IPC kernel path — edit mode with sandbox
+        elif sandbox or (mode == SessionMode.EDIT and configured_venv):
             # (AppHostPool is never created in edit mode)
             from marimo._ipc import QueueManager as IPCQueueManager
             from marimo._session.managers import (
@@ -166,6 +169,7 @@ class SessionImpl(Session):
             ipc_queue_manager, connection_info = IPCQueueManager.create()
             queue_manager = IPCQueueManagerImpl.from_ipc(ipc_queue_manager)
             kernel_manager = IPCKernelManagerImpl(
+                sandbox=sandbox,
                 queue_manager=queue_manager,
                 connection_info=connection_info,
                 mode=mode,
@@ -173,11 +177,7 @@ class SessionImpl(Session):
                 app_metadata=app_metadata,
                 config_manager=config_manager,
                 redirect_console_to_browser=redirect_console_to_browser,
-                on_progress=lambda phase: session_consumer.notify(
-                    serialize_kernel_message(
-                        StartupProgressNotification(phase=phase)
-                    )
-                ),
+                on_notification=startup.notify,
             )
         else:
             # Original kernel: Process for edit, Thread for run
@@ -229,6 +229,7 @@ class SessionImpl(Session):
         return cls(
             initialization_id=initialization_id,
             session_consumer=session_consumer,
+            session_view=startup.view,
             kernel_manager=kernel_manager,
             app_file_manager=app_file_manager,
             config_manager=config_manager,
@@ -239,7 +240,8 @@ class SessionImpl(Session):
     def __init__(
         self,
         initialization_id: str,
-        session_consumer: SessionConsumer,
+        session_consumer: SessionConsumer | None,
+        session_view: SessionView,
         kernel_manager: KernelManager,
         app_file_manager: AppFileManager,
         config_manager: MarimoConfigManager,
@@ -256,7 +258,7 @@ class SessionImpl(Session):
         self.ttl_seconds = (
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
-        self.session_view = SessionView()
+        self.session_view = session_view
         self.config_manager = config_manager
         self.extensions = ExtensionRegistry()
         self.extensions.add(*extensions)
@@ -272,7 +274,8 @@ class SessionImpl(Session):
         self._attach_extensions()
         # Connect the main consumer after attaching extensions,
         # to avoid calling on_attach on the main consumer twice.
-        self.connect_consumer(session_consumer, main=True)
+        if session_consumer is not None:
+            self.connect_consumer(session_consumer, main=True)
 
     @property
     def stable_id(self) -> StableSessionId:
@@ -490,8 +493,9 @@ class SessionImpl(Session):
         else:
             notification = serialize_kernel_message(operation)
 
-        self.room.broadcast(notification, except_consumer=from_consumer_id)
+        # Consumers must observe a view that already includes this notification.
         self._event_bus.emit_notification_sent(self, notification)
+        self.room.broadcast(notification, except_consumer=from_consumer_id)
 
     def close(self, *, graceful: bool = False) -> None:
         """

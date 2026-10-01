@@ -20,7 +20,7 @@ export class WsTransport implements IConnectionTransport {
     ConnectionTransportCallback<"close">
   >();
 
-  constructor(urlProvider: () => string) {
+  public constructor(urlProvider: () => string) {
     this.inner = new ReconnectingWebSocket(urlProvider, undefined, {
       maxRetries: MAX_RETRIES,
       debug: false,
@@ -30,23 +30,25 @@ export class WsTransport implements IConnectionTransport {
     });
   }
 
-  get readyState(): WebSocket["readyState"] {
+  public get readyState(): WebSocket["readyState"] {
     return this.inner.readyState as WebSocket["readyState"];
   }
 
-  reconnect(code?: number, reason?: string): void {
+  public reconnect(code?: number, reason?: string): void {
     this.inner.reconnect(code, reason);
   }
 
-  close(): void {
+  public close(): void {
     this.inner.close();
   }
 
-  send(data: string | ArrayBuffer | Blob | ArrayBufferView<ArrayBuffer>): void {
+  public send(
+    data: string | ArrayBuffer | Blob | ArrayBufferView<ArrayBuffer>,
+  ): void {
     this.inner.send(data);
   }
 
-  addEventListener<T extends ConnectionEvent>(
+  public addEventListener<T extends ConnectionEvent>(
     event: T,
     callback: ConnectionTransportCallback<T>,
   ): void {
@@ -78,7 +80,7 @@ export class WsTransport implements IConnectionTransport {
     this.inner.addEventListener(event, callback as never);
   }
 
-  removeEventListener<T extends ConnectionEvent>(
+  public removeEventListener<T extends ConnectionEvent>(
     event: T,
     callback: ConnectionTransportCallback<T>,
   ): void {

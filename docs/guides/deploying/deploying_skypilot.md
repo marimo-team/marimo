@@ -45,7 +45,7 @@ uvx marimo edit --sandbox demo.py --port 8080 --token-password=supersecret
 ```
 
 !!! note "Sandboxed environments"
-    The `uvx` command runs marimo without installing it in your environment, and the `--sandbox` flag ensures that notebook dependencies are installed in a separate environment. This makes your development fully reproducible and isolated. See [inlining dependencies](../package_management/inlining_dependencies.md) for more on creating reproducible notebooks.
+    The `uvx` command runs marimo without installing it in your environment, and the `--sandbox` flag ensures that notebook dependencies are installed in a separate environment. This makes your development fully reproducible and isolated. See [inlining dependencies](../package_management/sandboxes.md) for more on creating reproducible notebooks.
 
 You can now access your marimo notebook at `localhost:8080` in your local browser and authenticate with the password you set.
 

@@ -14,7 +14,10 @@ from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
-from marimo._messaging.notification import CellNotification
+from marimo._messaging.notification import (
+    CellNotification,
+    StartupProgressNotification,
+)
 from marimo._runtime.commands import ExecuteCellsCommand
 from marimo._schemas.session import NotebookSessionV1
 from marimo._session.state.serialize import (
@@ -634,6 +637,47 @@ def test_deserialize_session_with_console():
     assert console_outputs[1].mimetype == "text/plain"
 
 
+def test_deserialize_session_discards_cached_password_response():
+    session = NotebookSessionV1(
+        version="1",
+        metadata={"marimo_version": "0.23.0"},
+        cells=[
+            {
+                "id": "cell1",
+                "code_hash": "123",
+                "outputs": [],
+                "console": [
+                    {
+                        "type": "stream",
+                        "name": "stdout",
+                        "text": "Password: cached-secret\n",
+                        "mimetype": "text/password",
+                    },
+                    {
+                        "type": "stream",
+                        "name": "stdout",
+                        "text": "Name: marimo\n",
+                        "mimetype": "text/plain",
+                    },
+                ],
+            }
+        ],
+    )
+
+    view = deserialize_session(session, {"123": CELL1})
+    restored = serialize_session_view(
+        view, [CELL1], drop_virtual_file_outputs=True
+    )
+    assert restored["cells"][0]["console"] == [
+        {
+            "type": "stream",
+            "name": "stdout",
+            "text": "Name: marimo\n",
+            "mimetype": "text/plain",
+        }
+    ]
+
+
 async def test_session_cache_writer(session_view: SessionView):
     """Test AsyncWriter writes session data periodically"""
     view = session_view
@@ -1215,7 +1259,12 @@ class TestSessionCacheManager:
             cache_file.write_text(json.dumps(data))
 
             # Read back
-            manager = SessionCacheManager(SessionView(), doc, path, 0.1)
+            current = SessionView()
+            progress = StartupProgressNotification(
+                phase="starting-kernel", logs="", log_mode="replace"
+            )
+            current.add_notification(progress)
+            manager = SessionCacheManager(current, doc, path, 0.1)
             loaded_view = manager.read_session_view(
                 SessionCacheKey(
                     codes=(
@@ -1226,5 +1275,7 @@ class TestSessionCacheManager:
                     cell_ids=(CELL1, CELL2),
                 )
             )
+            assert loaded_view is current
+            assert loaded_view.startup_progress == progress
             # cache hit: codes and version match
             assert len(loaded_view.cell_notifications) == 2

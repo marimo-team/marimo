@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import React, {
-  type JSX,
   type PropsWithChildren,
   useEffect,
   useMemo,
@@ -22,13 +21,13 @@ interface Data {
 }
 
 export class RoutesPlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-routes";
+  public tagName = "marimo-routes";
 
-  validator = z.object({
+  public validator = z.object({
     routes: z.array(z.string()),
   });
 
-  render(props: IStatelessPluginProps<Data>): JSX.Element {
+  public render(props: IStatelessPluginProps<Data>): React.ReactElement {
     return <RoutesComponent {...props.data}>{props.children}</RoutesComponent>;
   }
 }
@@ -36,7 +35,7 @@ export class RoutesPlugin implements IStatelessPlugin<Data> {
 const RoutesComponent = ({
   routes,
   children,
-}: PropsWithChildren<Data>): JSX.Element => {
+}: PropsWithChildren<Data>): React.ReactNode => {
   const childCount = React.Children.count(children);
   if (childCount !== routes.length) {
     throw new Error(
@@ -69,12 +68,11 @@ const RoutesComponent = ({
   }, [handleFindMatch]);
 
   if (!matched) {
-    // oxlint-disable-next-line react/jsx-no-useless-fragment
-    return <></>;
+    return null;
   }
 
   const matchedIndex = routes.indexOf(matched);
   const child = React.Children.toArray(children)[matchedIndex];
 
-  return <>{child}</>;
+  return child;
 };

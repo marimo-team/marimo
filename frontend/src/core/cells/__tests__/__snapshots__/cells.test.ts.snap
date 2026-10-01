@@ -6,6 +6,7 @@ exports[`cell reducer > can initialize stdin > initial state 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -35,6 +36,7 @@ exports[`cell reducer > can initialize stdin > prepared for run 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -64,6 +66,7 @@ exports[`cell reducer > can initialize stdin > queued message received 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -93,6 +96,7 @@ exports[`cell reducer > can initialize stdin > running message received 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -122,6 +126,7 @@ exports[`cell reducer > can initialize stdin > second stdin requested 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -171,6 +176,7 @@ exports[`cell reducer > can initialize stdin > stdin answered 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -214,6 +220,7 @@ exports[`cell reducer > can initialize stdin > stdin requested 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -256,6 +263,7 @@ exports[`cell reducer > can initialize stdin > stdout received 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -292,6 +300,7 @@ exports[`cell reducer > can initialize stdin > stdout verified 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -328,6 +337,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -357,6 +367,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -393,6 +404,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -422,6 +434,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -458,6 +471,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -494,6 +508,7 @@ exports[`cell reducer > can run a stale cell > queued message received 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -523,6 +538,7 @@ exports[`cell reducer > can run a stale cell > stale inputs received 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -552,6 +568,7 @@ exports[`cell reducer > can run a stopped cell > ancestor stopped 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -592,6 +609,7 @@ exports[`cell reducer > can run a stopped cell > idle message received 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -621,6 +639,7 @@ exports[`cell reducer > can run a stopped cell > queued after stop 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -661,6 +680,7 @@ exports[`cell reducer > can run a stopped cell > queued message received 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -690,6 +710,7 @@ exports[`cell reducer > can run a stopped cell > running after stop 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -720,6 +741,7 @@ import numpy",
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -761,6 +783,7 @@ exports[`cell reducer > can run cell and receive cell messages > code edited 1`]
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -791,6 +814,7 @@ import numpy",
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -832,6 +856,7 @@ exports[`cell reducer > can run cell and receive cell messages > code reverted 1
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -873,6 +898,7 @@ exports[`cell reducer > can run cell and receive cell messages > console message
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -910,6 +936,7 @@ import numpy",
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -958,6 +985,7 @@ exports[`cell reducer > can run cell and receive cell messages > initial state 1
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -988,6 +1016,7 @@ import numpy",
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -1034,6 +1063,7 @@ exports[`cell reducer > can run cell and receive cell messages > output received
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -1075,6 +1105,7 @@ exports[`cell reducer > can run cell and receive cell messages > prepared for ru
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -1104,6 +1135,7 @@ exports[`cell reducer > can run cell and receive cell messages > queued message 
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -1133,6 +1165,7 @@ exports[`cell reducer > can run cell and receive cell messages > running message
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -1162,6 +1195,7 @@ exports[`cell reducer > errors reset status to idle > code edited 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -1191,6 +1225,7 @@ exports[`cell reducer > errors reset status to idle > error response received 1`
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -1231,6 +1266,7 @@ exports[`cell reducer > errors reset status to idle > initial state 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -1260,6 +1296,7 @@ exports[`cell reducer > errors reset status to idle > prepared for run 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],

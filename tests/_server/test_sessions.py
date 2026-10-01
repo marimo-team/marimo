@@ -37,6 +37,7 @@ from marimo._runtime.commands import (
     AppMetadata,
     CreateNotebookCommand,
     ExecuteCellCommand,
+    ExecuteCellsCommand,
     SyncGraphCommand,
     UpdateUIElementCommand,
 )
@@ -55,6 +56,7 @@ from marimo._session.notebook import AppFileManager
 from marimo._session.session import (
     SessionImpl,
 )
+from marimo._session.startup import SessionStartup
 from marimo._session.state.session_view import SessionView
 from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.marimo_path import MarimoPath
@@ -175,7 +177,10 @@ async def test_kernel_manager_edit_mode() -> None:
     queue_manager.control_queue.join_thread()  # type: ignore
 
 
-async def test_kernel_manager_interrupt() -> None:
+@pytest.mark.parametrize("interrupt_during_write", [False, True])
+async def test_kernel_manager_interrupt(
+    interrupt_during_write: bool,
+) -> None:
     queue_manager = QueueManagerImpl(use_multiprocessing=True)
     kernel_manager = KernelManagerImpl(
         queue_manager=queue_manager,
@@ -202,7 +207,11 @@ async def test_kernel_manager_interrupt() -> None:
             ):
                 continue
             output = message.output.data
-            if isinstance(output, str) and "ready-to-interrupt" in output:
+            if (
+                not interrupt_during_write
+                and isinstance(output, str)
+                and "ready-to-interrupt" in output
+            ):
                 kernel_manager.interrupt_kernel()
             elif isinstance(output, list):
                 interrupted |= any(
@@ -210,18 +219,39 @@ async def test_kernel_manager_interrupt() -> None:
                     for error in output
                 )
 
+    code = inspect.cleandoc("""
+        import marimo as mo
+        mo.output.append("ready-to-interrupt")
+        while True:
+            pass
+    """)
+    if interrupt_during_write:
+        # Deliver SIGINT while write() still owns the transport lock.
+        code = inspect.cleandoc("""
+            import _thread
+            import marimo as mo
+            from marimo._runtime.context import get_context
+
+            _pipe = get_context().stream.pipe
+            _send = _pipe.send
+
+            def _send_and_interrupt(message):
+                _send(message)
+                if b"ready-to-interrupt" in message:
+                    _pipe.send = _send
+                    _thread.interrupt_main()
+
+            _pipe.send = _send_and_interrupt
+            mo.output.append("ready-to-interrupt")
+        """)
+
     try:
         queue_manager.put_control_request(
             CreateNotebookCommand(
                 execution_requests=(
                     ExecuteCellCommand(
                         cell_id="1",
-                        code=inspect.cleandoc("""
-                            import marimo as mo
-                            mo.output.append("ready-to-interrupt")
-                            while True:
-                                pass
-                        """),
+                        code=code,
                     ),
                 ),
                 cell_ids=("1",),
@@ -229,6 +259,16 @@ async def test_kernel_manager_interrupt() -> None:
                     object_ids=[], values=[]
                 ),
                 auto_run=True,
+            )
+        )
+        assert await asyncio.wait_for(
+            asyncio.to_thread(interrupt_running_cell), timeout=5
+        )
+        # A later interrupt must still work after the first handler raised.
+        queue_manager.put_control_request(
+            ExecuteCellsCommand(
+                cell_ids=["1"],
+                codes=["import _thread; _thread.interrupt_main()"],
             )
         )
         assert await asyncio.wait_for(
@@ -358,6 +398,7 @@ async def test_session() -> None:
 
     # Instantiate a Session
     session = SessionImpl(
+        session_view=SessionView(),
         initialization_id=session_id,
         session_consumer=session_consumer,
         kernel_manager=kernel_manager,
@@ -390,6 +431,7 @@ async def test_session() -> None:
 def test_sessions_for_same_file_have_distinct_stable_ids() -> None:
     sessions = [
         SessionImpl(
+            session_view=SessionView(),
             initialization_id="notebook.py",
             session_consumer=MagicMock(),
             kernel_manager=MagicMock(spec=KernelManagerImpl),
@@ -425,6 +467,7 @@ async def test_session_disconnect_reconnect() -> None:
 
     # Instantiate a Session
     session = SessionImpl(
+        session_view=SessionView(),
         initialization_id=session_id,
         session_consumer=session_consumer,
         kernel_manager=kernel_manager,
@@ -484,6 +527,7 @@ async def test_session_with_kiosk_consumers() -> None:
 
     # Instantiate a Session
     session = SessionImpl(
+        session_view=SessionView(),
         initialization_id=session_id,
         session_consumer=session_consumer,
         kernel_manager=kernel_manager,
@@ -1092,7 +1136,9 @@ async def test_session_with_script_config_overrides(
     app_file_manager = AppFileManager(filename=str(tmp_file))
 
     # Create session with the file that has script config
+    startup = SessionStartup()
     session = await SessionImpl.create(
+        startup=startup,
         initialization_id="test_id",
         session_consumer=session_consumer,
         mode=SessionMode.RUN,
@@ -1104,6 +1150,8 @@ async def test_session_with_script_config_overrides(
         ttl_seconds=None,
         auto_instantiate=True,
     )
+
+    assert session.session_view is startup.view
 
     # Verify that the session's config is affected by the script config
     assert (
@@ -1118,6 +1166,170 @@ async def test_session_with_script_config_overrides(
 
     # Cleanup
     session.close()
+
+
+@pytest.mark.requires("zmq")
+@pytest.mark.parametrize("backend", ["uv", "pixi"])
+@pytest.mark.parametrize("config_source", ["script", "project"])
+@pytest.mark.parametrize("existing_venv", [False, True])
+async def test_sandbox_ignores_configured_venv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    backend: str,
+    config_source: str,
+    existing_venv: bool,
+) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._environments.environment import Environment, ProcessPlan
+    from marimo._environments.sandbox import BackendAdapter, NotebookSandbox
+
+    venv_path = Path(sys.prefix) if existing_venv else tmp_path / "missing"
+    config = (
+        f"[tool.marimo.venv]\npath = {venv_path.as_posix()!r}\n"
+        "writable = false\n"
+    )
+    if config_source == "project":
+        (tmp_path / "pyproject.toml").write_text(config)
+    header = "# /// script\n# dependencies = []\n"
+    if config_source == "script":
+        header += "".join(f"# {line}\n" for line in config.splitlines())
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(header + "# ///\n")
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_BACKEND", backend)
+
+    environment = Environment(sys.executable, sys.prefix, "unchanged")
+    adapter = MagicMock(spec=BackendAdapter)
+    adapter.name = backend
+    adapter.sync_async.return_value = environment
+    adapter.launch.return_value = ProcessPlan(
+        (sys.executable, "-m", "marimo._ipc.launch_kernel"), os.environ.copy()
+    )
+    monkeypatch.setattr(
+        "marimo._environments.backends.adapter_for", lambda *_: adapter
+    )
+
+    session = await SessionImpl.create(
+        initialization_id=str(notebook),
+        startup=SessionStartup(),
+        session_consumer=None,
+        mode=SessionMode.EDIT,
+        app_metadata=AppMetadata(
+            query_params={},
+            filename=str(notebook),
+            cli_args={},
+            app_config=_AppConfig(),
+        ),
+        app_file_manager=AppFileManager(filename=str(notebook)),
+        config_manager=get_default_config_manager(current_path=str(tmp_path)),
+        virtual_file_storage=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+        auto_instantiate=False,
+        sandbox=True,
+    )
+    try:
+        assert session._kernel_manager.is_alive()
+        sandbox = session.notebook_sandbox
+        assert isinstance(sandbox, NotebookSandbox)
+        assert sandbox.backend == backend
+        assert sandbox.environment == environment
+        adapter.sync_async.assert_awaited_once()
+        assert "ignoring [tool.marimo.venv]" in capsys.readouterr().err
+        assert (
+            session.config_manager.get_config()["venv"]["path"]
+            == venv_path.as_posix()
+        )
+    finally:
+        session.close()
+
+
+@pytest.mark.requires("zmq")
+async def test_configured_venv_launches_editor_kernel_without_sandbox(
+    tmp_path: Path,
+) -> None:
+    from marimo._session.managers.ipc import IPCKernelManagerImpl
+
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        "# /// script\n# [tool.marimo.venv]\n"
+        f"# path = {str(Path(sys.prefix).as_posix())!r}\n# ///\n"
+    )
+    session = await SessionImpl.create(
+        initialization_id=str(notebook),
+        startup=SessionStartup(),
+        session_consumer=None,
+        mode=SessionMode.EDIT,
+        app_metadata=AppMetadata(
+            query_params={},
+            filename=str(notebook),
+            cli_args={},
+            app_config=_AppConfig(),
+        ),
+        app_file_manager=AppFileManager(filename=str(notebook)),
+        config_manager=get_default_config_manager(current_path=str(tmp_path)),
+        virtual_file_storage=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+        auto_instantiate=False,
+        sandbox=False,
+    )
+    try:
+        manager = session._kernel_manager
+        assert isinstance(manager, IPCKernelManagerImpl)
+        assert manager.is_alive()
+        assert manager.venv_python is not None
+        assert Path(manager.venv_python).parent.parent == Path(sys.prefix)
+        assert session.notebook_sandbox is None
+    finally:
+        session.close()
+
+
+async def test_session_script_dotenv_reaches_the_kernel_config(
+    tmp_path: Path,
+) -> None:
+    # runtime.dotenv is masked to [] when read with secrets hidden. If the
+    # session layered that masked snapshot on as an override, the empty list
+    # would win the unmasked merge the kernel reads, so a script-level dotenv
+    # would load nothing.
+    session_consumer = MagicMock()
+    session_consumer.connection_state.return_value = ConnectionState.OPEN
+    tmp_file = tmp_path / "nb.py"
+    tmp_file.write_text(
+        dedent(
+            """
+        # /// script
+        # [tool.marimo.runtime]
+        # dotenv = [".env", ".env.local"]
+        # ///
+        """
+        )
+    )
+    session = await SessionImpl.create(
+        startup=SessionStartup(),
+        initialization_id="test_id",
+        session_consumer=session_consumer,
+        mode=SessionMode.RUN,
+        app_metadata=app_metadata,
+        app_file_manager=AppFileManager(filename=str(tmp_file)),
+        config_manager=get_default_config_manager(current_path=str(tmp_file)),
+        virtual_file_storage="in_memory",
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+        auto_instantiate=True,
+    )
+    try:
+        kernel_config = session._kernel_manager.config_manager.get_config(
+            hide_secrets=False
+        )
+        assert kernel_config["runtime"]["dotenv"] == [
+            str(tmp_path / ".env"),
+            str(tmp_path / ".env.local"),
+        ]
+        masked = session.config_manager.get_config()
+        assert masked["runtime"]["dotenv"] == []
+    finally:
+        session.close()
 
 
 async def test_caching_extension_respects_mode_and_config() -> None:
@@ -1146,6 +1358,7 @@ async def test_caching_extension_respects_mode_and_config() -> None:
                 }
             )
         return await SessionImpl.create(
+            startup=SessionStartup(),
             initialization_id="test_session",
             session_consumer=session_consumer,
             mode=mode,

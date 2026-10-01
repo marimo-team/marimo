@@ -861,6 +861,42 @@ async def test_completion_does_not_pass_redundant_instructions() -> None:
 
 
 @pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize("thinking", [None, False])
+async def test_completion_thinking_override(thinking: bool | None) -> None:
+    from pydantic_ai.messages import ModelResponse, TextPart
+    from pydantic_ai.models.openai import OpenAIResponsesModel
+
+    config = AnyProviderConfig(api_key="test-key", base_url=None)
+    provider = OpenAIProvider("gpt-5.1", config)
+
+    with patch.object(
+        OpenAIResponsesModel, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = ModelResponse(
+            parts=[TextPart(content="print(1)")]
+        )
+        result = await provider.completion(
+            messages=[],
+            system_prompt="Complete the code.",
+            max_tokens=1024,
+            additional_tools=[],
+            enable_capabilities=False,
+            thinking=thinking,
+            span_info=SpanInfo(
+                endpoint="inline_completion", model="openai/gpt-5.1"
+            ),
+        )
+
+    assert result == "print(1)"
+    mock_request.assert_called_once()
+    assert mock_request.call_args.args[1] == {
+        "max_tokens": 1024,
+        "thinking": True if thinking is None else thinking,
+        "openai_reasoning_summary": "auto",
+    }
+
+
+@pytest.mark.requires("pydantic_ai")
 async def test_completion_tool_count_includes_capabilities() -> None:
     """`completion` reports tools plus the agent's native capabilities, so its
     telemetry matches the streaming paths."""

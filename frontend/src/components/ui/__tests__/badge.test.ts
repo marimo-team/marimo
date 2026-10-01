@@ -54,10 +54,12 @@ describe("badgeVariants", () => {
           ].join(" "),
         ),
       );
-      if (variant !== "outline") {
-        expect(classes).toContain("forced-colors:hover:bg-[Highlight]");
-        expect(classes).toContain("forced-colors:hover:text-[HighlightText]");
-      }
+      expect(classes.includes("forced-colors:hover:bg-[Highlight]")).toBe(
+        variant !== "outline",
+      );
+      expect(classes.includes("forced-colors:hover:text-[HighlightText]")).toBe(
+        variant !== "outline",
+      );
     },
   );
 });

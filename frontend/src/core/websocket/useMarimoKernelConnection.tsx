@@ -64,7 +64,7 @@ import type { SessionId } from "../kernel/session";
 import { initialRunCompletedAtom, kernelStateAtom } from "../kernel/state";
 import { type LayoutState, useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
-import { connectionAtom } from "../network/connection";
+import { connectionAtom, startupProgressAtom } from "../network/connection";
 import type { RequestId } from "../network/DeferredRequestRegistry";
 import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
@@ -222,8 +222,14 @@ export function useMarimoKernelConnection(opts: {
     useDataSourceActions();
   const { setLayoutData } = useLayoutActions();
   const [connection, setConnection] = useAtom(connectionAtom);
+  const updateStartupProgress = useSetAtom(startupProgressAtom);
   const { addBanner } = useBannersActions();
-  const { addPackageAlert, addStartupLog } = useAlertActions();
+  const {
+    addMissingPackageAlert,
+    updateEnvironment,
+    setEnvironment,
+    addStartupLog,
+  } = useAlertActions();
   const setKioskMode = useSetAtom(kioskModeAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
@@ -241,12 +247,18 @@ export function useMarimoKernelConnection(opts: {
       case "reload":
         reloadSafe();
         return;
-      case "startup-progress":
-        setConnection({
-          state: WebSocketState.CONNECTING,
-          phase: msg.data.phase,
-        });
+      case "startup-progress": {
+        const { phase } = msg.data;
+        updateStartupProgress(msg.data);
+        setConnection((previous) =>
+          previous.state === WebSocketState.OPEN ||
+          (previous.state === WebSocketState.CONNECTING &&
+            previous.phase === phase)
+            ? previous
+            : { state: WebSocketState.CONNECTING, phase },
+        );
         return;
+      }
       case "kernel-ready": {
         setKernelStartupError(null);
         setConnection({ state: WebSocketState.OPEN });
@@ -366,26 +378,25 @@ export function useMarimoKernelConnection(opts: {
         addBanner(msg.data);
         return;
       case "missing-package-alert":
-        addPackageAlert({
+        addMissingPackageAlert({
           ...msg.data,
           kind: "missing",
         });
         return;
-      case "installing-package-alert":
+      case "environment-operation":
         if (
-          msg.data.source !== "server" &&
-          msg.data.log_status !== "append" &&
-          msg.data.log_status !== "start" &&
-          Object.values(msg.data.packages).some(
-            (status) => status === "installed" || status === "restart-required",
-          )
+          msg.data.source === "kernel" &&
+          msg.data.status.kind !== "running"
         ) {
           invalidatePackageData();
         }
-        addPackageAlert({
-          ...msg.data,
-          kind: "installing",
-        });
+        updateEnvironment(msg.data);
+        return;
+      case "environment-state":
+        setEnvironment(msg.data);
+        if (msg.data.source === "kernel") {
+          invalidatePackageData();
+        }
         return;
       case "startup-logs":
         addStartupLog({
@@ -538,6 +549,7 @@ export function useMarimoKernelConnection(opts: {
      * The transport is open; kernel-ready establishes session readiness.
      */
     onOpen: async () => {
+      updateStartupProgress(null);
       // If we are open, we can reset our reconnecting flag.
       shouldTryReconnecting.current = true;
     },

@@ -1233,6 +1233,7 @@ describe("cell reducer", () => {
       disabled: false,
       hide_code: false,
       column: null,
+      expand_output: false,
     });
 
     actions.updateCellConfig({
@@ -1501,6 +1502,33 @@ describe("cell reducer", () => {
       { ...STD_IN_1, response: "Marimo!" },
       { ...STD_IN_2, response: "" },
     ]);
+  });
+
+  it("resolves password prompts without retaining the response", () => {
+    const prompt: OutputMessage = {
+      channel: "stdin",
+      mimetype: "text/password",
+      data: "Password: ",
+      timestamp: 1,
+    };
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: undefined,
+      console: prompt,
+      status: "running",
+      stale_inputs: null,
+      timestamp: 1 as Seconds,
+    });
+
+    const secret = "getpass-regression-secret";
+    actions.setStdinResponse({
+      cellId: firstCellId,
+      outputIndex: 0,
+      response: secret,
+    });
+
+    expect(cells[0].consoleOutputs).toEqual([{ ...prompt, response: "" }]);
+    expect(JSON.stringify(cells[0].consoleOutputs)).not.toContain(secret);
   });
 
   it("does not crash when setStdinResponse has out-of-bounds outputIndex", () => {
@@ -2035,6 +2063,150 @@ describe("cell reducer", () => {
     expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
       false,
     );
+  });
+
+  it("can collapse all cells when nested heading ranges end at the same cell", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: cellId("1"),
+      before: false,
+      code: "# Header",
+    });
+    actions.createNewCell({
+      cellId: cellId("2"),
+      before: false,
+      code: "## Subheader",
+    });
+    actions.createNewCell({
+      cellId: cellId("3"),
+      before: false,
+      code: "### Subsubheader",
+    });
+
+    const headerId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
+    state.cellRuntime[headerId] = {
+      ...state.cellRuntime[headerId],
+      outline: {
+        items: [{ name: "Header", level: 1, by: { id: "header" } }],
+      },
+    };
+
+    const subheaderId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2);
+    state.cellRuntime[subheaderId] = {
+      ...state.cellRuntime[subheaderId],
+      outline: {
+        items: [{ name: "Subheader", level: 2, by: { id: "subheader" } }],
+      },
+    };
+
+    const subsubheaderId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(3);
+    state.cellRuntime[subsubheaderId] = {
+      ...state.cellRuntime[subsubheaderId],
+      outline: {
+        items: [{ name: "Subsubheader", level: 3, by: { id: "subsubheader" } }],
+      },
+    };
+
+    // The header, subheader and subsubheader ranges all end at the last
+    // cell. Collapsing all used to throw "Node ... not found in tree" and
+    // leave the whole notebook unchanged.
+    actions.collapseAllCells();
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      true,
+    );
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).topLevelIds).toEqual([
+      firstCellId,
+      headerId,
+    ]);
+
+    // Each level is nested under its parent, collapsed
+    actions.expandCell({ cellId: headerId });
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
+      true,
+    );
+    actions.expandCell({ cellId: subheaderId });
+    expect(
+      state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subsubheaderId),
+    ).toBe(true);
+  });
+
+  it("can collapse all cells when a deep chain is followed by a later section", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: cellId("1"),
+      before: false,
+      code: "# Header",
+    });
+    actions.createNewCell({
+      cellId: cellId("2"),
+      before: false,
+      code: "## Section A",
+    });
+    actions.createNewCell({
+      cellId: cellId("3"),
+      before: false,
+      code: "### Sub of A",
+    });
+    actions.createNewCell({
+      cellId: cellId("4"),
+      before: false,
+      code: "## Section B",
+    });
+
+    const headerId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
+    state.cellRuntime[headerId] = {
+      ...state.cellRuntime[headerId],
+      outline: {
+        items: [{ name: "Header", level: 1, by: { id: "header" } }],
+      },
+    };
+
+    const sectionAId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2);
+    state.cellRuntime[sectionAId] = {
+      ...state.cellRuntime[sectionAId],
+      outline: {
+        items: [{ name: "Section A", level: 2, by: { id: "section-a" } }],
+      },
+    };
+
+    const subsectionId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(3);
+    state.cellRuntime[subsectionId] = {
+      ...state.cellRuntime[subsectionId],
+      outline: {
+        items: [{ name: "Sub of A", level: 3, by: { id: "sub-of-a" } }],
+      },
+    };
+
+    const sectionBId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(4);
+    state.cellRuntime[sectionBId] = {
+      ...state.cellRuntime[sectionBId],
+      outline: {
+        items: [{ name: "Section B", level: 2, by: { id: "section-b" } }],
+      },
+    };
+
+    actions.collapseAllCells();
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      true,
+    );
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).topLevelIds).toEqual([
+      firstCellId,
+      headerId,
+    ]);
+
+    // Both sections sit under the header, collapsed, with the subsection
+    // nested under section A
+    actions.expandCell({ cellId: headerId });
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(sectionAId)).toBe(
+      true,
+    );
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(sectionBId)).toBe(
+      true,
+    );
+    actions.expandCell({ cellId: sectionAId });
+    expect(
+      state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subsectionId),
+    ).toBe(true);
   });
 
   it("can show hidden cells", () => {

@@ -13,15 +13,15 @@ interface Data {
 }
 
 export class SwitchPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-switch";
+  public tagName = "marimo-switch";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.boolean(),
     label: z.string().nullable(),
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return <SwitchComponent {...props} />;
   }
 }

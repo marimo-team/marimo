@@ -327,14 +327,16 @@ app._unparsable_cell(
         assert generate(
             "x = 1",
             "named_cell",
-            CellConfig(disabled=True, hide_code=True, column=1),
+            CellConfig(
+                disabled=True, hide_code=True, column=1, expand_output=True
+            ),
         ) == snapshot(
             '''\
 app._unparsable_cell(
     r"""
     x = 1
     """,
-    column=1, disabled=True, hide_code=True, name="named_cell"
+    column=1, disabled=True, hide_code=True, expand_output=True, name="named_cell"
 )\
 '''
         )
@@ -948,17 +950,40 @@ class TestToFunctionDef:
     def test_with_all_config(self) -> None:
         code = "x = 0"
         cell = compile_cell(code)
-        cell = cell.configure(CellConfig(disabled=True, hide_code=True))
+        cell = cell.configure(
+            CellConfig(disabled=True, hide_code=True, expand_output=True)
+        )
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
             [
-                "@app.cell(disabled=True, hide_code=True)",
+                "@app.cell(disabled=True, hide_code=True, expand_output=True)",
                 "def foo():",
                 "    x = 0",
                 "    return (x,)",
             ]
         )
         assert fndef == expected
+
+    def test_with_expand_output(self) -> None:
+        code = "x = 0"
+        cell = compile_cell(code)
+        cell = cell.configure(CellConfig(expand_output=True))
+        fndef = codegen.to_functiondef(cell, "foo")
+        expected = "\n".join(
+            [
+                "@app.cell(expand_output=True)",
+                "def foo():",
+                "    x = 0",
+                "    return (x,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_expand_output_omitted_when_false(self) -> None:
+        code = "x = 0"
+        cell = compile_cell(code)
+        cell = cell.configure(CellConfig(expand_output=False))
+        assert codegen.to_functiondef(cell, "foo").startswith("@app.cell\n")
 
     def test_dotted_names_filtered_from_signature(self) -> None:
         """Test that dotted names (like SQL schema.table references) are filtered out from function signatures."""
@@ -2240,3 +2265,39 @@ def _strip_header_footer(source: str) -> str:
     code_start = source.index(header)
     code_end = source.index('if __name__ == "__main__":')
     return source[code_start + len(header) : code_end].strip()
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        # Already formatted: identity
+        ('mo.md(r"""\nA\n""")', 'mo.md(r"""\nA\n""")'),
+        # Inline comment after the call keeps its leading whitespace (#10976)
+        (
+            'mo.md(r"""\nA\n""")  # noqa: E501',
+            'mo.md(r"""\nA\n""")  # noqa: E501',
+        ),
+        # Comments on their own lines, before and after
+        (
+            '# lead\n\nmo.md(r"""\nA\n""")\n# trail',
+            '# lead\n\nmo.md(r"""\nA\n""")\n# trail',
+        ),
+        # Reformatting the call preserves the inline comment
+        (
+            'mo.md(\n    r"""\n    A\n    """\n)  # noqa: E501',
+            'mo.md(r"""\nA\n""")  # noqa: E501',
+        ),
+        # Non-ASCII content does not shift the comment position
+        (
+            'mo.md(r"""\nÄé\n""")  # noqa: É',
+            'mo.md(r"""\nÄé\n""")  # noqa: É',
+        ),
+        # Parentheses around the call are kept
+        ('(mo.md("x"))', '(mo.md("""\nx\n"""))'),
+        ('mo.md(("x"))', 'mo.md("""\nx\n""")'),
+    ],
+)
+def test_format_markdown_preserves_surrounding_source(
+    code: str, expected: str
+) -> None:
+    assert codegen.format_markdown(compile_cell(code)) == expected

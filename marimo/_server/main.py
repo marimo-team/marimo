@@ -141,7 +141,8 @@ def _create_lsps_proxy_middleware(
         Middleware(
             ProxyMiddleware,
             proxy_path=f"{base_url}/lsp/{server.id}",
-            target_url=f"http://localhost:{server.port}",
+            target_url=f"http://127.0.0.1:{server.port}",
+            websocket_headers={"Marimo-LSP-Token": server.auth_token},
         )
         for server in servers
     )

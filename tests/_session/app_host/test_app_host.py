@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pytest
 
+from marimo._session.startup import SessionStartup
+
 
 @pytest.mark.requires("zmq")
 class TestAppHostCommands:
@@ -362,6 +364,7 @@ class TestAppHostMultipleClients:
         ):
             for sid in ("session-1", "session-2"):
                 await SessionImpl.create(
+                    startup=SessionStartup(),
                     initialization_id=file_key,
                     session_consumer=Mock(),
                     mode=SessionMode.RUN,
@@ -373,7 +376,7 @@ class TestAppHostMultipleClients:
                         ),
                     ),
                     config_manager=Mock(
-                        with_overrides=Mock(
+                        with_partial=Mock(
                             return_value=Mock(
                                 get_config=Mock(return_value=DEFAULT_CONFIG)
                             )

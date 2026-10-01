@@ -745,6 +745,32 @@ class TestFsspecFilesystem:
 
         mock_store.ls.assert_called_once_with(path="", detail=True)
 
+    def test_list_entries_root_falls_back_to_cwd(self) -> None:
+        # SFTP filesystems can't list "" but can list "."
+        mock_store = MagicMock()
+        mock_store.ls.side_effect = [
+            FileNotFoundError(),
+            [{"name": "./a.txt", "size": 1, "type": "file"}],
+        ]
+
+        backend = self._make_backend(mock_store)
+        result = backend.list_entries(prefix=None)
+
+        assert mock_store.ls.call_args_list == [
+            ((), {"path": "", "detail": True}),
+            ((), {"path": ".", "detail": True}),
+        ]
+        assert [e.path for e in result.entries] == ["a.txt"]
+
+    def test_list_entries_not_found_below_root_raises(self) -> None:
+        mock_store = MagicMock()
+        mock_store.ls.side_effect = FileNotFoundError()
+
+        backend = self._make_backend(mock_store)
+        with pytest.raises(FileNotFoundError):
+            backend.list_entries(prefix="missing")
+        mock_store.ls.assert_called_once_with(path="missing", detail=True)
+
     def test_list_entries_retries_when_self_entry_detected(self) -> None:
         mock_store = MagicMock()
         mock_store.protocol = "file"
@@ -1111,6 +1137,24 @@ class TestFsspecFilesystem:
                 mime_type=None,
             )
         )
+
+    @pytest.mark.parametrize(
+        "mtime",
+        [
+            datetime(2024, 1, 1, tzinfo=timezone.utc),
+            datetime(2024, 1, 1),  # naive datetimes are treated as UTC
+        ],
+    )
+    def test_create_storage_entry_datetime_mtime(
+        self, mtime: datetime
+    ) -> None:
+        # e.g. sshfs returns mtime as a datetime rather than a float
+        backend = self._make_backend(MagicMock())
+
+        entry = backend._create_storage_entry(
+            {"name": "a.txt", "size": 1, "type": "file", "mtime": mtime}
+        )
+        assert entry.last_modified == 1704067200.0
 
     async def test_get_entry(self) -> None:
         mock_store = MagicMock()
