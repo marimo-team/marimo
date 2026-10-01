@@ -71,7 +71,9 @@ def create_dataframes(
             import polars as pl
 
             duck_df = pl.DataFrame(data)
-            relation = duckdb.sql("SELECT * FROM duck_df")
+            # Narwhals may create temporary views on a relation's connection.
+            # Keep those views out of DuckDB's shared default connection.
+            relation = duckdb.connect(":memory:").sql("SELECT * FROM duck_df")
             del duck_df
             dfs.append(relation)
 

@@ -356,30 +356,32 @@ def test_get_engines_duckdb_databases() -> None:
     ):
         sql("CREATE TABLE test_table (id INTEGER);")
 
-    # Reload the connection to get the new table
-    connection = engine_to_data_source_connection(
-        VariableName("my_duckdb"), duckdb_engine
-    )
+    try:
+        # Reload the connection to get the new table
+        connection = engine_to_data_source_connection(
+            VariableName("my_duckdb"), duckdb_engine
+        )
 
-    assert [database.name for database in connection.databases] == [
-        "memory",
-        "temp",
-    ]
-    database = connection.databases[0]
-    assert database.name == "memory"
-    assert len(database.schemas) == 1
-    schema = database.schemas[0]
-    assert schema.name == "main"
-    assert len(schema.tables) == 1
-    table = schema.tables[0]
-    assert table.name == "test_table"
-    assert table.columns == []
-    assert table.num_columns is None
-    with patch(
-        "marimo._sql.sql.get_configured_sql_output_format",
-        return_value="native",
-    ):
-        sql("DROP TABLE test_table;")
+        assert [database.name for database in connection.databases] == [
+            "memory",
+            "temp",
+        ]
+        database = connection.databases[0]
+        assert database.name == "memory"
+        assert len(database.schemas) == 1
+        schema = database.schemas[0]
+        assert schema.name == "main"
+        assert len(schema.tables) == 1
+        table = schema.tables[0]
+        assert table.name == "test_table"
+        assert table.columns == []
+        assert table.num_columns is None
+    finally:
+        with patch(
+            "marimo._sql.sql.get_configured_sql_output_format",
+            return_value="native",
+        ):
+            sql("DROP TABLE test_table;")
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")

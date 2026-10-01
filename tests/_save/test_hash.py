@@ -1700,10 +1700,34 @@ class TestSideEffects:
     @staticmethod
     @pytest.mark.usefixtures("cleanup_watchers")
     async def test_side_effect_directory(
-        k: Kernel, exec_req: ExecReqProvider, tmp_path
+        k: Kernel,
+        exec_req: ExecReqProvider,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        control_requests = []
-        k.enqueue_control_request = lambda req: control_requests.append(req)  # type: ignore
+        from marimo._runtime.commands import CommandMessage
+        from marimo._runtime.watch import _directory
+
+        loop = asyncio.get_running_loop()
+        watcher_ready = asyncio.Event()
+        request_received = asyncio.Event()
+        control_requests: list[CommandMessage] = []
+        original_hashable_walk = _directory.hashable_walk
+
+        def hashable_walk(
+            path: Path,
+        ) -> set[tuple[Path, tuple[str], tuple[str]]]:
+            structure = original_hashable_walk(path)
+            # The watcher must capture its baseline before we change the directory.
+            loop.call_soon_threadsafe(watcher_ready.set)
+            return structure
+
+        def enqueue_control_request(request: CommandMessage) -> None:
+            control_requests.append(request)
+            loop.call_soon_threadsafe(request_received.set)
+
+        monkeypatch.setattr(_directory, "hashable_walk", hashable_walk)
+        k.enqueue_control_request = enqueue_control_request
         await k.run(
             [
                 exec_req.get(
@@ -1747,8 +1771,9 @@ class TestSideEffects:
                 """),
             ]
         )
+        await asyncio.wait_for(watcher_ready.wait(), timeout=5)
         (tmp_path / "test_dir" / "test.txt").write_text("test")
-        await asyncio.sleep(0.25)
+        await asyncio.wait_for(request_received.wait(), timeout=5)
         assert len(control_requests) == 1
         assert isinstance(control_requests[0], ExecuteStaleCellsCommand)
         assert k.graph.cells[r.cell_id].stale
