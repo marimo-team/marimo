@@ -54,6 +54,8 @@ export const TableTopBar = <TData,>({
   togglePanel,
   isAnyPanelOpen,
   downloadAs,
+  getExportMetadata,
+  metadataSource,
   sizeBytes,
   sizeBytesIsLoading,
 }: TableTopBarProps<TData>) => {
@@ -132,6 +134,8 @@ export const TableTopBar = <TData,>({
         {downloadAs && (
           <ExportActions
             downloadAs={downloadAs}
+            getExportMetadata={getExportMetadata}
+            metadataSource={metadataSource}
             sizeBytes={sizeBytes}
             sizeBytesIsLoading={sizeBytesIsLoading}
           />
