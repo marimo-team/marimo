@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
+import glideCellsCss from "@glideapps/glide-data-grid-cells/dist/index.css?inline";
 import React, { useEffect, useState } from "react";
 import { z } from "zod";
 import { inferFieldTypes } from "@/components/data-table/columns";
@@ -36,7 +37,7 @@ const LazyDataEditor = React.lazy(
 );
 
 export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
-  cssStyles: [glideCss],
+  cssStyles: [glideCss, glideCellsCss],
 })
   .withData(
     z.object({
@@ -54,7 +55,12 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
       fieldTypes: columnToFieldTypesSchema.nullish(),
       columnNames: z.array(z.string()).default([]),
       editableColumns: z.union([z.array(z.string()), z.literal("all")]),
-      columnTypes: z.record(z.string(), z.literal("boolean")).default({}),
+      columnTypes: z
+        .record(
+          z.string(),
+          z.union([z.literal("boolean"), z.array(z.string())]),
+        )
+        .default({}),
       columnSizingMode: z.enum(["auto", "fit"]).default("auto"), // TODO: Remove this
     }),
   )

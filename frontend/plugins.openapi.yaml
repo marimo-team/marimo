@@ -3320,8 +3320,12 @@ components:
           propertyNames:
             type: string
           additionalProperties:
-            type: string
-            const: boolean
+            anyOf:
+              - type: string
+                const: boolean
+              - type: array
+                items:
+                  type: string
         columnSizingMode:
           default: auto
           type: string

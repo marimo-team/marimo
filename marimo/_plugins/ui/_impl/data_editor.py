@@ -101,7 +101,7 @@ RowOrientedData = list[dict[str, Any]]
 ColumnOrientedData = dict[str, list[Any]]
 Scalar = str | int | float | bool | None
 ScalarData = list[Scalar]
-ColumnType = Literal["boolean"]
+ColumnType = Literal["boolean"] | list[str]
 ColumnTypes = dict[str, ColumnType]
 _DEFAULT_SCALAR_COLUMN = "value"
 _TYPE_INFERENCE_SAMPLE_SIZE = 10
@@ -183,6 +183,10 @@ def _infer_conversion_examples_from_columns(
             ):
                 values[column] = column_values[row_idx]
     return values
+
+
+class _InvalidColumnTypeValueError(ValueError):
+    pass
 
 
 @dataclass
@@ -304,6 +308,14 @@ class _EditableTable:
         row_idx = edit["rowIdx"]
         if row_idx < 0:
             return
+        configured_type = self.column_types.get(column_id)
+        if isinstance(configured_type, list):
+            value = edit["value"]
+            if not isinstance(value, str) or value not in configured_type:
+                raise _InvalidColumnTypeValueError(
+                    f"Invalid value for column {column_id!r}: {value!r}; "
+                    f"expected one of {configured_type!r}"
+                )
         if column_id not in self.column_names:
             self.column_names.append(column_id)
             self.conversion_examples[column_id] = None
@@ -444,8 +456,23 @@ class _EditableTable:
             self.column_types[new_column_name] = configured_type
 
 
+def _column_values(
+    data: ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame,
+    column: str,
+) -> list[Any]:
+    if isinstance(data, list):
+        if all(isinstance(row, dict) for row in data):
+            return [cast(dict[str, Any], row).get(column) for row in data]
+        return list(data) if column == _DEFAULT_SCALAR_COLUMN else []
+    if isinstance(data, dict):
+        return list(data.get(column, []))
+
+    frame = nw.from_native(data, eager_only=True)
+    return frame.get_column(column).to_list()
+
+
 def _validate_column_types(
-    _data: ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame,
+    data: ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame,
     column_names: Sequence[str],
     column_types: ColumnTypes,
 ) -> ColumnTypes:
@@ -456,9 +483,30 @@ def _validate_column_types(
         if configured_type == "boolean":
             validated[column] = configured_type
             continue
-        raise ValueError(
-            f"Invalid column type for column {column!r}: expected 'boolean'"
-        )
+        if not isinstance(configured_type, list):
+            raise ValueError(
+                f"Invalid column type for column {column!r}: expected "
+                "'boolean' or a list of strings"
+            )
+        if not configured_type:
+            raise ValueError(
+                f"Dropdown options for column {column!r} must not be empty"
+            )
+        if any(not isinstance(option, str) for option in configured_type):
+            raise ValueError(
+                f"Dropdown options for column {column!r} must all be strings"
+            )
+        if len(set(configured_type)) != len(configured_type):
+            raise ValueError(
+                f"Dropdown options for column {column!r} must be unique"
+            )
+        for value in _column_values(data, column):
+            if not isinstance(value, str) or value not in configured_type:
+                raise ValueError(
+                    f"Invalid initial value for column {column!r}: "
+                    f"{value!r}; expected one of {configured_type!r}"
+                )
+        validated[column] = list(configured_type)
     return validated
 
 
@@ -520,6 +568,19 @@ class data_editor(
         ```python
         data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
         editor = mo.ui.data_editor(data=data, label="Edit Data")
+        ```
+
+        Configure checkbox and dropdown columns:
+
+        ```python
+        data = [{"task": "Review", "done": "yes", "priority": "high"}]
+        editor = mo.ui.data_editor(
+            data=data,
+            column_types={
+                "done": "boolean",
+                "priority": ["low", "medium", "high"],
+            },
+        )
         ```
 
     Attributes:
@@ -671,6 +732,8 @@ def apply_edits(
 
     try:
         return _apply_edits_dataframe(data, edits, schema, column_types)
+    except _InvalidColumnTypeValueError:
+        raise
     except ValueError as e:
         if column_types:
             raise
