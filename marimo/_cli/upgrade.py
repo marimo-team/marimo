@@ -103,7 +103,8 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
         api_url = "https://marimo.io/api/oss/latest-version"
 
     # We only update the state once a day
-    now = datetime.now()
+    # Rate-limit checks by the user's local calendar date.
+    now = datetime.now()  # noqa: DTZ005
     if state.last_checked_at:
         last_checked_date = date.fromisoformat(state.last_checked_at)
         if last_checked_date == now.date():

@@ -91,7 +91,7 @@ def test_update_with_latest_version(mock_fetch_data_from_url: Any) -> None:
     # Assert that the latest_version was updated
     assert updated_state.latest_version == "0.1.2"
     # Assert that the last_checked_at was updated to the current date
-    today = datetime.now().date()
+    today = datetime.now().date()  # noqa: DTZ005
     assert updated_state.last_checked_at == today.strftime("%Y-%m-%d")
 
 
@@ -120,7 +120,7 @@ def test_update_with_within_the_same_day(
     # Mocks
     state = MarimoCLIState(
         latest_version="0.1.0",
-        last_checked_at=datetime.now().date().strftime("%Y-%m-%d"),
+        last_checked_at=datetime.now().date().strftime("%Y-%m-%d"),  # noqa: DTZ005
     )
 
     # Run

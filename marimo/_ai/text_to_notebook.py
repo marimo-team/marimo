@@ -56,7 +56,9 @@ def text_to_notebook(prompt: str) -> str:
             raise ValueError("Terms not accepted.")
 
         # Update state with acceptance
-        today = datetime.datetime.now().date().strftime("%Y-%m-%d")
+        # Terms are accepted on the user's local calendar date.
+        now = datetime.datetime.now()  # noqa: DTZ005
+        today = now.date().strftime("%Y-%m-%d")
         state.accepted_text_to_notebook_terms_at = today
 
         write_cli_state(state)

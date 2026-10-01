@@ -34,7 +34,7 @@ def test_date() -> None:
 def test_datetime() -> None:
     # Test default initialization
     dt = ui.datetime()
-    now = datetime.datetime.now()
+    now = datetime.datetime.now()  # noqa: DTZ005
     assert dt.value
     assert dt.value.date() == now.date()
     assert dt.value.hour == now.hour

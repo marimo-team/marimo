@@ -256,7 +256,7 @@ def test_date_chart_builder_get_date_format():
             "dates": pl.Series("dates", [date(2021, 1, 1)], dtype=pl.Date),
             "times": pl.Series("times", [time(12, 0, 0)], dtype=pl.Time),
             "datetimes": pl.Series(
-                "datetimes", [datetime.now()], dtype=pl.Datetime
+                "datetimes", [datetime(2021, 1, 1)], dtype=pl.Datetime
             ),
         },
     )

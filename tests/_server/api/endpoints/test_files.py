@@ -225,7 +225,7 @@ def test_save_with_header(client: TestClient) -> None:
     path = Path(filename)
     assert path.exists()
 
-    copyright_year = datetime.now().year
+    copyright_year = datetime.now().year  # noqa: DTZ005
     header = (
         '"""This is a docstring"""\n\n'
         + f"# Copyright {copyright_year}\n# Linter ignore\n"

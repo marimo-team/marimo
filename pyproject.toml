@@ -370,7 +370,6 @@ ignore = [
     "SIM117", # Use a single `with` statement with multiple contexts instead of nested `with` statements
     "RUF012", # Mutable class default
     "S102", # Use of `exec`
-    "DTZ005", # `datetime.now()` called without `tzinfo`
     "DTZ006", # `datetime.fromtimestamp()` called without `tzinfo`
     "DTZ011", # `date.today()` used
     "UP007", # Use `X | Y` for type annotations
@@ -421,6 +420,7 @@ extend-select = [
     "PT",    # flake8-pytest-style rules
     "TID25", # flake8-tidy-imports rules
     # Per rule enables
+    "DTZ005", # Require explicit timezone intent for datetime.now()
     # "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     # "D101", # Missing docstring in public class
