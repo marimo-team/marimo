@@ -92,7 +92,7 @@ def test_ambiguous_geometry_has_no_default(widget: Any) -> None:
     ]
     assert result.primary_geometry_column is None
     assert result.default_geometry_column is None
-    assert not result.formats["parquet"].available
+    assert result.formats["parquet"].available
 
 
 @pytest.mark.requires("geopandas")

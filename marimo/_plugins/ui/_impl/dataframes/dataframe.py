@@ -37,6 +37,7 @@ from marimo._plugins.ui._impl.table import (
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.geometry_export import (
     ExportMetadata,
+    GeometryExportError,
     get_export_metadata,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
@@ -392,13 +393,21 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             widget_defaults
         )
 
-        url, filename = download_as(
-            manager,
-            args.format,
-            options=options,
-            filename=bound_filename,
-            geometry_column=args.geometry_column,
-        )
+        try:
+            url, filename = download_as(
+                manager,
+                args.format,
+                options=options,
+                filename=bound_filename,
+                geometry_column=args.geometry_column,
+            )
+        except GeometryExportError as e:
+            return DownloadAsResponse(
+                error=str(e),
+                code=e.code,
+                column=e.column,
+                missing_packages=e.missing_packages,
+            )
         return DownloadAsResponse(url=url, filename=filename)
 
     def _apply_filters_query_sort(
