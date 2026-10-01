@@ -119,6 +119,11 @@ jobs:
         env:
           VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
 
+      - name: 🎭 Verify code-mode screenshots with Chromium
+        run: uv run --group test --with playwright==1.62.1 pytest tests/_code_mode/test_screenshot_integration.py
+        env:
+          MARIMO_TEST_SCREENSHOTS: "1"
+
       # - name: ☁️ Google Auth
       #   uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
       #   # Skip on forks
