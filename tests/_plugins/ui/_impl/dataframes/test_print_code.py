@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 import datetime
 import string
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import narwhals.stable.v2 as nw
 import pytest
@@ -31,6 +31,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     FilterGroup,
     FilterRowsTransform,
     GroupByTransform,
+    Operator,
     PivotTransform,
     RenameColumnTransform,
     SampleRowsTransform,
@@ -269,6 +270,118 @@ transformations_strategy = st.builds(
     Transformations,
     transforms=st.lists(create_transform_strategy(any_column_id), min_size=1),
 )
+
+
+def _assert_string_filter_matches_runtime(
+    backend: str,
+    strings: list[str | None],
+    operator: Operator,
+    value: str,
+    negate: bool,
+    operation: Literal["keep_rows", "remove_rows"],
+) -> None:
+    data = {"strings": strings, "row_id": list(range(len(strings)))}
+    if backend.startswith("pandas"):
+        pd = pytest.importorskip("pandas")
+        df = pd.DataFrame(data).astype(
+            {"strings": "object" if backend == "pandas-object" else "string"}
+        )
+        printer = python_print_pandas
+        namespace = {"pd": pd, "df": df}
+    elif backend == "polars":
+        pl = pytest.importorskip("polars")
+        df = pl.DataFrame(data, schema_overrides={"strings": pl.String})
+        printer = python_print_polars
+        namespace = {"pl": pl, "df": df}
+    else:
+        ibis = pytest.importorskip("ibis")
+        pytest.importorskip("duckdb")
+        df = ibis.memtable(
+            data, schema={"strings": "string", "row_id": "int64"}
+        )
+        printer = python_print_ibis
+        namespace = {"ibis": ibis, "df": df}
+
+    transform = FilterRowsTransform(
+        type=TransformType.FILTER_ROWS,
+        operation=operation,
+        where=FilterGroup(
+            operator="and",
+            children=[
+                FilterCondition(
+                    column_id="strings",
+                    operator=operator,
+                    value=value,
+                    negate=negate,
+                )
+            ],
+        ),
+    )
+    expected = _apply_transforms(
+        nw.from_native(df).lazy(),
+        NarwhalsTransformHandler(),
+        Transformations([transform]),
+    ).collect()
+    code = python_print_transforms("df", list(data), [transform], printer)
+    exec(code, namespace)
+    actual = nw.from_native(namespace["df_next"]).lazy().collect()
+    assert actual.to_dict(as_series=False) == expected.to_dict(as_series=False)
+
+
+@pytest.mark.parametrize(
+    "backend", ["pandas-object", "pandas-string", "polars", "ibis"]
+)
+@pytest.mark.parametrize(
+    "operator", ["contains", "regex", "starts_with", "ends_with"]
+)
+@pytest.mark.parametrize("value", ["", "a", "a.c"])
+@pytest.mark.parametrize("negate", [False, True])
+@pytest.mark.parametrize("operation", ["keep_rows", "remove_rows"])
+def test_print_code_string_filters_with_nulls(
+    backend: str,
+    operator: Operator,
+    value: str,
+    negate: bool,
+    operation: Literal["keep_rows", "remove_rows"],
+) -> None:
+    _assert_string_filter_matches_runtime(
+        backend,
+        [None, "", "abc", "a.c", "cba", "zzz"],
+        operator,
+        value,
+        negate,
+        operation,
+    )
+
+
+@pytest.mark.parametrize(
+    "backend", ["pandas-object", "pandas-string", "polars", "ibis"]
+)
+@given(
+    strings=st.lists(
+        st.one_of(st.none(), st.text(alphabet="abc .", max_size=10)),
+        min_size=1,
+        max_size=10,
+    ),
+    operator=st.sampled_from(
+        ["contains", "regex", "starts_with", "ends_with"]
+    ),
+    value=st.text(alphabet="abc.", max_size=3),
+    negate=st.booleans(),
+    operation=st.sampled_from(["keep_rows", "remove_rows"]),
+)
+@settings(deadline=None)
+def test_print_code_string_filters_with_generated_nulls(
+    backend: str,
+    strings: list[str | None],
+    operator: Operator,
+    value: str,
+    negate: bool,
+    operation: Literal["keep_rows", "remove_rows"],
+) -> None:
+    _assert_string_filter_matches_runtime(
+        backend, strings, operator, value, negate, operation
+    )
 
 
 def _validate_code(code: str):
