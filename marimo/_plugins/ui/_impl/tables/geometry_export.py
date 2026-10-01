@@ -156,15 +156,21 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
         is_supported_source = False
 
     if not is_supported_source:
+        if source.implementation.is_pandas():
+            reason = "This pandas table needs geopandas to export GeoParquet."
+            missing_packages = ["geopandas"]
+        elif source.implementation.is_pyarrow():
+            reason = (
+                "GeoParquet export from Arrow tables is not supported yet."
+            )
+            missing_packages = []
+        else:
+            reason = "GeoParquet export is not supported for this table type."
+            missing_packages = []
         parquet = ExportFormatEligibility(
             available=False,
-            reason=(
-                "GeoParquet export requires GeoPandas geometry columns "
-                "and the geopandas package."
-            ),
-            missing_packages=(
-                ["geopandas"] if source.implementation.is_pandas() else []
-            ),
+            reason=reason,
+            missing_packages=missing_packages,
         )
     elif not DependencyManager.pyarrow.has():
         parquet = ExportFormatEligibility(
@@ -175,7 +181,11 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
     else:
         parquet = ExportFormatEligibility(available=True)
 
-    default = primary or (columns[0].name if len(columns) == 1 else None)
+    default = (
+        primary
+        if primary is not None
+        else (columns[0].name if len(columns) == 1 else None)
+    )
     return ExportMetadata(
         geometry_columns=columns,
         primary_geometry_column=primary,
@@ -244,7 +254,7 @@ def serialize_geoparquet(
     ):
         raise GeometryExportError(
             "unsupported_representation",
-            "GeoParquet export requires GeoPandas geometry columns.",
+            "GeoParquet export from this table type is not supported yet.",
             column=geometry_column,
         )
 
@@ -269,7 +279,11 @@ def serialize_geoparquet(
             f"{geometry_column!r} is not a geometry column in this table.",
             column=geometry_column,
         )
-    primary = geometry_column or metadata.default_geometry_column
+    primary = (
+        geometry_column
+        if geometry_column is not None
+        else metadata.default_geometry_column
+    )
     if primary is None:
         raise GeometryExportError(
             "geometry_required",
@@ -279,7 +293,7 @@ def serialize_geoparquet(
     if not DependencyManager.geopandas.has():
         raise GeometryExportError(
             "missing_packages",
-            "GeoParquet export requires geopandas.",
+            "This pandas table needs geopandas to export GeoParquet.",
             missing_packages=["geopandas"],
         )
     if not DependencyManager.pyarrow.has():
@@ -308,7 +322,6 @@ def serialize_geoparquet(
         export_frame.to_parquet(
             buffer,
             index=None,
-            geometry_encoding="WKB",
             schema_version="1.0.0",
         )
         artifact = buffer.getvalue()

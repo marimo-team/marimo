@@ -96,6 +96,15 @@ def test_ambiguous_geometry_has_no_default(widget: Any) -> None:
 
 
 @pytest.mark.requires("geopandas")
+def test_empty_name_can_be_the_source_primary(widget: Any) -> None:
+    source = fixtures.gdf_multi_geometry().rename(columns={"geom_b": ""})
+    source = source.set_geometry("")
+    result = widget(source)._get_export_metadata(EmptyArgs())
+    assert result.primary_geometry_column == ""
+    assert result.default_geometry_column == ""
+
+
+@pytest.mark.requires("geopandas")
 def test_empty_geometry_retains_unknown_crs(widget: Any) -> None:
     source = fixtures.gdf_all_null().head(0)
     result = widget(source)._get_export_metadata(EmptyArgs())
@@ -116,6 +125,18 @@ def test_missing_pyarrow_is_reported(widget: Any) -> None:
     }
 
 
+@pytest.mark.requires("geopandas")
+def test_missing_geopandas_is_reported(widget: Any) -> None:
+    subject = widget(fixtures.gdf_multi_geometry())
+    with patch.object(DependencyManager.geopandas, "has", return_value=False):
+        result = subject._get_export_metadata(EmptyArgs())
+    assert asdict(result.formats["parquet"]) == {
+        "available": False,
+        "reason": "This pandas table needs geopandas to export GeoParquet.",
+        "missing_packages": ["geopandas"],
+    }
+
+
 @pytest.mark.requires("pyarrow")
 def test_arrow_crs_comes_from_field_metadata(widget: Any) -> None:
     subject = widget(fixtures.arrow_wkb_known_crs())
@@ -123,7 +144,11 @@ def test_arrow_crs_comes_from_field_metadata(widget: Any) -> None:
     assert [asdict(column) for column in result.geometry_columns] == [
         {"name": "geom", "encoding": "wkb", "crs": "EPSG:4326"},
     ]
-    assert not result.formats["parquet"].available
+    assert asdict(result.formats["parquet"]) == {
+        "available": False,
+        "reason": "GeoParquet export from Arrow tables is not supported yet.",
+        "missing_packages": [],
+    }
 
 
 @pytest.mark.requires("pandas")
