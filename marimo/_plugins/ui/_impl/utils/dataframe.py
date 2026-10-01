@@ -11,7 +11,9 @@ from marimo._output.data import data as mo_data
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.geometry_export import (
+    GeometryExportError,
     prepare_geometry_text_export,
+    serialize_geoparquet,
 )
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
@@ -196,7 +198,6 @@ def download_as(
     Raises:
         ValueError: If unrecognized format.
     """
-    del geometry_column
     options = options or DownloadOptions()
     if drop_marimo_index:
         # Remove the selection column if exists
@@ -208,10 +209,22 @@ def download_as(
         raise ValueError(f"format must be one of {allowed}.")
 
     if ext in ("csv", "tsv", "json"):
+        if geometry_column is not None:
+            raise GeometryExportError(
+                "invalid_geometry",
+                "A primary geometry can only be chosen for GeoParquet export.",
+                column=geometry_column,
+            )
         manager = prepare_geometry_text_export(manager)
 
+    artifact = (
+        serialize_geoparquet(manager, geometry_column)
+        if ext == "parquet"
+        else None
+    )
     vfile = mo_data.any_data(
-        fmt.serialize(manager, options), ext=fmt.extension
+        artifact if artifact is not None else fmt.serialize(manager, options),
+        ext=fmt.extension,
     )
     base_name = filename if filename is not None else "download"
     return (vfile.url, f"{base_name}.{fmt.extension}")

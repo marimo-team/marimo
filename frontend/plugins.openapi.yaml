@@ -3305,6 +3305,21 @@ components:
               items:
                 type: string
             - type: "null"
+        code:
+          anyOf:
+            - type: string
+              enum:
+                - geometry_required
+                - invalid_geometry
+                - invalid_metadata
+                - unsupported_representation
+                - missing_packages
+                - conversion_failed
+            - type: "null"
+        column:
+          type:
+            - string
+            - "null"
       required:
         - url
         - filename
@@ -4867,6 +4882,21 @@ components:
               items:
                 type: string
             - type: "null"
+        code:
+          anyOf:
+            - type: string
+              enum:
+                - geometry_required
+                - invalid_geometry
+                - invalid_metadata
+                - unsupported_representation
+                - missing_packages
+                - conversion_failed
+            - type: "null"
+        column:
+          type:
+            - string
+            - "null"
       required:
         - url
         - filename
