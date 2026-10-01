@@ -137,6 +137,105 @@ def test_download_as_csv_honors_separator_option() -> None:
     assert text.splitlines()[0] == "a;b"
 
 
+def _download_text(url: str) -> str:
+    from marimo._utils.data_uri import from_data_uri
+
+    return from_data_uri(url)[1].decode("utf-8")
+
+
+def test_download_as_pt_br_csv() -> None:
+    from marimo._plugins.ui._impl.tables.default_table import (
+        DefaultTableManager,
+    )
+    from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
+    from marimo._plugins.ui._impl.utils.dataframe import (
+        DownloadOptions,
+        download_as,
+    )
+
+    manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
+    url, _ = download_as(
+        manager,
+        "csv",
+        options=DownloadOptions(locale=ResolvedExportLocale("pt-BR", ",")),
+    )
+    assert _download_text(url) == "value;text\n1234,56;unchanged.1\n"
+
+
+def test_download_as_pt_br_tsv() -> None:
+    from marimo._plugins.ui._impl.tables.default_table import (
+        DefaultTableManager,
+    )
+    from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
+    from marimo._plugins.ui._impl.utils.dataframe import (
+        DownloadOptions,
+        download_as,
+    )
+
+    manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
+    url, _ = download_as(
+        manager,
+        "tsv",
+        options=DownloadOptions(locale=ResolvedExportLocale("pt-BR", ",")),
+    )
+    assert _download_text(url) == "value\ttext\n1234,56\tunchanged.1\n"
+
+
+def test_download_as_legacy_csv_without_locale() -> None:
+    from marimo._plugins.ui._impl.tables.default_table import (
+        DefaultTableManager,
+    )
+    from marimo._plugins.ui._impl.utils.dataframe import download_as
+
+    manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
+    url, _ = download_as(manager, "csv")
+    assert _download_text(url) == "value,text\n1234.56,unchanged.1\n"
+
+
+def test_download_as_explicit_csv_separator_wins() -> None:
+    from marimo._plugins.ui._impl.tables.default_table import (
+        DefaultTableManager,
+    )
+    from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
+    from marimo._plugins.ui._impl.utils.dataframe import (
+        DelimitedOptions,
+        DownloadOptions,
+        download_as,
+    )
+
+    manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
+    url, _ = download_as(
+        manager,
+        "csv",
+        options=DownloadOptions(
+            delimited=DelimitedOptions(separator="|"),
+            locale=ResolvedExportLocale("pt-BR", ","),
+        ),
+    )
+    assert _download_text(url) == "value|text\n1234,56|unchanged.1\n"
+
+
+def test_download_as_json_stays_locale_neutral() -> None:
+    from marimo._plugins.ui._impl.tables.default_table import (
+        DefaultTableManager,
+    )
+    from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
+    from marimo._plugins.ui._impl.utils.dataframe import (
+        DownloadOptions,
+        download_as,
+    )
+
+    manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
+    url, _ = download_as(
+        manager,
+        "json",
+        options=DownloadOptions(locale=ResolvedExportLocale("pt-BR", ",")),
+    )
+    text = _download_text(url)
+    assert "1234.56" in text
+    assert "1234,56" not in text
+
+
 def test_union_tolerates_string_type_aliases() -> None:
     """Verify that Union[] handles string-valued type aliases (narwhals compat).
 

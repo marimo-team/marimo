@@ -41,6 +41,10 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
     validate_operator_for_dtype,
 )
+from marimo._plugins.ui._impl.tables.delimited import (
+    InvalidExportLocaleError,
+    ResolvedExportLocale,
+)
 from marimo._plugins.ui._impl.tables.selection import (
     INDEX_COLUMN_NAME,
     add_selection_column,
@@ -55,6 +59,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._plugins.ui._impl.utils.dataframe import (
+    DownloadOptions,
     ListOrTuple,
     TableData,
     download_as,
@@ -94,6 +99,7 @@ class TableSearchError(Exception):
 @dataclass
 class DownloadAsArgs:
     format: Literal["csv", "tsv", "json", "parquet"]
+    locale: ResolvedExportLocale | None = None
 
 
 @dataclass
@@ -1094,12 +1100,16 @@ class table(
         if isinstance(manager_candidate, TableManager):
             bound_filename = get_bound_name(self._id)
 
-            url, filename = download_as(
-                manager_candidate,
-                args.format,
-                drop_marimo_index=True,
-                filename=bound_filename,
-            )
+            try:
+                url, filename = download_as(
+                    manager_candidate,
+                    args.format,
+                    drop_marimo_index=True,
+                    filename=bound_filename,
+                    options=DownloadOptions(locale=args.locale),
+                )
+            except InvalidExportLocaleError as error:
+                return DownloadAsResponse(error=str(error))
             return DownloadAsResponse(url=url, filename=filename)
         else:
             raise NotImplementedError(

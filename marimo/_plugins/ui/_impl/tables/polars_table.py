@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import functools
+import inspect
 import io
+import json
 from functools import cached_property
 from typing import Any
 
@@ -23,8 +25,18 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
     TableManagerFactory,
 )
+from marimo._utils.delimited import DelimitedDialect
+from marimo._utils.narwhals_utils import dataframe_to_csv
 
 LOGGER = _loggers.marimo_logger()
+
+
+def _supports_decimal_comma() -> bool:
+    import polars as pl
+
+    return (
+        "decimal_comma" in inspect.signature(pl.DataFrame.write_csv).parameters
+    )
 
 
 class PolarsTableManagerFactory(TableManagerFactory):
@@ -36,6 +48,34 @@ class PolarsTableManagerFactory(TableManagerFactory):
     @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
         import polars as pl
+
+        supports_decimal_comma = _supports_decimal_comma()
+
+        def serialize_sequence_column(
+            column: pl.Series, dtype: pl.List | pl.Array
+        ) -> pl.Series:
+            inner = dtype.inner
+            if not isinstance(inner, (pl.Struct, pl.List, pl.Array)):
+                try:
+                    if isinstance(dtype, pl.List):
+                        return column.cast(pl.List(pl.Utf8)).list.join(",")
+                    if isinstance(dtype, pl.Array):
+                        return column.cast(
+                            pl.Array(pl.Utf8, shape=dtype.shape)
+                        ).arr.join(",")
+                except pl.exceptions.PolarsError:
+                    pass
+
+            return pl.Series(
+                column.name,
+                [
+                    None
+                    if value is None
+                    else json.dumps(value, default=str, separators=(",", ":"))
+                    for value in column.to_list()
+                ],
+                dtype=pl.Utf8,
+            )
 
         class PolarsTableManager(
             NarwhalsTableManager[pl.DataFrame, pl.LazyFrame]
@@ -73,41 +113,51 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 format_mapping: FormatMapping | None = None,
                 separator: str | None = None,
             ) -> str:
-                resolved_separator = (
-                    separator if separator is not None else ","
+                return self.to_delimited_str(
+                    DelimitedDialect(separator or ",", "."),
+                    format_mapping,
                 )
-                _data = self.apply_formatting(format_mapping).collect()
-                try:
-                    return _data.write_csv(separator=resolved_separator)
-                except pl.exceptions.ComputeError:
-                    # Likely CSV format does not support nested data or objects
-                    # Try to convert columns to json or strings
-                    result = _data
-                    for column in result.get_columns():
-                        dtype = column.dtype
-                        if isinstance(dtype, pl.Struct):
-                            result = result.with_columns(
-                                column.struct.json_encode()
-                            )
-                        elif isinstance(dtype, pl.List):
-                            result = result.with_columns(
-                                column.cast(pl.List(pl.Utf8)).list.join(",")
-                            )
-                        elif isinstance(dtype, pl.Array):
-                            result = result.with_columns(
-                                column.cast(
-                                    pl.Array(pl.Utf8, shape=dtype.shape)
-                                ).arr.join(",")
-                            )
-                        elif isinstance(dtype, pl.Object):
-                            result = self._cast_object_to_string(
-                                result, column
-                            )
-                        elif isinstance(dtype, pl.Duration):
-                            result = self._convert_time_to_string(
-                                result, column
-                            )
-                    return result.write_csv(separator=resolved_separator)
+
+            def to_delimited_str(
+                self,
+                dialect: DelimitedDialect,
+                format_mapping: FormatMapping | None = None,
+            ) -> str:
+                result = self.apply_formatting(format_mapping).collect()
+                for column in result.get_columns():
+                    dtype = column.dtype
+                    if isinstance(dtype, pl.Struct):
+                        result = result.with_columns(
+                            column.struct.json_encode()
+                        )
+                    elif isinstance(dtype, (pl.List, pl.Array)):
+                        result = result.with_columns(
+                            serialize_sequence_column(column, dtype)
+                        )
+                    elif isinstance(dtype, pl.Object):
+                        result = self._cast_object_to_string(result, column)
+                    elif isinstance(dtype, pl.Duration):
+                        result = self._convert_time_to_string(result, column)
+
+                # Native Polars uses different temporal and binary text
+                # representations, and writes NaN as an empty field.
+                requires_compatibility_writer = any(
+                    column.dtype.is_temporal()
+                    or column.dtype == pl.Binary
+                    or (column.dtype.is_float() and column.is_nan().any())
+                    for column in result.get_columns()
+                )
+                if requires_compatibility_writer:
+                    return dataframe_to_csv(result, dialect=dialect)
+
+                if dialect.decimal_separator == ".":
+                    return result.write_csv(separator=dialect.field_separator)
+                if dialect.decimal_separator == "," and supports_decimal_comma:
+                    return result.write_csv(
+                        separator=dialect.field_separator,
+                        decimal_comma=True,
+                    )
+                return dataframe_to_csv(result, dialect=dialect)
 
             def to_json_str(
                 self,

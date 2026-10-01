@@ -373,6 +373,122 @@ class TestDataframes:
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
+    def test_dataframe_download_empty_csv_separator_uses_default() -> None:
+        df = pd.DataFrame({"A": [1], "B": ["x"]})
+        subject = ui.dataframe(df, download_csv_separator="")
+
+        csv_url = subject._download_as(DownloadAsArgs(format="csv")).url
+        csv_text = from_data_uri(csv_url)[1].decode("utf-8")
+
+        assert csv_text == df.to_csv(index=False)
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_csv_follows_pt_br() -> None:
+        from marimo._plugins.ui._impl.tables.delimited import (
+            ResolvedExportLocale,
+        )
+
+        df = pd.DataFrame({"value": [1234.56], "text": ["unchanged.1"]})
+        subject = ui.dataframe(df)
+        csv_text = from_data_uri(
+            subject._download_as(
+                DownloadAsArgs(
+                    format="csv",
+                    locale=ResolvedExportLocale("pt-BR", ","),
+                )
+            ).url
+        )[1].decode("utf-8")
+        assert csv_text == "value;text\n1234,56;unchanged.1\n"
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_tsv_follows_pt_br() -> None:
+        from marimo._plugins.ui._impl.tables.delimited import (
+            ResolvedExportLocale,
+        )
+
+        df = pd.DataFrame({"value": [1234.56], "text": ["unchanged.1"]})
+        subject = ui.dataframe(df, download_csv_separator=";")
+        tsv_text = from_data_uri(
+            subject._download_as(
+                DownloadAsArgs(
+                    format="tsv",
+                    locale=ResolvedExportLocale("pt-BR", ","),
+                )
+            ).url
+        )[1].decode("utf-8")
+        assert tsv_text == "value\ttext\n1234,56\tunchanged.1\n"
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_reports_malformed_locale() -> None:
+        from marimo._plugins.ui._impl.tables.delimited import (
+            ResolvedExportLocale,
+        )
+
+        subject = ui.dataframe(pd.DataFrame({"value": [1]}))
+
+        response = subject._download_as(
+            DownloadAsArgs(format="csv", locale=ResolvedExportLocale("", ","))
+        )
+
+        assert response.url == ""
+        assert response.filename == ""
+        assert response.error == "Locale tag must be a non-empty string."
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_json_stays_locale_neutral() -> None:
+        from marimo._plugins.ui._impl.tables.delimited import (
+            ResolvedExportLocale,
+        )
+
+        df = pd.DataFrame({"value": [1234.56], "text": ["unchanged.1"]})
+        subject = ui.dataframe(df)
+        json_text = from_data_uri(
+            subject._download_as(
+                DownloadAsArgs(
+                    format="json",
+                    locale=ResolvedExportLocale("pt-BR", ","),
+                )
+            ).url
+        )[1].decode("utf-8")
+        assert "1234.56" in json_text
+        assert "1234,56" not in json_text
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_parquet_ignores_locale() -> None:
+        from marimo._plugins.ui._impl.tables.delimited import (
+            ResolvedExportLocale,
+        )
+
+        df = pd.DataFrame({"value": [1234.56], "text": ["unchanged.1"]})
+        subject = ui.dataframe(df)
+        response = subject._download_as(
+            DownloadAsArgs(
+                format="parquet",
+                locale=ResolvedExportLocale("pt-BR", ","),
+            )
+        )
+        assert response.url.startswith("data:")
+        assert response.error is None
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
     def test_dataframe_download_json_ensure_ascii() -> None:
         df = pd.DataFrame({"A": [1, 2], "B": ["こんにちは", "世界"]})
         subject = ui.dataframe(

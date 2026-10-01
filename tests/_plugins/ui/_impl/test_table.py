@@ -1700,6 +1700,77 @@ def test_download_as_ignores_cell_selection() -> None:
     assert int(rows[0]["a"]) == 2
 
 
+def test_download_as_args_locale_is_optional() -> None:
+    from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
+    from marimo._utils.parse_dataclass import parse_raw
+
+    args = parse_raw({"format": "csv"}, DownloadAsArgs)
+    assert args.format == "csv"
+    assert args.locale is None
+
+    args = parse_raw(
+        {
+            "format": "tsv",
+            "locale": {"tag": "pt-BR", "decimal_separator": ","},
+        },
+        DownloadAsArgs,
+    )
+    assert args.locale == ResolvedExportLocale("pt-BR", ",")
+
+
+def test_table_download_csv_follows_pt_br() -> None:
+    from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
+
+    table = ui.table([{"value": 1234.56, "text": "unchanged.1"}])
+    url = table._download_as(
+        DownloadAsArgs(format="csv", locale=ResolvedExportLocale("pt-BR", ","))
+    ).url
+    assert from_data_uri(url)[1].decode("utf-8") == (
+        "value;text\n1234,56;unchanged.1\n"
+    )
+
+
+def test_table_download_tsv_follows_pt_br() -> None:
+    from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
+
+    table = ui.table([{"value": 1234.56, "text": "unchanged.1"}])
+    url = table._download_as(
+        DownloadAsArgs(format="tsv", locale=ResolvedExportLocale("pt-BR", ","))
+    ).url
+    assert from_data_uri(url)[1].decode("utf-8") == (
+        "value\ttext\n1234,56\tunchanged.1\n"
+    )
+
+
+def test_table_download_json_stays_locale_neutral() -> None:
+    from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
+
+    table = ui.table([{"value": 1234.56, "text": "unchanged.1"}])
+    text = from_data_uri(
+        table._download_as(
+            DownloadAsArgs(
+                format="json", locale=ResolvedExportLocale("pt-BR", ",")
+            )
+        ).url
+    )[1].decode("utf-8")
+    assert "1234.56" in text
+    assert "1234,56" not in text
+
+
+def test_table_download_reports_malformed_locale() -> None:
+    from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
+
+    table = ui.table([{"value": 1}])
+
+    response = table._download_as(
+        DownloadAsArgs(format="csv", locale=ResolvedExportLocale("", ","))
+    )
+
+    assert response.url == ""
+    assert response.filename == ""
+    assert response.error == "Locale tag must be a non-empty string."
+
+
 def test_download_as_parquet_without_libs_reports_missing_packages(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

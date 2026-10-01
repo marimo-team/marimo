@@ -19,6 +19,7 @@ from marimo._data.models import (
     ExternalDataType,
 )
 from marimo._plugins.ui._impl.tables.format import FormatMapping
+from marimo._utils.delimited import DelimitedDialect
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.table import SortArgs
@@ -103,6 +104,15 @@ class TableManager(abc.ABC, Generic[T]):
         separator: str | None = None,
     ) -> str:
         pass
+
+    def to_delimited_str(
+        self,
+        dialect: DelimitedDialect,
+        format_mapping: FormatMapping | None = None,
+    ) -> str:
+        return self.to_csv_str(
+            format_mapping, separator=dialect.field_separator
+        )
 
     def to_csv(
         self,
