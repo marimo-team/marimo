@@ -25,7 +25,6 @@ from starlette.background import BackgroundTask
 from starlette.middleware.base import (
     BaseHTTPMiddleware,
     DispatchFunction,
-    RequestResponseEndpoint,
 )
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
@@ -45,7 +44,7 @@ from marimo._utils.print import print_tabbed
 if TYPE_CHECKING:
     from starlette.datastructures import State
     from starlette.requests import HTTPConnection
-    from starlette.types import ASGIApp, Receive, Scope, Send
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 LOGGER = _loggers.marimo_logger()
 
@@ -173,11 +172,15 @@ class SkewProtectionMiddleware:
         return await self.app(scope, receive, send)
 
 
-class OpenTelemetryMiddleware(BaseHTTPMiddleware):
-    def __init__(
-        self, app: ASGIApp, dispatch: DispatchFunction | None = None
-    ) -> None:
-        super().__init__(app, dispatch)
+class OpenTelemetryMiddleware:
+    """Keep the request span current until the response finishes streaming.
+
+    `BaseHTTPMiddleware` returns from `call_next` before the body is sent,
+    ending the parent span while AI model and tool spans are still running.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
 
         self._tracing_enabled = is_tracing_enabled()
         if not self._tracing_enabled:
@@ -191,16 +194,19 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
         self.Status = Status
         self.StatusCode = StatusCode
 
-    async def dispatch(
+    async def __call__(
         self,
-        request: Request,
-        call_next: RequestResponseEndpoint,
-    ) -> Response:
-        if not self._tracing_enabled:
-            return await call_next(request)
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        if not self._tracing_enabled or scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
         from opentelemetry.propagate import extract
 
+        request = Request(scope)
         ctx = extract(carrier=request.headers)
 
         with server_tracer.start_as_current_span(
@@ -212,14 +218,18 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
                 "http.target": request.url.path or "",
             },
         ) as span:
+
+            async def send_with_status(message: Message) -> None:
+                if message["type"] == "http.response.start":
+                    span.set_attribute("http.status_code", message["status"])
+                await send(message)
+
             try:
-                response = await call_next(request)
-                span.set_attribute("http.status_code", response.status_code)
+                await self.app(scope, receive, send_with_status)
                 span.set_status(self.Status(self.StatusCode.OK))
             except Exception as e:
                 span.set_status(self.Status(self.StatusCode.ERROR, str(e)))
                 raise
-            return response
 
 
 @dataclass

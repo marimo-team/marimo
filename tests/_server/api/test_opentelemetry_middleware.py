@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import sys
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
@@ -14,7 +15,9 @@ from starlette.testclient import TestClient
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from opentelemetry.trace import Span
     from starlette.requests import Request
+    from starlette.types import Message, Receive, Scope, Send
 
 
 def _reset_otel() -> None:
@@ -171,6 +174,114 @@ class TestOpenTelemetryMiddleware:
         assert attrs["http.status_code"] == 200
         assert attrs["http.method"] == "GET"
         assert attrs["http.target"] == "/"
+
+    @pytest.mark.parametrize(
+        "error_type", [RuntimeError, asyncio.CancelledError]
+    )
+    async def test_span_ends_when_stream_is_interrupted(
+        self, error_type: type[BaseException]
+    ) -> None:
+        from opentelemetry import trace
+        from opentelemetry.trace import StatusCode
+
+        from marimo._server.api.middleware import OpenTelemetryMiddleware
+
+        tracer, exporter = _setup_tracing()
+        request_span: Span = trace.INVALID_SPAN
+        messages: list[Message] = []
+
+        async def app(scope: Scope, receive: Receive, send: Send) -> None:
+            del scope, receive
+            nonlocal request_span
+            request_span = trace.get_current_span()
+            await send(
+                {"type": "http.response.start", "status": 200, "headers": []}
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": b"partial",
+                    "more_body": True,
+                }
+            )
+            assert request_span.is_recording()
+            raise error_type("stream interrupted")
+
+        async def receive() -> Message:
+            pytest.fail("The tracing middleware must not consume the request")
+
+        async def send(message: Message) -> None:
+            messages.append(message)
+
+        scope: Scope = {
+            "type": "http",
+            "method": "GET",
+            "scheme": "http",
+            "path": "/stream",
+            "query_string": b"",
+            "headers": [],
+        }
+        with (
+            patch(
+                "marimo._server.api.middleware.is_tracing_enabled",
+                return_value=True,
+            ),
+            patch("marimo._server.api.middleware.server_tracer", tracer),
+            pytest.raises(error_type, match="stream interrupted"),
+        ):
+            await OpenTelemetryMiddleware(app)(scope, receive, send)
+
+        assert len(messages) == 2
+        assert not request_span.is_recording()
+        assert trace.get_current_span() is trace.INVALID_SPAN
+        assert len(exporter.spans) == 1
+        span = exporter.spans[0]
+        assert span.context == request_span.get_span_context()
+        assert dict(span.attributes or {}) == {
+            "http.method": "GET",
+            "http.target": "/stream",
+            "http.status_code": 200,
+        }
+        if error_type is RuntimeError:
+            assert span.status.status_code == StatusCode.ERROR
+            assert any(event.name == "exception" for event in span.events)
+
+    @pytest.mark.parametrize("scope_type", ["websocket", "lifespan"])
+    async def test_non_http_scopes_pass_through(self, scope_type: str) -> None:
+        from marimo._server.api.middleware import OpenTelemetryMiddleware
+
+        tracer, exporter = _setup_tracing()
+        scope: Scope = {"type": scope_type}
+        calls: list[Scope] = []
+
+        async def app(
+            received_scope: Scope, receive: Receive, send: Send
+        ) -> None:
+            assert received_scope is scope
+            assert receive is expected_receive
+            assert send is expected_send
+            calls.append(received_scope)
+
+        async def expected_receive() -> Message:
+            pytest.fail("The tracing middleware must not consume messages")
+
+        async def expected_send(message: Message) -> None:
+            del message
+            pytest.fail("The tracing middleware must not send messages")
+
+        with (
+            patch(
+                "marimo._server.api.middleware.is_tracing_enabled",
+                return_value=True,
+            ),
+            patch("marimo._server.api.middleware.server_tracer", tracer),
+        ):
+            await OpenTelemetryMiddleware(app)(
+                scope, expected_receive, expected_send
+            )
+
+        assert calls == [scope]
+        assert exporter.spans == []
 
 
 @pytest.mark.requires("opentelemetry")
