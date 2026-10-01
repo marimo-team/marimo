@@ -60,6 +60,7 @@ const editorProps = {
   data: [{ name: "alice" }],
   columnFields: new Map([["name", "string"]]) as Map<string, "string">,
   editableColumns: "all" as const,
+  columnTypes: new Map(),
   onAddEdits: vi.fn(),
 };
 

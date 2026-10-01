@@ -8,6 +8,7 @@ import {
 import type { DataType } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
+import { normalizeBoolean } from "./column-types";
 import type {
   ColumnEdit,
   EditorRow,
@@ -175,7 +176,7 @@ export function pasteCells(options: {
           }
 
           const column = columns[targetColIdx];
-          const columnType = column.dataType;
+          const dataType = column.dataType;
           const editable =
             editableColumnSet === null || editableColumnSet.has(column.title);
 
@@ -186,10 +187,10 @@ export function pasteCells(options: {
           // Convert the value based on the cell type
           let convertedValue: unknown = cellValue;
 
-          switch (columnType) {
+          switch (dataType) {
             case "integer": {
               const numValue = Number(cellValue);
-              if (!isValidCellValue(columnType, cellValue)) {
+              if (!isValidCellValue(dataType, cellValue)) {
                 continue;
               }
               convertedValue = Number.isSafeInteger(numValue)
@@ -199,17 +200,18 @@ export function pasteCells(options: {
             }
             case "number": {
               const numValue = Number(cellValue);
-              if (!isValidCellValue(columnType, numValue)) {
+              if (!isValidCellValue(dataType, numValue)) {
                 continue;
               }
               convertedValue = numValue;
               break;
             }
-            case "boolean": {
-              const boolValue = cellValue.toLowerCase();
-              convertedValue = boolValue === "true" || boolValue === "1";
+            case "boolean":
+              convertedValue =
+                column.configuredType === "boolean"
+                  ? normalizeBoolean(cellValue, column.title)
+                  : cellValue.toLowerCase() === "true" || cellValue === "1";
               break;
-            }
             case "string":
             case "date":
             case "datetime":
@@ -218,7 +220,7 @@ export function pasteCells(options: {
             case "unknown":
               break;
             default:
-              logNever(columnType);
+              logNever(dataType);
               continue;
           }
 

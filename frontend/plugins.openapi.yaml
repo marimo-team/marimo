@@ -3314,6 +3314,14 @@ components:
                 type: string
             - type: string
               const: all
+        columnTypes:
+          default: {}
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: string
+            const: boolean
         columnSizingMode:
           default: auto
           type: string

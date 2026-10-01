@@ -15,9 +15,15 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { createPlugin } from "../core/builder";
 import type { Setter } from "../types";
 import { columnToFieldTypesSchema } from "./data-frames/schema";
+import { normalizeConfiguredColumns } from "./data-editor/column-types";
 import { orderColumnFields } from "./data-editor/data-utils";
 import { applyEditorEdits } from "./data-editor/editor-state";
-import type { EditorRow, EditorState, Edits } from "./data-editor/types";
+import type {
+  ColumnType,
+  EditorRow,
+  EditorState,
+  Edits,
+} from "./data-editor/types";
 import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
 
@@ -48,6 +54,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
       fieldTypes: columnToFieldTypesSchema.nullish(),
       columnNames: z.array(z.string()).default([]),
       editableColumns: z.union([z.array(z.string()), z.literal("all")]),
+      columnTypes: z.record(z.string(), z.literal("boolean")).default({}),
       columnSizingMode: z.enum(["auto", "fit"]).default("auto"), // TODO: Remove this
     }),
   )
@@ -61,6 +68,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
         edits={props.value}
         onEdits={props.setValue}
         editableColumns={props.data.editableColumns}
+        columnTypes={props.data.columnTypes}
       />
     );
   });
@@ -72,6 +80,7 @@ interface Props {
   onEdits: Setter<Edits>;
   editableColumns: string[] | "all";
   columnNames: string[];
+  columnTypes: Record<string, ColumnType>;
 }
 
 const LoadingDataEditor = (props: Props) => {
@@ -95,14 +104,22 @@ const LoadingDataEditor = (props: Props) => {
           { handleBigIntAndNumberLike: true },
         );
 
+    const columnTypes = new Map(Object.entries(props.columnTypes));
+    const inferredFields = toFieldTypes(
+      props.fieldTypes ?? inferFieldTypes(localData),
+    );
+    for (const [columnName, columnType] of columnTypes) {
+      if (columnType === "boolean") {
+        inferredFields.set(columnName, "boolean");
+      }
+    }
+
     return {
-      data: localData,
-      columnFields: orderColumnFields(
-        toFieldTypes(props.fieldTypes ?? inferFieldTypes(localData)),
-        props.columnNames,
-      ),
+      data: normalizeConfiguredColumns(localData, columnTypes),
+      columnFields: orderColumnFields(inferredFields, props.columnNames),
+      columnTypes,
     } satisfies EditorState;
-  }, [props.fieldTypes, props.columnNames, props.data]);
+  }, [props.fieldTypes, props.columnNames, props.columnTypes, props.data]);
 
   useEffect(() => {
     if (loadedState !== undefined) {
@@ -133,6 +150,7 @@ const LoadingDataEditor = (props: Props) => {
     <LazyDataEditor
       data={editorState.data}
       columnFields={editorState.columnFields}
+      columnTypes={editorState.columnTypes}
       editableColumns={props.editableColumns}
       onAddEdits={(edits) => {
         setEditorState((state) =>

@@ -7,7 +7,11 @@ import { applyEditorEdits } from "../editor-state";
 describe("applyEditorEdits", () => {
   it("replays edits against an empty table", () => {
     const result = applyEditorEdits(
-      { data: [], columnFields: new Map([["value", "unknown"]]) },
+      {
+        data: [],
+        columnFields: new Map([["value", "unknown"]]),
+        columnTypes: new Map(),
+      },
       [{ rowIdx: 0, columnId: "value", value: "first" }],
     );
 
@@ -22,6 +26,7 @@ describe("applyEditorEdits", () => {
           ["A", "number"],
           ["B", "string"],
         ]) as FieldTypes,
+        columnTypes: new Map(),
       },
       [
         { rowIdx: 0, type: "remove" },
@@ -41,6 +46,7 @@ describe("applyEditorEdits", () => {
           ["A", "string"],
           ["B", "string"],
         ]) as FieldTypes,
+        columnTypes: new Map(),
       },
       [
         { columnIdx: 0, type: "remove" },
@@ -60,6 +66,7 @@ describe("applyEditorEdits", () => {
           ["A", "string"],
           ["C", "string"],
         ]) as FieldTypes,
+        columnTypes: new Map(),
       },
       [
         {
@@ -85,6 +92,7 @@ describe("applyEditorEdits", () => {
     const state = {
       data: [{ A: "before" }],
       columnFields: new Map([["A", "string"]]) as FieldTypes,
+      columnTypes: new Map(),
     };
 
     const result = applyEditorEdits(state, [
@@ -101,6 +109,7 @@ describe("applyEditorEdits", () => {
     const state = {
       data: [{ A: "unchanged" }],
       columnFields: new Map([["A", "string"]]) as FieldTypes,
+      columnTypes: new Map(),
     };
 
     expect(
