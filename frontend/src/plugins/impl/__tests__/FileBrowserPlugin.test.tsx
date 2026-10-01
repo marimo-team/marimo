@@ -378,13 +378,35 @@ describe("FileBrowserPlugin breadcrumbs", () => {
     await screen.findByText("docs");
     const items = breadcrumbs().getAllByRole("listitem");
     expect(items.map((li) => li.textContent)).toEqual(["/", "home", "user"]);
-    expect(breadcrumbs().getByText("user")).toHaveAttribute(
+    expect(breadcrumbs().getByRole("button", { name: "user" })).toHaveAttribute(
       "aria-current",
       "page",
     );
     expect(
-      breadcrumbs().queryByRole("button", { name: "user" }),
-    ).not.toBeInTheDocument();
+      breadcrumbs().getByRole("button", { name: "home" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("keeps focus on a crumb after navigating to it", async () => {
+    const { listDirectory } = renderBrowser();
+    await screen.findByText("docs");
+    const home = breadcrumbs().getByRole("button", { name: "home" });
+    home.focus();
+    fireEvent.click(home);
+    await waitFor(() =>
+      expect(listDirectory).toHaveBeenLastCalledWith({ path: "/home" }),
+    );
+    const current = breadcrumbs().getByRole("button", { name: "home" });
+    expect(current).toHaveAttribute("aria-current", "page");
+    expect(current).toBe(home);
+    expect(current).toHaveFocus();
+  });
+
+  it("does not reload when the current crumb is clicked", async () => {
+    const { listDirectory } = renderBrowser();
+    await screen.findByText("docs");
+    fireEvent.click(breadcrumbs().getByRole("button", { name: "user" }));
+    expect(listDirectory).toHaveBeenCalledTimes(1);
   });
 
   it("navigates to an ancestor when a crumb is clicked", async () => {

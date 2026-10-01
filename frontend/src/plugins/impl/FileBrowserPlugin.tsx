@@ -534,24 +534,24 @@ export const FileBrowser = ({
                     aria-hidden={true}
                   />
                 )}
-                {isCurrent ? (
-                  <span
-                    aria-current="page"
-                    title={crumb.path}
-                    className="px-1 font-medium"
-                  >
-                    {crumb.name}
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    title={crumb.path}
-                    onClick={() => setNewPath(crumb.path)}
-                    className="rounded px-1 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    {crumb.name}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  title={crumb.path}
+                  aria-current={isCurrent ? "page" : undefined}
+                  onClick={() => {
+                    if (!isCurrent) {
+                      setNewPath(crumb.path);
+                    }
+                  }}
+                  className={cn(
+                    "rounded px-1 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
+                    isCurrent
+                      ? "font-medium cursor-default"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
+                >
+                  {crumb.name}
+                </button>
               </li>
             );
           })}
