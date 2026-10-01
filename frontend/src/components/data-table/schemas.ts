@@ -26,6 +26,15 @@ export type DownloadAsArgs = (req: DownloadAsRequest) => Promise<{
   filename: string;
   error?: string | null;
   missing_packages?: string[] | null;
+  code?:
+    | "geometry_required"
+    | "invalid_geometry"
+    | "invalid_metadata"
+    | "unsupported_representation"
+    | "missing_packages"
+    | "conversion_failed"
+    | null;
+  column?: string | null;
 }>;
 
 export const DownloadAsSchema = rpc
@@ -48,6 +57,17 @@ export const DownloadAsSchema = rpc
       filename: z.string(),
       error: z.string().nullish(),
       missing_packages: z.array(z.string()).nullish(),
+      code: z
+        .enum([
+          "geometry_required",
+          "invalid_geometry",
+          "invalid_metadata",
+          "unsupported_representation",
+          "missing_packages",
+          "conversion_failed",
+        ])
+        .nullish(),
+      column: z.string().nullish(),
     }),
   );
 
