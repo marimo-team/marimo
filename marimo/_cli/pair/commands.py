@@ -7,6 +7,7 @@ import os
 import re
 import shlex
 import sys
+from contextlib import closing
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -24,18 +25,23 @@ from marimo._cli.pair.client import (
     StaleSessionError,
     UnknownParticipantError,
     attach_participant,
+    detach_participant,
     display_url,
     execute as execute_code,
     list_sessions,
     load_token,
+    read_participant_events,
     registry_urls,
     resolve_session,
+    stream_participant_events,
 )
 from marimo._cli.pair.connection import (
     ConnectionStore,
+    SelectedConnection,
     participant_id as derive_participant_id,
     resolve_identity,
 )
+from marimo._cli.pair.handoffs import render_batch, render_handoff
 from marimo._cli.pair.prompts import render_prompt
 from marimo._server.ai.skills import utils as skills_utils
 from marimo._utils.env import is_env_true
@@ -388,27 +394,16 @@ def execute(
         except UnknownParticipantError:
             if selected is None:
                 raise
-            connection = selected.connection
-            attachment = attach_participant(
+            connection_reset = _restore_participant(
                 url=url,
                 session_id=session_id,
                 token=token,
-                participant_id=connection.participant_id,
-                harness_id=connection.harness.id,
-                harness_name=connection.harness.display_name,
+                selected=selected,
             )
-            if attachment.participant_id != connection.participant_id:
-                raise PairError(
-                    "The server returned a different participant ID."
-                ) from None
-            connection_reset = attachment.record_created
             result = run()
     except PairError as error:
         if isinstance(error, StaleSessionError) and selected is not None:
-            try:
-                ConnectionStore().remove(selected)
-            except PairInputError:
-                pass
+            _forget_stale_connection(selected)
         error_text, next_text = _failure_guidance(
             error, url=url, session_id=session_id
         )
@@ -432,6 +427,19 @@ def execute(
                 "Pair connection reset: the server created a new participant record.",
                 err=True,
             )
+        if result.handoffs is not None:
+            rendered = render_batch(
+                result.handoffs,
+                url=url,
+                session_id=session_id,
+                token_file=token_file,
+            )
+            if result.handoffs.events or "next" in rendered:
+                click.echo("\nhandoffs:")
+            for event in result.handoffs.events:
+                click.echo(render_handoff(event))
+            if "next" in rendered:
+                click.echo(rendered["next"])
         if not result.success:
             if next_text:
                 _emit_failure(
@@ -462,6 +470,13 @@ def execute(
         payload["participant"] = {"id": participant_id}
     if next_text:
         payload["next"] = next_text
+    if result.handoffs is not None:
+        payload["handoffs"] = render_batch(
+            result.handoffs,
+            url=url,
+            session_id=session_id,
+            token_file=token_file,
+        )
     click.echo(json.dumps(payload, indent=2))
     if not result.success:
         ctx.exit(1)
@@ -546,6 +561,270 @@ def connect(
                     "name": identity.harness.display_name,
                     "scope": identity.scope,
                 },
+            },
+            indent=2,
+        )
+    )
+
+
+def _active_connection(
+    *, url: str, session_id: str
+) -> tuple[ConnectionStore, SelectedConnection]:
+    store = ConnectionStore()
+    selected = store.load(
+        url=url,
+        stable_session_id=session_id,
+        identity=resolve_identity(os.environ),
+    )
+    if selected is None:
+        raise PairInputError(
+            "No Pair connection for this session. Run "
+            f"marimo pair connect --url {shlex.quote(display_url(url))} "
+            f"--session {shlex.quote(session_id)}."
+        )
+    return store, store.touch(selected)
+
+
+def _restore_participant(
+    *,
+    url: str,
+    session_id: str,
+    token: str | None,
+    selected: SelectedConnection,
+) -> bool:
+    connection = selected.connection
+    attachment = attach_participant(
+        url=url,
+        session_id=session_id,
+        token=token,
+        participant_id=connection.participant_id,
+        harness_id=connection.harness.id,
+        harness_name=connection.harness.display_name,
+    )
+    if attachment.participant_id != connection.participant_id:
+        raise PairError("The server returned a different participant ID.")
+    return attachment.record_created
+
+
+def _connection_participant(
+    selected: SelectedConnection, *, record_created: bool = False
+) -> dict[str, str | bool]:
+    participant: dict[str, str | bool] = {
+        "harness": selected.connection.harness.id,
+        "scope": selected.connection.scope,
+    }
+    if record_created:
+        participant["record_created"] = True
+    return participant
+
+
+def _forget_stale_connection(selected: SelectedConnection | None) -> None:
+    if selected is None:
+        return
+    try:
+        ConnectionStore().remove(selected)
+    except PairInputError:
+        pass
+
+
+@click.command(
+    cls=ColoredCommand, help="Print pending handoffs and mark them delivered."
+)
+@click.option("--url", required=True, metavar="URL", help="Server URL.")
+@click.option(
+    "--session", "session_id", metavar="ID", help="Stable session_id."
+)
+@click.option("--since", type=click.IntRange(min=0), metavar="N")
+@click.option("--token-file", type=click.Path(path_type=Path, dir_okay=False))
+@click.pass_context
+def events(
+    ctx: click.Context,
+    url: str,
+    session_id: str | None,
+    since: int | None,
+    token_file: Path | None,
+) -> None:
+    selected = None
+    record_created = False
+    try:
+        token = load_token(token_file, os.environ)
+        if session_id is None:
+            session_id = resolve_session(url=url, token=token)
+        _, selected = _active_connection(url=url, session_id=session_id)
+        try:
+            batch = read_participant_events(
+                url=url,
+                session_id=session_id,
+                token=token,
+                participant_id=selected.connection.participant_id,
+                since=since,
+            )
+        except UnknownParticipantError:
+            record_created = _restore_participant(
+                url=url, session_id=session_id, token=token, selected=selected
+            )
+            batch = read_participant_events(
+                url=url,
+                session_id=session_id,
+                token=token,
+                participant_id=selected.connection.participant_id,
+                since=since,
+            )
+    except PairError as error:
+        if isinstance(error, StaleSessionError) and selected is not None:
+            _forget_stale_connection(selected)
+        error_text, next_text = _failure_guidance(
+            error, url=url, session_id=session_id
+        )
+        _emit_failure(
+            error_text, next_text, session_id=session_id, stream=False
+        )
+        ctx.exit(2)
+
+    click.echo(
+        json.dumps(
+            {
+                "session": {"id": session_id},
+                "participant": _connection_participant(
+                    selected, record_created=record_created
+                ),
+                "handoffs": render_batch(
+                    batch,
+                    url=url,
+                    session_id=session_id,
+                    token_file=token_file,
+                ),
+            },
+            indent=2,
+        )
+    )
+
+
+@click.command(
+    cls=ColoredCommand, help="Hold a stream of handoffs for an adapter."
+)
+@click.option("--url", required=True, metavar="URL", help="Server URL.")
+@click.option(
+    "--session", "session_id", metavar="ID", help="Stable session_id."
+)
+@click.option("--once", is_flag=True, help="Exit after the first handoff.")
+@click.option("--token-file", type=click.Path(path_type=Path, dir_okay=False))
+@click.pass_context
+def listen(
+    ctx: click.Context,
+    url: str,
+    session_id: str | None,
+    once: bool,
+    token_file: Path | None,
+) -> None:
+    selected = None
+    try:
+        token = load_token(token_file, os.environ)
+        if session_id is None:
+            session_id = resolve_session(url=url, token=token)
+        _, selected = _active_connection(url=url, session_id=session_id)
+        for attempt in range(2):
+            try:
+                with closing(
+                    stream_participant_events(
+                        url=url,
+                        session_id=session_id,
+                        token=token,
+                        participant_id=selected.connection.participant_id,
+                    )
+                ) as stream:
+                    for event in stream:
+                        click.echo(render_handoff(event))
+                        if once:
+                            return
+                return
+            except UnknownParticipantError:
+                if attempt:
+                    raise
+                record_created = _restore_participant(
+                    url=url,
+                    session_id=session_id,
+                    token=token,
+                    selected=selected,
+                )
+                if record_created:
+                    click.echo(
+                        "Pair connection reset: the server created a new "
+                        "participant record.",
+                        err=True,
+                    )
+    except StaleSessionError:
+        _forget_stale_connection(selected)
+        return
+    except PairError as error:
+        error_text, next_text = _failure_guidance(
+            error, url=url, session_id=session_id
+        )
+        _emit_failure(
+            error_text, next_text, session_id=session_id, stream=True
+        )
+        ctx.exit(2)
+    except KeyboardInterrupt:
+        return
+
+
+@click.command(cls=ColoredCommand, help="End this agent's attachment.")
+@click.option("--url", required=True, metavar="URL", help="Server URL.")
+@click.option(
+    "--session", "session_id", metavar="ID", help="Stable session_id."
+)
+@click.option("--token-file", type=click.Path(path_type=Path, dir_okay=False))
+@click.pass_context
+def detach(
+    ctx: click.Context,
+    url: str,
+    session_id: str | None,
+    token_file: Path | None,
+) -> None:
+    selected = None
+    record_created = False
+    try:
+        token = load_token(token_file, os.environ)
+        if session_id is None:
+            session_id = resolve_session(url=url, token=token)
+        store, selected = _active_connection(url=url, session_id=session_id)
+        try:
+            attached = detach_participant(
+                url=url,
+                session_id=session_id,
+                token=token,
+                participant_id=selected.connection.participant_id,
+            )
+        except UnknownParticipantError:
+            record_created = _restore_participant(
+                url=url, session_id=session_id, token=token, selected=selected
+            )
+            attached = detach_participant(
+                url=url,
+                session_id=session_id,
+                token=token,
+                participant_id=selected.connection.participant_id,
+            )
+        store.remove(selected)
+    except PairError as error:
+        if isinstance(error, StaleSessionError) and selected is not None:
+            _forget_stale_connection(selected)
+        error_text, next_text = _failure_guidance(
+            error, url=url, session_id=session_id
+        )
+        _emit_failure(
+            error_text, next_text, session_id=session_id, stream=False
+        )
+        ctx.exit(2)
+
+    click.echo(
+        json.dumps(
+            {
+                "session": {"id": session_id},
+                "participant": _connection_participant(
+                    selected, record_created=record_created
+                ),
+                "attached": attached,
             },
             indent=2,
         )
@@ -767,6 +1046,18 @@ def _failure_guidance(
             "Set MARIMO_PAIR_NEXT=1 on the server and restart it.",
         )
     message = str(error)
+    match = re.fullmatch(
+        r"Another participant \((.+)\) is attached to this session\.",
+        message,
+    )
+    if match:
+        return (
+            f"Another agent ({match.group(1)}) is attached to this session.",
+            (
+                "Wait for it to detach or ask the user to detach it. "
+                "Do not change identity to take over."
+            ),
+        )
     if message == "Authentication failed.":
         return message, _TOKEN_NEXT
     if message.startswith("The server URL"):
@@ -1102,7 +1393,10 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
 notebook.add_command(list_notebooks)
 pair.add_command(attach)
 pair.add_command(connect)
+pair.add_command(detach)
 pair.add_command(execute)
+pair.add_command(events)
+pair.add_command(listen)
 pair.add_command(docs)
 pair.add_command(notebook)
 pair.add_command(prompt)
