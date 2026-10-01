@@ -227,18 +227,15 @@ class _DocsCommand(ColoredCommand):
       Otherwise, these commands use MARIMO_TOKEN when set.
 
     \b
-    Agent identity:
-      Connect once to appear as the agent in the notebook. Later execute
-      commands use that connection without a participant ID flag. Without
-      a connection, execute works as a regular Pair session.
-
-    \b
     Workflow:
       If no server is running, start one in the background:
-        marimo edit <notebook.py> --no-token
+        MARIMO_PAIR_NEXT=1 marimo edit <notebook.py> --no-token
       If you do not have the server URL or session:
         marimo pair notebook list
-      marimo pair connect --url <URL> --session <SESSION>
+      If you start the server yourself, run it with MARIMO_PAIR_NEXT=1 so the
+      notebook can send you handoffs.
+      To appear as the agent in the notebook, connect once:
+        marimo pair connect --url <URL> --session <SESSION>
       marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
       import marimo._code_mode as cm
       async with cm.get_context() as ctx:
@@ -262,6 +259,16 @@ class _DocsCommand(ColoredCommand):
       If one notebook has several sessions, ask the user which one.
       Do not switch sessions after authentication or connection errors,
       or when execution is unconfirmed.
+
+    \b
+    Handoffs:
+      The user can send a cell's error to you from the notebook. Pending handoffs
+      print at the end of every execute result under "handoffs". Read them before
+      your next step. A cell can change after a handoff: read it before you edit it.
+      To check for handoffs without running code:
+        marimo pair events --url <URL> --session <SESSION>
+      When the user ends the pairing:
+        marimo pair detach --url <URL> --session <SESSION>
 
     \b
     Rules:
@@ -484,7 +491,7 @@ def execute(
 
 @click.command(
     cls=ColoredCommand,
-    help="Connect this agent to one live notebook Session.",
+    help="Connect this agent conversation to a live notebook Session.",
 )
 @click.option("--url", required=True, metavar="URL", help="Server URL.")
 @click.option(
@@ -494,13 +501,21 @@ def execute(
     help="Stable session_id from marimo pair notebook list.",
 )
 @click.option(
+    "--harness-id",
+    metavar="ID",
+    help="Advisory harness ID when no adapter identifies the harness.",
+)
+@click.option(
+    "--harness-name",
+    metavar="NAME",
+    help="Advisory display name when no adapter identifies the harness.",
+)
+@click.option(
     "--token-file",
     type=click.Path(path_type=Path, dir_okay=False),
     metavar="PATH",
     help="Read the server token from a local file. Otherwise use MARIMO_TOKEN, if set.",
 )
-@click.option("--harness-id", metavar="ID", help="Advisory harness ID.")
-@click.option("--harness-name", metavar="NAME", help="Harness display name.")
 @click.pass_context
 def connect(
     ctx: click.Context,
@@ -632,10 +647,23 @@ def _forget_stale_connection(selected: SelectedConnection | None) -> None:
 )
 @click.option("--url", required=True, metavar="URL", help="Server URL.")
 @click.option(
-    "--session", "session_id", metavar="ID", help="Stable session_id."
+    "--session",
+    "session_id",
+    metavar="ID",
+    help="Stable session_id from marimo pair notebook list.",
 )
-@click.option("--since", type=click.IntRange(min=0), metavar="N")
-@click.option("--token-file", type=click.Path(path_type=Path, dir_okay=False))
+@click.option(
+    "--since",
+    type=click.IntRange(min=0),
+    metavar="N",
+    help="Replay from sequence N. The cursor never moves backward.",
+)
+@click.option(
+    "--token-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    metavar="PATH",
+    help="Read the server token from a local file. Otherwise use MARIMO_TOKEN, if set.",
+)
 @click.pass_context
 def events(
     ctx: click.Context,
@@ -701,14 +729,23 @@ def events(
 
 
 @click.command(
-    cls=ColoredCommand, help="Hold a stream of handoffs for an adapter."
+    cls=ColoredCommand,
+    help="Hold a stream and print each handoff as it arrives. Used by harness adapters.",
 )
 @click.option("--url", required=True, metavar="URL", help="Server URL.")
 @click.option(
-    "--session", "session_id", metavar="ID", help="Stable session_id."
+    "--session",
+    "session_id",
+    metavar="ID",
+    help="Stable session_id from marimo pair notebook list.",
 )
 @click.option("--once", is_flag=True, help="Exit after the first handoff.")
-@click.option("--token-file", type=click.Path(path_type=Path, dir_okay=False))
+@click.option(
+    "--token-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    metavar="PATH",
+    help="Read the server token from a local file. Otherwise use MARIMO_TOKEN, if set.",
+)
 @click.pass_context
 def listen(
     ctx: click.Context,
@@ -768,12 +805,23 @@ def listen(
         return
 
 
-@click.command(cls=ColoredCommand, help="End this agent's attachment.")
+@click.command(
+    cls=ColoredCommand,
+    help="End this agent's attachment. Pending handoffs and the cursor survive until the notebook session ends. Run marimo pair connect again to resume them.",
+)
 @click.option("--url", required=True, metavar="URL", help="Server URL.")
 @click.option(
-    "--session", "session_id", metavar="ID", help="Stable session_id."
+    "--session",
+    "session_id",
+    metavar="ID",
+    help="Stable session_id from marimo pair notebook list.",
 )
-@click.option("--token-file", type=click.Path(path_type=Path, dir_okay=False))
+@click.option(
+    "--token-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    metavar="PATH",
+    help="Read the server token from a local file. Otherwise use MARIMO_TOKEN, if set.",
+)
 @click.pass_context
 def detach(
     ctx: click.Context,
