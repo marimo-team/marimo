@@ -155,6 +155,7 @@ const DataTableInternal = <TData,>({
   paginationState,
   setPaginationState,
   downloadAs,
+  getExportMetadata,
   manualPagination = false,
   pagination = false,
   onRowSelectionChange,
@@ -376,6 +377,8 @@ const DataTableInternal = <TData,>({
                 togglePanel={togglePanel}
                 isAnyPanelOpen={isAnyPanelOpen}
                 downloadAs={downloadAs}
+                getExportMetadata={getExportMetadata}
+                metadataSource={data}
                 sizeBytes={sizeBytes}
                 sizeBytesIsLoading={sizeBytesIsLoading}
               />
