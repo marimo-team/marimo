@@ -12,3 +12,4 @@ from __future__ import annotations
 
 SCREENSHOT_SERVER_URL_KEY = "screenshot_server_url"
 SCREENSHOT_AUTH_TOKEN_KEY = "screenshot_auth_token"
+SCREENSHOT_FILE_KEY = "screenshot_file"

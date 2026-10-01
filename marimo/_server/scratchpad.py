@@ -11,6 +11,7 @@ from uuid import uuid4
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.cell_output import CellChannel
@@ -342,6 +343,9 @@ async def run_scratchpad_code(
     http_req = HTTPRequest.from_request(request)
     http_req.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
     http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
+    http_req.meta[SCREENSHOT_FILE_KEY] = (
+        session.app_file_manager.path or session.initialization_id
+    )
 
     session.instantiate(
         InstantiateNotebookRequest(object_ids=[], values=[], auto_run=False),
