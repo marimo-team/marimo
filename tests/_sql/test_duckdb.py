@@ -174,34 +174,37 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
     engine.execute(
         "CREATE TABLE test (id INTEGER PRIMARY KEY, name VARCHAR(255))"
     )
-    engine.execute(
-        """
-        INSERT INTO test VALUES
-        (1, 'Alice'),
-        (2, 'Bob'),
-        (3, 'Charlie');
-        """
-    )
-    databases = engine.get_databases(
-        include_schemas=True, include_tables=True, include_table_details=True
-    )
+    try:
+        engine.execute(
+            """
+            INSERT INTO test VALUES
+            (1, 'Alice'),
+            (2, 'Bob'),
+            (3, 'Charlie');
+            """
+        )
+        databases = engine.get_databases(
+            include_schemas=True,
+            include_tables=True,
+            include_table_details=True,
+        )
 
-    expected_databases = deepcopy(expected_databases_with_conn)
-    expected_databases[0].engine = None
-    expected_databases[0].schemas[0].tables[0].engine = None
-    expected_databases[0].schemas[0].tables[0].source_type = "duckdb"
-    expected_databases[0].schemas[0].tables[0].source = "memory"
+        expected_databases = deepcopy(expected_databases_with_conn)
+        expected_databases[0].engine = None
+        expected_databases[0].schemas[0].tables[0].engine = None
+        expected_databases[0].schemas[0].tables[0].source_type = "duckdb"
+        expected_databases[0].schemas[0].tables[0].source = "memory"
 
-    assert databases == [
-        *expected_databases,
-        Database(
-            name="temp",
-            dialect="duckdb",
-            schemas=[Schema(name="main", tables=[])],
-        ),
-    ]
-
-    engine.execute("DROP TABLE test")
+        assert databases == [
+            *expected_databases,
+            Database(
+                name="temp",
+                dialect="duckdb",
+                schemas=[Schema(name="main", tables=[])],
+            ),
+        ]
+    finally:
+        engine.execute("DROP TABLE test")
 
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="duckdb not installed")
