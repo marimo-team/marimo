@@ -329,7 +329,7 @@ async def test_ai_stream_keeps_exportable_parent_tree(
         async def body() -> AsyncIterator[str | bytes | memoryview]:
             # BaseHTTPMiddleware ends the request span before forwarding
             # response headers. Waiting here makes that failure deterministic.
-            await response_started.wait()
+            await asyncio.wait_for(response_started.wait(), timeout=5)
             assert request_span.is_recording()
             assert trace.get_current_span() is request_span
             async for chunk in stream:
@@ -340,7 +340,8 @@ async def test_ai_stream_keeps_exportable_parent_tree(
         return response
 
     async def receive() -> Message:
-        await asyncio.Event().wait()
+        # ASGI 2.3 listens for disconnects until streaming cancels the listener.
+        await asyncio.wait_for(asyncio.Event().wait(), timeout=5)
         return {"type": "http.disconnect"}
 
     async def send(message: Message) -> None:

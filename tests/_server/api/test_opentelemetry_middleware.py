@@ -8,7 +8,8 @@ from unittest.mock import patch
 
 import pytest
 from starlette.applications import Starlette
-from starlette.responses import PlainTextResponse
+from starlette.background import BackgroundTask
+from starlette.responses import PlainTextResponse, StreamingResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
@@ -174,6 +175,72 @@ class TestOpenTelemetryMiddleware:
         assert attrs["http.status_code"] == 200
         assert attrs["http.method"] == "GET"
         assert attrs["http.target"] == "/"
+
+    @pytest.mark.parametrize("async_background", [False, True])
+    def test_request_span_outlives_response_background_task(
+        self, async_background: bool
+    ) -> None:
+        from opentelemetry import trace
+
+        from marimo._server.api.middleware import OpenTelemetryMiddleware
+
+        tracer, exporter = _setup_tracing()
+        request_span: Span = trace.INVALID_SPAN
+
+        def background_work() -> None:
+            assert request_span.is_recording()
+            assert trace.get_current_span() is request_span
+            assert exporter.spans == []
+            with tracer.start_as_current_span("background-task"):
+                request_span.set_attribute("background.completed", True)
+
+        async def async_background_work() -> None:
+            await asyncio.sleep(0)
+            background_work()
+
+        async def endpoint(request: Request) -> StreamingResponse:
+            del request
+            nonlocal request_span
+            request_span = trace.get_current_span()
+            background = BackgroundTask(background_work)
+            if async_background:
+                background = BackgroundTask(async_background_work)
+            return StreamingResponse(
+                iter([b"response"]), background=background
+            )
+
+        with (
+            patch(
+                "marimo._server.api.middleware.is_tracing_enabled",
+                return_value=True,
+            ),
+            patch("marimo._server.api.middleware.server_tracer", tracer),
+        ):
+            app = Starlette(routes=[Route("/", endpoint)])
+            app.add_middleware(OpenTelemetryMiddleware)
+            response = TestClient(app).get("/")
+
+        assert response.status_code == 200
+        assert response.content == b"response"
+        assert not request_span.is_recording()
+        assert [span.name for span in exporter.spans] == [
+            "background-task",
+            "GET /",
+        ]
+        child, parent = exporter.spans
+        assert child.parent == parent.context
+        assert dict(parent.attributes or {}) == {
+            "http.method": "GET",
+            "http.target": "/",
+            "http.status_code": 200,
+            "background.completed": True,
+        }
+        assert (
+            parent.start_time
+            <= child.start_time
+            <= child.end_time
+            <= parent.end_time
+        )
 
     @pytest.mark.parametrize(
         "error_type", [RuntimeError, asyncio.CancelledError]
