@@ -8,7 +8,6 @@ import pytest
 from marimo._data.models import (
     Database,
     DataSourceConnection,
-    DataTableColumn,
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -52,7 +51,12 @@ def test_engine_to_data_source_connection() -> None:
     assert connection.default_database == "memory"
     assert connection.default_schema == "main"
     assert connection.databases == [
-        Database(name="memory", dialect="duckdb", schemas=[])
+        Database(
+            name=name,
+            dialect="duckdb",
+            schemas=[Schema(name="main", tables=[])],
+        )
+        for name in ("memory", "temp")
     ]
 
     # Test with ClickhouseEmbedded engine
@@ -357,7 +361,10 @@ def test_get_engines_duckdb_databases() -> None:
         VariableName("my_duckdb"), duckdb_engine
     )
 
-    assert len(connection.databases) == 1
+    assert [database.name for database in connection.databases] == [
+        "memory",
+        "temp",
+    ]
     database = connection.databases[0]
     assert database.name == "memory"
     assert len(database.schemas) == 1
@@ -366,14 +373,8 @@ def test_get_engines_duckdb_databases() -> None:
     assert len(schema.tables) == 1
     table = schema.tables[0]
     assert table.name == "test_table"
-    assert table.columns == [
-        DataTableColumn(
-            name="id",
-            type="integer",
-            external_type="INTEGER",
-            sample_values=[],
-        )
-    ]
+    assert table.columns == []
+    assert table.num_columns is None
     with patch(
         "marimo._sql.sql.get_configured_sql_output_format",
         return_value="native",
