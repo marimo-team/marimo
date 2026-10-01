@@ -60,9 +60,10 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
   Authentication:
     If a token-file path is supplied, add --token-file <PATH> to every
     execute and notebook list command. Pass the path, not the file contents.
-    Otherwise, these commands use MARIMO_TOKEN when set.
 
   Workflow:
+    If no server is running, start one in the background:
+      marimo edit <notebook.py> --no-token
     If you do not have the server URL or notebook file:
       marimo pair notebook list
     marimo pair execute --url <URL> --file <FILE> --code-file - <<'PY'
@@ -99,6 +100,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     the project; confirm when the user did not ask.
     If an empty cell exists, edit_cell it instead of creating one.
     delete_cell drops the cell's variables. Ask before deleting.
+    Do not edit the notebook file directly. Code mode is the only write path.
 
   Code-mode API:
     Prefer marimo._code_mode to inspect, create, edit, run, and delete notebook cells.
@@ -158,8 +160,7 @@ Options:
   --session ID       Current session ID. Resolved from --file when omitted.
   --file PATH        Notebook path or file key. Used to resolve --session when
                      omitted.
-  --token-file PATH  Read the server token from a local file. Otherwise use
-                     MARIMO_TOKEN, if set.
+  --token-file PATH  Read the server token from a local file.
   -c TEXT            Inline Python.
   --code-file PATH   Read Python from a UTF-8 file, or from stdin when PATH is
                      '-'. Supply exactly one input option.
@@ -1005,8 +1006,7 @@ Usage: main pair notebook list [OPTIONS]
 
 Options:
   --url URL          Server URL. Repeat to list more than one server.
-  --token-file PATH  Read the server token from a local file. Otherwise use
-                     MARIMO_TOKEN, if set.
+  --token-file PATH  Read the server token from a local file.
   -h, --help         Show this message and exit.
 """)
 
@@ -1267,6 +1267,7 @@ Options:
             )
         ]
         assert payload["next"].startswith("No sessions found.")
+        assert "marimo edit <notebook.py> --no-token" in payload["next"]
 
     def test_list_empty_registry_succeeds(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1285,6 +1286,7 @@ Options:
         assert payload["notebooks"] == []
         assert payload["warnings"] == []
         assert payload["next"].startswith("No sessions found.")
+        assert "marimo edit <notebook.py> --no-token" in payload["next"]
 
     def test_list_uses_token_only_for_explicit_urls(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
