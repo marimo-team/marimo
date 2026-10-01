@@ -106,10 +106,8 @@ type ExportFailure =
     }
   | {
       kind: "missing-packages";
-      title: string;
       description?: string | null;
       packages: string[];
-      featureName: string;
       action: ExportAction;
     };
 
@@ -286,14 +284,18 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     setMetadata(null);
     setMetadataLoading(true);
     setMetadataError(null);
-    setGeometryColumn(null);
     void getExportMetadata({}).then(
       (result) => {
         if (!active) {
           return;
         }
         setMetadata(result);
-        setGeometryColumn(result.default_geometry_column);
+        setGeometryColumn((current) =>
+          current !== null &&
+          result.geometry_columns.some((column) => column.name === current)
+            ? current
+            : result.default_geometry_column,
+        );
         setMetadataLoading(false);
       },
       (error: unknown) => {
@@ -376,7 +378,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     const request = {
       format,
       ...(options ? { options } : {}),
-      ...(format === "parquet" && geometryColumn
+      ...(format === "parquet" && geometryColumn !== null
         ? { geometry_column: geometryColumn }
         : {}),
     };
@@ -388,9 +390,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     if (response.missing_packages && response.missing_packages.length > 0) {
       setActionFailure(actionId, {
         kind: "missing-packages",
-        title: "Export failed",
         packages: response.missing_packages,
-        featureName: `${labelForFormat(action.format, hasGeometry)} export`,
         description: response.error,
         action,
       });
@@ -528,6 +528,50 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     }
   };
 
+  const retryAfterInstall = async (action: ExportAction) => {
+    if (action.format === "parquet" && getExportMetadata) {
+      const actionId = latestActionId.current;
+      let result: ExportMetadata;
+      try {
+        result = await getExportMetadata({});
+      } catch (error) {
+        if (actionId === latestActionId.current) {
+          setMetadataError(failureDescription(error));
+        }
+        return;
+      }
+      if (actionId !== latestActionId.current) {
+        return;
+      }
+      setMetadata(result);
+      setMetadataError(null);
+      if (result.formats.parquet?.available === false) {
+        setFailure(null);
+        return;
+      }
+      if (
+        geometryColumn !== null &&
+        !result.geometry_columns.some(
+          (column) => column.name === geometryColumn,
+        )
+      ) {
+        setGeometryColumn(result.default_geometry_column);
+        setActionFailure(actionId, {
+          kind: "error",
+          title: failureTitleForAction(action),
+          description:
+            "The selected geometry is no longer available. Choose another geometry to export.",
+          action,
+        });
+        return;
+      }
+      if (result.geometry_columns.length > 0 && geometryColumn === null) {
+        return;
+      }
+    }
+    retryAction(action);
+  };
+
   const toggleExpanded = (format: ExportFormat) => {
     if (
       !isConfigurable(format) &&
@@ -594,20 +638,33 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
               failure?.action.format === option.format ? failure : null;
             const summary =
               option.format === "parquet" && metadata?.geometry_columns.length
-                ? (geometryColumn ?? "Choose geometry")
+                ? geometryColumn === ""
+                  ? "(unnamed geometry)"
+                  : (geometryColumn ?? "Choose geometry")
                 : settingsSummary(settings, option.format);
+            const selectedGeometryIndex =
+              metadata?.geometry_columns.findIndex(
+                (column) => column.name === geometryColumn,
+              ) ?? -1;
             const parquetEligibility =
               option.format === "parquet"
                 ? metadata?.formats.parquet
                 : undefined;
+            const missingPackageFailure =
+              rowFailure?.kind === "missing-packages" ? rowFailure : null;
+            const missingPackages =
+              missingPackageFailure?.packages ??
+              (parquetEligibility?.available === false
+                ? parquetEligibility.missing_packages
+                : []);
             const parquetUnavailable =
               option.format === "parquet" &&
               ((!!getExportMetadata && !metadata) ||
                 metadataLoading ||
                 !!metadataError ||
-                (parquetEligibility?.available === false &&
-                  parquetEligibility.missing_packages.length === 0) ||
-                (!!metadata?.geometry_columns.length && !geometryColumn));
+                parquetEligibility?.available === false ||
+                (!!metadata?.geometry_columns.length &&
+                  geometryColumn === null));
             return (
               <li
                 key={option.format}
@@ -676,9 +733,15 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                           variant="ghost"
                           size="icon"
                           aria-label={`Download ${optionLabel}`}
-                          disabled={!option.canDownload || parquetUnavailable}
+                          disabled={
+                            !option.canDownload ||
+                            parquetUnavailable ||
+                            missingPackages.length > 0
+                          }
                           onClick={
-                            option.canDownload && !parquetUnavailable
+                            option.canDownload &&
+                            !parquetUnavailable &&
+                            missingPackages.length === 0
                               ? () => {
                                   void handleDownload(option.format);
                                 }
@@ -732,17 +795,20 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                         <NativeSelect
                           id="export-primary-geometry"
                           className="mb-0 w-full"
-                          value={geometryColumn ?? ""}
-                          onChange={(event) =>
-                            setGeometryColumn(event.target.value || null)
-                          }
+                          value={String(selectedGeometryIndex)}
+                          onChange={(event) => {
+                            const index = Number(event.target.value);
+                            setGeometryColumn(
+                              metadata?.geometry_columns[index]?.name ?? null,
+                            );
+                          }}
                         >
-                          {!geometryColumn && (
-                            <option value="">Choose geometry</option>
-                          )}
-                          {metadata?.geometry_columns.map((column) => (
-                            <option key={column.name} value={column.name}>
-                              {column.name}
+                          <option value="-1" disabled={true}>
+                            Choose geometry
+                          </option>
+                          {metadata?.geometry_columns.map((column, index) => (
+                            <option key={column.name} value={String(index)}>
+                              {column.name || "(unnamed geometry)"}
                             </option>
                           ))}
                         </NativeSelect>
@@ -757,16 +823,17 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                   </fieldset>
                 )}
                 {option.format === "parquet" &&
+                  missingPackages.length === 0 &&
                   (parquetEligibility?.reason ||
                     metadataError ||
                     (!!metadata?.geometry_columns.length &&
-                      !geometryColumn)) && (
+                      geometryColumn === null)) && (
                     <div className="flex items-center justify-between gap-2 border-t px-3 py-2 pl-[42px] text-xs text-muted-foreground">
                       <span>
-                        {parquetEligibility?.reason ??
-                          (metadataError
-                            ? `Could not load geometry options: ${metadataError}`
-                            : "Choose a primary geometry column to export GeoParquet.")}
+                        {metadataError
+                          ? `Could not load geometry options: ${metadataError}`
+                          : (parquetEligibility?.reason ??
+                            "Choose a primary geometry column to export GeoParquet.")}
                       </span>
                       {metadataError && (
                         <Button
@@ -782,34 +849,46 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                       )}
                     </div>
                   )}
-                {rowFailure && (
+                {missingPackages.length > 0 && (
                   <div className="border-t px-3 py-2 pl-[42px]">
-                    <Alert
-                      variant="destructive"
-                      className="p-3 has-[svg]:pl-9 [&>svg]:left-3 [&>svg]:top-3"
-                    >
-                      <AlertCircleIcon className="h-4 w-4" />
-                      <div>
-                        <AlertTitle className="text-sm">
-                          {rowFailure.title}
-                        </AlertTitle>
-                        <AlertDescription className="text-xs">
-                          {rowFailure.kind === "missing-packages" ? (
-                            <MissingPackagePrompt
-                              packages={rowFailure.packages}
-                              featureName={rowFailure.featureName}
-                              description={rowFailure.description}
-                              onInstall={() => retryAction(rowFailure.action)}
-                              className="items-start"
-                            />
-                          ) : (
-                            rowFailure.description
-                          )}
-                        </AlertDescription>
-                      </div>
-                    </Alert>
+                    <MissingPackagePrompt
+                      packages={missingPackages}
+                      featureName={`${optionLabel} export`}
+                      description={
+                        missingPackageFailure?.description ??
+                        parquetEligibility?.reason
+                      }
+                      onInstall={() => {
+                        void retryAfterInstall(
+                          missingPackageFailure?.action ?? {
+                            destination: "download",
+                            format: "parquet",
+                          },
+                        );
+                      }}
+                      className="items-start"
+                    />
                   </div>
                 )}
+                {rowFailure?.kind === "error" &&
+                  missingPackages.length === 0 && (
+                    <div className="border-t px-3 py-2 pl-[42px]">
+                      <Alert
+                        variant="destructive"
+                        className="p-3 has-[svg]:pl-9 [&>svg]:left-3 [&>svg]:top-3"
+                      >
+                        <AlertCircleIcon className="h-4 w-4" />
+                        <div>
+                          <AlertTitle className="text-sm">
+                            {rowFailure.title}
+                          </AlertTitle>
+                          <AlertDescription className="text-xs">
+                            {rowFailure.description}
+                          </AlertDescription>
+                        </div>
+                      </Alert>
+                    </div>
+                  )}
               </li>
             );
           })}
