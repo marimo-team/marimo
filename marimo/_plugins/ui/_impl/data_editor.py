@@ -594,6 +594,10 @@ class data_editor(
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
         editable_columns (Union[list[str], Literal["all"]]): A list of column names to be editable.
             If "all", all columns are editable. Pass an empty list to make all columns read-only. Defaults to "all".
+        column_types (Optional[dict[str, Union[Literal["boolean"], list[str]]]]):
+            Overrides the editor type for selected columns. Use `"boolean"` for
+            checkboxes, or a non-empty list of unique strings for a dropdown;
+            the first dropdown option is used for new rows.
 
     Deprecated:
         pagination (bool): Whether to enable pagination.
