@@ -29,9 +29,15 @@ GeometryExportErrorCode = Literal[
     "invalid_geometry",
     "invalid_metadata",
     "unsupported_representation",
+    "unsupported_version",
     "missing_packages",
     "conversion_failed",
 ]
+
+_MIN_GEOPANDAS_GEOPARQUET_VERSION = "0.14.1"
+_GEOPANDAS_UPGRADE_MESSAGE = (
+    "Update geopandas to 0.14.1 or newer to export GeoParquet."
+)
 
 
 class GeometryExportError(Exception):
@@ -172,6 +178,13 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
             reason=reason,
             missing_packages=missing_packages,
         )
+    elif not DependencyManager.geopandas.has_at_version(
+        min_version=_MIN_GEOPANDAS_GEOPARQUET_VERSION, quiet=True
+    ):
+        parquet = ExportFormatEligibility(
+            available=False,
+            reason=_GEOPANDAS_UPGRADE_MESSAGE,
+        )
     elif not DependencyManager.pyarrow.has():
         parquet = ExportFormatEligibility(
             available=False,
@@ -295,6 +308,12 @@ def serialize_geoparquet(
             "missing_packages",
             "This pandas table needs geopandas to export GeoParquet.",
             missing_packages=["geopandas"],
+        )
+    if not DependencyManager.geopandas.has_at_version(
+        min_version=_MIN_GEOPANDAS_GEOPARQUET_VERSION, quiet=True
+    ):
+        raise GeometryExportError(
+            "unsupported_version", _GEOPANDAS_UPGRADE_MESSAGE
         )
     if not DependencyManager.pyarrow.has():
         raise GeometryExportError(

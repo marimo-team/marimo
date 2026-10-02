@@ -460,6 +460,65 @@ describe("ExportActions dialog", () => {
     expect(getExportMetadata).toHaveBeenCalledTimes(2);
   });
 
+  it("does not cancel a pending CSV download when geometry metadata is retried", async () => {
+    let resolveDownload: (value: { url: string; filename: string }) => void =
+      () => undefined;
+    downloadAs.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveDownload = resolve;
+        }),
+    );
+    const getExportMetadata = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Connection lost"))
+      .mockResolvedValueOnce(geometryMetadata);
+    renderExportActions({ getExportMetadata });
+    await openDialog();
+    await screen.findByText("Could not load geometry options: Connection lost");
+
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByRole("button", { name: "GeoParquet options" });
+    await act(async () => {
+      resolveDownload({ url: "https://example.test/export", filename: "table" });
+    });
+
+    expect(downloadByURL).toHaveBeenCalledWith(
+      expect.stringContaining("https://example.test/export"),
+      "table.csv",
+    );
+  });
+
+  it("cancels a pending download when the table source changes", async () => {
+    let resolveDownload: (value: { url: string; filename: string }) => void =
+      () => undefined;
+    downloadAs.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveDownload = resolve;
+        }),
+    );
+    const getExportMetadata = vi.fn().mockResolvedValue(geometryMetadata);
+    const { rerenderExportActions } = renderExportActions({
+      getExportMetadata,
+      metadataSource: "first",
+    });
+    await openDialog();
+    await screen.findByRole("button", { name: "GeoParquet options" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
+    rerenderExportActions({ getExportMetadata, metadataSource: "second" });
+    await waitFor(() => {
+      expect(getExportMetadata).toHaveBeenCalledTimes(2);
+    });
+    await act(async () => {
+      resolveDownload({ url: "https://example.test/export", filename: "table" });
+    });
+
+    expect(downloadByURL).not.toHaveBeenCalled();
+  });
+
   it("shows formats in the approved order with an options toggle where supported", async () => {
     renderExportActions();
     const dialog = await openDialog();

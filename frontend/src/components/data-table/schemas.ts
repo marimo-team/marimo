@@ -31,6 +31,7 @@ export type DownloadAsArgs = (req: DownloadAsRequest) => Promise<{
     | "invalid_geometry"
     | "invalid_metadata"
     | "unsupported_representation"
+    | "unsupported_version"
     | "missing_packages"
     | "conversion_failed"
     | null;
@@ -63,6 +64,7 @@ export const DownloadAsSchema = rpc
           "invalid_geometry",
           "invalid_metadata",
           "unsupported_representation",
+          "unsupported_version",
           "missing_packages",
           "conversion_failed",
         ])
