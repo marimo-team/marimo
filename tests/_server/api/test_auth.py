@@ -1,16 +1,22 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import os
 import subprocess
 import sys
-from typing import Any
+from http.cookiejar import CookieJar
+from http.cookies import SimpleCookie
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from starlette.applications import Starlette
-from starlette.authentication import SimpleUser
+from starlette.authentication import SimpleUser, requires
 from starlette.datastructures import Headers, QueryParams
 from starlette.requests import HTTPConnection
+from starlette.responses import JSONResponse
+from starlette.routing import Route, WebSocketRoute
+from starlette.testclient import TestClient
 
 from marimo._config.manager import MarimoConfigManager, UserConfigManager
 from marimo._server.api.auth import (
@@ -24,10 +30,15 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.middleware import AuthBackend
 from marimo._server.config import StarletteServerStateInit
 from marimo._server.main import create_starlette_app
+from marimo._server.tokens import AuthToken
 from tests._server.mocks import (
     get_mock_session_manager,
     get_starlette_server_state_init,
 )
+
+if TYPE_CHECKING:
+    from starlette.types import Message, Receive, Scope, Send
+    from starlette.websockets import WebSocket
 
 
 async def mock_receive() -> Any:
@@ -40,22 +51,63 @@ async def mock_send(message: Any) -> None:
     del message
 
 
-async def test_custom_session_middleware_call(app: Starlette):
-    middleware = CustomSessionMiddleware(app, "secret_key")
+@pytest.mark.parametrize(
+    ("port", "host", "scheme", "base_url", "expected_name", "expected_path"),
+    [
+        (1234, None, "http", "", "session_1234", "/"),
+        (None, None, "http", "", "session", "/"),
+        (2718, "localhost:2718", "http", "", "session_2718", "/"),
+        (2718, "localhost:2720", "http", "", "session_2720", "/"),
+        (2718, "[::1]:2720", "http", "", "session_2720", "/"),
+        (2718, "localhost", "http", "", "session_80", "/"),
+        (2718, "localhost", "https", "", "session_443", "/"),
+        (1234, None, "http", "/marimo1", "session_1234_marimo1", "/marimo1"),
+        (
+            1234,
+            None,
+            "http",
+            "/apps/ml/notebook",
+            "session_1234_apps_ml_notebook",
+            "/apps/ml/notebook",
+        ),
+        (
+            2718,
+            "localhost:2720",
+            "http",
+            "/marimo1",
+            "session_2720_marimo1",
+            "/marimo1",
+        ),
+    ],
+)
+async def test_custom_session_middleware_cookie_scope(
+    port: int | None,
+    host: str | None,
+    scheme: str,
+    base_url: str,
+    expected_name: str,
+    expected_path: str,
+):
+    async def set_session(scope: Scope, receive: Receive, send: Send):
+        scope["session"]["value"] = "test"
+        await JSONResponse({})(scope, receive, send)
+
+    app = _app_with_base_url(base_url)
+    app.state.port = port
+    middleware = CustomSessionMiddleware(set_session, "secret_key")
     scope = create_connection(app).scope
+    scope["scheme"] = scheme
+    if host is not None:
+        scope["headers"] = [(b"host", host.encode())]
+    messages: list[Message] = []
 
-    await middleware(scope, mock_receive, mock_send)
-    assert middleware.session_cookie == "session_1234"
-    assert middleware.path == "/"
+    async def capture(message: Message):
+        messages.append(message)
 
-
-async def test_custom_session_middleware_call_with_port():
-    app = Starlette()
-    middleware = CustomSessionMiddleware(app, "secret_key")
-    scope = create_connection(app).scope
-
-    await middleware(scope, mock_receive, mock_send)
-    assert middleware.session_cookie == "session"
+    await middleware(scope, mock_receive, capture)
+    cookie = SimpleCookie(Headers(scope=messages[0])["set-cookie"])
+    assert list(cookie) == [expected_name]
+    assert cookie[expected_name]["path"] == expected_path
 
 
 def test_custom_session_middleware_secure_flag_default(app: Starlette):
@@ -78,24 +130,103 @@ def _app_with_base_url(base_url: str) -> Starlette:
     return app
 
 
-async def test_custom_session_middleware_scopes_cookie_to_base_url():
-    app = _app_with_base_url("/marimo1")
-    middleware = CustomSessionMiddleware(app, "secret_key")
-    scope = create_connection(app).scope
+async def test_concurrent_sessions_keep_their_cookie_scope(app: Starlette):
+    first_started = asyncio.Event()
+    second_started = asyncio.Event()
+    first_finished = asyncio.Event()
 
-    await middleware(scope, mock_receive, mock_send)
-    assert middleware.session_cookie == "session_1234_marimo1"
-    assert middleware.path == "/marimo1"
+    async def set_session(scope: Scope, receive: Receive, send: Send):
+        if HTTPConnection(scope).url.port == 2718:
+            first_started.set()
+            await second_started.wait()
+        else:
+            second_started.set()
+            await first_finished.wait()
+        scope["session"]["value"] = "test"
+        await JSONResponse({})(scope, receive, send)
+        first_finished.set()
+
+    middleware = CustomSessionMiddleware(set_session, "secret_key")
+
+    async def request(port: int) -> str:
+        scope = create_connection(app).scope
+        scope["headers"] = [(b"host", f"localhost:{port}".encode())]
+        messages: list[Message] = []
+
+        async def capture(message: Message):
+            messages.append(message)
+
+        if port == 2720:
+            await first_started.wait()
+        await middleware(scope, mock_receive, capture)
+        return Headers(scope=messages[0])["set-cookie"]
+
+    first, second = await asyncio.wait_for(
+        asyncio.gather(request(2718), request(2720)), timeout=5
+    )
+    assert list(SimpleCookie(first)) == ["session_2718"]
+    assert list(SimpleCookie(second)) == ["session_2720"]
 
 
-async def test_custom_session_middleware_scopes_cookie_to_nested_base_url():
-    app = _app_with_base_url("/apps/ml/notebook")
-    middleware = CustomSessionMiddleware(app, "secret_key")
-    scope = create_connection(app).scope
+def test_sessions_survive_login_to_forwarded_server():
+    @requires("edit")
+    async def protected(request: HTTPConnection) -> JSONResponse:
+        del request
+        return JSONResponse({"authenticated": True})
 
-    await middleware(scope, mock_receive, mock_send)
-    assert middleware.session_cookie == "session_1234_apps_ml_notebook"
-    assert middleware.path == "/apps/ml/notebook"
+    @requires("edit")
+    async def protected_websocket(websocket: WebSocket):
+        await websocket.accept()
+        await websocket.send_json({"authenticated": True})
+        await websocket.close()
+
+    def make_app(token: str) -> Starlette:
+        app = _app_with_base_url("")
+        app.state.port = 2718
+        app.state.session_manager._token_manager.auth_token = AuthToken(token)
+        app.router.routes.insert(0, Route("/protected", protected))
+        app.router.routes.insert(
+            0, WebSocketRoute("/protected-ws", protected_websocket)
+        )
+        return app
+
+    # Browsers share cookies across ports on the same host.
+    cookies = CookieJar()
+    local = TestClient(
+        make_app("local-token"),
+        base_url="http://localhost:2718",
+        cookies=cookies,
+    )
+    remote = TestClient(
+        make_app("remote-token"),
+        base_url="http://localhost:2720",
+        cookies=cookies,
+    )
+
+    assert local.get("/protected").status_code == 401
+    assert remote.get("/protected").status_code == 401
+    assert (
+        local.get(
+            "/protected", params={"access_token": "local-token"}
+        ).status_code
+        == 200
+    )
+    assert local.get("/protected").status_code == 200
+    assert (
+        remote.get(
+            "/protected", params={"access_token": "remote-token"}
+        ).status_code
+        == 200
+    )
+
+    assert local.get("/protected").status_code == 200
+    assert remote.get("/protected").status_code == 200
+
+    for client, port in [(local, 2718), (remote, 2720)]:
+        with client.websocket_connect(
+            f"ws://localhost:{port}/protected-ws"
+        ) as websocket:
+            assert websocket.receive_json() == {"authenticated": True}
 
 
 @pytest.fixture
