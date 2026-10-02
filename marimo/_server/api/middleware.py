@@ -132,8 +132,14 @@ class SkewProtectionMiddleware:
         # plain HTML form and does not attach the server token header.
         if request.url.path.rstrip("/").endswith("/auth/login"):
             return await self.app(scope, receive, send)
-        # If /api/kernel/execute, skip (agent-only endpoint)
-        if request.url.path.rstrip("/").endswith("/api/kernel/execute"):
+        # Agent-only endpoints do not have the browser's skew token.
+        if request.url.path.rstrip("/").endswith(
+            (
+                "/api/kernel/execute",
+                "/api/participants/attach",
+                "/api/participants/detach",
+            )
+        ):
             return await self.app(scope, receive, send)
         # If ws, skip
         if request.url.path.startswith("/ws") or request.url.path.endswith(

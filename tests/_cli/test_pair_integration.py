@@ -110,7 +110,9 @@ def test_connect_persists_across_cli_processes(tmp_path: Path) -> None:
     }
     environment["XDG_STATE_HOME"] = str(tmp_path / "state")
 
-    with pair_test_server(tmp_path, pair_preview=True) as server:
+    with pair_test_server(
+        tmp_path, pair_preview=True, skew_protection=True
+    ) as server:
         connected = subprocess.run(
             [
                 sys.executable,
