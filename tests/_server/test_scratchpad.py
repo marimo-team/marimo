@@ -312,6 +312,29 @@ class TestExtractResult:
         assert result.stdout == ["out1", "out2"]
         assert result.stderr == ["err1"]
 
+    def test_listener_stderr_preserves_cross_cell_order(self) -> None:
+        notif = CellNotification(
+            cell_id=SCRATCH_CELL_ID,
+            output=None,
+            console=[
+                CellOutput.stderr("scratch before\n"),
+                CellOutput.stderr("scratch after\n"),
+            ],
+            status="idle",
+        )
+        listener = ScratchCellListener(run_id=_TEST_RUN_ID)
+        listener.stderr.extend(
+            ["scratch before\n", "child\n", "scratch after\n"]
+        )
+
+        result = extract_result(_make_session(notif), listener)
+
+        assert result.stderr == [
+            "scratch before\n",
+            "child\n",
+            "scratch after\n",
+        ]
+
     def test_errors(self) -> None:
         err_obj = MagicMock()
         err_obj.msg = "NameError: x is not defined"
@@ -644,6 +667,12 @@ class TestScratchCellListener:
         session = MagicMock()
         listener.on_attach(session, event_bus)
 
+        listener.on_notification_sent(
+            session,
+            serialize_kernel_message(
+                CellNotification(cell_id=SCRATCH_CELL_ID, status="running")
+            ),
+        )
         other_console = CellNotification(
             cell_id="other_cell_id",
             console=CellOutput.stderr("error trace\n"),
@@ -665,6 +694,81 @@ class TestScratchCellListener:
         name, payload = _parse_sse(events[0])
         assert name == "stderr"
         assert payload["data"] == "error trace\n"
+
+        assert listener.stderr == ["error trace\n"]
+
+    @pytest.mark.asyncio
+    async def test_captures_stderr_in_emission_order(self) -> None:
+        """Scratch and child stderr retain their notification order."""
+        from marimo._messaging.serde import serialize_kernel_message
+
+        listener = ScratchCellListener(run_id=_TEST_RUN_ID)
+        session = MagicMock()
+
+        notifications = [
+            CellNotification(
+                cell_id=SCRATCH_CELL_ID,
+                console=CellOutput.stderr("scratch before\n"),
+            ),
+            CellNotification(
+                cell_id="other_cell_id",
+                console=[
+                    CellOutput.stderr("first child error\n"),
+                    CellOutput.stdout("ordinary output\n"),
+                    CellOutput.stderr("second child error\n"),
+                ],
+            ),
+            CellNotification(
+                cell_id=SCRATCH_CELL_ID,
+                console=CellOutput.stderr("scratch after\n"),
+            ),
+        ]
+        for notification in notifications:
+            listener.on_notification_sent(
+                session, serialize_kernel_message(notification)
+            )
+
+        assert listener.stderr == [
+            "scratch before\n",
+            "first child error\n",
+            "second child error\n",
+            "scratch after\n",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_ignores_stderr_outside_scratch_run(self) -> None:
+        """Unrelated stderr before or after the scratch run is ignored."""
+        from marimo._messaging.serde import serialize_kernel_message
+
+        listener = ScratchCellListener(run_id=_TEST_RUN_ID)
+        session = MagicMock()
+
+        notifications: list[NotificationMessage] = [
+            CellNotification(
+                cell_id="browser-cell",
+                console=CellOutput.stderr("before\n"),
+            ),
+            CellNotification(cell_id=SCRATCH_CELL_ID, status="running"),
+            CellNotification(
+                cell_id="child-cell",
+                console=CellOutput.stderr("during\n"),
+            ),
+            _completed_run(),
+            CellNotification(
+                cell_id="child-cell",
+                console=CellOutput.stderr("trailing\n"),
+            ),
+            CellNotification(
+                cell_id="browser-cell",
+                console=CellOutput.stderr("after\n"),
+            ),
+        ]
+        for notification in notifications:
+            listener.on_notification_sent(
+                session, serialize_kernel_message(notification)
+            )
+
+        assert listener.stderr == ["during\n"]
 
     @pytest.mark.asyncio
     async def test_stream_cancelled_on_disconnect(self) -> None:
@@ -914,12 +1018,37 @@ class TestRunScratchpadCode:
         assert lock_held_during_interrupt == [True]
 
     @pytest.mark.asyncio
-    async def test_child_cell_errors_flow_into_result_errors(self) -> None:
+    @pytest.mark.parametrize(
+        ("message", "expected_error"),
+        [
+            (
+                "division by zero",
+                "cell 'child-cell' raised ZeroDivisionError: division by zero",
+            ),
+            (
+                "ZeroDivisionError: division by zero",
+                "cell 'child-cell' raised ZeroDivisionError: division by zero",
+            ),
+            (
+                "ZeroDivisionError",
+                "cell 'child-cell' raised ZeroDivisionError",
+            ),
+            ("", "cell 'child-cell' raised ZeroDivisionError"),
+            (
+                "This cell raised an exception: ZeroDivisionError",
+                "cell 'child-cell' raised ZeroDivisionError",
+            ),
+        ],
+    )
+    async def test_child_cell_diagnostics_flow_into_result(
+        self, message: str, expected_error: str
+    ) -> None:
         """End-to-end: child-cell errors captured by the listener during
-        execution must surface in `result.errors` — otherwise the AI
-        never learns its `run_cell` calls failed. This pins down the
-        `extract_result(session, listener)` plumbing as well; dropping
-        the `listener` arg silently loses every child-cell error."""
+        execution must surface in the result with their message and traceback.
+        Otherwise the AI learns only the exception type, not what failed or
+        where. This also pins down the `extract_result(session, listener)`
+        plumbing; dropping the listener silently loses every child-cell error.
+        """
         from marimo._types.ids import CellId_t
 
         session = _FakeSession()
@@ -939,12 +1068,27 @@ class TestRunScratchpadCode:
             )
         )
         session.emit(
+            CellNotification(cell_id=SCRATCH_CELL_ID, status="running")
+        )
+        session.emit(
+            CellNotification(
+                cell_id=CellId_t("child-cell"),
+                console=CellOutput.stderr(
+                    "Traceback (most recent call last):\n"
+                    '  File "<cell-child-cell>", line 2, in <module>\n'
+                    "    return 1 / 0\n"
+                    "           ~~^~~\n"
+                    "ZeroDivisionError: division by zero\n"
+                ),
+            )
+        )
+        session.emit(
             CellNotification(
                 cell_id=CellId_t("child-cell"),
                 output=CellOutput.errors(
                     [
                         MarimoExceptionRaisedError(
-                            msg="division by zero",
+                            msg=message,
                             exception_type="ZeroDivisionError",
                             raising_cell=None,
                         )
@@ -964,7 +1108,16 @@ class TestRunScratchpadCode:
         )
 
         assert result.success is False
-        assert result.errors == ["cell 'child-cell' raised ZeroDivisionError"]
+        assert result.errors == [expected_error]
+        assert result.stderr == [
+            (
+                "Traceback (most recent call last):\n"
+                '  File "<cell-child-cell>", line 2, in <module>\n'
+                "    return 1 / 0\n"
+                "           ~~^~~\n"
+                "ZeroDivisionError: division by zero\n"
+            )
+        ]
 
     @pytest.mark.asyncio
     async def test_listener_registered_only_while_lock_held(self) -> None:
