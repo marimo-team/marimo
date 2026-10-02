@@ -173,11 +173,7 @@ class SkewProtectionMiddleware:
 
 
 class OpenTelemetryMiddleware:
-    """Keep the request span current until the response finishes streaming.
-
-    `BaseHTTPMiddleware` returns from `call_next` before the body is sent,
-    ending the parent span while AI model and tool spans are still running.
-    """
+    """Keep the request span current until the response finishes streaming."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
