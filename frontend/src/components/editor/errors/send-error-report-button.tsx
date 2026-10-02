@@ -30,12 +30,14 @@ export function SendErrorReportButton({
   cellId,
   error,
   traceback,
-  useLastRunCode = false,
+  preferLastRunCode = false,
+  fallbackToConsoleTraceback = false,
 }: {
   cellId: CellId | undefined;
   error: string;
   traceback: string;
-  useLastRunCode?: boolean;
+  preferLastRunCode?: boolean;
+  fallbackToConsoleTraceback?: boolean;
 }) {
   const store = useStore();
   const pairPreview = useAtomValue(pairPreviewAtom);
@@ -75,11 +77,26 @@ export function SendErrorReportButton({
           return text.split(/\r?\n/).map((line) => ({ channel, data: line }));
         })
         .slice(-20);
+      let tracebackText = plainText(traceback);
+      if (fallbackToConsoleTraceback && !tracebackText.trim()) {
+        const consoleTraceback = runtime.consoleOutputs.findLast(
+          (output) =>
+            output.mimetype === "application/vnd.marimo+traceback" &&
+            typeof output.data === "string",
+        );
+        if (consoleTraceback && typeof consoleTraceback.data === "string") {
+          const candidate = plainText(consoleTraceback.data);
+          // A previous run can leave a traceback in the console.
+          if (candidate.includes(error)) {
+            tracebackText = candidate;
+          }
+        }
+      }
       await API.post<HandoffPayload, { seq: number }>("/participants/handoff", {
         cellId,
         error,
-        code: useLastRunCode ? (cell.lastCodeRun ?? cell.code) : cell.code,
-        traceback: plainText(traceback),
+        code: preferLastRunCode ? (cell.lastCodeRun ?? cell.code) : cell.code,
+        traceback: tracebackText,
         consoleTail,
       });
       toast({ title: `Sent to ${presence.harness.displayName}` });
