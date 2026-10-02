@@ -1579,16 +1579,16 @@ def check(
         lint_config=lint_config,
     )
 
+    # Get counts from linter (fix happens automatically during streaming)
+    fixed = linter.fixed_count
+    total_issues = linter.issues_count
+
     if formatter == "json":
         # JSON output - let linter handle the collection and formatting
         result = linter.get_json_result()
         # Always output to stdout for JSON, regardless of errors
         click.echo(json.dumps(result), err=False)
     else:
-        # Get counts from linter (fix happens automatically during streaming)
-        fixed = linter.fixed_count
-        total_issues = linter.issues_count
-
         # Final summary
         if fixed > 0:
             click.echo(f"Updated {fixed} file{'s' if fixed > 1 else ''}.")
