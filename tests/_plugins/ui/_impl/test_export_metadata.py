@@ -92,7 +92,22 @@ def test_ambiguous_geometry_has_no_default(widget: Any) -> None:
     ]
     assert result.primary_geometry_column is None
     assert result.default_geometry_column is None
-    assert result.formats["parquet"].available
+
+
+@pytest.mark.requires("geopandas")
+def test_old_geopandas_is_not_eligible(widget: Any) -> None:
+    with patch.object(
+        DependencyManager.geopandas, "get_version", return_value="0.14.0"
+    ):
+        result = widget(fixtures.gdf_multi_geometry())._get_export_metadata(
+            EmptyArgs()
+        )
+
+    assert asdict(result.formats["parquet"]) == {
+        "available": False,
+        "reason": "Update geopandas to 0.14.1 or newer to export GeoParquet.",
+        "missing_packages": [],
+    }
 
 
 @pytest.mark.requires("geopandas")

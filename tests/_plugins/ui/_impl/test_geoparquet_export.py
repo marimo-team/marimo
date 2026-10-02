@@ -70,7 +70,7 @@ def test_geoparquet_keeps_every_geometry_and_crs(
 
 
 @pytest.mark.requires("geopandas", "pyarrow")
-def test_geoparquet_uses_writer_supported_by_geopandas_014(
+def test_geoparquet_uses_writer_supported_by_geopandas_0141(
     widget: Any,
 ) -> None:
     import geopandas as gpd
@@ -78,7 +78,7 @@ def test_geoparquet_uses_writer_supported_by_geopandas_014(
 
     original_writer = gpd.GeoDataFrame.to_parquet
 
-    def old_writer(
+    def compatible_writer(
         self: Any,
         path: Any,
         *,
@@ -87,7 +87,7 @@ def test_geoparquet_uses_writer_supported_by_geopandas_014(
     ) -> None:
         original_writer(self, path, index=index, schema_version=schema_version)
 
-    with patch.object(gpd.GeoDataFrame, "to_parquet", old_writer):
+    with patch.object(gpd.GeoDataFrame, "to_parquet", compatible_writer):
         artifact, _ = _artifact(widget(fixtures.gdf_multi_geometry()))
 
     geo = json.loads(pq.read_metadata(io.BytesIO(artifact)).metadata[b"geo"])
@@ -95,6 +95,24 @@ def test_geoparquet_uses_writer_supported_by_geopandas_014(
     assert all(
         column["encoding"] == "WKB" for column in geo["columns"].values()
     )
+
+
+@pytest.mark.requires("geopandas")
+def test_geoparquet_rejects_old_geopandas(widget: Any) -> None:
+    with patch.object(
+        DependencyManager.geopandas, "get_version", return_value="0.14.0"
+    ):
+        response = widget(fixtures.gdf_multi_geometry())._download_as(
+            DownloadAsArgs(format="parquet")
+        )
+
+    assert response.url == ""
+    assert response.code == "unsupported_version"
+    assert (
+        response.error
+        == "Update geopandas to 0.14.1 or newer to export GeoParquet."
+    )
+    assert response.missing_packages is None
 
 
 @pytest.mark.requires("geopandas", "pyarrow")
@@ -181,9 +199,10 @@ def test_geoparquet_rejects_unsupported_m_geometry(widget: Any) -> None:
     import geopandas as gpd
     from shapely import from_wkt
 
-    source = gpd.GeoDataFrame(
-        {"geometry": [from_wkt("POINT M (1 2 3)")]}, geometry="geometry"
-    )
+    geometry = from_wkt("POINT M (1 2 3)")
+    if not getattr(geometry, "has_m", False):
+        pytest.skip("Installed Shapely cannot represent M coordinates")
+    source = gpd.GeoDataFrame({"geometry": [geometry]}, geometry="geometry")
     response = widget(source)._download_as(DownloadAsArgs(format="parquet"))
     assert (
         response.url,
