@@ -9,6 +9,7 @@ interface Props {
   label: string | null | undefined;
   className?: string;
   labelClassName?: string;
+  labelId?: string;
   id?: string;
   fullWidth?: boolean;
   /**
@@ -27,6 +28,7 @@ export const Labeled: React.FC<PropsWithChildren<Props>> = ({
   align = "left",
   className,
   labelClassName,
+  labelId,
   fullWidth,
   id,
 }) => {
@@ -45,7 +47,11 @@ export const Labeled: React.FC<PropsWithChildren<Props>> = ({
 
   const labelElement = (
     <div part="label" className="inline-flex items-center m-0 p-0">
-      <Label htmlFor={id} className={cn("font-prose", labelClassName)}>
+      <Label
+        id={labelId}
+        htmlFor={id}
+        className={cn("font-prose", labelClassName)}
+      >
         {renderHTML({ html: label })}
       </Label>
     </div>
