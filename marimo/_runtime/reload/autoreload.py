@@ -212,7 +212,7 @@ class ModuleReloader:
         self.stale_modules: set[str] = set()
         # for thread-safety
         self.lock = threading.RLock()
-        # Incremented once per reload.
+        # Incremented once per reload pass, whether or not it succeeds.
         self.reload_generation = 0
         # cell -> (generation, ordinal) of its last run.
         self._cell_runs: dict[CellId_t, tuple[int, int]] = {}
@@ -478,8 +478,7 @@ class ModuleReloader:
         self, modules: dict[str, types.ModuleType]
     ) -> set[types.ModuleType]:
         """Return modules that changed since the previous watcher poll."""
-        # NB. one scan updates both mtime baselines, so each module is
-        # stat-ed once per poll.
+        # NB. one scan updates both mtime baselines.
         return self._check(
             modules,
             reload=False,

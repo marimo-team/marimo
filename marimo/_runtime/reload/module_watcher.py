@@ -238,25 +238,29 @@ def watch_modules(
                     graph, stale_importers, relatives=relatives
                 )
                 for cell_id, names in fresh_importers.items():
-                    if cell_id in stale_importers:
-                        continue
                     # NB. the kernel does not propagate an import block's
                     # rerun to readers of names it already imported, so a
-                    # reader is current only if it ran after the importer.
-                    readers = {
+                    # reader is current only if it ran after the importer
+                    # and so did every cell between them.
+                    frontier = {
                         reader
                         for name in names
                         for reader in graph.get_referring_cells(
                             name, language="python"
                         )
                     }
-                    cells_to_mark |= {
-                        cid
-                        for cid in dataflow.transitive_closure(
-                            graph, readers, relatives=relatives
+                    seen: set[CellId_t] = set()
+                    while frontier:
+                        cid = frontier.pop()
+                        if cid in seen or cid in cells_to_mark:
+                            continue
+                        seen.add(cid)
+                        if reloader.cell_ran_after(cid, cell_id):
+                            frontier |= relatives(cid, True)
+                            continue
+                        cells_to_mark |= dataflow.transitive_closure(
+                            graph, {cid}, relatives=relatives
                         )
-                        if not reloader.cell_ran_after(cid, cell_id)
-                    }
                 for cid in cells_to_mark:
                     graph.cells[cid].set_stale(stale=True, stream=stream)
             LOGGER.debug("Released graph lock and updated stale statuses.")

@@ -32,6 +32,7 @@ class AutoreloadManager:
         self._kernel = kernel
         self._reloader: ModuleReloader | None = None
         self._watcher: ModuleWatcher | None = None
+        self._running_cell: CellId_t | None = None
 
         kernel._hooks.add_pre_execution(self._pre_execution_hook)
         # Re-arm the watcher after every kernel run, regardless of trigger.
@@ -91,33 +92,36 @@ class AutoreloadManager:
     def _pre_execution_hook(
         self, cell: CellImpl, ctx: PreExecutionHookContext
     ) -> None:
-        """Reload modified modules and record the run of `cell`."""
         del ctx
+        # NB. only the runner fires this hook, so UI callbacks, RPCs and the
+        # debugger enter `cell_scope` with no run to record.
+        self._running_cell = cell.cell_id
+
+    @contextlib.contextmanager
+    def cell_scope(self) -> Iterator[None]:
+        """Reload modified modules on entry; record mtimes for newly-imported modules on exit."""
+        cell_id, self._running_cell = self._running_cell, None
         if self._reloader is None:
+            yield
             return
-        # Skip stdlib/site-packages so cells don't pay for stat-ing them.
-        # This is the perf-critical call.
+        snapshot = set(sys.modules)
+        # Entry: skip stdlib/site-packages so cells don't pay for stat-ing
+        # them. This is the perf-critical call.
         # NB. one lock hold, so the watcher cannot see the reload before
         # the record.
         with self._reloader.lock:
             self._reloader.check(
                 modules=sys.modules, reload=True, skip_non_user_modules=True
             )
-            self._reloader.record_cell_run(cell.cell_id)
-
-    @contextlib.contextmanager
-    def cell_scope(self) -> Iterator[None]:
-        """Record mtimes for modules first imported inside the scope."""
-        if self._reloader is None:
-            yield
-            return
-        snapshot = set(sys.modules)
+            if cell_id is not None:
+                self._reloader.record_cell_run(cell_id)
         try:
             yield
         finally:
-            # Don't skip here: `new_modules` is small (typically 0-3) and we
-            # need an mtime baseline for newly-imported installed packages so
-            # the next edit isn't silently treated as the initial state.
+            # Exit: record mtimes for modules the cell just imported. Don't
+            # skip here: `new_modules` is small (typically 0-3) and we need
+            # an mtime baseline for newly-imported installed packages so the
+            # next edit isn't silently treated as the initial state.
             new_modules = set(sys.modules) - snapshot
             self._reloader.check(
                 modules={m: sys.modules[m] for m in new_modules},

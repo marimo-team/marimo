@@ -27,7 +27,7 @@ from marimo._runtime.reload.module_watcher import (
     _get_excluded_modules,
 )
 from marimo._runtime.runtime import Kernel
-from tests.conftest import ExecReqProvider
+from tests.conftest import ExecReqProvider, MockedKernel
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -1689,3 +1689,156 @@ async def test_watcher_survives_cell_deleted_during_crawl(
     # The watcher thread is still alive and marks later edits.
     update_file(other_file, "w = 2\n")
     assert await _wait_for(lambda: k.graph.cells[er_2.cell_id].stale)
+
+
+async def test_watcher_marks_descendants_of_a_stale_reader(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Rerunning the importer and a grandchild, but not the child between
+    them, leaves the grandchild holding the child's old output. Running
+    after the importer does not make a cell current when its parent is
+    stale."""
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text("value = 1\n")
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run(
+        [
+            er_a := exec_req.get(f"from {py_modname} import value"),
+            er_b := exec_req.get("y = value"),
+            er_c := exec_req.get("z = y"),
+        ]
+    )
+    reloader = k.autoreload_manager.reloader
+    assert reloader is not None
+    parked, release = _park_watcher(monkeypatch, reloader, py_modname)
+    assert await _wait_for(parked.is_set)
+
+    update_file(py_file, "value = 2\n")
+    await k.run([exec_req.get_with_id(er_a.cell_id, er_a.code)])
+    await k.run([exec_req.get_with_id(er_c.cell_id, er_c.code)])
+    assert k.globals["value"] == 2
+    assert k.globals["z"] == 1
+
+    release.set()
+    assert await _wait_for(lambda: k.graph.cells[er_b.cell_id].stale)
+    assert k.graph.cells[er_c.cell_id].stale, "grandchild holds the old y"
+    assert not k.graph.cells[er_a.cell_id].stale
+    await k.run_stale_cells()
+    assert k.globals["z"] == 2
+
+
+async def test_watcher_checks_fresh_imports_of_a_stale_importer(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """An import block that is stale for one module is still checked for
+    the module it already reloaded, so the readers of that module are
+    marked too."""
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    first = tmp_path / pathlib.Path(py_modname + ".py")
+    first.write_text("value = 1\n")
+    second = tmp_path / pathlib.Path(py_modname + "_second.py")
+    second.write_text("value = 1\n")
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    code = (
+        f"from {py_modname} import value as a\n"
+        f"from {py_modname}_second import value as b"
+    )
+    await k.run(
+        [
+            er_a := exec_req.get(code),
+            er_x := exec_req.get("x = a"),
+            er_y := exec_req.get("y = b"),
+        ]
+    )
+    reloader = k.autoreload_manager.reloader
+    assert reloader is not None
+    parked, release = _park_watcher(monkeypatch, reloader, py_modname)
+    assert await _wait_for(parked.is_set)
+
+    update_file(first, "value = 2\n")
+    await k.run([exec_req.get_with_id(er_a.cell_id, code)])
+    update_file(second, "value = 2\n")
+    assert (k.globals["a"], k.globals["x"]) == (2, 1)
+
+    release.set()
+    assert await _wait_for(lambda: k.graph.cells[er_a.cell_id].stale)
+    assert k.graph.cells[er_x.cell_id].stale, "reader of the reloaded module"
+    assert k.graph.cells[er_y.cell_id].stale
+    await k.run_stale_cells()
+    assert (k.globals["x"], k.globals["y"]) == (2, 2)
+
+
+async def test_reload_in_cell_run_can_create_ui_elements(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    mocked_kernel: MockedKernel,
+    exec_req: ExecReqProvider,
+):
+    """A module that builds a UI element at import reloads inside the
+    cell's execution context."""
+    k = mocked_kernel.k
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text(
+        "import marimo as mo\nslider = mo.ui.slider(0, 10, value=1)\n"
+    )
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run([er := exec_req.get(f"from {py_modname} import slider")])
+    assert k.globals["slider"].value == 1
+
+    update_file(
+        py_file,
+        "import marimo as mo\nslider = mo.ui.slider(0, 10, value=2)\n",
+    )
+    await k.run([exec_req.get_with_id(er.cell_id, er.code)])
+    assert k.graph.cells[er.cell_id].run_result_status == "success"
+    assert k.globals["slider"].value == 2
+
+
+async def test_reload_output_goes_to_the_cell(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    mocked_kernel: MockedKernel,
+    exec_req: ExecReqProvider,
+):
+    """Prints and errors raised while a module reloads belong to the cell
+    whose run triggered the reload."""
+    k = mocked_kernel.k
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text("value = 1\n")
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run([er := exec_req.get(f"import {py_modname}")])
+
+    mocked_kernel.stdout.messages.clear()
+    update_file(py_file, "print('reload output')\nvalue = 2\n")
+    await k.run([exec_req.get_with_id(er.cell_id, er.code)])
+    assert "reload output" in "".join(mocked_kernel.stdout.messages)
+
+    mocked_kernel.stderr.messages.clear()
+    update_file(py_file, "value = !\n")
+    await k.run([exec_req.get_with_id(er.cell_id, er.code)])
+    assert "SyntaxError" in "".join(mocked_kernel.stderr.messages)
