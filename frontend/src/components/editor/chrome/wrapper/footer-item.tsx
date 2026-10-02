@@ -29,11 +29,7 @@ export const FooterItem: React.FC<FooterItemProps> = forwardRef<
   FooterItemProps
 >(({ children, tooltip, selected, className, ...rest }, ref) => {
   const content = (
-    <div
-      ref={ref}
-      className={footerItemClass(selected, className)}
-      {...rest}
-    >
+    <div ref={ref} className={footerItemClass(selected, className)} {...rest}>
       {children}
     </div>
   );

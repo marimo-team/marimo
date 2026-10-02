@@ -322,56 +322,56 @@ it.each(["kernel-ready", "reconnected"])(
 it.each(["kernel-ready", "reconnected"])(
   "clears stale participant presence on %s",
   (op) => {
-  const store = createStore();
-  store.set(participantPresenceAtom, {
-    op: "participant-presence",
-    participant_id: "stale-participant",
-    harness: { id: "claude", displayName: "Claude Code" },
-    kind: "agent",
-    attached: true,
-    listening: false,
-    active: false,
-    last_contact_at: 1,
-    active_since: null,
-  });
-  vi.mocked(useConnectionTransport).mockClear();
-  vi.mocked(useConnectionTransport).mockReturnValue(
-    makeTransport(WebSocket.OPEN),
-  );
-  vi.mocked(useRuntimeManager).mockReturnValue(
-    makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
-  );
-  renderConnectionHook(store);
-  const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
-
-  act(() => {
-    options.onMessage(
-      new MessageEvent("message", {
-        data: JSON.stringify({
-          op,
-          data: {
-            op,
-            cell_ids: [],
-            codes: [],
-            names: [],
-            configs: [],
-            layout: null,
-            resumed: true,
-            ui_values: {},
-            last_executed_code: {},
-            last_execution_time: {},
-            app_config: { width: "normal" },
-            kiosk: false,
-            capabilities: { terminal: false },
-            auto_instantiated: false,
-            consumer_capabilities: { edit: true, interact: true },
-          },
-        }),
-      }),
+    const store = createStore();
+    store.set(participantPresenceAtom, {
+      op: "participant-presence",
+      participant_id: "stale-participant",
+      harness: { id: "claude", displayName: "Claude Code" },
+      kind: "agent",
+      attached: true,
+      listening: false,
+      active: false,
+      last_contact_at: 1,
+      active_since: null,
+    });
+    vi.mocked(useConnectionTransport).mockClear();
+    vi.mocked(useConnectionTransport).mockReturnValue(
+      makeTransport(WebSocket.OPEN),
     );
-  });
+    vi.mocked(useRuntimeManager).mockReturnValue(
+      makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
+    );
+    renderConnectionHook(store);
+    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
 
-  expect(store.get(participantPresenceAtom)).toBeNull();
+    act(() => {
+      options.onMessage(
+        new MessageEvent("message", {
+          data: JSON.stringify({
+            op,
+            data: {
+              op,
+              cell_ids: [],
+              codes: [],
+              names: [],
+              configs: [],
+              layout: null,
+              resumed: true,
+              ui_values: {},
+              last_executed_code: {},
+              last_execution_time: {},
+              app_config: { width: "normal" },
+              kiosk: false,
+              capabilities: { terminal: false },
+              auto_instantiated: false,
+              consumer_capabilities: { edit: true, interact: true },
+            },
+          }),
+        }),
+      );
+    });
+
+    expect(store.get(participantPresenceAtom)).toBeNull();
   },
 );
 

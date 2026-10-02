@@ -220,7 +220,7 @@ describe("SendErrorReportButton", () => {
     vi.mocked(API.post).mockResolvedValue({ seq: 1 });
     renderButton({
       consoleTraceback:
-        '<pre>Traceback\nException: Something went wrong!</pre>',
+        "<pre>Traceback\nException: Something went wrong!</pre>",
       content: (
         <MarimoErrorOutput
           cellId={CELL_ID}
@@ -232,7 +232,9 @@ describe("SendErrorReportButton", () => {
       ),
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Send error to agent" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Send error to agent" }),
+    );
 
     await waitFor(() => {
       expect(API.post).toHaveBeenCalledWith(
@@ -257,7 +259,9 @@ describe("SendErrorReportButton", () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Send error to agent" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Send error to agent" }),
+    );
 
     await waitFor(() => expect(API.post).toHaveBeenCalledOnce());
     const sent = vi.mocked(API.post).mock.calls[0]?.[1];
@@ -295,7 +299,9 @@ describe("SendErrorReportButton", () => {
       </Provider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Send error to agent" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Send error to agent" }),
+    );
 
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith({
@@ -326,13 +332,16 @@ describe("SendErrorReportButton", () => {
       ),
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Send error to agent" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Send error to agent" }),
+    );
 
     await waitFor(() => {
       expect(API.post).toHaveBeenCalledWith(
         "/participants/handoff",
         expect.objectContaining({
-          error: "Setup cell references: source: x\nCycle: test-cell -> y -> other",
+          error:
+            "Setup cell references: source: x\nCycle: test-cell -> y -> other",
         }),
       );
     });
