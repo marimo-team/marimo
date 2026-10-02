@@ -14,6 +14,7 @@ from inline_snapshot import snapshot
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -165,6 +166,8 @@ class _FakeSession:
     _pre_complete_notifs: list[NotificationMessage]
 
     def __init__(self, *, auto_complete: bool = True) -> None:
+        self.app_file_manager = SimpleNamespace(path=None)
+        self.initialization_id = "__new__notebook"
         self.cell_outputs = {}
         self.console_outputs = {}
         self.document = SimpleNamespace(cells=(), cell_ids=())
@@ -829,14 +832,16 @@ class TestRunScratchpadCode:
         return cmds[0]
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("path", [None, "notebooks/my notebook.py"])
     async def test_stamps_screenshot_meta_and_run_id_on_command(
-        self,
+        self, path: str | None
     ) -> None:
         """Regression guard: `run_id` and screenshot meta must reach
         the `ExecuteScratchpadCommand` unchanged. Without `run_id`,
         `ScratchCellListener` filters out the completion event and
         every code-mode tool call hangs ~30s before timing out."""
         session = _FakeSession()
+        session.app_file_manager.path = path
 
         result = await run_scratchpad_code(
             session.as_session(),
@@ -854,6 +859,9 @@ class TestRunScratchpadCode:
             "http://localhost:1234"
         )
         assert cmd.request.meta[SCREENSHOT_AUTH_TOKEN_KEY] == "fake-token"
+        assert cmd.request.meta[SCREENSHOT_FILE_KEY] == (
+            path or session.initialization_id
+        )
 
     @pytest.mark.asyncio
     async def test_snapshots_cell_outputs_onto_command(self) -> None:

@@ -60,6 +60,7 @@ from marimo._code_mode._plan import (
 )
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.cell_output import CellOutput
@@ -317,8 +318,8 @@ class NotebookCell:
         The cell's last main (rich display) output, or `None` if no
         output was captured. **Frozen snapshot** — taken at
         scratchpad-start, not refreshed when `ctx.run_cell` produces
-        new outputs in the same batch. Re-enter `cm.get_context()` to
-        see fresh outputs.
+        new outputs in the same batch. Start a new code-mode invocation
+        to see fresh outputs.
     console_outputs : list[CellOutput]
         Buffered stdout/stderr outputs from the cell's last execution.
         Same frozen-snapshot caveat as `output`.
@@ -456,8 +457,8 @@ class NotebookCell:
         """The cell's last main (rich display) output, or `None`.
 
         Frozen at scratchpad-start — does not reflect outputs produced
-        by `ctx.run_cell` in the same batch.  Re-enter
-        `cm.get_context()` to see fresh outputs.
+        by `ctx.run_cell` in the same batch. Start a new code-mode
+        invocation to see fresh outputs.
         """
         if self._outputs is None:
             return None
@@ -1428,6 +1429,9 @@ class AsyncCodeModeContext:
         Launches a headless Chromium browser (reused across calls)
         connected to this server in kiosk mode.
 
+        Captures the current browser-rendered output, which may be newer
+        than the frozen `NotebookCell.output` snapshot.
+
         Requires `playwright` + its Chromium binary::
 
             ctx.install_packages("playwright")
@@ -1494,12 +1498,16 @@ class AsyncCodeModeContext:
         screenshot_auth_token = cast(
             "str | None", request.meta.get(SCREENSHOT_AUTH_TOKEN_KEY)
         )
+        screenshot_file = cast(
+            "str | None", request.meta.get(SCREENSHOT_FILE_KEY)
+        )
 
         # Lazy-init the screenshot session (browser reuse).
         if self._screenshot_session is None:
             self._screenshot_session = _ScreenshotSession(
                 server_url,
                 screenshot_auth_token=screenshot_auth_token,
+                file_key=screenshot_file,
             )
 
         image = await self._screenshot_session.capture(

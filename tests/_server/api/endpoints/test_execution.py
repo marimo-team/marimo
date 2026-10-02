@@ -12,6 +12,7 @@ import pytest
 
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.notification import ConsumerCapabilities
@@ -262,12 +263,10 @@ class TestExecutionRoutes_EditMode:
     @staticmethod
     @with_session(SESSION_ID)
     def test_execute_injects_screenshot_meta(client: TestClient) -> None:
-        """`/api/kernel/execute` injects a trusted server URL + auth token
-        into `HTTPRequest.meta` so `ctx.screenshot()` can authenticate
-        Playwright against this server.  Regression guard: deleting either
-        injection line in the endpoint should fail this test.
+        """Inject the trusted server URL, auth token, and notebook key
+        so screenshots authenticate and attach to the active notebook.
         """
-        from unittest.mock import patch
+        from unittest.mock import PropertyMock, patch
 
         from marimo._runtime.commands import ExecuteScratchpadCommand
         from marimo._server import scratchpad as scratchpad_mod
@@ -284,35 +283,48 @@ class TestExecutionRoutes_EditMode:
             if False:
                 yield ""  # makes this an async generator that yields nothing
 
-        with (
-            patch.object(session, "put_control_request", side_effect=capture),
-            patch.object(
-                scratchpad_mod.ScratchCellListener,
-                "stream",
-                empty_stream,
-            ),
-        ):
-            response = client.post(
-                "/api/kernel/execute",
-                headers=HEADERS,
-                json={"code": "x = 1"},
+        for path in [None, "notebooks/my notebook.py"]:
+            captured.clear()
+            with (
+                patch.object(
+                    type(session.app_file_manager),
+                    "path",
+                    new_callable=PropertyMock,
+                    return_value=path,
+                ),
+                patch.object(
+                    session, "put_control_request", side_effect=capture
+                ),
+                patch.object(
+                    scratchpad_mod.ScratchCellListener,
+                    "stream",
+                    empty_stream,
+                ),
+            ):
+                response = client.post(
+                    "/api/kernel/execute",
+                    headers=HEADERS,
+                    json={"code": "x = 1"},
+                )
+
+            assert response.status_code == 200, response.text
+
+            scratchpad_cmds = [
+                c for c in captured if isinstance(c, ExecuteScratchpadCommand)
+            ]
+            assert len(scratchpad_cmds) == 1, (
+                f"expected one ExecuteScratchpadCommand, got {captured!r}"
             )
-
-        assert response.status_code == 200, response.text
-
-        scratchpad_cmds = [
-            c for c in captured if isinstance(c, ExecuteScratchpadCommand)
-        ]
-        assert len(scratchpad_cmds) == 1, (
-            f"expected one ExecuteScratchpadCommand, got {captured!r}"
-        )
-        http_req = scratchpad_cmds[0].request
-        assert http_req is not None
-        # Mock server uses host="localhost", port=1234, base_url=""
-        assert http_req.meta[SCREENSHOT_SERVER_URL_KEY] == (
-            "http://localhost:1234"
-        )
-        assert http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] == "fake-token"
+            http_req = scratchpad_cmds[0].request
+            assert http_req is not None
+            # Mock server uses host="localhost", port=1234, base_url=""
+            assert http_req.meta[SCREENSHOT_SERVER_URL_KEY] == (
+                "http://localhost:1234"
+            )
+            assert http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] == "fake-token"
+            assert http_req.meta[SCREENSHOT_FILE_KEY] == (
+                path or session.initialization_id
+            )
 
     @staticmethod
     @with_session(SESSION_ID)

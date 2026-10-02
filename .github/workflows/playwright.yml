@@ -119,6 +119,15 @@ jobs:
         env:
           VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
 
+      - name: 🎭 Verify code-mode screenshots with Chromium
+        # Python and JavaScript Playwright releases can differ. Install the
+        # browser revision expected by Python instead of using the image's.
+        run: |
+          uv run --group test --with playwright==1.63.0 python -m playwright install chromium
+          uv run --group test --with playwright==1.63.0 pytest tests/_code_mode/test_screenshot_integration.py
+        env:
+          MARIMO_TEST_SCREENSHOTS: "1"
+
       # - name: ☁️ Google Auth
       #   uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
       #   # Skip on forks

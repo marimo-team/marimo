@@ -11,6 +11,7 @@ import asyncio
 import base64
 import time
 from typing import TYPE_CHECKING, Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from marimo import _loggers
 from marimo._export._pdf_raster import (
@@ -98,10 +99,15 @@ class _ScreenshotSession:
     """
 
     def __init__(
-        self, server_url: str, screenshot_auth_token: str | None = None
+        self,
+        server_url: str,
+        screenshot_auth_token: str | None = None,
+        *,
+        file_key: str | None = None,
     ) -> None:
         self._server_url = server_url
         self._screenshot_auth_token = screenshot_auth_token
+        self._file_key = file_key
         self._playwright: Any = None
         self._browser: Any = None
         self._page: Any = None
@@ -109,11 +115,7 @@ class _ScreenshotSession:
 
     async def _ensure_ready(self) -> None:
         """Launch browser and navigate to the notebook if not already done."""
-        if self._page is not None:
-            return
-
         async with self._init_lock:
-            # Re-check after acquiring the lock.
             if self._page is not None:
                 return
             await self._init_browser()
@@ -152,13 +154,13 @@ class _ScreenshotSession:
             page = await context.new_page()
             await page.emulate_media(reduced_motion="reduce")
 
-            # Commit only after full success.
-            self._playwright = pw
-            self._browser = browser
             self._page = page
             await self._navigate(initial=True)
+            self._playwright = pw
+            self._browser = browser
             LOGGER.debug("Screenshot session: ready")
         except BaseException:
+            self._page = None
             # Clean up partially-created resources.
             if browser is not None:
                 with _suppress():
@@ -171,15 +173,13 @@ class _ScreenshotSession:
         """Navigate (initial=True) or reload (initial=False) the kiosk page."""
         assert self._page is not None
 
-        params = "kiosk=true"
-        if self._screenshot_auth_token:
-            params += f"&access_token={self._screenshot_auth_token}"
-        page_url = f"{self._server_url}?{params}"
         if initial:
             LOGGER.debug(
                 "Screenshot session: navigating to %s", self._server_url
             )
-            await self._page.goto(page_url, wait_until="domcontentloaded")
+            await self._page.goto(
+                self._page_url(), wait_until="domcontentloaded"
+            )
         else:
             LOGGER.debug("Screenshot session: reloading page")
             await self._page.reload(wait_until="domcontentloaded")
@@ -199,6 +199,24 @@ class _ScreenshotSession:
             )
         except Exception:
             pass
+
+    def _page_url(self) -> str:
+        """Build an authenticated kiosk URL for the active notebook."""
+        url = urlsplit(self._server_url)
+        params = {"kiosk": "true"}
+        # Session IDs also identify consumers. The kiosk must create its
+        # own consumer and join the live session by file key.
+        if self._file_key is not None:
+            params["file"] = self._file_key
+        if self._screenshot_auth_token:
+            params["access_token"] = self._screenshot_auth_token
+        query = [
+            (key, value)
+            for key, value in parse_qsl(url.query, keep_blank_values=True)
+            if key not in params and key != "session_id"
+        ]
+        query.extend(params.items())
+        return urlunsplit(url._replace(query=urlencode(query)))
 
     async def capture(
         self,
@@ -403,11 +421,16 @@ class _ScreenshotSession:
 
     async def close(self) -> None:
         """Release browser resources."""
-        if self._browser is not None:
-            await self._browser.close()
+        async with self._init_lock:
+            browser = self._browser
+            playwright = self._playwright
             self._browser = None
-        if self._playwright is not None:
-            await self._playwright.stop()
             self._playwright = None
-        self._page = None
+            self._page = None
+            try:
+                if browser is not None:
+                    await browser.close()
+            finally:
+                if playwright is not None:
+                    await playwright.stop()
         LOGGER.debug("Screenshot session: closed")
