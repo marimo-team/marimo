@@ -23,6 +23,7 @@ import {
   useRunStaleCells,
 } from "../components/editor/cell/useRunCells";
 import { useSetCodeVisibility } from "../components/editor/actions/useSetCodeVisibility";
+import { useSetOutputsExpanded } from "../components/editor/actions/useSetOutputsExpanded";
 import { CellArray } from "../components/editor/renderers/cell-array";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useHotkey } from "../hooks/useHotkey";
@@ -115,6 +116,7 @@ export const EditApp: React.FC<AppProps> = ({
   const runAllCells = useRunAllCells();
   const togglePresenting = useTogglePresenting();
   const setCodeVisibility = useSetCodeVisibility();
+  const setOutputsExpanded = useSetOutputsExpanded();
 
   // HOTKEYS
   useHotkey("global.runStale", () => {
@@ -141,6 +143,20 @@ export const EditApp: React.FC<AppProps> = ({
   useHotkey("global.hideAllMarkdownCode", () => {
     setCodeVisibility(true, "markdown");
   });
+  useHotkey(
+    "global.expandAllOutputs",
+    () => {
+      setOutputsExpanded(true);
+    },
+    { disabled: !isEditing },
+  );
+  useHotkey(
+    "global.clampAllOutputs",
+    () => {
+      setOutputsExpanded(false);
+    },
+    { disabled: !isEditing },
+  );
   useHotkey("global.collapseAllSections", () => {
     collapseAllCells();
   });
