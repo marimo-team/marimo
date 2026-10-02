@@ -142,9 +142,6 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
       {cellIds.idLength === 0 && <NotStartedConnectionAlert />}
       <div
         className={cn(
-          appConfig.width !== "columns" &&
-            "flex flex-col gap-(--notebook-cell-gap)",
-          isPresenting && "[--notebook-cell-gap:0px]",
           appConfig.width === "columns" &&
             "grid grid-flow-col auto-cols-min gap-6",
         )}
@@ -208,9 +205,7 @@ const CellColumn: React.FC<{
       canDelete={columnsLength > 1}
       presenting={isPresenting}
       footer={
-        hideControls ||
-        isPresenting ||
-        (appConfig.width !== "columns" && index < columnsLength - 1) ? null : (
+        hideControls || isPresenting ? null : (
           <AddCellButtons
             columnId={columnId}
             className={cn(

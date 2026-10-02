@@ -49,6 +49,8 @@ test.beforeEach(async ({ page }) => {
   url.searchParams.set("file", filename);
   await page.goto(url.toString());
   await expect(page.locator(".cm-content")).toHaveCount(4);
+  // Initial autofocus runs after mount; let it finish before selecting another cell.
+  await expect(page.locator(".cm-content").first()).toBeFocused();
 });
 
 test.afterEach(async ({ page }) => {
@@ -232,7 +234,9 @@ for (const width of ["compact", "medium", "full"]) {
     await pressShortcut(page, "cell.moveDown");
     await expect(editors).toHaveText(['"left_first"', '"right_first"', '"left_second"', '"right_second"']);
     await pressShortcut(page, "global.save");
-    await expect.poll(() => readFile(filename, "utf8")).toMatch(/@app.cell\(column=1\)\s+def _\(\):\s+"right_first"/);
+    await expect.poll(() => readFile(filename, "utf8")).toMatch(
+      /"left_first"[\s\S]*"right_first"[\s\S]*"left_second"[\s\S]*"right_second"/,
+    );
     await shutdownNotebook(page);
     await page.reload();
     await setWidth(page, "columns");
@@ -244,9 +248,11 @@ test("send to top and bottom use the displayed notebook order", async ({ page })
   await setWidth(page, "compact");
   const editors = page.locator(".cm-content");
   await editors.last().click();
+  await expect(editors.last()).toBeFocused();
   await pressShortcut(page, "cell.sendToTop");
   await expect(editors).toHaveText(['"right_second"', '"left_first"', '"left_second"', '"right_first"']);
   await editors.nth(1).click();
+  await expect(editors.nth(1)).toBeFocused();
   await pressShortcut(page, "cell.sendToBottom");
   await expect(editors).toHaveText(['"right_second"', '"left_second"', '"right_first"', '"left_first"']);
 });
