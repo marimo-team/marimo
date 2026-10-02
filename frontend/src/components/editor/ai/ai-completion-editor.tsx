@@ -249,17 +249,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const showInput = enabled && (!triggerImmediately || showInputPrompt);
 
-  const completionBanner = (
-    <div
-      aria-hidden={!showCompletionBanner}
-      inert={!showCompletionBanner}
-      className={cn(
-        "w-full bg-(--cm-background) flex justify-center transition-all duration-300 ease-in-out overflow-hidden",
-        showCompletionBanner
-          ? "max-h-20 opacity-100 translate-y-0"
-          : "max-h-0 opacity-0 -translate-y-2",
-      )}
-    >
+  const completionBanner = showCompletionBanner && (
+    <div className="w-full bg-(--cm-background) flex justify-center">
       <CompletionBanner
         status={isLoading ? "loading" : "generated"}
         onAccept={handleAcceptCompletion}
