@@ -20,6 +20,47 @@ interface HandoffPayload {
   consoleTail: { channel: "stdout" | "stderr"; data: string }[];
 }
 
+const MAX_CONSOLE_LINES = 20;
+const MAX_CONSOLE_BYTES = 32 * 1024;
+const MAX_HANDOFF_BYTES = 256 * 1024;
+const textEncoder = new TextEncoder();
+
+function utf8Tail(value: string, maxBytes: number): string {
+  const bytes = textEncoder.encode(value);
+  if (bytes.length <= maxBytes) {
+    return value;
+  }
+  let start = bytes.length - maxBytes;
+  while (start < bytes.length) {
+    try {
+      return new TextDecoder("utf-8", { fatal: true }).decode(
+        bytes.subarray(start),
+      );
+    } catch {
+      start++;
+    }
+  }
+  return "";
+}
+
+function boundedConsoleTail(
+  lines: HandoffPayload["consoleTail"],
+): HandoffPayload["consoleTail"] {
+  const tail: HandoffPayload["consoleTail"] = [];
+  let remaining = MAX_CONSOLE_BYTES;
+  for (const line of lines.slice(-MAX_CONSOLE_LINES).reverse()) {
+    if (remaining === 0) {
+      break;
+    }
+    const data = utf8Tail(line.data, remaining);
+    if (data) {
+      tail.unshift({ ...line, data });
+      remaining -= textEncoder.encode(data).length;
+    }
+  }
+  return tail;
+}
+
 function plainText(html: string): string {
   const element = document.createElement("div");
   element.innerHTML = sanitizeHtml(html);
@@ -30,12 +71,14 @@ export function SendErrorReportButton({
   cellId,
   error,
   traceback,
+  tracebackMatch,
   preferLastRunCode = false,
   fallbackToConsoleTraceback = false,
 }: {
   cellId: CellId | undefined;
   error: string;
   traceback: string;
+  tracebackMatch?: string;
   preferLastRunCode?: boolean;
   fallbackToConsoleTraceback?: boolean;
 }) {
@@ -63,7 +106,7 @@ export function SendErrorReportButton({
         throw new Error("Cell no longer exists.");
       }
 
-      const consoleTail = runtime.consoleOutputs
+      const consoleLines = runtime.consoleOutputs
         .flatMap((output) => {
           const { channel, data } = output;
           if (
@@ -74,9 +117,13 @@ export function SendErrorReportButton({
             return [];
           }
           const text = output.mimetype === "text/html" ? plainText(data) : data;
-          return text.split(/\r?\n/).map((line) => ({ channel, data: line }));
+          return text
+            .split(/\r?\n/)
+            .filter(Boolean)
+            .map((line) => ({ channel, data: line }));
         })
-        .slice(-20);
+        .slice(-MAX_CONSOLE_LINES);
+      const consoleTail = boundedConsoleTail(consoleLines);
       let tracebackText = plainText(traceback);
       if (fallbackToConsoleTraceback && !tracebackText.trim()) {
         const consoleTraceback = runtime.consoleOutputs.findLast(
@@ -87,18 +134,26 @@ export function SendErrorReportButton({
         if (consoleTraceback && typeof consoleTraceback.data === "string") {
           const candidate = plainText(consoleTraceback.data);
           // A previous run can leave a traceback in the console.
-          if (candidate.includes(error)) {
+          if (candidate.includes(tracebackMatch ?? error)) {
             tracebackText = candidate;
           }
         }
       }
-      await API.post<HandoffPayload, { seq: number }>("/participants/handoff", {
+      const payload: HandoffPayload = {
         cellId,
         error,
         code: preferLastRunCode ? (cell.lastCodeRun ?? cell.code) : cell.code,
         traceback: tracebackText,
         consoleTail,
-      });
+      };
+      if (textEncoder.encode(JSON.stringify(payload)).length > MAX_HANDOFF_BYTES) {
+        toast({ variant: "danger", title: "Error report is too large to send" });
+        return;
+      }
+      await API.post<HandoffPayload, { seq: number }>(
+        "/participants/handoff",
+        payload,
+      );
       toast({ title: `Sent to ${presence.harness.displayName}` });
     } catch {
       toast({ variant: "danger", title: "Could not send error report" });

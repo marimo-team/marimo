@@ -16,7 +16,7 @@ import {
 } from "@/core/participants/state";
 import { useTimeAgo } from "@/hooks/useFormatting";
 import { cn } from "@/utils/cn";
-import { FooterItem } from "../footer-item";
+import { FooterButton } from "../footer-item";
 
 export const ParticipantStatus: React.FC = () => {
   const pairPreview = useAtomValue(pairPreviewAtom);
@@ -40,7 +40,7 @@ const ParticipantStatusItem: React.FC<{ presence: ParticipantPresence }> = ({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild={true}>
-        <FooterItem
+        <FooterButton
           tooltip={`${label}: ${status.toLowerCase()}`}
           selected={open}
           data-testid="footer-participant-status"
@@ -59,7 +59,7 @@ const ParticipantStatusItem: React.FC<{ presence: ParticipantPresence }> = ({
             </span>
             <span>{label}</span>
           </span>
-        </FooterItem>
+        </FooterButton>
       </PopoverTrigger>
       <PopoverContent className="w-72">
         <div className="space-y-3 text-sm">

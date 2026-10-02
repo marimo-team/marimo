@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
 import msgspec
@@ -39,6 +39,7 @@ from marimo._server.models.models import (
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._server.scratchpad import HandoffBatchData, HandoffEventData
 from marimo._server.sse import wait_for_http_disconnect
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._server.workspace import MarimoFileKey
@@ -416,7 +417,7 @@ async def execute_code(
                     async for event in listener.stream():
                         yield event
 
-                handoffs = None
+                handoffs: HandoffBatchData | None = None
                 if participant_id is not None and activity_token is not None:
                     inline = await session.participants.read_inline_events(
                         participant_id, activity_token
@@ -426,7 +427,10 @@ async def execute_code(
                     ):
                         handoffs = {
                             "events": [
-                                msgspec.to_builtins(event)
+                                cast(
+                                    HandoffEventData,
+                                    msgspec.to_builtins(event),
+                                )
                                 for event in inline.events
                             ],
                             "remaining": inline.remaining,

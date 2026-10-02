@@ -213,6 +213,17 @@ describe("useMarimoKernelConnection messages", () => {
 
   it("replaces participant presence from a snapshot", () => {
     const store = createStore();
+    store.set(participantPresenceAtom, {
+      op: "participant-presence",
+      participant_id: "stale-participant",
+      harness: { id: "claude", displayName: "Claude Code" },
+      kind: "agent",
+      attached: true,
+      listening: false,
+      active: false,
+      last_contact_at: 1,
+      active_since: null,
+    });
     vi.mocked(useConnectionTransport).mockClear();
     vi.mocked(useConnectionTransport).mockReturnValue(
       makeTransport(WebSocket.OPEN),
@@ -308,7 +319,9 @@ it.each(["kernel-ready", "reconnected"])(
   },
 );
 
-it("clears stale participant presence when a new kernel becomes ready", () => {
+it.each(["kernel-ready", "reconnected"])(
+  "clears stale participant presence on %s",
+  (op) => {
   const store = createStore();
   store.set(participantPresenceAtom, {
     op: "participant-presence",
@@ -335,9 +348,9 @@ it("clears stale participant presence when a new kernel becomes ready", () => {
     options.onMessage(
       new MessageEvent("message", {
         data: JSON.stringify({
-          op: "kernel-ready",
+          op,
           data: {
-            op: "kernel-ready",
+            op,
             cell_ids: [],
             codes: [],
             names: [],
@@ -359,7 +372,8 @@ it("clears stale participant presence when a new kernel becomes ready", () => {
   });
 
   expect(store.get(participantPresenceAtom)).toBeNull();
-});
+  },
+);
 
 describe("connection notice", () => {
   beforeEach(() => vi.useFakeTimers());

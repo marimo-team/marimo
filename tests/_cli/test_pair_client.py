@@ -286,6 +286,29 @@ def test_attach_reports_channel_off(monkeypatch: pytest.MonkeyPatch) -> None:
         )
 
 
+def test_attach_reports_truncated_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class TruncatedResponse(io.BytesIO):
+        def read(self, size: int = -1) -> bytes:
+            del size
+            raise http.client.IncompleteRead(b"partial")
+
+    response = TruncatedResponse()
+    _patch_response(monkeypatch, response)
+
+    with pytest.raises(PairError, match="invalid attach response"):
+        client.attach_participant(
+            url="https://example.com",
+            session_id="session-1",
+            token=None,
+            participant_id="p1",
+            harness_id="unknown",
+            harness_name="Agent",
+        )
+    assert response.closed
+
+
 def _handoff_json() -> dict[str, object]:
     return {
         "seq": 42,

@@ -117,7 +117,7 @@ def participant_id(stable_session_id: str, identity: PairIdentity) -> str:
     return "p1_" + hashlib.sha256(encoded).hexdigest()
 
 
-def _server_target(url: str) -> str:
+def _server_target(url: str, *, include_default_port: bool = False) -> str:
     """Keep the origin and base path, excluding URL credentials and queries."""
     try:
         parsed = urlsplit(url)
@@ -129,18 +129,26 @@ def _server_target(url: str) -> str:
     host = parsed.hostname.lower()
     if ":" in host:
         host = f"[{host}]"
-    origin = f"{parsed.scheme.lower()}://{host}"
-    if port is not None:
+    scheme = parsed.scheme.lower()
+    default_port = 443 if scheme == "https" else 80
+    origin = f"{scheme}://{host}"
+    if port is not None and port != default_port:
         origin += f":{port}"
+    elif include_default_port:
+        origin += f":{default_port}"
     return origin + parsed.path.rstrip("/")
 
 
 def _lookup_digest(
-    url: str, stable_session_id: str, identity: PairIdentity
+    url: str,
+    stable_session_id: str,
+    identity: PairIdentity,
+    *,
+    include_default_port: bool = False,
 ) -> str:
     values = [
         "marimo-pair-connection-v1",
-        _server_target(url),
+        _server_target(url, include_default_port=include_default_port),
         stable_session_id,
         identity.harness.id,
         identity.scope,
@@ -167,12 +175,48 @@ class ConnectionStore:
         )
 
     def _path(
-        self, url: str, stable_session_id: str, identity: PairIdentity
+        self,
+        url: str,
+        stable_session_id: str,
+        identity: PairIdentity,
+        *,
+        include_default_port: bool = False,
     ) -> Path:
         return (
             self.root
-            / f"{_lookup_digest(url, stable_session_id, identity)}.json"
+            / f"{_lookup_digest(url, stable_session_id, identity, include_default_port=include_default_port)}.json"
         )
+
+    def _load_binding(
+        self, url: str, stable_session_id: str, identity: PairIdentity
+    ) -> SelectedConnection | None:
+        path = self._path(url, stable_session_id, identity)
+        connection = self._read(path)
+        if connection is not None:
+            if not self._matches(connection, stable_session_id, identity):
+                raise PairInputError(
+                    "The Pair connection file has a mismatched identity."
+                )
+            return SelectedConnection(connection, path)
+
+        previous_path = self._path(
+            url,
+            stable_session_id,
+            identity,
+            include_default_port=True,
+        )
+        if previous_path == path:
+            return None
+        connection = self._read(previous_path)
+        if connection is None:
+            return None
+        if not self._matches(connection, stable_session_id, identity):
+            raise PairInputError(
+                "The Pair connection file has a mismatched identity."
+            )
+        self._write(path, connection)
+        self.remove(SelectedConnection(connection, previous_path))
+        return SelectedConnection(connection, path)
 
     def save(
         self,
@@ -184,7 +228,8 @@ class ConnectionStore:
     ) -> SelectedConnection:
         path = self._path(url, stable_session_id, identity)
         try:
-            previous = self._read(path)
+            selected = self._load_binding(url, stable_session_id, identity)
+            previous = selected.connection if selected is not None else None
         except PairInputError:
             previous = None
         now = _now()
@@ -203,28 +248,19 @@ class ConnectionStore:
     def load(
         self, *, url: str, stable_session_id: str, identity: PairIdentity
     ) -> SelectedConnection | None:
-        direct_path = self._path(url, stable_session_id, identity)
-        direct = self._read(direct_path)
-        if direct is not None and not self._matches(
-            direct, stable_session_id, identity
-        ):
-            raise PairInputError(
-                "The Pair connection file has a mismatched identity."
-            )
+        direct = self._load_binding(url, stable_session_id, identity)
         if identity.scope == "conversation":
-            if direct is None:
-                return None
-            return SelectedConnection(direct, direct_path)
+            return direct
 
         # A generic caller can omit the advisory harness ID on later calls.
         # Select only when one fallback binding targets this server and Session.
-        candidates: list[SelectedConnection] = []
+        candidates: dict[Path, SelectedConnection] = {}
         if direct is not None:
-            candidates.append(SelectedConnection(direct, direct_path))
+            candidates[direct.path] = direct
         try:
-            paths = self.root.glob("*.json")
+            paths = list(self.root.glob("*.json"))
             for path in paths:
-                if path == direct_path:
+                if direct is not None and path == direct.path:
                     continue
                 try:
                     connection = self._read(path)
@@ -238,14 +274,18 @@ class ConnectionStore:
                 expected = self._path(
                     url, stable_session_id, candidate_identity
                 )
-                if path == expected:
-                    if not self._matches(
-                        connection, stable_session_id, candidate_identity
-                    ):
-                        raise PairInputError(
-                            "The Pair connection file has a mismatched identity."
-                        )
-                    candidates.append(SelectedConnection(connection, path))
+                previous = self._path(
+                    url,
+                    stable_session_id,
+                    candidate_identity,
+                    include_default_port=True,
+                )
+                if path in (expected, previous) and expected not in candidates:
+                    selected = self._load_binding(
+                        url, stable_session_id, candidate_identity
+                    )
+                    if selected is not None:
+                        candidates[selected.path] = selected
         except OSError as error:
             raise PairInputError(
                 "Could not read the Pair connection directory."
@@ -255,7 +295,7 @@ class ConnectionStore:
                 "Several Pair connections match this session. "
                 "Run marimo pair connect again with a conversation identity."
             )
-        return candidates[0] if candidates else None
+        return next(iter(candidates.values())) if candidates else None
 
     @staticmethod
     def _matches(

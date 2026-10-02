@@ -249,6 +249,11 @@ class AppState(AppStateBase):
                 participant=None,
             )
         if not is_env_true(PAIR_PREVIEW_ENV):
+            if participant_required:
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND,
+                    detail="Pair participant routes are not enabled.",
+                )
             return ParticipantSession(
                 session=self.require_current_session_with_stable_id(),
                 participant=None,

@@ -10,6 +10,20 @@ type FooterItemProps = {
   tooltip: React.ReactNode;
 } & React.HTMLAttributes<HTMLDivElement>;
 
+type FooterButtonProps = {
+  selected: boolean;
+  tooltip: React.ReactNode;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>;
+
+function footerItemClass(selected: boolean, className?: string) {
+  return cn(
+    "h-full flex items-center p-2 text-sm shadow-inset font-mono cursor-pointer rounded",
+    !selected && "hover:bg-(--sage-3)",
+    selected && "bg-(--sage-4)",
+    className,
+  );
+}
+
 export const FooterItem: React.FC<FooterItemProps> = forwardRef<
   HTMLDivElement,
   FooterItemProps
@@ -17,12 +31,7 @@ export const FooterItem: React.FC<FooterItemProps> = forwardRef<
   const content = (
     <div
       ref={ref}
-      className={cn(
-        "h-full flex items-center p-2 text-sm shadow-inset font-mono cursor-pointer rounded",
-        !selected && "hover:bg-(--sage-3)",
-        selected && "bg-(--sage-4)",
-        className,
-      )}
+      className={footerItemClass(selected, className)}
       {...rest}
     >
       {children}
@@ -41,3 +50,30 @@ export const FooterItem: React.FC<FooterItemProps> = forwardRef<
 });
 
 FooterItem.displayName = "FooterItem";
+
+export const FooterButton = forwardRef<HTMLButtonElement, FooterButtonProps>(
+  ({ children, tooltip, selected, className, ...rest }, ref) => {
+    const content = (
+      <button
+        ref={ref}
+        type="button"
+        className={footerItemClass(selected, className)}
+        {...rest}
+      >
+        {children}
+      </button>
+    );
+
+    if (tooltip) {
+      return (
+        <Tooltip content={tooltip} side="top" delayDuration={200}>
+          {content}
+        </Tooltip>
+      );
+    }
+
+    return content;
+  },
+);
+
+FooterButton.displayName = "FooterButton";

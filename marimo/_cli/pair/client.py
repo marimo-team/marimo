@@ -405,7 +405,13 @@ def attach_participant(
             harness_id=str(harness["id"]),
             harness_name=str(harness["displayName"]),
         )
-    except (OSError, ValueError, KeyError, TypeError) as error:
+    except (
+        OSError,
+        http.client.HTTPException,
+        ValueError,
+        KeyError,
+        TypeError,
+    ) as error:
         raise PairError(
             "The server returned an invalid attach response."
         ) from error

@@ -466,13 +466,9 @@ def execute(
         "session": {"id": session_id},
     }
     if selected is not None:
-        participant: dict[str, object] = {
-            "harness": selected.connection.harness.id,
-            "scope": selected.connection.scope,
-        }
-        if connection_reset:
-            participant["record_created"] = True
-        payload["participant"] = participant
+        payload["participant"] = _connection_participant(
+            selected, record_created=connection_reset
+        )
     elif participant_id is not None:
         payload["participant"] = {"id": participant_id}
     if next_text:

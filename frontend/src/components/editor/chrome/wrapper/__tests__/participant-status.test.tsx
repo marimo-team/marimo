@@ -65,6 +65,9 @@ describe("ParticipantStatus", () => {
     const item = screen.getByTestId("footer-participant-status");
     expect(item).toHaveTextContent("Pi");
     expect(item).toHaveAccessibleName("Pi: Connected");
+    expect(screen.getByRole("button", { name: "Pi: Connected" })).toBe(item);
+    item.focus();
+    expect(item).toHaveFocus();
 
     fireEvent.click(item);
     expect(screen.getByText("Connected")).toBeInTheDocument();
