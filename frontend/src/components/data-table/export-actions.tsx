@@ -276,11 +276,13 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   const dialogRef = React.useRef<HTMLDivElement>(null);
   const latestActionId = React.useRef(0);
   React.useEffect(() => {
+    latestActionId.current += 1;
+  }, [metadataSource]);
+  React.useEffect(() => {
     if (!exportDialogOpen || !getExportMetadata) {
       return;
     }
     let active = true;
-    latestActionId.current += 1;
     setMetadata(null);
     setMetadataLoading(true);
     setMetadataError(null);
