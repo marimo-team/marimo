@@ -1407,13 +1407,11 @@ async def test_watcher_does_not_restale_cells_rerun_after_reload(
     )
     assert k.globals["x"] == 1
 
-    # The watcher marks the first edit stale as usual.
     update_file(py_file, "def foo():\n    return 2\n")
     assert await _wait_for(lambda: k.graph.cells[er_1.cell_id].stale)
 
     parked, release = _park_watcher_in_crawl(monkeypatch)
 
-    # The watcher detects the second edit and parks in its crawl.
     update_file(py_file, "def foo():\n    return 3\n")
     assert await _wait_for(parked.is_set)
 
@@ -1564,8 +1562,8 @@ async def test_watcher_marks_descendant_when_import_cell_did_not_rerun(
     update_file(py_file, "value = 2\n")
     assert await _wait_for(parked.is_set)
 
-    # Only the descendant reruns. Its run reloads the module, but it still
-    # reads the import cell's old binding.
+    # The rerun reloads the module but still reads the import cell's old
+    # binding.
     await k.run([exec_req.get_with_id(er_2.cell_id, "y = value")])
     assert k.globals["y"] == 1
 

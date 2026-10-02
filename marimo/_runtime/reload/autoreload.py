@@ -212,7 +212,7 @@ class ModuleReloader:
         self.stale_modules: set[str] = set()
         # for thread-safety
         self.lock = threading.RLock()
-        # Incremented once per reload pass, whether or not it succeeds.
+        # Bumped once per reload pass, even one that fails.
         self.reload_generation = 0
         # cell -> (generation, ordinal) of its last run.
         self._cell_runs: dict[CellId_t, tuple[int, int]] = {}
@@ -308,7 +308,6 @@ class ModuleReloader:
                 return self.reload_generation + 1
             reloaded = self._reloaded_sources.get(module_mtime.name)
             if reloaded is None or reloaded[0] != module_mtime.mtime:
-                # NB. not reloaded yet, so only the next reload brings it in.
                 return self.reload_generation + 1
             return reloaded[1]
 
@@ -441,7 +440,6 @@ class ModuleReloader:
                     continue
                 py_filename, pymtime = module_mtime.name, module_mtime.mtime
 
-                # Bump once per check, and only when a reload starts.
                 if not generation_bumped:
                     self.reload_generation += 1
                     generation_bumped = True
@@ -478,7 +476,7 @@ class ModuleReloader:
         self, modules: dict[str, types.ModuleType]
     ) -> set[types.ModuleType]:
         """Return modules that changed since the previous watcher poll."""
-        # NB. one scan updates both mtime baselines.
+        # One scan updates both mtime baselines.
         return self._check(
             modules,
             reload=False,

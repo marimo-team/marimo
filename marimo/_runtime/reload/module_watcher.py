@@ -126,8 +126,7 @@ def _check_modules(
 ) -> dict[str, int]:
     """Returns the modules used by the graph that depend on a modified
     module, each mapped to the reload generation that holds the change."""
-    # NB. scan and read under one lock hold, so the generation matches the
-    # change this scan saw.
+    # One lock hold, so the generation matches the change this scan saw.
     with reloader.lock:
         modified_modules = reloader.check_for_watcher(modules=sys_modules)
         generations = {
@@ -152,8 +151,8 @@ def _check_modules(
                 excludes=excludes,
                 reloader=reloader,
             ):
-                # NB. a module with several modified targets holds them all
-                # only from the latest reload.
+                # A module with several changed targets holds them all only
+                # from the latest reload.
                 stale_modules[modname] = max(
                     stale_modules.get(modname, generation), generation
                 )
@@ -214,7 +213,7 @@ def watch_modules(
                     for cell_id in importers[modname]:
                         importer = graph.cells.get(cell_id)
                         if importer is None:
-                            # NB. deleted while the watcher crawled.
+                            # Deleted while the watcher crawled.
                             continue
                         names = {
                             import_data.definition
@@ -226,22 +225,21 @@ def watch_modules(
                             fresh_importers[cell_id] |= names
                             continue
                         stale_importers.add(cell_id)
-                        # NB. pruning reopens the traversal through this
-                        # cell, so the closure below reaches the cells
-                        # that read these names.
+                        # Pruning reopens the traversal through this cell
+                        # to the readers of these names.
                         importer.import_workspace.imported_defs -= names
 
                 relatives = dataflow.get_import_block_relatives(graph)
-                # NB. a stale importer's readers hold its old bindings,
+                # A stale importer's readers hold its old bindings,
                 # however recently they ran.
                 cells_to_mark = dataflow.transitive_closure(
                     graph, stale_importers, relatives=relatives
                 )
                 for cell_id, names in fresh_importers.items():
-                    # NB. the kernel does not propagate an import block's
-                    # rerun to readers of names it already imported, so a
-                    # reader is current only if it ran after the importer
-                    # and so did every cell between them.
+                    # The kernel does not rerun readers of names an import
+                    # block already imported. A reader is current only if it
+                    # and every cell between it and the importer ran after
+                    # the importer.
                     frontier = {
                         reader
                         for name in names

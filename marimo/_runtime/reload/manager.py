@@ -93,8 +93,8 @@ class AutoreloadManager:
         self, cell: CellImpl, ctx: PreExecutionHookContext
     ) -> None:
         del ctx
-        # NB. only the runner fires this hook, so UI callbacks, RPCs and the
-        # debugger enter `cell_scope` with no run to record.
+        # Only the runner fires this hook. Callbacks, RPCs and the debugger
+        # reload without recording a run.
         self._running_cell = cell.cell_id
 
     @contextlib.contextmanager
@@ -107,8 +107,8 @@ class AutoreloadManager:
         snapshot = set(sys.modules)
         # Entry: skip stdlib/site-packages so cells don't pay for stat-ing
         # them. This is the perf-critical call.
-        # NB. one lock hold, so the watcher cannot see the reload before
-        # the record.
+        # Hold the lock across both so the watcher cannot see the reload
+        # before the run record.
         with self._reloader.lock:
             self._reloader.check(
                 modules=sys.modules, reload=True, skip_non_user_modules=True

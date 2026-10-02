@@ -449,7 +449,6 @@ class TestModuleReloaderMethods:
         assert reloader.reload_generation == pending
         assert reloader.required_generation(mod) == pending
 
-        # The next edit is pending again, under the generation after this.
         update_file(py_file, "x = 3")
         assert reloader.required_generation(mod) == pending + 1
 
@@ -467,7 +466,6 @@ class TestModuleReloaderMethods:
         reloader.forget_cell(first)
         assert not reloader.cell_ran_at_or_after(first, 1)
         assert not reloader.cell_ran_after(second, first)
-        # Forgetting an unknown cell is a no-op.
         reloader.forget_cell(first)
 
 
@@ -617,14 +615,10 @@ class TestSkipCache:
         # Synthetic far-future baseline standing in for the old file's mtime.
         reloader.watcher_modules_mtimes[py_modname] = 1e12
 
-        # Rebind to the real user module. check() detects the rebind and
-        # drops the watcher's baseline along with its own.
         sys.modules[py_modname] = user_mod
         reloader.check(sys.modules, reload=False)
         assert reloader.watcher_modules_mtimes.get(py_modname, 0) < 1e12
 
-        # The watcher records a clean baseline for the new file, so the
-        # next edit is detected instead of being masked by the old mtime.
         reloader.check_for_watcher(sys.modules)
         update_file(user_file, "x = 2")
         assert any(
