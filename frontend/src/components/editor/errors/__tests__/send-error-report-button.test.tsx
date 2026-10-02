@@ -42,12 +42,14 @@ const CONNECTED: ParticipantPresence = {
 function renderButton({
   preview = true,
   presence = CONNECTED,
-  useLastRunCode = false,
+  preferLastRunCode = false,
+  consoleTraceback = '<span class="codehilite"><pre><span class="gr">third</span></pre></span>',
   content,
 }: {
   preview?: boolean;
   presence?: ParticipantPresence | null;
-  useLastRunCode?: boolean;
+  preferLastRunCode?: boolean;
+  consoleTraceback?: string;
   content?: React.ReactNode;
 } = {}) {
   const store = createStore();
@@ -69,7 +71,7 @@ function renderButton({
             },
             {
               channel: "stderr",
-              data: '<span class="codehilite"><pre><span class="gr">third</span></pre></span>',
+              data: consoleTraceback,
               mimetype: "application/vnd.marimo+traceback",
             },
             {
@@ -91,7 +93,7 @@ function renderButton({
         cellId={CELL_ID}
         error="NameError: df is not defined"
         traceback={"<pre>Traceback\nNameError: df is not defined</pre>"}
-        useLastRunCode={useLastRunCode}
+        preferLastRunCode={preferLastRunCode}
       />
     ),
     { wrapper },
@@ -130,6 +132,7 @@ describe("SendErrorReportButton", () => {
         expect.objectContaining({
           error: "invalid syntax",
           code: "current_code()",
+          traceback: "",
         }),
       );
     });
@@ -149,7 +152,7 @@ describe("SendErrorReportButton", () => {
 
   it("sends the failed code and error evidence, then names the recipient", async () => {
     vi.mocked(API.post).mockResolvedValue({ seq: 1 });
-    renderButton({ useLastRunCode: true });
+    renderButton({ preferLastRunCode: true });
 
     fireEvent.click(
       screen.getByRole("button", { name: "Send error to agent" }),
@@ -168,6 +171,42 @@ describe("SendErrorReportButton", () => {
         ],
       });
       expect(toast).toHaveBeenCalledWith({ title: "Sent to Pi" });
+    });
+  });
+
+  it("uses the matching console traceback for an exception summary", async () => {
+    vi.mocked(API.post).mockResolvedValue({ seq: 1 });
+    renderButton({
+      consoleTraceback:
+        '<span class="codehilite"><pre>Traceback\nException: Something went wrong!</pre></span>',
+      content: (
+        <MarimoErrorOutput
+          cellId={CELL_ID}
+          errors={[
+            MockNotebook.errors.exception("Something went wrong!", "Exception"),
+          ]}
+        />
+      ),
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Send error to agent" }),
+    );
+
+    await waitFor(() => {
+      expect(API.post).toHaveBeenCalledWith(
+        "/participants/handoff",
+        expect.objectContaining({
+          error: "Exception: Something went wrong!",
+          code: "failed_code()",
+          traceback: "Traceback\nException: Something went wrong!",
+          consoleTail: [
+            { channel: "stdout", data: "first" },
+            { channel: "stdout", data: "second" },
+            { channel: "stdout", data: "fourth" },
+          ],
+        }),
+      );
     });
   });
 

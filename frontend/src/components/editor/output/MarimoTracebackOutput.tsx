@@ -136,7 +136,7 @@ export const MarimoTracebackOutput = ({
           cellId={cellId}
           error={lastTracebackLine}
           traceback={traceback}
-          useLastRunCode={true}
+          preferLastRunCode={true}
         />
         {showAIFix && (
           <AIFixButton

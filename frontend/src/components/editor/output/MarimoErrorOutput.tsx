@@ -754,6 +754,8 @@ export const MarimoErrorOutput = ({
         cellId={cellId}
         error={reportError}
         traceback={reportTraceback}
+        preferLastRunCode={exceptionErrors.length > 0}
+        fallbackToConsoleTraceback={exceptionErrors.length > 0}
       />
     </Alert>
   );

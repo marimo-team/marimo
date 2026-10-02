@@ -14,6 +14,7 @@ from marimo._config.manager import MarimoConfigManager
 from marimo._messaging.participants import HandoffEvent
 from marimo._server.config import StarletteServerStateInit
 from marimo._server.main import create_starlette_app
+from marimo._types.ids import SessionId
 from tests._server.conftest import join_kernel_thread_tasks
 from tests._server.mocks import (
     get_mock_session_manager,
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
 
     from marimo._config.manager import UserConfigManager
 
-SESSION_ID = "session-123"
+SESSION_ID = SessionId("session-123")
 PAIR_PREVIEW_ENV = "MARIMO_PAIR_NEXT"
 
 
@@ -140,6 +141,49 @@ def test_attach_handoff_read_and_detach(client: TestClient) -> None:
     assert presence.harness.display_name == "Pi"
     assert detached.status_code == 200, detached.text
     assert detached.json() == {"participantId": "p1", "attached": False}
+
+
+@with_session(SESSION_ID)
+def test_events_since_replays_after_default_cursor_advances(
+    client: TestClient,
+) -> None:
+    participant_headers = _participant_headers(client)
+    attached = client.post(
+        "/api/participants/attach",
+        headers=participant_headers,
+        json=_participant_metadata(),
+    )
+    assert attached.status_code == 200, attached.text
+    handed_off = client.post(
+        "/api/participants/handoff",
+        headers={
+            "Marimo-Stable-Session-Id": participant_headers[
+                "Marimo-Stable-Session-Id"
+            ],
+            **token_header("fake-token"),
+        },
+        json=_handoff_payload(),
+    )
+    assert handed_off.status_code == 200, handed_off.text
+
+    first = client.get("/api/participants/events", headers=participant_headers)
+    assert first.status_code == 200, first.text
+    assert [event["seq"] for event in first.json()["events"]] == [1]
+
+    for _ in range(3):
+        replay = client.get(
+            "/api/participants/events?since=0",
+            headers=participant_headers,
+        )
+        assert replay.status_code == 200, replay.text
+        assert [event["seq"] for event in replay.json()["events"]] == [1]
+        assert replay.json()["cursor"] == 1
+
+    pending = client.get(
+        "/api/participants/events", headers=participant_headers
+    )
+    assert pending.status_code == 200, pending.text
+    assert pending.json()["events"] == []
 
 
 @with_session(SESSION_ID)
