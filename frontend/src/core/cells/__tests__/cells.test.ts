@@ -4034,6 +4034,76 @@ describe("vertical interactions with saved columns", () => {
     ]);
   });
 
+  it.each(["moveDown", "sendToBottom"])(
+    "places %s after the entire folded destination",
+    (action) => {
+      state.cellRuntime[ids[1]].outline = {
+        items: [{ name: "Section", level: 1, by: { id: "section" } }],
+      };
+      actions.collapseCell({ cellId: ids[1] });
+      if (action === "moveDown") {
+        actions.moveCell({ cellId: ids[0], before: false });
+      } else {
+        actions.sendToBottom({ cellId: ids[0] });
+      }
+      expect(state.cellIds.inOrderIds).toEqual([
+        ids[1],
+        ids[2],
+        ids[3],
+        ids[0],
+      ]);
+      expect(getDisplayCellIds(state).atOrThrow(0).topLevelIds).toEqual([
+        ids[1],
+        ids[0],
+      ]);
+      expect(state.cellIds.findWithId(ids[0]).id).toBe(
+        state.cellIds.findWithId(ids[3]).id,
+      );
+    },
+  );
+
+  it("adds a visible cell below an entire folded section", () => {
+    state.cellRuntime[ids[0]].outline = {
+      items: [{ name: "Section", level: 1, by: { id: "section" } }],
+    };
+    actions.collapseCell({ cellId: ids[0] });
+    const newCellId = cellId("new");
+    actions.createNewCell({ cellId: ids[0], before: false, newCellId });
+    expect(state.cellIds.inOrderIds).toEqual([...ids, newCellId]);
+    expect(getDisplayCellIds(state).atOrThrow(0).topLevelIds).toEqual([
+      ids[0],
+      newCellId,
+    ]);
+    expect(state.cellIds.findWithId(newCellId).id).toBe(
+      state.cellIds.findWithId(ids[3]).id,
+    );
+  });
+
+  it("appends after all hidden descendants when advancing past a folded final section", () => {
+    state.cellRuntime[ids[0]].outline = {
+      items: [{ name: "Section", level: 1, by: { id: "section" } }],
+    };
+    actions.collapseCell({ cellId: ids[0] });
+    actions.moveToNextCell({ cellId: ids[0], before: false });
+    const newCellId = state.cellIds.inOrderIds.at(-1);
+    expect(state.cellIds.inOrderIds.slice(0, 4)).toEqual(ids);
+    expect(getDisplayCellIds(state).atOrThrow(0).topLevelIds).toEqual([
+      ids[0],
+      newCellId,
+    ]);
+  });
+
+  it("focuses the preceding displayed cell when deleting the first cell of a saved column", () => {
+    actions.deleteCell({ cellId: ids[2] });
+    expect(state.scrollKey).toBe(ids[1]);
+  });
+
+  it("focuses the next displayed cell when deleting a singleton first column", () => {
+    state.cellIds = MultiColumn.from([[ids[0]], ids.slice(1)]);
+    actions.deleteCell({ cellId: ids[0] });
+    expect(state.scrollKey).toBe(ids[1]);
+  });
+
   it("keeps column-view focus confined to the current column", () => {
     actions.setCellLayout(true);
     actions.moveToNextCell({ cellId: ids[1], before: false, noCreate: true });

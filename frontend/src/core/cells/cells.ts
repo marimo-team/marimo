@@ -181,6 +181,12 @@ function withDisplayCellIds(
   return { ...state, verticalCellIds: cellIds };
 }
 
+function displayedSectionEnd(state: NotebookState, cellId: CellId): CellId {
+  const column = getDisplayCellIds(state).findWithId(cellId);
+  const descendants = new Set(column.getDescendants(cellId));
+  return column.inOrderIds.findLast((id) => descendants.has(id)) ?? cellId;
+}
+
 function moveDisplayedCell(
   state: NotebookState,
   cellId: CellId,
@@ -195,7 +201,11 @@ function moveDisplayedCell(
     ...state,
     cellIds: state.cellIds
       .transformAll((column) => column.expandAll())
-      .moveCellsRelativeTo(movedIds, targetId, before ? "before" : "after")
+      .moveCellsRelativeTo(
+        movedIds,
+        before ? targetId : displayedSectionEnd(state, targetId),
+        before ? "before" : "after",
+      )
       .compact(),
     scrollKey: cellId,
   };
@@ -277,18 +287,26 @@ const {
       }
     }
 
+    const savedCells = state.multiColumn
+      ? state.cellIds
+      : state.cellIds.transformAll((column) => column.expandAll());
+
     if (cellId === "__end__") {
-      const column = state.cellIds.atOrThrow(0);
+      const column = savedCells.atOrThrow(0);
       columnId = column.id;
       cellIndex = column.length;
     } else if (typeof cellId === "string") {
-      const column = state.cellIds.findWithId(cellId);
+      const anchorId =
+        state.multiColumn || before
+          ? cellId
+          : displayedSectionEnd(state, cellId);
+      const column = savedCells.findWithId(anchorId);
       columnId = column.id;
-      cellIndex = column.topLevelIds.indexOf(cellId);
+      cellIndex = column.topLevelIds.indexOf(anchorId);
     } else if (cellId.type === "__end__") {
       const column = state.multiColumn
-        ? state.cellIds.get(cellId.columnId) || state.cellIds.atOrThrow(0)
-        : state.cellIds.atOrThrow(state.cellIds.getColumns().length - 1);
+        ? savedCells.get(cellId.columnId) || savedCells.atOrThrow(0)
+        : savedCells.atOrThrow(savedCells.getColumns().length - 1);
       columnId = column.id;
       cellIndex = column.length;
     } else {
@@ -300,7 +318,7 @@ const {
 
     return {
       ...state,
-      cellIds: state.cellIds.insertId(newCellId, columnId, insertionIndex),
+      cellIds: savedCells.insertId(newCellId, columnId, insertionIndex),
       cellData: {
         ...state.cellData,
         [newCellId]: createCell({
@@ -793,10 +811,12 @@ const {
     }
 
     const cellIndex = column.indexOfOrThrow(cellId);
-    const focusIndex = cellIndex === 0 ? 1 : cellIndex - 1;
+    const displayedColumn = getDisplayCellIds(state).findWithId(cellId);
+    const displayedIndex = displayedColumn.indexOfOrThrow(cellId);
+    const focusIndex = displayedIndex === 0 ? 1 : displayedIndex - 1;
     let scrollKey: CellId | null = null;
-    if (column.length > 1) {
-      scrollKey = column.atOrThrow(focusIndex);
+    if (displayedColumn.length > 1) {
+      scrollKey = displayedColumn.atOrThrow(focusIndex);
     }
 
     const editorView = state.cellHandles[cellId].current?.editorView;
@@ -1278,12 +1298,15 @@ const {
     // Create a new cell at the end and set scrollKey to focus it
     if (isPastLastCell && !noCreate) {
       const newCellId = CellId.create();
+      const savedColumn = state.multiColumn
+        ? state.cellIds.findWithId(cellId)
+        : state.cellIds.atOrThrow(state.cellIds.getColumns().length - 1);
       return {
         ...state,
         cellIds: state.cellIds.insertId(
           newCellId,
-          state.cellIds.findWithId(cellId).id,
-          state.cellIds.findWithId(cellId).length,
+          savedColumn.id,
+          savedColumn.length,
         ),
         cellData: {
           ...state.cellData,

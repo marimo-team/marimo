@@ -78,6 +78,10 @@ async function setWidth(page: Page, width: string) {
   await page.getByTestId("app-width-select").selectOption(width);
   await page.keyboard.press("Escape");
   await expect(page.locator("#App")).toHaveAttribute("data-config-width", width);
+  if (width !== "columns") {
+    await expect(page.getByTestId("cell-column")).toHaveCount(1);
+    await expect(page.getByTestId("column-frame")).toHaveCount(0);
+  }
 }
 
 async function expectColumns(page: Page, columns: string[][]) {
@@ -135,6 +139,10 @@ for (const width of ["compact", "medium", "full"]) {
     await shutdownNotebook(page);
     await page.reload();
     await expect(page.locator("#App")).toHaveAttribute("data-config-width", width);
+  if (width !== "columns") {
+    await expect(page.getByTestId("cell-column")).toHaveCount(1);
+    await expect(page.getByTestId("column-frame")).toHaveCount(0);
+  }
     await expectColumns(page, [
       ["left_first", "left_second"],
       ["right_first", "right_edited"],
@@ -272,4 +280,66 @@ test("heading folding spans the displayed notebook and retains saved columns", a
   await setWidth(page, "columns");
   await expect(page.getByTestId("column-frame")).toHaveCount(2);
   await expect(page.getByTestId("column-frame").nth(1).locator(".cm-content")).toHaveText(['"right_first"', '"right_second"']);
+});
+
+test("moving past a folded destination keeps the moved cell visible and adopts its column", async ({ page }) => {
+  await setWidth(page, "compact");
+  const editors = page.locator(".cm-content");
+  await editors.nth(1).fill('import marimo as mo\nmo.md("# Destination")');
+  await pressShortcut(page, "global.runStale");
+  const heading = page.getByRole("heading", { name: "Destination", exact: true });
+  await expect(heading).toBeVisible();
+  const section = page.locator(".marimo-cell").filter({ has: heading });
+  await section.hover();
+  await section.locator("button:has(svg.lucide-chevron-down)").click();
+  await expect(editors).toHaveCount(2);
+  await editors.first().click();
+  await expect(editors.first()).toBeFocused();
+  await pressShortcut(page, "cell.moveDown");
+  await expect(editors.last()).toHaveText('"left_first"');
+  await expect(editors).toHaveCount(2);
+  await section.hover();
+  await section.locator("button:has(svg.lucide-chevron-right)").click();
+  await expect(editors).toHaveCount(4);
+  await pressShortcut(page, "global.save");
+  await expect.poll(() => readFile(filename, "utf8")).toMatch(/"right_first"[\s\S]*"right_second"[\s\S]*"left_first"/);
+  await shutdownNotebook(page);
+  await page.reload();
+  await setWidth(page, "columns");
+  await expect(page.getByTestId("column-frame").first().locator(".cm-content")).toHaveCount(1);
+  await expect(page.getByTestId("column-frame").last().locator(".cm-content")).toHaveText(['"right_first"', '"right_second"', '"left_first"']);
+});
+
+test("adding below a folded heading creates a visible editor after its section", async ({ page }) => {
+  await setWidth(page, "compact");
+  const editors = page.locator(".cm-content");
+  await editors.first().fill('import marimo as mo\nmo.md("# Section")');
+  await pressShortcut(page, "global.runStale");
+  const heading = page.getByRole("heading", { name: "Section", exact: true });
+  await expect(heading).toBeVisible();
+  const section = page.locator(".marimo-cell").filter({ has: heading });
+  await section.hover();
+  await section.locator("button:has(svg.lucide-chevron-down)").click();
+  await expect(editors).toHaveCount(1);
+  await editors.first().click();
+  await pressShortcut(page, "cell.createBelow");
+  await expect(editors).toHaveCount(2);
+  await expect(editors.last()).toBeFocused();
+  await editors.last().fill('"new_after_section"');
+  await section.hover();
+  await section.locator("button:has(svg.lucide-chevron-right)").click();
+  await expect(editors).toHaveCount(5);
+  await expect(editors.last()).toHaveText('"new_after_section"');
+});
+
+test("deleting at a saved column boundary focuses the preceding displayed cell", async ({ page }) => {
+  await setWidth(page, "compact");
+  const editors = page.locator(".cm-content");
+  await editors.nth(2).click();
+  await expect(editors.nth(2)).toBeFocused();
+  await editors.nth(2).fill("");
+  await pressShortcut(page, "cell.delete");
+  await expect(editors).toHaveCount(3);
+  await expect(editors.nth(1)).toBeFocused();
+  await expect(editors.nth(1)).toHaveText('"left_second"');
 });
