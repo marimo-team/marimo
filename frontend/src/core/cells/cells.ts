@@ -33,6 +33,8 @@ import { canUseRtc, isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
 import { prepareCellForExecution, transitionCell } from "./cell";
+import { getDisplayCellIds } from "./display-cell-ids";
+export { getDisplayCellIds } from "./display-cell-ids";
 import { documentTransactionMiddleware } from "./document-changes";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
@@ -90,6 +92,9 @@ export interface NotebookState {
    * Order of cells on the page.
    */
   cellIds: MultiColumn<CellId>;
+  /** Display layout; saved column assignments always come from `cellIds`. */
+  multiColumn: boolean;
+  verticalCellIds: MultiColumn<CellId> | null;
   /**
    * Map of cells to their view state
    */
@@ -154,6 +159,8 @@ function withScratchCell(notebookState: NotebookState): NotebookState {
 export function initialNotebookState(): NotebookState {
   return withScratchCell({
     cellIds: MultiColumn.from([]),
+    multiColumn: true,
+    verticalCellIds: null,
     cellData: {},
     cellRuntime: {},
     cellHandles: {},
@@ -162,6 +169,36 @@ export function initialNotebookState(): NotebookState {
     cellLogs: [],
     untouchedNewCells: new Set<CellId>(),
   });
+}
+
+function withDisplayCellIds(
+  state: NotebookState,
+  cellIds: MultiColumn<CellId>,
+): NotebookState {
+  if (state.multiColumn) {
+    return { ...state, cellIds };
+  }
+  return { ...state, verticalCellIds: cellIds };
+}
+
+function moveDisplayedCell(
+  state: NotebookState,
+  cellId: CellId,
+  targetId: CellId,
+  before: boolean,
+): NotebookState {
+  const display = getDisplayCellIds(state);
+  const column = display.findWithId(cellId);
+  const movedSet = new Set([cellId, ...column.getDescendants(cellId)]);
+  const movedIds = column.inOrderIds.filter((id) => movedSet.has(id));
+  return {
+    ...state,
+    cellIds: state.cellIds
+      .transformAll((column) => column.expandAll())
+      .moveCellsRelativeTo(movedIds, targetId, before ? "before" : "after")
+      .compact(),
+    scrollKey: cellId,
+  };
 }
 
 /** The target cell ID to create a new cell relative to. Can be:
@@ -208,6 +245,12 @@ const {
   useActions,
   valueAtom: notebookAtom,
 } = createReducerAndAtoms(initialNotebookState, {
+  setCellLayout: (state, multiColumn: boolean) => {
+    if (state.multiColumn === multiColumn) {
+      return state;
+    }
+    return { ...state, multiColumn };
+  },
   createNewCell: (state, action: CreateNewCellAction) => {
     const {
       cellId,
@@ -243,8 +286,9 @@ const {
       columnId = column.id;
       cellIndex = column.topLevelIds.indexOf(cellId);
     } else if (cellId.type === "__end__") {
-      const column =
-        state.cellIds.get(cellId.columnId) || state.cellIds.atOrThrow(0);
+      const column = state.multiColumn
+        ? state.cellIds.get(cellId.columnId) || state.cellIds.atOrThrow(0)
+        : state.cellIds.atOrThrow(state.cellIds.getColumns().length - 1);
       columnId = column.id;
       cellIndex = column.length;
     } else {
@@ -326,6 +370,15 @@ const {
         ),
         scrollKey: cellId,
       };
+    }
+
+    if (!state.multiColumn) {
+      const ids = getDisplayCellIds(state).findWithId(cellId).topLevelIds;
+      const index = ids.indexOf(cellId);
+      const targetId = ids[before ? index - 1 : index + 1];
+      return targetId
+        ? moveDisplayedCell(state, cellId, targetId, Boolean(before))
+        : state;
     }
 
     // Handle up/down movement
@@ -422,6 +475,14 @@ const {
 
     const fromIndex = fromColumn.indexOfOrThrow(cellId);
     const toIndex = toColumn.indexOfOrThrow(overCellId);
+
+    if (!state.multiColumn) {
+      const before = fromColumn.id !== toColumn.id || fromIndex > toIndex;
+      return {
+        ...moveDisplayedCell(state, cellId, overCellId, before),
+        scrollKey: null,
+      };
+    }
 
     if (fromColumn.id === toColumn.id) {
       if (fromIndex === toIndex) {
@@ -526,7 +587,7 @@ const {
     state,
     action: { cellId: CellId; where: "before" | "after" | "exact" },
   ) => {
-    const column = state.cellIds.findWithId(action.cellId);
+    const column = getDisplayCellIds(state).findWithId(action.cellId);
     if (column.length === 0) {
       return state;
     }
@@ -556,7 +617,7 @@ const {
   },
   focusTopCell: (state) => {
     // TODO: focus the existing column, not the first column
-    const column = state.cellIds.getColumns().at(0);
+    const column = getDisplayCellIds(state).getColumns().at(0);
     if (column === undefined || column.length === 0) {
       return state;
     }
@@ -574,7 +635,7 @@ const {
   },
   focusBottomCell: (state) => {
     // TODO: focus the existing column, not the last column
-    const column = state.cellIds.getColumns().at(-1);
+    const column = getDisplayCellIds(state).getColumns().at(-1);
     if (column === undefined || column.length === 0) {
       return state;
     }
@@ -591,6 +652,21 @@ const {
     return state;
   },
   sendToTop: (state, action: { cellId: CellId; scroll?: boolean }) => {
+    if (!state.multiColumn) {
+      const ids = getDisplayCellIds(state).findWithId(
+        action.cellId,
+      ).topLevelIds;
+      const targetId = ids.at(0);
+      if (!targetId || targetId === action.cellId) {
+        return state;
+      }
+      const moved = moveDisplayedCell(state, action.cellId, targetId, true);
+      return {
+        ...moved,
+        scrollKey: action.scroll === false ? null : action.cellId,
+      };
+    }
+
     const column = state.cellIds.findWithId(action.cellId);
     if (column.length === 0) {
       return state;
@@ -609,6 +685,21 @@ const {
     };
   },
   sendToBottom: (state, action: { cellId: CellId; scroll?: boolean }) => {
+    if (!state.multiColumn) {
+      const ids = getDisplayCellIds(state).findWithId(
+        action.cellId,
+      ).topLevelIds;
+      const targetId = ids.at(-1);
+      if (!targetId || targetId === action.cellId) {
+        return state;
+      }
+      const moved = moveDisplayedCell(state, action.cellId, targetId, false);
+      return {
+        ...moved,
+        scrollKey: action.scroll === false ? null : action.cellId,
+      };
+    }
+
     const column = state.cellIds.findWithId(action.cellId);
     if (column.length === 0) {
       return state;
@@ -1177,7 +1268,7 @@ const {
       return state;
     }
 
-    const column = state.cellIds.findWithId(cellId);
+    const column = getDisplayCellIds(state).findWithId(cellId);
     const index = column.indexOfOrThrow(cellId);
     const nextCellIndex = before ? index - 1 : index + 1;
 
@@ -1189,7 +1280,11 @@ const {
       const newCellId = CellId.create();
       return {
         ...state,
-        cellIds: state.cellIds.insertId(newCellId, column.id, nextCellIndex),
+        cellIds: state.cellIds.insertId(
+          newCellId,
+          state.cellIds.findWithId(cellId).id,
+          state.cellIds.findWithId(cellId).length,
+        ),
         cellData: {
           ...state.cellData,
           [newCellId]: createCell({ id: newCellId }),
@@ -1210,7 +1305,11 @@ const {
       const newCellId = CellId.create();
       return {
         ...state,
-        cellIds: state.cellIds.insertId(newCellId, column.id, 0),
+        cellIds: state.cellIds.insertId(
+          newCellId,
+          state.cellIds.findWithId(cellId).id,
+          0,
+        ),
         cellData: {
           ...state.cellData,
           [newCellId]: createCell({ id: newCellId }),
@@ -1324,7 +1423,7 @@ const {
   },
   collapseCell: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
-    const column = state.cellIds.findWithId(cellId);
+    const column = getDisplayCellIds(state).findWithId(cellId);
 
     // Get all the top-level outlines
     const outlines = column.topLevelIds.map((id) => {
@@ -1341,10 +1440,11 @@ const {
     const endCellId = column.atOrThrow(range[1]);
 
     return {
-      ...state,
-      // Collapse the range
-      cellIds: state.cellIds.transformWithCellId(cellId, (column) =>
-        column.collapse(cellId, endCellId),
+      ...withDisplayCellIds(
+        state,
+        getDisplayCellIds(state).transformWithCellId(cellId, (column) =>
+          column.collapse(cellId, endCellId),
+        ),
       ),
       scrollKey: cellId,
     };
@@ -1352,17 +1452,19 @@ const {
   expandCell: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
     return {
-      ...state,
-      cellIds: state.cellIds.transformWithCellId(cellId, (column) =>
-        column.expand(cellId),
+      ...withDisplayCellIds(
+        state,
+        getDisplayCellIds(state).transformWithCellId(cellId, (column) =>
+          column.expand(cellId),
+        ),
       ),
       scrollKey: cellId,
     };
   },
   collapseAllCells: (state) => {
-    return {
-      ...state,
-      cellIds: state.cellIds.transformAll((column) => {
+    return withDisplayCellIds(
+      state,
+      getDisplayCellIds(state).transformAll((column) => {
         // Get all the top-level outlines
         const outlines = column.topLevelIds.map((id) => {
           const cell = state.cellRuntime[id];
@@ -1401,17 +1503,17 @@ const {
         const collapseRanges = reversedCollapseRanges.toReversed();
         return column.collapseAll(collapseRanges);
       }),
-    };
+    );
   },
   expandAllCells: (state) => {
-    return {
-      ...state,
-      cellIds: state.cellIds.transformAll((column) => column.expandAll()),
-    };
+    return withDisplayCellIds(
+      state,
+      getDisplayCellIds(state).transformAll((column) => column.expandAll()),
+    );
   },
   showCellIfHidden: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
-    const column = state.cellIds.findWithId(cellId);
+    const column = getDisplayCellIds(state).findWithId(cellId);
     const prev = column;
     const result = column.findAndExpandDeep(cellId);
 
@@ -1419,10 +1521,10 @@ const {
       return state;
     }
 
-    return {
-      ...state,
-      cellIds: state.cellIds.transformWithCellId(cellId, () => result),
-    };
+    return withDisplayCellIds(
+      state,
+      getDisplayCellIds(state).transformWithCellId(cellId, () => result),
+    );
   },
   splitCell: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
@@ -1710,7 +1812,7 @@ export const addLogs = imperativeActions.addLogs;
 
 /// ATOMS
 
-export const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
+export const cellIdsAtom = atom((get) => getDisplayCellIds(get(notebookAtom)));
 
 export const hasOnlyOneCellAtom = atom((get) =>
   get(cellIdsAtom).hasOnlyOneId(),
@@ -1929,13 +2031,15 @@ export const ensureCellEditorView = (cellId: CellId) => {
 export function flattenTopLevelNotebookCells(
   state: NotebookState,
 ): (CellData & CellRuntimeState)[] {
-  const { cellIds, cellData, cellRuntime } = state;
-  return cellIds.getColumns().flatMap((column) =>
-    column.topLevelIds.map((cellId) => ({
-      ...cellData[cellId],
-      ...cellRuntime[cellId],
-    })),
-  );
+  const { cellData, cellRuntime } = state;
+  return getDisplayCellIds(state)
+    .getColumns()
+    .flatMap((column) =>
+      column.topLevelIds.map((cellId) => ({
+        ...cellData[cellId],
+        ...cellRuntime[cellId],
+      })),
+    );
 }
 
 export function createUntouchedCellAtom(cellId: CellId): Atom<boolean> {

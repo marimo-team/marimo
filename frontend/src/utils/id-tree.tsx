@@ -147,7 +147,7 @@ export class CollapsibleTree<T> {
 
     // Collapse nodes that were collapsed in the previous tree
     for (const id of ids) {
-      if (previousTree.isCollapsed(id)) {
+      if (previousTree._nodeMap.has(id) && previousTree.isCollapsed(id)) {
         const children = previousTree._nodeMap.get(id)?.children ?? [];
         // Find the first child that is also in the new tree, going backwards
         for (let i = children.length - 1; i >= 0; i--) {

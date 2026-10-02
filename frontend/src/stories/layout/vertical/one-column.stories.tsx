@@ -88,6 +88,8 @@ LongReprA()`,
   cellLogs: [],
   history: [],
   scrollKey: null,
+  multiColumn: true,
+  verticalCellIds: null,
   untouchedNewCells: new Set(),
 });
 

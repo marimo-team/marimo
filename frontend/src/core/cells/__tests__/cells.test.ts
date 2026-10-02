@@ -31,6 +31,8 @@ import type { Seconds } from "@/utils/time";
 import {
   exportedForTesting,
   flattenTopLevelNotebookCells,
+  getDisplayCellIds,
+  getCellConfigs,
   type NotebookState,
   notebookAtom,
 } from "../cells";
@@ -3927,5 +3929,116 @@ describe("setCells snapshot preservation", () => {
     expect(next.cellRuntime[CELL_A].consoleOutputs).toEqual([]);
     expect(next.cellRuntime[CELL_B].output).toBeNull();
     expect(next.cellRuntime[CELL_B].consoleOutputs).toEqual([]);
+  });
+});
+
+describe("vertical interactions with saved columns", () => {
+  const ids = [cellId("a"), cellId("b"), cellId("c"), cellId("d")];
+  let state: NotebookState;
+  const actions = createActions((action) => {
+    state = reducer(state, action);
+  });
+
+  beforeEach(() => {
+    state = MockNotebook.notebookState({
+      cellData: Object.fromEntries(ids.map((id) => [id, { id }])),
+    });
+    state.cellIds = MultiColumn.from([
+      [ids[0], ids[1]],
+      [ids[2], ids[3]],
+    ]);
+    actions.setCellLayout(false);
+    vi.mocked(focusAndScrollCellIntoView).mockClear();
+  });
+
+  it("advances focus and execution across saved column boundaries without creating cells", () => {
+    actions.moveToNextCell({ cellId: ids[1], before: false, noCreate: true });
+    expect(focusAndScrollCellIntoView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cellId: ids[2] }),
+    );
+    actions.moveToNextCell({ cellId: ids[1], before: false });
+    expect(state.cellIds.inOrderIds).toEqual(ids);
+    expect(focusAndScrollCellIntoView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cellId: ids[2] }),
+    );
+    actions.focusCell({ cellId: ids[2], where: "before" });
+    expect(focusAndScrollCellIntoView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cellId: ids[1] }),
+    );
+    expect(getCellConfigs(state).map((config) => config.column)).toEqual([
+      0,
+      null,
+      1,
+      null,
+    ]);
+  });
+
+  it("moves cells across saved boundaries in either direction", () => {
+    actions.moveCell({ cellId: ids[1], before: false });
+    expect(
+      state.cellIds.getColumns().map((column) => column.inOrderIds),
+    ).toEqual([[ids[0]], [ids[2], ids[1], ids[3]]]);
+    actions.moveCell({ cellId: ids[2], before: true });
+    expect(
+      state.cellIds.getColumns().map((column) => column.inOrderIds),
+    ).toEqual([
+      [ids[2], ids[0]],
+      [ids[1], ids[3]],
+    ]);
+  });
+
+  it("sends cells to the displayed top and bottom", () => {
+    actions.sendToTop({ cellId: ids[3], scroll: false });
+    expect(state.cellIds.inOrderIds).toEqual([ids[3], ids[0], ids[1], ids[2]]);
+    expect(state.scrollKey).toBeNull();
+    actions.sendToBottom({ cellId: ids[0] });
+    expect(state.cellIds.inOrderIds).toEqual([ids[3], ids[1], ids[2], ids[0]]);
+  });
+
+  it("folds headings across saved columns without altering their assignments", () => {
+    state.cellRuntime[ids[0]].outline = {
+      items: [{ name: "Section", level: 1, by: { id: "section" } }],
+    };
+    actions.collapseCell({ cellId: ids[0] });
+    expect(getDisplayCellIds(state).atOrThrow(0).topLevelIds).toEqual([ids[0]]);
+    expect(
+      state.cellIds.getColumns().map((column) => column.inOrderIds),
+    ).toEqual([
+      [ids[0], ids[1]],
+      [ids[2], ids[3]],
+    ]);
+    actions.showCellIfHidden({ cellId: ids[2] });
+    expect(getDisplayCellIds(state).inOrderIds).toEqual(ids);
+    expect(getDisplayCellIds(state).atOrThrow(0).topLevelIds).toEqual(ids);
+    actions.collapseAllCells();
+    expect(getDisplayCellIds(state).atOrThrow(0).topLevelIds).toEqual([ids[0]]);
+    actions.expandAllCells();
+    expect(getDisplayCellIds(state).atOrThrow(0).topLevelIds).toEqual(ids);
+  });
+
+  it("reuses the display tree when only cell content or runtime changes", () => {
+    const display = getDisplayCellIds(state);
+    expect(getDisplayCellIds({ ...state, scrollKey: ids[2] })).toBe(display);
+  });
+
+  it("moves a folded section and its descendants together", () => {
+    state.cellRuntime[ids[1]].outline = {
+      items: [{ name: "Section", level: 1, by: { id: "section" } }],
+    };
+    actions.collapseCell({ cellId: ids[1] });
+    actions.sendToTop({ cellId: ids[1] });
+    expect(state.cellIds.inOrderIds).toEqual([ids[1], ids[2], ids[3], ids[0]]);
+    expect(getDisplayCellIds(state).atOrThrow(0).topLevelIds).toEqual([
+      ids[1],
+      ids[0],
+    ]);
+  });
+
+  it("keeps column-view focus confined to the current column", () => {
+    actions.setCellLayout(true);
+    actions.moveToNextCell({ cellId: ids[1], before: false, noCreate: true });
+    expect(focusAndScrollCellIntoView).not.toHaveBeenCalled();
+    actions.moveCell({ cellId: ids[1], before: false });
+    expect(state.cellIds.inOrderIds).toEqual(ids);
   });
 });

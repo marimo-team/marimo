@@ -60,7 +60,11 @@ export const EditApp: React.FC<AppProps> = ({
   appConfig,
   hideControls = false,
 }) => {
-  const { setCells, collapseAllCells, expandAllCells } = useCellActions();
+  const { setCells, setCellLayout, collapseAllCells, expandAllCells } =
+    useCellActions();
+  useEffect(() => {
+    setCellLayout(appConfig.width === "columns");
+  }, [appConfig.width, setCellLayout]);
   const viewState = useAtomValue(viewStateAtom);
   const filename = useFilename();
   const setLastSavedNotebook = useSetAtom(lastSavedNotebookAtom);

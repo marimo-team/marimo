@@ -211,6 +211,9 @@ export function toDocumentChanges(
     case "sendToTop":
     case "sendToBottom": {
       const { cellId } = action.payload;
+      if (!prevState.multiColumn) {
+        return columnChanges(prevState, newState);
+      }
       return [
         {
           type: "move-cell",
@@ -377,6 +380,7 @@ export function toDocumentChanges(
 
     // Editor UI state — no document changes.
     case "foldAll":
+    case "setCellLayout":
     case "unfoldAll":
     case "collapseCell":
     case "expandCell":
