@@ -23,10 +23,15 @@ export function getDisplayCellIds(state: NotebookState): MultiColumn<CellId> {
     previousIds?.length === ids.length &&
     ids.every((id, index) => id === previousIds[index])
   ) {
-    return state.verticalCellIds ?? state.cellIds;
+    const display = state.verticalCellIds ?? state.cellIds;
+    displayCellsCache.set(state.cellIds, {
+      previous: state.verticalCellIds,
+      display,
+    });
+    return display;
   }
-  const merged = state.cellIds.mergeAllColumns();
-  const previous = state.verticalCellIds?.at(0) ?? merged.at(0);
+  const previous =
+    state.verticalCellIds?.at(0) ?? state.cellIds.mergeAllColumns().at(0);
   const display = new MultiColumn([
     CollapsibleTree.fromWithPreviousShape(ids, previous),
   ]);

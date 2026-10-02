@@ -28,6 +28,7 @@ import type { CellActions, NotebookState } from "./cells";
 import type { CellId } from "./ids";
 import { SCRATCH_CELL_ID } from "./ids";
 import type { CellData } from "./types";
+import { getDisplayCellIds } from "./display-cell-ids";
 
 export type DocumentChange =
   NotebookDocumentTransactionRequest["changes"][number];
@@ -211,8 +212,24 @@ export function toDocumentChanges(
     case "sendToTop":
     case "sendToBottom": {
       const { cellId } = action.payload;
+      if (prevState.cellIds === newState.cellIds) {
+        return [];
+      }
       if (!prevState.multiColumn) {
-        return columnChanges(prevState, newState);
+        const prevColumns = prevState.cellIds.getColumnIds();
+        const newColumns = newState.cellIds.getColumnIds();
+        const sameColumns =
+          prevColumns.length === newColumns.length &&
+          prevColumns.every((id, index) => id === newColumns[index]);
+        const sameMembership =
+          prevState.cellIds.findWithId(cellId).id ===
+          newState.cellIds.findWithId(cellId).id;
+        const movesSection =
+          getDisplayCellIds(prevState).findWithId(cellId).getDescendants(cellId)
+            .length > 0;
+        if (!sameColumns || !sameMembership || movesSection) {
+          return columnChanges(prevState, newState);
+        }
       }
       return [
         {

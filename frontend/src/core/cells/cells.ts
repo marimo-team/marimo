@@ -200,11 +200,11 @@ function moveDisplayedCell(
   return {
     ...state,
     cellIds: state.cellIds
-      .transformAll((column) => column.expandAll())
       .moveCellsRelativeTo(
         movedIds,
         before ? targetId : displayedSectionEnd(state, targetId),
         before ? "before" : "after",
+        { expandAffectedColumns: true },
       )
       .compact(),
     scrollKey: cellId,
@@ -220,6 +220,34 @@ export type CellPosition =
   | CellId
   | "__end__"
   | { type: "__end__"; columnId: CellColumnId };
+
+function insertDisplayedCell(
+  state: NotebookState,
+  newCellId: CellId,
+  target: CellPosition,
+  before: boolean,
+): MultiColumn<CellId> {
+  if (target === "__end__") {
+    const column = state.cellIds.atOrThrow(0);
+    return state.cellIds.insertId(newCellId, column.id, column.length);
+  }
+  if (typeof target === "string") {
+    const anchorId =
+      state.multiColumn || before ? target : displayedSectionEnd(state, target);
+    return state.cellIds.transformWithCellId(anchorId, (column) => {
+      const editable = state.multiColumn ? column : column.expandAll();
+      const index = editable.indexOfOrThrow(anchorId);
+      return editable.insert(newCellId, before ? index : index + 1);
+    });
+  }
+  const column = state.multiColumn
+    ? (state.cellIds.get(target.columnId) ?? state.cellIds.atOrThrow(0))
+    : state.cellIds.atOrThrow(state.cellIds.getColumns().length - 1);
+  return state.cellIds.transform(column.id, (column) => {
+    const editable = state.multiColumn ? column : column.expandAll();
+    return editable.insert(newCellId, editable.length);
+  });
+}
 
 export interface CreateNewCellAction {
   cellId: CellPosition;
@@ -275,9 +303,6 @@ const {
       hideCode = undefined,
     } = action;
 
-    let columnId: CellColumnId;
-    let cellIndex: number;
-
     // If skipIfCodeExists is true, check if the code already exists in the notebook
     if (skipIfCodeExists) {
       for (const cellId of state.cellIds.inOrderIds) {
@@ -287,38 +312,11 @@ const {
       }
     }
 
-    const savedCells = state.multiColumn
-      ? state.cellIds
-      : state.cellIds.transformAll((column) => column.expandAll());
-
-    if (cellId === "__end__") {
-      const column = savedCells.atOrThrow(0);
-      columnId = column.id;
-      cellIndex = column.length;
-    } else if (typeof cellId === "string") {
-      const anchorId =
-        state.multiColumn || before
-          ? cellId
-          : displayedSectionEnd(state, cellId);
-      const column = savedCells.findWithId(anchorId);
-      columnId = column.id;
-      cellIndex = column.topLevelIds.indexOf(anchorId);
-    } else if (cellId.type === "__end__") {
-      const column = state.multiColumn
-        ? savedCells.get(cellId.columnId) || savedCells.atOrThrow(0)
-        : savedCells.atOrThrow(savedCells.getColumns().length - 1);
-      columnId = column.id;
-      cellIndex = column.length;
-    } else {
-      throw new Error("Invalid cellId");
-    }
-
     const newCellId = action.newCellId || CellId.create();
-    const insertionIndex = before ? cellIndex : cellIndex + 1;
 
     return {
       ...state,
-      cellIds: savedCells.insertId(newCellId, columnId, insertionIndex),
+      cellIds: insertDisplayedCell(state, newCellId, cellId, before),
       cellData: {
         ...state.cellData,
         [newCellId]: createCell({
@@ -1298,16 +1296,9 @@ const {
     // Create a new cell at the end and set scrollKey to focus it
     if (isPastLastCell && !noCreate) {
       const newCellId = CellId.create();
-      const savedColumn = state.multiColumn
-        ? state.cellIds.findWithId(cellId)
-        : state.cellIds.atOrThrow(state.cellIds.getColumns().length - 1);
       return {
         ...state,
-        cellIds: state.cellIds.insertId(
-          newCellId,
-          savedColumn.id,
-          savedColumn.length,
-        ),
+        cellIds: insertDisplayedCell(state, newCellId, cellId, false),
         cellData: {
           ...state.cellData,
           [newCellId]: createCell({ id: newCellId }),
@@ -1328,11 +1319,7 @@ const {
       const newCellId = CellId.create();
       return {
         ...state,
-        cellIds: state.cellIds.insertId(
-          newCellId,
-          state.cellIds.findWithId(cellId).id,
-          0,
-        ),
+        cellIds: insertDisplayedCell(state, newCellId, cellId, true),
         cellData: {
           ...state.cellData,
           [newCellId]: createCell({ id: newCellId }),
