@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { type CalendarDate, parseDate } from "@internationalized/date";
-import type { JSX } from "react";
+import { type JSX, useId } from "react";
 import { z } from "zod";
 import { DatePicker } from "@/components/ui/date-picker";
 import type { IPlugin, IPluginProps, Setter } from "../types";
@@ -49,6 +49,7 @@ interface DatePickerProps extends Data {
 }
 
 const DatePickerComponent = (props: DatePickerProps): JSX.Element => {
+  const labelId = useId();
   const handleInput = (valueAsDate: CalendarDate | null) => {
     if (!valueAsDate) {
       return;
@@ -59,12 +60,13 @@ const DatePickerComponent = (props: DatePickerProps): JSX.Element => {
   };
 
   return (
-    <Labeled label={props.label} fullWidth={props.fullWidth}>
+    <Labeled labelId={labelId} label={props.label} fullWidth={props.fullWidth}>
       <DatePicker
         granularity="day"
         value={parseDate(props.value)}
         onChange={handleInput}
-        aria-label={props.label ?? "date picker"}
+        aria-labelledby={props.label ? labelId : undefined}
+        aria-label={props.label ? undefined : "date picker"}
         minValue={parseDate(props.start)}
         maxValue={parseDate(props.stop)}
         isDisabled={props.disabled}
