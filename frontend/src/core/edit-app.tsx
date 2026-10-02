@@ -143,12 +143,20 @@ export const EditApp: React.FC<AppProps> = ({
   useHotkey("global.hideAllMarkdownCode", () => {
     setCodeVisibility(true, "markdown");
   });
-  useHotkey("global.expandAllOutputs", () => {
-    setOutputsExpanded(true);
-  }, { disabled: !isEditing });
-  useHotkey("global.clampAllOutputs", () => {
-    setOutputsExpanded(false);
-  }, { disabled: !isEditing });
+  useHotkey(
+    "global.expandAllOutputs",
+    () => {
+      setOutputsExpanded(true);
+    },
+    { disabled: !isEditing },
+  );
+  useHotkey(
+    "global.clampAllOutputs",
+    () => {
+      setOutputsExpanded(false);
+    },
+    { disabled: !isEditing },
+  );
   useHotkey("global.collapseAllSections", () => {
     collapseAllCells();
   });
