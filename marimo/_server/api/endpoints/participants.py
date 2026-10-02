@@ -28,6 +28,7 @@ from marimo._session.participants import (
     ParticipantRegistryClosedError,
 )
 from marimo._utils.http import HTTPException, HTTPStatus
+from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -54,6 +55,24 @@ def _optional_nonnegative_int(request: Request, name: str) -> int | None:
             detail=f"{name} must be a non-negative integer.",
         )
     return value
+
+
+async def _read_limited_body(request: Request, limit: int) -> bytes:
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            if int(content_length) > limit:
+                raise HandoffTooLargeError
+        except ValueError:
+            pass
+    chunks: list[bytes] = []
+    size = 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > limit:
+            raise HandoffTooLargeError
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 @router.post("/attach")
@@ -155,8 +174,11 @@ async def stream_events(request: Request) -> StreamingResponse:
 async def handoff(request: Request) -> ParticipantHandoffResponse:
     """Append a browser-authored handoff for the live participant."""
     session = AppState(request).require_current_session_with_stable_id()
-    payload = await parse_request(request, cls=HandoffPayload)
     try:
+        limit = session.participants.limits.payload_cap_bytes
+        payload = parse_raw(
+            await _read_limited_body(request, limit), cls=HandoffPayload
+        )
         event = await session.participants.append_handoff(payload)
     except NoAttachedParticipantError as error:
         raise HTTPException(

@@ -117,6 +117,65 @@ def test_connection_file_excludes_raw_conversation_and_token(
         assert selected.path.stat().st_mode & 0o777 == 0o600
 
 
+@pytest.mark.parametrize(
+    ("saved_url", "lookup_url"),
+    [
+        ("http://example.com/base", "http://example.com:80/base/"),
+        ("https://example.com:443/base/", "https://example.com/base"),
+    ],
+)
+def test_default_port_urls_share_a_binding(
+    tmp_path: Path, saved_url: str, lookup_url: str
+) -> None:
+    store = ConnectionStore(tmp_path)
+    identity = resolve_identity({})
+    saved = store.save(
+        url=saved_url,
+        stable_session_id="session-1",
+        identity=identity,
+        participant=participant_id("session-1", identity),
+    )
+
+    assert (
+        store.load(
+            url=lookup_url,
+            stable_session_id="session-1",
+            identity=identity,
+        )
+        == saved
+    )
+
+
+def test_previous_default_port_binding_is_migrated(tmp_path: Path) -> None:
+    store = ConnectionStore(tmp_path)
+    identity = resolve_identity({}, harness_id="pi")
+    selected = store.save(
+        url="http://example.com:80/base",
+        stable_session_id="session-1",
+        identity=identity,
+        participant=participant_id("session-1", identity),
+    )
+    previous_path = store._path(
+        "http://example.com/base",
+        "session-1",
+        identity,
+        include_default_port=True,
+    )
+    selected.path.rename(previous_path)
+
+    migrated = store.load(
+        url="http://example.com/base",
+        stable_session_id="session-1",
+        identity=resolve_identity({}),
+    )
+
+    assert migrated is not None
+    assert migrated.path == selected.path
+    assert migrated.connection == selected.connection
+    assert selected.path.exists()
+    assert not previous_path.exists()
+
+
 def test_generic_lookup_finds_one_advisory_harness_binding(
     tmp_path: Path,
 ) -> None:

@@ -8,12 +8,15 @@ from unittest.mock import patch
 
 import pytest
 import uvicorn
+from starlette.requests import Request
 from starlette.testclient import TestClient
 
 from marimo._config.manager import MarimoConfigManager
 from marimo._messaging.participants import HandoffEvent
+from marimo._server.api.endpoints.participants import _read_limited_body
 from marimo._server.config import StarletteServerStateInit
 from marimo._server.main import create_starlette_app
+from marimo._session.participants import HandoffTooLargeError
 from marimo._types.ids import SessionId
 from tests._server.conftest import join_kernel_thread_tasks
 from tests._server.mocks import (
@@ -333,6 +336,45 @@ def test_handoff_enforces_payload_cap(client: TestClient) -> None:
     assert response.json() == {
         "detail": "Handoff payload exceeds the configured limit."
     }
+
+
+@with_session(SESSION_ID)
+def test_required_participant_route_has_controlled_preview_off_error(
+    client: TestClient,
+) -> None:
+    headers = _participant_headers(client)
+    with patch.dict(os.environ, {PAIR_PREVIEW_ENV: "0"}):
+        response = client.post(
+            "/api/participants/attach",
+            headers=headers,
+            json=_participant_metadata(),
+        )
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Pair participant routes are not enabled."
+    }
+
+
+async def test_handoff_stops_reading_after_body_limit() -> None:
+    reads = 0
+
+    async def receive() -> dict[str, object]:
+        nonlocal reads
+        reads += 1
+        if reads > 1:
+            raise AssertionError("The server read beyond the body limit")
+        return {
+            "type": "http.request",
+            "body": b"x" * (256 * 1024 + 1),
+            "more_body": True,
+        }
+
+    request = Request(
+        {"type": "http", "method": "POST", "headers": []}, receive
+    )
+    with pytest.raises(HandoffTooLargeError):
+        await _read_limited_body(request, 256 * 1024)
+    assert reads == 1
 
 
 @with_session(SESSION_ID)

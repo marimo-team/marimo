@@ -173,11 +173,14 @@ def _start_server(
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=stderr_file,
-                env=(
-                    {**os.environ, "MARIMO_PAIR_NEXT": "1"}
-                    if pair_preview
-                    else None
-                ),
+                env={
+                    **{
+                        key: value
+                        for key, value in os.environ.items()
+                        if key != "MARIMO_PAIR_NEXT"
+                    },
+                    **({"MARIMO_PAIR_NEXT": "1"} if pair_preview else {}),
+                },
             )
         url = f"http://127.0.0.1:{port}"
         try:

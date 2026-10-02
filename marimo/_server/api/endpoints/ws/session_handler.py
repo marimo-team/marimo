@@ -312,6 +312,10 @@ class SessionHandler(SessionConsumer, abc.ABC):
                 )
             )
             self._write_environment_state(session)
+            if session.session_view.participant_presence is not None:
+                self._serialize_and_notify(
+                    session.session_view.participant_presence
+                )
             return
 
         self._write_kernel_ready_from_session_view(session, self.params.kiosk)

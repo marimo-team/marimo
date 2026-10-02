@@ -66,10 +66,31 @@ class ConsoleEvent(TypedDict):
     data: str
 
 
+class HandoffConsoleData(TypedDict):
+    channel: str
+    data: str
+
+
+class HandoffEventData(TypedDict):
+    seq: int
+    createdAt: float
+    cellId: str
+    error: str
+    code: str
+    traceback: str
+    consoleTail: list[HandoffConsoleData]
+    note: str | None
+
+
+class HandoffBatchData(TypedDict):
+    events: list[HandoffEventData]
+    remaining: int
+
+
 class Done(TypedDict):
     success: bool
     output: OutputData
-    handoffs: NotRequired[dict[str, Any]]
+    handoffs: NotRequired[HandoffBatchData]
 
 
 def _format_sse(event: str, data: Any) -> str:
@@ -290,7 +311,7 @@ _EMPTY_OUTPUT = OutputData(mimetype="text/plain", data="")
 def build_done_event(
     session: Session,
     listener: ScratchCellListener | None = None,
-    handoffs: dict[str, Any] | None = None,
+    handoffs: HandoffBatchData | None = None,
 ) -> str:
     """Build the terminal `done` SSE event.
 

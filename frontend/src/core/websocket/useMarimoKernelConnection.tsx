@@ -482,6 +482,7 @@ export function useMarimoKernelConnection(opts: {
 
       case "reconnected":
         setKernelStartupError(null);
+        setParticipantPresence(null);
         setConnection({ state: WebSocketState.OPEN });
         return;
 

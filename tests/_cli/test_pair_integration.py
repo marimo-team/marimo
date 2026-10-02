@@ -59,6 +59,20 @@ def _run(
     )
 
 
+def _isolated_pair_environment(tmp_path: Path) -> dict[str, str]:
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in ("MARIMO_PAIR_HARNESS", "MARIMO_PAIR_CONVERSATION_ID")
+    }
+    home = tmp_path / "home"
+    home.mkdir()
+    environment["HOME"] = str(home)
+    environment["USERPROFILE"] = str(home)
+    environment["XDG_STATE_HOME"] = str(tmp_path / "state")
+    return environment
+
+
 def test_streams_output_before_execution_finishes(
     server: PairTestServer,
 ) -> None:
@@ -102,13 +116,24 @@ def test_executes_by_stable_session_id(server: PairTestServer) -> None:
     assert payload["session"]["id"] == server.stable_session_id
 
 
+def test_default_server_does_not_inherit_preview_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MARIMO_PAIR_NEXT", "1")
+    with pair_test_server(tmp_path) as server:
+        parsed = urlsplit(server.url)
+        connection = http.client.HTTPConnection(parsed.hostname, parsed.port)
+        try:
+            connection.request("GET", "/api/participants/events")
+            response = connection.getresponse()
+            assert response.status == 404
+            response.read()
+        finally:
+            connection.close()
+
+
 def test_connect_persists_across_cli_processes(tmp_path: Path) -> None:
-    environment = {
-        key: value
-        for key, value in os.environ.items()
-        if key not in ("MARIMO_PAIR_HARNESS", "MARIMO_PAIR_CONVERSATION_ID")
-    }
-    environment["XDG_STATE_HOME"] = str(tmp_path / "state")
+    environment = _isolated_pair_environment(tmp_path)
 
     with pair_test_server(
         tmp_path, pair_preview=True, skew_protection=True
@@ -149,17 +174,18 @@ def test_connect_persists_across_cli_processes(tmp_path: Path) -> None:
         "harness": "unknown",
         "scope": "harness",
     }
+    state_root = (
+        tmp_path / "state" / "marimo"
+        if os.name == "posix"
+        else tmp_path / "home" / ".marimo"
+    )
+    assert list((state_root / "pair" / "connections-v1").glob("*.json"))
 
 
 def test_handoff_events_stream_and_detach_across_processes(
     tmp_path: Path,
 ) -> None:
-    environment = {
-        key: value
-        for key, value in os.environ.items()
-        if key not in ("MARIMO_PAIR_HARNESS", "MARIMO_PAIR_CONVERSATION_ID")
-    }
-    environment["XDG_STATE_HOME"] = str(tmp_path / "state")
+    environment = _isolated_pair_environment(tmp_path)
 
     def run_pair(
         server: PairTestServer, *arguments: str

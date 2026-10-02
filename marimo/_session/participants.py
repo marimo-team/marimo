@@ -29,7 +29,6 @@ class ParticipantLimits:
     payload_cap_bytes: int = 256 * 1024
     retained_event_limit: int = 500
     ttl_seconds: float = 120
-    listener_grace_seconds: float = 10
     sse_keepalive_seconds: float = 15
     inline_budget_bytes: int = 32 * 1024
     inactive_record_limit: int = 4
@@ -38,7 +37,6 @@ class ParticipantLimits:
         positive = (
             self.payload_cap_bytes,
             self.ttl_seconds,
-            self.listener_grace_seconds,
             self.sse_keepalive_seconds,
             self.inline_budget_bytes,
         )
@@ -147,7 +145,6 @@ class ParticipantRegistry:
         payload_cap_bytes: int = 256 * 1024,
         retained_event_limit: int = 500,
         ttl_seconds: float = 120,
-        listener_grace_seconds: float = 10,
         sse_keepalive_seconds: float = 15,
         inline_budget_bytes: int = 32 * 1024,
         inactive_record_limit: int = 4,
@@ -158,7 +155,6 @@ class ParticipantRegistry:
             payload_cap_bytes=payload_cap_bytes,
             retained_event_limit=retained_event_limit,
             ttl_seconds=ttl_seconds,
-            listener_grace_seconds=listener_grace_seconds,
             sse_keepalive_seconds=sse_keepalive_seconds,
             inline_budget_bytes=inline_budget_bytes,
             inactive_record_limit=inactive_record_limit,
@@ -224,10 +220,8 @@ class ParticipantRegistry:
 
             record.last_contact_at = contacted_at
             record.attached = True
-            record.expires_at = now + self.limits.ttl_seconds
-            record.attachment_generation += 1
             self._prune_inactive_records()
-            self._schedule_expiry(record)
+            self._refresh_expiry(record)
             state = record.state()
             self._emit_presence(state)
             return ParticipantAttachResult(
@@ -261,7 +255,7 @@ class ParticipantRegistry:
                 raise NoAttachedParticipantError
             event = HandoffEvent(
                 seq=record.next_seq,
-                created_at=self._clock(),
+                created_at=self._wall_clock(),
                 cell_id=payload.cell_id,
                 error=payload.error,
                 code=payload.code,
@@ -351,7 +345,7 @@ class ParticipantRegistry:
 
                 try:
                     await asyncio.wait_for(signal.wait(), timeout=keepalive)
-                except TimeoutError:
+                except asyncio.TimeoutError:
                     yield None
         finally:
             await self._close_stream(
@@ -412,6 +406,7 @@ class ParticipantRegistry:
             was_active = record.active
             record.active_requests.add(token)
             record.active = True
+            self._refresh_expiry(record)
             if not was_active:
                 record.active_since = self._wall_clock()
                 self._emit_presence(record.state())
@@ -434,6 +429,7 @@ class ParticipantRegistry:
                 return
             record.active = False
             record.active_since = None
+            self._refresh_expiry(record)
             self._emit_presence(record.state())
 
     async def delivery_status(
@@ -523,6 +519,17 @@ class ParticipantRegistry:
         )
         self._expiry_tasks[record.participant_id] = task
 
+    def _refresh_expiry(self, record: _ParticipantRecord) -> None:
+        record.attachment_generation += 1
+        if record.listening or record.active_requests:
+            record.expires_at = None
+            task = self._expiry_tasks.pop(record.participant_id, None)
+            if task is not None:
+                task.cancel()
+            return
+        record.expires_at = self._clock() + self.limits.ttl_seconds
+        self._schedule_expiry(record)
+
     async def _expire_attachment(
         self, participant_id: str, generation: int
     ) -> None:
@@ -537,6 +544,8 @@ class ParticipantRegistry:
                         or not record.attached
                         or record.attachment_generation != generation
                         or record.expires_at is None
+                        or record.listening
+                        or record.active_requests
                     ):
                         return
                     remaining = record.expires_at - self._clock()
@@ -551,6 +560,8 @@ class ParticipantRegistry:
         for record in self._records.values():
             if (
                 record.attached
+                and not record.listening
+                and not record.active_requests
                 and record.expires_at is not None
                 and record.expires_at <= now
             ):
@@ -597,10 +608,7 @@ class ParticipantRegistry:
             generation = record.listener_generation
             presence_changed = not record.listening
             record.listening = True
-            record.expires_at = None
-            task = self._expiry_tasks.pop(participant_id, None)
-            if task is not None:
-                task.cancel()
+            self._refresh_expiry(record)
             if presence_changed:
                 self._emit_presence(record.state())
             return generation
@@ -627,9 +635,7 @@ class ParticipantRegistry:
                 return
             record.listening = False
             if record.attached:
-                record.expires_at = self._clock() + self.limits.ttl_seconds
-                record.attachment_generation += 1
-                self._schedule_expiry(record)
+                self._refresh_expiry(record)
             self._emit_presence(record.state())
 
     @staticmethod

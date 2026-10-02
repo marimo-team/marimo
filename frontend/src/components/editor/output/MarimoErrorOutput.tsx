@@ -220,9 +220,26 @@ export const MarimoErrorOutput = ({
       if (error.type === "multiple-defs") {
         return `Multiple definitions of ${error.name}`;
       }
+      if (error.type === "setup-refs") {
+        return `Setup cell references: ${error.edges_with_vars
+          .map(([cell, variables]) => `${cell}: ${variables.join(", ")}`)
+          .join("; ")}`;
+      }
+      if (error.type === "cycle") {
+        return `Cycle: ${error.edges_with_vars
+          .map(
+            ([from, variables, to]) =>
+              `${from} -> ${variables.join(", ")} -> ${to}`,
+          )
+          .join("; ")}`;
+      }
       return error.type;
     })
     .join("\n");
+  const latestException = exceptionErrors.at(-1);
+  const tracebackMatch = latestException
+    ? `${latestException.exception_type}: ${latestException.msg}`
+    : undefined;
   const reportTraceback = errors
     .flatMap((error) =>
       "traceback" in error && typeof error.traceback === "string"
@@ -754,6 +771,7 @@ export const MarimoErrorOutput = ({
         cellId={cellId}
         error={reportError}
         traceback={reportTraceback}
+        tracebackMatch={tracebackMatch}
         preferLastRunCode={exceptionErrors.length > 0}
         fallbackToConsoleTraceback={exceptionErrors.length > 0}
       />

@@ -243,6 +243,57 @@ async def test_repeat_contact_renews_ttl() -> None:
     registry.close()
 
 
+async def test_active_request_suspends_idle_expiry() -> None:
+    now = 0.0
+    registry = ParticipantRegistry(ttl_seconds=10, clock=lambda: now)
+    await registry.attach("p1", metadata=metadata())
+    token = await registry.begin_request("p1")
+    assert token is not None
+
+    now = 20.0
+    active = await registry.current_state()
+    event = await registry.append_handoff(payload())
+    inline = await registry.read_inline_events("p1", token)
+    assert active is not None
+    assert active.attached
+    assert active.active
+    assert inline is not None
+    assert inline.events == (event,)
+
+    await registry.end_request("p1", token)
+    now = 29.0
+    idle = await registry.current_state()
+    now = 31.0
+    expired = await registry.current_state()
+    assert idle is not None
+    assert idle.attached
+    assert expired is not None
+    assert not expired.attached
+    registry.close()
+
+
+async def test_contact_does_not_restart_expiry_for_listener() -> None:
+    now = 0.0
+    registry = ParticipantRegistry(
+        ttl_seconds=10, sse_keepalive_seconds=0.01, clock=lambda: now
+    )
+    await registry.attach("p1", metadata=metadata())
+    stream = registry.stream_events("p1")
+    assert await anext(stream) is None
+
+    await registry.resume("p1")
+    now = 20.0
+    listening = await registry.current_state()
+    assert listening is not None
+    assert listening.attached
+    assert listening.listening
+
+    event = await registry.append_handoff(payload())
+    assert await anext(stream) == event
+    await stream.aclose()
+    registry.close()
+
+
 async def test_stream_delivers_retained_and_future_events() -> None:
     registry = ParticipantRegistry()
     await registry.attach("p1", metadata=metadata())
@@ -432,6 +483,18 @@ async def test_presence_snapshot_fields_use_wall_time() -> None:
     registry.close()
 
 
+async def test_handoff_timestamp_uses_wall_time() -> None:
+    registry = ParticipantRegistry(
+        clock=lambda: 12.0, wall_clock=lambda: 1_234.5
+    )
+    await registry.attach("p1", metadata=metadata())
+
+    event = await registry.append_handoff(payload())
+
+    assert event.created_at == 1_234.5
+    registry.close()
+
+
 def test_limits_validate_bounds() -> None:
     with pytest.raises(ValueError, match="positive"):
         ParticipantLimits(ttl_seconds=0)
@@ -446,7 +509,6 @@ def test_registry_exposes_approved_default_limits() -> None:
         payload_cap_bytes=256 * 1024,
         retained_event_limit=500,
         ttl_seconds=120,
-        listener_grace_seconds=10,
         sse_keepalive_seconds=15,
         inline_budget_bytes=32 * 1024,
         inactive_record_limit=4,
