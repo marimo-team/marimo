@@ -85,7 +85,9 @@ letting you pick up where you left off.
 !!! tip "Where persistent caches are stored"
     By default, persistent caches are stored in `__marimo__/cache/`, in the directory of the
     current notebook. For projects versioned with `git`, consider adding
-    `**/__marimo__/cache/` to your `.gitignore`.
+    `**/__marimo__/cache/` to your `.gitignore`. See [Managing the cache
+    directory](#managing-the-cache-directory) to inspect and clean up this
+    directory with the `marimo cache` commands.
 
 !!! tip "Caches are preserved even when a cell is re-run"
     If a cell defining a cached function is re-run, the cache will be preserved unless
@@ -406,6 +408,137 @@ with mo.persistent_cache("my_file"):
     data = my_file.read()
     # Do something with data
 ```
+
+## Managing the cache directory
+
+Use the `marimo cache` command group to inspect and clean up the
+`__marimo__/cache/` directories that
+[`mo.persistent_cache`][marimo.persistent_cache] writes. See [Cache expensive
+computations](../guides/expensive_notebooks.md#cache-expensive-computations)
+for the four commands and short examples. This section explains the
+model behind `marimo cache prune`, covering the manifest, the path hash,
+and what prune guarantees.
+
+### The manifest and the path hash
+
+A cache directory holds a manifest once a notebook has written a
+persistent entry there. The manifest is a file that records the cache
+keys the notebook produced. It sits at the root of the cache directory,
+named `<notebook-stem>-<path-digest>.json`, where the digest is taken
+from the notebook's absolute path so that notebooks sharing a cache
+directory keep separate manifests. marimo adds a record to the manifest
+on every cache hit and every save, so the manifest accumulates records
+across runs.
+
+The manifest indexes its records by a path hash. A path hash is one
+digest over the code hashes of a cell and of every cell it depends on,
+directly or through other cells. marimo computes it without running the
+notebook. The [cache key](#cache-key) described above can depend on the
+values a cell produces. A path hash depends on source code alone. That
+makes it a more brittle scheme, but it still captures the cache entries
+that belong to a notebook.
+
+### A worked example
+
+Take this notebook:
+
+```python
+# Cell A
+epochs = mo.ui.slider(1, 10)
+
+# Cell B
+def load_data(): ...
+data = load_data()
+
+# Cell C
+with mo.persistent_cache("train"):
+    model = train(data, epochs.value)
+```
+
+Let `H` be the hash function and `code(X)` be the source code of cell
+`X`. A cell's path hash is `H` over the code hashes of the cell and of
+every cell it depends on, concatenated in sorted order. Cell C depends
+on cells A and B:
+
+```
+node(A) = H(sorted{H(code(A))})
+node(B) = H(sorted{H(code(B))})
+node(C) = H(sorted{H(code(A)), H(code(B)), H(code(C))})
+```
+
+The manifest calls each path hash a node. Say `node(C)` is `3f9c…`.
+Runs with `epochs=2` and `epochs=5` both record their entries under
+that node. The manifest, stored as JSON (JavaScript Object Notation),
+looks like this:
+
+```json
+{ "version": 1, "notebook": "../../nb.py",
+  "nodes": { "3f9c…": { "train": ["C_ab12…", "C_77e0…"] } } }
+```
+
+Now edit `load_data` in cell B. `node(C)` becomes `8d21…`. The next run
+records a new entry, `C_e4f9…`, under that new node. Running `marimo
+cache prune nb.py` compiles the notebook, computes its live nodes, the
+path hashes of the cells the notebook now contains, and deletes every
+entry that no live node references:
+
+```
+__marimo__/cache/train/
+├── C_ab12….pickle   # epochs=2, old load_data  → pruned (node 3f9c… dead)
+├── C_77e0….pickle   # epochs=5, old load_data  → pruned
+└── C_e4f9….pickle   # epochs=5, new load_data  → kept
+```
+
+Prune keeps every entry under a live node. Both the `epochs=2` and
+`epochs=5` entries survive until the code changes, even when the last
+run touched only `epochs=5`. An entry behind a branch, or behind user
+interface state you rarely visit, still lives as long as the code that
+can produce it lives.
+
+Dead code is code the notebook no longer contains. Prune deletes the
+records for dead code. It does not limit what live code accumulates
+over time.
+Time-to-live (TTL) and size limits are out of scope for prune.
+
+### Guards
+
+- Prune never touches a directory that has no manifest. It reports the
+  directory and moves on. A corrupt, newer-version, or empty manifest
+  makes prune report the reason. If a deletion is planned in the same
+  directory, prune asks for confirmation first.
+- A notebook path prunes the shared cache directory beside that
+  notebook. Sibling notebooks can use it too. If a sibling
+  has no manifest, prune lists the planned deletions and asks for
+  confirmation. `--force` skips the prompt. It accepts that deletion
+  can remove entries a sibling notebook still reaches.
+- A manifest has dead nodes once its notebook no longer exists, and
+  prune deletes the entries under those nodes. Rename the notebook, run
+  it once under the new name, and its entries are protected again.
+- Prune never deletes a manifest. Concurrent kernels writing to the same
+  manifest can drop each other's newest records. An entry whose newest
+  record was dropped is either untracked, which prune never deletes, or
+  still recorded under older code, which prune can delete. The next run
+  recomputes it and records it again.
+
+### Caveats
+
+- The safety rule is one-sided. Prune never deletes an entry recorded
+  under code that still exists. Deleting too much costs a recomputation,
+  never a wrong result.
+- A path hash covers the whole cell. An edit anywhere in a cell, or in
+  any cell it depends on, makes prune treat that cell's older entries as
+  dead, even when an unchanged `mo.persistent_cache` call inside it
+  can still reuse them. The next run records those entries again.
+- Non-interactive runs, ones with no terminal attached, skip anything
+  that needs a confirmation prompt, and report what they skipped.
+- If `sys.pycache_prefix` is set, the cache lives under that prefix
+  instead of beside the notebook, and sibling notebooks cannot be
+  discovered. Run `marimo cache prune` with the same
+  `sys.pycache_prefix` as the kernel that produced the cache.
+- A path hash is computed from compiled code, as the cache key is. Run
+  `marimo cache prune` under the same Python version and optimization
+  level (`-O`) as the kernel that produced the cache, or entries that
+  code still produces read as dead and are recomputed.
 
 ## API
 
