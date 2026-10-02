@@ -31,7 +31,7 @@ export function outputExpansionConfigs(
     ) {
       continue;
     }
-    if (expanded && isOutputEmpty(notebook.cellRuntime[cellId]?.output)) {
+    if (isOutputEmpty(notebook.cellRuntime[cellId]?.output)) {
       continue;
     }
     configs[cellId] = { expand_output: expanded };
