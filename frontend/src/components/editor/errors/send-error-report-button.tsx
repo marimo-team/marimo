@@ -146,8 +146,13 @@ export function SendErrorReportButton({
         traceback: tracebackText,
         consoleTail,
       };
-      if (textEncoder.encode(JSON.stringify(payload)).length > MAX_HANDOFF_BYTES) {
-        toast({ variant: "danger", title: "Error report is too large to send" });
+      if (
+        textEncoder.encode(JSON.stringify(payload)).length > MAX_HANDOFF_BYTES
+      ) {
+        toast({
+          variant: "danger",
+          title: "Error report is too large to send",
+        });
         return;
       }
       await API.post<HandoffPayload, { seq: number }>(
