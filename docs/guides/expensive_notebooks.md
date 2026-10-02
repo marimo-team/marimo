@@ -211,6 +211,29 @@ marimo cache size -r notebooks/
 Run `marimo cache size` to print the disk usage and entry count for each
 cache directory, plus a total when there is more than one.
 
+### Delete entries outright
+
+Each `mo.persistent_cache` name gets its own block, the subdirectory
+that holds its entries, for example `train` in
+`__marimo__/cache/train/`. Anything in the name other than letters,
+digits, spaces, `_`, and `-` is replaced with `_` in the block's name,
+so two names that differ only there share a block. A cache directory
+can also hold a manifest, a file that records the cache keys a notebook
+produced.
+
+```bash
+marimo cache clean my_notebook.py train
+```
+
+Run `marimo cache clean` to delete cache entries. With a notebook PATH,
+it deletes exactly the entries listed in that notebook's manifest, then
+empties those records from the manifest. Entries the manifest does not
+list are left in place. With a directory PATH, it deletes whole blocks,
+including the blob directories that hold large entry values. If you name
+no blocks, it deletes every block. Pass one or more NAME arguments to
+limit either mode to those blocks. Each NAME must match a name you gave
+to `mo.persistent_cache`.
+
 ## Lazy-load expensive UIs
 
 Lazily render UI elements that are expensive to compute using
