@@ -7,7 +7,11 @@ from typing import TYPE_CHECKING, Any, Final
 
 from marimo import _loggers
 from marimo._output.formatting import as_html
-from marimo._output.hypertext import Html, is_non_interactive
+from marimo._output.hypertext import (
+    Html,
+    is_non_interactive,
+    should_resolve_lazy,
+)
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.functions import EmptyArgs, Function
@@ -42,12 +46,11 @@ class lazy(UIElement[bool, bool]):
     the result of a database query or some other expensive operation.
 
     Note:
-        In non-interactive contexts (ipynb and PDF exports), `mo.lazy`
-        renders its element eagerly and returns the resolved HTML
+        In non-interactive contexts (ipynb, PDF, and static HTML exports),
+        `mo.lazy` renders its element eagerly and returns the resolved HTML
         directly, since no kernel is available to invoke the lazy load
         function. Async elements cannot be resolved from a synchronous
-        constructor; they fall back to the lazy widget. HTML export
-        keeps the lazy widget as-is.
+        constructor; they fall back to the lazy widget.
 
     Examples:
         Create a lazy-loaded tab:
@@ -86,7 +89,7 @@ class lazy(UIElement[bool, bool]):
         | Callable[[], Coroutine[None, None, object]],
         show_loading_indicator: bool = False,  # noqa: ARG004
     ) -> Any:
-        if is_non_interactive():
+        if is_non_interactive() or should_resolve_lazy():
             resolved = _resolve_eagerly(element)
             if resolved is not None:
                 return resolved
