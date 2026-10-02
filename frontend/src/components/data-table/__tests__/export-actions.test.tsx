@@ -461,8 +461,10 @@ describe("ExportActions dialog", () => {
   });
 
   it("does not cancel a pending CSV download when geometry metadata is retried", async () => {
-    let resolveDownload: (value: { url: string; filename: string }) => void =
-      () => undefined;
+    let resolveDownload: (value: {
+      url: string;
+      filename: string;
+    }) => void = () => undefined;
     downloadAs.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
@@ -481,7 +483,10 @@ describe("ExportActions dialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await screen.findByRole("button", { name: "GeoParquet options" });
     await act(async () => {
-      resolveDownload({ url: "https://example.test/export", filename: "table" });
+      resolveDownload({
+        url: "https://example.test/export",
+        filename: "table",
+      });
     });
 
     expect(downloadByURL).toHaveBeenCalledWith(
@@ -491,8 +496,10 @@ describe("ExportActions dialog", () => {
   });
 
   it("cancels a pending download when the table source changes", async () => {
-    let resolveDownload: (value: { url: string; filename: string }) => void =
-      () => undefined;
+    let resolveDownload: (value: {
+      url: string;
+      filename: string;
+    }) => void = () => undefined;
     downloadAs.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
@@ -513,7 +520,10 @@ describe("ExportActions dialog", () => {
       expect(getExportMetadata).toHaveBeenCalledTimes(2);
     });
     await act(async () => {
-      resolveDownload({ url: "https://example.test/export", filename: "table" });
+      resolveDownload({
+        url: "https://example.test/export",
+        filename: "table",
+      });
     });
 
     expect(downloadByURL).not.toHaveBeenCalled();
