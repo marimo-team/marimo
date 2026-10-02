@@ -364,7 +364,7 @@ def _validate_geoparquet(
 ) -> None:
     import pyarrow as pa
     import pyarrow.parquet as pq
-    from pyproj import CRS
+    from pyproj import CRS  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
     try:
         file_metadata = pq.read_metadata(BytesIO(artifact))

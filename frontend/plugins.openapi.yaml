@@ -3305,6 +3305,7 @@ components:
                 - invalid_geometry
                 - invalid_metadata
                 - unsupported_representation
+                - unsupported_version
                 - missing_packages
                 - conversion_failed
             - type: "null"
@@ -4882,6 +4883,7 @@ components:
                 - invalid_geometry
                 - invalid_metadata
                 - unsupported_representation
+                - unsupported_version
                 - missing_packages
                 - conversion_failed
             - type: "null"
