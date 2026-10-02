@@ -163,6 +163,25 @@ def _echo_or_print(*args: Any, **kwargs: Any) -> None:
         print(*args, **kwargs)  # noqa: T201
 
 
+def _target_encoding(kwargs: dict[str, Any]) -> str:
+    file = kwargs.get("file")
+    if file is None:
+        file = sys.stderr if kwargs.get("err") else sys.stdout
+    return getattr(file, "encoding", None) or "ascii"
+
+
+def _make_encodable(text: str, encoding: str) -> str:
+    """Make `text` writable to a stream that uses `encoding`.
+
+    Common Unicode characters are replaced with ASCII equivalents; anything
+    else the stream cannot encode is backslash-escaped rather than raising.
+    """
+    text = text.replace("→", "->").replace("←", "<-")
+    text = text.replace("✓", "v").replace("✗", "x")
+    text = text.replace("•", "*").replace("…", "...")
+    return text.encode(encoding, errors="backslashreplace").decode(encoding)
+
+
 def echo(*args: Any, **kwargs: Any) -> None:
     if GLOBAL_SETTINGS.QUIET:
         return
@@ -170,16 +189,13 @@ def echo(*args: Any, **kwargs: Any) -> None:
     try:
         _echo_or_print(*args, **kwargs)
     except UnicodeEncodeError:
-        # Handle non-UTF-8 terminals (such as CP-1252, Windows) by replacing
-        # common Unicode characters with ASCII equivalents for non-UTF-8
-        # terminals.
-        ascii_args = []
-        for arg in args:
-            if isinstance(arg, str):
-                ascii_arg = arg.replace("→", "->").replace("←", "<-")
-                ascii_arg = ascii_arg.replace("✓", "v").replace("✗", "x")
-                ascii_arg = ascii_arg.replace("•", "*").replace("…", "...")
-                ascii_args.append(ascii_arg)
-            else:
-                ascii_args.append(arg)
+        # Handle non-UTF-8 terminals (such as CP-1252 on Windows). The text
+        # may contain arbitrary user content (e.g. a converted notebook), so
+        # every character the stream cannot encode must be handled, not just
+        # a known set.
+        encoding = _target_encoding(kwargs)
+        ascii_args = [
+            _make_encodable(arg, encoding) if isinstance(arg, str) else arg
+            for arg in args
+        ]
         _echo_or_print(*ascii_args, **kwargs)
