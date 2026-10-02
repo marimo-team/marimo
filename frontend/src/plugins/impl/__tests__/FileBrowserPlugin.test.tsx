@@ -1,6 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import { initialModeAtom } from "@/core/mode";
@@ -187,7 +193,7 @@ describe("FileBrowserPlugin keyboard accessibility", () => {
     const docsRow = docs.closest('[role="row"]')!;
     fireEvent.keyDown(docsRow, { key: "ArrowDown" }); // move active off the parent
     fireEvent.click(docs); // navigate into "docs"
-    await screen.findByText("docs"); // listing reloads (mock returns same files)
+    await within(screen.getByRole("grid")).findByText("docs"); // listing reloads (mock returns same files)
     const rows = screen.getAllByRole("row");
     expect(rows[0]).toHaveAttribute("tabindex", "0");
     // the focused row must match the only tabbable row
@@ -361,3 +367,80 @@ describe("FileBrowserPlugin keyboard accessibility", () => {
 function rowFor(name: string): HTMLElement {
   return screen.getByText(name).closest('[role="row"]') as HTMLElement;
 }
+
+describe("FileBrowserPlugin breadcrumbs", () => {
+  function breadcrumbs() {
+    return within(
+      screen.getByRole("navigation", { name: "Current directory" }),
+    );
+  }
+
+  it("renders a crumb per ancestor with the current directory last", async () => {
+    renderBrowser();
+    await screen.findByText("docs");
+    const items = breadcrumbs().getAllByRole("listitem");
+    expect(items.map((li) => li.textContent)).toEqual(["/", "home", "user"]);
+    expect(breadcrumbs().getByRole("button", { name: "user" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(
+      breadcrumbs().getByRole("button", { name: "home" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("keeps focus on a crumb after navigating to it", async () => {
+    const { listDirectory } = renderBrowser();
+    await screen.findByText("docs");
+    const home = breadcrumbs().getByRole("button", { name: "home" });
+    home.focus();
+    fireEvent.click(home);
+    await waitFor(() =>
+      expect(listDirectory).toHaveBeenLastCalledWith({ path: "/home" }),
+    );
+    const current = breadcrumbs().getByRole("button", { name: "home" });
+    expect(current).toHaveAttribute("aria-current", "page");
+    expect(current).toBe(home);
+    expect(current).toHaveFocus();
+  });
+
+  it("does not reload when the current crumb is clicked", async () => {
+    const { listDirectory } = renderBrowser();
+    await screen.findByText("docs");
+    fireEvent.click(breadcrumbs().getByRole("button", { name: "user" }));
+    expect(listDirectory).toHaveBeenCalledTimes(1);
+  });
+
+  it("navigates to an ancestor when a crumb is clicked", async () => {
+    const { listDirectory } = renderBrowser();
+    await screen.findByText("docs");
+    fireEvent.click(breadcrumbs().getByRole("button", { name: "home" }));
+    await waitFor(() =>
+      expect(listDirectory).toHaveBeenLastCalledWith({ path: "/home" }),
+    );
+    fireEvent.click(breadcrumbs().getByRole("button", { name: "/" }));
+    await waitFor(() =>
+      expect(listDirectory).toHaveBeenLastCalledWith({ path: "/" }),
+    );
+  });
+
+  it("hides ancestors outside the initial path when navigation is restricted", async () => {
+    render(
+      <FileBrowser
+        initialPath="/home/user"
+        filetypes={[]}
+        selectionMode="all"
+        multiple={true}
+        label={null}
+        restrictNavigation={true}
+        value={[]}
+        setValue={vi.fn()}
+        host={document.createElement("div")}
+        list_directory={mockListDirectory(FILES)}
+      />,
+    );
+    await screen.findByText("docs");
+    const items = breadcrumbs().getAllByRole("listitem");
+    expect(items.map((li) => li.textContent)).toEqual(["user"]);
+  });
+});
