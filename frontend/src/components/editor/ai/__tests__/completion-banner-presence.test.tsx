@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Deferred } from "@/utils/Deferred";
 import { CompletionBannerPresence } from "../completion-banner-presence";
 
 function banner(open: boolean) {
@@ -12,94 +13,94 @@ function banner(open: boolean) {
   );
 }
 
-// jsdom does not apply imported CSS or emit animation events.
-function simulateAnimationStyles() {
-  const getComputedStyle = window.getComputedStyle;
-  vi.spyOn(window, "getComputedStyle").mockImplementation((element) => {
-    const styles = getComputedStyle(element);
-    return new Proxy(styles, {
-      get(target, property, receiver) {
-        if (
-          property === "animationName" &&
-          element.classList.contains("completion-banner-presence")
-        ) {
-          return element.getAttribute("data-state") === "open"
-            ? "completion-banner-enter"
-            : "completion-banner-exit";
-        }
-        return Reflect.get(target, property, receiver);
-      },
-    });
-  });
-}
+const getAnimations = vi.fn<() => { finished: Promise<void> }[]>(() => []);
+const originalGetAnimations = Object.getOwnPropertyDescriptor(
+  HTMLElement.prototype,
+  "getAnimations",
+);
 
-function endExit(element: Element) {
-  const event = new Event("animationend", { bubbles: true });
-  Object.defineProperty(event, "animationName", {
-    value: "completion-banner-exit",
+beforeEach(() => {
+  Object.defineProperty(HTMLElement.prototype, "getAnimations", {
+    configurable: true,
+    value: getAnimations,
   });
-  fireEvent(element, event);
-}
+});
 
 afterEach(() => {
   cleanup();
-  vi.restoreAllMocks();
+  getAnimations.mockReset();
+  getAnimations.mockReturnValue([]);
+  if (originalGetAnimations) {
+    Object.defineProperty(
+      HTMLElement.prototype,
+      "getAnimations",
+      originalGetAnimations,
+    );
+  } else {
+    Reflect.deleteProperty(HTMLElement.prototype, "getAnimations");
+  }
 });
 
 describe("CompletionBannerPresence", () => {
-  it("does not mount controls until opened", () => {
+  it("does not mount controls or inspect animations in inactive cells", () => {
     const { rerender } = render(banner(false));
     expect(screen.queryByText("Keep change")).not.toBeInTheDocument();
+    expect(getAnimations).not.toHaveBeenCalled();
 
     rerender(banner(true));
-    const content = screen.getByRole("button", {
-      name: "Keep change",
-    }).parentElement;
-    expect(content).not.toHaveAttribute("inert");
-    expect(content).toHaveAttribute("aria-hidden", "false");
+    expect(
+      screen.getByRole("button", { name: "Keep change" }),
+    ).toBeInTheDocument();
+    expect(getAnimations).not.toHaveBeenCalled();
   });
 
-  it("makes exiting controls inert and removes them when the animation ends", () => {
-    simulateAnimationStyles();
+  it("keeps exiting controls inert until all wrapper transitions finish", async () => {
+    const height = new Deferred<void>();
+    const opacity = new Deferred<void>();
+    getAnimations.mockReturnValue([
+      { finished: height.promise },
+      { finished: opacity.promise },
+    ]);
     const { rerender } = render(banner(true));
-    const content = screen.getByRole("button", {
-      name: "Keep change",
-    }).parentElement;
-    expect(content).not.toBeNull();
-    if (!content) {
-      throw new Error("Banner content is missing");
-    }
-
     rerender(banner(false));
-    expect(screen.getByText("Keep change")).toBeInTheDocument();
+
+    const button = screen.getByText("Keep change");
+    const content = button.closest(".completion-banner-presence");
     expect(content).toHaveAttribute("inert");
     expect(content).toHaveAttribute("aria-hidden", "true");
     expect(screen.queryByRole("button", { name: "Keep change" })).toBeNull();
 
-    endExit(content);
+    await act(async () => height.resolve(undefined));
+    expect(button).toBeInTheDocument();
+    await act(async () => opacity.resolve(undefined));
+    await waitFor(() => expect(button).not.toBeInTheDocument());
+  });
+
+  it("ignores the previous exit when reopened", async () => {
+    const exit = new Deferred<void>();
+    getAnimations.mockReturnValue([{ finished: exit.promise }]);
+    const { rerender } = render(banner(true));
+    rerender(banner(false));
+    rerender(banner(true));
+    await act(async () => exit.reject(new Error("Transition reversed")));
+
+    const button = screen.getByRole("button", { name: "Keep change" });
+    expect(button).toBeInTheDocument();
+    expect(button.closest(".completion-banner-presence")).not.toHaveAttribute(
+      "inert",
+    );
+  });
+
+  it("removes controls when a closing transition is cancelled", async () => {
+    const exit = new Deferred<void>();
+    getAnimations.mockReturnValue([{ finished: exit.promise }]);
+    const { rerender } = render(banner(true));
+    rerender(banner(false));
+    await act(async () => exit.reject(new Error("Motion disabled")));
     expect(screen.queryByText("Keep change")).not.toBeInTheDocument();
   });
 
-  it("keeps controls mounted if reopened during exit", () => {
-    simulateAnimationStyles();
-    const { rerender } = render(banner(true));
-    const content = screen.getByRole("button", {
-      name: "Keep change",
-    }).parentElement;
-    if (!content) {
-      throw new Error("Banner content is missing");
-    }
-
-    rerender(banner(false));
-    rerender(banner(true));
-    endExit(content);
-    expect(
-      screen.getByRole("button", { name: "Keep change" }),
-    ).toBeInTheDocument();
-    expect(content).not.toHaveAttribute("inert");
-  });
-
-  it("removes controls immediately when there is no animation", () => {
+  it("removes controls immediately without animations", () => {
     const { rerender } = render(banner(true));
     rerender(banner(false));
     expect(screen.queryByText("Keep change")).not.toBeInTheDocument();
