@@ -31,6 +31,13 @@ jobs:
               - 'frontend/**'
               - 'packages/**'
               - 'pnpm-workspace.yaml'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'turbo.json'
+              - '.npmrc'
+              - '.github/workflows/test_fe.yaml'
+              - '.github/actions/**'
+              - '.github/problemMatchers/**'
 
   lint_frontend:
     needs: changes
@@ -281,3 +288,23 @@ jobs:
         with:
           check-name: "build"
           command: "pnpm turbo build"
+
+  frontend_ci:
+    name: Frontend CI
+    needs: [changes, lint_frontend, test_frontend, build_frontend]
+    # Required checks must report failures even when prerequisites skip their dependents.
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Verify required jobs
+        env:
+          PASSED: >-
+            ${{ needs.changes.result == 'success' &&
+              ((needs.changes.outputs.frontend == 'true' && needs.lint_frontend.result == 'success' && needs.test_frontend.result == 'success' && needs.build_frontend.result == 'success') ||
+               (needs.changes.outputs.frontend == 'false' && needs.lint_frontend.result == 'skipped' && needs.test_frontend.result == 'skipped' && needs.build_frontend.result == 'skipped')) }}
+        run: |
+          if [ "$PASSED" != "true" ]; then
+            echo "::error::Frontend CI failed or required jobs did not run"
+            exit 1
+          fi

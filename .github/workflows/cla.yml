@@ -1,4 +1,5 @@
 name: "CLA Assistant"
+# TODO: Require the CLA signature status once latest-commit rechecks are reliable.
 on:
   issue_comment:
     types: [created]

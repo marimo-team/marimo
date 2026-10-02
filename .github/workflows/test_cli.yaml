@@ -1,5 +1,7 @@
 name: cli test
 
+# TODO: Add a required CLI CI gate once packaging and platform checks are reliable.
+
 on:
   push:
     branches: [main]
@@ -30,6 +32,18 @@ jobs:
             cli:
               - 'marimo/**'
               - 'tests/_cli/**'
+              - 'tests/_pyodide/**'
+              - 'frontend/**'
+              - 'packages/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+              - '.npmrc'
+              - '.github/actions/**'
+              - 'scripts/test-lsp.sh'
               - '.github/workflows/test_cli.yaml'
 
   build_wheel:

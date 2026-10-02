@@ -30,6 +30,15 @@ jobs:
             playwright:
               - 'frontend/**'
               - 'marimo/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+              - '.npmrc'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - '.github/actions/**'
               - '.github/workflows/playwright.yml'
   test:
     needs: changes
@@ -153,3 +162,23 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 1
+
+  browser_ci:
+    name: Browser CI
+    needs: [changes, test]
+    # Required checks must report failures even when prerequisites skip their dependents.
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Verify required jobs
+        env:
+          PASSED: >-
+            ${{ needs.changes.result == 'success' &&
+              ((needs.changes.outputs.playwright == 'true' && needs.test.result == 'success') ||
+               (needs.changes.outputs.playwright == 'false' && needs.test.result == 'skipped')) }}
+        run: |
+          if [ "$PASSED" != "true" ]; then
+            echo "::error::Browser CI failed or required jobs did not run"
+            exit 1
+          fi

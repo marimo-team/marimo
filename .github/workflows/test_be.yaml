@@ -1,5 +1,7 @@
 name: Test BE
 
+# TODO: Add a required Backend CI gate once the Python checks are reliable.
+
 on:
   push:
     branches: [main]
@@ -32,8 +34,18 @@ jobs:
               - 'marimo/**'
               - 'tests/**'
               - 'pyproject.toml'
+              - 'uv.lock'
+              - '.github/workflows/test_be.yaml'
+              - '.github/actions/**'
+              - 'packages/pytest_changed/**'
             docs:
               - 'docs/**'
+              - 'marimo/**'
+              - 'mkdocs.yml'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - '.github/workflows/test_be.yaml'
+              - '.github/actions/**'
 
   test_docs:
     needs: changes
@@ -241,3 +253,23 @@ jobs:
         uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1
         env:
           CODECOV_TOKEN: ${{ steps.secrets.outputs.CODECOV_TOKEN }}
+
+  docs_ci:
+    name: Docs CI
+    needs: [changes, test_docs]
+    # Required checks must report failures even when prerequisites skip their dependents.
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Verify required jobs
+        env:
+          PASSED: >-
+            ${{ needs.changes.result == 'success' &&
+              ((needs.changes.outputs.docs == 'true' && needs.test_docs.result == 'success') ||
+               (needs.changes.outputs.docs == 'false' && needs.test_docs.result == 'skipped')) }}
+        run: |
+          if [ "$PASSED" != "true" ]; then
+            echo "::error::Docs CI failed or required jobs did not run"
+            exit 1
+          fi

@@ -2,11 +2,6 @@ name: Schema Breaking Changes Check
 
 on:
   pull_request:
-    paths:
-      - "marimo/_schemas/**/*.yaml"
-      - "packages/openapi/api.yaml"
-      - "frontend/plugins.openapi.yaml"
-      - ".github/workflows/test_schemas.yaml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -51,6 +46,7 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         schema:
           - name: openapi
@@ -172,3 +168,21 @@ jobs:
               repo: context.repo.repo,
               body: output
             })
+
+  schema_compatibility:
+    name: Schema compatibility
+    needs: [changes, check-schemas]
+    # Required checks must report failures even when prerequisites skip their dependents.
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Verify required jobs
+        env:
+          PASSED: >-
+            ${{ needs.changes.result == 'success' && needs.check-schemas.result == 'success' }}
+        run: |
+          if [ "$PASSED" != "true" ]; then
+            echo "::error::Schema compatibility failed or required jobs did not run"
+            exit 1
+          fi
