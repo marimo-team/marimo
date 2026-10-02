@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import secrets
 import typing
+from copy import copy
 from typing import TYPE_CHECKING, Any
 
 import starlette
@@ -14,6 +15,7 @@ from starlette.datastructures import Secret
 from starlette.exceptions import HTTPException
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.requests import HTTPConnection
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
@@ -21,7 +23,6 @@ from marimo._config.settings import GLOBAL_SETTINGS
 
 if TYPE_CHECKING:
     from starlette.authentication import AuthenticationError
-    from starlette.requests import HTTPConnection
     from starlette.types import ASGIApp, Receive, Scope, Send
 
 from marimo._server.api.deps import AppState
@@ -247,10 +248,15 @@ class CustomSessionMiddleware(SessionMiddleware):
 
         state = AppState.from_app(scope["app"])
 
-        # We key the token cookie by port to avoid conflicts
-        # with multiple marimo instances running on the same host
-        cookie_name = self.original_session_cookie
+        # SSH forwarding preserves Host but can change the browser-facing port.
+        conn = HTTPConnection(scope)
         maybe_port = state.maybe_port
+        if "host" in conn.headers:
+            maybe_port = conn.url.port
+            if maybe_port is None:
+                maybe_port = 443 if conn.url.scheme in ("https", "wss") else 80
+
+        cookie_name = self.original_session_cookie
         if maybe_port is not None:
             cookie_name = f"{cookie_name}_{maybe_port}"
 
@@ -259,13 +265,19 @@ class CustomSessionMiddleware(SessionMiddleware):
             slug = base_url.lstrip("/").replace("/", "_")
             if slug:
                 cookie_name = f"{cookie_name}_{slug}"
-            self.path = base_url
+            cookie_path = base_url
         else:
-            self.path = self.original_path
+            cookie_path = self.original_path
 
-        self.session_cookie = cookie_name
+        # Starlette reads these again when sending the response. Keep them
+        # request-local so concurrent requests cannot overwrite one another.
+        middleware = copy(self)
+        middleware.session_cookie = cookie_name
+        middleware.path = cookie_path
 
-        return await super().__call__(scope, receive, send)
+        return await SessionMiddleware.__call__(
+            middleware, scope, receive, send
+        )
 
 
 # Wrapper around starlette's AuthenticationMiddleware to
