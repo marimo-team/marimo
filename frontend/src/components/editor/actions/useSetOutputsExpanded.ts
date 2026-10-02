@@ -15,7 +15,7 @@ import { Objects } from "@/utils/objects";
 /**
  * The `expand_output` config changes needed to expand or clamp every output.
  *
- * Expanding skips cells without output, so their source isn't annotated
+ * Both actions skip cells without output, so their source isn't annotated
  * with a config that has no effect.
  */
 export function outputExpansionConfigs(

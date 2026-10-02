@@ -13,12 +13,14 @@ const output: OutputMessage = {
 };
 
 describe("outputExpansionConfigs", () => {
-  const [withOutput, withoutOutput, expanded] = MockNotebook.cellIds();
+  const [withOutput, withoutOutput, expanded, expandedWithoutOutput] =
+    MockNotebook.cellIds();
   const notebook = MockNotebook.notebookState({
     cellData: {
       [withOutput]: {},
       [withoutOutput]: {},
       [expanded]: { config: { expand_output: true } },
+      [expandedWithoutOutput]: { config: { expand_output: true } },
     },
     cellRuntime: {
       [withOutput]: { output },
@@ -26,13 +28,13 @@ describe("outputExpansionConfigs", () => {
     },
   });
 
-  it("expands clamped cells that have output", () => {
+  it("expands clamped cells with output and skips cells without output", () => {
     expect(outputExpansionConfigs(notebook, true)).toEqual({
       [withOutput]: { expand_output: true },
     });
   });
 
-  it("clamps every expanded cell", () => {
+  it("clamps expanded cells with output and skips cells without output", () => {
     expect(outputExpansionConfigs(notebook, false)).toEqual({
       [expanded]: { expand_output: false },
     });
