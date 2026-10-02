@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fileSplit,
+  formatPathRelativeToRoot,
   getProtocolAndParentDirectories,
   makeDuplicateName,
   resolvePaths,
@@ -104,6 +105,58 @@ describe("getProtocolAndParentDirectories", () => {
       "C:\\folder",
       "C:\\",
     ]);
+  });
+});
+
+describe("formatPathRelativeToRoot", () => {
+  it("returns . for the root itself", () => {
+    expect(
+      formatPathRelativeToRoot({
+        path: "/home/user/data",
+        root: "/home/user/data",
+        delimiter: "/",
+      }),
+    ).toBe(".");
+  });
+
+  it("returns a relative path under the root", () => {
+    expect(
+      formatPathRelativeToRoot({
+        path: "/home/user/data/subdir",
+        root: "/home/user/data",
+        delimiter: "/",
+      }),
+    ).toBe("subdir");
+  });
+
+  it("handles nested relative paths", () => {
+    expect(
+      formatPathRelativeToRoot({
+        path: "/home/user/data/a/b",
+        root: "/home/user/data",
+        delimiter: "/",
+      }),
+    ).toBe("a/b");
+  });
+
+  it("handles Windows paths", () => {
+    expect(
+      formatPathRelativeToRoot({
+        path: "C:\\data\\sub",
+        root: "C:\\data",
+        delimiter: "\\",
+      }),
+    ).toBe("sub");
+  });
+
+  it("returns the original path when outside the root", () => {
+    expect(
+      formatPathRelativeToRoot({
+        path: "/other",
+        root: "/home/user/data",
+        delimiter: "/",
+      }),
+    ).toBe("/other");
   });
 });
 
