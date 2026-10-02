@@ -152,6 +152,7 @@ def _start_server(
     stderr_path: Path,
     *,
     pair_preview: bool = False,
+    skew_protection: bool = False,
     attempts: int = 3,
 ) -> tuple[subprocess.Popen[bytes], str]:
     for attempt in range(attempts):
@@ -166,7 +167,7 @@ def _start_server(
                     str(notebook),
                     "--headless",
                     "--no-token",
-                    "--no-skew-protection",
+                    *([] if skew_protection else ["--no-skew-protection"]),
                     "--port",
                     str(port),
                 ],
@@ -192,14 +193,20 @@ def _start_server(
 
 @contextmanager
 def pair_test_server(
-    tmp_path: Path, *, pair_preview: bool = False
+    tmp_path: Path,
+    *,
+    pair_preview: bool = False,
+    skew_protection: bool = False,
 ) -> Generator[PairTestServer, None, None]:
     notebook = tmp_path / "pair-integration.py"
     notebook.write_text("import marimo\napp = marimo.App()\n")
     stderr_path = tmp_path / "marimo-stderr.log"
 
     process, url = _start_server(
-        notebook, stderr_path, pair_preview=pair_preview
+        notebook,
+        stderr_path,
+        pair_preview=pair_preview,
+        skew_protection=skew_protection,
     )
     try:
         session_id = f"pair_{uuid.uuid4().hex[:8]}"
