@@ -54,6 +54,7 @@ import {
 } from "./completion-handlers";
 import { addContextCompletion, getAICompletionBody } from "./completion-utils";
 import { useStagedAICell } from "@/core/ai/staged-cells";
+import { CompletionBannerPresence } from "./completion-banner-presence";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -242,15 +243,16 @@ export const AiCompletionEditor: React.FC<Props> = ({
     inputRef.current?.view?.focus();
   };
 
-  const showCompletionBanner =
-    enabled && triggerImmediately && (completion || isLoading);
+  const showCompletionBanner = Boolean(
+    enabled && triggerImmediately && (completion || isLoading),
+  );
   // Set default output area to below if not specified
   outputArea = outputArea ?? "below";
 
   const showInput = enabled && (!triggerImmediately || showInputPrompt);
 
-  const completionBanner = showCompletionBanner && (
-    <div className="w-full bg-(--cm-background) flex justify-center">
+  const completionBanner = (
+    <CompletionBannerPresence open={showCompletionBanner}>
       <CompletionBanner
         status={isLoading ? "loading" : "generated"}
         onAccept={handleAcceptCompletion}
@@ -260,7 +262,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         runCell={runCell}
         className="mt-4 mb-3 w-lg"
       />
-    </div>
+    </CompletionBannerPresence>
   );
 
   const renderMergeEditor = (originalCode: string, modifiedCode: string) => {
