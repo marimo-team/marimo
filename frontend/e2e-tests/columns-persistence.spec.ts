@@ -343,3 +343,23 @@ test("deleting at a saved column boundary focuses the preceding displayed cell",
   await expect(editors.nth(1)).toBeFocused();
   await expect(editors.nth(1)).toHaveText('"left_second"');
 });
+
+for (const width of ["compact", "medium", "full"]) {
+  test(`command-mode movement crosses saved columns in ${width}`, async ({ page }) => {
+    await setWidth(page, width);
+    const editors = page.locator(".cm-content");
+    await editors.nth(1).click();
+    await editors.nth(1).press("Escape");
+    const cells = page.locator(".marimo-cell");
+    await expect(cells.nth(1)).toBeFocused();
+    await pressShortcut(page, "cell.moveDown");
+    await expect(editors).toHaveText(['"left_first"', '"right_first"', '"left_second"', '"right_second"']);
+    await editors.nth(1).click();
+    await editors.nth(1).press("Escape");
+    await expect(cells.nth(1)).toBeFocused();
+    await pressShortcut(page, "cell.moveUp");
+    await expect(editors).toHaveText(['"right_first"', '"left_first"', '"left_second"', '"right_second"']);
+    await setWidth(page, "columns");
+    await expectColumns(page, [["right_first", "left_first"], ["left_second", "right_second"]]);
+  });
+}
