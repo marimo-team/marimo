@@ -130,6 +130,26 @@ def __():
 
 ///
 
+### Pandas float formatting
+
+When a Pandas DataFrame or Series is the last expression in a cell, marimo
+uses `pd.options.display.float_format` to format its floating-point columns:
+
+```python
+import pandas as pd
+
+pd.options.display.float_format = "{:.2g}".format
+pd.DataFrame({"value": [0.8331949753793817, 0.08561160165729609]})
+```
+
+The table displays `0.83` and `0.086`. Sorting and downloads use the original
+numeric values. Missing values retain their usual display.
+
+This setting applies to implicit Pandas output. For explicit
+[`mo.ui.table`][marimo.ui.table] or [`mo.ui.dataframe`][marimo.ui.dataframe]
+elements, use `format_mapping`. The interactive table does not use
+`pd.options.display.precision`.
+
 ## Transforming dataframes
 
 ### No-code transformations

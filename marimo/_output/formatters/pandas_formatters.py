@@ -9,6 +9,7 @@ from marimo._output.formatters.df_formatters import include_opinionated
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.utils import flatten_string
 from marimo._plugins.ui._impl.table import table
+from marimo._plugins.ui._impl.tables.format import FormatMapping
 
 LOGGER = marimo_logger()
 
@@ -33,7 +34,29 @@ class PandasFormatter(FormatterFactory):
             def _show_marimo_dataframe(
                 df: pd.DataFrame,
             ) -> tuple[KnownMimeType, str]:
-                return table(df, selection=None, pagination=None)._mime_()
+                float_format = pd.get_option("display.float_format")
+                format_mapping: FormatMapping | None = (
+                    {
+                        (
+                            ",".join(map(str, col))
+                            if isinstance(df.columns, pd.MultiIndex)
+                            and isinstance(col, tuple)
+                            else str(col)
+                        ): lambda value: (
+                            value if pd.isna(value) else float_format(value)
+                        )
+                        for col, dtype in df.dtypes.items()
+                        if pd.api.types.is_float_dtype(dtype)
+                    }
+                    if float_format is not None
+                    else None
+                )
+                return table(
+                    df,
+                    selection=None,
+                    pagination=None,
+                    format_mapping=format_mapping,
+                )._mime_()
 
             @formatting.opinionated_formatter(pd.Series)
             def _show_marimo_series(
@@ -43,9 +66,7 @@ class PandasFormatter(FormatterFactory):
                     # Table need a column name for operations
                     if series.name is None:
                         series = series.rename("value")
-                    return table(
-                        series.to_frame(), selection=None, pagination=None
-                    )._mime_()
+                    return _show_marimo_dataframe(series.to_frame())
                 except Exception as e:
                     LOGGER.warning("Failed to format Series: %s", e)
                     return ("text/html", series._repr_html_())
