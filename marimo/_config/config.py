@@ -390,9 +390,13 @@ class AnthropicConfig(TypedDict, total=False):
     **Keys.**
 
     - `api_key`: the Anthropic API key or an `env:` reference
+    - `extra_headers`: additional headers to send with each request
+    - `extra_body`: additional JSON fields to send in each request body
     """
 
     api_key: str
+    extra_headers: NotRequired[dict[str, str]]
+    extra_body: NotRequired[dict[str, Any]]
 
 
 @dataclass

@@ -3977,12 +3977,18 @@ export interface components {
      * AnthropicConfig
      * @description Configuration options for Anthropic.
      *
-     *         **Keys.**
+     *     **Keys.**
      *
-     *         - `api_key`: the Anthropic API key or an `env:` reference
+     *     - `api_key`: the Anthropic API key or an `env:` reference
+     *     - `extra_headers`: additional headers to send with each request
+     *     - `extra_body`: additional JSON fields to send in each request body
      */
     AnthropicConfig: {
       api_key?: string;
+      extra_body?: Record<string, any>;
+      extra_headers?: {
+        [key: string]: string;
+      };
     };
     /** AutoExportAsIPYNBRequest */
     AutoExportAsIPYNBRequest: {

@@ -653,6 +653,71 @@ def test_anthropic_settings_split(
     assert actual_thinking == expected_agent_thinking
 
 
+@pytest.mark.requires("anthropic", "pydantic_ai")
+async def test_anthropic_request_options() -> None:
+    from anthropic.types.beta import BetaMessage
+    from pydantic_ai.ui.vercel_ai.request_types import TextUIPart, UIMessage
+
+    config: AiConfig = {
+        "anthropic": {
+            "api_key": "test-key",
+            "extra_headers": {
+                "x-custom": "test-value",
+                "anthropic-beta": "test-beta",
+            },
+            "extra_body": {
+                "speed": "fast",
+                "metadata": {"user_id": "test-user"},
+            },
+        }
+    }
+    provider = AnthropicProvider(
+        "claude-sonnet-4-6", AnyProviderConfig.for_anthropic(config)
+    )
+    response = BetaMessage.model_validate(
+        {
+            "id": "test-message",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-sonnet-4-6",
+            "content": [{"type": "text", "text": "Hello"}],
+            "stop_reason": "end_turn",
+            "stop_sequence": None,
+            "usage": {"input_tokens": 1, "output_tokens": 1},
+        }
+    )
+
+    with patch.object(
+        provider.provider.client.beta.messages,
+        "create",
+        new_callable=AsyncMock,
+        return_value=response,
+    ) as create:
+        result = await provider.completion(
+            messages=[
+                UIMessage(
+                    id="test",
+                    role="user",
+                    parts=[TextUIPart(type="text", text="Hi")],
+                )
+            ],
+            system_prompt="Be brief.",
+            max_tokens=1024,
+            additional_tools=[],
+            span_info=SpanInfo(
+                endpoint="completion", model="anthropic/claude-sonnet-4-6"
+            ),
+            enable_capabilities=False,
+        )
+
+    assert result == "Hello"
+    request = create.call_args.kwargs
+    assert request["extra_headers"]["x-custom"] == "test-value"
+    assert "test-beta" in request["betas"]
+    assert request["extra_body"] == config["anthropic"]["extra_body"]
+    assert request["max_tokens"] == 1024
+
+
 @pytest.mark.parametrize(
     ("model_name", "expected_payload_kind"),
     [

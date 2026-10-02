@@ -272,6 +272,32 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-anthropic-key"
         assert provider_config.base_url is None
 
+    @pytest.mark.parametrize(
+        "options",
+        [
+            {},
+            {"extra_headers": {}, "extra_body": {}},
+            {
+                "extra_headers": {"x-custom": "test-value"},
+                "extra_body": {
+                    "speed": "fast",
+                    "metadata": {"user_id": "test-user"},
+                },
+            },
+        ],
+    )
+    def test_for_anthropic_request_options(self, options: dict[str, Any]):
+        config: AiConfig = {
+            "anthropic": {"api_key": "test-anthropic-key", **options}
+        }
+
+        assert AnyProviderConfig.for_anthropic(config) == AnyProviderConfig(
+            api_key="test-anthropic-key",
+            base_url=None,
+            extra_headers=options.get("extra_headers"),
+            extra_body=options.get("extra_body"),
+        )
+
     def test_for_google(self):
         """Test Google AI configuration."""
         config: AiConfig = {
