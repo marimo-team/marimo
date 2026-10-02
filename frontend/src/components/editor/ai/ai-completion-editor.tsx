@@ -251,6 +251,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const completionBanner = (
     <div
+      aria-hidden={!showCompletionBanner}
+      inert={!showCompletionBanner}
       className={cn(
         "w-full bg-(--cm-background) flex justify-center transition-all duration-300 ease-in-out overflow-hidden",
         showCompletionBanner
