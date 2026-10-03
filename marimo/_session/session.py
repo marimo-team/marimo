@@ -18,6 +18,7 @@ from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
     NotificationMessage,
+    ParticipantPresenceNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -53,6 +54,7 @@ from marimo._session.managers import (
 )
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
+from marimo._session.participants import ParticipantRegistry, ParticipantState
 from marimo._session.room import Room
 from marimo._session.startup import SessionStartup
 from marimo._session.state.session_view import SessionView
@@ -247,6 +249,7 @@ class SessionImpl(Session):
         config_manager: MarimoConfigManager,
         ttl_seconds: int | None,
         extensions: list[SessionExtension],
+        participant_registry: ParticipantRegistry | None = None,
     ) -> None:
         """Initialize kernel and client connection to it."""
         # The notebook's creation key is used to find resumable sessions.
@@ -267,6 +270,10 @@ class SessionImpl(Session):
 
         self._bind_notebook_sandbox()
         self._event_bus = SessionEventBus()
+        self.participants = participant_registry or ParticipantRegistry()
+        self.participants.set_presence_callback(
+            self._notify_participant_presence
+        )
 
         self._closed = False
 
@@ -497,6 +504,21 @@ class SessionImpl(Session):
         self._event_bus.emit_notification_sent(self, notification)
         self.room.broadcast(notification, except_consumer=from_consumer_id)
 
+    def _notify_participant_presence(self, state: ParticipantState) -> None:
+        self.notify(
+            ParticipantPresenceNotification(
+                participant_id=state.participant_id,
+                harness=state.harness,
+                kind=state.kind,
+                attached=state.attached,
+                listening=state.listening,
+                active=state.active,
+                last_contact_at=state.last_contact_at,
+                active_since=state.active_since,
+            ),
+            from_consumer_id=None,
+        )
+
     def close(self, *, graceful: bool = False) -> None:
         """
         Close the session.
@@ -511,6 +533,7 @@ class SessionImpl(Session):
 
         self._closed = True
 
+        self.participants.close()
         # Close extensions
         self._detach_extensions()
         # Close the room

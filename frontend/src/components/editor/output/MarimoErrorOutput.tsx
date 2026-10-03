@@ -32,6 +32,7 @@ import { openPackageManager } from "../chrome/panels/packages-utils";
 import { useChromeActions } from "../chrome/state";
 import { AutoFixButton } from "../errors/auto-fix";
 import { MangledSegments } from "../errors/mangled-local-chip";
+import { SendErrorReportButton } from "../errors/send-error-report-button";
 import { CellLinkError } from "../links/cell-link";
 import { processTextForUrls } from "./console/text-rendering";
 
@@ -208,6 +209,44 @@ export const MarimoErrorOutput = ({
     (e): e is Extract<MarimoError, { type: "sql-error" }> =>
       e.type === "sql-error",
   );
+  const reportError = errors
+    .map((error) => {
+      if ("exception_type" in error) {
+        return `${error.exception_type}: ${error.msg}`;
+      }
+      if ("msg" in error) {
+        return error.msg;
+      }
+      if (error.type === "multiple-defs") {
+        return `Multiple definitions of ${error.name}`;
+      }
+      if (error.type === "setup-refs") {
+        return `Setup cell references: ${error.edges_with_vars
+          .map(([cell, variables]) => `${cell}: ${variables.join(", ")}`)
+          .join("; ")}`;
+      }
+      if (error.type === "cycle") {
+        return `Cycle: ${error.edges_with_vars
+          .map(
+            ([from, variables, to]) =>
+              `${from} -> ${variables.join(", ")} -> ${to}`,
+          )
+          .join("; ")}`;
+      }
+      return error.type;
+    })
+    .join("\n");
+  const latestException = exceptionErrors.at(-1);
+  const tracebackMatch = latestException
+    ? `${latestException.exception_type}: ${latestException.msg}`
+    : undefined;
+  const reportTraceback = errors
+    .flatMap((error) =>
+      "traceback" in error && typeof error.traceback === "string"
+        ? [error.traceback]
+        : [],
+    )
+    .join("\n");
 
   const openScratchpad = () => {
     chromeActions.openApplication("scratchpad");
@@ -728,6 +767,14 @@ export const MarimoErrorOutput = ({
     >
       {title}
       <div className="flex flex-col gap-4">{renderMessages()}</div>
+      <SendErrorReportButton
+        cellId={cellId}
+        error={reportError}
+        traceback={reportTraceback}
+        tracebackMatch={tracebackMatch}
+        preferLastRunCode={exceptionErrors.length > 0}
+        fallbackToConsoleTraceback={exceptionErrors.length > 0}
+      />
     </Alert>
   );
 };

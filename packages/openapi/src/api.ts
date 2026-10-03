@@ -5499,6 +5499,14 @@ export interface components {
       user: unknown;
     };
     /**
+     * HarnessMetadata
+     * @description Harness identity supplied by the participant.
+     */
+    HarnessMetadata: {
+      displayName: string;
+      id: string;
+    };
+    /**
      * HumanReadableStatus
      * @description Human-readable status for operation results.
      *
@@ -5808,6 +5816,7 @@ export interface components {
         | components["schemas"]["RemoveUIElementsNotification"]
         | components["schemas"]["ReloadNotification"]
         | components["schemas"]["ReconnectedNotification"]
+        | components["schemas"]["ParticipantPresenceNotification"]
         | components["schemas"]["InterruptedNotification"]
         | components["schemas"]["CompletedRunNotification"]
         | components["schemas"]["KernelReadyNotification"]
@@ -6539,6 +6548,23 @@ export interface components {
       /** @default false */
       restartRequired?: boolean;
       success: boolean;
+    };
+    /**
+     * ParticipantPresenceNotification
+     * @description Replace the current Pair participant presence snapshot.
+     */
+    ParticipantPresenceNotification: {
+      active: boolean;
+      active_since: number | null;
+      attached: boolean;
+      harness: components["schemas"]["HarnessMetadata"];
+      /** @enum {unknown} */
+      kind: "agent" | "human";
+      last_contact_at: number;
+      listening: boolean;
+      /** @enum {unknown} */
+      op: "participant-presence";
+      participant_id: string;
     };
     /**
      * PreviewDatasetColumnCommand

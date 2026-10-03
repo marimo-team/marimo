@@ -17,7 +17,9 @@ from marimo._messaging.notification import (
     EnvironmentState,
     EnvironmentStateNotification,
     OperationRunning,
+    ParticipantPresenceNotification,
 )
+from marimo._messaging.participants import HarnessMetadata, ParticipantMetadata
 from marimo._messaging.serde import (
     deserialize_kernel_message,
     serialize_kernel_message,
@@ -114,6 +116,33 @@ def test_notification_is_retained_before_consumer_receives_it(
     assert observed == [_state("Downloading\n")]
 
 
+async def test_participant_presence_uses_session_notification_path(
+    session_and_consumer: tuple[SessionImpl, Mock],
+) -> None:
+    session, consumer = session_and_consumer
+
+    metadata = ParticipantMetadata(
+        harness=HarnessMetadata(id="claude", display_name="Claude Code")
+    )
+    state = await session.participants.attach("p1", metadata=metadata)
+
+    notification = deserialize_kernel_message(
+        consumer.notify.call_args.args[0]
+    )
+    assert notification == ParticipantPresenceNotification(
+        participant_id="p1",
+        harness=metadata.harness,
+        kind="agent",
+        attached=True,
+        listening=False,
+        active=False,
+        last_contact_at=state.state.last_contact_at,
+        active_since=None,
+    )
+    assert session.session_view.participant_presence == notification
+    assert notification in session.session_view.notifications
+
+
 async def test_queued_kernel_messages_update_and_deliver_on_session_loop(
     session_and_consumer: tuple[SessionImpl, Mock],
 ) -> None:
@@ -204,6 +233,48 @@ async def test_reconnect_snapshot_precedes_a_queued_live_update(
         ),
         _progress("After\n"),
     ]
+
+
+async def test_reconnect_without_replay_sends_latest_participant_presence(
+    session_and_consumer: tuple[SessionImpl, Mock],
+) -> None:
+    session, consumer = session_and_consumer
+    session.disconnect_consumer(consumer)
+    presence = ParticipantPresenceNotification(
+        participant_id="p1",
+        harness=HarnessMetadata(id="claude", display_name="Claude Code"),
+        kind="agent",
+        attached=False,
+        listening=False,
+        active=False,
+        last_contact_at=1.0,
+        active_since=None,
+    )
+    session.session_view.add_notification(presence)
+    handler = WebSocketHandler(
+        websocket=MagicMock(),
+        manager=MagicMock(),
+        params=ConnectionParams(
+            session_id=SessionId("reconnected"),
+            file_key="notebook.py",
+            kiosk=False,
+            auto_instantiate=False,
+            rtc_enabled=False,
+        ),
+        mode=SessionMode.EDIT,
+    )
+
+    handler._reconnect_session(session, replay=False)
+
+    messages = [
+        deserialize_kernel_message(handler.message_queue.get_nowait())
+        for _ in range(handler.message_queue.qsize())
+    ]
+    assert [
+        message
+        for message in messages
+        if isinstance(message, ParticipantPresenceNotification)
+    ] == [presence]
 
 
 def test_queue_can_be_reused_after_its_listener_loop_closes(

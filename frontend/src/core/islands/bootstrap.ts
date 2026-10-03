@@ -38,6 +38,7 @@ import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import { RuntimeState } from "../kernel/RuntimeState";
 import { initialModeAtom } from "../mode";
 import { requestClientAtom } from "../network/requests";
+import { participantPresenceAtom } from "../participants/state";
 import { store as defaultStore } from "../state/jotai";
 import type { IslandsPyodideBridge } from "./bridge";
 import { MarimoIslandElement } from "./components/web-components";
@@ -76,6 +77,7 @@ export async function initializeIslands(
   store.set(requestClientAtom, bridge);
   store.set(initialModeAtom, "read");
   store.set(islandsPendingInitialRunsAtom, null);
+  store.set(participantPresenceAtom, null);
 
   // Initialize plugins for rendering static HTML
   if (config.autoInitializePlugins !== false) {
@@ -283,6 +285,9 @@ function handleMessage(
         return;
 
       case "consumer-capabilities":
+        return;
+      case "participant-presence":
+        store.set(participantPresenceAtom, msg.data);
         return;
       default:
         logNever(msg);

@@ -38,6 +38,7 @@ from marimo._messaging.notification import (
     OperationRunning,
     OperationSucceeded,
     PackageStatusType,
+    ParticipantPresenceNotification,
     SQLDatabaseMetadata,
     SQLMetadata,
     SQLSchemaListPreviewNotification,
@@ -49,6 +50,7 @@ from marimo._messaging.notification import (
     VariableValue,
     VariableValuesNotification,
 )
+from marimo._messaging.participants import HarnessMetadata
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.variables import create_variable_value
 from marimo._runtime.commands import (
@@ -98,6 +100,39 @@ def test_session_view_cell_notification(session_view: SessionView) -> None:
 
     assert session_view.cell_notifications[cell_id].output == updated_output
     assert session_view.cell_notifications[cell_id].status == updated_status
+
+
+def test_session_view_replays_latest_participant_presence(
+    session_view: SessionView,
+) -> None:
+    harness = HarnessMetadata(id="claude", display_name="Claude Code")
+    attached = ParticipantPresenceNotification(
+        participant_id="p1",
+        harness=harness,
+        kind="agent",
+        attached=True,
+        listening=False,
+        active=False,
+        last_contact_at=1.0,
+        active_since=None,
+    )
+    detached = ParticipantPresenceNotification(
+        participant_id="p1",
+        harness=harness,
+        kind="agent",
+        attached=False,
+        listening=False,
+        active=False,
+        last_contact_at=2.0,
+        active_since=None,
+    )
+
+    session_view.add_notification(attached)
+    session_view.add_notification(detached)
+
+    assert session_view.participant_presence == detached
+    assert session_view.notifications.count(detached) == 1
+    assert attached not in session_view.notifications
 
 
 def test_session_view_serialization_hint_survives_status_updates(

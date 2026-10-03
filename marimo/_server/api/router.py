@@ -26,12 +26,16 @@ from marimo._server.api.endpoints.home import router as home_router
 from marimo._server.api.endpoints.login import router as login_router
 from marimo._server.api.endpoints.lsp import router as lsp_router
 from marimo._server.api.endpoints.packages import router as packages_router
+from marimo._server.api.endpoints.participants import (
+    router as participants_router,
+)
 from marimo._server.api.endpoints.secrets import router as secrets_router
 from marimo._server.api.endpoints.sql import router as sql_router
 from marimo._server.api.endpoints.storage import router as storage_router
 from marimo._server.api.endpoints.terminal import router as terminal_router
 from marimo._server.api.endpoints.ws_endpoint import router as ws_router
 from marimo._server.router import APIRouter
+from marimo._utils.env import is_env_true
 
 if TYPE_CHECKING:
     from starlette.routing import BaseRoute
@@ -82,6 +86,12 @@ def build_routes(base_url: str = "") -> list[BaseRoute]:
     app_router.include_router(
         packages_router, prefix="/api/packages", name="packages"
     )
+    if is_env_true("MARIMO_PAIR_NEXT"):
+        app_router.include_router(
+            participants_router,
+            prefix="/api/participants",
+            name="participants",
+        )
     app_router.include_router(lsp_router, prefix="/api/lsp", name="lsp")
     app_router.include_router(health_router, name="health")
     app_router.include_router(ws_router, name="ws")

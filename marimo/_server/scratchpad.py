@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 from typing import TYPE_CHECKING, Any, TypedDict
 from uuid import uuid4
 
@@ -27,6 +28,11 @@ from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.sse import format_sse_event
 from marimo._session.extensions.types import EventAwareExtension
 from marimo._session.requests import InstantiateNotebookRequest
+
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -60,17 +66,31 @@ class ConsoleEvent(TypedDict):
     data: str
 
 
+class HandoffConsoleData(TypedDict):
+    channel: str
+    data: str
+
+
+class HandoffEventData(TypedDict):
+    seq: int
+    createdAt: float
+    cellId: str
+    error: str
+    code: str
+    traceback: str
+    consoleTail: list[HandoffConsoleData]
+    note: str | None
+
+
+class HandoffBatchData(TypedDict):
+    events: list[HandoffEventData]
+    remaining: int
+
+
 class Done(TypedDict):
-    """Terminal SSE event for `/api/kernel/execute`.
-
-    `success` drives the CLI exit code. `output` is the scratch
-    cell's rendered value on success, or `{mimetype: "text/plain",
-    data: ""}` on failure — the actual error detail (traceback, etc.)
-    was already streamed via preceding `stderr` events.
-    """
-
     success: bool
     output: OutputData
+    handoffs: NotRequired[HandoffBatchData]
 
 
 def _format_sse(event: str, data: Any) -> str:
@@ -291,14 +311,16 @@ _EMPTY_OUTPUT = OutputData(mimetype="text/plain", data="")
 def build_done_event(
     session: Session,
     listener: ScratchCellListener | None = None,
+    handoffs: HandoffBatchData | None = None,
 ) -> str:
     """Build the terminal `done` SSE event.
 
     `success` is false when the scratch cell itself errored OR any
     downstream cell captured by the listener errored. The actual error
     detail was already streamed via `stderr` events earlier in the
-    response — `done` carries only the success bit plus the scratch
-    cell's rendered output on success (empty on failure).
+    response. `output` carries the scratch cell's rendered value on success
+    and is empty on failure. Identified requests may also include pending
+    `handoffs`.
     """
     cell_notif = session.session_view.cell_notifications.get(SCRATCH_CELL_ID)
     output = cell_notif.output if cell_notif is not None else None
@@ -317,7 +339,10 @@ def build_done_event(
     else:
         output_data = _EMPTY_OUTPUT
 
-    return _format_sse("done", Done(success=success, output=output_data))
+    done = Done(success=success, output=output_data)
+    if handoffs is not None:
+        done["handoffs"] = handoffs
+    return _format_sse("done", done)
 
 
 def extract_result(

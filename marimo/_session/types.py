@@ -31,6 +31,7 @@ if TYPE_CHECKING:
         SessionMode,
     )
     from marimo._session.notebook.file_manager import AppFileManager
+    from marimo._session.participants import ParticipantRegistry
     from marimo._session.queue import ProcessLike, QueueType
     from marimo._session.room import Room
     from marimo._session.state.session_view import SessionView
@@ -141,6 +142,7 @@ class Session(Protocol):
     ttl_seconds: int
     scratchpad_lock: asyncio.Lock
     room: Room
+    participants: ParticipantRegistry
 
     @property
     def stable_id(self) -> StableSessionId:
