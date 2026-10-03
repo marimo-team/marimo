@@ -1,13 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { useAtom, useAtomValue } from "jotai";
 import { RefreshCwIcon } from "lucide-react";
-import { connectionNoticeAtom } from "@/core/network/connection-notice";
 import { Button } from "@/components/ui/button";
 import { useRestartKernel } from "@/components/editor/actions/useRestartKernel";
 import {
   isConnectedAtom,
   startupProgressAtom,
 } from "@/core/network/connection";
+import { connectionNoticeAtom } from "@/core/network/connection-notice";
 import type { DisplayConnectionNotice } from "@/core/network/useConnectionNotice";
 import {
   preparationAtom,
@@ -17,25 +17,10 @@ import {
   sandboxSyncOperationAtom,
 } from "@/core/packages/sandbox-state";
 import { cn } from "@/utils/cn";
-import { usePanelSection } from "./panel-context";
-import { sandboxDetailsExpandedAtom } from "./sandbox-details-state";
 import { StartupOutput } from "../../alerts/startup-output";
-import {
-  ConnectionStatusIcon,
-  StartupProgress,
-} from "../../alerts/startup-progress";
-
-export function SandboxErrorOutput({ error }: { error: string }) {
-  return (
-    <pre
-      tabIndex={0}
-      aria-label="Error details"
-      className="mt-3 p-3 rounded border bg-muted/30 text-xs text-muted-foreground whitespace-pre min-w-0 max-w-full max-h-52 overflow-auto"
-    >
-      {error}
-    </pre>
-  );
-}
+import { ConnectionDetails } from "../../alerts/connection-details";
+import { usePanelSection } from "./panel-context";
+import { runtimeDetailsExpandedAtom } from "./runtime-details-state";
 
 function SandboxRecovery({ notice }: { notice: DisplayConnectionNotice }) {
   const sandbox = useAtomValue(sandboxAtom);
@@ -46,8 +31,6 @@ function SandboxRecovery({ notice }: { notice: DisplayConnectionNotice }) {
   }
   return (
     <>
-      <p className="mt-2 text-foreground">{notice.description}</p>
-      {notice.error && <SandboxErrorOutput error={notice.error} />}
       <div className="flex items-center gap-2 mt-3">
         <Button
           variant="outline"
@@ -88,39 +71,6 @@ function SandboxRestart() {
   );
 }
 
-function SandboxStartupPanel({ notice }: { notice: DisplayConnectionNotice }) {
-  const showSteps =
-    notice.kind === "startup" &&
-    (notice.ready ||
-      notice.phase === "preparing-environment" ||
-      notice.phase === "starting-kernel");
-  return (
-    <div className="min-w-0 text-sm">
-      {showSteps ? (
-        <StartupProgress notice={notice} surface="sidebar" />
-      ) : (
-        <div className="flex items-center gap-2" role="status">
-          <ConnectionStatusIcon notice={notice} />
-          <h2>{notice.title}</h2>
-        </div>
-      )}
-      <SandboxRecovery notice={notice} />
-    </div>
-  );
-}
-
-function SandboxSyncStatus({ notice }: { notice: DisplayConnectionNotice }) {
-  return (
-    <div className="mb-5 text-sm">
-      <output className="flex items-center gap-2 text-xs">
-        <ConnectionStatusIcon notice={notice} />
-        <span>{notice.title}</span>
-      </output>
-      <SandboxRecovery notice={notice} />
-    </div>
-  );
-}
-
 function SandboxSyncDetails({
   notice,
 }: {
@@ -133,7 +83,11 @@ function SandboxSyncDetails({
   return (
     <div className="mt-5 min-w-0">
       {notice ? (
-        <SandboxSyncStatus notice={notice} />
+        <div className="mb-5">
+          <ConnectionDetails notice={notice}>
+            <SandboxRecovery notice={notice} />
+          </ConnectionDetails>
+        </div>
       ) : (
         <p className="text-sm">Environment synced</p>
       )}
@@ -153,20 +107,21 @@ function SandboxSyncDetails({
   );
 }
 
-export function SandboxDetails() {
+export function RuntimeDetails() {
   const section = usePanelSection();
+  const sandbox = Boolean(useAtomValue(sandboxAtom)?.backend);
   const connected = useAtomValue(isConnectedAtom);
   const notice = useAtomValue(connectionNoticeAtom);
   const preparation = useAtomValue(preparationAtom);
   const progress = useAtomValue(startupProgressAtom);
-  const [expanded, setExpanded] = useAtom(sandboxDetailsExpandedAtom);
+  const [expanded, setExpanded] = useAtom(runtimeDetailsExpandedAtom);
   const startup: DisplayConnectionNotice | null =
     notice?.kind === "startup"
       ? { ...notice, ready: false }
-      : preparation || progress
+      : preparation || progress || (connected && !sandbox)
         ? {
             kind: "startup",
-            sandbox: true,
+            sandbox,
             title: "Notebook started",
             description: "The notebook is ready to run.",
             pending: false,
@@ -176,8 +131,8 @@ export function SandboxDetails() {
         : null;
   return (
     <section
-      id={`sandbox-details-${section}`}
-      aria-label="Sandbox details"
+      id={`runtime-details-${section}`}
+      aria-label={sandbox ? "Sandbox details" : "Runtime details"}
       hidden={!expanded}
       className={cn(
         "min-w-0 overflow-auto p-4",
@@ -187,15 +142,32 @@ export function SandboxDetails() {
       onFocusCapture={() => setExpanded(true)}
     >
       {notice?.kind === "connection" && (
-        <SandboxSyncStatus notice={{ ...notice, ready: false }} />
+        <div className="mb-5">
+          <ConnectionDetails notice={{ ...notice, ready: false }}>
+            {sandbox && (
+              <SandboxRecovery notice={{ ...notice, ready: false }} />
+            )}
+          </ConnectionDetails>
+        </div>
       )}
-      {startup && <SandboxStartupPanel notice={startup} />}
-      {connected && (
+      {startup && (
+        <ConnectionDetails notice={startup}>
+          {sandbox && <SandboxRecovery notice={startup} />}
+        </ConnectionDetails>
+      )}
+      {sandbox && connected && (
         <SandboxSyncDetails
           notice={notice?.kind === "sync" ? { ...notice, ready: false } : null}
         />
       )}
-      {connected && (!notice || notice.pending) && <SandboxActions />}
+      {sandbox && connected && (!notice || notice.pending) && (
+        <SandboxActions />
+      )}
+      {!notice && !startup && !sandbox && (
+        <p className="text-sm text-muted-foreground">
+          Not connected to a runtime.
+        </p>
+      )}
     </section>
   );
 }

@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { ArrowRightIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -7,14 +7,14 @@ import { hasCellsAtom } from "@/core/cells/cells";
 import type { AppConfig } from "@/core/config/config-schema";
 import { connectionAtom } from "@/core/network/connection";
 import { useConnectionNotice } from "@/core/network/useConnectionNotice";
-import { sandboxAtom } from "@/core/packages/sandbox-state";
 import { WebSocketState } from "@/core/websocket/types";
 import { useInterval } from "@/hooks/useInterval";
 import { cn } from "@/utils/cn";
-import { SandboxErrorOutput } from "../chrome/panels/sandbox-panel";
+import { runtimeDetailsExpandedAtom } from "../chrome/panels/runtime-details-state";
 import { chromeAtom, useChromeActions } from "../chrome/state";
 import { VerticalLayoutWrapper } from "../renderers/vertical-layout/vertical-layout-wrapper";
-import { ConnectionStatusIcon, StartupProgress } from "./startup-progress";
+import { ConnectionDetails } from "./connection-details";
+import { ConnectionStatusIcon } from "./startup-progress";
 
 export const ConnectionNotice = ({
   appConfig,
@@ -26,7 +26,7 @@ export const ConnectionNotice = ({
   const notice = useConnectionNotice();
   const connection = useAtomValue(connectionAtom);
   const hasCells = useAtomValue(hasCellsAtom);
-  const sandbox = useAtomValue(sandboxAtom);
+  const setDetailsExpanded = useSetAtom(runtimeDetailsExpandedAtom);
   const chrome = useAtomValue(chromeAtom);
   const packagesOpen =
     (chrome.isSidebarOpen && chrome.selectedPanel === "packages") ||
@@ -39,7 +39,12 @@ export const ConnectionNotice = ({
     connection.state === WebSocketState.CONNECTING &&
     connection.phase === "reconnecting";
 
-  if (sandbox?.backend && hasCells) {
+  const openDetails = () => {
+    setDetailsExpanded(true);
+    openApplication("packages");
+  };
+
+  if (hasCells) {
     const title =
       notice?.ready && notice.kind === "startup" ? "Ready" : notice?.title;
     return (
@@ -50,10 +55,13 @@ export const ConnectionNotice = ({
         innerClassName="pb-0 sm:pb-0 pr-4"
       >
         {notice && !reconnecting && (
-          <section aria-label="Notebook startup">
+          <section
+            aria-label="Notebook startup"
+            className="flex items-center gap-4"
+          >
             <button
               type="button"
-              onClick={() => openApplication("packages")}
+              onClick={openDetails}
               aria-label={`${title} Open Packages`}
               aria-expanded={packagesOpen}
               className="flex h-6 items-center gap-2 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground rounded focus-visible:outline-2 focus-visible:outline-ring"
@@ -62,22 +70,22 @@ export const ConnectionNotice = ({
               <output>{title}</output>
               <ChevronRightIcon className="size-3" aria-hidden={true} />
             </button>
+            {!notice.pending && !notice.ready && !notice.sandbox && (
+              <Button variant="text" size="xs" onClick={onRetry}>
+                Try again
+              </Button>
+            )}
           </section>
         )}
       </VerticalLayoutWrapper>
     );
   }
 
-  if (!notice || (hasCells && reconnecting)) {
+  if (!notice) {
     return null;
   }
 
-  const showSteps =
-    notice.sandbox &&
-    notice.kind === "startup" &&
-    (notice.ready ||
-      notice.phase === "preparing-environment" ||
-      notice.phase === "starting-kernel");
+  const showSteps = notice.kind === "startup";
   return (
     <VerticalLayoutWrapper
       appConfig={appConfig}
@@ -86,45 +94,10 @@ export const ConnectionNotice = ({
     >
       <section
         aria-label="Notebook startup"
-        className={cn(
-          "text-muted-foreground",
-          hasCells
-            ? "mt-4 mb-8 border rounded-lg px-5 py-5"
-            : "max-w-md mx-auto mt-16 sm:mt-24 px-4",
-          hasCells && !notice.pending && "border-(--red-7)",
-        )}
+        className="text-muted-foreground max-w-md mx-auto mt-16 sm:mt-24 px-4"
       >
-        {showSteps ? (
-          <StartupProgress notice={notice} surface="notebook" />
-        ) : (
-          <div role="status" className="flex items-center gap-2.5">
-            <ConnectionStatusIcon notice={notice} />
-            <h2
-              className={cn(
-                "text-base",
-                notice.pending || notice.ready
-                  ? "font-normal text-foreground"
-                  : "font-medium text-(--red-11)",
-              )}
-            >
-              {notice.title}
-            </h2>
-          </div>
-        )}
+        <ConnectionDetails notice={notice} surface="notebook" />
         <div className={showSteps ? "mt-8" : "ml-6.5"}>
-          {!showSteps && (
-            <p
-              className={cn(
-                "mt-3 text-sm leading-7",
-                !notice.pending && "text-foreground",
-              )}
-            >
-              {notice.description}
-            </p>
-          )}
-          {!notice.sandbox && notice.error && (
-            <SandboxErrorOutput error={notice.error} />
-          )}
           <div
             className={cn(
               "flex flex-wrap items-center gap-x-6 gap-y-3",
@@ -141,7 +114,7 @@ export const ConnectionNotice = ({
                     "p-0 text-xs gap-1.5",
                     showSteps ? "h-6" : "h-auto",
                   )}
-                  onClick={() => openApplication("packages")}
+                  onClick={openDetails}
                 >
                   {notice.pending ? "View setup details" : "Open Packages"}
                   <ArrowRightIcon className="size-3" aria-hidden={true} />

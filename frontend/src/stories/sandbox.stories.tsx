@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import PackagesPanel from "@/components/editor/chrome/panels/packages-panel";
 import { PanelSectionProvider } from "@/components/editor/chrome/panels/panel-context";
-import { SandboxToggle } from "@/components/editor/chrome/panels/sandbox-toggle";
+import { RuntimeStatusToggle } from "@/components/editor/chrome/panels/runtime-status-toggle";
 import { SandboxController } from "@/components/editor/chrome/panels/sandbox-controller";
 import { chromeAtom } from "@/components/editor/chrome/state";
 import { Cell } from "@/components/editor/notebook-cell";
@@ -99,7 +99,7 @@ function SandboxPreview({
         <aside className="flex flex-col w-[300px] shrink-0 border-r h-[520px]">
           <div className="flex items-center justify-between px-3 py-2 border-b text-sm">
             Packages
-            <SandboxToggle section="sidebar" />
+            <RuntimeStatusToggle section="sidebar" />
           </div>
           <PanelSectionProvider value="sidebar">
             <PackagesPanel />

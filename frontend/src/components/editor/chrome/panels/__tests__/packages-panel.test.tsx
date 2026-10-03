@@ -25,7 +25,7 @@ import { store } from "@/core/state/jotai";
 import { WebSocketState } from "@/core/websocket/types";
 import PackagesPanel from "../packages-panel";
 import { PanelSectionProvider } from "../panel-context";
-import { SandboxToggle } from "../sandbox-toggle";
+import { RuntimeStatusToggle } from "../runtime-status-toggle";
 
 const { openSettings } = vi.hoisted(() => ({
   openSettings: vi.fn(),
@@ -87,7 +87,7 @@ function renderPanel(
       <Provider store={store}>
         <TooltipProvider>
           <PanelSectionProvider value="sidebar">
-            <SandboxToggle section="sidebar" />
+            <RuntimeStatusToggle section="sidebar" />
             <PackagesPanel />
           </PanelSectionProvider>
         </TooltipProvider>
@@ -201,7 +201,7 @@ it("refreshes an open panel when a package is installed elsewhere, after install
     <Provider store={store}>
       <TooltipProvider>
         <PanelSectionProvider value="sidebar">
-          <SandboxToggle section="sidebar" />
+          <RuntimeStatusToggle section="sidebar" />
           <PackagesPanel />
         </PanelSectionProvider>
         <InstallElsewhere />
