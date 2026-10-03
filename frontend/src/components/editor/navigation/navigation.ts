@@ -396,9 +396,9 @@ export function useCellNavigationProps(
         "cell.moveUp": addSingleHandler((cellIds) => {
           // If moving up, make sure the first cell is not at the top of the notebook
           const firstCellId = cellIds[0];
-          const notebook = store.get(notebookAtom);
+          const displayCellIds = store.get(cellIdsAtom);
           const isFirst =
-            notebook.cellIds.findWithId(firstCellId).first() === firstCellId;
+            displayCellIds.findWithId(firstCellId).first() === firstCellId;
           if (isFirst) {
             return false;
           }
@@ -411,9 +411,9 @@ export function useCellNavigationProps(
         "cell.moveDown": addSingleHandler((cellIds) => {
           // If moving down, make sure the last cell is not at the bottom of the notebook
           const lastCellId = cellIds[cellIds.length - 1];
-          const notebook = store.get(notebookAtom);
+          const displayCellIds = store.get(cellIdsAtom);
           const isLast =
-            notebook.cellIds.findWithId(lastCellId).last() === lastCellId;
+            displayCellIds.findWithId(lastCellId).last() === lastCellId;
           if (isLast) {
             return false;
           }

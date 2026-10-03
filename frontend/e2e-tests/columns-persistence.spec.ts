@@ -1,0 +1,365 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { expect, type Page, test } from "@playwright/test";
+import { getAppUrl } from "../playwright.config";
+import { pressShortcut } from "./helper";
+
+const notebook = `import marimo
+
+app = marimo.App(width="columns")
+
+
+@app.cell(column=0)
+def _():
+    "left_first"
+    return
+
+
+@app.cell
+def _():
+    "left_second"
+    return
+
+
+@app.cell(column=1)
+def _():
+    "right_first"
+    return
+
+
+@app.cell
+def _():
+    "right_second"
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+`;
+
+let directory: string;
+let filename: string;
+
+test.beforeEach(async ({ page }) => {
+  directory = await mkdtemp(path.resolve("e2e-tests/py/column-persistence-"));
+  filename = path.join(directory, "notebook.py");
+  await writeFile(filename, notebook);
+  const url = new URL(test.info().project.use.baseURL ?? getAppUrl("columns.py"));
+  url.searchParams.set("file", filename);
+  await page.goto(url.toString());
+  await expect(page.locator(".cm-content")).toHaveCount(4);
+  // Initial autofocus runs after mount; let it finish before selecting another cell.
+  await expect(page.locator(".cm-content").first()).toBeFocused();
+});
+
+test.afterEach(async ({ page }) => {
+  // Shut down before removing files so the kernel can finish persisting its session.
+  const shutdown = page.getByRole("button", { name: "Shutdown", exact: true });
+  if (await shutdown.isVisible()) {
+    await shutdownNotebook(page);
+  }
+  await page.close();
+  await rm(directory, { recursive: true, force: true });
+});
+
+async function shutdownNotebook(page: Page) {
+  await page.getByRole("button", { name: "Shutdown", exact: true }).click();
+  await Promise.all([
+    page.waitForResponse((response) =>
+      response.url().endsWith("/api/kernel/shutdown"),
+    ),
+    page.getByRole("button", { name: "Confirm Shutdown" }).click(),
+  ]);
+}
+
+async function setWidth(page: Page, width: string) {
+  await page.getByTestId("app-config-button").click();
+  await page.getByTestId("app-width-select").selectOption(width);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#App")).toHaveAttribute("data-config-width", width);
+  if (width !== "columns") {
+    await expect(page.getByTestId("cell-column")).toHaveCount(1);
+    await expect(page.getByTestId("column-frame")).toHaveCount(0);
+  }
+}
+
+async function expectColumns(page: Page, columns: string[][]) {
+  const width = await page.locator("#App").getAttribute("data-config-width");
+  if (width !== "columns") {
+    columns = [columns.flat()];
+  }
+  const renderedColumns = page.getByTestId(/^(cell-column|column-frame)$/);
+  await expect(renderedColumns).toHaveCount(columns.length);
+  for (const [index, cells] of columns.entries()) {
+    await expect(renderedColumns.nth(index).locator(".cm-content")).toHaveText(
+      cells.map((cell) => `"${cell}"`),
+    );
+  }
+}
+
+for (const width of ["compact", "medium", "full"]) {
+  test(`preserves columns after saving and reloading in ${width} view`, async ({
+    page,
+  }) => {
+    await setWidth(page, width);
+    await expectColumns(page, [
+      ["left_first", "left_second"],
+      ["right_first", "right_second"],
+    ]);
+    await expect(
+      page.getByRole("button", { name: "Python", exact: true }),
+    ).toHaveCount(1);
+    const positions = await page.locator(".marimo-cell").evaluateAll((cells) =>
+      cells.map((cell) => {
+        const { x, top, bottom } = cell.getBoundingClientRect();
+        return { x, top, bottom };
+      }),
+    );
+    const [first, second, third] = positions;
+    if (!first || !second || !third) {
+      throw new Error("Expected cells on both sides of the column boundary");
+    }
+    expect(second.x).toBeCloseTo(first.x, 0);
+    expect(third.x).toBeCloseTo(first.x, 0);
+    expect(second.top).toBeGreaterThan(first.bottom);
+    expect(third.top - second.bottom).toBeCloseTo(second.top - first.bottom, 0);
+
+    // An actual code edit exercises the notebook save path as well as config saving.
+    await page.locator(".cm-content").last().fill('"right_edited"');
+    await pressShortcut(page, "global.save");
+    await expect.poll(() => readFile(filename, "utf8")).toContain('"right_edited"');
+    const saved = await readFile(filename, "utf8");
+    expect(saved.match(/@app.cell\(column=\d\)/g)).toEqual([
+      "@app.cell(column=0)",
+      "@app.cell(column=1)",
+    ]);
+
+    // Start a fresh kernel so the column layout must come from the saved file.
+    await shutdownNotebook(page);
+    await page.reload();
+    await expect(page.locator("#App")).toHaveAttribute("data-config-width", width);
+  if (width !== "columns") {
+    await expect(page.getByTestId("cell-column")).toHaveCount(1);
+    await expect(page.getByTestId("column-frame")).toHaveCount(0);
+  }
+    await expectColumns(page, [
+      ["left_first", "left_second"],
+      ["right_first", "right_edited"],
+    ]);
+    await setWidth(page, "columns");
+    await expectColumns(page, [
+      ["left_first", "left_second"],
+      ["right_first", "right_edited"],
+    ]);
+    await expect(page.getByTestId("column-header")).toHaveCount(2);
+    const columnPositions = await page.getByTestId("column-frame").evaluateAll(
+      (columns) => columns.map((column) => column.getBoundingClientRect().x),
+    );
+    expect(columnPositions[1]).toBeGreaterThan(columnPositions[0] ?? 0);
+
+    // Switching repeatedly must not gradually flatten the saved layout.
+    await setWidth(page, width);
+    await setWidth(page, "columns");
+    await expectColumns(page, [
+      ["left_first", "left_second"],
+      ["right_first", "right_edited"],
+    ]);
+  });
+}
+
+test("can drag across preserved column boundaries in compact view", async ({
+  page,
+}) => {
+  await setWidth(page, "compact");
+  const cell = page.locator(".marimo-cell").filter({ hasText: "left_second" });
+  await cell.hover();
+  const handle = cell.getByTestId("drag-button");
+  const target = page.locator(".marimo-cell").filter({ hasText: "right_first" });
+  const targetBox = await target.boundingBox();
+  if (!targetBox) {
+    throw new Error("Expected the destination cell to be visible");
+  }
+  await handle.hover();
+  await page.mouse.down();
+  await page.mouse.move(
+    targetBox.x + targetBox.width / 2,
+    targetBox.y + targetBox.height / 2,
+    { steps: 10 },
+  );
+  await page.mouse.up();
+  await expectColumns(page, [
+    ["left_first"],
+    ["left_second", "right_first", "right_second"],
+  ]);
+  await pressShortcut(page, "global.save");
+  await expect.poll(() => readFile(filename, "utf8")).toMatch(
+    /@app.cell\(column=1\)\s+def _\(\):\s+"left_second"/,
+  );
+  await shutdownNotebook(page);
+  await page.reload();
+  await setWidth(page, "columns");
+  await expectColumns(page, [
+    ["left_first"],
+    ["left_second", "right_first", "right_second"],
+  ]);
+});
+
+test("appends new cells to the last preserved column in compact view", async ({
+  page,
+}) => {
+  await setWidth(page, "compact");
+  await page.getByRole("button", { name: "Python", exact: true }).click();
+  await expect(page.locator(".cm-content")).toHaveCount(5);
+  await page.locator(".cm-content").last().fill('"new_last"');
+  await pressShortcut(page, "global.save");
+  await expect.poll(() => readFile(filename, "utf8")).toContain('"new_last"');
+  await shutdownNotebook(page);
+  await page.reload();
+  await setWidth(page, "columns");
+  await expectColumns(page, [
+    ["left_first", "left_second"],
+    ["right_first", "right_second", "new_last"],
+  ]);
+});
+
+for (const width of ["compact", "medium", "full"]) {
+  test(`keyboard navigation and execution cross stored boundaries in ${width}`, async ({ page }) => {
+    await setWidth(page, width);
+    const editors = page.locator(".cm-content");
+    await editors.nth(1).click();
+    await editors.nth(1).press("End");
+    await editors.nth(1).press("ArrowDown");
+    await expect(editors.nth(2)).toBeFocused();
+    await editors.nth(2).press("Home");
+    await editors.nth(2).press("ArrowUp");
+    await expect(editors.nth(1)).toBeFocused();
+    await pressShortcut(page, "cell.runAndNewBelow");
+    await expect(editors).toHaveCount(4);
+    await expect(editors.nth(2)).toBeFocused();
+    await pressShortcut(page, "cell.focusUp");
+    await expect(editors.nth(1)).toBeFocused();
+    await pressShortcut(page, "cell.moveDown");
+    await expect(editors).toHaveText(['"left_first"', '"right_first"', '"left_second"', '"right_second"']);
+    await pressShortcut(page, "global.save");
+    await expect.poll(() => readFile(filename, "utf8")).toMatch(
+      /"left_first"[\s\S]*"right_first"[\s\S]*"left_second"[\s\S]*"right_second"/,
+    );
+    await shutdownNotebook(page);
+    await page.reload();
+    await setWidth(page, "columns");
+    await expectColumns(page, [["left_first"], ["right_first", "left_second", "right_second"]]);
+  });
+}
+
+test("send to top and bottom use the displayed notebook order", async ({ page }) => {
+  await setWidth(page, "compact");
+  const editors = page.locator(".cm-content");
+  await editors.last().click();
+  await expect(editors.last()).toBeFocused();
+  await pressShortcut(page, "cell.sendToTop");
+  await expect(editors).toHaveText(['"right_second"', '"left_first"', '"left_second"', '"right_first"']);
+  await editors.nth(1).click();
+  await expect(editors.nth(1)).toBeFocused();
+  await pressShortcut(page, "cell.sendToBottom");
+  await expect(editors).toHaveText(['"right_second"', '"left_second"', '"right_first"', '"left_first"']);
+});
+
+test("heading folding spans the displayed notebook and retains saved columns", async ({ page }) => {
+  await setWidth(page, "compact");
+  const editors = page.locator(".cm-content");
+  await editors.first().fill('import marimo as mo\nmo.md("# Section")');
+  await pressShortcut(page, "global.runStale");
+  await expect(page.getByRole("heading", { name: "Section", exact: true })).toBeVisible();
+  const headingCell = page.locator(".marimo-cell").filter({ has: page.getByRole("heading", { name: "Section", exact: true }) });
+  await headingCell.hover();
+  await headingCell.locator("button:has(svg.lucide-chevron-down)").click();
+  await expect(editors).toHaveCount(1);
+  await headingCell.locator("button:has(svg.lucide-chevron-right)").click();
+  await expect(editors).toHaveCount(4);
+  await setWidth(page, "columns");
+  await expect(page.getByTestId("column-frame")).toHaveCount(2);
+  await expect(page.getByTestId("column-frame").nth(1).locator(".cm-content")).toHaveText(['"right_first"', '"right_second"']);
+});
+
+test("moving past a folded destination keeps the moved cell visible and adopts its column", async ({ page }) => {
+  await setWidth(page, "compact");
+  const editors = page.locator(".cm-content");
+  await editors.nth(1).fill('import marimo as mo\nmo.md("# Destination")');
+  await pressShortcut(page, "global.runStale");
+  const heading = page.getByRole("heading", { name: "Destination", exact: true });
+  await expect(heading).toBeVisible();
+  const section = page.locator(".marimo-cell").filter({ has: heading });
+  await section.hover();
+  await section.locator("button:has(svg.lucide-chevron-down)").click();
+  await expect(editors).toHaveCount(2);
+  await editors.first().click();
+  await expect(editors.first()).toBeFocused();
+  await pressShortcut(page, "cell.moveDown");
+  await expect(editors.last()).toHaveText('"left_first"');
+  await expect(editors).toHaveCount(2);
+  await section.hover();
+  await section.locator("button:has(svg.lucide-chevron-right)").click();
+  await expect(editors).toHaveCount(4);
+  await pressShortcut(page, "global.save");
+  await expect.poll(() => readFile(filename, "utf8")).toMatch(/"right_first"[\s\S]*"right_second"[\s\S]*"left_first"/);
+  await shutdownNotebook(page);
+  await page.reload();
+  await setWidth(page, "columns");
+  await expect(page.getByTestId("column-frame").first().locator(".cm-content")).toHaveCount(1);
+  await expect(page.getByTestId("column-frame").last().locator(".cm-content")).toHaveText(['"right_first"', '"right_second"', '"left_first"']);
+});
+
+test("adding below a folded heading creates a visible editor after its section", async ({ page }) => {
+  await setWidth(page, "compact");
+  const editors = page.locator(".cm-content");
+  await editors.first().fill('import marimo as mo\nmo.md("# Section")');
+  await pressShortcut(page, "global.runStale");
+  const heading = page.getByRole("heading", { name: "Section", exact: true });
+  await expect(heading).toBeVisible();
+  const section = page.locator(".marimo-cell").filter({ has: heading });
+  await section.hover();
+  await section.locator("button:has(svg.lucide-chevron-down)").click();
+  await expect(editors).toHaveCount(1);
+  await editors.first().click();
+  await pressShortcut(page, "cell.createBelow");
+  await expect(editors).toHaveCount(2);
+  await expect(editors.last()).toBeFocused();
+  await editors.last().fill('"new_after_section"');
+  await section.hover();
+  await section.locator("button:has(svg.lucide-chevron-right)").click();
+  await expect(editors).toHaveCount(5);
+  await expect(editors.last()).toHaveText('"new_after_section"');
+});
+
+test("deleting at a saved column boundary focuses the preceding displayed cell", async ({ page }) => {
+  await setWidth(page, "compact");
+  const editors = page.locator(".cm-content");
+  await editors.nth(2).click();
+  await expect(editors.nth(2)).toBeFocused();
+  await editors.nth(2).fill("");
+  await pressShortcut(page, "cell.delete");
+  await expect(editors).toHaveCount(3);
+  await expect(editors.nth(1)).toBeFocused();
+  await expect(editors.nth(1)).toHaveText('"left_second"');
+});
+
+for (const width of ["compact", "medium", "full"]) {
+  test(`command-mode movement crosses saved columns in ${width}`, async ({ page }) => {
+    await setWidth(page, width);
+    const editors = page.locator(".cm-content");
+    await editors.nth(1).click();
+    await editors.nth(1).press("Escape");
+    const cells = page.locator(".marimo-cell");
+    await expect(cells.nth(1)).toBeFocused();
+    await pressShortcut(page, "cell.moveDown");
+    await expect(editors).toHaveText(['"left_first"', '"right_first"', '"left_second"', '"right_second"']);
+    await editors.nth(1).click();
+    await editors.nth(1).press("Escape");
+    await expect(cells.nth(1)).toBeFocused();
+    await pressShortcut(page, "cell.moveUp");
+    await expect(editors).toHaveText(['"right_first"', '"left_first"', '"left_second"', '"right_second"']);
+    await setWidth(page, "columns");
+    await expectColumns(page, [["right_first", "left_first"], ["left_second", "right_second"]]);
+  });
+}
