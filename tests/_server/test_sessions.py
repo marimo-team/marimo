@@ -301,6 +301,18 @@ async def test_kernel_manager_interrupt_reaches_subprocesses(
     assert kernel_manager.is_alive()
 
     pid_file = tmp_path / "pids.txt"
+    child_ready = tmp_path / "child.ready"
+    detached_ready = tmp_path / "detached.ready"
+    child_code = inspect.cleandoc("""
+        import signal
+        import sys
+        import time
+        from pathlib import Path
+
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        Path(sys.argv[1]).touch()
+        time.sleep(600)
+    """)
     queue_manager.control_queue.put(
         CreateNotebookCommand(
             execution_requests=(
@@ -310,9 +322,15 @@ async def test_kernel_manager_interrupt_reaches_subprocesses(
                         f"""
                         import os
                         import subprocess
-                        child = subprocess.Popen(["sleep", "600"])
+                        import sys
+                        child = subprocess.Popen(
+                            [sys.executable, "-c", {child_code!r},
+                             {str(child_ready)!r}]
+                        )
                         detached = subprocess.Popen(
-                            ["sleep", "600"], start_new_session=True
+                            [sys.executable, "-c", {child_code!r},
+                             {str(detached_ready)!r}],
+                            start_new_session=True
                         )
                         with open("{pid_file}.tmp", 'w') as f:
                             f.write(str(child.pid) + " " + str(detached.pid))
@@ -330,18 +348,7 @@ async def test_kernel_manager_interrupt_reaches_subprocesses(
         )
     )
 
-    # Wait for the cell to report the pids of the two subprocesses. The
-    # cell moves the fully written file into place, so existence implies
-    # complete contents.
     child_pid = detached_pid = -1
-    deadline = time.time() + 30
-    while time.time() < deadline:
-        if pid_file.exists():
-            child_pid, detached_pid = (
-                int(pid) for pid in pid_file.read_text().split()
-            )
-            break
-        await asyncio.sleep(0.1)
 
     def terminated(pid: int) -> bool:
         # An interrupted child of the kernel may linger as a zombie until
@@ -354,12 +361,34 @@ async def test_kernel_manager_interrupt_reaches_subprocesses(
             return True
 
     try:
-        assert child_pid > 0
+        # Popen returning does not establish the child's signal handling.
+        # Wait until both children explicitly enable SIGINT termination.
+        # The cell publishes the PIDs atomically for cleanup, even if a
+        # child fails to report readiness.
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if pid_file.exists():
+                child_pid, detached_pid = (
+                    int(pid) for pid in pid_file.read_text().split()
+                )
+                if child_ready.exists() and detached_ready.exists():
+                    break
+            await asyncio.sleep(0.1)
+
+        assert child_pid > 0, "The kernel did not report the subprocess PIDs."
         assert detached_pid > 0
+        assert child_ready.exists(), "The attached child did not become ready."
+        assert detached_ready.exists(), (
+            "The detached child did not become ready."
+        )
+        assert os.getpgid(child_pid) == kernel_manager.pid
+        assert os.getpgid(detached_pid) == detached_pid
+        assert not terminated(child_pid)
+        assert not terminated(detached_pid)
         kernel_manager.interrupt_kernel()
 
-        deadline = time.time() + 10
-        while time.time() < deadline and not terminated(child_pid):  # noqa: ASYNC110
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and not terminated(child_pid):  # noqa: ASYNC110
             await asyncio.sleep(0.1)
         # The interrupt reaches subprocesses in the kernel's process group
         assert terminated(child_pid)
