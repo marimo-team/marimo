@@ -14,7 +14,12 @@ from marimo._output.formatters.ai_formatters import (
 from marimo._output.formatters.altair_formatters import AltairFormatter
 from marimo._output.formatters.anywidget_formatters import AnyWidgetFormatter
 from marimo._output.formatters.arviz_formatters import ArviZFormatter
-from marimo._output.formatters.bokeh_formatters import BokehFormatter
+from marimo._output.formatters.bokeh_formatters import (
+    BokehDocumentFormatter,
+    BokehIOFormatter,
+    BokehModelFormatter,
+    BokehPlottingFormatter,
+)
 from marimo._output.formatters.cell import CellFormatter
 from marimo._output.formatters.df_formatters import (
     DataFusionFormatter,
@@ -66,7 +71,10 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     PlotlyFormatter.package_name(): PlotlyFormatter(),
     SeabornFormatter.package_name(): SeabornFormatter(),
     LeafmapFormatter.package_name(): LeafmapFormatter(),
-    BokehFormatter.package_name(): BokehFormatter(),
+    BokehIOFormatter.package_name(): BokehIOFormatter(),
+    BokehModelFormatter.package_name(): BokehModelFormatter(),
+    BokehDocumentFormatter.package_name(): BokehDocumentFormatter(),
+    BokehPlottingFormatter.package_name(): BokehPlottingFormatter(),
     HoloViewsFormatter.package_name(): HoloViewsFormatter(),
     IPythonFormatter.package_name(): IPythonFormatter(),
     IPyWidgetsFormatter.package_name(): IPyWidgetsFormatter(),

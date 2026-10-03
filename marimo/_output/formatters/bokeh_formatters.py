@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+import importlib
 from typing import TYPE_CHECKING, Any
 
 from marimo._config.config import Theme
@@ -14,25 +15,93 @@ from marimo._output.utils import flatten_string
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from bokeh.document import Document  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    from bokeh.model import Model  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
-class BokehFormatter(FormatterFactory):
+
+def _show_plot(plot: Model | Document) -> tuple[KnownMimeType, str]:
+    import bokeh.embed  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    import bokeh.resources  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    from bokeh.io import curdoc  # type: ignore[import-not-found,import-untyped,unused-ignore]
+
+    current_theme = curdoc().theme
+    html_content = bokeh.embed.file_html(
+        plot, bokeh.resources.CDN, theme=current_theme
+    )
+
+    # Try to get the background fill color
+    background_fill_color: str | None = None
+    try:
+        attrs = current_theme._json.get("attrs", {})
+        background_fill_color = attrs.get("BaseColorBar", {}).get(
+            "background_fill_color"
+        ) or attrs.get("Plot", {}).get("background_fill_color")
+    except Exception:
+        pass
+
+    # Maybe add <style> to the content
+    if background_fill_color is not None:
+        style_to_add = (
+            f"<style>body{{background-color:{background_fill_color}}}</style>"
+        )
+        html_content = html_content.replace(
+            "</head>", style_to_add + "</head>"
+        )
+
+    return (
+        "text/html",
+        flatten_string(
+            h.iframe(
+                **src_or_src_doc(html_content),
+                onload="__resizeIframe(this)",
+                style="width: 100%",
+            )
+        ),
+    )
+
+
+# Register on submodule completion: importing them from the root package's
+# hook can deadlock against another thread importing a Bokeh submodule.
+class BokehModelFormatter(FormatterFactory):
     @staticmethod
     def package_name() -> str:
-        return "bokeh"
+        return "bokeh.model"
 
-    def register(self) -> Callable[[], None]:
-        import bokeh.io  # type: ignore[import-not-found,import-untyped,unused-ignore]
-        import bokeh.models  # type: ignore[import-not-found,import-untyped,unused-ignore]
-        import bokeh.plotting  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    def register(self) -> None:
+        from bokeh.model import Model  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
         from marimo._output import formatting
+
+        formatting.formatter(Model)(_show_plot)
+
+
+class BokehDocumentFormatter(FormatterFactory):
+    @staticmethod
+    def package_name() -> str:
+        return "bokeh.document"
+
+    def register(self) -> None:
+        from bokeh.document import Document  # type: ignore[import-not-found,import-untyped,unused-ignore]
+
+        from marimo._output import formatting
+
+        formatting.formatter(Document)(_show_plot)
+
+
+class BokehIOFormatter(FormatterFactory):
+    @staticmethod
+    def package_name() -> str:
+        return "bokeh.io"
+
+    def register(self) -> Callable[[], None]:
         from marimo._runtime.output import _output
 
-        old_show = bokeh.plotting.show
-        old_io_show = bokeh.io.show
+        # The import hook runs before Python binds the module on its parent.
+        module = importlib.import_module(self.package_name())
+        old_show = module.show
         # bokeh always starts with output_notebook() in Jupyter, but this
         # brings in a dependency on IPython, which we don't need.
-        old_output_notebook = bokeh.plotting.output_notebook
+        old_output_notebook = module.output_notebook
 
         @functools.wraps(old_show)
         def show(*args: Any, **kwargs: Any) -> None:
@@ -51,62 +120,11 @@ class BokehFormatter(FormatterFactory):
             del args
             del kwargs
 
-        bokeh.plotting.show = show
-        bokeh.plotting.output_notebook = output_notebook
-        bokeh.io.show = show
+        module.__dict__.update(show=show, output_notebook=output_notebook)
 
         def unpatch() -> None:
-            bokeh.plotting.show = old_show
-            bokeh.plotting.output_notebook = old_output_notebook
-            bokeh.io.show = old_io_show
-
-        @formatting.formatter(bokeh.models.Model)
-        @formatting.formatter(bokeh.document.Document)
-        def _show_plot(
-            plot: bokeh.models.Model | bokeh.document.Document,
-        ) -> tuple[KnownMimeType, str]:
-            import bokeh.embed  # type: ignore[import-not-found,import-untyped,unused-ignore]
-            import bokeh.resources  # type: ignore[import-not-found,import-untyped,unused-ignore]
-            from bokeh.io import (  # type: ignore[import-not-found,import-untyped,unused-ignore]
-                curdoc,
-            )
-
-            current_theme = curdoc().theme
-            html_content = bokeh.embed.file_html(
-                plot, bokeh.resources.CDN, theme=current_theme
-            )
-
-            # Try to get the background fill color
-            background_fill_color: str | None = None
-            try:
-                attrs = current_theme._json.get("attrs", {})
-                background_fill_color = attrs.get("BaseColorBar", {}).get(
-                    "background_fill_color"
-                ) or attrs.get("Plot", {}).get("background_fill_color")
-            except Exception:
-                pass
-
-            # Maybe add <style> to the content
-            if background_fill_color is not None:
-                style_to_add = (
-                    "<style>"
-                    f"body{{background-color:{background_fill_color}}}"
-                    "</style>"
-                )
-                # Add above the </head> tag
-                html_content = html_content.replace(
-                    "</head>", style_to_add + "</head>"
-                )
-
-            return (
-                "text/html",
-                flatten_string(
-                    h.iframe(
-                        **src_or_src_doc(html_content),
-                        onload="__resizeIframe(this)",
-                        style="width: 100%",
-                    )
-                ),
+            module.__dict__.update(
+                show=old_show, output_notebook=old_output_notebook
             )
 
         return unpatch
@@ -115,3 +133,9 @@ class BokehFormatter(FormatterFactory):
         from bokeh.io import curdoc  # type: ignore
 
         curdoc().theme = "dark_minimal" if theme == "dark" else None  # type: ignore
+
+
+class BokehPlottingFormatter(BokehIOFormatter):
+    @staticmethod
+    def package_name() -> str:
+        return "bokeh.plotting"
