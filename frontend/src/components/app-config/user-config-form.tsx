@@ -404,7 +404,7 @@ export const UserConfigForm: React.FC = () => {
                 )}
               />
             </SettingGroup>
-            <SettingGroup title="Autocomplete">
+            <SettingGroup title="Completions and tooltips">
               <OverriddenFormField
                 control={form.control}
                 name="completion.activate_on_typing"
@@ -412,7 +412,7 @@ export const UserConfigForm: React.FC = () => {
                   <div className="flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel className="font-normal">
-                        Autocomplete
+                        Automatic completions and documentation
                       </FormLabel>
                       <FormControl>
                         <Checkbox
@@ -428,8 +428,9 @@ export const UserConfigForm: React.FC = () => {
                       <IsOverridden override={override} />
                     </FormItem>
                     <FormDescription>
-                      When unchecked, code completion is still available through
-                      a hotkey.
+                      Show code completions and documentation tooltips while
+                      typing. When unchecked, use the autocomplete hotkey.
+                      Tooltips on hover are unaffected.
                     </FormDescription>
 
                     <div>
