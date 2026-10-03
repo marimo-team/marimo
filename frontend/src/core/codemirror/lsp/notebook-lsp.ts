@@ -430,9 +430,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
    * This ensures the caller uses the same lens that was sent to the server,
    * avoiding race conditions if cells change between sync and subsequent operations.
    */
-  public async sync(
-    codeOverrides: Record<CellId, string> = {},
-  ): Promise<{
+  public async sync(codeOverrides: Record<CellId, string> = {}): Promise<{
     params: LSP.DidChangeTextDocumentParams;
     lens: NotebookLens;
   }> {
