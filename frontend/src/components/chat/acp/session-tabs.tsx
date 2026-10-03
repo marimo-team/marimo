@@ -35,7 +35,7 @@ const SessionTab: React.FC<SessionTabProps> = memo(
         onClick={() => onSelect(session.tabId)}
       >
         <div className="flex items-center gap-1 min-w-0 flex-1">
-          <span className="text-muted-foreground text-[10px] font-medium">
+          <span className="text-muted-foreground text-10 font-medium">
             <AiProviderIcon provider={session.agentId} className="h-3 w-3" />
           </span>
           <span className="truncate" title={session.title}>
