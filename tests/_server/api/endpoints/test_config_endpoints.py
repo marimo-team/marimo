@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from marimo._config.secrets import SECRET_PLACEHOLDER
 from tests._server.conftest import (
     get_user_config_manager,
 )
@@ -18,6 +19,36 @@ HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
 }
+
+
+def test_save_user_config_preserves_masked_request_options(
+    client: TestClient,
+) -> None:
+    manager = get_user_config_manager(client)
+    options = {
+        "extra_headers": {"Authorization": "test-header-secret"},
+        "extra_body": {"credentials": {"token": "test-body-secret"}},
+    }
+    manager.save_config({"ai": {"anthropic": options}})
+    config = manager.get_config()
+    assert config["ai"]["anthropic"] == {
+        "extra_headers": SECRET_PLACEHOLDER,
+        "extra_body": SECRET_PLACEHOLDER,
+    }
+    config["display"]["theme"] = "dark"
+
+    response = client.post(
+        "/api/kernel/save_user_config",
+        headers=HEADERS,
+        json={"config": config},
+    )
+
+    assert response.status_code == 200, response.text
+    saved = manager.get_config(hide_secrets=False)
+    assert saved["ai"]["anthropic"] == options
+    assert saved["display"]["theme"] == "dark"
+    assert "test-header-secret" not in response.text
+    assert "test-body-secret" not in response.text
 
 
 def test_save_user_config_no_session(client: TestClient) -> None:

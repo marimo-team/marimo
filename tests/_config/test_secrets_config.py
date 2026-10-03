@@ -1,11 +1,43 @@
 from __future__ import annotations
 
+from typing import Any
+
+import pytest
+
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.secrets import (
     SECRET_PLACEHOLDER,
     mask_secrets,
     remove_secret_placeholders,
 )
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {
+            "extra_headers": {"Authorization": "test-header-secret"},
+            "extra_body": {
+                "credentials": {"token": "test-body-secret"},
+                "tokens": ["test-list-secret"],
+            },
+        },
+        {"extra_headers": {}, "extra_body": {}},
+    ],
+)
+def test_mask_request_options(options: dict[str, Any]) -> None:
+    config = PartialMarimoConfig(ai={"anthropic": options})
+
+    masked = mask_secrets(config)
+
+    assert masked["ai"]["anthropic"] == {
+        key: SECRET_PLACEHOLDER if value else {}
+        for key, value in options.items()
+    }
+    assert remove_secret_placeholders(masked)["ai"]["anthropic"] == {
+        key: {} for key, value in options.items() if not value
+    }
+    assert config["ai"]["anthropic"] == options
 
 
 def test_mask_secrets() -> None:

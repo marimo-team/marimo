@@ -39,6 +39,7 @@ class AnyProviderConfig:
     client_pem: str | None = None
     extra_headers: dict[str, str] | None = None
     tools: list[ToolDefinition] | None = None
+    extra_body: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         # Only include tools if they are available
@@ -290,6 +291,8 @@ class AnyProviderConfig:
             base_url=_get_base_url(ai_config),
             api_key=key,
             tools=_get_tools(config.get("mode", "manual")),
+            extra_headers=ai_config.get("extra_headers"),
+            extra_body=ai_config.get("extra_body"),
         )
 
     @classmethod

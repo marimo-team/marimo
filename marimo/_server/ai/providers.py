@@ -1143,6 +1143,10 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
             else ANTHROPIC_DEFAULT_MAX_TOKENS,
         )
         settings: AnthropicModelSettings = {"anthropic_cache": True}
+        if self.config.extra_headers is not None:
+            settings["extra_headers"] = self.config.extra_headers
+        if self.config.extra_body is not None:
+            settings["extra_body"] = self.config.extra_body
         if values.max_tokens is not None:
             settings["max_tokens"] = values.max_tokens
         if values.thinking is not None:

@@ -256,11 +256,19 @@ components:
       title: AlertNotification
       type: object
     AnthropicConfig:
-      description: "Configuration options for Anthropic.\n\n    **Keys.**\n\n    -\
-        \ `api_key`: the Anthropic API key or an `env:` reference"
+      description: "Configuration options for Anthropic.\n\n    **Keys.**\n\n    - `api_key`:\
+        \ the Anthropic API key or an `env:` reference\n    - `extra_headers`: additional\
+        \ headers to send with each request\n    - `extra_body`: additional JSON fields\
+        \ to send in each request body"
       properties:
         api_key:
           type: string
+        extra_body:
+          type: object
+        extra_headers:
+          additionalProperties:
+            type: string
+          type: object
       required: []
       title: AnthropicConfig
       type: object
@@ -8414,4 +8422,3 @@ paths:
       summary: Get the auth token for the current session
       tags:
       - auth
-

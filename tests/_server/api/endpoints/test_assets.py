@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from marimo._config.secrets import SECRET_PLACEHOLDER
 from marimo._convert.common.filename import parse_title
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.assets import (
@@ -35,6 +36,26 @@ from tests._server.mocks import (
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
+
+
+def test_index_masks_request_options(client: TestClient) -> None:
+    config_manager = get_user_config_manager(client)
+    options = {
+        "extra_headers": {"Authorization": "test-header-secret"},
+        "extra_body": {"credentials": {"token": "test-body-secret"}},
+    }
+    config_manager.save_config({"ai": {"anthropic": options}})
+
+    response = client.get("/", headers=token_header())
+
+    assert response.status_code == 200, response.text
+    assert SECRET_PLACEHOLDER in response.text
+    assert "test-header-secret" not in response.text
+    assert "test-body-secret" not in response.text
+    assert (
+        config_manager.get_config(hide_secrets=False)["ai"]["anthropic"]
+        == options
+    )
 
 
 def test_index(client: TestClient) -> None:
