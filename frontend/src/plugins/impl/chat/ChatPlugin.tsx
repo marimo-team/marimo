@@ -27,7 +27,7 @@ const messageSchema = z.array(
     role: z.enum(["system", "user", "assistant"]),
     content: z.string().nullable(),
     parts: z.array(z.any()),
-    metadata: z.any().nullable(),
+    metadata: z.any().nullish(),
   }),
 );
 

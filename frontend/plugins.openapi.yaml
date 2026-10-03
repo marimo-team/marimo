@@ -2891,7 +2891,6 @@ components:
               - role
               - content
               - parts
-              - metadata
       required:
         - messages
     marimo-chatbot.send_prompt.input:
@@ -2928,7 +2927,6 @@ components:
               - role
               - content
               - parts
-              - metadata
         config:
           type: object
           properties:
