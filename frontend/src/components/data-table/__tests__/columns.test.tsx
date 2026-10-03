@@ -7,12 +7,8 @@ import { beforeAll, describe, expect, it, test, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Logger } from "@/utils/Logger";
 import { parseContent } from "@/utils/url-parser";
-import {
-  generateColumns,
-  inferFieldTypes,
-  LocaleNumber,
-  renderCellValue,
-} from "../columns";
+import { generateColumns, LocaleNumber, renderCellValue } from "../columns";
+import { inferFieldTypes } from "../infer-field-types";
 import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
 import type { FieldTypesWithExternalType } from "../types";
 import { uniformSample } from "../uniformSample";
@@ -120,6 +116,37 @@ test("inferFieldTypes", () => {
       ],
     ]
   `);
+});
+
+test("inferFieldTypes preserves column discovery order across rows", () => {
+  expect(
+    inferFieldTypes([
+      { name: null },
+      { 2010: 1 },
+      { 2000: 2 },
+      { name: "updated" },
+    ]),
+  ).toEqual([
+    ["name", ["string", "string"]],
+    ["2010", ["number", "number"]],
+    ["2000", ["number", "number"]],
+  ]);
+});
+
+test("inferFieldTypes includes columns named after object prototype properties", () => {
+  const data = [
+    Object.fromEntries([
+      ["__proto__", null],
+      ["constructor", null],
+      ["toString", null],
+    ]),
+  ];
+
+  expect(inferFieldTypes(data)).toEqual([
+    ["__proto__", ["unknown", "object"]],
+    ["constructor", ["unknown", "object"]],
+    ["toString", ["unknown", "object"]],
+  ]);
 });
 
 test("inferFieldTypes with nulls", () => {

@@ -1,9 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import {
-  generateColumns,
-  inferFieldTypes,
-} from "@/components/data-table/columns";
+import { generateColumns } from "@/components/data-table/columns";
+import { inferFieldTypes } from "@/components/data-table/infer-field-types";
 import { DataTable } from "@/components/data-table/data-table";
 import { Functions } from "@/utils/functions";
 
