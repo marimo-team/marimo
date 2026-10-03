@@ -184,6 +184,9 @@ extra_body = { metadata = { user_id = "your-user-id" } }
 Use fields supported by your Anthropic API and model. Values in `extra_body`
 override matching fields in the generated request body.
 
+Both option maps are masked in browser-visible configuration because they may
+contain credentials. Saving other settings preserves their server-side values.
+
 ### AWS Bedrock
 
 AWS Bedrock exposes multiple foundation models via a unified AWS API.
