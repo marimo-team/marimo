@@ -37,6 +37,8 @@ import { LoadingTable } from "@/components/data-table/loading-table";
 import {
   type DownloadAsArgs,
   DownloadAsSchema,
+  type GetExportMetadata,
+  GetExportMetadataSchema,
 } from "@/components/data-table/schemas";
 import { TableExplorerPanel } from "@/components/data-table/table-explorer-panel/table-explorer-panel";
 import {
@@ -210,6 +212,7 @@ interface Data<T> {
 // oxlint-disable-next-line typescript/consistent-type-definitions
 type DataTableFunctions = {
   download_as: DownloadAsArgs;
+  get_export_metadata: GetExportMetadata;
   get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
     sort?: {
@@ -302,6 +305,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   )
   .withFunctions<DataTableFunctions>({
     download_as: DownloadAsSchema,
+    get_export_metadata: GetExportMetadataSchema,
     get_column_summaries: rpc.input(z.looseObject({})).output(
       z.object({
         data: z.union([z.string(), z.array(z.looseObject({}))]).nullable(),
@@ -840,6 +844,7 @@ const DataTableComponent = ({
   paginationState,
   setPaginationState,
   download_as: downloadAs,
+  get_export_metadata: getExportMetadata,
   columnSummaries,
   className,
   setValue,
@@ -1168,6 +1173,7 @@ const DataTableComponent = ({
             hoverTemplate={hoverTemplate}
             cellHoverTexts={cellHoverTexts}
             downloadAs={showDownload ? downloadAs : undefined}
+            getExportMetadata={showDownload ? getExportMetadata : undefined}
             showSearch={showSearch}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}

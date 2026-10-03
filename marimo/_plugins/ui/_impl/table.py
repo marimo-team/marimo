@@ -41,6 +41,13 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
     validate_operator_for_dtype,
 )
+from marimo._plugins.ui._impl.tables.geometry_export import (
+    ExportMetadata,
+    GeometryExportError,
+    GeometryExportErrorCode,
+    get_export_metadata,
+    has_geometry_columns,
+)
 from marimo._plugins.ui._impl.tables.selection import (
     INDEX_COLUMN_NAME,
     add_selection_column,
@@ -133,6 +140,7 @@ class DownloadAsOptions:
 class DownloadAsArgs:
     format: Literal["csv", "tsv", "json", "parquet"]
     options: DownloadAsOptions | None = None
+    geometry_column: str | None = None
 
 
 @dataclass
@@ -144,6 +152,8 @@ class DownloadAsResponse:
     # ColumnPreview so the frontend can reuse its install-prompt flow.
     error: str | None = None
     missing_packages: list[str] | None = None
+    code: GeometryExportErrorCode | None = None
+    column: str | None = None
 
 
 @dataclass
@@ -968,6 +978,11 @@ class table(
                     function=self._download_as,
                 ),
                 Function(
+                    name="get_export_metadata",
+                    arg_cls=EmptyArgs,
+                    function=self._get_export_metadata,
+                ),
+                Function(
                     name="get_column_summaries",
                     arg_cls=ColumnSummariesArgs,
                     function=self._get_column_summaries,
@@ -1059,6 +1074,10 @@ class table(
         manager = self._searched_manager or self._manager
         return GetSizeBytesResponse(size_bytes=manager.estimate_size_bytes())
 
+    def _get_export_metadata(self, args: EmptyArgs) -> ExportMetadata:
+        del args
+        return get_export_metadata(self._manager)
+
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the table data in the specified format.
 
@@ -1090,8 +1109,10 @@ class table(
                 something other than a `TableManager` (e.g., a raw list
                 of `TableCell` from cell-selection modes).
         """
-        # Short-circuit Parquet when no parquet-capable lib is importable.
-        if args.format == "parquet":
+        # Short-circuit ordinary Parquet when no parquet-capable lib is importable.
+        if args.format == "parquet" and not has_geometry_columns(
+            self._manager
+        ):
             has_polars = DependencyManager.polars.has()
             has_pandas = DependencyManager.pandas.has()
             has_pyarrow = DependencyManager.pyarrow.has()
@@ -1137,13 +1158,22 @@ class table(
             options = (args.options or DownloadAsOptions()).resolve(
                 DownloadOptions()
             )
-            url, filename = download_as(
-                manager_candidate,
-                args.format,
-                drop_marimo_index=True,
-                options=options,
-                filename=bound_filename,
-            )
+            try:
+                url, filename = download_as(
+                    manager_candidate,
+                    args.format,
+                    drop_marimo_index=True,
+                    options=options,
+                    filename=bound_filename,
+                    geometry_column=args.geometry_column,
+                )
+            except GeometryExportError as e:
+                return DownloadAsResponse(
+                    error=str(e),
+                    code=e.code,
+                    column=e.column,
+                    missing_packages=e.missing_packages,
+                )
             return DownloadAsResponse(url=url, filename=filename)
         else:
             raise NotImplementedError(

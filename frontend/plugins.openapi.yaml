@@ -779,6 +779,64 @@ paths:
       responses:
         "204":
           description: Accepted.
+  /plugins/marimo-dataframe/functions/get_export_metadata/input:
+    summary: marimo-dataframe get_export_metadata input
+    get:
+      operationId: read_marimo_dataframe_get_export_metadata_input
+      summary: Read marimo-dataframe get_export_metadata input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-dataframe get_export_metadata input accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.get_export_metadata.input"
+    put:
+      operationId: write_marimo_dataframe_get_export_metadata_input
+      summary: Write marimo-dataframe get_export_metadata input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.get_export_metadata.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/functions/get_export_metadata/output:
+    summary: marimo-dataframe get_export_metadata output
+    get:
+      operationId: read_marimo_dataframe_get_export_metadata_output
+      summary: Read marimo-dataframe get_export_metadata output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-dataframe get_export_metadata output accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.get_export_metadata.output"
+    put:
+      operationId: write_marimo_dataframe_get_export_metadata_output
+      summary: Write marimo-dataframe get_export_metadata output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.get_export_metadata.output"
+      responses:
+        "204":
+          description: Accepted.
   /plugins/marimo-dataframe/functions/get_size_bytes/input:
     summary: marimo-dataframe get_size_bytes input
     get:
@@ -2325,6 +2383,63 @@ paths:
       responses:
         "204":
           description: Accepted.
+  /plugins/marimo-table/functions/get_export_metadata/input:
+    summary: marimo-table get_export_metadata input
+    get:
+      operationId: read_marimo_table_get_export_metadata_input
+      summary: Read marimo-table get_export_metadata input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-table get_export_metadata input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.get_export_metadata.input"
+    put:
+      operationId: write_marimo_table_get_export_metadata_input
+      summary: Write marimo-table get_export_metadata input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.get_export_metadata.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/get_export_metadata/output:
+    summary: marimo-table get_export_metadata output
+    get:
+      operationId: read_marimo_table_get_export_metadata_output
+      summary: Read marimo-table get_export_metadata output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-table get_export_metadata output accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.get_export_metadata.output"
+    put:
+      operationId: write_marimo_table_get_export_metadata_output
+      summary: Write marimo-table get_export_metadata output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.get_export_metadata.output"
+      responses:
+        "204":
+          description: Accepted.
   /plugins/marimo-table/functions/get_row_ids/input:
     summary: marimo-table get_row_ids input
     get:
@@ -3158,6 +3273,10 @@ components:
             - json
             - parquet
             - tsv
+        geometry_column:
+          type:
+            - string
+            - "null"
         options:
           type: object
           properties:
@@ -3186,6 +3305,22 @@ components:
               items:
                 type: string
             - type: "null"
+        code:
+          anyOf:
+            - type: string
+              enum:
+                - geometry_required
+                - invalid_geometry
+                - invalid_metadata
+                - unsupported_representation
+                - unsupported_version
+                - missing_packages
+                - conversion_failed
+            - type: "null"
+        column:
+          type:
+            - string
+            - "null"
       required:
         - url
         - filename
@@ -3314,6 +3449,73 @@ components:
         - row_headers
         - field_types
         - column_types_per_step
+    marimo-dataframe.get_export_metadata.input:
+      type: object
+      properties: {}
+    marimo-dataframe.get_export_metadata.output:
+      type: object
+      properties:
+        geometry_columns:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              encoding:
+                type: string
+                enum:
+                  - objects
+                  - wkb
+                  - wkt
+                  - other
+              crs:
+                anyOf:
+                  - anyOf:
+                      - type: string
+                      - type: object
+                        propertyNames:
+                          type: string
+                        additionalProperties: {}
+                  - type: "null"
+            required:
+              - name
+              - encoding
+              - crs
+        primary_geometry_column:
+          type:
+            - string
+            - "null"
+        default_geometry_column:
+          type:
+            - string
+            - "null"
+        formats:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: object
+            properties:
+              available:
+                type: boolean
+              reason:
+                type:
+                  - string
+                  - "null"
+              missing_packages:
+                type: array
+                items:
+                  type: string
+            required:
+              - available
+              - reason
+              - missing_packages
+      required:
+        - geometry_columns
+        - primary_geometry_column
+        - default_geometry_column
+        - formats
     marimo-dataframe.get_size_bytes.input:
       type: object
       properties: {}
@@ -4649,6 +4851,10 @@ components:
             - json
             - parquet
             - tsv
+        geometry_column:
+          type:
+            - string
+            - "null"
         options:
           type: object
           properties:
@@ -4677,6 +4883,22 @@ components:
               items:
                 type: string
             - type: "null"
+        code:
+          anyOf:
+            - type: string
+              enum:
+                - geometry_required
+                - invalid_geometry
+                - invalid_metadata
+                - unsupported_representation
+                - unsupported_version
+                - missing_packages
+                - conversion_failed
+            - type: "null"
+        column:
+          type:
+            - string
+            - "null"
       required:
         - url
         - filename
@@ -4861,6 +5083,73 @@ components:
       required:
         - data_url
         - format
+    marimo-table.get_export_metadata.input:
+      type: object
+      properties: {}
+    marimo-table.get_export_metadata.output:
+      type: object
+      properties:
+        geometry_columns:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              encoding:
+                type: string
+                enum:
+                  - objects
+                  - wkb
+                  - wkt
+                  - other
+              crs:
+                anyOf:
+                  - anyOf:
+                      - type: string
+                      - type: object
+                        propertyNames:
+                          type: string
+                        additionalProperties: {}
+                  - type: "null"
+            required:
+              - name
+              - encoding
+              - crs
+        primary_geometry_column:
+          type:
+            - string
+            - "null"
+        default_geometry_column:
+          type:
+            - string
+            - "null"
+        formats:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: object
+            properties:
+              available:
+                type: boolean
+              reason:
+                type:
+                  - string
+                  - "null"
+              missing_packages:
+                type: array
+                items:
+                  type: string
+            required:
+              - available
+              - reason
+              - missing_packages
+      required:
+        - geometry_columns
+        - primary_geometry_column
+        - default_geometry_column
+        - formats
     marimo-table.get_row_ids.input:
       type: object
       properties: {}
