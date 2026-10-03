@@ -3007,7 +3007,7 @@ components:
         \ in __post_init__.\n\n    Attributes:\n        terminal: Terminal access\
         \ (unavailable on Windows/Pyodide).\n        pylsp: Python Language Server\
         \ Protocol installed.\n        ty: ty type checker installed.\n        basedpyright:\
-        \ basedpyright type checker installed."
+        \ basedpyright type checker installed.\n        ruff: Ruff linter installed."
       properties:
         basedpyright:
           default: false
@@ -3016,6 +3016,9 @@ components:
           default: false
           type: boolean
         pyrefly:
+          default: false
+          type: boolean
+        ruff:
           default: false
           type: boolean
         terminal:
@@ -3369,7 +3372,8 @@ components:
     LanguageServersConfig:
       description: "Configuration options for language servers.\n\n    **Keys.**\n\
         \n    - `pylsp`: the pylsp config\n    - `basedpyright`: the basedpyright\
-        \ config\n    - `ty`: the ty config\n    - `pyrefly`: the pyrefly config"
+        \ config\n    - `ty`: the ty config\n    - `pyrefly`: the pyrefly config\n\
+        \    - `ruff`: the Ruff config"
       properties:
         basedpyright:
           $ref: '#/components/schemas/BasedpyrightServerConfig'
@@ -3377,6 +3381,8 @@ components:
           $ref: '#/components/schemas/PythonLanguageServerConfig'
         pyrefly:
           $ref: '#/components/schemas/PyreflyLanguageServerConfig'
+        ruff:
+          $ref: '#/components/schemas/RuffLanguageServerConfig'
         ty:
           $ref: '#/components/schemas/TyLanguageServerConfig'
       required: []
@@ -4882,6 +4888,15 @@ components:
     RequestId:
       format: request-id
       type: string
+    RuffLanguageServerConfig:
+      description: "Configuration options for the native Ruff language server.\n\n\
+        \    Ruff provides lint diagnostics alongside a Python type checker."
+      properties:
+        enabled:
+          type: boolean
+      required: []
+      title: RuffLanguageServerConfig
+      type: object
     RunningNotebooksResponse:
       properties:
         files:
@@ -8414,4 +8429,3 @@ paths:
       summary: Get the auth token for the current session
       tags:
       - auth
-

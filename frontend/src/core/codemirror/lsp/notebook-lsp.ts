@@ -53,8 +53,8 @@ class Snapshotter {
 
   private lastSnapshot: NotebookLens | null = null;
 
-  public snapshot() {
-    const lens = this.getLens();
+  public snapshot(codeOverrides: Record<CellId, string> = {}) {
+    const lens = this.getLens(codeOverrides);
     const didChange = this.lastSnapshot?.mergedText !== lens.mergedText;
     if (!didChange) {
       return {
@@ -82,9 +82,9 @@ class Snapshotter {
     return { lens: this.lastSnapshot, version: this.documentVersion };
   }
 
-  private getLens() {
+  private getLens(codeOverrides: Record<CellId, string>) {
     const { cellIds, codes } = this.getNotebookCode();
-    return createNotebookLens(cellIds, codes);
+    return createNotebookLens(cellIds, { ...codes, ...codeOverrides });
   }
 }
 
@@ -430,11 +430,14 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
    * This ensures the caller uses the same lens that was sent to the server,
    * avoiding race conditions if cells change between sync and subsequent operations.
    */
-  public async sync(): Promise<{
+  public async sync(
+    codeOverrides: Record<CellId, string> = {},
+  ): Promise<{
     params: LSP.DidChangeTextDocumentParams;
     lens: NotebookLens;
   }> {
-    const { lens, version, didChange } = this.snapshotter.snapshot();
+    const { lens, version, didChange } =
+      this.snapshotter.snapshot(codeOverrides);
     const params: LSP.DidChangeTextDocumentParams = {
       textDocument: {
         uri: this.documentUri,
@@ -458,7 +461,12 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     // We know how to only handle single content changes
     // But that is all we expect to receive
     if (params.contentChanges.length === 1) {
-      await this.sync();
+      // Editor updates reach the LSP plugin before the notebook atom is
+      // invalidated. Use the changed cell's full text instead of its cached code.
+      await this.sync({
+        [CellDocumentUri.parse(params.textDocument.uri)]:
+          params.contentChanges[0].text,
+      });
       return;
     }
 

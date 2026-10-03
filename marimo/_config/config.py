@@ -496,6 +496,16 @@ class PyreflyLanguageServerConfig(TypedDict, total=False):
 
 
 @dataclass
+class RuffLanguageServerConfig(TypedDict, total=False):
+    """Configuration options for the native Ruff language server.
+
+    Ruff provides lint diagnostics alongside a Python type checker.
+    """
+
+    enabled: bool
+
+
+@dataclass
 class LanguageServersConfig(TypedDict, total=False):
     """Configuration options for language servers.
 
@@ -505,12 +515,14 @@ class LanguageServersConfig(TypedDict, total=False):
     - `basedpyright`: the basedpyright config
     - `ty`: the ty config
     - `pyrefly`: the pyrefly config
+    - `ruff`: the Ruff config
     """
 
     pylsp: PythonLanguageServerConfig
     basedpyright: BasedpyrightServerConfig
     ty: TyLanguageServerConfig
     pyrefly: PyreflyLanguageServerConfig
+    ruff: RuffLanguageServerConfig
 
 
 @dataclass

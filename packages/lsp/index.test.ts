@@ -40,6 +40,14 @@ describe("parseTypedCommand", () => {
     expect(result).toEqual(["/path/to/ty", "server"]);
   });
 
+  it.each([
+    "/path/to/ruff",
+    "/path/with spaces/ruff",
+    "C:/Program Files/ruff.exe",
+  ])("should parse native Ruff commands: %s", (binary) => {
+    expect(parseTypedCommand(`ruff:${binary}`)).toEqual([binary, "server"]);
+  });
+
   it("should parse ty commands with spaces in path", () => {
     const result = parseTypedCommand("ty:/path/with spaces/ty");
     expect(result).toEqual(["/path/with spaces/ty", "server"]);

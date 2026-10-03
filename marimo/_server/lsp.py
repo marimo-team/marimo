@@ -782,6 +782,49 @@ class PyreflyServer(BaseLspServer):
         )
 
 
+class RuffServer(BaseLspServer):
+    id = "ruff"
+
+    def __init__(self, port: int) -> None:
+        super().__init__(port)
+        self.log_file = _loggers.get_log_directory() / "ruff-lsp.log"
+
+    async def start(self) -> AlertNotification | None:
+        if not DependencyManager.ruff.has():
+            LOGGER.debug("Ruff is not installed. Skipping LSP server.")
+            return None
+        return await super().start()
+
+    def validate_requirements(self) -> str | Literal[True]:
+        if not DependencyManager.ruff.has():
+            return "Ruff is missing. Install it with `pip install ruff`."
+        if not DependencyManager.which("node"):
+            return "node.js binary is missing. Install node at https://nodejs.org/."
+        return True
+
+    def get_command(self) -> list[str]:
+        from ruff.__main__ import find_ruff_bin  # type: ignore
+
+        lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
+        return [
+            "node",
+            str(lsp_bin),
+            "--port",
+            str(self.port),
+            "--lsp",
+            f"ruff:{find_ruff_bin()}",
+            "--log-file",
+            str(self.log_file),
+        ]
+
+    def missing_binary_alert(self) -> AlertNotification:
+        return AlertNotification(
+            title="Ruff: Connection Error",
+            description="Install Ruff with `pip install ruff` for lint diagnostics.",
+            variant="danger",
+        )
+
+
 class NoopLspServer(LspServer):
     port: int = 0
     id: str = "noop"
@@ -811,6 +854,7 @@ class CompositeLspServer(LspServer):
         "basedpyright": BasedpyrightServer,
         "ty": TyServer,
         "pyrefly": PyreflyServer,
+        "ruff": RuffServer,
         "copilot": CopilotLspServer,
     }
 

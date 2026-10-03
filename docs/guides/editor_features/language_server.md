@@ -88,6 +88,39 @@ enabled = true
 
 See the [ty docs](https://docs.astral.sh/ty/features/language-server/) for more information.
 
+### Ruff
+
+[Ruff](https://docs.astral.sh/ruff/editors/) provides lint diagnostics through
+its native `ruff server`, without requiring pylsp. It can run alongside ty for
+both lint and type diagnostics.
+
+**Install:**
+
+```bash
+uv pip install ruff ty
+```
+
+**Configuration:**
+
+```toml title="pyproject.toml"
+[tool.marimo.language_servers.ruff]
+enabled = true
+
+[tool.marimo.language_servers.ty]
+enabled = true
+
+[tool.marimo.diagnostics]
+enabled = true
+```
+
+Ruff uses your project's Ruff configuration. marimo suppresses rules that do
+not apply to notebook cells, such as import ordering and unused output
+expressions. With Ruff alone, marimo keeps its default Python completions and
+hover documentation. Notebook code actions are not supported.
+
+If you also enable pylsp, set `enable_ruff = false` in its configuration to
+avoid duplicate Ruff diagnostics.
+
 ### pyrefly
 
 A type checker for Python from Meta. Pyrefly provides completions, hover,
@@ -149,7 +182,7 @@ Language servers are not available when running marimo in WebAssembly.
 If you encounter issues with a language server:
 
 1. Make sure you've installed the required dependencies with `uv pip install "marimo[lsp]"`
-2. For basedpyright, ty, and pyrefly, ensure [Node.js](https://nodejs.org/) is installed
+2. For basedpyright, ty, pyrefly and Ruff, ensure [Node.js](https://nodejs.org/) is installed
 3. Check if the language server is enabled in your configuration
 4. Try restarting the marimo server
 5. Check the terminal for error messages or the log files in your marimo log directory (e.g. `~/.cache/marimo/logs/`)

@@ -706,6 +706,45 @@ export const UserConfigForm: React.FC = () => {
               />
               <OverriddenFormField
                 control={form.control}
+                name="language_servers.ruff.enabled"
+                render={({ field, override }) => (
+                  <div className="flex flex-col gap-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        Ruff (
+                        <ExternalLink href="https://github.com/astral-sh/ruff">
+                          docs
+                        </ExternalLink>
+                        )
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="ruff-checkbox"
+                          checked={override.value}
+                          disabled={field.disabled || override.isOverridden}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden override={override} />
+                    </FormItem>
+                    {override.value && !capabilities.ruff && (
+                      <Banner kind="danger">
+                        Ruff is not available in your current environment.
+                        Please install <Kbd className="inline">ruff</Kbd> in
+                        your environment.
+                      </Banner>
+                    )}
+                  </div>
+                )}
+              />
+              <OverriddenFormField
+                control={form.control}
                 name="diagnostics.enabled"
                 render={({ field, override }) => (
                   <FormItem className={formItemClasses}>

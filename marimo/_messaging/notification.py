@@ -355,6 +355,7 @@ class KernelCapabilitiesNotification(msgspec.Struct):
         pylsp: Python Language Server Protocol installed.
         ty: ty type checker installed.
         basedpyright: basedpyright type checker installed.
+        ruff: Ruff linter installed.
     """
 
     terminal: bool = False
@@ -362,6 +363,7 @@ class KernelCapabilitiesNotification(msgspec.Struct):
     ty: bool = False
     basedpyright: bool = False
     pyrefly: bool = False
+    ruff: bool = False
 
     def __post_init__(self) -> None:
         # Only available in mac/linux
@@ -370,6 +372,7 @@ class KernelCapabilitiesNotification(msgspec.Struct):
         self.basedpyright = DependencyManager.basedpyright.has()
         self.ty = DependencyManager.ty.has()
         self.pyrefly = DependencyManager.pyrefly.has()
+        self.ruff = DependencyManager.ruff.has()
 
 
 class ConsumerCapabilities(msgspec.Struct, frozen=True):

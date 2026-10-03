@@ -16,6 +16,9 @@ function mergeDictsIgnoreFalsey<T extends object>(dicts: T[]): T {
 
 export class FederatedLanguageServerClient implements ILanguageServerClient {
   private readonly clients: ILanguageServerClient[] = [];
+  private readonly diagnosticCaches = new Set<
+    Map<string, Map<ILanguageServerClient, LSP.Diagnostic[]>>
+  >();
   public readonly documentUri: string;
 
   public constructor(clients: ILanguageServerClient[]) {
@@ -31,11 +34,44 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
       params: LSP.PublishDiagnosticsParams;
     }) => void,
   ): () => boolean {
+    const diagnostics = new Map<
+      string,
+      Map<ILanguageServerClient, LSP.Diagnostic[]>
+    >();
+    this.diagnosticCaches.add(diagnostics);
+    let version = 0;
     const callbacks: (() => boolean)[] = [];
     for (const client of this.clients) {
-      callbacks.push(client.onNotification(listener));
+      callbacks.push(
+        client.onNotification((notification) => {
+          // Clients also emit protocol notifications outside our narrowed type.
+          if (notification.method !== "textDocument/publishDiagnostics") {
+            listener(notification);
+            return;
+          }
+          const { params } = notification;
+          const byClient =
+            diagnostics.get(params.uri) ??
+            new Map<ILanguageServerClient, LSP.Diagnostic[]>();
+          byClient.set(client, params.diagnostics);
+          diagnostics.set(params.uri, byClient);
+          listener({
+            ...notification,
+            params: {
+              ...params,
+              // Notebook clients have independent publication counters.
+              version: ++version,
+              diagnostics: this.clients.flatMap(
+                (child) => byClient.get(child) ?? [],
+              ),
+            },
+          });
+        }),
+      );
     }
     return () => {
+      this.diagnosticCaches.delete(diagnostics);
+      diagnostics.clear();
       for (const cb of callbacks) {
         cb();
       }
@@ -83,7 +119,9 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
   }
 
   public get initializePromise(): Promise<void> {
-    return this.clients[0].initializePromise;
+    return Promise.all(
+      this.clients.map((client) => client.initializePromise),
+    ).then(() => undefined);
   }
 
   public set initializePromise(value: Promise<void>) {
@@ -113,12 +151,18 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
   }
 
   public async close(): Promise<void> {
+    for (const cache of this.diagnosticCaches) {
+      cache.clear();
+    }
     await Promise.all(this.clients.map((client) => client.close()));
   }
 
   public async textDocumentDidChange(
     params: LSP.DidChangeTextDocumentParams,
   ): Promise<void> {
+    // Cached ranges belong to the old cell text. Do not reinsert them when a
+    // faster server publishes diagnostics for the edited cell.
+    this.clearDocumentDiagnostics(params.textDocument.uri);
     await Promise.all(
       this.clients.map((client) => client.textDocumentDidChange(params)),
     );
@@ -216,9 +260,16 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
   public async textDocumentDidClose(
     params: LSP.DidCloseTextDocumentParams,
   ): Promise<void> {
+    this.clearDocumentDiagnostics(params.textDocument.uri);
     await Promise.all(
       this.clients.map((client) => client.textDocumentDidClose(params)),
     );
+  }
+
+  private clearDocumentDiagnostics(uri: string): void {
+    for (const cache of this.diagnosticCaches) {
+      cache.delete(uri);
+    }
   }
 
   public async textDocumentWillSave(

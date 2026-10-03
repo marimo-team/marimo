@@ -25,6 +25,7 @@ from marimo._server.lsp import (
     CopilotLspServer,
     PyLspServer,
     PyreflyServer,
+    RuffServer,
     TyServer,
     any_lsp_server_running,
 )
@@ -124,6 +125,7 @@ async def test_base_lsp_server_start_stop(
         BasedpyrightServer,
         TyServer,
         PyreflyServer,
+        RuffServer,
     ],
 )
 async def test_lsp_launch_keeps_token_out_of_argv(
@@ -139,6 +141,8 @@ async def test_lsp_launch_keeps_token_out_of_argv(
     ty_module.find_ty_bin.return_value = "/path/to/ty"
     pyrefly_module = mock.MagicMock()
     pyrefly_module.get_pyrefly_bin.return_value = "/path/to/pyrefly"
+    ruff_module = mock.MagicMock()
+    ruff_module.find_ruff_bin.return_value = "/path/to/ruff"
 
     # Stub installed dependencies, but exercise each real get_command()
     # and the actual argv passed to Popen.
@@ -149,7 +153,11 @@ async def test_lsp_launch_keeps_token_out_of_argv(
         ),
         mock.patch.dict(
             "sys.modules",
-            {"ty.__main__": ty_module, "pyrefly.__main__": pyrefly_module},
+            {
+                "ty.__main__": ty_module,
+                "pyrefly.__main__": pyrefly_module,
+                "ruff.__main__": ruff_module,
+            },
         ),
         mock.patch.object(server, "validate_requirements", return_value=True),
         mock.patch.object(server, "_wait_until_ready", return_value=True),
@@ -424,13 +432,14 @@ def test_composite_server():
     with mock.patch("marimo._server.lsp.DependencyManager") as mock_dm:
         mock_dm.pylsp = mock.MagicMock()
         mock_dm.pylsp.has.return_value = True
-        total_lsp_servers = 5
+        total_lsp_servers = 6
         config = LanguageServersConfig(
             {
                 "pylsp": {"enabled": True},
                 "ty": {"enabled": True},
                 "pyrefly": {"enabled": True},
                 "basedpyright": {"enabled": True},
+                "ruff": {"enabled": True},
             }
         )
         completion_config = CompletionConfig(
@@ -451,6 +460,7 @@ def test_composite_server():
         assert server._is_enabled(config, "ty") is True
         assert server._is_enabled(config, "pyrefly") is True
         assert server._is_enabled(config, "basedpyright") is True
+        assert server._is_enabled(config, "ruff") is True
 
         # Test with only pylsp
         config = LanguageServersConfig({"pylsp": {"enabled": True}})
@@ -659,6 +669,37 @@ def test_ty_server_handles_spaces_in_path():
         # Should use typed format and preserve the path with spaces
         assert lsp_command == "ty:/path/with spaces/ty"
         assert "/path/with spaces/ty" in lsp_command
+
+
+@pytest.mark.parametrize("binary", ["/path/to/ruff", "/path/with spaces/ruff"])
+def test_ruff_server_command(binary: str):
+    ruff_module = mock.MagicMock()
+    ruff_module.find_ruff_bin.return_value = binary
+    with mock.patch.dict("sys.modules", {"ruff.__main__": ruff_module}):
+        command = RuffServer(port=8000).get_command()
+    assert command[command.index("--lsp") + 1] == f"ruff:{binary}"
+
+
+async def test_ruff_server_missing_requirements(mock_popen: mock.MagicMock):
+    server = RuffServer(port=8000)
+    with mock.patch("marimo._server.lsp.DependencyManager") as dependencies:
+        dependencies.ruff.has.return_value = False
+        assert await server.start() is None
+        assert "pip install ruff" in str(server.validate_requirements())
+        mock_popen.assert_not_called()
+        dependencies.ruff.has.return_value = True
+        dependencies.which.return_value = None
+        assert "node.js" in str(server.validate_requirements())
+        dependencies.which.return_value = "/path/to/node"
+        assert server.validate_requirements() is True
+
+
+def test_ruff_only_config_enables_lsp():
+    config = merge_default_config(
+        {"language_servers": {"ruff": {"enabled": True}}}
+    )
+    assert any_lsp_server_running(config) is True
+    assert any_lsp_server_running(merge_default_config({})) is False
 
 
 def test_any_lsp_server_running():

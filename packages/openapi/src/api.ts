@@ -5646,6 +5646,7 @@ export interface components {
      *             pylsp: Python Language Server Protocol installed.
      *             ty: ty type checker installed.
      *             basedpyright: basedpyright type checker installed.
+     *             ruff: Ruff linter installed.
      */
     KernelCapabilitiesNotification: {
       /** @default false */
@@ -5654,6 +5655,8 @@ export interface components {
       pylsp?: boolean;
       /** @default false */
       pyrefly?: boolean;
+      /** @default false */
+      ruff?: boolean;
       /** @default false */
       terminal?: boolean;
       /** @default false */
@@ -5851,11 +5854,13 @@ export interface components {
      *         - `basedpyright`: the basedpyright config
      *         - `ty`: the ty config
      *         - `pyrefly`: the pyrefly config
+     *         - `ruff`: the Ruff config
      */
     LanguageServersConfig: {
       basedpyright?: components["schemas"]["BasedpyrightServerConfig"];
       pylsp?: components["schemas"]["PythonLanguageServerConfig"];
       pyrefly?: components["schemas"]["PyreflyLanguageServerConfig"];
+      ruff?: components["schemas"]["RuffLanguageServerConfig"];
       ty?: components["schemas"]["TyLanguageServerConfig"];
     };
     /** LayoutConfig */
@@ -6768,6 +6773,15 @@ export interface components {
     };
     /** Format: request-id */
     RequestId: TypedString<"RequestId">;
+    /**
+     * RuffLanguageServerConfig
+     * @description Configuration options for the native Ruff language server.
+     *
+     *         Ruff provides lint diagnostics alongside a Python type checker.
+     */
+    RuffLanguageServerConfig: {
+      enabled?: boolean;
+    };
     /** RunningNotebooksResponse */
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];

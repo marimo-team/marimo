@@ -122,6 +122,7 @@ export function parseTypedCommand(typedCommand: string): string[] {
     case "pyrefly":
       return [binaryPath, "lsp"];
     case "ty":
+    case "ruff":
       return [binaryPath, "server"];
     default:
       throw new Error(`Unknown LSP server type: ${serverType}`);
