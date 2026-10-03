@@ -42,6 +42,7 @@ from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
 from marimo._types.ids import (
     CellId_t,
     RequestId,
+    StableSessionId,
     UIElementId,
     VariableName,
     WidgetModelId,
@@ -434,6 +435,8 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
         kiosk: Whether running in kiosk mode.
         capabilities: Available kernel capabilities.
         auto_instantiated: Whether cells already executed (run mode).
+        stable_session_id: Server-owned Session identity that survives
+            browser reconnects. None where no server Session exists.
     """
 
     name: ClassVar[str] = "kernel-ready"
@@ -451,6 +454,7 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     capabilities: KernelCapabilitiesNotification
     consumer_capabilities: ConsumerCapabilities
     auto_instantiated: bool = False
+    stable_session_id: StableSessionId | None = None
 
 
 class CompletionResultNotification(Notification, tag="completion-result"):
