@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import gc
+import weakref
 from unittest.mock import Mock
 
 import pytest
@@ -10,6 +12,7 @@ from marimo._plugins.ui._impl.from_panel import (
     _extract_holoviews_settings,
     panel,
 )
+from marimo._runtime.commands import DeleteCellCommand
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -24,6 +27,70 @@ else:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 class TestPanel:
+    @staticmethod
+    @pytest.mark.parametrize("count", [1, 2])
+    async def test_render_cleanup(
+        k: Kernel, exec_req: ExecReqProvider, count: int
+    ) -> None:
+        baseline = set(pn.state._views)
+        imports = exec_req.get("import panel as pn\nimport marimo as mo")
+        render = exec_req.get(
+            f"wrapped = [mo.ui.panel(pn.widgets.IntSlider(value=5)) "
+            f"for _ in range({count})]"
+        )
+        other = exec_req.get(
+            "other = mo.ui.panel(pn.widgets.IntSlider(value=3))"
+        )
+        await k.run([imports, render, other])
+        assert not k.errors
+        other_ref = k.globals["other"]._ref
+        first_ref = k.globals["wrapped"][0]._ref
+        old_pane = weakref.ref(k.globals["wrapped"][0].obj)
+        old_doc = weakref.ref(pn.state._views[first_ref][2])
+
+        for _ in range(3):
+            await k.run([render])
+            assert not k.errors
+            assert set(pn.state._views) - baseline == {
+                *(wrapped._ref for wrapped in k.globals["wrapped"]),
+                other_ref,
+            }
+        gc.collect()
+        assert (old_pane(), old_doc()) == (None, None)
+
+        await k.delete_cell(DeleteCellCommand(cell_id=render.cell_id))
+        assert set(pn.state._views) - baseline == {other_ref}
+        await k.delete_cell(DeleteCellCommand(cell_id=other.cell_id))
+        assert set(pn.state._views) == baseline
+
+    @staticmethod
+    async def test_cleanup_preserves_shared_widget(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        imports = exec_req.get("import panel as pn\nimport marimo as mo")
+        widget = exec_req.get("slider = pn.widgets.IntSlider(value=3)")
+        first = exec_req.get("first = mo.ui.panel(slider)")
+        second = exec_req.get("second = mo.ui.panel(slider)")
+        await k.run([imports, widget, first, second])
+        assert not k.errors
+        slider = k.globals["slider"]
+        second_ref = k.globals["second"]._ref
+
+        await k.run([first])
+        assert not k.errors
+        first_ref = k.globals["first"]._ref
+        slider.value = 7
+        assert {
+            ref: model.value for ref, (model, _) in slider._models.items()
+        } == {first_ref: 7, second_ref: 7}
+
+        await k.delete_cell(DeleteCellCommand(cell_id=first.cell_id))
+        slider.value = 8
+        assert {
+            ref: model.value for ref, (model, _) in slider._models.items()
+        } == {second_ref: 8}
+        await k.delete_cell(DeleteCellCommand(cell_id=second.cell_id))
+
     @staticmethod
     async def test_instances(k: Kernel, exec_req: ExecReqProvider) -> None:
         await k.run(
@@ -175,6 +242,29 @@ class TestHoloViewsSettings:
     reason="panel and holoviews not installed",
 )
 class TestPanelWithHoloViews:
+    @staticmethod
+    async def test_render_cleanup(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        baseline = set(pn.state._views)
+        imports = exec_req.get("import holoviews as hv\nhv.extension('bokeh')")
+        render = exec_req.get("hv.DynamicMap(lambda: hv.Curve([1, 2, 3]))")
+        await k.run([imports, render])
+        assert not k.errors
+        (old_ref,) = set(pn.state._views) - baseline
+        old_pane = weakref.ref(pn.state._views[old_ref][0])
+        old_doc = weakref.ref(pn.state._views[old_ref][2])
+
+        await k.run([render])
+        assert not k.errors
+        (new_ref,) = set(pn.state._views) - baseline
+        assert new_ref != old_ref
+        gc.collect()
+        assert (old_pane(), old_doc()) == (None, None)
+
+        await k.delete_cell(DeleteCellCommand(cell_id=render.cell_id))
+        assert set(pn.state._views) == baseline
+
     @staticmethod
     def test_panel_respects_holoviews_output_settings() -> None:
         """Test that panel() passes holoviews settings to Panel pane."""
