@@ -5,7 +5,6 @@ import { AlertTriangleIcon, EditIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Kbd } from "@/components/ui/kbd";
 import { hotkeysAtom, useResolvedMarimoConfig } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import {
@@ -271,22 +270,25 @@ export const KeyboardShortcuts: React.FC = () => {
     );
   };
 
-  const renderCommandGroup = (group: HotkeyGroup) =>
-    renderGroup(
+  const renderCommandGroup = (group: HotkeyGroup) => {
+    // Each preset advertises its own binding, resolved for this platform and
+    // for any override; an empty key means the user disabled it, so say nothing.
+    const action =
+      config.keymap.preset === "vim"
+        ? "command.vimEnterCommandMode"
+        : "command.enterCommandMode";
+    const shortcut = hotkeys.getHotkey(action).key;
+    if (shortcut === "") {
+      return renderGroup(group);
+    }
+    return renderGroup(
       group,
       <p className="text-xs text-muted-foreground flex items-center gap-1">
-        Press{" "}
-        {config.keymap.preset === "vim" ? (
-          <>
-            <KeyboardHotkeys shortcut={isPlatformMac() ? "Cmd" : "Ctrl"} />
-            <Kbd>Esc</Kbd>
-          </>
-        ) : (
-          <Kbd>Esc</Kbd>
-        )}{" "}
-        in a cell to enter command mode
+        Press <KeyboardHotkeys shortcut={shortcut} /> in a cell to enter command
+        mode
       </p>,
     );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => setIsOpen(open)}>

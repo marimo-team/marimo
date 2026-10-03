@@ -710,6 +710,11 @@ export function useCellEditorNavigationProps(
     return parseShortcut(shortcut.key);
   }, [hotkeys]);
 
+  const commandModeShortcut = useMemo(() => {
+    const shortcut = hotkeys.getHotkey("command.enterCommandMode");
+    return parseShortcut(shortcut.key);
+  }, [hotkeys]);
+
   const exitToCommandMode = () => {
     temporarilyShownCodeActions.remove(cellId);
     focusCell(cellId);
@@ -719,22 +724,20 @@ export function useCellEditorNavigationProps(
     });
   };
 
-  const handleEscape = () => {
-    // If there is a text selection or autocomplete popup in the editor, we clear those and return.
-    // Subsequent 'Escapes' will exit to command mode.
-
-    if (!editorView.current) {
-      // If no editor, we can exit to command mode immediately
-      exitToCommandMode();
-      return;
-    }
-
+  // Dismiss temporary editor UI (text selection, autocomplete / signature
+  // popups). Returns true if anything was dismissed. This is kept separate from
+  // the command-mode transition so that Escape can always dismiss editor UI even
+  // when command-mode entry has been remapped to another key or disabled.
+  const dismissTemporaryEditorUI = (): boolean => {
     const view = editorView.current;
+    if (!view) {
+      return false;
+    }
     const state = view.state;
 
     const wasSimplified = simplifySelection(view);
     if (wasSimplified) {
-      return;
+      return true;
     }
 
     const hasSignatureHelp =
@@ -749,7 +752,19 @@ export function useCellEditorNavigationProps(
       closeCompletion(view);
     }
 
-    if (hasSignatureHelp || hasAutocompletePopup) {
+    return hasSignatureHelp || hasAutocompletePopup;
+  };
+
+  const handleEscape = () => {
+    // Dismiss any temporary editor UI first; only exit to command mode when there
+    // is nothing left to dismiss. Subsequent presses then exit to command mode.
+    if (!editorView.current) {
+      // If no editor, we can exit to command mode immediately
+      exitToCommandMode();
+      return;
+    }
+
+    if (dismissTemporaryEditorUI()) {
       return;
     }
 
@@ -759,16 +774,30 @@ export function useCellEditorNavigationProps(
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
       if (keymapPreset === "vim") {
-        // For vim mode, use configurable shortcut
+        // For vim mode, use the configurable shortcut.
         if (vimCommandModeShortcut(evt)) {
           handleEscape();
+          // Prevent the key from also being handled by the editor.
+          evt.preventDefault();
+          return;
         }
-      } else {
-        // For non-vim mode, regular Escape exits to command mode
-        if (evt.key === "Escape") {
-          handleEscape();
-        }
+      } else if (commandModeShortcut(evt)) {
+        // For non-vim mode, the configurable shortcut (Escape by default) exits
+        // to command mode. An empty override disables it. preventDefault stops a
+        // remapped printable key from also being typed into the editor.
+        handleEscape();
+        evt.preventDefault();
+        return;
       }
+
+      // Escape must always dismiss temporary editor UI (autocomplete / signature
+      // popups, multi-cursor selection), even when command-mode entry has been
+      // remapped to another key or disabled.
+      if (evt.key === "Escape" && dismissTemporaryEditorUI()) {
+        evt.preventDefault();
+        return;
+      }
+
       evt.continuePropagation();
     },
   });
