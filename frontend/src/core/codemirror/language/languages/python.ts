@@ -36,6 +36,7 @@ import type { PlaceholderType } from "../../config/types";
 import { FederatedLanguageServerClient } from "../../lsp/federated-lsp";
 import { createLspMarkdownRenderer } from "../../lsp/markdown-renderer";
 import { NotebookLanguageServerClient } from "../../lsp/notebook-lsp";
+import { RuffLanguageServerClient } from "../../lsp/ruff-lsp";
 import { createTransport } from "../../lsp/transports";
 import { CellDocumentUri, type ILanguageServerClient } from "../../lsp/types";
 import {
@@ -187,6 +188,24 @@ const tyLspClient = once((_: LSPConfig) => {
   return notebookClient;
 });
 
+const ruffLspClient = once(() => {
+  // oxlint-disable-next-line prefer-const -- reassigned after closure capture
+  let resyncCallback: (() => Promise<void>) | undefined;
+  const transport = createTransport("ruff", async () => {
+    await resyncCallback?.();
+  });
+  const notebookClient = new RuffLanguageServerClient(
+    new LanguageServerClient({
+      transport,
+      rootUri: getLspRootUri(),
+      workspaceFolders: getLspWorkspaceFolders(),
+    }),
+    {},
+  );
+  resyncCallback = () => notebookClient.resyncAllDocuments();
+  return notebookClient;
+});
+
 const pyreflyClient = once(
   (lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig }) => {
     // oxlint-disable-next-line prefer-const -- reassigned after closure capture
@@ -322,6 +341,19 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
         clients.push(pyrightClient(lspConfig));
       }
 
+      const useJedi = clients.length === 0;
+      if (lspConfig?.ruff?.enabled && hasCapability("ruff")) {
+        // Keep the other servers' language-service and save capabilities.
+        clients.unshift(ruffLspClient());
+      }
+      const jediExtensions = [
+        autocompletion({
+          ...autocompleteOptions,
+          override: [pythonCompletionSource],
+        }),
+        signatureHintField,
+      ];
+
       const signatureActivateOnTyping =
         completionConfig.signature_hint_on_typing;
 
@@ -368,10 +400,12 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
             clientSideFiltering: true,
             hoverConfig: hoverOptions,
             completionConfig: autocompleteOptions,
+            completionEnabled: !useJedi,
+            hoverEnabled: !useJedi,
             // Default to false
             diagnosticsEnabled: lspConfig.diagnostics?.enabled ?? false,
             sendIncrementalChanges: false,
-            signatureHelpEnabled: true,
+            signatureHelpEnabled: !useJedi,
             signatureActivateOnTyping,
             signatureHelpOptions: {
               position: "above",
@@ -386,18 +420,11 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
             onShowLocation: openExternalLocation,
           }),
           documentUri.of(CellDocumentUri.of(cellId)),
+          useJedi ? jediExtensions : [],
         ];
       }
 
-      return [
-        autocompletion({
-          ...autocompleteOptions,
-          override: [pythonCompletionSource],
-        }),
-        // The Jedi path has no built-in signature help; show a floating hint
-        // fed by `pythonCompletionSource` (the LSP path handles this itself).
-        signatureHintField,
-      ];
+      return jediExtensions;
     };
 
     return [

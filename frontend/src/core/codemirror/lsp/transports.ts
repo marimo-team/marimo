@@ -15,7 +15,7 @@ import { handleLogMessage } from "./log-messages";
  * @returns The transport.
  */
 export function createTransport(
-  serverName: "pylsp" | "basedpyright" | "copilot" | "ty" | "pyrefly",
+  serverName: "pylsp" | "basedpyright" | "copilot" | "ty" | "pyrefly" | "ruff",
   onReconnect?: () => Promise<void>,
 ) {
   const runtimeManager = getRuntimeManager();

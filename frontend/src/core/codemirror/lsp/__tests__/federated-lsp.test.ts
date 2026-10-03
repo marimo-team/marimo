@@ -37,6 +37,161 @@ function createClient(
 }
 
 describe("FederatedLanguageServerClient", () => {
+  it("waits for every server to initialize", async () => {
+    const first = createClient();
+    const second = createClient();
+    let finishInitialization: () => void = () => {};
+    second.initializePromise = new Promise<void>((resolve) => {
+      finishInitialization = resolve;
+    });
+    const client = new FederatedLanguageServerClient([first, second]);
+    const ready = vi.fn();
+    const initialized = client.initializePromise.then(ready);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(ready).not.toHaveBeenCalled();
+    finishInitialization();
+    await initialized;
+    expect(ready).toHaveBeenCalledOnce();
+  });
+
+  it.each(["change", "close"])(
+    "does not reuse stale diagnostic ranges after a document %s",
+    async (event) => {
+      const first = createClient();
+      const second = createClient();
+      const client = new FederatedLanguageServerClient([first, second]);
+      const listener = vi.fn();
+      client.onNotification(listener);
+      const uri = "file:///cell.py";
+      const diagnostic: LSP.Diagnostic = {
+        message: "old text",
+        range: {
+          start: { line: 3, character: 0 },
+          end: { line: 3, character: 1 },
+        },
+      };
+      first.onNotification.mock.calls[0][0]({
+        jsonrpc: "2.0",
+        method: "textDocument/publishDiagnostics",
+        params: { uri, diagnostics: [diagnostic] },
+      });
+      await (event === "change"
+        ? client.textDocumentDidChange({
+            textDocument: { uri, version: 2 },
+            contentChanges: [{ text: "new text" }],
+          })
+        : client.textDocumentDidClose({ textDocument: { uri } }));
+      second.onNotification.mock.calls[0][0]({
+        jsonrpc: "2.0",
+        method: "textDocument/publishDiagnostics",
+        params: { uri, diagnostics: [] },
+      });
+      expect(listener.mock.lastCall?.[0].params.diagnostics).toEqual([]);
+    },
+  );
+
+  it("forwards protocol notifications without treating them as diagnostics", () => {
+    const child = createClient();
+    const client = new FederatedLanguageServerClient([child]);
+    const listener = vi.fn();
+    client.onNotification(listener);
+    // The underlying client emits a broader set than its declared type.
+    const notification = {
+      jsonrpc: "2.0",
+      method: "window/logMessage",
+      params: { type: 3, message: "ready" },
+    } as unknown as Parameters<
+      Parameters<ILanguageServerClient["onNotification"]>[0]
+    >[0];
+    child.onNotification.mock.calls[0][0](notification);
+    expect(listener).toHaveBeenCalledWith(notification);
+  });
+
+  it("keeps another subscriber's diagnostics when one unsubscribes", () => {
+    const first = createClient();
+    const second = createClient();
+    const client = new FederatedLanguageServerClient([first, second]);
+    const unsubscribe = client.onNotification(vi.fn());
+    const listener = vi.fn();
+    client.onNotification(listener);
+    const diagnostic: LSP.Diagnostic = {
+      message: "remaining",
+      range: {
+        start: { line: 0, character: 0 },
+        end: { line: 0, character: 1 },
+      },
+    };
+    first.onNotification.mock.calls[1][0]({
+      jsonrpc: "2.0",
+      method: "textDocument/publishDiagnostics",
+      params: { uri: "file:///cell.py", diagnostics: [diagnostic] },
+    });
+    unsubscribe();
+    second.onNotification.mock.calls[1][0]({
+      jsonrpc: "2.0",
+      method: "textDocument/publishDiagnostics",
+      params: { uri: "file:///cell.py", diagnostics: [] },
+    });
+    expect(listener.mock.lastCall?.[0].params.diagnostics).toEqual([
+      diagnostic,
+    ]);
+  });
+
+  it("keeps diagnostics from each server when another publishes or clears", () => {
+    const ty = createClient();
+    const ruff = createClient();
+    const client = new FederatedLanguageServerClient([ty, ruff]);
+    const listener = vi.fn();
+    const unsubscribe = client.onNotification(listener);
+    const uri = "file:///cell.py";
+    const diagnostic = (source: string): LSP.Diagnostic => ({
+      range: {
+        start: { line: 0, character: 0 },
+        end: { line: 0, character: 1 },
+      },
+      message: source,
+      source,
+    });
+    const tyDiagnostic = diagnostic("ty");
+    const ruffDiagnostic = diagnostic("Ruff");
+    const publish = (
+      child: Mocked<ILanguageServerClient>,
+      diagnostics: LSP.Diagnostic[],
+      version: number,
+      documentUri = uri,
+    ) => {
+      child.onNotification.mock.calls[0][0]({
+        jsonrpc: "2.0",
+        method: "textDocument/publishDiagnostics",
+        params: { uri: documentUri, version, diagnostics },
+      });
+    };
+
+    publish(ty, [tyDiagnostic], 10);
+    publish(ruff, [ruffDiagnostic], 1);
+    expect(listener.mock.lastCall?.[0].params.diagnostics).toEqual([
+      tyDiagnostic,
+      ruffDiagnostic,
+    ]);
+    const firstVersion = listener.mock.calls[0][0].params.version;
+    expect(listener.mock.lastCall?.[0].params.version).toBeGreaterThan(
+      firstVersion,
+    );
+
+    publish(ruff, [], 2);
+    expect(listener.mock.lastCall?.[0].params.diagnostics).toEqual([
+      tyDiagnostic,
+    ]);
+    publish(ruff, [ruffDiagnostic], 3, "file:///other-cell.py");
+    expect(listener.mock.lastCall?.[0].params.diagnostics).toEqual([
+      ruffDiagnostic,
+    ]);
+    publish(ty, [], 11);
+    expect(listener.mock.lastCall?.[0].params.diagnostics).toEqual([]);
+    expect(unsubscribe()).toBe(true);
+  });
+
   it("routes requests using dynamic method capabilities", async () => {
     const staticOnlyClient = createClient();
     const dynamicClient = createClient(["textDocument/definition"]);

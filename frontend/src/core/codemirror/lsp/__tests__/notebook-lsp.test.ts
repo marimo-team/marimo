@@ -1808,7 +1808,7 @@ describe("NotebookLanguageServerClient", () => {
       );
     });
 
-    it("should handle version updates in textDocumentDidChange", async () => {
+    it("uses changed cell text even before the notebook store updates", async () => {
       await notebookClient.textDocumentDidChange({
         textDocument: {
           uri: CellDocumentUri.of(Cells.cell1),
@@ -1825,7 +1825,7 @@ describe("NotebookLanguageServerClient", () => {
         contentChanges: [
           {
             text: [
-              "# this is a comment",
+              "new code",
               "import math",
               "import numpy",
               "print(math.sqrt(4))",
@@ -1833,6 +1833,12 @@ describe("NotebookLanguageServerClient", () => {
           },
         ],
       });
+      const callCount = mockClient.textDocumentDidChange.mock.calls.length;
+      await notebookClient.textDocumentDidChange({
+        textDocument: { uri: CellDocumentUri.of(Cells.cell1), version: 6 },
+        contentChanges: [{ text: "new code" }],
+      });
+      expect(mockClient.textDocumentDidChange).toHaveBeenCalledTimes(callCount);
     });
   });
 

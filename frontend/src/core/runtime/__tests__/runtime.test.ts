@@ -297,12 +297,12 @@ describe("RuntimeManager", () => {
   });
 
   describe("getLSPURL", () => {
-    it("should return pylsp URL", () => {
+    it.each(["pylsp", "ruff"] as const)("should return %s URL", (server) => {
       const runtime = new RuntimeManager(mockConfig);
-      const url = runtime.getLSPURL("pylsp");
+      const url = runtime.getLSPURL(server);
 
       expect(url.protocol).toBe("wss:");
-      expect(url.pathname).toBe("/lsp/pylsp");
+      expect(url.pathname).toBe(`/lsp/${server}`);
     });
 
     it("should return copilot URL without non-auth query params", () => {
