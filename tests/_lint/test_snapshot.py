@@ -276,6 +276,16 @@ def test_private_import_alias_snapshot():
     snapshot("private_import_alias_errors.txt", "\n".join(error_output))
 
 
+def test_mixed_imports_snapshot():
+    file = "tests/_lint/test_files/mixed_imports.py"
+    with open(file) as f:
+        code = f.read()
+
+    notebook = parse_notebook(code, filepath=file)
+    errors = lint_notebook(notebook)
+    snapshot("mixed_imports_errors.txt", "\n".join(d.format() for d in errors))
+
+
 def test_reusable_definition_order_snapshot():
     """Test snapshot for reusable definition ordering error."""
     file = "tests/_lint/test_files/reusable_definition_order.py"

@@ -46,6 +46,7 @@ These issues may cause runtime problems.
 | [MR002](rules/branch_expression.md) | branch-expression | Branch statements with output expressions that won't be displayed | ❌ |
 | [MR003](rules/reusable_definition_order.md) | reusable-definition-order | Reusable definitions depending on later reusable definitions | ⚠️ |
 | [MR004](rules/private_import_alias.md) | private-import-alias | Import aliased to a private (underscore-prefixed) name | ❌ |
+| [MR005](rules/mixed_imports.md) | mixed-imports | Imports mixed with literal configuration assignments | No |
 
 ### ✨ Formatting Rules
 

@@ -1,0 +1,7 @@
+error[mixed-imports]: Mixing imports with configuration disables incremental imports.
+ --> tests/_lint/test_files/mixed_imports.py:9:1
+   9 |     import math
+  10 |     THRESHOLD = 10
+     |     ^
+  11 |     return THRESHOLD, math
+hint: Move the configuration assignments into a separate cell. Adding imports to an import-only cell does not rerun cells that depend on unchanged imports.

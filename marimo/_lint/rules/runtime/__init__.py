@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from marimo._lint.rules.base import LintRule
 from marimo._lint.rules.runtime.branch_expression import BranchExpressionRule
+from marimo._lint.rules.runtime.mixed_imports import MixedImportsRule
 from marimo._lint.rules.runtime.private_import_alias import (
     PrivateImportAliasRule,
 )
@@ -16,11 +17,13 @@ RUNTIME_RULE_CODES: dict[str, type[LintRule]] = {
     "MR002": BranchExpressionRule,
     "MR003": ReusableDefinitionOrderRule,
     "MR004": PrivateImportAliasRule,
+    "MR005": MixedImportsRule,
 }
 
 __all__ = [
     "RUNTIME_RULE_CODES",
     "BranchExpressionRule",
+    "MixedImportsRule",
     "PrivateImportAliasRule",
     "ReusableDefinitionOrderRule",
     "SelfImportRule",
