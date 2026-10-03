@@ -8,7 +8,11 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from uuid import uuid4
 
 from marimo._output.rich_help import mddoc
-from marimo._runtime.context import ContextNotInitializedError, get_context
+from marimo._runtime.context import (
+    ContextNotInitializedError,
+    RuntimeContext,
+    get_context,
+)
 
 T = TypeVar("T")
 Id = int
@@ -152,15 +156,29 @@ class State(Generic[T]):
         self._value = value
         self.allow_self_loops = allow_self_loops
         self._set_value = SetFunctor(self)
+        # The context that owned this state at creation time. Setters cross
+        # context boundaries — a notebook can pass its setter into an
+        # embedded notebook through `app.embed(defs=...)` — and the owner is
+        # where the cells reading the state live, so it must be reachable
+        # from the setter for invalidation to work (#10602).
+        self._owner_context: weakref.ref[RuntimeContext] | None = None
 
         try:
+            ctx = get_context()
             if _registry is None:
-                _registry = get_context().state_registry
+                _registry = ctx.state_registry
+            self._owner_context = weakref.ref(ctx)
             _registry.register(self, _name, _context)
         except ContextNotInitializedError:
             # Registration may be picked up later, but there is nothing to do
             # at this point.
             pass
+
+    def _owner(self) -> RuntimeContext | None:
+        """The context that owned this state at creation, if still alive."""
+        if self._owner_context is None:
+            return None
+        return self._owner_context()
 
     def __call__(self) -> T:
         return self._value
@@ -182,6 +200,19 @@ class SetFunctor(Generic[T]):
             ctx = get_context()
         except ContextNotInitializedError:
             return
+        owner = self._state._owner()
+        if owner is not None and owner is not ctx:
+            # The setter was called from a context other than the state's
+            # owner — e.g. an embedded notebook calling a setter that the
+            # parent notebook passed in through `app.embed(defs=...)`. The
+            # owner's graph holds the cells that read the state, so it must
+            # process the update too, or its cells never go stale and stop
+            # reacting (#10602). Install the owner so its kernel's flush
+            # decision reads the owner's execution state. The calling
+            # context still processes the update afterwards: cells in its
+            # own graph may reference an injected getter.
+            with owner.install():
+                owner.register_state_update(self._state)
         ctx.register_state_update(self._state)
 
 

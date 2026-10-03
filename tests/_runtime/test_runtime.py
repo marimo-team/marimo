@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from marimo._ast.app import App
 from marimo._ast.variables import is_mangled_local
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
@@ -39,6 +40,7 @@ from marimo._runtime.commands import (
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
 )
+from marimo._runtime.context import get_context
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.runtime import (
     Kernel,
@@ -298,6 +300,52 @@ class TestExecution:
             assert k.graph.cells[er.cell_id].stale
             await k.run([er])
         assert k.globals["x"] == 6
+
+    async def test_state_setter_from_embedded_app_marks_owner_stale(
+        self, lazy_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """A setter passed into an embedded notebook marks the owning
+        notebook's getter cells stale when called from the embedded app
+        (#10602)."""
+        k = lazy_kernel
+        await k.run([exec_req.get(code="import marimo as mo")])
+
+        child = App()
+
+        @child.cell
+        def ____(setter: Any) -> None:
+            setter(42)
+
+        await k.run([exec_req.get(code="get_state, set_state = mo.state(0)")])
+        er_getter = exec_req.get(code="y = get_state()")
+        await k.run([er_getter])
+        k.globals["child_app"] = child
+        await k.run(
+            [
+                exec_req.get(
+                    code=(
+                        "result = await child_app.embed("
+                        "defs={'setter': set_state})"
+                    )
+                ),
+            ]
+        )
+        # The embedded cell already called set_state(42) during its first
+        # run: the value crossed the session boundary, and the owning
+        # notebook's getter cell must be stale.
+        assert k.globals["get_state"]() == 42
+        assert k.graph.cells[er_getter.cell_id].stale
+
+        # A later interaction re-runs the embedded cell, which calls the
+        # setter again from the embedded app's context.
+        runner = get_context().app_kernel_runner_registry.get_runner(child)
+        await runner.run(
+            {cid for cid, _ in runner.app.cell_manager.valid_cells()}
+        )
+        await k.run([])
+        assert k.graph.cells[er_getter.cell_id].stale
+        await k.run([er_getter])
+        assert k.globals["y"] == 42
 
     async def test_set_ui_element_value_lensed_with_state(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
