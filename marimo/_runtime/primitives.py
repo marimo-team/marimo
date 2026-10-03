@@ -76,6 +76,18 @@ def is_data_primitive(value: Any) -> bool:
     if is_instance_by_name(value, "torch.Tensor"):
         return str(value.device) == "cpu"
 
+    # Arrow tables and arrays expose `__array__` without a `dtype`. Only
+    # numeric columns convert to an array that can be hashed as bytes.
+    if type(value).__module__.startswith("pyarrow"):
+        import pyarrow as pa
+
+        schema = getattr(value, "schema", None)
+        types = schema.types if schema is not None else [value.type]
+        return all(
+            pa.types.is_integer(dtype) or pa.types.is_floating(dtype)
+            for dtype in types
+        )
+
     is_polars = type(value).__module__.startswith("polars.")
     # If a numpy like array, ensure that it's not an object array.
     if hasattr(value, "dtype") and not is_polars:

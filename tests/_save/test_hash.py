@@ -1230,6 +1230,32 @@ class TestDataHash:
             assert _A == 28
             return (two,)
 
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.has("pyarrow"),
+        reason="optional dependencies not installed",
+    )
+    def test_pyarrow_string_table(app) -> None:
+        @app.cell
+        def load() -> tuple[Any]:
+            import pyarrow as pa
+
+            from marimo._save.save import persistent_cache
+            from tests._save.loaders.mocks import MockLoader
+
+            return MockLoader, persistent_cache, pa
+
+        @app.cell
+        def two(MockLoader, persistent_cache, pa) -> tuple[int]:
+            _a = pa.table({"A": [2, 8, 18], "B": ["a", "b", "c"]})
+
+            with persistent_cache(name="two", _loader=MockLoader()) as _cache:
+                _A = _a.column("A").to_pylist()
+
+            assert _cache._cache.cache_type == "ContextExecutionPath"
+            assert _A == [2, 8, 18]
+            return (two,)
+
 
 class TestCustomHash:
     @staticmethod
