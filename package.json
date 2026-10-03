@@ -12,7 +12,7 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@typescript/native-preview": "7.0.0-dev.20260324.1",
     "oxfmt": "^0.68.0",
-    "turbo": "^2.10.12",
+    "turbo": "^2.11.2",
     "vitest": "^4.1.11"
   },
   "engines": {
