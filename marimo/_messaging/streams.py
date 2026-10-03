@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import codecs
 import contextlib
 import io
 import os
@@ -203,6 +204,10 @@ def _forward_os_stream(
 ) -> None:
     """Watch a file descriptor and forward it to a stream object."""
 
+    # Pipe reads can split a character. Invalid bytes must not stop the reader
+    # and leave native output blocked on a full pipe.
+    decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+
     # This coarse try/except block silences exceptions; a raised exception
     # at this point could cause bad errors, such as an infinite stream of data
     # to be written to the fd/routed through the stream.
@@ -213,9 +218,11 @@ def _forward_os_stream(
     try:
         while not should_exit.is_set():
             data = os.read(fd, 1024)
+            text = decoder.decode(data, final=not data)
+            if text:
+                standard_stream.write(text)
             if not data:
                 break
-            standard_stream.write(data.decode())
     except Exception:
         ...
 

@@ -1,3 +1,5 @@
+import io
+import os
 import signal
 import sys
 import threading
@@ -9,12 +11,52 @@ import pytest
 
 from marimo._messaging.notification import InterruptedNotification
 from marimo._messaging.serde import serialize_kernel_message
-from marimo._messaging.streams import ThreadSafeStream
+from marimo._messaging.streams import ThreadSafeStream, _forward_os_stream
 from marimo._messaging.types import KernelMessage
 from marimo._runtime.handlers import construct_interrupt_handler
 from marimo._runtime.runtime import Kernel
 from marimo._utils.signals import SigintHandler
 from tests.conftest import ExecReqProvider, MockedKernel
+
+
+@pytest.mark.parametrize("character", ["é", "€", "𐍈"])
+def test_forward_os_stream_preserves_split_utf8(character: str) -> None:
+    expected = "x" * 1023 + character + "\nstill forwarding\n"
+    read_fd, write_fd = os.pipe()
+    output = io.StringIO()
+    try:
+        os.write(write_fd, expected.encode("utf-8"))
+    finally:
+        os.close(write_fd)
+    try:
+        _forward_os_stream(output, read_fd, threading.Event())
+        assert output.getvalue() == expected
+    finally:
+        os.close(read_fd)
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        (b"before\xffafter", "before\ufffdafter"),
+        (b"before\xe2\x82", "before\ufffd"),
+        (b"", ""),
+    ],
+)
+def test_forward_os_stream_handles_invalid_utf8(
+    data: bytes, expected: str
+) -> None:
+    read_fd, write_fd = os.pipe()
+    output = io.StringIO()
+    try:
+        os.write(write_fd, data)
+    finally:
+        os.close(write_fd)
+    try:
+        _forward_os_stream(output, read_fd, threading.Event())
+        assert output.getvalue() == expected
+    finally:
+        os.close(read_fd)
 
 
 @pytest.mark.parametrize("custom_handler", [False, True])
