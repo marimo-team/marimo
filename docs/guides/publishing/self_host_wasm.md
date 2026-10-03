@@ -23,7 +23,8 @@ python -m playwright install chromium
 python -m marimo export html-wasm notebook.py -o dist --offline
 ```
 
-The export requires internet access. Playwright runs Pyodide to resolve
+The export requires internet access or
+[package mirrors](#using-package-mirrors). Playwright runs Pyodide to resolve
 browser-compatible dependencies without executing notebook cells. The result
 can be served from a local HTTP server or copied to a static host:
 
@@ -50,3 +51,37 @@ alternatives. Serve the export over HTTP even when using it offline.
 
 Without `--offline`, the browser uses the default hosted Python runtime and
 package sources.
+
+### Using package mirrors
+
+Pass `--pyodide-index-url` and `--pypi-index-url` to build the offline export
+from mirrors when the hosted sources are unreachable:
+
+```bash
+python -m marimo export html-wasm notebook.py -o dist --offline \
+  --pyodide-index-url https://mirror.example.com/pyodide/full/ \
+  --pypi-index-url https://mirror.example.com/pypi/simple/
+```
+
+`--pyodide-index-url` points at a mirror of the Pyodide `full/` distribution
+named in `marimo export html-wasm --help`. marimo downloads the runtime, its
+`pyodide-lock.json`, and the Pyodide packages the notebook needs from it, and
+stops the export when the mirror serves another Pyodide version. Imports resolve
+against that lockfile, so declare other imported packages, such as `anywidget`,
+in the notebook's inline script metadata.
+
+`--pypi-index-url` points at a package index, such as a PyPI mirror. marimo
+resolves each dependency from the Pyodide lockfile first and from this index
+otherwise, which also covers private packages hosted there. With
+`--pyodide-index-url`, the index provides `marimo-base` for your marimo version,
+`black`, and `sqlglot` for SQL notebooks. Alone, `--pypi-index-url` keeps
+marimo's hosted lockfile, which downloads marimo's own packages from
+`files.pythonhosted.org`, so pass both flags when that host is blocked. The index
+must allow anonymous downloads.
+
+marimo downloads from both mirrors in Python, so they need no CORS headers. The
+exported HTML loads only the bundled copies.
+
+The export also runs uv to detect local modules. Point uv at the same index, for
+example with
+[`UV_DEFAULT_INDEX`](https://docs.astral.sh/uv/reference/environment/#uv_default_index).
