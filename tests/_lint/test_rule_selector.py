@@ -28,7 +28,7 @@ class TestResolveRules:
         rules = resolve_rules({"select": ["MB", "MR"]})
         codes = {r.code for r in rules}
         assert all(c.startswith(("MB", "MR")) for c in codes)
-        assert len(rules) == 9  # 5 MB + 4 MR
+        assert len(rules) == 10  # 5 MB + 5 MR
 
     def test_select_all(self):
         rules = resolve_rules({"select": ["ALL"]})
