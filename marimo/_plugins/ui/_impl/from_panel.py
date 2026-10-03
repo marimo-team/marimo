@@ -14,11 +14,15 @@ from typing import (
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
+from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
+from marimo._runtime.context import safe_get_context
 from marimo._runtime.functions import Function
 from marimo._runtime.virtual_file.virtual_file import VirtualFile
 
 if TYPE_CHECKING:
     from panel.viewable import Viewable
+
+    from marimo._runtime.context.types import RuntimeContext
 
 LOGGER = _loggers.marimo_logger()
 
@@ -33,6 +37,28 @@ T = TypeVar("T", bound=dict[str, Any])
 class SendToWidgetArgs:
     message: Any
     buffers: list[Any] | None = None
+
+
+class _PanelLifecycleItem(CellLifecycleItem):
+    def __init__(self, ref: str) -> None:
+        self.ref = ref
+
+    def create(self, context: RuntimeContext) -> None:
+        pass
+
+    def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
+        del context, deletion
+        from panel.io.document import _cleanup_doc
+        from panel.io.state import state
+
+        view = state._views.pop(self.ref, None)
+        if view is not None:
+            pane, root, doc, _ = view
+            # Whole-document Panel cleanup clears watchers that may still
+            # be needed by the same pane rendered in another cell.
+            pane._cleanup(root)
+            _cleanup_doc(doc)  # type: ignore[no-untyped-call]
+        return True
 
 
 # Singleton, we only create one instance of this class
@@ -178,6 +204,8 @@ def render_component(
     comm = _get_comm_class()()
     root = obj._render_model(doc, comm)
     ref = root.ref["id"]
+    if (ctx := safe_get_context()) is not None:
+        ctx.cell_lifecycle_registry.add(_PanelLifecycleItem(ref))
     obj._comms[ref] = (comm, comm)
     add_to_doc(root, doc, True)
     (docs_json, [render_item]) = standalone_docs_json_and_render_items(
