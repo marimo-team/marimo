@@ -59,11 +59,11 @@ import { prettyError } from "@/utils/errors";
 import { Maps } from "@/utils/maps";
 import { Paths } from "@/utils/paths";
 import { asURL } from "@/utils/url";
-import { newNotebookURL } from "@/utils/urls";
 import { ConfigButton } from "../app-config/app-config-button";
 import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
 import {
+  CreateNewNotebook,
   Header,
   OpenTutorialDropDown,
   ResourceLinks,
@@ -608,26 +608,6 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
         <PowerOffIcon size={14} />
       </Button>
     </Tooltip>
-  );
-};
-
-const CreateNewNotebook: React.FC = () => {
-  const url = newNotebookURL();
-  return (
-    <a
-      className="relative rounded-lg p-6 group
-      text-primary hover:bg-(--blue-2) shadow-md-solid shadow-accent border bg-(--blue-1)
-      transition-all duration-300 cursor-pointer
-      "
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-    >
-      <h2 className="text-lg font-semibold">Create a new notebook</h2>
-      <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300">
-        <ExternalLinkIcon size={24} />
-      </div>
-    </a>
   );
 };
 
