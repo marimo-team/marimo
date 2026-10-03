@@ -7,6 +7,7 @@ import {
   BookMarkedIcon,
   BookOpenIcon,
   DatabaseIcon,
+  ExternalLinkIcon,
   FileIcon,
   FileTextIcon,
   GraduationCapIcon,
@@ -18,6 +19,7 @@ import {
   PackageIcon,
 } from "lucide-react";
 import type React from "react";
+import { useState } from "react";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
 import { GitHubIcon } from "@/components/icons/github";
 import { YouTubeIcon } from "@/components/icons/youtube";
@@ -34,7 +36,32 @@ import type { TutorialId } from "@/core/network/types";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { openNotebook } from "@/utils/links";
 import { Objects } from "@/utils/objects";
+import { newNotebookURL } from "@/utils/urls";
 import { MarimoPlusIcon } from "../icons/marimo-icons";
+
+export const CreateNewNotebook: React.FC = () => {
+  const [url, setUrl] = useState(newNotebookURL);
+  const renewUrl = () => setUrl(newNotebookURL());
+  return (
+    <a
+      className="relative rounded-lg p-6 group
+      text-primary hover:bg-(--blue-2) shadow-md-solid shadow-accent border bg-(--blue-1)
+      transition-all duration-300 cursor-pointer
+      "
+      href={url}
+      onClick={renewUrl}
+      onAuxClick={renewUrl}
+      onContextMenu={renewUrl}
+      target="_blank"
+      rel="noreferrer"
+    >
+      <h2 className="text-lg font-semibold">Create a new notebook</h2>
+      <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300">
+        <ExternalLinkIcon size={24} />
+      </div>
+    </a>
+  );
+};
 
 const TUTORIALS: Record<
   TutorialId,
