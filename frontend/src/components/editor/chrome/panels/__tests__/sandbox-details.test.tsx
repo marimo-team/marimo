@@ -14,7 +14,7 @@ import { sandboxAtom } from "@/core/packages/sandbox-state";
 import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
 import PackagesPanel from "../packages-panel";
 import { PanelSectionProvider } from "../panel-context";
-import { SandboxToggle } from "../sandbox-toggle";
+import { RuntimeStatusToggle } from "../runtime-status-toggle";
 
 vi.mock("@/utils/reload-safe", () => ({ reloadSafe: vi.fn() }));
 
@@ -89,7 +89,7 @@ function mount({
     <Provider store={store}>
       <TooltipProvider>
         <ModalProvider>
-          <SandboxToggle section="sidebar" />
+          <RuntimeStatusToggle section="sidebar" />
           <PanelSectionProvider value="sidebar">
             <PackagesPanel />
           </PanelSectionProvider>
@@ -164,7 +164,9 @@ it("restores a restart-required sync with the kernel restart action", async () =
     })),
   );
   await screen.findByText("numpy");
-  expect(screen.getByText("Sandbox restart required")).toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: "Sandbox restart required" }),
+  ).toBeVisible();
   expect(
     screen.queryByRole("button", { name: "Retry sync" }),
   ).not.toBeInTheDocument();
@@ -194,7 +196,9 @@ it("restores a restart-required sync with the kernel restart action", async () =
       },
     })),
   );
-  expect(screen.getByText("Sandbox restart required")).toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: "Sandbox restart required" }),
+  ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Restart Kernel" }));
   expect(screen.getByRole("alertdialog")).toHaveTextContent("Restart Kernel");
   expect(client.sendRestart).not.toHaveBeenCalled();
@@ -325,6 +329,7 @@ it("opens a startup error even after collapsing preparation and keeps both step 
     });
   });
   expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(toggle).toHaveTextContent("pixi sandbox");
   expect(within(toggle).getByRole("status")).toHaveAccessibleName(
     "Kernel failed to start",
   );
@@ -346,13 +351,47 @@ it("opens a startup error even after collapsing preparation and keeps both step 
   expect(screen.getByLabelText("Error details")).toBeVisible();
 });
 
-it("does not add a toggle or startup details to an existing environment", async () => {
-  mount({ backend: null });
+it("uses the same disclosure for an existing environment and updates it through connection changes", async () => {
+  const { store } = mount({ backend: null });
   await screen.findByText("numpy");
-  expect(
-    screen.queryByRole("button", { name: /sandbox/ }),
-  ).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole("region", { name: "Sandbox details" }),
-  ).not.toBeInTheDocument();
+  const toggle = screen.getByRole("button", { name: "Runtime details" });
+  expect(toggle).toHaveTextContent(/^Runtime$/);
+  expect(within(toggle).getByRole("status")).toHaveAccessibleName(
+    "Kernel ready",
+  );
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(toggle);
+  const details = screen.getByRole("region", { name: "Runtime details" });
+  expect(toggle).toHaveAttribute("aria-controls", details.id);
+  expect(within(details).getByText("Kernel started")).toBeVisible();
+  expect(within(details).getAllByRole("listitem")).toHaveLength(1);
+  expect(within(details).queryByRole("button", { name: "Sync" })).toBeNull();
+
+  act(() => store.set(connectionAtom, { state: WebSocketState.CONNECTING }));
+  expect(toggle).toHaveTextContent(/^Runtime$/);
+  expect(within(toggle).getByRole("status")).toHaveAccessibleName(
+    "Connecting…",
+  );
+  expect(within(details).getByText("Starting kernel")).toBeVisible();
+  fireEvent.click(toggle);
+  expect(details).not.toBeVisible();
+  act(() =>
+    store.set(connectionAtom, {
+      state: WebSocketState.CLOSED,
+      code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+      reason: "Kernel startup failed",
+    }),
+  );
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(toggle).toHaveTextContent(/^Runtime$/);
+  expect(within(toggle).getByRole("status")).toHaveAccessibleName(
+    "Kernel failed to start",
+  );
+  expect(details).toBeVisible();
+
+  act(() => store.set(connectionAtom, { state: WebSocketState.NOT_STARTED }));
+  expect(toggle).toHaveTextContent(/^Runtime$/);
+  expect(within(toggle).getByRole("status")).toHaveAccessibleName(
+    "Kernel not connected",
+  );
 });

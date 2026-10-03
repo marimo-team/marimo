@@ -12,12 +12,13 @@ import { connectionAtom } from "@/core/network/connection";
 import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
 import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
 import { chromeAtom } from "../../chrome/state";
+import { runtimeDetailsExpandedAtom } from "../../chrome/panels/runtime-details-state";
 import { ConnectionNotice } from "../connection-notice";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
-function mount(existingCells = false) {
+function mount(existingCells = false, onRetry = vi.fn()) {
   const store = createStore();
   store.set(sandboxAtom, {
     backend: "pixi",
@@ -40,7 +41,7 @@ function mount(existingCells = false) {
     <Provider store={store}>
       <ConnectionNotice
         appConfig={AppConfigSchema.parse({})}
-        onRetry={vi.fn()}
+        onRetry={onRetry}
       />
     </Provider>,
   );
@@ -78,6 +79,24 @@ it("shows both stages in an empty notebook, checks them off, then dismisses Read
   ).not.toBeInTheDocument();
 });
 
+it("uses the shared kernel stage for an ordinary connection and dismisses it when connected", () => {
+  const store = mount();
+  act(() => {
+    store.set(sandboxAtom, null);
+    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+  });
+  act(() => vi.advanceTimersByTime(500));
+  const stages = within(
+    screen.getByRole("list", {
+      name: "Notebook startup stages",
+    }),
+  );
+  expect(stages.getAllByRole("listitem")).toHaveLength(1);
+  expect(stages.getByText("Starting kernel")).toBeVisible();
+  act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
+  expect(screen.queryByRole("region", { name: "Notebook startup" })).toBeNull();
+});
+
 it("opens Packages from the minimal inline status when cells exist", () => {
   const store = mount(true);
   act(() => vi.advanceTimersByTime(500));
@@ -89,6 +108,39 @@ it("opens Packages from the minimal inline status when cells exist", () => {
   });
   act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
   expect(screen.getByRole("status")).toHaveTextContent(/^Ready$/);
+});
+
+it("uses an inline notice for an existing ordinary notebook, opens collapsed details, and offers retry on failure", () => {
+  const onRetry = vi.fn();
+  const store = mount(true, onRetry);
+  act(() => {
+    store.set(sandboxAtom, null);
+    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    store.set(runtimeDetailsExpandedAtom, false);
+  });
+  act(() => vi.advanceTimersByTime(500));
+  fireEvent.click(screen.getByRole("button", { name: /Open Packages/ }));
+  expect(store.get(chromeAtom)).toMatchObject({
+    isSidebarOpen: true,
+    selectedPanel: "packages",
+  });
+  expect(store.get(runtimeDetailsExpandedAtom)).toBe(true);
+  act(() =>
+    store.set(connectionAtom, {
+      state: WebSocketState.CLOSED,
+      code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+      reason: "Kernel startup failed",
+    }),
+  );
+  expect(
+    screen.getByRole("button", {
+      name: /Kernel failed to start Open Packages/,
+    }),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(onRetry).toHaveBeenCalledOnce();
+  act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
+  expect(screen.queryByRole("region", { name: "Notebook startup" })).toBeNull();
 });
 
 it("does not flash Ready for a startup that finished before the notice appeared", () => {
