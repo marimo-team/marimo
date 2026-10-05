@@ -385,6 +385,9 @@ extension](https://marketplace.visualstudio.com/items?itemName=ms-python.debugpy
 for VS Code. Set breakpoints in the Python source and launch "Marimo api
 debugger" from the Run and Debug panel to step through the server.
 
+The frontend and marimo server must be run separately for this to
+work. Run the frontend dev server (`pnpm dev`) on its own, then launch "Marimo api debugger" to start and debug the server.
+
 ## PRs
 
 When submitting a pull request, marimo will run: lint, typecheck, and test jobs.
