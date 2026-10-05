@@ -1468,6 +1468,8 @@ class AsyncCodeModeContext:
 
         from marimo._code_mode.screenshot import (
             ScreenshotError,
+            _ScreenshotBytes,
+            _ScreenshotDataUrl,
             _ScreenshotSession,
             _to_data_url,
         )
@@ -1520,8 +1522,8 @@ class AsyncCodeModeContext:
             Path(save_to).write_bytes(image)  # noqa: ASYNC240
 
         if as_data_url:
-            return _to_data_url(image)
-        return image
+            return _ScreenshotDataUrl(_to_data_url(image))
+        return _ScreenshotBytes(image)
 
     async def close_screenshot_session(self) -> None:
         """Close the Playwright browser opened by :meth:`screenshot`.

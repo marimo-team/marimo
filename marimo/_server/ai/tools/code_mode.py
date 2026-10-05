@@ -1,7 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import base64
+from dataclasses import replace
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._server.ai.skills.utils import load_reference
@@ -10,11 +12,15 @@ from marimo._server.api.utils import get_code_mode_credentials
 from marimo._server.scratchpad import run_scratchpad_code
 
 if TYPE_CHECKING:
-    from pydantic_ai import FunctionToolset
+    from pydantic_ai import FunctionToolset, ToolReturn
     from pydantic_ai.capabilities import Capability
     from starlette.requests import Request
 
     from marimo._session.session import Session
+
+    ExecuteCodeResult: TypeAlias = CodeExecutionResult | ToolReturn
+else:
+    ExecuteCodeResult: TypeAlias = Any
 
 
 def build_execute_code_toolset(
@@ -33,7 +39,7 @@ def build_execute_code_toolset(
 
     toolset: FunctionToolset = FunctionToolset()
 
-    async def execute_code(code: str) -> CodeExecutionResult:
+    async def execute_code(code: str) -> ExecuteCodeResult:
         """Run Python inside the running notebook's kernel scratchpad.
 
         Use this for all notebook mutations via `marimo._code_mode`.
@@ -41,12 +47,26 @@ def build_execute_code_toolset(
         server_url, auth_token = get_code_mode_credentials(
             AppState(request), request
         )
-        return await run_scratchpad_code(
+        result = await run_scratchpad_code(
             session,
             request,
             code=code,
             server_url=server_url,
             auth_token=auth_token,
+        )
+
+        if result.output_mimetype != "image/png" or result.output is None:
+            return result
+
+        from pydantic_ai import BinaryContent, ToolReturn
+
+        prefix = "data:image/png;base64,"
+        if not result.output.startswith(prefix):
+            raise ValueError("PNG output must be a base64 data URL")
+        image = base64.b64decode(result.output[len(prefix) :], validate=True)
+        return ToolReturn(
+            return_value=replace(result, output=None),
+            content=[BinaryContent(data=image, media_type="image/png")],
         )
 
     toolset.add_function(
