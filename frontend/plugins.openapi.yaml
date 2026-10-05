@@ -4134,6 +4134,7 @@ components:
           items:
             type: string
       required:
+        - message
         - buffers
     marimo-panel.send_to_widget.output:
       type: "null"

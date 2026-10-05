@@ -70,11 +70,12 @@ describe("optional plugin payloads", () => {
     },
   );
 
-  it.each([{}, { message: null }, { message: { type: "PATCH-DOC" } }])(
-    "accepts Panel message %j",
-    (message) => {
-      const input = { ...message, buffers: [] };
-      expect(panelFunctions.send_to_widget.input.parse(input)).toEqual(input);
-    },
-  );
+  it("requires a Panel message to match the Python RPC arguments", () => {
+    expect(
+      panelFunctions.send_to_widget.input.safeParse({ buffers: [] }).success,
+    ).toBe(false);
+
+    const input = { message: { type: "PATCH-DOC" }, buffers: [] };
+    expect(panelFunctions.send_to_widget.input.parse(input)).toEqual(input);
+  });
 });

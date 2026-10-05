@@ -99,7 +99,7 @@ export const PanelPlugin = createPlugin<T>("marimo-panel")
     send_to_widget: rpc
       .input(
         z.object({
-          message: z.unknown().optional(),
+          message: z.unknown(),
           buffers: z.array(z.string()),
         }),
       )
