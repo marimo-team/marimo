@@ -86,6 +86,9 @@ class _FileStoreLoaderTest:
         self.temp_dir.cleanup()
 
     def _loader(self, **kwargs: Any) -> LazyLoader:
+        # These tests exercise the verifying postures; `on` unless a test
+        # says otherwise.
+        kwargs.setdefault("verification", "on")
         return LazyLoader("test", store=self.store, **kwargs)
 
 
@@ -110,7 +113,7 @@ class TestSignedRoundTrip(_FileStoreLoaderTest):
         assert loader.save_cache(cache)
         loader.flush()
 
-        reader = self._loader(signer=verifier)
+        reader = self._loader(signer=verifier, verification="on")
         loaded = reader.load_cache(key("reconfig_hash"))
         assert loaded is not None
         assert loaded.defs["v"] == 99
@@ -160,12 +163,12 @@ class TestSignedRoundTrip(_FileStoreLoaderTest):
         trusts its own key's fingerprint, so no trusted_signers needed)."""
         signer, verifier = _keypair()
 
-        writer = self._loader(signer=signer)
+        writer = self._loader(signer=signer, verification="on")
         cache = _simple_cache(hash_val="signed_hash", x=99, label="signed")
         assert writer.save_cache(cache)
         writer.flush()
 
-        reader = self._loader(signer=verifier)
+        reader = self._loader(signer=verifier, verification="on")
         loaded = reader.load_cache(key("signed_hash"))
         assert loaded is not None
         assert loaded.defs["x"] == 99
@@ -176,12 +179,12 @@ class TestSignedRoundTrip(_FileStoreLoaderTest):
         signer, verifier = _keypair()
 
         pt = _Point(3, 4)
-        writer = self._loader(signer=signer)
+        writer = self._loader(signer=signer, verification="on")
         cache = _simple_cache(hash_val="pt_hash", pt=pt)
         assert writer.save_cache(cache)
         writer.flush()
 
-        reader = self._loader(signer=verifier)
+        reader = self._loader(signer=verifier, verification="on")
         loaded = reader.load_cache(key("pt_hash"))
         assert loaded is not None
         result = loaded.defs["pt"]
@@ -191,7 +194,7 @@ class TestSignedRoundTrip(_FileStoreLoaderTest):
     def test_self_verify_with_private_key(self) -> None:
         """A loader with a private-key signer can also verify its own entries."""
         signer, _ = _keypair()
-        loader = self._loader(signer=signer)
+        loader = self._loader(signer=signer, verification="on")
 
         cache = _simple_cache(hash_val="self_verify", val=7)
         assert loader.save_cache(cache)
@@ -205,12 +208,14 @@ class TestSignedRoundTrip(_FileStoreLoaderTest):
         """A reader trusts a third party's direct signature by adding the
         writer's fingerprint to trusted_signers (reader has no own key)."""
         signer, verifier = _keypair()
-        writer = self._loader(signer=signer)
+        writer = self._loader(signer=signer, verification="on")
         writer.save_cache(_simple_cache(hash_val="third_party", n=5))
         writer.flush()
 
         reader = self._loader(
-            signer=None, trusted_signers={verifier.fingerprint()}
+            signer=None,
+            trusted_signers={verifier.fingerprint()},
+            verification="on",
         )
         loaded = reader.load_cache(key("third_party"))
         assert loaded is not None
@@ -221,12 +226,16 @@ class TestSignedRoundTrip(_FileStoreLoaderTest):
         signer, verifier = _keypair()
         store = MockStore()
 
-        writer = LazyLoader("ns", store=store, signer=signer)
+        writer = LazyLoader(
+            "ns", store=store, signer=signer, verification="on"
+        )
         cache = _simple_cache(hash_val="mock_hash", n=123)
         assert writer.save_cache(cache)
         writer.flush()
 
-        reader = LazyLoader("ns", store=store, signer=verifier)
+        reader = LazyLoader(
+            "ns", store=store, signer=verifier, verification="on"
+        )
         loaded = reader.load_cache(key("mock_hash"))
         assert loaded is not None
         assert loaded.defs["n"] == 123
@@ -255,11 +264,11 @@ class TestUnsignedEntries(_FileStoreLoaderTest):
         assert loaded.defs["z"] == 55
 
     def test_unsigned_misses_in_verify_mode(self) -> None:
-        """verify mode (default): an unsigned entry is unverifiable, so it
+        """verify mode: an unsigned entry is unverifiable, so it
         misses (fail-safe) rather than being served."""
         self._write_unsigned()
         _, verifier = _keypair()
-        loader = self._loader(signer=verifier)  # verification="on" default
+        loader = self._loader(signer=verifier, verification="on")
         assert loader.load_cache(key("unsigned_hash")) is None
 
     def test_unsigned_rejected_in_strict_mode(self) -> None:
@@ -276,7 +285,9 @@ class TestUnsignedEntries(_FileStoreLoaderTest):
         from unittest.mock import patch
 
         _, verifier = _keypair()
-        loader = self._loader(signer=verifier)  # verify mode, no private key
+        loader = self._loader(
+            signer=verifier, verification="on"
+        )  # verify mode, no private key
         cache = _simple_cache(hash_val="warn_hash", z=1)
         with patch("marimo._save.loaders.lazy.LOGGER") as mock_log:
             assert loader.save_cache(cache) is False
@@ -299,7 +310,9 @@ class TestTampering(_FileStoreLoaderTest):
         if not defs:
             defs = {"v": 1}
         signer, _ = _keypair()
-        loader = LazyLoader("test", store=self.store, signer=signer)
+        loader = LazyLoader(
+            "test", store=self.store, signer=signer, verification="on"
+        )
         cache = _simple_cache(hash_val=hash_val, **defs)
         loader.save_cache(cache)
         loader.flush()
@@ -308,6 +321,7 @@ class TestTampering(_FileStoreLoaderTest):
     def _read_loader(self, signer: CacheSigner, **kwargs: Any) -> LazyLoader:
         # Build a verifier from the same public key
         verifier = CacheSigner.from_public_key_pem(signer.public_key_pem())
+        kwargs.setdefault("verification", "on")
         return LazyLoader("test", store=self.store, signer=verifier, **kwargs)
 
     def test_tampered_manifest_raises(self) -> None:
@@ -393,7 +407,7 @@ class TestTampering(_FileStoreLoaderTest):
         )
         self.store.put(manifest_key, tampered)
 
-        # verify mode (default) — degrade to cache miss
+        # verify mode — degrade to cache miss
         reader = self._read_loader(signer)
         assert reader.load_cache(key("verify_tamper")) is None
 
@@ -402,7 +416,9 @@ class TestTampering(_FileStoreLoaderTest):
         signer_a, _ = _keypair()
         _, verifier_b = _keypair()
 
-        writer = LazyLoader("test", store=self.store, signer=signer_a)
+        writer = LazyLoader(
+            "test", store=self.store, signer=signer_a, verification="on"
+        )
         cache = _simple_cache(hash_val="wrong_key", val=1)
         writer.save_cache(cache)
         writer.flush()
@@ -421,13 +437,17 @@ class TestTampering(_FileStoreLoaderTest):
         signer_a, _ = _keypair()
         _, verifier_b = _keypair()
 
-        writer = LazyLoader("test", store=self.store, signer=signer_a)
+        writer = LazyLoader(
+            "test", store=self.store, signer=signer_a, verification="on"
+        )
         writer.save_cache(_simple_cache(hash_val="foreign_ok", val=7))
         writer.flush()
 
-        # verify mode (default) with an unrelated key B: the foreign signature
+        # verify mode with an unrelated key B: the foreign signature
         # fails verification -> fail-safe cache miss.
-        reader = LazyLoader("test", store=self.store, signer=verifier_b)
+        reader = LazyLoader(
+            "test", store=self.store, signer=verifier_b, verification="on"
+        )
         assert reader.load_cache(key("foreign_ok")) is None
 
     def test_signed_manifest_missing_blob_hash_rejected(self) -> None:
@@ -523,7 +543,9 @@ class TestBlobHashesInManifest(_FileStoreLoaderTest):
 
     def test_signed_manifest_has_blob_hashes_and_signature(self) -> None:
         signer, _ = _keypair()
-        loader = LazyLoader("test", store=self.store, signer=signer)
+        loader = LazyLoader(
+            "test", store=self.store, signer=signer, verification="on"
+        )
         cache = _simple_cache(hash_val="with_hashes", obj={"a": 1})
         loader.save_cache(cache)
         loader.flush()
@@ -543,7 +565,9 @@ class TestBlobHashesInManifest(_FileStoreLoaderTest):
 
     def test_blob_hashes_match_actual_blobs(self) -> None:
         signer, _ = _keypair()
-        loader = LazyLoader("test", store=self.store, signer=signer)
+        loader = LazyLoader(
+            "test", store=self.store, signer=signer, verification="on"
+        )
         cache = _simple_cache(hash_val="verify_hash_content", n=42)
         loader.save_cache(cache)
         loader.flush()
@@ -655,7 +679,9 @@ class TestVerificationAndCapabilityValidation(_FileStoreLoaderTest):
         w.flush()
         # Reader with verify but no signer and no trusted_signers must NOT
         # degrade to off on a local file store — that was the fail-open hole.
-        reader = LazyLoader("test", store=self.store, signer=None)
+        reader = LazyLoader(
+            "test", store=self.store, signer=None, verification="on"
+        )
         assert reader._effective_verification() == "on"
         assert reader.load_cache(key("degrade")) is None
 
@@ -669,16 +695,23 @@ class TestVerificationAndCapabilityValidation(_FileStoreLoaderTest):
             LazyLoader(
                 "test",
                 store=self.store,
-                trusted_signers="SHA256:abc",  # type: ignore[arg-type]
+                trusted_signers="SHA256:abc",  # type: ignore[arg-type], verification="on"
             )
 
     def test_malformed_fingerprint_raises(self) -> None:
         with pytest.raises(ValueError, match="Invalid trusted_signers"):
-            LazyLoader("test", store=self.store, trusted_signers={"not-a-fp"})
+            LazyLoader(
+                "test",
+                store=self.store,
+                trusted_signers={"not-a-fp"},
+                verification="on",
+            )
 
     def test_bad_signer_type_raises(self) -> None:
         with pytest.raises(TypeError, match="signer must be a CacheSigner"):
-            LazyLoader("test", store=self.store, signer="nope")  # type: ignore[arg-type]
+            LazyLoader(
+                "test", store=self.store, signer="nope", verification="on"
+            )  # type: ignore[arg-type]
 
     def test_no_cryptography_strict_raises(self) -> None:
         """strict must fail closed when cryptography is unavailable."""
@@ -698,13 +731,8 @@ class TestVerificationAndCapabilityValidation(_FileStoreLoaderTest):
                     verification="strict",
                 )
 
-    def test_no_cryptography_local_store_degrades_to_off(self) -> None:
-        """Without cryptography, a local file store degrades to `off`.
-
-        Nothing in the install can verify, so keeping `on` turns the cache off
-        for every plain `pip install marimo`. A local cache directory is already
-        gated on filesystem access to the notebook, so it is served.
-        """
+    def test_no_cryptography_local_store_misses(self) -> None:
+        """Missing cryptography must not permit unsigned local entries."""
         from unittest import mock
 
         # Write an unsigned entry (off mode).
@@ -720,11 +748,12 @@ class TestVerificationAndCapabilityValidation(_FileStoreLoaderTest):
             "cryptography.has",
             return_value=False,
         ):
-            reader = LazyLoader("test", store=self.store, signer=signer)
-            assert reader._effective_verification() == "off"
-            cache = reader.load_cache(key("nocrypto"))
-            assert cache is not None
-            assert cache.defs["z"] == 8
+            reader = LazyLoader(
+                "test", store=self.store, signer=signer, verification="on"
+            )
+            assert reader._effective_verification() == "on"
+            assert reader.load_cache(key("nocrypto")) is None
+            assert not reader.save_cache(_simple_cache(hash_val="new", z=9))
 
 
 # ---------------------------------------------------------------------------
@@ -746,6 +775,7 @@ class TestReviewFixes(_FileStoreLoaderTest):
             "test",
             store=self.store,
             trusted_signers={fingerprint(other_pub)},
+            verification="on",
         )
         # Own signing key auto-resolved despite trusted_signers being set.
         assert loader.signer is not None
@@ -765,7 +795,7 @@ class TestReviewFixes(_FileStoreLoaderTest):
         w.save_cache(_simple_cache(hash_val="remote_unsigned", z=3))
         w.flush()
 
-        reader = LazyLoader("ns", store=store, signer=None)
+        reader = LazyLoader("ns", store=store, signer=None, verification="on")
         assert reader._effective_verification() == "on"
         assert reader.load_cache(key("remote_unsigned")) is None
 
@@ -779,7 +809,9 @@ class TestReviewFixes(_FileStoreLoaderTest):
         )
         w.save_cache(_simple_cache(hash_val="local_unsigned", z=4))
         w.flush()
-        reader = LazyLoader("test", store=self.store, signer=None)
+        reader = LazyLoader(
+            "test", store=self.store, signer=None, verification="on"
+        )
         assert reader._effective_verification() == "on"
         assert reader.load_cache(key("local_unsigned")) is None
 
@@ -810,7 +842,9 @@ class TestReviewFixes(_FileStoreLoaderTest):
         matches fingerprint() output (rather than validating but never
         matching → permanent silent miss)."""
         signer, _ = _keypair()
-        writer = LazyLoader("test", store=self.store, signer=signer)
+        writer = LazyLoader(
+            "test", store=self.store, signer=signer, verification="on"
+        )
         writer.save_cache(_simple_cache(hash_val="norm", n=5))
         writer.flush()
 
@@ -825,6 +859,7 @@ class TestReviewFixes(_FileStoreLoaderTest):
                 store=self.store,
                 signer=None,
                 trusted_signers={variant},
+                verification="on",
             )
             assert reader.trusted_signers == {canonical}
             loaded = reader.load_cache(key("norm"))
@@ -862,7 +897,9 @@ class TestReviewFixes(_FileStoreLoaderTest):
             "cryptography.has",
             return_value=False,
         ):
-            reader = LazyLoader("ns", store=store, signer=None)
+            reader = LazyLoader(
+                "ns", store=store, signer=None, verification="on"
+            )
             assert reader._effective_verification() == "on"
             assert reader.load_cache(key("nocrypto_remote")) is None
 
@@ -992,11 +1029,8 @@ class TestReviewFixes(_FileStoreLoaderTest):
             # Still unresolved, so a later reconfigure to verify can resolve.
             assert isinstance(loader._signer, _Unset)
 
-    def test_wasm_store_on_degrades_to_off(self) -> None:
-        """The WASM HTTP store is same-origin as the notebook code, so a verify
-        loader with no key/anchor degrades to off (serves) rather than missing
-        every read — otherwise the bundled-cache restore feature this stack
-        ships is silently disabled in the browser."""
+    def test_wasm_store_without_trust_misses(self) -> None:
+        """Same-origin storage does not establish signer trust."""
         from marimo._save.loaders.lazy import WasmLazyStore
         from marimo._save.stores.dict_store import DictStore
 
@@ -1006,14 +1040,12 @@ class TestReviewFixes(_FileStoreLoaderTest):
         w.flush()
 
         reader = LazyLoader("ns", store=store, signer=None, verification="on")
-        assert reader._effective_verification() == "off"
-        loaded = reader.load_cache(key("wasm_unsigned"))
-        assert loaded is not None
-        assert loaded.defs["z"] == 7
+        assert reader._effective_verification() == "on"
+        assert reader.load_cache(key("wasm_unsigned")) is None
+        assert not reader.save_cache(_simple_cache(hash_val="new", z=9))
 
-    def test_wasm_store_no_crypto_degrades_to_off(self) -> None:
-        """Same same-origin rationale under the no-cryptography branch: the
-        WASM store degrades to off rather than missing every read."""
+    def test_wasm_store_without_crypto_misses(self) -> None:
+        """Missing cryptography must not permit unsigned WASM entries."""
         from unittest import mock
 
         from marimo._save.loaders.lazy import WasmLazyStore
@@ -1032,10 +1064,9 @@ class TestReviewFixes(_FileStoreLoaderTest):
             reader = LazyLoader(
                 "ns", store=store, signer=None, verification="on"
             )
-            assert reader._effective_verification() == "off"
-            loaded = reader.load_cache(key("wasm_nocrypto"))
-            assert loaded is not None
-            assert loaded.defs["z"] == 8
+            assert reader._effective_verification() == "on"
+            assert reader.load_cache(key("wasm_nocrypto")) is None
+            assert not reader.save_cache(_simple_cache(hash_val="new", z=9))
 
     def test_strict_raises_on_undecodable_manifest(self) -> None:
         """A manifest that fails to decode (malformed JSON, or a tampered
@@ -1079,7 +1110,7 @@ class TestReviewFixes(_FileStoreLoaderTest):
         strict raises (fail-closed), verify misses (recompute). Otherwise a
         strict loader would silently miss an incomplete signed entry."""
         signer, verifier = _keypair()
-        writer = self._loader(signer=signer)
+        writer = self._loader(signer=signer, verification="on")
         writer.save_cache(
             _simple_cache(hash_val="missing_blob", pt=_Point(1, 2))
         )
@@ -1102,7 +1133,7 @@ class TestReviewFixes(_FileStoreLoaderTest):
         from unittest import mock
 
         signer, verifier = _keypair()
-        writer = self._loader(signer=signer)
+        writer = self._loader(signer=signer, verification="on")
         writer.save_cache(
             _simple_cache(hash_val="deser_fail", pt=_Point(1, 2))
         )
@@ -1177,7 +1208,9 @@ class TestWasmSignatureEviction:
 
         signer, verifier = _keypair()
         store = WasmLazyStore(inner=DictStore())
-        writer = WasmLazyLoader("wasm_sig", store=store, signer=signer)
+        writer = WasmLazyLoader(
+            "wasm_sig", store=store, signer=signer, verification="on"
+        )
         writer.save_cache(
             _simple_cache(hash_val="wasm_tamper", secret={"k": "v"})
         )
@@ -1189,7 +1222,9 @@ class TestWasmSignatureEviction:
         )
         store._inner.put(blob_key, pickle.dumps({"injected": True}))
 
-        reader = WasmLazyLoader("wasm_sig", store=store, signer=verifier)
+        reader = WasmLazyLoader(
+            "wasm_sig", store=store, signer=verifier, verification="on"
+        )
         # No network: the tampered blob is already resident in the inner store,
         # and evicted keys must not trigger a real fetch.
         with mock.patch.object(
@@ -1226,7 +1261,7 @@ class TestUntrustedLayerCannotAnchorTrust(_FileStoreLoaderTest):
         Returns the fingerprint of the key that signed it.
         """
         attacker, _ = _keypair()
-        writer = self._loader(signer=attacker)
+        writer = self._loader(signer=attacker, verification="on")
         assert writer.save_cache(_simple_cache(hash_val=hash_val, payload=1))
         writer.flush()
         return attacker.fingerprint()
@@ -1238,7 +1273,7 @@ class TestUntrustedLayerCannotAnchorTrust(_FileStoreLoaderTest):
             "[tool.marimo.signing.trusted_signers]\n"
             f'"{attacker_fp}" = "totally legit CI key"\n'
             "[tool.marimo.cache]\n"
-            'verification = "off"\n'
+            'verification = "strict"\n'
         )
         notebook = tmp_path / "notebook.py"
         notebook.write_text("import marimo as mo")
@@ -1251,8 +1286,8 @@ class TestUntrustedLayerCannotAnchorTrust(_FileStoreLoaderTest):
         policy = self._policy_for_project(tmp_path, attacker_fp)
 
         assert attacker_fp not in policy.trusted_signers
-        # The same layer also tried to switch verification off entirely.
-        assert policy.verification != "off"
+        # The same layer also tried to set the verification posture.
+        assert policy.verification != "strict"
 
     def test_committed_signed_cache_misses_under_on(
         self, tmp_path: Path
@@ -1263,7 +1298,7 @@ class TestUntrustedLayerCannotAnchorTrust(_FileStoreLoaderTest):
         reader = self._loader(
             signer=None,
             trusted_signers=policy.trusted_signers,
-            verification=policy.verification,
+            verification="on",
         )
         assert reader.load_cache(key("committed_on")) is None
 

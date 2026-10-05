@@ -149,6 +149,7 @@ def initialize_script_context(
         VirtualFileRegistry,
     )
     from marimo._save.cache import CacheState
+    from marimo._save.loaders import get_loader_key
     from marimo._save.signing_policy import get_signing_policy
     from marimo._save.stores import cache_store_is_untrusted, get_store
 
@@ -161,6 +162,7 @@ def initialize_script_context(
             store=get_store(filename),
             store_from_untrusted_origin=cache_store_is_untrusted(filename),
             signing_policy=get_signing_policy(filename),
+            loader=get_loader_key(filename),
         ),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         app_kernel_runner_registry=AppKernelRunnerRegistry(),
