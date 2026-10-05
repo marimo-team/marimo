@@ -88,7 +88,7 @@ const EXPORT_OPTIONS = [
     description: "Geometry in longitude and latitude",
     icon: MapIcon,
     canDownload: true,
-    canCopy: false,
+    canCopy: true,
   },
   {
     label: "Markdown",
@@ -101,7 +101,7 @@ const EXPORT_OPTIONS = [
 ] as const;
 
 type ExportFormat = (typeof EXPORT_OPTIONS)[number]["format"];
-type CopyFormat = Exclude<ExportFormat, "parquet" | "geojson">;
+type CopyFormat = Exclude<ExportFormat, "parquet">;
 type GeographicFormat = "parquet" | "geojson";
 
 const isGeographic = (format: ExportFormat): format is GeographicFormat =>
@@ -130,6 +130,7 @@ const COPY_SOURCE_FORMAT: Record<CopyFormat, DownloadFormat> = {
   csv: "csv",
   tsv: "tsv",
   json: "json",
+  geojson: "geojson",
   markdown: "json",
 };
 
@@ -499,6 +500,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
         switch (format) {
           case "tsv":
           case "csv":
+          case "geojson":
             text = await fetchText(result.url);
             break;
           case "json": {
@@ -516,6 +518,9 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
             return;
         }
 
+        if (actionId !== latestActionId.current) {
+          return;
+        }
         await copyToClipboard(text);
         toast({
           title: "Copied to clipboard",
@@ -706,6 +711,9 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                 missingCrs ||
                 (!!metadata?.geometry_columns.length &&
                   geometryColumn === null));
+            const copyUnavailable =
+              isGeographic(option.format) &&
+              (geographicUnavailable || missingPackages.length > 0);
             return (
               <li
                 key={option.format}
@@ -806,9 +814,9 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                           variant="ghost"
                           size="icon"
                           aria-label={`Copy ${optionLabel}`}
-                          disabled={!option.canCopy}
+                          disabled={!option.canCopy || copyUnavailable}
                           onClick={
-                            option.canCopy
+                            option.canCopy && !copyUnavailable
                               ? () => {
                                   void handleCopyAction(option.format);
                                 }
