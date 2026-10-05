@@ -899,6 +899,7 @@ class TestRunScratchpadCommand:
             result = await task
             assert result.success is False
             assert result.errors == ["Execution timed out after 0.05s"]
+            assert result.error == "Execution timed out after 0.05s"
 
         assert lock_held_during_interrupt == [True]
         assert session.interrupt_count == 1
@@ -1070,6 +1071,7 @@ class TestRunScratchpadCode:
             CodeExecutionResult(
                 success=False,
                 errors=["Execution timed out after 0.05s"],
+                error="Execution timed out after 0.05s",
             )
         )
         assert session.interrupt_count == 1

@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -216,6 +217,44 @@ class TestGetActiveNotebooks:
 
 
 class TestExecuteCode:
+    async def test_timeout_preserves_legacy_error_field(self):
+        from mcp import Client
+
+        from marimo._server.scratchpad import ScratchCellListener
+
+        app = create_test_app()
+        session = _make_mock_session()
+        session.scratchpad_lock = asyncio.Lock()
+        app.state.session_manager._repository._sessions["s1"] = session
+
+        async def timeout_wait(
+            listener: ScratchCellListener, timeout: float
+        ) -> None:
+            assert timeout == CODE_MCP_EXECUTION_TIMEOUT_SECONDS
+            listener.timed_out = True
+
+        def interrupt() -> None:
+            assert session.scratchpad_lock.locked()
+
+        session.try_interrupt.side_effect = interrupt
+        with patch.object(ScratchCellListener, "wait", timeout_wait):
+            async with Client(app.state.code_mcp) as client:
+                result = await client.call_tool(
+                    "execute_code",
+                    {"session_id": "s1", "code": "slow_work()"},
+                )
+
+        assert result.structured_content is not None
+        assert result.structured_content["success"] is False
+        assert result.structured_content["error"] == (
+            "Execution timed out after 300.0s"
+        )
+        assert result.structured_content["errors"] == [
+            "Execution timed out after 300.0s"
+        ]
+        session.try_interrupt.assert_called_once()
+        assert not session.scratchpad_lock.locked()
+
     async def test_uses_shared_runner_with_long_execution_budget(self):
         from mcp import Client
 

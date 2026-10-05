@@ -437,9 +437,12 @@ async def run_scratchpad_command(
                 if not settled:
                     session.try_interrupt()
             if listener.timed_out:
+                message = f"Execution timed out after {timeout}s"
                 return CodeExecutionResult(
                     success=False,
-                    errors=[f"Execution timed out after {timeout}s"],
+                    errors=[message],
+                    # MCP clients historically read the singular field.
+                    error=message,
                 )
 
         return extract_result(session, listener)
