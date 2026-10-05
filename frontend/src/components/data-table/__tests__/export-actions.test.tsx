@@ -96,6 +96,7 @@ const geometryMetadata: ExportMetadata = {
   default_geometry_column: "location",
   formats: {
     parquet: { available: true, reason: null, missing_packages: [] },
+    geojson: { available: true, reason: null, missing_packages: [] },
   },
 };
 
@@ -1182,4 +1183,390 @@ describe("ExportActions clipboard geometry", () => {
       expect(downloadAs).toHaveBeenCalledWith({ format: sourceFormat });
     },
   );
+});
+
+describe("ExportActions GeoJSON", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    downloadAs.mockResolvedValue({
+      url: "https://example.test/export",
+      filename: "table.source",
+    });
+  });
+
+  const metadataWithCrs: ExportMetadata = {
+    ...geometryMetadata,
+    geometry_columns: [
+      geometryMetadata.geometry_columns[0],
+      { name: "boundary", encoding: "objects", crs: "EPSG:3857" },
+    ],
+  };
+
+  it("hides GeoJSON for ordinary sources", async () => {
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue({
+        geometry_columns: [],
+        primary_geometry_column: null,
+        default_geometry_column: null,
+        formats: {},
+      }),
+    });
+    await openDialog();
+    expect(screen.queryByTestId("export-row-geojson")).not.toBeInTheDocument();
+  });
+
+  it("downloads GeoJSON without a clipboard action or PyArrow", async () => {
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue({
+        ...geometryMetadata,
+        formats: {
+          ...geometryMetadata.formats,
+          parquet: {
+            available: false,
+            reason: "GeoParquet export requires pyarrow.",
+            missing_packages: ["pyarrow"],
+          },
+        },
+      }),
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Download GeoJSON" }),
+    );
+    expect(screen.getByRole("button", { name: "Copy GeoJSON" })).toBeDisabled();
+    await waitFor(() => {
+      expect(downloadByURL).toHaveBeenCalledWith(
+        "https://example.test/export?download=1&filename=table.geojson",
+        "table.geojson",
+      );
+    });
+    expect(downloadAs).toHaveBeenCalledWith({
+      format: "geojson",
+      geometry_column: "location",
+    });
+    expect(copyToClipboard).not.toHaveBeenCalled();
+  });
+
+  it("shares the geometry choice and disables only GeoJSON for a missing CRS", async () => {
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue(geometryMetadata),
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "GeoJSON options" }),
+    );
+    expect(
+      screen.getByRole("group", { name: "GeoJSON options" }),
+    ).toHaveTextContent(/longitude and latitude/);
+    expect(
+      screen.getByRole("group", { name: "GeoJSON options" }),
+    ).toHaveTextContent(/complete WKT/);
+    selectGeometry("boundary");
+    expect(
+      screen.getByRole("button", { name: "Download GeoJSON" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Download GeoParquet" }),
+    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Download JSON" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Download CSV" })).toBeEnabled();
+    expect(screen.getByTestId("export-row-geojson")).toHaveTextContent(
+      "Declare its source CRS in Python",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "GeoParquet options" }));
+    expect(
+      screen.getByRole("combobox", { name: "Primary geometry" }),
+    ).toHaveDisplayValue("boundary");
+    selectGeometry("location");
+    expect(
+      screen.getByRole("button", { name: "Download GeoJSON" }),
+    ).toBeEnabled();
+    expect(screen.getByTestId("export-summary-geojson")).toHaveTextContent(
+      "location",
+    );
+  });
+
+  it("allows a known-CRS alternative when the default has no CRS", async () => {
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue({
+        ...geometryMetadata,
+        default_geometry_column: "boundary",
+        primary_geometry_column: "boundary",
+      }),
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "GeoJSON options" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Download GeoJSON" }),
+    ).toBeDisabled();
+    selectGeometry("location");
+    fireEvent.click(screen.getByRole("button", { name: "Download GeoJSON" }));
+    await waitFor(() =>
+      expect(downloadAs).toHaveBeenCalledWith({
+        format: "geojson",
+        geometry_column: "location",
+      }),
+    );
+  });
+
+  it("requires a choice for ambiguous sources", async () => {
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue({
+        ...metadataWithCrs,
+        primary_geometry_column: null,
+        default_geometry_column: null,
+      }),
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "GeoJSON options" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Download GeoJSON" }),
+    ).toBeDisabled();
+    selectGeometry("boundary");
+    fireEvent.click(screen.getByRole("button", { name: "Download GeoJSON" }));
+    await waitFor(() =>
+      expect(downloadAs).toHaveBeenCalledWith({
+        format: "geojson",
+        geometry_column: "boundary",
+      }),
+    );
+  });
+
+  it("preserves an empty geometry name", async () => {
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue({
+        ...geometryMetadata,
+        geometry_columns: [{ name: "", encoding: "objects", crs: "EPSG:4326" }],
+        primary_geometry_column: "",
+        default_geometry_column: "",
+      }),
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Download GeoJSON" }),
+    );
+    await waitFor(() =>
+      expect(downloadAs).toHaveBeenCalledWith({
+        format: "geojson",
+        geometry_column: "",
+      }),
+    );
+  });
+
+  it.each(["missing_crs", "conversion_failed"] as const)(
+    "keeps choices after %s and retries",
+    async (code) => {
+      downloadAs.mockResolvedValueOnce({
+        url: "",
+        filename: "",
+        code,
+        error: "Geometry export failed.",
+      });
+      renderExportActions({
+        getExportMetadata: vi.fn().mockResolvedValue(metadataWithCrs),
+      });
+      await openDialog();
+      fireEvent.click(
+        await screen.findByRole("button", { name: "GeoJSON options" }),
+      );
+      selectGeometry("boundary");
+      fireEvent.click(screen.getByRole("button", { name: "Download GeoJSON" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Geometry export failed.",
+      );
+      expect(downloadByURL).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole("combobox", { name: "Primary geometry" }),
+      ).toHaveDisplayValue("boundary");
+      fireEvent.click(screen.getByRole("button", { name: "Download GeoJSON" }));
+      await waitFor(() => expect(downloadByURL).toHaveBeenCalled());
+      expect(downloadAs).toHaveBeenLastCalledWith({
+        format: "geojson",
+        geometry_column: "boundary",
+      });
+    },
+  );
+
+  it("refreshes metadata and keeps the geometry choice after installation", async () => {
+    const getExportMetadata = vi.fn().mockResolvedValue(metadataWithCrs);
+    downloadAs.mockResolvedValueOnce({
+      url: "",
+      filename: "",
+      code: "missing_packages",
+      error: "GeoJSON requires geopandas.",
+      missing_packages: ["geopandas"],
+    });
+    renderExportActions({ getExportMetadata });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "GeoJSON options" }),
+    );
+    selectGeometry("boundary");
+    fireEvent.click(screen.getByRole("button", { name: "Download GeoJSON" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Install geopandas" }),
+    );
+    await act(async () => mocks.handleInstallPackages.mock.calls[0][1]());
+    await waitFor(() => expect(downloadByURL).toHaveBeenCalled());
+    expect(getExportMetadata).toHaveBeenCalledTimes(2);
+    expect(downloadAs).toHaveBeenLastCalledWith({
+      format: "geojson",
+      geometry_column: "boundary",
+    });
+  });
+
+  it.each(["missing-package", "missing-crs", "obsolete-choice"] as const)(
+    "does not retry after installation with %s",
+    async (prerequisite) => {
+      const getExportMetadata = vi.fn().mockResolvedValue(metadataWithCrs);
+      downloadAs.mockResolvedValueOnce({
+        url: "",
+        filename: "",
+        code: "missing_packages",
+        missing_packages: ["geopandas"],
+      });
+      renderExportActions({ getExportMetadata });
+      await openDialog();
+      fireEvent.click(
+        await screen.findByRole("button", { name: "GeoJSON options" }),
+      );
+      selectGeometry("boundary");
+      fireEvent.click(screen.getByRole("button", { name: "Download GeoJSON" }));
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Install geopandas" }),
+      );
+      getExportMetadata.mockResolvedValue(
+        prerequisite === "missing-package"
+          ? {
+              ...metadataWithCrs,
+              formats: {
+                geojson: {
+                  available: false,
+                  reason: "GeoJSON requires geopandas.",
+                  missing_packages: ["geopandas"],
+                },
+              },
+            }
+          : prerequisite === "missing-crs"
+            ? geometryMetadata
+            : {
+                ...geometryMetadata,
+                geometry_columns: [geometryMetadata.geometry_columns[0]],
+              },
+      );
+      await act(async () => mocks.handleInstallPackages.mock.calls[0][1]());
+      expect(downloadAs).toHaveBeenCalledTimes(1);
+      expect(downloadByURL).not.toHaveBeenCalled();
+      expect(screen.queryByRole("alert") !== null).toBe(
+        prerequisite === "obsolete-choice",
+      );
+      expect(
+        screen.getByRole("combobox", { name: "Primary geometry" }),
+      ).toHaveDisplayValue(
+        prerequisite === "obsolete-choice" ? "location" : "boundary",
+      );
+      expect(
+        screen.getByRole("button", { name: "Download GeoJSON" }),
+      ).toHaveProperty("disabled", prerequisite !== "obsolete-choice");
+    },
+  );
+
+  it("rejects an obsolete choice after a source change", async () => {
+    const getExportMetadata = vi.fn().mockResolvedValue(metadataWithCrs);
+    const { rerenderExportActions } = renderExportActions({
+      getExportMetadata,
+      metadataSource: "first",
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "GeoJSON options" }),
+    );
+    selectGeometry("boundary");
+    getExportMetadata.mockResolvedValue({
+      ...geometryMetadata,
+      geometry_columns: [geometryMetadata.geometry_columns[0]],
+    });
+    rerenderExportActions({ getExportMetadata, metadataSource: "second" });
+    await waitFor(() =>
+      expect(screen.getByTestId("export-summary-geojson")).toHaveTextContent(
+        "location",
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Download GeoJSON" }));
+    await waitFor(() =>
+      expect(downloadAs).toHaveBeenCalledWith({
+        format: "geojson",
+        geometry_column: "location",
+      }),
+    );
+  });
+
+  it("keeps a WASM data URL unchanged", async () => {
+    downloadAs.mockResolvedValue({
+      url: "data:application/geo+json;base64,e30=",
+      filename: "table",
+    });
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue(geometryMetadata),
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Download GeoJSON" }),
+    );
+    await waitFor(() =>
+      expect(downloadByURL).toHaveBeenCalledWith(
+        "data:application/geo+json;base64,e30=",
+        "table.geojson",
+      ),
+    );
+  });
+
+  it("hides package installation in read mode", async () => {
+    renderExportActions(
+      {
+        getExportMetadata: vi.fn().mockResolvedValue({
+          ...geometryMetadata,
+          formats: {
+            geojson: {
+              available: false,
+              reason: "GeoJSON requires geopandas.",
+              missing_packages: ["geopandas"],
+            },
+          },
+        }),
+      },
+      null,
+      "read",
+    );
+    await openDialog();
+    expect(
+      await screen.findByText(
+        "GeoJSON export isn't available in this notebook",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Install/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Download GeoJSON" }),
+    ).toBeDisabled();
+  });
+
+  it("respects the host size limit for geometry sources", () => {
+    renderExportActions(
+      {
+        getExportMetadata: vi.fn().mockResolvedValue(geometryMetadata),
+        sizeBytes: 101,
+      },
+      { limitBytes: 100, unavailableMessage: "Export is too large." },
+    );
+    expect(screen.getByTestId("export-button")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("export-button"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(downloadAs).not.toHaveBeenCalled();
+  });
 });
