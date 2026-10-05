@@ -145,7 +145,7 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
     if not isinstance(manager, NarwhalsTableManager):
         return ExportMetadata()
 
-    info_by_name = find_geometry_columns(manager.data)
+    info_by_name = _export_geometry_columns(manager)
     if not info_by_name:
         return ExportMetadata()
 
@@ -279,6 +279,7 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
 def _arrow_geometry_declaration(
     field: pa.Field[Any],
 ) -> ArrowGeometryDeclaration:
+    field = _arrow_storage_field(field)
     metadata = field.metadata
     if not metadata:
         return ArrowGeometryDeclaration()
@@ -339,7 +340,124 @@ def has_geometry_columns(manager: TableManager[Any]) -> bool:
         manager (TableManager[Any]): Manager for the export source.
     """
     return isinstance(manager, NarwhalsTableManager) and bool(
-        find_geometry_columns(manager.data)
+        _export_geometry_columns(manager)
+    )
+
+
+def _arrow_storage_field(field: pa.Field[Any]) -> pa.Field[Any]:
+    import pyarrow as pa
+
+    if not isinstance(field.type, pa.ExtensionType):
+        return field
+    extension = field.type
+    if not (
+        extension.extension_name.startswith("geoarrow.")
+        or extension.extension_name == "ogc.wkb"
+    ):
+        return field
+    metadata: dict[bytes | str, bytes | str] = {
+        key: value for key, value in (field.metadata or {}).items()
+    }
+    metadata[b"ARROW:extension:name"] = extension.extension_name.encode()
+    metadata[b"ARROW:extension:metadata"] = extension.__arrow_ext_serialize__()
+    return field.with_type(extension.storage_type).with_metadata(metadata)
+
+
+def _export_geometry_columns(
+    manager: NarwhalsTableManager[Any, Any],
+) -> dict[str, GeometryColumnInfo]:
+    if not manager.data.implementation.is_pyarrow():
+        return find_geometry_columns(manager.data)
+
+    import pyarrow as pa
+
+    schema = pa.schema(
+        [
+            _arrow_storage_field(field)
+            for field in manager.data.to_native().schema
+        ]
+    )
+    schema_view = pa.Table.from_batches([], schema=schema)
+    return find_geometry_columns(nw.from_native(schema_view))
+
+
+def _arrow_to_geodataframe(
+    table: pa.Table, columns: list[GeometryExportColumn]
+) -> Any:
+    import geopandas as gpd  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    import pandas as pd
+    import pyarrow as pa
+
+    if len(set(table.column_names)) != len(table.column_names):
+        raise GeometryExportError(
+            "invalid_metadata",
+            "Geographic exports require unique column names.",
+        )
+    for column in columns:
+        declaration = _arrow_geometry_declaration(
+            table.schema.field(column.name)
+        )
+        if declaration.error is not None:
+            raise GeometryExportError(
+                "invalid_metadata", declaration.error, column=column.name
+            )
+        if declaration.edges is not None:
+            raise GeometryExportError(
+                "unsupported_representation",
+                f"Geometry column {column.name!r} declares {declaration.edges!r} "
+                "edges, which geographic exports cannot preserve.",
+                column=column.name,
+            )
+        if column.encoding not in ("wkb", "wkt"):
+            raise GeometryExportError(
+                "unsupported_representation",
+                f"Geometry column {column.name!r} uses a native GeoArrow layout. "
+                "Geographic exports require WKB or WKT.",
+                column=column.name,
+            )
+
+    try:
+        ordinary = table.drop([column.name for column in columns]).to_pandas(
+            ignore_metadata=True, types_mapper=pd.ArrowDtype
+        )
+        frame = gpd.GeoDataFrame(ordinary)
+        for column in columns:
+            values = table.column(column.name)
+            decoded = [
+                value
+                for chunk in values.chunks
+                for value in (
+                    chunk.storage
+                    if isinstance(chunk, pa.ExtensionArray)
+                    else chunk
+                ).to_pylist()
+            ]
+            parser = (
+                gpd.GeoSeries.from_wkb
+                if column.encoding == "wkb"
+                else gpd.GeoSeries.from_wkt
+            )
+            frame[column.name] = parser(
+                decoded, crs=column.crs, index=frame.index
+            )
+        return frame[table.column_names]
+    except Exception as e:
+        raise GeometryExportError(
+            "conversion_failed", f"Could not convert Arrow geometry: {e}"
+        ) from e
+
+
+def _export_geodataframe(
+    manager: NarwhalsTableManager[Any, Any], metadata: ExportMetadata
+) -> Any:
+    native = manager.as_frame().to_native()
+    if manager.data.implementation.is_pandas():
+        return native
+    if manager.data.implementation.is_pyarrow():
+        return _arrow_to_geodataframe(native, metadata.geometry_columns)
+    raise GeometryExportError(
+        "unsupported_representation",
+        "Geographic export from this table type is not supported yet.",
     )
 
 
@@ -690,7 +808,7 @@ def _validate_geojson_geometry(geometry: dict[str, Any]) -> None:
 def serialize_geoparquet(
     manager: TableManager[Any], geometry_column: str | None
 ) -> bytes | None:
-    """Write declared GeoPandas geometry as GeoParquet 1.0.0.
+    """Write declared geometry as GeoParquet 1.0.0.
 
     Args:
         manager (TableManager[Any]): Manager for the effective export rows.
@@ -712,21 +830,14 @@ def serialize_geoparquet(
             )
         return None
 
-    if (
-        not isinstance(manager, NarwhalsTableManager)
-        or not manager.data.implementation.is_pandas()
+    if not isinstance(manager, NarwhalsTableManager) or not (
+        manager.data.implementation.is_pandas()
+        or manager.data.implementation.is_pyarrow()
     ):
         raise GeometryExportError(
             "unsupported_representation",
             "GeoParquet export from this table type is not supported yet.",
             column=geometry_column,
-        )
-
-    native = manager.as_frame().to_native()
-    if not native.columns.is_unique:
-        raise GeometryExportError(
-            "invalid_metadata",
-            "GeoParquet export requires unique column names.",
         )
 
     try:
@@ -755,9 +866,12 @@ def serialize_geoparquet(
         )
 
     if not DependencyManager.geopandas.has():
+        source_label = (
+            "pandas" if manager.data.implementation.is_pandas() else "Arrow"
+        )
         raise GeometryExportError(
             "missing_packages",
-            "This pandas table needs geopandas to export GeoParquet.",
+            f"This {source_label} table needs geopandas to export GeoParquet.",
             missing_packages=["geopandas"],
         )
     if not DependencyManager.geopandas.has_at_version(
@@ -774,6 +888,13 @@ def serialize_geoparquet(
         )
 
     import geopandas as gpd  # type: ignore[import-not-found,import-untyped,unused-ignore]
+
+    native = _export_geodataframe(manager, metadata)
+    if not native.columns.is_unique:
+        raise GeometryExportError(
+            "invalid_metadata",
+            "GeoParquet export requires unique column names.",
+        )
 
     for name in names:
         for geometry in native[name].array:
@@ -853,7 +974,9 @@ def _validate_geoparquet(
             or not isinstance(column.get("geometry_types"), list)
             or "crs" not in column
             or name not in schema.names
-            or not pa.types.is_binary(schema.field(name).type)
+            or not pa.types.is_binary(
+                _arrow_storage_field(schema.field(name)).type
+            )
         ):
             raise GeometryExportError(
                 "invalid_metadata",

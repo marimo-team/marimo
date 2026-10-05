@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import io
 import json
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import patch
 
 import pytest
@@ -74,8 +74,10 @@ def test_geoparquet_keeps_every_geometry_and_crs(
 
 
 @pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("arrow", [False, True], ids=["pandas", "arrow"])
 def test_geoparquet_uses_writer_supported_by_geopandas_0141(
     widget: Any,
+    arrow: bool,
 ) -> None:
     import geopandas as gpd
     import pyarrow.parquet as pq
@@ -92,7 +94,12 @@ def test_geoparquet_uses_writer_supported_by_geopandas_0141(
         original_writer(self, path, index=index, schema_version=schema_version)
 
     with patch.object(gpd.GeoDataFrame, "to_parquet", compatible_writer):
-        artifact, _ = _artifact(widget(fixtures.gdf_multi_geometry()))
+        source = (
+            fixtures.arrow_multi_geometry()
+            if arrow
+            else fixtures.gdf_multi_geometry()
+        )
+        artifact, _ = _artifact(widget(source), "geom_a")
 
     geo = json.loads(pq.read_metadata(io.BytesIO(artifact)).metadata[b"geo"])
     assert geo["version"] == "1.0.0"
@@ -519,6 +526,385 @@ def test_arrow_geoparquet_checks_pyarrow_dependency(widget: Any) -> None:
         reason="GeoParquet export requires pyarrow.",
         missing_packages=["pyarrow"],
     )
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("choice", ["geom_a", "geom_b"])
+def test_arrow_geoparquet_keeps_geometry_crs_and_source(
+    widget: Any, choice: str
+) -> None:
+    import geopandas as gpd
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from pyproj import CRS
+    from shapely import from_wkt
+
+    source = fixtures.arrow_multi_geometry()
+    source = source.append_column(
+        "count", pa.array([2**63 + 1, None], type=pa.uint64())
+    )
+    before = pa.BufferOutputStream()
+    with pa.ipc.new_stream(before, source.schema) as writer:
+        writer.write_table(source)
+    original_bytes = before.getvalue().to_pybytes()
+
+    artifact, filename = _artifact(widget(source), choice)
+    reader = pq.ParquetFile(io.BytesIO(artifact))
+    file_metadata = reader.metadata.metadata
+    assert file_metadata is not None
+    geo = json.loads(file_metadata[b"geo"])
+    restored = reader.read()
+    assert filename.endswith(".parquet")
+    assert geo["version"] == "1.0.0"
+    assert geo["primary_column"] == choice
+    assert set(geo["columns"]) == {"geom_a", "geom_b"}
+    for name, crs in (("geom_a", 3857), ("geom_b", 4326)):
+        assert geo["columns"][name]["encoding"] == "WKB"
+        assert CRS.from_json_dict(
+            geo["columns"][name]["crs"]
+        ) == CRS.from_epsg(crs)
+    assert restored.column_names == source.column_names
+    assert restored.to_pylist() == [
+        {
+            "name": "projected",
+            "geom_a": source["geom_a"][0].as_py(),
+            "geom_b": from_wkt("POINT (20 5)").wkb,
+            "count": 2**63 + 1,
+        },
+        {"name": "null", "geom_a": None, "geom_b": None, "count": None},
+    ]
+    frame = gpd.read_parquet(io.BytesIO(artifact))
+    assert frame.geometry.name == choice
+    assert frame["geom_a"].crs == CRS.from_epsg(3857)
+    assert frame["geom_b"].crs == CRS.from_epsg(4326)
+    after = pa.BufferOutputStream()
+    with pa.ipc.new_stream(after, source.schema) as writer:
+        writer.write_table(source)
+    assert after.getvalue().to_pybytes() == original_bytes
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    "factory",
+    [
+        fixtures.arrow_wkb_known_crs,
+        fixtures.arrow_wkt,
+        fixtures.arrow_wkb_projected,
+    ],
+)
+def test_arrow_geoparquet_sole_geometry_is_default(
+    widget: Any, factory: Any
+) -> None:
+    import geopandas as gpd
+    import pyarrow.parquet as pq
+
+    source = factory()
+    subject = widget(source)
+    metadata = subject._get_export_metadata(EmptyArgs())
+    artifact, _ = _artifact(subject)
+    file_metadata = pq.read_metadata(io.BytesIO(artifact)).metadata
+    assert file_metadata is not None
+    geo = json.loads(file_metadata[b"geo"])
+    frame = gpd.read_parquet(io.BytesIO(artifact))
+    assert geo["primary_column"] == metadata.default_geometry_column
+    assert frame.geometry.name == metadata.default_geometry_column
+    assert len(frame) == source.num_rows
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("empty", [False, True])
+@pytest.mark.parametrize("geometry_only", [False, True])
+@pytest.mark.parametrize(
+    "factory", [fixtures.arrow_wkb_missing_crs, fixtures.arrow_srid_crs]
+)
+def test_arrow_geoparquet_unknown_crs_is_explicit(
+    widget: Any, factory: Any, empty: bool, geometry_only: bool
+) -> None:
+    import geopandas as gpd
+    import pyarrow.parquet as pq
+
+    source = factory()
+    if geometry_only:
+        source = source.select(["geom"])
+    if empty:
+        source = source.slice(0, 0)
+    artifact, _ = _artifact(widget(source))
+    reader = pq.ParquetFile(io.BytesIO(artifact))
+    file_metadata = reader.metadata.metadata
+    assert file_metadata is not None
+    geo = json.loads(file_metadata[b"geo"])
+    frame = gpd.read_parquet(io.BytesIO(artifact))
+    assert geo["columns"]["geom"]["crs"] is None
+    assert frame.crs is None
+    assert reader.read()["geom"].to_pylist() == source["geom"].to_pylist()
+    assert reader.metadata.num_rows == source.num_rows
+    assert len(frame) == source.num_rows
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    ("factory", "code", "column"),
+    [
+        (fixtures.arrow_malformed_metadata, "invalid_metadata", "geom"),
+        (fixtures.arrow_spherical_edges, "unsupported_representation", "geom"),
+        (fixtures.arrow_other_geoarrow, "unsupported_representation", "geom"),
+    ],
+)
+def test_arrow_geoparquet_metadata_rejects_before_conversion(
+    widget: Any, factory: Any, code: str, column: str
+) -> None:
+    import geopandas as gpd
+
+    subject = widget(factory())
+    with (
+        patch.object(gpd.GeoSeries, "from_wkb") as parse_wkb,
+        patch.object(gpd.GeoSeries, "from_wkt") as parse_wkt,
+        patch(
+            "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+        ) as publish,
+    ):
+        response = subject._download_as(DownloadAsArgs(format="parquet"))
+    assert (
+        response.url,
+        response.filename,
+        response.code,
+        response.column,
+    ) == (
+        "",
+        "",
+        code,
+        column,
+    )
+    parse_wkb.assert_not_called()
+    parse_wkt.assert_not_called()
+    publish.assert_not_called()
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    ("raw", "code"),
+    [
+        (b"[]", "invalid_metadata"),
+        (b'{"edges":"spherical"}', "unsupported_representation"),
+    ],
+)
+def test_arrow_geoparquet_rejects_secondary_metadata_atomically(
+    widget: Any, raw: bytes, code: str
+) -> None:
+    import geopandas as gpd
+
+    source = fixtures.arrow_multi_geometry()
+    field = source.schema.field("geom_b").with_metadata(
+        {
+            b"ARROW:extension:name": b"geoarrow.wkt",
+            b"ARROW:extension:metadata": raw,
+        }
+    )
+    subject = widget(source.cast(source.schema.set(2, field)))
+    with (
+        patch.object(gpd.GeoSeries, "from_wkb") as parse,
+        patch(
+            "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+        ) as publish,
+    ):
+        response = subject._download_as(
+            DownloadAsArgs(format="parquet", geometry_column="geom_a")
+        )
+    assert (
+        response.url,
+        response.filename,
+        response.code,
+        response.column,
+    ) == ("", "", code, "geom_b")
+    parse.assert_not_called()
+    publish.assert_not_called()
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("encoding", ["wkb", "wkt"])
+def test_arrow_geoparquet_rejects_secondary_m_geometry(
+    widget: Any, encoding: str
+) -> None:
+    import pyarrow as pa
+    from shapely import from_wkt
+
+    measured = from_wkt("POINT M (1 2 3)")
+    if not getattr(measured, "has_m", False):
+        pytest.skip("Installed Shapely cannot represent M coordinates")
+    source = fixtures.arrow_multi_geometry()
+    field = pa.field(
+        "measured",
+        pa.binary() if encoding == "wkb" else pa.string(),
+        metadata={b"ARROW:extension:name": f"geoarrow.{encoding}".encode()},
+    )
+    value = measured.wkb if encoding == "wkb" else "POINT M (1 2 3)"
+    source = source.append_column(
+        field, pa.array([value, None], type=field.type)
+    )
+    subject = widget(source)
+    with patch(
+        "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+    ) as publish:
+        response = subject._download_as(
+            DownloadAsArgs(format="parquet", geometry_column="geom_a")
+        )
+    assert (
+        response.url,
+        response.filename,
+        response.code,
+        response.column,
+    ) == ("", "", "unsupported_representation", "measured")
+    publish.assert_not_called()
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("encoding", ["wkb", "wkt"])
+def test_arrow_geoparquet_invalid_geometry_publishes_no_artifact(
+    widget: Any, encoding: str
+) -> None:
+    import pyarrow as pa
+
+    source = fixtures.arrow_invalid_wkb()
+    if encoding == "wkt":
+        source = fixtures.arrow_wkt()
+        source = source.set_column(
+            1, source.schema.field("geom"), pa.array(["invalid", None, None])
+        )
+    subject = widget(source)
+    with patch(
+        "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+    ) as publish:
+        response = subject._download_as(DownloadAsArgs(format="parquet"))
+    assert (response.url, response.filename, response.code) == (
+        "",
+        "",
+        "conversion_failed",
+    )
+    publish.assert_not_called()
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+def test_arrow_geoparquet_ambiguous_geometry_requires_choice(
+    widget: Any,
+) -> None:
+    subject = widget(fixtures.arrow_multi_geometry())
+    response = subject._download_as(DownloadAsArgs(format="parquet"))
+    assert (response.url, response.filename, response.code) == (
+        "",
+        "",
+        "geometry_required",
+    )
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+def test_arrow_geoparquet_exports_only_selected_rows() -> None:
+    import pyarrow.parquet as pq
+
+    source = fixtures.arrow_multi_geometry()
+    subject = ui.table(source, selection="multi")
+    subject._convert_value(["1"])
+    artifact, _ = _artifact(subject, "geom_b")
+    restored = pq.read_table(io.BytesIO(artifact))
+    assert restored.to_pylist() == [
+        {"name": "null", "geom_a": None, "geom_b": None}
+    ]
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("encoding", ["wkb", "wkt"])
+def test_arrow_geoparquet_registered_extension_storage(
+    widget: Any, encoding: Literal["wkb", "wkt"]
+) -> None:
+    import geopandas as gpd
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    name = f"geoarrow.{encoding}"
+    storage_type = pa.binary() if encoding == "wkb" else pa.string()
+
+    class GeometryType(pa.ExtensionType):
+        def __init__(self) -> None:
+            super().__init__(storage_type, name)
+
+        def __arrow_ext_serialize__(self) -> bytes:
+            return b'{"crs":"EPSG:4326"}'
+
+        @classmethod
+        def __arrow_ext_deserialize__(
+            cls, _storage_type: Any, _serialized: bytes
+        ) -> Any:
+            return cls()
+
+    extension = GeometryType()
+    pa.register_extension_type(extension)  # type: ignore[arg-type]
+    try:
+        value = fixtures.WKB_POINT_1_2 if encoding == "wkb" else "POINT (1 2)"
+        chunks = [
+            pa.ExtensionArray.from_storage(
+                extension, pa.array([value], type=storage_type)
+            ),
+            pa.ExtensionArray.from_storage(
+                extension, pa.array([None], type=storage_type)
+            ),
+        ]
+        source = pa.Table.from_arrays(
+            [pa.array(["point", "null"]), pa.chunked_array(chunks)],
+            names=["name", "geom"],
+        )
+        subject = widget(source)
+        metadata = subject._get_export_metadata(EmptyArgs())
+        assert metadata.geometry_columns == [
+            GeometryExportColumn("geom", encoding, "EPSG:4326")
+        ]
+        artifact, _ = _artifact(subject)
+        assert pq.read_table(io.BytesIO(artifact))["geom"].to_pylist() == [
+            fixtures.WKB_POINT_1_2,
+            None,
+        ]
+        frame = gpd.read_parquet(io.BytesIO(artifact))
+        assert frame.geometry.name == "geom"
+        assert frame.crs.to_epsg() == 4326
+        assert source["geom"].num_chunks == 2
+        assert source["geom"].to_pylist() == [value, None]
+    finally:
+        pa.unregister_extension_type(name)
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("missing", ["geopandas", "pyarrow", "version"])
+def test_arrow_geoparquet_rechecks_dependencies_before_conversion(
+    widget: Any, missing: str
+) -> None:
+    import geopandas as gpd
+
+    subject = widget(fixtures.arrow_wkb_known_crs())
+    dependency = (
+        DependencyManager.pyarrow
+        if missing == "pyarrow"
+        else DependencyManager.geopandas
+    )
+    method = "has_at_version" if missing == "version" else "has"
+    with (
+        patch.object(dependency, method, return_value=False),
+        patch.object(gpd.GeoSeries, "from_wkb") as parse,
+        patch(
+            "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+        ) as publish,
+    ):
+        response = subject._download_as(DownloadAsArgs(format="parquet"))
+    assert (
+        response.url,
+        response.filename,
+        response.code,
+        response.missing_packages,
+    ) == (
+        "",
+        "",
+        "unsupported_version" if missing == "version" else "missing_packages",
+        None if missing == "version" else [missing],
+    )
+    parse.assert_not_called()
+    publish.assert_not_called()
 
 
 @pytest.mark.requires("geopandas", "pyarrow")
