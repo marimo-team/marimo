@@ -47,9 +47,17 @@ class http_request_context:
 
 
 def is_code_mode_request() -> bool:
-    """True when the current request originated from the /api/kernel/execute endpoint."""
+    """True when the current request runs code for a program, not a browser.
+
+    That is the scratchpad's `/api/kernel/execute` endpoint, and a host
+    protocol client's `POST /notebooks/{id}/executions`. For these the
+    kernel writes tracebacks as plain text and does not prompt to
+    install missing packages.
+    """
     request = HTTP_REQUEST_CTX.get(None)
     if request is None:
         return False
     path = cast("str", request.url.get("path", ""))
-    return path.endswith("/api/kernel/execute")
+    if path.endswith("/api/kernel/execute"):
+        return True
+    return "/api/marimo/v1/notebooks/" in path and path.endswith("/executions")

@@ -166,3 +166,32 @@ class TestHTTPRequestContext:
         # Request should be unset outside the context
         with pytest.raises(LookupError):
             HTTP_REQUEST_CTX.get()
+
+
+class TestCodeModeRequest:
+    def test_host_executions_are_code_mode_requests(self) -> None:
+        from marimo._messaging.context import is_code_mode_request
+
+        def request(path: str) -> HTTPRequest:
+            return HTTPRequest(
+                url={"path": path},
+                base_url={"path": "/"},
+                headers={},
+                query_params={},
+                path_params={},
+                cookies={},
+                meta={},
+                user=None,
+            )
+
+        assert not is_code_mode_request()
+        with http_request_context(request("/api/kernel/execute")):
+            assert is_code_mode_request()
+        with http_request_context(
+            request("/api/marimo/v1/notebooks/nb-1/executions")
+        ):
+            assert is_code_mode_request()
+        with http_request_context(
+            request("/api/marimo/v1/notebooks/nb-1/events")
+        ):
+            assert not is_code_mode_request()

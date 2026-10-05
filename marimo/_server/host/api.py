@@ -1,10 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""The host API's routes: two streams and the operations.
+"""The host API's routes.
 
-Each route is a thin translation. It reads the request, asks the `Host`
-for a command, and writes the protocol's reply: `200`, `201`, `202`, or
-`204` with the object, or a `Problem`. Authentication happens before any
-of this, in `HostApiMiddleware`, so a route can assume the caller may act.
+Each route reads a request, asks the host for a command, and writes
+the protocol's reply. The middleware has already checked who is asking.
 """
 
 from __future__ import annotations
@@ -30,6 +28,7 @@ from marimo._host.transitions import (
     Attach,
     Conflict,
     Detach,
+    ExecuteCode,
     NoRuntime,
     NotebookGone,
     NotFound,
@@ -37,11 +36,12 @@ from marimo._host.transitions import (
     StartRuntime,
     StopRuntime,
 )
+from marimo._runtime.commands import HTTPRequest
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import format_url_host, open_url_in_browser
 from marimo._server.host.context import KeyReused
 from marimo._server.sse import SSE_HEADERS
-from marimo._types.ids import AttachmentId, NotebookId, RuntimeId
+from marimo._types.ids import AttachmentId, ExecutionId, NotebookId, RuntimeId
 from marimo._utils.ids import new_id, new_stable_session_id
 
 if TYPE_CHECKING:
@@ -135,11 +135,7 @@ def _utcnow() -> datetime:
 
 
 def _offered(context: HostContext, operation: str) -> Response | None:
-    """Refuses an operation the host does not list, with `501`.
-
-    A host advertises what it can do, and a route for anything else
-    exists only to say so.
-    """
+    """Refuses, with `501`, an operation the host does not list."""
     if operation in context.host.operations:
         return None
     return problem(
@@ -158,12 +154,9 @@ def _fingerprint(request: Request, body: bytes) -> str:
 async def _keyed(
     request: Request, context: HostContext
 ) -> tuple[str, bytes, str] | Response:
-    """Reads the key and body, or answers for a request already seen.
+    """Reads the idempotency key and body, or answers a request already seen.
 
-    Returns the key, the body, and the request's fingerprint, or the
-    reply to send instead: the remembered one for a repeat, a `conflict`
-    for a key reused with a different request, or `invalid-request` with
-    no key at all.
+    Returns the key, body, and fingerprint, or the reply to send instead.
     """
     key = request.headers.get("Idempotency-Key")
     if not key:
@@ -210,20 +203,13 @@ def _decode(
         return problem(400, "invalid-request", str(e))
 
 
-def _offered_or_501(request: Request, operation: str) -> Response:
-    refused = _offered(_context(request), operation)
-    assert refused is not None, f"{operation} is routed but not implemented"
-    return refused
-
-
 # Streams
 
 
 async def events(request: Request) -> Response:
-    """Streams the catalog and then every change, as the contract says.
+    """Streams the catalog and then every change.
 
-    `Last-Event-ID` resumes from a cursor. `types` narrows the stream to
-    the named kinds; `ready` and `reset` always come through.
+    `Last-Event-ID` resumes from a cursor; `types` narrows the kinds sent.
     """
     context = _context(request)
     cursor = _cursor(request)
@@ -239,10 +225,9 @@ async def events(request: Request) -> Response:
 
 
 async def notebook_events(request: Request) -> Response:
-    """Streams one notebook, with its runtime, attachments, and executions.
+    """Streams one notebook.
 
-    Opening the stream attaches the client to the notebook; closing it
-    detaches.
+    Opening the stream attaches the client; closing it detaches.
     """
     context = _context(request)
     notebook_id = NotebookId(request.path_params["id"])
@@ -348,11 +333,7 @@ def _frame(event: Event) -> bytes:
 
 
 async def create_notebook(request: Request) -> Response:
-    """`notebook.create`: writes an empty notebook under the project root.
-
-    `201` with the notebook. `409` if a file is already there, which is
-    left alone. `400` for a path that is absolute or leaves the root.
-    """
+    """`notebook.create`: writes an empty notebook under the project root."""
     context = _context(request)
     if (refused := _offered(context, "notebook.create")) is not None:
         return refused
@@ -391,11 +372,7 @@ def _empty_notebook() -> str:
 
 
 async def update_notebook(request: Request) -> Response:
-    """`notebook.update`: moves the file to `path` under the same root.
-
-    An attached runtime follows its file. `409` if something is already
-    at `path`; `400` for a path that is absolute or leaves the root.
-    """
+    """`notebook.update`: moves the file, and its runtime, to `path`."""
     context = _context(request)
     if (refused := _offered(context, "notebook.update")) is not None:
         return refused
@@ -461,11 +438,7 @@ async def delete_notebook(request: Request) -> Response:
 
 
 async def open_notebook(request: Request) -> Response:
-    """`notebook.open`: shows the notebook in the browser and returns the URL.
-
-    The URL is the one the home page would use, without any token; a
-    client may open it itself instead of relying on the browser here.
-    """
+    """`notebook.open`: shows the notebook in the browser and returns its URL."""
     context = _context(request)
     if (refused := _offered(context, "notebook.open")) is not None:
         return refused
@@ -502,11 +475,7 @@ def _open_quietly(browser: str, url: str) -> None:
 
 
 async def export_notebook(request: Request) -> Response:
-    """`notebook.export`: the notebook as bytes, in the format asked for.
-
-    `py` is the file as saved, with no outputs. `html` is not rendered by
-    this host yet, and answers `not-acceptable`.
-    """
+    """`notebook.export`: the notebook as bytes, in the format asked for."""
     context = _context(request)
     if (refused := _offered(context, "notebook.export")) is not None:
         return refused
@@ -554,9 +523,7 @@ def _file_of(context: HostContext, notebook: Notebook) -> Path | None:
 async def start_runtime(request: Request) -> Response:
     """`runtime.start`: makes sure the notebook has a runtime.
 
-    `202` with the runtime when one was started, `200` with the one the
-    notebook already had. `409` when the client decides on an environment
-    this server cannot provide.
+    `202` when one was started, `200` with the one it already had.
     """
     context = _context(request)
     if (refused := _offered(context, "runtime.start")) is not None:
@@ -621,6 +588,7 @@ async def stop_runtime(request: Request) -> Response:
     except NoRuntime:
         return problem(409, "no-runtime", "The notebook has no runtime")
     assert before is not None
+    context.executions.abandon(notebook.id)
     current = after.notebooks[notebook.id].runtime
     runtime = current if current is not None else _as_terminating(before)
     return _remember(
@@ -652,6 +620,7 @@ async def restart_runtime(request: Request) -> Response:
         return problem(409, "no-runtime", "The notebook has no runtime")
     except Conflict as e:
         return problem(409, "conflict", str(e))
+    context.executions.abandon(notebook.id)
     runtime = after.notebooks[notebook.id].runtime
     assert runtime is not None
     return _remember(
@@ -663,10 +632,94 @@ async def restart_runtime(request: Request) -> Response:
 
 
 async def execute(request: Request) -> Response:
-    """`runtime.execute` is not offered yet; see the host's operations."""
-    return _offered_or_501(request, "runtime.execute")
+    """`runtime.execute`: queues code and answers `202` with the execution.
+
+    The rest arrives on the notebook's stream.
+    """
+    context = _context(request)
+    if (refused := _offered(context, "runtime.execute")) is not None:
+        return refused
+    key = request.headers.get("Idempotency-Key")
+    if not key:
+        return problem(400, "invalid-request", "Idempotency-Key is required")
+    notebook = _notebook(request, context)
+    if isinstance(notebook, Response):
+        return notebook
+    raw = await request.body()
+    fingerprint = _fingerprint(request, raw)
+    try:
+        context.replies.get(key, fingerprint)
+    except KeyReused:
+        return problem(
+            409,
+            "conflict",
+            f"Idempotency-Key {key} was used for another request",
+        )
+    existing = notebook.executions.get(ExecutionId(key))
+    if existing is not None:
+        return _reply(
+            202, msgspec.json.encode(wire.execution(notebook.id, existing))
+        )
+    body = _decode(raw, protocol.ExecuteRequest)
+    if isinstance(body, Response):
+        return body
+    assert isinstance(body, protocol.ExecuteRequest)
+
+    runtime = notebook.runtime
+    managed = (
+        None if runtime is None else context.runtime.session_for(runtime.id)
+    )
+    try:
+        after = context.host.command(
+            ExecuteCode(notebook.id, ExecutionId(key), body.code),
+            request_id=key,
+        )
+    except NoRuntime:
+        return problem(409, "no-runtime", "The notebook has no runtime")
+    except Conflict as e:
+        return problem(409, "conflict", str(e))
+    if managed is None:
+        # The host admitted it, but the kernel is not reachable.
+        return problem(409, "conflict", "The runtime has no kernel to run on")
+
+    context.executions.start(
+        context.host,
+        managed,
+        notebook_id=notebook.id,
+        execution_id=ExecutionId(key),
+        code=body.code,
+        http_request=HTTPRequest.from_request(request),
+    )
+    execution = after.notebooks[notebook.id].executions[ExecutionId(key)]
+    # Remembered so the same key with another body is a conflict; a true
+    # repeat is answered above with the execution as it now is.
+    context.replies.put(key, fingerprint, 202, b"")
+    return _reply(
+        202, msgspec.json.encode(wire.execution(notebook.id, execution))
+    )
 
 
 async def interrupt(request: Request) -> Response:
-    """`runtime.execute` is not offered yet; see the host's operations."""
-    return _offered_or_501(request, "runtime.execute")
+    """`runtime.interrupt`: stops an execution. `202` with it; `409` once final."""
+    context = _context(request)
+    if (refused := _offered(context, "runtime.execute")) is not None:
+        return refused
+    keyed = await _keyed(request, context)
+    if isinstance(keyed, Response):
+        return keyed
+    key, _, fingerprint = keyed
+    notebook = _notebook(request, context)
+    if isinstance(notebook, Response):
+        return notebook
+    execution_id = ExecutionId(request.path_params["execution_id"])
+    execution = notebook.executions.get(execution_id)
+    if execution is None:
+        return problem(404, "not-found", "No such execution")
+    if execution.final:
+        return problem(409, "conflict", "The execution is already final")
+    run = context.executions.running.get(execution_id)
+    if run is not None:
+        run.interrupt()
+    return _remember(
+        context, key, fingerprint, 202, wire.execution(notebook.id, execution)
+    )

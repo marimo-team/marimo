@@ -195,15 +195,27 @@ class ScratchCellListener(EventAwareExtension):
                 if output is not None and output.channel == CellChannel.STDERR
             )
 
-    async def stream(self) -> AsyncGenerator[str, None]:
-        """Yield SSE-formatted stdout/stderr events until execution completes.
+    async def notifications(
+        self, *, idle_seconds: float | None = None
+    ) -> AsyncGenerator[CellNotification | None, None]:
+        """Yield the run's cell notifications until execution completes.
 
-        Streams indefinitely — the caller is responsible for cancellation
-        (e.g. by disconnecting the SSE client, which triggers a kernel
-        interrupt server-side).
+        With `idle_seconds`, yields `None` whenever that long passes with
+        nothing to report, so a caller can keep a connection alive. Runs
+        until the completion sentinel; the caller is responsible for
+        cancellation otherwise.
         """
         while True:
-            msg = await self._queue.get()
+            if idle_seconds is None:
+                msg = await self._queue.get()
+            else:
+                try:
+                    msg = await asyncio.wait_for(
+                        self._queue.get(), timeout=idle_seconds
+                    )
+                except asyncio.TimeoutError:
+                    yield None
+                    continue
 
             if msg is None:
                 # Done sentinel — but stdout/stderr are flushed every
@@ -213,12 +225,22 @@ class ScratchCellListener(EventAwareExtension):
                 while not self._queue.empty():
                     trailing = self._queue.get_nowait()
                     if trailing is not None:
-                        for event_str in _format_console(trailing):
-                            yield event_str
+                        yield trailing
                 return
 
-            for event_str in _format_console(msg):
-                yield event_str
+            yield msg
+
+    async def stream(self) -> AsyncGenerator[str, None]:
+        """Yield SSE-formatted stdout/stderr events until execution completes.
+
+        Streams indefinitely — the caller is responsible for cancellation
+        (e.g. by disconnecting the SSE client, which triggers a kernel
+        interrupt server-side).
+        """
+        async for msg in self.notifications():
+            if msg is not None:
+                for event_str in _format_console(msg):
+                    yield event_str
 
     async def wait(self, timeout: float = EXECUTION_TIMEOUT) -> None:
         """Block until execution completes, discarding streamed events.

@@ -33,16 +33,16 @@ OPERATIONS = [
     "runtime.start",
     "runtime.stop",
     "runtime.restart",
+    "runtime.execute",
 ]
 """What this host can do, as advertised in its `host` object."""
 
 
 @contextlib.asynccontextmanager
 async def host(app: Starlette) -> AsyncIterator[None]:
-    """Builds the host, writes its record, and removes the record at the end.
+    """Builds the host and writes its record for the server's lifetime.
 
-    Only `marimo edit` is a host. `marimo run` serves an app to other
-    people and must not invite local clients in.
+    Only `marimo edit` is a host; `marimo run` serves other people.
     """
     state = AppState.from_app(app)
     if state.mode is not SessionMode.EDIT:

@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""What the host's routes share: the host, its secret, and remembered replies."""
+"""What the host's routes share."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from marimo._server.host import HOST_API_PATH as _HOST_API_PATH
+from marimo._server.host.execute import Executions
 
 if TYPE_CHECKING:
     from marimo._host.host import Host
@@ -19,13 +20,10 @@ HOST_API_PATH = _HOST_API_PATH
 
 
 class RememberedReplies:
-    """Replies to requests already carried out, by their `Idempotency-Key`.
+    """Replies to requests already carried out, by idempotency key.
 
-    A client that repeats a request, after a timeout say, gets the reply
-    it would have gotten the first time instead of causing the work twice.
-    Keys are scoped to the host, so the same key with a different request
-    is a conflict. Only the most recent replies are kept; a host's clients
-    are few and retry soon or not at all.
+    A repeated request gets its original reply instead of doing the work
+    twice. The same key with a different request is a conflict.
     """
 
     def __init__(self, limit: int = 1024) -> None:
@@ -72,3 +70,4 @@ class HostContext:
     port: int
     """The port the server listens on; the `Host` header must name it."""
     replies: RememberedReplies = field(default_factory=RememberedReplies)
+    executions: Executions = field(default_factory=Executions)
