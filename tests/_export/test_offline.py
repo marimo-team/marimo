@@ -198,7 +198,7 @@ def test_bundle_keeps_the_dependency_closure_of_required_packages():
     }
     # Pyodide reports hosted marimo-base under its lockfile name, marimo.
     assert _lock_required(
-        {"lockfile": lockfile, "required": ["Marimo_Base"]}
+        {"lockfile": lockfile, "required": ["marimo", "Marimo_Base"]}
     ) == {
         "info": {"python": "3.14.0"},
         "packages": {

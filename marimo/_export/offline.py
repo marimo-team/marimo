@@ -119,19 +119,26 @@ def _lock_required(resolution: _Resolution) -> _Lockfile:
     from packaging.utils import canonicalize_name
 
     available = resolution["lockfile"]["packages"]
+    # Pyodide reports loaded packages by entry name, which can differ from the
+    # key: marimo's hosted lockfile names its marimo-base entry "marimo".
+    keys = {
+        canonicalize_name(package["name"]): key
+        for key, package in available.items()
+    }
     packages: dict[str, _Package] = {}
     pending = list(resolution["required"])
     while pending:
         name = canonicalize_name(pending.pop())
-        if name in packages:
-            continue
-        if name not in available:
+        key = name if name in available else keys.get(name)
+        if key is None:
             raise OfflineExportError(
                 f"No resolved package is named {name}. Check that direct "
                 "references use the wheel's project name."
             )
-        packages[name] = available[name]
-        pending.extend(packages[name]["depends"])
+        if key in packages:
+            continue
+        packages[key] = available[key]
+        pending.extend(packages[key]["depends"])
     return {"info": resolution["lockfile"]["info"], "packages": packages}
 
 
