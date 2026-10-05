@@ -306,8 +306,11 @@ docs = [
 
 
 [tool.uv]
-# Require wheels for Apple Silicon CI, including within the dependency age window.
-required-environments = ["sys_platform == 'darwin' and platform_machine == 'arm64'"]
+# The 26.9.0 Apple Silicon wheel was uploaded later than the other wheels,
+# leaving it unavailable within CI's dependency age window.
+constraint-dependencies = [
+    "chdb-core!=26.9.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
 # Mirror CI's dependency window (UV_EXCLUDE_NEWER in .github/workflows) so local
 # resolution reproduces what CI resolves at setup time, including the ruff version.
 exclude-newer = "7 days"
