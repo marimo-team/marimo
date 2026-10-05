@@ -191,6 +191,7 @@ function requestOptions(
       }
       break;
     case "parquet":
+    case "geojson":
       break;
     default:
       logNever(format);
@@ -241,7 +242,10 @@ export interface ExportActionProps {
   sizeBytesIsLoading?: boolean;
 }
 
-const labelForFormat = (format: ExportFormat, hasGeometry = false): string =>
+const labelForFormat = (
+  format: ExportFormat | DownloadFormat,
+  hasGeometry = false,
+): string =>
   format === "parquet" && hasGeometry
     ? "GeoParquet"
     : (EXPORT_OPTIONS.find((option) => option.format === format)?.label ??

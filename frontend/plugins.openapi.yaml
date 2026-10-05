@@ -3265,6 +3265,7 @@ components:
             - json
             - parquet
             - tsv
+            - geojson
         geometry_column:
           type:
             - string
@@ -3307,6 +3308,7 @@ components:
                 - unsupported_representation
                 - unsupported_version
                 - missing_packages
+                - missing_crs
                 - conversion_failed
             - type: "null"
         column:
@@ -4843,6 +4845,7 @@ components:
             - json
             - parquet
             - tsv
+            - geojson
         geometry_column:
           type:
             - string
@@ -4885,6 +4888,7 @@ components:
                 - unsupported_representation
                 - unsupported_version
                 - missing_packages
+                - missing_crs
                 - conversion_failed
             - type: "null"
         column:
