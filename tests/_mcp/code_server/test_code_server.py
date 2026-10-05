@@ -217,7 +217,7 @@ class TestGetActiveNotebooks:
 
 
 class TestExecuteCode:
-    async def test_timeout_preserves_legacy_error_field(self):
+    async def test_timeout_returns_errors_and_interrupts_kernel(self):
         from mcp import Client
 
         from marimo._server.scratchpad import ScratchCellListener
@@ -246,9 +246,7 @@ class TestExecuteCode:
 
         assert result.structured_content is not None
         assert result.structured_content["success"] is False
-        assert result.structured_content["error"] == (
-            "Execution timed out after 300.0s"
-        )
+        assert result.structured_content.get("error") is None
         assert result.structured_content["errors"] == [
             "Execution timed out after 300.0s"
         ]
