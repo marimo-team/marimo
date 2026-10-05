@@ -306,15 +306,11 @@ docs = [
 
 
 [tool.uv]
-# The 26.9.0 Apple Silicon wheel was uploaded later than the other wheels,
-# leaving it unavailable within CI's dependency age window.
-constraint-dependencies = [
-    "chdb-core!=26.9.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
-]
 # Mirror CI's dependency window (UV_EXCLUDE_NEWER in .github/workflows) so local
 # resolution reproduces what CI resolves at setup time, including the ruff version.
 exclude-newer = "7 days"
-exclude-newer-package = { agent-plugins = false, marimo-lens = false }
+# Temporarily allow chdb-core's delayed Apple Silicon wheel through the age cutoff.
+exclude-newer-package = { agent-plugins = false, marimo-lens = false, chdb-core = false }
 
 [tool.uv.sources]
 marimo_docs = { path = "./docs", editable = true }
