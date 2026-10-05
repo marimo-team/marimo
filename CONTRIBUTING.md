@@ -349,6 +349,42 @@ marimo server. This means that:
    the same way that it will be used in production.
 
 
+## Development Tips
+
+### Debugging with VS Code
+
+To debug the marimo server, create
+`.vscode/launch.json` with:
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Marimo api debugger",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "marimo",
+            "args": [
+                "edit",
+                "--no-token",
+                "--headless",
+                "/tmp",
+                "--port",
+                "2718"
+            ],
+            "python": "${command:python.interpreterPath}",
+            "console": "integratedTerminal"
+        }
+    ]
+}
+```
+
+This requires the [Python Debugger
+extension](https://marketplace.visualstudio.com/items?itemName=ms-python.debugpy)
+for VS Code. Set breakpoints in the Python source and launch "Marimo api
+debugger" from the Run and Debug panel to step through the server.
+
 ## PRs
 
 When submitting a pull request, marimo will run: lint, typecheck, and test jobs.
