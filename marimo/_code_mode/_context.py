@@ -1175,7 +1175,9 @@ class AsyncCodeModeContext:
             if op.config is not None:
                 return op.config
         meta = self._kernel.cell_metadata.get(cell_id)
-        return meta.config if meta else CellConfig()
+        if meta is not None:
+            return meta.config
+        return self._document.get_cell(cell_id).config
 
     def edit_cell(
         self,
@@ -1760,9 +1762,12 @@ class AsyncCodeModeContext:
                 resolved_configs[entry.cell_id] = CellConfig(hide_code=True)
             else:
                 existing_meta = self._kernel.cell_metadata.get(entry.cell_id)
-                resolved_configs[entry.cell_id] = (
-                    existing_meta.config if existing_meta else CellConfig()
-                )
+                if existing_meta is not None:
+                    resolved_configs[entry.cell_id] = existing_meta.config
+                else:
+                    resolved_configs[entry.cell_id] = self._document.get_cell(
+                        entry.cell_id
+                    ).config
 
         # Let mutate_graph handle all graph mutations: it properly
         # cleans up globals, UI elements, and lifecycle hooks for

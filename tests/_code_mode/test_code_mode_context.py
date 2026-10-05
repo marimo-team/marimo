@@ -1327,6 +1327,8 @@ class TestAutorunStaleState:
 
 
 class TestDocumentKernelDivergence:
+    """Tests for cells that exist in the document but not in the kernel graph."""
+
     @pytest.mark.parametrize("operation", ["run", "edit", "configure"])
     async def test_run_doc_only_dependencies(
         self, k: Kernel, operation: str
@@ -1364,8 +1366,6 @@ class TestDocumentKernelDivergence:
             assert k.graph.cells["imports"].config == imports.config
         assert "unrelated" not in k.cell_metadata
 
-    """Tests for cells that exist in the document but not in the kernel graph."""
-
     async def test_delete_doc_only_cell(self, k: Kernel) -> None:
         """Deleting a cell that is in the document but not the kernel
         graph should succeed without KeyError."""
@@ -1379,18 +1379,42 @@ class TestDocumentKernelDivergence:
         # The ghost cell should not appear in the graph.
         assert "ghost" not in k.graph.cells
 
-    async def test_edit_and_run_doc_only_cell(self, k: Kernel) -> None:
+    @pytest.mark.parametrize("disabled", [False, True])
+    @pytest.mark.parametrize("override_hide_code", [False, True])
+    async def test_edit_and_run_doc_only_cell(
+        self, k: Kernel, disabled: bool, override_hide_code: bool
+    ) -> None:
         """A cell present only in the document can be edited and run,
         bringing it into the kernel graph."""
         ghost = NotebookCell(
-            id=CellId_t("ghost"), code="z = 0", name="", config=CellConfig()
+            id=CellId_t("ghost"),
+            code="z = 0",
+            name="",
+            config=CellConfig(
+                disabled=disabled, hide_code=True, expand_output=True, column=2
+            ),
         )
         with _ctx(k, extra_doc_cells=[ghost]) as ctx:
             async with ctx as nb:
-                nb.edit_cell("ghost", code="z = 42")
+                nb.edit_cell(
+                    "ghost",
+                    code="z = 42",
+                    hide_code=False if override_hide_code else None,
+                )
                 nb.run_cell("ghost")
 
-        assert k.globals["z"] == 42
+        expected_config = CellConfig(
+            disabled=disabled,
+            hide_code=not override_hide_code,
+            expand_output=True,
+            column=2,
+        )
+        assert k.graph.cells["ghost"].config == expected_config
+        assert k.cell_metadata["ghost"].config == expected_config
+        if disabled:
+            assert "z" not in k.globals
+        else:
+            assert k.globals["z"] == 42
 
     async def test_create_cell_no_collision_with_doc_only_ids(
         self, k: Kernel
