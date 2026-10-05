@@ -2,7 +2,7 @@ anthropic:
 
   - name: Claude Sonnet 5.5
     model: claude-sonnet-5-5
-    description: ""
+    description: "Sonnet-class reasoning model for everyday coding, bug fixes, and document creation"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -52,7 +52,7 @@ anthropic:
 
   - name: Claude Sonnet 5
     model: claude-sonnet-5
-    description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
+    description: "Anthropic's Sonnet model, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -93,7 +93,7 @@ anthropic:
 openai:
   - name: GPT-6.1 Sol
     model: gpt-6.1-sol
-    description: ""
+    description: "Reasoning model for agentic coding, computer use, and document-heavy professional work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -204,7 +204,7 @@ openai:
 google:
   - name: Claude Sonnet 5.5
     model: claude-sonnet-5-5@default
-    description: ""
+    description: "Sonnet-class reasoning model for everyday coding, bug fixes, and document creation, available through Vertex AI only"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -343,53 +343,13 @@ google:
 bedrock:
   - name: GPT-6.1 Sol (Global)
     model: global.openai.gpt-6.1-sol
-    description: ""
+    description: "Reasoning model for agentic coding, computer use, and document-heavy professional work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-09-29
     cost: {input: 2, output: 10}
-
-  - name: GPT-6.1 Sol
-    model: openai.gpt-6.1-sol
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-09-29
-    cost: {input: 2.2, output: 11}
-
-  - name: GPT-6.1 Sol (US)
-    model: us.openai.gpt-6.1-sol
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-09-29
-    cost: {input: 2.2, output: 11}
-
-  - name: Claude Sonnet 5.5
-    model: anthropic.claude-sonnet-5-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-09-28
-    cost: {input: 2, output: 10}
-
-  - name: Claude Sonnet 5.5 (EU)
-    model: eu.anthropic.claude-sonnet-5-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-09-28
-    cost: {input: 2.2, output: 11}
 
   - name: Claude Opus 5.5 (Global)
     model: global.anthropic.claude-opus-5-5
@@ -523,7 +483,7 @@ bedrock:
 
   - name: Claude Sonnet 5 (Global)
     model: global.anthropic.claude-sonnet-5
-    description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
+    description: "Anthropic's Sonnet model, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -543,7 +503,7 @@ bedrock:
 
   - name: Claude Sonnet 5 (Global)
     model: global.anthropic.claude-sonnet-5
-    description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
+    description: "Anthropic's Sonnet model, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -594,7 +554,7 @@ bedrock:
 azure:
   - name: GPT-6.1 Sol
     model: gpt-6.1-sol
-    description: ""
+    description: "Reasoning model for agentic coding, computer use, and document-heavy professional work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -604,7 +564,7 @@ azure:
 
   - name: Claude Sonnet 5.5
     model: claude-sonnet-5-5
-    description: ""
+    description: "Sonnet-class reasoning model for everyday coding, bug fixes, and document creation"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -753,7 +713,7 @@ azure:
 
   - name: Claude Sonnet 5
     model: claude-sonnet-5
-    description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
+    description: "Anthropic's Sonnet model, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
