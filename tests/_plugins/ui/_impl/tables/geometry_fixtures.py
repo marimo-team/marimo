@@ -14,6 +14,7 @@ when the extension cannot load.
 from __future__ import annotations
 
 import datetime
+import json
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -214,6 +215,82 @@ def arrow_other_geoarrow() -> pa_mod.Table:
         [None, None],
         pa.list_(pa.float64(), 2),
         crs=False,
+    )
+
+
+def arrow_multi_geometry() -> pa_mod.Table:
+    import pyarrow as pa
+    from pyproj import CRS
+    from shapely.geometry import Point
+
+    fields: list[pa.Field[Any]] = [
+        pa.field("name", pa.string()),
+        pa.field(
+            "geom_a",
+            pa.binary(),
+            metadata={
+                b"ARROW:extension:name": b"geoarrow.wkb",
+                b"ARROW:extension:metadata": b'{"crs":"EPSG:3857"}',
+            },
+        ),
+        pa.field(
+            "geom_b",
+            pa.string(),
+            metadata={
+                b"ARROW:extension:name": b"geoarrow.wkt",
+                b"ARROW:extension:metadata": json.dumps(
+                    {"crs": CRS.from_epsg(4326).to_json_dict()}
+                ).encode(),
+            },
+        ),
+    ]
+    schema = pa.schema(fields)
+    return pa.table(
+        {
+            "name": ["projected", "null"],
+            "geom_a": [Point(1113194.9079327357, 0).wkb, None],
+            "geom_b": ["POINT (20 5)", None],
+        },
+        schema=schema,
+    )
+
+
+def arrow_wkb_projected() -> pa_mod.Table:
+    return arrow_multi_geometry().select(["name", "geom_a"])
+
+
+def _arrow_with_geometry_metadata(raw: bytes) -> pa_mod.Table:
+    source = arrow_wkb_known_crs()
+    field = source.schema.field("geom").with_metadata(
+        {
+            b"ARROW:extension:name": b"geoarrow.wkb",
+            b"ARROW:extension:metadata": raw,
+        }
+    )
+    return source.cast(source.schema.set(1, field))
+
+
+def arrow_malformed_metadata() -> pa_mod.Table:
+    return _arrow_with_geometry_metadata(b"[]")
+
+
+def arrow_spherical_edges() -> pa_mod.Table:
+    return _arrow_with_geometry_metadata(
+        b'{"crs":"EPSG:4326","edges":"spherical"}'
+    )
+
+
+def arrow_srid_crs() -> pa_mod.Table:
+    return _arrow_with_geometry_metadata(
+        b'{"crs":"EPSG:4326","crs_type":"srid"}'
+    )
+
+
+def arrow_invalid_wkb() -> pa_mod.Table:
+    import pyarrow as pa
+
+    return _arrow_table_with_extension(
+        "geoarrow.wkb", [b"invalid", None], pa.binary(), crs=True
     )
 
 
