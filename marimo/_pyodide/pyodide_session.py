@@ -572,7 +572,12 @@ def _launch_pyodide_kernel(
     )
 
     if is_edit_mode:
-        signal.signal(signal.SIGINT, handlers.construct_interrupt_handler())
+        signal.signal(
+            signal.SIGINT,
+            handlers.construct_interrupt_handler(
+                scratchpad_interrupt=kernel.scratchpad_executions.consume_interrupt
+            ),
+        )
 
     async def listen_out_of_band() -> None:
         while True:

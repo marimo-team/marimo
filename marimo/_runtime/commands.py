@@ -406,6 +406,18 @@ class ExecuteScratchpadCommand(Command):
     run_id: str | None = None
 
 
+class ScheduleScratchpadCommand(Command):
+    """Register cancellable work before placing it on the control queue."""
+
+    execution: ExecuteScratchpadCommand
+
+
+class CancelScratchpadCommand(Command):
+    """Cancel one registered scratchpad execution, including queued work."""
+
+    run_id: str
+
+
 class RenameNotebookCommand(Command):
     """Rename or move the notebook file.
 
@@ -950,6 +962,8 @@ CommandMessage = (
     # Cell execution and management
     | ExecuteCellsCommand
     | ExecuteScratchpadCommand
+    | ScheduleScratchpadCommand
+    | CancelScratchpadCommand
     | ExecuteStaleCellsCommand
     | DebugCellCommand
     | SetBreakpointsCommand
@@ -991,7 +1005,12 @@ All commands that can be sent to the kernel.
 """
 
 
-OutOfBandCommand = CodeCompletionCommand | SetBreakpointsCommand
+OutOfBandCommand = (
+    CodeCompletionCommand
+    | SetBreakpointsCommand
+    | ScheduleScratchpadCommand
+    | CancelScratchpadCommand
+)
 """Commands processed off the main control loop.
 
 Unlike the rest of `CommandMessage` (which the kernel handles serially, and so

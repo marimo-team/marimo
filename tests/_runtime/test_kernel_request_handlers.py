@@ -6,12 +6,90 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from marimo._runtime.commands import ModelCommand, ModelUpdateMessage
+from marimo._messaging.notification import CompletedRunNotification
+from marimo._runtime.commands import (
+    CancelScratchpadCommand,
+    ExecuteScratchpadCommand,
+    ModelCommand,
+    ModelUpdateMessage,
+    ScheduleScratchpadCommand,
+)
+from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
+from marimo._runtime.scratch import ScratchpadState
 from marimo._types.ids import WidgetModelId
 
 if TYPE_CHECKING:
     from tests.conftest import MockedKernel
+
+
+async def test_cancelled_queued_scratchpad_never_executes(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    request = ExecuteScratchpadCommand(code="side_effect()", run_id="queued")
+    with (
+        patch.object(kernel, "enqueue_control_request") as enqueue,
+        patch.object(kernel, "run_scratchpad", new=AsyncMock()) as run,
+    ):
+        kernel.dispatch_out_of_band(
+            ScheduleScratchpadCommand(execution=request), docstrings_limit=5
+        )
+        enqueue.assert_called_once_with(request)
+        kernel.dispatch_out_of_band(
+            CancelScratchpadCommand(run_id="queued"), docstrings_limit=5
+        )
+        await KernelRequestHandlers(kernel)._handle_execute_scratchpad(request)
+        run.assert_not_awaited()
+    assert kernel.scratchpad_executions.cancel("queued") is None
+
+
+async def test_interrupt_during_scratchpad_setup_still_completes(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    request = ExecuteScratchpadCommand(code="work()", run_id="starting")
+    kernel.scratchpad_executions.schedule("starting")
+    with (
+        patch.object(
+            kernel,
+            "run_scratchpad",
+            new=AsyncMock(side_effect=MarimoInterrupt),
+        ),
+        patch(
+            "marimo._runtime.kernel_request_handlers.broadcast_notification"
+        ) as broadcast,
+    ):
+        await KernelRequestHandlers(kernel)._handle_execute_scratchpad(request)
+    broadcast.assert_called_once_with(
+        CompletedRunNotification(run_id="starting")
+    )
+    assert kernel.scratchpad_executions.cancel("starting") is None
+
+
+def test_late_cancellation_does_not_interrupt_next_run(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    kernel.scratchpad_executions.schedule("completed")
+    kernel.scratchpad_executions.start("completed")
+    kernel.scratchpad_executions.finish("completed")
+    kernel.scratchpad_executions.schedule("next")
+    kernel.scratchpad_executions.start("next")
+    with (
+        patch("marimo._runtime.runtime.interrupt_main") as windows_interrupt,
+        patch(
+            "marimo._runtime.runtime.interrupt_kernel_process"
+        ) as posix_interrupt,
+    ):
+        kernel.dispatch_out_of_band(
+            CancelScratchpadCommand(run_id="completed"), docstrings_limit=5
+        )
+    windows_interrupt.assert_not_called()
+    posix_interrupt.assert_not_called()
+    assert (
+        kernel.scratchpad_executions.cancel("next") is ScratchpadState.RUNNING
+    )
 
 
 class TestReceiveModelMessage:

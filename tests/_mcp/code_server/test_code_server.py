@@ -233,11 +233,16 @@ class TestExecuteCode:
             assert timeout == CODE_MCP_EXECUTION_TIMEOUT_SECONDS
             listener.timed_out = True
 
-        def interrupt() -> None:
+        async def completed(listener: ScratchCellListener) -> None:
+            del listener
             assert session.scratchpad_lock.locked()
 
-        session.try_interrupt.side_effect = interrupt
-        with patch.object(ScratchCellListener, "wait", timeout_wait):
+        with (
+            patch.object(ScratchCellListener, "wait", timeout_wait),
+            patch.object(
+                ScratchCellListener, "wait_until_completed", completed
+            ),
+        ):
             async with Client(app.state.code_mcp) as client:
                 result = await client.call_tool(
                     "execute_code",
@@ -250,7 +255,11 @@ class TestExecuteCode:
         assert result.structured_content["errors"] == [
             "Execution timed out after 300.0s"
         ]
-        session.try_interrupt.assert_called_once()
+        from marimo._runtime.commands import CancelScratchpadCommand
+
+        cancellation = session.put_control_request.call_args.args[0]
+        assert isinstance(cancellation, CancelScratchpadCommand)
+        session.try_interrupt.assert_not_called()
         assert not session.scratchpad_lock.locked()
 
     async def test_uses_shared_runner_with_long_execution_budget(self):

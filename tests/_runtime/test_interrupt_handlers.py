@@ -160,6 +160,30 @@ def test_sigint_with_no_scheduler_and_no_cell_is_noop() -> None:
         interrupt_handler(signal.SIGINT, None)
 
 
+def test_stale_scratchpad_interrupt_does_not_interrupt_notebook() -> None:
+    sched = MagicMock()
+    ctx = MagicMock(spec=KernelRuntimeContext)
+    ctx.active_scheduler = sched
+    with patch("marimo._runtime.handlers.safe_get_context", return_value=ctx):
+        handler = construct_interrupt_handler(
+            scratchpad_interrupt=lambda: False
+        )
+        handler(signal.SIGINT, None)
+    sched.cancel_all.assert_not_called()
+
+
+def test_targeted_interrupt_aborts_scratchpad_setup() -> None:
+    ctx = MagicMock(spec=KernelRuntimeContext)
+    ctx.execution_context = None
+    ctx.active_scheduler = None
+    with patch("marimo._runtime.handlers.safe_get_context", return_value=ctx):
+        handler = construct_interrupt_handler(
+            scratchpad_interrupt=lambda: True
+        )
+        with pytest.raises(MarimoInterrupt):
+            handler(signal.SIGINT, None)
+
+
 def test_ignore_console_ctrl_c_keeps_interrupt_main_working() -> None:
     """`interrupt_main()` (the deliberate interrupt path) must still fire
     the SIGINT handler after `ignore_console_ctrl_c()`. Runs in a
