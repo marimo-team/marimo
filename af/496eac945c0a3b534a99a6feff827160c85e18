@@ -1,0 +1,11 @@
+tests/_export/test_offline.py
+  ai_agent 70
+marimo/_export/offline.py
+  ai_agent 227-230
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "af496eac945c0a3b534a99a6feff827160c85e18",
+  "prompts": {}
+}
