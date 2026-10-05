@@ -82,6 +82,7 @@ must allow anonymous downloads.
 marimo downloads from both mirrors in Python, so they need no CORS headers. The
 exported HTML loads only the bundled copies.
 
-The export also runs uv to detect local modules. Point uv at the same index, for
-example with
+The export runs [uv](https://docs.astral.sh/uv/getting-started/installation/),
+a Python package manager, to detect local modules, so install it on the machine
+that runs the export. Point uv at the same index, for example with
 [`UV_DEFAULT_INDEX`](https://docs.astral.sh/uv/reference/environment/#uv_default_index).
