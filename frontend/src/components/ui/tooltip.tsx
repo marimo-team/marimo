@@ -65,7 +65,7 @@ const Tooltip: React.FC<
   }
 
   return (
-    <TooltipRoot disableHoverableContent={true} {...rootProps}>
+    <TooltipRoot disableHoverableContent={false} {...rootProps}>
       <TooltipTrigger asChild={asChild} tabIndex={tabIndex}>
         {children}
       </TooltipTrigger>

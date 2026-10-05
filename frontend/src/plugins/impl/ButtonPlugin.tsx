@@ -35,12 +35,15 @@ export class ButtonPlugin implements IPlugin<number, Data> {
     const {
       data: { disabled, kind, label, fullWidth, tooltip, keyboardShortcut },
     } = props;
+    // An explanation should remain discoverable through keyboard focus.
+    const isFocusableDisabled = disabled && Boolean(tooltip);
     // value counts number of times button was clicked
     const button = (
       <Button
         data-testid="marimo-plugin-button"
         variant={kindToButtonVariant(kind)}
-        disabled={disabled}
+        disabled={disabled && !isFocusableDisabled}
+        aria-disabled={isFocusableDisabled || undefined}
         size="xs"
         keyboardShortcut={keyboardShortcut}
         className={cn({

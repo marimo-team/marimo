@@ -100,6 +100,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref,
   ) => {
     const buttonRef = React.useRef<HTMLButtonElement>(null);
+    const isAriaDisabled =
+      props["aria-disabled"] === true || props["aria-disabled"] === "true";
 
     React.useImperativeHandle(
       ref,
@@ -109,7 +111,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const handleKeyPress = React.useCallback(
       (e: KeyboardEvent) => {
-        if (!keyboardShortcut || e.defaultPrevented) {
+        if (!keyboardShortcut || isAriaDisabled || e.defaultPrevented) {
           return;
         }
 
@@ -125,7 +127,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           }
         }
       },
-      [keyboardShortcut],
+      [keyboardShortcut, isAriaDisabled],
     );
 
     useEventListener(document, "keydown", handleKeyPress);
@@ -141,9 +143,19 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             disabled: props.disabled,
           }),
           className,
+          isAriaDisabled &&
+            "opacity-50 forced-colors:border-[GrayText] forced-colors:text-[GrayText]",
         )}
         ref={buttonRef}
         {...props}
+        onClick={(event) => {
+          if (isAriaDisabled) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+          props.onClick?.(event);
+        }}
       />
     );
   },
