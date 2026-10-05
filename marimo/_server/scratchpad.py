@@ -394,6 +394,23 @@ async def run_scratchpad_code(
         http_request=http_req,
     )
 
+    return await run_scratchpad_command(
+        session, code=code, request=http_req, timeout=timeout
+    )
+
+
+async def run_scratchpad_command(
+    session: Session,
+    *,
+    code: str,
+    request: HTTPRequest | None = None,
+    timeout: float = EXECUTION_TIMEOUT,
+) -> CodeExecutionResult:
+    """Run a blocking scratchpad command with safe cancellation.
+
+    Request interruption before releasing the session lock so
+    another caller cannot dispatch work between timeout and interruption.
+    """
     run_id = str(uuid4())
     listener = ScratchCellListener(run_id=run_id)
 
@@ -405,7 +422,7 @@ async def run_scratchpad_code(
             session.put_control_request(
                 ExecuteScratchpadCommand(
                     code=code,
-                    request=http_req,
+                    request=request,
                     notebook_cells=notebook_cells,
                     cell_outputs=cell_outputs,
                     run_id=run_id,

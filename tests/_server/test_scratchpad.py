@@ -38,6 +38,7 @@ from marimo._server.scratchpad import (
     build_done_event,
     extract_result,
     run_scratchpad_code,
+    run_scratchpad_command,
     snapshot_for_scratchpad,
 )
 from marimo._session.requests import InstantiateNotebookRequest
@@ -813,6 +814,112 @@ class TestScratchCellListener:
         name, payload = _parse_sse(events[0])
         assert name == "stdout"
         assert payload["data"] == "partial\n"
+
+
+class TestRunScratchpadCommand:
+    async def test_cancelled_queued_caller_does_not_interrupt_active_run(
+        self,
+    ) -> None:
+        session = _FakeSession(auto_complete=False)
+        dispatched = asyncio.Event()
+        original_put = session.put_control_request
+
+        def put(req: CommandMessage, from_consumer_id: object = None) -> None:
+            original_put(req, from_consumer_id)
+            dispatched.set()
+
+        session.put_control_request = put  # type: ignore[method-assign]
+        active = asyncio.create_task(
+            run_scratchpad_command(session.as_session(), code="active_work()")
+        )
+        try:
+            await dispatched.wait()
+            waiting = asyncio.create_task(
+                run_scratchpad_command(
+                    session.as_session(), code="queued_work()"
+                )
+            )
+            await asyncio.sleep(0)
+            waiting.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await waiting
+
+            assert session.interrupt_count == 0
+            assert len(session.control_requests) == 1
+            assert session.scratchpad_lock.locked()
+            command = session.control_requests[0]
+            assert isinstance(command, ExecuteScratchpadCommand)
+            assert session._active_listener is not None
+            session._active_listener.on_notification_sent(
+                session.as_session(),
+                serialize_kernel_message(
+                    CompletedRunNotification(run_id=command.run_id)
+                ),
+            )
+            result = await active
+            assert result.success is True
+            assert session.interrupt_count == 0
+        finally:
+            if not active.done():
+                active.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await active
+
+    @pytest.mark.parametrize("cancel", [False, True])
+    async def test_unfinished_execution_interrupts_before_unlock(
+        self, cancel: bool
+    ) -> None:
+        session = _FakeSession(auto_complete=False)
+        dispatched = asyncio.Event()
+        lock_held_during_interrupt: list[bool] = []
+        original_put = session.put_control_request
+        original_interrupt = session.try_interrupt
+
+        def put(req: CommandMessage, from_consumer_id: object = None) -> None:
+            original_put(req, from_consumer_id)
+            dispatched.set()
+
+        def interrupt() -> None:
+            lock_held_during_interrupt.append(session.scratchpad_lock.locked())
+            original_interrupt()
+
+        session.put_control_request = put  # type: ignore[method-assign]
+        session.try_interrupt = interrupt  # type: ignore[method-assign]
+        task = asyncio.create_task(
+            run_scratchpad_command(
+                session.as_session(), code="slow_work()", timeout=0.05
+            )
+        )
+        await dispatched.wait()
+        if cancel:
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        else:
+            result = await task
+            assert result.success is False
+            assert result.errors == ["Execution timed out after 0.05s"]
+
+        assert lock_held_during_interrupt == [True]
+        assert session.interrupt_count == 1
+        assert not session.scratchpad_lock.locked()
+        assert session._active_listener is None
+
+    async def test_completion_without_http_request_does_not_interrupt(
+        self,
+    ) -> None:
+        session = _FakeSession()
+        result = await run_scratchpad_command(
+            session.as_session(), code="x = 1", timeout=300.0
+        )
+
+        assert result.success is True
+        assert session.interrupt_count == 0
+        assert session.instantiate_calls == []
+        command = session.control_requests[0]
+        assert isinstance(command, ExecuteScratchpadCommand)
+        assert command.request is None
+        assert command.run_id is not None
 
 
 class TestRunScratchpadCode:

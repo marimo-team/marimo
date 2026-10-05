@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -18,7 +18,10 @@ from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.testclient import TestClient
 
-from marimo._mcp.code_server.main import setup_code_mcp_server
+from marimo._mcp.code_server.main import (
+    CODE_MCP_EXECUTION_TIMEOUT_SECONDS,
+    setup_code_mcp_server,
+)
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notification import CellNotification
 from marimo._runtime.scratch import SCRATCH_CELL_ID
@@ -213,6 +216,35 @@ class TestGetActiveNotebooks:
 
 
 class TestExecuteCode:
+    async def test_uses_shared_runner_with_long_execution_budget(self):
+        from mcp import Client
+
+        from marimo._ai._tools.types import CodeExecutionResult
+
+        app = create_test_app()
+        session = _make_mock_session()
+        app.state.session_manager._repository._sessions["s1"] = session
+        expected = CodeExecutionResult(success=True, output="done")
+
+        with patch(
+            "marimo._mcp.code_server.main.run_scratchpad_command",
+            new_callable=AsyncMock,
+            return_value=expected,
+        ) as run:
+            async with Client(app.state.code_mcp) as client:
+                result = await client.call_tool(
+                    "execute_code",
+                    {"session_id": "s1", "code": "slow_work()"},
+                )
+
+        assert result.is_error is False
+        run.assert_awaited_once_with(
+            session,
+            code="slow_work()",
+            timeout=CODE_MCP_EXECUTION_TIMEOUT_SECONDS,
+        )
+        assert CODE_MCP_EXECUTION_TIMEOUT_SECONDS == 300.0
+
     async def test_session_not_found(self):
         """Session lookup returns None for missing sessions."""
         app = create_test_app()

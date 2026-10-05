@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 from marimo._ai._tools.types import (
     CodeExecutionResult,
@@ -19,15 +18,12 @@ from marimo._ai._tools.types import (
 )
 from marimo._loggers import marimo_logger
 from marimo._mcp.dependencies import require_mcp_dependencies
-from marimo._server.scratchpad import (
-    EXECUTION_TIMEOUT,
-    ScratchCellListener,
-    extract_result,
-    snapshot_for_scratchpad,
-)
+from marimo._server.scratchpad import run_scratchpad_command
 from marimo._types.ids import SessionId
 
 LOGGER = marimo_logger()
+
+CODE_MCP_EXECUTION_TIMEOUT_SECONDS = 300.0
 
 if TYPE_CHECKING:
     from starlette.applications import Starlette
@@ -53,7 +49,6 @@ def setup_code_mcp_server(
     from starlette.responses import JSONResponse
     from starlette.routing import Mount
 
-    from marimo._runtime.commands import ExecuteScratchpadCommand
     from marimo._server.api.deps import AppStateBase
     from marimo._session.model import ConnectionState
 
@@ -104,7 +99,10 @@ def setup_code_mcp_server(
 
         The code runs in the scratchpad — a temporary execution environment
         that has access to all variables defined in the notebook but does not
-        affect the notebook's cells or dependency graph.
+        affect the notebook's cells or dependency graph. Execution has a
+        five-minute server timeout. A timeout or cancellation of the server
+        request signals a kernel interrupt before releasing the scratchpad
+        lock. Modern MCP HTTP clients cancel by closing the request stream.
 
         Args:
             session_id: The session ID of the notebook (from list_sessions).
@@ -120,32 +118,11 @@ def setup_code_mcp_server(
                 "Use list_sessions to find valid session IDs.",
             )
 
-        # Correlation ID: see /api/kernel/execute for rationale.
-        run_id = str(uuid4())
-        listener = ScratchCellListener(run_id=run_id)
-        # Ensure we take a lock on the scratchpad before scoping the
-        # listener. See #10035.
-        async with session.scratchpad_lock:
-            with session.scoped(listener):
-                notebook_cells, cell_outputs = snapshot_for_scratchpad(session)
-                session.put_control_request(
-                    ExecuteScratchpadCommand(
-                        code=code,
-                        notebook_cells=notebook_cells,
-                        cell_outputs=cell_outputs,
-                        run_id=run_id,
-                    ),
-                    from_consumer_id=None,
-                )
-                await listener.wait(timeout=EXECUTION_TIMEOUT)
-
-            if listener.timed_out:
-                return CodeExecutionResult(
-                    success=False,
-                    error=f"Execution timed out after {EXECUTION_TIMEOUT}s",
-                )
-
-            return extract_result(session, listener)
+        return await run_scratchpad_command(
+            session,
+            code=code,
+            timeout=CODE_MCP_EXECUTION_TIMEOUT_SECONDS,
+        )
 
     # Build the streamable HTTP app
     mcp_app = mcp.streamable_http_app(
