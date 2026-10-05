@@ -138,7 +138,7 @@ class DownloadAsOptions:
 
 @dataclass
 class DownloadAsArgs:
-    format: Literal["csv", "tsv", "json", "parquet"]
+    format: Literal["csv", "tsv", "json", "parquet", "geojson"]
     options: DownloadAsOptions | None = None
     geometry_column: str | None = None
 

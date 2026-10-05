@@ -31,6 +31,7 @@ GeometryExportErrorCode = Literal[
     "unsupported_representation",
     "unsupported_version",
     "missing_packages",
+    "missing_crs",
     "conversion_failed",
 ]
 
@@ -115,6 +116,9 @@ class ExportMetadata:
 def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
     """Read geometry declarations without materializing source rows.
 
+    Format eligibility covers source support and dependencies. The chosen
+    geometry's CRS and values require separate checks.
+
     Args:
         manager (TableManager[Any]): Manager for the export source.
     """
@@ -161,38 +165,49 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
         ]
         is_supported_source = False
 
+    formats: dict[str, ExportFormatEligibility] = {}
     if not is_supported_source:
-        if source.implementation.is_pandas():
-            reason = "This pandas table needs geopandas to export GeoParquet."
-            missing_packages = ["geopandas"]
-        elif source.implementation.is_pyarrow():
-            reason = (
-                "GeoParquet export from Arrow tables is not supported yet."
+        for format_name, label in (
+            ("parquet", "GeoParquet"),
+            ("geojson", "GeoJSON"),
+        ):
+            if source.implementation.is_pandas():
+                reason = (
+                    f"This pandas table needs geopandas to export {label}."
+                )
+                missing_packages = ["geopandas"]
+            elif source.implementation.is_pyarrow():
+                reason = (
+                    f"{label} export from Arrow tables is not supported yet."
+                )
+                missing_packages = []
+            else:
+                reason = (
+                    f"{label} export is not supported for this table type."
+                )
+                missing_packages = []
+            formats[format_name] = ExportFormatEligibility(
+                available=False,
+                reason=reason,
+                missing_packages=missing_packages,
             )
-            missing_packages = []
-        else:
-            reason = "GeoParquet export is not supported for this table type."
-            missing_packages = []
-        parquet = ExportFormatEligibility(
-            available=False,
-            reason=reason,
-            missing_packages=missing_packages,
-        )
-    elif not DependencyManager.geopandas.has_at_version(
-        min_version=_MIN_GEOPANDAS_GEOPARQUET_VERSION, quiet=True
-    ):
-        parquet = ExportFormatEligibility(
-            available=False,
-            reason=_GEOPANDAS_UPGRADE_MESSAGE,
-        )
-    elif not DependencyManager.pyarrow.has():
-        parquet = ExportFormatEligibility(
-            available=False,
-            reason="GeoParquet export requires pyarrow.",
-            missing_packages=["pyarrow"],
-        )
     else:
-        parquet = ExportFormatEligibility(available=True)
+        formats["geojson"] = ExportFormatEligibility(available=True)
+        if not DependencyManager.geopandas.has_at_version(
+            min_version=_MIN_GEOPANDAS_GEOPARQUET_VERSION, quiet=True
+        ):
+            formats["parquet"] = ExportFormatEligibility(
+                available=False,
+                reason=_GEOPANDAS_UPGRADE_MESSAGE,
+            )
+        elif not DependencyManager.pyarrow.has():
+            formats["parquet"] = ExportFormatEligibility(
+                available=False,
+                reason="GeoParquet export requires pyarrow.",
+                missing_packages=["pyarrow"],
+            )
+        else:
+            formats["parquet"] = ExportFormatEligibility(available=True)
 
     default = (
         primary
@@ -203,7 +218,7 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
         geometry_columns=columns,
         primary_geometry_column=primary,
         default_geometry_column=default,
-        formats={"parquet": parquet},
+        formats=formats,
     )
 
 

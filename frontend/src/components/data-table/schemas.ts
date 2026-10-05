@@ -3,7 +3,7 @@
 import z from "zod";
 import { rpc } from "@/plugins/core/rpc";
 
-export type DownloadFormat = "csv" | "json" | "parquet" | "tsv";
+export type DownloadFormat = "csv" | "json" | "parquet" | "tsv" | "geojson";
 
 /**
  * Per-request export options. Each field is optional. A missing field keeps
@@ -33,6 +33,7 @@ export type DownloadAsArgs = (req: DownloadAsRequest) => Promise<{
     | "unsupported_representation"
     | "unsupported_version"
     | "missing_packages"
+    | "missing_crs"
     | "conversion_failed"
     | null;
   column?: string | null;
@@ -41,7 +42,7 @@ export type DownloadAsArgs = (req: DownloadAsRequest) => Promise<{
 export const DownloadAsSchema = rpc
   .input(
     z.object({
-      format: z.enum(["csv", "json", "parquet", "tsv"]),
+      format: z.enum(["csv", "json", "parquet", "tsv", "geojson"]),
       geometry_column: z.string().nullish(),
       options: z
         .object({
@@ -66,6 +67,7 @@ export const DownloadAsSchema = rpc
           "unsupported_representation",
           "unsupported_version",
           "missing_packages",
+          "missing_crs",
           "conversion_failed",
         ])
         .nullish(),
