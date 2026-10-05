@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, TypeAlias
 
@@ -62,8 +63,14 @@ def build_execute_code_toolset(
 
         prefix = "data:image/png;base64,"
         if not result.output.startswith(prefix):
-            raise ValueError("PNG output must be a base64 data URL")
-        image = base64.b64decode(result.output[len(prefix) :], validate=True)
+            return result
+        try:
+            image = base64.b64decode(
+                result.output[len(prefix) :], validate=True
+            )
+        except (binascii.Error, ValueError):
+            # Other PNG formatters may use representations we cannot decode.
+            return result
         return ToolReturn(
             return_value=replace(result, output=None),
             content=[BinaryContent(data=image, media_type="image/png")],
