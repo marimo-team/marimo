@@ -1327,6 +1327,43 @@ class TestAutorunStaleState:
 
 
 class TestDocumentKernelDivergence:
+    @pytest.mark.parametrize("operation", ["run", "edit", "configure"])
+    async def test_run_doc_only_dependencies(
+        self, k: Kernel, operation: str
+    ) -> None:
+        imports = NotebookCell(
+            id=CellId_t("imports"),
+            code="import math",
+            name="",
+            config=CellConfig(hide_code=True, expand_output=True),
+        )
+        calculation = NotebookCell(
+            id=CellId_t("calculation"),
+            code="result = math.sqrt(4)",
+            name="",
+            config=CellConfig(),
+        )
+        unrelated = NotebookCell(
+            id=CellId_t("unrelated"),
+            code="raise RuntimeError('must not run')",
+            name="",
+            config=CellConfig(),
+        )
+        with _ctx(k, extra_doc_cells=[calculation, imports, unrelated]) as ctx:
+            async with ctx as nb:
+                if operation == "edit":
+                    nb.edit_cell("calculation", code="result = math.sqrt(9)")
+                elif operation == "configure":
+                    nb.edit_cell("calculation", hide_code=True)
+                nb.run_cell("calculation")
+                nb.run_cell("imports")
+
+        assert k.globals["result"] == (3 if operation == "edit" else 2)
+        assert set(k.graph.cells) == {"imports", "calculation"}
+        if operation != "run":
+            assert k.graph.cells["imports"].config == imports.config
+        assert "unrelated" not in k.cell_metadata
+
     """Tests for cells that exist in the document but not in the kernel graph."""
 
     async def test_delete_doc_only_cell(self, k: Kernel) -> None:

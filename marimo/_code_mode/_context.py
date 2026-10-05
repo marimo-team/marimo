@@ -1767,11 +1767,31 @@ class AsyncCodeModeContext:
         # Let mutate_graph handle all graph mutations: it properly
         # cleans up globals, UI elements, and lifecycle hooks for
         # deleted/replaced cells via _delete_cell / _deactivate_cell.
+        _run_set = explicit_run or set()
         execution_requests = [
             ExecuteCellCommand(cell_id=e.cell_id, code=e.code)
             for e in code_entries
             if e.code is not None
         ]
+        requested_ids = {request.cell_id for request in execution_requests}
+        # Requested cells may exist only in the document. Register them in
+        # the same mutation so dependency sorting sees the whole run batch.
+        for entry in plan:
+            if (
+                entry.cell_id in _run_set
+                and entry.cell_id not in self.graph.cells
+                and entry.cell_id not in requested_ids
+            ):
+                execution_requests.append(
+                    ExecuteCellCommand(
+                        cell_id=entry.cell_id,
+                        code=existing_code[entry.cell_id],
+                    )
+                )
+                resolved_configs.setdefault(
+                    entry.cell_id,
+                    self._document.get_cell(entry.cell_id).config,
+                )
         deletion_requests = [
             DeleteCellCommand(cell_id=cid)
             for cid in existing_id_set - plan_ids
@@ -1826,7 +1846,6 @@ class AsyncCodeModeContext:
 
         # Run queued cells (explicit run_cell + autorun descendants),
         # filtered to cells that still exist after structural ops.
-        _run_set = explicit_run or set()
         if _run_set and self._kernel.reactive_execution_mode == "autorun":
             _run_set = _run_set | cells_to_run
         if _run_set:
