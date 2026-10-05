@@ -67,7 +67,7 @@ def resolver():
 async def test_bundle_is_relocatable_and_preserves_source_config(
     tmp_path, sources, resolver
 ):
-    code = '# /// script\n# dependencies = ["Example @ https://wheels.example/example-1.0-py3-none-any.whl", "Marimo==0.24.2"]\n# ///\nraise RuntimeError("must not execute")\n'
+    code = '# /// script\n# dependencies = ["Example @ https://wheels.example/example-1.0-py3-none-any.whl", "Marimo[sql]==0.24.2"]\n# ///\nraise RuntimeError("must not execute")\n'
     rewritten, runtime = await bundle_wasm_runtime(
         code, tmp_path, sources=sources
     )

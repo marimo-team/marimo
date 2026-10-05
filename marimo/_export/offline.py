@@ -224,6 +224,10 @@ def _rewrite_requirements(code: str, packages: dict[str, _Package]) -> str:
         requirement = Requirement(str(value))
         name = canonicalize_name(requirement.name)
         requirement.name = name
+        if name == "marimo":
+            # The exported runtime skips requirements named after loaded
+            # modules. With extras, it would ask micropip for marimo.
+            requirement.extras = set()
         if requirement.url and name in packages:
             requirement.url = None
             requirement.specifier = SpecifierSet(
