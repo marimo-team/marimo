@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { z } from "zod";
+import { ModelLimitsSchema, ReasoningOptionSchema } from "./metadata.ts";
 import { Logger } from "./simple_logger.ts";
 
 const ROLES = ["chat", "edit", "rerank", "embed", "autocomplete"] as const;
@@ -38,6 +39,8 @@ export const LLMInfoSchema = z.object({
   output_types: z.array(z.enum(DATA_TYPES)).default([]),
   release_date: ReleaseDateSchema,
   cost: CostSchema.optional(),
+  reasoning_options: z.array(ReasoningOptionSchema).optional(),
+  limits: ModelLimitsSchema.optional(),
 });
 
 /** Top-level shape of `models.yml` / `models.json`: provider id → models. */

@@ -1,3 +1,7 @@
+import type { ModelLimits, ReasoningOption } from "./metadata.ts";
+
+export type { ModelLimits, ReasoningOption } from "./metadata.ts";
+
 export const ROLES = [
   "chat",
   "edit",
@@ -31,6 +35,10 @@ export interface AiModel {
   /** ISO `YYYY-MM-DD` — stored as a string to round-trip through YAML/JSON. */
   release_date: string;
   cost?: AiModelCost;
+  /** Provider-specific controls; omitted when unknown. Does not select an effort. */
+  reasoning_options?: ReasoningOption[];
+  /** Token limits for this provider offering; omitted values are unknown. */
+  limits?: ModelLimits;
 }
 
 export type SyncableProviderId =

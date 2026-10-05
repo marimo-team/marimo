@@ -873,7 +873,7 @@ openai:
     expect(parsed.azure).toHaveLength(1);
   });
 
-  it("does not write the file when there are no new entries", async () => {
+  it("does not write the file when neither entries nor metadata change", async () => {
     const full = `anthropic:
   - name: Claude Opus 4.5
     model: claude-opus-4-5
@@ -891,6 +891,7 @@ azure:
     model: gpt-5.5
 `;
     writeFileSync(yamlPath, full);
+    await syncModels({ modelsYamlPath: yamlPath, modelsDev: FIXTURE_API });
     const before = readFileSync(yamlPath, "utf-8");
 
     const result = await syncModels({
@@ -900,6 +901,7 @@ azure:
 
     const after = readFileSync(yamlPath, "utf-8");
     expect(result.added).toBe(0);
+    expect(result.updated).toBe(0);
     expect(after).toEqual(before);
   });
 });

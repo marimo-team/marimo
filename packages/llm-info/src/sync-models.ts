@@ -8,18 +8,22 @@ import {
   Document,
   isMap,
   isSeq,
+  isScalar,
   parseDocument,
   type YAMLMap,
   type YAMLSeq,
 } from "yaml";
 import { parseCliArgs } from "./cli.ts";
 import type { AiModel, ModelsByProvider } from "./index.ts";
+import { ExistingMetadataSchema } from "./metadata.ts";
 import { Logger } from "./simple_logger.ts";
 import {
   type ExistingByProvider,
   type ExistingEntry,
   MAX_MODELS_PER_PROVIDER,
   mergeModels,
+  deriveMetadataUpdates,
+  PROVIDER_MAP,
 } from "./sources/merge.ts";
 import { fetchModelsDev, type ModelsDevApi } from "./sources/models-dev.ts";
 
@@ -39,6 +43,8 @@ interface SyncOptions {
   modelsDev?: ModelsDevApi;
   write?: boolean;
   mode?: SyncMode;
+  /** Refresh metadata on curated entries without adding models. */
+  metadataOnly?: boolean;
   /** Cap on new entries inserted per provider section. */
   maxPerProvider?: number;
   /** Restrict sync to these marimo provider ids (defaults to all). */
@@ -48,6 +54,7 @@ interface SyncOptions {
 export interface SyncResult {
   added: number;
   preserved: number;
+  updated: number;
   yaml: string;
 }
 
@@ -57,10 +64,11 @@ const FLOW_SEQ_KEYS = new Set([
   "capabilities",
   "input_types",
   "output_types",
+  "values",
 ]);
 
 /** Map keys rendered in flow style (`{a: 1, b: 2}`). */
-const FLOW_MAP_KEYS = new Set(["cost"]);
+const FLOW_MAP_KEYS = new Set(["cost", "limits"]);
 
 /** YAML serializes `Date` as an ISO timestamp; we want plain `YYYY-MM-DD`. */
 function flattenDates(entry: AiModel): Record<string, unknown> {
@@ -117,18 +125,29 @@ function parseExistingModels(yamlText: string): ExistingByProvider {
  */
 function buildEntryNode(doc: Document, entry: AiModel): YAMLMap {
   const node = doc.createNode(flattenDates(entry)) as YAMLMap;
-  for (const pair of node.items) {
-    const key = (pair.key as { value?: unknown })?.value;
-    if (typeof key !== "string") {
-      continue;
+  formatCollections(node);
+  return node;
+}
+
+function formatCollections(node: unknown): void {
+  if (isSeq(node)) {
+    for (const item of node.items) {
+      formatCollections(item);
     }
-    if (FLOW_SEQ_KEYS.has(key) && isSeq(pair.value)) {
-      pair.value.flow = true;
-    } else if (FLOW_MAP_KEYS.has(key) && isMap(pair.value)) {
-      pair.value.flow = true;
+  } else if (isMap(node)) {
+    for (const pair of node.items) {
+      const key = isScalar(pair.key) ? pair.key.value : undefined;
+      if (typeof key !== "string") {
+        continue;
+      }
+      if (FLOW_SEQ_KEYS.has(key) && isSeq(pair.value)) {
+        pair.value.flow = true;
+      } else if (FLOW_MAP_KEYS.has(key) && isMap(pair.value)) {
+        pair.value.flow = true;
+      }
+      formatCollections(pair.value);
     }
   }
-  return node;
 }
 
 /**
@@ -171,12 +190,14 @@ function renderFresh(entries: ModelsByProvider): string {
 
 /**
  * Insert new entries into an existing document, creating provider sections if
- * needed. Preserves comments and ordering of unchanged sections.
+ * needed, and refresh existing metadata. Preserves curated fields and comments.
  */
-function insertIntoDocument(
+function updateDocument(
   yamlText: string,
   newEntries: ModelsByProvider,
-): string {
+  modelsDev: ModelsDevApi,
+  providers: readonly string[] | undefined,
+): { yaml: string; updated: number } {
   const doc = parseDocument(yamlText);
   if (doc.contents == null) {
     // Bootstrap an empty map at the root.
@@ -188,6 +209,7 @@ function insertIntoDocument(
     );
   }
   const root = doc.contents as unknown as YAMLMap;
+  const updated = refreshMetadata(doc, root, modelsDev, providers);
 
   for (const [provider, models] of Object.entries(newEntries)) {
     if (models.length === 0) {
@@ -215,7 +237,74 @@ function insertIntoDocument(
     seq.items.unshift(...newItems);
   }
 
-  return doc.toString({ lineWidth: 0, flowCollectionPadding: false });
+  return {
+    yaml:
+      updated > 0 || Object.keys(newEntries).length > 0
+        ? doc.toString({ lineWidth: 0, flowCollectionPadding: false })
+        : yamlText,
+    updated,
+  };
+}
+
+/** Refresh only sourced metadata, preserving curation and unknown values. */
+function refreshMetadata(
+  doc: Document,
+  root: YAMLMap,
+  modelsDev: ModelsDevApi,
+  providers: readonly string[] | undefined,
+): number {
+  let updated = 0;
+  const providerFilter = providers ? new Set(providers) : null;
+  for (const pair of root.items) {
+    const provider = isScalar(pair.key) ? pair.key.value : undefined;
+    if (typeof provider !== "string" || !isSeq(pair.value)) {
+      continue;
+    }
+    if (providerFilter && !providerFilter.has(provider)) {
+      continue;
+    }
+    const sourceProviders = Object.entries(PROVIDER_MAP)
+      .filter(([, target]) => target === provider)
+      .map(([source]) => source);
+    for (const item of pair.value.items) {
+      if (!isMap(item)) {
+        continue;
+      }
+      const modelId = item.get("model");
+      if (typeof modelId !== "string") {
+        continue;
+      }
+      // Same first-source precedence as new models; no cross-provider fallback.
+      const source = sourceProviders
+        .map((id) => modelsDev[id]?.models[modelId])
+        .find((model) => model !== undefined);
+      if (!source) {
+        continue;
+      }
+      let changed = false;
+      const metadataValues = deriveMetadataUpdates(
+        source,
+        ExistingMetadataSchema.parse(item.toJSON()),
+      );
+      for (const [field, value] of Object.entries(metadataValues)) {
+        const previous = item.get(field, true);
+        if (JSON.stringify(previous?.toJSON()) === JSON.stringify(value)) {
+          continue;
+        }
+        const metadata = doc.createNode({ [field]: value });
+        formatCollections(metadata);
+        if (!isMap(metadata)) {
+          continue;
+        }
+        item.set(field, metadata.get(field, true));
+        changed = true;
+      }
+      if (changed) {
+        updated++;
+      }
+    }
+  }
+  return updated;
 }
 
 function findProviderSeq(root: YAMLMap, provider: string): YAMLSeq | null {
@@ -241,9 +330,13 @@ export async function syncModels(options: SyncOptions): Promise<SyncResult> {
     modelsYamlPath,
     write = true,
     mode = "append",
+    metadataOnly = false,
     maxPerProvider,
     providers,
   } = options;
+  if (metadataOnly && mode === "replace") {
+    throw new Error("Metadata-only sync cannot replace the catalog");
+  }
   const modelsDev = options.modelsDev ?? (await fetchModelsDev());
 
   // `replace` mode pretends the file is empty so everything is treated as new.
@@ -251,25 +344,24 @@ export async function syncModels(options: SyncOptions): Promise<SyncResult> {
     mode === "replace" ? "" : readFileSync(modelsYamlPath, "utf-8");
   const existing = parseExistingModels(existingText);
   const summary = mergeModels(existing, modelsDev, {
-    maxPerProvider,
+    maxPerProvider: metadataOnly ? 0 : maxPerProvider,
     providers,
   });
 
   const addedCount = countEntries(summary.newEntries);
   const isFresh = mode === "replace" || existingText.trim() === "";
-  const yaml = isFresh
-    ? renderFresh(summary.newEntries)
-    : addedCount > 0
-      ? insertIntoDocument(existingText, summary.newEntries)
-      : existingText;
+  const { yaml, updated } = isFresh
+    ? { yaml: renderFresh(summary.newEntries), updated: 0 }
+    : updateDocument(existingText, summary.newEntries, modelsDev, providers);
 
-  if (write && (addedCount > 0 || mode === "replace")) {
+  if (write && (addedCount > 0 || updated > 0 || mode === "replace")) {
     writeFileSync(modelsYamlPath, yaml);
   }
 
   return {
     added: addedCount,
     preserved: summary.preservedCount,
+    updated,
     yaml,
   };
 }
@@ -290,10 +382,10 @@ async function main(): Promise<void> {
     });
 
     Logger.info(
-      `Sync complete: added ${result.added} new model(s), preserved ${result.preserved} existing entries.`,
+      `Sync complete: added ${result.added} new model(s), refreshed metadata for ${result.updated}, preserved ${result.preserved} existing entries.`,
     );
     Logger.info(
-      result.added > 0
+      result.added > 0 || result.updated > 0
         ? "Review the diff (git diff packages/llm-info/data/models.yml) and open a PR."
         : "No changes — models.yml is up to date.",
     );
