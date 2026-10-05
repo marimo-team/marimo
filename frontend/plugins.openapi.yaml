@@ -3725,6 +3725,8 @@ components:
       type: object
       properties:
         value: {}
+      required:
+        - value
     marimo-form.validate.output:
       type:
         - string
@@ -3768,6 +3770,8 @@ components:
           enum:
             - json
             - python
+      required:
+        - jsonData
     marimo-lazy.data:
       type: object
       properties:

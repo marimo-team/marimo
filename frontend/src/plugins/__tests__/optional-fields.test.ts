@@ -52,15 +52,15 @@ describe("chat message metadata", () => {
   });
 });
 
-describe("optional plugin payloads", () => {
-  it.each([{}, { value: undefined }, { value: null }, { value: 0 }])(
+describe("required plugin payloads", () => {
+  it.each([{ value: undefined }, { value: null }, { value: 0 }])(
     "accepts form validation input %j",
     (input) => {
       expect(formFunctions.validate.input.parse(input)).toEqual(input);
     },
   );
 
-  it.each([{}, { jsonData: null }, { jsonData: { count: 0 } }])(
+  it.each([{ jsonData: null }, { jsonData: { count: 0 } }])(
     "accepts JSON output data %j",
     (data) => {
       expect(new JsonOutputPlugin().validator.parse(data)).toEqual({
@@ -69,6 +69,11 @@ describe("optional plugin payloads", () => {
       });
     },
   );
+
+  it("requires the form and JSON output payload keys", () => {
+    expect(formFunctions.validate.input.safeParse({}).success).toBe(false);
+    expect(new JsonOutputPlugin().validator.safeParse({}).success).toBe(false);
+  });
 
   it("requires a Panel message to match the Python RPC arguments", () => {
     expect(

@@ -25,7 +25,7 @@ export class JsonOutputPlugin implements IStatelessPlugin<Data> {
 
   public validator = z.object({
     name: z.string().nullish(),
-    jsonData: z.unknown().optional(),
+    jsonData: z.unknown(),
     valueTypes: z.enum(["json", "python"]).default("python"),
   });
 

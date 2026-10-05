@@ -68,7 +68,7 @@ export const FormPlugin = createPlugin("marimo-form")
   )
   .withFunctions<Functions>({
     validate: rpc
-      .input(z.object({ value: z.unknown().optional() }))
+      .input(z.object({ value: z.unknown() }))
       .output(z.string().nullish()),
   })
   .renderer(({ data, functions, ...rest }) => {
