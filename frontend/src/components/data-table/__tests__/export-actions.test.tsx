@@ -1215,7 +1215,7 @@ describe("ExportActions GeoJSON", () => {
     expect(screen.queryByTestId("export-row-geojson")).not.toBeInTheDocument();
   });
 
-  it("downloads GeoJSON without a clipboard action or PyArrow", async () => {
+  it("downloads GeoJSON without PyArrow", async () => {
     renderExportActions({
       getExportMetadata: vi.fn().mockResolvedValue({
         ...geometryMetadata,
@@ -1233,7 +1233,7 @@ describe("ExportActions GeoJSON", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Download GeoJSON" }),
     );
-    expect(screen.getByRole("button", { name: "Copy GeoJSON" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Copy GeoJSON" })).toBeEnabled();
     await waitFor(() => {
       expect(downloadByURL).toHaveBeenCalledWith(
         "https://example.test/export?download=1&filename=table.geojson",
@@ -1568,5 +1568,192 @@ describe("ExportActions GeoJSON", () => {
     fireEvent.click(screen.getByTestId("export-button"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(downloadAs).not.toHaveBeenCalled();
+  });
+});
+
+describe("ExportActions GeoJSON clipboard", () => {
+  const metadata: ExportMetadata = {
+    ...geometryMetadata,
+    geometry_columns: [
+      geometryMetadata.geometry_columns[0],
+      { name: "boundary", encoding: "objects", crs: "EPSG:3857" },
+    ],
+  };
+  const payload = `{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[20,5]},"properties":{"large":9007199254740993,"secondary":${JSON.stringify(LONG_GEOMETRY_WKT)}}}]}`;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    downloadAs.mockResolvedValue({
+      url: "https://example.test/export",
+      filename: "table.geojson",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(payload),
+      }),
+    );
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("copies the exact FeatureCollection with the selected geometry", async () => {
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue(metadata),
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "GeoJSON options" }),
+    );
+    selectGeometry("boundary");
+    fireEvent.click(screen.getByRole("button", { name: "Copy GeoJSON" }));
+    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith(payload));
+    expect(downloadAs).toHaveBeenCalledWith({
+      format: "geojson",
+      geometry_column: "boundary",
+    });
+    expect(downloadByURL).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith({ title: "Copied to clipboard" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { name: "a missing CRS", metadata: geometryMetadata, choice: "boundary" },
+    {
+      name: "an ambiguous geometry",
+      metadata: {
+        ...metadata,
+        primary_geometry_column: null,
+        default_geometry_column: null,
+      },
+      choice: null,
+    },
+    {
+      name: "missing packages",
+      metadata: {
+        ...metadata,
+        formats: {
+          geojson: {
+            available: false,
+            reason: "Install geopandas.",
+            missing_packages: ["geopandas"],
+          },
+        },
+      },
+      choice: "location",
+    },
+  ])("disables copy for $name", async ({ metadata, choice }) => {
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue(metadata),
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "GeoJSON options" }),
+    );
+    if (choice !== null) {
+      selectGeometry(choice);
+    }
+    expect(screen.getByRole("button", { name: "Copy GeoJSON" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Copy GeoJSON" }));
+    expect(downloadAs).not.toHaveBeenCalled();
+    expect(copyToClipboard).not.toHaveBeenCalled();
+  });
+
+  it("preserves the copy destination and geometry after installation", async () => {
+    downloadAs.mockResolvedValueOnce({
+      url: "",
+      filename: "",
+      code: "missing_packages",
+      missing_packages: ["geopandas"],
+    });
+    const getExportMetadata = vi.fn().mockResolvedValue(metadata);
+    renderExportActions({ getExportMetadata });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "GeoJSON options" }),
+    );
+    selectGeometry("boundary");
+    fireEvent.click(screen.getByRole("button", { name: "Copy GeoJSON" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Install geopandas" }),
+    );
+    expect(copyToClipboard).not.toHaveBeenCalled();
+    await act(async () => mocks.handleInstallPackages.mock.calls[0][1]());
+    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith(payload));
+    expect(downloadAs).toHaveBeenLastCalledWith({
+      format: "geojson",
+      geometry_column: "boundary",
+    });
+    expect(getExportMetadata).toHaveBeenCalledTimes(2);
+    expect(downloadByURL).not.toHaveBeenCalled();
+  });
+
+  it("preserves the choice after a backend failure", async () => {
+    downloadAs.mockResolvedValueOnce({
+      url: "",
+      filename: "",
+      code: "conversion_failed",
+      error: "Invalid geometry.",
+    });
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue(metadata),
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "GeoJSON options" }),
+    );
+    selectGeometry("boundary");
+    fireEvent.click(screen.getByRole("button", { name: "Copy GeoJSON" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Failed to copy to clipboard",
+    );
+    expect(copyToClipboard).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("combobox", { name: "Primary geometry" }),
+    ).toHaveDisplayValue("boundary");
+    fireEvent.click(screen.getByRole("button", { name: "Copy GeoJSON" }));
+    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith(payload));
+  });
+
+  it("reports clipboard rejection in the GeoJSON row", async () => {
+    vi.mocked(copyToClipboard).mockRejectedValueOnce(
+      new Error("Clipboard blocked"),
+    );
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue(metadata),
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Copy GeoJSON" }),
+    );
+    const alert = await screen.findByRole("alert");
+    expect(screen.getByTestId("export-row-geojson")).toContainElement(alert);
+    expect(alert).toHaveTextContent("Clipboard blocked");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("does not copy a late response after the source changes", async () => {
+    let resolveText: (value: string) => void = () => undefined;
+    const text = vi.fn().mockReturnValue(
+      new Promise<string>((resolve) => {
+        resolveText = resolve;
+      }),
+    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, text }));
+    const getExportMetadata = vi.fn().mockResolvedValue(metadata);
+    const { rerenderExportActions } = renderExportActions({
+      getExportMetadata,
+      metadataSource: "first",
+    });
+    await openDialog();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Copy GeoJSON" }),
+    );
+    await waitFor(() => expect(text).toHaveBeenCalled());
+    rerenderExportActions({ getExportMetadata, metadataSource: "second" });
+    await act(async () => resolveText(payload));
+    expect(copyToClipboard).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });
