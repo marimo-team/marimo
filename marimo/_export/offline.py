@@ -188,11 +188,10 @@ async def _download_all(
 async def _fetch_in_python(route: Route) -> None:
     """Fulfill a resolver page request from Python, so sources need no CORS."""
     try:
+        # Without micropip's Accept, indexes answer with HTML. micropip 0.11
+        # leaves relative file URLs in JSON index pages unresolved.
         response = await asyncio.to_thread(
-            requests.get,
-            route.request.url,
-            headers={"Accept": route.request.headers.get("accept", "*/*")},
-            timeout=60,
+            requests.get, route.request.url, timeout=60
         )
     except Exception:
         # An unsettled route stalls the page until the resolver timeout.

@@ -224,10 +224,10 @@ async def test_page_requests_are_fetched_in_python_with_cors():
     page = Response(200, b"<a>", {"Content-Type": "text/html"})
     with mock.patch.object(requests, "get", return_value=page) as get:
         await _fetch_in_python(route)
+    # Devpi serves JSON with relative file URLs when asked, which micropip
+    # cannot resolve. Its HTML pages resolve against the page URL.
     get.assert_called_once_with(
-        "https://mirror.example/simple/humanize/",
-        headers={"Accept": "application/vnd.pypi.simple.v1+json"},
-        timeout=60,
+        "https://mirror.example/simple/humanize/", timeout=60
     )
     route.fulfill.assert_awaited_once_with(
         status=200,
