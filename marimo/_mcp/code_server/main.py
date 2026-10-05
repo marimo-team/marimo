@@ -99,10 +99,10 @@ def setup_code_mcp_server(
 
         The code runs in the scratchpad — a temporary execution environment
         that has access to all variables defined in the notebook but does not
-        affect the notebook's cells or dependency graph. Execution has a
-        five-minute server timeout. A timeout or cancellation of the server
-        request signals a kernel interrupt before releasing the scratchpad
-        lock. Modern MCP HTTP clients cancel by closing the request stream.
+        affect the notebook's cells or dependency graph. A timeout or
+        cancellation of the server request signals a kernel interrupt before
+        releasing the scratchpad lock. Modern MCP HTTP clients cancel by
+        closing the request stream.
 
         Args:
             session_id: The session ID of the notebook (from list_sessions).
