@@ -30,6 +30,9 @@ OPERATIONS = [
     "notebook.delete",
     "notebook.open",
     "notebook.export",
+    "runtime.start",
+    "runtime.stop",
+    "runtime.restart",
 ]
 """What this host can do, as advertised in its `host` object."""
 

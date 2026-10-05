@@ -12,7 +12,7 @@ from starlette.testclient import TestClient
 
 from marimo._host.host import Host
 from marimo._host.model import HostState, Indexed, Notebook, Project
-from marimo._host.transitions import Action, KernelReady
+from marimo._host.transitions import Action, KernelExited, KernelReady
 from marimo._server.host.context import HOST_API_PATH, HostContext
 from marimo._server.host.lifespan import OPERATIONS
 from marimo._server.main import create_starlette_app
@@ -194,6 +194,91 @@ def test_a_server_that_is_not_a_host_says_so(app: Starlette) -> None:
 
 
 # Runtimes
+
+
+def test_starting_a_runtime_answers_202_then_200(
+    client: TestClient, app: Starlette
+) -> None:
+    first = client.put(runtime_path(), json={}, headers=key("k1"))
+    assert first.status_code == 202, first.text
+    runtime = first.json()
+    assert runtime["status"] == "starting"
+    assert runtime["notebook_id"] == NOTEBOOK
+    assert runtime["generation"] == 0
+    assert runtime["id"].startswith("rt-")
+
+    # The same request again gets the same reply, without new work.
+    again = client.put(runtime_path(), json={}, headers=key("k1"))
+    assert (again.status_code, again.json()) == (202, runtime)
+    assert len(app.state.host_context.runtime.performed) == 1
+
+    # Another request for a notebook that already has one: 200.
+    other = client.put(runtime_path(), json={}, headers=key("k2"))
+    assert other.status_code == 200
+    assert other.json()["id"] == runtime["id"]
+
+    # The same key with a different request is a conflict.
+    reused = client.put(
+        runtime_path(),
+        json={"decisions": {"environment": "sandbox"}},
+        headers=key("k1"),
+    )
+    assert reused.status_code == 409
+
+
+def test_start_needs_a_key_and_a_known_notebook(client: TestClient) -> None:
+    missing_key = client.put(runtime_path(), json={}, headers=AUTH)
+    assert missing_key.status_code == 400
+    assert missing_key.json()["type"].endswith("/invalid-request")
+
+    unknown = client.put(
+        url("/notebooks/nope/runtime"), json={}, headers=key("k")
+    )
+    assert unknown.status_code == 404
+
+    sandbox = client.put(
+        runtime_path(),
+        json={"decisions": {"environment": "sandbox"}},
+        headers=key("k2"),
+    )
+    assert sandbox.status_code == 409
+    assert sandbox.json()["type"].endswith("/conflict")
+
+
+def test_stop_and_restart_follow_the_lifecycle(
+    client: TestClient, app: Starlette
+) -> None:
+    none = client.delete(runtime_path(), headers=key("a"))
+    assert none.status_code == 409
+    assert none.json()["type"].endswith("/no-runtime")
+
+    started = client.put(runtime_path(), json={}, headers=key("b")).json()
+    runtime_id = RuntimeId(started["id"])
+    too_early = client.post(runtime_path() + "/restart", headers=key("c"))
+    assert too_early.status_code == 409
+    assert too_early.json()["type"].endswith("/conflict")
+
+    host_of(app).observe(KernelReady(runtime_id, 0, "0.25.0"))
+    restarted = client.post(runtime_path() + "/restart", headers=key("d"))
+    assert restarted.status_code == 202
+    assert restarted.json()["generation"] == 1
+    assert restarted.json()["status"] == "starting"
+
+    stopped = client.delete(runtime_path(), headers=key("e"))
+    assert stopped.status_code == 202
+    assert stopped.json()["status"] == "terminating"
+
+
+def test_stopping_a_failed_runtime_removes_it_at_once(
+    client: TestClient, app: Starlette
+) -> None:
+    started = client.put(runtime_path(), json={}, headers=key("a")).json()
+    host_of(app).observe(KernelExited(RuntimeId(started["id"]), 0, "crashed"))
+
+    stopped = client.delete(runtime_path(), headers=key("b"))
+    assert stopped.status_code == 202
+    assert stopped.json()["status"] == "terminating"
+    assert host_of(app).state.notebooks[NOTEBOOK].runtime is None
 
 
 # Streams

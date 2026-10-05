@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import threading
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -23,21 +24,25 @@ from starlette.routing import Mount, Route, Router
 
 from marimo import _loggers
 from marimo._host import protocol, wire
-from marimo._host.model import Attachment
+from marimo._host.model import Attachment, Runtime, Terminating
 from marimo._host.stream import CATALOG, NOTEBOOK
 from marimo._host.transitions import (
     Attach,
     Conflict,
     Detach,
+    NoRuntime,
     NotebookGone,
     NotFound,
+    RestartRuntime,
+    StartRuntime,
+    StopRuntime,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import format_url_host, open_url_in_browser
 from marimo._server.host.context import KeyReused
 from marimo._server.sse import SSE_HEADERS
-from marimo._types.ids import AttachmentId, NotebookId
-from marimo._utils.ids import new_id
+from marimo._types.ids import AttachmentId, NotebookId, RuntimeId
+from marimo._utils.ids import new_id, new_stable_session_id
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
@@ -547,18 +552,111 @@ def _file_of(context: HostContext, notebook: Notebook) -> Path | None:
 
 
 async def start_runtime(request: Request) -> Response:
-    """`runtime.start` is not offered yet; see the host's operations."""
-    return _offered_or_501(request, "runtime.start")
+    """`runtime.start`: makes sure the notebook has a runtime.
+
+    `202` with the runtime when one was started, `200` with the one the
+    notebook already had. `409` when the client decides on an environment
+    this server cannot provide.
+    """
+    context = _context(request)
+    if (refused := _offered(context, "runtime.start")) is not None:
+        return refused
+    keyed = await _keyed(request, context)
+    if isinstance(keyed, Response):
+        return keyed
+    key, raw, fingerprint = keyed
+    notebook = _notebook(request, context)
+    if isinstance(notebook, Response):
+        return notebook
+    body = _decode(raw, protocol.StartRuntimeRequest)
+    if isinstance(body, Response):
+        return body
+    assert isinstance(body, protocol.StartRuntimeRequest)
+
+    sandbox = context.runtime.sandbox
+    if body.decisions is not msgspec.UNSET:
+        environment = body.decisions.get("environment")
+        if environment is not None and (environment == "sandbox") != sandbox:
+            where = "in a sandbox" if sandbox else "in its environment"
+            return problem(
+                409, "conflict", f"This host runs every kernel {where}"
+            )
+
+    before = notebook.runtime
+    try:
+        after = context.host.command(
+            StartRuntime(
+                notebook.id,
+                RuntimeId(new_stable_session_id()),
+                _utcnow(),
+                sandbox,
+            ),
+            request_id=key,
+        )
+    except NotFound:
+        return problem(404, "not-found", "No such notebook")
+    runtime = after.notebooks[notebook.id].runtime
+    assert runtime is not None
+    status = 200 if before is not None else 202
+    return _remember(
+        context, key, fingerprint, status, wire.runtime(notebook.id, runtime)
+    )
 
 
 async def stop_runtime(request: Request) -> Response:
-    """`runtime.stop` is not offered yet; see the host's operations."""
-    return _offered_or_501(request, "runtime.stop")
+    """`runtime.stop`: ends the runtime. `202` with it terminating."""
+    context = _context(request)
+    if (refused := _offered(context, "runtime.stop")) is not None:
+        return refused
+    keyed = await _keyed(request, context)
+    if isinstance(keyed, Response):
+        return keyed
+    key, _, fingerprint = keyed
+    notebook = _notebook(request, context)
+    if isinstance(notebook, Response):
+        return notebook
+    before = notebook.runtime
+    try:
+        after = context.host.command(StopRuntime(notebook.id), request_id=key)
+    except NoRuntime:
+        return problem(409, "no-runtime", "The notebook has no runtime")
+    assert before is not None
+    current = after.notebooks[notebook.id].runtime
+    runtime = current if current is not None else _as_terminating(before)
+    return _remember(
+        context, key, fingerprint, 202, wire.runtime(notebook.id, runtime)
+    )
+
+
+def _as_terminating(runtime: Runtime) -> Runtime:
+    return replace(runtime, lifecycle=Terminating())
 
 
 async def restart_runtime(request: Request) -> Response:
-    """`runtime.restart` is not offered yet; see the host's operations."""
-    return _offered_or_501(request, "runtime.restart")
+    """`runtime.restart`: replaces the kernel. `202` with the runtime."""
+    context = _context(request)
+    if (refused := _offered(context, "runtime.restart")) is not None:
+        return refused
+    keyed = await _keyed(request, context)
+    if isinstance(keyed, Response):
+        return keyed
+    key, _, fingerprint = keyed
+    notebook = _notebook(request, context)
+    if isinstance(notebook, Response):
+        return notebook
+    try:
+        after = context.host.command(
+            RestartRuntime(notebook.id), request_id=key
+        )
+    except NoRuntime:
+        return problem(409, "no-runtime", "The notebook has no runtime")
+    except Conflict as e:
+        return problem(409, "conflict", str(e))
+    runtime = after.notebooks[notebook.id].runtime
+    assert runtime is not None
+    return _remember(
+        context, key, fingerprint, 202, wire.runtime(notebook.id, runtime)
+    )
 
 
 # Executions
