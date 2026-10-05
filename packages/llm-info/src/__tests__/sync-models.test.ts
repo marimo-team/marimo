@@ -891,7 +891,11 @@ azure:
     model: gpt-5.5
 `;
     writeFileSync(yamlPath, full);
-    await syncModels({ modelsYamlPath: yamlPath, modelsDev: FIXTURE_API });
+    const first = await syncModels({
+      modelsYamlPath: yamlPath,
+      modelsDev: FIXTURE_API,
+    });
+    expect(first.updated).toBeGreaterThan(0);
     const before = readFileSync(yamlPath, "utf-8");
 
     const result = await syncModels({

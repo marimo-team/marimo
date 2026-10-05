@@ -2,7 +2,11 @@
 
 import { z } from "zod";
 import type { AiModel } from "../index.ts";
-import { ModelLimitsSchema, ReasoningOptionSchema } from "../metadata.ts";
+import {
+  CostSchema,
+  ModelLimitsSchema,
+  ReasoningOptionSchema,
+} from "../metadata.ts";
 import { Logger } from "../simple_logger.ts";
 
 export const ModelsDevModelSchema = z.object({
@@ -20,13 +24,7 @@ export const ModelsDevModelSchema = z.object({
     })
     .optional(),
   limit: ModelLimitsSchema.optional(),
-  cost: z
-    .object({
-      input: z.number().optional(),
-      output: z.number().optional(),
-    })
-    .partial()
-    .optional(),
+  cost: CostSchema.optional(),
 });
 
 export type ModelsDevModel = z.infer<typeof ModelsDevModelSchema>;
@@ -120,7 +118,7 @@ export async function fetchModelsDev(
   return parseModelsDev(json);
 }
 
-/** Only copy metadata from an exact provider/model offering. */
+/** Derive reasoning controls and token limits supplied by an upstream model. */
 export function deriveModelMetadata(
   source: ModelsDevModel,
 ): Pick<AiModel, "reasoning_options" | "limits"> {

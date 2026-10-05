@@ -48,6 +48,6 @@ including zero. Omitted metadata is unknown, not an unsupported capability.
 Do not copy options between providers or normalize model aliases to enrich
 metadata: their endpoints can expose different controls and limits.
 
-Use `--metadata-only` to refresh all machine-sourced metadata in the current catalog without adding models. Normal sync performs the same refresh and also adds new models. It
+Use `--metadata-only` to refresh all machine-sourced metadata in the current catalog without adding models. `--metadata-only`
 cannot be combined with `--replace`. When upstream omits a field or no exact
 provider/model match exists, existing metadata is preserved.

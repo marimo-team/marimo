@@ -6,7 +6,7 @@ import type {
   Role,
   SyncableProviderId,
 } from "../index.ts";
-import type { ExistingMetadata } from "../metadata.ts";
+import { CAPABILITIES, type ExistingMetadata } from "../metadata.ts";
 import {
   deriveModelMetadata,
   type ModelsDevApi,
@@ -186,7 +186,7 @@ export function deriveMetadataUpdates(
       thinking: source.reasoning,
       tool_calling: source.tool_call,
     };
-    metadata.capabilities = (["thinking", "tool_calling"] as const).filter(
+    metadata.capabilities = CAPABILITIES.filter(
       (capability) =>
         flags[capability] ?? previous.capabilities.includes(capability),
     );

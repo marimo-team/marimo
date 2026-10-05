@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import nodePath from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { parse } from "yaml";
+import { parse, parseDocument } from "yaml";
 import { parseCliArgs } from "../cli.ts";
 import { ModelsByProviderSchema } from "../generate.ts";
 import { ModelLimitsSchema, ReasoningOptionSchema } from "../metadata.ts";
@@ -279,6 +279,94 @@ describe("metadata sync", () => {
     expect(model.input_types).toEqual(["text"]);
     expect(model.output_types).toEqual(["text", "pdf"]);
     expect(model).not.toHaveProperty("cost");
+  });
+
+  it.each([true, false])(
+    "preserves invalid entries and continues syncing (metadataOnly=%s)",
+    async (metadataOnly) => {
+      const invalid = `  - name: Legacy model
+    model: model
+    capabilities: [unknown-capability]
+    cost: {input: unknown}
+`;
+      writeFileSync(path, curated.replace("google:\n", `google:\n${invalid}`));
+      const result = await syncModels({
+        modelsYamlPath: path,
+        modelsDev: upstream,
+        metadataOnly,
+      });
+      const models = parse(result.yaml).google;
+      expect(
+        models.find((model: { name: string }) => model.name === "Legacy model"),
+      ).toEqual({
+        name: "Legacy model",
+        model: "model",
+        capabilities: ["unknown-capability"],
+        cost: { input: "unknown" },
+      });
+      expect(
+        models.find((model: { name: string }) => model.name === "Curated name")
+          .limits,
+      ).toEqual({ context: 128000, output: 8192 });
+      expect(result.updated).toBe(1);
+      expect(result.added).toBe(metadataOnly ? 0 : 1);
+    },
+  );
+
+  it("preserves comments on refreshed scalar and collection values", async () => {
+    const annotated = curated
+      .replace(
+        "release_date: 2026-01-01",
+        "release_date: 2026-01-01 # release note",
+      )
+      .replace(
+        "limits: {context: 1000}",
+        "limits: {context: 1000} # limit note",
+      );
+    const document = parseDocument(annotated);
+    const changed = parseModelsDev({
+      google: {
+        models: {
+          model: {
+            id: "model",
+            name: "Model",
+            release_date: "2026-03-01",
+            limit: { context: 2000 },
+          },
+        },
+      },
+    });
+    // A comment between the key and its value belongs to the value node.
+    const limits = document.getIn(
+      ["google", 0, "limits"],
+      true,
+    ) as import("yaml").YAMLMap;
+    limits.flow = true;
+    limits.comment = " limit note";
+    limits.commentBefore = " limit rationale";
+    writeFileSync(
+      path,
+      document.toString({ lineWidth: 0, flowCollectionPadding: false }),
+    );
+    const result = await syncModels({
+      modelsYamlPath: path,
+      modelsDev: changed,
+      metadataOnly: true,
+    });
+    const refreshed = parseDocument(result.yaml);
+    const newLimits = refreshed.getIn(
+      ["google", 0, "limits"],
+      true,
+    ) as import("yaml").YAMLMap;
+    const release = refreshed.getIn(
+      ["google", 0, "release_date"],
+      true,
+    ) as import("yaml").Scalar;
+    expect(newLimits.comment).toBe(" limit note");
+    expect(newLimits.commentBefore).toBe(" limit rationale");
+    expect(release.comment).toBe(" release note");
+    expect(newLimits.toJSON()).toEqual({ context: 2000 });
+    expect(release.value).toBe("2026-03-01");
   });
 
   it("honors provider filters and dry runs", async () => {

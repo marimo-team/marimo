@@ -1,6 +1,11 @@
-import type { ModelLimits, ReasoningOption } from "./metadata.ts";
+import type {
+  AiModelCost,
+  CAPABILITIES,
+  ModelLimits,
+  ReasoningOption,
+} from "./metadata.ts";
 
-export type { ModelLimits, ReasoningOption } from "./metadata.ts";
+export type { AiModelCost, ModelLimits, ReasoningOption } from "./metadata.ts";
 
 export const ROLES = [
   "chat",
@@ -11,18 +16,8 @@ export const ROLES = [
 ] as const;
 export type Role = (typeof ROLES)[number];
 
-type Capability = "thinking" | "tool_calling";
+type Capability = (typeof CAPABILITIES)[number];
 type DataType = "text" | "image" | "pdf";
-
-/**
- * Per-token pricing in USD per 1M tokens, mirroring the `cost` block on
- * `models.dev`. All fields are optional — open-weights / self-hosted models
- * usually have none.
- */
-export interface AiModelCost {
-  input?: number;
-  output?: number;
-}
 
 export interface AiModel {
   name: string;

@@ -281,11 +281,15 @@ function refreshMetadata(
       if (!source) {
         continue;
       }
+      const existing = ExistingMetadataSchema.safeParse(item.toJSON());
+      if (!existing.success) {
+        Logger.warn(
+          `Skipping metadata refresh for ${provider}/${modelId}: ${existing.error.issues[0]?.message}`,
+        );
+        continue;
+      }
       let changed = false;
-      const metadataValues = deriveMetadataUpdates(
-        source,
-        ExistingMetadataSchema.parse(item.toJSON()),
-      );
+      const metadataValues = deriveMetadataUpdates(source, existing.data);
       for (const [field, value] of Object.entries(metadataValues)) {
         const previous = item.get(field, true);
         if (JSON.stringify(previous?.toJSON()) === JSON.stringify(value)) {
@@ -296,7 +300,12 @@ function refreshMetadata(
         if (!isMap(metadata)) {
           continue;
         }
-        item.set(field, metadata.get(field, true));
+        const replacement = metadata.get(field, true);
+        if (previous && replacement) {
+          replacement.comment = previous.comment;
+          replacement.commentBefore = previous.commentBefore;
+        }
+        item.set(field, replacement);
         changed = true;
       }
       if (changed) {

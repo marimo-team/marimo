@@ -2,6 +2,14 @@
 
 import { z } from "zod";
 
+export const CAPABILITIES = ["thinking", "tool_calling"] as const;
+
+/** USD per million tokens; missing prices are unknown. */
+export const CostSchema = z.object({
+  input: z.number().optional(),
+  output: z.number().optional(),
+});
+
 export const ReasoningEffortSchema = z.enum([
   "none",
   "minimal",
@@ -45,11 +53,11 @@ export type ModelLimits = z.infer<typeof ModelLimitsSchema>;
 
 export const ExistingMetadataSchema = z.object({
   reasoning_options: z.array(ReasoningOptionSchema).optional(),
-  capabilities: z.array(z.enum(["thinking", "tool_calling"])).default([]),
-  cost: z
-    .object({ input: z.number().optional(), output: z.number().optional() })
-    .optional(),
+  capabilities: z.array(z.enum(CAPABILITIES)).default([]),
+  cost: CostSchema.optional(),
   limits: ModelLimitsSchema.optional(),
 });
 
 export type ExistingMetadata = z.infer<typeof ExistingMetadataSchema>;
+
+export type AiModelCost = z.infer<typeof CostSchema>;
