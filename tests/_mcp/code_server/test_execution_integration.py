@@ -22,6 +22,16 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
 
+# Windows schedules KeyboardInterrupt at a Python evaluation boundary;
+# short sleeps let it arrive promptly without ending the workload early.
+_LONG_RUNNING_CODE = """\
+import time
+deadline = time.monotonic() + 60
+while time.monotonic() < deadline:
+    time.sleep(0.05)
+"""
+
+
 @pytest.fixture(scope="module")
 def server(
     tmp_path_factory: pytest.TempPathFactory,
@@ -44,7 +54,7 @@ async def test_client_cancellation_interrupts_kernel_and_recovers(
                 "execute_code",
                 {
                     "session_id": server.session_id,
-                    "code": "import time; time.sleep(60)",
+                    "code": _LONG_RUNNING_CODE,
                 },
             )
         )
@@ -96,7 +106,7 @@ async def test_http_stream_disconnect_interrupts_kernel_and_recovers(
                     "name": "execute_code",
                     "arguments": {
                         "session_id": server.session_id,
-                        "code": "import time; time.sleep(60)",
+                        "code": _LONG_RUNNING_CODE,
                     },
                     "_meta": {
                         PROTOCOL_VERSION_META_KEY: "2026-07-28",
