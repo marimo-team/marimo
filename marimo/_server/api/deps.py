@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from starlette.websockets import WebSocket
     from uvicorn import Server
 
+    from marimo._server.host.context import HostContext
     from marimo._session import Session
 
 LOGGER = loggers.marimo_logger()
@@ -73,6 +74,11 @@ class AppStateBase:
     @property
     def server(self) -> Server:
         return self.state.server
+
+    @property
+    def host_context(self) -> HostContext | None:
+        """The host protocol's state, once its lifespan has built it."""
+        return getattr(self.state, "host_context", None)
 
     @property
     def config_manager(self) -> MarimoConfigManager:
