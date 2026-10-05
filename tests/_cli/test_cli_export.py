@@ -23,6 +23,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._export.local_modules import _ruff_import_graph
 from marimo._export.local_wheels import _local_wheel_path
 from marimo._output.utils import uri_decode_component
+from marimo._schemas.export_options import WASMRuntimeConfig
 from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils import async_path
 from marimo._utils.paths import marimo_package_path
@@ -287,9 +288,29 @@ class TestExportHTML:
         assert mount_config["layout"] == {"type": "slides", "data": {}}
 
     @staticmethod
-    def test_cli_export_html_wasm_offline(tmp_path: Path) -> None:
-        from marimo._schemas.export_options import WASMRuntimeConfig
-
+    @pytest.mark.parametrize(
+        ("source_args", "expected_sources"),
+        [
+            ((), WASMRuntimeConfig()),
+            (
+                (
+                    "--pyodide-index-url",
+                    "https://mirror.example/pyodide/",
+                    "--pypi-index-url",
+                    "https://mirror.example/simple/",
+                ),
+                WASMRuntimeConfig(
+                    pyodide_index_url="https://mirror.example/pyodide/",
+                    pypi_index_url="https://mirror.example/simple/",
+                ),
+            ),
+        ],
+    )
+    def test_cli_export_html_wasm_offline(
+        tmp_path: Path,
+        source_args: tuple[str, ...],
+        expected_sources: WASMRuntimeConfig,
+    ) -> None:
         notebook = tmp_path / "notebook.py"
         _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
         out_dir = tmp_path / "out"
@@ -307,7 +328,7 @@ class TestExportHTML:
             local_wheel_paths: tuple[Path, ...],
         ):
             assert output_dir == out_dir
-            assert sources == WASMRuntimeConfig()
+            assert sources == expected_sources
             assert local_wheel_paths == ()
             return code, runtime
 
@@ -330,6 +351,7 @@ class TestExportHTML:
                 "--output",
                 str(out_dir),
                 "--offline",
+                *source_args,
             )
         _assert_success(result)
         browser_check.assert_awaited_once_with()
@@ -338,6 +360,67 @@ class TestExportHTML:
         assert 'data-pyodide-index-url="./pyodide/"' in html
         assert 'data-pyodide-lockfile-url="./lockfile/test.json"' in html
         assert 'data-pypi-index-url="./packages/index/"' in html
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "source_flag", ["--pyodide-index-url", "--pypi-index-url"]
+    )
+    def test_cli_export_html_wasm_sources_require_offline(
+        tmp_path: Path, source_flag: str
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+        out_dir = tmp_path / "out"
+        result = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--output",
+            str(out_dir),
+            "--no-sandbox",
+            source_flag,
+            "https://mirror.example/",
+        )
+        assert result.exit_code == 2
+        assert "require --offline" in result.output
+        assert not out_dir.exists()
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("url", "message"),
+        [
+            ("./pyodide/", "Expected an http(s) URL"),
+            ("file:///tmp/pyodide/", "Expected an http(s) URL"),
+            ("http://[::1/simple/", "Expected an http(s) URL"),
+            (
+                "https://user:secret-token@mirror.example/simple/",
+                "Credentials in the URL are not supported",
+            ),
+            (
+                "https://mirror.example/simple/?token=secret-token",
+                "Expected a URL without a query or fragment",
+            ),
+        ],
+    )
+    def test_cli_export_html_wasm_rejects_invalid_source_urls(
+        tmp_path: Path, url: str, message: str
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+        out_dir = tmp_path / "out"
+        result = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--output",
+            str(out_dir),
+            "--offline",
+            "--no-sandbox",
+            "--pypi-index-url",
+            url,
+        )
+        assert result.exit_code == 2
+        assert message in result.output
+        assert "secret-token" not in result.output
+        assert not out_dir.exists()
 
     @staticmethod
     @pytest.mark.parametrize("playwright_installed", [False, True])

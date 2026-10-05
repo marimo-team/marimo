@@ -4,13 +4,23 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 import threading
 from unittest import mock
+from urllib.parse import urlparse
 
 import pytest
 
-from marimo._export.offline import _resolve_packages, bundle_wasm_runtime
+from marimo._export.offline import (
+    OfflineExportError,
+    _fetch_in_python,
+    _lock_required,
+    _resolve_packages,
+    bundle_wasm_runtime,
+)
+from marimo._pyodide.pyodide_constraints import PYODIDE_VERSION
 from marimo._schemas.export_options import WASMRuntimeConfig
+from marimo._utils import requests
 from marimo._utils.requests import Response
 
 
@@ -36,11 +46,12 @@ def resolver():
         "install_dir": "site",
     }
     lock = {"info": {"python": "3.14.0"}, "packages": {"example": package}}
+    pyodide_lock = {"info": lock["info"], "packages": {}}
 
     def fetch(url: str, **kwargs: object):
         del kwargs
         data = (
-            json.dumps(lock).encode() if url.endswith("lock.json") else wheel
+            json.dumps(pyodide_lock).encode() if "lock.json" in url else wheel
         )
         return Response(200, data, {})
 
@@ -59,7 +70,7 @@ def resolver():
 async def test_bundle_is_relocatable_and_preserves_source_config(
     tmp_path, sources, resolver
 ):
-    code = '# /// script\n# dependencies = ["Example @ https://wheels.example/example-1.0-py3-none-any.whl", "Marimo==0.24.2"]\n# ///\nraise RuntimeError("must not execute")\n'
+    code = '# /// script\n# dependencies = ["Example @ https://wheels.example/example-1.0-py3-none-any.whl", "Marimo[sql]==0.24.2"]\n# ///\nraise RuntimeError("must not execute")\n'
     rewritten, runtime = await bundle_wasm_runtime(
         code, tmp_path, sources=sources
     )
@@ -71,7 +82,8 @@ async def test_bundle_is_relocatable_and_preserves_source_config(
         == sources.pyodide_index_url
     )
     assert (
-        resolver.call_args.kwargs["pypi_index_url"] == sources.pypi_index_url
+        resolver.call_args.kwargs["pypi_index_url"]
+        == "https://packages.example/simple"
     )
     assert runtime.pyodide_index_url == "./pyodide/"
     assert runtime.pypi_index_url == "./packages/index/"
@@ -98,6 +110,180 @@ async def test_bundle_is_relocatable_and_preserves_source_config(
         "python_stdlib.zip",
     ]
     assert not list(tmp_path.glob(".marimo-offline-*"))
+
+
+@pytest.mark.asyncio
+async def test_pyodide_packages_install_from_the_bundled_lockfile(
+    tmp_path, sources, resolver
+):
+    # The exported runtime prefers index pages over the lockfile, and Pyodide's
+    # pandas wheel requires tzdata, which its lockfile entry omits.
+    packages = resolver.return_value["packages"]
+    packages["pandas"] = {
+        **packages["example"],
+        "name": "pandas",
+        "file_name": "pandas-3.0.2-cp314-cp314-pyodide_2026_0_wasm32.whl",
+    }
+    pyodide_lock = {"info": {}, "packages": {"pandas": packages["pandas"]}}
+    responses = {"lock.json": json.dumps(pyodide_lock).encode()}
+
+    def fetch(url: str, **kwargs: object):
+        del kwargs
+        data = responses.get(url.rsplit("/", 1)[-1], b"downloaded wheel")
+        return Response(200, data, {})
+
+    with mock.patch.object(requests, "get", side_effect=fetch):
+        _, runtime = await bundle_wasm_runtime(
+            "pass", tmp_path, sources=sources
+        )
+    assert runtime.pyodide_lockfile_url is not None
+    lock = json.loads((tmp_path / runtime.pyodide_lockfile_url).read_text())
+    assert sorted(lock["packages"]) == ["example", "pandas"]
+    index = tmp_path / "packages/index"
+    assert [path.name for path in index.iterdir()] == ["example"]
+
+
+@pytest.mark.asyncio
+async def test_custom_pyodide_distribution_supplies_runtime_and_lockfile(
+    tmp_path, resolver
+):
+    # Records the URLs requested from the resolver fixture's fake.
+    with mock.patch.object(requests, "get", wraps=requests.get) as get:
+        await bundle_wasm_runtime(
+            "pass",
+            tmp_path,
+            sources=WASMRuntimeConfig(
+                pyodide_index_url="https://mirror.example/pyodide"
+            ),
+        )
+    assert sorted(call.args[0] for call in get.call_args_list) == [
+        "https://mirror.example/pyodide/pyodide-lock.json",
+        "https://mirror.example/pyodide/pyodide.asm.mjs",
+        "https://mirror.example/pyodide/pyodide.asm.wasm",
+        "https://mirror.example/pyodide/pyodide.mjs",
+        "https://mirror.example/pyodide/python_stdlib.zip",
+        "https://wheels.example/example-1.0-py3-none-any.whl",
+    ]
+    assert (
+        resolver.call_args.kwargs["package_base_url"]
+        == "https://mirror.example/pyodide/"
+    )
+
+
+@pytest.mark.asyncio
+async def test_default_sources_are_the_hosted_distribution(tmp_path, resolver):
+    with mock.patch.object(requests, "get", wraps=requests.get) as get:
+        await bundle_wasm_runtime(
+            "pass", tmp_path, sources=WASMRuntimeConfig()
+        )
+    assert {
+        urlparse(call.args[0]).hostname for call in get.call_args_list
+    } == {
+        "cdn.jsdelivr.net",
+        "wasm.marimo.app",
+        "wheels.example",
+    }
+    assert resolver.call_args.kwargs["pypi_index_url"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("response", "message"),
+    [
+        (
+            Response(404, b"missing", {}),
+            "Could not download https://runtime.example/lock.json",
+        ),
+        (
+            Response(200, b"<!doctype html>", {}),
+            "https://runtime.example/lock.json is not a Pyodide lockfile",
+        ),
+    ],
+)
+async def test_lockfile_failures_name_the_source_url(
+    tmp_path, sources, resolver, response, message
+):
+    with (
+        mock.patch.object(requests, "get", return_value=response),
+        pytest.raises(OfflineExportError, match=re.escape(message)),
+    ):
+        await bundle_wasm_runtime("pass", tmp_path, sources=sources)
+    resolver.assert_not_called()
+
+
+def _package(name: str, *depends: str) -> dict[str, object]:
+    return {
+        "name": name,
+        "version": "1.0",
+        "file_name": f"{name}-1.0-py3-none-any.whl",
+        "sha256": None,
+        "depends": list(depends),
+    }
+
+
+def test_bundle_keeps_the_dependency_closure_of_required_packages():
+    lockfile = {
+        "info": {"python": "3.14.0"},
+        "packages": {
+            "marimo-base": _package("marimo", "msgspec"),
+            "msgspec": _package("msgspec"),
+            "numpy": _package("numpy"),
+        },
+    }
+    # Pyodide reports hosted marimo-base under its lockfile name, marimo.
+    assert _lock_required(
+        {"lockfile": lockfile, "required": ["marimo", "Marimo_Base"]}
+    ) == {
+        "info": {"python": "3.14.0"},
+        "packages": {
+            "marimo-base": _package("marimo", "msgspec"),
+            "msgspec": _package("msgspec"),
+        },
+    }
+
+
+def test_bundle_rejects_packages_missing_from_the_resolution():
+    lockfile = {"info": {}, "packages": {"black": _package("black", "click")}}
+    with pytest.raises(
+        OfflineExportError, match="No resolved package is named click"
+    ):
+        _lock_required({"lockfile": lockfile, "required": ["black"]})
+
+
+@pytest.mark.asyncio
+async def test_page_requests_are_fetched_in_python_with_cors():
+    route = mock.AsyncMock()
+    route.request.url = "https://mirror.example/simple/humanize/"
+    route.request.headers = {"accept": "application/vnd.pypi.simple.v1+json"}
+    page = Response(200, b"<a>", {"Content-Type": "text/html"})
+    with mock.patch.object(requests, "get", return_value=page) as get:
+        await _fetch_in_python(route)
+    # Devpi serves JSON with relative file URLs when asked, which micropip
+    # cannot resolve. Its HTML pages resolve against the page URL.
+    get.assert_called_once_with(
+        "https://mirror.example/simple/humanize/", timeout=60
+    )
+    route.fulfill.assert_awaited_once_with(
+        status=200,
+        body=b"<a>",
+        headers={
+            "access-control-allow-origin": "*",
+            "content-type": "text/html",
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_failed_page_requests_are_aborted():
+    route = mock.AsyncMock()
+    route.request.url = "https://mirror.example/simple/humanize/"
+    route.request.headers = {}
+    with mock.patch.object(
+        requests, "get", side_effect=ConnectionResetError("reset")
+    ):
+        await _fetch_in_python(route)
+    route.abort.assert_awaited_once_with()
+    route.fulfill.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -199,9 +385,10 @@ async def test_cancelled_bundle_joins_downloads_before_cleanup(
     assert list(tmp_path.iterdir()) == []
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("phase", ["bootstrap", "imports"])
-async def test_resolver_rejects_reported_package_failures(tmp_path, phase):
+async def _resolve_with_stub(
+    tmp_path, *, version=PYODIDE_VERSION, load_package="", load_imports=""
+):
+    """Run the resolver against a stub `pyodide.mjs` served next to the page."""
     pytest.importorskip("playwright.async_api")
     from marimo._export._html_asset_server import HtmlAssetServer
     from marimo._export.dependencies import _is_playwright_chromium_installed
@@ -209,30 +396,86 @@ async def test_resolver_rejects_reported_package_failures(tmp_path, phase):
     if not await _is_playwright_chromium_installed():
         pytest.skip("Chromium not installed")
     (tmp_path / "pyodide.mjs").write_text(
+        f"export const version = {json.dumps(version)};"
         "export async function loadPyodide() { return {"
-        "globals: {set() {}}, runPythonAsync: async () => {}, runPython: () => false,"
-        "loadPackage: async (_, callbacks) => {"
-        + (
-            'callbacks.errorCallback("bootstrap download failed");'
-            if phase == "bootstrap"
-            else ""
-        )
-        + "}, loadPackagesFromImports: async (_, callbacks) => {"
-        + (
-            'callbacks.errorCallback("imports download failed");'
-            if phase == "imports"
-            else ""
-        )
-        + "}};}"
+        "globals: {set() {}}, loadedPackages: {}, runPythonAsync: async () => {},"
+        "runPython: code => ({'micropip.freeze()': '{\"info\": {}, \"packages\": {}}',"
+        "'json.dumps(required)': '[]'})[code] ?? false,"
+        f"loadPackage: async (_, callbacks) => {{ {load_package} }},"
+        f"loadPackagesFromImports: async (_, callbacks) => {{ {load_imports} }},"
+        "};}"
     )
     with HtmlAssetServer(directory=tmp_path, route="/resolve.html") as server:
         server.set_html("<!doctype html>")
-        with pytest.raises(Exception, match=f"{phase} download failed"):
-            await _resolve_packages(
+        return await asyncio.wait_for(
+            _resolve_packages(
                 "import numpy",
                 page_url=server.page_url,
                 index_url=server.base_url + "/",
                 package_base_url=server.base_url + "/",
                 lockfile={"info": {}, "packages": {}},
                 pypi_index_url=None,
+            ),
+            timeout=60,
+        )
+
+
+def _load_from(url: str) -> str:
+    return (
+        f"const response = await fetch({json.dumps(url)}).catch(() => null);"
+        'if (!response?.ok) callbacks.errorCallback("mirror unavailable");'
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("phase", ["bootstrap", "imports"])
+async def test_resolver_rejects_reported_package_failures(tmp_path, phase):
+    failure = f'callbacks.errorCallback("{phase} download failed");'
+    with pytest.raises(Exception, match=f"{phase} download failed"):
+        await _resolve_with_stub(
+            tmp_path,
+            load_package=failure if phase == "bootstrap" else "",
+            load_imports=failure if phase == "imports" else "",
+        )
+
+
+@pytest.mark.asyncio
+async def test_resolver_rejects_other_pyodide_versions(tmp_path):
+    expected = (
+        f"serves Pyodide 0.0.0, but marimo needs Pyodide {PYODIDE_VERSION}"
+    )
+    with pytest.raises(Exception, match=re.escape(expected)):
+        await _resolve_with_stub(tmp_path, version="0.0.0")
+
+
+@pytest.mark.asyncio
+async def test_resolver_loads_packages_from_mirrors_without_cors(tmp_path):
+    from marimo._export._html_asset_server import HtmlAssetServer
+
+    mirror = tmp_path / "mirror"
+    mirror.mkdir()
+    (mirror / "package.whl").write_bytes(b"wheel")
+    # SimpleHTTPRequestHandler sends no Access-Control-Allow-Origin header.
+    with HtmlAssetServer(directory=mirror, route="/unused") as server:
+        resolved = await _resolve_with_stub(
+            tmp_path, load_package=_load_from(f"{server.base_url}/package.whl")
+        )
+    assert resolved == {"info": {}, "packages": {}}
+
+
+@pytest.mark.asyncio
+async def test_resolver_fails_fast_when_mirror_connections_fail(tmp_path):
+    # Holding the port avoids reuse races, and closing each connection fails
+    # the request at once on every platform.
+    mirror = await asyncio.start_server(
+        lambda _reader, writer: writer.close(), "127.0.0.1", 0
+    )
+    port = mirror.sockets[0].getsockname()[1]
+    async with mirror:
+        with pytest.raises(Exception, match="mirror unavailable"):
+            await _resolve_with_stub(
+                tmp_path,
+                load_package=_load_from(
+                    f"http://127.0.0.1:{port}/package.whl"
+                ),
             )

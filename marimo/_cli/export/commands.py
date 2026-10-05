@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, cast, get_args
+from urllib.parse import urlparse
 
 import click
 
@@ -69,7 +70,10 @@ from marimo._export.requests import (
     ScriptFileExportRequest,
     WASMFileExportRequest,
 )
-from marimo._pyodide.pyodide_constraints import PYODIDE_PYTHON_VERSION
+from marimo._pyodide.pyodide_constraints import (
+    PYODIDE_PYTHON_VERSION,
+    PYODIDE_VERSION,
+)
 from marimo._schemas.export_options import (
     ExportPDFPreset,
     HTMLExportOptions,
@@ -81,6 +85,7 @@ from marimo._schemas.export_options import (
     PDFRasterServer,
     WASMExportOptions,
     WASMMode,
+    WASMRuntimeConfig,
 )
 from marimo._server.utils import asyncio_run
 from marimo._templates import get_default_asset_url
@@ -896,6 +901,33 @@ def pdf(
     )
 
 
+def _source_url(
+    ctx: click.Context, param: click.Parameter, value: str | None
+) -> str | None:
+    del ctx, param
+    if value is None:
+        return None
+    not_http = (
+        "Expected an http(s) URL. Serve a local directory with "
+        "`python -m http.server`."
+    )
+    try:
+        url = urlparse(value)
+    except ValueError:
+        raise click.BadParameter(not_http) from None
+    if url.scheme not in ("http", "https") or not url.hostname:
+        raise click.BadParameter(not_http)
+    if url.username or url.password:
+        raise click.BadParameter(
+            "Credentials in the URL are not supported. Use a mirror that "
+            "allows anonymous downloads."
+        )
+    # Sources are base URLs that get file names and package paths appended.
+    if url.query or url.fragment:
+        raise click.BadParameter("Expected a URL without a query or fragment.")
+    return value
+
+
 @click.command(
     cls=ColoredCommand,
     help="""Export a notebook as a WASM-powered standalone HTML file.
@@ -985,6 +1017,24 @@ assets from a CDN and open the HTML file directly. Internet access is required.
     is_flag=True,
     help="Download the Python runtime and notebook packages into the export directory.",
 )
+@click.option(
+    "--pyodide-index-url",
+    metavar="URL",
+    callback=_source_url,
+    help=(
+        f"Mirror of the Pyodide {PYODIDE_VERSION} full/ distribution to "
+        "bundle the runtime and its packages from. Requires --offline."
+    ),
+)
+@click.option(
+    "--pypi-index-url",
+    metavar="URL",
+    callback=_source_url,
+    help=(
+        "Package index, such as a PyPI mirror, for packages outside the "
+        "Pyodide distribution. Requires --offline."
+    ),
+)
 @click.argument(
     "name",
     required=True,
@@ -1003,12 +1053,18 @@ def html_wasm(
     force: bool,
     execute: bool,
     offline: bool,
+    pyodide_index_url: str | None,
+    pypi_index_url: str | None,
     args: tuple[str, ...],
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
     if single_file and offline:
         raise click.UsageError(
             "--single-file and --offline cannot be used together."
+        )
+    if not offline and (pyodide_index_url or pypi_index_url):
+        raise click.UsageError(
+            "--pyodide-index-url and --pypi-index-url require --offline."
         )
     if single_file and include_cloudflare:
         raise click.UsageError(
@@ -1150,6 +1206,10 @@ def html_wasm(
         mode=mode,
         show_code=show_code,
         asset_url=get_default_asset_url() if single_file else None,
+        runtime=WASMRuntimeConfig(
+            pyodide_index_url=pyodide_index_url,
+            pypi_index_url=pypi_index_url,
+        ),
     )
 
     if execute:
