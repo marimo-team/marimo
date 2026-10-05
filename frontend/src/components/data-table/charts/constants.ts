@@ -159,6 +159,6 @@ export const TIME_UNIT_DESCRIPTIONS: Record<
   dayofyear: ["Day of year", "Day 1"],
   yearmonth: ["Year Month", "Jan 2025"],
   yearmonthdate: ["Year Month Date", "Jan 01, 2025"],
-  yearmonthdatehours: ["Calendar hour", "Jan 01, 2025 12:00"],
+  yearmonthdatehours: ["Year Month Date Hours", "Jan 01, 2025 12:00"],
   monthdate: ["Month Date", "Jan 01"],
 };
