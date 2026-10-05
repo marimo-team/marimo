@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -34,7 +35,9 @@ class MockConfigManager:
     config: Any = None
 
     def get_config(self) -> Any:
-        return self.config if self.config is not None else DEFAULT_CONFIG
+        if self.config is not None:
+            return self.config
+        return copy.deepcopy(DEFAULT_CONFIG)
 
 
 @dataclass
