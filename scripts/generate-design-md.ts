@@ -88,16 +88,21 @@ const colorSpecs = [
   ["secondary-foreground", "on-secondary", "on-secondary-dark"],
   ["accent", "accent", "accent-dark"],
   ["accent-foreground", "on-accent", "on-accent-dark"],
-  ["ring", "ring"],
-  ["destructive", "destructive"],
-  ["destructive-foreground", "on-destructive"],
-  ["error", "error"],
-  ["error-foreground", "on-error"],
-  ["success", "success"],
-  ["success-foreground", "on-success"],
-  ["action", "action"],
-  ["action-hover", "action-hover"],
-  ["action-foreground", "on-action"],
+  ["ring", "ring", "ring-dark"],
+  ["destructive", "destructive", "destructive-dark"],
+  ["destructive-hover", "destructive-hover", "destructive-hover-dark"],
+  ["destructive-border", "destructive-border", "destructive-border-dark"],
+  ["destructive-foreground", "on-destructive", "on-destructive-dark"],
+  ["error", "error", "error-dark"],
+  ["error-foreground", "on-error", "on-error-dark"],
+  ["success", "success", "success-dark"],
+  ["success-hover", "success-hover", "success-hover-dark"],
+  ["success-border", "success-border", "success-border-dark"],
+  ["success-foreground", "on-success", "on-success-dark"],
+  ["action", "action", "action-dark"],
+  ["action-hover", "action-hover", "action-hover-dark"],
+  ["action-border", "action-border", "action-border-dark"],
+  ["action-foreground", "on-action", "on-action-dark"],
   ["link", "link", "link-dark"],
   ["link-visited", "link-visited", "link-visited-dark"],
   ["stale", "stale", "stale-dark"],
@@ -106,8 +111,10 @@ const colorSpecs = [
 
 const cssCache = new Map<SourceKey, CssRoot>();
 const cssVarCache = new Map<SourceKey, Record<string, string>>();
+const themedCssVarCache = new Map<ColorMode, Record<string, string>>();
 const astCache = new Map<SourceKey, File>();
 const toRgb = converter("rgb");
+type ColorMode = "light" | "dark";
 
 // The optional first arg lets callers run from any cwd while defaulting to repo root.
 const repoPath = (relativePath: string) => join(root, relativePath);
@@ -156,6 +163,39 @@ const cssVars = (source: SourceKey): Record<string, string> =>
         vars[decl.prop.slice("--".length)] = cleanCss(decl.value);
       }
     });
+    return vars;
+  });
+
+const isDarkSelector = (selector: string) =>
+  selector.split(",").some((part) => part.includes(".dark"));
+
+// CSS variables cascade by theme. Keep the light and dark scopes separate
+// instead of flattening both scopes into one last-declaration-wins map.
+const themedCssVars = (mode: ColorMode): Record<string, string> =>
+  cached(themedCssVarCache, mode, () => {
+    const vars: Record<string, string> = {};
+    cssRoot("globalCss").walkRules((rule) => {
+      if (isDarkSelector(rule.selector)) {
+        return;
+      }
+      rule.walkDecls((decl) => {
+        if (decl.prop.startsWith("--")) {
+          vars[decl.prop.slice("--".length)] = cleanCss(decl.value);
+        }
+      });
+    });
+    if (mode === "dark") {
+      cssRoot("globalCss").walkRules((rule) => {
+        if (!isDarkSelector(rule.selector)) {
+          return;
+        }
+        rule.walkDecls((decl) => {
+          if (decl.prop.startsWith("--")) {
+            vars[decl.prop.slice("--".length)] = cleanCss(decl.value);
+          }
+        });
+      });
+    }
     return vars;
   });
 
@@ -222,7 +262,7 @@ const formatColor = (value: string, matte = "#FFFFFF") => {
 const resolveColorValue = (
   value: string,
   vars: Record<string, string>,
-  mode: "light" | "dark",
+  mode: ColorMode,
   seen = new Set<string>(),
   matte = "#FFFFFF",
 ): string => {
@@ -689,32 +729,33 @@ const typographyToken = (
 
 // Mirror the frontend CSS variable color set, plus semantic aliases.
 const buildColors = () => {
-  const vars = cssVars("globalCss");
+  const lightVars = themedCssVars("light");
+  const darkVars = themedCssVars("dark");
   const colors: Record<string, string> = {};
   const matte = {
     light: resolveColorValue(
-      required(vars.background, "background"),
-      vars,
+      required(lightVars.background, "background"),
+      lightVars,
       "light",
     ),
     dark: resolveColorValue(
-      required(vars.background, "background"),
-      vars,
+      required(darkVars.background, "background"),
+      darkVars,
       "dark",
     ),
   };
   for (const [cssName, lightName, darkName] of colorSpecs) {
     colors[lightName] = resolveColorValue(
-      required(vars[cssName], cssName),
-      vars,
+      required(lightVars[cssName], cssName),
+      lightVars,
       "light",
       new Set<string>(),
       matte.light,
     );
     if (darkName) {
       colors[darkName] = resolveColorValue(
-        required(vars[cssName], cssName),
-        vars,
+        required(darkVars[cssName], cssName),
+        darkVars,
         "dark",
         new Set<string>(),
         matte.dark,

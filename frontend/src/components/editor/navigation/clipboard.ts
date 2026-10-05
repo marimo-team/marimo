@@ -35,6 +35,7 @@ const ClipboardCellDataSchema = z.object({
           column: z.union([z.number(), z.null()]).optional(),
           disabled: z.boolean().optional(),
           hide_code: z.boolean().optional(),
+          expand_output: z.boolean().optional(),
         })
         .optional(),
     }),
@@ -256,7 +257,7 @@ const toastPasteFailed = () => {
 class ClipboardItemBuilder {
   private items: Record<string, string | Blob> = {};
 
-  add(mimeType: string, value: string | object) {
+  public add(mimeType: string, value: string | object) {
     // Skip if the browser doesn't support the mime type
     if (!ClipboardItem.supports(mimeType)) {
       Logger.warn(`ClipboardItem does not support ${mimeType}`);
@@ -274,7 +275,7 @@ class ClipboardItemBuilder {
     return this;
   }
 
-  build() {
+  public build() {
     return new ClipboardItem(this.items);
   }
 }

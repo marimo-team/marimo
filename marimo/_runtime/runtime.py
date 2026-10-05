@@ -120,6 +120,7 @@ from marimo._runtime.context import (
     ExecutionContext,
     get_context,
 )
+from marimo._runtime.context.filename import NOTEBOOK_FILENAME
 from marimo._runtime.context.kernel_context import (
     KernelRuntimeContext,
 )
@@ -365,12 +366,13 @@ def notebook_dir() -> pathlib.Path | None:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        # If we are not running in a notebook (e.g. exported to Jupyter),
-        # return the current working directory
-        return pathlib.Path().cwd()
-
-    # NB: __file__ is patched by runner, so always bound to be correct.
-    filename = ctx.globals.get("__file__", None) or ctx.filename
+        filename = NOTEBOOK_FILENAME.get()
+        if filename is None:
+            # Outside a notebook (e.g. exported to Jupyter), use the cwd.
+            return pathlib.Path.cwd()
+    else:
+        # NB: __file__ is patched by runner, so always bound to be correct.
+        filename = ctx.globals.get("__file__", None) or ctx.filename
     if filename is not None:
         path = normalize_path(pathlib.Path(filename))
         while not path.is_dir():
@@ -648,9 +650,9 @@ class Kernel:
         import getpass
 
         getpass.getpass = getpass_override
-        # Webbrowser may not be set (e.g. docker container) or stubbed/broken
-        # (e.g. in pyodide). Set default to just inject an iframe of the
-        # expected page to output.
+        # Route webbrowser.open() to an iframe in the cell output when the
+        # browser cannot launch or the module is a stub (Pyodide).
+        # Browser discovery runs on first use, never at startup.
         patches.patch_webbrowser()
         # micropip only patched in non-pyodide environments.
         if not is_pyodide():
@@ -1076,9 +1078,7 @@ class Kernel:
                     try:
                         duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
                     except Exception as e:
-                        LOGGER.warning(
-                            "Failed to drop table %s: %s", name, str(e)
-                        )
+                        LOGGER.warning("Failed to drop table %s: %s", name, e)
             elif variable.kind == "view" and DependencyManager.duckdb.has():
                 import duckdb
 
@@ -1090,9 +1090,7 @@ class Kernel:
                     try:
                         duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
                     except Exception as e:
-                        LOGGER.warning(
-                            "Failed to drop view %s: %s", name, str(e)
-                        )
+                        LOGGER.warning("Failed to drop view %s: %s", name, e)
             elif variable.kind == "catalog" and DependencyManager.duckdb.has():
                 import duckdb
 
@@ -1100,9 +1098,7 @@ class Kernel:
                     identifier = quote_sql_identifier(name)
                     duckdb.execute(f"DETACH DATABASE IF EXISTS {identifier}")
                 except Exception as e:
-                    LOGGER.warning(
-                        "Failed to detach catalog %s: %s", name, str(e)
-                    )
+                    LOGGER.warning("Failed to detach catalog %s: %s", name, e)
             else:
                 if name in self.globals:
                     del self.globals[name]
@@ -1173,6 +1169,7 @@ class Kernel:
         In contrast to deleting a cell, which fully scrubs the cell
         from the kernel and graph.
         """
+        self.autoreload_manager.forget_cell(cell_id)
         if cell_id not in self.errors:
             self._invalidate_cell_state(cell_id, deletion=True)
             return self.graph.delete_cell(cell_id)
@@ -1724,7 +1721,7 @@ class Kernel:
 
                 try:
                     cell = compile_cell(er.code, cell_id=er.cell_id)
-                except Exception:
+                except Exception:  # noqa: S112
                     # The cell was not parsable.
                     continue
                 graph.register_cell(cell_id=cid, cell=cell)
@@ -1734,7 +1731,8 @@ class Kernel:
             for er in execution_requests:
                 try:
                     cell = compile_cell(er.code, cell_id=er.cell_id)
-                except Exception:
+                # Unparsable requests cannot contribute graph ancestors.
+                except Exception:  # noqa: S112
                     continue
                 graph.register_cell(cell_id=er.cell_id, cell=cell)
                 ancestors |= graph.ancestors(er.cell_id)
@@ -1805,6 +1803,7 @@ class Kernel:
     async def rename_file(self, filename: str) -> None:
         self.globals["__file__"] = filename
         self.app_metadata.filename = filename
+        self.packages_callbacks.rename_file(filename)
         roots: set[CellId_t] = set()
         for cell in self.graph.cells.values():
             if "__file__" in cell.refs:
@@ -1910,16 +1909,16 @@ class Kernel:
         # Stale cells that are enabled will need to be run.
         stale_cells: set[CellId_t] = set()
         for cell_id, config in request.configs.items():
-            # store the config, regardless of whether we've seen the cell yet
-            self.cell_metadata[cell_id] = CellMetadata(
-                config=CellConfig.from_dict(config)
-            )
+            previous = self.cell_metadata.get(cell_id, CellMetadata()).config
+            merged = CellConfig.from_dict(previous.asdict())
+            merged.configure(config)
+            self.cell_metadata[cell_id] = CellMetadata(config=merged)
             cell = self.graph.cells.get(cell_id)
             if cell is None:
                 continue
             cell.configure(config)
             if not cell.config.disabled:
-                stale_cells = self.graph.enable_cell(cell_id)
+                stale_cells |= self.graph.enable_cell(cell_id)
             elif cell.config.disabled:
                 self.graph.disable_cell(cell_id)
 
@@ -2505,7 +2504,9 @@ def _bootstrap_subprocess(
     # process (which assumes its child is in another process group).
     if sys.platform != "win32":
         os.setsid()
-        start_parent_poller(parent_pid)
+        # The direct parent may be a launcher such as uv; also probe
+        # the server pid so its ungraceful death is still detected.
+        start_parent_poller(os.getppid(), ancestor_pid=parent_pid)
     else:
         ignore_console_ctrl_c()
 

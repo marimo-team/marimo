@@ -149,6 +149,7 @@ function createEmptyNotebookCell(): NotebookCell {
       column: null,
       disabled: false,
       hide_code: false,
+      expand_output: false,
     },
   };
 }
@@ -177,6 +178,7 @@ function createCellDataFromNotebook(
       column: notebookCell.config?.column ?? null,
       disabled: notebookCell.config?.disabled ?? false,
       hide_code: notebookCell.config?.hide_code ?? false,
+      expand_output: notebookCell.config?.expand_output ?? false,
     },
     serializedEditorState: null,
   };

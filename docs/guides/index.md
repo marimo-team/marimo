@@ -21,7 +21,7 @@ These guides cover marimo's core concepts.
 | [Understanding errors](understanding_errors/index.md) | Understanding marimo's constraints on notebook code        |
 | [Lint rules](lint_rules/index.md)                    | Comprehensive linting system and rule reference           |
 | [Working with data](working_with_data/index.md)       | Using SQL cells, no-code dataframe, and reactive plots     |
-| [Package management](package_management/index.md)     | Inlining dependencies in notebook files and other package management guides |
+| [Package management](package_management/index.md)     | Managing packages for projects and standalone notebooks |
 | [Generate with AI](generate_with_ai/index.md)         | Generate notebooks with AI                                 |
 | [Editor features](editor_features/index.md)           | View variables, dataframe schemas, docstrings, and more    |
 | [Using your own editor](editor_features/watching.md)  | Edit notebooks in your own editor and stream changes back to the browser |

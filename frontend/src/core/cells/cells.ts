@@ -19,6 +19,7 @@ import { Objects } from "@/utils/objects";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
+import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
 import {
   splitEditor,
   updateEditorCodeFromPython,
@@ -124,7 +125,12 @@ export interface NotebookState {
 }
 
 function withScratchCell(notebookState: NotebookState): NotebookState {
-  const config = { column: 0, hide_code: false, disabled: false };
+  const config = {
+    column: 0,
+    hide_code: false,
+    disabled: false,
+    expand_output: false,
+  };
   return {
     ...notebookState,
     cellData: {
@@ -1108,7 +1114,8 @@ const {
           mimetype: stdinOutput.mimetype,
           data: stdinOutput.data,
           timestamp: stdinOutput.timestamp,
-          response,
+          // An empty response resolves the prompt without retaining the secret.
+          response: stdinOutput.mimetype === "text/password" ? "" : response,
         };
 
         return {
@@ -1364,10 +1371,7 @@ const {
 
         // Find the start/end of the collapsed ranges
         const nodes = [...column.nodes];
-        const rangeIndexes: {
-          start: CellIndex;
-          end: CellIndex;
-        }[] = [];
+        const visibleEndByOriginalEnd = new Map<CellIndex, CellIndex>();
         const reversedCollapseRanges = [];
 
         // Iterate in reverse order (bottom-up) to process children first
@@ -1376,20 +1380,13 @@ const {
           const range = findCollapseRange(i, outlines);
           if (range) {
             const startIndex = i;
-            let endIndex = range[1];
+            const originalEnd = range[1];
+            const endIndex =
+              visibleEndByOriginalEnd.get(originalEnd) ?? originalEnd;
 
-            // Check if the parent's end point is inside any already-collapsed child range
-            const parentEndInChild = rangeIndexes.find(
-              (child) => child.start <= endIndex && child.end === endIndex,
-            );
-
-            if (parentEndInChild) {
-              // Adjust the new endIndex to the child's start
-              endIndex = parentEndInChild.start;
-            }
-
-            // Store this range for future child checks
-            rangeIndexes.push({ start: startIndex, end: endIndex });
+            // After this section collapses, its heading represents this
+            // endpoint for any enclosing section that shares it.
+            visibleEndByOriginalEnd.set(originalEnd, startIndex);
 
             // Add the range to the list of ranges
             const cellId = column.atOrThrow(startIndex);
@@ -1917,6 +1914,16 @@ export const getAllEditorViews = () => {
 export const getCellEditorView = (cellId: CellId) => {
   const { cellHandles } = store.get(notebookAtom);
   return cellHandles[cellId].current?.editorView;
+};
+
+/**
+ * Get the cell's editor view. When the view's build is still queued in the
+ * progressive-mount scheduler, build it synchronously first. This lets user
+ * actions target a cell whose editor is not mounted yet.
+ */
+export const ensureCellEditorView = (cellId: CellId) => {
+  editorMountScheduler.promote(cellId);
+  return getCellEditorView(cellId);
 };
 
 export function flattenTopLevelNotebookCells(

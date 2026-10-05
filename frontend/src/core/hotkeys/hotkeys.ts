@@ -389,6 +389,18 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: NOT_SET,
   },
+  "global.expandAllOutputs": {
+    name: "Expand all outputs",
+    group: "Editing",
+    key: NOT_SET,
+    additionalKeywords: ["show full output", "unclamp"],
+  },
+  "global.clampAllOutputs": {
+    name: "Clamp all outputs",
+    group: "Editing",
+    key: NOT_SET,
+    additionalKeywords: ["collapse outputs", "shrink outputs"],
+  },
   "global.collapseAllSections": {
     name: "Collapse all sections",
     group: "Editing",
@@ -458,6 +470,11 @@ const DEFAULT_HOT_KEY = {
     group: "Command",
     key: "b",
   },
+  "command.createSqlCellAfter": {
+    name: "Create a SQL cell after current cell",
+    group: "Command",
+    key: "q",
+  },
   "command.copyCell": {
     name: "Copy cell",
     group: "Command",
@@ -505,13 +522,13 @@ export class HotkeyProvider implements IHotkeyProvider {
   /**
    * @param platform - See {@link HotkeyProviderOptions.platform}.
    */
-  static create(platform?: Platform): HotkeyProvider {
+  public static create(platform?: Platform): HotkeyProvider {
     return new HotkeyProvider(DEFAULT_HOT_KEY, { platform });
   }
 
   private hotkeys: Record<HotkeyAction, Hotkey>;
 
-  constructor(
+  public constructor(
     hotkeys: Record<HotkeyAction, Hotkey>,
     options: HotkeyProviderOptions = {},
   ) {
@@ -520,11 +537,11 @@ export class HotkeyProvider implements IHotkeyProvider {
     this.mod = this.platform === "mac" ? "Cmd" : "Ctrl";
   }
 
-  iterate(): HotkeyAction[] {
+  public iterate(): HotkeyAction[] {
     return Objects.keys(this.hotkeys);
   }
 
-  getHotkey(action: HotkeyAction): ResolvedHotkey {
+  public getHotkey(action: HotkeyAction): ResolvedHotkey {
     const { name, key, additionalKeywords } = this.hotkeys[action];
     if (typeof key === "string") {
       return {
@@ -548,15 +565,15 @@ export class HotkeyProvider implements IHotkeyProvider {
     };
   }
 
-  getHotkeyDisplay(action: HotkeyAction): string {
+  public getHotkeyDisplay(action: HotkeyAction): string {
     return this.hotkeys[action].name;
   }
 
-  isEditable(action: HotkeyAction): boolean {
+  public isEditable(action: HotkeyAction): boolean {
     return this.hotkeys[action].editable !== false;
   }
 
-  getHotkeyGroups(): Record<HotkeyGroup, HotkeyAction[]> {
+  public getHotkeyGroups(): Record<HotkeyGroup, HotkeyAction[]> {
     return Objects.groupBy(
       Objects.entries(this.hotkeys),
       ([, hotkey]) => hotkey.group,
@@ -568,7 +585,7 @@ export class HotkeyProvider implements IHotkeyProvider {
 export class OverridingHotkeyProvider extends HotkeyProvider {
   private readonly overrides: Partial<Record<HotkeyAction, string | undefined>>;
 
-  constructor(
+  public constructor(
     overrides: Partial<Record<HotkeyAction, string | undefined>>,
     options: HotkeyProviderOptions = {},
   ) {
@@ -576,7 +593,7 @@ export class OverridingHotkeyProvider extends HotkeyProvider {
     this.overrides = overrides;
   }
 
-  override getHotkey(action: HotkeyAction): ResolvedHotkey {
+  public override getHotkey(action: HotkeyAction): ResolvedHotkey {
     const base = super.getHotkey(action);
     const override = this.overrides[action];
     return {

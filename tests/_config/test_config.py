@@ -32,6 +32,19 @@ def test_configure_partial_keymap() -> None:
     )
 
 
+def test_configure_file_browser_folders() -> None:
+    assert_config(
+        PartialMarimoConfig(
+            file_browser={
+                "folders": [
+                    {"path": "/data", "name": "Data"},
+                    {"path": "/shared"},
+                ]
+            }
+        )
+    )
+
+
 def test_configure_full() -> None:
     assert_config(
         PartialMarimoConfig(
@@ -113,7 +126,6 @@ def test_configure_github_with_copilot_settings() -> None:
         PartialMarimoConfig(
             ai={
                 "github": {
-                    "api_key": "test-github-key",
                     "copilot_settings": {
                         "http": {
                             "proxy": "http://proxy.example.com:8888",
@@ -130,7 +142,6 @@ def test_configure_github_with_copilot_settings() -> None:
     )
 
     github_config = config.get("ai", {}).get("github", {})
-    assert github_config.get("api_key") == "test-github-key"
     assert github_config.get("copilot_settings") is not None
     copilot_settings = github_config.get("copilot_settings", {})
     assert (

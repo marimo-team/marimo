@@ -11,6 +11,7 @@ from uuid import uuid4
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.cell_output import CellChannel
@@ -102,8 +103,11 @@ class ScratchCellListener(EventAwareExtension):
         super().__init__()
         self._queue: asyncio.Queue[CellNotification | None] = asyncio.Queue()
         self._run_id = run_id
+        self._scratch_started = False
+        self._completed = False
         self.timed_out = False
         self.child_error_summaries: list[str] = []
+        self.stderr: list[str] = []
 
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
@@ -118,6 +122,7 @@ class ScratchCellListener(EventAwareExtension):
         # unrelated commands — skip them.
         if isinstance(msg, CompletedRunNotification):
             if msg.run_id == self._run_id:
+                self._completed = True
                 self._queue.put_nowait(None)
             return
 
@@ -125,12 +130,25 @@ class ScratchCellListener(EventAwareExtension):
             return
 
         if msg.cell_id == SCRATCH_CELL_ID:
+            self._scratch_started = True
             self._queue.put_nowait(msg)
         else:
+            # Ignore notifications from an execution that was already active
+            # when this listener was attached. Child cells run by _code_mode
+            # cannot execute before the scratch cell itself starts.
+            if not self._scratch_started:
+                return
             if msg.console is not None:
                 # Stream console output from cells run by _code_mode
                 # during this scratchpad execution.
                 self._queue.put_nowait(msg)
+
+        # Keep the existing SSE grace period for trailing console output, but
+        # freeze structured diagnostics at this request's completion boundary.
+        if self._completed:
+            return
+
+        if msg.cell_id != SCRATCH_CELL_ID:
             if (
                 msg.output is not None
                 and msg.output.channel == CellChannel.MARIMO_ERROR
@@ -149,9 +167,33 @@ class ScratchCellListener(EventAwareExtension):
                         getattr(err, "exception_type", None)
                         or type(err).__name__
                     )
+                    raw_detail = getattr(err, "msg", "")
+                    detail = str(raw_detail or "").strip()
+                    empty_detail = f"This cell raised an exception: {exc_type}"
+                    if detail == empty_detail:
+                        detail = ""
+                    if detail == exc_type or detail.startswith(f"{exc_type}:"):
+                        diagnostic = detail
+                    elif detail:
+                        diagnostic = f"{exc_type}: {detail}"
+                    else:
+                        diagnostic = exc_type
                     self.child_error_summaries.append(
-                        f"cell '{msg.cell_id}' raised {exc_type}"
+                        f"cell '{msg.cell_id}' raised {diagnostic}"
                     )
+
+        if msg.console is not None:
+            console_outputs = (
+                msg.console if isinstance(msg.console, list) else [msg.console]
+            )
+            # `wait()` consumes queued notifications without formatting them,
+            # so retain stderr in notification order for the structured tool
+            # result.
+            self.stderr.extend(
+                str(output.data)
+                for output in console_outputs
+                if output is not None and output.channel == CellChannel.STDERR
+            )
 
     async def stream(self) -> AsyncGenerator[str, None]:
         """Yield SSE-formatted stdout/stderr events until execution completes.
@@ -306,7 +348,7 @@ def extract_result(
             continue
         if out.channel == CellChannel.STDOUT:
             stdout.append(str(out.data))
-        elif out.channel == CellChannel.STDERR:
+        elif out.channel == CellChannel.STDERR and listener is None:
             stderr.append(str(out.data))
 
     errors: list[str] = []
@@ -318,6 +360,7 @@ def extract_result(
 
     # Include child cell error summaries.
     if listener:
+        stderr.extend(listener.stderr)
         errors.extend(listener.child_error_summaries)
 
     return CodeExecutionResult(
@@ -342,6 +385,9 @@ async def run_scratchpad_code(
     http_req = HTTPRequest.from_request(request)
     http_req.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
     http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
+    http_req.meta[SCREENSHOT_FILE_KEY] = (
+        session.app_file_manager.path or session.initialization_id
+    )
 
     session.instantiate(
         InstantiateNotebookRequest(object_ids=[], values=[], auto_run=False),

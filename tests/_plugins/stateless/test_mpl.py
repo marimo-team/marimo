@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,6 +9,24 @@ from marimo._output.hypertext import Html
 from marimo._runtime.commands import DeleteCellCommand
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+
+@pytest.fixture(autouse=True)
+def marimo_mpl_backend() -> Iterator[None]:
+    matplotlib = pytest.importorskip("matplotlib")
+    backend = matplotlib.get_backend()
+    # Imports outside a notebook can leave the native GUI backend active.
+    matplotlib.use("module://marimo._output.mpl")
+    try:
+        yield
+    finally:
+        from matplotlib import pyplot as plt
+
+        plt.close("all")
+        matplotlib.use(backend)
 
 
 @pytest.mark.requires("matplotlib")
@@ -64,17 +83,25 @@ async def test_mpl_interactive(k: Kernel, exec_req: ExecReqProvider) -> None:
 
 @pytest.mark.requires("matplotlib")
 async def test_mpl_show(k: Kernel, exec_req: ExecReqProvider) -> None:
-    await k.run(
-        [
-            exec_req.get(
-                """
-                import matplotlib.pyplot as plt
-                plt.plot([1, 2])
-                plt.show()
-                """
-            )
-        ]
-    )
+    from marimo._output.mpl import _internal_show
+
+    with patch(
+        "marimo._output.mpl._internal_show", wraps=_internal_show
+    ) as show:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    import matplotlib.pyplot as plt
+                    plt.plot([1, 2])
+                    plt.show()
+                    """
+                )
+            ]
+        )
+
+    assert not k.errors
+    show.assert_called_once()
 
 
 @pytest.mark.requires("matplotlib")

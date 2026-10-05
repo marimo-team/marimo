@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
@@ -9,16 +10,19 @@ from marimo._secrets.env_provider import (
     DotEnvSecretsProvider,
     EnvSecretsProvider,
 )
+from marimo._secrets.load_dotenv import resolve_dotenv_value
 from marimo._secrets.models import SecretKeysWithProvider, SecretProvider
 
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from marimo._server.models.secrets import CreateSecretRequest
 
 
 def _get_providers(
-    config: MarimoConfig, original_environ: dict[str, str]
+    config: MarimoConfig, original_environ: Mapping[str, str]
 ) -> list[SecretProvider]:
     providers: list[SecretProvider] = [EnvSecretsProvider(original_environ)]
 
@@ -28,6 +32,23 @@ def _get_providers(
         providers.extend(DotEnvSecretsProvider(dotenv) for dotenv in dotenvs)
 
     return providers
+
+
+def get_secret_value(
+    key: str,
+    config: MarimoConfig,
+    environ: Mapping[str, str] | None = None,
+) -> str | None:
+    """Resolve a secret using marimo's environment and dotenv precedence.
+
+    Dotenv values are read on demand so callers observe key rotation without
+    mutating the server's process environment.
+    """
+    base_environment = os.environ if environ is None else environ
+    dotenvs = config.get("runtime", {}).get("dotenv", [])
+    if not isinstance(dotenvs, list):
+        dotenvs = []
+    return resolve_dotenv_value(key, dotenvs, base_environment)
 
 
 def get_secret_keys(

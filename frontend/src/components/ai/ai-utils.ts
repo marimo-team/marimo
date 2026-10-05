@@ -15,9 +15,9 @@ type CredentialChecker = (ai: AiConfig | undefined) => boolean;
  */
 const CREDENTIAL_CHECKERS: Record<KnownProviderId, CredentialChecker> = {
   openai: (ai) => Boolean(ai?.open_ai?.api_key),
+  github: (ai) => Boolean(ai?.github?.api_key),
   anthropic: (ai) => Boolean(ai?.anthropic?.api_key),
   google: (ai) => Boolean(ai?.google?.api_key),
-  github: (ai) => Boolean(ai?.github?.api_key),
   openrouter: (ai) => Boolean(ai?.openrouter?.api_key),
   azure: (ai) => Boolean(ai?.azure?.api_key && ai?.azure?.base_url),
   wandb: (ai) => Boolean(ai?.wandb?.api_key),

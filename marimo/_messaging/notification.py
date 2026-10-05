@@ -3,12 +3,14 @@
 
 from __future__ import annotations
 
+import re
 import time
 from typing import (
     Any,
     ClassVar,
     Literal,
 )
+from urllib.parse import urlsplit
 
 import msgspec
 
@@ -35,6 +37,7 @@ from marimo._messaging.notebook.changes import Transaction
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
+from marimo._session.model import StartupPhase
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
 from marimo._types.ids import (
     CellId_t,
@@ -47,6 +50,28 @@ from marimo._utils.msgspec_basestruct import BaseStruct
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
+
+_VIRTUAL_FILE_URL_RE = re.compile(r"^(?:\.?/)?@file/[^?#]+$")
+_JAVASCRIPT_DATA_URL_RE = re.compile(
+    r"^data:(?:text|application)/javascript(?:;[^,]*)?,[^\r\n]*$"
+)
+
+
+def _normalize_esm_url(value: str) -> str | None:
+    if _VIRTUAL_FILE_URL_RE.fullmatch(value) is not None:
+        return value
+    if _JAVASCRIPT_DATA_URL_RE.fullmatch(value) is not None:
+        return value
+    if any(character.isspace() for character in value):
+        return None
+
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return None
+    if parsed.scheme in ("http", "https") and parsed.netloc:
+        return parsed.geturl()
+    return None
 
 
 class Notification(msgspec.Struct, tag_field="op"):
@@ -88,7 +113,7 @@ class CellNotification(Notification, tag="cell-op"):
     # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's
     # serialization hint unchanged; None explicitly clears it (cell is no
     # longer a top-level definition); a string sets it.
-    serialization: str | None | msgspec.UnsetType = msgspec.UNSET
+    serialization: str | msgspec.UnsetType | None = msgspec.UNSET
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
@@ -107,7 +132,7 @@ class CellNotification(Notification, tag="cell-op"):
             # The context variable hasn't been set yet
             self.run_id = None
         except Exception as e:
-            LOGGER.error("Error getting run id: %s", str(e))
+            LOGGER.error("Error getting run id: %s", e)
             self.run_id = None
 
 
@@ -202,7 +227,10 @@ class EsmSpec(msgspec.Struct):
         import marimo._output.data.data as mo_data
         from marimo._utils.code import hash_code
 
-        return EsmSpec(url=mo_data.js(esm).url, hash=hash_code(esm))
+        url = _normalize_esm_url(esm)
+        if url is None:
+            url = mo_data.any_data(esm.encode("utf-8"), ext="js").url
+        return EsmSpec(url=url, hash=hash_code(esm))
 
 
 class ModelOpen(msgspec.Struct, tag="open", tag_field="method"):
@@ -474,31 +502,106 @@ class MissingPackageAlertNotification(
     source: Literal["kernel", "server"] = "kernel"
 
 
-# package name => installation status
+# Package name => progress within the current operation
 PackageStatusType = dict[
-    str, Literal["queued", "installing", "installed", "failed"]
+    str,
+    Literal["queued", "running", "succeeded", "failed", "restart-required"],
 ]
 
 
-class InstallingPackageAlertNotification(
-    Notification, tag="installing-package-alert"
+class _EnvironmentOperationStatus(
+    msgspec.Struct,
+    tag_field="kind",
+    frozen=True,
+    forbid_unknown_fields=True,
 ):
-    """Package installation progress with streaming logs.
+    pass
 
-    Attributes:
-        packages: Package name to status (queued/installing/installed/failed).
-        logs: Optional streaming logs per package.
-        log_status: Log stream status (append/start/done).
-        source: Which Python environment packages are installed into.
-                "kernel" (default) installs in the kernel's venv; "server"
-                installs in the server's own Python env.
+
+class OperationRunning(
+    _EnvironmentOperationStatus, tag="running", frozen=True
+):
+    pass
+
+
+class OperationSucceeded(
+    _EnvironmentOperationStatus, tag="succeeded", frozen=True
+):
+    pass
+
+
+class OperationRestartRequired(
+    _EnvironmentOperationStatus, tag="restart-required", frozen=True
+):
+    reason: str
+
+
+class OperationFailed(_EnvironmentOperationStatus, tag="failed", frozen=True):
+    error: str
+
+
+class OperationCancelled(
+    _EnvironmentOperationStatus, tag="cancelled", frozen=True
+):
+    pass
+
+
+EnvironmentOperationStatus = (
+    OperationRunning
+    | OperationSucceeded
+    | OperationRestartRequired
+    | OperationFailed
+    | OperationCancelled
+)
+
+
+EnvironmentAction = Literal["prepare", "install", "remove", "sync"]
+
+
+class EnvironmentOperation(msgspec.Struct, frozen=True):
+    """Current progress and logs for one execution of environment work."""
+
+    operation_id: str
+    action: EnvironmentAction
+    status: EnvironmentOperationStatus
+    packages: PackageStatusType
+    logs: dict[str, str]
+    source: Literal["kernel", "server"]
+
+
+class EnvironmentState(msgspec.Struct, frozen=True):
+    """Preparation, active operations, the latest mutation, and restarts."""
+
+    restart_required: bool
+    operations: list[EnvironmentOperation]
+
+
+class EnvironmentStateNotification(Notification, tag="environment-state"):
+    """Replace the current state for one environment on connection."""
+
+    name: ClassVar[str] = "environment-state"
+    source: Literal["kernel", "server"]
+    state: EnvironmentState
+
+
+class EnvironmentOperationNotification(
+    Notification, tag="environment-operation"
+):
+    """Current operation progress and changes to its named log streams.
+
+    Package statuses replace the previous map. Log chunks append to a stream,
+    or replace it when `log_mode` is `replace`. The operation status determines
+    completion independently of its packages and output streams.
     """
 
-    name: ClassVar[str] = "installing-package-alert"
+    name: ClassVar[str] = "environment-operation"
+    operation_id: str
+    action: EnvironmentAction
+    status: EnvironmentOperationStatus
+    source: Literal["kernel", "server"]
     packages: PackageStatusType
-    logs: dict[str, str] | None = None  # package name -> log content
-    log_status: Literal["append", "start", "done"] | None = None
-    source: Literal["kernel", "server"] = "kernel"
+    logs: dict[str, str]
+    log_mode: Literal["append", "replace"]
 
 
 class ReconnectedNotification(Notification, tag="reconnected"):
@@ -535,6 +638,19 @@ class BannerNotification(Notification, tag="banner"):
     description: str
     variant: Literal["danger"] | None = None
     action: Literal["restart"] | None = None
+
+
+class StartupProgressNotification(Notification, tag="startup-progress"):
+    """Current startup phase and its output before the kernel is ready.
+
+    Output appends within a phase. Snapshots replace it, and changing phases
+    starts a new stream. Environment preparation logs belong to its operation.
+    """
+
+    name: ClassVar[str] = "startup-progress"
+    phase: StartupPhase
+    logs: str
+    log_mode: Literal["append", "replace"]
 
 
 class KernelStartupErrorNotification(Notification, tag="kernel-startup-error"):
@@ -988,8 +1104,10 @@ NotificationMessage = (
     | AlertNotification
     | BannerNotification
     | MissingPackageAlertNotification
-    | InstallingPackageAlertNotification
+    | EnvironmentOperationNotification
+    | EnvironmentStateNotification
     | StartupLogsNotification
+    | StartupProgressNotification
     | KernelStartupErrorNotification
     # Variables
     | VariablesNotification

@@ -1,24 +1,26 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
-import subprocess
+import signal
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import click
 
+from marimo._environments.process import run_command
 from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.workspace import flatten_files
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Iterator
 
-
-def is_multi_target(paths: list[Path]) -> bool:
-    return len(paths) > 1 or any(path.is_dir() for path in paths)
+    from marimo._environments.sandbox import Backend
 
 
 def collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
@@ -45,51 +47,98 @@ def collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
     return [notebooks[k] for k in sorted(notebooks)]
 
 
-class SandboxVenvPool:
-    def __init__(self) -> None:
-        self._envs: dict[tuple[str, ...], tuple[str, str]] = {}
+@contextlib.contextmanager
+def _export_termination_signals() -> Iterator[None]:
+    """Let termination unwind the runner so its isolated child is reaped."""
+    previous = {}
+    loop = asyncio.get_running_loop()
+    task = asyncio.current_task()
+    termination_signal: int | None = None
+    active = True
 
-    def get_python(self, notebook_path: str) -> str:
-        from marimo._cli.sandbox import (
-            build_sandbox_venv,
-            get_sandbox_requirements,
-        )
+    def cancel_export() -> None:
+        if active and task is not None:
+            task.cancel()
 
-        requirements = tuple(get_sandbox_requirements(notebook_path))
-        existing = self._envs.get(requirements)
-        if existing is not None:
-            return existing[1]
+    def terminate(signum: int, _frame: object) -> None:
+        nonlocal termination_signal
+        if termination_signal is not None:
+            return
+        termination_signal = signum
+        # Deliver cancellation at an await, after Popen has returned ownership
+        # of the child. Raising here can interrupt its constructor and leak it.
+        loop.call_soon_threadsafe(cancel_export)
 
-        sandbox_dir, venv_python = build_sandbox_venv(notebook_path)
-        self._envs[requirements] = (sandbox_dir, venv_python)
-        return venv_python
+    try:
+        if threading.current_thread() is threading.main_thread():
+            for name in ("SIGINT", "SIGTERM", "SIGHUP"):
+                signum = getattr(signal, name, None)
+                # Python 3.10 raises KeyboardInterrupt synchronously; defer it
+                # past Popen just like termination. Python 3.11+ asyncio.run
+                # already installs a cancelling handler, which we preserve.
+                default_handler = (
+                    signal.default_int_handler
+                    if name == "SIGINT"
+                    else signal.SIG_DFL
+                )
+                if (
+                    signum is not None
+                    and signal.getsignal(signum) == default_handler
+                ):
+                    previous[signum] = signal.signal(signum, terminate)
+        yield
+    finally:
+        active = False
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+        # The command may finish before queued cancellation is delivered.
+        if termination_signal == signal.SIGINT:
+            raise KeyboardInterrupt from None
+        if termination_signal is not None:
+            raise SystemExit(128 + termination_signal) from None
 
-    def close(self) -> None:
-        from marimo._cli.sandbox import cleanup_sandbox_dir
 
-        for sandbox_dir, _ in self._envs.values():
-            cleanup_sandbox_dir(sandbox_dir)
-        self._envs.clear()
-
-
-def run_python_subprocess(
+async def run_python_subprocess(
     *,
-    venv_python: str,
+    notebook_path: str,
+    backend: Backend,
     script: str,
     payload: dict[str, Any],
     action: str,
 ) -> str:
-    result = subprocess.run(
-        [venv_python, "-c", script, json.dumps(payload)],
-        check=False,
-        capture_output=True,
-        text=True,
+    from marimo._environments.backends import (
+        launch,
+        launch_fallback,
+        sync_notebook_async,
     )
-    if result.returncode != 0:
-        stderr = result.stderr.strip()
+    from marimo._environments.errors import MissingScriptMetadataError
+    from marimo._environments.overlay import runtime_overlay
+
+    args = ["-c", script, json.dumps(payload)]
+    with _export_termination_signals():
+        try:
+            environment = await sync_notebook_async(
+                str(Path(notebook_path).resolve()),  # noqa: ASYNC240
+                backend=backend,
+            )
+        except MissingScriptMetadataError:
+            plan = launch_fallback(args)
+        else:
+            plan = launch(
+                environment, args, backend=backend, overlay=runtime_overlay()
+            )
+        completed = await run_command(
+            plan.argv,
+            env=plan.env,
+        )
+    if completed.returncode != 0:
+        # Identify the real launcher without exposing requirement URLs,
+        # credentials, notebook code, or the serialized request payload.
+        launcher = Path(plan.argv[0]).name
+        command = f"{launcher} <sandbox arguments> -c <script> <payload>"
         raise click.ClickException(
             f"Failed to {action} in sandbox.\n\n"
-            f"Command:\n\n  {venv_python} -c <script>\n\n"
-            f"Stderr:\n\n{stderr}"
+            f"Command:\n\n  {command}\n\n"
+            f"Stderr:\n\n{completed.stderr.strip()}"
         )
-    return result.stdout
+    return completed.stdout

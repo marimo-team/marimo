@@ -347,20 +347,20 @@ const StdInput = (props: {
         placeholder="stdin"
         // Capture the keydown event for history navigation and submission
         onKeyDownCapture={(e) => {
-          if (e.key === "ArrowUp") {
+          if (!isPassword && e.key === "ArrowUp") {
             navigateUp();
             e.preventDefault();
             return;
           }
 
-          if (e.key === "ArrowDown") {
+          if (!isPassword && e.key === "ArrowDown") {
             navigateDown();
             e.preventDefault();
             return;
           }
 
           if (e.key === "Enter" && !e.shiftKey) {
-            if (value) {
+            if (value && !isPassword) {
               addToHistory(value);
             }
             onSubmit(value);

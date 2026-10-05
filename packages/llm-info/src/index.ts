@@ -39,7 +39,6 @@ export type SyncableProviderId =
   | "google"
   | "bedrock"
   | "azure"
-  | "github"
   | "ollama"
   | "wandb"
   | "opencode-go";

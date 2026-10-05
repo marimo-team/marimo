@@ -12,9 +12,7 @@ from marimo._config.config import (
     AiConfig,
     MarimoConfig,
 )
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import (
-    GITHUB_COPILOT_BASE_URL,
     AnyProviderConfig,
     _get_ai_config,
     _get_base_url,
@@ -142,117 +140,6 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "ollama-placeholder"
         assert provider_config.base_url == "http://127.0.0.1:11434/v1"
 
-    def test_for_github(self):
-        """Test GitHub configuration."""
-        config: AiConfig = {
-            "github": {
-                "api_key": "test-github-key",
-                "base_url": "https://some-base-url",
-            }
-        }
-
-        provider_config = AnyProviderConfig.for_github(config)
-
-        assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://some-base-url"
-
-    def test_for_github_with_fallback_base_url(self):
-        """Test GitHub configuration uses fallback base URL when not specified."""
-        config: AiConfig = {
-            "github": {
-                "api_key": "test-github-key",
-            }
-        }
-
-        provider_config = AnyProviderConfig.for_github(config)
-
-        assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://models.github.ai/inference"
-
-    @pytest.mark.skipif(
-        not DependencyManager.pydantic_ai.has(),
-        reason="pydantic-ai is not installed",
-    )
-    def test_github_default_base_url_matches_pydantic_ai(self):
-        """Test GitHub configuration base URL matches pydantic-ai."""
-        from pydantic_ai.providers.github import GitHubProvider
-
-        assert (
-            GitHubProvider(api_key="dummy").base_url == GITHUB_COPILOT_BASE_URL
-        )
-
-    def test_for_github_default_extra_headers(self):
-        """Test GitHub configuration includes default extra headers."""
-        config: AiConfig = {
-            "github": {
-                "api_key": "test-github-key",
-            }
-        }
-
-        provider_config = AnyProviderConfig.for_github(config)
-
-        assert provider_config.extra_headers is not None
-        assert (
-            provider_config.extra_headers["editor-version"] == "vscode/1.95.0"
-        )
-        assert (
-            provider_config.extra_headers["Copilot-Integration-Id"]
-            == "vscode-chat"
-        )
-
-    def test_for_github_user_headers_override_defaults(self):
-        """Test GitHub configuration allows user headers to override defaults."""
-        config: AiConfig = {
-            "github": {
-                "api_key": "test-github-key",
-                "extra_headers": {
-                    "editor-version": "custom-editor/2.0.0",
-                    "X-Custom-Header": "custom-value",
-                },
-            }
-        }
-
-        provider_config = AnyProviderConfig.for_github(config)
-
-        assert provider_config.extra_headers is not None
-        # User header should override default
-        assert (
-            provider_config.extra_headers["editor-version"]
-            == "custom-editor/2.0.0"
-        )
-        # Default header not overridden should remain
-        assert (
-            provider_config.extra_headers["Copilot-Integration-Id"]
-            == "vscode-chat"
-        )
-        # Custom user header should be preserved
-        assert (
-            provider_config.extra_headers["X-Custom-Header"] == "custom-value"
-        )
-
-    def test_for_github_with_copilot_settings(self):
-        """Test GitHub configuration with copilot_settings is accepted."""
-        config: AiConfig = {
-            "github": {
-                "api_key": "test-github-key",
-                "copilot_settings": {
-                    "http": {
-                        "proxy": "http://proxy.example.com:8888",
-                        "proxyStrictSSL": True,
-                    },
-                    "telemetry": {"telemetryLevel": "off"},
-                },
-            }
-        }
-
-        # Should not raise an error - copilot_settings is a valid field
-        provider_config = AnyProviderConfig.for_github(config)
-
-        # Note: copilot_settings is stored in config but not used by AnyProviderConfig
-        # It's used by the frontend LSP client
-        assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://models.github.ai/inference"
-
     def test_for_openrouter(self):
         """Test OpenRouter configuration."""
         config: AiConfig = {
@@ -345,6 +232,19 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-opencode-key"
         assert provider_config.base_url == "https://opencode.ai/zen/go/v1/"
 
+    def test_for_github(self) -> None:
+        config: AiConfig = {
+            "github": {
+                "api_key": "gho_test-token",
+                "base_url": "https://copilot.example.com",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_github(config)
+
+        assert provider_config.api_key == "gho_test-token"
+        assert provider_config.base_url == "https://copilot.example.com"
+
     def test_for_openai_with_project(self):
         """Test OpenAI configuration with project field."""
         config: AiConfig = {
@@ -431,12 +331,12 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-anthropic-key"
 
     def test_for_model_github(self) -> None:
-        """Test for_model with GitHub model."""
-        config: AiConfig = {"github": {"api_key": "test-github-key"}}
+        config: AiConfig = {"github": {"api_key": "gho_test-token"}}
 
-        provider_config = AnyProviderConfig.for_model("github/gpt-4o", config)
+        provider_config = AnyProviderConfig.for_model("github/gpt-5.4", config)
 
-        assert provider_config.api_key == "test-github-key"
+        assert provider_config.api_key == "gho_test-token"
+        assert provider_config.base_url == "https://api.githubcopilot.com"
 
     def test_for_model_openrouter(self) -> None:
         """Test for_model with OpenRouter model."""
@@ -448,6 +348,29 @@ class TestAnyProviderConfig:
 
         assert provider_config.api_key == "test-openrouter-key"
         assert provider_config.base_url == "https://openrouter.ai/api/v1/"
+
+    def test_for_model_custom_provider_resolves_api_key_reference(
+        self,
+    ) -> None:
+        config: AiConfig = {
+            "custom_providers": {
+                "gateway": {
+                    "api_key": "env:CUSTOM_API_KEY",
+                    "base_url": "https://gateway.example.com/v1",
+                }
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_model(
+            "gateway/custom-model",
+            config,
+            secret_resolver=lambda key: {"CUSTOM_API_KEY": "resolved-key"}.get(
+                key
+            ),
+        )
+
+        assert provider_config.api_key == "resolved-key"
+        assert provider_config.base_url == "https://gateway.example.com/v1"
 
     def test_for_model_wandb(self) -> None:
         """Test for_model with Weights & Biases model."""
@@ -491,6 +414,26 @@ class TestAnyProviderConfig:
         )
 
         assert provider_config.api_key == "other-key"
+
+    def test_for_model_does_not_hide_missing_environment_reference(
+        self,
+    ) -> None:
+        config: AiConfig = {
+            "open_ai_compatible": {
+                "api_key": "env:MISSING_API_KEY",
+                "base_url": "https://gateway.example.com/v1",
+            },
+            "open_ai": {"api_key": "fallback-key"},
+        }
+
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_model(
+                "provider/unknown-model",
+                config,
+                secret_resolver=lambda _key: None,
+            )
+
+        assert "'MISSING_API_KEY' is not set" in str(exc_info.value.detail)
 
     @patch("marimo._server.ai.config._get_tools")
     def test_tools_included_when_available(self, mock_get_tools: Any) -> None:
@@ -562,6 +505,18 @@ class TestProviderConfigWithFallback:
         provider_config = AnyProviderConfig.for_openai(config)
 
         assert provider_config.api_key == "env-openai-key"
+
+    def test_for_openai_with_injected_fallback_key(self) -> None:
+        config: AiConfig = {"open_ai": {}}
+
+        provider_config = AnyProviderConfig.for_openai(
+            config,
+            secret_resolver=lambda key: {
+                "OPENAI_API_KEY": "dotenv-openai-key"
+            }.get(key),
+        )
+
+        assert provider_config.api_key == "dotenv-openai-key"
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "env-openai-key"})
     def test_for_openai_empty(self) -> None:
@@ -688,35 +643,6 @@ class TestProviderConfigWithFallback:
             ssl_verify=True,
         )
 
-    @patch.dict(os.environ, {"GITHUB_TOKEN": "env-github-token"})
-    def test_for_github_with_fallback_key(self) -> None:
-        """Test GitHub config uses fallback key when config is missing api_key."""
-        config: AiConfig = {"github": {}}
-
-        provider_config = AnyProviderConfig.for_github(config)
-
-        assert provider_config.api_key == "env-github-token"
-
-    @patch.dict(os.environ, {"GITHUB_TOKEN": "env-github-token"})
-    def test_for_github_config_key_takes_precedence(self) -> None:
-        """Test GitHub config key takes precedence over environment variable."""
-        config: AiConfig = {"github": {"api_key": "config-github-token"}}
-
-        provider_config = AnyProviderConfig.for_github(config)
-
-        assert provider_config.api_key == "config-github-token"
-
-    @patch.dict(os.environ, {}, clear=True)
-    def test_for_github_no_fallback_available(self) -> None:
-        """Test GitHub config fails when no config key and no env var."""
-        config: AiConfig = {"github": {}}
-
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_github(config)
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "GitHub API key not configured" in str(exc_info.value.detail)
-
     @patch.dict(os.environ, {"OPENROUTER_API_KEY": "env-openrouter-token"})
     def test_for_openrouter_with_fallback_key(self) -> None:
         """Test OpenRouter config uses fallback key when config is missing api_key."""
@@ -799,6 +725,46 @@ class TestProviderConfigWithFallback:
             exc_info.value.detail
         )
 
+    @pytest.mark.parametrize(
+        "variable",
+        [
+            "GITHUB_COPILOT_API_KEY",
+            "GITHUB_COPILOT_API_TOKEN",
+            "COPILOT_GITHUB_TOKEN",
+        ],
+    )
+    def test_for_github_copilot_with_fallback_key(self, variable: str) -> None:
+        with patch.dict(os.environ, {variable: "gho_env-token"}, clear=True):
+            provider_config = AnyProviderConfig.for_github({})
+
+        assert provider_config.api_key == "gho_env-token"
+
+    @patch.dict(
+        os.environ,
+        {
+            "GITHUB_COPILOT_API_KEY": "gho_env-token",
+            "GITHUB_COPILOT_BASE_URL": "https://copilot.example.com",
+        },
+        clear=True,
+    )
+    def test_for_github_copilot_with_environment_base_url(self) -> None:
+        provider_config = AnyProviderConfig.for_github({})
+
+        assert provider_config.base_url == "https://copilot.example.com"
+
+    @patch.dict(
+        os.environ,
+        {"GITHUB_TOKEN": "generic-token", "GH_TOKEN": "generic-token"},
+        clear=True,
+    )
+    def test_for_github_copilot_ignores_generic_github_tokens(self) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_github({})
+
+        assert "GitHub Copilot API key not configured" in str(
+            exc_info.value.detail
+        )
+
 
 class TestGetKey:
     """Tests for _get_key function."""
@@ -810,6 +776,38 @@ class TestGetKey:
         result = _get_key(config, "Test Service")
 
         assert result == "test-key"
+
+    def test_get_key_resolves_environment_reference(self) -> None:
+        result = _get_key(
+            {"api_key": "env:CUSTOM_API_KEY"},
+            "Test Service",
+            secret_resolver=lambda key: {"CUSTOM_API_KEY": "resolved-key"}.get(
+                key
+            ),
+        )
+
+        assert result == "resolved-key"
+
+    @pytest.mark.parametrize(
+        ("reference", "expected_detail"),
+        [
+            ("env:", "empty environment variable reference"),
+            ("env:MISSING_API_KEY", "'MISSING_API_KEY' is not set"),
+        ],
+    )
+    def test_get_key_rejects_invalid_environment_reference(
+        self, reference: str, expected_detail: str
+    ) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            _get_key(
+                {"api_key": reference},
+                "Test Service",
+                fallback_key="fallback-key",
+                secret_resolver=lambda _key: None,
+            )
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert expected_detail in str(exc_info.value.detail)
 
     def test_get_key_bedrock_profile(self):
         """Test getting Bedrock key with profile name."""
@@ -1206,7 +1204,6 @@ class TestSSLConfiguration:
         ("provider_name", "provider_method", "api_key_config"),
         [
             ("openai", "for_openai", {"open_ai": {"api_key": "test-key"}}),
-            ("github", "for_github", {"github": {"api_key": "test-key"}}),
             ("ollama", "for_ollama", {"ollama": {"api_key": "test-key"}}),
         ],
     )
@@ -1240,24 +1237,14 @@ class TestSSLConfiguration:
         assert provider_config.client_pem == "/custom/path/to/client.pem", (
             f"{provider_name}: client_pem should match"
         )
-        # GitHub includes default headers that are merged with user headers
-        if provider_name == "github":
-            assert provider_config.extra_headers is not None
-            assert "X-Custom" in provider_config.extra_headers
-            assert provider_config.extra_headers["X-Custom"] == "header"
-            # GitHub should also include default headers
-            assert "editor-version" in provider_config.extra_headers
-            assert "Copilot-Integration-Id" in provider_config.extra_headers
-        else:
-            assert provider_config.extra_headers == {"X-Custom": "header"}, (
-                f"{provider_name}: extra_headers should match"
-            )
+        assert provider_config.extra_headers == {"X-Custom": "header"}, (
+            f"{provider_name}: extra_headers should match"
+        )
 
     @pytest.mark.parametrize(
         ("provider_name", "provider_method", "api_key_config"),
         [
             ("openai", "for_openai", {"open_ai": {"api_key": "test-key"}}),
-            ("github", "for_github", {"github": {"api_key": "test-key"}}),
             ("ollama", "for_ollama", {"ollama": {"api_key": "test-key"}}),
         ],
     )
@@ -1277,6 +1264,19 @@ class TestSSLConfiguration:
         assert provider_config.ca_bundle_path == "/env/path/to/ca.pem", (
             f"{provider_name}: should use SSL_CERT_FILE env var as fallback"
         )
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_secret_resolver_does_not_configure_ssl_cert_file(self) -> None:
+        config: AiConfig = {"open_ai": {"api_key": "test-key"}}
+
+        provider_config = AnyProviderConfig.for_openai(
+            config,
+            secret_resolver=lambda key: {
+                "SSL_CERT_FILE": "/dotenv/ca.pem"
+            }.get(key),
+        )
+
+        assert provider_config.ca_bundle_path is None
 
 
 class TestEdgeCases:
@@ -1353,16 +1353,6 @@ class TestEdgeCases:
         assert AnyProviderConfig.for_openai_compatible(
             config
         ) == AnyProviderConfig(base_url=None, api_key="", ssl_verify=True)
-
-    def test_github_config_missing(self):
-        """Test error when GitHub config is missing."""
-        config: AiConfig = {}
-
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_github(config)
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "GitHub API key not configured" in str(exc_info.value.detail)
 
     def test_tools_empty_list(self):
         """Test that tools are not included when empty list."""

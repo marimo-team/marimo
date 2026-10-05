@@ -915,7 +915,8 @@ def test_form_with_batch_submits_without_triggering_elements_on_change() -> (
     t2 = ui.text(on_change=lambda v: c2_calls.append(v))
     from marimo._output.hypertext import Html
 
-    batch = ui.batch(html=Html("{t1} {t2}"), elements={"t1": t1, "t2": t2})
+    html_template = Html("{t1} {t2}")  # noqa: RUF027
+    batch = ui.batch(html=html_template, elements={"t1": t1, "t2": t2})
     form = batch.form(on_change=lambda v: form_calls.append(v))
 
     form._update({"t1": "val1", "t2": "val2"})

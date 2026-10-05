@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from marimo._runtime.context.filename import NOTEBOOK_FILENAME
 from marimo._runtime.control_flow import MarimoStopError
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._runtime.executor import (
@@ -126,7 +127,8 @@ async def run_cell_async(
     ancestor_ids = _get_ancestors(graph, cell_impl, refs)
 
     evaluator = _new_evaluator()
-    glbls: MutableGlobals = {}
+    filename = NOTEBOOK_FILENAME.get()
+    glbls: MutableGlobals = {"__file__": filename} if filename else {}
     for cid in topological_sort(graph, ancestor_ids):
         stop = _classify(await evaluator.evaluate(graph.cells[cid], glbls))
         if stop is not None:
@@ -174,7 +176,8 @@ def run_cell_sync(
         )
 
     evaluator = _new_evaluator()
-    glbls: MutableGlobals = {}
+    filename = NOTEBOOK_FILENAME.get()
+    glbls: MutableGlobals = {"__file__": filename} if filename else {}
     for cid in topological_sort(graph, ancestor_ids):
         stop = _classify(evaluator.evaluate_sync(graph.cells[cid], glbls))
         if stop is not None:

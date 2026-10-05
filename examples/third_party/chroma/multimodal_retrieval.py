@@ -4,7 +4,7 @@
 #     "chromadb==1.0.4",
 #     "datasets==3.5.0",
 #     "marimo",
-#     "matplotlib==3.10.1",
+#     "matplotlib==3.10.9",
 #     "numpy==2.2.4",
 #     "open-clip-torch==2.32.0",
 #     "pillow==11.1.0",

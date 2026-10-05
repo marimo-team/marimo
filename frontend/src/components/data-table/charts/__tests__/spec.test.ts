@@ -169,16 +169,11 @@ describe("getAxisEncoding", () => {
 
       const expectedAggregate = (result as { aggregate?: string }).aggregate;
 
-      // For aggregations that are not valid for string data types, we should return undefined
-      if (
-        agg === NONE_VALUE ||
-        agg === BIN_AGGREGATION ||
-        !STRING_AGGREGATION_FNS.includes(agg)
-      ) {
-        expect(expectedAggregate).toBeUndefined();
-      } else if (STRING_AGGREGATION_FNS.includes(agg)) {
-        expect(expectedAggregate).toEqual(agg);
-      }
+      const isStringAggregation =
+        agg !== NONE_VALUE &&
+        agg !== BIN_AGGREGATION &&
+        STRING_AGGREGATION_FNS.includes(agg);
+      expect(expectedAggregate).toBe(isStringAggregation ? agg : undefined);
     }
   });
 

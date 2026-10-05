@@ -310,8 +310,6 @@ export default defineConfig({
     dedupe: [
       "react",
       "react-dom",
-      "@emotion/react",
-      "@emotion/cache",
       "@codemirror/view",
       "@codemirror/state",
       // Dedupe react-dnd to prevent "Cannot have two HTML5 backends" errors

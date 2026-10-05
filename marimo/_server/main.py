@@ -12,7 +12,7 @@ from starlette.middleware.cors import CORSMiddleware
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.api.auth import (
-    RANDOM_SECRET,
+    SESSION_SECRET,
     CustomAuthenticationMiddleware,
     CustomSessionMiddleware,
     on_auth_error,
@@ -71,7 +71,7 @@ def create_starlette_app(
             [
                 Middleware(
                     CustomSessionMiddleware,
-                    secret_key=RANDOM_SECRET,
+                    secret_key=SESSION_SECRET,
                     https_only=GLOBAL_SETTINGS.SESSION_COOKIE_SECURE,
                 ),
             ]
@@ -141,7 +141,8 @@ def _create_lsps_proxy_middleware(
         Middleware(
             ProxyMiddleware,
             proxy_path=f"{base_url}/lsp/{server.id}",
-            target_url=f"http://localhost:{server.port}",
+            target_url=f"http://127.0.0.1:{server.port}",
+            websocket_headers={"Marimo-LSP-Token": server.auth_token},
         )
         for server in servers
     )

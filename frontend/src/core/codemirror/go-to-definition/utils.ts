@@ -10,7 +10,7 @@ import {
 } from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
 import { hotkeysAtom, platformAtom } from "../../config/config";
-import { notebookAtom } from "../../cells/cells";
+import { ensureCellEditorView } from "../../cells/cells";
 import { store } from "../../state/jotai";
 import { variablesAtom } from "../../variables/state";
 import type { VariableName, Variables } from "../../variables/types";
@@ -181,12 +181,6 @@ function getEditorForVariable(
   return null;
 }
 
-/**
- * Go to the given line number in the editor view.
- * @param view The editor view to go to.
- * @param line The line number to go to.
- */
 function getEditorForCell(cellId: CellId): EditorView | null {
-  const notebookState = store.get(notebookAtom);
-  return notebookState.cellHandles[cellId].current?.editorView ?? null;
+  return ensureCellEditorView(cellId) ?? null;
 }

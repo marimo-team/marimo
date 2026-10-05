@@ -69,9 +69,10 @@ describe("createNetworkRequests", () => {
     const methodNames = Object.keys(requests);
 
     for (const methodName of methodNames) {
-      if (!ACTIONS[methodName as keyof typeof ACTIONS]) {
-        expect.fail(`Method ${methodName} has no action defined`);
-      }
+      expect(
+        ACTIONS[methodName as keyof typeof ACTIONS],
+        `Method ${methodName} has no action defined`,
+      ).toBeDefined();
     }
   });
 
@@ -134,6 +135,13 @@ describe("createNetworkRequests", () => {
       await requests.getEnvironmentInfo();
 
       expect(mockClient.GET).toHaveBeenCalledWith("/api/environment");
+    });
+
+    it("getFileRoots should GET /api/files/roots", async () => {
+      const requests = createNetworkRequests();
+      await requests.getFileRoots();
+
+      expect(mockClient.GET).toHaveBeenCalledWith("/api/files/roots");
     });
 
     it("getExportAvailability should GET /api/export/availability", async () => {

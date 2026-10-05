@@ -48,6 +48,8 @@ export function useDebounceControlledState<T>(opts: {
 
   // Handle external changes:
   useEffect(() => {
+    // TODO: Replace this synchronization with a controlled-state primitive.
+    // oxlint-disable-next-line react/no-deriving-state-in-effects -- Synchronize the debounced draft when the controlled value changes.
     setInternalValue(initialValue);
   }, [initialValue]);
 

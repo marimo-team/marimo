@@ -446,6 +446,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "gen_3dwallet": "3d-wallet-generator",
         "gendimen": "android-gendimen",
         "genshi": "Genshi",
+        "geoarrow": "geoarrow-types",
         "geonode": "GeoNode",
         "geoserver": "gsconfig",
         "geraldo": "Geraldo",

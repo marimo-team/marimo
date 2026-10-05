@@ -276,12 +276,10 @@ def _get_session_info(session_id: SessionId) -> str:
 def _single_cell_language_rules() -> str:
     """Per-language rules for chat modes that emit one cell at a time."""
     out = ""
-    for language in language_rules:
-        if not language_rules[language]:
+    for language, rules in language_rules.items():
+        if not rules:
             continue
-        out += (
-            f"\n\n## Rules for {language}:\n{_rules(language_rules[language])}"
-        )
+        out += f"\n\n## Rules for {language}:\n{_rules(rules)}"
     return out
 
 

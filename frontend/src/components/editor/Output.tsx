@@ -18,10 +18,12 @@ import {
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   ExpandIcon,
+  ShrinkIcon,
 } from "lucide-react";
 import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
 import { viewStateAtom } from "@/core/mode";
+import { useEventListener } from "@/hooks/useEventListener";
 import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
 import { useOverflowDetection } from "@/hooks/useOverflowDetection";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -31,11 +33,13 @@ import { getContainerWidth } from "@/plugins/impl/vega/utils";
 import { useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
 import { processMimeBundle } from "@/utils/mime-types";
 import { Objects } from "@/utils/objects";
 import { LazyVegaEmbed } from "../charts/lazy";
 import { ChartLoadingState } from "../data-table/charts/components/chart-states";
 import { Button } from "../ui/button";
+import { useIsFullScreen } from "../ui/fullscreen";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
 import { CsvViewer } from "./file-tree/renderers";
@@ -408,6 +412,12 @@ const Div = React.forwardRef<
 >((props, ref) => <div ref={ref} {...props} />);
 Div.displayName = "Div";
 
+function exitFullscreen() {
+  document.exitFullscreen().catch((error) => {
+    Logger.warn("Failed to exit fullscreen", error);
+  });
+}
+
 /**
  * Detects if there is overflow in the output area and adds a button to optionally expand
  */
@@ -425,6 +435,16 @@ const ExpandableOutput = React.memo(
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
     const isOverflowing = useOverflowDetection(containerRef);
     const { hasFullscreen } = useIframeCapabilities();
+    const isFullscreen = useIsFullScreen(containerRef);
+
+    // Not every host exits fullscreen on Escape by itself. A null target keeps
+    // the listener off every output that is not fullscreen.
+    useEventListener(isFullscreen ? document : null, "keydown", (event) => {
+      if (event.key !== "Escape" || !document.fullscreenElement) {
+        return;
+      }
+      exitFullscreen();
+    });
 
     return (
       <>
@@ -488,6 +508,26 @@ const ExpandableOutput = React.memo(
               isExpanded || forceExpand ? { maxHeight: "none" } : undefined
             }
           >
+            {/* Fullscreen paints this element only, and the action buttons sit
+                outside it. A host does not always draw an exit overlay, so the
+                output carries its own exit control. */}
+            {isFullscreen && (
+              <Tooltip content="Exit fullscreen" side="left">
+                <Button
+                  data-testid="exit-fullscreen-output-button"
+                  aria-label="Exit fullscreen"
+                  className="absolute right-2 top-2 z-2 p-1 bg-background/90 border border-border hover:bg-muted print:hidden"
+                  onClick={exitFullscreen}
+                  size="xs"
+                  variant="text"
+                >
+                  <ShrinkIcon
+                    className="size-4 opacity-60 hover:opacity-80"
+                    strokeWidth={1.25}
+                  />
+                </Button>
+              </Tooltip>
+            )}
             {children}
           </div>
         </div>

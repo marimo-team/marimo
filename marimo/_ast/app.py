@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
 import inspect
 import os
 import sys
@@ -14,7 +13,6 @@ from collections.abc import (
     Sequence,
 )
 from dataclasses import dataclass
-from pathlib import Path
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
@@ -52,6 +50,7 @@ from marimo._runtime.commands import (
     InvokeFunctionCommand,
     UpdateUIElementCommand,
 )
+from marimo._runtime.context.filename import notebook_filename
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
@@ -188,6 +187,7 @@ class _SetupContext:
                         column=existing_cfg.column,
                         disabled=existing_cfg.disabled,
                         hide_code=hide_code,
+                        expand_output=existing_cfg.expand_output,
                     ),
                 ),
                 source="cell-manager",
@@ -366,6 +366,7 @@ class App:
         column: int | None = None,
         disabled: bool = False,
         hide_code: bool = False,
+        expand_output: bool = False,
         **kwargs: Any,
     ) -> Cell | Callable[[Fn[P, R]], Cell]:
         """A decorator to add a cell to the app.
@@ -392,6 +393,9 @@ class App:
             column: The column number to place this cell in.
             disabled: Whether to disable the cell.
             hide_code: Whether to hide the cell's code.
+            expand_output: Whether to show the cell's output in full; when
+                False, a tall output is clamped to a fixed height in the
+                editor. Does not affect console output.
             **kwargs: For forward-compatibility with future arguments.
         """
         del kwargs
@@ -399,7 +403,12 @@ class App:
         return cast(
             Cell | Callable[[Fn[P, R]], Cell],
             self._cell_manager.cell_decorator(
-                func, column, disabled, hide_code, app=InternalApp(self)
+                func,
+                column,
+                disabled,
+                hide_code,
+                expand_output=expand_output,
+                app=InternalApp(self),
             ),
         )
 
@@ -426,6 +435,7 @@ class App:
         column: int | None = None,
         disabled: bool = False,
         hide_code: bool = False,
+        expand_output: bool = False,
         **kwargs: Any,
     ) -> Fn[P, R] | Callable[[Fn[P, R]], Fn[P, R]]:
         """A decorator to wrap a callable function into a marimo cell.
@@ -454,6 +464,9 @@ class App:
             column: The column number to place this cell in.
             disabled: Whether to disable the cell.
             hide_code: Whether to hide the cell's code.
+            expand_output: Whether to show the cell's output in full; when
+                False, a tall output is clamped to a fixed height in the
+                editor. Does not affect console output.
             **kwargs: For forward-compatibility with future arguments.
         """
         del kwargs
@@ -465,6 +478,7 @@ class App:
                 column,
                 disabled,
                 hide_code,
+                expand_output=expand_output,
                 app=InternalApp(self),
                 top_level=True,
             ),
@@ -483,6 +497,7 @@ class App:
         column: int | None = None,
         disabled: bool = False,
         hide_code: bool = False,
+        expand_output: bool = False,
         **kwargs: Any,
     ) -> Cls | Callable[[Cls], Cls]:
         """A decorator to wrap a class into a marimo cell.
@@ -509,6 +524,9 @@ class App:
             column: The column number to place this cell in.
             disabled: Whether to disable the cell.
             hide_code: Whether to hide the cell's code.
+            expand_output: Whether to show the cell's output in full; when
+                False, a tall output is clamped to a fixed height in the
+                editor. Does not affect console output.
             **kwargs: For forward-compatibility with future arguments.
         """
         del kwargs
@@ -520,6 +538,7 @@ class App:
                 column,
                 disabled,
                 hide_code,
+                expand_output=expand_output,
                 app=InternalApp(self),
                 top_level=True,
             ),
@@ -782,9 +801,10 @@ class App:
         from marimo._runtime.runner import by_refs
 
         self._maybe_initialize()
-        output, defs = await by_refs.run_cell_async(
-            self._graph, cell._cell.cell_id, kwargs
-        )
+        with notebook_filename(self._filename):
+            output, defs = await by_refs.run_cell_async(
+                self._graph, cell._cell.cell_id, kwargs
+            )
         return output, _Namespace(defs, owner=self)
 
     def _run_cell_sync(
@@ -793,9 +813,10 @@ class App:
         from marimo._runtime.runner import by_refs
 
         self._maybe_initialize()
-        output, defs = by_refs.run_cell_sync(
-            self._graph, cell._cell.cell_id, kwargs
-        )
+        with notebook_filename(self._filename):
+            output, defs = by_refs.run_cell_sync(
+                self._graph, cell._cell.cell_id, kwargs
+            )
         return output, _Namespace(defs, owner=self)
 
     async def _set_ui_element_value(
@@ -1008,19 +1029,6 @@ class InternalApp:
     def update_config(self, updates: dict[str, Any]) -> _AppConfig:
         return self.config.update(updates)
 
-    def inline_layout_file(self) -> InternalApp:
-        if self.config.layout_file:
-            layout_path = Path(self.config.layout_file)
-            if self._app._filename:
-                # Resolve relative to the current working directory
-                layout_path = Path(self._app._filename).parent / layout_path
-            layout_file = layout_path.read_bytes()
-            data_uri = base64.b64encode(layout_file).decode()
-            self.update_config(
-                {"layout_file": f"data:application/json;base64,{data_uri}"}
-            )
-        return self
-
     def with_data(
         self,
         *,
@@ -1040,6 +1048,23 @@ class InternalApp:
         callers from save flows pass the frontend's snapshot, which
         renames/reorders/reconfigures cells but doesn't recompile.
         """
+        self.apply_data(
+            cell_ids=cell_ids,
+            codes=codes,
+            names=names,
+            configs=configs,
+        )
+        return self
+
+    def apply_data(
+        self,
+        *,
+        cell_ids: Iterable[CellId_t],
+        codes: Iterable[str],
+        names: Iterable[str],
+        configs: Iterable[CellConfig],
+    ) -> Transaction:
+        """Rewrite the cell list and return the applied transaction."""
         cm = self._app._cell_manager
         prev_compiled = dict(cm._compiled_cells)
         rebuilt = CellManager(prefix=cm.prefix)
@@ -1054,8 +1079,10 @@ class InternalApp:
                 cell=prev_compiled.get(cell_id),
             )
 
-        cm.apply_diff_from(rebuilt, source="cell-manager")
-        return self
+        transaction, _changed_cell_ids = cm.apply_diff_from(
+            rebuilt, source="cell-manager"
+        )
+        return transaction
 
     async def run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]

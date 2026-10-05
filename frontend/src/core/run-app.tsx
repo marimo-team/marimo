@@ -3,6 +3,7 @@
 import { atom, useAtomValue } from "jotai";
 import { ArrowLeftIcon } from "lucide-react";
 import { useEffect } from "react";
+import { KernelStartupErrorModal } from "@/components/editor/KernelStartupErrorModal";
 import { AppContainer } from "@/components/editor/app-container";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { ProgressiveBoundary } from "@/components/lifecycle/ProgressiveBoundary";
@@ -25,6 +26,7 @@ import { useMarimoKernelConnection } from "./websocket/useMarimoKernelConnection
 
 interface AppProps {
   appConfig: AppConfig;
+  hideHeader?: boolean;
 }
 
 /**
@@ -37,7 +39,7 @@ const canPaintRunAppAtom = atom(
   (get) => get(hasCellsAtom) || !isAppConnecting(get(connectionAtom).state),
 );
 
-export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
+export const RunApp: React.FC<AppProps> = ({ appConfig, hideHeader }) => {
   const { setCells } = useCellActions();
   const { sendComponentValues } = useRequestClient();
 
@@ -77,7 +79,11 @@ export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
       width={appConfig.width}
       onReconnect={reconnect}
     >
-      <AppHeader connection={connection} className="sm:pt-8">
+      <KernelStartupErrorModal />
+      <AppHeader
+        connection={connection}
+        className={hideHeader ? "hidden" : "sm:pt-8"}
+      >
         {galleryHref && (
           <div className="flex items-center px-6 pt-4 sm:-mt-8">
             <a

@@ -11,6 +11,7 @@ from starlette.responses import JSONResponse, StreamingResponse
 from marimo import _loggers
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._runtime.commands import HTTPRequest, UpdateUIElementCommand
@@ -346,13 +347,25 @@ async def execute_code(
         http_request=HTTPRequest.from_request(request),
     )
 
-    async def _watch_disconnect() -> None:
-        """Wait for client disconnect and interrupt the kernel."""
-        await wait_for_http_disconnect(request)
-        session.try_interrupt()
-
     async def sse_generator() -> AsyncGenerator[str, None]:
-        disconnect_task = asyncio.create_task(_watch_disconnect())
+        interrupt_sent = False
+
+        def interrupt_once() -> None:
+            # The disconnect watcher and the response cancellation can
+            # both observe one client disconnect. The kernel must get
+            # one interrupt. Both callers run on the event-loop thread,
+            # so a plain flag is enough.
+            nonlocal interrupt_sent
+            if interrupt_sent:
+                return
+            interrupt_sent = True
+            session.try_interrupt()
+
+        async def watch_disconnect() -> None:
+            await wait_for_http_disconnect(request)
+            interrupt_once()
+
+        disconnect_task = asyncio.create_task(watch_disconnect())
         # Correlation ID: tags both the scratchpad command and the
         # listener so we wait for *our* completion and ignore
         # ``CompletedRun`` events from other commands on this session
@@ -371,6 +384,10 @@ async def execute_code(
                     )
                     http_req.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
                     http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
+                    http_req.meta[SCREENSHOT_FILE_KEY] = (
+                        session.app_file_manager.path
+                        or session.initialization_id
+                    )
                     notebook_cells, cell_outputs = snapshot_for_scratchpad(
                         session
                     )
@@ -389,10 +406,11 @@ async def execute_code(
 
                 yield build_done_event(session, listener)
         except asyncio.CancelledError:
-            # On ASGI spec < 2.4, Starlette consumes http.disconnect
-            # itself and cancels this generator before _watch_disconnect
-            # observes it; still interrupt the kernel on the way out.
-            session.try_interrupt()
+            # On ASGI spec < 2.4 (uvicorn), Starlette cancels this
+            # generator when the client disconnects. On spec >= 2.4 it
+            # does not, and only the watcher fires. Interrupt here too
+            # so both server kinds stop the kernel.
+            interrupt_once()
             raise
         finally:
             await cancel_and_wait(disconnect_task)
@@ -557,8 +575,8 @@ async def shutdown(
     session_manager = app_state.session_manager
     workspace = session_manager.workspace
 
-    def shutdown_server() -> None:
-        app_state.session_manager.shutdown()
+    async def shutdown_server() -> None:
+        await app_state.session_manager.shutdown()
         close_uvicorn(app_state.server)
 
     # If we are only operating on a single file (new or explicit file),
@@ -566,18 +584,18 @@ async def shutdown(
     # from the file explorer) then we should shutdown the whole server
     key = workspace.get_unique_file_key()
     if key and len(session_manager.sessions) <= 1:
-        shutdown_server()
+        await shutdown_server()
         return SuccessResponse()
 
     # Otherwise, get the session
     session_id = app_state.get_current_session_id()
     if not session_id:
-        shutdown_server()
+        await shutdown_server()
         return SuccessResponse()
 
     was_shutdown = session_manager.close_session(session_id)
     if not was_shutdown:
-        shutdown_server()
+        await shutdown_server()
 
     return SuccessResponse()
 

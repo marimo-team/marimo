@@ -25,8 +25,8 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
     with client.websocket_connect(
         "/ws?session_id=123", headers=_HEADERS
     ) as websocket:
-        data = websocket.receive_json()
-        assert_kernel_ready_response(data)
+        editor_ready = websocket.receive_json()
+        assert_kernel_ready_response(editor_ready)
 
         # Connect in kiosk mode
         with client.websocket_connect(
@@ -47,6 +47,11 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                 ),
             )
 
+            for _ in range(2):
+                assert (
+                    other_websocket.receive_json()["op"] == "environment-state"
+                )
+
             # Send document transaction to reorder cells
             response = client.post(
                 "/api/document/transaction",
@@ -65,6 +70,36 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             # Assert kiosk session received the document transaction
             data = other_websocket.receive_json()
             assert data["op"] == "notebook-document-transaction"
+
+            # A full save replaces the canonical document. Viewers receive
+            # the applied diff even when it includes edits that bypassed the
+            # incremental document endpoint during recovery.
+            filename = client.app.state.session_manager.workspace.get_unique_file_key()
+            assert filename
+            replacement_code = editor_ready["data"]["codes"][0] + "\n# saved"
+            response = client.post(
+                "/api/kernel/save",
+                headers=HEADERS,
+                json={
+                    "cellIds": editor_ready["data"]["cell_ids"],
+                    "filename": filename,
+                    "codes": [
+                        replacement_code,
+                        *editor_ready["data"]["codes"][1:],
+                    ],
+                    "names": editor_ready["data"]["names"],
+                    "configs": editor_ready["data"]["configs"],
+                },
+            )
+            assert response.status_code == 200, response.text
+            data = receive_until(
+                "notebook-document-transaction", other_websocket
+            )
+            assert any(
+                change["type"] == "set-code"
+                and change["code"] == replacement_code
+                for change in data["data"]["transaction"]["changes"]
+            )
 
             # Send run single cell
             response = client.post(

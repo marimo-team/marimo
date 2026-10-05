@@ -337,11 +337,16 @@ def test_is_marimo_dependency():
     assert is_marimo_dependency("marimo[extras]>=0.1.0")
     assert is_marimo_dependency("marimo[extras]<=0.1.0")
 
+    # With the "!=" exclusion specifier (PEP 440)
+    assert is_marimo_dependency("marimo!=0.1.0")
+    assert is_marimo_dependency("marimo[extras]!=0.1.0")
+
     # With other packages
     assert not is_marimo_dependency("numpy")
     assert not is_marimo_dependency("pandas")
     assert not is_marimo_dependency("marimo-ai")
     assert not is_marimo_dependency("marimo-ai==0.1.0")
+    assert not is_marimo_dependency("marimo-ai!=0.1.0")
 
 
 def test_has_marimo_in_script_metadata(tmp_path):
@@ -738,3 +743,23 @@ def test_pin_for_wasm_falls_back_to_installed_on_fetch_failure(
     out = pin_pep723_dependencies_for_wasm(_WASM_SRC, _wasm_path(tmp_path))
     # Fall-through path pins to whatever's installed.
     assert "numpy==1.99.0" in out
+
+
+@pytest.mark.parametrize(
+    "contents",
+    [
+        '# A comment\ndependencies = ["numpy"]\n',
+        '# /// script-example\ndependencies = ["numpy"]\n',
+        '# /// script\n# dependencies = ["numpy"]\n# ///',
+    ],
+)
+def test_markdown_manifest_accepts_comments_and_wrapped_metadata(
+    contents: str,
+) -> None:
+    from marimo._environments import script_metadata
+    from marimo._utils.inline_script_metadata import (
+        get_headers_from_frontmatter,
+    )
+
+    header = get_headers_from_frontmatter({"pyproject": contents})["pyproject"]
+    assert script_metadata.loads(header) == {"dependencies": ["numpy"]}

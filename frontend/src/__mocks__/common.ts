@@ -101,9 +101,9 @@ export const SetupMocks = {
     const unobserve = vi.fn();
     const disconnect = vi.fn();
     global.ResizeObserver = class MockResizeObserver {
-      observe = observe;
-      unobserve = unobserve;
-      disconnect = disconnect;
+      public observe = observe;
+      public unobserve = unobserve;
+      public disconnect = disconnect;
     } as unknown as typeof ResizeObserver;
     return { observe, unobserve, disconnect };
   },

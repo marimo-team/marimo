@@ -21,37 +21,29 @@ The home page shows all marimo notebooks in the directory, letting you:
 
 ## Sandboxed Home
 
-You can run the home page in sandbox mode (called "Sandboxed Home"), where
-each notebook gets its own isolated environment:
+You can open a directory in sandbox mode, giving each notebook its own isolated
+environment:
 
-```bash
-marimo edit --sandbox folder/
-```
-
-When using Sandboxed Home:
-
-1. Each notebook runs in its own isolated environment
-2. Dependencies are read from each notebook's [inline script metadata](../package_management/inlining_dependencies.md) (PEP 723)
-3. Environments are created on-demand when you open a notebook
-
-This is useful when you have a collection of notebooks with different
-dependencies and want to keep them isolated from each other.
-
-!!! note "Additional dependencies required"
-
-    Sandboxed Home requires additional packages:
+=== "uv"
 
     ```bash
-    uv add 'marimo[sandbox]'
+    marimo edit --sandbox folder/
     ```
 
-    This installs `pyzmq` (for inter-process communication) and `uv`
-    (for environment management).
+=== "Pixi"
 
-### Using custom virtual environments
+    ```bash
+    marimo edit --sandbox=pixi folder/
+    ```
 
-When using Sandboxed Home, you can specify an existing virtual environment
-for a notebook instead of having marimo create one automatically.
+Each environment is prepared from the notebook's requirements when you open it.
+See [working in sandboxes](../package_management/sandboxes.md#open-a-directory-of-notebooks)
+for setup with uv or Pixi.
+
+## Using custom virtual environments
+
+You can specify an existing virtual environment for each notebook when editing
+a directory or a single notebook with `marimo edit --no-sandbox`.
 This is configured using `[tool.marimo.venv]` in your script metadata:
 
 ```python
@@ -62,25 +54,20 @@ This is configured using `[tool.marimo.venv]` in your script metadata:
 # ///
 ```
 
-!!! note "Sandboxed Home only"
+With `--sandbox`, uv or Pixi provisions the environment from the notebook's
+manifest. The editor ignores `[tool.marimo.venv]` and prints a warning.
+Use `--no-sandbox` to use the configured environment. To use an activated
+environment directly, see
+[using an existing environment](../package_management/projects.md#use-an-existing-environment).
 
-    The `[tool.marimo.venv]` configuration only applies when using
-    Sandboxed Home (`marimo edit --sandbox folder/`). For single notebooks,
-    activate your virtual environment before running marimo:
-
-    ```bash
-    source path/to/venv/bin/activate
-    marimo edit notebook.py
-    ```
-
-#### Configuration options
+### Configuration options
 
 | Option | Description |
 |--------|-------------|
 | `path` | Path to the virtual environment (relative or absolute) |
 | `writable` | Whether marimo can install packages into the venv (default: `false`) |
 
-#### Behavior
+### Behavior
 
 | `writable` | marimo installed? | What happens |
 |:-----------|:------------------|:-------------|

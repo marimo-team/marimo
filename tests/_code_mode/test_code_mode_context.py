@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, PropertyMock, patch
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -21,7 +21,9 @@ from marimo._messaging.notebook.document import (
     notebook_document_context,
 )
 from marimo._messaging.notification import (
+    EnvironmentOperationNotification,
     NotebookDocumentTransactionNotification,
+    OperationRunning,
 )
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.packages.package_manager import PackageDescription
@@ -73,6 +75,52 @@ def _graph_codes(k: Kernel) -> dict[str, str]:
 
 
 class TestAddCell:
+    @pytest.mark.parametrize(
+        ("name", "expected_name"),
+        [
+            (None, ""),
+            ("", ""),
+            ("load_data", "load_data"),
+            ("_private", "_private"),
+            ("K", "K"),
+            ("résumé", "résumé"),
+            ("match", "match"),
+        ],
+    )
+    async def test_accepts_valid_name(
+        self, k: Kernel, name: str | None, expected_name: str
+    ) -> None:
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.create_cell("x = 1", name=name)
+
+            create = next(
+                op for op in _tx_ops(k) if op["type"] == "create-cell"
+            )
+            assert create["name"] == expected_name
+
+    @pytest.mark.parametrize(
+        ("name", "message"),
+        [
+            ("Load data", "valid, non-keyword Python identifiers"),
+            ("class", "valid, non-keyword Python identifiers"),
+            ("segment-change", "valid, non-keyword Python identifiers"),
+            ("123_cell", "valid, non-keyword Python identifiers"),
+            ("_", "reserved for unnamed cells"),
+            ("__", "reserved for unnamed cells"),
+            ("K", "NFKC-normalized"),
+        ],
+    )
+    async def test_rejects_invalid_name(
+        self, k: Kernel, name: str, message: str
+    ) -> None:
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                with pytest.raises(ValueError, match=message):
+                    nb.create_cell("x = 1", name=name)
+
+            assert not k.graph.cells
+
     async def test_add_into_empty(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
             _clear_messages(k)
@@ -97,6 +145,7 @@ class TestAddCell:
                             "column": None,
                             "disabled": False,
                             "hide_code": True,
+                            "expand_output": False,
                         },
                         "before": None,
                         "after": None,
@@ -104,6 +153,15 @@ class TestAddCell:
                     {"type": "reorder-cells", "cellIds": ("qhHd",)},
                 ]
             )
+
+    async def test_add_with_expand_output(self, k: Kernel) -> None:
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                cid = nb.create_cell("x = 1", expand_output=True)
+                nb.run_cell(cid)
+
+            assert k.cell_metadata[cid].config.expand_output is True
+            assert k.graph.cells[cid].config.expand_output is True
 
     async def test_add_appends_by_default(self, k: Kernel) -> None:
         await k.run(
@@ -247,6 +305,53 @@ class TestDeleteCell:
 
 
 class TestUpdateCell:
+    @pytest.mark.parametrize(
+        "name", [None, "", "analysis_summary", "K", "résumé", "match"]
+    )
+    async def test_accepts_valid_name(
+        self, k: Kernel, name: str | None
+    ) -> None:
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            _clear_messages(k)
+            async with ctx as nb:
+                nb.edit_cell("0", name=name)
+
+            name_ops = [op for op in _tx_ops(k) if op["type"] == "set-name"]
+            if name is None:
+                assert not name_ops
+            else:
+                assert name_ops == [
+                    {"type": "set-name", "cellId": "0", "name": name}
+                ]
+
+    @pytest.mark.parametrize(
+        ("name", "message"),
+        [
+            ("Analysis summary", "valid, non-keyword Python identifiers"),
+            ("for", "valid, non-keyword Python identifiers"),
+            ("analysis-summary", "valid, non-keyword Python identifiers"),
+            ("1st_cell", "valid, non-keyword Python identifiers"),
+            ("_", "reserved for unnamed cells"),
+            ("__", "reserved for unnamed cells"),
+            ("K", "NFKC-normalized"),
+        ],
+    )
+    async def test_rejects_invalid_name(
+        self, k: Kernel, name: str, message: str
+    ) -> None:
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            _clear_messages(k)
+            async with ctx as nb:
+                with pytest.raises(ValueError, match=message):
+                    nb.edit_cell("0", name=name)
+
+            assert _graph_codes(k) == {"0": "x = 1"}
+            assert not _tx_ops(k)
+
     async def test_update_code(self, k: Kernel) -> None:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
         assert k.globals["x"] == 1
@@ -323,10 +428,106 @@ class TestUpdateCell:
                         "column": None,
                         "disabled": False,
                         "hideCode": True,
+                        "expandOutput": False,
                     },
                     {"type": "reorder-cells", "cellIds": ("0",)},
                 ]
             )
+
+    async def test_update_expand_output(self, k: Kernel) -> None:
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            _clear_messages(k)
+
+            async with ctx as nb:
+                nb.edit_cell("0", expand_output=True)
+
+            assert k.cell_metadata["0"].config.expand_output is True
+            assert k.graph.cells["0"].config.expand_output is True
+            assert _tx_ops(k) == snapshot(
+                [
+                    {
+                        "type": "set-config",
+                        "cellId": "0",
+                        "column": None,
+                        "disabled": False,
+                        "hideCode": False,
+                        "expandOutput": True,
+                    },
+                    {"type": "reorder-cells", "cellIds": ("0",)},
+                ]
+            )
+
+    async def test_update_preserves_expand_output(self, k: Kernel) -> None:
+        """Editing another config field leaves expand_output untouched."""
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("0", expand_output=True)
+
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("0", hide_code=True)
+
+        assert k.cell_metadata["0"].config.expand_output is True
+        assert k.cell_metadata["0"].config.hide_code is True
+
+    async def test_update_collapse_output(self, k: Kernel) -> None:
+        """expand_output=False turns off a previously expanded output."""
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("0", expand_output=True)
+
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("0", expand_output=False)
+
+        assert k.cell_metadata["0"].config.expand_output is False
+        assert k.graph.cells["0"].config.expand_output is False
+
+    async def test_update_config_of_pending_create(self, k: Kernel) -> None:
+        """Editing a cell created in the same batch keeps its create config.
+
+        The create is still queued, so the cell has no entry in
+        `cell_metadata` to merge against yet.
+        """
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                cid = nb.create_cell("x = 1", hide_code=True, disabled=True)
+                nb.edit_cell(cid, expand_output=True)
+
+        cfg = k.cell_metadata[cid].config
+        assert cfg.expand_output is True
+        assert cfg.hide_code is True
+        assert cfg.disabled is True
+
+        # And in the other direction: an unrelated edit must not reset
+        # a config field the create set.
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                other = nb.create_cell("y = 1", expand_output=True)
+                nb.edit_cell(other, hide_code=False)
+
+        cfg = k.cell_metadata[other].config
+        assert cfg.expand_output is True
+        assert cfg.hide_code is False
+
+    async def test_two_config_edits_in_one_batch(self, k: Kernel) -> None:
+        """A second edit merges into the first edit's queued config."""
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("0", hide_code=True)
+                nb.edit_cell("0", expand_output=True)
+
+        cfg = k.cell_metadata["0"].config
+        assert cfg.hide_code is True
+        assert cfg.expand_output is True
 
     async def test_update_code_skips_formatting_when_disabled(
         self, k: Kernel
@@ -823,6 +1024,7 @@ class TestPackages:
     async def test_add_and_remove_in_same_batch(self, k: Kernel) -> None:
         """add and remove can coexist in the same batch, executed in order."""
         with _ctx(k) as ctx:
+            _clear_messages(k)
             pm = k.packages_callbacks.package_manager
             assert pm is not None
 
@@ -830,7 +1032,7 @@ class TestPackages:
 
             async def track_install(package: str, **_kwargs: object) -> bool:
                 call_order.append(("add", package))
-                return True
+                return package != "missing-package"
 
             async def track_uninstall(package: str, **_kwargs: object) -> bool:
                 call_order.append(("remove", package))
@@ -843,8 +1045,51 @@ class TestPackages:
                 async with ctx as nb:
                     nb.packages.add("polars")
                     nb.packages.remove("pandas")
+                    nb.packages.add("numpy", "missing-package")
 
-            assert call_order == [("add", "polars"), ("remove", "pandas")]
+            assert call_order == [
+                ("add", "polars"),
+                ("remove", "pandas"),
+                ("add", "numpy"),
+                ("add", "missing-package"),
+            ]
+            notifications = [
+                notification
+                for notification in k.stream.operations
+                if isinstance(notification, EnvironmentOperationNotification)
+            ]
+            assert [
+                (
+                    notification.action,
+                    notification.packages,
+                    msgspec.to_builtins(notification.status)["kind"],
+                )
+                for notification in notifications
+                if not isinstance(notification.status, OperationRunning)
+            ] == snapshot(
+                [
+                    (
+                        "install",
+                        {"polars": "succeeded"},
+                        "succeeded",
+                    ),
+                    ("remove", {"pandas": "succeeded"}, "succeeded"),
+                    (
+                        "install",
+                        {"numpy": "succeeded", "missing-package": "failed"},
+                        "failed",
+                    ),
+                ]
+            )
+            assert len({n.operation_id for n in notifications}) == 3
+            assert all(
+                n.action in ("install", "remove") for n in notifications
+            )
+            assert any(
+                n.logs
+                == {"missing-package": "Failed to install missing-package\n"}
+                for n in notifications
+            )
 
     async def test_exception_discards_package_ops(self, k: Kernel) -> None:
         """If an exception occurs, queued package ops are discarded."""
@@ -941,6 +1186,73 @@ class TestPackages:
 
             captured = capsys.readouterr()  # type: ignore[attr-defined]
             assert "pandas" in captured.out
+
+
+@pytest.mark.parametrize("operation", ["add", "remove"])
+@pytest.mark.parametrize("restart_required", [False, True])
+async def test_package_summary_reports_unsuccessful_outcomes(
+    k: Kernel,
+    capsys: pytest.CaptureFixture[str],
+    operation: str,
+    restart_required: bool,
+) -> None:
+    from marimo._messaging.notification import (
+        EnvironmentOperationNotification,
+        OperationFailed,
+        OperationRestartRequired,
+    )
+
+    with _ctx(k) as ctx:
+        pm = k.packages_callbacks.package_manager
+        assert pm is not None
+        method = "install" if operation == "add" else "uninstall"
+        with (
+            patch.object(
+                pm, method, new_callable=AsyncMock, return_value=False
+            ),
+            patch.object(
+                type(pm),
+                "restart_required",
+                new_callable=PropertyMock,
+                return_value=restart_required,
+            ),
+        ):
+            async with ctx as nb:
+                getattr(nb.packages, operation)("boltons")
+        output = capsys.readouterr().out
+        assert (
+            "changes saved for boltons; restart the kernel"
+            if restart_required
+            else f"failed to {method} boltons"
+        ) in output
+        assert "installed boltons" not in output
+        if operation == "add":
+            alerts = [
+                n
+                for n in k.stream.operations
+                if isinstance(n, EnvironmentOperationNotification)
+            ]
+            operation_id = alerts[0].operation_id
+            assert operation_id is not None
+            assert {alert.operation_id for alert in alerts} == {operation_id}
+            outcome = "restart-required" if restart_required else "failed"
+            assert alerts[-1] == EnvironmentOperationNotification(
+                action="install",
+                source="kernel",
+                logs={},
+                log_mode="append",
+                packages={"boltons": outcome},
+                operation_id=operation_id,
+                status=(
+                    OperationRestartRequired(
+                        reason="Dependency changes are saved; restart the kernel to apply them."
+                    )
+                    if restart_required
+                    else OperationFailed(
+                        error="Could not apply changes to boltons. See operation logs for details."
+                    )
+                ),
+            )
 
 
 class TestAutorunStaleState:

@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { CellData } from "@/core/cells/types";
+import { Logger } from "@/utils/Logger";
 import { GridLayoutPlugin } from "./grid-layout/plugin";
 import { SlidesLayoutPlugin } from "./slides-layout/plugin";
 import type { ICellRendererPlugin, LayoutType } from "./types";
@@ -27,5 +28,10 @@ export function deserializeLayout({
   if (plugin === undefined) {
     throw new Error(`Unknown layout type: ${type}`);
   }
-  return plugin.deserializeLayout(data, cells);
+  const parsed = plugin.validator.safeParse(data);
+  if (!parsed.success) {
+    Logger.warn(`Invalid ${type} layout`, parsed.error);
+    return plugin.getInitialLayout(cells);
+  }
+  return plugin.deserializeLayout(parsed.data, cells);
 }

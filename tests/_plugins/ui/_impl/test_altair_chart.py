@@ -912,6 +912,30 @@ def test_parse_spec_defaults_to_arrow() -> None:
         alt.data_transformers.enable(previous)
 
 
+@pytest.mark.requires("pandas", "altair")
+def test_altair_chart_without_pyarrow() -> None:
+    import altair as alt
+    import pandas as pd
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_line().encode(x="x:Q", y="y:Q")
+    with (
+        alt.data_transformers.enable("default"),
+        unittest.mock.patch.object(
+            DependencyManager.pyarrow, "has", return_value=False
+        ),
+        unittest.mock.patch.dict(sys.modules, {"pyarrow": None}),
+        unittest.mock.patch(
+            "marimo._plugins.ui._impl.charts.altair_transformer.LOGGER.warning",
+            side_effect=OSError("[WinError 1] Incorrect function"),
+        ) as warning,
+    ):
+        element = altair_chart(chart)
+
+    assert element._component_args["spec"]["data"]["format"] == {"type": "csv"}
+    warning.assert_not_called()
+
+
 @pytest.mark.skipif(
     not HAS_DEPS or not DependencyManager.duckdb.has(),
     reason="optional dependencies not installed",

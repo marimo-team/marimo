@@ -19,6 +19,13 @@ import {
 } from "../parse";
 import { createMockIslandElement, createMockIslands } from "./test-utils.tsx";
 
+function islandSnapshotPath(filename: string): string {
+  return new URL(
+    `../../../../../tests/_islands/snapshots/${filename}`,
+    import.meta.url,
+  ).pathname.replace(/^\/@fs/, "");
+}
+
 function createPayloadCell(
   overrides: Partial<{
     cellId: string;
@@ -47,6 +54,7 @@ function appendPayload(
   payload: {
     schemaVersion: number;
     appId: string;
+    dependencies?: unknown;
     cells: ReturnType<typeof createPayloadCell>[];
   },
 ) {
@@ -58,6 +66,33 @@ function appendPayload(
 }
 
 describe("createMarimoFile", () => {
+  it("should serialize dependencies as top-level script metadata", () => {
+    const file = createMarimoFile({
+      dependencies: ['cowsay==6.1; sys_platform == "emscripten"'],
+      cells: [{ code: "import cowsay" }],
+    });
+    expect(file).toBe(
+      [
+        "# /// script",
+        '# dependencies = ["cowsay==6.1; sys_platform == \\"emscripten\\""]',
+        "# ///",
+        "import marimo",
+        "app = marimo.App()",
+        "@app.cell",
+        "def __():",
+        "    import cowsay",
+        "    return",
+      ].join("\n"),
+    );
+  });
+
+  it("should omit metadata for empty dependencies", () => {
+    const cells = [{ code: "import cowsay" }];
+    expect(createMarimoFile({ cells, dependencies: [] })).toBe(
+      createMarimoFile({ cells }),
+    );
+  });
+
   it("should return a string", () => {
     const app = {
       cells: [
@@ -736,13 +771,7 @@ describe("parseMarimoIslandApps", () => {
   });
 
   it("should parse Python-generated island payload snapshots", () => {
-    const html = readFileSync(
-      new URL(
-        "../../../../../tests/_islands/snapshots/html-payload.txt",
-        import.meta.url,
-      ).pathname.replace(/^\/@fs/, ""),
-      "utf8",
-    );
+    const html = readFileSync(islandSnapshotPath("html-payload.txt"), "utf8");
     container.innerHTML = html;
 
     const result = parseMarimoIslandApps(container);
@@ -773,6 +802,108 @@ describe("parseMarimoIslandApps", () => {
     expect(islands[0].getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBeNull();
     expect(islands[1].getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("0");
     expect(islands[2].getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("1");
+  });
+
+  it("should restore metadata from a Python-generated dependency payload", () => {
+    container.innerHTML = readFileSync(
+      islandSnapshotPath("body-dependencies.txt"),
+      "utf8",
+    );
+
+    const probed = parseMarimoIslandApps(container, { materialize: false });
+    const apps = parseMarimoIslandApps(container);
+
+    expect(probed).toEqual(apps);
+    expect(apps).toEqual([
+      {
+        id: "main",
+        payloadBacked: true,
+        dependencies: [
+          'cowsay==6.1; sys_platform == "emscripten"',
+          "rich[jupyter]>=13",
+          "desktop; sys_platform != 'emscripten'",
+          "older-python; python_version < '3.13'",
+          "newer-python; python_version >= '3.13'",
+        ],
+        cells: [{ cellId: "Hbol", code: "import cowsay", output: "", idx: 0 }],
+      },
+    ]);
+    // The Python Pyodide test reads this file with the real metadata parser.
+    expect(createMarimoFile(apps[0])).toBe(
+      readFileSync(islandSnapshotPath("notebook-dependencies.txt"), "utf8"),
+    );
+  });
+
+  it("should carry dependencies from payloads into each generated notebook", () => {
+    for (const [appId, dependencies] of [
+      ["app1", ["cowsay==6.1"]],
+      ["app2", ["rich[jupyter]>=13"]],
+    ] as const) {
+      container.appendChild(
+        createMockIslandElement({ appId, cellId: "cell-1" }),
+      );
+      appendPayload(container, {
+        schemaVersion: 1,
+        appId,
+        dependencies,
+        cells: [createPayloadCell()],
+      });
+    }
+
+    const apps = parseMarimoIslandApps(container);
+    expect(apps.map((app) => [app.id, app.dependencies])).toEqual([
+      ["app1", ["cowsay==6.1"]],
+      ["app2", ["rich[jupyter]>=13"]],
+    ]);
+    expect(createMarimoFile(apps[0])).toContain(
+      '# /// script\n# dependencies = ["cowsay==6.1"]\n# ///\n',
+    );
+  });
+
+  it.each([null, "cowsay", [123], ["cowsay", null]])(
+    "should ignore payloads with malformed dependencies: %j",
+    (dependencies) => {
+      const island = createMockIslandElement({
+        appId: "app1",
+        cellId: "cell-1",
+        code: "import cowsay",
+        innerHTML: "<div>dom</div>",
+      });
+      island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+      container.appendChild(island);
+      appendPayload(container, {
+        schemaVersion: 1,
+        appId: "app1",
+        dependencies,
+        cells: [createPayloadCell()],
+      });
+
+      expect(parseMarimoIslandApps(container)).toEqual([
+        {
+          id: "app1",
+          cells: [{ code: "import cowsay", output: "<div>dom</div>", idx: 0 }],
+        },
+      ]);
+    },
+  );
+
+  it("should merge dependencies from payloads belonging to the same app", () => {
+    for (const [cellId, dependencies] of [
+      ["cell-1", ["cowsay"]],
+      ["cell-2", ["cowsay", "rich"]],
+    ] as const) {
+      container.appendChild(createMockIslandElement({ appId: "app1", cellId }));
+      appendPayload(container, {
+        schemaVersion: 1,
+        appId: "app1",
+        dependencies,
+        cells: [createPayloadCell({ cellId })],
+      });
+    }
+
+    expect(
+      parseMarimoIslandApps(container).map((app) => app.dependencies),
+    ).toEqual([["cowsay", "rich"]]);
   });
 
   it("should fall back to DOM islands for unsupported payload versions", () => {
@@ -990,6 +1121,7 @@ describe("parseMarimoIslandApps", () => {
           outputHtml: "<div>payload only</div>",
         }),
       ],
+      dependencies: ["cowsay"],
     });
 
     const result = parseMarimoIslandApps(container);
@@ -1076,6 +1208,7 @@ describe("parseMarimoIslandApps", () => {
           reactive: false,
         }),
       ],
+      dependencies: ["cowsay"],
     });
 
     const result = parseMarimoIslandApps(container);

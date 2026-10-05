@@ -26,9 +26,9 @@ interface Data {
 }
 
 export class RangeSliderPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-range-slider";
+  public tagName = "marimo-range-slider";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.array(z.number()),
     label: z.string().nullable(),
     start: z.number(),
@@ -42,7 +42,7 @@ export class RangeSliderPlugin implements IPlugin<T, Data> {
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     const valueMap = (sliderValue: number): number => {
       if (props.data.steps && props.data.steps.length > 0) {
         return props.data.steps[sliderValue];
@@ -90,6 +90,8 @@ const RangeSliderComponent = ({
 
   // Update internal value on prop change
   useEffect(() => {
+    // TODO: Replace this synchronization with a controlled-state primitive.
+    // oxlint-disable-next-line react/no-deriving-state-in-effects -- Synchronize the editable buffer when the controlled value changes.
     setInternalValue(value);
   }, [value]);
 

@@ -53,6 +53,7 @@ editing their contents.
 - `Shift+↓`/`Shift+↑` - multi-select cells
 - `Enter` - edit selected cell
 - `a`/`b` - new cell above/below
+- `q` - new SQL cell below
 - `c`/`v` - copy/paste cells
 - `s` - save notebook
 - `Shift+Enter` - run cell and move to next

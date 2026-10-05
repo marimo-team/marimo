@@ -10,7 +10,7 @@
     "wkt_looking",
     [
       "string",
-      "str"
+      "object"
     ]
   ],
   [

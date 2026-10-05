@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
+from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 import pytest
@@ -271,6 +275,24 @@ class TestArrowManager:
             "geometry",
             "geoarrow.wkb",
         )
+
+    def test_selection_column_preserves_geoarrow_metadata(self) -> None:
+        from marimo._plugins.ui._impl.tables.selection import (
+            INDEX_COLUMN_NAME,
+            add_selection_column,
+        )
+
+        table, has_stable_row_id = add_selection_column(
+            geo.arrow_wkb_known_crs()
+        )
+        field = table.schema.field("geom")
+
+        assert has_stable_row_id is True
+        assert INDEX_COLUMN_NAME in table.column_names
+        assert field.metadata[b"ARROW:extension:name"] == b"geoarrow.wkb"
+        assert ui.table(geo.arrow_wkb_known_crs())._manager.get_field_type(
+            "geom"
+        ) == ("geometry", "geoarrow.wkb")
 
     def test_formatting_skips_geometry_columns_in_mapping(self) -> None:
         manager = get_table_manager(geo.arrow_wkb_known_crs())
@@ -684,6 +706,170 @@ class TestHostGuards:
         )
 
 
+@contextmanager
+def _closing_data(make_data: Any) -> Any:
+    produced = make_data()
+    if isinstance(produced, tuple):
+        conn, data = produced
+        try:
+            yield data
+        finally:
+            conn.close()
+        return
+    yield produced
+
+
+def _duckdb_geometry() -> tuple[Any, Any]:
+    conn = geo.duckdb_spatial_connection()
+    return conn, geo.duckdb_geometry_relation(conn)
+
+
+def _duckdb_crs_geometry() -> tuple[Any, Any]:
+    conn = geo.duckdb_crs_geometry_connection()
+    return conn, conn.table("crs_geometry")
+
+
+@pytest.mark.parametrize(
+    ("make_data", "expected_geometry"),
+    [
+        pytest.param(
+            geo.gdf_point_known_crs,
+            {"geometry": ("geometry", "geometry")},
+            marks=pytest.mark.requires("geopandas"),
+            id="gdf_point_known_crs",
+        ),
+        pytest.param(
+            geo.gdf_point_missing_crs,
+            {"geometry": ("geometry", "geometry")},
+            marks=pytest.mark.requires("geopandas"),
+            id="gdf_point_missing_crs",
+        ),
+        pytest.param(
+            geo.gdf_multi_geometry,
+            {
+                "geom_a": ("geometry", "geometry"),
+                "geom_b": ("geometry", "geometry"),
+            },
+            marks=pytest.mark.requires("geopandas"),
+            id="gdf_multi_geometry",
+        ),
+        pytest.param(
+            geo.gdf_no_active_geometry,
+            {"g": ("geometry", "geometry")},
+            marks=pytest.mark.requires("geopandas"),
+            id="gdf_no_active_geometry",
+        ),
+        pytest.param(
+            geo.gdf_stale_pointer,
+            {"geom": ("geometry", "geometry")},
+            marks=pytest.mark.requires("geopandas"),
+            id="gdf_stale_pointer",
+        ),
+        pytest.param(
+            geo.gdf_dropped_active,
+            {"geom_b": ("geometry", "geometry")},
+            marks=pytest.mark.requires("geopandas"),
+            id="gdf_dropped_active",
+        ),
+        pytest.param(
+            geo.gdf_with_null,
+            {"geometry": ("geometry", "geometry")},
+            marks=pytest.mark.requires("geopandas"),
+            id="gdf_with_null",
+        ),
+        pytest.param(
+            geo.gdf_all_null,
+            {"geometry": ("geometry", "geometry")},
+            marks=pytest.mark.requires("geopandas"),
+            id="gdf_all_null",
+        ),
+        pytest.param(
+            geo.gdf_mixed_types,
+            {"geometry": ("geometry", "geometry")},
+            marks=pytest.mark.requires("geopandas"),
+            id="gdf_mixed_types",
+        ),
+        pytest.param(
+            geo.gdf_3d,
+            {"geometry": ("geometry", "geometry")},
+            marks=pytest.mark.requires("geopandas"),
+            id="gdf_3d",
+        ),
+        pytest.param(
+            geo.arrow_wkb_known_crs,
+            {"geom": ("geometry", "geoarrow.wkb")},
+            marks=pytest.mark.requires("pyarrow"),
+            id="arrow_wkb_known_crs",
+        ),
+        pytest.param(
+            geo.arrow_wkt,
+            {"geom": ("geometry", "geoarrow.wkt")},
+            marks=pytest.mark.requires("pyarrow"),
+            id="arrow_wkt",
+        ),
+        pytest.param(
+            geo.arrow_wkb_missing_crs,
+            {"geom": ("geometry", "geoarrow.wkb")},
+            marks=pytest.mark.requires("pyarrow"),
+            id="arrow_wkb_missing_crs",
+        ),
+        pytest.param(
+            geo.arrow_ogc_wkb,
+            {"geom": ("geometry", "ogc.wkb")},
+            marks=pytest.mark.requires("pyarrow"),
+            id="arrow_ogc_wkb",
+        ),
+        pytest.param(
+            geo.arrow_other_geoarrow,
+            {"geom": ("geometry", "geoarrow.point")},
+            marks=pytest.mark.requires("pyarrow"),
+            id="arrow_other_geoarrow",
+        ),
+        pytest.param(
+            _duckdb_geometry,
+            {"geom": ("geometry", "GEOMETRY")},
+            marks=pytest.mark.requires("duckdb", "pyarrow"),
+            id="duckdb_geometry",
+        ),
+        pytest.param(
+            _duckdb_crs_geometry,
+            {"geom": ("geometry", "GEOMETRY('OGC:CRS84')")},
+            marks=pytest.mark.requires("duckdb", "pyarrow"),
+            id="duckdb_crs_geometry",
+        ),
+    ],
+)
+class TestHostCorpusSmoke:
+    """Host-level smoke over the geometry fixture corpus.
+
+    Each fixture is wrapped in ui.table. Search and column summaries must
+    return clean payloads with the expected geometry field types.
+    """
+
+    def test_search_and_summaries(
+        self,
+        make_data: Any,
+        expected_geometry: dict[str, tuple[str, str]],
+    ) -> None:
+        with _closing_data(make_data) as data:
+            table = ui.table(data, show_column_summaries=True)
+            field_types = dict(table._manager.get_field_types())
+            for name, expected in expected_geometry.items():
+                assert field_types[name] == expected
+
+            response = table._search(
+                SearchTableArgs(page_size=10, page_number=0)
+            )
+            rows = json.loads(response.data)
+            assert isinstance(rows, list)
+
+            summaries = table._get_column_summaries(ColumnSummariesArgs())
+            for name in expected_geometry:
+                stats = summaries.stats[name]
+                assert stats.unique is None
+                assert stats.min is None
+
+
 class TestManagerTemplateHook:
     @pytest.mark.requires("polars")
     def test_polars_uses_semantic_type(self) -> None:
@@ -714,3 +900,64 @@ class TestManagerTemplateHook:
         }
 
         assert manager.get_field_type("geometry") == ("geometry", "geometry")
+
+
+@pytest.mark.requires("pyarrow")
+def test_geoarrow_wkb_without_geopandas_or_shapely() -> None:
+    repo_root = str(Path(__file__).resolve().parents[5])
+    script = """
+import json
+import sys
+
+sys.path.insert(0, sys.argv[1])
+
+
+class BlockedDependency:
+    def find_spec(self, fullname, path=None, target=None):
+        del path, target
+        if fullname.partition(".")[0] in {"geopandas", "shapely"}:
+            raise RuntimeError(f"blocked import: {fullname}")
+        return None
+
+
+sys.meta_path.insert(0, BlockedDependency())
+
+import pyarrow as pa
+from marimo._plugins.ui._impl.tables.utils import get_table_manager
+
+wkb = bytes.fromhex("0101000000000000000000f03f0000000000000040")
+schema = pa.schema(
+    [
+        pa.field("a", pa.int64()),
+        pa.field(
+            "geom",
+            pa.binary(),
+            metadata={
+                b"ARROW:extension:name": b"geoarrow.wkb",
+                b"ARROW:extension:metadata": b'{"crs": "EPSG:4326"}',
+            },
+        ),
+    ]
+)
+table = pa.table({"a": [0, 1], "geom": [wkb, None]}, schema=schema)
+manager = get_table_manager(table)
+
+assert manager.get_field_type("geom") == ("geometry", "geoarrow.wkb")
+rows = json.loads(manager.to_json_str())
+assert rows[0]["geom"] == f"<geometry, {len(wkb)} B>"
+assert rows[1]["geom"] is None
+stats = manager.get_stats("geom")
+assert stats.total == 2
+assert stats.nulls == 1
+assert stats.unique is None
+assert stats.min is None
+"""
+    try:
+        subprocess.run(
+            [sys.executable, "-c", script, repo_root],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise AssertionError(e.stderr) from e

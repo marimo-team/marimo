@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import threading
+from contextlib import nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -11,6 +12,10 @@ from marimo._ast import load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import overloads_from_env
 from marimo._ast.cell import CellConfig
+from marimo._environments.script_metadata import (
+    notebook_file_lock,
+    with_python_version_requirement,
+)
 from marimo._messaging.notebook.changes import (
     Transaction,
 )
@@ -32,12 +37,11 @@ from marimo._utils.generated_with import (
 )
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.scripts import with_python_version_requirement
 
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from marimo._messaging.notebook.document import NotebookCell
     from marimo._server.models.models import (
@@ -218,7 +222,10 @@ class AppFileManager:
         """
         LOGGER.debug("Saving app to %s", path)
 
-        with self._save_lock:
+        # Read the header and write the cells under the same lock as manifest
+        # edits, so neither writer can restore the other's stale contents.
+        file_lock = notebook_file_lock(str(path)) if persist else nullcontext()
+        with self._save_lock, file_lock:
             # Get the header in case it was modified by the user (e.g. package installation)
             handler = get_notebook_serializer(path)
             header: str | None = None
@@ -232,11 +239,9 @@ class AppFileManager:
                 from marimo._config.settings import GLOBAL_SETTINGS
 
                 if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
-                    from marimo._utils.scripts import (
-                        write_pyproject_to_script,
-                    )
+                    from marimo._environments import script_metadata
 
-                    header = write_pyproject_to_script(
+                    header = script_metadata.dumps(
                         with_python_version_requirement(
                             {
                                 "dependencies": ["marimo"],
@@ -415,11 +420,18 @@ class AppFileManager:
                 )
             return ""
 
-    def save(self, request: SaveNotebookRequest) -> str:
+    def save(
+        self,
+        request: SaveNotebookRequest,
+        *,
+        on_document_transaction: Callable[[Transaction], None] | None = None,
+    ) -> str:
         """Save the notebook.
 
         Args:
             request: Save request with cell data and options
+            on_document_transaction: Called with the applied in-memory
+                document transaction before the file is persisted.
 
         Returns:
             Serialized notebook content
@@ -439,14 +451,6 @@ class AppFileManager:
         filename_path = Path(canonicalize_filename(filename))
 
         with self._save_lock:
-            # Update app with new cell data
-            self.app.with_data(
-                cell_ids=cell_ids,
-                codes=codes,
-                names=names,
-                configs=configs,
-            )
-
             if self.is_notebook_named and not self._is_same_path(
                 filename_path
             ):
@@ -454,6 +458,15 @@ class AppFileManager:
                     status_code=HTTPStatus.BAD_REQUEST,
                     detail="Save handler cannot rename files.",
                 )
+
+            transaction = self.app.apply_data(
+                cell_ids=cell_ids,
+                codes=codes,
+                names=names,
+                configs=configs,
+            )
+            if on_document_transaction is not None and transaction.changes:
+                on_document_transaction(transaction)
 
             # Save layout if provided
             if layout is not None:
@@ -649,7 +662,8 @@ def read_css_file(css_file: str, filename: str | None) -> str | None:
     """Read the contents of a CSS file.
 
     Args:
-        css_file: The path to the CSS file.
+        css_file: The path to the CSS file. Supports `~` for the home
+            directory and relative paths resolved from the notebook directory.
         filename: The filename of the notebook.
 
     Returns:
@@ -658,7 +672,11 @@ def read_css_file(css_file: str, filename: str | None) -> str | None:
     if not css_file:
         return None
 
-    filepath = Path(css_file)
+    try:
+        filepath = Path(css_file).expanduser()
+    except RuntimeError as e:
+        LOGGER.warning("Failed to resolve custom CSS file %s: %s", css_file, e)
+        return None
 
     # If not an absolute path, make it absolute using the filename
     if not filepath.is_absolute():
@@ -675,7 +693,7 @@ def read_css_file(css_file: str, filename: str | None) -> str | None:
         LOGGER.warning(
             "Failed to open custom CSS file %s for reading: %s",
             filepath,
-            str(e),
+            e,
         )
         return None
 
@@ -706,7 +724,7 @@ def read_html_head_file(
         LOGGER.warning(
             "Failed to open HTML head file %s for reading: %s",
             filepath,
-            str(e),
+            e,
         )
         return None
 

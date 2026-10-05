@@ -7,6 +7,7 @@ import {
   HelpCircleIcon,
 } from "lucide-react";
 import React from "react";
+import { useConnectionNotice } from "@/core/network/useConnectionNotice";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { Spinner } from "@/components/icons/spinner";
 import { SearchInput } from "@/components/ui/input";
@@ -20,25 +21,27 @@ import {
 } from "@/components/ui/table";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import { useResolvedMarimoConfig } from "@/core/config/config";
-import { useRequestClient } from "@/core/network/requests";
-import type { DependencyTreeNode } from "@/core/network/types";
+import { isConnectedAtom } from "@/core/network/connection";
+import type {
+  DependencyTreeNode,
+  DependencyTreeResponse,
+} from "@/core/network/types";
+import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
 import { stripPackageManagerPrefix } from "@/core/packages/package-input-utils";
-import {
-  showRemovePackageToast,
-  showUpgradePackageToast,
-} from "@/core/packages/toast-components";
+import { usePackageAction } from "@/core/packages/usePackageAction";
+import { usePackageDependencies } from "@/core/packages/usePackageDependencies";
 import { useInstallPackages } from "@/core/packages/useInstallPackage";
 import { isWasm } from "@/core/wasm/utils";
-import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
+import { SandboxDetails } from "./sandbox-panel";
 import { PanelEmptyState } from "./empty-state";
 import { PACKAGES_INPUT_ID, packagesToInstallAtom } from "./packages-utils";
 
 type ViewMode = "tree" | "list";
+type PackageInstallationContext = DependencyTreeResponse["context"];
 
 const PackageActionButton: React.FC<{
   onClick: () => void;
@@ -66,30 +69,48 @@ const PackageActionButton: React.FC<{
 };
 
 const PackagesPanel: React.FC = () => {
-  const [config] = useResolvedMarimoConfig();
-  const packageManager = config.package_management.manager;
-  const { getDependencyTree, getPackageList } = useRequestClient();
+  const sandbox = useAtomValue(sandboxAtom);
+  const connected = useAtomValue(isConnectedAtom);
+  const notice = useConnectionNotice(0);
+  if (sandbox?.backend) {
+    return (
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        <SandboxDetails />
+        {connected && <PackageContents />}
+      </div>
+    );
+  }
+  if (notice) {
+    return (
+      <div className="p-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2">
+          {notice.pending && <Spinner className="size-3" />}
+          {notice.title}
+        </div>
+        {notice.error && (
+          <pre className="mt-3 text-xs whitespace-pre-wrap break-words max-h-52 overflow-auto">
+            {notice.error}
+          </pre>
+        )}
+      </div>
+    );
+  }
+  return <PackageContents />;
+};
 
+const PackageContents: React.FC = () => {
+  const syncing = useAtomValue(sandboxSyncAtom).kind === "running";
   const [userViewMode, setUserViewMode] = React.useState<ViewMode | null>(null);
-  const {
-    data: dependencies,
-    error,
-    refetch,
-    isPending,
-  } = useAsyncData(async () => {
-    const [listPackagesResponse, dependencyTreeResponse] = await Promise.all([
-      getPackageList(),
-      getDependencyTree(),
-    ]);
-    return {
-      list: listPackagesResponse.packages,
-      tree: dependencyTreeResponse.tree,
-    };
-  }, [packageManager]);
+  const { data: dependencies, error, isPending } = usePackageDependencies();
 
   // Only show on the first load
   if (isPending) {
-    return <Spinner size="medium" centered={true} />;
+    return (
+      <output className="flex flex-1 items-center justify-center gap-2 text-xs text-muted-foreground">
+        <Spinner className="size-4" />
+        Loading installed packages…
+      </output>
+    );
   }
 
   if (error) {
@@ -97,15 +118,24 @@ const PackagesPanel: React.FC = () => {
   }
 
   const isTreeSupported = dependencies.tree != null;
-  const viewMode = resolveViewMode(userViewMode, isTreeSupported);
   const name = dependencies.tree?.name;
   const version = dependencies?.tree?.version;
-  const isSandbox = name === "<root>"; // name is the project name otherwise
+  const sandboxBackend =
+    dependencies.context.kind === "sandbox"
+      ? dependencies.context.backend
+      : null;
+  const isSandbox = sandboxBackend !== null;
+  const viewMode = isSandbox
+    ? "tree"
+    : resolveViewMode(userViewMode, isTreeSupported);
+  const scopeLabel = name && name !== "<root>" ? "project" : "environment";
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <InstallPackageForm packageManager={packageManager} onSuccess={refetch} />
-      {isTreeSupported && (
+      <fieldset disabled={syncing} className="contents">
+        <InstallPackageForm context={dependencies.context} />
+      </fieldset>
+      {isTreeSupported && !isSandbox && (
         <div className="flex items-center justify-between px-2 py-1 border-b">
           <div className="flex gap-1">
             <button
@@ -136,11 +166,11 @@ const PackagesPanel: React.FC = () => {
           <div className="flex items-center gap-2">
             <div
               className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
-              title={isSandbox ? "sandbox" : "project"}
+              title={scopeLabel}
             >
-              {isSandbox ? "sandbox" : "project"}
+              {scopeLabel}
             </div>
-            {name && !isSandbox && (
+            {name && (
               <span className="text-xs text-muted-foreground">
                 {name}
                 {version && ` v${version}`}
@@ -149,15 +179,26 @@ const PackagesPanel: React.FC = () => {
           </div>
         </div>
       )}
-      {viewMode === "list" ? (
-        <PackagesList packages={dependencies.list} onSuccess={refetch} />
-      ) : (
-        <DependencyTree
-          tree={dependencies.tree}
-          error={error}
-          onSuccess={refetch}
-        />
-      )}
+      <fieldset
+        disabled={syncing}
+        className="flex flex-col flex-1 min-h-0"
+        aria-busy={syncing}
+      >
+        {syncing && (
+          <p className="px-3 py-2 text-xs text-muted-foreground">
+            Showing packages from the last sync.
+          </p>
+        )}
+        {viewMode === "list" ? (
+          <PackagesList packages={dependencies.list} />
+        ) : (
+          <DependencyTree
+            tree={dependencies.tree}
+            error={error}
+            sandboxBackend={sandboxBackend}
+          />
+        )}
+      </fieldset>
     </div>
   );
 };
@@ -165,11 +206,12 @@ const PackagesPanel: React.FC = () => {
 export default PackagesPanel;
 
 const InstallPackageForm: React.FC<{
-  packageManager: string;
-  onSuccess: () => void;
-}> = ({ onSuccess, packageManager }) => {
+  context: PackageInstallationContext;
+}> = ({ context }) => {
   const [input, setInput] = React.useState("");
   const { handleClick: openSettings } = useOpenSettingsToTab();
+  const isSandbox = context.kind === "sandbox";
+  const packageManager = isSandbox ? context.backend : context.name;
 
   // Get the packages to install from the atom
   const packagesToInstall = useAtomValue(packagesToInstallAtom);
@@ -186,7 +228,6 @@ const InstallPackageForm: React.FC<{
 
   const { loading, handleInstallPackages } = useInstallPackages();
   const onSuccessInstallPackages = () => {
-    onSuccess();
     setInput("");
   };
 
@@ -201,7 +242,11 @@ const InstallPackageForm: React.FC<{
   return (
     <div className="flex items-center w-full border-b">
       <SearchInput
-        placeholder={`Install packages with ${packageManager}...`}
+        placeholder={
+          isSandbox
+            ? `Add packages to ${packageManager} sandbox...`
+            : `Install packages with ${packageManager}...`
+        }
         id={PACKAGES_INPUT_ID}
         icon={
           loading ? (
@@ -209,12 +254,23 @@ const InstallPackageForm: React.FC<{
               size="small"
               className="mr-2 h-4 w-4 shrink-0 opacity-50"
             />
+          ) : isSandbox ? (
+            <BoxIcon
+              aria-hidden="true"
+              className="mr-2 h-4 w-4 shrink-0 opacity-50"
+            />
           ) : (
-            <Tooltip content="Change package manager">
-              <BoxIcon
+            <Tooltip
+              content={`Change package manager (currently ${packageManager})`}
+            >
+              <button
+                type="button"
+                aria-label="Change package manager"
                 onClick={() => openSettings("packageManagementAndData")}
-                className="mr-2 h-4 w-4 shrink-0 opacity-50 hover:opacity-80 cursor-pointer"
-              />
+                className="pointer-events-auto mr-2 rounded-sm opacity-50 hover:opacity-80 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <BoxIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
+              </button>
             </Tooltip>
           )
         }
@@ -234,9 +290,21 @@ const InstallPackageForm: React.FC<{
         align="start"
         content={
           <div className="text-sm flex flex-col w-full max-w-[360px]">
-            Packages are installed using the package manager specified in your
-            user configuration. Depending on your package manager, you can
-            install packages with various formats:
+            {isSandbox ? (
+              <span>
+                Packages are recorded in this notebook&apos;s inline metadata
+                and synchronized with its {packageManager} sandbox. To switch
+                backends, restart marimo with a different --sandbox option.
+              </span>
+            ) : (
+              <span>
+                Packages are installed using {packageManager}, selected in your
+                user configuration.
+              </span>
+            )}
+            <span className="mt-2">
+              You can install packages with various formats:
+            </span>
             <div className="flex flex-col gap-2 mt-2">
               <div>
                 <span className="font-bold tracking-wide">Package name:</span> A
@@ -300,9 +368,8 @@ const InstallPackageForm: React.FC<{
 };
 
 const PackagesList: React.FC<{
-  onSuccess: () => void;
   packages: { name: string; version: string }[];
-}> = ({ onSuccess, packages }) => {
+}> = ({ packages }) => {
   // Sort case-insensitively so packages are strictly alphabetical
   // regardless of capitalization (package managers sort inconsistently).
   const sortedPackages = React.useMemo(
@@ -347,8 +414,8 @@ const PackagesList: React.FC<{
             <TableCell>{item.name}</TableCell>
             <TableCell>{item.version}</TableCell>
             <TableCell className="flex justify-end">
-              <UpgradeButton packageName={item.name} onSuccess={onSuccess} />
-              <RemoveButton packageName={item.name} onSuccess={onSuccess} />
+              <UpgradeButton packageName={item.name} />
+              <RemoveButton packageName={item.name} />
             </TableCell>
           </TableRow>
         ))}
@@ -360,38 +427,14 @@ const PackagesList: React.FC<{
 const UpgradeButton: React.FC<{
   packageName: string;
   tags?: { kind: string; value: string }[];
-  onSuccess: () => void;
-}> = ({ packageName, tags, onSuccess }) => {
-  const [loading, setLoading] = React.useState(false);
-  const { addPackage } = useRequestClient();
-
-  // Hide upgrade button in WASM
+}> = ({ packageName, tags }) => {
+  const { loading, run } = usePackageAction("upgrade", packageName, tags);
   if (isWasm()) {
     return null;
   }
 
-  const handleUpgradePackage = async () => {
-    try {
-      setLoading(true);
-      const group = tags?.find((tag) => tag.kind === "group")?.value;
-      const response = await addPackage({
-        package: packageName,
-        upgrade: true,
-        group,
-      });
-      if (response.success) {
-        onSuccess();
-        showUpgradePackageToast(packageName);
-      } else {
-        showUpgradePackageToast(packageName, response.error);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <PackageActionButton onClick={handleUpgradePackage} loading={loading}>
+    <PackageActionButton onClick={run} loading={loading}>
       Upgrade
     </PackageActionButton>
   );
@@ -400,32 +443,14 @@ const UpgradeButton: React.FC<{
 const RemoveButton: React.FC<{
   packageName: string;
   tags?: { kind: string; value: string }[];
-  onSuccess: () => void;
-}> = ({ packageName, tags, onSuccess }) => {
-  const [loading, setLoading] = React.useState(false);
-  const { removePackage } = useRequestClient();
-
-  const handleRemovePackage = async () => {
-    try {
-      setLoading(true);
-      const group = tags?.find((tag) => tag.kind === "group")?.value;
-      const response = await removePackage({
-        package: packageName,
-        group,
-      });
-      if (response.success) {
-        onSuccess();
-        showRemovePackageToast(packageName);
-      } else {
-        showRemovePackageToast(packageName, response.error);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+}> = ({ packageName, tags }) => {
+  const { loading, run } = usePackageAction("remove", packageName, tags);
+  if (packageName.toLowerCase() === "marimo") {
+    return null;
+  }
 
   return (
-    <PackageActionButton onClick={handleRemovePackage} loading={loading}>
+    <PackageActionButton onClick={run} loading={loading}>
       Remove
     </PackageActionButton>
   );
@@ -434,8 +459,8 @@ const RemoveButton: React.FC<{
 const DependencyTree: React.FC<{
   tree: DependencyTreeNode | null;
   error?: Error | null;
-  onSuccess: () => void;
-}> = ({ tree, error, onSuccess }) => {
+  sandboxBackend: "uv" | "pixi" | null;
+}> = ({ tree, error, sandboxBackend }) => {
   const [expandedNodes, setExpandedNodes] = React.useState<Set<string>>(
     new Set(),
   );
@@ -450,10 +475,25 @@ const DependencyTree: React.FC<{
   }
 
   if (!tree) {
-    return <Spinner size="medium" centered={true} />;
+    return (
+      <PanelEmptyState
+        title="Dependency tree unavailable"
+        description="The sandbox did not return a dependency tree."
+        icon={<BoxIcon />}
+      />
+    );
   }
 
   if (tree.dependencies.length === 0) {
+    if (sandboxBackend === "pixi") {
+      return (
+        <PanelEmptyState
+          title="No PyPI dependencies"
+          description="Conda dependencies are not shown in this panel."
+          icon={<BoxIcon />}
+        />
+      );
+    }
     return (
       <PanelEmptyState
         title="No dependencies"
@@ -487,7 +527,6 @@ const DependencyTree: React.FC<{
               isTopLevel={true}
               expandedNodes={expandedNodes}
               onToggle={toggleNode}
-              onSuccess={onSuccess}
             />
           </div>
         ))}
@@ -503,16 +542,7 @@ const DependencyTreeNode: React.FC<{
   isTopLevel?: boolean;
   expandedNodes: Set<string>;
   onToggle: (nodeId: string) => void;
-  onSuccess: () => void;
-}> = ({
-  nodeId,
-  node,
-  level,
-  isTopLevel = false,
-  expandedNodes,
-  onToggle,
-  onSuccess,
-}) => {
+}> = ({ nodeId, node, level, isTopLevel = false, expandedNodes, onToggle }) => {
   const hasChildren = node.dependencies.length > 0;
   const isExpanded = expandedNodes.has(nodeId);
   const indent = isTopLevel ? 0 : 16 + level * 16; // Top-level uses CSS padding, children use calculated indent
@@ -575,6 +605,17 @@ const DependencyTreeNode: React.FC<{
         {/* Tags */}
         <div className="flex items-center gap-1 ml-2">
           {node.tags.map((tag, index) => {
+            if (tag.kind === "dedupe") {
+              return (
+                <div
+                  key={index}
+                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 text-muted-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
+                  title="Package tree already displayed"
+                >
+                  already in tree
+                </div>
+              );
+            }
             if (tag.kind === "cycle") {
               return (
                 <div
@@ -615,17 +656,9 @@ const DependencyTreeNode: React.FC<{
         {/* Actions for top-level packages */}
         {isTopLevel && (
           <div className="flex gap-1 invisible group-hover:visible">
-            <UpgradeButton
-              packageName={node.name}
-              tags={node.tags}
-              onSuccess={onSuccess}
-            />
+            <UpgradeButton packageName={node.name} tags={node.tags} />
 
-            <RemoveButton
-              packageName={node.name}
-              tags={node.tags}
-              onSuccess={onSuccess}
-            />
+            <RemoveButton packageName={node.name} tags={node.tags} />
           </div>
         )}
       </div>
@@ -642,7 +675,6 @@ const DependencyTreeNode: React.FC<{
               isTopLevel={false}
               expandedNodes={expandedNodes}
               onToggle={onToggle}
-              onSuccess={onSuccess}
             />
           ))}
         </div>

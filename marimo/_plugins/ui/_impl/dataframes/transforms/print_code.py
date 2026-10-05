@@ -49,13 +49,13 @@ def python_print_pandas(
         elif operator in [">", ">=", "<", "<="]:
             result = f"{col} {operator} {_as_literal(value)}"
         elif operator == "contains":
-            result = f"{col}.str.contains({_as_literal(value)}, regex=False)"
+            result = f'{col}.fillna("").str.contains({_as_literal(value)}, regex=False)'
         elif operator == "regex":
-            result = f"{col}.str.contains({_as_literal(value)}, regex=True)"
+            result = f'{col}.fillna("").str.contains({_as_literal(value)}, regex=True)'
         elif operator == "starts_with":
-            result = f"{col}.str.startswith({_as_literal(value)})"
+            result = f'{col}.fillna("").str.startswith({_as_literal(value)})'
         elif operator == "ends_with":
-            result = f"{col}.str.endswith({_as_literal(value)})"
+            result = f'{col}.fillna("").str.endswith({_as_literal(value)})'
         elif operator == "in" or operator == "not_in":
             expr = f"{col}.isin({_list_of_strings(value)})"
             result = expr if operator == "in" else f"~{expr}"
@@ -81,6 +81,8 @@ def python_print_pandas(
 
         if where.negate:
             result = f"~({result})"
+            if operator in {"contains", "regex", "starts_with", "ends_with"}:
+                result = f"({result} & {col}.notna())"
 
         return result
 
@@ -317,13 +319,15 @@ def python_print_polars(
         elif operator in [">", ">=", "<", "<="]:
             result = f"{col} {operator} {_as_literal(value)}"
         elif operator == "contains":
-            result = f"{col}.str.contains({_as_literal(value)}, literal=True)"
+            result = f'{col}.fill_null("").str.contains({_as_literal(value)}, literal=True)'
         elif operator == "regex":
-            result = f"{col}.str.contains({_as_literal(value)}, literal=False)"
+            result = f'{col}.fill_null("").str.contains({_as_literal(value)}, literal=False)'
         elif operator == "starts_with":
-            result = f"{col}.str.starts_with({_as_literal(value)})"
+            result = (
+                f'{col}.fill_null("").str.starts_with({_as_literal(value)})'
+            )
         elif operator == "ends_with":
-            result = f"{col}.str.ends_with({_as_literal(value)})"
+            result = f'{col}.fill_null("").str.ends_with({_as_literal(value)})'
         elif operator == "in" or operator == "not_in":
             expr = f"{col}.is_in({_list_of_strings(value)})"
             result = expr if operator == "in" else f"~{expr}"
@@ -349,6 +353,8 @@ def python_print_polars(
 
         if where.negate:
             result = f"~({result})"
+            if operator in {"contains", "regex", "starts_with", "ends_with"}:
+                result = f"({result} & {col}.is_not_null())"
 
         return result
 
@@ -554,13 +560,13 @@ def python_print_ibis(
         elif operator in [">", ">=", "<", "<="]:
             result = f"({col} {operator} {_as_literal(value)})"
         elif operator == "contains":
-            result = f"({col}.contains({_as_literal(value)}))"
+            result = f'({col}.fill_null("").contains({_as_literal(value)}))'
         elif operator == "regex":
-            result = f"({col}.re_search({_as_literal(value)}))"
+            result = f'({col}.fill_null("").re_search({_as_literal(value)}))'
         elif operator == "starts_with":
-            result = f"({col}.startswith({_as_literal(value)}))"
+            result = f'({col}.fill_null("").startswith({_as_literal(value)}))'
         elif operator == "ends_with":
-            result = f"({col}.endswith({_as_literal(value)}))"
+            result = f'({col}.fill_null("").endswith({_as_literal(value)}))'
         elif operator == "in" or operator == "not_in":
             expr = f"({col}.isin({_list_of_strings(value)}))"
             result = expr if operator == "in" else f"~{expr}"
@@ -586,6 +592,8 @@ def python_print_ibis(
 
         if where.negate:
             result = f"~({result})"
+            if operator in {"contains", "regex", "starts_with", "ends_with"}:
+                result = f"({result} & {col}.notnull())"
 
         return result
 

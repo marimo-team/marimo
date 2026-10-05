@@ -7,6 +7,7 @@ import {
   updateCellOutputsWithScreenshots,
   useEnrichCellOutputs,
 } from "@/core/export/hooks";
+import { getExportLayout } from "@/core/export/layout";
 import { runDuringPresentMode, useInstallAllowed } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";
 import type { ExportAvailabilityResponse } from "@/core/network/types";
@@ -349,6 +350,7 @@ function useExportDialogAction({
             requests,
             sourceFilename,
             htmlFiles: VirtualFileTracker.INSTANCE.filenames(),
+            getLayout: getExportLayout,
             captureOutputs: () => captureOutputs(progress),
             capturePNG,
             downloadFile: downloadExportedFile,

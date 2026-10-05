@@ -6,7 +6,7 @@ const Slot = SlotPrimitive.Slot;
 
 import { useAtomValue } from "jotai";
 import { ExternalLinkIcon, TriangleAlertIcon } from "lucide-react";
-import React, { type PropsWithChildren, useMemo, useState } from "react";
+import React, { type PropsWithChildren, useState } from "react";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ import {
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { getMarimoVersion } from "@/core/meta/globals";
 import { connectionAtom } from "@/core/network/connection";
-import { useRequestClient } from "@/core/network/requests";
+import { requestClientAtom } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { WebSocketState } from "@/core/websocket/types";
@@ -74,6 +74,27 @@ const CollapsiblePreview: React.FC<{ content: string }> = ({ content }) => {
   );
 };
 
+function getNotebookSourceUnavailableReason(args: {
+  hasRequestClient: boolean;
+  filename: string | null;
+  codeAvailable: boolean;
+  connectionState: WebSocketState;
+}): string | undefined {
+  if (!args.hasRequestClient) {
+    return "Notebook source is unavailable.";
+  }
+  if (args.filename === null) {
+    return "Save the notebook first.";
+  }
+  if (!args.codeAvailable) {
+    return "Notebook source is hidden in this view.";
+  }
+  if (args.connectionState !== WebSocketState.OPEN) {
+    return "Connect the notebook to include its source.";
+  }
+  return undefined;
+}
+
 export const FeedbackButton: React.FC<PropsWithChildren> = ({ children }) => {
   const { openModal, closeModal } = useImperativeModal();
 
@@ -85,17 +106,18 @@ export const FeedbackButton: React.FC<PropsWithChildren> = ({ children }) => {
 };
 
 export const FeedbackModal: React.FC<{
-  onClose: () => void;
+  onClose?: () => void;
 }> = () => {
-  const { getEnvironmentInfo, readCode } = useRequestClient();
-  const environmentRequest = useAsyncData(
-    async () => getEnvironmentInfo(),
-    [getEnvironmentInfo],
-  );
+  const requestClient = useAtomValue(requestClientAtom);
+  const environmentRequest = useAsyncData(async () => {
+    if (requestClient == null) {
+      return undefined;
+    }
+    return requestClient.getEnvironmentInfo();
+  }, [requestClient]);
 
   const notebook = useAtomValue(notebookAtom);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: recompute when the notebook changes
-  const errors = useMemo(() => getCellErrorEntries(store), [notebook]);
+  const errors = getCellErrorEntries(store);
 
   const cells = notebook.cellIds.inOrderIds.map(
     (cellId) => notebook.cellData[cellId],
@@ -103,18 +125,13 @@ export const FeedbackModal: React.FC<{
   const codeAvailable = useNotebookCodeAvailable(cells);
   const filename = useAtomValue(filenameAtom);
   const connection = useAtomValue(connectionAtom);
-  const notebookSourceAvailable =
-    filename !== null &&
-    codeAvailable &&
-    connection.state === WebSocketState.OPEN;
-
-  const notebookSourceReason = notebookSourceAvailable
-    ? undefined
-    : filename === null
-      ? "Save the notebook first."
-      : !codeAvailable
-        ? "Notebook source is hidden in this view."
-        : "Connect the notebook to include its source.";
+  const notebookSourceReason = getNotebookSourceUnavailableReason({
+    hasRequestClient: requestClient != null,
+    filename,
+    codeAvailable,
+    connectionState: connection.state,
+  });
+  const notebookSourceAvailable = notebookSourceReason === undefined;
 
   const [includeErrors, setIncludeErrors] = useLocalStorage(
     "marimo:issue-report:include-errors",
@@ -128,7 +145,7 @@ export const FeedbackModal: React.FC<{
   const environment: EnvironmentDiagnostics | undefined =
     environmentRequest.data
       ? enrichEnvironment(environmentRequest.data, navigator.userAgent)
-      : environmentRequest.status === "error"
+      : environmentRequest.status === "error" || requestClient == null
         ? createPartialEnvironment(
             getMarimoVersion(),
             navigator.userAgent,
@@ -138,17 +155,16 @@ export const FeedbackModal: React.FC<{
         : undefined;
 
   const codeRequest = useAsyncData(async () => {
-    if (!includeCode || !notebookSourceAvailable) {
+    if (!includeCode || !notebookSourceAvailable || requestClient == null) {
       return undefined;
     }
-    const { contents } = await readCode();
+    const { contents } = await requestClient.readCode();
     return contents;
-  }, [includeCode, notebookSourceAvailable, readCode]);
+  }, [includeCode, notebookSourceAvailable, requestClient]);
 
-  const { url: githubIssueUrl, omitted } = useMemo(() => {
-    if (!environment) {
-      return { url: Constants.bugReportUrl, omitted: [] as string[] };
-    }
+  let githubIssueUrl = Constants.bugReportUrl;
+  let omitted: string[] = [];
+  if (environment) {
     const fields: Record<string, string> = {
       env: formatEnvironmentSection(environment),
     };
@@ -158,8 +174,11 @@ export const FeedbackModal: React.FC<{
     if (includeCode && codeRequest.data) {
       fields["reproduction-code"] = formatCodeSection(codeRequest.data);
     }
-    return buildBugReportUrl(Constants.bugReportUrl, fields);
-  }, [environment, errors, includeErrors, includeCode, codeRequest.data]);
+    ({ url: githubIssueUrl, omitted } = buildBugReportUrl(
+      Constants.bugReportUrl,
+      fields,
+    ));
+  }
 
   const omittedLabels = omitted
     .map((field) =>
@@ -254,7 +273,7 @@ export const FeedbackModal: React.FC<{
           )}
         </div>
 
-        {environmentRequest.status === "pending" && (
+        {environmentRequest.status === "pending" && requestClient != null && (
           <div className="flex flex-col gap-2">
             <span className="text-sm text-muted-foreground">
               Loading environment details…
@@ -265,18 +284,20 @@ export const FeedbackModal: React.FC<{
           </div>
         )}
 
-        {environmentRequest.status === "error" && (
+        {(environmentRequest.status === "error" || requestClient == null) && (
           <div className="flex items-center gap-2 text-sm">
             <TriangleAlertIcon className="w-4 h-4 text-(--yellow-11) shrink-0" />
             <span>Server environment information unavailable</span>
-            <Button
-              type="button"
-              variant="link"
-              size="xs"
-              onClick={() => environmentRequest.refetch()}
-            >
-              Retry
-            </Button>
+            {requestClient != null && (
+              <Button
+                type="button"
+                variant="link"
+                size="xs"
+                onClick={() => environmentRequest.refetch()}
+              >
+                Retry
+              </Button>
+            )}
           </div>
         )}
 

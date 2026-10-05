@@ -7,20 +7,20 @@ let innerListeners: Record<string, ((e: unknown) => void)[]>;
 
 vi.mock("partysocket/ws", () => {
   class FakeReconnectingWebSocket {
-    retryCount = 0;
-    readyState = WebSocket.CONNECTING;
-    constructor() {
+    public retryCount = 0;
+    public readyState = WebSocket.CONNECTING;
+    public constructor() {
       innerListeners = { open: [], close: [], message: [], error: [] };
     }
-    addEventListener(event: string, cb: (e: unknown) => void) {
+    public addEventListener(event: string, cb: (e: unknown) => void) {
       innerListeners[event].push(cb);
     }
-    removeEventListener(event: string, cb: (e: unknown) => void) {
+    public removeEventListener(event: string, cb: (e: unknown) => void) {
       innerListeners[event] = innerListeners[event].filter((c) => c !== cb);
     }
-    reconnect() {}
-    close() {}
-    send() {}
+    public reconnect() {}
+    public close() {}
+    public send() {}
   }
   return { default: FakeReconnectingWebSocket };
 });

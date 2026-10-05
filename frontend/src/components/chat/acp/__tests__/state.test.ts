@@ -673,14 +673,14 @@ describe("state utility functions", () => {
     it("should return correct command for claude on non-Windows", () => {
       vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(false);
       expect(getAgentConnectionCommand("claude")).toMatchInlineSnapshot(`
-        "npx stdio-to-ws "npx @zed-industries/claude-code-acp" --port 3017"
+        "npx stdio-to-ws "npx @agentclientprotocol/claude-agent-acp" --port 3017"
       `);
     });
 
     it("should return correct command for claude on Windows", () => {
       vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(true);
       expect(getAgentConnectionCommand("claude")).toMatchInlineSnapshot(`
-        "npx stdio-to-ws "cmd /c npx @zed-industries/claude-code-acp" --port 3017"
+        "npx stdio-to-ws "cmd /c npx @agentclientprotocol/claude-agent-acp" --port 3017"
       `);
     });
 

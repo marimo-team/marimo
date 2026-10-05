@@ -50,6 +50,8 @@ export type FileDetailsResponse = schemas["FileDetailsResponse"];
 export type FileInfo = schemas["FileInfo"];
 export type FileListRequest = schemas["FileListRequest"];
 export type FileListResponse = schemas["FileListResponse"];
+export type FileRoot = schemas["FileRoot"];
+export type FileRootsResponse = schemas["FileRootsResponse"];
 export type FileSearchRequest = schemas["FileSearchRequest"];
 export type FileSearchResponse = schemas["FileSearchResponse"];
 export type FileMoveRequest = schemas["FileMoveRequest"];
@@ -67,6 +69,10 @@ export type ListPackagesResponse = schemas["ListPackagesResponse"];
 export type DependencyTreeResponse = schemas["DependencyTreeResponse"];
 export type DependencyTreeNode = schemas["DependencyTreeNode"];
 
+export type SandboxRequest = schemas["SandboxRequest"];
+export type SandboxResponse = schemas["SandboxResponse"];
+export type UpdateManifestRequest = schemas["UpdateManifestRequest"];
+export type SyncSandboxResponse = schemas["SyncSandboxResponse"];
 export type PackageOperationResponse = schemas["PackageOperationResponse"];
 export type InstantiateNotebookRequest = schemas["InstantiateNotebookRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
@@ -197,6 +203,7 @@ export interface EditRequests {
   sendPdb: (request: DebugCellRequest) => Promise<null>;
   sendSetBreakpoints: (request: SetBreakpointsRequest) => Promise<null>;
   // File explorer requests
+  getFileRoots: () => Promise<FileRootsResponse>;
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
   sendSearchFiles: (request: FileSearchRequest) => Promise<FileSearchResponse>;
   sendCreateFileOrFolder: (
@@ -243,6 +250,9 @@ export interface EditRequests {
   autoExportAsMarkdown: (request: AutoExportAsMarkdownRequest) => Promise<null>;
   autoExportAsIPYNB: (request: AutoExportAsIPYNBRequest) => Promise<null>;
   updateCellOutputs: (request: UpdateCellOutputsRequest) => Promise<null>;
+  getSandbox: (request: SandboxRequest) => Promise<SandboxResponse>;
+  updateManifest: (request: UpdateManifestRequest) => Promise<SandboxResponse>;
+  syncSandbox: (request: SandboxRequest) => Promise<SyncSandboxResponse>;
   // Package requests
   getPackageList: () => Promise<ListPackagesResponse>;
   getDependencyTree: () => Promise<DependencyTreeResponse>;

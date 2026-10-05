@@ -1,4 +1,5 @@
 @import url("./globals.css");
+@import url("./markdown-typography.css");
 @import url("./codehilite.css");
 @import url("./common.css");
 @import url("./katex-fonts.css");

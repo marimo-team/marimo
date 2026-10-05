@@ -14,6 +14,7 @@ from starlette.responses import (
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import create_simple_prompt, generate_id
 from marimo._config.config import AiConfig, CopilotMode, MarimoConfig
+from marimo._secrets.secrets import get_secret_value
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -100,6 +101,14 @@ def get_ai_config(config: MarimoConfig) -> AiConfig:
     return ai_config
 
 
+def get_provider_config(model: str, config: MarimoConfig) -> AnyProviderConfig:
+    return AnyProviderConfig.for_model(
+        model,
+        get_ai_config(config),
+        secret_resolver=lambda key: get_secret_value(key, config),
+    )
+
+
 @router.post("/completion")
 @requires("edit")
 async def ai_completion(
@@ -154,8 +163,9 @@ async def ai_completion(
 
     model = get_edit_model(ai_config)
     provider = get_completion_provider(
-        AnyProviderConfig.for_model(model, ai_config),
+        get_provider_config(model, config),
         model=model,
+        session_id=body.id or f"{session_id}:completion",
     )
 
     # These models require the optional Pydantic AI dependency checked above.
@@ -236,8 +246,9 @@ async def ai_chat(
 
     model = body.model or get_chat_model(ai_config)
     provider = get_completion_provider(
-        AnyProviderConfig.for_model(model, ai_config),
+        get_provider_config(model, config),
         model=model,
+        session_id=body.id or f"{session_id}:chat",
     )
     additional_tools = body.tools or []
 
@@ -318,20 +329,23 @@ async def ai_inline_completion(
     # of 4096, since it is smaller/faster for inline completions
     INLINE_COMPLETION_MAX_TOKENS = 1024
 
-    ai_config = get_ai_config(config)
-
     model = get_autocomplete_model(config)
-    provider_config = AnyProviderConfig.for_model(model, ai_config)
+    provider_config = get_provider_config(model, config)
     # Inline completion never uses tools
     if provider_config.tools:
         provider_config.tools.clear()
 
-    provider = get_completion_provider(provider_config, model=model)
+    provider = get_completion_provider(
+        provider_config,
+        model=model,
+        session_id=f"{session_id}:inline_completion",
+    )
     try:
         content = await provider.completion(
             messages=[create_simple_prompt(prompt)],
             system_prompt=system_prompt,
             max_tokens=INLINE_COMPLETION_MAX_TOKENS,
+            thinking=False,
             additional_tools=[],
             enable_capabilities=False,
             span_info=SpanInfo(
@@ -342,7 +356,7 @@ async def ai_inline_completion(
             ),
         )
     except Exception as e:
-        LOGGER.error("Error in AI inline completion: %s", str(e))
+        LOGGER.error("Error in AI inline completion: %s", e)
         raise HTTPException(
             status_code=500,  # Internal Server Error
             detail=f"AI completion failed: {e!s}",
@@ -406,7 +420,7 @@ async def invoke_tool(
         )
 
     except Exception as e:
-        LOGGER.error("Error invoking AI tool %s: %s", body.tool_name, str(e))
+        LOGGER.error("Error invoking AI tool %s: %s", body.tool_name, e)
         # Return error response instead of letting it crash
         return StructResponse(
             InvokeAiToolResponse(

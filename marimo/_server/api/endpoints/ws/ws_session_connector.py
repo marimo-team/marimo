@@ -68,7 +68,7 @@ class SessionConnector:
         self.params = params
         self.connection = connection
 
-    def connect(self) -> tuple[Session, ConnectionType]:
+    async def connect(self) -> tuple[Session, ConnectionType]:
         """Determine connection type and establish session connection.
 
         Returns:
@@ -78,9 +78,21 @@ class SessionConnector:
         Raises:
             WebSocketDisconnect: If the connection cannot be established.
         """
+        async with self.manager.connection_lock(
+            self.params.session_id, self.params.file_key
+        ):
+            return await self._connect()
+
+    async def _connect(self) -> tuple[Session, ConnectionType]:
         # 1. Kiosk mode
         if self.params.kiosk:
             return self._connect_kiosk()
+
+        # A completed launch may still be waiting for its first connection.
+        if self.manager.is_session_starting(
+            self.params.session_id, self.params.file_key
+        ):
+            return await self._create_new_session()
 
         # 2. Reconnect to existing session with same ID
         existing_by_id = self.manager.get_session(self.params.session_id)
@@ -118,7 +130,7 @@ class SessionConnector:
             return self._resume_session(resumable)
 
         # 5. Create new session
-        return self._create_new_session()
+        return await self._create_new_session()
 
     def _connect_kiosk(self) -> tuple[Session, ConnectionType]:
         """Connect to kiosk session.
@@ -196,7 +208,7 @@ class SessionConnector:
         """Check if we're in run mode (read-only app mode)."""
         return self.manager.mode == SessionMode.RUN
 
-    def _create_new_session(self) -> tuple[Session, ConnectionType]:
+    async def _create_new_session(self) -> tuple[Session, ConnectionType]:
         """Create a new session.
 
         Grabs query params from the connection and creates a new session
@@ -208,7 +220,7 @@ class SessionConnector:
         # session was created.
         query_params = self._extract_query_params()
 
-        new_session = self.manager.create_session(
+        new_session = await self.manager.create_session(
             query_params=query_params.to_dict(),
             session_id=self.params.session_id,
             session_consumer=self.handler,

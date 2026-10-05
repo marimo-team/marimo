@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import threading
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -36,6 +37,8 @@ if TYPE_CHECKING:
 
     from starlette.applications import Starlette
 
+    from marimo._server.ai.mcp import MCPClient
+
 LOGGER = _loggers.marimo_logger()
 
 background_tasks: set[asyncio.Task[Any]] = set()
@@ -65,9 +68,10 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
         registry=background_tasks,
     )
 
-    yield
-
-    await cancel_and_wait(task)
+    try:
+        yield
+    finally:
+        await cancel_and_wait(task)
 
 
 @contextlib.asynccontextmanager
@@ -82,11 +86,31 @@ async def tool_manager(app: Starlette) -> AsyncIterator[None]:
     yield
 
 
+async def _cleanup_mcp_task(
+    task: asyncio.Task[MCPClient | None],
+) -> None:
+    try:
+        await cancel_and_wait(task)
+        if task.cancelled():
+            return
+        mcp_client = task.result()
+    except Exception:
+        LOGGER.exception("MCP connection task failed during cleanup")
+        return
+
+    if mcp_client is None:
+        return
+
+    try:
+        LOGGER.info("Disconnecting from all MCP servers")
+        await mcp_client.disconnect_from_all_servers()
+        LOGGER.info("Successfully disconnected from all MCP servers")
+    except Exception:
+        LOGGER.exception("Failed to disconnect from MCP servers")
+
+
 @contextlib.asynccontextmanager
 async def mcp(app: Starlette) -> AsyncIterator[None]:
-    if TYPE_CHECKING:
-        from marimo._server.ai.mcp import MCPClient
-
     state = AppState.from_app(app)
     session_mgr = state.session_manager
     user_config = state.config_manager.get_config()
@@ -126,22 +150,10 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
         on_exception=lambda _exc: None,
     )
 
-    yield
-
-    await cancel_and_wait(task)
-    if task.cancelled():
-        return
-
-    mcp_client = task.result()
-    if not mcp_client:
-        return
-
     try:
-        LOGGER.info("Disconnecting from all MCP servers")
-        await mcp_client.disconnect_from_all_servers()
-        LOGGER.info("Successfully disconnected from all MCP servers")
-    except Exception as e:
-        LOGGER.error(f"Error during MCP disconnect: {e}")
+        yield
+    finally:
+        await _cleanup_mcp_task(task)
 
 
 @contextlib.asynccontextmanager
@@ -151,11 +163,21 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
         url = _startup_url(state)
         user_config = state.config_manager.get_config()
         browser = user_config["server"]["browser"]
+
+        def open_and_log() -> None:
+            try:
+                open_url_in_browser(browser, url)
+            except Exception as e:
+                LOGGER.warning("Failed to open the browser: %s", e)
+
+        def launch() -> None:
+            # Browser discovery can block for a long time on a stalled
+            # desktop (seen in WSL). Keep it off the event loop.
+            threading.Thread(target=open_and_log, daemon=True).start()
+
         # Wait 20ms for the server to start and then open the browser, but this
         # function must complete
-        asyncio.get_running_loop().call_later(
-            0.02, open_url_in_browser, browser, url
-        )
+        asyncio.get_running_loop().call_later(0.02, launch)
     yield
 
 
@@ -189,11 +211,12 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
                 server_token = str(state.session_manager.skew_protection_token)
             print_mcp_server(mcp_url, server_token)
 
-    yield
-
-    # Shutdown message
-    if not quiet:
-        print_shutdown()
+    try:
+        yield
+    finally:
+        # Shutdown message
+        if not quiet:
+            print_shutdown()
 
 
 @contextlib.asynccontextmanager
@@ -202,16 +225,24 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
     manager = state.session_manager
 
     # Interrupt handler
-    def shutdown() -> None:
-        manager.shutdown()
+    async def shutdown() -> None:
+        await manager.shutdown()
         if state.server:
             close_uvicorn(state.server)
 
+    def request_shutdown() -> None:
+        supervised_task(
+            shutdown(), name="server.shutdown", registry=background_tasks
+        )
+
     InterruptHandler(
         quiet=state.quiet,
-        shutdown=shutdown,
+        shutdown=request_shutdown,
     ).register()
-    yield
+    try:
+        yield
+    finally:
+        await manager.shutdown()
 
 
 @contextlib.asynccontextmanager
@@ -252,9 +283,10 @@ async def server_registry(app: Starlette) -> AsyncIterator[None]:
     except Exception as e:
         LOGGER.warning("Failed to register server: %s", e)
 
-    yield
-
-    writer.deregister()
+    try:
+        yield
+    finally:
+        writer.deregister()
 
 
 @contextlib.asynccontextmanager
@@ -268,8 +300,10 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
 @contextlib.asynccontextmanager
 async def reap_subprocesses(app: Starlette) -> AsyncIterator[None]:
     del app
-    yield
-    await cancel_pending_reaps()
+    try:
+        yield
+    finally:
+        await cancel_pending_reaps()
 
 
 def _startup_url(state: AppStateBase) -> str:

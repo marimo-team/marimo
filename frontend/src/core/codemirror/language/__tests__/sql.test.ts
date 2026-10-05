@@ -17,6 +17,7 @@ import type {
 import type { DataSourceConnection } from "@/core/datasets/data-source-connections";
 import {
   dataSourceConnectionsAtom,
+  exportedForTesting as dataSourceTesting,
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
 import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
@@ -550,8 +551,8 @@ _df = mo.sql(
     const getLatestEngine = () =>
       store.get(dataSourceConnectionsAtom).latestEngineSelected;
 
-    it("should use default engine initially", () => {
-      expect(getLatestEngine()).toBe(DUCKDB_ENGINE);
+    it("should have no selected engine initially", () => {
+      expect(getLatestEngine()).toBeNull();
     });
 
     it("should persist the selected engine", () => {
@@ -622,6 +623,73 @@ _df = mo.sql(
   });
 
   describe("defaultCode", () => {
+    it("should prefer the newest usable connection until an engine is selected", () => {
+      const previousState = store.get(dataSourceConnectionsAtom);
+      const connection: DataSourceConnection = {
+        name: "first_connection" as ConnectionName,
+        source: "sqlite",
+        display_name: "SQLite",
+        dialect: "sqlite",
+        databases: [],
+      };
+      const newestConnection = {
+        ...connection,
+        name: "newest_connection" as ConnectionName,
+      };
+      const icebergConnection = {
+        ...connection,
+        name: "catalog" as ConnectionName,
+        source: "iceberg",
+      };
+      try {
+        store.set(dataSourceConnectionsAtom, {
+          latestEngineSelected: null,
+          connectionsMap: new Map(),
+        });
+        expect(adapter.defaultMetadata.engine).toBe(DUCKDB_ENGINE);
+        expect(adapter.defaultCode).toBe('_df = mo.sql(f"""SELECT * FROM """)');
+
+        store.set(dataSourceConnectionsAtom, {
+          latestEngineSelected: null,
+          connectionsMap: new Map([
+            [connection.name, connection],
+            [newestConnection.name, newestConnection],
+            [icebergConnection.name, icebergConnection],
+            [DUCKDB_ENGINE, { ...connection, name: DUCKDB_ENGINE }],
+          ]),
+        });
+        expect(adapter.defaultMetadata.engine).toBe(newestConnection.name);
+        expect(adapter.defaultCode).toContain("engine=newest_connection");
+        expect(
+          store.get(dataSourceConnectionsAtom).latestEngineSelected,
+        ).toBeNull();
+
+        const refreshConnection = (connection: DataSourceConnection) => {
+          store.set(
+            dataSourceConnectionsAtom,
+            dataSourceTesting.reducer(store.get(dataSourceConnectionsAtom), {
+              type: "addDataSourceConnection",
+              payload: { connections: [connection] },
+            }),
+          );
+        };
+        refreshConnection(connection);
+        expect(adapter.defaultMetadata.engine).toBe(connection.name);
+        expect(adapter.defaultCode).toContain("engine=first_connection");
+
+        setLatestEngineSelected(connection.name);
+        refreshConnection(newestConnection);
+        expect(adapter.defaultCode).toContain("engine=first_connection");
+
+        setLatestEngineSelected(DUCKDB_ENGINE);
+        refreshConnection(connection);
+        expect(adapter.defaultMetadata.engine).toBe(DUCKDB_ENGINE);
+        expect(adapter.defaultCode).toBe('_df = mo.sql(f"""SELECT * FROM """)');
+      } finally {
+        store.set(dataSourceConnectionsAtom, previousState);
+      }
+    });
+
     it("should include engine in defaultCode when selected", () => {
       const engine = "postgres_engine" as ConnectionName;
       setLatestEngineSelected(engine);

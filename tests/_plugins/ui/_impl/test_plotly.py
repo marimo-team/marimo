@@ -2860,6 +2860,10 @@ def test_scattermap_selection_with_customdata() -> None:
     assert result[0]["customdata"][1] == 0
 
 
+@pytest.mark.skipif(
+    not hasattr(go, "Scattermapbox"),
+    reason="Scattermapbox was removed in plotly 7",
+)
 @pytest.mark.filterwarnings("ignore:.*scattermapbox.*:DeprecationWarning")
 def test_scattermapbox_selection() -> None:
     """Test scattermapbox (deprecated) selection works."""

@@ -47,7 +47,10 @@ const awarenessLogger = logger.get("awareness").disabled();
 const AWARENESS_PREFIX = "awareness:";
 
 // Utility functions for message handling
-function prefixMessage(token: string, message: Uint8Array): Uint8Array {
+function prefixMessage(
+  token: string,
+  message: Uint8Array,
+): Uint8Array<ArrayBuffer> {
   const tokenBytes = new TextEncoder().encode(token);
   return new Uint8Array([...tokenBytes, ...message]);
 }
@@ -154,7 +157,7 @@ if (isRtcEnabled()) {
 doc.subscribeLocalUpdates((update) => {
   logger.debug("local update, sending to server");
   const ws = getWs();
-  ws.send(update);
+  ws.send(new Uint8Array(update));
 });
 
 // Handle awareness changes

@@ -137,14 +137,14 @@ export class ColumnChartSpecModel<T> {
   private legacySourceName: "data_0" | "source_0";
 
   private readonly fieldTypes: FieldTypes;
-  readonly stats: Record<ColumnName, Partial<ColumnHeaderStats>>;
-  readonly binValues: Record<ColumnName, BinValues>;
-  readonly valueCounts: Record<ColumnName, ValueCounts>;
+  public readonly stats: Record<ColumnName, Partial<ColumnHeaderStats>>;
+  public readonly binValues: Record<ColumnName, BinValues>;
+  public readonly valueCounts: Record<ColumnName, ValueCounts>;
   private readonly opts: {
     includeCharts: boolean;
   };
 
-  constructor(
+  public constructor(
     data: T[] | string,
     fieldTypes: FieldTypes,
     stats: Record<ColumnName, Partial<ColumnHeaderStats>>,
@@ -573,7 +573,7 @@ export class ColumnChartSpecModel<T> {
         };
       }
       case "boolean": {
-        if (!stats?.true || !stats?.false) {
+        if (stats?.true == null || stats?.false == null) {
           return getLegacyBooleanSpec(column, base, MAX_BAR_HEIGHT);
         }
 

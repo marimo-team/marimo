@@ -1,8 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import sys
 import threading
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -25,8 +27,37 @@ from tests._server.mocks import get_mock_session_manager
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
 
+    from websockets.sync.server import Server as WebSocketServer
+
 # Module-level app only for client_with_lifespans fixture
 _module_app = create_starlette_app(base_url="", enable_auth=True)
+
+
+@contextmanager
+def serve_in_thread(server: WebSocketServer) -> Iterator[None]:
+    error: BaseException | None = None
+
+    def serve() -> None:
+        nonlocal error
+        try:
+            server.serve_forever()
+        except BaseException as exc:
+            error = exc
+
+    thread = threading.Thread(target=serve)
+    thread.start()
+    try:
+        yield
+    finally:
+        try:
+            server.shutdown()
+        finally:
+            thread.join(timeout=5)
+            assert not thread.is_alive(), (
+                "WebSocket server thread did not stop"
+            )
+            if error is not None:
+                raise error
 
 
 def get_kernel_tasks(
@@ -41,20 +72,20 @@ def get_kernel_tasks(
     return kernel_tasks
 
 
-def join_kernel_thread_tasks(session_manager: SessionManager) -> None:
+async def join_kernel_thread_tasks(session_manager: SessionManager) -> None:
     # Kernels started in run mode run in their own threads; if these kernels
     # execute code, they may patch and restore their own main modules.
     # To ensure that this fixture correctly restores the original saved
     # main module, we wait for threads to finish before restoring the module.
     kernel_tasks = get_kernel_tasks(session_manager)
-    session_manager.shutdown()
+    await session_manager.shutdown()
     for task in kernel_tasks:
         # At least some tests are flaky with processes (edit tasks)
         # not joining for a long time; orphaned edit tasks
         # won't affect other tests, but they are somewhat concerning
         # ...
         if isinstance(task, threading.Thread):
-            task.join()
+            await asyncio.to_thread(task.join)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -117,7 +148,7 @@ def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
     yield client
 
     try:
-        join_kernel_thread_tasks(client.app.state.session_manager)
+        asyncio.run(join_kernel_thread_tasks(client.app.state.session_manager))
     finally:
         sys.modules["__main__"] = main
 

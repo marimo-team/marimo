@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { type LucideIcon, CornerLeftUp } from "lucide-react";
+import { type LucideIcon, ChevronRightIcon, CornerLeftUp } from "lucide-react";
 import { type JSX, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { z } from "zod";
 import {
@@ -12,7 +12,6 @@ import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
 import { RANDOM_ID_ATTR } from "@/core/dom/ui-element-constants";
@@ -218,7 +217,7 @@ export const FileBrowser = ({
 
   const { data, error, isPending } = useAsyncData(() => {
     return list_directory({ path: path });
-  }, [path, randomId]);
+  }, [path, randomId, list_directory]);
 
   useEffect(() => {
     if (!isPending) {
@@ -238,9 +237,15 @@ export const FileBrowser = ({
   // Reset the roving tabindex whenever the listing reloads (a new path or a
   // same-path refresh) so activeIndex never points past the current rows.
   const listingKey = `${path}::${randomId}`;
-  const [prevListingKey, setPrevListingKey] = useState(listingKey);
-  if (prevListingKey !== listingKey) {
-    setPrevListingKey(listingKey);
+  const [prevListing, setPrevListing] = useState({
+    listingKey,
+    list_directory,
+  });
+  if (
+    prevListing.listingKey !== listingKey ||
+    prevListing.list_directory !== list_directory
+  ) {
+    setPrevListing({ listingKey, list_directory });
     setActiveIndex(0);
   }
 
@@ -466,12 +471,19 @@ export const FileBrowser = ({
   //
   // Assumes that path contains at least one delimiter, which is true
   // only if this is an absolute path.
-  const { parentDirectories } = getProtocolAndParentDirectories({
+  const { protocol, parentDirectories } = getProtocolAndParentDirectories({
     path,
     delimiter,
     initialPath,
     restrictNavigation,
   });
+  const breadcrumbs = parentDirectories.toReversed().map((dir) => ({
+    path: dir,
+    name:
+      dir === protocol
+        ? protocol
+        : (dir.split(delimiter).findLast(Boolean) ?? dir),
+  }));
 
   const selectionKindLabel =
     selectionMode === "all"
@@ -509,18 +521,42 @@ export const FileBrowser = ({
     <div>
       {error && <Banner kind="danger">{error.message}</Banner>}
       {renderHeader()}
-      <NativeSelect
-        className="mt-2 w-full"
-        placeholder={path}
-        value={path}
-        onChange={(e) => setNewPath(e.target.value)}
-      >
-        {parentDirectories.map((dir) => (
-          <option value={dir} key={dir}>
-            {dir}
-          </option>
-        ))}
-      </NativeSelect>
+      <nav aria-label="Current directory" className="mt-2">
+        <ol className="flex flex-wrap items-center gap-0.5 text-sm">
+          {breadcrumbs.map((crumb, index) => {
+            const isCurrent = index === breadcrumbs.length - 1;
+            return (
+              <li key={crumb.path} className="flex items-center gap-0.5">
+                {index > 0 && (
+                  <ChevronRightIcon
+                    size={14}
+                    className="text-muted-foreground shrink-0"
+                    aria-hidden={true}
+                  />
+                )}
+                <button
+                  type="button"
+                  title={crumb.path}
+                  aria-current={isCurrent ? "page" : undefined}
+                  onClick={() => {
+                    if (!isCurrent) {
+                      setNewPath(crumb.path);
+                    }
+                  }}
+                  className={cn(
+                    "rounded px-1 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
+                    isCurrent
+                      ? "font-medium cursor-default"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
+                >
+                  {crumb.name}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
 
       {data && typeof data.total_count === "number" && (
         <div className="text-xs text-muted-foreground mt-1 px-1">

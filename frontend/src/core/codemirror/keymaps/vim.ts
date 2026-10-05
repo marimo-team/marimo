@@ -346,7 +346,7 @@ class CodeMirrorVimSync {
     // noop
   }
 
-  addInstance(instance: EditorView) {
+  public addInstance(instance: EditorView) {
     this.instances.add(instance);
 
     const cm = getCM(instance);
@@ -376,11 +376,11 @@ class CodeMirrorVimSync {
     });
   }
 
-  removeInstance(instance: EditorView) {
+  public removeInstance(instance: EditorView) {
     this.instances.delete(instance);
   }
 
-  broadcastModeChange(
+  public broadcastModeChange(
     originInstance: EditorView,
     mode: string,
     subMode?: string,

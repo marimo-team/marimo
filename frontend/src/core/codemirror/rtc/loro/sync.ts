@@ -38,14 +38,14 @@ export const loroSyncPlugin = (
 export const loroSyncAnnotation = Annotation.define();
 
 export class LoroSyncPluginValue implements PluginValue {
-  sub?: Subscription;
+  public sub?: Subscription;
   private isInitDispatch = false;
   private view: EditorView;
   private doc: LoroDoc;
   private docPath: string[];
   private getTextFromDoc: (doc: LoroDoc) => LoroText;
 
-  constructor(
+  public constructor(
     view: EditorView,
     doc: LoroDoc,
     docPath: string[],
@@ -77,7 +77,7 @@ export class LoroSyncPluginValue implements PluginValue {
     });
   }
 
-  onRemoteUpdate = (e: LoroEventBatch) => {
+  public onRemoteUpdate = (e: LoroEventBatch) => {
     if (e.by === "local") {
       return;
     }
@@ -133,7 +133,7 @@ export class LoroSyncPluginValue implements PluginValue {
     }
   };
 
-  update(update: ViewUpdate): void {
+  public update(update: ViewUpdate): void {
     if (this.isInitDispatch) {
       this.isInitDispatch = false;
       return;
@@ -161,7 +161,7 @@ export class LoroSyncPluginValue implements PluginValue {
     this.doc.commit();
   }
 
-  destroy(): void {
+  public destroy(): void {
     this.sub?.();
     this.sub = undefined;
   }

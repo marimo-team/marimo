@@ -34,22 +34,32 @@ def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:
 
 
 def patch_webbrowser() -> None:
+    """Fall back to notebook output when `webbrowser.open()` fails."""
     import webbrowser
 
-    try:
-        _ = webbrowser.get()
-    # pyodide doesn't have a webbrowser.get() method
-    # (nor a webbrowser.Error, so careful)
-    except AttributeError:
+    # Pyodide ships a stub module without browser controllers.
+    if not hasattr(webbrowser, "get"):
         webbrowser.open = marimo_browser.browser_open_fallback
-    except webbrowser.Error:
-        MarimoBrowser = marimo_browser.build_browser_fallback()
-        webbrowser.register(
-            "marimo-output",
-            None,
-            MarimoBrowser(),
-            preferred=True,
+        return
+
+    if getattr(webbrowser.open, "_marimo_patched", False):
+        return
+
+    original_open = webbrowser.open
+
+    # Discovery can block on a stalled desktop, so defer it until use.
+    @functools.wraps(original_open)
+    def open_with_fallback(
+        url: str, new: int = 0, autoraise: bool = True
+    ) -> bool:
+        if original_open(url, new=new, autoraise=autoraise):
+            return True
+        return marimo_browser.browser_open_fallback(
+            url, new=new, autoraise=autoraise
         )
+
+    open_with_fallback._marimo_patched = True  # type: ignore[attr-defined]
+    webbrowser.open = open_with_fallback
 
 
 def patch_sys_module(module: types.ModuleType) -> None:

@@ -7,7 +7,7 @@ import {
   MoreVerticalIcon,
   RefreshCwIcon,
 } from "lucide-react";
-import React, { useCallback, useState } from "react";
+import React, { useState } from "react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
@@ -41,19 +41,16 @@ export const RefreshIconButton: React.FC<{
 }> = ({ onClick, tooltip = "Refresh", className, iconClassName }) => {
   const [isSpinning, setIsSpinning] = useState(false);
 
-  const handleClick = useCallback(
-    async (e: React.MouseEvent) => {
-      setIsSpinning(true);
-      // Artificially spin for 500ms to show the user that the button is working.
-      const minDelay = new Promise<void>((r) => setTimeout(r, 500));
-      try {
-        await Promise.all([onClick(e), minDelay]);
-      } finally {
-        setIsSpinning(false);
-      }
-    },
-    [onClick],
-  );
+  const handleClick = async (e: React.MouseEvent) => {
+    setIsSpinning(true);
+    // Artificially spin for 500ms to show the user that the button is working.
+    const minDelay = new Promise<void>((r) => setTimeout(r, 500));
+    try {
+      await Promise.all([onClick(e), minDelay]);
+    } finally {
+      setIsSpinning(false);
+    }
+  };
 
   const button = (
     <Button

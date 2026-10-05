@@ -4,7 +4,7 @@ import type { Popover } from "radix-ui";
 
 type PopoverContentProps = Popover.PopoverContentProps;
 
-import React, { useState } from "react";
+import React, { type RefObject, useState, useSyncExternalStore } from "react";
 import { isInVscodeExtension } from "@/core/vscode/is-in-vscode";
 import { useEventListener } from "@/hooks/useEventListener";
 
@@ -25,6 +25,48 @@ export function useFullScreenElement() {
     setFullScreenElement(document.fullscreenElement);
   });
   return fullScreenElement;
+}
+
+const fullScreenSubscribers = new Set<() => void>();
+
+function notifyFullScreenSubscribers() {
+  for (const subscriber of fullScreenSubscribers) {
+    subscriber();
+  }
+}
+
+/**
+ * One document listener serves every subscriber, so the cost of a full screen
+ * transition does not grow with the number of mounted components.
+ */
+function subscribeToFullScreen(onStoreChange: () => void) {
+  if (fullScreenSubscribers.size === 0) {
+    document.addEventListener("fullscreenchange", notifyFullScreenSubscribers);
+  }
+  fullScreenSubscribers.add(onStoreChange);
+
+  return () => {
+    fullScreenSubscribers.delete(onStoreChange);
+    if (fullScreenSubscribers.size === 0) {
+      document.removeEventListener(
+        "fullscreenchange",
+        notifyFullScreenSubscribers,
+      );
+    }
+  };
+}
+
+/**
+ * Whether the given element is the full screen element.
+ *
+ * The hook returns a boolean, so a component re-renders only when its own
+ * element enters or leaves full screen.
+ */
+export function useIsFullScreen(ref: RefObject<Element | null>): boolean {
+  return useSyncExternalStore(subscribeToFullScreen, () => {
+    const fullScreenElement = document.fullscreenElement;
+    return fullScreenElement !== null && fullScreenElement === ref.current;
+  });
 }
 
 /**

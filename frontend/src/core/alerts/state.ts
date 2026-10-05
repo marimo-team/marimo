@@ -1,9 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import type { PackageInstallationStatus } from "@/core/kernel/messages";
+import type { NotificationMessageData } from "@/core/kernel/messages";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { generateUUID } from "@/utils/uuid";
+import {
+  emptyEnvironmentState,
+  type EnvironmentOperation,
+  type EnvironmentSource,
+  type EnvironmentState,
+  reduceEnvironmentState,
+} from "./environment";
 
 type Identified<T> = { id: string } & T;
 
@@ -14,12 +21,18 @@ export interface MissingPackageAlert {
   source?: "kernel" | "server";
 }
 
-export interface InstallingPackageAlert {
-  kind: "installing";
-  packages: PackageInstallationStatus;
-  logs?: { [key: string]: string } | null;
-  log_status?: "append" | "start" | "done" | null;
-  source?: "kernel" | "server";
+export interface EnvironmentOperationAlert extends EnvironmentOperation {
+  action: "install" | "remove";
+  kind: "environment";
+  restartRequired: boolean;
+}
+
+function isPackageOperation(
+  operation: EnvironmentOperation,
+): operation is EnvironmentOperation & {
+  action: EnvironmentOperationAlert["action"];
+} {
+  return operation.action === "install" || operation.action === "remove";
 }
 
 export interface StartupLogsAlert {
@@ -28,118 +41,161 @@ export interface StartupLogsAlert {
 }
 
 export function isMissingPackageAlert(
-  alert: MissingPackageAlert | InstallingPackageAlert,
+  alert: MissingPackageAlert | EnvironmentOperationAlert,
 ): alert is MissingPackageAlert {
   return alert.kind === "missing";
 }
 
-export function isInstallingPackageAlert(
-  alert: MissingPackageAlert | InstallingPackageAlert,
-): alert is InstallingPackageAlert {
-  return alert.kind === "installing";
+export function isEnvironmentOperationAlert(
+  alert: MissingPackageAlert | EnvironmentOperationAlert,
+): alert is EnvironmentOperationAlert {
+  return alert.kind === "environment";
 }
 
-/** Prominent alerts.
- *
- * Right now we only have one type of alert.
- */
 interface AlertState {
   packageAlert:
     | Identified<MissingPackageAlert>
-    | Identified<InstallingPackageAlert>
+    | { kind: "environment"; id: string; source: EnvironmentSource }
     | null;
+  environments: Record<EnvironmentSource, EnvironmentState>;
   startupLogsAlert: StartupLogsAlert | null;
-  packageLogs: { [packageName: string]: string };
 }
 
-const { valueAtom: alertAtom, useActions } = createReducerAndAtoms(
-  () =>
-    ({
+function setEnvironment(
+  state: AlertState,
+  source: EnvironmentSource,
+  environment: EnvironmentState,
+): AlertState {
+  // Sandbox preparation and sync use the existing sandbox UI.
+  const environments = { ...state.environments, [source]: environment };
+  const operations = Object.values(environments)
+    .flatMap((item) => item.operations)
+    .filter(isPackageOperation);
+  const incoming = environment.operations.filter(isPackageOperation);
+  const alert = state.packageAlert;
+  const selected =
+    alert?.kind === "environment"
+      ? operations.find(
+          (item) =>
+            item.operation_id === alert.id && item.source === alert.source,
+        )
+      : undefined;
+  // A snapshot restores work and unresolved issues, not old success banners.
+  const needsAttention = (operation: EnvironmentOperation) =>
+    operation.status.kind !== "succeeded" ||
+    environments[operation.source].restart_required;
+  const operation =
+    (selected?.status.kind === "running" ? selected : undefined) ??
+    incoming.findLast((item) => item.status.kind === "running") ??
+    operations.findLast((item) => item.status.kind === "running") ??
+    selected ??
+    incoming.findLast(needsAttention) ??
+    operations.findLast(needsAttention);
+  return {
+    ...state,
+    environments,
+    packageAlert: operation
+      ? {
+          kind: "environment",
+          id: operation.operation_id,
+          source: operation.source,
+        }
+      : state.packageAlert?.kind === "missing"
+        ? state.packageAlert
+        : null,
+  };
+}
+
+export const { valueAtom: alertAtom, useActions: useAlertActions } =
+  createReducerAndAtoms(
+    (): AlertState => ({
       packageAlert: null,
       startupLogsAlert: null,
-      packageLogs: {},
-    }) as AlertState,
-  {
-    addPackageAlert: (
-      state,
-      alert: MissingPackageAlert | InstallingPackageAlert,
-    ) => {
-      const newPackageLogs = { ...state.packageLogs };
-
-      // Handle streaming logs for installing package alerts
-      if (isInstallingPackageAlert(alert) && alert.logs && alert.log_status) {
-        for (const [packageName, newContent] of Object.entries(alert.logs)) {
-          switch (alert.log_status) {
-            case "start":
-              // Start new log for this package
-              newPackageLogs[packageName] = newContent;
-
-              break;
-
-            case "append": {
-              // Append to existing log
-              const prevContent = newPackageLogs[packageName] || "";
-              newPackageLogs[packageName] = prevContent + newContent;
-
-              break;
-            }
-            case "done": {
-              // Append final content and mark as done
-              const prevContent = newPackageLogs[packageName] || "";
-              newPackageLogs[packageName] = prevContent + newContent;
-
-              break;
-            }
-            // No default
-          }
-        }
-      }
-
-      const existingAlert = state.packageAlert;
-      const alertId = existingAlert?.id || generateUUID();
-
-      return {
+      environments: {
+        kernel: emptyEnvironmentState(),
+        server: emptyEnvironmentState(),
+      },
+    }),
+    {
+      addMissingPackageAlert: (state, alert: MissingPackageAlert) => ({
         ...state,
-        packageAlert: { id: alertId, ...alert },
-        packageLogs: newPackageLogs,
-      };
-    },
+        packageAlert: { id: generateUUID(), ...alert },
+      }),
 
-    clearPackageAlert: (state, id: string) => {
-      return state.packageAlert !== null && state.packageAlert.id === id
-        ? { ...state, packageAlert: null, packageLogs: {} }
-        : state;
-    },
+      updateEnvironment: (
+        state,
+        update: NotificationMessageData<"environment-operation">,
+      ) => {
+        const source = update.source;
+        const environment = reduceEnvironmentState(
+          state.environments[source],
+          update,
+        );
+        if (!isPackageOperation(update)) {
+          return {
+            ...state,
+            environments: { ...state.environments, [source]: environment },
+          };
+        }
+        return setEnvironment(
+          {
+            ...state,
+            packageAlert: {
+              kind: "environment",
+              id: update.operation_id,
+              source,
+            },
+          },
+          source,
+          environment,
+        );
+      },
 
-    addStartupLog: (
-      state,
-      logData: { content: string; status: "append" | "start" | "done" },
-    ) => {
-      const prevContent = state.startupLogsAlert?.content || "";
-      return {
+      setEnvironment: (
+        state,
+        snapshot: NotificationMessageData<"environment-state">,
+      ) => setEnvironment(state, snapshot.source, snapshot.state),
+
+      clearPackageAlert: (state, id: string) =>
+        state.packageAlert?.id === id
+          ? { ...state, packageAlert: null }
+          : state,
+
+      addStartupLog: (
+        state,
+        logData: { content: string; status: "append" | "start" | "done" },
+      ) => ({
         ...state,
         startupLogsAlert: {
-          ...state.startupLogsAlert,
-          content: prevContent + logData.content,
+          content: (state.startupLogsAlert?.content ?? "") + logData.content,
           status: logData.status,
         },
-      };
+      }),
+
+      clearStartupLogsAlert: (state) => ({ ...state, startupLogsAlert: null }),
     },
+  );
 
-    clearStartupLogsAlert: (state) => {
-      return { ...state, startupLogsAlert: null };
-    },
-  },
-);
+export function getPackageAlert(
+  state: AlertState,
+): Identified<MissingPackageAlert | EnvironmentOperationAlert> | null {
+  const alert = state.packageAlert;
+  if (alert?.kind !== "environment") {
+    return alert;
+  }
+  const environment = state.environments[alert.source];
+  const operation = environment.operations.find(
+    (item) => item.operation_id === alert.id,
+  );
+  return operation && isPackageOperation(operation)
+    ? { ...operation, ...alert, restartRequired: environment.restart_required }
+    : null;
+}
 
-/**
- * React hook to get the Alert state.
- */
-export const useAlerts = () => useAtomValue(alertAtom);
-
-/**
- * React hook to get the Alerts actions.
- */
-export function useAlertActions() {
-  return useActions();
+export function useAlerts() {
+  const state = useAtomValue(alertAtom);
+  return {
+    packageAlert: getPackageAlert(state),
+    startupLogsAlert: state.startupLogsAlert,
+  };
 }

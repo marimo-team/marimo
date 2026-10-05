@@ -123,28 +123,39 @@ def _check_modules(
     modules: dict[str, types.ModuleType],
     reloader: ModuleReloader,
     sys_modules: dict[str, types.ModuleType],
-) -> dict[str, types.ModuleType]:
-    """Returns the set of modules used by the graph that have been modified"""
-    stale_modules: dict[str, types.ModuleType] = {}
-    modified_modules = reloader.check(modules=sys_modules, reload=False)
+) -> dict[str, int]:
+    """Returns the modules used by the graph that depend on a modified
+    module, each mapped to the reload generation that holds the change."""
+    # One lock hold, so the generation matches the change this scan saw.
+    with reloader.lock:
+        modified_modules = reloader.check_for_watcher(modules=sys_modules)
+        generations = {
+            m: reloader.required_generation(m)
+            for m in modified_modules
+            if m is not None
+        }
     # TODO(akshayka): could also exclude modules part of the standard library;
     # haven't found a reliable way to do this, however.
     excludes = _get_excluded_modules(sys_modules)
 
-    target_modules = {m for m in modified_modules if m is not None}
-    target_filenames = {
-        t.__file__ for t in target_modules if hasattr(t, "__file__")
-    }
-
-    for modname, module in modules.items():
-        if _depends_on(
-            src_module=module,
-            target_modules=target_modules,
-            target_filenames=target_filenames,
-            excludes=excludes,
-            reloader=reloader,
-        ):
-            stale_modules[modname] = module
+    stale_modules: dict[str, int] = {}
+    for target, generation in generations.items():
+        target_filenames = (
+            {target.__file__} if hasattr(target, "__file__") else set()
+        )
+        for modname, module in modules.items():
+            if _depends_on(
+                src_module=module,
+                target_modules={target},
+                target_filenames=target_filenames,
+                excludes=excludes,
+                reloader=reloader,
+            ):
+                # A module with several changed targets holds them all only
+                # from the latest reload.
+                stale_modules[modname] = max(
+                    stale_modules.get(modname, generation), generation
+                )
     return stale_modules
 
 
@@ -176,13 +187,13 @@ def watch_modules(
     while not should_exit.is_set():
         # Collect the modules used by each cell
         modules: dict[str, types.ModuleType] = {}
-        modname_to_cell_id: dict[str, CellId_t] = {}
+        importers: dict[str, set[CellId_t]] = {}
         with graph.lock:
             for cell_id, cell in graph.cells.items():
                 for modname in modules_imported_by_cell(cell, sys_modules):
                     if modname in sys_modules:
                         modules[modname] = sys_modules[modname]
-                        modname_to_cell_id[modname] = cell_id
+                        importers.setdefault(modname, set()).add(cell_id)
 
         stale_modules = _check_modules(
             modules=modules,
@@ -196,26 +207,59 @@ def watch_modules(
             )
             with graph.lock:
                 LOGGER.debug("Acquired graph lock.")
-                for modname in stale_modules:
-                    # prune definitions that are derived from stale modules
-                    cell_id = modname_to_cell_id[modname]
-                    cell = graph.cells[cell_id]
-                    defs_to_prune = [
-                        import_data.definition
-                        for import_data in cell.imports
-                        if import_data.module == modname
-                    ]
-                    cell.import_workspace.imported_defs -= set(defs_to_prune)
+                stale_importers: set[CellId_t] = set()
+                fresh_importers: dict[CellId_t, set[str]] = {}
+                for modname, generation in stale_modules.items():
+                    for cell_id in importers[modname]:
+                        importer = graph.cells.get(cell_id)
+                        if importer is None:
+                            # Deleted while the watcher crawled.
+                            continue
+                        names = {
+                            import_data.definition
+                            for import_data in importer.imports
+                            if import_data.module == modname
+                        }
+                        if reloader.cell_ran_at_or_after(cell_id, generation):
+                            fresh_importers.setdefault(cell_id, set())
+                            fresh_importers[cell_id] |= names
+                            continue
+                        stale_importers.add(cell_id)
+                        # Pruning reopens the traversal through this cell
+                        # to the readers of these names.
+                        importer.import_workspace.imported_defs -= names
 
-                # If any modules are stale, communicate that to the FE
-                # and update the backend's view of the importing cells'
-                # staleness
-                stale_cell_ids = dataflow.transitive_closure(
-                    graph,
-                    {modname_to_cell_id[modname] for modname in stale_modules},
-                    relatives=dataflow.get_import_block_relatives(graph),
+                relatives = dataflow.get_import_block_relatives(graph)
+                # A stale importer's readers hold its old bindings,
+                # however recently they ran.
+                cells_to_mark = dataflow.transitive_closure(
+                    graph, stale_importers, relatives=relatives
                 )
-                for cid in stale_cell_ids:
+                for cell_id, names in fresh_importers.items():
+                    # The kernel does not rerun readers of names an import
+                    # block already imported. A reader is current only if it
+                    # and every cell between it and the importer ran after
+                    # the importer.
+                    frontier = {
+                        reader
+                        for name in names
+                        for reader in graph.get_referring_cells(
+                            name, language="python"
+                        )
+                    }
+                    seen: set[CellId_t] = set()
+                    while frontier:
+                        cid = frontier.pop()
+                        if cid in seen or cid in cells_to_mark:
+                            continue
+                        seen.add(cid)
+                        if reloader.cell_ran_after(cid, cell_id):
+                            frontier |= relatives(cid, True)
+                            continue
+                        cells_to_mark |= dataflow.transitive_closure(
+                            graph, {cid}, relatives=relatives
+                        )
+                for cid in cells_to_mark:
                     graph.cells[cid].set_stale(stale=True, stream=stream)
             LOGGER.debug("Released graph lock and updated stale statuses.")
 

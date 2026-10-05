@@ -72,7 +72,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
 
   public initialized = new Deferred<void>();
 
-  constructor(config: IslandsBridgeConfig = {}) {
+  public constructor(config: IslandsBridgeConfig = {}) {
     this.store = config.store || defaultStore;
     this.root = config.root || document;
 
@@ -120,7 +120,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     });
   }
 
-  async initializeApps(): Promise<void> {
+  public async initializeApps(): Promise<void> {
     await this.enqueueAppTransition(async () => {
       await this.workerReady.promise;
       await this.startApps();
@@ -211,7 +211,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     }
   }
 
-  async stopSession(appId?: string): Promise<void> {
+  public async stopSession(appId?: string): Promise<void> {
     await this.enqueueAppTransition(async () => {
       const session = this.session;
       if (session?.code === undefined || (appId && session.appId !== appId)) {
@@ -238,7 +238,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   /**
    * Starts a new Python session for an app
    */
-  async startSession(opts: {
+  public async startSession(opts: {
     code: string;
     appId: string;
     sessionGeneration: number;
@@ -249,7 +249,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   /**
    * Sets up a consumer for kernel messages
    */
-  consumeMessages(consumer: (message: IslandsKernelMessage) => void): void {
+  public consumeMessages(
+    consumer: (message: IslandsKernelMessage) => void,
+  ): void {
     this.messageConsumer = consumer;
     this.rpc.proxy.send.consumerReady({});
   }
@@ -258,7 +260,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   // RunRequests Implementation
   // ============================================================================
 
-  sendComponentValues: RunRequests["sendComponentValues"] = async (
+  public sendComponentValues: RunRequests["sendComponentValues"] = async (
     request,
   ): Promise<null> => {
     await this.putControlRequest({
@@ -269,11 +271,12 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendInstantiate: RunRequests["sendInstantiate"] = async (): Promise<null> => {
-    return null;
-  };
+  public sendInstantiate: RunRequests["sendInstantiate"] =
+    async (): Promise<null> => {
+      return null;
+    };
 
-  sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (
+  public sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (
     request,
   ): Promise<null> => {
     await this.putControlRequest({
@@ -283,7 +286,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendModelValue: RunRequests["sendModelValue"] = async (request) => {
+  public sendModelValue: RunRequests["sendModelValue"] = async (request) => {
     await this.putControlRequest({
       type: "model",
       ...request,
@@ -295,7 +298,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   // EditRequests Implementation
   // ============================================================================
 
-  sendRun: EditRequests["sendRun"] = async (request): Promise<null> => {
+  public sendRun: EditRequests["sendRun"] = async (request): Promise<null> => {
     const session = await this.getActiveSession();
     await this.rpc.proxy.request.loadPackages({
       appId: session.appId,
@@ -316,71 +319,75 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   // Not Implemented (Read-Only Mode)
   // ============================================================================
 
-  getUsageStats = throwNotImplemented;
-  getEnvironmentInfo = throwNotImplemented;
-  sendRename = throwNotImplemented;
-  sendSave = throwNotImplemented;
-  sendCopy = throwNotImplemented;
-  sendRunScratchpad = throwNotImplemented;
-  sendStdin = throwNotImplemented;
-  sendInterrupt = throwNotImplemented;
-  sendShutdown = throwNotImplemented;
-  sendFormat = throwNotImplemented;
-  sendDeleteCell = throwNotImplemented;
-  sendInstallMissingPackages = throwNotImplemented;
-  sendCodeCompletionRequest = throwNotImplemented;
-  saveUserConfig = throwNotImplemented;
-  saveAppConfig = throwNotImplemented;
-  saveCellConfig = throwNotImplemented;
-  sendRestart = throwNotImplemented;
-  sendDocumentTransaction = throwNotImplemented;
-  readCode = throwNotImplemented;
-  readSnippets = throwNotImplemented;
-  previewDatasetColumn = throwNotImplemented;
-  previewSQLTable = throwNotImplemented;
-  previewSQLTableList = throwNotImplemented;
-  previewSQLSchemaList = throwNotImplemented;
-  previewDataSourceConnection = throwNotImplemented;
-  discoverDataSources = throwNotImplemented;
-  validateSQL = throwNotImplemented;
-  openFile = throwNotImplemented;
-  sendListFiles = throwNotImplemented;
-  sendSearchFiles = throwNotImplemented;
-  sendPdb = throwNotImplemented;
-  sendSetBreakpoints = throwNotImplemented;
-  sendCreateFileOrFolder = throwNotImplemented;
-  sendDeleteFileOrFolder = throwNotImplemented;
-  sendCopyFileOrFolder = throwNotImplemented;
-  sendRenameFileOrFolder = throwNotImplemented;
-  sendUpdateFile = throwNotImplemented;
-  sendFileDetails = throwNotImplemented;
-  openTutorial = throwNotImplemented;
-  getExportAvailability = throwNotImplemented;
-  installExportRequirements = throwNotImplemented;
-  exportAsHTML = throwNotImplemented;
-  exportAsIPYNB = throwNotImplemented;
-  exportAsMarkdown = throwNotImplemented;
-  exportAsScript = throwNotImplemented;
-  exportAsPDF = throwNotImplemented;
-  autoExportAsHTML = throwNotImplemented;
-  autoExportAsMarkdown = throwNotImplemented;
-  autoExportAsIPYNB = throwNotImplemented;
-  updateCellOutputs = throwNotImplemented;
-  addPackage = throwNotImplemented;
-  removePackage = throwNotImplemented;
-  getPackageList = throwNotImplemented;
-  getDependencyTree = throwNotImplemented;
-  getRecentFiles = throwNotImplemented;
-  getWorkspaceFiles = throwNotImplemented;
-  getRunningNotebooks = throwNotImplemented;
-  shutdownSession = throwNotImplemented;
-  listSecretKeys = throwNotImplemented;
-  writeSecret = throwNotImplemented;
-  invokeAiTool = throwNotImplemented;
-  clearCache = throwNotImplemented;
-  getCacheInfo = throwNotImplemented;
-  listStorageEntries = throwNotImplemented;
-  downloadStorage = throwNotImplemented;
+  public getUsageStats = throwNotImplemented;
+  public getEnvironmentInfo = throwNotImplemented;
+  public sendRename = throwNotImplemented;
+  public sendSave = throwNotImplemented;
+  public sendCopy = throwNotImplemented;
+  public sendRunScratchpad = throwNotImplemented;
+  public sendStdin = throwNotImplemented;
+  public sendInterrupt = throwNotImplemented;
+  public sendShutdown = throwNotImplemented;
+  public sendFormat = throwNotImplemented;
+  public sendDeleteCell = throwNotImplemented;
+  public sendInstallMissingPackages = throwNotImplemented;
+  public sendCodeCompletionRequest = throwNotImplemented;
+  public saveUserConfig = throwNotImplemented;
+  public saveAppConfig = throwNotImplemented;
+  public saveCellConfig = throwNotImplemented;
+  public sendRestart = throwNotImplemented;
+  public sendDocumentTransaction = throwNotImplemented;
+  public readCode = throwNotImplemented;
+  public readSnippets = throwNotImplemented;
+  public previewDatasetColumn = throwNotImplemented;
+  public previewSQLTable = throwNotImplemented;
+  public previewSQLTableList = throwNotImplemented;
+  public previewSQLSchemaList = throwNotImplemented;
+  public previewDataSourceConnection = throwNotImplemented;
+  public discoverDataSources = throwNotImplemented;
+  public validateSQL = throwNotImplemented;
+  public openFile = throwNotImplemented;
+  public getFileRoots = throwNotImplemented;
+  public sendListFiles = throwNotImplemented;
+  public sendSearchFiles = throwNotImplemented;
+  public sendPdb = throwNotImplemented;
+  public sendSetBreakpoints = throwNotImplemented;
+  public sendCreateFileOrFolder = throwNotImplemented;
+  public sendDeleteFileOrFolder = throwNotImplemented;
+  public sendCopyFileOrFolder = throwNotImplemented;
+  public sendRenameFileOrFolder = throwNotImplemented;
+  public sendUpdateFile = throwNotImplemented;
+  public sendFileDetails = throwNotImplemented;
+  public openTutorial = throwNotImplemented;
+  public getExportAvailability = throwNotImplemented;
+  public installExportRequirements = throwNotImplemented;
+  public exportAsHTML = throwNotImplemented;
+  public exportAsIPYNB = throwNotImplemented;
+  public exportAsMarkdown = throwNotImplemented;
+  public exportAsScript = throwNotImplemented;
+  public exportAsPDF = throwNotImplemented;
+  public autoExportAsHTML = throwNotImplemented;
+  public autoExportAsMarkdown = throwNotImplemented;
+  public autoExportAsIPYNB = throwNotImplemented;
+  public updateCellOutputs = throwNotImplemented;
+  public addPackage = throwNotImplemented;
+  public removePackage = throwNotImplemented;
+  public getPackageList = throwNotImplemented;
+  public getSandbox = throwNotImplemented;
+  public updateManifest = throwNotImplemented;
+  public syncSandbox = throwNotImplemented;
+  public getDependencyTree = throwNotImplemented;
+  public getRecentFiles = throwNotImplemented;
+  public getWorkspaceFiles = throwNotImplemented;
+  public getRunningNotebooks = throwNotImplemented;
+  public shutdownSession = throwNotImplemented;
+  public listSecretKeys = throwNotImplemented;
+  public writeSecret = throwNotImplemented;
+  public invokeAiTool = throwNotImplemented;
+  public clearCache = throwNotImplemented;
+  public getCacheInfo = throwNotImplemented;
+  public listStorageEntries = throwNotImplemented;
+  public downloadStorage = throwNotImplemented;
 
   // The kernel uses msgspec to parse control requests, which requires a 'type'
   // field for discriminated union deserialization.
@@ -408,7 +415,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   /**
    * Cleans up resources (for testing)
    */
-  destroy(): void {
+  public destroy(): void {
     // Future: terminate worker if we own it
   }
 }

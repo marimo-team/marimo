@@ -17,6 +17,7 @@
 import { debounce } from "lodash-es";
 import { assertNever } from "@/utils/assertNever";
 import type { DispatchedActionOf } from "@/utils/createReducer";
+import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import type { NotificationMessageData } from "../kernel/messages";
 import { kioskModeAtom } from "../mode";
@@ -163,6 +164,7 @@ function columnChanges(
         column: newCol,
         disabled: cell?.config.disabled ?? false,
         hideCode: cell?.config.hide_code ?? false,
+        expandOutput: cell?.config.expand_output ?? false,
       });
     }
   }
@@ -276,6 +278,7 @@ export function toDocumentChanges(
           column: cell.config.column ?? null,
           disabled: cell.config.disabled ?? false,
           hideCode: cell.config.hide_code ?? false,
+          expandOutput: cell.config.expand_output ?? false,
         },
       ];
     }
@@ -451,7 +454,11 @@ export function fromDocumentChanges(
             payload: { cellId: change.cellId, name: change.name },
           });
         }
-        if (change.config?.disabled != null || change.config?.column != null) {
+        if (
+          change.config?.disabled != null ||
+          change.config?.column != null ||
+          change.config?.expand_output != null
+        ) {
           actions.push({
             type: "updateCellConfig",
             payload: {
@@ -462,6 +469,9 @@ export function fromDocumentChanges(
                 }),
                 ...(change.config.column != null && {
                   column: change.config.column,
+                }),
+                ...(change.config.expand_output != null && {
+                  expand_output: change.config.expand_output,
                 }),
               },
             },
@@ -559,6 +569,7 @@ export function fromDocumentChanges(
               column: change.column,
               disabled: change.disabled,
               hide_code: change.hideCode,
+              expand_output: change.expandOutput,
             },
           },
         });
@@ -632,15 +643,183 @@ export function coalesceChanges(changes: DocumentChange[]): DocumentChange[] {
 // ---------------------------------------------------------------------------
 
 let pendingChanges: DocumentChange[] = [];
+let stagedTransactions: DocumentChange[][] = [];
+let transactionQueue: Promise<void> = Promise.resolve();
+let transactionGeneration = 0;
+let activeDocumentSave: Deferred<void> | null = null;
 
-const flushChanges = debounce(() => {
-  const changes = coalesceChanges(pendingChanges);
-  pendingChanges = [];
-  if (changes.length === 0) {
+type TransactionSyncState =
+  | { status: "synchronized" }
+  | { status: "failed"; error: unknown };
+
+interface DocumentResync {
+  failure: Extract<TransactionSyncState, { status: "failed" }>;
+  includedChanges: DocumentChange[];
+  includedTransactions: DocumentChange[][];
+}
+
+let transactionSyncState: TransactionSyncState = { status: "synchronized" };
+
+function stagePendingTransaction(): void {
+  if (transactionSyncState.status === "failed") {
     return;
   }
-  void getRequestClient().sendDocumentTransaction({ changes });
+  const changes = coalesceChanges(pendingChanges);
+  pendingChanges = [];
+  if (changes.length > 0) {
+    stagedTransactions.push(changes);
+  }
+}
+
+async function sendStagedTransactions(generation: number): Promise<void> {
+  if (generation !== transactionGeneration) {
+    return;
+  }
+  if (transactionSyncState.status === "failed") {
+    throw transactionSyncState.error;
+  }
+
+  while (stagedTransactions.length > 0) {
+    const changes = stagedTransactions[0];
+
+    try {
+      await getRequestClient().sendDocumentTransaction({ changes });
+    } catch (error) {
+      if (generation !== transactionGeneration) {
+        return;
+      }
+      // A transport failure is ambiguous: the server may have applied the
+      // transaction before the response was lost. Keep the failure sticky so
+      // an export cannot claim synchronization without a fresh document.
+      transactionSyncState = { status: "failed", error };
+      stagedTransactions = stagedTransactions.slice(1);
+      throw error;
+    }
+    if (generation !== transactionGeneration) {
+      return;
+    }
+    stagedTransactions.shift();
+  }
+}
+
+function queuePendingTransactions(): Promise<void> {
+  const generation = transactionGeneration;
+  const saveBarrier = activeDocumentSave?.promise ?? Promise.resolve();
+  const queued = Promise.all([
+    transactionQueue.catch(() => undefined),
+    saveBarrier,
+  ]).then(() => sendStagedTransactions(generation));
+  transactionQueue = queued;
+  return queued;
+}
+
+const flushChanges = debounce(() => {
+  stagePendingTransaction();
+  void queuePendingTransactions().catch(() => undefined);
 }, 400);
+
+export async function flushDocumentChanges(): Promise<void> {
+  if (transactionSyncState.status === "failed") {
+    throw transactionSyncState.error;
+  }
+  flushChanges.cancel();
+  stagePendingTransaction();
+  let awaitedQueue = queuePendingTransactions();
+  while (true) {
+    await awaitedQueue;
+    flushChanges.cancel();
+    stagePendingTransaction();
+    if (
+      pendingChanges.length === 0 &&
+      stagedTransactions.length === 0 &&
+      transactionQueue === awaitedQueue
+    ) {
+      return;
+    }
+    awaitedQueue =
+      transactionQueue === awaitedQueue
+        ? queuePendingTransactions()
+        : transactionQueue;
+  }
+}
+
+export function beginDocumentResync(): DocumentResync | null {
+  if (transactionSyncState.status !== "failed") {
+    return null;
+  }
+  flushChanges.cancel();
+  const includedChanges = pendingChanges;
+  const includedTransactions = stagedTransactions;
+  pendingChanges = [];
+  stagedTransactions = [];
+  return {
+    failure: transactionSyncState,
+    includedChanges,
+    includedTransactions,
+  };
+}
+
+export function abortDocumentResync(resync: DocumentResync | null): void {
+  if (resync === null || transactionSyncState !== resync.failure) {
+    return;
+  }
+  pendingChanges = [...resync.includedChanges, ...pendingChanges];
+  stagedTransactions = [...resync.includedTransactions, ...stagedTransactions];
+}
+
+export async function completeDocumentResync(
+  resync: DocumentResync | null,
+): Promise<void> {
+  if (resync === null) {
+    return;
+  }
+  await transactionQueue.catch(() => undefined);
+  if (transactionSyncState !== resync.failure) {
+    return;
+  }
+  transactionSyncState = { status: "synchronized" };
+  transactionQueue = Promise.resolve();
+  if (pendingChanges.length > 0) {
+    flushChanges();
+  }
+}
+
+function releaseDocumentSave(barrier: Deferred<void>): void {
+  if (activeDocumentSave === barrier) {
+    activeDocumentSave = null;
+  }
+  barrier.resolve();
+}
+
+/**
+ * Runs a full save after earlier document transactions and holds later
+ * transactions until the save settles. A failed transaction makes the save
+ * the authoritative document resync boundary.
+ */
+export async function withDocumentSave<T>(save: () => Promise<T>): Promise<T> {
+  let resync: DocumentResync | null = null;
+  try {
+    await flushDocumentChanges();
+  } catch (error) {
+    resync = beginDocumentResync();
+    if (resync === null) {
+      throw error;
+    }
+  }
+
+  const barrier = new Deferred<void>();
+  activeDocumentSave = barrier;
+  try {
+    const result = await save();
+    releaseDocumentSave(barrier);
+    await completeDocumentResync(resync);
+    return result;
+  } catch (error) {
+    abortDocumentResync(resync);
+    releaseDocumentSave(barrier);
+    throw error;
+  }
+}
 
 function isScratchChange(change: DocumentChange): boolean {
   if ("cellId" in change && change.cellId === SCRATCH_CELL_ID) {
@@ -658,7 +837,9 @@ function enqueue(change: DocumentChange) {
     return;
   }
   pendingChanges.push(change);
-  flushChanges();
+  if (transactionSyncState.status === "synchronized") {
+    flushChanges();
+  }
 }
 
 /**
@@ -746,7 +927,13 @@ export function applyTransactionChanges(
 export const exportedForTesting = {
   cancelPendingChanges: () => {
     flushChanges.cancel();
+    activeDocumentSave?.resolve();
+    activeDocumentSave = null;
+    transactionGeneration += 1;
     pendingChanges = [];
+    stagedTransactions = [];
+    transactionSyncState = { status: "synchronized" };
+    transactionQueue = Promise.resolve();
   },
   drainChanges: (): DocumentChange[] => {
     flushChanges.cancel();

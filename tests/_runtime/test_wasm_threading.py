@@ -179,9 +179,9 @@ def test_wasm_threading_local_dict_is_read_only() -> None:
             local.value = 1
 
             assert local.__dict__ == {"value": 1}
-            with pytest.raises(AttributeError, match="__dict__.*read-only"):
+            with pytest.raises(AttributeError, match=r"__dict__.*read-only"):
                 local.__dict__ = {}
-            with pytest.raises(AttributeError, match="__dict__.*read-only"):
+            with pytest.raises(AttributeError, match=r"__dict__.*read-only"):
                 del local.__dict__
             assert local.__dict__ == {"value": 1}
         finally:

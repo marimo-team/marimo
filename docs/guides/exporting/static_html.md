@@ -54,6 +54,8 @@ be non-zero. However, the export result may still be generated, with the error
 included in the output. Errors can be ignored by appending `|| true` to the
 command, e.g. `marimo export html notebook.py || true`.
 
+**Slides.** If your notebook is configured with the slides layout, a HTML reveal.js slide deck is created. It preserves slide structure, speaker notes and deck settings. Speaker notes are embedded in the HTML file and readable by anyone who receives it.
+
 ## Pre-render HTML exports
 
 Static marimo exports execute Javascript to render the notebook source code as HTML at browser runtime. If you would like to directly serve the HTML representation of your notebook, you can run the following post-processing script and serve the resulting file instead.

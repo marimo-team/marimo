@@ -25,9 +25,9 @@ interface Data {
 }
 
 export class CodeEditorPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-code-editor";
+  public tagName = "marimo-code-editor";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.string(),
     language: z.string().default("python"),
     placeholder: z.string(),
@@ -40,7 +40,7 @@ export class CodeEditorPlugin implements IPlugin<T, Data> {
     debounce: z.union([z.boolean(), z.number()]).default(false),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <CodeEditorComponent
         {...props.data}

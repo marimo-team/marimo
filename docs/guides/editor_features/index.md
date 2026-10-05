@@ -10,7 +10,7 @@ with code and data.
 | [Overview](overview.md)                     | An overview of editor features and configuration |
 | [Sidebar and Developer Panel](panels.md)   | Customize your workspace with panels             |
 | [Understanding dataflow](dataflow.md)       | Visualize and navigate cell dependencies         |
-| [Package Management](package_management.md) | Using package managers in marimo                 |
+| [Installing packages](../package_management/installing_packages.md) | Using package managers in marimo                 |
 | [AI Completion](ai_completion.md)           | Code with the help of a language model           |
 | [Language Server](language_server.md)       | Code intelligence via LSP                        |
 | [Hotkeys](hotkeys.md)                       | Our hotkeys                                      |

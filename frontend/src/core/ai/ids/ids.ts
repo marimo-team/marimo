@@ -4,13 +4,13 @@ import type { TypedString } from "@/utils/typed";
 
 export const KNOWN_PROVIDERS = [
   "openai",
+  "github",
   "anthropic",
   "google",
   "ollama",
   "bedrock",
   "deepseek",
   "azure",
-  "github",
   "openrouter",
   "wandb",
   "opencode-go",
@@ -33,19 +33,19 @@ export type ShortModelId = TypedString<"ShortModelId">;
 export type QualifiedModelId = `${ProviderId}/${ShortModelId}`;
 
 export class AiModelId {
-  readonly providerId: ProviderId;
-  readonly shortModelId: ShortModelId;
+  public readonly providerId: ProviderId;
+  public readonly shortModelId: ShortModelId;
 
-  constructor(providerId: ProviderId, shortModelId: ShortModelId) {
+  public constructor(providerId: ProviderId, shortModelId: ShortModelId) {
     this.providerId = providerId;
     this.shortModelId = shortModelId;
   }
 
-  get id(): QualifiedModelId {
+  public get id(): QualifiedModelId {
     return `${this.providerId}/${this.shortModelId}`;
   }
 
-  static parse(id: string): AiModelId {
+  public static parse(id: string): AiModelId {
     if (!id.includes("/")) {
       const providerId = guessProviderId(id);
       return new AiModelId(providerId, id as ShortModelId);

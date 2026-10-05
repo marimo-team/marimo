@@ -592,7 +592,7 @@ describe("staged cell generation", () => {
         type: "data-notebook-cells-completion",
         data: { cells },
       }),
-    ).toThrow();
+    ).toThrow(/cells/i);
   });
 
   it("should create cells from a validated completion", () => {

@@ -74,17 +74,23 @@ def _to_marimo_arrow(data: Data, **kwargs: Any) -> _TransformResult:
     """
     del kwargs
     data = _maybe_sanitize_dataframe(data)
+    manager = get_table_manager(data)
     try:
-        data_arrow = get_table_manager(data).to_arrow_ipc()
+        data_arrow = manager.to_arrow_ipc()
     except NotImplementedError:
-        return _to_marimo_csv(data)
+        pass
     except Exception as e:
         LOGGER.warning(
             f"Failed to convert data to arrow format, falling back to CSV: {e}"
         )
-        return _to_marimo_csv(data)
-    virtual_file = mo_data.arrow(data_arrow)
-    return {"url": virtual_file.url, "format": {"type": "arrow"}}
+    else:
+        virtual_file = mo_data.arrow(data_arrow)
+        return {"url": virtual_file.url, "format": {"type": "arrow"}}
+
+    # Retrying sanitization on a native frame can raise for unsupported dtypes.
+    data_csv = manager.to_csv_str()
+    virtual_file = mo_data.csv(data_csv.encode("utf-8"))
+    return {"url": virtual_file.url, "format": {"type": "csv"}}
 
 
 def _to_marimo_inline_csv(data: Data, **kwargs: Any) -> _TransformResult:
@@ -151,7 +157,7 @@ def _maybe_sanitize_dataframe(data: Any) -> Any:
             return res.to_native()  # type: ignore[return-value]
         except Exception as e:
             LOGGER.warning(f"Failed to sanitize narwhals dataframe: {e}")
-            return data
+            return narwhals_data.to_native()
 
     return data
 

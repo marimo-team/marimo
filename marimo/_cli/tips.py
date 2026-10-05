@@ -56,6 +56,14 @@ CLI_STARTUP_TIPS: Final[tuple[CliTip, ...]] = (
         link="https://links.marimo.app/marimo-pair",
     ),
     CliTip(
+        text="Build custom notebook views with Marimo Studio",
+        link="https://marimo-team.github.io/marimo-studio/",
+    ),
+    CliTip(
+        text="Point to notebook outputs to guide AI agents with marimo-lens",
+        link="https://marimo-team.github.io/marimo-lens/",
+    ),
+    CliTip(
         text="Coming from Jupyter?",
         link="https://docs.marimo.io/guides/coming_from/jupyter/",
     ),
@@ -197,7 +205,9 @@ def _explicitly_set_option_names(ctx: click.Context) -> list[str]:
         if source is None or source == ParameterSource.DEFAULT:
             continue
         value = ctx.params.get(param.name)
-        if isinstance(value, bool) and not value:
+        if isinstance(value, bool) and (
+            not value or all(opt.startswith("--no-") for opt in param.opts)
+        ):
             continue
         options.append(param.name)
     return options

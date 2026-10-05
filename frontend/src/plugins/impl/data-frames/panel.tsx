@@ -177,6 +177,7 @@ export const TransformPanel: React.FC<Props> = ({
   return (
     <ColumnInfoContext value={effectiveColumns}>
       <ColumnFetchValuesContext value={getColumnValues}>
+        {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Prevent Enter from submitting while using controls in the lazy form. */}
         <form
           onSubmit={(e) => e.preventDefault()}
           // When lazy, prevent Enter from submitting

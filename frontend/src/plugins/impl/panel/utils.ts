@@ -60,12 +60,12 @@ export class EventBuffer<T> {
   private processEvents: () => void;
   private blockDuration: number;
 
-  constructor(processEvents: () => void, blockDuration = 200) {
+  public constructor(processEvents: () => void, blockDuration = 200) {
     this.processEvents = processEvents;
     this.blockDuration = blockDuration;
   }
 
-  add(event: T) {
+  public add(event: T) {
     this.buffer.push(event);
     this.flush();
   }
@@ -90,15 +90,15 @@ export class EventBuffer<T> {
     }, this.blockDuration);
   }
 
-  size() {
+  public size() {
     return this.buffer.length;
   }
 
-  clear() {
+  public clear() {
     this.buffer = [];
   }
 
-  getAndClear() {
+  public getAndClear() {
     const events = this.buffer;
     this.buffer = [];
     return events;

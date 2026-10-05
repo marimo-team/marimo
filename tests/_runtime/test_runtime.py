@@ -1953,6 +1953,57 @@ except NameError:
         assert cell.exception is None
         assert k.globals["result"] == 3
 
+    async def test_nested_private_recursive_function(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Regression test for #10675."""
+        k = any_kernel
+        await k.run(
+            [
+                er := exec_req.get(
+                    """
+                    def _sum(xs):
+                        def _recursive_sum(xs):
+                            if not xs:
+                                return 0
+                            return xs[0] + _recursive_sum(xs[1:])
+
+                        return _recursive_sum(xs)
+                    result = _sum([1, 2, 3, 4, 5])
+                    """
+                )
+            ]
+        )
+        cell = k.graph.cells[er.cell_id]
+        assert cell.exception is None
+        assert k.globals["result"] == 15
+
+    async def test_nested_public_recursive_function(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    def sum_values(xs):
+                        def _recursive_sum(xs):
+                            if not xs:
+                                return 0
+                            return xs[0] + _recursive_sum(xs[1:])
+
+                        return _recursive_sum(xs)
+                    """
+                )
+            ]
+        )
+        await k.run(
+            [er := exec_req.get("result = sum_values([1, 2, 3, 4, 5])")]
+        )
+        cell = k.graph.cells[er.cell_id]
+        assert cell.exception is None
+        assert k.globals["result"] == 15
+
     async def test_private_recursive_function_local_shadow(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -3178,6 +3229,77 @@ class TestDisable:
         assert not k.graph.cells[er_2.cell_id].disabled_transitively
         assert k.graph.cells[er_2.cell_id].runtime_state == "idle"
 
+    async def test_partial_config_update_preserves_disabled(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Config updates are partial: omitted keys keep their value.
+
+        Regression test: toggling `expand_output` on a disabled cell used to
+        drop `disabled` from the cell's stored metadata, so the cell ran the
+        next time it was registered.
+        """
+        k = any_kernel
+        er_1 = exec_req.get("x = 0")
+        await k.run([er_1])
+
+        await k.set_cell_config(
+            UpdateCellConfigCommand(configs={er_1.cell_id: {"disabled": True}})
+        )
+        await k.set_cell_config(
+            UpdateCellConfigCommand(
+                configs={er_1.cell_id: {"expand_output": True}}
+            )
+        )
+        assert k.cell_metadata[er_1.cell_id].config.disabled
+        assert k.cell_metadata[er_1.cell_id].config.expand_output
+
+        # editing the cell's code re-registers it, restoring the stored config
+        await k.run([exec_req.get_with_id(er_1.cell_id, "x = 1")])
+        assert k.graph.cells[er_1.cell_id].config.disabled
+        assert k.graph.cells[er_1.cell_id].config.expand_output
+        assert "x" not in k.globals
+
+    async def test_enable_many_cells_runs_all_stale_cells(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Enabling several cells at once re-runs every stale one."""
+        k = any_kernel
+        await k.run(
+            [
+                er_1 := exec_req.get("x = 0"),
+                er_2 := exec_req.get("y = 0"),
+            ]
+        )
+        configs = {
+            er_1.cell_id: {"disabled": True},
+            er_2.cell_id: {"disabled": True},
+        }
+        await k.set_cell_config(UpdateCellConfigCommand(configs=configs))
+
+        # make both cells stale while disabled
+        await k.run(
+            [
+                er_1 := exec_req.get_with_id(er_1.cell_id, "x = 1"),
+                er_2 := exec_req.get_with_id(er_2.cell_id, "y = 1"),
+            ]
+        )
+        assert k.graph.get_stale() == {er_1.cell_id, er_2.cell_id}
+
+        # re-enable both in a single request
+        await k.set_cell_config(
+            UpdateCellConfigCommand(
+                configs={
+                    er_1.cell_id: {"disabled": False},
+                    er_2.cell_id: {"disabled": False},
+                }
+            )
+        )
+        if k.lazy():
+            await k.run([er_1, er_2])
+        assert k.globals["x"] == 1
+        assert k.globals["y"] == 1
+        assert not k.graph.get_stale()
+
 
 class TestAsyncIO:
     @staticmethod
@@ -3562,26 +3684,33 @@ class TestSQL:
             if part
         )
 
-        await k.run(
-            [
-                ExecuteCellCommand(
-                    cell_id=CellId_t("0"), code="import marimo as mo"
-                ),
-                ExecuteCellCommand(
-                    cell_id=CellId_t("1"),
-                    code=(
-                        f"mo.sql('CREATE OR REPLACE TABLE {qualified_name} "
-                        "AS SELECT 1 AS a')"
+        try:
+            await k.run(
+                [
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("0"), code="import marimo as mo"
                     ),
-                ),
-            ]
-        )
-        assert not k.errors
-        assert table_exists()
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("1"),
+                        code=(
+                            "mo.sql('CREATE OR REPLACE TABLE "
+                            f"{qualified_name} AS SELECT 1 AS a')"
+                        ),
+                    ),
+                ]
+            )
+            assert not k.errors
+            assert table_exists()
 
-        # Deleting the defining cell triggers cleanup of the in-memory table.
-        await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
-        assert not table_exists()
+            # Deleting the defining cell triggers cleanup of the in-memory
+            # table.
+            await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
+            assert not table_exists()
+        finally:
+            if resolved_schema != "main":
+                duckdb.execute(
+                    f'DROP SCHEMA IF EXISTS memory."{resolved_schema}" CASCADE'
+                )
 
     async def test_sql_table_on_attached_catalog_is_not_dropped(
         self, k: Kernel

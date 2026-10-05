@@ -23,11 +23,11 @@ interface Data {
 }
 
 export class MatrixPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-matrix";
+  public tagName = "marimo-matrix";
 
-  cssStyles = [matrixCss];
+  public cssStyles = [matrixCss];
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.array(z.array(z.number())),
     label: z.string().nullable(),
     minValue: z.array(z.array(z.number())).nullish(),
@@ -42,7 +42,7 @@ export class MatrixPlugin implements IPlugin<T, Data> {
     disabled: z.array(z.array(z.boolean())),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <MatrixComponent
         {...props.data}
@@ -126,6 +126,8 @@ const MatrixComponent = ({
   // which avoids stale-state bugs when the matrix shape changes.
   const [draft, setDraft] = useState(value);
   useEffect(() => {
+    // TODO: Model the active draft without synchronizing state in an effect.
+    // oxlint-disable-next-line react/no-deriving-state-in-effects -- Synchronize the editable draft when the controlled value changes.
     setDraft(value);
   }, [value]);
   const displayValue = activeCell == null ? value : draft;
@@ -408,7 +410,7 @@ const MatrixComponent = ({
           {hasColumnLabels && (
             <thead>
               <tr>
-                {hasRowLabels && <th />}
+                {hasRowLabels && <th aria-hidden="true" />}
                 {columnLabels.map((lbl, j) => (
                   <th
                     key={j}

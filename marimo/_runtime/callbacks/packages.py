@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
@@ -9,16 +10,20 @@ from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.context import is_code_mode_request
 from marimo._messaging.notification import (
     CompletedRunNotification,
-    InstallingPackageAlertNotification,
     MissingPackageAlertNotification,
     PackageStatusType,
 )
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import InstallPackagesCommand
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 from marimo._runtime.packages.import_error_extractors import (
     extract_missing_module_from_cause_chain,
     try_extract_packages_from_import_error_message,
 )
+from marimo._runtime.packages.operations import environment_operation
 from marimo._runtime.packages.package_manager import (
     LogCallback,
     PackageManager,
@@ -56,22 +61,78 @@ class PackagesCallbacks:
     def register(self, router: RequestRouter) -> None:
         router.register(InstallPackagesCommand, self._handle_install)
 
+    def _notebook_index_urls(self) -> list[str]:
+        """Read PEP 723 index config from the current notebook.
+
+        Returns a flat list with the primary `index-url` first, then any
+        `extra-index-url` entries, then `[[tool.uv.index]]` URLs.
+        Returns `[]` if there's no filename or no config — the receiving
+        backend will fall back to its default index.
+        """
+        filename = self._kernel.app_metadata.filename
+        if not filename:
+            return []
+        try:
+            from marimo._utils.inline_script_metadata import PyProjectReader
+
+            reader = PyProjectReader.from_filename(filename)
+        except Exception:
+            return []
+        urls: list[str] = []
+        if isinstance(reader.index_url, str) and reader.index_url:
+            urls.append(reader.index_url)
+        for extra in reader.extra_index_urls:
+            if isinstance(extra, str) and extra and extra not in urls:
+                urls.append(extra)
+        for entry in reader.index_configs:
+            if not isinstance(entry, dict):
+                continue
+            url = entry.get("url")
+            if isinstance(url, str) and url and url not in urls:
+                urls.append(url)
+        return urls
+
     async def _handle_install(self, request: InstallPackagesCommand) -> None:
         await self.install_missing_packages(request)
         broadcast_notification(CompletedRunNotification())
 
     def update_package_manager(self, package_manager: str) -> None:
+        if GLOBAL_SETTINGS.SANDBOX_MODE is not None:
+            from marimo._environments.backends import current_backend
+            from marimo._environments.sandbox import NotebookSandbox
+            from marimo._runtime.packages.sandbox_package_manager import (
+                SandboxPackageManager,
+            )
+
+            if not isinstance(self.package_manager, SandboxPackageManager):
+                self.package_manager = SandboxPackageManager(
+                    NotebookSandbox.from_running_process(
+                        self._kernel.app_metadata.filename, current_backend()
+                    )
+                )
+            return
+
         if (
             self.package_manager is None
             or package_manager != self.package_manager.name
         ):
-            self.package_manager = create_package_manager(package_manager)
+            self.package_manager = create_package_manager(
+                package_manager,
+            )
 
             # All marimo notebooks depend on the marimo package; if the
             # notebook already has marimo as a dependency, or an optional
             # dependency group with marimo, such as marimo[sql], this is a
             # NOOP.
             self._maybe_add_marimo_to_script_metadata()
+
+    def rename_file(self, filename: str) -> None:
+        from marimo._runtime.packages.sandbox_package_manager import (
+            SandboxPackageManager,
+        )
+
+        if isinstance(self.package_manager, SandboxPackageManager):
+            self.package_manager.rebind(filename)
 
     def send_missing_packages_alert(self, missing_packages: set[str]) -> None:
         if self.package_manager is None:
@@ -170,10 +231,12 @@ class PackagesCallbacks:
 
         packages = sorted(missing_packages)
         if self.package_manager.should_auto_install():
-            version = {pkg: "" for pkg in packages}
+            version = dict.fromkeys(packages, "")
             self._kernel.enqueue_control_request(
                 InstallPackagesCommand(
-                    manager=self.package_manager.name, versions=version
+                    manager=self.package_manager.name,
+                    versions=version,
+                    index_urls=self._notebook_index_urls(),
                 )
             )
         else:
@@ -197,9 +260,14 @@ class PackagesCallbacks:
         assert self.package_manager is not None, (
             "Cannot install packages without a package manager"
         )
-        if request.manager != self.package_manager.name:
+        if (
+            request.manager != self.package_manager.name
+            and GLOBAL_SETTINGS.SANDBOX_MODE is None
+        ):
             # Swap out the package manager
-            self.package_manager = create_package_manager(request.manager)
+            self.package_manager = create_package_manager(
+                request.manager,
+            )
 
         if not self.package_manager.is_manager_installed():
             self.package_manager.alert_not_installed()
@@ -224,91 +292,72 @@ class PackagesCallbacks:
         missing_packages = [
             str(pkg)
             for pkg in sorted(resolved_packages.values(), key=lambda p: p.name)
+            if not self.package_manager.attempted_to_install(package=str(pkg))
         ]
+        if not missing_packages:
+            return
 
         # Frontend shows package names, not module names
-        package_statuses: PackageStatusType = {
-            pkg: "queued" for pkg in missing_packages
-        }
-        broadcast_notification(
-            InstallingPackageAlertNotification(
-                packages=package_statuses, source=request.source
-            )
+        package_statuses: PackageStatusType = dict.fromkeys(
+            missing_packages, "running"
         )
+        # Worker log callbacks need the kernel's stream captured on this thread.
+        try:
+            stream = get_context().stream
+        except ContextNotInitializedError:
+            stream = None
+        with environment_operation(
+            "install",
+            package_statuses,
+            request.source,
+            partial(broadcast_notification, stream=stream),
+        ) as operation:
 
-        def create_log_callback(pkg: str) -> LogCallback:
-            def log_callback(log_line: str) -> None:
-                broadcast_notification(
-                    InstallingPackageAlertNotification(
-                        packages=package_statuses,
-                        logs={pkg: log_line},
-                        log_status="append",
-                        source=request.source,
-                    ),
-                )
+            def create_log_callback(pkg: str) -> LogCallback:
+                return lambda line: operation.update({pkg: line})
 
-            return log_callback
+            for pkg in missing_packages:
+                operation.update({pkg: f"Installing {pkg}...\n"}, replace=True)
 
-        for pkg in missing_packages:
-            if self.package_manager.attempted_to_install(package=pkg):
-                # Already attempted an installation; it must have failed.
-                # Skip the installation.
-                continue
-            package_statuses[pkg] = "installing"
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=package_statuses, source=request.source
-                )
-            )
-
-            # Send initial "start" log
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=package_statuses,
-                    logs={pkg: f"Installing {pkg}...\n"},
-                    log_status="start",
-                    source=request.source,
-                )
-            )
-
-            version = request.versions.get(pkg)
-            if await self.package_manager.install(
-                pkg, version=version, log_callback=create_log_callback(pkg)
+            versions: dict[str, str | None] = {
+                pkg: request.versions.get(pkg) for pkg in missing_packages
+            }
+            async for pkg, success in self.package_manager.stream_install(
+                missing_packages,
+                versions=versions,
+                index_urls=request.index_urls or None,
+                log_callback_factory=create_log_callback,
             ):
-                package_statuses[pkg] = "installed"
-                # Send final "done" log
-                broadcast_notification(
-                    InstallingPackageAlertNotification(
-                        packages=package_statuses,
-                        logs={pkg: f"Successfully installed {pkg}\n"},
-                        log_status="done",
-                        source=request.source,
-                    ),
-                )
-            else:
-                package_statuses[pkg] = "failed"
-                mod = self.package_manager.package_to_module(pkg)
-                self._kernel.module_registry.excluded_modules.add(mod)
-                # Send final "done" log with error
-                broadcast_notification(
-                    InstallingPackageAlertNotification(
-                        packages=package_statuses,
-                        logs={pkg: f"Failed to install {pkg}\n"},
-                        log_status="done",
-                        source=request.source,
-                    ),
-                )
+                if success:
+                    package_statuses[pkg] = "succeeded"
+                    operation.update({pkg: f"Successfully installed {pkg}\n"})
+                else:
+                    restart_required = self.package_manager.restart_required
+                    package_statuses[pkg] = (
+                        "restart-required" if restart_required else "failed"
+                    )
+                    mod = self.package_manager.package_to_module(pkg)
+                    self._kernel.module_registry.excluded_modules.add(mod)
+                    operation.update(
+                        {
+                            pkg: (
+                                f"Dependency changes saved for {pkg}; restart the kernel to use them.\n"
+                                if restart_required
+                                else f"Failed to install {pkg}\n"
+                            )
+                        }
+                    )
 
-        installed_modules = [
-            self.package_manager.package_to_module(pkg)
-            for pkg in package_statuses
-            if package_statuses[pkg] == "installed"
-        ]
+            installed_modules = [
+                self.package_manager.package_to_module(pkg)
+                for pkg in package_statuses
+                if package_statuses[pkg] == "succeeded"
+            ]
 
-        # If a package was not installed at cell registration time, it won't
-        # yet be in the script metadata.
-        if self.should_update_script_metadata():
-            self.update_script_metadata(installed_modules)
+            # If a package was not installed at cell registration time, it won't
+            # yet be in the script metadata.
+            if self.should_update_script_metadata():
+                self.update_script_metadata(installed_modules)
 
         # All cells that depend on successfully installed modules are re-run.
         #

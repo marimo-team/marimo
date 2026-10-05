@@ -6,6 +6,7 @@ import type { DataType } from "@/core/kernel/messages";
 import {
   insertColumn,
   modifyColumnFields,
+  orderColumnFields,
   removeColumn,
   renameColumn,
 } from "../data-utils";
@@ -15,16 +16,43 @@ import {
 const asFieldTypes = (obj: Record<string, DataType>): FieldTypes =>
   new Map(Object.entries(obj));
 
-describe("removeColumn", () => {
-  const testData = [
-    { int: 1, string: "a", bool: "True", datetime: "2025-07-12 00:07:13" },
-    { int: 2, string: "b", bool: "False", datetime: null },
-    { int: 3, string: "c", bool: null, datetime: "2025-07-12 00:07:13" },
-    { int: 0, string: "", bool: "", datetime: "" },
-  ];
+const testData = [
+  { int: 1, string: "a", bool: "True", datetime: "2025-07-12 00:07:13" },
+  { int: 2, string: "b", bool: "False", datetime: null },
+  { int: 3, string: "c", bool: null, datetime: "2025-07-12 00:07:13" },
+  { int: 0, string: "", bool: "", datetime: "" },
+];
 
-  it("should remove column at index 0", () => {
-    const result = removeColumn(testData, 0);
+const mixedData = [{ a: 1, b: 2 }, { a: 3, b: 4, c: 5 }, { a: 6 }];
+
+const dataWithNulls = [
+  { a: 1, b: null, c: undefined },
+  { a: null, b: 2, c: 3 },
+];
+
+describe("orderColumnFields", () => {
+  it("uses explicit order for numeric-looking column names", () => {
+    const inferred = new Map([
+      ["2", "string"],
+      ["10", "string"],
+    ]) as FieldTypes;
+
+    expect([...orderColumnFields(inferred, ["10", "2"])]).toEqual([
+      ["10", "string"],
+      ["2", "string"],
+    ]);
+  });
+
+  it("creates unknown fields for an empty table", () => {
+    expect([...orderColumnFields(new Map(), ["value"])]).toEqual([
+      ["value", "unknown"],
+    ]);
+  });
+});
+
+describe("removeColumn", () => {
+  it("should remove the first column", () => {
+    const result = removeColumn(testData, "int");
 
     expect(result).toEqual([
       { string: "a", bool: "True", datetime: "2025-07-12 00:07:13" },
@@ -34,8 +62,8 @@ describe("removeColumn", () => {
     ]);
   });
 
-  it("should remove column at index 1", () => {
-    const result = removeColumn(testData, 1);
+  it("should remove the second column", () => {
+    const result = removeColumn(testData, "string");
 
     expect(result).toEqual([
       { int: 1, bool: "True", datetime: "2025-07-12 00:07:13" },
@@ -45,8 +73,8 @@ describe("removeColumn", () => {
     ]);
   });
 
-  it("should remove column at index 2", () => {
-    const result = removeColumn(testData, 2);
+  it("should remove the third column", () => {
+    const result = removeColumn(testData, "bool");
 
     expect(result).toEqual([
       { int: 1, string: "a", datetime: "2025-07-12 00:07:13" },
@@ -56,8 +84,8 @@ describe("removeColumn", () => {
     ]);
   });
 
-  it("should remove column at index 3", () => {
-    const result = removeColumn(testData, 3);
+  it("should remove the last column", () => {
+    const result = removeColumn(testData, "datetime");
 
     expect(result).toEqual([
       { int: 1, string: "a", bool: "True" },
@@ -67,40 +95,26 @@ describe("removeColumn", () => {
     ]);
   });
 
-  it("should handle removing non-existent column index", () => {
-    const result = removeColumn(testData, 999);
-    // Should return the original data since the index doesn't exist
-    expect(result).toEqual(testData);
-  });
-
-  it("should handle negative index", () => {
-    const result = removeColumn(testData, -1);
-    // Should return the original data since negative index is invalid
+  it("should handle removing a non-existent column", () => {
+    const result = removeColumn(testData, "missing");
     expect(result).toEqual(testData);
   });
 
   it("should preserve original data structure", () => {
     const originalData = [...testData];
-    removeColumn(testData, 1);
+    removeColumn(testData, "string");
     // Original data should remain unchanged
     expect(testData).toEqual(originalData);
   });
 
   it("should handle objects with different property counts", () => {
-    const mixedData = [{ a: 1, b: 2 }, { a: 3, b: 4, c: 5 }, { a: 6 }];
-
-    const result = removeColumn(mixedData, 1);
+    const result = removeColumn(mixedData, "b");
 
     expect(result).toEqual([{ a: 1 }, { a: 3, c: 5 }, { a: 6 }]);
   });
 
   it("should handle null and undefined values in data", () => {
-    const dataWithNulls = [
-      { a: 1, b: null, c: undefined },
-      { a: null, b: 2, c: 3 },
-    ];
-
-    const result = removeColumn(dataWithNulls, 1);
+    const result = removeColumn(dataWithNulls, "b");
 
     expect(result).toEqual([
       { a: 1, c: undefined },
@@ -110,15 +124,8 @@ describe("removeColumn", () => {
 });
 
 describe("insertColumn", () => {
-  const testData = [
-    { int: 1, string: "a", bool: "True", datetime: "2025-07-12 00:07:13" },
-    { int: 2, string: "b", bool: "False", datetime: null },
-    { int: 3, string: "c", bool: null, datetime: "2025-07-12 00:07:13" },
-    { int: 0, string: "", bool: "", datetime: "" },
-  ];
-
   it("should insert column at index 0", () => {
-    const result = insertColumn(testData, "newColumn");
+    const result = insertColumn(testData, "newColumn", 0);
 
     const expected = [
       {
@@ -139,10 +146,17 @@ describe("insertColumn", () => {
       { newColumn: "", int: 0, string: "", bool: "", datetime: "" },
     ];
     expect(result).toEqual(expected);
+    expect(Object.keys(result[0])).toEqual([
+      "newColumn",
+      "int",
+      "string",
+      "bool",
+      "datetime",
+    ]);
   });
 
   it("should insert column at index 1", () => {
-    const result = insertColumn(testData, "newColumn");
+    const result = insertColumn(testData, "newColumn", 1);
 
     expect(result).toEqual([
       {
@@ -162,10 +176,17 @@ describe("insertColumn", () => {
       },
       { int: 0, newColumn: "", string: "", bool: "", datetime: "" },
     ]);
+    expect(Object.keys(result[0])).toEqual([
+      "int",
+      "newColumn",
+      "string",
+      "bool",
+      "datetime",
+    ]);
   });
 
   it("should insert column at index 2", () => {
-    const result = insertColumn(testData, "newColumn");
+    const result = insertColumn(testData, "newColumn", 2);
 
     expect(result).toEqual([
       {
@@ -188,7 +209,7 @@ describe("insertColumn", () => {
   });
 
   it("should insert column at index 3", () => {
-    const result = insertColumn(testData, "newColumn");
+    const result = insertColumn(testData, "newColumn", 3);
 
     expect(result).toEqual([
       {
@@ -211,7 +232,7 @@ describe("insertColumn", () => {
   });
 
   it("should insert column at the end when index equals length", () => {
-    const result = insertColumn(testData, "newColumn");
+    const result = insertColumn(testData, "newColumn", 4);
 
     expect(result).toEqual([
       {
@@ -234,7 +255,7 @@ describe("insertColumn", () => {
   });
 
   it("should handle inserting at index beyond array length", () => {
-    const result = insertColumn(testData, "newColumn");
+    const result = insertColumn(testData, "newColumn", 999);
     // Should add the column at the end
     expect(result).toEqual([
       {
@@ -270,14 +291,12 @@ describe("insertColumn", () => {
 
   it("should handle array with single object", () => {
     const singleRowData = [{ a: 1, b: 2, c: 3 }];
-    const result = insertColumn(singleRowData, "newColumn");
+    const result = insertColumn(singleRowData, "newColumn", 1);
     expect(result).toEqual([{ a: 1, newColumn: "", b: 2, c: 3 }]);
   });
 
   it("should handle objects with different property counts", () => {
-    const mixedData = [{ a: 1, b: 2 }, { a: 3, b: 4, c: 5 }, { a: 6 }];
-
-    const result = insertColumn(mixedData, "newColumn");
+    const result = insertColumn(mixedData, "newColumn", 1);
 
     expect(result).toEqual([
       { a: 1, newColumn: "", b: 2 },
@@ -287,12 +306,7 @@ describe("insertColumn", () => {
   });
 
   it("should handle null and undefined values in data", () => {
-    const dataWithNulls = [
-      { a: 1, b: null, c: undefined },
-      { a: null, b: 2, c: 3 },
-    ];
-
-    const result = insertColumn(dataWithNulls, "newColumn");
+    const result = insertColumn(dataWithNulls, "newColumn", 1);
 
     expect(result).toEqual([
       { a: 1, newColumn: "", b: null, c: undefined },
@@ -301,7 +315,7 @@ describe("insertColumn", () => {
   });
 
   it("should handle special characters in column name", () => {
-    const result = insertColumn(testData, "new-column_with_123");
+    const result = insertColumn(testData, "new-column_with_123", 1);
 
     expect(result).toEqual([
       {
@@ -331,13 +345,6 @@ describe("insertColumn", () => {
 });
 
 describe("renameColumn", () => {
-  const testData = [
-    { int: 1, string: "a", bool: "True", datetime: "2025-07-12 00:07:13" },
-    { int: 2, string: "b", bool: "False", datetime: null },
-    { int: 3, string: "c", bool: null, datetime: "2025-07-12 00:07:13" },
-    { int: 0, string: "", bool: "", datetime: "" },
-  ];
-
   it("should rename a column successfully", () => {
     const result = renameColumn(testData, "int", "number");
 
@@ -373,12 +380,7 @@ describe("renameColumn", () => {
   it("should handle renaming to an existing column name", () => {
     const result = renameColumn(testData, "int", "string");
 
-    expect(result).toEqual([
-      { string: 1, bool: "True", datetime: "2025-07-12 00:07:13" },
-      { string: 2, bool: "False", datetime: null },
-      { string: 3, bool: null, datetime: "2025-07-12 00:07:13" },
-      { string: 0, bool: "", datetime: "" },
-    ]);
+    expect(result).toEqual(testData);
   });
 
   it("should handle non-existent column name gracefully", () => {
@@ -421,8 +423,6 @@ describe("renameColumn", () => {
   });
 
   it("should handle objects with different property counts", () => {
-    const mixedData = [{ a: 1, b: 2 }, { a: 3, b: 4, c: 5 }, { a: 6 }];
-
     const result = renameColumn(mixedData, "a", "alpha");
 
     expect(result).toEqual([
@@ -433,11 +433,6 @@ describe("renameColumn", () => {
   });
 
   it("should handle null and undefined values in data", () => {
-    const dataWithNulls = [
-      { a: 1, b: null, c: undefined },
-      { a: null, b: 2, c: 3 },
-    ];
-
     const result = renameColumn(dataWithNulls, "b", "beta");
 
     expect(result).toEqual([

@@ -4,7 +4,7 @@ import { createStore, Provider } from "jotai";
 import { describe, expect, it } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { parseAppConfig } from "@/core/config/config-schema";
-import { initialLayoutState, layoutStateAtom } from "@/core/layout/layout";
+import { initialLayoutState, layoutStateAtom } from "@/core/layout/state";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
 import { requestClientAtom } from "@/core/network/requests";
 import { CellsRenderer } from "../cells-renderer";

@@ -4,7 +4,7 @@ import { dequal as isEqual } from "dequal";
 import { atom } from "jotai";
 import { arrayShallowEquals } from "@/utils/arrays";
 import { type NotebookState, notebookAtom } from "../cells/cells";
-import { type LayoutState, layoutStateAtom } from "../layout/layout";
+import { type LayoutState, layoutStateAtom } from "../layout/state";
 import type { CellConfig } from "../network/types";
 
 export interface LastSavedNotebook {

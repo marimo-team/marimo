@@ -390,6 +390,33 @@ class TestEsmSpecMinting:
         assert message.esm_spec.url == url
         assert message.esm_spec.hash == hash_code(url)
 
+    def test_url_form_esm_normalizes_scheme(self, comm_manager):
+        url = "HTTPS://esm.sh/some-widget@1.0.0"
+        _, message = self._open_comm(comm_manager, {"_esm": url})
+
+        assert message.esm_spec is not None
+        assert message.esm_spec.url == "https://esm.sh/some-widget@1.0.0"
+
+    def test_virtual_file_url_esm_passes_through(self, comm_manager):
+        from marimo._utils.code import hash_code
+
+        url = "./@file/64-bundle.js"
+        _, message = self._open_comm(comm_manager, {"_esm": url})
+
+        assert message.esm_spec is not None
+        assert message.esm_spec.url == url
+        assert message.esm_spec.hash == hash_code(url)
+
+    def test_url_like_inline_esm_is_minted(self, comm_manager):
+        esm = "data: {\n  const value = 1;\n}\nexport default {};"
+        _, message = self._open_comm(comm_manager, {"_esm": esm})
+
+        assert message.esm_spec is not None
+        assert message.esm_spec.url.startswith(
+            "data:application/javascript;base64,"
+        )
+        assert message.esm_spec.url != esm
+
     def test_no_esm_means_no_spec(self, comm_manager):
         comm, message = self._open_comm(comm_manager, {"value": 5})
 

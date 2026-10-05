@@ -23,6 +23,16 @@ class FileInfo(msgspec.Struct, rename="camel"):
     opengraph: OpenGraphMetadata | None = None
 
 
+class FileRoot(msgspec.Struct, rename="camel"):
+    path: str
+    name: str
+    is_primary: bool
+
+
+class FileRootsResponse(msgspec.Struct, rename="camel"):
+    roots: list[FileRoot]
+
+
 class FileListRequest(msgspec.Struct, rename="camel"):
     # The directory path to list files from
     # If None, the root directory will be used
@@ -91,6 +101,8 @@ class FileSearchRequest(msgspec.Struct, rename="camel"):
     include_directories: bool = True
     # Include files
     include_files: bool = True
+    # Include hidden files and traverse hidden directories
+    include_hidden: bool = True
     # Maximum depth to search (default: 3)
     depth: int = 3
     # Maximum number of results to return (default: 100)

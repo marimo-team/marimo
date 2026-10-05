@@ -98,7 +98,7 @@ describe("UrlDetector", () => {
     expect(img).toHaveAttribute("src", dataUri);
   });
 
-  it.skip("prevents event propagation on link clicks", () => {
+  it.fails("prevents event propagation on link clicks", () => {
     const mockStopPropagation = vi.fn();
     render(<UrlDetector parts={parseContent("Check https://marimo.io")} />);
     const link = screen.getByRole("link");

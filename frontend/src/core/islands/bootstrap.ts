@@ -181,7 +181,8 @@ function handleMessage(
       // Unsupported operations in islands mode
       case "banner":
       case "missing-package-alert":
-      case "installing-package-alert":
+      case "environment-operation":
+      case "environment-state":
       case "completion-result":
       case "reload":
       case "focus-cell":
@@ -201,6 +202,7 @@ function handleMessage(
       case "storage-download-ready":
       case "secret-keys-result":
       case "startup-logs":
+      case "startup-progress":
       case "interrupted":
       case "reconnected":
       case "cache-cleared":

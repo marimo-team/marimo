@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, Mock, call, patch
 
@@ -11,13 +12,16 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.notification import (
-    InstallingPackageAlertNotification,
+    EnvironmentOperationNotification,
     MissingPackageAlertNotification,
+    OperationFailed,
+    OperationSucceeded,
 )
 from marimo._runtime.commands import (
     CommandMessage,
     InstallPackagesCommand,
 )
+from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.pypi_package_manager import (
     MicropipPackageManager,
@@ -305,14 +309,14 @@ async def test_missing_packages_hook(
     k = mocked_kernel.k
     control_requests: list[CommandMessage] = []
     broadcast_messages: list[
-        InstallingPackageAlertNotification | MissingPackageAlertNotification
+        EnvironmentOperationNotification | MissingPackageAlertNotification
     ] = []
 
     def mock_enqueue(request: CommandMessage) -> None:
         control_requests.append(request)
 
     def mock_broadcast(
-        msg: InstallingPackageAlertNotification
+        msg: EnvironmentOperationNotification
         | MissingPackageAlertNotification,
         stream: Any = None,
     ) -> None:
@@ -413,14 +417,14 @@ def test_missing_packages_hook_pip(
     k = mocked_kernel.k
     control_requests: list[CommandMessage] = []
     broadcast_messages: list[
-        InstallingPackageAlertNotification | MissingPackageAlertNotification
+        EnvironmentOperationNotification | MissingPackageAlertNotification
     ] = []
 
     def mock_enqueue(request: CommandMessage) -> None:
         control_requests.append(request)
 
     def mock_broadcast(
-        msg: InstallingPackageAlertNotification
+        msg: EnvironmentOperationNotification
         | MissingPackageAlertNotification,
         stream: Any = None,
     ) -> None:
@@ -495,277 +499,98 @@ def test_missing_packages_hook_pip(
             "scipy": "",
         }
 
-
-async def test_install_missing_packages_with_streaming_logs(
-    mocked_kernel: MockedKernel,
-) -> None:
-    """Test that install_missing_packages uses streaming logs functionality."""
-    k = mocked_kernel.k
-    broadcast_messages: list[InstallingPackageAlertNotification] = []
-
-    def mock_broadcast(msg, stream=None):
-        """Mock the broadcast_notification function to capture alerts"""
-        del stream
-        if isinstance(msg, InstallingPackageAlertNotification):
-            broadcast_messages.append(msg)
-
-    # Mock package manager
-    mock_package_manager = Mock(spec=PipPackageManager)
-    mock_package_manager.name = "pip"
-    mock_package_manager.is_manager_installed.return_value = True
-    mock_package_manager.attempted_to_install.return_value = False
-    mock_package_manager.package_to_module.return_value = "test_module"
-
-    # Mock successful installation with log callback
-    async def mock_install(pkg: str, version=None, log_callback=None):
-        del pkg, version
-        if log_callback:
-            log_callback("Starting installation...\n")
-            log_callback("Downloading package...\n")
-            log_callback("Installing package...\n")
-            log_callback("Installation complete!\n")
-        return True
-
-    mock_package_manager.install = AsyncMock(side_effect=mock_install)
-
-    # Set up packages callbacks
-    k.packages_callbacks.package_manager = mock_package_manager
-
-    with (
-        patch(
-            "marimo._runtime.callbacks.packages.broadcast_notification",
-            mock_broadcast,
-        ),
-    ):
-        # Create install request
-        request = InstallPackagesCommand(manager="pip", versions={"numpy": ""})
-
-        await k.packages_callbacks.install_missing_packages(request)
-
-        # Verify broadcast messages
-        assert (
-            len(broadcast_messages) >= 5
-        )  # Initial + start + done + status updates
-
-        # Check that streaming logs were sent
-        streaming_alerts = [
-            msg for msg in broadcast_messages if msg.logs is not None
-        ]
-        assert len(streaming_alerts) >= 2  # At least start and done
-
-        # Verify start log
-        start_alerts = [
-            msg for msg in streaming_alerts if msg.log_status == "start"
-        ]
-        assert len(start_alerts) == 1
-        assert "numpy" in start_alerts[0].logs
-        assert "Installing numpy" in start_alerts[0].logs["numpy"]
-
-        # Verify done log
-        done_alerts = [
-            msg for msg in streaming_alerts if msg.log_status == "done"
-        ]
-        assert len(done_alerts) == 1
-        assert "numpy" in done_alerts[0].logs
-        assert "Successfully installed numpy" in done_alerts[0].logs["numpy"]
-
-        # Verify package manager was called with log callback
-        mock_package_manager.install.assert_called_once()
-        call_args = mock_package_manager.install.call_args
-        assert call_args.kwargs.get("log_callback") is not None
-
-
-async def test_install_missing_packages_streaming_logs_failure(
-    mocked_kernel: MockedKernel,
-) -> None:
-    """Test streaming logs when package installation fails."""
-    k = mocked_kernel.k
-    broadcast_messages: list[InstallingPackageAlertNotification] = []
-
-    def mock_broadcast(msg, stream=None):
-        del stream
-        if isinstance(msg, InstallingPackageAlertNotification):
-            broadcast_messages.append(msg)
-
-    # Mock package manager
-    mock_package_manager = Mock(spec=PipPackageManager)
-    mock_package_manager.name = "pip"
-    mock_package_manager.is_manager_installed.return_value = True
-    mock_package_manager.attempted_to_install.return_value = False
-    mock_package_manager.package_to_module.return_value = "test_module"
-
-    # Mock failed installation with log callback
-    async def mock_install_fail(pkg: str, version=None, log_callback=None):
-        del pkg, version
-        if log_callback:
-            log_callback("Starting installation...\n")
-            log_callback("Error: Package not found\n")
-        return False  # Installation failed
-
-    mock_package_manager.install = AsyncMock(side_effect=mock_install_fail)
-    k.packages_callbacks.package_manager = mock_package_manager
-
-    with (
-        patch(
-            "marimo._runtime.callbacks.packages.broadcast_notification",
-            mock_broadcast,
-        ),
-    ):
-        request = InstallPackagesCommand(
-            manager="pip", versions={"nonexistent-package": ""}
-        )
-
-        await k.packages_callbacks.install_missing_packages(request)
-
-        # Verify failure logs were sent
-        streaming_alerts = [
-            msg for msg in broadcast_messages if msg.logs is not None
-        ]
-        assert len(streaming_alerts) >= 2
-
-        # Verify done log with failure message
-        done_alerts = [
-            msg for msg in streaming_alerts if msg.log_status == "done"
-        ]
-        assert len(done_alerts) == 1
-        assert "nonexistent-package" in done_alerts[0].logs
-        assert (
-            "Failed to install" in done_alerts[0].logs["nonexistent-package"]
-        )
-
-
-async def test_install_missing_packages_streaming_logs_multiple_packages(
-    mocked_kernel: MockedKernel,
-) -> None:
-    """Test streaming logs for multiple packages."""
-    k = mocked_kernel.k
-    broadcast_messages: list[InstallingPackageAlertNotification] = []
-
-    def mock_broadcast(msg, stream=None):
-        del stream
-        if isinstance(msg, InstallingPackageAlertNotification):
-            broadcast_messages.append(msg)
-
-    # Mock package manager
-    mock_package_manager = Mock(spec=PipPackageManager)
-    mock_package_manager.name = "pip"
-    mock_package_manager.is_manager_installed.return_value = True
-    mock_package_manager.attempted_to_install.return_value = False
-    mock_package_manager.package_to_module.side_effect = lambda pkg: (
-        pkg.replace("-", "_")
-    )
-
-    # Track which packages are being installed
-    installation_calls = []
-
-    async def mock_install(pkg: str, version=None, log_callback=None):
-        del version
-        installation_calls.append(pkg)
-        if log_callback:
-            log_callback(f"Installing {pkg}...\n")
-            log_callback(f"Successfully installed {pkg}!\n")
-        return True
-
-    mock_package_manager.install = AsyncMock(side_effect=mock_install)
-    k.packages_callbacks.package_manager = mock_package_manager
-
-    with (
-        patch(
-            "marimo._runtime.callbacks.packages.broadcast_notification",
-            mock_broadcast,
-        ),
-    ):
-        request = InstallPackagesCommand(
-            manager="pip", versions={"numpy": "", "pandas": "", "scipy": ""}
-        )
-
-        await k.packages_callbacks.install_missing_packages(request)
-
-        # Verify all packages were processed
-        assert len(installation_calls) == 3
-        assert set(installation_calls) == {"numpy", "pandas", "scipy"}
-
-        # Verify streaming logs for each package
-        streaming_alerts = [
-            msg for msg in broadcast_messages if msg.logs is not None
-        ]
-
-        # Should have start and done logs for each package
-        start_alerts = [
-            msg for msg in streaming_alerts if msg.log_status == "start"
-        ]
-        done_alerts = [
-            msg for msg in streaming_alerts if msg.log_status == "done"
-        ]
-
-        assert len(start_alerts) == 3
-        assert len(done_alerts) == 3
-
-        # Verify each package has its own logs
-        packages_in_start_logs = set()
-        for alert in start_alerts:
-            packages_in_start_logs.update(alert.logs.keys())
-
-        packages_in_done_logs = set()
-        for alert in done_alerts:
-            packages_in_done_logs.update(alert.logs.keys())
-
-        assert packages_in_start_logs == {"numpy", "pandas", "scipy"}
-        assert packages_in_done_logs == {"numpy", "pandas", "scipy"}
-
-
-async def test_install_missing_packages_no_logs_backward_compatibility(
-    mocked_kernel: MockedKernel,
-) -> None:
-    """Test that package installation still works without streaming logs (backward compatibility)."""
-    k = mocked_kernel.k
-    broadcast_messages: list[InstallingPackageAlertNotification] = []
-
-    def mock_broadcast(msg, stream=None):
-        del stream
-        if isinstance(msg, InstallingPackageAlertNotification):
-            broadcast_messages.append(msg)
-
-    # Mock package manager that doesn't use log callbacks
-    mock_package_manager = Mock(spec=PipPackageManager)
-    mock_package_manager.name = "pip"
-    mock_package_manager.is_manager_installed.return_value = True
-    mock_package_manager.attempted_to_install.return_value = False
-    mock_package_manager.package_to_module.return_value = "test_module"
-
-    # Mock installation without using log callback parameter
-    async def mock_install_old_style(pkg: str, version=None, **kwargs: Any):
-        del version, kwargs, pkg
-        # Ignore log_callback if provided (simulating old package managers)
-        return True
-
-    mock_package_manager.install = AsyncMock(
-        side_effect=mock_install_old_style
-    )
-    k.packages_callbacks.package_manager = mock_package_manager
-
-    with (
-        patch(
-            "marimo._runtime.callbacks.packages.broadcast_notification",
-            mock_broadcast,
-        ),
-    ):
-        request = InstallPackagesCommand(
-            manager="pip", versions={"requests": ""}
-        )
-
-        await k.packages_callbacks.install_missing_packages(request)
-
-        # Should still work and send basic status updates
-        status_alerts = [msg for msg in broadcast_messages if msg.logs is None]
-        assert len(status_alerts) >= 2  # At least installing and installed
-
-        # Verify normal package status progression
-        package_statuses = []
-        for alert in status_alerts:
-            if "requests" in alert.packages:
-                package_statuses.append(alert.packages["requests"])
-
-        # Should have at least installing and installed statuses
-        assert "installed" in package_statuses
         # Note: The exact sequence might vary, but we should have final success
+
+
+@pytest.mark.parametrize("succeed", [False, True])
+async def test_install_logs_reach_the_stream_from_worker_threads(
+    mocked_kernel: MockedKernel,
+    succeed: bool,
+) -> None:
+    """Per-line install logs bind the kernel's stream when the callback
+    is created: the callback fires from worker threads, which do not
+    carry the kernel's thread-local context, so a bare broadcast there
+    is silently dropped."""
+    import threading
+
+    k = mocked_kernel.k
+    current = k.packages_callbacks.package_manager
+    assert current is not None
+
+    fake = Mock(restart_required=False)
+    fake.name = current.name
+    fake.is_manager_installed.return_value = True
+    fake.attempted_to_install.side_effect = lambda package: (
+        package == "skipped"
+    )
+    fake.module_to_package.side_effect = lambda module: module
+    fake.package_to_module.side_effect = lambda package: package
+
+    async def install(
+        package: str,
+        version: str | None = None,
+        log_callback: Any = None,
+        **kwargs: Any,
+    ) -> bool:
+        del version, kwargs
+        worker = threading.Thread(
+            target=log_callback, args=(f"Worker output for {package}\n",)
+        )
+        worker.start()
+        worker.join()
+        return succeed or package == "available"
+
+    fake.install = install
+    fake.stream_install = partial(PackageManager.stream_install, fake)
+    k.packages_callbacks.package_manager = fake
+
+    await k.packages_callbacks.install_missing_packages(
+        InstallPackagesCommand(
+            manager=fake.name,
+            versions={"available": "", "broken": "", "skipped": ""},
+            source="server",
+        )
+    )
+
+    updates = [
+        message
+        for message in mocked_kernel.stream.operations
+        if isinstance(message, EnvironmentOperationNotification)
+    ]
+    outcome = updates[-1]
+    assert isinstance(
+        outcome.status, OperationSucceeded if succeed else OperationFailed
+    )
+    assert outcome.packages == {
+        "available": "succeeded",
+        "broken": "succeeded" if succeed else "failed",
+    }
+    assert {
+        (update.operation_id, update.action, update.source)
+        for update in updates
+    } == {(outcome.operation_id, "install", "server")}
+    assert all("skipped" not in update.packages for update in updates)
+    final_messages = {
+        "available": "Successfully installed available\n",
+        "broken": (
+            "Successfully installed broken\n"
+            if succeed
+            else "Failed to install broken\n"
+        ),
+    }
+    for package, final_message in final_messages.items():
+        logged = [update for update in updates if package in update.logs]
+        # Each package starts its own stream, appends worker output, and
+        # ends with the outcome line.
+        assert (logged[0].logs, logged[0].log_mode) == (
+            {package: f"Installing {package}...\n"},
+            "replace",
+        )
+        assert any(
+            update.logs.get(package) == f"Worker output for {package}\n"
+            for update in logged
+        )
+        assert (logged[-1].logs, logged[-1].log_mode) == (
+            {package: final_message},
+            "append",
+        )

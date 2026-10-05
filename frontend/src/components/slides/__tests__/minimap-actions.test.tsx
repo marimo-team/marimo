@@ -46,21 +46,21 @@ beforeAll(() => {
     };
   }
   global.IntersectionObserver ??= class {
-    observe() {
+    public observe() {
       /* noop */
     }
-    unobserve() {
+    public unobserve() {
       /* noop */
     }
-    disconnect() {
+    public disconnect() {
       /* noop */
     }
-    takeRecords() {
+    public takeRecords() {
       return [];
     }
-    root = null;
-    rootMargin = "";
-    thresholds = [];
+    public root = null;
+    public rootMargin = "";
+    public thresholds = [];
   } as unknown as typeof IntersectionObserver;
 });
 

@@ -55,9 +55,9 @@ type T =
   | undefined;
 
 export class PlotlyPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-plotly";
+  public tagName = "marimo-plotly";
 
-  validator = z.object({
+  public validator = z.object({
     figure: z
       .object({})
       .passthrough()
@@ -65,7 +65,7 @@ export class PlotlyPlugin implements IPlugin<T, Data> {
     config: z.object({}).passthrough(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <PlotlyComponent
         {...props.data}

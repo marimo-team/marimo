@@ -64,6 +64,33 @@ describe("FileViewer bounded previews", () => {
     store.set(requestClientAtom, null);
   });
 
+  it("uses fetched metadata to offer opening a notebook from a search result", async () => {
+    const notebook = {
+      ...file,
+      id: "/workspace/app.py",
+      path: "/workspace/app.py",
+      name: "app.py",
+    };
+    const onOpenNotebook = vi.fn();
+    const client = MockRequestClient.create({
+      sendFileDetails: vi.fn().mockResolvedValue({
+        file: { ...notebook, isMarimoFile: true },
+        contents: "import marimo",
+        mimeType: "text/plain",
+        isBase64: false,
+        isTooLarge: false,
+      }),
+    });
+    store.set(requestClientAtom, client);
+    render(<FileViewer file={notebook} onOpenNotebook={onOpenNotebook} />, {
+      wrapper,
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Open notebook" }),
+    );
+    expect(onOpenNotebook).toHaveBeenCalledOnce();
+  });
+
   it("requests a bounded preview and shows oversized metadata", async () => {
     const client = renderViewer({
       file,

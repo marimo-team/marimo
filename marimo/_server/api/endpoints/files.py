@@ -9,6 +9,9 @@ from starlette.exceptions import HTTPException
 from starlette.responses import PlainTextResponse
 
 from marimo import _loggers
+from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
+)
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
@@ -130,13 +133,17 @@ async def rename_file(
 
     command = RenameNotebookCommand(filename=filename)
     enforce_consumer_capability(app_state, command)
+    success, error = await app_state.session_manager.rename_session(
+        app_state.require_current_session_id(), body.filename
+    )
+    if not success:
+        raise HTTPException(status_code=400, detail=error)
+
+    # Rename-triggered cells may immediately read the file or edit its
+    # dependencies. The durable file and server binding must be ready first.
     app_state.require_current_session().put_control_request(
         command,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-
-    await app_state.session_manager.rename_session(
-        app_state.require_current_session_id(), body.filename
     )
 
     return SuccessResponse()
@@ -184,7 +191,14 @@ async def save(
         )
 
     session = app_state.require_current_session()
-    contents = session.app_file_manager.save(body)
+    session_id = app_state.require_current_session_id()
+    contents = session.app_file_manager.save(
+        body,
+        on_document_transaction=lambda transaction: session.notify(
+            NotebookDocumentTransactionNotification(transaction=transaction),
+            from_consumer_id=ConsumerId(session_id),
+        ),
+    )
 
     return PlainTextResponse(content=contents)
 

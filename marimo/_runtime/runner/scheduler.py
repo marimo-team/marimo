@@ -70,7 +70,7 @@ class Scheduler(Protocol):
     def cancel_all(self) -> None: ...
 
     async def __aenter__(self) -> Self: ...
-    async def __aexit__(self, *exc_info: Any) -> None: ...
+    async def __aexit__(self, *exc_info: object) -> None: ...
 
 
 class SequentialScheduler:
@@ -238,7 +238,7 @@ class SequentialScheduler:
             ctx._active_scheduler = self
         return self
 
-    async def __aexit__(self, *exc_info: Any) -> None:
+    async def __aexit__(self, *exc_info: object) -> None:
         from marimo._runtime.context.kernel_context import (
             KernelRuntimeContext,
         )

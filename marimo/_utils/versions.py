@@ -40,7 +40,7 @@ def without_version_specifier(package: str) -> str:
 def without_extras(package: str) -> str:
     if "[" not in package:
         return package
-    return package.split("[")[0]
+    return package.split("[", maxsplit=1)[0]
 
 
 def extract_extras(package: str) -> str:

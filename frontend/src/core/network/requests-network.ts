@@ -11,6 +11,7 @@ import {
   waitForConnectionOpen,
   waitForConnectionOpenIfNotebook,
 } from "./connection";
+import { withDevAssetUrl } from "./export-asset-url";
 import type { EditRequests, RunRequests } from "./types";
 
 /**
@@ -319,6 +320,10 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    getFileRoots: async () => {
+      await waitForConnectionOpen();
+      return getClient().GET("/api/files/roots").then(handleResponse);
+    },
     sendListFiles: async (request) => {
       await waitForConnectionOpen();
       return getClient()
@@ -426,15 +431,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     exportAsHTML: async (request) => {
-      if (
-        process.env.NODE_ENV === "development" ||
-        process.env.NODE_ENV === "test"
-      ) {
-        request.assetUrl = window.location.origin;
-      }
       return getClient()
         .POST("/api/export/html", {
-          body: request,
+          body: withDevAssetUrl(request),
           parseAs: "text",
           params: getParams(),
         })
@@ -528,6 +527,18 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    getSandbox: (request) =>
+      getClient()
+        .POST("/api/packages/sandbox", { body: request, params: getParams() })
+        .then(handleResponse),
+    updateManifest: (request) =>
+      getClient()
+        .POST("/api/packages/manifest", { body: request, params: getParams() })
+        .then(handleResponse),
+    syncSandbox: (request) =>
+      getClient()
+        .POST("/api/packages/sync", { body: request, params: getParams() })
+        .then(handleResponse),
     addPackage: (request) => {
       return getClient()
         .POST("/api/packages/add", {

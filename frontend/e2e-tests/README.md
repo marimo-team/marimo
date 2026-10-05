@@ -25,26 +25,23 @@ The focused visual suite protects shared theme, typography, chrome, and layout b
 
 ### Run the visual suite
 
-If frontend files changed, rebuild the frontend from the repository root:
+Visual snapshots are captured in the same pinned Playwright container locally
+and in CI. On macOS, the script uses the Docker CLI with OrbStack or another
+Docker-compatible runtime.
+
+From the repository root, build the frontend and run the focused suite:
 
 ```bash
-make fe
-```
-
-Run the focused suite from `frontend/`:
-
-```bash
-pnpm playwright test e2e-tests/visual-regression.spec.ts --project=chromium
+make visual-test
 ```
 
 ### Update visual baselines
 
-CAUTION: Generate committed baselines on Ubuntu 24.04. Native macOS images use a different platform suffix.
-
-Run this command from `frontend/`:
+Generate committed baselines with the pinned container, not with native
+Playwright. From the repository root, run:
 
 ```bash
-pnpm playwright test e2e-tests/visual-regression.spec.ts --project=chromium --update-snapshots
+make visual-update
 ```
 
 Review every changed PNG. Then run the suite again without `--update-snapshots`.

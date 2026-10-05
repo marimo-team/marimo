@@ -15,7 +15,7 @@ export type ConnectionTransportCallback<T extends ConnectionEvent> = (
 export interface IConnectionTransport {
   reconnect(code?: number | undefined, reason?: string | undefined): void;
   close(): void;
-  send(data: string | ArrayBuffer | Blob | ArrayBufferView): void;
+  send(data: string | ArrayBuffer | Blob | ArrayBufferView<ArrayBuffer>): void;
   addEventListener<T extends ConnectionEvent>(
     event: T,
     callback: ConnectionTransportCallback<T>,
@@ -33,7 +33,7 @@ export class ConnectionSubscriptions {
     Set<ConnectionTransportCallback<ConnectionEvent>>
   >();
 
-  addSubscription(
+  public addSubscription(
     event: ConnectionEvent,
     callback: ConnectionTransportCallback<ConnectionEvent>,
   ): void {
@@ -43,14 +43,14 @@ export class ConnectionSubscriptions {
     this.subscriptions.get(event)?.add(callback);
   }
 
-  removeSubscription(
+  public removeSubscription(
     event: ConnectionEvent,
     callback: ConnectionTransportCallback<ConnectionEvent>,
   ): void {
     this.subscriptions.get(event)?.delete(callback);
   }
 
-  notify(
+  public notify(
     event: ConnectionEvent,
     data: IConnectionTransportMap[ConnectionEvent],
   ): void {

@@ -797,7 +797,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(false);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("initial state");
 
     // Update code
     actions.updateCellCode({
@@ -809,7 +809,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(true);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("code edited");
 
     // Prepare for run
     actions.prepareForRun({
@@ -819,7 +819,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("prepared for run");
 
     // Receive queued messages
     actions.handleCellMessage({
@@ -837,7 +837,7 @@ describe("cell reducer", () => {
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
     expect(cell.lastRunStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("queued message received");
 
     // Receive running messages
     actions.handleCellMessage({
@@ -855,7 +855,7 @@ describe("cell reducer", () => {
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(20);
     expect(cell.lastRunStartTimestamp).toBe(20);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("running message received");
 
     // Console messages shouldn't transition status
     actions.handleCellMessage({
@@ -877,7 +877,7 @@ describe("cell reducer", () => {
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(20);
     expect(cell.lastRunStartTimestamp).toBe(20);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("console message received");
 
     // Receive output messages
     actions.handleCellMessage({
@@ -904,7 +904,7 @@ describe("cell reducer", () => {
     expect(cell.runElapsedTimeMs).toBe(13_000);
     expect(cell.runStartTimestamp).toBe(null);
     expect(cell.lastRunStartTimestamp).toBe(20);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("output received");
 
     // EDITING BACK AND FORTH
     /////////////////
@@ -917,7 +917,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.edited).toBe(true);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("code edited again");
 
     // Update code should be unedited
     actions.updateCellCode({
@@ -927,7 +927,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.edited).toBe(false);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("code reverted");
 
     // Update code should be edited again
     actions.updateCellCode({
@@ -939,7 +939,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(true);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("code changed after revert");
 
     // ERROR RESPONSE
     /////////////////
@@ -994,7 +994,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(11_000);
     expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("error response received");
 
     // INTERRUPT RESPONSE
     /////////////////
@@ -1046,7 +1046,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(11_000);
     expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("interruption response received");
   });
 
   it("errors reset status to idle", () => {
@@ -1055,7 +1055,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(false);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("initial state");
 
     // Update code
     actions.updateCellCode({
@@ -1067,7 +1067,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(true);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("code edited");
 
     // Prepare for run
     actions.prepareForRun({
@@ -1077,7 +1077,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("prepared for run");
 
     // ERROR RESPONSE
     //
@@ -1109,7 +1109,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("error response received");
   });
 
   it("can run a stale cell", () => {
@@ -1152,7 +1152,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("queued message received");
 
     // Receive stale message
     actions.handleCellMessage({
@@ -1169,7 +1169,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("stale inputs received");
   });
 
   it("can format code and update cell", () => {
@@ -1233,6 +1233,7 @@ describe("cell reducer", () => {
       disabled: false,
       hide_code: false,
       column: null,
+      expand_output: false,
     });
 
     actions.updateCellConfig({
@@ -1281,7 +1282,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("queued message received");
 
     // Receive idle message
     actions.handleCellMessage({
@@ -1293,7 +1294,7 @@ describe("cell reducer", () => {
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("idle message received");
 
     // Receive stop output
     actions.handleCellMessage({
@@ -1322,7 +1323,7 @@ describe("cell reducer", () => {
       "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
     );
     expect(cell.stopped).toBe(true);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("ancestor stopped");
 
     // Receive queued message
     actions.handleCellMessage({
@@ -1336,7 +1337,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.status).toBe("queued");
     expect(cell.stopped).toBe(true);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("queued after stop");
 
     // Receive running message
     actions.handleCellMessage({
@@ -1351,7 +1352,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("running");
     expect(cell.stopped).toBe(false);
     expect(cell.output).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("running after stop");
   });
 
   it("can initialize stdin", () => {
@@ -1378,7 +1379,7 @@ describe("cell reducer", () => {
     let cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.consoleOutputs).toEqual([]);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("initial state");
 
     // Prepare for run
     actions.prepareForRun({
@@ -1387,7 +1388,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toEqual([]);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("prepared for run");
 
     // Receive queued messages
     actions.handleCellMessage({
@@ -1400,7 +1401,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("queued");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("queued message received");
 
     // Receive running messages
     actions.handleCellMessage({
@@ -1413,7 +1414,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("running");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("running message received");
 
     // Add console
     actions.handleCellMessage({
@@ -1426,12 +1427,12 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("running");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("stdout received");
 
     cell = cells[0];
     expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
     expect(cell.status).toBe("running");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("stdout verified");
 
     // Ask via stdin
     actions.handleCellMessage({
@@ -1446,7 +1447,7 @@ describe("cell reducer", () => {
     expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
     expect(cell.consoleOutputs[1]).toMatchObject(STD_IN_1);
     expect(cell.status).toBe("running");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("stdin requested");
 
     // Response to stdin
     actions.setStdinResponse({
@@ -1460,7 +1461,7 @@ describe("cell reducer", () => {
       response: "Marimo!",
     });
     expect(cell.status).toBe("running");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("stdin answered");
 
     // Ask via stdin, again
     actions.handleCellMessage({
@@ -1478,7 +1479,7 @@ describe("cell reducer", () => {
       STD_IN_2,
     ]);
     expect(cell.status).toBe("running");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("second stdin requested");
 
     // Interrupt, so we respond with ""
     actions.handleCellMessage({
@@ -1501,6 +1502,33 @@ describe("cell reducer", () => {
       { ...STD_IN_1, response: "Marimo!" },
       { ...STD_IN_2, response: "" },
     ]);
+  });
+
+  it("resolves password prompts without retaining the response", () => {
+    const prompt: OutputMessage = {
+      channel: "stdin",
+      mimetype: "text/password",
+      data: "Password: ",
+      timestamp: 1,
+    };
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: undefined,
+      console: prompt,
+      status: "running",
+      stale_inputs: null,
+      timestamp: 1 as Seconds,
+    });
+
+    const secret = "getpass-regression-secret";
+    actions.setStdinResponse({
+      cellId: firstCellId,
+      outputIndex: 0,
+      response: secret,
+    });
+
+    expect(cells[0].consoleOutputs).toEqual([{ ...prompt, response: "" }]);
+    expect(JSON.stringify(cells[0].consoleOutputs)).not.toContain(secret);
   });
 
   it("does not crash when setStdinResponse has out-of-bounds outputIndex", () => {
@@ -1562,7 +1590,7 @@ describe("cell reducer", () => {
     let cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.consoleOutputs).toEqual([]);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("initial state");
 
     // Add console
     actions.handleCellMessage({
@@ -1581,7 +1609,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toMatchObject([OLD_STDOUT]); // Old stays there until it starts running
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("prepared for run");
 
     // Receive queued messages
     actions.handleCellMessage({
@@ -1595,7 +1623,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toMatchObject([OLD_STDOUT]); // Old stays there until it starts running
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("queued message received");
 
     // Receive running messages
     actions.handleCellMessage({
@@ -1609,7 +1637,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.status).toBe("running");
     expect(cell.consoleOutputs).toMatchObject([]);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("console cleared while running");
 
     // Add console
     actions.handleCellMessage({
@@ -1623,7 +1651,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.consoleOutputs).toMatchObject([STDOUT]);
     expect(cell.status).toBe("idle");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("console received while idle");
   });
 
   it("can send a cell to the top", () => {
@@ -2035,6 +2063,150 @@ describe("cell reducer", () => {
     expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
       false,
     );
+  });
+
+  it("can collapse all cells when nested heading ranges end at the same cell", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: cellId("1"),
+      before: false,
+      code: "# Header",
+    });
+    actions.createNewCell({
+      cellId: cellId("2"),
+      before: false,
+      code: "## Subheader",
+    });
+    actions.createNewCell({
+      cellId: cellId("3"),
+      before: false,
+      code: "### Subsubheader",
+    });
+
+    const headerId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
+    state.cellRuntime[headerId] = {
+      ...state.cellRuntime[headerId],
+      outline: {
+        items: [{ name: "Header", level: 1, by: { id: "header" } }],
+      },
+    };
+
+    const subheaderId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2);
+    state.cellRuntime[subheaderId] = {
+      ...state.cellRuntime[subheaderId],
+      outline: {
+        items: [{ name: "Subheader", level: 2, by: { id: "subheader" } }],
+      },
+    };
+
+    const subsubheaderId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(3);
+    state.cellRuntime[subsubheaderId] = {
+      ...state.cellRuntime[subsubheaderId],
+      outline: {
+        items: [{ name: "Subsubheader", level: 3, by: { id: "subsubheader" } }],
+      },
+    };
+
+    // The header, subheader and subsubheader ranges all end at the last
+    // cell. Collapsing all used to throw "Node ... not found in tree" and
+    // leave the whole notebook unchanged.
+    actions.collapseAllCells();
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      true,
+    );
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).topLevelIds).toEqual([
+      firstCellId,
+      headerId,
+    ]);
+
+    // Each level is nested under its parent, collapsed
+    actions.expandCell({ cellId: headerId });
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
+      true,
+    );
+    actions.expandCell({ cellId: subheaderId });
+    expect(
+      state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subsubheaderId),
+    ).toBe(true);
+  });
+
+  it("can collapse all cells when a deep chain is followed by a later section", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: cellId("1"),
+      before: false,
+      code: "# Header",
+    });
+    actions.createNewCell({
+      cellId: cellId("2"),
+      before: false,
+      code: "## Section A",
+    });
+    actions.createNewCell({
+      cellId: cellId("3"),
+      before: false,
+      code: "### Sub of A",
+    });
+    actions.createNewCell({
+      cellId: cellId("4"),
+      before: false,
+      code: "## Section B",
+    });
+
+    const headerId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
+    state.cellRuntime[headerId] = {
+      ...state.cellRuntime[headerId],
+      outline: {
+        items: [{ name: "Header", level: 1, by: { id: "header" } }],
+      },
+    };
+
+    const sectionAId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2);
+    state.cellRuntime[sectionAId] = {
+      ...state.cellRuntime[sectionAId],
+      outline: {
+        items: [{ name: "Section A", level: 2, by: { id: "section-a" } }],
+      },
+    };
+
+    const subsectionId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(3);
+    state.cellRuntime[subsectionId] = {
+      ...state.cellRuntime[subsectionId],
+      outline: {
+        items: [{ name: "Sub of A", level: 3, by: { id: "sub-of-a" } }],
+      },
+    };
+
+    const sectionBId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(4);
+    state.cellRuntime[sectionBId] = {
+      ...state.cellRuntime[sectionBId],
+      outline: {
+        items: [{ name: "Section B", level: 2, by: { id: "section-b" } }],
+      },
+    };
+
+    actions.collapseAllCells();
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      true,
+    );
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).topLevelIds).toEqual([
+      firstCellId,
+      headerId,
+    ]);
+
+    // Both sections sit under the header, collapsed, with the subsection
+    // nested under section A
+    actions.expandCell({ cellId: headerId });
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(sectionAId)).toBe(
+      true,
+    );
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(sectionBId)).toBe(
+      true,
+    );
+    actions.expandCell({ cellId: sectionAId });
+    expect(
+      state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subsectionId),
+    ).toBe(true);
   });
 
   it("can show hidden cells", () => {

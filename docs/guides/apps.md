@@ -11,6 +11,12 @@ By default, apps are laid out as a concatenation of their outputs, with
 code hidden. You can customize the layout using marimo's built-in drag-and-drop
 grid editor; you can also choose to include code in the app view.
 
+!!! tip "Create bespoke views with Marimo Studio"
+
+    [Marimo Studio](https://marimo-team.github.io/marimo-studio/) lets you build
+    custom apps, reports, and presentations with HTML, React, Svelte, or the frontend framework of your choice backed
+    by your notebook's data, outputs, and interactive controls.
+
 ## CLI
 
 Run marimo notebooks as apps with
@@ -90,6 +96,26 @@ If you prefer a slideshow-like experience, you can use the slides layout. Enable
 - Edit code and run cells by clicking the Code toggle or pressing `C`.
 - Add speaker notes at the bottom of each slide and launch speaker view by pressing `S`.
 - Powered by [reveal.js](https://revealjs.com/), so you can use most of its features like keyboard shortcuts, navigation, etc.
+
+#### Export slides
+
+Export a notebook that uses the slides layout as static HTML or WebAssembly HTML:
+
+```bash
+marimo export html presentation.py -o presentation.html
+marimo export html-wasm presentation.py -o presentation --mode run
+```
+
+WebAssembly exports (html-wasm) require an HTTP server. Serve the output directory
+locally with `python -m http.server --directory presentation`.
+
+Both formats preserve slide types, fragments, speaker notes, and deck settings.
+Static HTML includes the outputs generated during export and supports speaker
+view. WebAssembly HTML runs Python in the browser, so notebook controls remain
+interactive. Speaker view is not available in WebAssembly HTML exports.
+
+Speaker notes are embedded in the HTML file and readable by anyone who
+receives it.
 
 #### Styling slides
 

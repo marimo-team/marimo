@@ -1,7 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import msgspec
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class DependencyTag(msgspec.Struct, rename="camel"):
@@ -12,7 +17,7 @@ class DependencyTag(msgspec.Struct, rename="camel"):
 class DependencyTreeNode(msgspec.Struct, rename="camel"):
     name: str
     version: str | None
-    # List of {"kind": "extra"|"group", "value": str}
+    # List of {"kind": "extra"|"group"|"dedupe"|"cycle", "value": str}
     tags: list[DependencyTag]
     dependencies: list[DependencyTreeNode]
 
@@ -27,6 +32,41 @@ def parse_name_version(content: str) -> tuple[str, str | None]:
 
 def parse_uv_tree(text: str) -> DependencyTreeNode:
     """Parse the text output of `uv tree` into a nested data structure."""
+    # uv emits one footer for all `(*)` markers. With `--no-dedupe`, only
+    # cycles are marked; without it, markers mean the subtree was displayed.
+    marker_kind = "cycle" if "Package tree is a cycle" in text else "dedupe"
+    return _parse_tree(
+        text,
+        parse_name_version=parse_name_version,
+        marker_kind=marker_kind,
+    )
+
+
+def parse_pixi_tree(text: str) -> DependencyTreeNode:
+    """Parse `pixi tree` output, where `(*)` means already displayed."""
+
+    def parse_name_version(content: str) -> tuple[str, str | None]:
+        parts = content.rsplit(maxsplit=1)
+        if len(parts) == 1:
+            return parts[0], None
+        name, version = parts
+        return name, None if version == "<unknown>" else version
+
+    return _parse_tree(
+        text,
+        parse_name_version=parse_name_version,
+        marker_kind="dedupe",
+        skip_line=lambda line: line.startswith("Installed for:"),
+    )
+
+
+def _parse_tree(
+    text: str,
+    *,
+    parse_name_version: Callable[[str], tuple[str, str | None]],
+    marker_kind: str,
+    skip_line: Callable[[str], bool] | None = None,
+) -> DependencyTreeNode:
     lines = text.strip().split("\n")
 
     # Create a virtual root to hold all top-level dependencies
@@ -41,6 +81,7 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
             not line
             or "Package tree already displayed" in line
             or "Package tree is a cycle" in line
+            or (skip_line is not None and skip_line(line))
         ):
             continue
 
@@ -58,9 +99,8 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
         # content after tree symbols
         content = line.lstrip("│ ├└─").strip()
 
-        # Check for cycle indicator
-        is_cycle = content.endswith("(*)")
-        if is_cycle:
+        is_repeated = content.endswith("(*)")
+        if is_repeated:
             content = content[:-3].strip()
 
         # tags (extras/groups)
@@ -85,9 +125,8 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
 
         name, version = parse_name_version(content)
 
-        # Add cycle indicator as a special tag
-        if is_cycle:
-            tags.append(DependencyTag(kind="cycle", value="true"))
+        if is_repeated:
+            tags.append(DependencyTag(kind=marker_kind, value="true"))
 
         node = DependencyTreeNode(
             name=name,

@@ -57,7 +57,7 @@ class MetaUnderlineVariablePlugin {
   private hoveredRange: { from: number; to: number; position: number } | null;
   private onClick: (view: EditorView) => void;
 
-  constructor(view: EditorView, onClick: (view: EditorView) => void) {
+  public constructor(view: EditorView, onClick: (view: EditorView) => void) {
     this.view = view;
     this.commandClickMode = false;
     this.hoveredRange = null;
@@ -69,13 +69,13 @@ class MetaUnderlineVariablePlugin {
     window.addEventListener("mouseleave", this.windowBlur);
   }
 
-  update(_update: ViewUpdate) {
+  public update(_update: ViewUpdate) {
     // We cannot add any transactions here (e.g. clearing underlines),
     // otherwise CM fails with
     // "Calls to EditorView.update are not allowed while an update is in progress"
   }
 
-  destroy() {
+  public destroy() {
     window.removeEventListener("keydown", this.keydown);
     window.removeEventListener("keyup", this.keyup);
     window.removeEventListener("blur", this.windowBlur);

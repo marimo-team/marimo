@@ -6,6 +6,8 @@ import os
 import signal
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from typing import (
     IO,
     Any,
@@ -253,7 +255,9 @@ def safe_popen(
             stdin=stdin,
             stdout=stdout,
             stderr=stderr,
-            preexec_fn=preexec_fn,
+            # Mirror Popen's signature for compatibility; current callers
+            # retain the safe default of None.
+            preexec_fn=preexec_fn,  # noqa: PLW1509
             close_fds=close_fds,
             shell=shell,
             cwd=cwd,
@@ -383,13 +387,23 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
     to reap the process.
     """
     pid = process.pid
-    if pid is None:
+    if pid is None or _process_finished(process):
         return
 
     if is_windows():
-        # TODO(akshayka): Investigate whether we need to kill an entire
-        # process group on Windows, and if so how ...
-        process.terminate()
+        # A launcher such as uv may sit between us and the kernel; kill
+        # the whole tree rooted at the direct child.
+        import subprocess as _subprocess
+
+        try:
+            completed = _subprocess.run(
+                ["taskkill", "/T", "/F", "/PID", str(pid)],
+                capture_output=True,
+            )
+            if completed.returncode != 0:
+                process.terminate()
+        except Exception:
+            process.terminate()
         return
 
     pgid = os.getpgid(pid)
@@ -414,3 +428,71 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
         task.add_done_callback(_REAP_TASKS.discard)
     except RuntimeError:
         pass
+
+
+def kill_subprocess(
+    process: subprocess.Popen[Any], *, start_new_session: bool
+) -> None:
+    """Kill and reap a cancelled synchronous command and its launch group.
+
+    Use SIGKILL for an isolated group so a descendant ignoring SIGTERM
+    cannot keep captured pipes open after the launcher exits.
+    """
+    # A launcher may have exited while its descendants still hold the pipes.
+    if process.poll() is not None and (is_windows() or not start_new_session):
+        return
+    if is_windows():
+        try:
+            subprocess.run(
+                ["taskkill", "/T", "/F", "/PID", str(process.pid)],
+                capture_output=True,
+                timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        process.kill()
+    else:
+        try:
+            if start_new_session or os.getpgid(process.pid) == process.pid:
+                os.killpg(process.pid, signal.SIGKILL)
+            else:
+                process.kill()
+        except ProcessLookupError:
+            pass
+    process.wait()
+
+
+async def stop_subprocess(
+    process: subprocess.Popen[Any],
+    *,
+    start_new_session: bool,
+    drain: asyncio.Future[Any] | None = None,
+) -> None:
+    """Finish failed-command cleanup before the caller re-raises its error.
+
+    Killing and reaping run off the event loop. Further cancellation cannot
+    abandon the process or the pipe readers supplied by its owner.
+    """
+
+    async def cleanup() -> None:
+        # Pipe readers can fill the default executor while waiting for this
+        # kill. Cleanup must be able to run independently of those readers.
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            await asyncio.get_running_loop().run_in_executor(
+                executor,
+                partial(
+                    kill_subprocess,
+                    process,
+                    start_new_session=start_new_session,
+                ),
+            )
+        if drain is not None:
+            await asyncio.gather(drain, return_exceptions=True)
+
+    task = asyncio.create_task(cleanup())
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            continue
+    task.result()

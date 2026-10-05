@@ -26,14 +26,14 @@ export const StorageLibraryDisplayNames: Record<StorageLibrary, string> = {
 class SecretContainer {
   private secrets: Record<string, string> = {};
 
-  get imports(): Set<string> {
+  public get imports(): Set<string> {
     if (Object.keys(this.secrets).length === 0) {
       return new Set<string>();
     }
     return new Set<string>(["import os"]);
   }
 
-  print(varName: string, value: string | undefined): string {
+  public print(varName: string, value: string | undefined): string {
     if (value === undefined || value === "") {
       return "";
     }
@@ -46,7 +46,7 @@ class SecretContainer {
     return `"${escapePythonString(value)}"`;
   }
 
-  formatSecrets(): string {
+  public formatSecrets(): string {
     if (Object.keys(this.secrets).length === 0) {
       return "";
     }

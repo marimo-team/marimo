@@ -14,13 +14,13 @@ interface SubmissionAttempt {
 export class StagedCellSubmissionController {
   private activeAttempt: SubmissionAttempt | null = null;
 
-  cancel() {
+  public cancel() {
     if (this.activeAttempt) {
       this.activeAttempt.cancelled = true;
     }
   }
 
-  async run<T>({ prepare, submit, onError }: SubmissionCallbacks<T>) {
+  public async run<T>({ prepare, submit, onError }: SubmissionCallbacks<T>) {
     if (this.activeAttempt !== null) {
       return;
     }

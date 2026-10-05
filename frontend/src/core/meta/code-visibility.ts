@@ -4,6 +4,7 @@ import { useAtomValue } from "jotai";
 import { KnownQueryParams } from "@/core/constants";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
+import { runtimeAdapterAtom } from "@/core/runtime/adapter";
 import { logNever } from "@/utils/assertNever";
 
 /**
@@ -19,8 +20,9 @@ export function useNotebookCodeAvailable(
   const kioskMode = useAtomValue(kioskModeAtom);
   const { mode } = useAtomValue(viewStateAtom);
   const showInRunMode = useAtomValue(showCodeInRunModeAtom);
+  const runtimeKind = useAtomValue(runtimeAdapterAtom).kind;
 
-  if (kioskMode) {
+  if (kioskMode && runtimeKind === "remote") {
     return true;
   }
 

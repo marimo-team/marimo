@@ -100,7 +100,7 @@ export class ReconnectingWebSocketTransport implements Transport {
 
   public onReconnect: (() => Promise<void>) | undefined;
 
-  constructor(options: ReconnectingWebSocketTransportOptions) {
+  public constructor(options: ReconnectingWebSocketTransportOptions) {
     this.options = {
       ...options,
       retries: options.retries ?? 1,
@@ -109,7 +109,7 @@ export class ReconnectingWebSocketTransport implements Transport {
     this.onReconnect = options.onReconnect;
   }
 
-  async connect(): Promise<void> {
+  public async connect(): Promise<void> {
     if (this.isClosed) {
       throw new Error("Transport is closed");
     }
@@ -136,7 +136,7 @@ export class ReconnectingWebSocketTransport implements Transport {
     return this.isClosed || generation !== this.connectionGeneration;
   }
 
-  send(message: JSONRPCMessage): void {
+  public send(message: JSONRPCMessage): void {
     if (this.isClosed) {
       return;
     }
@@ -162,14 +162,14 @@ export class ReconnectingWebSocketTransport implements Transport {
     this.reconnect();
   }
 
-  onMessage(handler: (message: JSONRPCMessage) => void): () => void {
+  public onMessage(handler: (message: JSONRPCMessage) => void): () => void {
     this.messageHandlers.add(handler);
     return () => {
       this.messageHandlers.delete(handler);
     };
   }
 
-  close(): void {
+  public close(): void {
     if (this.isClosed) {
       return;
     }

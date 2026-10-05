@@ -23,6 +23,9 @@ def test_date() -> None:
     date = ui.date(value="2024-01-01")
     assert date.value == datetime.date(2024, 1, 1)
 
+    date = ui.date(value="2024-1-2")
+    assert date.value == datetime.date(2024, 1, 2)
+
     date = ui.date(value="2024-01-01")
     date._update("2024-01-02")
     assert date.value == datetime.date(2024, 1, 2)
@@ -109,6 +112,9 @@ def test_date_range() -> None:
     dr = ui.date_range(value=("2024-01-01", "2024-01-31"))
     assert dr.value == (datetime.date(2024, 1, 1), datetime.date(2024, 1, 31))
 
+    dr = ui.date_range(value=("2024-1-2", "2024-1-3"))
+    assert dr.value == (datetime.date(2024, 1, 2), datetime.date(2024, 1, 3))
+
     # Test updating the value
     dr._update(("2024-02-01", "2024-02-29"))
     assert dr.value == (datetime.date(2024, 2, 1), datetime.date(2024, 2, 29))
@@ -135,6 +141,24 @@ def test_date_range() -> None:
     # Test invalid range (start date after end date)
     with pytest.raises(ValueError):
         ui.date_range(value=("2024-02-01", "2024-01-01"))
+
+
+def test_date_range_single_bound_default() -> None:
+    # When only start is given, the default must respect the supplied
+    # bound instead of falling back to today (which would be out of the
+    # declared [start, stop] range). Mirrors the date/datetime siblings.
+    dr = ui.date_range(start="2030-01-01")
+    assert dr.start == datetime.date(2030, 1, 1)
+    assert dr.value == (datetime.date(2030, 1, 1), datetime.date(2030, 1, 1))
+    assert dr.start <= dr.value[0]
+    assert dr.value[1] <= dr.stop
+
+    # When only stop is given, the default must respect it as well.
+    dr = ui.date_range(stop="2000-01-01")
+    assert dr.stop == datetime.date(2000, 1, 1)
+    assert dr.value == (datetime.date(2000, 1, 1), datetime.date(2000, 1, 1))
+    assert dr.start <= dr.value[0]
+    assert dr.value[1] <= dr.stop
 
 
 @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")

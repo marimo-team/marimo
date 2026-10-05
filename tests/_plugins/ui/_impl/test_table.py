@@ -24,6 +24,7 @@ from marimo._plugins.ui._impl.table import (
     CalculateTopKRowsResponse,
     ColumnSummariesArgs,
     DownloadAsArgs,
+    DownloadAsOptions,
     SearchTableArgs,
     SortArgs,
     TableSearchError,
@@ -1698,6 +1699,56 @@ def test_download_as_ignores_cell_selection() -> None:
     assert isinstance(rows, list)
     assert len(rows) == 1
     assert int(rows[0]["a"]) == 2
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has() and not DependencyManager.polars.has(),
+    reason="Pandas or Polars not installed",
+)
+def test_download_as_csv_request_options() -> None:
+    table = ui.table({"a": [1, 2], "b": ["こんにちは", "y"]})
+
+    default_url = table._download_as(DownloadAsArgs(format="csv")).url
+    default_bytes = from_data_uri(default_url)[1]
+    assert not default_bytes.startswith(b"\xef\xbb\xbf")
+    assert "a,b" in default_bytes.decode("utf-8")
+
+    url = table._download_as(
+        DownloadAsArgs(
+            format="csv",
+            options=DownloadAsOptions(separator=";", encoding="utf-8-sig"),
+        )
+    ).url
+    csv_bytes = from_data_uri(url)[1]
+    assert csv_bytes.startswith(b"\xef\xbb\xbf")
+    csv_text = csv_bytes.decode("utf-8-sig")
+    assert "a;b" in csv_text
+    assert "1;こんにちは" in csv_text
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_download_as_json_request_options() -> None:
+    import pandas as pd
+
+    table = ui.table(pd.DataFrame({"a": ["こんにちは"]}))
+
+    default_text = from_data_uri(
+        table._download_as(DownloadAsArgs(format="json")).url
+    )[1].decode("utf-8")
+    assert "こんにちは" not in default_text
+    assert json.loads(default_text)[0]["a"] == "こんにちは"
+
+    text = from_data_uri(
+        table._download_as(
+            DownloadAsArgs(
+                format="json",
+                options=DownloadAsOptions(ensure_ascii=False),
+            )
+        ).url
+    )[1].decode("utf-8")
+    assert "こんにちは" in text
 
 
 def test_download_as_parquet_without_libs_reports_missing_packages(

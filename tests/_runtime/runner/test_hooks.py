@@ -58,20 +58,24 @@ class TestCreateDefaultHooks:
         assert len(hooks.preparation_hooks) > 0
         assert len(hooks.pre_execution_hooks) > 0
         assert len(hooks.post_execution_hooks) > 0
+        assert len(hooks.finalization_hooks) > 0
         assert len(hooks.on_finish_hooks) > 0
 
-    def test_set_status_idle_is_last_post_execution_hook(self) -> None:
-        """Verify _set_status_idle is the last hook in POST_EXECUTION_HOOKS.
+    def test_set_status_idle_is_last_finalization_hook(self) -> None:
+        """Verify _set_status_idle runs after flushing console output.
 
         This is important because status should only be set to idle after all
         other post-execution work (like broadcasting outputs) is complete.
         """
         from marimo._runtime.runner.hooks_post_execution import (
-            POST_EXECUTION_HOOKS,
+            _flush_console,
             _set_status_idle,
         )
 
-        assert POST_EXECUTION_HOOKS[-1] is _set_status_idle
+        hooks = create_default_hooks()
+        assert hooks.finalization_hooks == [_flush_console, _set_status_idle]
+        assert _flush_console not in hooks.post_execution_hooks
+        assert _set_status_idle not in hooks.post_execution_hooks
 
 
 class TestSetRunResultStatus:

@@ -8,7 +8,7 @@ elements.
 
 ## Loading LaTeX macros
 
-You can load LaTeX macros using `mo.latex(filename=...)`.
+You can load LaTeX macros directly using `mo.latex(r"...")` or from a file/URL using `mo.latex(filename=...)`.
 
 ::: marimo.latex
 

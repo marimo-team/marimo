@@ -208,7 +208,7 @@ export class RemoteCursorMarker implements LayerMarker {
   private name: string;
   private colorClassName: string;
 
-  constructor(
+  public constructor(
     left: number,
     top: number,
     height: number,
@@ -222,18 +222,18 @@ export class RemoteCursorMarker implements LayerMarker {
     this.colorClassName = colorClassName;
   }
 
-  draw(): HTMLElement {
+  public draw(): HTMLElement {
     const elt = document.createElement("div");
     this.adjust(elt);
     return elt;
   }
 
-  update(elt: HTMLElement): boolean {
+  public update(elt: HTMLElement): boolean {
     this.adjust(elt);
     return true;
   }
 
-  adjust(element: HTMLElement) {
+  public adjust(element: HTMLElement) {
     element.style.left = `${this.left}px`;
     element.style.top = `${this.top}px`;
     element.style.height = `${this.height}px`;
@@ -241,7 +241,7 @@ export class RemoteCursorMarker implements LayerMarker {
     element.style.setProperty("--rtc-name", `"${this.name}"`);
   }
 
-  eq(other: RemoteCursorMarker): boolean {
+  public eq(other: RemoteCursorMarker): boolean {
     return (
       this.left === other.left &&
       this.top === other.top &&
@@ -364,7 +364,7 @@ export interface CursorPosition {
 }
 
 export class AwarenessPlugin implements PluginValue {
-  sub: Subscription;
+  public sub: Subscription;
   public view: EditorView;
   public doc: LoroDoc;
   public user: UserState;
@@ -373,7 +373,7 @@ export class AwarenessPlugin implements PluginValue {
   private scopeId: ScopeId;
   private getUserId?: () => Uid;
 
-  constructor(
+  public constructor(
     view: EditorView,
     doc: LoroDoc,
     user: UserState,
@@ -421,7 +421,7 @@ export class AwarenessPlugin implements PluginValue {
     });
   }
 
-  update(update: ViewUpdate): void {
+  public update(update: ViewUpdate): void {
     if (!update.selectionSet && !update.focusChanged && !update.docChanged) {
       return;
     }
@@ -450,7 +450,7 @@ export class AwarenessPlugin implements PluginValue {
     }
   }
 
-  destroy(): void {
+  public destroy(): void {
     this.sub?.();
     this.awareness.setLocalState({
       type: "delete",
@@ -460,13 +460,13 @@ export class AwarenessPlugin implements PluginValue {
   }
 }
 export class RemoteAwarenessPlugin implements PluginValue {
-  _awarenessListener?: AwarenessListener;
+  public _awarenessListener?: AwarenessListener;
   public view: EditorView;
   public doc: LoroDoc;
   public awareness: Awareness<AwarenessState>;
   private scopeId: ScopeId;
 
-  constructor(
+  public constructor(
     view: EditorView,
     doc: LoroDoc,
     awareness: Awareness<AwarenessState>,
@@ -493,7 +493,7 @@ export class RemoteAwarenessPlugin implements PluginValue {
     this.awareness.addListener(listener);
   }
 
-  destroy(): void {
+  public destroy(): void {
     if (this._awarenessListener) {
       this.awareness.removeListener(this._awarenessListener);
     }

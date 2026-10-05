@@ -10,6 +10,7 @@ import {
   userConfigAtom,
 } from "@/core/config/config";
 import { KnownQueryParams } from "@/core/constants";
+import { pairPreviewAtom, pairPreviewSchema } from "@/core/config/pair";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 import { getMarimoCode } from "@/core/meta/globals";
 import {
@@ -27,7 +28,17 @@ import {
   parseUserConfig,
 } from "./core/config/config-schema";
 import { MarimoApp, preloadPage } from "./core/MarimoApp";
-import { type AppMode, initialModeAtom, viewStateAtom } from "./core/mode";
+import {
+  initialLayoutState,
+  isSerializedLayout,
+  layoutStateAtom,
+} from "./core/layout/state";
+import {
+  type AppMode,
+  initialModeAtom,
+  kioskModeAtom,
+  viewStateAtom,
+} from "./core/mode";
 import { cleanupAuthQueryParams } from "./core/network/auth";
 import { connectionAtom } from "./core/network/connection";
 import { requestClientAtom } from "./core/network/requests";
@@ -198,10 +209,18 @@ const mountOptionsSchema = z.object({
    * marimo config overrides
    */
   configOverrides: passthroughObject,
+  pairPreview: pairPreviewSchema.optional(),
   /**
    * marimo app config
    */
   appConfig: passthroughObject,
+  /**
+   * Serialized notebook layout
+   */
+  layout: z
+    .unknown()
+    .optional()
+    .transform((val) => (isSerializedLayout(val) ? val : undefined)),
   /**
    * show code in run mode
    */
@@ -310,15 +329,15 @@ function initStore(options: unknown) {
   store.set(marimoVersionAtom, parsedOptions.data.version);
   store.set(showCodeInRunModeAtom, parsedOptions.data.view.showAppCode);
 
-  // Check for view-as parameter to start in present mode
-  const shouldStartInPresentMode = (() => {
-    const url = new URL(window.location.href);
-    return url.searchParams.get(KnownQueryParams.viewAs) === "present";
-  })();
+  const url = new URL(window.location.href);
+  const shouldStartInPresentMode =
+    url.searchParams.get(KnownQueryParams.viewAs) === "present";
+  const isKioskMode = url.searchParams.get(KnownQueryParams.kiosk) === "true";
 
   const initialViewMode =
     mode === "edit" && shouldStartInPresentMode ? "present" : mode;
   store.set(viewStateAtom, { mode: initialViewMode, cellAnchor: null });
+  store.set(kioskModeAtom, isKioskMode);
   store.set(serverTokenAtom, parsedOptions.data.serverToken);
 
   // Config
@@ -328,6 +347,7 @@ function initStore(options: unknown) {
   );
   store.set(userConfigAtom, parseUserConfig(parsedOptions.data.config));
   store.set(appConfigAtom, parseAppConfig(parsedOptions.data.appConfig));
+  store.set(pairPreviewAtom, parsedOptions.data.pairPreview);
 
   // Runtime config
   if (parsedOptions.data.runtimeConfig.length > 0) {
@@ -354,6 +374,7 @@ function initStore(options: unknown) {
     parsedOptions.data.session,
     parsedOptions.data.notebook,
   );
+  store.set(layoutStateAtom, initialLayoutState(parsedOptions.data.layout));
   if (notebook) {
     store.set(notebookAtom, notebook);
   }

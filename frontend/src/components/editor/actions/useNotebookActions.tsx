@@ -7,6 +7,8 @@ import {
   CheckIcon,
   ChevronDownCircleIcon,
   ChevronRightCircleIcon,
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
   ClipboardCopyIcon,
   CodeIcon,
   CommandIcon,
@@ -66,7 +68,7 @@ import { disabledCellIds } from "@/core/cells/utils";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { aiEnabledAtom, useResolvedMarimoConfig } from "@/core/config/config";
 import { Constants } from "@/core/constants";
-import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
+import { useLayoutActions, useLayoutState } from "@/core/layout/state";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";
@@ -83,6 +85,8 @@ import { useChromeActions, useChromeState } from "../chrome/state";
 import { isPanelHidden, PANELS } from "../chrome/types";
 import { AddConnectionDialogContent } from "../connections/add-connection-dialog";
 import { useAddDetectedDataSource } from "../connections/components";
+import { DATABASE_CONNECTION_KEYWORDS } from "../connections/database/add-database-form";
+import { STORAGE_CONNECTION_KEYWORDS } from "../connections/storage/add-storage-form";
 import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { commandPaletteAtom } from "../controls/state";
 import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
@@ -98,6 +102,7 @@ import type { ActionButton } from "./types";
 import { useCopyNotebook } from "./useCopyNotebook";
 import { useRestartKernel } from "./useRestartKernel";
 import { useSetCodeVisibility } from "./useSetCodeVisibility";
+import { useSetOutputsExpanded } from "./useSetOutputsExpanded";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -116,6 +121,7 @@ export function useNotebookActions({
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const setCodeVisibility = useSetCodeVisibility();
+  const setOutputsExpanded = useSetOutputsExpanded();
   const [resolvedConfig] = useResolvedMarimoConfig();
   const capabilities = useAtomValue(capabilitiesAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
@@ -152,6 +158,16 @@ export function useNotebookActions({
   const sharingWasmEnabled = resolvedConfig.sharing?.wasm ?? true;
   const sharingMolabEnabled = resolvedConfig.sharing?.molab ?? true;
   const isSlidesLayout = selectedLayout === "slides";
+  const databaseConnectionKeywords = [
+    "db",
+    "sql",
+    ...DATABASE_CONNECTION_KEYWORDS,
+  ];
+  const storageConnectionKeywords = [
+    "bucket",
+    "object storage",
+    ...STORAGE_CONNECTION_KEYWORDS,
+  ];
 
   const renderCheckboxElement = (checked: boolean) => (
     <div className="w-8 flex justify-end">
@@ -285,11 +301,12 @@ export function useNotebookActions({
 
     {
       icon: <SparklesIcon size={14} strokeWidth={1.5} />,
-      label: "Pair with an agent",
+      label: "Connect your agent",
       hidden: isWasm(),
       handle: async () => {
         openModal(<PairWithAgentModal onClose={closeModal} />);
       },
+      additionalKeywords: ["connect"],
     },
 
     {
@@ -458,6 +475,7 @@ export function useNotebookActions({
     {
       icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
       label: "Add database connection",
+      additionalKeywords: databaseConnectionKeywords,
       handle: () => {
         openModal(<AddConnectionDialogContent onClose={closeModal} />);
       },
@@ -475,6 +493,7 @@ export function useNotebookActions({
                 divider: true,
                 icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
                 label: "Browse all connections",
+                additionalKeywords: databaseConnectionKeywords,
                 handle: () => {
                   openModal(
                     <AddConnectionDialogContent onClose={closeModal} />,
@@ -486,6 +505,7 @@ export function useNotebookActions({
     {
       icon: <HardDrive size={14} strokeWidth={1.5} />,
       label: "Add remote storage",
+      additionalKeywords: storageConnectionKeywords,
       handle: () => {
         openModal(
           <AddConnectionDialogContent
@@ -508,6 +528,7 @@ export function useNotebookActions({
                 divider: true,
                 icon: <HardDrive size={14} strokeWidth={1.5} />,
                 label: "Browse all connections",
+                additionalKeywords: storageConnectionKeywords,
                 handle: () => {
                   openModal(
                     <AddConnectionDialogContent
@@ -577,6 +598,22 @@ export function useNotebookActions({
       label: "Hide all markdown code",
       hotkey: "global.hideAllMarkdownCode",
       handle: () => setCodeVisibility(true, "markdown"),
+      redundant: true,
+    },
+    {
+      icon: <ChevronsUpDownIcon size={14} strokeWidth={1.5} />,
+      label: "Expand all outputs",
+      hotkey: "global.expandAllOutputs",
+      hidden: viewState.mode !== "edit",
+      handle: () => setOutputsExpanded(true),
+      redundant: true,
+    },
+    {
+      icon: <ChevronsDownUpIcon size={14} strokeWidth={1.5} />,
+      label: "Clamp all outputs",
+      hotkey: "global.clampAllOutputs",
+      hidden: viewState.mode !== "edit",
+      handle: () => setOutputsExpanded(false),
       redundant: true,
     },
     {

@@ -93,11 +93,15 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   saveUserConfig: "throwError",
   sendShutdown: "throwError",
   getPackageList: "throwError",
+  getSandbox: "serverOnly",
+  updateManifest: "serverOnly",
+  syncSandbox: "serverOnly",
   getDependencyTree: "throwError",
   addPackage: "throwError",
   removePackage: "throwError",
 
   // Folder and file operations throw errors
+  getFileRoots: "startConnection",
   sendListFiles: "startConnection",
   sendSearchFiles: "startConnection",
   sendCreateFileOrFolder: "throwError",

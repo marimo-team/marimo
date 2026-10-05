@@ -23,10 +23,14 @@ Usage::
 
 from __future__ import annotations
 
+import keyword
 import sys
+import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, overload
+
+from msgspec.structs import replace as structs_replace
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -37,12 +41,12 @@ from marimo._ast.cell import (
 )
 from marimo._ast.cell_id import CellIdGenerator
 from marimo._ast.compiler import compile_cell
-from marimo._ast.names import SETUP_CELL_NAME
+from marimo._ast.names import SETUP_CELL_NAME, is_internal_cell_name
 from marimo._code_mode._better_inspect import _HelpableEnumMeta, helpable
 from marimo._code_mode._packages import (
+    PackageResult,
     Packages,
     _AddPackage,
-    _RemovePackage,
 )
 from marimo._code_mode._plan import (
     _AddOp,
@@ -56,6 +60,7 @@ from marimo._code_mode._plan import (
 )
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.cell_output import CellOutput
@@ -106,6 +111,26 @@ if TYPE_CHECKING:
     from marimo._code_mode.screenshot import _ScreenshotSession
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
+
+
+def _validate_cell_name(name: str | None) -> None:
+    if name is None or name == "":
+        return
+    if is_internal_cell_name(name):
+        raise ValueError(
+            f"Invalid cell name {name!r}. {name!r} is reserved for unnamed "
+            "cells."
+        )
+    if unicodedata.normalize("NFKC", name) != name:
+        raise ValueError(
+            f"Invalid cell name {name!r}. Cell names must be NFKC-normalized."
+        )
+    if not name.isidentifier() or keyword.iskeyword(name):
+        raise ValueError(
+            f"Invalid cell name {name!r}. Cell names must be valid, "
+            "non-keyword Python identifiers, such as 'load_data' or "
+            "'analysis_summary'."
+        )
 
 
 @helpable
@@ -293,8 +318,8 @@ class NotebookCell:
         The cell's last main (rich display) output, or `None` if no
         output was captured. **Frozen snapshot** — taken at
         scratchpad-start, not refreshed when `ctx.run_cell` produces
-        new outputs in the same batch. Re-enter `cm.get_context()` to
-        see fresh outputs.
+        new outputs in the same batch. Start a new code-mode invocation
+        to see fresh outputs.
     console_outputs : list[CellOutput]
         Buffered stdout/stderr outputs from the cell's last execution.
         Same frozen-snapshot caveat as `output`.
@@ -432,8 +457,8 @@ class NotebookCell:
         """The cell's last main (rich display) output, or `None`.
 
         Frozen at scratchpad-start — does not reflect outputs produced
-        by `ctx.run_cell` in the same batch.  Re-enter
-        `cm.get_context()` to see fresh outputs.
+        by `ctx.run_cell` in the same batch. Start a new code-mode
+        invocation to see fresh outputs.
         """
         if self._outputs is None:
             return None
@@ -838,14 +863,28 @@ class AsyncCodeModeContext:
     def _print_summary(
         self,
         ops: list[_Op],
-        package_ops: list[_AddPackage | _RemovePackage],
+        package_ops: list[PackageResult],
         ui_updates: list[tuple[UIElementId, Any]],
         cells_to_run: set[CellId_t] | None = None,
     ) -> None:
         """Print a human-readable summary of applied operations."""
         lines: list[str] = []
 
-        for pkg_op in package_ops:
+        for result in package_ops:
+            pkg_op = result.op
+            if result.outcome == "restart-required":
+                lines.append(
+                    f"changes saved for {pkg_op.package}; restart the kernel to use them"
+                )
+                continue
+            if result.outcome == "failed":
+                action = (
+                    "install"
+                    if isinstance(pkg_op, _AddPackage)
+                    else "uninstall"
+                )
+                lines.append(f"failed to {action} {pkg_op.package}")
+                continue
             if isinstance(pkg_op, _AddPackage):
                 lines.append(f"installed {pkg_op.package}")
             else:
@@ -1042,6 +1081,7 @@ class AsyncCodeModeContext:
         after: str | None = None,
         hide_code: bool = True,
         disabled: bool = False,
+        expand_output: bool = False,
         column: int | None = None,
         name: str | None = None,
     ) -> CellId_t:
@@ -1080,20 +1120,26 @@ class AsyncCodeModeContext:
                 Defaults to True.
             disabled (bool): Prevent the cell from executing.
                 Defaults to False.
+            expand_output (bool): Show the cell's output in full instead of
+                clamping it to a fixed height. Defaults to False.
             column (int, optional): Column index for multi-column layouts.
-            name (str, optional): Cell names are a human-facing label,
-                reserved for special cases (e.g. `"setup"`). Prefer
-                referencing cells by the returned cell ID unless
-                naming is important for the user.
+            name (str, optional): New name for the cell. Must be a valid Python
+                identifier. `None` creates an unnamed cell. Names are reserved
+                for special cases (for example, `"setup"`). Prefer the
+                returned cell ID unless naming is important.
         """
         self._require_entered()
         if before is not None and after is not None:
             raise ValueError("Cannot specify both 'before' and 'after'")
 
+        _validate_cell_name(name)
         cell_id, resolved_name = self._resolve_new_cell(name)
 
         config = CellConfig(
-            hide_code=hide_code, disabled=disabled, column=column
+            hide_code=hide_code,
+            disabled=disabled,
+            expand_output=expand_output,
+            column=column,
         )
 
         before_id = (
@@ -1113,6 +1159,24 @@ class AsyncCodeModeContext:
         self._pending_adds[cell_id] = op
         return cell_id
 
+    def _current_config(self, cell_id: CellId_t) -> CellConfig:
+        """The cell's config as of the last op queued in this batch.
+
+        Ops aren't applied to the kernel until the context exits, so a
+        cell created or configured earlier in the same batch isn't in
+        `cell_metadata` yet. Scan the queue first so merging into the
+        existing config doesn't clobber those pending changes.
+        """
+        for op in reversed(self._ops):
+            if op.cell_id != cell_id or not isinstance(
+                op, (_AddOp, _UpdateOp)
+            ):
+                continue
+            if op.config is not None:
+                return op.config
+        meta = self._kernel.cell_metadata.get(cell_id)
+        return meta.config if meta else CellConfig()
+
     def edit_cell(
         self,
         target: str,
@@ -1120,6 +1184,7 @@ class AsyncCodeModeContext:
         *,
         hide_code: bool | None = None,
         disabled: bool | None = None,
+        expand_output: bool | None = None,
         column: int | None = None,
         name: str | None = None,
     ) -> None:
@@ -1158,10 +1223,14 @@ class AsyncCodeModeContext:
             code (str, optional): New Python source code. None keeps existing.
             hide_code (bool, optional): Collapse the code editor. None keeps existing.
             disabled (bool, optional): Prevent the cell from executing. None keeps existing.
+            expand_output (bool, optional): Show the cell's output in full
+                instead of clamping it to a fixed height. None keeps existing.
             column (int, optional): Column index for multi-column layouts. None keeps existing.
-            name (str, optional): New name for the cell. None keeps existing.
+            name (str, optional): New name for the cell. Must be a valid Python
+                identifier. `None` keeps the existing name.
         """
         self._require_entered()
+        _validate_cell_name(name)
         cell_id = self._resolve_target(target)
 
         # Handle cell-id migration when converting to a setup cell.
@@ -1213,20 +1282,22 @@ class AsyncCodeModeContext:
                     cell_id, tracker.get_stale_cells(self._document)
                 )
 
-        # Build config only if any config kwarg was explicitly set.
+        # Build config only if any config kwarg was explicitly set,
+        # starting from the existing config so unspecified fields persist.
         config: CellConfig | None = None
-        if hide_code is not None or disabled is not None or column is not None:
-            # Start from existing config and override provided fields.
-            meta = self._kernel.cell_metadata.get(cell_id)
-            existing = meta.config if meta else CellConfig()
-            config = CellConfig(
-                hide_code=hide_code
-                if hide_code is not None
-                else existing.hide_code,
-                disabled=disabled
-                if disabled is not None
-                else existing.disabled,
-                column=column if column is not None else existing.column,
+        overrides = {
+            key: value
+            for key, value in (
+                ("hide_code", hide_code),
+                ("disabled", disabled),
+                ("expand_output", expand_output),
+                ("column", column),
+            )
+            if value is not None
+        }
+        if overrides:
+            config = structs_replace(
+                self._current_config(cell_id), **overrides
             )
 
         self._ops.append(
@@ -1358,6 +1429,9 @@ class AsyncCodeModeContext:
         Launches a headless Chromium browser (reused across calls)
         connected to this server in kiosk mode.
 
+        Captures the current browser-rendered output, which may be newer
+        than the frozen `NotebookCell.output` snapshot.
+
         Requires `playwright` + its Chromium binary::
 
             ctx.install_packages("playwright")
@@ -1424,12 +1498,16 @@ class AsyncCodeModeContext:
         screenshot_auth_token = cast(
             "str | None", request.meta.get(SCREENSHOT_AUTH_TOKEN_KEY)
         )
+        screenshot_file = cast(
+            "str | None", request.meta.get(SCREENSHOT_FILE_KEY)
+        )
 
         # Lazy-init the screenshot session (browser reuse).
         if self._screenshot_session is None:
             self._screenshot_session = _ScreenshotSession(
                 server_url,
                 screenshot_auth_token=screenshot_auth_token,
+                file_key=screenshot_file,
             )
 
         image = await self._screenshot_session.capture(
@@ -1920,6 +1998,7 @@ def _plan_to_document_ops(
                         column=resolved_cfg.column,
                         disabled=resolved_cfg.disabled,
                         hide_code=resolved_cfg.hide_code,
+                        expand_output=resolved_cfg.expand_output,
                     )
                 )
 

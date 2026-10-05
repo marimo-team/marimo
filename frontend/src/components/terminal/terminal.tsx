@@ -254,7 +254,9 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
       try {
         await waitForConnectionOpen();
 
-        const socket = new WebSocket(runtimeManager.getTerminalWsURL());
+        // Size the PTY before the shell draws its first prompt.
+        fitAddon.fit();
+        const socket = new WebSocket(runtimeManager.getTerminalWsURL(terminal));
         const attachAddon = new AttachAddon(socket);
         terminal.loadAddon(attachAddon);
         wsRef.current = socket;
@@ -270,9 +272,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
 
         const handleOpen = () => {
           updateReadyState();
-          // Send initial dimensions: the mount-time fit() may have fired
-          // before the WS was OPEN, dropping the resize message and leaving
-          // the PTY at its default 0x0 winsize.
+          // The container may have resized while the connection was opening.
           fitAddon.fit();
           if (terminal.cols > 0 && terminal.rows > 0) {
             socket.send(

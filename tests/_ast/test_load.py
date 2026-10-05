@@ -285,7 +285,7 @@ class TestGetCodes:
     @staticmethod
     def test_get_codes_non_marimo_python_script() -> None:
         with pytest.raises(
-            NonMarimoPythonScriptError, match="is not a marimo notebook."
+            NonMarimoPythonScriptError, match=r"is not a marimo notebook\."
         ):
             load.load_app(
                 get_filepath("test_get_codes_non_marimo_python_script")

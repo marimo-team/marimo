@@ -7,13 +7,17 @@
   where the loop's default handler would otherwise swallow them).
 - `cancel_and_wait`: the `task.cancel(); await task` /
   `except CancelledError` dance, in one place.
+- `run_coroutine_blocking`: `asyncio.run` that also works when the
+  calling thread already has a running loop.
 """
 
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import contextlib
 import sys
+import threading
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from marimo import _loggers
@@ -147,9 +151,61 @@ async def cancel_and_wait(task: asyncio.Task[Any]) -> None:
         await task
 
 
+def run_coroutine_blocking(
+    coro: Coroutine[Any, Any, T],
+    *,
+    thread_name: str = "marimo-blocking-coroutine",
+) -> T:
+    """Run `coro` to completion and return its result, blocking the caller.
+
+    Behaves like `asyncio.run` when the calling thread has no running event
+    loop. When a loop *is* already running, `asyncio.run` raises
+    `RuntimeError`, so the coroutine is driven on a dedicated worker thread
+    with its own loop while the calling thread blocks on the result. This
+    lets synchronous APIs stay synchronous when they're called from async
+    code, instead of failing outright.
+
+    The caller's loop is blocked for the duration, so this is only
+    appropriate for APIs that are synchronous by contract.
+
+    Note that `coro` may run on a different thread than the caller. Anything
+    it needs from thread-local state (such as marimo's runtime context) has
+    to be established inside `coro` itself.
+    """
+
+    def _run() -> T:
+        # Match the selector-loop policy marimo relies on elsewhere; only
+        # done on paths that actually create a loop.
+        initialize_asyncio()
+        return asyncio.run(coro)
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return _run()
+
+    # A bare thread rather than a ThreadPoolExecutor: the executor's
+    # context manager shuts down with `wait=True`, so a KeyboardInterrupt
+    # while the caller is blocked would hang until the nested run finished.
+    # `Future.result()` waits on a condition variable, which the interrupt
+    # can break out of, and a daemon thread doesn't hold up interpreter
+    # exit. The Future also re-raises with the worker's traceback intact.
+    future: concurrent.futures.Future[T] = concurrent.futures.Future()
+
+    def _target() -> None:
+        try:
+            future.set_result(_run())
+        except BaseException as exc:
+            future.set_exception(exc)
+
+    threading.Thread(target=_target, name=thread_name, daemon=True).start()
+    return future.result()
+
+
 __all__ = [
     "cancel_and_wait",
     "fire_and_forget",
     "initialize_asyncio",
+    "run_coroutine_blocking",
     "supervised_task",
 ]
