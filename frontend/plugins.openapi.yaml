@@ -2882,16 +2882,12 @@ components:
               parts:
                 type: array
                 items: {}
-              metadata:
-                anyOf:
-                  - {}
-                  - type: "null"
+              metadata: {}
             required:
               - id
               - role
               - content
               - parts
-              - metadata
       required:
         - messages
     marimo-chatbot.send_prompt.input:
@@ -2919,16 +2915,12 @@ components:
               parts:
                 type: array
                 items: {}
-              metadata:
-                anyOf:
-                  - {}
-                  - type: "null"
+              metadata: {}
             required:
               - id
               - role
               - content
               - parts
-              - metadata
         config:
           type: object
           properties:
@@ -3733,8 +3725,6 @@ components:
       type: object
       properties:
         value: {}
-      required:
-        - value
     marimo-form.validate.output:
       type:
         - string
@@ -3778,8 +3768,6 @@ components:
           enum:
             - json
             - python
-      required:
-        - jsonData
     marimo-lazy.data:
       type: object
       properties:
@@ -4146,7 +4134,6 @@ components:
           items:
             type: string
       required:
-        - message
         - buffers
     marimo-panel.send_to_widget.output:
       type: "null"
