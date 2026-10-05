@@ -83,12 +83,14 @@ def _claude_project_roots() -> list[Path]:
         roots.append(directory / ".claude")
         try:
             # A worktree or submodule has `.git` as a file, not a directory.
-            is_repository_root = (directory / ".git").exists()
+            (directory / ".git").stat()
+        except FileNotFoundError:
+            continue
         except OSError:
             # Stop when the repository boundary cannot be determined.
             # Global skills remain available even if an ancestor is inaccessible.
             return roots
-        if is_repository_root:
+        else:
             return roots
     return [cwd / ".claude"]
 
