@@ -9,11 +9,108 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
-from marimo._plugins.ui._impl.table import DownloadAsArgs
+from marimo._plugins.ui._impl.table import DownloadAsArgs, DownloadGeoJSONArgs
 from marimo._utils.data_uri import from_data_uri
 from tests._plugins.ui._impl.tables import geometry_fixtures as fixtures
 
 pytestmark = pytest.mark.requires("geopandas")
+
+
+@pytest.mark.parametrize("wrapped", [False, True], ids=["native", "narwhals"])
+@pytest.mark.parametrize("geometry_only", [False, True])
+@pytest.mark.parametrize("index_kind", ["range", "named", "unnamed", "multi"])
+def test_properties_follow_manager_index_policy(
+    widget: Any, wrapped: bool, geometry_only: bool, index_kind: str
+) -> None:
+    import narwhals.stable.v2 as nw
+    import pandas as pd
+
+    source = _source().drop(columns=["alternate"])
+    if geometry_only:
+        source = source[["location"]]
+    if index_kind == "named":
+        source.index = pd.Index([7, 7], name="source_row")
+    elif index_kind == "unnamed":
+        source.index = pd.Index([7, 7])
+    elif index_kind == "multi":
+        source.index = pd.MultiIndex.from_tuples(
+            [("a", 7), ("a", 7)], names=["group", "row"]
+        )
+    subject = widget(
+        nw.from_native(source) if wrapped else source,
+        **({"selection": None} if widget is ui.table else {}),
+    )
+    ordinary = subject._download_as(DownloadAsArgs(format="json"))
+    expected = json.loads(from_data_uri(ordinary.url)[1])
+    for row in expected:
+        del row["location"]
+    assert [
+        feature["properties"] for feature in _artifact(subject)["features"]
+    ] == expected
+
+
+def test_old_shapely_rejects_direct_geojson_before_publication(
+    widget: Any,
+) -> None:
+    import geopandas as gpd
+
+    subject = widget(_source())
+    export_function = next(
+        function
+        for function in subject._args.functions
+        if function.name == "download_geojson"
+    )
+    with (
+        patch.object(
+            DependencyManager.shapely, "has_at_version", return_value=False
+        ),
+        patch.object(gpd.GeoSeries, "to_crs") as reproject,
+        patch(
+            "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+        ) as publish,
+    ):
+        response = export_function({"format": "geojson"})
+    assert response.code == "unsupported_version"
+    assert "shapely" in response.error
+    assert "2.0" in response.error
+    assert (response.url, response.filename, response.missing_packages) == (
+        "",
+        "",
+        None,
+    )
+    reproject.assert_not_called()
+    publish.assert_not_called()
+
+
+@pytest.mark.parametrize("ensure_ascii", [False, True])
+@pytest.mark.parametrize("choice", [None, "alternate"])
+def test_registered_geojson_keeps_geometry_and_ascii_options(
+    widget: Any, ensure_ascii: bool, choice: str | None
+) -> None:
+    source = _source()
+    source["name"] = ["café", "null"]
+    subject = widget(source)
+    export_function = next(
+        function
+        for function in subject._args.functions
+        if function.name == "download_geojson"
+    )
+    response = export_function(
+        {
+            "format": "geojson",
+            "geometry_column": choice,
+            "options": {"ensure_ascii": ensure_ascii},
+        }
+    )
+    assert response.error is None
+    assert response.filename.endswith(".geojson")
+    text = from_data_uri(response.url)[1].decode("utf-8")
+    assert (r"\u00e9" in text) is ensure_ascii
+    feature = json.loads(text)["features"][0]
+    assert feature["properties"]["name"] == "café"
+    assert feature["geometry"]["coordinates"] == pytest.approx(
+        [20, 5] if choice == "alternate" else [10, 0]
+    )
 
 
 @pytest.fixture(params=[ui.table, ui.dataframe], ids=["table", "dataframe"])
@@ -26,8 +123,13 @@ def _reject_constant(value: str) -> Any:
 
 
 def _artifact(subject: Any, choice: str | None = None) -> dict[str, Any]:
-    response = subject._download_as(
-        DownloadAsArgs(format="geojson", geometry_column=choice)
+    export_function = next(
+        function
+        for function in subject._args.functions
+        if function.name == "download_geojson"
+    )
+    response = export_function(
+        {"format": "geojson", "geometry_column": choice}
     )
     assert response.error is None, response.error
     assert response.filename.endswith(".geojson")
@@ -108,7 +210,9 @@ def test_null_and_empty_tables_require_crs(widget: Any, empty: bool) -> None:
     with patch(
         "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
     ) as publish:
-        response = subject._download_as(DownloadAsArgs(format="geojson"))
+        response = subject._download_geojson(
+            DownloadGeoJSONArgs(format="geojson")
+        )
     assert (
         response.url,
         response.filename,
@@ -219,7 +323,9 @@ def test_ambiguous_geometry_requires_choice(widget: Any) -> None:
     with patch(
         "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
     ) as publish:
-        response = subject._download_as(DownloadAsArgs(format="geojson"))
+        response = subject._download_geojson(
+            DownloadGeoJSONArgs(format="geojson")
+        )
     assert (response.url, response.code) == ("", "geometry_required")
     publish.assert_not_called()
     assert _artifact(subject, "alternate")["features"][0]["geometry"][
@@ -242,7 +348,7 @@ def test_known_alternate_crs_can_override_missing_primary_crs(
     )
     subject = widget(source)
     assert (
-        subject._download_as(DownloadAsArgs(format="geojson")).code
+        subject._download_geojson(DownloadGeoJSONArgs(format="geojson")).code
         == "missing_crs"
     )
     assert _artifact(subject, "alternate")["features"][0]["geometry"][
@@ -396,7 +502,9 @@ def test_selected_m_geometry_is_rejected_atomically(
     with patch(
         "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
     ) as publish:
-        response = subject._download_as(DownloadAsArgs(format="geojson"))
+        response = subject._download_geojson(
+            DownloadGeoJSONArgs(format="geojson")
+        )
     assert (response.url, response.code, response.column) == (
         "",
         "unsupported_representation",
@@ -430,7 +538,9 @@ def test_invalid_or_lossy_coordinates_publish_no_artifact(
     with patch(
         "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
     ) as publish:
-        response = subject._download_as(DownloadAsArgs(format="geojson"))
+        response = subject._download_geojson(
+            DownloadGeoJSONArgs(format="geojson")
+        )
     assert (response.url, response.filename, response.code) == (
         "",
         "",
@@ -465,7 +575,9 @@ def test_invalid_property_conversion_publishes_no_artifact(
             "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
         ) as publish,
     ):
-        response = subject._download_as(DownloadAsArgs(format="geojson"))
+        response = subject._download_geojson(
+            DownloadGeoJSONArgs(format="geojson")
+        )
     assert (response.url, response.filename, response.code) == (
         "",
         "",
@@ -489,7 +601,9 @@ def test_truncated_secondary_wkt_publishes_no_artifact(widget: Any) -> None:
             "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
         ) as publish,
     ):
-        response = subject._download_as(DownloadAsArgs(format="geojson"))
+        response = subject._download_geojson(
+            DownloadGeoJSONArgs(format="geojson")
+        )
     assert (response.url, response.code) == ("", "conversion_failed")
     publish.assert_not_called()
 
@@ -523,7 +637,9 @@ def test_invalid_feature_writer_publishes_no_artifact(
             "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
         ) as publish,
     ):
-        response = subject._download_as(DownloadAsArgs(format="geojson"))
+        response = subject._download_geojson(
+            DownloadGeoJSONArgs(format="geojson")
+        )
     assert (response.url, response.filename, response.code) == (
         "",
         "",
@@ -540,7 +656,9 @@ def test_missing_geopandas_is_rechecked(widget: Any) -> None:
             "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
         ) as publish,
     ):
-        response = subject._download_as(DownloadAsArgs(format="geojson"))
+        response = subject._download_geojson(
+            DownloadGeoJSONArgs(format="geojson")
+        )
     assert (response.url, response.code, response.missing_packages) == (
         "",
         "missing_packages",
@@ -557,8 +675,8 @@ def test_invalid_choice_is_rejected_atomically(
     with patch(
         "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
     ) as publish:
-        response = subject._download_as(
-            DownloadAsArgs(format="geojson", geometry_column=choice)
+        response = subject._download_geojson(
+            DownloadGeoJSONArgs(format="geojson", geometry_column=choice)
         )
     assert (response.url, response.code, response.column) == (
         "",
@@ -571,7 +689,7 @@ def test_invalid_choice_is_rejected_atomically(
 @pytest.mark.requires("pyarrow")
 def test_arrow_geometry_is_not_exported_as_geojson(widget: Any) -> None:
     subject = widget(fixtures.arrow_wkb_known_crs())
-    response = subject._download_as(DownloadAsArgs(format="geojson"))
+    response = subject._download_geojson(DownloadGeoJSONArgs(format="geojson"))
     assert (response.url, response.code) == ("", "unsupported_representation")
 
 
@@ -622,8 +740,8 @@ def test_dataframe_transformed_value_and_obsolete_choice() -> None:
         20,
         5,
     ]
-    response = subject._download_as(
-        DownloadAsArgs(format="geojson", geometry_column="location")
+    response = subject._download_geojson(
+        DownloadGeoJSONArgs(format="geojson", geometry_column="location")
     )
     assert (response.url, response.code, response.column) == (
         "",

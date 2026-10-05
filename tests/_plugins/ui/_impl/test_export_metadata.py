@@ -170,6 +170,21 @@ def test_missing_geopandas_is_reported(widget: Any) -> None:
     }
 
 
+@pytest.mark.requires("geopandas", "pyarrow")
+def test_old_shapely_disables_only_geojson(widget: Any) -> None:
+    subject = widget(fixtures.gdf_multi_geometry())
+    with patch.object(
+        DependencyManager.shapely, "has_at_version", return_value=False
+    ):
+        result = subject._get_export_metadata(EmptyArgs())
+    assert asdict(result.formats["geojson"]) == {
+        "available": False,
+        "reason": "Update shapely to 2.0 or newer to export GeoJSON.",
+        "missing_packages": [],
+    }
+    assert result.formats["parquet"].available
+
+
 @pytest.mark.requires("pyarrow")
 def test_arrow_crs_comes_from_field_metadata(widget: Any) -> None:
     subject = widget(fixtures.arrow_wkb_known_crs())
@@ -265,9 +280,6 @@ def test_dataframe_metadata_follows_transformed_columns() -> None:
     [
         {"format": "parquet"},
         {"format": "parquet", "geometry_column": "geom_b"},
-        {"format": "geojson"},
-        {"format": "geojson", "geometry_column": "geom_b"},
-        {"format": "geojson", "geometry_column": ""},
         {"format": "csv", "options": {"separator": ";"}},
     ],
 )
@@ -277,6 +289,22 @@ def test_download_request_accepts_optional_geometry(
     parsed = parse_raw(payload, DownloadAsArgs)
     assert parsed.geometry_column == payload.get("geometry_column")
     assert parsed.format == payload["format"]
+
+
+@pytest.mark.parametrize("geometry_column", [None, "geom_b", ""])
+def test_geojson_request_uses_separate_contract(
+    geometry_column: str | None,
+) -> None:
+    from marimo._plugins.ui._impl.table import DownloadGeoJSONArgs
+
+    payload = {"format": "geojson", "geometry_column": geometry_column}
+    parsed = parse_raw(payload, DownloadGeoJSONArgs)
+    assert parsed.geometry_column == geometry_column
+    assert parsed.format == "geojson"
+    with pytest.raises(
+        ValueError, match="does not fit any type of the literal"
+    ):
+        parse_raw(payload, DownloadAsArgs)
 
 
 def test_download_response_accepts_missing_crs() -> None:

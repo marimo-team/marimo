@@ -124,7 +124,7 @@ class DownloadOptions:
 @dataclass(frozen=True)
 class _ExportFormat:
     extension: str
-    serialize: Callable[[TableManager[Any], DownloadOptions], bytes]
+    serialize: Callable[[TableManager[Any], DownloadOptions], bytes] | None
 
 
 def _serialize_delimited(
@@ -161,18 +161,12 @@ def _serialize_parquet(
     return manager.to_parquet()
 
 
-def _serialize_geojson(
-    manager: TableManager[Any], options: DownloadOptions
-) -> bytes:
-    return serialize_geojson(manager, None, options.json.ensure_ascii)
-
-
 _EXPORT_FORMATS: dict[str, _ExportFormat] = {
     "csv": _ExportFormat("csv", _serialize_delimited(None)),
     "tsv": _ExportFormat("tsv", _serialize_delimited("\t")),
     "json": _ExportFormat("json", _serialize_json),
     "parquet": _ExportFormat("parquet", _serialize_parquet),
-    "geojson": _ExportFormat("geojson", _serialize_geojson),
+    "geojson": _ExportFormat("geojson", None),
 }
 
 
@@ -232,9 +226,9 @@ def download_as(
         artifact = serialize_geojson(
             manager, geometry_column, options.json.ensure_ascii
         )
-    vfile = mo_data.any_data(
-        artifact if artifact is not None else fmt.serialize(manager, options),
-        ext=fmt.extension,
-    )
+    if artifact is None:
+        assert fmt.serialize is not None
+        artifact = fmt.serialize(manager, options)
+    vfile = mo_data.any_data(artifact, ext=fmt.extension)
     base_name = filename if filename is not None else "download"
     return (vfile.url, f"{base_name}.{fmt.extension}")
