@@ -8,8 +8,6 @@ import json
 from typing import TYPE_CHECKING, Any, TypedDict
 from uuid import uuid4
 
-import anyio
-
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
@@ -24,12 +22,7 @@ from marimo._messaging.notification import (
     CompletedRunNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
-from marimo._runtime.commands import (
-    CancelScratchpadCommand,
-    ExecuteScratchpadCommand,
-    HTTPRequest,
-    ScheduleScratchpadCommand,
-)
+from marimo._runtime.commands import ExecuteScratchpadCommand, HTTPRequest
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.sse import format_sse_event
 from marimo._session.extensions.types import EventAwareExtension
@@ -112,7 +105,6 @@ class ScratchCellListener(EventAwareExtension):
         self._run_id = run_id
         self._scratch_started = False
         self._completed = False
-        self._completion = asyncio.Event()
         self.timed_out = False
         self.child_error_summaries: list[str] = []
         self.stderr: list[str] = []
@@ -131,7 +123,6 @@ class ScratchCellListener(EventAwareExtension):
         if isinstance(msg, CompletedRunNotification):
             if msg.run_id == self._run_id:
                 self._completed = True
-                self._completion.set()
                 self._queue.put_nowait(None)
             return
 
@@ -229,7 +220,7 @@ class ScratchCellListener(EventAwareExtension):
             for event_str in _format_console(msg):
                 yield event_str
 
-    async def wait(self, timeout: float = EXECUTION_TIMEOUT) -> None:  # noqa: ASYNC109
+    async def wait(self, timeout: float = EXECUTION_TIMEOUT) -> None:
         """Block until execution completes, discarding streamed events.
 
         Sets `self.timed_out` if the deadline is exceeded.
@@ -253,37 +244,6 @@ class ScratchCellListener(EventAwareExtension):
                 # Same flush delay as stream()
                 await asyncio.sleep(0.05)
                 return
-
-    async def wait_until_completed(self) -> None:
-        await self._completion.wait()
-        # Keep the listener and lock through the buffered console flush, just
-        # as wait()/stream() do on ordinary completion.
-        await asyncio.sleep(0.05)
-
-    def on_detach(self) -> None:
-        # Session shutdown (including kernel death) detaches extensions.
-        self._completion.set()
-        super().on_detach()
-
-
-async def _wait_for_cancelled_scratchpad(
-    listener: ScratchCellListener,
-) -> None:
-    # ASGI cancellation is level-triggered. Shield cleanup so it can finish
-    # before the next scratchpad gets the lock.
-    with anyio.CancelScope(shield=True):
-        cleanup = asyncio.create_task(listener.wait_until_completed())
-        cancelled_again = False
-        while not cleanup.done():
-            try:
-                await asyncio.shield(cleanup)
-            except asyncio.CancelledError:
-                # Task.cancel() bypasses AnyIO's shielding. Repeated
-                # cancellation must not unlock early.
-                cancelled_again = True
-        cleanup.result()
-        if cancelled_again:
-            raise asyncio.CancelledError
 
 
 # -- Helpers ------------------------------------------------------------------
@@ -419,7 +379,7 @@ async def run_scratchpad_code(
     code: str,
     server_url: str,
     auth_token: str,
-    timeout: float = EXECUTION_TIMEOUT,  # noqa: ASYNC109
+    timeout: float = EXECUTION_TIMEOUT,
 ) -> CodeExecutionResult:
     """Drive the kernel scratchpad on behalf of code-mode"""
     http_req = HTTPRequest.from_request(request)
@@ -434,22 +394,6 @@ async def run_scratchpad_code(
         http_request=http_req,
     )
 
-    return await run_scratchpad_command(
-        session, code=code, request=http_req, timeout=timeout
-    )
-
-
-async def run_scratchpad_command(
-    session: Session,
-    *,
-    code: str,
-    request: HTTPRequest | None = None,
-    timeout: float = EXECUTION_TIMEOUT,  # noqa: ASYNC109
-) -> CodeExecutionResult:
-    """Run a blocking scratchpad command with safe cancellation.
-
-    Cancel by run ID and retain the lock until the kernel acknowledges it.
-    """
     run_id = str(uuid4())
     listener = ScratchCellListener(run_id=run_id)
 
@@ -459,14 +403,12 @@ async def run_scratchpad_command(
         with session.scoped(listener):
             notebook_cells, cell_outputs = snapshot_for_scratchpad(session)
             session.put_control_request(
-                ScheduleScratchpadCommand(
-                    execution=ExecuteScratchpadCommand(
-                        code=code,
-                        request=request,
-                        notebook_cells=notebook_cells,
-                        cell_outputs=cell_outputs,
-                        run_id=run_id,
-                    ),
+                ExecuteScratchpadCommand(
+                    code=code,
+                    request=http_req,
+                    notebook_cells=notebook_cells,
+                    cell_outputs=cell_outputs,
+                    run_id=run_id,
                 ),
                 from_consumer_id=None,
             )
@@ -476,11 +418,7 @@ async def run_scratchpad_command(
                 settled = not listener.timed_out
             finally:
                 if not settled:
-                    session.put_control_request(
-                        CancelScratchpadCommand(run_id=run_id),
-                        from_consumer_id=None,
-                    )
-                    await _wait_for_cancelled_scratchpad(listener)
+                    session.try_interrupt()
             if listener.timed_out:
                 return CodeExecutionResult(
                     success=False,

@@ -16,10 +16,8 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from marimo import _loggers
 from marimo._runtime import patches
 from marimo._runtime.commands import (
-    CancelScratchpadCommand,
     ModelCommand,
     OutOfBandCommand,
-    ScheduleScratchpadCommand,
     StopKernelCommand,
     UpdateUIElementCommand,
 )
@@ -105,32 +103,21 @@ def drain_stale(queue: Any, *, latest: _T) -> _T:
 def collapse_out_of_band(
     queue: Any, *, first: OutOfBandCommand
 ) -> list[OutOfBandCommand]:
-    """Drain commands, coalescing updates but preserving scratchpad runs.
+    """Drain queued out-of-band commands, keeping the latest of each type.
 
     `first` is the already-dequeued command that unblocked the worker; the
-    rest of the queue is drained non-blockingly. Completion and breakpoint
-    updates use "latest wins" per type; scratchpad commands are keyed by
-    run ID. Results retain first-seen order.
+    rest of the queue is drained non-blockingly. Out-of-band commands are
+    idempotent "latest wins" updates, so older commands of the same type are
+    stale and dropped. Returns one command per type, in first-seen order.
 
     Works for both `multiprocessing`/`queue.Queue` and `asyncio.Queue` (both
     expose a synchronous `get_nowait`); `empty()` is avoided because
     `multiprocessing.Queue.empty()` can lie.
     """
-    latest: dict[type | tuple[type, str | None], OutOfBandCommand] = {}
+    latest: dict[type, OutOfBandCommand] = {}
     item: OutOfBandCommand | None = first
     while item is not None:
-        # Cancellable work is keyed by run, not just by command type.
-        # Dropping one run here could leave its waiter blocked forever.
-        if isinstance(item, ScheduleScratchpadCommand):
-            key: type | tuple[type, str | None] = (
-                type(item),
-                item.execution.run_id,
-            )
-        elif isinstance(item, CancelScratchpadCommand):
-            key = (type(item), item.run_id)
-        else:
-            key = type(item)
-        latest[key] = item
+        latest[type(item)] = item
         try:
             item = queue.get_nowait()
         except (asyncio.QueueEmpty, _queue.Empty):

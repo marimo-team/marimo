@@ -10,14 +10,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from marimo._runtime.commands import (
-    CancelScratchpadCommand,
     CodeCompletionCommand,
     CommandMessage,
     ExecuteCellsCommand,
-    ExecuteScratchpadCommand,
     ModelCommand,
-    OutOfBandCommand,
-    ScheduleScratchpadCommand,
     SetBreakpointsCommand,
     StopKernelCommand,
     UpdateUIElementCommand,
@@ -302,26 +298,6 @@ def test_make_control_enqueuer_routes_plain_command_to_control_only() -> None:
 
     assert control.get_nowait() is cmd
     assert ui.empty()
-
-
-def test_collapse_out_of_band_preserves_each_scratchpad_run() -> None:
-    first = ScheduleScratchpadCommand(
-        execution=ExecuteScratchpadCommand(code="first()", run_id="first")
-    )
-    second = ScheduleScratchpadCommand(
-        execution=ExecuteScratchpadCommand(code="second()", run_id="second")
-    )
-    cancel_first = CancelScratchpadCommand(run_id="first")
-    cancel_second = CancelScratchpadCommand(run_id="second")
-    q: _queue.Queue[OutOfBandCommand] = _queue.Queue()
-    for command in (cancel_first, second, cancel_second):
-        q.put(command)
-    assert collapse_out_of_band(q, first=first) == [
-        first,
-        cancel_first,
-        second,
-        cancel_second,
-    ]
 
 
 def test_make_control_enqueuer_mirrors_ui_element_command() -> None:

@@ -32,7 +32,6 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
 )
-from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._types.ids import UIElementId
 
 if TYPE_CHECKING:
@@ -103,20 +102,13 @@ class KernelRequestHandlers:
             else None
         )
         try:
-            if not self._kernel.scratchpad_executions.start(request.run_id):
-                return
             with (
                 notebook_document_context(doc),
                 notebook_outputs_context(request.cell_outputs),
                 http_request_context(request.request),
             ):
                 await self._kernel.run_scratchpad(request.code)
-        except MarimoInterrupt:
-            # A targeted interrupt may land during setup, before the runner
-            # exists to handle it. Completion must still reach the caller.
-            return
         finally:
-            self._kernel.scratchpad_executions.finish(request.run_id)
             # Always emit completion so a waiting `ScratchCellListener`
             # doesn't block forever if `run_scratchpad` raises.
             broadcast_notification(

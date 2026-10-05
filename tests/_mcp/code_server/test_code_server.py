@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from dataclasses import asdict
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -19,10 +20,8 @@ from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.testclient import TestClient
 
-from marimo._mcp.code_server.main import (
-    CODE_MCP_EXECUTION_TIMEOUT_SECONDS,
-    setup_code_mcp_server,
-)
+from marimo._ai._tools.types import CodeExecutionResult
+from marimo._mcp.code_server.main import setup_code_mcp_server
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notification import CellNotification
 from marimo._runtime.scratch import SCRATCH_CELL_ID
@@ -217,79 +216,49 @@ class TestGetActiveNotebooks:
 
 
 class TestExecuteCode:
-    async def test_timeout_returns_errors_and_interrupts_kernel(self):
+    @pytest.mark.parametrize("timed_out", [False, True])
+    async def test_execution_budget_and_timeout_response(
+        self, timed_out: bool
+    ):
         from mcp import Client
 
+        from marimo._runtime.commands import ExecuteScratchpadCommand
         from marimo._server.scratchpad import ScratchCellListener
 
         app = create_test_app()
         session = _make_mock_session()
         session.scratchpad_lock = asyncio.Lock()
+        session.session_view.cell_notifications = {
+            SCRATCH_CELL_ID: _make_idle_scratch_notification(output_data="42")
+        }
         app.state.session_manager._repository._sessions["s1"] = session
 
-        async def timeout_wait(
-            listener: ScratchCellListener, timeout: float
-        ) -> None:
-            assert timeout == CODE_MCP_EXECUTION_TIMEOUT_SECONDS
-            listener.timed_out = True
-
-        async def completed(listener: ScratchCellListener) -> None:
-            del listener
+        async def wait(listener: ScratchCellListener, timeout: float) -> None:
+            assert timeout == 300.0
             assert session.scratchpad_lock.locked()
+            listener.timed_out = timed_out
 
-        with (
-            patch.object(ScratchCellListener, "wait", timeout_wait),
-            patch.object(
-                ScratchCellListener, "wait_until_completed", completed
-            ),
-        ):
+        with patch.object(ScratchCellListener, "wait", wait):
             async with Client(app.state.code_mcp) as client:
                 result = await client.call_tool(
-                    "execute_code",
-                    {"session_id": "s1", "code": "slow_work()"},
+                    "execute_code", {"session_id": "s1", "code": "6 * 7"}
                 )
 
-        assert result.structured_content is not None
-        assert result.structured_content["success"] is False
-        assert result.structured_content.get("error") is None
-        assert result.structured_content["errors"] == [
-            "Execution timed out after 300.0s"
-        ]
-        from marimo._runtime.commands import CancelScratchpadCommand
-
-        cancellation = session.put_control_request.call_args.args[0]
-        assert isinstance(cancellation, CancelScratchpadCommand)
+        expected = (
+            CodeExecutionResult(
+                success=False, errors=["Execution timed out after 300.0s"]
+            )
+            if timed_out
+            else CodeExecutionResult(success=True, output="42")
+        )
+        assert result.structured_content == asdict(expected)
+        session.put_control_request.assert_called_once()
+        command = session.put_control_request.call_args.args[0]
+        assert isinstance(command, ExecuteScratchpadCommand)
+        assert command.code == "6 * 7"
+        assert command.run_id is not None
         session.try_interrupt.assert_not_called()
         assert not session.scratchpad_lock.locked()
-
-    async def test_uses_shared_runner_with_long_execution_budget(self):
-        from mcp import Client
-
-        from marimo._ai._tools.types import CodeExecutionResult
-
-        app = create_test_app()
-        session = _make_mock_session()
-        app.state.session_manager._repository._sessions["s1"] = session
-        expected = CodeExecutionResult(success=True, output="done")
-
-        with patch(
-            "marimo._mcp.code_server.main.run_scratchpad_command",
-            new_callable=AsyncMock,
-            return_value=expected,
-        ) as run:
-            async with Client(app.state.code_mcp) as client:
-                result = await client.call_tool(
-                    "execute_code",
-                    {"session_id": "s1", "code": "slow_work()"},
-                )
-
-        assert result.is_error is False
-        run.assert_awaited_once_with(
-            session,
-            code="slow_work()",
-            timeout=CODE_MCP_EXECUTION_TIMEOUT_SECONDS,
-        )
-        assert CODE_MCP_EXECUTION_TIMEOUT_SECONDS == 300.0
 
     async def test_session_not_found(self):
         """Session lookup returns None for missing sessions."""

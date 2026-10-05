@@ -109,7 +109,7 @@ def _wait_for_server(
                 f"{_tail(stderr_path)}"
             )
         try:
-            with urllib.request.urlopen(f"{url}/health", timeout=1):
+            with urllib.request.urlopen(url, timeout=1):
                 return
         except OSError:
             time.sleep(0.05)
@@ -146,11 +146,7 @@ def _stop_process(process: subprocess.Popen[bytes]) -> None:
 
 
 def _start_server(
-    notebook: Path,
-    stderr_path: Path,
-    *,
-    attempts: int = 3,
-    code_mcp: bool = False,
+    notebook: Path, stderr_path: Path, *, attempts: int = 3
 ) -> tuple[subprocess.Popen[bytes], str]:
     for attempt in range(attempts):
         port = _free_port()
@@ -167,7 +163,6 @@ def _start_server(
                     "--no-skew-protection",
                     "--port",
                     str(port),
-                    *(["--mcp", "code-mode"] if code_mcp else []),
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=stderr_file,
@@ -185,14 +180,12 @@ def _start_server(
 
 
 @contextmanager
-def pair_test_server(
-    tmp_path: Path, *, code_mcp: bool = False
-) -> Generator[PairTestServer, None, None]:
+def pair_test_server(tmp_path: Path) -> Generator[PairTestServer, None, None]:
     notebook = tmp_path / "pair-integration.py"
     notebook.write_text("import marimo\napp = marimo.App()\n")
     stderr_path = tmp_path / "marimo-stderr.log"
 
-    process, url = _start_server(notebook, stderr_path, code_mcp=code_mcp)
+    process, url = _start_server(notebook, stderr_path)
     try:
         session_id = f"pair_{uuid.uuid4().hex[:8]}"
         websocket = websockets.sync.client.connect(
