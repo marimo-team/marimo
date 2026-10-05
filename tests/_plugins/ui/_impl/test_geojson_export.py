@@ -10,6 +10,10 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.table import DownloadAsArgs, DownloadGeoJSONArgs
+from marimo._plugins.ui._impl.tables.geometry_export import (
+    ExportFormatEligibility,
+)
+from marimo._runtime.functions import EmptyArgs
 from marimo._utils.data_uri import from_data_uri
 from tests._plugins.ui._impl.tables import geometry_fixtures as fixtures
 
@@ -687,10 +691,34 @@ def test_invalid_choice_is_rejected_atomically(
 
 
 @pytest.mark.requires("pyarrow")
-def test_arrow_geometry_is_not_exported_as_geojson(widget: Any) -> None:
+@pytest.mark.parametrize(
+    "factory",
+    [
+        fixtures.arrow_wkb_known_crs,
+        fixtures.arrow_wkt,
+        fixtures.arrow_multi_geometry,
+    ],
+)
+def test_arrow_geometry_is_eligible_for_geojson(
+    widget: Any, factory: Any
+) -> None:
+    metadata = widget(factory())._get_export_metadata(EmptyArgs())
+    assert metadata.formats["geojson"] == ExportFormatEligibility(
+        available=True
+    )
+
+
+@pytest.mark.requires("pyarrow")
+def test_arrow_geojson_checks_shapely_version(widget: Any) -> None:
     subject = widget(fixtures.arrow_wkb_known_crs())
-    response = subject._download_geojson(DownloadGeoJSONArgs(format="geojson"))
-    assert (response.url, response.code) == ("", "unsupported_representation")
+    with patch.object(
+        DependencyManager.shapely, "has_at_version", return_value=False
+    ):
+        metadata = subject._get_export_metadata(EmptyArgs())
+    assert metadata.formats["geojson"] == ExportFormatEligibility(
+        available=False,
+        reason="Update shapely to 2.0 or newer to export GeoJSON.",
+    )
 
 
 def test_table_selection_search_and_cell_scope() -> None:

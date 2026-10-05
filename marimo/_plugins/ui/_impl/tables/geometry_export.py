@@ -68,6 +68,23 @@ class GeometryExportError(Exception):
 
 
 @dataclass(frozen=True)
+class ArrowGeometryDeclaration:
+    """Geometry semantics declared in GeoArrow field metadata.
+
+    Args:
+        crs (str | dict[str, Any] | None): Declared CRS or opaque identifier.
+        crs_type (str | None): Declared CRS representation.
+        edges (str | None): Declared non-planar edge interpretation.
+        error (str | None): Reason that the declaration is invalid.
+    """
+
+    crs: str | dict[str, Any] | None = None
+    crs_type: str | None = None
+    edges: str | None = None
+    error: str | None = None
+
+
+@dataclass(frozen=True)
 class GeometryExportColumn:
     """Geometry declared by the export source.
 
@@ -135,6 +152,7 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
     source = manager.data
     primary: str | None = None
     columns: list[GeometryExportColumn] = []
+    source_reason: str | None = None
     if source.implementation.is_pandas():
         native = source.to_native()
         candidate = getattr(native, "_geometry_column_name", None)
@@ -153,14 +171,33 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
     elif source.implementation.is_pyarrow():
         native = source.to_native()
         for name, info in info_by_name.items():
+            declaration = _arrow_geometry_declaration(
+                native.schema.field(name)
+            )
             columns.append(
                 GeometryExportColumn(
                     name=name,
                     encoding=info.encoding,
-                    crs=_arrow_crs(native.schema.field(name).metadata),
+                    crs=(
+                        declaration.crs
+                        if declaration.crs_type != "srid"
+                        else None
+                    ),
                 )
             )
-        is_supported_source = False
+            if declaration.error is not None:
+                source_reason = declaration.error
+            elif source_reason is None and declaration.edges is not None:
+                source_reason = (
+                    f"Geometry column {name!r} declares {declaration.edges!r} "
+                    "edges, which geographic exports cannot preserve."
+                )
+            elif source_reason is None and info.encoding == "other":
+                source_reason = (
+                    f"Geometry column {name!r} uses a native GeoArrow layout. "
+                    "Geographic exports require WKB or WKT."
+                )
+        is_supported_source = DependencyManager.geopandas.has()
     else:
         columns = [
             GeometryExportColumn(name=name, encoding=info.encoding, crs=None)
@@ -174,16 +211,15 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
             ("parquet", "GeoParquet"),
             ("geojson", "GeoJSON"),
         ):
-            if source.implementation.is_pandas():
-                reason = (
-                    f"This pandas table needs geopandas to export {label}."
+            if (
+                source.implementation.is_pandas()
+                or source.implementation.is_pyarrow()
+            ):
+                source_label = (
+                    "pandas" if source.implementation.is_pandas() else "Arrow"
                 )
+                reason = f"This {source_label} table needs geopandas to export {label}."
                 missing_packages = ["geopandas"]
-            elif source.implementation.is_pyarrow():
-                reason = (
-                    f"{label} export from Arrow tables is not supported yet."
-                )
-                missing_packages = []
             else:
                 reason = (
                     f"{label} export is not supported for this table type."
@@ -219,6 +255,14 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
         else:
             formats["parquet"] = ExportFormatEligibility(available=True)
 
+    if source_reason is not None:
+        formats = {
+            name: ExportFormatEligibility(
+                available=False, reason=source_reason
+            )
+            for name in ("parquet", "geojson")
+        }
+
     default = (
         primary
         if primary is not None
@@ -232,22 +276,60 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
     )
 
 
-def _arrow_crs(
-    metadata: dict[bytes, bytes] | None,
-) -> str | dict[str, Any] | None:
+def _arrow_geometry_declaration(
+    field: pa.Field[Any],
+) -> ArrowGeometryDeclaration:
+    metadata = field.metadata
     if not metadata:
-        return None
+        return ArrowGeometryDeclaration()
     raw = metadata.get(b"ARROW:extension:metadata")
     if raw is None:
-        return None
+        return ArrowGeometryDeclaration()
+
+    def invalid(reason: str) -> ArrowGeometryDeclaration:
+        return ArrowGeometryDeclaration(
+            error=f"Geometry column {field.name!r} has invalid GeoArrow metadata: {reason}"
+        )
+
     try:
         declaration = json.loads(raw)
     except (ValueError, UnicodeDecodeError):
-        return None
+        return invalid("expected a UTF-8 JSON object.")
     if not isinstance(declaration, dict):
-        return None
+        return invalid("expected a JSON object.")
     crs = declaration.get("crs")
-    return crs if isinstance(crs, (str, dict)) else None
+    if "crs" in declaration and not isinstance(crs, (str, dict)):
+        return invalid("crs must be a string or PROJJSON object.")
+    crs_type = declaration.get("crs_type")
+    if "crs_type" in declaration and crs_type not in (
+        "projjson",
+        "wkt2:2019",
+        "authority_code",
+        "srid",
+    ):
+        return invalid("unknown crs_type.")
+    edges = declaration.get("edges")
+    if "edges" in declaration and edges not in (
+        "spherical",
+        "vincenty",
+        "thomas",
+        "andoyer",
+        "karney",
+    ):
+        return invalid("unknown edges interpretation.")
+    if (
+        crs is not None
+        and crs_type != "srid"
+        and DependencyManager.geopandas.has()
+    ):
+        from pyproj import CRS  # type: ignore[import-untyped]
+        from pyproj.exceptions import CRSError  # type: ignore[import-untyped]
+
+        try:
+            CRS.from_user_input(crs)
+        except CRSError:
+            return invalid("crs cannot be resolved.")
+    return ArrowGeometryDeclaration(crs=crs, crs_type=crs_type, edges=edges)
 
 
 def has_geometry_columns(manager: TableManager[Any]) -> bool:
