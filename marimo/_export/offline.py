@@ -295,10 +295,14 @@ def _publish_bundle(
     output_dir: Path,
     resolved: _Lockfile,
     hashes: dict[Path, str],
+    pyodide_lockfile: _Lockfile,
 ) -> str:
     from packaging.requirements import Requirement
     from packaging.utils import canonicalize_name
 
+    pyodide_packages = {
+        canonicalize_name(name) for name in pyodide_lockfile["packages"]
+    }
     for name, package in resolved["packages"].items():
         name = canonicalize_name(Requirement(name).name)
         filename = package["file_name"]
@@ -311,6 +315,11 @@ def _publish_bundle(
             source.replace(target)
         package["sha256"] = digest
         package["file_name"] = f"../packages/{relative}"
+        if name in pyodide_packages:
+            # The exported runtime prefers index pages over the lockfile, and
+            # Pyodide-built wheels can require packages their entries omit,
+            # such as tzdata for pandas.
+            continue
         index = staging / "packages" / "index" / name / "index.html"
         index.parent.mkdir(parents=True, exist_ok=True)
         index.write_text(
@@ -417,7 +426,9 @@ async def bundle_wasm_runtime(
                 downloads[target] = source
                 package["file_name"] = filename
             hashes = await _download_all(downloads)
-        lock_name = _publish_bundle(staging, output_dir, resolved, hashes)
+        lock_name = _publish_bundle(
+            staging, output_dir, resolved, hashes, lockfile
+        )
     return _rewrite_requirements(
         code, resolved["packages"]
     ), WASMRuntimeConfig(

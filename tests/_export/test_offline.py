@@ -46,10 +46,13 @@ def resolver():
         "install_dir": "site",
     }
     lock = {"info": {"python": "3.14.0"}, "packages": {"example": package}}
+    pyodide_lock = {"info": lock["info"], "packages": {}}
 
     def fetch(url: str, **kwargs: object):
         del kwargs
-        data = json.dumps(lock).encode() if "lock.json" in url else wheel
+        data = (
+            json.dumps(pyodide_lock).encode() if "lock.json" in url else wheel
+        )
         return Response(200, data, {})
 
     with (
@@ -107,6 +110,37 @@ async def test_bundle_is_relocatable_and_preserves_source_config(
         "python_stdlib.zip",
     ]
     assert not list(tmp_path.glob(".marimo-offline-*"))
+
+
+@pytest.mark.asyncio
+async def test_pyodide_packages_install_from_the_bundled_lockfile(
+    tmp_path, sources, resolver
+):
+    # The exported runtime prefers index pages over the lockfile, and Pyodide's
+    # pandas wheel requires tzdata, which its lockfile entry omits.
+    packages = resolver.return_value["packages"]
+    packages["pandas"] = {
+        **packages["example"],
+        "name": "pandas",
+        "file_name": "pandas-3.0.2-cp314-cp314-pyodide_2026_0_wasm32.whl",
+    }
+    pyodide_lock = {"info": {}, "packages": {"pandas": packages["pandas"]}}
+    responses = {"lock.json": json.dumps(pyodide_lock).encode()}
+
+    def fetch(url: str, **kwargs: object):
+        del kwargs
+        data = responses.get(url.rsplit("/", 1)[-1], b"downloaded wheel")
+        return Response(200, data, {})
+
+    with mock.patch.object(requests, "get", side_effect=fetch):
+        _, runtime = await bundle_wasm_runtime(
+            "pass", tmp_path, sources=sources
+        )
+    assert runtime.pyodide_lockfile_url is not None
+    lock = json.loads((tmp_path / runtime.pyodide_lockfile_url).read_text())
+    assert sorted(lock["packages"]) == ["example", "pandas"]
+    index = tmp_path / "packages/index"
+    assert [path.name for path in index.iterdir()] == ["example"]
 
 
 @pytest.mark.asyncio
