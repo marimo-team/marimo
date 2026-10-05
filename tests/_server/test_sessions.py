@@ -58,7 +58,7 @@ from marimo._session.session import (
 )
 from marimo._session.startup import SessionStartup
 from marimo._session.state.session_view import SessionView
-from marimo._types.ids import ConsumerId, SessionId
+from marimo._types.ids import ConsumerId, SessionId, StableSessionId
 from marimo._utils.marimo_path import MarimoPath
 
 initialize_asyncio()
@@ -398,6 +398,7 @@ async def test_session() -> None:
 
     # Instantiate a Session
     session = SessionImpl(
+        stable_id=StableSessionId("sess-test"),
         session_view=SessionView(),
         initialization_id=session_id,
         session_consumer=session_consumer,
@@ -431,6 +432,7 @@ async def test_session() -> None:
 def test_sessions_for_same_file_have_distinct_stable_ids() -> None:
     sessions = [
         SessionImpl(
+            stable_id=StableSessionId(f"sess-{i}"),
             session_view=SessionView(),
             initialization_id="notebook.py",
             session_consumer=MagicMock(),
@@ -440,7 +442,7 @@ def test_sessions_for_same_file_have_distinct_stable_ids() -> None:
             ttl_seconds=None,
             extensions=[],
         )
-        for _ in range(2)
+        for i in range(2)
     ]
     try:
         assert sessions[0].stable_id != sessions[1].stable_id
@@ -467,6 +469,7 @@ async def test_session_disconnect_reconnect() -> None:
 
     # Instantiate a Session
     session = SessionImpl(
+        stable_id=StableSessionId("sess-test"),
         session_view=SessionView(),
         initialization_id=session_id,
         session_consumer=session_consumer,
@@ -527,6 +530,7 @@ async def test_session_with_kiosk_consumers() -> None:
 
     # Instantiate a Session
     session = SessionImpl(
+        stable_id=StableSessionId("sess-test"),
         session_view=SessionView(),
         initialization_id=session_id,
         session_consumer=session_consumer,
@@ -1138,6 +1142,7 @@ async def test_session_with_script_config_overrides(
     # Create session with the file that has script config
     startup = SessionStartup()
     session = await SessionImpl.create(
+        stable_id=StableSessionId("sess-test"),
         startup=startup,
         initialization_id="test_id",
         session_consumer=session_consumer,
@@ -1210,6 +1215,7 @@ async def test_sandbox_ignores_configured_venv(
     )
 
     session = await SessionImpl.create(
+        stable_id=StableSessionId("sess-test"),
         initialization_id=str(notebook),
         startup=SessionStartup(),
         session_consumer=None,
@@ -1256,6 +1262,7 @@ async def test_configured_venv_launches_editor_kernel_without_sandbox(
         f"# path = {str(Path(sys.prefix).as_posix())!r}\n# ///\n"
     )
     session = await SessionImpl.create(
+        stable_id=StableSessionId("sess-test"),
         initialization_id=str(notebook),
         startup=SessionStartup(),
         session_consumer=None,
@@ -1306,6 +1313,7 @@ async def test_session_script_dotenv_reaches_the_kernel_config(
         )
     )
     session = await SessionImpl.create(
+        stable_id=StableSessionId("sess-test"),
         startup=SessionStartup(),
         initialization_id="test_id",
         session_consumer=session_consumer,
@@ -1358,6 +1366,7 @@ async def test_caching_extension_respects_mode_and_config() -> None:
                 }
             )
         return await SessionImpl.create(
+            stable_id=StableSessionId("sess-test"),
             startup=SessionStartup(),
             initialization_id="test_session",
             session_consumer=session_consumer,

@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from marimo._session.startup import SessionStartup
+from marimo._types.ids import StableSessionId
 
 
 @pytest.mark.requires("zmq")
@@ -364,6 +365,7 @@ class TestAppHostMultipleClients:
         ):
             for sid in ("session-1", "session-2"):
                 await SessionImpl.create(
+                    stable_id=StableSessionId(f"sess-{sid}"),
                     startup=SessionStartup(),
                     initialization_id=file_key,
                     session_consumer=Mock(),

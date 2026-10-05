@@ -22,7 +22,8 @@ from marimo._session.consumer import SessionConsumer
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
 from marimo._session.room import Room
-from marimo._types.ids import SessionId
+from marimo._session.types import KernelState
+from marimo._types.ids import SessionId, StableSessionId
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -129,6 +130,149 @@ async def test_create_session_absolute_url(
     assert session_manager.get_session(session_id) is session
     # Close ourselves to finish the test
     session.close()
+
+
+async def test_start_session_without_a_consumer(
+    session_manager: SessionManager,
+    mock_session_consumer: SessionConsumer,
+    temp_marimo_file: str,
+) -> None:
+    host_id = StableSessionId("sess-host")
+    session = await session_manager.start_session(
+        temp_marimo_file, stable_id=host_id
+    )
+    try:
+        assert session.room.main_consumer is None
+        assert session.stable_id == host_id
+        # Routed under its own id until a browser claims it.
+        assert session_manager.get_session(SessionId(host_id)) is session
+        assert not session_manager.is_session_starting(
+            SessionId(host_id), temp_marimo_file
+        )
+
+        # Asking again is idempotent, whatever id the caller proposes.
+        again = await session_manager.start_session(
+            temp_marimo_file, stable_id=StableSessionId("sess-again")
+        )
+        assert again is session
+
+        # A browser finds the session by file and becomes its main consumer.
+        browser_id = SessionId("browser")
+        resumed = session_manager.maybe_resume_session(
+            browser_id, temp_marimo_file
+        )
+        assert resumed is session
+        session.connect_consumer(mock_session_consumer, main=True)
+        assert session.room.main_consumer is mock_session_consumer
+    finally:
+        session_manager.close_all_sessions()
+
+
+def make_manager(
+    *, mode: SessionMode = SessionMode.EDIT, ttl_seconds: int | None = None
+) -> SessionManager:
+    return SessionManager(
+        workspace=EmptyWorkspace(),
+        mode=mode,
+        quiet=True,
+        include_code=True,
+        lsp_server=MagicMock(spec=LspServer),
+        config_manager=get_default_config_manager(current_path=None),
+        cli_args={},
+        argv=None,
+        auth_token=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=ttl_seconds,
+    )
+
+
+async def test_start_session_refuses_a_run_server(
+    temp_marimo_file: str,
+) -> None:
+    from marimo._session.managers.ipc import KernelStartupError
+
+    manager = make_manager(mode=SessionMode.RUN)
+    try:
+        with pytest.raises(KernelStartupError, match="edit server"):
+            await manager.start_session(
+                temp_marimo_file, stable_id=StableSessionId("rt-host")
+            )
+        assert manager.sessions == {}
+    finally:
+        manager.close_all_sessions()
+
+
+async def test_start_session_replaces_a_session_whose_kernel_died(
+    session_manager: SessionManager,
+    temp_marimo_file: str,
+) -> None:
+    first = await session_manager.start_session(
+        temp_marimo_file, stable_id=StableSessionId("rt-1")
+    )
+    try:
+        # The heartbeat closes a dead session without telling the manager.
+        first.close()
+        for _ in range(100):
+            if first.kernel_state() is KernelState.STOPPED:
+                break
+            await asyncio.sleep(0.05)
+        assert first.kernel_state() is KernelState.STOPPED
+        assert session_manager.get_session_by_file_key(temp_marimo_file) is (
+            first
+        )
+
+        second = await session_manager.start_session(
+            temp_marimo_file, stable_id=StableSessionId("rt-2")
+        )
+        assert second is not first
+        assert second.stable_id == StableSessionId("rt-2")
+        assert session_manager.get_session_by_file_key(temp_marimo_file) is (
+            second
+        )
+    finally:
+        session_manager.close_all_sessions()
+
+
+async def test_a_host_joining_a_launch_keeps_it_from_expiring(
+    mock_session_consumer: SessionConsumer,
+    temp_marimo_file: str,
+) -> None:
+    manager = make_manager(ttl_seconds=1)
+    browser_id = SessionId("browser")
+    try:
+        # A browser starts the notebook and gives up before it is ready,
+        # which arms the reconnect timer on the launch.
+        launch = asyncio.ensure_future(
+            manager.create_session(
+                browser_id,
+                mock_session_consumer,
+                query_params={},
+                file_key=temp_marimo_file,
+                auto_instantiate=False,
+            )
+        )
+        await asyncio.sleep(0)
+        assert manager.is_session_starting(browser_id, temp_marimo_file)
+        launch.cancel()
+        await asyncio.gather(launch, return_exceptions=True)
+
+        # The host joins the same launch and takes the session.
+        session = await manager.start_session(
+            temp_marimo_file, stable_id=StableSessionId("rt-host")
+        )
+        assert not manager.is_session_starting(browser_id, temp_marimo_file)
+
+        # Well past the reconnect window, the host's session is still here.
+        await asyncio.sleep(1.5)
+        assert session_alive(manager, session)
+    finally:
+        manager.close_all_sessions()
+
+
+def session_alive(manager: SessionManager, session: Session) -> bool:
+    return manager.get_session_id(session) is not None and (
+        session.connection_state() != ConnectionState.CLOSED
+    )
 
 
 def test_maybe_resume_session_for_new_file(
@@ -867,7 +1011,7 @@ async def test_startup_retention_ignores_long_session_ttl(
         connection.cancel()
         with pytest.raises(asyncio.CancelledError):
             await connection
-        key = session_manager._connection_key(session_id, NEW_FILE)
+        key = session_manager._launch_key(session_id, NEW_FILE)
         handle = session_manager._pending[key].close_handle
         assert handle is not None
         remaining = handle.when() - asyncio.get_running_loop().time()

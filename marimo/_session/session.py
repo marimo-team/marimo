@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import secrets
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -77,15 +76,8 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 _DEFAULT_TTL_SECONDS = 120
-_SESSION_ID_ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz"
 
 __all__ = ["Session", "SessionImpl"]
-
-
-def _new_stable_session_id() -> StableSessionId:
-    """Match Hub's session IDs: sess- plus 80 random bits in Crockford Base32."""
-    body = "".join(secrets.choice(_SESSION_ID_ALPHABET) for _ in range(16))
-    return StableSessionId(f"sess-{body}")
 
 
 class SessionImpl(Session):
@@ -99,6 +91,7 @@ class SessionImpl(Session):
     async def create(
         cls,
         *,
+        stable_id: StableSessionId,
         initialization_id: str,
         session_consumer: SessionConsumer | None,
         startup: SessionStartup,
@@ -114,8 +107,11 @@ class SessionImpl(Session):
         sandbox: bool = False,
         app_host_context: AppHostContext | None = None,
     ) -> Session:
-        """
-        Create a new session.
+        """Create a new session.
+
+        `stable_id` is the session's identity for as long as it lives; see
+        `Session.stable_id`. The caller chooses it, since only the caller
+        knows whether this kernel continues an earlier one.
         """
         # Inherit config from the session manager and override with any
         # script-level config. The reader is layered on as-is: snapshotting
@@ -227,6 +223,7 @@ class SessionImpl(Session):
             raise
 
         return cls(
+            stable_id=stable_id,
             initialization_id=initialization_id,
             session_consumer=session_consumer,
             session_view=startup.view,
@@ -239,6 +236,7 @@ class SessionImpl(Session):
 
     def __init__(
         self,
+        stable_id: StableSessionId,
         initialization_id: str,
         session_consumer: SessionConsumer | None,
         session_view: SessionView,
@@ -251,7 +249,7 @@ class SessionImpl(Session):
         """Initialize kernel and client connection to it."""
         # The notebook's creation key is used to find resumable sessions.
         self.initialization_id = initialization_id
-        self._stable_id = _new_stable_session_id()
+        self._stable_id = stable_id
         self.app_file_manager = app_file_manager
         self.room = Room()
         self._kernel_manager = kernel_manager
@@ -279,8 +277,14 @@ class SessionImpl(Session):
 
     @property
     def stable_id(self) -> StableSessionId:
-        """Internal identity that survives reconnects and notebook renames."""
+        """The identity this session was created with; see `Session.stable_id`."""
         return self._stable_id
+
+    @property
+    def event_bus(self) -> SessionEventBus:
+        """This session's events: consumers joining and leaving, the kernel
+        exiting, and the notifications and commands that pass through."""
+        return self._event_bus
 
     @property
     def document(self) -> NotebookDocument:
@@ -446,8 +450,14 @@ class SessionImpl(Session):
         This will disconnect the main session consumer,
         or a kiosk consumer.
         """
+        was_present = (
+            self.room.get_consumer(session_consumer.consumer_id)
+            is session_consumer
+        )
         self.room.remove_consumer(session_consumer)
         self.extensions.remove(session_consumer)
+        if was_present:
+            self._event_bus.emit_consumer_disconnected(self, session_consumer)
 
     def disconnect_main_consumer(self) -> None:
         """
@@ -469,6 +479,7 @@ class SessionImpl(Session):
         self.extensions.add(session_consumer)
         session_consumer.on_attach(self, self._event_bus)
         self.room.add_consumer(session_consumer, main=main)
+        self._event_bus.emit_consumer_connected(self, session_consumer)
 
     def get_current_state(self) -> SessionView:
         """Return the current state of the session."""
@@ -511,6 +522,10 @@ class SessionImpl(Session):
 
         self._closed = True
 
+        # The consumers go with the session; listeners hear so while they
+        # can still see who was attached.
+        for state in list(self.room.consumers.values()):
+            self._event_bus.emit_consumer_disconnected(self, state.consumer)
         # Close extensions
         self._detach_extensions()
         # Close the room

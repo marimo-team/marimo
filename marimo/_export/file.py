@@ -71,6 +71,7 @@ from marimo._session.notebook import load_notebook
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.startup import SessionStartup
 from marimo._types.ids import ConsumerId
+from marimo._utils.ids import new_stable_session_id
 from marimo._utils.inline_script_metadata import (
     pin_pep723_dependencies_for_wasm,
 )
@@ -684,6 +685,7 @@ async def run_notebook(
     # Create a session
     session_consumer = RunUntilCompletionSessionConsumer()
     session = await SessionImpl.create(
+        stable_id=new_stable_session_id(),
         startup=SessionStartup(),
         # Any initialization ID will do
         initialization_id="_any_",

@@ -10,7 +10,7 @@ import pytest
 
 from marimo._messaging.notification import BannerNotification
 from marimo._messaging.serde import serialize_kernel_message
-from marimo._session.events import SessionEventBus
+from marimo._session.events import SessionEventBus, SessionEventListener
 from marimo._session.extensions.extensions import (
     CacheMode,
     CachingExtension,
@@ -109,6 +109,42 @@ class TestHeartbeatExtension:
         assert banner.action == "restart"
         assert "out of memory" in banner.description
         assert "restart" in banner.description.lower()
+
+    async def test_kernel_exit_is_announced_before_the_session_closes(
+        self, mock_session, event_bus
+    ) -> None:
+        exit_info = KernelExitInfo(
+            exitcode=-11, cause="segfault", message="The kernel crashed."
+        )
+        mock_session.kernel_state = Mock(return_value=KernelState.STOPPED)
+        mock_session.kernel_exit_info = Mock(return_value=exit_info)
+        order: list[str] = []
+        heard: list[tuple[object, object]] = []
+
+        class Listener(SessionEventListener):
+            def on_kernel_exited(self, session, info) -> None:  # type: ignore[no-untyped-def]
+                # The bus swallows listener exceptions, so record here and
+                # assert below.
+                order.append("exited")
+                heard.append((session, info))
+
+        event_bus.subscribe(Listener())
+        closed = asyncio.Event()
+
+        def close() -> None:
+            order.append("closed")
+            closed.set()
+
+        mock_session.close.side_effect = close
+        extension = HeartbeatExtension()
+        extension.on_attach(mock_session, event_bus)
+        try:
+            await asyncio.wait_for(closed.wait(), timeout=10)
+        finally:
+            extension.on_detach()
+
+        assert order == ["exited", "closed"]
+        assert heard == [(mock_session, exit_info)]
 
 
 class TestCachingExtension:

@@ -9,6 +9,7 @@ file watching, and LSP server management.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -50,12 +51,13 @@ from marimo._session.session import Session, SessionImpl
 from marimo._session.session_repository import SessionRepository
 from marimo._session.startup import SessionStartup
 from marimo._session.types import KernelState
-from marimo._types.ids import ConsumerId, SessionId
+from marimo._types.ids import ConsumerId, SessionId, StableSessionId
 from marimo._utils.asyncio_utils import fire_and_forget
 from marimo._utils.file_watcher import FileWatcherManager
+from marimo._utils.ids import new_stable_session_id
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import AsyncIterator, Mapping
 
     from marimo._session.notebook import AppFileManager
 
@@ -179,6 +181,11 @@ class SessionManager:
         return self._token_manager.skew_protection_token
 
     @property
+    def event_bus(self) -> SessionEventBus:
+        """Lifecycle events for every session; see `SessionEventListener`."""
+        return self._event_bus
+
+    @property
     def sessions(self) -> Mapping[SessionId, Session]:
         """Get all sessions as a dict."""
         return self._repository.sessions
@@ -196,16 +203,21 @@ class SessionManager:
         """Serialize reconnect decisions while a notebook is starting."""
         if self._closed:
             raise KernelStartupError("Session manager is shut down")
-        key = self._connection_key(session_id, file_key)
+        key = self._launch_key(session_id, file_key)
         lock = self._connection_locks.get(key)
         if lock is None:
             lock = asyncio.Lock()
             self._connection_locks[key] = lock
         return lock
 
-    def _connection_key(
+    def _launch_key(
         self, session_id: SessionId, file_key: MarimoFileKey
     ) -> str:
+        """Names the kernel a connection is for, while it starts.
+
+        An edit server runs one kernel per notebook, so the key is the
+        file; a run server runs one per client, so the key is the client.
+        """
         if self.mode == SessionMode.EDIT:
             return self._resolve_file_key(file_key) or file_key
         return session_id
@@ -219,59 +231,21 @@ class SessionManager:
         auto_instantiate: bool,
     ) -> Session:
         """Return a ready session, retaining ownership during startup."""
-        if self._closed:
-            raise KernelStartupError("Session manager is shut down")
-        key = self._connection_key(session_id, file_key)
-        pending = self._pending.get(key)
-        existing = self._repository.get_sync(session_id)
-        if pending is None and existing is not None:
-            return existing
-        if pending is not None and pending.expired:
-            # A new attempt must wait for an expired launch to release its resources.
-            await asyncio.shield(
-                asyncio.gather(pending.task, return_exceptions=True)
-            )
-            return await self.create_session(
+        key = self._launch_key(session_id, file_key)
+        pending = await self._pending_launch(key)
+        if pending is None:
+            existing = self._repository.get_sync(session_id)
+            if existing is not None:
+                return existing
+            pending = self._launch(
+                key,
                 session_id,
-                session_consumer,
+                new_stable_session_id(),
                 query_params,
                 file_key,
                 auto_instantiate,
             )
-        if pending is None:
-            startup = SessionStartup()
-            task = asyncio.create_task(
-                self._create_session(
-                    session_id,
-                    query_params,
-                    file_key,
-                    auto_instantiate,
-                    startup,
-                ),
-                name=f"session.start.{session_id}",
-            )
-            pending = _PendingSession(task, startup)
-            self._pending[key] = pending
-
-            def finished(task: asyncio.Task[Session]) -> None:
-                # Failed launches can be retried; successful ones await attachment.
-                if task.cancelled() or task.exception() is not None:
-                    if pending.close_handle is not None:
-                        pending.close_handle.cancel()
-                    if self._pending.get(key) is pending:
-                        self._pending.pop(key)
-
-            task.add_done_callback(finished)
-        if pending.close_handle is not None:
-            pending.close_handle.cancel()
-            pending.close_handle = None
-        pending.waiters += 1
-        attached = False
-        try:
-            with pending.startup.subscribe(session_consumer):
-                session = await asyncio.shield(pending.task)
-            if self._closed:
-                raise KernelStartupError("Session manager is shut down")
+        async with self._join(key, pending, session_consumer) as session:
             previous_id = self._repository.get_session_id(session)
             if (
                 previous_id is None
@@ -279,41 +253,177 @@ class SessionManager:
             ):
                 if previous_id is not None:
                     self.close_session(previous_id)
-                if self._pending.get(key) is pending:
-                    self._pending.pop(key)
+                self._settle(key, pending)
                 raise KernelStartupError("Session closed during startup")
             if session.room.main_consumer is not None:
                 # The connection lock serializes attachment per key, so a
                 # second main consumer means a caller bypassed it. The session
                 # is in use either way, so its startup bookkeeping is done.
-                if self._pending.get(key) is pending:
-                    self._pending.pop(key)
+                self._settle(key, pending)
                 raise RuntimeError("Session already has a main consumer")
             if previous_id != session_id:
                 self._repository.update_session_id_sync(
                     previous_id, session_id
                 )
             session.connect_consumer(session_consumer, main=True)
-            attached = True
+            self._settle(key, pending)
             return session
+
+    async def start_session(
+        self,
+        file_key: MarimoFileKey,
+        *,
+        stable_id: StableSessionId,
+        query_params: SerializedQueryParams | None = None,
+        auto_instantiate: bool = False,
+        observer: SessionConsumer | None = None,
+    ) -> Session:
+        """Return the notebook's session, starting one if it has none.
+
+        Unlike `create_session`, nothing is attached: this is how a host
+        starts a notebook on a client's behalf before any browser opens it.
+        The caller names the session with `stable_id`, so a kernel that
+        continues an earlier one keeps its identity; until a browser claims
+        the session it is also routed under that id. The first browser to
+        connect resumes the session by file key and becomes its main
+        consumer. A launch already under way for the same notebook is
+        awaited rather than repeated. `observer`, if given, receives
+        startup progress while the kernel comes up.
+
+        Only an edit server has one session per notebook to return, so a
+        run server refuses: it serves an app to other people and starts a
+        kernel for each of them.
+        """
+        if self.mode is not SessionMode.EDIT:
+            raise KernelStartupError(
+                "Only an edit server starts a session without a client"
+            )
+        session_id = SessionId(stable_id)
+        key = self._launch_key(session_id, file_key)
+        pending = await self._pending_launch(key)
+        if pending is None:
+            # A kernel that died stays registered until something looks
+            # for it; it is no use to anyone, so it goes first.
+            self._cleanup_dead_sessions()
+            existing = self.get_session_by_file_key(file_key)
+            if existing is not None:
+                return existing
+            pending = self._launch(
+                key,
+                session_id,
+                stable_id,
+                query_params or {},
+                file_key,
+                auto_instantiate,
+            )
+        async with self._join(key, pending, observer) as session:
+            # The session is the caller's now. Browsers find it by file
+            # key, and a reconnect window would only let an abandoned
+            # waiter expire a session that the host owns.
+            self._settle(key, pending)
+            return session
+
+    async def _pending_launch(self, key: str) -> _PendingSession | None:
+        """The launch under way for `key`, if there is one.
+
+        An expired launch is still releasing its resources; a new attempt
+        must wait for that before it can begin, so this waits it out.
+        """
+        while True:
+            if self._closed:
+                raise KernelStartupError("Session manager is shut down")
+            pending = self._pending.get(key)
+            if pending is None or not pending.expired:
+                return pending
+            await asyncio.shield(
+                asyncio.gather(pending.task, return_exceptions=True)
+            )
+
+    @contextlib.asynccontextmanager
+    async def _join(
+        self,
+        key: str,
+        pending: _PendingSession,
+        observer: SessionConsumer | None,
+    ) -> AsyncIterator[Session]:
+        """Waits on a launch as one of its counted waiters.
+
+        While anyone waits, the launch cannot expire. If the last waiter
+        leaves without settling the launch, the reconnect timer is armed
+        so an abandoned kernel does not outlive its startup. `observer`
+        receives startup progress while the kernel comes up.
+        """
+        if pending.close_handle is not None:
+            pending.close_handle.cancel()
+            pending.close_handle = None
+        pending.waiters += 1
+        try:
+            if observer is None:
+                session = await asyncio.shield(pending.task)
+            else:
+                with pending.startup.subscribe(observer):
+                    session = await asyncio.shield(pending.task)
+            if self._closed:
+                raise KernelStartupError("Session manager is shut down")
+            yield session
         finally:
             pending.waiters -= 1
-            if pending.waiters == 0 and self._pending.get(key) is pending:
-                if attached:
+            if (
+                pending.waiters == 0
+                and self._pending.get(key) is pending
+                and not self._closed
+            ):
+                # Nobody has seen an unattached launch, so a long session
+                # TTL must not keep abandoned kernels alive.
+                pending.close_handle = asyncio.get_running_loop().call_later(
+                    min(self.ttl_seconds, _STARTUP_RECONNECT_SECONDS)
+                    if self.ttl_seconds is not None
+                    else _STARTUP_RECONNECT_SECONDS,
+                    self._expire_startup,
+                    key,
+                    pending,
+                )
+
+    def _settle(self, key: str, pending: _PendingSession) -> None:
+        """Ends a launch's startup bookkeeping: its session has an owner."""
+        if self._pending.get(key) is pending:
+            self._pending.pop(key)
+
+    def _launch(
+        self,
+        key: str,
+        session_id: SessionId,
+        stable_id: StableSessionId,
+        query_params: SerializedQueryParams,
+        file_key: MarimoFileKey,
+        auto_instantiate: bool,
+    ) -> _PendingSession:
+        """Begin creating a session and record the launch under `key`."""
+        startup = SessionStartup()
+        task = asyncio.create_task(
+            self._create_session(
+                session_id,
+                stable_id,
+                query_params,
+                file_key,
+                auto_instantiate,
+                startup,
+            ),
+            name=f"session.start.{session_id}",
+        )
+        pending = _PendingSession(task, startup)
+        self._pending[key] = pending
+
+        def finished(task: asyncio.Task[Session]) -> None:
+            # Failed launches can be retried; successful ones await attachment.
+            if task.cancelled() or task.exception() is not None:
+                if pending.close_handle is not None:
+                    pending.close_handle.cancel()
+                if self._pending.get(key) is pending:
                     self._pending.pop(key)
-                elif not self._closed:
-                    # Nobody has seen an unattached launch, so a long session
-                    # TTL must not keep abandoned kernels alive.
-                    pending.close_handle = (
-                        asyncio.get_running_loop().call_later(
-                            min(self.ttl_seconds, _STARTUP_RECONNECT_SECONDS)
-                            if self.ttl_seconds is not None
-                            else _STARTUP_RECONNECT_SECONDS,
-                            self._expire_startup,
-                            key,
-                            pending,
-                        )
-                    )
+
+        task.add_done_callback(finished)
+        return pending
 
     def _expire_startup(self, key: str, pending: _PendingSession) -> None:
         pending.close_handle = None
@@ -333,11 +443,12 @@ class SessionManager:
     def is_session_starting(
         self, session_id: SessionId, file_key: MarimoFileKey
     ) -> bool:
-        return self._connection_key(session_id, file_key) in self._pending
+        return self._launch_key(session_id, file_key) in self._pending
 
     async def _create_session(
         self,
         session_id: SessionId,
+        stable_id: StableSessionId,
         query_params: SerializedQueryParams,
         file_key: MarimoFileKey,
         auto_instantiate: bool,
@@ -366,6 +477,7 @@ class SessionManager:
             )
 
         session = await SessionImpl.create(
+            stable_id=stable_id,
             initialization_id=file_key,
             startup=startup,
             session_consumer=None,
@@ -480,6 +592,10 @@ class SessionManager:
 
         # Search for kiosk sessions by consumer ID
         return self._repository.get_by_consumer_id(ConsumerId(session_id))
+
+    def get_session_id(self, session: Session) -> SessionId | None:
+        """The routing id `session` is registered under, if it is."""
+        return self._repository.get_session_id(session)
 
     def get_session_by_file_key(
         self, file_key: MarimoFileKey
