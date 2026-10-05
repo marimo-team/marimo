@@ -6,6 +6,7 @@ import io
 import json
 import socket
 import sys
+import threading
 import time
 from multiprocessing import Process
 from typing import TYPE_CHECKING, Any
@@ -22,6 +23,7 @@ from starlette.routing import Route
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from uvicorn import Config, Server
+from websockets.sync.server import ServerConnection, serve
 
 from marimo._config.manager import MarimoConfigManager, UserConfigManager
 from marimo._server._pylsp import create_server
@@ -1035,6 +1037,56 @@ class TestAcpProxyMiddleware:
         "opencode": 3023,
         "cursor": 3025,
     }
+
+    @pytest.mark.parametrize("base_url", ["", "/notebook"])
+    def test_websocket_relay(
+        self, monkeypatch: pytest.MonkeyPatch, base_url: str
+    ) -> None:
+        def agent(websocket: ServerConnection) -> None:
+            assert websocket.request is not None
+            websocket.send(websocket.request.path)
+            for _ in range(2):
+                message = websocket.recv(timeout=5)
+                websocket.send(message)
+
+        # Use an ephemeral port so the test never connects to a real agent.
+        with serve(agent, "127.0.0.1", 0) as upstream:
+            monkeypatch.setitem(
+                ACP_AGENT_PORTS, "claude", upstream.socket.getsockname()[1]
+            )
+            thread = threading.Thread(target=upstream.serve_forever)
+            thread.start()
+            try:
+                app = create_starlette_app(
+                    base_url=base_url,
+                    enable_acp_proxy=True,
+                    skew_protection=False,
+                )
+                with_server(app)
+                init_state(
+                    session_manager=get_mock_session_manager(
+                        mode=SessionMode.EDIT
+                    ),
+                    base_url=base_url,
+                ).apply(app.state)
+
+                with TestClient(app) as client:
+                    with client.websocket_connect(
+                        f"{base_url}/acp/claude?access_token=fake-token"
+                    ) as websocket:
+                        # The upstream greeting checks path rewriting and that
+                        # marimo's authentication token stays out of the bridge.
+                        assert websocket.receive_text() == "/message"
+                        websocket.send_text('{"jsonrpc":"2.0","id":1}')
+                        assert websocket.receive_text() == (
+                            '{"jsonrpc":"2.0","id":1}'
+                        )
+                        websocket.send_bytes(b"binary message")
+                        assert websocket.receive_bytes() == b"binary message"
+            finally:
+                upstream.shutdown()
+                thread.join(timeout=5)
+                assert not thread.is_alive()
 
     def test_acp_proxy_ports_match_frontend(self) -> None:
         assert ACP_AGENT_PORTS == self.EXPECTED_AGENT_PORTS
