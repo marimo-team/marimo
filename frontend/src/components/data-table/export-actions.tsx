@@ -827,11 +827,11 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                     className="grid grid-cols-2 gap-3 border-t bg-muted/50 px-3.5 py-3.5 pl-[52px]"
                   >
                     <legend className="sr-only">{optionLabel} options</legend>
-                    {configurableFormat === "geojson" && (
+                    {isGeographic(configurableFormat) && (
                       <p className="col-span-2 text-xs text-muted-foreground">
-                        Reproject the selected geometry to longitude and
-                        latitude (WGS 84). Keep other geometry columns as
-                        complete WKT in their source coordinates.
+                        {configurableFormat === "geojson"
+                          ? "Reproject the selected geometry to longitude and latitude (WGS 84). Keep other geometry columns as complete WKT in their source coordinates."
+                          : "Use the selected column as the primary geometry. Preserve all geometry columns and their coordinate reference systems (CRS)."}
                       </p>
                     )}
                     {isGeographic(configurableFormat) ? (
