@@ -1380,9 +1380,9 @@ class TestDocumentKernelDivergence:
         assert "ghost" not in k.graph.cells
 
     @pytest.mark.parametrize("disabled", [False, True])
-    @pytest.mark.parametrize("override_hide_code", [False, True])
+    @pytest.mark.parametrize("edit", ["code", "config", "both"])
     async def test_edit_and_run_doc_only_cell(
-        self, k: Kernel, disabled: bool, override_hide_code: bool
+        self, k: Kernel, disabled: bool, edit: str
     ) -> None:
         """A cell present only in the document can be edited and run,
         bringing it into the kernel graph."""
@@ -1398,14 +1398,14 @@ class TestDocumentKernelDivergence:
             async with ctx as nb:
                 nb.edit_cell(
                     "ghost",
-                    code="z = 42",
-                    hide_code=False if override_hide_code else None,
+                    code=None if edit == "config" else "z = 42",
+                    hide_code=None if edit == "code" else False,
                 )
                 nb.run_cell("ghost")
 
         expected_config = CellConfig(
             disabled=disabled,
-            hide_code=not override_hide_code,
+            hide_code=edit == "code",
             expand_output=True,
             column=2,
         )
@@ -1414,7 +1414,7 @@ class TestDocumentKernelDivergence:
         if disabled:
             assert "z" not in k.globals
         else:
-            assert k.globals["z"] == 42
+            assert k.globals["z"] == (0 if edit == "config" else 42)
 
     async def test_create_cell_no_collision_with_doc_only_ids(
         self, k: Kernel
