@@ -40,6 +40,8 @@ _MIN_GEOPANDAS_GEOPARQUET_VERSION = "0.14.1"
 _GEOPANDAS_UPGRADE_MESSAGE = (
     "Update geopandas to 0.14.1 or newer to export GeoParquet."
 )
+_MIN_SHAPELY_GEOJSON_VERSION = "2.0"
+_SHAPELY_UPGRADE_MESSAGE = "Update shapely to 2.0 or newer to export GeoJSON."
 
 
 class GeometryExportError(Exception):
@@ -193,7 +195,14 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
                 missing_packages=missing_packages,
             )
     else:
-        formats["geojson"] = ExportFormatEligibility(available=True)
+        if DependencyManager.shapely.has_at_version(
+            min_version=_MIN_SHAPELY_GEOJSON_VERSION, quiet=True
+        ):
+            formats["geojson"] = ExportFormatEligibility(available=True)
+        else:
+            formats["geojson"] = ExportFormatEligibility(
+                available=False, reason=_SHAPELY_UPGRADE_MESSAGE
+            )
         if not DependencyManager.geopandas.has_at_version(
             min_version=_MIN_GEOPANDAS_GEOPARQUET_VERSION, quiet=True
         ):
@@ -313,11 +322,18 @@ def serialize_geojson(
             "This pandas table needs geopandas to export GeoJSON.",
             missing_packages=["geopandas"],
         )
+    if not DependencyManager.shapely.has_at_version(
+        min_version=_MIN_SHAPELY_GEOJSON_VERSION, quiet=True
+    ):
+        raise GeometryExportError(
+            "unsupported_version", _SHAPELY_UPGRADE_MESSAGE
+        )
 
     import geopandas as gpd  # type: ignore[import-not-found,import-untyped,unused-ignore]
     from shapely.ops import orient  # type: ignore[import-untyped]
 
     from marimo._plugins.ui._impl.tables.pandas_table import (
+        PandasTableManagerFactory,
         _index_level_names,
         _trivial_range_index,
     )
@@ -328,6 +344,9 @@ def serialize_geojson(
             "invalid_metadata", "GeoJSON export requires unique column names."
         )
     geometry = gpd.GeoSeries(native[primary].array, index=native.index)
+    exports_index = isinstance(
+        manager, PandasTableManagerFactory.create()
+    ) and not _trivial_range_index(native.index)
     if geometry.crs is None:
         raise GeometryExportError(
             "missing_crs",
@@ -361,7 +380,7 @@ def serialize_geojson(
             manager.drop_columns([primary])
         )
         properties: list[dict[str, Any]]
-        if len(native.columns) == 1 and _trivial_range_index(native.index):
+        if len(native.columns) == 1 and not exports_index:
             properties = [{} for _ in range(len(native))]
         else:
             property_json = properties_manager.to_json_str(
@@ -374,7 +393,7 @@ def serialize_geojson(
         if not isinstance(properties, list) or len(properties) != len(native):
             raise ValueError("Property conversion changed the number of rows.")
         expected_keys = set(native.columns) - {primary}
-        if not _trivial_range_index(native.index):
+        if exports_index:
             expected_keys.update(
                 _index_level_names(native.index, expected_keys)
             )

@@ -1,14 +1,26 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import { DownloadAsSchema, GetExportMetadataSchema } from "../schemas";
+import {
+  DownloadAsSchema,
+  DownloadGeoJSONSchema,
+  GetExportMetadataSchema,
+} from "../schemas";
 
 describe("geometry export contracts", () => {
+  it("keeps the existing download_as formats unchanged", () => {
+    for (const format of ["csv", "tsv", "json", "parquet"]) {
+      expect(DownloadAsSchema.input.parse({ format })).toEqual({ format });
+    }
+    expect(
+      DownloadAsSchema.input.safeParse({ format: "geojson" }).success,
+    ).toBe(false);
+  });
   it.each([undefined, "geom_b", ""])(
     "accepts a GeoJSON request with geometry %s",
     (geometry_column) => {
       const request = { format: "geojson", geometry_column };
-      expect(DownloadAsSchema.input.parse(request)).toEqual(request);
+      expect(DownloadGeoJSONSchema.input.parse(request)).toEqual(request);
     },
   );
 
@@ -20,7 +32,7 @@ describe("geometry export contracts", () => {
       column: "",
       error: "Declare a CRS.",
     };
-    expect(DownloadAsSchema.output.parse(response)).toEqual(response);
+    expect(DownloadGeoJSONSchema.output.parse(response)).toEqual(response);
   });
 
   it("accepts GeoJSON support when the default geometry has no CRS", () => {

@@ -4,11 +4,17 @@ import { Tooltip } from "radix-ui";
 
 const TooltipProvider = Tooltip.Provider;
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { Provider } from "jotai";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
-import type { DownloadAsArgs } from "@/components/data-table/schemas";
+import type { DownloadAsFunction } from "@/components/data-table/schemas";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import { store } from "@/core/state/jotai";
 import {
@@ -19,6 +25,10 @@ import {
 
 // Default to normal (non-static) mode; individual tests flip this on.
 const mockIsStatic = vi.fn().mockReturnValue(false);
+vi.mock("@/utils/download", () => ({
+  downloadByURL: vi.fn(),
+  withLoadingToast: vi.fn(async (_title, callback) => callback()),
+}));
 vi.mock("@/core/static/static-state", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/core/static/static-state")>();
@@ -30,9 +40,15 @@ beforeAll(() => {
 });
 
 describe("LoadingDataTableComponent", () => {
-  it("keeps data columns when inferred types include a row header", async () => {
+  it("keeps data columns and routes each export to its RPC", async () => {
     const host = document.createElement("div");
     const data = JSON.stringify([{ index: "first", value: 1 }]);
+    const downloadAs = vi
+      .fn()
+      .mockResolvedValue({ url: "export", filename: "table.csv" });
+    const downloadGeoJSON = vi
+      .fn()
+      .mockResolvedValue({ url: "export", filename: "table.geojson" });
 
     render(
       <Provider store={store}>
@@ -43,7 +59,7 @@ describe("LoadingDataTableComponent", () => {
             pagination={false}
             pageSize={10}
             selection={null}
-            showDownload={false}
+            showDownload={true}
             showFilters={false}
             showColumnSummaries={false}
             showDataTypes={false}
@@ -68,8 +84,22 @@ describe("LoadingDataTableComponent", () => {
               cell_styles: null,
               cell_hover_texts: null,
             })}
-            download_as={vi.fn() as DownloadAsArgs}
-            get_export_metadata={vi.fn()}
+            download_as={downloadAs}
+            download_geojson={downloadGeoJSON}
+            get_export_metadata={vi.fn().mockResolvedValue({
+              geometry_columns: [
+                { name: "value", encoding: "objects", crs: "EPSG:4326" },
+              ],
+              primary_geometry_column: "value",
+              default_geometry_column: "value",
+              formats: {
+                geojson: {
+                  available: true,
+                  reason: null,
+                  missing_packages: [],
+                },
+              },
+            })}
             get_column_summaries={vi.fn()}
             get_data_url={vi.fn() as GetDataUrl}
             get_row_ids={vi.fn() as GetRowIds}
@@ -84,6 +114,26 @@ describe("LoadingDataTableComponent", () => {
         screen.getByRole("columnheader", { name: "value" }),
       ).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByTestId("export-button"));
+    await screen.findByRole("dialog", { name: "Export table" });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Download GeoJSON" }),
+      ).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Download GeoJSON" }));
+    await waitFor(() =>
+      expect(downloadGeoJSON).toHaveBeenCalledWith({
+        format: "geojson",
+        geometry_column: "value",
+      }),
+    );
+    expect(downloadAs).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
+    await waitFor(() =>
+      expect(downloadAs).toHaveBeenCalledWith({ format: "csv" }),
+    );
+    expect(downloadGeoJSON).toHaveBeenCalledTimes(1);
   });
 
   it("does not log duplicate keys when a pivot becomes empty", async () => {
@@ -123,7 +173,8 @@ describe("LoadingDataTableComponent", () => {
       showSearch: false,
       value: [] as (number | string | { rowId: string; columnName?: string })[],
       setValue: vi.fn(),
-      download_as: vi.fn() as DownloadAsArgs,
+      download_as: vi.fn() as DownloadAsFunction,
+      download_geojson: vi.fn(),
       get_export_metadata: vi.fn(),
       get_column_summaries: vi.fn(),
       get_data_url: vi.fn() as GetDataUrl,
@@ -265,7 +316,8 @@ describe("LoadingDataTableComponent", () => {
       showSearch: true,
       value: [] as (number | string | { rowId: string; columnName?: string })[],
       setValue,
-      download_as: vi.fn() as DownloadAsArgs,
+      download_as: vi.fn() as DownloadAsFunction,
+      download_geojson: vi.fn(),
       get_export_metadata: vi.fn(),
       get_column_summaries: vi.fn().mockResolvedValue({
         data: null,
@@ -382,7 +434,8 @@ describe("static notebook control suppression", () => {
         cell_styles: null,
         cell_hover_texts: null,
       }),
-      download_as: vi.fn() as DownloadAsArgs,
+      download_as: vi.fn() as DownloadAsFunction,
+      download_geojson: vi.fn(),
       get_export_metadata: vi.fn(),
       get_column_summaries: vi.fn().mockResolvedValue({
         data: null,

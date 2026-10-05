@@ -36,7 +36,10 @@ import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-owner
 import { LoadingTable } from "@/components/data-table/loading-table";
 import {
   type DownloadAsArgs,
+  type DownloadAsFunction,
   DownloadAsSchema,
+  type DownloadGeoJSON,
+  DownloadGeoJSONSchema,
   type GetExportMetadata,
   GetExportMetadataSchema,
 } from "@/components/data-table/schemas";
@@ -211,7 +214,8 @@ interface Data<T> {
 
 // oxlint-disable-next-line typescript/consistent-type-definitions
 type DataTableFunctions = {
-  download_as: DownloadAsArgs;
+  download_as: DownloadAsFunction;
+  download_geojson: DownloadGeoJSON;
   get_export_metadata: GetExportMetadata;
   get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
@@ -305,6 +309,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   )
   .withFunctions<DataTableFunctions>({
     download_as: DownloadAsSchema,
+    download_geojson: DownloadGeoJSONSchema,
     get_export_metadata: GetExportMetadataSchema,
     get_column_summaries: rpc.input(z.looseObject({})).output(
       z.object({
@@ -843,7 +848,8 @@ const DataTableComponent = ({
   fieldTypes,
   paginationState,
   setPaginationState,
-  download_as: downloadAs,
+  download_as,
+  download_geojson,
   get_export_metadata: getExportMetadata,
   columnSummaries,
   className,
@@ -885,6 +891,15 @@ const DataTableComponent = ({
     sizeBytesIsLoading?: boolean;
   }): JSX.Element => {
   const id = useId();
+  const downloadAs = useCallback<DownloadAsArgs>(
+    (request) => {
+      const { format, ...options } = request;
+      return format === "geojson"
+        ? download_geojson({ format, ...options })
+        : download_as({ format, ...options });
+    },
+    [download_as, download_geojson],
+  );
   const { locale } = useLocale();
   const [viewedRowIdx, setViewedRowIdx] = useState(0);
   const { isPanelOpen, isAnyPanelOpen, togglePanel, panelType, setPanelType } =

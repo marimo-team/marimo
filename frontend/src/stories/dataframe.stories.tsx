@@ -42,6 +42,7 @@ export const DataFrame: StoryObj = {
         host={document.body}
         showDownload={false}
         download_as={async () => ({ url: "", filename: "" })}
+        download_geojson={async () => ({ url: "", filename: "" })}
         get_export_metadata={async () => ({
           geometry_columns: [],
           primary_geometry_column: null,
