@@ -489,21 +489,11 @@ class TestTemporalColSummaries(unittest.TestCase):
                     datetime.datetime(2021, 1, 5),
                 ],
                 "datetime_with_tz": [
-                    datetime.datetime(
-                        2021, 1, 1, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 2, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 3, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 4, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 5, tzinfo=datetime.timezone.utc
-                    ),
+                    datetime.datetime(2021, 1, 1, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 2, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 3, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 4, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 5, tzinfo=datetime.UTC),
                 ],
                 "time": [
                     datetime.time(1, 2, 3),
@@ -565,28 +555,28 @@ class TestTemporalColSummaries(unittest.TestCase):
         assert bin_values == [
             BinValue(
                 bin_start=datetime.datetime(
-                    2021, 1, 1, 8, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 1, 8, 0, 0, tzinfo=datetime.UTC
                 ),
                 bin_end=datetime.datetime(
-                    2021, 1, 2, 16, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 2, 16, 0, 0, tzinfo=datetime.UTC
                 ),
                 count=2,
             ),
             BinValue(
                 bin_start=datetime.datetime(
-                    2021, 1, 2, 16, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 2, 16, 0, 0, tzinfo=datetime.UTC
                 ),
                 bin_end=datetime.datetime(
-                    2021, 1, 4, 0, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 4, 0, 0, 0, tzinfo=datetime.UTC
                 ),
                 count=1,
             ),
             BinValue(
                 bin_start=datetime.datetime(
-                    2021, 1, 4, 0, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 4, 0, 0, 0, tzinfo=datetime.UTC
                 ),
                 bin_end=datetime.datetime(
-                    2021, 1, 5, 8, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 5, 8, 0, 0, tzinfo=datetime.UTC
                 ),
                 count=2,
             ),
