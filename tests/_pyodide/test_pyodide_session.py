@@ -410,13 +410,39 @@ async def test_pyodide_session_find_packages_with_script_metadata(
     )
 
     packages = pyodide_session.find_packages(code)
-    assert sorted(packages) == sorted(["foo", "bar", "baz"])
+    # Specifiers are preserved: these go to micropip, which resolves them.
+    assert sorted(packages) == sorted(["foo", "bar==1.0.0", "baz>=2.0.0"])
     mock_pyodide.code.find_imports.assert_not_called()
+
+
+async def test_find_packages_keeps_a_pinned_prerelease(
+    pyodide_session: PyodideSession,
+) -> None:
+    """A pin is the only thing that selects a pre-release.
+
+    Dropping it does not just lose precision -- an unpinned name resolves to
+    the newest *stable* release, so the notebook silently gets a different
+    version than it asked for, and one that may not run in Pyodide at all.
+    """
+    code = dedent(
+        """
+        # /// script
+        # dependencies = ["somepkg==1.0.0.dev2"]
+        # ///
+
+        import somepkg
+        """
+    )
+
+    assert pyodide_session.find_packages(code) == ["somepkg==1.0.0.dev2"]
 
 
 @pytest.mark.parametrize(
     ("python_version", "expected_package"),
-    [("3.12", "older-python"), ("3.13", "newer-python")],
+    [
+        ("3.12", "older-python; python_version < '3.13'"),
+        ("3.13", "newer-python; python_version >= '3.13'"),
+    ],
 )
 async def test_find_packages_from_island_notebook(
     pyodide_session: PyodideSession,
@@ -441,8 +467,8 @@ async def test_find_packages_from_island_notebook(
         "packaging.markers.default_environment", return_value=environment
     ):
         assert pyodide_session.find_packages(code) == [
-            "cowsay",
-            "rich[jupyter]",
+            'cowsay==6.1; sys_platform == "emscripten"',
+            "rich[jupyter]>=13",
             expected_package,
         ]
     mock_pyodide.code.find_imports.assert_not_called()
@@ -471,36 +497,47 @@ async def test_complex_find_packages(pyodide_session: PyodideSession) -> None:
         """
     )
     packages = pyodide_session.find_packages(code)
-    assert sorted(packages) == sorted(["plotly[express]", "polars"])
+    assert sorted(packages) == sorted(
+        ["plotly[express]==6.5.0", "polars==1.36.1"]
+    )
 
 
 async def test_strip_version_resilience(
     pyodide_session: PyodideSession,
 ) -> None:
-    """Test strip_version function handles various PEP 440 version specifiers and edge cases."""
+    """find_packages keeps each requirement as written.
+
+    Specifiers reach micropip, which resolves them. Environment markers are
+    still applied (a non-emscripten requirement drops out), and URL forms are
+    unchanged. `strip_requirement_name` keeps its own tests in
+    tests/_runtime/packages/test_package_utils.py.
+    """
     code_templates = [
         # Basic version specifiers
-        ('dependencies = ["package==1.0.0"]', ["package"]),
-        ('dependencies = ["package>=1.0.0"]', ["package"]),
-        ('dependencies = ["package<=2.0.0"]', ["package"]),
-        ('dependencies = ["package~=1.4"]', ["package"]),
-        ('dependencies = ["package!=1.5.0"]', ["package"]),
-        ('dependencies = ["package>1.0"]', ["package"]),
-        ('dependencies = ["package<2.0"]', ["package"]),
-        ('dependencies = ["package===1.0.0"]', ["package"]),
+        ('dependencies = ["package==1.0.0"]', ["package==1.0.0"]),
+        ('dependencies = ["package>=1.0.0"]', ["package>=1.0.0"]),
+        ('dependencies = ["package<=2.0.0"]', ["package<=2.0.0"]),
+        ('dependencies = ["package~=1.4"]', ["package~=1.4"]),
+        ('dependencies = ["package!=1.5.0"]', ["package!=1.5.0"]),
+        ('dependencies = ["package>1.0"]', ["package>1.0"]),
+        ('dependencies = ["package<2.0"]', ["package<2.0"]),
+        ('dependencies = ["package===1.0.0"]', ["package===1.0.0"]),
         # With extras
-        ('dependencies = ["package[extra]==1.0.0"]', ["package[extra]"]),
+        (
+            'dependencies = ["package[extra]==1.0.0"]',
+            ["package[extra]==1.0.0"],
+        ),
         (
             'dependencies = ["package[extra1,extra2]>=1.0.0"]',
-            ["package[extra1,extra2]"],
+            ["package[extra1,extra2]>=1.0.0"],
         ),
         # With whitespace
-        ('dependencies = ["package >= 1.0.0"]', ["package"]),
-        ('dependencies = ["  package==1.0.0  "]', ["package"]),
+        ('dependencies = ["package >= 1.0.0"]', ["package >= 1.0.0"]),
+        ('dependencies = ["  package==1.0.0  "]', ["package==1.0.0"]),
         # With environment markers
         (
             'dependencies = ["package>=1.0.0; python_version>=\\"3.8\\""]',
-            ["package"],
+            ['package>=1.0.0; python_version>="3.8"'],
         ),
         (
             'dependencies = ["package[extra]>=1.0; sys_platform==\\"linux\\""]',
@@ -508,11 +545,11 @@ async def test_strip_version_resilience(
         ),
         (
             'dependencies = ["native>=1.0; sys_platform!=\\"emscripten\\"", "pure-python>=1.0"]',
-            ["pure-python"],
+            ["pure-python>=1.0"],
         ),
         (
             'dependencies = ["wasm-only; sys_platform==\\"emscripten\\"", "linux-only; sys_platform==\\"linux\\""]',
-            ["wasm-only"],
+            ['wasm-only; sys_platform=="emscripten"'],
         ),
         # URL dependencies - left as-is
         (
@@ -534,7 +571,7 @@ async def test_strip_version_resilience(
         # Multiple packages with various specifiers
         (
             'dependencies = ["foo==1.0", "bar>=2.0", "baz~=3.0", "qux[extra]>=4.0"]',
-            ["foo", "bar", "baz", "qux[extra]"],
+            ["foo==1.0", "bar>=2.0", "baz~=3.0", "qux[extra]>=4.0"],
         ),
         # No version specifier
         ('dependencies = ["package"]', ["package"]),

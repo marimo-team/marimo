@@ -1057,6 +1057,91 @@ class TestMW003IncompatiblePackages:
             )
         assert not any(d.code == "MW003" for d in diagnostics)
 
+    def test_bundled_pin_mismatch_flagged(self, monkeypatch, tmp_path):
+        """A specifier the Pyodide build cannot satisfy names both versions."""
+        from marimo._lint.rules.wasm import incompatible_packages as mod
+
+        monkeypatch.setattr(mod, "_resolve_dep_tree", lambda deps: deps)
+        mod._has_wasm_compatible_wheel.cache_clear()
+
+        notebook, contents = self._write_and_parse(
+            tmp_path, ["numpy==1.26.0", "pandas"]
+        )
+        with (
+            patch(
+                "marimo._pyodide.pyodide_constraints.requests.get",
+                return_value=_fake_lockfile_response(
+                    {"numpy": "2.4.3", "pandas": "3.0.2"}
+                ),
+            ),
+            patch(
+                "marimo._lint.rules.wasm.incompatible_packages."
+                "urllib.request.urlopen",
+                side_effect=AssertionError(
+                    "PyPI must not be queried for lockfile-listed packages"
+                ),
+            ),
+        ):
+            diagnostics = lint_notebook(
+                notebook, contents, lint_config={"select": ["MW003"]}
+            )
+        mw003 = [d for d in diagnostics if d.code == "MW003"]
+        assert len(mw003) == 1
+        assert "numpy==1.26.0" in mw003[0].message
+        assert "2.4.3" in mw003[0].message
+        assert "numpy==2.4.3" in (mw003[0].fix or "")
+        assert mw003[0].severity == Severity.WASM
+
+    def test_bundled_pin_satisfied_not_flagged(self, monkeypatch, tmp_path):
+        """Specifiers the Pyodide build satisfies are left alone."""
+        from marimo._lint.rules.wasm import incompatible_packages as mod
+
+        monkeypatch.setattr(mod, "_resolve_dep_tree", lambda deps: deps)
+        mod._has_wasm_compatible_wheel.cache_clear()
+
+        notebook, contents = self._write_and_parse(
+            tmp_path, ["pandas>=2.0", "numpy==2.4.3"]
+        )
+        with patch(
+            "marimo._pyodide.pyodide_constraints.requests.get",
+            return_value=_fake_lockfile_response(
+                {"numpy": "2.4.3", "pandas": "3.0.2"}
+            ),
+        ):
+            diagnostics = lint_notebook(
+                notebook, contents, lint_config={"select": ["MW003"]}
+            )
+        assert not any(d.code == "MW003" for d in diagnostics)
+
+    def test_unbundled_pin_not_version_checked(self, monkeypatch, tmp_path):
+        """micropip resolves non-Pyodide packages from PyPI; any pin is fine."""
+        from marimo._lint.rules.wasm import incompatible_packages as mod
+
+        monkeypatch.setattr(mod, "_resolve_dep_tree", lambda deps: deps)
+        mod._has_wasm_compatible_wheel.cache_clear()
+
+        notebook, contents = self._write_and_parse(
+            tmp_path, ["nltools==0.6.0.dev2"]
+        )
+        pypi_payload = {
+            "urls": [{"filename": "nltools-0.6.0.dev2-py3-none-any.whl"}]
+        }
+        with (
+            patch(
+                "marimo._pyodide.pyodide_constraints.requests.get",
+                return_value=_fake_lockfile_response({"numpy": "2.4.3"}),
+            ),
+            patch(
+                "marimo._lint.rules.wasm.incompatible_packages."
+                "urllib.request.urlopen",
+                return_value=_FakePypiResponse(pypi_payload),
+            ),
+        ):
+            diagnostics = lint_notebook(
+                notebook, contents, lint_config={"select": ["MW003"]}
+            )
+        assert not any(d.code == "MW003" for d in diagnostics)
+
     def test_pyemscripten_wheel_tag_compatible(self) -> None:
         """PEP 783 pyemscripten_*_wasm32 wheels match via the wasm32 suffix."""
         from marimo._lint.rules.wasm import incompatible_packages as mod
