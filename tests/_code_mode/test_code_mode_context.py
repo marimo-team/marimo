@@ -25,7 +25,11 @@ from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     OperationRunning,
 )
-from marimo._runtime.commands import ExecuteCellCommand
+from marimo._runtime.commands import (
+    CreateNotebookCommand,
+    ExecuteCellCommand,
+    UpdateUIElementCommand,
+)
 from marimo._runtime.packages.package_manager import PackageDescription
 from marimo._runtime.runtime import Kernel
 from marimo._types.ids import CellId_t
@@ -1437,6 +1441,85 @@ class TestDocumentKernelDivergence:
                 new_id = nb.create_cell("x = 1")
 
         assert new_id not in {c.id for c in doc_only}
+
+
+class TestPendingExecutionRequests:
+    @staticmethod
+    async def _open_notebook(k: Kernel) -> list[NotebookCell]:
+        cells = [
+            NotebookCell(
+                id=CellId_t(cid), code=code, name="", config=CellConfig()
+            )
+            for cid, code in (
+                ("root", "x = 1"),
+                ("child", "y = x + 1"),
+                ("unrelated", "raise RuntimeError('must not run')"),
+            )
+        ]
+        await k.instantiate(
+            CreateNotebookCommand(
+                execution_requests=tuple(
+                    ExecuteCellCommand(cell_id=c.id, code=c.code)
+                    for c in cells
+                ),
+                cell_ids=tuple(c.id for c in cells),
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        return cells
+
+    async def test_mixed_run_discovers_pending_ancestor(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        cells = await self._open_notebook(k)
+        with _ctx(k, extra_doc_cells=cells) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("child", code="y = x + 2")
+                nb.run_cell("child")
+        assert k.globals["y"] == 3
+        assert set(k._uninstantiated_execution_requests) == {"unrelated"}
+        assert "unrelated" not in k.graph.cells
+
+    @pytest.mark.parametrize("run_edited_cell", [False, True])
+    async def test_later_run_does_not_replay_old_source(
+        self, any_kernel: Kernel, run_edited_cell: bool
+    ) -> None:
+        k = any_kernel
+        cells = await self._open_notebook(k)
+        with _ctx(k, extra_doc_cells=cells) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("root", code="x = 10")
+                if run_edited_cell:
+                    nb.run_cell("root")
+                    nb.run_cell("child")
+        if not run_edited_cell:
+            assert "x" not in k.globals
+        await k.run(
+            [ExecuteCellCommand(cell_id=CellId_t("child"), code="y = x + 1")]
+        )
+        assert k.globals["x"] == 10
+        assert k.globals["y"] == 11
+        assert k.graph.cells["root"].code == "x = 10"
+        assert set(k._uninstantiated_execution_requests) == {"unrelated"}
+
+    async def test_later_run_does_not_restore_deleted_pending_cell(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        cells = await self._open_notebook(k)
+        with _ctx(k, extra_doc_cells=cells) as ctx:
+            async with ctx as nb:
+                nb.delete_cell("root")
+        await k.run(
+            [ExecuteCellCommand(cell_id=CellId_t("child"), code="y = x + 1")]
+        )
+        assert "root" not in k.graph.cells
+        assert "x" not in k.globals
+        assert "y" not in k.globals
 
 
 class TestErrorReporting:
