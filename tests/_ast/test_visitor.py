@@ -1120,7 +1120,6 @@ def test_try_block() -> None:
     assert v.defs == {"f", "v", "w", "x", "y", "z", "err", "err2", "err3"}
 
 
-@pytest.mark.skipif("sys.version_info < (3, 11)")
 def test_try_star_block() -> None:
     code = "try:\n  raise ExceptionGroup('eg', [ValueError(1), TypeError(2), OSError(3)])\nexcept* TypeError as e:\n  print(f'caught {type(e)} with nested {e.exceptions}')\nexcept* OSError as f:\n  print(f'caught {type(f)} with nested {f.exceptions}')\nelse:\n  print('Type and Os not raised')\nfinally:\n  print('finally')"
     v = visitor.ScopedVisitor()

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -25,8 +24,6 @@ if TYPE_CHECKING:
     from marimo._session import Session
 
 LOGGER = _loggers.marimo_logger()
-
-LORO_ALLOWED = sys.version_info >= (3, 11)
 
 # Strong refs so fire-and-forget tasks aren't GC'd mid-flight.
 _background_tasks: set[asyncio.Task[Any]] = set()
@@ -155,7 +152,7 @@ def is_rtc_available() -> bool:
     Returns:
         True if Loro is available, False otherwise.
     """
-    return LORO_ALLOWED and DependencyManager.loro.has()
+    return DependencyManager.loro.has()
 
 
 def _should_init_rtc(rtc_enabled: bool, mode: SessionMode) -> bool:
@@ -187,9 +184,7 @@ def _try_init_rtc_doc(
         file_key: File key for the document
         doc_manager: LoroDoc manager
     """
-    if not LORO_ALLOWED:
-        LOGGER.warning("RTC: Python version is not supported (requires 3.11+)")
-    elif not DependencyManager.loro.has():
+    if not DependencyManager.loro.has():
         LOGGER.warning(
             "RTC: Loro is not installed, disabling real-time collaboration"
         )

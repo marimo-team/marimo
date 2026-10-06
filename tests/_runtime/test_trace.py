@@ -45,13 +45,11 @@ class TestScriptTrace:
         # Expected output:
         #    y = y / x
         #        ~~^~~
-        # exact line numbers differ by python version
-        if sys.version_info >= (3, 11):
-            assert (
-                result.split("y / x")[1]
-                .split("\n")[1]
-                .startswith("           ~~^~~")
-            )
+        assert (
+            result.split("y / x")[1]
+            .split("\n")[1]
+            .startswith("           ~~^~~")
+        )
 
     @staticmethod
     def test_script_trace() -> None:
@@ -191,8 +189,7 @@ class TestAppTrace:
         post_file = result.split("marimo__cell")[1].split("\n")
         assert "line 4" in post_file[0]
         assert post_file[1].startswith("    y = y / x #L4")
-        if sys.version_info >= (3, 11):
-            assert post_file[2].startswith("        ~~^~~")
+        assert post_file[2].startswith("        ~~^~~")
 
     @staticmethod
     async def test_app_trace_output_line_number(
@@ -240,8 +237,7 @@ class TestAppTrace:
         assert "foo()" in post_file_call[1]
         post_file_error = result.split("marimo__cell_0")[1].split("\n")
         assert post_file_error[1].startswith("    y = y / x #L5")
-        if sys.version_info >= (3, 11):
-            assert post_file_error[2].startswith("        ~~^~~")
+        assert post_file_error[2].startswith("        ~~^~~")
 
     @staticmethod
     async def test_app_trace_name_error_reference_caught(

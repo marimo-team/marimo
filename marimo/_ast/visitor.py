@@ -523,11 +523,7 @@ class ScopedVisitor(ast.NodeVisitor):
             self.visit(node.value)
             self.visit(node.key)
             self._pop_block()
-        elif isinstance(node, ast.Try) or (
-            sys.version_info >= (3, 11) and isinstance(node, ast.TryStar)
-        ):
-            if sys.version_info < (3, 11):
-                assert isinstance(node, ast.Try)
+        elif isinstance(node, (ast.Try, ast.TryStar)):
             # "Try" nodes have "handlers" that introduce exception context
             # variables that are tied to the try block, and don't exist beyond
             # it.
