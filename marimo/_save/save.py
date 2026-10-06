@@ -74,8 +74,7 @@ from marimo._utils.with_skip import SkipContext
 if TYPE_CHECKING:
     from collections.abc import Coroutine
     from types import FrameType, TracebackType
-
-    from typing_extensions import Self
+    from typing import Self
 
     from marimo._runtime.context import RuntimeContext
     from marimo._save.stores import Store

@@ -40,10 +40,10 @@ from tests._server.mocks import get_session_manager
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import Self
 
     from starlette.applications import Starlette
     from starlette.testclient import TestClient
-    from typing_extensions import Self
 
 SSE_QUERY = "session_id=123&access_token=fake-token"
 OTHER_SSE_QUERY = "session_id=456&access_token=fake-token"

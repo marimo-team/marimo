@@ -14,7 +14,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
 
 T = TypeVar("T")
 Ref = weakref.ReferenceType[T] | Callable[[], T]

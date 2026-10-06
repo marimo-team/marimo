@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
 
 from marimo._ast.parse import parse_notebook
 from marimo._lint.diagnostic import Severity

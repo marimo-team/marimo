@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Any, NoReturn
 
 if TYPE_CHECKING:
     from types import FrameType
+    from typing import Self
 
     from _typeshed import TraceFunction
-    from typing_extensions import Self
 
 
 class SkipContext(ABC):

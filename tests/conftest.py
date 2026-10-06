@@ -40,8 +40,7 @@ if TYPE_CHECKING:
     import threading
     from collections.abc import Callable, Generator
     from types import ModuleType, TracebackType
-
-    from typing_extensions import Self
+    from typing import Self
 
     from marimo._runtime.runtime import Kernel
 
