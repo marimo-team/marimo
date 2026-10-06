@@ -11,7 +11,7 @@ import asyncio
 import base64
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from marimo import _loggers
@@ -25,6 +25,8 @@ if TYPE_CHECKING:
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
+
+_OutputState: TypeAlias = Literal["empty", "ready", "pending"]
 
 _READINESS_TIMEOUT_MS = 90_000
 _NETWORK_IDLE_TIMEOUT_MS = 10_000
@@ -226,7 +228,7 @@ class _ScreenshotSession:
     def _page_url(self) -> str:
         """Build an authenticated kiosk URL for the active notebook."""
         url = urlsplit(self._server_url)
-        params = {"kiosk": "true"}
+        params = {"kiosk": "true", "capture": "true"}
         # Session IDs also identify consumers. The kiosk must create its
         # own consumer and join the live session by file key.
         if self._file_key is not None:
@@ -252,67 +254,92 @@ class _ScreenshotSession:
         Raises :class:`ScreenshotError` if the cell container is
         missing, has no content, or no output element becomes visible.
         """
+        reused_page = self._page is not None
         await self._ensure_ready()
         assert self._page is not None
-
-        LOGGER.debug("Screenshot: capturing cell %s", cell_id)
-
-        # Step 1: find the cell container in the DOM.  The page is
-        # cached, so if a cell was added after launch we reload once.
+        deadline = time.monotonic() + timeout_ms / 1000.0
+        refreshed = False
         container_selector = f"#output-{cell_id}"
-        attach_timeout = min(_ATTACH_TIMEOUT_MS, timeout_ms)
-        try:
-            await self._wait_for_container(
-                container_selector, timeout=attach_timeout
-            )
-        except Exception:
-            LOGGER.debug(
-                "Screenshot: container %s missing, reloading page once",
-                container_selector,
+
+        while True:
+            remaining = self._remaining_ms(deadline)
+            wait_timeout = (
+                remaining if refreshed else min(_ATTACH_TIMEOUT_MS, remaining)
             )
             try:
-                await self._navigate(initial=False)
-            except Exception:
-                # If reload itself blows up, fall through to the
-                # original error path — we still want to surface the
-                # missing-container hints to the caller.
-                LOGGER.warning("Screenshot: page reload failed")
-            try:
-                await self._wait_for_container(
-                    container_selector, timeout=attach_timeout
+                state = await self._wait_for_output(
+                    cell_id,
+                    timeout=wait_timeout,
+                    probe=True,
                 )
+                if state == "pending":
+                    try:
+                        state = await self._wait_for_output(
+                            cell_id, timeout=self._remaining_ms(deadline)
+                        )
+                    except Exception as err:
+                        raise ScreenshotError(
+                            f"Cell {cell_id!r} has no visible rendered output after waiting.\n"
+                            "Fix: inspect the cell's code and errors, run it if needed, "
+                            "or increase `timeout_ms` if rendering is slow."
+                        ) from err
+            except ScreenshotError:
+                raise
             except Exception as err:
-                available = await self._list_cell_ids()
+                if refreshed:
+                    available = await self._list_cell_ids()
+                    raise ScreenshotError(
+                        self._format_missing_container_error(
+                            cell_id, available
+                        )
+                    ) from err
+            else:
+                if state == "ready":
+                    break
+                if not reused_page or refreshed:
+                    raise ScreenshotError(
+                        f"Cell {cell_id!r} has no rendered output.\n"
+                        "Fix: inspect `ctx.cells[cell_id].code` and `.errors`, "
+                        "then run the cell (`ctx.run_cell(...)`) with a "
+                        "displayable last expression or `mo.output.append(...)`. "
+                        "Printed text is console output and cannot be captured here."
+                    )
+
+            # A reused kiosk may lag execution in the current invocation.
+            # Empty and missing outputs share one refresh before rejection.
+            refreshed = True
+            remaining = self._remaining_ms(deadline)
+            try:
+                await asyncio.wait_for(
+                    self._navigate(initial=False), remaining / 1000.0
+                )
+            except TimeoutError as err:
                 raise ScreenshotError(
-                    self._format_missing_container_error(cell_id, available)
+                    "Screenshot timed out while refreshing. Fix: increase `timeout_ms`."
                 ) from err
 
-        # Step 2: container exists but may be empty (cell not run, or
-        # returned None).
-        if not await self._container_has_content(container_selector):
-            raise ScreenshotError(
-                f"Cell {cell_id!r} has no rendered content.\n"
-                "Fix: run the cell first (`ctx.run_cell(...)`) and "
-                "ensure its last expression is not None."
-            )
-
-        # Step 3: resolve the screenshottable element via prioritised
-        # selector list (.output, .vega-embed, .plotly, etc.).
         target = await self._resolve_output_locator(
-            container_selector, timeout_ms=timeout_ms
+            container_selector, timeout_ms=self._remaining_ms(deadline)
         )
-
-        await target.scroll_into_view_if_needed(timeout=timeout_ms)
+        await target.scroll_into_view_if_needed(
+            timeout=self._remaining_ms(deadline)
+        )
         await self._page.evaluate(WAIT_FOR_NEXT_PAINT)
         image: bytes = await target.screenshot(
             type="png",
             animations="disabled",
-            timeout=timeout_ms,
-        )
-        LOGGER.debug(
-            "Screenshot: captured cell %s (%d bytes)", cell_id, len(image)
+            timeout=self._remaining_ms(deadline),
         )
         return image
+
+    @staticmethod
+    def _remaining_ms(deadline: float) -> int:
+        remaining = int((deadline - time.monotonic()) * 1000)
+        if remaining <= 0:
+            raise ScreenshotError(
+                "Screenshot timed out. Fix: increase `timeout_ms` if rendering is slow."
+            )
+        return remaining
 
     async def _resolve_output_locator(
         self,
@@ -363,14 +390,41 @@ class _ScreenshotSession:
             "not hidden (display:none)."
         ) from last_error
 
-    async def _wait_for_container(
-        self, container_selector: str, *, timeout: int
-    ) -> None:
-        """Wait for a cell output container to attach to the DOM."""
+    async def _wait_for_output(
+        self, cell_id: CellId_t, *, timeout: int, probe: bool = False
+    ) -> _OutputState:
         assert self._page is not None
-        await self._page.locator(container_selector).first.wait_for(
-            state="attached", timeout=timeout
+        handle = await self._page.wait_for_function(
+            """({cellId, probe}) => {
+                const marker = document.querySelector(
+                    `[data-cell-output-id="${CSS.escape(cellId)}"]`
+                );
+                const state = marker?.dataset.outputState;
+                if (state === "empty") return "empty";
+                const el = document.getElementById(`output-${cellId}`);
+                if (state !== "unknown" && state !== "pending" &&
+                    el && el.getClientRects().length > 0 &&
+                    (el.children.length > 0 || el.textContent.trim().length > 0)) {
+                    return "ready";
+                }
+                // A known cell gets the full rendering budget, without reloading.
+                if (probe && (marker || el)) return "pending";
+                return false;
+            }""",
+            arg={"cellId": cell_id, "probe": probe},
+            timeout=timeout,
         )
+        try:
+            state = await handle.json_value()
+        finally:
+            await handle.dispose()
+        if state == "empty":
+            return "empty"
+        if state == "ready":
+            return "ready"
+        if state == "pending":
+            return "pending"
+        raise ScreenshotError(f"Unexpected browser output state: {state!r}")
 
     async def _list_cell_ids(self) -> list[str]:
         """Return the cell IDs currently rendered on the page."""
@@ -383,20 +437,6 @@ class _ScreenshotSession:
             return ids
         except Exception:
             return []
-
-    async def _container_has_content(self, container_selector: str) -> bool:
-        """Whether the cell container has any rendered children."""
-        assert self._page is not None
-        try:
-            return bool(
-                await self._page.eval_on_selector(
-                    container_selector,
-                    "el => el.children.length > 0 "
-                    "|| el.textContent.trim().length > 0",
-                )
-            )
-        except Exception:
-            return False
 
     async def _describe_container(self, container_selector: str) -> str:
         """Human-readable snapshot of the container for error messages."""
@@ -439,7 +479,9 @@ class _ScreenshotSession:
             f"{available_line}\n"
             "Fix: verify the cell ID/name/index, and ensure the "
             "context manager has exited (which flushes new cells "
-            "to the frontend)."
+            "to the frontend). Inspect the cell's code and errors: "
+            "a cell that has not run or produces no display output "
+            "has no output container. Printed text is console output."
         )
 
     async def close(self) -> None:

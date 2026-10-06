@@ -194,9 +194,27 @@ async def test_screenshots_attach_to_live_notebook(tmp_path: Path) -> None:
                         # prevent capturing output rendered after run_cell.
                         code = f"""
 import marimo._code_mode as cm
+from marimo._code_mode.screenshot import ScreenshotError
+import time
 from urllib.parse import parse_qs, urlsplit
 ctx = cm.get_context()
 assert all(cell.output is None or cell.output.data == "" for cell in ctx.cells)
+empty_id = ctx.cells[-1].id
+async with ctx:
+    ctx.run_cell(empty_id)
+for attempt in range(2):
+    started = time.monotonic()
+    try:
+        await ctx.screenshot(empty_id)
+    except ScreenshotError as error:
+        assert "has no rendered output" in str(error), str(error)
+        assert "ctx.run_cell" in str(error)
+    else:
+        raise AssertionError("An assignment has no display output")
+    if attempt:
+        elapsed = time.monotonic() - started
+        assert elapsed < 5
+        print("EMPTY_CAPTURE_MS=" + str(round(elapsed * 1000)))
 async with ctx:
     {operation}
     ctx.run_cell(cell_id)
@@ -206,6 +224,8 @@ assert image.startswith(b"\\x89PNG\\r\\n\\x1a\\n")
 assert {marker!r} in await session._page.locator("#output-" + cell_id).inner_text()
 assert parse_qs(urlsplit(session._page.url).query)["file"] == [{key!r}]
 assert parse_qs(urlsplit(session._page.url).query)["kiosk"] == ["true"]
+assert parse_qs(urlsplit(session._page.url).query)["capture"] == ["true"]
+assert await session._page.locator("[data-cell-output-id]").count() > 0
 browser = session._browser
 page = session._page
 await ctx.close_screenshot_session()
@@ -240,12 +260,41 @@ image
                         stdout = await _execute(
                             client, session_id, code, verify_png=True
                         )
+                        empty_capture_ms = next(
+                            line.removeprefix("EMPTY_CAPTURE_MS=")
+                            for line in stdout.splitlines()
+                            if line.startswith("EMPTY_CAPTURE_MS=")
+                        )
+                        print(
+                            f"Reused empty-output capture: {empty_capture_ms}ms"
+
+                        )
                         cell_id = next(
                             line.removeprefix("CELL_ID=")
                             for line in stdout.splitlines()
                             if line.startswith("CELL_ID=")
                         )
                         await page.get_by_text(marker, exact=True).wait_for()
+                        kiosk = await page.context.new_page()
+                        await kiosk.goto(
+                            base
+                            + "/?"
+                            + urlencode(
+                                {
+                                    "file": key,
+                                    "access_token": token,
+                                    "kiosk": "true",
+                                }
+                            )
+                        )
+                        await kiosk.get_by_text(marker, exact=True).wait_for()
+                        assert (
+                            await kiosk.locator(
+                                "[data-cell-output-id]"
+                            ).count()
+                            == 0
+                        )
+                        await kiosk.close()
                         assert not websocket.is_closed()
                         assert (
                             await _execute(
@@ -269,3 +318,61 @@ image
                 except TimeoutError:
                     os.killpg(server.pid, signal.SIGKILL)
                     await asyncio.wait_for(server.wait(), timeout=5)
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    os.environ.get("MARIMO_TEST_SCREENSHOTS") != "1",
+    reason="Requires Playwright Chromium",
+)
+async def test_screenshot_waits_for_frontend_state_and_rendering() -> None:
+    from playwright.async_api import (
+        TimeoutError as BrowserTimeoutError,
+        async_playwright,
+    )
+
+    from marimo._code_mode.screenshot import _ScreenshotSession
+    from marimo._types.ids import CellId_t
+
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch()
+        try:
+            page = await browser.new_page()
+            session = _ScreenshotSession("http://localhost:1234")
+            session._page = page
+            for state in ("unknown", "pending", "available"):
+                content = "old output" if state != "available" else ""
+                await page.set_content(
+                    f'<span hidden data-cell-output-id="a" data-output-state="{state}"></span>'
+                    f'<div id="output-a">{content}</div>'
+                )
+                with pytest.raises(BrowserTimeoutError):
+                    await session._wait_for_output(CellId_t("a"), timeout=50)
+                await page.evaluate("""() => {
+                    document.querySelector('[data-cell-output-id]').dataset.outputState = 'available';
+                    document.getElementById('output-a').textContent = 'new output';
+                }""")
+                assert (
+                    await session._wait_for_output(CellId_t("a"), timeout=1000)
+                    == "ready"
+                )
+
+            await page.evaluate("""() => {
+                document.querySelector('[data-cell-output-id]').dataset.outputState = 'pending';
+            }""")
+            wait = asyncio.create_task(
+                session._wait_for_output(CellId_t("a"), timeout=1000)
+            )
+            await page.evaluate("""() => {
+                document.querySelector('[data-cell-output-id]').dataset.outputState = 'empty';
+            }""")
+            assert await wait == "empty"
+
+            # Older frontend assets have no marker but can still render output.
+            await page.set_content('<div id="output-a">rich output</div>')
+            assert (
+                await session._wait_for_output(CellId_t("a"), timeout=1000)
+                == "ready"
+            )
+        finally:
+            await browser.close()

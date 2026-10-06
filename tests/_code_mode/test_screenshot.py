@@ -82,6 +82,7 @@ class TestScreenshotSessionAuthUrl:
             "access_token": ["secret+&=#?"],
             "file": ["notebooks/my notebook + #1.py"],
             "kiosk": ["true"],
+            "capture": ["true"],
         }
 
     def test_page_url_omits_token_when_none(self) -> None:
@@ -89,12 +90,12 @@ class TestScreenshotSessionAuthUrl:
         page_url = session._page_url()
 
         assert "access_token" not in page_url
-        assert page_url == "http://localhost:9999?kiosk=true"
+        assert page_url == "http://localhost:9999?kiosk=true&capture=true"
 
     def test_page_url_preserves_base_path_query_and_fragment(self) -> None:
         session = _ScreenshotSession(
             "http://localhost:9999/base/?theme=dark&theme=light&kiosk=false"
-            "&session_id=editor&file=old.py&access_token=old#output",
+            "&capture=false&session_id=editor&file=old.py&access_token=old#output",
             screenshot_auth_token="secret",
             file_key="__new__notebook",
         )
@@ -104,6 +105,7 @@ class TestScreenshotSessionAuthUrl:
         assert parse_qs(url.query) == {
             "theme": ["dark", "light"],
             "kiosk": ["true"],
+            "capture": ["true"],
             "file": ["__new__notebook"],
             "access_token": ["secret"],
         }
@@ -330,26 +332,150 @@ async def test_screenshot_passes_credentials_and_reuses_browser(
         session.return_value.close.assert_awaited_once()
 
 
-async def test_screenshot_rejects_currently_empty_browser_output() -> None:
+@pytest.mark.parametrize("reused_page", [False, True])
+async def test_empty_browser_output_refreshes_only_a_reused_page(
+    reused_page: bool,
+) -> None:
     session = _ScreenshotSession("http://localhost:1234")
-    session._page = MagicMock()
+    if reused_page:
+        session._page = MagicMock()
+
+    async def ready() -> None:
+        session._page = MagicMock()
+
     with (
-        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
-        patch.object(session, "_wait_for_container", new_callable=AsyncMock),
+        patch.object(session, "_ensure_ready", side_effect=ready),
         patch.object(
-            session,
-            "_container_has_content",
-            new_callable=AsyncMock,
-            return_value=False,
-        ) as has_content,
+            session, "_wait_for_output", return_value="empty"
+        ) as wait,
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
         patch.object(
             session, "_resolve_output_locator", new_callable=AsyncMock
-        ) as resolve_output,
+        ) as resolve,
     ):
-        with pytest.raises(ScreenshotError, match="has no rendered content"):
+        with pytest.raises(ScreenshotError, match="has no rendered output"):
             await session.capture(CellId_t("cell-a"))
-        has_content.assert_awaited_once_with("#output-cell-a")
-        resolve_output.assert_not_awaited()
+        assert wait.await_count == (2 if reused_page else 1)
+        if reused_page:
+            navigate.assert_awaited_once_with(initial=False)
+        else:
+            navigate.assert_not_awaited()
+        resolve.assert_not_awaited()
+
+
+async def test_reused_empty_browser_refreshes_before_rejecting_new_output() -> (
+    None
+):
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    target = AsyncMock()
+    target.screenshot.return_value = b"png"
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+        patch.object(
+            session, "_wait_for_output", side_effect=["empty", "ready"]
+        ),
+        patch.object(session, "_resolve_output_locator", return_value=target),
+    ):
+        assert await session.capture(CellId_t("cell-a")) == b"png"
+        navigate.assert_awaited_once_with(initial=False)
+
+
+async def test_missing_container_and_empty_output_share_one_refresh() -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+        patch.object(
+            session, "_wait_for_output", side_effect=[TimeoutError, "empty"]
+        ),
+    ):
+        with pytest.raises(ScreenshotError, match="has no rendered output"):
+            await session.capture(CellId_t("cell-a"))
+        navigate.assert_awaited_once_with(initial=False)
+
+
+async def test_rendering_wait_and_screenshot_share_timeout_budget() -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_wait_for_output", return_value="ready"),
+        patch.object(
+            session, "_resolve_output_locator", new_callable=AsyncMock
+        ) as resolve,
+        patch(
+            "marimo._code_mode.screenshot.time.monotonic",
+            side_effect=[0, 0.001, 0.050],
+        ),
+    ):
+        with pytest.raises(ScreenshotError, match="Screenshot timed out"):
+            await session.capture(CellId_t("cell-a"), timeout_ms=20)
+        resolve.assert_not_awaited()
+
+
+async def test_known_cell_gets_full_rendering_wait_without_refresh() -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    target = AsyncMock()
+    target.screenshot.return_value = b"png"
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(
+            session, "_wait_for_output", side_effect=["pending", "ready"]
+        ) as wait,
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+        patch.object(session, "_resolve_output_locator", return_value=target),
+    ):
+        assert await session.capture(CellId_t("cell-a")) == b"png"
+        assert wait.await_args_list[1].kwargs["timeout"] > 5000
+        navigate.assert_not_awaited()
+
+
+async def test_known_cell_render_timeout_is_actionable_without_refresh() -> (
+    None
+):
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(
+            session, "_wait_for_output", side_effect=["pending", TimeoutError]
+        ),
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+    ):
+        with pytest.raises(
+            ScreenshotError, match="no visible rendered output after waiting"
+        ):
+            await session.capture(CellId_t("cell-a"))
+        navigate.assert_not_awaited()
+
+
+@pytest.mark.parametrize("state", ["empty", "ready", "pending"])
+async def test_browser_state_handle_is_disposed(state: str) -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    handle = session._page.wait_for_function.return_value
+    handle.json_value.return_value = state
+    assert (
+        await session._wait_for_output(CellId_t("cell-a"), timeout=1000)
+        == state
+    )
+    handle.dispose.assert_awaited_once()
+
+
+async def test_unexpected_browser_state_is_rejected_and_disposed() -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    handle = session._page.wait_for_function.return_value
+    handle.json_value.return_value = "unknown"
+    with pytest.raises(
+        ScreenshotError, match="Unexpected browser output state"
+    ):
+        await session._wait_for_output(CellId_t("cell-a"), timeout=1000)
+    handle.dispose.assert_awaited_once()
 
 
 @pytest.fixture
@@ -358,6 +484,7 @@ def playwright_mock() -> MagicMock:
     playwright.stop = AsyncMock()
     browser = AsyncMock()
     page = AsyncMock()
+    page.on = MagicMock()
     browser.new_context.return_value.new_page.return_value = page
     playwright.chromium.launch = AsyncMock(return_value=browser)
     return playwright
