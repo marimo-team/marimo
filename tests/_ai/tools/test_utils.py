@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import copy
+from dataclasses import dataclass, field
 from typing import Any
+
+from marimo._config.config import DEFAULT_CONFIG
 
 
 @dataclass
@@ -26,10 +29,25 @@ class MockSessionView:
 
 
 @dataclass
+class MockConfigManager:
+    """Mock config manager for testing."""
+
+    config: Any = None
+
+    def get_config(self) -> Any:
+        if self.config is not None:
+            return self.config
+        return copy.deepcopy(DEFAULT_CONFIG)
+
+
+@dataclass
 class MockSession:
     """Mock session for testing."""
 
     _session_view: MockSessionView
+    config_manager: MockConfigManager = field(
+        default_factory=MockConfigManager
+    )
 
     @property
     def session_view(self) -> MockSessionView:

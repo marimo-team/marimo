@@ -4924,13 +4924,16 @@ components:
         \ there is none. The default is\n        `[\".env\"]`.\n    - `default_sql_output`:\
         \ the default output format for SQL queries. Can be one of:\n        `\"auto\"\
         `, `\"native\"`, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n     \
-        \   The default is `\"auto\"`.\n    - `default_auto_download`: an Optional\
-        \ list of export types to automatically snapshot your notebook as:\n     \
-        \  `html`, `markdown`, `ipynb`.\n       The default is None.\n    - `default_csv_encoding`:\
-        \ the default encoding for CSV exports.\n        The default is `\"utf-8\"\
-        `.\n    - `show_tracebacks`: if `True`, show detailed error tracebacks in\
-        \ run mode.\n        When enabled, exceptions will display a clickable toast\
-        \ that opens a modal with the full traceback.\n        The default is `False`."
+        \   The default is `\"auto\"`.\n    - `sql_keyword_case`: the keyword case\
+        \ used in generated SQL, such as\n        cell boilerplate, autocomplete suggestions,\
+        \ and table snippets.\n        Can be `\"upper\"` or `\"lower\"`. The default\
+        \ is `\"upper\"`.\n    - `default_auto_download`: an Optional list of export\
+        \ types to automatically snapshot your notebook as:\n       `html`, `markdown`,\
+        \ `ipynb`.\n       The default is None.\n    - `default_csv_encoding`: the\
+        \ default encoding for CSV exports.\n        The default is `\"utf-8\"`.\n\
+        \    - `show_tracebacks`: if `True`, show detailed error tracebacks in run\
+        \ mode.\n        When enabled, exceptions will display a clickable toast that\
+        \ opens a modal with the full traceback.\n        The default is `False`."
       properties:
         auto_instantiate:
           type: boolean
@@ -4975,6 +4978,10 @@ components:
           type: boolean
         show_tracebacks:
           type: boolean
+        sql_keyword_case:
+          enum:
+          - lower
+          - upper
         std_stream_max_bytes:
           type: integer
         watcher_on_save:
