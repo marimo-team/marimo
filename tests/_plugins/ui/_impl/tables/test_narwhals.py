@@ -1066,6 +1066,79 @@ def test_dataframe_with_all_null_column(df: Any) -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
+        {
+            "integer": [1, 2, 3, 4],
+            "floating": [1.5, None, 3.5, 4.5],
+            "decimal": [
+                Decimal("1.1"),
+                Decimal("2.2"),
+                Decimal("3.3"),
+                Decimal("4.4"),
+            ],
+        }
+    ),
+    ids=dataframe_backend_id,
+)
+def test_batched_numeric_stats_match_per_column_stats(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    numeric_columns = [
+        column
+        for column in manager.get_column_names()
+        if manager.get_field_type(column)[0] in ("integer", "number")
+    ]
+    per_column = {
+        column: manager.get_stats(column) for column in numeric_columns
+    }
+
+    assert set(numeric_columns) >= {"integer", "floating"}
+    assert manager.get_stats_for_columns(numeric_columns) == per_column
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize("lazy", [False, True], ids=["eager", "lazy"])
+def test_batched_stats_match_across_polars_numeric_dtypes(lazy: bool) -> None:
+    import polars as pl
+
+    dtypes: list[Any] = [
+        pl.Int8,
+        pl.Int16,
+        pl.Int32,
+        pl.Int64,
+        pl.UInt8,
+        pl.UInt16,
+        pl.UInt32,
+        pl.UInt64,
+        pl.Float32,
+        pl.Float64,
+    ]
+    for name in ("Int128", "UInt128"):
+        if (dtype := getattr(pl, name, None)) is not None:
+            dtypes.append(dtype)
+
+    series = [
+        pl.Series(str(dtype), [1, None, 3, 4], dtype=dtype) for dtype in dtypes
+    ]
+    series.append(
+        pl.Series(
+            "decimal",
+            [Decimal("1.1"), None, Decimal("3.3"), Decimal("4.4")],
+            dtype=pl.Decimal(10, 2),
+        )
+    )
+    frame = pl.DataFrame(series)
+    manager = NarwhalsTableManager.from_dataframe(
+        frame.lazy() if lazy else frame
+    )
+    columns = manager.get_column_names()
+    per_column = {column: manager.get_stats(column) for column in columns}
+
+    assert manager.get_stats_for_columns(columns) == per_column
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
         {"A": [1, "two", 3.0, True]}, include=["polars"], strict=False
     ),
 )
