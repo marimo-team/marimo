@@ -89,12 +89,22 @@ class DirectedGraph(GraphTopology):
         """
         return edges.get_referring_cells(name, language, self.topology)
 
-    def register_cell(self, cell_id: CellId_t, cell: CellImpl) -> None:
+    def register_cell(
+        self,
+        cell_id: CellId_t,
+        cell: CellImpl,
+        *,
+        update_runtime_state: bool = True,
+    ) -> None:
         """Add a cell to the graph.
 
         Mutates the graph, acquiring `self.lock`.
 
         Requires that `cell_id` is not already in the graph.
+
+        Temporary dependency-analysis graphs can set `update_runtime_state`
+        to False to reuse compiled cells without changing their runtime state
+        or broadcasting notifications.
         """
         LOGGER.debug("Acquiring graph lock to register cell %s", cell_id)
         with self.lock:
@@ -132,6 +142,8 @@ class DirectedGraph(GraphTopology):
                 )
 
         LOGGER.debug("Registered cell %s and released graph lock", cell_id)
+        if not update_runtime_state:
+            return
         if self.is_any_ancestor_stale(cell_id):
             self.set_stale({cell_id})
 

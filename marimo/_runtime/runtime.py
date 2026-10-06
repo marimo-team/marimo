@@ -1267,6 +1267,7 @@ class Kernel:
         for dr in deletion_requests:
             self._uninstantiated_execution_requests.pop(dr.cell_id, None)
             if dr.cell_id not in cells_before_mutation:
+                self.cell_metadata.pop(dr.cell_id, None)
                 continue
             cells_that_were_children_of_mutated_cells |= self._delete_cell(
                 dr.cell_id
@@ -1716,30 +1717,34 @@ class Kernel:
             for cid, request in self._uninstantiated_execution_requests.items()
             if cid not in requested_ids and cid not in deleted_ids
         }
+        if not pending:
+            return requests
         graph = dataflow.DirectedGraph()
         # Registered but unrun cells can bridge a run target to pending
-        # ancestors. Compile fresh cells so discovery cannot mutate their
-        # runtime state; replacements and deletions supersede old source.
-        registered_requests = [
-            ExecuteCellCommand(cell_id=cid, code=cell.code)
+        # ancestors. Reuse compiled cells without propagating runtime state;
+        # replacements and deletions supersede old source.
+        cells = {
+            cid: cell
             for cid, cell in self.graph.cells.items()
             if cid not in requested_ids and cid not in deleted_ids
-        ]
+        }
         source_requests = {
             request.cell_id: request
-            for request in [
-                *pending.values(),
-                *registered_requests,
-                *requests,
-            ]
+            for request in [*pending.values(), *requests]
         }
         for request in source_requests.values():
-            try:
-                cell = compile_cell(request.code, cell_id=request.cell_id)
-            except Exception:  # noqa: S112
-                # Graph mutation reports compilation failures.
+            if request.cell_id in cells:
                 continue
-            graph.register_cell(cell_id=request.cell_id, cell=cell)
+            cell = self.graph.cells.get(request.cell_id)
+            if cell is None or cell.code != request.code:
+                try:
+                    cell = compile_cell(request.code, cell_id=request.cell_id)
+                except Exception:  # noqa: S112
+                    # Graph mutation reports compilation failures.
+                    continue
+            cells[request.cell_id] = cell
+        for cid, cell in cells.items():
+            graph.register_cell(cid, cell, update_runtime_state=False)
 
         roots = requested_ids if run_cell_ids is None else run_cell_ids
         ancestors: set[CellId_t] = set()

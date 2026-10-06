@@ -14,6 +14,7 @@ from inline_snapshot import snapshot
 
 from marimo._ast.cell import CellConfig
 from marimo._ast.cell_id import CellIdGenerator
+from marimo._ast.compiler import compile_cell
 from marimo._code_mode._context import AsyncCodeModeContext
 from marimo._messaging.notebook.document import (
     NotebookCell,
@@ -1472,6 +1473,45 @@ class TestPendingExecutionRequests:
         )
         return cells
 
+    @pytest.mark.parametrize("existing_target", [False, True])
+    async def test_preparation_reuses_compiled_cells_without_runtime_changes(
+        self, k: Kernel, existing_target: bool
+    ) -> None:
+        await self._open_notebook(k)
+        await k.run(
+            [ExecuteCellCommand(cell_id=CellId_t("child"), code="y = x + 1")]
+        )
+        root = k.graph.cells["root"]
+        root.configure({"disabled": True})
+        root.set_stale(True, broadcast=False)
+        state_before = {
+            cid: (cell.runtime_state, cell.stale, cell.config.asdict())
+            for cid, cell in k.graph.cells.items()
+        }
+        notifications_before = list(k.stream.operations)
+        pending_before = dict(k._uninstantiated_execution_requests)
+        request = ExecuteCellCommand(
+            cell_id=CellId_t("child" if existing_target else "final"),
+            code="y = x + 1" if existing_target else "z = y + 1",
+        )
+        with patch(
+            "marimo._runtime.runtime.compile_cell", wraps=compile_cell
+        ) as compile_spy:
+            assert k.prepare_execution_requests([request]) == [request]
+        compiled_ids = [
+            call.kwargs["cell_id"] for call in compile_spy.call_args_list
+        ]
+        expected_ids = ["unrelated"]
+        if not existing_target:
+            expected_ids.append("final")
+        assert compiled_ids == expected_ids
+        assert {
+            cid: (cell.runtime_state, cell.stale, cell.config.asdict())
+            for cid, cell in k.graph.cells.items()
+        } == state_before
+        assert k.stream.operations == notifications_before
+        assert k._uninstantiated_execution_requests == pending_before
+
     @pytest.mark.parametrize(
         "bridge_change", ["unchanged", "replace", "invalid", "delete"]
     )
@@ -1606,15 +1646,24 @@ class TestPendingExecutionRequests:
     ) -> None:
         k = any_kernel
         cells = await self._open_notebook(k)
+        k.cell_metadata[CellId_t("root")] = CellMetadata(
+            config=CellConfig(disabled=True, hide_code=True, column=2)
+        )
         with _ctx(k, extra_doc_cells=cells) as ctx:
             async with ctx as nb:
                 nb.delete_cell("root")
+        assert "root" not in k.cell_metadata
         await k.run(
             [ExecuteCellCommand(cell_id=CellId_t("child"), code="y = x + 1")]
         )
         assert "root" not in k.graph.cells
         assert "x" not in k.globals
         assert "y" not in k.globals
+        await k.run(
+            [ExecuteCellCommand(cell_id=CellId_t("root"), code="x = 42")]
+        )
+        assert k.cell_metadata["root"].config == CellConfig()
+        assert k.globals["x"] == 42
 
 
 class TestErrorReporting:
