@@ -185,18 +185,11 @@ def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
                     ),
                 )
             )
-            if declaration.error is not None:
-                source_reason = declaration.error
-            elif source_reason is None and declaration.edges is not None:
-                source_reason = (
-                    f"Geometry column {name!r} declares {declaration.edges!r} "
-                    "edges, which geographic exports cannot preserve."
-                )
-            elif source_reason is None and info.encoding == "other":
-                source_reason = (
-                    f"Geometry column {name!r} uses a native GeoArrow layout. "
-                    "Geographic exports require WKB or WKT."
-                )
+            rejection = _arrow_geometry_rejection(
+                name, info.encoding, declaration
+            )
+            if source_reason is None and rejection is not None:
+                source_reason = rejection[1]
         is_supported_source = DependencyManager.geopandas.has()
     else:
         columns = [
@@ -293,7 +286,9 @@ def _arrow_geometry_declaration(
         )
 
     try:
-        declaration = json.loads(raw)
+        declaration = json.loads(
+            raw.decode("utf-8"), parse_constant=_reject_json_constant
+        )
     except (ValueError, UnicodeDecodeError):
         return invalid("expected a UTF-8 JSON object.")
     if not isinstance(declaration, dict):
@@ -309,6 +304,11 @@ def _arrow_geometry_declaration(
         "srid",
     ):
         return invalid("unknown crs_type.")
+    if crs is not None and crs_type is not None:
+        if crs_type == "projjson" and not isinstance(crs, dict):
+            return invalid("projjson crs must be an object.")
+        if crs_type != "projjson" and not isinstance(crs, str):
+            return invalid(f"{crs_type} crs must be a string.")
     edges = declaration.get("edges")
     if "edges" in declaration and edges not in (
         "spherical",
@@ -327,10 +327,44 @@ def _arrow_geometry_declaration(
         from pyproj.exceptions import CRSError  # type: ignore[import-untyped]
 
         try:
-            CRS.from_user_input(crs)
-        except CRSError:
+            if crs_type == "projjson":
+                CRS.from_json_dict(crs)
+            elif crs_type == "wkt2:2019":
+                CRS.from_wkt(crs)
+            elif crs_type == "authority_code":
+                authority, code = crs.split(":", 1)
+                CRS.from_authority(authority, code)
+            else:
+                CRS.from_user_input(crs)
+        except (CRSError, ValueError):
             return invalid("crs cannot be resolved.")
     return ArrowGeometryDeclaration(crs=crs, crs_type=crs_type, edges=edges)
+
+
+def _arrow_geometry_rejection(
+    name: str,
+    encoding: GeometryEncoding,
+    declaration: ArrowGeometryDeclaration,
+) -> tuple[GeometryExportErrorCode, str] | None:
+    if declaration.error is not None:
+        return "invalid_metadata", declaration.error
+    if declaration.edges is not None:
+        return (
+            "unsupported_representation",
+            (
+                f"Geometry column {name!r} declares {declaration.edges!r} "
+                "edges, which geographic exports cannot preserve."
+            ),
+        )
+    if encoding not in ("wkb", "wkt"):
+        return (
+            "unsupported_representation",
+            (
+                f"Geometry column {name!r} uses a native GeoArrow layout. "
+                "Geographic exports require WKB or WKT."
+            ),
+        )
+    return None
 
 
 def has_geometry_columns(manager: TableManager[Any]) -> bool:
@@ -359,7 +393,11 @@ def _arrow_storage_field(field: pa.Field[Any]) -> pa.Field[Any]:
         key: value for key, value in (field.metadata or {}).items()
     }
     metadata[b"ARROW:extension:name"] = extension.extension_name.encode()
-    metadata[b"ARROW:extension:metadata"] = extension.__arrow_ext_serialize__()
+    serialized = extension.__arrow_ext_serialize__()
+    if extension.extension_name == "ogc.wkb" and not serialized:
+        metadata.pop(b"ARROW:extension:metadata", None)
+    else:
+        metadata[b"ARROW:extension:metadata"] = serialized
     return field.with_type(extension.storage_type).with_metadata(metadata)
 
 
@@ -397,23 +435,12 @@ def _arrow_to_geodataframe(
         declaration = _arrow_geometry_declaration(
             table.schema.field(column.name)
         )
-        if declaration.error is not None:
+        rejection = _arrow_geometry_rejection(
+            column.name, column.encoding, declaration
+        )
+        if rejection is not None:
             raise GeometryExportError(
-                "invalid_metadata", declaration.error, column=column.name
-            )
-        if declaration.edges is not None:
-            raise GeometryExportError(
-                "unsupported_representation",
-                f"Geometry column {column.name!r} declares {declaration.edges!r} "
-                "edges, which geographic exports cannot preserve.",
-                column=column.name,
-            )
-        if column.encoding not in ("wkb", "wkt"):
-            raise GeometryExportError(
-                "unsupported_representation",
-                f"Geometry column {column.name!r} uses a native GeoArrow layout. "
-                "Geographic exports require WKB or WKT.",
-                column=column.name,
+                rejection[0], rejection[1], column=column.name
             )
 
     try:
@@ -421,7 +448,7 @@ def _arrow_to_geodataframe(
             ignore_metadata=True, types_mapper=pd.ArrowDtype
         )
         frame = gpd.GeoDataFrame(ordinary)
-        for column in columns:
+        for index, column in enumerate(columns):
             values = table.column(column.name)
             decoded = [
                 value
@@ -437,9 +464,11 @@ def _arrow_to_geodataframe(
                 if column.encoding == "wkb"
                 else gpd.GeoSeries.from_wkt
             )
-            frame[column.name] = parser(
-                decoded, crs=column.crs, index=frame.index
-            )
+            geometry = parser(decoded, crs=column.crs, index=frame.index)
+            if index == 0:
+                frame = frame.set_geometry(geometry.rename(column.name))
+            else:
+                frame[column.name] = geometry
         return frame[table.column_names]
     except Exception as e:
         raise GeometryExportError(
@@ -547,11 +576,9 @@ def serialize_geojson(
             "invalid_metadata", "GeoJSON export requires unique column names."
         )
     geometry = gpd.GeoSeries(native[primary].array, index=native.index)
-    exports_index = (
-        manager.data.implementation.is_pandas()
-        and isinstance(manager, PandasTableManagerFactory.create())
-        and not _trivial_range_index(native.index)
-    )
+    exports_index = isinstance(
+        manager, PandasTableManagerFactory.create()
+    ) and not _trivial_range_index(native.index)
     if geometry.crs is None:
         raise GeometryExportError(
             "missing_crs",
@@ -880,6 +907,13 @@ def serialize_geoparquet(
             "GeoParquet export from this table type is not supported yet.",
             column=geometry_column,
         )
+
+    if manager.data.implementation.is_pandas():
+        if not manager.as_frame().to_native().columns.is_unique:
+            raise GeometryExportError(
+                "invalid_metadata",
+                "GeoParquet export requires unique column names.",
+            )
 
     try:
         metadata = get_export_metadata(manager)
