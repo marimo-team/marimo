@@ -8,7 +8,9 @@ from marimo._cli.print import echo
 
 
 def _stream(encoding: str) -> io.TextIOWrapper:
-    return io.TextIOWrapper(io.BytesIO(), encoding=encoding)
+    # newline="\n" disables newline translation, so the assertions below see
+    # exactly what echo() wrote on every platform (not "\r\n" on Windows).
+    return io.TextIOWrapper(io.BytesIO(), encoding=encoding, newline="\n")
 
 
 def _read(stream: io.TextIOWrapper) -> str:
