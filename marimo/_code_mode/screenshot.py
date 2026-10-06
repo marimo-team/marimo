@@ -273,9 +273,10 @@ class _ScreenshotSession:
                     probe=True,
                 )
                 if state == "pending":
+                    remaining = self._remaining_ms(deadline)
                     try:
                         state = await self._wait_for_output(
-                            cell_id, timeout=self._remaining_ms(deadline)
+                            cell_id, timeout=remaining
                         )
                     except Exception as err:
                         raise ScreenshotError(
@@ -316,6 +317,12 @@ class _ScreenshotSession:
             except TimeoutError as err:
                 raise ScreenshotError(
                     "Screenshot timed out while refreshing. Fix: increase `timeout_ms`."
+                ) from err
+            except Exception as err:
+                raise ScreenshotError(
+                    "Screenshot failed while refreshing the notebook. "
+                    "Fix: check the notebook connection and retry; "
+                    "increase `timeout_ms` if navigation is slow."
                 ) from err
 
         target = await self._resolve_output_locator(

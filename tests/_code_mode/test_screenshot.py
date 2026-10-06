@@ -416,6 +416,49 @@ async def test_rendering_wait_and_screenshot_share_timeout_budget() -> None:
         resolve.assert_not_awaited()
 
 
+@pytest.mark.parametrize("kind", ["deadline", "playwright", "reload"])
+async def test_refresh_failure_is_actionable(kind: str) -> None:
+    error: Exception
+    if kind == "deadline":
+        error = TimeoutError()
+    elif kind == "playwright":
+        playwright = pytest.importorskip("playwright.async_api")
+        error = playwright.TimeoutError("navigation timed out")
+    else:
+        error = RuntimeError("reload failed")
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_wait_for_output", return_value="empty"),
+        patch.object(session, "_navigate", side_effect=error),
+    ):
+        with pytest.raises(ScreenshotError, match="refreshing") as raised:
+            await session.capture(CellId_t("cell-a"))
+        assert "Fix:" in str(raised.value)
+        assert raised.value.__cause__ is error
+
+
+async def test_pending_probe_preserves_exhausted_budget_error() -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(
+            session, "_wait_for_output", return_value="pending"
+        ) as wait,
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+        patch(
+            "marimo._code_mode.screenshot.time.monotonic",
+            side_effect=[0, 0.001, 0.050],
+        ),
+    ):
+        with pytest.raises(ScreenshotError, match="Screenshot timed out"):
+            await session.capture(CellId_t("cell-a"), timeout_ms=20)
+        assert wait.await_count == 1
+        navigate.assert_not_awaited()
+
+
 async def test_known_cell_gets_full_rendering_wait_without_refresh() -> None:
     session = _ScreenshotSession("http://localhost:1234")
     session._page = AsyncMock()
