@@ -1043,3 +1043,170 @@ def test_ordinary_parquet_bytes_remain_unchanged() -> None:
     ).to_parquet()
     artifact, _ = _artifact(subject)
     assert artifact == expected
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    "raw",
+    [
+        '{"crs":"EPSG:4326"}'.encode("utf-16"),
+        '{"crs":"EPSG:4326"}'.encode("utf-32"),
+        b'{"extra":{"value":NaN}}',
+        b'{"extra":{"value":Infinity}}',
+        b'{"extra":{"value":-Infinity}}',
+        b'{"crs":"EPSG:4326","crs_type":"projjson"}',
+        b'{"crs":{},"crs_type":"srid"}',
+        b'{"crs":{},"crs_type":"authority_code"}',
+        b'{"crs":{},"crs_type":"wkt2:2019"}',
+        b'{"crs":"EPSG:4326","crs_type":"wkt2:2019"}',
+        b'{"crs":"+proj=longlat +datum=WGS84","crs_type":"authority_code"}',
+    ],
+)
+def test_arrow_invalid_serialized_declarations_publish_no_artifact(
+    widget: Any, raw: bytes
+) -> None:
+    from marimo._plugins.ui._impl.table import DownloadGeoJSONArgs
+
+    source = fixtures.arrow_wkb_known_crs()
+    field = source.schema.field("geom").with_metadata(
+        {
+            b"ARROW:extension:name": b"geoarrow.wkb",
+            b"ARROW:extension:metadata": raw,
+        }
+    )
+    subject = widget(source.cast(source.schema.set(1, field)))
+    metadata = subject._get_export_metadata(EmptyArgs())
+    assert all(not value.available for value in metadata.formats.values())
+    with patch(
+        "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+    ) as publish:
+        parquet = subject._download_as(DownloadAsArgs(format="parquet"))
+        geojson = subject._download_geojson(
+            DownloadGeoJSONArgs(format="geojson")
+        )
+    assert [(r.code, r.url, r.filename) for r in (parquet, geojson)] == [
+        ("invalid_metadata", "", ""),
+        ("invalid_metadata", "", ""),
+    ]
+    publish.assert_not_called()
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("payload", [b"", b"not json"])
+def test_registered_ogc_wkb_metadata(widget: Any, payload: bytes) -> None:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from marimo._plugins.ui._impl.table import DownloadGeoJSONArgs
+
+    class OGCType(pa.ExtensionType):
+        def __init__(self) -> None:
+            super().__init__(pa.binary(), "ogc.wkb")
+
+        def __arrow_ext_serialize__(self) -> bytes:
+            return payload
+
+        @classmethod
+        def __arrow_ext_deserialize__(
+            cls, _storage: Any, _serialized: bytes
+        ) -> Any:
+            return cls()
+
+    extension = OGCType()
+    pa.register_extension_type(extension)  # type: ignore[arg-type]
+    try:
+        values = pa.ExtensionArray.from_storage(
+            extension,
+            pa.array([fixtures.WKB_POINT_1_2, None], type=pa.binary()),
+        )
+        source = pa.Table.from_arrays([values], names=["geom"])
+        subject = widget(source)
+        if payload:
+            response = subject._download_as(DownloadAsArgs(format="parquet"))
+            assert (response.code, response.url) == ("invalid_metadata", "")
+        else:
+            artifact, _ = _artifact(subject)
+            file_metadata = pq.read_metadata(io.BytesIO(artifact)).metadata
+            assert file_metadata is not None
+            metadata = json.loads(file_metadata[b"geo"])
+            assert metadata["columns"]["geom"]["crs"] is None
+            assert pq.read_table(io.BytesIO(artifact))["geom"].to_pylist() == [
+                fixtures.WKB_POINT_1_2,
+                None,
+            ]
+            response = subject._download_geojson(
+                DownloadGeoJSONArgs(format="geojson")
+            )
+            assert (response.code, response.url) == ("missing_crs", "")
+        assert source["geom"].to_pylist() == [fixtures.WKB_POINT_1_2, None]
+    finally:
+        pa.unregister_extension_type("ogc.wkb")
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+def test_arrow_geometry_named_geometry_has_no_future_warning(
+    widget: Any,
+) -> None:
+    import warnings
+
+    source = fixtures.arrow_wkb_known_crs().rename_columns(
+        ["name", "geometry"]
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        _artifact(widget(source))
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+def test_arrow_first_rejection_matches_conversion(widget: Any) -> None:
+    from marimo._plugins.ui._impl.tables.geometry_export import (
+        GeometryExportError,
+        _arrow_to_geodataframe,
+    )
+
+    source = fixtures.arrow_multi_geometry()
+    for index, raw in [(1, b'{"edges":"spherical"}'), (2, b"[]")]:
+        field = source.schema.field(index)
+        field_metadata: dict[bytes | str, bytes | str] = {
+            key: value for key, value in (field.metadata or {}).items()
+        }
+        field_metadata[b"ARROW:extension:metadata"] = raw
+        source = source.cast(
+            source.schema.set(index, field.with_metadata(field_metadata))
+        )
+    metadata = widget(source)._get_export_metadata(EmptyArgs())
+    reason = "Geometry column 'geom_a' declares 'spherical' edges, which geographic exports cannot preserve."
+    assert metadata.formats["parquet"].reason == reason
+    with pytest.raises(GeometryExportError) as error:
+        _arrow_to_geodataframe(source, metadata.geometry_columns)
+    assert (error.value.code, str(error.value), error.value.column) == (
+        "unsupported_representation",
+        reason,
+        "geom_a",
+    )
+
+
+@pytest.mark.requires("geopandas")
+def test_pandas_duplicate_columns_precede_dependency_errors() -> None:
+    from marimo._plugins.ui._impl.tables.geometry_export import (
+        GeometryExportError,
+        serialize_geoparquet,
+    )
+    from marimo._plugins.ui._impl.tables.utils import get_table_manager
+
+    source = fixtures.gdf_multi_geometry()
+    manager = get_table_manager(source)
+    source.columns = ["geom_a", "geom_a"]
+    with (
+        patch(
+            "marimo._plugins.ui._impl.tables.geometry_export.has_geometry_columns",
+            return_value=True,
+        ),
+        patch.object(DependencyManager.geopandas, "has", return_value=False),
+        pytest.raises(GeometryExportError) as error,
+    ):
+        serialize_geoparquet(manager, "geom_b")
+    assert (error.value.code, str(error.value)) == (
+        "invalid_metadata",
+        "GeoParquet export requires unique column names.",
+    )
