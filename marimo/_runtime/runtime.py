@@ -1719,9 +1719,8 @@ class Kernel:
         }
         if not pending:
             return requests
-        graph = dataflow.DirectedGraph()
         # Registered but unrun cells can bridge a run target to pending
-        # ancestors. Reuse compiled cells without propagating runtime state;
+        # ancestors. Reuse compiled cells for read-only dependency analysis;
         # replacements and deletions supersede old source.
         cells = {
             cid: cell
@@ -1743,13 +1742,8 @@ class Kernel:
                     # Graph mutation reports compilation failures.
                     continue
             cells[request.cell_id] = cell
-        for cid, cell in cells.items():
-            graph.register_cell(cid, cell, update_runtime_state=False)
-
         roots = requested_ids if run_cell_ids is None else run_cell_ids
-        ancestors: set[CellId_t] = set()
-        for cell_id in roots & graph.cells.keys():
-            ancestors |= graph.ancestors(cell_id)
+        ancestors = dataflow.get_ancestors_from_cells(cells, roots)
         requests.extend(
             request for cid, request in pending.items() if cid in ancestors
         )
