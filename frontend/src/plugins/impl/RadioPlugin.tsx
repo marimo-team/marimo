@@ -51,7 +51,11 @@ export const Radio = (props: RadioProps): JSX.Element => {
   const id = useId();
 
   return (
-    <Labeled label={props.label} id={id} align={props.inline ? "left" : "top"}>
+    <Labeled
+      label={props.label}
+      controlId={id}
+      align={props.inline ? "left" : "top"}
+    >
       <RadioGroup
         data-testid="marimo-plugin-radio"
         value={props.value ?? ""}
