@@ -99,8 +99,36 @@ describe("getCellConfigs", () => {
     };
 
     const result = getCellConfigs(mockState);
+    expect(result).toEqual([{ hide_code: false, disabled: false }]);
+  });
+
+  it("should preserve column metadata when in single-column view (issue #3543)", () => {
+    // Regression test: switching from "columns" width to a single-column
+    // width (e.g. "compact") and then saving must NOT erase the
+    // @app.cell(column=N) decorators. getCellConfigs must preserve column
+    // metadata even when the notebook is visually rendered as one column.
+    const cellId1 = CellId.create();
+    const cellId2 = CellId.create();
+    const mockState: NotebookState = {
+      ...initialNotebookState(),
+      cellIds: MultiColumn.from([[cellId1, cellId2]]),
+      cellData: {
+        [cellId1]: {
+          id: cellId1,
+          config: { hide_code: false, disabled: false, column: 0 },
+        } as CellData,
+        [cellId2]: {
+          id: cellId2,
+          config: { hide_code: true, disabled: false, column: 1 },
+        } as CellData,
+      },
+      untouchedNewCells: new Set(),
+    };
+
+    const result = getCellConfigs(mockState);
     expect(result).toEqual([
-      { hide_code: false, disabled: false, column: null },
+      { hide_code: false, disabled: false, column: 0 },
+      { hide_code: true, disabled: false, column: 1 },
     ]);
   });
 
