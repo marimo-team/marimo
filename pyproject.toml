@@ -382,6 +382,7 @@ ignore = [
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
     "DTZ901", # `datetime.min` / `datetime.max` used
     "D421", # Property docstring should not start with a verb (preview rule)
+    "UP052", # Context-manager annotation migration requires a separate change
 
     # Restored to Ruff's default rule set in 0.16.6; enable incrementally
     "RUF069", # Float equality comparison
