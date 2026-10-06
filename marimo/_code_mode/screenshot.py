@@ -295,9 +295,9 @@ class _ScreenshotSession:
                         )
                     ) from err
             else:
-                if state == "ready":
+                if state == "ready" and (not reused_page or refreshed):
                     break
-                if not reused_page or refreshed:
+                if state == "empty" and (not reused_page or refreshed):
                     raise ScreenshotError(
                         f"Cell {cell_id!r} has no rendered output.\n"
                         "Fix: inspect `ctx.cells[cell_id].code` and `.errors`, "
@@ -307,7 +307,7 @@ class _ScreenshotSession:
                     )
 
             # A reused kiosk may lag execution in the current invocation.
-            # Empty and missing outputs share one refresh before rejection.
+            # Refresh even ready output: its marker and DOM may both be stale.
             refreshed = True
             remaining = self._remaining_ms(deadline)
             try:

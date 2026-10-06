@@ -382,6 +382,33 @@ async def test_reused_empty_browser_refreshes_before_rejecting_new_output() -> (
         navigate.assert_awaited_once_with(initial=False)
 
 
+@pytest.mark.parametrize("refreshed_state", ["ready", "empty"])
+async def test_reused_ready_output_is_refreshed_before_capture(
+    refreshed_state: str,
+) -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    target = AsyncMock()
+    target.screenshot.return_value = b"fresh png"
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+        patch.object(
+            session, "_wait_for_output", side_effect=["ready", refreshed_state]
+        ),
+        patch.object(session, "_resolve_output_locator", return_value=target),
+    ):
+        if refreshed_state == "ready":
+            assert await session.capture(CellId_t("cell-a")) == b"fresh png"
+        else:
+            with pytest.raises(
+                ScreenshotError, match="has no rendered output"
+            ):
+                await session.capture(CellId_t("cell-a"))
+            target.screenshot.assert_not_awaited()
+        navigate.assert_awaited_once_with(initial=False)
+
+
 async def test_missing_container_and_empty_output_share_one_refresh() -> None:
     session = _ScreenshotSession("http://localhost:1234")
     session._page = AsyncMock()
@@ -461,11 +488,14 @@ async def test_pending_probe_preserves_exhausted_budget_error() -> None:
 
 async def test_known_cell_gets_full_rendering_wait_without_refresh() -> None:
     session = _ScreenshotSession("http://localhost:1234")
-    session._page = AsyncMock()
+
+    async def ready() -> None:
+        session._page = AsyncMock()
+
     target = AsyncMock()
     target.screenshot.return_value = b"png"
     with (
-        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_ensure_ready", side_effect=ready),
         patch.object(
             session, "_wait_for_output", side_effect=["pending", "ready"]
         ) as wait,
