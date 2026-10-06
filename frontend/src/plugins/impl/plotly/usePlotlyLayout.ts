@@ -4,8 +4,10 @@ import { usePrevious } from "@uidotdev/usehooks";
 import { dequal as isEqual } from "dequal";
 import type * as Plotly from "plotly.js";
 import { useEffect, useRef, useState } from "react";
+import useEvent from "react-use-event-hook";
 import { Objects } from "@/utils/objects";
 import type { Figure } from "./Plot";
+import { type PlotlyCameraState, restoreCameraLayout } from "./camera-state";
 
 /**
  * Keys that are preserved across figure updates when set by user interaction.
@@ -120,12 +122,14 @@ export function computeLayoutUpdate(
 interface UsePlotlyLayoutOptions {
   originalFigure: Figure;
   initialValue?: Partial<Plotly.Layout>;
+  cameraState?: PlotlyCameraState;
   isScriptLoaded?: boolean;
 }
 
 interface UsePlotlyLayoutResult {
   figure: Figure;
   layout: Partial<Plotly.Layout>;
+  cameraState: PlotlyCameraState | undefined;
   setLayout: React.Dispatch<React.SetStateAction<Partial<Plotly.Layout>>>;
   handleReset: () => void;
 }
@@ -142,8 +146,19 @@ interface UsePlotlyLayoutResult {
 export function usePlotlyLayout({
   originalFigure,
   initialValue,
+  cameraState,
   isScriptLoaded = true,
 }: UsePlotlyLayoutOptions): UsePlotlyLayoutResult {
+  // Notebook reruns reset the UI value while retaining the rendered component.
+  const [cameras, setCameras] = useState(cameraState);
+  useEffect(() => {
+    if (cameraState) {
+      setCameras(cameraState);
+    }
+  }, [cameraState]);
+  const restoreCameras = useEvent((figure: Figure) =>
+    restoreCameraLayout(figure, cameras),
+  );
   const [figure, setFigure] = useState(() => {
     // We clone the figure since Plotly mutates the figure in place
     return structuredClone(originalFigure);
@@ -157,6 +172,7 @@ export function usePlotlyLayout({
       ...createInitialLayout(figure),
       // Override with persisted values (dragmode, xaxis, yaxis)
       ...initialValue,
+      ...restoreCameraLayout(originalFigure, cameraState),
     };
   });
 
@@ -171,19 +187,31 @@ export function usePlotlyLayout({
     // We don't want to preserve other properties like `shapes` from the previous
     // layout, as they should be fully controlled by the figure prop.
     // When trace types change, axis settings are reset to avoid distortion (#5898).
-    setLayout((prev) => computeLayoutOnFigureChange(nextFigure, prevFig, prev));
-  }, [originalFigure, isScriptLoaded]);
+    setLayout((prev) => ({
+      ...computeLayoutOnFigureChange(nextFigure, prevFig, prev),
+      ...restoreCameras(nextFigure),
+    }));
+  }, [originalFigure, isScriptLoaded, restoreCameras]);
+
+  useEffect(() => {
+    const cameraLayout = restoreCameraLayout(originalFigure, cameras);
+    if (Object.keys(cameraLayout).length > 0) {
+      setLayout((prev) => ({ ...prev, ...cameraLayout }));
+    }
+  }, [originalFigure, cameras]);
 
   const prevFigure = usePrevious(figure) ?? figure;
 
   // Sync layout when figure.layout changes
   useEffect(() => {
-    setLayout((prev) =>
-      computeLayoutUpdate(figure.layout, prevFigure.layout, prev),
-    );
-  }, [figure.layout, prevFigure.layout]);
+    setLayout((prev) => ({
+      ...computeLayoutUpdate(figure.layout, prevFigure.layout, prev),
+      ...restoreCameras(figure),
+    }));
+  }, [figure, prevFigure.layout, restoreCameras]);
 
   const handleReset = () => {
+    setCameras(undefined);
     const nextFigure = structuredClone(originalFigure);
     setFigure(nextFigure);
     setLayout(createInitialLayout(nextFigure));
@@ -192,6 +220,7 @@ export function usePlotlyLayout({
   return {
     figure,
     layout,
+    cameraState: cameras,
     setLayout,
     handleReset,
   };

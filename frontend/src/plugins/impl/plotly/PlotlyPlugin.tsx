@@ -27,6 +27,7 @@ import {
   shouldHandleClickSelection,
 } from "./selection";
 import { usePlotlyLayout } from "./usePlotlyLayout";
+import { captureCameraState, type PlotlyCameraState } from "./camera-state";
 
 interface Data {
   figure: Figure;
@@ -51,6 +52,7 @@ type T =
       dragmode?: Plotly.Layout["dragmode"];
       xaxis?: Partial<Plotly.LayoutAxis>;
       yaxis?: Partial<Plotly.LayoutAxis>;
+      cameras?: PlotlyCameraState;
     }
   | undefined;
 
@@ -95,11 +97,13 @@ export const PlotlyComponent = memo(
     );
     const isScriptLoaded = scriptStatus === "ready";
 
-    const { figure, layout, setLayout, handleReset } = usePlotlyLayout({
-      originalFigure,
-      initialValue: value,
-      isScriptLoaded,
-    });
+    const { figure, layout, setLayout, handleReset, cameraState } =
+      usePlotlyLayout({
+        originalFigure,
+        initialValue: value,
+        cameraState: value?.cameras,
+        isScriptLoaded,
+      });
 
     const handleResetWithClear = useEvent(() => {
       handleReset();
@@ -154,6 +158,18 @@ export const PlotlyComponent = memo(
         {...figure}
         layout={layout}
         onRelayout={(layoutUpdate) => {
+          if (
+            Object.keys(layoutUpdate).some((key) => key.includes(".camera"))
+          ) {
+            setValue((prev) => {
+              const cameras = captureCameraState(
+                originalFigure,
+                layoutUpdate,
+                prev?.cameras ?? cameraState,
+              );
+              return cameras ? { ...prev, cameras } : prev;
+            });
+          }
           // Persist dragmode in the state to keep it across re-renders
           if ("dragmode" in layoutUpdate) {
             setValue((prev) => ({ ...prev, dragmode: layoutUpdate.dragmode }));
