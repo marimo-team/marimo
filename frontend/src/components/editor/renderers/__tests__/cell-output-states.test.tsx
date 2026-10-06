@@ -72,9 +72,33 @@ describe("CellOutputStates", () => {
           data: {},
         },
       },
-      "available",
+      "empty",
     ],
     [{ output: { ...richOutput, data: "" } }, "empty"],
+    ...[
+      { __metadata__: { "image/png": { width: 10 } } },
+      [{}, {}],
+      [{ __metadata__: {} }, {}],
+    ].map<[Partial<CellRuntimeState>, string]>((data) => [
+      {
+        output: {
+          channel: "output",
+          mimetype: "application/vnd.marimo+mimebundle",
+          data,
+        },
+      },
+      "empty",
+    ]),
+    [
+      {
+        output: {
+          channel: "output",
+          mimetype: "application/vnd.marimo+mimebundle",
+          data: { "text/html": "<div>rich</div>", "image/png": "fallback" },
+        },
+      },
+      "available",
+    ],
     [{ output: richOutput, status: "running" }, "pending"],
     [{ output: richOutput, status: "queued" }, "pending"],
     ...[1, 2, 3].map<[Partial<CellRuntimeState>, string]>((started) => [

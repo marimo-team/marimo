@@ -227,6 +227,15 @@ assert parse_qs(urlsplit(session._page.url).query)["file"] == [{key!r}]
 assert parse_qs(urlsplit(session._page.url).query)["kiosk"] == ["true"]
 assert parse_qs(urlsplit(session._page.url).query)["capture"] == ["true"]
 assert await session._page.locator("[data-cell-output-id]").count() > 0
+# Reuse a page with rich output after replacing it with newer rich output.
+updated_code = {source.replace(marker, f"{marker} UPDATED")!r}
+async with cm.get_context() as update_ctx:
+    update_ctx.edit_cell(cell_id, code=updated_code)
+    update_ctx.run_cell(cell_id)
+updated_image = await ctx.screenshot(cell_id)
+assert ctx._screenshot_session is session
+assert updated_image.startswith(b"\\x89PNG\\r\\n\\x1a\\n")
+assert {f"{marker} UPDATED"!r} in await session._page.locator("#output-" + cell_id).inner_text()
 browser = session._browser
 page = session._page
 await ctx.close_screenshot_session()
@@ -275,7 +284,9 @@ image
                             for line in stdout.splitlines()
                             if line.startswith("CELL_ID=")
                         )
-                        await page.get_by_text(marker, exact=True).wait_for()
+                        await page.get_by_text(
+                            f"{marker} UPDATED", exact=True
+                        ).wait_for()
                         kiosk = await page.context.new_page()
                         await kiosk.goto(
                             base
@@ -288,7 +299,9 @@ image
                                 }
                             )
                         )
-                        await kiosk.get_by_text(marker, exact=True).wait_for()
+                        await kiosk.get_by_text(
+                            f"{marker} UPDATED", exact=True
+                        ).wait_for()
                         assert (
                             await kiosk.locator(
                                 "[data-cell-output-id]"

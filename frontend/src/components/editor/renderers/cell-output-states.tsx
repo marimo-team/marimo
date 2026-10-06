@@ -8,6 +8,7 @@ import type { CellId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import type { CellRuntimeState } from "@/core/cells/types";
 import { isConnectedAtom } from "@/core/network/connection";
+import { getMimeBundleEntries, processMimeBundle } from "@/utils/mime-types";
 
 /** Kiosk capture metadata must remain available even when a layout omits a cell. */
 export const CellOutputStates = () => {
@@ -36,6 +37,17 @@ function getOutputState(runtime: CellRuntimeState | undefined): OutputState {
     (runtime.output?.timestamp ?? 0) > runtime.runStartTimestamp;
   if (loading && !outputReceivedWhileRunning) {
     return "pending";
+  }
+  if (runtime.output?.mimetype === "application/vnd.marimo+mimebundle") {
+    const data = runtime.output.data;
+    const bundle = Array.isArray(data) ? data[0] : data;
+    if (
+      bundle !== null &&
+      typeof bundle === "object" &&
+      processMimeBundle(getMimeBundleEntries(bundle)).entries.length === 0
+    ) {
+      return loading ? "pending" : "empty";
+    }
   }
   if (!isOutputEmpty(runtime.output)) {
     return "available";

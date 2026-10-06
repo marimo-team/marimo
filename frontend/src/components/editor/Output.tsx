@@ -34,8 +34,11 @@ import { useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
-import { processMimeBundle } from "@/utils/mime-types";
-import { Objects } from "@/utils/objects";
+import {
+  getMimeBundleEntries,
+  MIME_BUNDLE_METADATA_KEY,
+  processMimeBundle,
+} from "@/utils/mime-types";
 import { LazyVegaEmbed } from "../charts/lazy";
 import { ChartLoadingState } from "../data-table/charts/components/chart-states";
 import { Button } from "../ui/button";
@@ -46,7 +49,7 @@ import { CsvViewer } from "./file-tree/renderers";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 import { renderMimeIcon } from "./renderMimeIcon";
 
-const METADATA_KEY = "__metadata__";
+const METADATA_KEY = MIME_BUNDLE_METADATA_KEY;
 
 export type MimeType = OutputMessage["mimetype"];
 
@@ -271,9 +274,9 @@ const MimeBundleOutputRenderer: React.FC<{
   const metadata = mimebundle[METADATA_KEY];
 
   // Filter out metadata from the mime entries and type narrow
-  const rawEntries = Objects.entries(mimebundle as Record<string, unknown>)
-    .filter(([key]) => key !== METADATA_KEY)
-    .map(([mime, data]) => [mime, data] as [MimeType, CellOutput["data"]]);
+  const rawEntries = getMimeBundleEntries(
+    mimebundle as Record<string, CellOutput["data"]>,
+  );
 
   // Apply precedence ordering and hiding rules
   const { entries: mimeEntries } = processMimeBundle(rawEntries);
