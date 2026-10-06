@@ -46,7 +46,7 @@ const CheckboxComponent = ({
   const id = useId();
 
   return (
-    <Labeled label={data.label} align="right" id={id}>
+    <Labeled label={data.label} align="right" controlId={id}>
       <Checkbox
         data-testid="marimo-plugin-checkbox"
         checked={value}
