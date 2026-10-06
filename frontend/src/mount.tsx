@@ -36,6 +36,7 @@ import {
 import {
   type AppMode,
   initialModeAtom,
+  captureModeAtom,
   kioskModeAtom,
   viewStateAtom,
 } from "./core/mode";
@@ -338,6 +339,10 @@ function initStore(options: unknown) {
     mode === "edit" && shouldStartInPresentMode ? "present" : mode;
   store.set(viewStateAtom, { mode: initialViewMode, cellAnchor: null });
   store.set(kioskModeAtom, isKioskMode);
+  store.set(
+    captureModeAtom,
+    isKioskMode && url.searchParams.get(KnownQueryParams.capture) === "true",
+  );
   store.set(serverTokenAtom, parsedOptions.data.serverToken);
 
   // Config
