@@ -1175,7 +1175,9 @@ class AsyncCodeModeContext:
             if op.config is not None:
                 return op.config
         meta = self._kernel.cell_metadata.get(cell_id)
-        return meta.config if meta else CellConfig()
+        if meta is not None:
+            return meta.config
+        return self._document.get_cell(cell_id).config
 
     def edit_cell(
         self,
@@ -1468,6 +1470,8 @@ class AsyncCodeModeContext:
 
         from marimo._code_mode.screenshot import (
             ScreenshotError,
+            _ScreenshotBytes,
+            _ScreenshotDataUrl,
             _ScreenshotSession,
             _to_data_url,
         )
@@ -1520,8 +1524,8 @@ class AsyncCodeModeContext:
             Path(save_to).write_bytes(image)  # noqa: ASYNC240
 
         if as_data_url:
-            return _to_data_url(image)
-        return image
+            return _ScreenshotDataUrl(_to_data_url(image))
+        return _ScreenshotBytes(image)
 
     async def close_screenshot_session(self) -> None:
         """Close the Playwright browser opened by :meth:`screenshot`.
@@ -1760,18 +1764,41 @@ class AsyncCodeModeContext:
                 resolved_configs[entry.cell_id] = CellConfig(hide_code=True)
             else:
                 existing_meta = self._kernel.cell_metadata.get(entry.cell_id)
-                resolved_configs[entry.cell_id] = (
-                    existing_meta.config if existing_meta else CellConfig()
-                )
+                if existing_meta is not None:
+                    resolved_configs[entry.cell_id] = existing_meta.config
+                else:
+                    resolved_configs[entry.cell_id] = self._document.get_cell(
+                        entry.cell_id
+                    ).config
 
         # Let mutate_graph handle all graph mutations: it properly
         # cleans up globals, UI elements, and lifecycle hooks for
         # deleted/replaced cells via _delete_cell / _deactivate_cell.
+        _run_set = explicit_run or set()
         execution_requests = [
             ExecuteCellCommand(cell_id=e.cell_id, code=e.code)
             for e in code_entries
             if e.code is not None
         ]
+        requested_ids = {request.cell_id for request in execution_requests}
+        # Requested cells may exist only in the document. Register them in
+        # the same mutation so dependency sorting sees the whole run batch.
+        for entry in plan:
+            if (
+                entry.cell_id in _run_set
+                and entry.cell_id not in self.graph.cells
+                and entry.cell_id not in requested_ids
+            ):
+                execution_requests.append(
+                    ExecuteCellCommand(
+                        cell_id=entry.cell_id,
+                        code=existing_code[entry.cell_id],
+                    )
+                )
+                resolved_configs.setdefault(
+                    entry.cell_id,
+                    self._document.get_cell(entry.cell_id).config,
+                )
         deletion_requests = [
             DeleteCellCommand(cell_id=cid)
             for cid in existing_id_set - plan_ids
@@ -1826,7 +1853,6 @@ class AsyncCodeModeContext:
 
         # Run queued cells (explicit run_cell + autorun descendants),
         # filtered to cells that still exist after structural ops.
-        _run_set = explicit_run or set()
         if _run_set and self._kernel.reactive_execution_mode == "autorun":
             _run_set = _run_set | cells_to_run
         if _run_set:

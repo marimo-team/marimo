@@ -207,6 +207,12 @@ async def export_ipynb(
 async def _prepare_wasm_export(
     code: str, request: WASMFileExportRequest
 ) -> tuple[str, WASMExportOptions]:
+    if request.offline_export_dir is None:
+        # Pin Pyodide-bundled deps to the lockfile version: micropip installs
+        # those builds regardless of the header's specifier, and rejects the
+        # whole install when the two disagree. Offline exports resolve the
+        # header against their own lockfile and pin it while bundling.
+        code = pin_pep723_dependencies_for_wasm(code, request.path)
     if request.code_transform is not None:
         code = request.code_transform(code)
     options = request.options
@@ -251,8 +257,7 @@ async def export_wasm(
         )
         resolved = config.get_config()
 
-        code = app.to_py()
-        code, options = await _prepare_wasm_export(code, request)
+        code, options = await _prepare_wasm_export(app.to_py(), request)
 
         result = Exporter().export_as_wasm(
             WASMExportRequest(
@@ -546,10 +551,9 @@ async def _export_wasm_with_execution(
         drop_virtual_file_outputs=True,
     )
 
-    code = pin_pep723_dependencies_for_wasm(
-        file_manager.app.to_py(), request.path
+    code, options = await _prepare_wasm_export(
+        file_manager.app.to_py(), request
     )
-    code, options = await _prepare_wasm_export(code, request)
 
     html, filename = Exporter().export_as_wasm(
         WASMExportRequest(
