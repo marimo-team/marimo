@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import time
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -20,6 +21,7 @@ from marimo._export._pdf_raster import (
 )
 
 if TYPE_CHECKING:
+    from marimo._messaging.mimetypes import KnownMimeType
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
@@ -61,6 +63,27 @@ def _to_data_url(image: bytes) -> str:
     """Convert raw PNG bytes to a `data:image/png;base64,...` string."""
     encoded = base64.b64encode(image).decode("ascii")
     return f"data:image/png;base64,{encoded}"
+
+
+@dataclass(frozen=True)
+class _ScreenshotOutput:
+    """Preserve PNG MIME information when formatting screenshot values."""
+
+    data_url: str
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        return ("image/png", self.data_url)
+
+
+# The display protocol takes precedence over registered bytes/str formatters.
+class _ScreenshotBytes(bytes):
+    def _display_(self) -> _ScreenshotOutput:
+        return _ScreenshotOutput(_to_data_url(self))
+
+
+class _ScreenshotDataUrl(str):
+    def _display_(self) -> _ScreenshotOutput:
+        return _ScreenshotOutput(self)
 
 
 def _require_playwright() -> Any:
