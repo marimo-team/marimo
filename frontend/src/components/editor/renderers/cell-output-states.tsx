@@ -28,11 +28,19 @@ function getOutputState(runtime: CellRuntimeState | undefined): OutputState {
   if (!runtime) {
     return "unknown";
   }
-  // Capture visible progress output even while execution continues.
+  const loading = outputIsLoading(runtime.status);
+  // Retained output belongs to the previous run; streamed progress is fresh.
+  const outputReceivedWhileRunning =
+    runtime.status === "running" &&
+    runtime.runStartTimestamp !== null &&
+    (runtime.output?.timestamp ?? 0) > runtime.runStartTimestamp;
+  if (loading && !outputReceivedWhileRunning) {
+    return "pending";
+  }
   if (!isOutputEmpty(runtime.output)) {
     return "available";
   }
-  if (outputIsLoading(runtime.status)) {
+  if (loading) {
     return "pending";
   }
   // A default idle state with no output may precede session replay.

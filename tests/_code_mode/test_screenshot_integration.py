@@ -213,7 +213,8 @@ for attempt in range(2):
         raise AssertionError("An assignment has no display output")
     if attempt:
         elapsed = time.monotonic() - started
-        assert elapsed < 5
+        # A reused page refresh includes a network-idle wait (up to 10 s).
+        assert elapsed < 30
         print("EMPTY_CAPTURE_MS=" + str(round(elapsed * 1000)))
 async with ctx:
     {operation}

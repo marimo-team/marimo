@@ -10,6 +10,7 @@ import { notebookAtom } from "@/core/cells/cells";
 import type { CellRuntimeState } from "@/core/cells/types";
 import { connectionAtom } from "@/core/network/connection";
 import { WebSocketState } from "@/core/websocket/types";
+import type { Seconds } from "@/utils/time";
 import { CellOutputStates } from "../cell-output-states";
 
 const id = cellId("cell-a");
@@ -17,6 +18,7 @@ const richOutput = {
   channel: "output" as const,
   mimetype: "text/html" as const,
   data: "<div>rich</div>",
+  timestamp: 2,
 };
 
 function setup(runtime: Partial<CellRuntimeState> = {}) {
@@ -73,8 +75,16 @@ describe("CellOutputStates", () => {
       "available",
     ],
     [{ output: { ...richOutput, data: "" } }, "empty"],
-    [{ output: richOutput, status: "running" }, "available"],
-    [{ output: richOutput, status: "queued" }, "available"],
+    [{ output: richOutput, status: "running" }, "pending"],
+    [{ output: richOutput, status: "queued" }, "pending"],
+    ...[1, 2, 3].map<[Partial<CellRuntimeState>, string]>((started) => [
+      {
+        output: richOutput,
+        status: "running",
+        runStartTimestamp: started as Seconds,
+      },
+      started < richOutput.timestamp ? "available" : "pending",
+    ]),
     [{ output: richOutput, status: "disabled-transitively" }, "available"],
     [{ output: { ...richOutput, data: "" }, status: "running" }, "pending"],
     [{ output: { ...richOutput, data: "" }, status: "queued" }, "pending"],
@@ -92,7 +102,7 @@ describe("CellOutputStates", () => {
       output: { channel: "output", mimetype: "text/plain", data: "" },
     });
     expect(readState()).toBe("empty");
-    update({ status: "running" });
+    update({ status: "running", runStartTimestamp: 1 as Seconds });
     expect(readState()).toBe("pending");
     update({ output: richOutput });
     expect(readState()).toBe("available");
@@ -100,6 +110,19 @@ describe("CellOutputStates", () => {
     expect(readState()).toBe("available");
     expect(container.textContent).toBe("");
     expect(container.firstElementChild?.hasAttribute("hidden")).toBe(true);
+  });
+
+  it("waits for fresh output when rerunning a cell", () => {
+    const { readState, update } = setup({ output: richOutput });
+    expect(readState()).toBe("available");
+    update({ status: "queued" });
+    expect(readState()).toBe("pending");
+    update({ status: "running", runStartTimestamp: 3 as Seconds });
+    expect(readState()).toBe("pending");
+    update({ output: { ...richOutput, timestamp: 4 } });
+    expect(readState()).toBe("available");
+    update({ status: "idle", runStartTimestamp: null });
+    expect(readState()).toBe("available");
   });
 
   it("does not rerender for console-only updates", () => {
