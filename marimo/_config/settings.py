@@ -27,7 +27,7 @@ class GlobalSettings:
     )
     # Let each notebook's manifest pick its environment in a sandboxed
     # directory server.
-    # [tool.marimo.venv] takes precident over [tool.pixi] then falls back to the
+    # [tool.marimo.venv] takes precedence over [tool.pixi] then falls back to the
     # default SANDBOX_BACKEND (unset is UV). Required for the Jupyter extension.
     SANDBOX_AUTO: bool = is_env_true("MARIMO_SANDBOX_AUTO")
     IN_SECURE_ENVIRONMENT: bool = is_env_true("MARIMO_IN_SECURE_ENVIRONMENT")
