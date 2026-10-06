@@ -690,7 +690,7 @@ def test_invalid_choice_is_rejected_atomically(
     publish.assert_not_called()
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 @pytest.mark.parametrize(
     "factory",
     [
@@ -708,7 +708,7 @@ def test_arrow_geometry_is_eligible_for_geojson(
     )
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 def test_arrow_geojson_checks_shapely_version(widget: Any) -> None:
     subject = widget(fixtures.arrow_wkb_known_crs())
     with patch.object(
@@ -721,7 +721,7 @@ def test_arrow_geojson_checks_shapely_version(widget: Any) -> None:
     )
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 @pytest.mark.parametrize("choice", ["geom_a", "geom_b"])
 @pytest.mark.parametrize("wrapped", [False, True], ids=["native", "narwhals"])
 def test_arrow_geojson_reprojects_and_preserves_source_properties(
@@ -783,7 +783,7 @@ def test_arrow_geojson_reprojects_and_preserves_source_properties(
     assert after.getvalue().to_pybytes() == original_bytes
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 def test_arrow_geojson_projected_wkb_uses_sole_geometry(widget: Any) -> None:
     document = _artifact(widget(fixtures.arrow_wkb_projected()))
     assert document == {
@@ -806,7 +806,7 @@ def test_arrow_geojson_projected_wkb_uses_sole_geometry(widget: Any) -> None:
     }
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 def test_arrow_geojson_nonfinite_properties_publish_no_artifact(
     widget: Any,
 ) -> None:
@@ -833,7 +833,7 @@ def test_arrow_geojson_nonfinite_properties_publish_no_artifact(
     publish.assert_not_called()
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 @pytest.mark.parametrize("encoding", ["wkb", "wkt"])
 def test_arrow_geojson_secondary_wkt_is_complete(
     widget: Any, encoding: str
@@ -863,7 +863,7 @@ def test_arrow_geojson_secondary_wkt_is_complete(
     ) == pytest.approx(np.asarray(geometry.coords), rel=1e-15, abs=0)
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 @pytest.mark.parametrize("srid", [False, True])
 def test_arrow_geojson_known_alternate_crs_can_be_chosen(
     widget: Any, srid: bool
@@ -895,7 +895,7 @@ def test_arrow_geojson_known_alternate_crs_can_be_chosen(
     )
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 @pytest.mark.parametrize("empty", [False, True])
 def test_arrow_geojson_geometry_only_keeps_rows_and_z(
     widget: Any, empty: bool
@@ -926,7 +926,7 @@ def test_arrow_geojson_geometry_only_keeps_rows_and_z(
     }
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 @pytest.mark.parametrize("empty", [False, True])
 @pytest.mark.parametrize(
     "factory", [fixtures.arrow_wkb_missing_crs, fixtures.arrow_srid_crs]
@@ -966,7 +966,7 @@ def test_arrow_geojson_unknown_crs_rejects_before_reprojection(
     publish.assert_not_called()
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 @pytest.mark.parametrize(
     ("factory", "code"),
     [
@@ -993,7 +993,7 @@ def test_arrow_geojson_failures_publish_no_artifact(
     publish.assert_not_called()
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 @pytest.mark.parametrize("choice", [None, "name", "missing"])
 def test_arrow_geojson_requires_valid_geometry_choice(
     widget: Any, choice: str | None
@@ -1016,7 +1016,7 @@ def test_arrow_geojson_requires_valid_geometry_choice(
     publish.assert_not_called()
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 def test_arrow_geojson_selected_table_rows_only() -> None:
     subject = ui.table(fixtures.arrow_multi_geometry(), selection="multi")
     subject._convert_value(["1"])
@@ -1032,7 +1032,7 @@ def test_arrow_geojson_selected_table_rows_only() -> None:
     }
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 def test_arrow_geojson_uses_transformed_dataframe_value() -> None:
     import pyarrow as pa
 
@@ -1073,7 +1073,7 @@ def test_arrow_geojson_uses_transformed_dataframe_value() -> None:
     )
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 @pytest.mark.parametrize("encoding", ["wkb", "wkt"])
 @pytest.mark.parametrize("choice", ["geom_a", "registered"])
 def test_arrow_geojson_registered_primary_and_secondary_geometry(
@@ -1126,7 +1126,7 @@ def test_arrow_geojson_registered_primary_and_secondary_geometry(
         pa.unregister_extension_type(name)
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 @pytest.mark.parametrize("missing", ["geopandas", "shapely"])
 def test_arrow_geojson_rechecks_dependencies_before_conversion(
     widget: Any, missing: str

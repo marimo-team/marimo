@@ -323,8 +323,8 @@ def _arrow_geometry_declaration(
         and crs_type != "srid"
         and DependencyManager.geopandas.has()
     ):
-        from pyproj import CRS  # type: ignore[import-untyped]
-        from pyproj.exceptions import CRSError  # type: ignore[import-untyped]
+        from pyproj import CRS  # type: ignore[import-not-found,import-untyped,unused-ignore]
+        from pyproj.exceptions import CRSError  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
         try:
             if crs_type == "projjson":
