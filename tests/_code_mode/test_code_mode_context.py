@@ -16,6 +16,7 @@ from marimo._ast.cell import CellConfig
 from marimo._ast.cell_id import CellIdGenerator
 from marimo._ast.compiler import compile_cell
 from marimo._code_mode._context import AsyncCodeModeContext
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notebook.document import (
     NotebookCell,
     NotebookDocument,
@@ -26,6 +27,7 @@ from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     OperationRunning,
 )
+from marimo._runtime import dataflow
 from marimo._runtime.commands import (
     CreateNotebookCommand,
     DeleteCellCommand,
@@ -1446,6 +1448,51 @@ class TestDocumentKernelDivergence:
 
 
 class TestPendingExecutionRequests:
+    @pytest.mark.skipif(
+        not DependencyManager.duckdb.has(), reason="requires duckdb"
+    )
+    async def test_preparation_preserves_sql_mutation_order(
+        self, k: Kernel
+    ) -> None:
+        import duckdb
+
+        queries = {
+            "schema": "CREATE SCHEMA schema1",
+            "table": "CREATE TABLE schema1.t1 (i INTEGER)",
+            "select": "SELECT * FROM schema1.t1",
+        }
+        k._uninstantiated_execution_requests = {
+            CellId_t(cid): ExecuteCellCommand(
+                cell_id=CellId_t(cid), code=f"mo.sql({query!r})"
+            )
+            for cid, query in queries.items()
+        }
+        k._uninstantiated_execution_requests[CellId_t("unrelated")] = (
+            ExecuteCellCommand(
+                cell_id=CellId_t("unrelated"),
+                code="raise RuntimeError('must not run')",
+            )
+        )
+        request = ExecuteCellCommand(
+            cell_id=CellId_t("select"),
+            code='mo.sql("SELECT i FROM schema1.t1")',
+        )
+        queries["select"] = "SELECT i FROM schema1.t1"
+        prepared = k.prepare_execution_requests([request])
+        assert [r.cell_id for r in prepared] == ["select", "schema", "table"]
+
+        cells_to_run = k.mutate_graph(prepared, deletion_requests=[])
+        assert k.graph.ancestors(CellId_t("select")) == {"schema", "table"}
+        assert set(k._uninstantiated_execution_requests) == {"unrelated"}
+        # Execute SQL in the scheduler's order to catch an omitted schema or
+        # a table scheduled before its schema, without shared database state.
+        with duckdb.connect() as connection:
+            for cid in dataflow.topological_sort(k.graph, cells_to_run):
+                connection.execute(queries[cid])
+            assert (
+                connection.execute("SELECT * FROM schema1.t1").fetchall() == []
+            )
+
     @staticmethod
     async def _open_notebook(k: Kernel) -> list[NotebookCell]:
         cells = [
@@ -1504,7 +1551,7 @@ class TestPendingExecutionRequests:
         expected_ids = ["unrelated"]
         if not existing_target:
             expected_ids.append("final")
-        assert compiled_ids == expected_ids
+        assert sorted(compiled_ids) == sorted(expected_ids)
         assert {
             cid: (cell.runtime_state, cell.stale, cell.config.asdict())
             for cid, cell in k.graph.cells.items()

@@ -1727,9 +1727,11 @@ class Kernel:
             for cid, cell in self.graph.cells.items()
             if cid not in requested_ids and cid not in deleted_ids
         }
+        # SQL edge resolution is order-sensitive. Analyze the same
+        # request-before-ancestor order that mutate_graph will receive.
         source_requests = {
             request.cell_id: request
-            for request in [*pending.values(), *requests]
+            for request in [*requests, *pending.values()]
         }
         for request in source_requests.values():
             if request.cell_id in cells:
