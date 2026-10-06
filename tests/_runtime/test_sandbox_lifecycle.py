@@ -27,6 +27,11 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+@pytest.mark.skipif(
+    "sys.version_info >= (3, 15)",
+    reason="the published marimo pulls loro, which has no cp315 wheel; "
+    "drop once a release carries the loro marker",
+)
 @pytest.mark.network
 @pytest.mark.skipif(not is_uv_available(), reason="uv is required")
 @pytest.mark.parametrize("suffix", [".py", ".md"])
@@ -192,6 +197,11 @@ async def test_rename_rebinds_packages_before_rerunning_cells(
         assert "obstore" in renamed.read_text()
 
 
+@pytest.mark.skipif(
+    "sys.version_info >= (3, 15)",
+    reason="the published marimo pulls loro, which has no cp315 wheel; "
+    "drop once a release carries the loro marker",
+)
 async def test_unnamed_sandbox_keeps_manifest_and_manager_on_save(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
