@@ -39,8 +39,9 @@ dependencies = [
     "python-multipart>=0.0.18",
     # websockets for use with starlette, and for lsp
     "websockets >= 14.2.0; sys_platform != 'emscripten'",
-    # loro for collaborative editing (native extension; server-only)
-    "loro>=1.10.0; sys_platform != 'emscripten' and sys_platform != 'android'",
+    # loro for collaborative editing (native extension; server-only).
+    # No cp315 wheels as of 2026-10; drop the python_version marker when published.
+    "loro>=1.10.0; python_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'android'",
     # python <=3.10 compatibility
     "typing_extensions>=4.4.0; python_version < '3.12'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
@@ -55,7 +56,7 @@ dependencies = [
     "packaging",
     "msgspec>=0.22.0",
     # for IPC, required for marimo edit --sandbox, marimo run <multiple notebooks>
-    "pyzmq>=27.1.0; python_version < '3.15' and sys_platform != 'emscripten'",
+    "pyzmq>=27.1.0; sys_platform != 'emscripten'",
 ]
 readme = "README.md"
 license = "Apache-2.0"
@@ -74,6 +75,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: 3 :: Only",
 ]
 
@@ -145,8 +147,9 @@ dev = [
     "pyarrow-stubs",
     # For linting
     "ruff>=0.16.6",
-    # For AI
-    "pydantic-ai-slim[openai]>=1.107.0,<3.0.0",
+    # For AI. pydantic-core has no cp315 wheels as of 2026-10; drop the marker
+    # when published.
+    "pydantic-ai-slim[openai]>=1.107.0,<3.0.0; python_version < '3.15'",
 ]
 
 test = [
@@ -166,11 +169,15 @@ test = [
     "inline-snapshot~=0.29.0",
     "hypothesis~=6.102.1",
     "dirty-equals~=0.9.0",
+    # No cp315 wheels as of 2026-10 for matplotlib, zstandard and cffi; drop the
+    # python_version markers when published. numpy is listed on its own because
+    # tests used to get it only through matplotlib.
     # Forced for modern matplotlib.
-    "matplotlib~=3.10.7",
+    "matplotlib~=3.10.7; python_version < '3.15'",
+    "numpy",
     "pillow>=9",
-    "zstandard>=0.21.0",
-    "cffi>=1.16.0",
+    "zstandard>=0.21.0; python_version < '3.15'",
+    "cffi>=1.16.0; python_version < '3.15'",
 ]
 
 test-optional = [
@@ -206,7 +213,8 @@ test-optional = [
     "duckdb>=1.0.0",
     "ibis-framework[duckdb]>=10.3.0",
     # For testing mo.image
-    "pillow~=12.0.0",
+    # 12.3 is the first release with cp315 wheels.
+    "pillow~=12.0,>=12.3",
     "anywidget~=0.9.21",
     "ipython~=8.12.3",
     # testing gen ai
