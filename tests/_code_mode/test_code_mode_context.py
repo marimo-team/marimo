@@ -1329,6 +1329,43 @@ class TestAutorunStaleState:
 class TestDocumentKernelDivergence:
     """Tests for cells that exist in the document but not in the kernel graph."""
 
+    @pytest.mark.parametrize("operation", ["run", "edit", "configure"])
+    async def test_run_doc_only_dependencies(
+        self, k: Kernel, operation: str
+    ) -> None:
+        imports = NotebookCell(
+            id=CellId_t("imports"),
+            code="import math",
+            name="",
+            config=CellConfig(hide_code=True, expand_output=True),
+        )
+        calculation = NotebookCell(
+            id=CellId_t("calculation"),
+            code="result = math.sqrt(4)",
+            name="",
+            config=CellConfig(),
+        )
+        unrelated = NotebookCell(
+            id=CellId_t("unrelated"),
+            code="raise RuntimeError('must not run')",
+            name="",
+            config=CellConfig(),
+        )
+        with _ctx(k, extra_doc_cells=[calculation, imports, unrelated]) as ctx:
+            async with ctx as nb:
+                if operation == "edit":
+                    nb.edit_cell("calculation", code="result = math.sqrt(9)")
+                elif operation == "configure":
+                    nb.edit_cell("calculation", hide_code=True)
+                nb.run_cell("calculation")
+                nb.run_cell("imports")
+
+        assert k.globals["result"] == (3 if operation == "edit" else 2)
+        assert set(k.graph.cells) == {"imports", "calculation"}
+        if operation != "run":
+            assert k.graph.cells["imports"].config == imports.config
+        assert "unrelated" not in k.cell_metadata
+
     async def test_delete_doc_only_cell(self, k: Kernel) -> None:
         """Deleting a cell that is in the document but not the kernel
         graph should succeed without KeyError."""
@@ -1342,18 +1379,42 @@ class TestDocumentKernelDivergence:
         # The ghost cell should not appear in the graph.
         assert "ghost" not in k.graph.cells
 
-    async def test_edit_and_run_doc_only_cell(self, k: Kernel) -> None:
+    @pytest.mark.parametrize("disabled", [False, True])
+    @pytest.mark.parametrize("edit", ["code", "config", "both"])
+    async def test_edit_and_run_doc_only_cell(
+        self, k: Kernel, disabled: bool, edit: str
+    ) -> None:
         """A cell present only in the document can be edited and run,
         bringing it into the kernel graph."""
         ghost = NotebookCell(
-            id=CellId_t("ghost"), code="z = 0", name="", config=CellConfig()
+            id=CellId_t("ghost"),
+            code="z = 0",
+            name="",
+            config=CellConfig(
+                disabled=disabled, hide_code=True, expand_output=True, column=2
+            ),
         )
         with _ctx(k, extra_doc_cells=[ghost]) as ctx:
             async with ctx as nb:
-                nb.edit_cell("ghost", code="z = 42")
+                nb.edit_cell(
+                    "ghost",
+                    code=None if edit == "config" else "z = 42",
+                    hide_code=None if edit == "code" else False,
+                )
                 nb.run_cell("ghost")
 
-        assert k.globals["z"] == 42
+        expected_config = CellConfig(
+            disabled=disabled,
+            hide_code=edit == "code",
+            expand_output=True,
+            column=2,
+        )
+        assert k.graph.cells["ghost"].config == expected_config
+        assert k.cell_metadata["ghost"].config == expected_config
+        if disabled:
+            assert "z" not in k.globals
+        else:
+            assert k.globals["z"] == (0 if edit == "config" else 42)
 
     async def test_create_cell_no_collision_with_doc_only_ids(
         self, k: Kernel
