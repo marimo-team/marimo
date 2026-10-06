@@ -12,11 +12,9 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl.tables.table_manager import (
-    serialize_sample_value,
-)
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._types.ids import VariableName
+from marimo._utils.serialization import serialize_sample_value
 
 LOGGER = _loggers.marimo_logger()
 

@@ -290,22 +290,21 @@ def test_keeps_distinct_non_null_examples_in_stable_order() -> None:
 
 def test_excludes_backend_missing_values_but_keeps_literal_strings() -> None:
     pd = pytest.importorskip("pandas")
-    manager = get_table_manager(
-        pd.DataFrame(
-            {
-                "nullable_string": pd.Series(
-                    [pd.NA, "a", pd.NA, pd.NA], dtype="string"
-                ),
-                "datetime": [
-                    pd.NaT,
-                    pd.Timestamp("2024-01-01"),
-                    pd.NaT,
-                    pd.NaT,
-                ],
-                "sentinel_strings": ["None", "nan", "<NA>", "NaT"],
-            }
-        )
+    data = pd.DataFrame(
+        {
+            "nullable_string": pd.Series(
+                [pd.NA, "a", pd.NA, pd.NA], dtype="string"
+            ),
+            "datetime": [
+                pd.NaT,
+                pd.Timestamp("2024-01-01"),
+                pd.NaT,
+                pd.NaT,
+            ],
+            "sentinel_strings": ["None", "nan", "<NA>", "NaT"],
+        }
     )
+    manager = get_table_manager(data)
 
     context = build_filter_context(manager)
 
@@ -321,13 +320,13 @@ def test_excludes_backend_missing_values_but_keeps_literal_strings() -> None:
             FilterContextColumn(
                 name="datetime",
                 type="datetime",
-                source_type="datetime64[us]",
+                source_type=str(data["datetime"].dtype),
                 examples=["2024-01-01 00:00:00"],
             ),
             FilterContextColumn(
                 name="sentinel_strings",
                 type="string",
-                source_type="str",
+                source_type=str(data["sentinel_strings"].dtype),
                 examples=["None", "nan", "<NA>", "NaT"],
             ),
         ],
@@ -364,9 +363,12 @@ def test_does_not_collect_examples_from_lazy_polars() -> None:
     pl = pytest.importorskip("polars")
     source = pl.DataFrame({"value": ["a", None, "a", "b"]})
 
+    class LazySourceCollected(BaseException):
+        pass
+
     def fail_on_collect(frame: Any) -> Any:
         del frame
-        raise AssertionError("lazy source was collected")
+        raise LazySourceCollected("lazy source was collected")
 
     _assert_lazy_string_examples_are_unavailable(
         source.lazy().map_batches(fail_on_collect, schema=source.schema)
@@ -509,6 +511,61 @@ def test_collects_numeric_duration_statistics() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("values", "row_count", "nulls"),
+    [
+        ([], 0, 0),
+        ([None, None], 2, 2),
+    ],
+)
+def test_records_unavailable_empty_duration_statistics(
+    values: list[None],
+    row_count: int,
+    nulls: int,
+) -> None:
+    pl = pytest.importorskip("polars")
+    manager = get_table_manager(
+        pl.DataFrame(
+            {
+                "duration": pl.Series(values, dtype=pl.Duration("us")),
+            }
+        )
+    )
+
+    context = build_filter_context(manager)
+
+    assert context == FilterContext(
+        row_count=row_count,
+        columns=[
+            FilterContextColumn(
+                name="duration",
+                type="number",
+                source_type="duration[μs]",
+                examples=[],
+                statistics=FilterContextStatistics(nulls=nulls),
+            )
+        ],
+        omissions=[
+            FilterContextOmission(
+                kind="statistics",
+                reason="unavailable",
+                column="duration",
+                fields=[
+                    "min",
+                    "p25",
+                    "median",
+                    "p75",
+                    "max",
+                    "mean",
+                    "std",
+                    "p5",
+                    "p95",
+                ],
+            )
+        ],
+    )
+
+
 def test_records_javascript_unsafe_integer_statistics_as_unavailable() -> None:
     manager = make_manager(
         row_count=3,
@@ -613,6 +670,60 @@ def test_records_javascript_unsafe_decimal_statistics_as_unavailable() -> None:
                     "p5",
                     "p95",
                 ],
+            )
+        ],
+    )
+
+
+def test_records_lossy_fractional_decimal_as_unavailable() -> None:
+    manager = make_manager(
+        row_count=1,
+        columns={"score": ("number", "Decimal(20, 1)")},
+        statistics={
+            "score": ColumnStats(
+                nulls=0,
+                min=1,
+                p25=1,
+                median=1,
+                p75=1,
+                max=1,
+                mean=Decimal("9007199254740991.1"),
+                std=0,
+                p5=1,
+                p95=1,
+            )
+        },
+    )
+
+    context = build_filter_context(manager)
+
+    assert context == FilterContext(
+        row_count=1,
+        columns=[
+            FilterContextColumn(
+                name="score",
+                type="number",
+                source_type="Decimal(20, 1)",
+                examples=[],
+                statistics=FilterContextStatistics(
+                    nulls=0,
+                    min=1,
+                    p25=1,
+                    median=1,
+                    p75=1,
+                    max=1,
+                    std=0,
+                    p5=1,
+                    p95=1,
+                ),
+            )
+        ],
+        omissions=[
+            FilterContextOmission(
+                kind="statistics",
+                reason="unavailable",
+                column="score",
+                fields=["mean"],
             )
         ],
     )
@@ -796,6 +907,31 @@ def test_skips_long_examples_and_records_failures() -> None:
     )
 
 
+def test_byte_limit_drops_empty_examples_without_omission() -> None:
+    manager = make_manager(
+        row_count=1,
+        columns={"label": ("string", "String")},
+    )
+    expected = FilterContext(
+        row_count=1,
+        columns=[
+            FilterContextColumn(
+                name="label",
+                type="string",
+                source_type="String",
+            )
+        ],
+        omissions=[],
+    )
+
+    context = build_filter_context(
+        manager,
+        FilterContextLimits(max_bytes=len(encode_json_bytes(expected))),
+    )
+
+    assert context == expected
+
+
 def test_byte_limit_removes_data_in_priority_order() -> None:
     manager = make_manager(
         row_count=10,
@@ -898,10 +1034,6 @@ def test_statistics_size_omissions_keep_column_and_fields() -> None:
         ],
         omissions=[
             FilterContextOmission(
-                kind="examples",
-                reason="size_limit",
-            ),
-            FilterContextOmission(
                 kind="statistics",
                 reason="size_limit",
                 column="score",
@@ -936,10 +1068,6 @@ def test_compacts_omissions_before_reporting_schema_overflow() -> None:
             FilterContextOmission(
                 kind="statistics",
                 reason="row_count_unknown",
-            ),
-            FilterContextOmission(
-                kind="examples",
-                reason="size_limit",
             ),
         ],
     )

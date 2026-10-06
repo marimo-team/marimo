@@ -14,6 +14,7 @@ from narwhals.typing import IntoDataFrameT, IntoLazyFrameT
 
 from marimo import _loggers
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -33,7 +34,6 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCoordinate,
     TableManager,
     is_missing_sample_value,
-    serialize_sample_value,
 )
 from marimo._utils.narwhals_utils import (
     can_narwhalify,
@@ -46,6 +46,7 @@ from marimo._utils.narwhals_utils import (
     is_narwhals_time_type,
     unwrap_py_scalar,
 )
+from marimo._utils.serialization import serialize_sample_value
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.table import SortArgs
@@ -824,6 +825,13 @@ class NarwhalsTableManager(
             # Control-flow exceptions must propagate; ordinary backend errors
             # mean sampling is unavailable, as with metadata-only frames.
             return None
+        except BaseException as error:
+            if DependencyManager.polars.has():
+                import polars as pl
+
+                if isinstance(error, pl.exceptions.PanicException):
+                    return None
+            raise
 
     def sort_values(self, by: list[SortArgs]) -> TableManager[Any]:
         if not by:

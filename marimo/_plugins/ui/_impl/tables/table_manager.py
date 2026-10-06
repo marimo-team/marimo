@@ -2,10 +2,8 @@
 from __future__ import annotations
 
 import abc
-import json
 import math
 from dataclasses import dataclass
-from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -45,24 +43,6 @@ def is_missing_sample_value(value: Any) -> bool:
         return bool(math.isnan(value))
     except (OverflowError, TypeError, ValueError):
         return type(value).__name__ in {"NAType", "NaTType"}
-
-
-def serialize_sample_value(value: Any) -> str | int | float:
-    """Convert a sampled backend value to a wire-safe primitive."""
-
-    def json_default(item: Any) -> str:
-        return item.name if isinstance(item, Enum) else str(item)
-
-    if isinstance(value, Enum):
-        return value.name
-    if isinstance(value, (int, float)):
-        return value
-    if isinstance(value, (list, dict)):
-        try:
-            return json.dumps(value, default=json_default)
-        except (TypeError, ValueError):
-            return str(value)
-    return str(value)
 
 
 class TableCoordinate(NamedTuple):

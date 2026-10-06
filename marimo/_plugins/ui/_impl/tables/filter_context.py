@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, DecimalException
 from numbers import Integral
 from typing import Any, Final, Literal
 
@@ -12,9 +12,9 @@ from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
     is_missing_sample_value,
-    serialize_sample_value,
 )
 from marimo._utils.msgspec_basestruct import BaseStruct
+from marimo._utils.serialization import serialize_sample_value
 
 TABLE_FILTER_CONTEXT_MAX_BYTES: Final = 32_768
 TABLE_FILTER_CONTEXT_MAX_EXAMPLES_PER_COLUMN: Final = 10
@@ -164,6 +164,7 @@ def build_filter_context(
         columns=columns,
         omissions=[],
     )
+    # Check the schema before collecting optional examples and statistics.
     if _encoded_size(context) > limits.max_bytes:
         context.omissions.append(
             FilterContextOmission(kind="schema", reason="size_limit")
@@ -220,6 +221,8 @@ def _collect_statistic_sources(
             values=manager.get_stats_for_columns(numeric_columns)
         )
     except Exception:
+        # Failed batches expose no partial results. Per-column retries cost
+        # extra queries but preserve statistics for healthy columns.
         values: dict[str, ColumnStats] = {}
         for column_name in numeric_columns:
             try:
@@ -385,7 +388,7 @@ def _coerce_js_safe_number(value: Any) -> int | float | None:
             return None
         try:
             return _coerce_js_safe_number(Decimal(numeric_text))
-        except ValueError:
+        except (DecimalException, ValueError):
             return None
     if isinstance(value, Decimal):
         if not value.is_finite():
@@ -395,6 +398,16 @@ def _coerce_js_safe_number(value: Any) -> int | float | None:
             if abs(integer) > JS_MAX_SAFE_INTEGER:
                 return None
             return integer
+        try:
+            numeric_value = float(value)
+        except (OverflowError, ValueError):
+            return None
+        if (
+            not math.isfinite(numeric_value)
+            or Decimal(str(numeric_value)) != value
+        ):
+            return None
+        return numeric_value
     if isinstance(value, Integral):
         integer = int(value)
         if abs(integer) > JS_MAX_SAFE_INTEGER:
@@ -424,16 +437,6 @@ def _apply_byte_limit(context: FilterContext, max_bytes: int) -> FilterContext:
             before = _encoded_size(column)
             column.examples = None
             current_size = _updated_size(current_size, column, before)
-            if example_omission is None:
-                example_omission = FilterContextOmission(
-                    kind="examples",
-                    reason="size_limit",
-                )
-                current_size = _append_omission(
-                    context,
-                    current_size,
-                    example_omission,
-                )
             if current_size <= max_bytes:
                 return context
             continue
@@ -538,29 +541,26 @@ def _append_omission(
     return current_size + separator_size + _encoded_size(omission)
 
 
+def _is_statistics_size_omission(omission: FilterContextOmission) -> bool:
+    return omission.kind == "statistics" and omission.reason == "size_limit"
+
+
 def _compact_omissions_or_report_schema(
     context: FilterContext,
     current_size: int,
     max_bytes: int,
 ) -> FilterContext:
-    def is_statistics_size_omission(
-        omission: FilterContextOmission,
-    ) -> bool:
-        return (
-            omission.kind == "statistics" and omission.reason == "size_limit"
-        )
-
     # Preserve statistics size detail until other optional detail is exhausted.
     groups = (
         [
             omission
             for omission in reversed(context.omissions)
-            if not is_statistics_size_omission(omission)
+            if not _is_statistics_size_omission(omission)
         ],
         [
             omission
             for omission in reversed(context.omissions)
-            if is_statistics_size_omission(omission)
+            if _is_statistics_size_omission(omission)
         ],
     )
     for group_index, omissions in enumerate(groups):

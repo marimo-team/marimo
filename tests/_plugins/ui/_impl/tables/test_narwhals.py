@@ -7,6 +7,7 @@ import unittest
 from decimal import Decimal
 from math import isnan
 from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock
 
 import narwhals.stable.v2 as nw
 import pytest
@@ -28,10 +29,10 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCoordinate,
     TableManager,
     is_missing_sample_value,
-    serialize_sample_value,
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._utils.narwhals_utils import unwrap_py_scalar
+from marimo._utils.serialization import serialize_sample_value
 from tests._data.mocks import (
     EAGER_LIBS,
     NON_EAGER_LIBS,
@@ -1712,6 +1713,17 @@ def test_sampling_bounds_work_before_missing_value_cleanup() -> None:
         is_missing_sample_value(value)
         for value in manager.get_sample_values("value", max_values=2) or []
     ] == [True, True]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="polars not installed")
+def test_get_sample_values_converts_polars_panic_to_unavailable() -> None:
+    import polars as pl
+
+    data = MagicMock()
+    data.__getitem__.side_effect = pl.exceptions.PanicException("boom")
+    manager = NarwhalsTableManager(data)
+
+    assert manager.get_sample_values("value") is None
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

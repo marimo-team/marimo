@@ -1817,8 +1817,11 @@ def test_filter_context_is_cached_per_table_instance() -> None:
     assert builder.call_count == 2
 
 
-def test_filter_context_collection_limits_through_table() -> None:
-    pl = pytest.importorskip("polars")
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has() and not DependencyManager.polars.has(),
+    reason="Pandas or Polars not installed",
+)
+def test_filter_context_example_limit_through_table() -> None:
     long_example = ui.table(
         {"label": ["short", "x" * 11]},
         selection=None,
@@ -1846,6 +1849,9 @@ def test_filter_context_collection_limits_through_table() -> None:
         ],
     )
 
+
+def test_filter_context_row_guard_through_table() -> None:
+    pl = pytest.importorskip("polars")
     row_guard = ui.table(
         pl.DataFrame({"score": [1, 2]}),
         selection=None,
@@ -1873,6 +1879,8 @@ def test_filter_context_collection_limits_through_table() -> None:
         ],
     )
 
+
+def test_filter_context_schema_overflow_through_table() -> None:
     column_name = "column-" + ("x" * 200)
     schema_overflow = ui.table(
         {column_name: [1]},
