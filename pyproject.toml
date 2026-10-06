@@ -140,11 +140,13 @@ dev = [
     "opentelemetry-sdk~=1.28.0",
     "opentelemetry-exporter-otlp-proto-http~=1.28.0",
     "opentelemetry-exporter-otlp-proto-grpc~=1.28.0",
-    # For SQL
-    "duckdb>=1.0.0",
+    # For SQL. duckdb has no cp315 wheels as of 2026-10; drop the marker when
+    # published.
+    "duckdb>=1.0.0; python_version < '3.15'",
     "sqlglot[c]>=26.8.0",
-    # Stubs for optional dataframe backends
-    "pyarrow-stubs",
+    # Stubs for optional dataframe backends. pyarrow has no cp315 wheels as of
+    # 2026-10; drop the marker when published.
+    "pyarrow-stubs; python_version < '3.15'",
     # For linting
     "ruff>=0.16.6",
     # For AI. pydantic-core has no cp315 wheels as of 2026-10; drop the marker
