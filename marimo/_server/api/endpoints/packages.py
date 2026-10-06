@@ -316,6 +316,14 @@ def _get_filename(request: Request) -> str | None:
     return session.app_file_manager.filename
 
 
+def _runs_in_configured_venv(state: AppState, path: str) -> bool:
+    """True when auto mode will start `path` in its `[tool.marimo.venv]`."""
+    if not GLOBAL_SETTINGS.SANDBOX_AUTO:
+        return False
+    config = state.config_manager_at_file(path).get_config(hide_secrets=False)
+    return bool(config.get("venv", {}).get("path"))
+
+
 def _sandbox_source(
     request: Request, file_key: str | None, *, mutation: bool = False
 ) -> tuple[NotebookSandbox | None, str | None, Backend | None]:
@@ -339,6 +347,10 @@ def _sandbox_source(
     if not manager.sandbox:
         return None, None, None
     path = manager.workspace.resolve(key) if key else None
+    if path is not None and _runs_in_configured_venv(state, path):
+        # NB. Same answer the session path gives once the kernel is up: a
+        # configured-venv kernel has no NotebookSandbox.
+        return None, None, None
     return None, path, backend_for(path)
 
 
