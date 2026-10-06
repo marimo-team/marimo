@@ -2882,16 +2882,12 @@ components:
               parts:
                 type: array
                 items: {}
-              metadata:
-                anyOf:
-                  - {}
-                  - type: "null"
+              metadata: {}
             required:
               - id
               - role
               - content
               - parts
-              - metadata
       required:
         - messages
     marimo-chatbot.send_prompt.input:
@@ -2919,16 +2915,12 @@ components:
               parts:
                 type: array
                 items: {}
-              metadata:
-                anyOf:
-                  - {}
-                  - type: "null"
+              metadata: {}
             required:
               - id
               - role
               - content
               - parts
-              - metadata
         config:
           type: object
           properties:
