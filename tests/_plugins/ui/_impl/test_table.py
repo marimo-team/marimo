@@ -11,6 +11,7 @@ import pytest
 
 from marimo._data.models import ValueCount
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     FilterCondition,
@@ -32,6 +33,15 @@ from marimo._plugins.ui._impl.table import (
     get_default_table_page_size,
 )
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
+from marimo._plugins.ui._impl.tables.filter_context import (
+    ALL_STATISTICS,
+    FilterContext,
+    FilterContextColumn,
+    FilterContextLimits,
+    FilterContextOmission,
+    FilterContextStatistics,
+    build_filter_context,
+)
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import TableCell
 from marimo._plugins.ui._impl.utils.dataframe import TableData
@@ -1683,6 +1693,277 @@ def test_get_size_bytes_rpc_returns_none_on_serialization_failure() -> None:
 
     assert isinstance(resp, GetSizeBytesResponse)
     assert resp.size_bytes is None
+
+
+def test_filter_context_first_request_uses_original_manager() -> None:
+    pl = pytest.importorskip("polars")
+    data = pl.DataFrame(
+        {
+            "score": [3, 1, 2],
+            "label": ["keep", "keep", "drop"],
+        }
+    )
+
+    with patch(
+        "marimo._plugins.ui._impl.table.build_filter_context",
+        wraps=build_filter_context,
+    ) as builder:
+        table = ui.table(data, selection=None)
+        table._search(
+            SearchTableArgs(
+                page_size=10,
+                page_number=0,
+                query="keep",
+                sort=[SortArgs(by="score", descending=True)],
+                filters=FilterGroup(
+                    type="group",
+                    operator="and",
+                    children=[
+                        FilterCondition(
+                            type="condition",
+                            column_id="score",
+                            operator=">=",
+                            value=2,
+                        )
+                    ],
+                ),
+            )
+        )
+        assert table._searched_manager.get_num_rows() == 1
+
+        context = table._get_filter_context(EmptyArgs())
+
+    assert context == FilterContext(
+        row_count=3,
+        columns=[
+            FilterContextColumn(
+                name="score",
+                type="integer",
+                source_type="i64",
+                examples=["3", "1", "2"],
+                statistics=FilterContextStatistics(
+                    nulls=0,
+                    min=1,
+                    p25=2.0,
+                    median=2.0,
+                    p75=3.0,
+                    max=3,
+                    mean=2.0,
+                    std=1.0,
+                    p5=1.0,
+                    p95=3.0,
+                ),
+            ),
+            FilterContextColumn(
+                name="label",
+                type="string",
+                source_type="str",
+                examples=["keep", "drop"],
+            ),
+        ],
+        omissions=[],
+    )
+    builder.assert_called_once_with(
+        table._manager,
+        table._filter_context_limits,
+    )
+    assert "get_filter_context" in {
+        function.name for function in table._args.functions
+    }
+
+
+def test_filter_context_is_cached_per_table_instance() -> None:
+    pl = pytest.importorskip("polars")
+    data = pl.DataFrame(
+        {
+            "score": [1, 2, 3],
+            "label": ["keep", "drop", "keep"],
+        }
+    )
+
+    with patch(
+        "marimo._plugins.ui._impl.table.build_filter_context",
+        wraps=build_filter_context,
+    ) as builder:
+        first_table = ui.table(data, selection=None)
+        before = first_table._get_filter_context(EmptyArgs())
+        first_table._search(
+            SearchTableArgs(
+                page_size=10,
+                page_number=0,
+                query="keep",
+                sort=[SortArgs(by="score", descending=True)],
+                filters=FilterGroup(
+                    type="group",
+                    operator="and",
+                    children=[
+                        FilterCondition(
+                            type="condition",
+                            column_id="score",
+                            operator=">=",
+                            value=2,
+                        )
+                    ],
+                ),
+            )
+        )
+        after = first_table._get_filter_context(EmptyArgs())
+
+        second_table = ui.table(data, selection=None)
+        second = second_table._get_filter_context(EmptyArgs())
+
+    assert before is after
+    assert before == after == second
+    assert builder.call_count == 2
+
+
+def test_filter_context_collection_limits_through_table() -> None:
+    pl = pytest.importorskip("polars")
+    long_example = ui.table(
+        {"label": ["short", "x" * 11]},
+        selection=None,
+        _internal_filter_context_limits=FilterContextLimits(
+            max_example_characters=10
+        ),
+    )._get_filter_context(EmptyArgs())
+    assert long_example == FilterContext(
+        row_count=2,
+        columns=[
+            FilterContextColumn(
+                name="label",
+                type="unknown",
+                source_type="object",
+                examples=["short"],
+            )
+        ],
+        omissions=[
+            FilterContextOmission(
+                kind="examples",
+                reason="value_too_long",
+                column="label",
+                count=1,
+            )
+        ],
+    )
+
+    row_guard = ui.table(
+        pl.DataFrame({"score": [1, 2]}),
+        selection=None,
+        _internal_filter_context_limits=FilterContextLimits(
+            max_statistics_rows=1
+        ),
+    )._get_filter_context(EmptyArgs())
+    assert row_guard == FilterContext(
+        row_count=2,
+        columns=[
+            FilterContextColumn(
+                name="score",
+                type="integer",
+                source_type="i64",
+                examples=["1", "2"],
+            )
+        ],
+        omissions=[
+            FilterContextOmission(
+                kind="statistics",
+                reason="row_limit",
+                column="score",
+                fields=list(ALL_STATISTICS),
+            )
+        ],
+    )
+
+    column_name = "column-" + ("x" * 200)
+    schema_overflow = ui.table(
+        {column_name: [1]},
+        selection=None,
+        _internal_filter_context_limits=FilterContextLimits(max_bytes=32),
+    )._get_filter_context(EmptyArgs())
+    assert schema_overflow == FilterContext(
+        row_count=1,
+        columns=[
+            FilterContextColumn(
+                name=column_name,
+                type="unknown",
+                source_type="object",
+            )
+        ],
+        omissions=[FilterContextOmission(kind="schema", reason="size_limit")],
+    )
+
+
+def test_filter_context_byte_tiers_through_table() -> None:
+    pl = pytest.importorskip("polars")
+    data = pl.DataFrame({"score": list(range(10))})
+    expected_examples_context = FilterContext(
+        row_count=10,
+        columns=[
+            FilterContextColumn(
+                name="score",
+                type="integer",
+                source_type="i64",
+                statistics=FilterContextStatistics(
+                    nulls=0,
+                    min=0,
+                    p25=2.0,
+                    median=4.5,
+                    p75=7.0,
+                    max=9,
+                    mean=4.5,
+                    std=3.0276503540974917,
+                    p5=0.0,
+                    p95=9.0,
+                ),
+            )
+        ],
+        omissions=[
+            FilterContextOmission(
+                kind="examples",
+                reason="size_limit",
+                count=10,
+            )
+        ],
+    )
+
+    examples_context = ui.table(
+        data,
+        selection=None,
+        _internal_filter_context_limits=FilterContextLimits(
+            max_bytes=len(encode_json_bytes(expected_examples_context))
+        ),
+    )._get_filter_context(EmptyArgs())
+    assert examples_context == expected_examples_context
+
+    expected_core_context = FilterContext(
+        row_count=10,
+        columns=[
+            FilterContextColumn(
+                name="score",
+                type="integer",
+                source_type="i64",
+            )
+        ],
+        omissions=[
+            FilterContextOmission(
+                kind="examples",
+                reason="size_limit",
+            ),
+            FilterContextOmission(
+                kind="statistics",
+                reason="size_limit",
+                column="score",
+                count=10,
+            ),
+        ],
+    )
+    core_context = ui.table(
+        data,
+        selection=None,
+        _internal_filter_context_limits=FilterContextLimits(
+            max_bytes=len(encode_json_bytes(expected_core_context))
+        ),
+    )._get_filter_context(EmptyArgs())
+    assert core_context == expected_core_context
 
 
 def test_download_as_ignores_cell_selection() -> None:
