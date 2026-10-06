@@ -50,6 +50,24 @@ def current_backend() -> Backend:
     return "pixi" if GLOBAL_SETTINGS.SANDBOX_BACKEND == "pixi" else "uv"
 
 
+def backend_for(filename: str | None) -> Backend:
+    """The backend that manages `filename`'s environment.
+
+    With `MARIMO_SANDBOX_AUTO` set, a `[tool.pixi]` table in the notebook's
+    manifest selects pixi. Otherwise this is the process backend.
+    """
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._environments import script_metadata
+
+    if (
+        GLOBAL_SETTINGS.SANDBOX_AUTO
+        and filename is not None
+        and script_metadata.declares_pixi(filename)
+    ):
+        return "pixi"
+    return current_backend()
+
+
 def adapter_for(
     backend: Backend, reporter: SandboxReporter | None = None
 ) -> BackendAdapter:

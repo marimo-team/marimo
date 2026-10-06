@@ -1285,6 +1285,117 @@ async def test_configured_venv_launches_editor_kernel_without_sandbox(
         session.close()
 
 
+@pytest.mark.requires("zmq")
+async def test_sandbox_auto_honors_configured_venv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._session.managers.ipc import IPCKernelManagerImpl
+
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_AUTO", True)
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        "# /// script\n# [tool.marimo.venv]\n"
+        f"# path = {str(Path(sys.prefix).as_posix())!r}\n# ///\n"
+    )
+    session = await SessionImpl.create(
+        initialization_id=str(notebook),
+        startup=SessionStartup(),
+        session_consumer=None,
+        mode=SessionMode.EDIT,
+        app_metadata=AppMetadata(
+            query_params={},
+            filename=str(notebook),
+            cli_args={},
+            app_config=_AppConfig(),
+        ),
+        app_file_manager=AppFileManager(filename=str(notebook)),
+        config_manager=get_default_config_manager(current_path=str(tmp_path)),
+        virtual_file_storage=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+        auto_instantiate=False,
+        sandbox=True,
+    )
+    try:
+        manager = session._kernel_manager
+        assert isinstance(manager, IPCKernelManagerImpl)
+        assert manager.is_alive()
+        assert manager.venv_python is not None
+        assert Path(manager.venv_python).parent.parent == Path(sys.prefix)
+        assert session.notebook_sandbox is None
+        assert "ignoring [tool.marimo.venv]" not in capsys.readouterr().err
+    finally:
+        session.close()
+
+
+@pytest.mark.requires("zmq")
+@pytest.mark.parametrize(
+    ("manifest", "expected"),
+    [
+        ("# [tool.pixi.workspace]\n# channels = ['conda-forge']\n", "pixi"),
+        ("", "uv"),
+    ],
+)
+async def test_sandbox_auto_picks_backend_from_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    manifest: str,
+    expected: str,
+) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._environments.environment import Environment, ProcessPlan
+    from marimo._environments.sandbox import BackendAdapter, NotebookSandbox
+
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_AUTO", True)
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_BACKEND", "uv")
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        "# /// script\n# dependencies = []\n" + manifest + "# ///\n"
+    )
+
+    environment = Environment(sys.executable, sys.prefix, "unchanged")
+    adapter = MagicMock(spec=BackendAdapter)
+    # NB. NotebookSandbox rejects an adapter whose name differs from the
+    # resolved backend, so a wrong resolution fails here, not silently.
+    adapter.name = expected
+    adapter.sync_async.return_value = environment
+    adapter.launch.return_value = ProcessPlan(
+        (sys.executable, "-m", "marimo._ipc.launch_kernel"), os.environ.copy()
+    )
+    monkeypatch.setattr(
+        "marimo._environments.backends.adapter_for", lambda *_: adapter
+    )
+
+    session = await SessionImpl.create(
+        initialization_id=str(notebook),
+        startup=SessionStartup(),
+        session_consumer=None,
+        mode=SessionMode.EDIT,
+        app_metadata=AppMetadata(
+            query_params={},
+            filename=str(notebook),
+            cli_args={},
+            app_config=_AppConfig(),
+        ),
+        app_file_manager=AppFileManager(filename=str(notebook)),
+        config_manager=get_default_config_manager(current_path=str(tmp_path)),
+        virtual_file_storage=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+        auto_instantiate=False,
+        sandbox=True,
+    )
+    try:
+        sandbox = session.notebook_sandbox
+        assert isinstance(sandbox, NotebookSandbox)
+        assert sandbox.backend == expected
+    finally:
+        session.close()
+
+
 async def test_session_script_dotenv_reaches_the_kernel_config(
     tmp_path: Path,
 ) -> None:

@@ -25,6 +25,11 @@ class GlobalSettings:
     SANDBOX_BACKEND: str | None = (
         os.environ.get("MARIMO_SANDBOX_BACKEND") or None
     )
+    # Let each notebook's manifest pick its environment in a sandboxed
+    # directory server.
+    # [tool.marimo.venv] takes precident over [tool.pixi] then falls back to the
+    # default SANDBOX_BACKEND (unset is UV). Required for the Jupyter extension.
+    SANDBOX_AUTO: bool = is_env_true("MARIMO_SANDBOX_AUTO")
     IN_SECURE_ENVIRONMENT: bool = is_env_true("MARIMO_IN_SECURE_ENVIRONMENT")
     # Mark the session cookie as `Secure` so browsers only send it over HTTPS.
     # Enable when serving marimo behind TLS / a TLS-terminating proxy. Default

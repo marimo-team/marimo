@@ -8,7 +8,7 @@ from starlette.authentication import requires
 
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._environments import script_metadata
-from marimo._environments.backends import current_backend
+from marimo._environments.backends import backend_for
 from marimo._environments.errors import (
     EnvironmentManagerError,
     SandboxRestartRequired,
@@ -339,7 +339,7 @@ def _sandbox_source(
     if not manager.sandbox:
         return None, None, None
     path = manager.workspace.resolve(key) if key else None
-    return None, path, current_backend()
+    return None, path, backend_for(path)
 
 
 @router.post("/sandbox")

@@ -143,6 +143,18 @@ def loads(script: str) -> dict[str, Any] | None:
         return None
 
 
+def declares_pixi(path: str) -> bool:
+    """True when the notebook's manifest has a `[tool.pixi]` table."""
+    try:
+        project = toml_reader.reads(read_manifest(path))
+    except Exception:
+        # NB. A missing or malformed manifest falls back to the process
+        # backend, which reports the problem when it syncs.
+        return False
+    tool = project.get("tool")
+    return isinstance(tool, dict) and isinstance(tool.get("pixi"), dict)
+
+
 def dumps(project: dict[str, Any]) -> str:
     """Serialize a project dict to a `# /// script` block."""
     import tomlkit
