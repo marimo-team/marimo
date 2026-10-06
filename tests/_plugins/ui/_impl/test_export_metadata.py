@@ -185,22 +185,16 @@ def test_old_shapely_disables_only_geojson(widget: Any) -> None:
     assert result.formats["parquet"].available
 
 
-@pytest.mark.requires("pyarrow")
+@pytest.mark.requires("geopandas", "pyarrow")
 def test_arrow_crs_comes_from_field_metadata(widget: Any) -> None:
     subject = widget(fixtures.arrow_wkb_known_crs())
     result = subject._get_export_metadata(EmptyArgs())
     assert [asdict(column) for column in result.geometry_columns] == [
         {"name": "geom", "encoding": "wkb", "crs": "EPSG:4326"},
     ]
-    assert asdict(result.formats["parquet"]) == {
-        "available": False,
-        "reason": "GeoParquet export from Arrow tables is not supported yet.",
-        "missing_packages": [],
-    }
-    assert asdict(result.formats["geojson"]) == {
-        "available": False,
-        "reason": "GeoJSON export from Arrow tables is not supported yet.",
-        "missing_packages": [],
+    assert {name: asdict(value) for name, value in result.formats.items()} == {
+        name: {"available": True, "reason": None, "missing_packages": []}
+        for name in ("parquet", "geojson")
     }
 
 
