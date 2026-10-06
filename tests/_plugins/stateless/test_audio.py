@@ -5,6 +5,7 @@ import base64
 import io
 import sys
 import wave
+from html.parser import HTMLParser
 
 import pytest
 
@@ -149,13 +150,30 @@ async def test_audio_numpy_constructor() -> None:
 def test_audio_numpy_silence(channels: int, normalize: bool) -> None:
     import numpy as np
 
+    class AudioParser(HTMLParser):
+        src: str | None = None
+
+        def handle_starttag(
+            self, tag: str, attrs: list[tuple[str, str | None]]
+        ) -> None:
+            if tag == "audio":
+                self.src = dict(attrs).get("src")
+
     samples = 8
     shape = (samples,) if channels == 1 else (channels, samples)
     with np.errstate(invalid="raise", divide="raise"):
         result = audio(np.zeros(shape), rate=44100, normalize=normalize)
 
-    encoded = result.text.split("base64,", 1)[1].split("'", 1)[0]
-    with wave.open(io.BytesIO(base64.b64decode(encoded)), "rb") as wav:
+    parser = AudioParser()
+    parser.feed(result.text)
+    assert parser.src is not None
+    header, delimiter, encoded = parser.src.partition(",")
+    assert header.startswith("data:audio/")
+    assert header.endswith(";base64")
+    assert delimiter == ","
+    with wave.open(
+        io.BytesIO(base64.b64decode(encoded, validate=True)), "rb"
+    ) as wav:
         assert tuple(wav.getparams()) == (
             channels,
             2,
