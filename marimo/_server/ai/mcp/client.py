@@ -349,7 +349,7 @@ class MCPClient:
             except asyncio.CancelledError:
                 await cancel_and_wait(connection_task)
                 raise
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # A lifecycle can time out before it reaches disconnect_event.
                 # Letting it continue would make refresh and shutdown wait on a
                 # task that they cannot signal, so a timeout is terminal.
@@ -537,7 +537,7 @@ class MCPClient:
             # Return the MCP SDK result directly (may already be an error).
             return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             error_msg = f"Tool {namespaced_tool_name} timed out after {connection.definition.timeout} seconds"
             LOGGER.error(error_msg)
 
@@ -753,7 +753,7 @@ class MCPClient:
 
             return True
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             LOGGER.warning(
                 f"Health check ping timed out after {self.health_check_timeout} seconds for {server_name}"
             )

@@ -634,7 +634,7 @@ class TestScratchCellListener:
         try:
             await asyncio.wait_for(got_event.wait(), timeout=0.1)
             raise AssertionError("listener exited on wrong run_id")
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
         finally:
             task.cancel()
