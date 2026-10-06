@@ -484,9 +484,9 @@ def serialize_geojson(
             "GeoJSON export requires a declared geometry column.",
             column=geometry_column,
         )
-    if (
-        not isinstance(manager, NarwhalsTableManager)
-        or not manager.data.implementation.is_pandas()
+    if not isinstance(manager, NarwhalsTableManager) or not (
+        manager.data.implementation.is_pandas()
+        or manager.data.implementation.is_pyarrow()
     ):
         raise GeometryExportError(
             "unsupported_representation",
@@ -517,9 +517,12 @@ def serialize_geojson(
             "Choose a geometry column for GeoJSON export.",
         )
     if not DependencyManager.geopandas.has():
+        source_label = (
+            "pandas" if manager.data.implementation.is_pandas() else "Arrow"
+        )
         raise GeometryExportError(
             "missing_packages",
-            "This pandas table needs geopandas to export GeoJSON.",
+            f"This {source_label} table needs geopandas to export GeoJSON.",
             missing_packages=["geopandas"],
         )
     if not DependencyManager.shapely.has_at_version(
@@ -538,15 +541,17 @@ def serialize_geojson(
         _trivial_range_index,
     )
 
-    native = manager.as_frame().to_native()
+    native = _export_geodataframe(manager, metadata)
     if not native.columns.is_unique:
         raise GeometryExportError(
             "invalid_metadata", "GeoJSON export requires unique column names."
         )
     geometry = gpd.GeoSeries(native[primary].array, index=native.index)
-    exports_index = isinstance(
-        manager, PandasTableManagerFactory.create()
-    ) and not _trivial_range_index(native.index)
+    exports_index = (
+        manager.data.implementation.is_pandas()
+        and isinstance(manager, PandasTableManagerFactory.create())
+        and not _trivial_range_index(native.index)
+    )
     if geometry.crs is None:
         raise GeometryExportError(
             "missing_crs",
@@ -576,8 +581,10 @@ def serialize_geojson(
             crs=projected.crs,
         )
         export = gpd.GeoDataFrame(geometry=projected)
-        properties_manager = prepare_geometry_text_export(
-            manager.drop_columns([primary])
+        properties_manager = (
+            _prepare_arrow_geojson_properties(manager, native, primary, names)
+            if manager.data.implementation.is_pyarrow()
+            else prepare_geometry_text_export(manager.drop_columns([primary]))
         )
         properties: list[dict[str, Any]]
         if len(native.columns) == 1 and not exports_index:
@@ -652,6 +659,40 @@ def serialize_geojson(
             f"Could not export GeoJSON: {e}",
             column=primary,
         ) from e
+
+
+def _prepare_arrow_geojson_properties(
+    manager: NarwhalsTableManager[Any, Any],
+    frame: Any,
+    primary: str,
+    geometry_columns: set[str],
+) -> TableManager[Any]:
+    import pyarrow as pa
+
+    source: pa.Table = manager.as_frame().to_native()
+    properties = source.drop([primary])
+    for name in geometry_columns - {primary}:
+        index = properties.schema.get_field_index(name)
+        original = properties.schema.field(index)
+        metadata = {
+            key: value
+            for key, value in (original.metadata or {}).items()
+            if key
+            not in (b"ARROW:extension:name", b"ARROW:extension:metadata")
+        }
+        field = pa.field(
+            name,
+            pa.string(),
+            nullable=original.nullable,
+            metadata=metadata or None,
+        )
+        values = pa.array(
+            frame[name].to_wkt(rounding_precision=-1),
+            type=pa.string(),
+            from_pandas=True,
+        )
+        properties = properties.set_column(index, field, values)
+    return _with_native_data(manager, properties)
 
 
 def _reject_json_constant(value: str) -> Any:
