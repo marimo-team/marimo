@@ -389,8 +389,15 @@ class DefaultTableManager(TableManager[JsonTableData]):
             self._as_table_manager().get_unique_column_values(column)
         )
 
-    def get_sample_values(self, column: str) -> list[Any]:
-        return self._as_table_manager().get_sample_values(column)
+    def get_sample_values(
+        self,
+        column: str,
+        max_values: int = 3,
+    ) -> list[Any] | None:
+        return self._as_table_manager().get_sample_values(
+            column,
+            max_values,
+        )
 
     def sort_values(self, by: list[SortArgs]) -> DefaultTableManager:
         if not by:

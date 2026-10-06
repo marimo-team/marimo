@@ -12,6 +12,9 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.tables.table_manager import (
+    serialize_sample_value,
+)
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._types.ids import VariableName
 
@@ -46,7 +49,10 @@ def _get_data_table(
                 name=column_name,
                 type=column_type[0],
                 external_type=column_type[1],
-                sample_values=table.get_sample_values(column_name),
+                sample_values=[
+                    serialize_sample_value(value)
+                    for value in table.get_sample_values(column_name) or []
+                ],
             )
             for column_name, column_type in table.get_field_types()
         ]

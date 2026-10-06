@@ -27,6 +27,8 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
     TableCoordinate,
     TableManager,
+    is_missing_sample_value,
+    serialize_sample_value,
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._utils.narwhals_utils import unwrap_py_scalar
@@ -56,6 +58,11 @@ SUPPORTED_LIBS: list[DFType] = [
 
 def assert_frame_equal(a: DataFrameT, b: DataFrameT) -> None:
     return a.to_dict(as_series=False) == b.to_dict(as_series=False)
+
+
+def dataframe_backend_id(df: Any) -> str:
+    frame = nw.from_native(df)
+    return f"{frame.implementation}-{type(frame).__name__.lower()}"
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -374,6 +381,40 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             p75=3.0,
             p95=3.0,
         )
+
+    def test_summary_numeric_columns_in_one_batch(self) -> None:
+        summaries = self.manager.get_stats_for_columns(["A", "C"])
+
+        assert summaries == {
+            "A": ColumnStats(
+                total=3,
+                nulls=0,
+                unique=3,
+                min=1,
+                max=3,
+                mean=2.0,
+                median=2.0,
+                std=1.0,
+                p5=1.0,
+                p25=2.0,
+                p75=3.0,
+                p95=3.0,
+            ),
+            "C": ColumnStats(
+                total=3,
+                nulls=0,
+                unique=3,
+                min=1.0,
+                max=3.0,
+                mean=2.0,
+                median=2.0,
+                std=1.0,
+                p5=1.0,
+                p25=2.0,
+                p75=3.0,
+                p95=3.0,
+            ),
+        }
 
     def test_summary_boolean(self) -> None:
         column = "D"
@@ -1068,14 +1109,16 @@ def test_get_summary_all_types() -> None:
             NarwhalsTableManager.from_dataframe(df)
         )
 
-        for column in manager.get_column_names():
-            try:
-                summary = manager._get_stats_internal(column)
+        try:
+            summaries = manager._get_stats_internal_for_columns(
+                manager.get_column_names()
+            )
+            for summary in summaries.values():
                 assert isinstance(summary, ColumnStats)
                 assert summary.total == 3
-            except Exception as e:
-                error_count += 1
-                print(f"Error getting summary for column {column}: {e}")
+        except Exception as e:
+            error_count += 1
+            print(f"Error getting batched summaries: {e}")
 
     assert error_count == 0, (
         f"Got {error_count} errors when getting column summaries"
@@ -1487,6 +1530,7 @@ def test_get_sample_values(df: Any) -> None:
     # Integer
     sample_values = manager.get_sample_values("A")
     assert sample_values == [1, 2, 3]
+    assert manager.get_sample_values("A", max_values=4) == [1, 2, 3, 4]
 
     # String
     sample_values = manager.get_sample_values("B")
@@ -1515,7 +1559,12 @@ def test_get_sample_values(df: Any) -> None:
 
     # Mixed with nulls
     sample_values = manager.get_sample_values("F")
-    assert sample_values == ["None", "b", "c"]
+    assert [
+        (is_missing_sample_value(value), None)
+        if is_missing_sample_value(value)
+        else (False, value)
+        for value in sample_values or []
+    ] == [(True, None), (False, "b"), (False, "c")]
 
     # Date
     sample_values = manager.get_sample_values("G")
@@ -1536,7 +1585,16 @@ def test_get_sample_values(df: Any) -> None:
 
     # Special floats
     sample_values = manager.get_sample_values("I")
-    assert len(sample_values) == 3
+    assert [
+        (is_missing_sample_value(value), None)
+        if is_missing_sample_value(value)
+        else (False, value)
+        for value in sample_values or []
+    ] == [
+        (False, float("inf")),
+        (False, float("-inf")),
+        (True, None),
+    ]
 
     # Whitespace strings
     sample_values = manager.get_sample_values("J")
@@ -1545,6 +1603,92 @@ def test_get_sample_values(df: Any) -> None:
     # Bytes
     sample_values = manager.get_sample_values("K")
     assert sample_values == ["b'bytes1'", "b'bytes2'", "b'bytes3'"]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"value": [float("nan"), None, 1.5, 2.5]},
+        include=EAGER_LIBS,
+        strict=False,
+    ),
+    ids=dataframe_backend_id,
+)
+def test_get_sample_values_preserves_backend_missing_values(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+
+    values = manager.get_sample_values("value", max_values=4)
+
+    assert [
+        (is_missing_sample_value(value), None)
+        if is_missing_sample_value(value)
+        else (False, value)
+        for value in values or []
+    ] == [(True, None), (True, None), (False, 1.5), (False, 2.5)]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_sampling_bounds_work_before_missing_value_cleanup() -> None:
+    pd = pytest.importorskip("pandas")
+    manager = NarwhalsTableManager.from_dataframe(
+        pd.DataFrame({"value": [float("nan"), None, 1.5, 2.5]})
+    )
+
+    assert [
+        is_missing_sample_value(value)
+        for value in manager.get_sample_values("value", max_values=2) or []
+    ] == [True, True]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_sample_values_preserves_large_python_integers() -> None:
+    pd = pytest.importorskip("pandas")
+    large_integer = 10**400
+    manager = NarwhalsTableManager.from_dataframe(
+        pd.DataFrame({"value": pd.Series([large_integer, 1], dtype=object)})
+    )
+
+    assert manager.get_sample_values("value") == [large_integer, 1]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_sample_values_distinguishes_pandas_sentinels_from_strings() -> (
+    None
+):
+    pd = pytest.importorskip("pandas")
+    manager = NarwhalsTableManager.from_dataframe(
+        pd.DataFrame(
+            {
+                "nullable_integer": pd.Series(
+                    [pd.NA, 1, pd.NA, pd.NA], dtype="Int64"
+                ),
+                "nullable_string": pd.Series(
+                    [pd.NA, "a", pd.NA, pd.NA], dtype="string"
+                ),
+                "datetime": [
+                    pd.NaT,
+                    pd.Timestamp("2024-01-01"),
+                    pd.NaT,
+                    pd.NaT,
+                ],
+                "sentinel_strings": ["None", "nan", "<NA>", "NaT"],
+            }
+        )
+    )
+
+    assert {
+        column: [
+            serialize_sample_value(value)
+            for value in manager.get_sample_values(column, max_values=4) or []
+        ]
+        for column in manager.get_column_names()
+    } == {
+        "nullable_integer": ["<NA>", 1, "<NA>", "<NA>"],
+        "nullable_string": ["<NA>", "a", "<NA>", "<NA>"],
+        "datetime": ["NaT", "2024-01-01 00:00:00", "NaT", "NaT"],
+        "sentinel_strings": ["None", "nan", "<NA>", "NaT"],
+    }
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="polars not installed")
@@ -1763,12 +1907,12 @@ def _normalize_result(result: list[tuple[Any, int]]) -> list[tuple[Any, int]]:
         exclude=EAGER_LIBS,
     ),
 )
-def test_get_sample_values_with_non_lazy_df(df: Any) -> None:
+def test_get_sample_values_does_not_materialize_lazy_df(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
-    sample_values = manager.get_sample_values("A")
-    assert sample_values == []
-    sample_values = manager.get_sample_values("B")
-    assert sample_values == []
+    assert {
+        "A": manager.get_sample_values("A"),
+        "B": manager.get_sample_values("B"),
+    } == {"A": None, "B": None}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -1781,10 +1925,10 @@ def test_get_sample_values_with_non_lazy_df(df: Any) -> None:
 )
 def test_get_sample_values_with_metadata_only_frame(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
-    sample_values = manager.get_sample_values("A")
-    assert sample_values == []
-    sample_values = manager.get_sample_values("B")
-    assert sample_values == []
+    assert {
+        "A": manager.get_sample_values("A"),
+        "B": manager.get_sample_values("B"),
+    } == {"A": None, "B": None}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
