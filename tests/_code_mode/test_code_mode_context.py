@@ -27,11 +27,12 @@ from marimo._messaging.notification import (
 )
 from marimo._runtime.commands import (
     CreateNotebookCommand,
+    DeleteCellCommand,
     ExecuteCellCommand,
     UpdateUIElementCommand,
 )
 from marimo._runtime.packages.package_manager import PackageDescription
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime import CellMetadata, Kernel
 from marimo._types.ids import CellId_t
 
 
@@ -1470,6 +1471,100 @@ class TestPendingExecutionRequests:
             )
         )
         return cells
+
+    @pytest.mark.parametrize(
+        "bridge_change", ["unchanged", "replace", "invalid", "delete"]
+    )
+    async def test_preparation_uses_effective_batch_source(
+        self, k: Kernel, bridge_change: str
+    ) -> None:
+        await self._open_notebook(k)
+        k.mutate_graph(
+            [ExecuteCellCommand(cell_id=CellId_t("child"), code="y = x + 2")],
+            deletion_requests=[],
+        )
+        requests = [
+            ExecuteCellCommand(cell_id=CellId_t("final"), code="z = y + 1")
+        ]
+        deletions: list[DeleteCellCommand] = []
+        if bridge_change in ("replace", "invalid"):
+            requests.append(
+                ExecuteCellCommand(
+                    cell_id=CellId_t("child"),
+                    code="y = 5" if bridge_change == "replace" else "y =",
+                )
+            )
+        elif bridge_change == "delete":
+            deletions.append(DeleteCellCommand(cell_id=CellId_t("child")))
+
+        pending_before = dict(k._uninstantiated_execution_requests)
+        prepared = k.prepare_execution_requests(
+            requests,
+            run_cell_ids={CellId_t("final")},
+            deletion_requests=deletions,
+        )
+        expected = list(requests)
+        if bridge_change == "unchanged":
+            expected.append(pending_before[CellId_t("root")])
+        assert prepared == expected
+        assert k._uninstantiated_execution_requests == pending_before
+        assert _graph_codes(k) == {"child": "y = x + 2"}
+
+    @pytest.mark.parametrize("execution_path", ["ui", "code_mode"])
+    async def test_pending_ancestor_behind_registered_unrun_cell(
+        self, any_kernel: Kernel, execution_path: str
+    ) -> None:
+        k = any_kernel
+        cells = await self._open_notebook(k)
+        with _ctx(k, extra_doc_cells=cells) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("child", code="y = x + 2")
+                final_id = nb.create_cell("z = y + 1")
+        assert "y" not in k.globals
+
+        if execution_path == "ui":
+            await k.run(
+                [ExecuteCellCommand(cell_id=final_id, code="z = y + 1")]
+            )
+        else:
+            pending_cells = [c for c in cells if c.id not in k.graph.cells]
+            with _ctx(k, extra_doc_cells=pending_cells) as ctx:
+                async with ctx as nb:
+                    nb.edit_cell(str(final_id), code="z = y + 2")
+                    nb.run_cell(str(final_id))
+
+        assert {name: k.globals[name] for name in ("x", "y", "z")} == {
+            "x": 1,
+            "y": 3,
+            "z": 4 if execution_path == "ui" else 5,
+        }
+        assert set(k._uninstantiated_execution_requests) == {"unrelated"}
+
+    @pytest.mark.parametrize("explicit_ancestor", [False, True])
+    @pytest.mark.parametrize("disabled", [False, True])
+    async def test_run_preserves_newer_ancestor_metadata(
+        self, any_kernel: Kernel, explicit_ancestor: bool, disabled: bool
+    ) -> None:
+        k = any_kernel
+        cells = await self._open_notebook(k)
+        config = CellConfig(
+            disabled=disabled, hide_code=True, expand_output=True, column=2
+        )
+        k.cell_metadata[CellId_t("root")] = CellMetadata(config=config)
+        with _ctx(k, extra_doc_cells=cells) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("child", code="y = x + 2")
+                nb.run_cell("child")
+                if explicit_ancestor:
+                    nb.run_cell("root")
+
+        assert k.cell_metadata["root"].config == config
+        assert k.graph.cells["root"].config == config
+        if disabled:
+            assert "x" not in k.globals
+            assert "y" not in k.globals
+        else:
+            assert k.globals["y"] == 3
 
     async def test_mixed_run_discovers_pending_ancestor(
         self, any_kernel: Kernel

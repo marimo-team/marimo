@@ -1794,10 +1794,6 @@ class AsyncCodeModeContext:
                         code=existing_code[entry.cell_id],
                     )
                 )
-                resolved_configs.setdefault(
-                    entry.cell_id,
-                    self._document.get_cell(entry.cell_id).config,
-                )
         deletion_requests = [
             DeleteCellCommand(cell_id=cid)
             for cid in existing_id_set - plan_ids
@@ -1811,7 +1807,7 @@ class AsyncCodeModeContext:
             if request.cell_id in existing_id_set:
                 resolved_configs.setdefault(
                     request.cell_id,
-                    self._document.get_cell(request.cell_id).config,
+                    self._current_config(request.cell_id),
                 )
         cells_to_run = self._kernel.mutate_graph(
             execution_requests, deletion_requests

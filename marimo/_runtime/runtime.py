@@ -1717,7 +1717,23 @@ class Kernel:
             if cid not in requested_ids and cid not in deleted_ids
         }
         graph = dataflow.DirectedGraph()
-        for request in [*pending.values(), *requests]:
+        # Registered but unrun cells can bridge a run target to pending
+        # ancestors. Compile fresh cells so discovery cannot mutate their
+        # runtime state; replacements and deletions supersede old source.
+        registered_requests = [
+            ExecuteCellCommand(cell_id=cid, code=cell.code)
+            for cid, cell in self.graph.cells.items()
+            if cid not in requested_ids and cid not in deleted_ids
+        ]
+        source_requests = {
+            request.cell_id: request
+            for request in [
+                *pending.values(),
+                *registered_requests,
+                *requests,
+            ]
+        }
+        for request in source_requests.values():
             try:
                 cell = compile_cell(request.code, cell_id=request.cell_id)
             except Exception:  # noqa: S112
