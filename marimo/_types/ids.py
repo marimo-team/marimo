@@ -24,3 +24,12 @@ RequestId = NewType("RequestId", str)
 
 # AnyWidget model id
 WidgetModelId = NewType("WidgetModelId", str)
+
+# Objects a host publishes to clients. A runtime keeps its id across kernel
+# restarts, unlike SessionId, which routes one browser connection. On a
+# server, a RuntimeId is the StableSessionId of the session running it.
+ProjectId = NewType("ProjectId", str)
+NotebookId = NewType("NotebookId", str)
+RuntimeId = NewType("RuntimeId", str)
+AttachmentId = NewType("AttachmentId", str)
+ExecutionId = NewType("ExecutionId", str)
