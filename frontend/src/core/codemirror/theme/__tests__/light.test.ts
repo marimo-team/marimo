@@ -58,6 +58,8 @@ describe.each(themeCases)("$name theme", (theme) => {
     );
     expect(css).toContain("background-color: var(--cm-selection-background);");
     expect(css).toContain(`color: ${theme.reactiveColor};`);
+    expect(css).toContain("color: var(--cm-keyword);");
+    expect(css).toContain("color: var(--cm-foreground);");
     expect(css).toContain(
       "border-bottom: 2px solid var(--cm-reactive-reference-border-color);",
     );

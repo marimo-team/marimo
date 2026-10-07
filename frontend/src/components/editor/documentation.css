@@ -157,18 +157,18 @@
 /* Syntax highlighting for LSP hover code blocks (lezer classHighlighter tok-* classes) */
 .docs-documentation,
 .cm-tooltip .documentation {
-  .tok-keyword { color: light-dark(#708, #c678dd); font-weight: 500; }
+  .tok-keyword { color: var(--cm-keyword); font-weight: 500; }
   .tok-string,
-  .tok-string2 { color: light-dark(#a11, #98c379); }
-  .tok-number { color: light-dark(#164, #d19a66); }
+  .tok-string2 { color: var(--cm-string); }
+  .tok-number { color: var(--cm-number); }
   .tok-bool,
-  .tok-atom { color: light-dark(#219, #d19a66); }
+  .tok-atom { color: var(--cm-atom); }
   .tok-comment { color: var(--cm-comment); }
-  .tok-className { color: light-dark(#00f, #61afef); }
+  .tok-className { color: var(--cm-class-name); }
   .tok-typeName,
-  .tok-namespace { color: light-dark(#085, #56b6c2); }
-  .tok-operator { color: light-dark(#a2f, #56b6c2); }
-  .tok-propertyName { color: light-dark(#05a, #e5c07b); }
-  .tok-variableName { color: light-dark(#000, #abb2bf); }
-  .tok-punctuation { color: light-dark(#000, #abb2bf); }
+  .tok-namespace { color: var(--cm-type-name); }
+  .tok-operator { color: var(--cm-operator); }
+  .tok-propertyName { color: var(--cm-property); }
+  .tok-variableName { color: var(--cm-foreground); }
+  .tok-punctuation { color: var(--cm-foreground); }
 }
