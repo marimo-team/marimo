@@ -278,7 +278,6 @@ image
                         )
                         print(
                             f"Reused empty-output capture: {empty_capture_ms}ms"
-
                         )
                         cell_id = next(
                             line.removeprefix("CELL_ID=")
