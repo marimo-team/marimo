@@ -227,7 +227,7 @@ assert parse_qs(urlsplit(session._page.url).query)["file"] == [{key!r}]
 assert parse_qs(urlsplit(session._page.url).query)["kiosk"] == ["true"]
 assert "capture" not in parse_qs(urlsplit(session._page.url).query)
 assert await session._page.locator("[data-cell-output-id]").count() == 0
-assert await session._page.evaluate("(id) => window.__marimoCapture.getCellState(id)", cell_id) == "ready"
+assert await session._page.evaluate("(id) => window.__marimoCapture.getCellState(id)", cell_id) == "available"
 # Reuse a page with rich output after replacing it with newer rich output.
 updated_code = {source.replace(marker, f"{marker} UPDATED")!r}
 async with cm.get_context() as update_ctx:
@@ -314,7 +314,7 @@ image
                                 "(id) => window.__marimoCapture.getCellState(id)",
                                 cell_id,
                             )
-                            == "ready"
+                            == "available"
                         )
                         await kiosk.close()
                         assert not websocket.is_closed()
@@ -371,7 +371,7 @@ async def test_screenshot_waits_for_frontend_state_and_rendering() -> None:
                 with pytest.raises(BrowserTimeoutError):
                     await session._wait_for_output(CellId_t("a"), timeout=50)
                 await page.evaluate("""() => {
-                    window.__marimoCapture.getCellState = () => 'ready';
+                    window.__marimoCapture.getCellState = () => 'available';
                     document.getElementById('output-a').textContent = 'new output';
                 }""")
                 assert (

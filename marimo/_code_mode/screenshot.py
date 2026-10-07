@@ -406,17 +406,17 @@ class _ScreenshotSession:
                 const capture = window.__marimoCapture;
                 if (capture) {
                     const state = capture.getCellState(cellId);
-                    if (state === "empty" || state === "ready") return state;
-                    if (probe && state !== "missing") return "pending";
-                    return false;
+                    if (state === "empty") return "empty";
+                    if (state === "missing") return false;
+                    if (state !== "available") return probe ? "pending" : false;
                 }
-                // Older frontend builds can still capture visible output.
+                // Rendering readiness remains a DOM check, independent of availability.
                 const el = document.getElementById(`output-${cellId}`);
                 if (el && el.getClientRects().length > 0 &&
                     (el.children.length > 0 || el.textContent.trim().length > 0)) {
                     return "ready";
                 }
-                if (probe && el) return "pending";
+                if (probe && (capture || el)) return "pending";
                 return false;
             }""",
             arg={"cellId": cell_id, "probe": probe},

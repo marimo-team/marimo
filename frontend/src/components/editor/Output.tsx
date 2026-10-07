@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
-import { getCaptureOutputRef } from "@/core/cells/capture";
 import { viewStateAtom } from "@/core/mode";
 import { useEventListener } from "@/hooks/useEventListener";
 import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
@@ -35,7 +34,6 @@ import { useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
-import { mergeRefs } from "@/utils/mergeRefs";
 import {
   getMimeBundleEntries,
   MIME_BUNDLE_METADATA_KEY,
@@ -393,7 +391,6 @@ export const OutputArea = React.memo(
     return (
       <ErrorBoundary>
         <Container
-          ref={getCaptureOutputRef(output)}
           title={title}
           cellId={cellId}
           forceExpand={forceExpand}
@@ -432,17 +429,12 @@ const ExpandableOutput = React.memo(
     cellId,
     children,
     forceExpand,
-    ref: outputRef,
     ...props
   }: React.HTMLProps<HTMLDivElement> & {
     cellId: CellId;
     forceExpand?: boolean;
   }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const mergedRef = useMemo(
-      () => mergeRefs(containerRef, outputRef ?? null),
-      [outputRef],
-    );
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
     const isOverflowing = useOverflowDetection(containerRef);
     const { hasFullscreen } = useIframeCapabilities();
@@ -514,7 +506,7 @@ const ExpandableOutput = React.memo(
               "fullscreen:items-center-safe",
               props.className,
             )}
-            ref={mergedRef}
+            ref={containerRef}
             style={
               isExpanded || forceExpand ? { maxHeight: "none" } : undefined
             }
