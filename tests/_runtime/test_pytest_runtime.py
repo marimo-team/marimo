@@ -512,6 +512,9 @@ def test_rerun_keeps_lazily_imported_modules(tmp_path, monkeypatch) -> None:
 
     notebook = tmp_path / "notebook.py"
     notebook.write_text("import marimo\napp = marimo.App()\n")
+    # Keep pytest on the notebook's drive and out of the shared Temp tree.
+    # Windows path matching stats siblings that other workers may delete.
+    monkeypatch.chdir(tmp_path)
 
     previous = os.environ.get("PYTEST_CURRENT_TEST", "")
     os.environ.pop("PYTEST_CURRENT_TEST", None)
