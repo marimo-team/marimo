@@ -44,6 +44,10 @@ test("named navigation controls preserve page updates and boundaries", () => {
   expect(
     screen.getByRole("button", { name: "Choose page, current page 1 of 3" }),
   ).toBeEnabled();
+  expect(screen.getByRole("button", { name: "First page" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Last page" })).toBeEnabled();
 });
 
 test("loading prevents navigation and a single page disables controls", () => {
@@ -53,7 +57,12 @@ test("loading prevents navigation and a single page disables controls", () => {
   expect(
     screen.getByRole("button", { name: "Choose page, current page 1 of 3" }),
   ).toBeEnabled();
-  rerender(<PaginationHarness totalPages={1} />);
+  rerender(<PaginationHarness />);
+  fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+  expect(
+    screen.getByRole("button", { name: "Choose page, current page 2 of 3" }),
+  ).toBeEnabled();
+  rerender(<PaginationHarness key="single-page" totalPages={1} />);
   for (const name of [
     "First page",
     "Previous page",
