@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -147,7 +148,12 @@ def _stop_process(process: subprocess.Popen[bytes]) -> None:
 
 
 def _start_server(
-    notebook: Path, stderr_path: Path, *, attempts: int = 3
+    notebook: Path,
+    stderr_path: Path,
+    *,
+    pair_preview: bool = False,
+    skew_protection: bool = False,
+    attempts: int = 3,
 ) -> tuple[subprocess.Popen[bytes], str]:
     for attempt in range(attempts):
         port = _free_port()
@@ -161,12 +167,20 @@ def _start_server(
                     str(notebook),
                     "--headless",
                     "--no-token",
-                    "--no-skew-protection",
+                    *([] if skew_protection else ["--no-skew-protection"]),
                     "--port",
                     str(port),
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=stderr_file,
+                env={
+                    **{
+                        key: value
+                        for key, value in os.environ.items()
+                        if key != "MARIMO_PAIR_NEXT"
+                    },
+                    **({"MARIMO_PAIR_NEXT": "1"} if pair_preview else {}),
+                },
             )
         url = f"http://127.0.0.1:{port}"
         try:
@@ -181,12 +195,22 @@ def _start_server(
 
 
 @contextmanager
-def pair_test_server(tmp_path: Path) -> Generator[PairTestServer, None, None]:
+def pair_test_server(
+    tmp_path: Path,
+    *,
+    pair_preview: bool = False,
+    skew_protection: bool = False,
+) -> Generator[PairTestServer, None, None]:
     notebook = tmp_path / "pair-integration.py"
     notebook.write_text("import marimo\napp = marimo.App()\n")
     stderr_path = tmp_path / "marimo-stderr.log"
 
-    process, url = _start_server(notebook, stderr_path)
+    process, url = _start_server(
+        notebook,
+        stderr_path,
+        pair_preview=pair_preview,
+        skew_protection=skew_protection,
+    )
     try:
         session_id = f"pair_{uuid.uuid4().hex[:8]}"
         websocket = websockets.sync.client.connect(

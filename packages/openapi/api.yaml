@@ -2781,6 +2781,18 @@ components:
       - user
       title: HTTPRequest
       type: object
+    HarnessMetadata:
+      description: Harness identity supplied by the participant.
+      properties:
+        displayName:
+          type: string
+        id:
+          type: string
+      required:
+      - id
+      - displayName
+      title: HarnessMetadata
+      type: object
     HumanReadableStatus:
       description: "Human-readable status for operation results.\n\n    Attributes:\n\
         \        code: Status code (\"ok\" or \"error\").\n        title: Optional\
@@ -3283,6 +3295,7 @@ components:
           - $ref: '#/components/schemas/RemoveUIElementsNotification'
           - $ref: '#/components/schemas/ReloadNotification'
           - $ref: '#/components/schemas/ReconnectedNotification'
+          - $ref: '#/components/schemas/ParticipantPresenceNotification'
           - $ref: '#/components/schemas/InterruptedNotification'
           - $ref: '#/components/schemas/CompletedRunNotification'
           - $ref: '#/components/schemas/KernelReadyNotification'
@@ -3344,6 +3357,7 @@ components:
               missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
               model-lifecycle: '#/components/schemas/ModelLifecycleNotification'
               notebook-document-transaction: '#/components/schemas/NotebookDocumentTransactionNotification'
+              participant-presence: '#/components/schemas/ParticipantPresenceNotification'
               query-params-append: '#/components/schemas/QueryParamsAppendNotification'
               query-params-clear: '#/components/schemas/QueryParamsClearNotification'
               query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
@@ -4540,6 +4554,44 @@ components:
       required:
       - success
       title: PackageOperationResponse
+      type: object
+    ParticipantPresenceNotification:
+      description: Replace the current Pair participant presence snapshot.
+      properties:
+        active:
+          type: boolean
+        active_since:
+          anyOf:
+          - type: number
+          - type: 'null'
+        attached:
+          type: boolean
+        harness:
+          $ref: '#/components/schemas/HarnessMetadata'
+        kind:
+          enum:
+          - agent
+          - human
+        last_contact_at:
+          type: number
+        listening:
+          type: boolean
+        op:
+          enum:
+          - participant-presence
+        participant_id:
+          type: string
+      required:
+      - op
+      - participant_id
+      - harness
+      - kind
+      - attached
+      - listening
+      - active
+      - last_contact_at
+      - active_since
+      title: ParticipantPresenceNotification
       type: object
     PreviewDatasetColumnCommand:
       description: "Preview a dataset column.\n\n    Retrieves and displays data from\

@@ -1,16 +1,25 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers as loggers
 from marimo._cli.tips import CliTip
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
+from marimo._messaging.participants import ParticipantMetadata
 from marimo._server.config import StarletteServerState
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
+from marimo._session.participants import (
+    ParticipantConflictError,
+    ParticipantNotFoundError,
+    ParticipantRegistryClosedError,
+    ParticipantState,
+)
 from marimo._types.ids import SessionId, StableSessionId
+from marimo._utils.env import is_env_true
 from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
@@ -25,6 +34,21 @@ if TYPE_CHECKING:
 LOGGER = loggers.marimo_logger()
 
 STABLE_SESSION_ID_HEADER = "Marimo-Stable-Session-Id"
+PARTICIPANT_ID_HEADER = "Marimo-Participant-Id"
+PAIR_PREVIEW_ENV = "MARIMO_PAIR_NEXT"
+
+
+@dataclass(frozen=True)
+class ParticipantSession:
+    """A resolved Session plus the participant that contacted it.
+
+    `participant` is None for a browser or legacy request that carries no
+    participant identity.
+    """
+
+    session: Session
+    participant: ParticipantState | None
+    record_created: bool = False
 
 
 class AppStateBase:
@@ -196,6 +220,86 @@ class AppState(AppStateBase):
                 detail=f"Invalid stable session id: {stable_session_id}",
             )
         return session
+
+    async def require_participant_session(
+        self,
+        *,
+        participant_required: bool = False,
+        attach_request: bool = False,
+        metadata: ParticipantMetadata | None = None,
+    ) -> ParticipantSession:
+        """Resolve the Session and record contact for an identified request.
+
+        A request that carries `Marimo-Participant-Id` must also carry the
+        stable session header. An attach request can create a record. Other
+        identified requests resume a known record. Every identified request
+        checks the live holder, renews the attachment TTL, and records
+        contact. A request without the participant header, or any request
+        while the Pair preview is off, resolves the Session only.
+        """
+        participant_id = self.request.headers.get(PARTICIPANT_ID_HEADER)
+        if participant_id is None:
+            if participant_required:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail=f"Missing {PARTICIPANT_ID_HEADER} header.",
+                )
+            return ParticipantSession(
+                session=self.require_current_session_with_stable_id(),
+                participant=None,
+            )
+        if not is_env_true(PAIR_PREVIEW_ENV):
+            if participant_required:
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND,
+                    detail="Pair participant routes are not enabled.",
+                )
+            return ParticipantSession(
+                session=self.require_current_session_with_stable_id(),
+                participant=None,
+            )
+        if self.request.headers.get(STABLE_SESSION_ID_HEADER) is None:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=(
+                    f"{PARTICIPANT_ID_HEADER} requires "
+                    f"{STABLE_SESSION_ID_HEADER}."
+                ),
+            )
+        session = self.require_current_session_with_stable_id()
+        try:
+            if attach_request:
+                result = await session.participants.attach(
+                    participant_id, metadata=metadata
+                )
+                state = result.state
+                record_created = result.record_created
+            else:
+                state = await session.participants.resume(participant_id)
+                record_created = False
+        except ParticipantConflictError as error:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail=(
+                    f"Another participant ({error.holder_display_name}) is "
+                    "attached to this session."
+                ),
+            ) from error
+        except ParticipantRegistryClosedError as error:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"Session {session.stable_id} is closed.",
+            ) from error
+        except ParticipantNotFoundError as error:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"Unknown participant ID: {participant_id}.",
+            ) from error
+        return ParticipantSession(
+            session=session,
+            participant=state,
+            record_created=record_created,
+        )
 
     def require_query_params(self, param: str) -> str:
         """Get a query parameter or raise an error."""

@@ -70,6 +70,7 @@ import { type LayoutState, useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom, startupProgressAtom } from "../network/connection";
 import type { RequestId } from "../network/DeferredRequestRegistry";
+import { participantPresenceAtom } from "../participants/state";
 import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
@@ -237,6 +238,7 @@ export function useMarimoKernelConnection(opts: {
   const setKioskMode = useSetAtom(kioskModeAtom);
   const setStableSessionId = useSetAtom(stableSessionIdAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
+  const setParticipantPresence = useSetAtom(participantPresenceAtom);
   const runtimeManager = useRuntimeManager();
   const transportType = useAtomValue(connectionTransportTypeAtom);
   const setCacheInfo = useSetAtom(cacheInfoAtom);
@@ -267,6 +269,7 @@ export function useMarimoKernelConnection(opts: {
       case "kernel-ready": {
         setKernelStartupError(null);
         setConnection({ state: WebSocketState.OPEN });
+        setParticipantPresence(null);
         setInitialRunCompleted(
           Boolean(msg.data.resumed || msg.data.auto_instantiated),
         );
@@ -479,6 +482,7 @@ export function useMarimoKernelConnection(opts: {
 
       case "reconnected":
         setKernelStartupError(null);
+        setParticipantPresence(null);
         setConnection({ state: WebSocketState.OPEN });
         return;
 
@@ -497,6 +501,9 @@ export function useMarimoKernelConnection(opts: {
         return;
       case "consumer-capabilities":
         setKioskMode(!msg.data.consumer_capabilities.edit);
+        return;
+      case "participant-presence":
+        setParticipantPresence(msg.data);
         return;
       default:
         logNever(msg.data);

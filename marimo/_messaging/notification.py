@@ -34,6 +34,10 @@ from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.context import RUN_ID_CTX, RunId_t
 from marimo._messaging.notebook.changes import Transaction
+from marimo._messaging.participants import (
+    HarnessMetadata,
+    ParticipantKind,
+)
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
@@ -614,6 +618,22 @@ class ReconnectedNotification(Notification, tag="reconnected"):
     name: ClassVar[str] = "reconnected"
 
 
+class ParticipantPresenceNotification(
+    Notification, tag="participant-presence"
+):
+    """Replace the current Pair participant presence snapshot."""
+
+    name: ClassVar[str] = "participant-presence"
+    participant_id: str
+    harness: HarnessMetadata
+    kind: ParticipantKind
+    attached: bool
+    listening: bool
+    active: bool
+    last_contact_at: float
+    active_since: float | None
+
+
 class StartupLogsNotification(Notification, tag="startup-logs"):
     """Streaming kernel startup logs.
 
@@ -1099,6 +1119,7 @@ NotificationMessage = (
     # Notebook lifecycle
     | ReloadNotification
     | ReconnectedNotification
+    | ParticipantPresenceNotification
     | InterruptedNotification
     | CompletedRunNotification
     | KernelReadyNotification

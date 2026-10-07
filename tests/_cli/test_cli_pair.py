@@ -18,12 +18,16 @@ from marimo._cli.cli import main as cli_main
 from marimo._cli.pair import commands
 from marimo._cli.pair.client import (
     AmbiguousSessionError,
+    AttachmentResult,
     ExecutionResult,
+    HandoffBatch,
     NoSessionError,
     PairError,
     PairInputError,
+    ParticipantChannelOffError,
     StableSessionUnsupportedError,
     StaleSessionError,
+    UnknownParticipantError,
 )
 from marimo._cli.pair.commands import (
     AgentConfig,
@@ -33,6 +37,7 @@ from marimo._cli.pair.commands import (
     _plugin_skill_dirs,
     pair_agents,
 )
+from marimo._messaging.participants import HandoffEvent
 
 _runner = CliRunner()
 
@@ -40,8 +45,13 @@ TEST_URL = "https://localhost:8000?auth=tok123"
 
 
 @pytest.fixture(autouse=True)
-def _isolate_pair_preview(monkeypatch: pytest.MonkeyPatch) -> None:
+def _isolate_pair_preview(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.delenv("MARIMO_PAIR_NEXT", raising=False)
+    monkeypatch.delenv("MARIMO_PAIR_HARNESS", raising=False)
+    monkeypatch.delenv("MARIMO_PAIR_CONVERSATION_ID", raising=False)
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
     monkeypatch.setattr(
         "marimo._cli.pair.prompts.is_editable", lambda _: False
     )
@@ -60,13 +70,18 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
 
   Authentication:
     If a token-file path is supplied, add --token-file <PATH> to every
-    execute and notebook list command. Pass the path, not the file contents.
+    marimo pair command. Pass the path, not the file contents.
+    Otherwise, these commands use MARIMO_TOKEN when set.
 
   Workflow:
     If no server is running, start one in the background:
-      marimo edit <notebook.py> --no-token
+      MARIMO_PAIR_NEXT=1 marimo edit <notebook.py> --no-token
     If you do not have the server URL or session:
       marimo pair notebook list
+    If you start the server yourself, run it with MARIMO_PAIR_NEXT=1 so the
+    notebook can send you handoffs.
+    To appear as the agent in the notebook, connect once:
+      marimo pair connect --url <URL> --session <SESSION>
     marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
     import marimo._code_mode as cm
     async with cm.get_context() as ctx:
@@ -89,6 +104,15 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     If one notebook has several sessions, ask the user which one.
     Do not switch sessions after authentication or connection errors,
     or when execution is unconfirmed.
+
+  Handoffs:
+    The user can send a cell's error to you from the notebook. Pending handoffs
+    print at the end of every execute result under "handoffs". Read them before
+    your next step. A cell can change after a handoff: read it before you edit it.
+    To check for handoffs without running code:
+      marimo pair events --url <URL> --session <SESSION>
+    When the user ends the pairing:
+      marimo pair detach --url <URL> --session <SESSION>
 
   Rules:
     Cells are the unit of work. The scratchpad is temporary; only code mode edits persist.
@@ -115,8 +139,13 @@ Options:
   -h, --help  Show this message and exit.
 
 Commands:
+  attach    Attach an agent and cache its...
+  connect   Connect this agent conversation to a live...
+  detach    End this agent's attachment.
   docs      Read notebook guidance on demand.
+  events    Print pending handoffs and mark them...
   execute   Run Python in a live notebook session.
+  listen    Hold a stream and print each handoff as it...
   notebook  Find active notebooks and their sessions.
   prompt    Generate a prompt for pair programming on...
 """)
@@ -130,6 +159,664 @@ Commands:
         assert "--opencode" in result.output
         assert "--file" not in result.output
         assert "--session" in result.output
+
+    def test_connect_help(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "connect", "--help"])
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Usage: main pair connect [OPTIONS]
+
+  Connect this agent conversation to a live notebook Session.
+
+Options:
+  --url URL            Server URL.  [required]
+  --session ID         Stable session_id from marimo pair notebook list.
+  --harness-id ID      Advisory harness ID when no adapter identifies the
+                       harness.
+  --harness-name NAME  Advisory display name when no adapter identifies the
+                       harness.
+  --token-file PATH    Read the server token from a local file. Otherwise use
+                       MARIMO_TOKEN, if set.
+  -h, --help           Show this message and exit.
+""")
+
+    def test_events_help(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "events", "--help"])
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Usage: main pair events [OPTIONS]
+
+  Print pending handoffs and mark them delivered.
+
+Options:
+  --url URL          Server URL.  [required]
+  --session ID       Stable session_id from marimo pair notebook list.
+  --since N          Replay from sequence N. The cursor never moves backward.
+                     [x>=0]
+  --token-file PATH  Read the server token from a local file. Otherwise use
+                     MARIMO_TOKEN, if set.
+  -h, --help         Show this message and exit.
+""")
+
+    def test_listen_help(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "listen", "--help"])
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Usage: main pair listen [OPTIONS]
+
+  Hold a stream and print each handoff as it arrives. Used by harness adapters.
+
+Options:
+  --url URL          Server URL.  [required]
+  --session ID       Stable session_id from marimo pair notebook list.
+  --once             Exit after the first handoff.
+  --token-file PATH  Read the server token from a local file. Otherwise use
+                     MARIMO_TOKEN, if set.
+  -h, --help         Show this message and exit.
+""")
+
+    def test_detach_help(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "detach", "--help"])
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Usage: main pair detach [OPTIONS]
+
+  End this agent's attachment. Pending handoffs and the cursor survive until the
+  notebook session ends. Run marimo pair connect again to resume them.
+
+Options:
+  --url URL          Server URL.  [required]
+  --session ID       Stable session_id from marimo pair notebook list.
+  --token-file PATH  Read the server token from a local file. Otherwise use
+                     MARIMO_TOKEN, if set.
+  -h, --help         Show this message and exit.
+""")
+
+
+class TestPairAttach:
+    def test_attach_reports_cached_identity(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[dict[str, Any]] = []
+
+        def fake_attach(**kwargs: Any) -> AttachmentResult:
+            calls.append(kwargs)
+            return AttachmentResult(
+                participant_id="p1",
+                cursor=0,
+                attached=True,
+                record_created=True,
+                kind="agent",
+                harness_id="pi",
+                harness_name="Pi",
+            )
+
+        monkeypatch.setattr(commands, "attach_participant", fake_attach)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "attach",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "--participant-id",
+                "p1",
+                "--harness-id",
+                "pi",
+                "--harness-name",
+                "Pi",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls == [
+            {
+                "url": TEST_URL,
+                "session_id": "session-1",
+                "token": None,
+                "participant_id": "p1",
+                "harness_id": "pi",
+                "harness_name": "Pi",
+            }
+        ]
+        assert json.loads(result.output)["record_created"] is True
+        assert json.loads(result.output)["participant"] == {
+            "id": "p1",
+            "kind": "agent",
+            "harness": {"id": "pi", "display_name": "Pi"},
+        }
+
+    def test_attach_has_no_model_options(self) -> None:
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "attach",
+                "--url",
+                TEST_URL,
+                "--participant-id",
+                "p1",
+                "--model-name",
+                "Kimi K3",
+            ],
+        )
+
+        assert result.exit_code == 2
+        assert "unexpected argument '--model-name'" in result.output
+
+
+class TestPairConnect:
+    def test_execute_without_connection_keeps_plain_pair_shape(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[dict[str, Any]] = []
+
+        def fake_execute(**kwargs: Any) -> ExecutionResult:
+            calls.append(kwargs)
+            return ExecutionResult(
+                success=True, output=None, stdout="", stderr=""
+            )
+
+        monkeypatch.setattr(commands, "execute_code", fake_execute)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "-c",
+                "pass",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls[0]["participant_id"] is None
+        assert "participant" not in json.loads(result.stdout)
+
+    def test_connect_saves_selection_for_later_execute(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        attachments: list[dict[str, Any]] = []
+        executions: list[dict[str, Any]] = []
+
+        def fake_attach(**kwargs: Any) -> AttachmentResult:
+            attachments.append(kwargs)
+            return AttachmentResult(
+                participant_id=kwargs["participant_id"],
+                cursor=0,
+                attached=True,
+                record_created=True,
+                kind="agent",
+                harness_id=kwargs["harness_id"],
+                harness_name=kwargs["harness_name"],
+            )
+
+        def fake_execute(**kwargs: Any) -> ExecutionResult:
+            executions.append(kwargs)
+            return ExecutionResult(
+                success=True, output=None, stdout="", stderr=""
+            )
+
+        monkeypatch.setattr(commands, "attach_participant", fake_attach)
+        monkeypatch.setattr(commands, "execute_code", fake_execute)
+        connected = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "connect",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "--harness-id",
+                "pi",
+                "--harness-name",
+                "Pi",
+            ],
+        )
+        executed = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "-c",
+                "pass",
+            ],
+        )
+
+        assert connected.exit_code == 0, connected.output
+        assert json.loads(connected.stdout)["participant"] == {
+            "harness": "pi",
+            "name": "Pi",
+            "scope": "harness",
+        }
+        assert "share one participant" in connected.stderr
+        assert executed.exit_code == 0, executed.output
+        assert attachments[0]["participant_id"].startswith("p1_")
+        assert (
+            executions[0]["participant_id"] == attachments[0]["participant_id"]
+        )
+        assert json.loads(executed.stdout)["participant"] == {
+            "harness": "pi",
+            "scope": "harness",
+        }
+
+    def test_reconnect_after_file_loss_keeps_participant_id(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        attachments: list[dict[str, Any]] = []
+
+        def fake_attach(**kwargs: Any) -> AttachmentResult:
+            attachments.append(kwargs)
+            return AttachmentResult(
+                participant_id=kwargs["participant_id"],
+                cursor=4,
+                attached=True,
+                record_created=len(attachments) == 1,
+                kind="agent",
+                harness_id=kwargs["harness_id"],
+                harness_name=kwargs["harness_name"],
+            )
+
+        monkeypatch.setattr(commands, "attach_participant", fake_attach)
+        args = [
+            "pair",
+            "connect",
+            "--url",
+            TEST_URL,
+            "--session",
+            "session-1",
+        ]
+        first = _runner.invoke(cli_main, args)
+        connection_file = next((tmp_path / "marimo" / "pair").rglob("*.json"))
+        connection_file.unlink()
+        second = _runner.invoke(cli_main, args)
+
+        assert first.exit_code == 0, first.output
+        assert second.exit_code == 0, second.output
+        assert (
+            attachments[0]["participant_id"]
+            == attachments[1]["participant_id"]
+        )
+        assert json.loads(second.stdout)["record_created"] is False
+
+    def test_unknown_record_reattaches_and_retries_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        attachments: list[dict[str, Any]] = []
+        executions: list[dict[str, Any]] = []
+
+        def fake_attach(**kwargs: Any) -> AttachmentResult:
+            attachments.append(kwargs)
+            return AttachmentResult(
+                participant_id=kwargs["participant_id"],
+                cursor=0,
+                attached=True,
+                record_created=True,
+                kind="agent",
+                harness_id=kwargs["harness_id"],
+                harness_name=kwargs["harness_name"],
+            )
+
+        def fake_execute(**kwargs: Any) -> ExecutionResult:
+            executions.append(kwargs)
+            if len(executions) == 1:
+                raise UnknownParticipantError("Unknown participant ID")
+            return ExecutionResult(
+                success=True, output=None, stdout="", stderr=""
+            )
+
+        monkeypatch.setattr(commands, "attach_participant", fake_attach)
+        monkeypatch.setattr(commands, "execute_code", fake_execute)
+        connected = _runner.invoke(
+            cli_main,
+            ["pair", "connect", "--url", TEST_URL, "--session", "session-1"],
+        )
+        executed = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "-c",
+                "pass",
+            ],
+        )
+
+        assert connected.exit_code == 0, connected.output
+        assert executed.exit_code == 0, executed.output
+        assert len(attachments) == 2
+        assert len(executions) == 2
+        assert (
+            executions[0]["participant_id"] == executions[1]["participant_id"]
+        )
+        assert json.loads(executed.stdout)["participant"] == {
+            "harness": "unknown",
+            "scope": "harness",
+            "record_created": True,
+        }
+
+    def test_stale_session_removes_local_connection(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        def fake_attach(**kwargs: Any) -> AttachmentResult:
+            return AttachmentResult(
+                participant_id=kwargs["participant_id"],
+                cursor=0,
+                attached=True,
+                record_created=True,
+                kind="agent",
+                harness_id=kwargs["harness_id"],
+                harness_name=kwargs["harness_name"],
+            )
+
+        def stale_execute(**kwargs: Any) -> None:
+            del kwargs
+            raise StaleSessionError("Invalid stable session id: session-1")
+
+        monkeypatch.setattr(commands, "attach_participant", fake_attach)
+        monkeypatch.setattr(commands, "execute_code", stale_execute)
+        connected = _runner.invoke(
+            cli_main,
+            ["pair", "connect", "--url", TEST_URL, "--session", "session-1"],
+        )
+        state_dir = tmp_path / "marimo" / "pair" / "connections-v1"
+        assert connected.exit_code == 0, connected.output
+        assert list(state_dir.glob("*.json"))
+
+        executed = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "-c",
+                "pass",
+            ],
+        )
+
+        assert executed.exit_code == 2
+        assert "No session session-1" in executed.stdout
+        assert not list(state_dir.glob("*.json"))
+
+
+def _connect_for_handoff_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_attach(**kwargs: Any) -> AttachmentResult:
+        return AttachmentResult(
+            participant_id=kwargs["participant_id"],
+            cursor=0,
+            attached=True,
+            record_created=True,
+            kind="agent",
+            harness_id=kwargs["harness_id"],
+            harness_name=kwargs["harness_name"],
+        )
+
+    monkeypatch.setattr(commands, "attach_participant", fake_attach)
+    result = _runner.invoke(
+        cli_main,
+        ["pair", "connect", "--url", TEST_URL, "--session", "session-1"],
+    )
+    assert result.exit_code == 0, result.output
+
+
+def _handoff_event() -> HandoffEvent:
+    return HandoffEvent(
+        seq=42,
+        created_at=0.0,
+        cell_id="AbCd",
+        error="NameError",
+        code="df.head()",
+        traceback="Traceback\nNameError",
+    )
+
+
+class TestPairHandoffs:
+    def test_connect_reports_live_agent_conflict(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def conflict(**kwargs: Any) -> None:
+            del kwargs
+            raise PairError(
+                "Another participant (Pi) is attached to this session."
+            )
+
+        monkeypatch.setattr(commands, "attach_participant", conflict)
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "connect", "--url", TEST_URL, "--session", "session-1"],
+        )
+
+        assert result.exit_code == 2
+        payload = json.loads(result.stdout)
+        assert payload["error"] == (
+            "Another agent (Pi) is attached to this session."
+        )
+        assert "Do not change identity to take over" in payload["next"]
+
+    def test_events_renders_pending_handoffs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+        calls: list[dict[str, Any]] = []
+
+        def fake_read(**kwargs: Any) -> HandoffBatch:
+            calls.append(kwargs)
+            return HandoffBatch(events=(_handoff_event(),), remaining=2)
+
+        monkeypatch.setattr(commands, "read_participant_events", fake_read)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "events",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "--since",
+                "40",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls[0]["since"] == 40
+        payload = json.loads(result.stdout)
+        assert payload["participant"] == {
+            "harness": "unknown",
+            "scope": "harness",
+        }
+        assert payload["handoffs"]["events"][0]["seq"] == 42
+        assert (
+            "Code:\n    df.head()" in payload["handoffs"]["events"][0]["text"]
+        )
+        assert payload["handoffs"]["remaining"] == 2
+        assert "pair events" in payload["handoffs"]["next"]
+        assert "tok123" not in result.stdout
+
+    def test_events_reports_channel_off(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+
+        def channel_off(**kwargs: Any) -> None:
+            del kwargs
+            raise ParticipantChannelOffError
+
+        monkeypatch.setattr(commands, "read_participant_events", channel_off)
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "events", "--url", TEST_URL, "--session", "session-1"],
+        )
+
+        assert result.exit_code == 2
+        payload = json.loads(result.stdout)
+        assert payload["error"] == (
+            "The participant channel is off on https://localhost:8000."
+        )
+        assert "MARIMO_PAIR_NEXT=1" in payload["next"]
+
+    def test_events_restore_unknown_server_record_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+        calls = 0
+
+        def fake_read(**kwargs: Any) -> HandoffBatch:
+            nonlocal calls
+            del kwargs
+            calls += 1
+            if calls == 1:
+                raise UnknownParticipantError("Unknown participant ID: p1")
+            return HandoffBatch(events=(), remaining=0)
+
+        monkeypatch.setattr(commands, "read_participant_events", fake_read)
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "events", "--url", TEST_URL, "--session", "session-1"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls == 2
+        assert json.loads(result.stdout)["handoffs"] == {
+            "events": [],
+            "remaining": 0,
+        }
+        assert (
+            json.loads(result.stdout)["participant"]["record_created"] is True
+        )
+
+    def test_listen_once_prints_one_handoff(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+        closed = False
+
+        def fake_stream(**kwargs: Any) -> Any:
+            nonlocal closed
+            del kwargs
+            try:
+                yield _handoff_event()
+                yield _handoff_event()
+            finally:
+                closed = True
+
+        monkeypatch.setattr(commands, "stream_participant_events", fake_stream)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "listen",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "--once",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert result.stdout.count("Handoff 42:") == 1
+        assert closed
+
+    def test_listen_exits_quietly_for_gone_session(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+
+        def stale_stream(**kwargs: Any) -> Any:
+            del kwargs
+            raise StaleSessionError("Invalid stable session id: session-1")
+            yield
+
+        monkeypatch.setattr(
+            commands, "stream_participant_events", stale_stream
+        )
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "listen",
+                "--url",
+                TEST_URL,
+                "--session",
+                "session-1",
+                "--once",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert result.output == ""
+
+    def test_detach_clears_local_connection(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+        calls: list[dict[str, Any]] = []
+
+        def fake_detach(**kwargs: Any) -> bool:
+            calls.append(kwargs)
+            return False
+
+        monkeypatch.setattr(commands, "detach_participant", fake_detach)
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "detach", "--url", TEST_URL, "--session", "session-1"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout)["attached"] is False
+        assert calls[0]["participant_id"].startswith("p1_")
+        assert not list((tmp_path / "marimo" / "pair").rglob("*.json"))
+
+    def test_execute_renders_inline_handoffs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _connect_for_handoff_tests(monkeypatch)
+
+        def fake_execute(**kwargs: Any) -> ExecutionResult:
+            del kwargs
+            return ExecutionResult(
+                success=True,
+                output=None,
+                stdout="",
+                stderr="",
+                handoffs=HandoffBatch(events=(_handoff_event(),), remaining=0),
+            )
+
+        monkeypatch.setattr(commands, "execute_code", fake_execute)
+        arguments = [
+            "pair",
+            "execute",
+            "--url",
+            TEST_URL,
+            "--session",
+            "session-1",
+            "-c",
+            "pass",
+        ]
+        regular = _runner.invoke(cli_main, arguments)
+        streamed = _runner.invoke(cli_main, [*arguments, "--stream"])
+
+        assert regular.exit_code == 0, regular.output
+        assert json.loads(regular.stdout)["handoffs"]["events"][0]["seq"] == 42
+        assert streamed.exit_code == 0, streamed.output
+        assert "\nhandoffs:\nHandoff 42:" in streamed.stdout
 
 
 class TestPairExecute:
@@ -154,15 +841,16 @@ Usage: main pair execute [OPTIONS]
   Run Python in the selected live notebook kernel's scratchpad.
 
 Options:
-  --url URL          Server URL.  [required]
-  --session ID       Stable session_id from marimo pair notebook list.
-  --token-file PATH  Read the server token from a local file.
-  -c TEXT            Inline Python.
-  --code-file PATH   Read Python from a UTF-8 file, or from stdin when PATH is
-                     '-'. Supply exactly one input option.
-  --stream           Write stdout and stderr as they arrive. Default: print one
-                     JSON result.
-  -h, --help         Show this message and exit.
+  --url URL            Server URL.  [required]
+  --session ID         Stable session_id from marimo pair notebook list.
+  --token-file PATH    Read the server token from a local file.
+  --participant-id ID  Participant ID from marimo pair attach.
+  -c TEXT              Inline Python.
+  --code-file PATH     Read Python from a UTF-8 file, or from stdin when PATH is
+                       '-'. Supply exactly one input option.
+  --stream             Write stdout and stderr as they arrive. Default: print
+                       one JSON result.
+  -h, --help           Show this message and exit.
 """)
 
     @pytest.mark.parametrize(

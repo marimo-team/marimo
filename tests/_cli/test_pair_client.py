@@ -16,9 +16,11 @@ from marimo._cli.pair.client import (
     NoSessionError,
     PairError,
     PairInputError,
+    ParticipantChannelOffError,
     SSEEvent,
     StableSessionUnsupportedError,
     StaleSessionError,
+    UnknownParticipantError,
 )
 
 if TYPE_CHECKING:
@@ -190,6 +192,7 @@ def test_execute_sends_request_and_streams_in_event_order(
         stdout=stdout,
         stderr=stderr,
         stream=True,
+        participant_id="p1",
     )
 
     assert result == client.ExecutionResult(
@@ -212,6 +215,7 @@ def test_execute_sends_request_and_streams_in_event_order(
             "headers": {
                 "Content-Type": "application/json",
                 "Marimo-Stable-Session-Id": "session-1",
+                "Marimo-Participant-Id": "p1",
                 "Authorization": "Bearer secret-token",
             },
             "body": json.dumps({"code": "print(1)"}).encode(),
@@ -219,6 +223,210 @@ def test_execute_sends_request_and_streams_in_event_order(
     ]
     assert "secret-token" not in calls[0]["url"]
     assert b"secret-token" not in calls[0]["body"]
+    assert response.closed
+
+
+def test_attach_participant_sends_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = io.BytesIO(
+        json.dumps(
+            {
+                "participantId": "p1",
+                "cursor": 3,
+                "attached": True,
+                "recordCreated": True,
+                "kind": "agent",
+                "harness": {"id": "pi", "displayName": "Pi"},
+            }
+        ).encode()
+    )
+    calls = _patch_response(monkeypatch, response)
+
+    result = client.attach_participant(
+        url="https://example.com",
+        session_id="session-1",
+        token="secret-token",
+        participant_id="p1",
+        harness_id="pi",
+        harness_name="Pi",
+    )
+
+    assert result == client.AttachmentResult(
+        participant_id="p1",
+        cursor=3,
+        attached=True,
+        record_created=True,
+        kind="agent",
+        harness_id="pi",
+        harness_name="Pi",
+    )
+    assert calls[0]["headers"]["Marimo-Participant-Id"] == "p1"
+    assert json.loads(calls[0]["body"]) == {
+        "kind": "agent",
+        "harness": {"id": "pi", "displayName": "Pi"},
+    }
+    assert response.closed
+
+
+def test_attach_reports_channel_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    def missing_route(**kwargs: Any) -> None:
+        del kwargs
+        raise PairError("Not Found")
+
+    monkeypatch.setattr(client, "open_response", missing_route)
+    with pytest.raises(ParticipantChannelOffError):
+        client.attach_participant(
+            url="https://example.com",
+            session_id="session-1",
+            token=None,
+            participant_id="p1",
+            harness_id="unknown",
+            harness_name="Agent",
+        )
+
+
+def test_attach_reports_truncated_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class TruncatedResponse(io.BytesIO):
+        def read(self, size: int = -1) -> bytes:
+            del size
+            raise http.client.IncompleteRead(b"partial")
+
+    response = TruncatedResponse()
+    _patch_response(monkeypatch, response)
+
+    with pytest.raises(PairError, match="invalid attach response"):
+        client.attach_participant(
+            url="https://example.com",
+            session_id="session-1",
+            token=None,
+            participant_id="p1",
+            harness_id="unknown",
+            harness_name="Agent",
+        )
+    assert response.closed
+
+
+def _handoff_json() -> dict[str, object]:
+    return {
+        "seq": 42,
+        "createdAt": 0.0,
+        "cellId": "AbCd",
+        "error": "NameError",
+        "code": "df.head()",
+        "traceback": "Traceback\nNameError",
+        "consoleTail": [],
+        "note": None,
+    }
+
+
+def test_read_events_sends_identity_and_since(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = io.BytesIO(
+        json.dumps(
+            {"events": [_handoff_json()], "cursor": 42, "remaining": 1}
+        ).encode()
+    )
+    calls = _patch_response(monkeypatch, response)
+
+    batch = client.read_participant_events(
+        url="https://example.com/base?query=one",
+        session_id="session-1",
+        token="secret-token",
+        participant_id="p1",
+        since=40,
+    )
+
+    assert calls[0]["method"] == "GET"
+    assert calls[0]["url"] == (
+        "https://example.com/base/api/participants/events?query=one&since=40"
+    )
+    assert calls[0]["headers"] == {
+        "Marimo-Stable-Session-Id": "session-1",
+        "Marimo-Participant-Id": "p1",
+        "Authorization": "Bearer secret-token",
+    }
+    assert batch.events[0].cell_id == "AbCd"
+    assert batch.remaining == 1
+    assert response.closed
+
+
+def test_stream_events_reads_handoffs_and_ignores_heartbeats(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = io.BytesIO(
+        b": heartbeat\n\n"
+        + b"event: handoff\ndata: "
+        + json.dumps(_handoff_json()).encode()
+        + b"\n\n"
+    )
+    calls = _patch_response(monkeypatch, response)
+
+    handoffs = list(
+        client.stream_participant_events(
+            url="http://localhost:2718",
+            session_id="session-1",
+            token=None,
+            participant_id="p1",
+        )
+    )
+
+    assert calls[0]["url"].endswith("/api/participants/events/stream")
+    assert [event.seq for event in handoffs] == [42]
+    assert response.closed
+
+
+def test_detach_sends_identity_and_checks_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = io.BytesIO(b'{"participantId":"p1","attached":false}')
+    calls = _patch_response(monkeypatch, response)
+
+    attached = client.detach_participant(
+        url="http://localhost:2718",
+        session_id="session-1",
+        token=None,
+        participant_id="p1",
+    )
+
+    assert attached is False
+    assert calls[0]["method"] == "POST"
+    assert calls[0]["headers"]["Marimo-Participant-Id"] == "p1"
+    assert response.closed
+
+
+def test_execute_preserves_inline_handoffs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = io.BytesIO(
+        b"event: done\ndata: "
+        + json.dumps(
+            {
+                "success": True,
+                "output": {"mimetype": "text/plain", "data": ""},
+                "handoffs": {"events": [_handoff_json()], "remaining": 0},
+            }
+        ).encode()
+        + b"\n\n"
+    )
+    _patch_response(monkeypatch, response)
+
+    result = client.execute(
+        url="http://localhost:2718",
+        session_id="session-1",
+        token=None,
+        code="pass",
+        stdout=io.StringIO(),
+        stderr=io.StringIO(),
+        stream=False,
+        participant_id="p1",
+    )
+
+    assert result.handoffs is not None
+    assert result.handoffs.events[0].seq == 42
     assert response.closed
 
 
@@ -720,6 +928,18 @@ def test_raise_for_status_maps_invalid_stable_session_id() -> None:
     )
 
     with pytest.raises(StaleSessionError, match="Invalid stable session id"):
+        client._raise_for_status(response)
+
+    assert response.closed
+
+
+def test_raise_for_status_maps_unknown_participant() -> None:
+    response = FakeStatusResponse(
+        404,
+        json.dumps({"detail": "Unknown participant ID: p1."}).encode(),
+    )
+
+    with pytest.raises(UnknownParticipantError, match="Unknown participant"):
         client._raise_for_status(response)
 
     assert response.closed

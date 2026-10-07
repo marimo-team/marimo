@@ -164,6 +164,18 @@ def test_skew_protection_skips_execute(edit_app: Starlette) -> None:
     )
 
 
+def test_skew_protection_skips_pair_agent_posts(edit_app: Starlette) -> None:
+    client = TestClient(edit_app, raise_server_exceptions=False)
+    headers = token_header("fake-token", "wrong-skew-id")
+
+    for path in ("/api/participants/attach", "/api/participants/detach"):
+        response = client.post(path, headers=headers)
+        assert response.status_code != 401, path
+
+    browser_handoff = client.post("/api/participants/handoff", headers=headers)
+    assert browser_handoff.status_code == 401
+
+
 def test_skew_protection_enforced_for_form_content_type(
     edit_app: Starlette,
 ) -> None:
