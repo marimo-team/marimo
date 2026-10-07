@@ -22,6 +22,7 @@ from marimo._server.api import lifespans
 from marimo._server.config import (
     StarletteServerStateInit,
 )
+from marimo._server.host.lifespan import host as host_lifespan
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
 from marimo._server.main import create_starlette_app
 from marimo._server.registry import LIFESPAN_REGISTRY
@@ -345,6 +346,7 @@ def start(
         lifespans.open_browser,
         lifespans.tool_manager,
         lifespans.server_registry,
+        host_lifespan,
         lifespans.reap_subprocesses,
         *LIFESPAN_REGISTRY.get_all(),
     ]
