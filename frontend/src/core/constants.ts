@@ -29,7 +29,6 @@ export const KnownQueryParams = {
    * Kiosk mode. If the editor is running in kiosk mode
    */
   kiosk: "kiosk",
-  /** Capture mode. Reports cell output availability on internal screenshot pages. */
   /**
    * VSCode mode. If the editor is running inside VSCode
    */
