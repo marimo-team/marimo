@@ -30,7 +30,7 @@ def convert_numpy_to_wav(
             raise ValueError(
                 "Audio data must be between -1 and 1 when normalize=False."
             )
-        return max_abs_value if normalize else 1
+        return max_abs_value if normalize and max_abs_value > 0 else 1
 
     data = np.array(data, dtype=float)
     if len(data.shape) == 1:

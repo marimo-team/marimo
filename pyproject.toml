@@ -53,7 +53,7 @@ dependencies = [
     "narwhals>=2.0.0",
     # for packaging.version; not sure what the lower bound is.
     "packaging",
-    "msgspec>=0.20.0",
+    "msgspec>=0.22.0",
     # for IPC, required for marimo edit --sandbox, marimo run <multiple notebooks>
     "pyzmq>=27.1.0; python_version < '3.15' and sys_platform != 'emscripten'",
 ]
@@ -382,6 +382,7 @@ ignore = [
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
     "DTZ901", # `datetime.min` / `datetime.max` used
     "D421", # Property docstring should not start with a verb (preview rule)
+    "UP052", # Context-manager annotation migration requires a separate change
 
     # Restored to Ruff's default rule set in 0.16.6; enable incrementally
     "RUF069", # Float equality comparison
