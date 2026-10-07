@@ -87,12 +87,12 @@ describe("WidgetDefRegistry", () => {
     promise1.catch(() => undefined);
   });
 
-  it("should deduplicate concurrent imports for the same hash", () => {
+  it("should replace a pending import when its URL changes", () => {
     const promise1 = getModule(registry, "http://localhost/a.js", "same-hash");
     const promise2 = getModule(registry, "http://localhost/b.js", "same-hash");
-    // Same hash means same promise, even with different URLs
-    expect(promise1).toBe(promise2);
+    expect(promise1).not.toBe(promise2);
     promise1.catch(() => undefined);
+    promise2.catch(() => undefined);
   });
 
   it("should retry a new URL after invalidating the same hash", () => {
