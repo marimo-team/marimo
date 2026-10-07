@@ -228,7 +228,7 @@ class _ScreenshotSession:
     def _page_url(self) -> str:
         """Build an authenticated kiosk URL for the active notebook."""
         url = urlsplit(self._server_url)
-        params = {"kiosk": "true", "capture": "true"}
+        params = {"kiosk": "true"}
         # Session IDs also identify consumers. The kiosk must create its
         # own consumer and join the live session by file key.
         if self._file_key is not None:
@@ -403,19 +403,20 @@ class _ScreenshotSession:
         assert self._page is not None
         handle = await self._page.wait_for_function(
             """({cellId, probe}) => {
-                const marker = document.querySelector(
-                    `[data-cell-output-id="${CSS.escape(cellId)}"]`
-                );
-                const state = marker?.dataset.outputState;
-                if (state === "empty") return "empty";
+                const capture = window.__marimoCapture;
+                if (capture) {
+                    const state = capture.getCellState(cellId);
+                    if (state === "empty" || state === "ready") return state;
+                    if (probe && state !== "missing") return "pending";
+                    return false;
+                }
+                // Older frontend builds can still capture visible output.
                 const el = document.getElementById(`output-${cellId}`);
-                if (state !== "unknown" && state !== "pending" &&
-                    el && el.getClientRects().length > 0 &&
+                if (el && el.getClientRects().length > 0 &&
                     (el.children.length > 0 || el.textContent.trim().length > 0)) {
                     return "ready";
                 }
-                // A known cell gets the full rendering budget, without reloading.
-                if (probe && (marker || el)) return "pending";
+                if (probe && el) return "pending";
                 return false;
             }""",
             arg={"cellId": cell_id, "probe": probe},

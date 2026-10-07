@@ -11,8 +11,7 @@ import {
   useLayoutActions,
   useLayoutState,
 } from "@/core/layout/state";
-import { type AppMode, captureModeAtom, kioskModeAtom } from "@/core/mode";
-import { CellOutputStates } from "./cell-output-states";
+import { type AppMode, kioskModeAtom } from "@/core/mode";
 import { cellRendererPlugins } from "./plugins";
 import type { ICellRendererPlugin } from "./types";
 
@@ -25,7 +24,6 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
   ({ appConfig, mode, children }) => {
     const { selectedLayout } = useLayoutState();
     const kioskMode = useAtomValue(kioskModeAtom);
-    const captureMode = useAtomValue(captureModeAtom);
 
     // Render children (the editable notebook) in edit mode, and in present
     // mode with the vertical layout: keeping the same tree across the
@@ -51,19 +49,11 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
 
     // Just render children if there is no plugin
     if (!plugin) {
-      return (
-        <>
-          {kioskMode && captureMode && <CellOutputStates />}
-          {children}
-        </>
-      );
+      return children;
     }
 
     return (
-      <>
-        {kioskMode && captureMode && <CellOutputStates />}
-        <PluginCellRenderer appConfig={appConfig} mode={mode} plugin={plugin} />
-      </>
+      <PluginCellRenderer appConfig={appConfig} mode={mode} plugin={plugin} />
     );
   },
 );
