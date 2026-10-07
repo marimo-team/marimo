@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, type Locator, type Page } from "@playwright/test";
 import { type HotkeyAction, HotkeyProvider } from "../src/core/hotkeys/hotkeys";
 import { clickWithRetry, waitForMarimoApp } from "./test-utils";
@@ -96,6 +97,32 @@ export async function pressShortcut(page: Page, action: HotkeyAction) {
   await page.keyboard.press(keymap);
 }
 
+export async function openExportedHTML({
+  page,
+  exportPath,
+  hash = "",
+}: {
+  page: Page;
+  exportPath: string;
+  hash?: string;
+}) {
+  const url = "http://export.test/notebook.html";
+  const staticRoot = fileURLToPath(
+    new URL("../../marimo/_static/", import.meta.url),
+  );
+  await page.route(url, (route) => route.fulfill({ path: exportPath }));
+  // PR build hashes are not available in the published frontend package.
+  await page.route(
+    "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@*/dist/**",
+    async (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      const assetPath = pathname.slice(pathname.indexOf("/dist/") + 6);
+      await route.fulfill({ path: path.join(staticRoot, assetPath) });
+    },
+  );
+  await page.goto(`${url}${hash}`, { waitUntil: "domcontentloaded" });
+}
+
 /**
  * Download as HTML
  *
@@ -118,10 +145,8 @@ export async function exportAsHTMLAndTakeScreenshot(page: Page) {
 
   // Open a new page and take a screenshot
   const exportPage = await page.context().newPage();
-  const fullPath = `${process.cwd()}/${path}`;
-  await exportPage.goto(`file://${fullPath}`, {
-    waitUntil: "networkidle",
-  });
+  await openExportedHTML({ page: exportPage, exportPath: path });
+  await expect(exportPage.locator(".marimo-cell").first()).toBeAttached();
   await takeScreenshot(exportPage, path);
 
   // Toggle code

@@ -5,10 +5,8 @@ import { EditorView } from "@codemirror/view";
 import type { PaginationState } from "@tanstack/react-table";
 import type React from "react";
 import { Suspense, useMemo, useState } from "react";
-import {
-  generateColumns,
-  inferFieldTypes,
-} from "@/components/data-table/columns";
+import { generateColumns } from "@/components/data-table/columns";
+import { inferFieldTypes } from "@/components/data-table/infer-field-types";
 import { DataTable } from "@/components/data-table/data-table";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { parseCsvData } from "@/plugins/impl/vega/loader";

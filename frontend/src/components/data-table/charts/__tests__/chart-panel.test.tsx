@@ -9,7 +9,8 @@ import { SetupMocks } from "@/__mocks__/common";
 import { cellId } from "@/__tests__/branded";
 import { LazyVegaEmbed } from "@/components/charts/lazy";
 import { vegaLoader } from "@/plugins/impl/vega/loader";
-import { ChartPanel, TablePanel, type TablePanelProps } from "../charts";
+import { ChartPanel } from "../chart-panel";
+import { TablePanel, type TablePanelProps } from "../charts";
 import { getChartTabName, tabsStorageAtom } from "../storage";
 import { ChartType, NONE_VALUE } from "../types";
 
@@ -112,6 +113,8 @@ describe("ChartPanel", () => {
       saveChartType: vi.fn(),
       getDataUrl,
       isLargeDataset: false,
+      totalRows: 1,
+      columns: 1,
     };
     const panel = (
       fieldTypes: ComponentProps<typeof ChartPanel>["fieldTypes"],
@@ -172,6 +175,8 @@ describe("ChartPanel", () => {
             ["active", ["boolean", "bool"]],
             ["duration", ["unknown", "timedelta64[ns]"]],
           ]}
+          totalRows={4}
+          columns={7}
           isLargeDataset={false}
         />
       </Tooltip.Provider>,
@@ -259,6 +264,8 @@ describe("ChartPanel", () => {
                   ]
                 : undefined
             }
+            totalRows={3}
+            columns={2}
             isLargeDataset={false}
           />
         </Tooltip.Provider>,
