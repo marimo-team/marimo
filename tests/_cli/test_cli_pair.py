@@ -25,7 +25,11 @@ from marimo._cli.pair.client import (
     StaleSessionError,
 )
 from marimo._cli.pair.commands import (
+    SKILL_FILE,
+    SKILL_NAME,
     AgentConfig,
+    _claude_project_roots,
+    _claude_skill_dirs,
     _codex_repository_skill_dirs,
     _codex_skill_dirs,
     _opencode_skill_dirs,
@@ -2017,3 +2021,96 @@ class TestPluginSkillDirs:
             skill_dirs=_plugin_skill_dirs(tmp_path),
         )
         assert agent.has_skill() is True
+
+
+class TestClaudeProjectRoots:
+    """Claude Code resolves project skills from the start directory up to the
+    repository root, so a skill installed once at the root must be found from
+    any subdirectory below it."""
+
+    def test_walks_up_to_repository_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        (tmp_path / ".git").mkdir()
+        nested = tmp_path / "notebooks" / "analysis"
+        nested.mkdir(parents=True)
+        monkeypatch.chdir(nested)
+
+        assert _claude_project_roots() == [
+            nested / ".claude",
+            tmp_path / "notebooks" / ".claude",
+            tmp_path / ".claude",
+        ]
+
+    def test_skill_at_repository_root_found_from_subdirectory(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        (tmp_path / ".git").mkdir()
+        skill = tmp_path / ".claude" / "skills" / SKILL_NAME
+        skill.mkdir(parents=True)
+        (skill / SKILL_FILE).write_text("test")
+        nested = tmp_path / "notebooks" / "analysis"
+        nested.mkdir(parents=True)
+        monkeypatch.chdir(nested)
+
+        agent = AgentConfig(
+            name="Claude Code", skill_dirs=_claude_skill_dirs()
+        )
+        assert agent.has_skill() is True
+
+    def test_stops_at_repository_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        repo = tmp_path / "repo"
+        (repo / ".git").mkdir(parents=True)
+        monkeypatch.chdir(repo)
+
+        assert tmp_path / ".claude" not in _claude_project_roots()
+
+    def test_git_file_counts_as_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Worktrees and submodules record `.git` as a file.
+        (tmp_path / ".git").write_text("gitdir: /elsewhere\n")
+        nested = tmp_path / "sub"
+        nested.mkdir()
+        monkeypatch.chdir(nested)
+
+        assert _claude_project_roots() == [
+            nested / ".claude",
+            tmp_path / ".claude",
+        ]
+
+    def test_outside_repository_uses_cwd_only(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        nested = tmp_path / "no_repo_here"
+        nested.mkdir()
+        monkeypatch.chdir(nested)
+
+        assert _claude_project_roots() == [nested / ".claude"]
+
+    def test_stops_on_ancestor_permission_error(self, tmp_path: Path) -> None:
+        cwd = tmp_path / "notebooks" / "analysis"
+        with (
+            patch.object(Path, "cwd", return_value=cwd),
+            patch.object(Path, "exists", side_effect=[False, PermissionError]),
+        ):
+            assert _claude_project_roots() == [
+                cwd / ".claude",
+                cwd.parent / ".claude",
+            ]
+
+    def test_global_skill_available_after_permission_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "home"
+        skill = home / ".claude" / "skills" / SKILL_NAME
+        skill.mkdir(parents=True)
+        (skill / SKILL_FILE).write_text("test")
+        monkeypatch.setattr(Path, "home", lambda: home)
+
+        with patch.object(Path, "exists", side_effect=PermissionError):
+            agents = pair_agents()
+
+        assert agents["claude"].has_skill() is True
