@@ -310,6 +310,9 @@ docs = [
 # seven-day cutoff (2026-10-06 at 06:25 UTC).
 constraint-dependencies = [
     "chdb-core!=26.9.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    # TODO: Remove after the delayed Python 3.14 wheels and sdist clear
+    # the seven-day cutoff (2026-10-08 at 01:30 UTC).
+    "sqlglotc!=30.21.0; python_version == '3.14'",
 ]
 # Mirror CI's dependency window (UV_EXCLUDE_NEWER in .github/workflows) so local
 # resolution reproduces what CI resolves at setup time, including the ruff version.
