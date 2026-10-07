@@ -10,9 +10,10 @@ UIElementId = NewType("UIElementId", str)
 # Session routing key, which may change when a browser resumes.
 SessionId = NewType("SessionId", str)
 
-# Internal identity for one session lifetime, preserved across reconnects and
-# notebook renames. A replacement session gets a fresh ID even for the same
-# notebook. Separate from SessionId and the creation key (initialization_id).
+# Identity of a session, preserved across reconnects, notebook renames, and
+# kernel restarts: whoever creates a session chooses it, and a kernel that
+# continues an earlier one is given the same id. Separate from SessionId and
+# the creation key (initialization_id). A host publishes it as the RuntimeId.
 StableSessionId = NewType("StableSessionId", str)
 
 ConsumerId = NewType("ConsumerId", str)

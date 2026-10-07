@@ -33,6 +33,7 @@ from marimo._session.extensions.types import (
     EventAwareExtension,
     SessionExtension,
 )
+from marimo._session.kernel_exit import classify_kernel_exit
 from marimo._session.model import SessionMode
 from marimo._session.state.serialize import (
     SessionCacheKey,
@@ -77,9 +78,10 @@ class HeartbeatExtension(SessionExtension):
 
     def __init__(self) -> None:
         self.heartbeat_task: asyncio.Task[None] | None = None
+        self._event_bus: SessionEventBus | None = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        del event_bus
+        self._event_bus = event_bus
         self._start(session)
 
     def on_detach(self) -> None:
@@ -97,10 +99,14 @@ class HeartbeatExtension(SessionExtension):
                 if session.kernel_state() != KernelState.STOPPED:
                     return
                 exit_info = session.kernel_exit_info()
+                if exit_info is None:
+                    exit_info = classify_kernel_exit(None)
                 LOGGER.debug("Kernel died, invoking cleanup callback")
-                reason = (
-                    exit_info.message if exit_info is not None else "unknown"
-                )
+                reason = exit_info.message
+                # Listeners hear about the exit before anything is torn
+                # down, so they can record why while the session is whole.
+                if self._event_bus is not None:
+                    self._event_bus.emit_kernel_exited(session, exit_info)
                 # Notify the frontend before closing the WS so the user sees
                 # a persistent banner with the real cause instead of just a
                 # "disconnected" UI. ``notify`` only queues the frame on each

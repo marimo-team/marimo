@@ -16,7 +16,9 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from marimo._runtime import commands
+    from marimo._session.consumer import SessionConsumer
     from marimo._session.session import Session
+    from marimo._session.types import KernelExitInfo
 
 LOGGER = _loggers.marimo_logger()
 
@@ -77,6 +79,33 @@ class SessionEventListener:
         """Called when stdin is received."""
         del session
         del stdin
+        return
+
+    def on_consumer_connected(
+        self, session: Session, consumer: SessionConsumer
+    ) -> None:
+        """Called after a consumer joins the session's room."""
+        del session
+        del consumer
+        return
+
+    def on_consumer_disconnected(
+        self, session: Session, consumer: SessionConsumer
+    ) -> None:
+        """Called after a consumer leaves the session's room.
+
+        Not called for a stale consumer that was already replaced.
+        """
+        del session
+        del consumer
+        return
+
+    def on_kernel_exited(
+        self, session: Session, exit_info: KernelExitInfo
+    ) -> None:
+        """Called when the kernel is found dead, before the session closes."""
+        del session
+        del exit_info
         return
 
 
@@ -196,4 +225,33 @@ class SessionEventBus:
         self._emit(
             "received_stdin",
             lambda listener: listener.on_received_stdin(session, stdin),
+        )
+
+    def emit_consumer_connected(
+        self, session: Session, consumer: SessionConsumer
+    ) -> None:
+        """Emit a consumer connected event."""
+        self._emit(
+            "consumer_connected",
+            lambda listener: listener.on_consumer_connected(session, consumer),
+        )
+
+    def emit_consumer_disconnected(
+        self, session: Session, consumer: SessionConsumer
+    ) -> None:
+        """Emit a consumer disconnected event."""
+        self._emit(
+            "consumer_disconnected",
+            lambda listener: listener.on_consumer_disconnected(
+                session, consumer
+            ),
+        )
+
+    def emit_kernel_exited(
+        self, session: Session, exit_info: KernelExitInfo
+    ) -> None:
+        """Emit a kernel exited event."""
+        self._emit(
+            "kernel_exited",
+            lambda listener: listener.on_kernel_exited(session, exit_info),
         )

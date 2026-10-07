@@ -37,7 +37,7 @@ from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
 from marimo._session.session import SessionImpl
 from marimo._session.state.session_view import SessionView
-from marimo._types.ids import ConsumerId, SessionId
+from marimo._types.ids import ConsumerId, SessionId, StableSessionId
 from marimo._utils.distributor import QueueDistributor
 
 if TYPE_CHECKING:
@@ -50,6 +50,7 @@ def session_and_consumer() -> Iterator[tuple[SessionImpl, Mock]]:
     consumer.consumer_id = ConsumerId("main")
     consumer.connection_state.return_value = ConnectionState.OPEN
     session = SessionImpl(
+        stable_id=StableSessionId("sess-test"),
         session_view=SessionView(),
         initialization_id="notebook.py",
         session_consumer=consumer,

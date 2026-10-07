@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from marimo._messaging.types import KernelMessage
     from marimo._runtime import commands
     from marimo._session.consumer import SessionConsumer
+    from marimo._session.events import SessionEventBus
     from marimo._session.extensions.types import SessionExtension
     from marimo._session.model import (
         ConnectionState,
@@ -144,16 +145,23 @@ class Session(Protocol):
 
     @property
     def stable_id(self) -> StableSessionId:
-        """Opaque, server-generated identity for this session instance.
+        """Opaque identity for this session, chosen by whoever created it.
 
         Remains unchanged across consumer disconnects, browser resumes, and
-        notebook renames. Each new session gets a fresh ID, even for the same
-        notebook; IDs are not persisted across server restarts.
+        notebook renames. A kernel restart builds a new session, and the
+        creator is responsible for carrying the id forward when the new
+        session continues the old one; a host publishes it as the runtime
+        id. IDs are not persisted across server restarts.
 
         This is separate from the browser-supplied `SessionId`, which can
         change on resume, and `initialization_id`, the notebook's creation
         key. Internal only: not used for routing or exposed to clients.
         """
+        ...
+
+    @property
+    def event_bus(self) -> SessionEventBus:
+        """This session's event bus; see `SessionEventListener`."""
         ...
 
     @property
