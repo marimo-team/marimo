@@ -9,7 +9,7 @@ import pickle
 import queue
 import threading
 from enum import Enum, auto
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 from typing import TYPE_CHECKING, Any
 
 import msgspec
@@ -494,8 +494,14 @@ class LazyStore(Store):
         return result
 
     def clear(self, key: str) -> bool:
-        self._written_keys.discard(key)
-        self._touched_keys.discard(key)
+        # A key can name a directory of blobs, each tracked under its own
+        # path. An export must not list what was just removed.
+        key = PurePath(key).as_posix()
+        prefix = f"{key}/"
+        for tracked in (self._written_keys, self._touched_keys):
+            tracked.difference_update(
+                {k for k in tracked if k == key or k.startswith(prefix)}
+            )
         return self._inner.clear(key)
 
     def export_keys(self) -> list[str]:
@@ -503,6 +509,11 @@ class LazyStore(Store):
 
     def local_dirs(self) -> list[Path]:
         return self._inner.local_dirs()
+
+    def clearable_root(self) -> Path | None:
+        # This wrapper adds bookkeeping, not storage, so it can be cleared by
+        # enumeration exactly when the store it delegates to can.
+        return self._inner.clearable_root()
 
 
 class WasmLazyStore(LazyStore):
