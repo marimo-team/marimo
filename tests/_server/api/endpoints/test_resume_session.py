@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import UserConfigStore
 from marimo._messaging.notification import (
     CellNotification,
     EnvironmentOperation,
@@ -369,7 +369,7 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
 
 
 @contextmanager
-def without_autorun_on_save(config: UserConfigManager):
+def without_autorun_on_save(config: UserConfigStore):
     prev_config = config.get_config()
     try:
         config.save_config({"runtime": {"watcher_on_save": "lazy"}})

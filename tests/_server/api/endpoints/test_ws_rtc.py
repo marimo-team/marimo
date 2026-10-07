@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import UserConfigStore
 from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from tests._server.api.endpoints.ws_helpers import (
     assert_kernel_ready_response,
@@ -38,7 +38,7 @@ async def setup_loro_docs() -> AsyncGenerator[None, None]:
 
 
 @contextmanager
-def rtc_enabled(config: UserConfigManager):
+def rtc_enabled(config: UserConfigStore):
     prev_config = config.get_config()
     try:
         config.save_config({"experimental": {"rtc_v2": True}})

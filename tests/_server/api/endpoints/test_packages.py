@@ -890,7 +890,7 @@ def test_get_package_manager_uses_ipc_venv_python() -> None:
     # Mock app state
     mock_app_state = MagicMock()
     mock_app_state.get_current_session.return_value = mock_session
-    mock_app_state.app_config_manager.package_manager = "pip"
+    mock_app_state.app_config_manager.resolver.package_manager = "pip"
 
     mock_request = MagicMock()
 
@@ -925,7 +925,7 @@ def test_get_package_manager_without_ipc_session() -> None:
     # Mock app state
     mock_app_state = MagicMock()
     mock_app_state.get_current_session.return_value = mock_session
-    mock_app_state.app_config_manager.package_manager = "uv"
+    mock_app_state.app_config_manager.resolver.package_manager = "uv"
 
     mock_request = MagicMock()
 
@@ -951,7 +951,7 @@ def test_get_package_manager_no_session() -> None:
     # Mock app state with no session
     mock_app_state = MagicMock()
     mock_app_state.get_current_session.return_value = None
-    mock_app_state.config_manager.package_manager = "pip"
+    mock_app_state.config_manager.resolver.package_manager = "pip"
 
     mock_request = MagicMock()
 

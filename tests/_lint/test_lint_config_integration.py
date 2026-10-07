@@ -72,12 +72,12 @@ class TestPep723LintConfig:
 
     def test_empty_cell_ignored_via_pep723_lint_config(self):
         """MF004 is suppressed when the notebook's PEP 723 metadata ignores it."""
-        from marimo._config.manager import ScriptConfigManager
+        from marimo._config.manager import ScriptConfigReader
 
         notebook, _ = self._read_and_parse()
 
         # Read lint config from the notebook's PEP 723 metadata
-        script_mgr = ScriptConfigManager(self.FILE)
+        script_mgr = ScriptConfigReader(self.FILE)
         config = script_mgr.get_config(hide_secrets=False)
         lint_config = config.get("lint")
         assert lint_config is not None, (

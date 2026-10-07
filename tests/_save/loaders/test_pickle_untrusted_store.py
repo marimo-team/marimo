@@ -65,7 +65,7 @@ def test_workspace_marimo_toml_store_never_reaches_the_loader(
     the config layer is what keeps it away from an unverified `pickle.loads`;
     without that, this store would be treated as operator-chosen.
     """
-    from marimo._config.manager import UserConfigManager
+    from marimo._config.manager import UserConfigStore
     from marimo._save.stores import cache_store_is_untrusted, get_store
 
     workspace_config = tmp_path / ".marimo.toml"
@@ -82,7 +82,7 @@ def test_workspace_marimo_toml_store_never_reaches_the_loader(
     )
 
     # Stripped at the config layer, so nothing downstream has to identify it.
-    config = UserConfigManager().get_config(hide_secrets=False)
+    config = UserConfigStore().get_config(hide_secrets=False)
     assert config.get("cache", {}).get("store") is None
 
     # Note it is *not* reachable as an "untrusted override" either, because the

@@ -376,7 +376,7 @@ class TestAppHostMultipleClients:
                         ),
                     ),
                     config_manager=Mock(
-                        with_partial=Mock(
+                        with_reader=Mock(
                             return_value=Mock(
                                 get_config=Mock(return_value=DEFAULT_CONFIG)
                             )

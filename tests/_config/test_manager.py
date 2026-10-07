@@ -10,13 +10,13 @@ import pytest
 
 from marimo._config.config import PartialMarimoConfig, merge_default_config
 from marimo._config.manager import (
-    EnvConfigManager,
+    EnvConfigReader,
+    InMemoryConfigReader,
     MarimoConfigManager,
-    MarimoConfigReaderWithOverrides,
-    ProjectConfigManager,
-    ScriptConfigManager,
-    SecurityConfigManager,
-    UserConfigManager,
+    PyprojectConfigReader,
+    ScriptConfigReader,
+    SecurityConfigReader,
+    UserConfigStore,
     get_default_config_manager,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -28,14 +28,14 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def restore_config(f: F) -> F:
-    config = UserConfigManager().get_config()
+    config = UserConfigStore().get_config()
 
     @wraps(f)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return f(*args, **kwargs)
         finally:
-            UserConfigManager().save_config(config)
+            UserConfigStore().save_config(config)
 
     return wrapper  # type: ignore
 
@@ -44,7 +44,7 @@ def restore_config(f: F) -> F:
 @patch("tomlkit.dump")
 def test_save_config(mock_dump: Any) -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
-    manager = UserConfigManager()
+    manager = UserConfigStore()
     manager._load_config = lambda: mock_config
 
     result = manager.save_config(mock_config)
@@ -69,7 +69,7 @@ def test_save_config_is_deterministic(tmp_path: Path) -> None:
     from marimo._config.config import MarimoConfig
 
     config_path = tmp_path / "marimo.toml"
-    manager = UserConfigManager()
+    manager = UserConfigStore()
     manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
 
     a = PartialMarimoConfig(
@@ -174,7 +174,7 @@ def test_save_config_none_deletes_key(mock_dump: Any) -> None:
     mock_config = merge_default_config(
         PartialMarimoConfig(ai={"max_tokens": 8192, "rules": "be terse"})
     )
-    manager = UserConfigManager()
+    manager = UserConfigStore()
     manager._load_config = lambda: mock_config
 
     manager.save_config(
@@ -199,7 +199,7 @@ def test_save_config_with_none_does_not_raise(tmp_path: Path) -> None:
     mock_config = merge_default_config(
         PartialMarimoConfig(ai={"max_tokens": 8192, "rules": "be terse"})
     )
-    manager = UserConfigManager()
+    manager = UserConfigStore()
     manager._load_config = lambda: mock_config
 
     with patch.object(
@@ -218,7 +218,7 @@ def test_user_config_drops_hollow_dotenv(tmp_path: Path) -> None:
     """An empty runtime.dotenv on disk is a masked value, so it is ignored."""
     config_path = tmp_path / "marimo.toml"
     config_path.write_text("[runtime]\ndotenv = []\n")
-    manager = UserConfigManager()
+    manager = UserConfigStore()
     manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
 
     config = manager.get_config(hide_secrets=False)
@@ -229,7 +229,7 @@ def test_user_config_keeps_populated_dotenv(tmp_path: Path) -> None:
     config_path = tmp_path / "marimo.toml"
     dotenv = tmp_path / ".env.user"
     config_path.write_text(f'[runtime]\ndotenv = ["{dotenv.as_posix()}"]\n')
-    manager = UserConfigManager()
+    manager = UserConfigStore()
     manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
 
     config = manager.get_config(hide_secrets=False)
@@ -252,7 +252,7 @@ def test_drop_none_values_strips_nested_none() -> None:
 @patch("tomlkit.dump")
 def test_can_save_secrets(mock_dump: Any) -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
-    manager = UserConfigManager()
+    manager = UserConfigStore()
     manager._load_config = lambda: mock_config
 
     new_config = manager.save_config(
@@ -281,7 +281,7 @@ def test_can_save_secrets(mock_dump: Any) -> None:
 
 @restore_config
 def test_can_read_secrets() -> None:
-    manager = UserConfigManager()
+    manager = UserConfigStore()
     mock_config = merge_default_config(
         PartialMarimoConfig(ai={"open_ai": {"api_key": "super_secret"}})
     )
@@ -297,7 +297,7 @@ def test_can_read_secrets() -> None:
 @restore_config
 def test_get_config() -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
-    manager = UserConfigManager()
+    manager = UserConfigStore()
     manager._load_config = lambda: mock_config
 
     result = manager.get_config()
@@ -308,12 +308,12 @@ def test_get_config() -> None:
 @restore_config
 def test_get_config_with_override() -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
-    user = UserConfigManager()
+    user = UserConfigStore()
     user._load_config = lambda: mock_config
 
     manager = MarimoConfigManager(
         user,
-        MarimoConfigReaderWithOverrides(
+        InMemoryConfigReader(
             {
                 "runtime": {
                     "on_cell_change": "autorun",
@@ -478,7 +478,7 @@ def test_explicit_dotenv_resolves_in_the_home_directory(
         )
     )
 
-    config = ScriptConfigManager(str(notebook_path)).get_config(
+    config = ScriptConfigReader(str(notebook_path)).get_config(
         hide_secrets=False
     )
     assert config["runtime"]["dotenv"] == [str(home / ".env")]
@@ -500,7 +500,7 @@ def test_directory_workspace_dotenv_anchors_on_the_notebook(
     notebook_path.write_text("import marimo as mo")
 
     workspace = get_default_config_manager(current_path=str(repo))
-    session = workspace.with_partial(ScriptConfigManager(str(notebook_path)))
+    session = workspace.with_reader(ScriptConfigReader(str(notebook_path)))
     config = session.get_config(hide_secrets=False)
     assert config["runtime"]["dotenv"] == [str(sub / ".env")]
     assert "runtime" not in session.get_config_overrides(hide_secrets=False)
@@ -518,7 +518,7 @@ def test_directory_workspace_dotenv_keeps_the_pyproject_root(
     notebook_path.write_text("import marimo as mo")
 
     workspace = get_default_config_manager(current_path=str(repo))
-    session = workspace.with_partial(ScriptConfigManager(str(notebook_path)))
+    session = workspace.with_reader(ScriptConfigReader(str(notebook_path)))
     config = session.get_config(hide_secrets=False)
     assert config["runtime"]["dotenv"] == [str(repo / ".env")]
 
@@ -532,7 +532,7 @@ def test_directory_workspace_dotenv_falls_back_to_the_workspace_root(
     repo.mkdir()
 
     workspace = get_default_config_manager(current_path=str(repo))
-    session = workspace.with_partial(ScriptConfigManager(None))
+    session = workspace.with_reader(ScriptConfigReader(None))
     config = session.get_config(hide_secrets=False)
     assert config["runtime"]["dotenv"] == [str(repo / ".env")]
 
@@ -754,7 +754,7 @@ def test_project_config_manager_with_script_metadata(tmp_path: Path) -> None:
     """
     pyproject_path.write_text(textwrap.dedent(pyproject_content))
 
-    # Initialize ProjectConfigManager with the notebook path
+    # Initialize PyprojectConfigReader with the notebook path
     manager = get_default_config_manager(current_path=str(notebook_path))
     config = manager.get_config_overrides(hide_secrets=False)
 
@@ -776,12 +776,12 @@ def test_script_config_manager_empty_file(tmp_path: Path) -> None:
     notebook_path = tmp_path / "notebook.py"
     notebook_path.write_text("import marimo as mo")
 
-    manager = ScriptConfigManager(str(notebook_path))
+    manager = ScriptConfigReader(str(notebook_path))
     assert manager.get_config() == {}
 
 
 def test_script_config_manager_no_file() -> None:
-    manager = ScriptConfigManager(None)
+    manager = ScriptConfigReader(None)
     assert manager.get_config() == {}
 
 
@@ -798,7 +798,7 @@ def test_script_config_manager_with_metadata(tmp_path: Path) -> None:
     """
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
-    manager = ScriptConfigManager(str(notebook_path))
+    manager = ScriptConfigReader(str(notebook_path))
     assert manager.get_config() == {
         "formatting": {"line_length": 79},
         "save": {"autosave_delay": 1000},
@@ -826,7 +826,7 @@ def test_script_config_manager_dotenv_anchors_on_project(
     '''
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
-    config = ScriptConfigManager(str(notebook_path)).get_config(
+    config = ScriptConfigReader(str(notebook_path)).get_config(
         hide_secrets=False
     )
 
@@ -851,7 +851,7 @@ def test_script_config_manager_dotenv_anchors_on_standalone_notebook(
     """
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
-    config = ScriptConfigManager(str(notebook_path)).get_config(
+    config = ScriptConfigReader(str(notebook_path)).get_config(
         hide_secrets=False
     )
 
@@ -872,7 +872,7 @@ def test_script_config_manager_ignores_file_browser(tmp_path: Path) -> None:
     """
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
-    manager = ScriptConfigManager(str(notebook_path))
+    manager = ScriptConfigReader(str(notebook_path))
     assert manager.get_config() == {}
 
 
@@ -885,7 +885,7 @@ def test_script_config_manager_invalid_toml(tmp_path: Path) -> None:
     """
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
-    manager = ScriptConfigManager(str(notebook_path))
+    manager = ScriptConfigReader(str(notebook_path))
     assert manager.get_config() == {}
 
 
@@ -899,7 +899,7 @@ def test_script_config_manager_no_marimo_section(tmp_path: Path) -> None:
     """
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
-    manager = ScriptConfigManager(str(notebook_path))
+    manager = ScriptConfigReader(str(notebook_path))
     assert manager.get_config() == {}
 
 
@@ -922,7 +922,7 @@ def test_script_config_manager_sanitizes_auto_instantiate(
     """
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
-    manager = ScriptConfigManager(str(notebook_path))
+    manager = ScriptConfigReader(str(notebook_path))
     with caplog.at_level("WARNING"):
         from marimo import _loggers
 
@@ -959,7 +959,7 @@ def test_script_config_manager_sanitizes_isolate_apps(
     """
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
-    config = ScriptConfigManager(str(notebook_path)).get_config()
+    config = ScriptConfigReader(str(notebook_path)).get_config()
 
     assert "isolate_apps" not in config.get("experimental", {})
     assert config.get("experimental") == {"markdown": True}
@@ -981,7 +981,7 @@ def test_script_config_manager_sanitizes_custom_css(
     """
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
-    config = ScriptConfigManager(str(notebook_path)).get_config()
+    config = ScriptConfigReader(str(notebook_path)).get_config()
 
     assert "custom_css" not in config.get("display", {})
     assert config.get("display") == {"theme": "dark"}
@@ -1015,7 +1015,7 @@ def test_script_config_manager_drops_credential_affecting_sections(
     """
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
-    config = ScriptConfigManager(str(notebook_path)).get_config()
+    config = ScriptConfigReader(str(notebook_path)).get_config()
 
     assert "ai" not in config
     assert "mcp" not in config
@@ -1042,19 +1042,19 @@ def test_script_config_manager_ai_base_url_does_not_override(
     """
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
-    config = ScriptConfigManager(str(notebook_path)).get_config()
+    config = ScriptConfigReader(str(notebook_path)).get_config()
     assert "ai" not in config
     assert config == {}
 
 
-def test_marimo_config_reader_properties() -> None:
-    """Test the convenience properties on MarimoConfigReader"""
+def test_marimo_config_manager_properties() -> None:
+    """Test the convenience properties on MarimoConfigManager"""
 
     manager = get_default_config_manager(current_path=None)
-    assert manager.default_width is not None
-    assert manager.default_sql_output is not None
-    assert manager.theme is not None
-    assert manager.package_manager is not None
+    assert manager.resolver.default_width is not None
+    assert manager.resolver.default_sql_output is not None
+    assert manager.resolver.theme is not None
+    assert manager.resolver.package_manager is not None
 
 
 def test_project_config_manager_resolve_paths(tmp_path: Path) -> None:
@@ -1074,7 +1074,7 @@ def test_project_config_manager_resolve_paths(tmp_path: Path) -> None:
     (tmp_path / ".env").touch()
     (tmp_path / "config" / ".env").touch()
 
-    # Initialize ProjectConfigManager
+    # Initialize PyprojectConfigReader
     manager = get_default_config_manager(current_path=str(pyproject_path))
     config = manager.get_config(hide_secrets=False)
 
@@ -1103,7 +1103,7 @@ def test_project_config_manager_resolve_invalid_paths(tmp_path: Path) -> None:
     """
     pyproject_path.write_text(textwrap.dedent(pyproject_content))
 
-    # Initialize ProjectConfigManager
+    # Initialize PyprojectConfigReader
     manager = get_default_config_manager(current_path=str(pyproject_path))
     config = manager.get_config(hide_secrets=False)
 
@@ -1121,7 +1121,7 @@ def test_project_config_manager_resolve_missing_paths(tmp_path: Path) -> None:
     """
     pyproject_path.write_text(textwrap.dedent(pyproject_content))
 
-    # Initialize ProjectConfigManager
+    # Initialize PyprojectConfigReader
     manager = get_default_config_manager(current_path=str(pyproject_path))
     config = manager.get_config(hide_secrets=False)
 
@@ -1140,7 +1140,7 @@ def test_project_config_manager_resolve_custom_css(tmp_path: Path) -> None:
     """
     pyproject_path.write_text(textwrap.dedent(pyproject_content))
 
-    # Initialize ProjectConfigManager
+    # Initialize PyprojectConfigReader
     manager = get_default_config_manager(current_path=str(pyproject_path))
     config = manager.get_config(hide_secrets=False)
 
@@ -1184,7 +1184,7 @@ def test_project_config_manager_skips_unresolvable_css_home_directory(
         theme = "dark"
         """)
     )
-    manager = ProjectConfigManager(str(pyproject_path))
+    manager = PyprojectConfigReader(str(pyproject_path))
     with patch(
         "pathlib.Path.expanduser",
         side_effect=[
@@ -1211,8 +1211,8 @@ def test_project_config_manager_resolve_invalid_custom_css(
     """
     pyproject_path.write_text(textwrap.dedent(pyproject_content))
 
-    # Initialize ProjectConfigManager
-    # Initialize ProjectConfigManager
+    # Initialize PyprojectConfigReader
+    # Initialize PyprojectConfigReader
     manager = get_default_config_manager(current_path=str(pyproject_path))
     config = manager.get_config(hide_secrets=False)
 
@@ -1223,11 +1223,11 @@ def test_project_config_manager_resolve_invalid_custom_css(
 def test_env_config_manager_auto_instantiate_true(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test that EnvConfigManager correctly loads auto_instantiate from env"""
+    """Test that EnvConfigReader correctly loads auto_instantiate from env"""
     monkeypatch.setenv(
         "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", "true"
     )
-    manager = EnvConfigManager()
+    manager = EnvConfigReader()
     config = manager.get_config(hide_secrets=False)
     assert config == {"runtime": {"auto_instantiate": True}}
 
@@ -1246,14 +1246,14 @@ def test_env_config_manager_boolean_case_insensitive(
     monkeypatch.setenv(
         "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", env_value
     )
-    manager = EnvConfigManager()
+    manager = EnvConfigReader()
     config = manager.get_config(hide_secrets=False)
     assert config["runtime"]["auto_instantiate"] is expected
 
 
 def test_env_config_manager_no_env_vars() -> None:
     """Test that missing env vars return empty config"""
-    manager = EnvConfigManager()
+    manager = EnvConfigReader()
     config = manager.get_config(hide_secrets=False)
     assert config == {}
 
@@ -1264,7 +1264,7 @@ def test_env_config_manager_server_transport(
 ) -> None:
     """MARIMO_SERVER_TRANSPORT selects the kernel-connection transport"""
     monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", transport)
-    manager = EnvConfigManager()
+    manager = EnvConfigReader()
     config = manager.get_config(hide_secrets=False)
     assert config == {"server": {"transport": transport}}
 
@@ -1274,7 +1274,7 @@ def test_env_config_manager_server_transport_invalid(
 ) -> None:
     """Invalid MARIMO_SERVER_TRANSPORT values are ignored with a warning"""
     monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", "carrier-pigeon")
-    manager = EnvConfigManager()
+    manager = EnvConfigReader()
     config = manager.get_config(hide_secrets=False)
     assert config == {}
 
@@ -1292,7 +1292,7 @@ def test_restrict_sharing_clamps_config_overrides(
     """
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
     manager = MarimoConfigManager(
-        UserConfigManager(), EnvConfigManager(), SecurityConfigManager()
+        UserConfigStore(), EnvConfigReader(), SecurityConfigReader()
     )
     overrides = manager.get_config_overrides(hide_secrets=False)
     assert overrides["sharing"] == RESTRICTED_SHARING
@@ -1303,7 +1303,7 @@ def test_restrict_sharing_overrides_user_config(
 ) -> None:
     """The restriction wins over a user config that enables sharing."""
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
-    user = UserConfigManager()
+    user = UserConfigStore()
     monkeypatch.setattr(
         user,
         "_load_config",
@@ -1312,7 +1312,7 @@ def test_restrict_sharing_overrides_user_config(
         ),
     )
     manager = MarimoConfigManager(
-        user, EnvConfigManager(), SecurityConfigManager()
+        user, EnvConfigReader(), SecurityConfigReader()
     )
     assert manager.get_config(hide_secrets=False)["sharing"] == (
         RESTRICTED_SHARING
@@ -1324,13 +1324,13 @@ def test_restrict_sharing_beats_later_override(
 ) -> None:
     """A later with_overrides() cannot re-enable sharing.
 
-    with_overrides() appends its partial after EnvConfigManager, but
-    MarimoConfigManager keeps the SecurityConfigManager last, so the
+    with_overrides() appends its partial after EnvConfigReader, but
+    MarimoConfigManager keeps the SecurityConfigReader last, so the
     enforcement still wins over the later override.
     """
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
     manager = MarimoConfigManager(
-        UserConfigManager(), EnvConfigManager(), SecurityConfigManager()
+        UserConfigStore(), EnvConfigReader(), SecurityConfigReader()
     ).with_overrides({"sharing": {"wasm": True, "html": True, "molab": True}})
     assert manager.get_config_overrides(hide_secrets=False)["sharing"] == (
         RESTRICTED_SHARING
@@ -1343,7 +1343,7 @@ def test_restrict_sharing_disabled_keeps_user_config(
     """With the flag off, an explicit sharing config is left untouched."""
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", False)
     manager = MarimoConfigManager(
-        UserConfigManager(), EnvConfigManager(), SecurityConfigManager()
+        UserConfigStore(), EnvConfigReader(), SecurityConfigReader()
     ).with_overrides({"sharing": {"wasm": True}})
     assert manager.get_config_overrides(hide_secrets=False)["sharing"] == {
         "wasm": True
@@ -1372,7 +1372,7 @@ def test_script_config_manager_strips_signing_and_verification(
     """
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
-    config = ScriptConfigManager(str(notebook_path)).get_config()
+    config = ScriptConfigReader(str(notebook_path)).get_config()
 
     assert "signing" not in config
     # NB. the script allowlist (ALLOWED_SCRIPT_CONFIG_TOP_KEYS) drops the whole
@@ -1401,7 +1401,7 @@ def test_project_config_manager_strips_signing_and_verification(
     """
     pyproject_path.write_text(textwrap.dedent(pyproject_content))
 
-    config = ProjectConfigManager(str(pyproject_path)).get_config()
+    config = PyprojectConfigReader(str(pyproject_path)).get_config()
 
     assert "signing" not in config
     # `cache.store` is not a trust anchor, so a project may still choose one;
@@ -1426,8 +1426,8 @@ def test_effective_config_anchors_trust_in_user_layer_only(
     )
 
     manager = MarimoConfigManager(
-        UserConfigManager(),
-        ProjectConfigManager(str(pyproject_path)),
+        UserConfigStore(),
+        PyprojectConfigReader(str(pyproject_path)),
     ).with_overrides({"signing": {"trusted_signers": {user_fp: "me"}}})
 
     signing = manager.get_config(hide_secrets=False).get("signing", {})
@@ -1442,7 +1442,7 @@ def test_workspace_marimo_toml_strips_signing_and_verification(
     """A `.marimo.toml` found by walking up from the cwd is project-origin.
 
     It loads as the user layer, so it is the one untrusted layer that reaches
-    `UserConfigManager`; it must still not anchor trust.
+    `UserConfigStore`; it must still not anchor trust.
     """
     cfg = tmp_path / ".marimo.toml"
     cfg.write_text(
@@ -1471,7 +1471,7 @@ def test_workspace_marimo_toml_strips_signing_and_verification(
         lambda _path: False,
     )
 
-    config = UserConfigManager().get_config(hide_secrets=False)
+    config = UserConfigStore().get_config(hide_secrets=False)
 
     assert "signing" not in config
     assert config.get("cache", {}).get("verification") is None
@@ -1507,7 +1507,7 @@ def test_trusted_user_config_location_anchors_trust(
         lambda _path: True,
     )
 
-    config = UserConfigManager().get_config(hide_secrets=False)
+    config = UserConfigStore().get_config(hide_secrets=False)
 
     assert config["signing"]["trusted_signers"] == {_FAKE_FP: "me"}
     assert config["cache"]["verification"] == "strict"

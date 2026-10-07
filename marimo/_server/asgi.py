@@ -562,7 +562,7 @@ def create_asgi_app(
                 auth_token=auth_token,
                 redirect_console_to_browser=redirect_console_to_browser,
                 ttl_seconds=session_ttl,
-                isolate_apps=config_reader.experimental.get(
+                isolate_apps=config_reader.resolver.experimental.get(
                     "isolate_apps", False
                 ),
                 execute_opengraph_generators=execute_opengraph_generators,

@@ -276,7 +276,7 @@ def _get_package_manager(request: Request) -> PackageManager:
     session = AppState(request).get_current_session()
     if not session:
         return create_package_manager(
-            AppState(request).config_manager.package_manager
+            AppState(request).config_manager.resolver.package_manager
         )
 
     config_manager = AppState(request).app_config_manager
@@ -296,7 +296,7 @@ def _get_package_manager(request: Request) -> PackageManager:
             python_exe = kernel_manager.venv_python
 
     return create_package_manager(
-        config_manager.package_manager,
+        config_manager.resolver.package_manager,
         python_exe=python_exe,
     )
 

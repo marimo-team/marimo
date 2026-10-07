@@ -103,13 +103,11 @@ def create_session(
 
     # Lazy import to decrease startup time
     from marimo._config.config import merge_default_config
-    from marimo._config.manager import ScriptConfigManager
+    from marimo._config.manager import ScriptConfigReader
 
     # Add default config
     user_config = merge_default_config(user_config)
-    script_config = ScriptConfigManager(filename).get_config(
-        hide_secrets=False
-    )
+    script_config = ScriptConfigReader(filename).get_config(hide_secrets=False)
     # Merge with inline script-metadata config
     user_config = merge_config(user_config, script_config)
 

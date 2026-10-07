@@ -13,7 +13,7 @@ import pytest
 import uvicorn
 from starlette.testclient import TestClient
 
-from marimo._config.manager import MarimoConfigManager, UserConfigManager
+from marimo._config.manager import MarimoConfigManager, UserConfigStore
 from marimo._config.utils import CONFIG_FILENAME
 from marimo._server.api.deps import AppState
 from marimo._server.config import StarletteServerStateInit
@@ -101,12 +101,12 @@ def client_with_lifespans() -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture
-def user_config_manager() -> Iterator[UserConfigManager]:
+def user_config_manager() -> Iterator[UserConfigStore]:
     tmp = TemporaryDirectory()
     config_path = Path(tmp.name) / CONFIG_FILENAME
     config_path.write_text("")
 
-    class TestUserConfigManager(UserConfigManager):
+    class TestUserConfigManager(UserConfigStore):
         def __init__(self) -> None:
             super().__init__()
 
@@ -119,7 +119,7 @@ def user_config_manager() -> Iterator[UserConfigManager]:
 
 
 @pytest.fixture
-def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
+def client(user_config_manager: UserConfigStore) -> Iterator[TestClient]:
     main = sys.modules["__main__"]
 
     # Create fresh app for this test to avoid shared state issues
@@ -153,7 +153,7 @@ def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
         sys.modules["__main__"] = main
 
 
-def get_session_config_manager(client: TestClient) -> UserConfigManager:
+def get_session_config_manager(client: TestClient) -> UserConfigStore:
     """Assumes only one active session."""
     sessions = list(
         AppState.from_app(client.app).session_manager.sessions.values()
@@ -162,5 +162,5 @@ def get_session_config_manager(client: TestClient) -> UserConfigManager:
     return sessions[0].config_manager  # type: ignore
 
 
-def get_user_config_manager(client: TestClient) -> UserConfigManager:
+def get_user_config_manager(client: TestClient) -> UserConfigStore:
     return client.app.state.config_manager  # type: ignore

@@ -110,10 +110,10 @@ class Linter:
         if self._explicit_rules:
             return self.rule_engine
 
-        from marimo._config.manager import ScriptConfigManager
+        from marimo._config.manager import ScriptConfigReader
 
         try:
-            file_config = ScriptConfigManager(file_path).get_config(
+            file_config = ScriptConfigReader(file_path).get_config(
                 hide_secrets=False
             )
         except Exception:

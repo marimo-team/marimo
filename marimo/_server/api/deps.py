@@ -5,7 +5,10 @@ from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers as loggers
 from marimo._cli.tips import CliTip
-from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
+from marimo._config.manager import (
+    MarimoConfigManager,
+    ScriptConfigReader,
+)
 from marimo._server.config import StarletteServerState
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
@@ -198,7 +201,7 @@ class AppState(AppStateBase):
         config_manager = super().config_manager
         # The file key can be relative to the workspace directory, so resolve
         # it to a validated absolute path before reading inline script
-        # metadata — otherwise ScriptConfigManager would read relative to the
+        # metadata — otherwise ScriptConfigReader would read relative to the
         # server's cwd. New/unsaved or missing files have no inline config to
         # apply; let other rejections (e.g. path traversal) propagate.
         try:
@@ -210,5 +213,5 @@ class AppState(AppStateBase):
         if resolved is None:
             return config_manager
         return config_manager.with_overrides(
-            ScriptConfigManager(resolved).get_config()
+            ScriptConfigReader(resolved).get_config()
         )

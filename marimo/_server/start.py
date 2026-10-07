@@ -263,11 +263,11 @@ def start(
     lsp_composite_server: CompositeLspServer | None = None
     if mode == SessionMode.EDIT:
         lsp_composite_server = CompositeLspServer(
-            config_reader=config_reader,
+            config_reader=config_reader.resolver,
             min_port=DEFAULT_PORT + 400,
         )
 
-    if watch and config_reader.is_auto_save_enabled:
+    if watch and config_reader.resolver.is_auto_save_enabled:
         LOGGER.warning("Enabling watch mode may interfere with auto-save.")
 
     if (
@@ -303,7 +303,7 @@ def start(
         )
 
     is_multi = workspace.get_unique_file_key() is None
-    isolate_apps = is_multi and config_reader.experimental.get(
+    isolate_apps = is_multi and config_reader.resolver.experimental.get(
         "isolate_apps", False
     )
 

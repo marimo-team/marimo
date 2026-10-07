@@ -14,7 +14,10 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
+from marimo._config.manager import (
+    MarimoConfigManager,
+    ScriptConfigReader,
+)
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
     NotificationMessage,
@@ -121,8 +124,8 @@ class SessionImpl(Session):
         # script-level config. The reader is layered on as-is: snapshotting
         # its masked get_config() would turn runtime.dotenv into [] and that
         # empty list would then win the merge the kernel reads unmasked.
-        config_manager = config_manager.with_partial(
-            ScriptConfigManager(app_file_manager.path)
+        config_manager = config_manager.with_reader(
+            ScriptConfigReader(app_file_manager.path)
         )
         config = config_manager.get_config(hide_secrets=False)
         configured_venv = config.get("venv", {}).get("path")
@@ -155,7 +158,7 @@ class SessionImpl(Session):
                 mode=mode,
                 configs=configs,
                 app_metadata=app_metadata,
-                config_manager=config_manager,
+                config_manager=config_manager.resolver,
                 redirect_console_to_browser=redirect_console_to_browser,
             )
         elif sandbox or (mode == SessionMode.EDIT and configured_venv):
@@ -175,7 +178,7 @@ class SessionImpl(Session):
                 mode=mode,
                 configs=configs,
                 app_metadata=app_metadata,
-                config_manager=config_manager,
+                config_manager=config_manager.resolver,
                 redirect_console_to_browser=redirect_console_to_browser,
                 on_notification=startup.notify,
             )
@@ -190,7 +193,7 @@ class SessionImpl(Session):
                 mode=mode,
                 configs=configs,
                 app_metadata=app_metadata,
-                config_manager=config_manager,
+                config_manager=config_manager.resolver,
                 virtual_file_storage=virtual_file_storage,
                 redirect_console_to_browser=redirect_console_to_browser,
             )

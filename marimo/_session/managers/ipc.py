@@ -20,7 +20,7 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._config.config import VenvConfig
-from marimo._config.manager import MarimoConfigReader
+from marimo._config.manager import ConfigResolver
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._environments.overlay import runtime_overlay
 from marimo._messaging.notification import (
@@ -62,7 +62,7 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
-def _get_venv_config(config_manager: MarimoConfigReader) -> VenvConfig:
+def _get_venv_config(config_manager: ConfigResolver) -> VenvConfig:
     """Get the [tool.marimo.venv] config from a config manager."""
     config = config_manager.get_config(hide_secrets=False)
     return cast(VenvConfig, config.get("venv", {}))
@@ -275,7 +275,7 @@ class IPCKernelManagerImpl(KernelManager):
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        config_manager: MarimoConfigReader,
+        config_manager: ConfigResolver,
         redirect_console_to_browser: bool = True,
         on_notification: Callable[[NotificationMessage], None] | None = None,
     ) -> None:

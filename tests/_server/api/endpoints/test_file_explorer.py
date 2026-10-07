@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from starlette.testclient import TestClient
 
     from marimo._config.config import PartialMarimoConfig
-    from marimo._config.manager import UserConfigManager
+    from marimo._config.manager import UserConfigStore
 
 HEADERS = {
     **token_header("fake-token"),
@@ -678,7 +678,7 @@ def test_download_requires_auth(client: TestClient) -> None:
 
 
 def test_download_disabled_by_config(
-    client: TestClient, user_config_manager: UserConfigManager
+    client: TestClient, user_config_manager: UserConfigStore
 ) -> None:
     user_config_manager.save_config(
         cast(

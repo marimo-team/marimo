@@ -11,7 +11,7 @@ import pytest
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 from marimo._config.config import ExperimentalConfig
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import UserConfigStore
 from marimo._messaging.notification import (
     EnvironmentOperationNotification,
     KernelReadyNotification,
@@ -509,7 +509,7 @@ def flush_messages(
 
 
 @contextmanager
-def rtc_enabled(config: UserConfigManager):
+def rtc_enabled(config: UserConfigStore):
     prev_config = config.get_config()
     try:
         experimental_config = ExperimentalConfig(rtc_v2=True)

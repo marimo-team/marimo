@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import signal
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal
 from unittest import mock
 
 import pytest
@@ -13,8 +13,8 @@ from marimo._config.config import (
     merge_default_config,
 )
 from marimo._config.manager import (
-    MarimoConfigReader,
-    MarimoConfigReaderWithOverrides,
+    ConfigResolver,
+    InMemoryConfigReader,
 )
 from marimo._loggers import get_log_directory
 from marimo._messaging.notification import AlertNotification
@@ -409,10 +409,9 @@ def test_copilot_server_node_version_validation():
 def test_composite_server():
     def as_reader(
         completion_config: CompletionConfig, config: LanguageServersConfig
-    ) -> MarimoConfigReader:
-        return cast(
-            MarimoConfigReader,
-            MarimoConfigReaderWithOverrides(
+    ) -> ConfigResolver:
+        return ConfigResolver(
+            InMemoryConfigReader(
                 {
                     "completion": completion_config,
                     "language_servers": config,

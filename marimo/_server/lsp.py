@@ -15,7 +15,7 @@ from typing import Any, Literal, cast
 
 from marimo import _loggers
 from marimo._config.config import MarimoConfig
-from marimo._config.manager import MarimoConfigReader
+from marimo._config.manager import ConfigResolver
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import AlertNotification
@@ -816,7 +816,7 @@ class CompositeLspServer(LspServer):
 
     def __init__(
         self,
-        config_reader: MarimoConfigReader,
+        config_reader: ConfigResolver,
         min_port: int,
     ) -> None:
         self.config_reader = config_reader

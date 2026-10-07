@@ -27,7 +27,7 @@ from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellConfig
-    from marimo._config.manager import MarimoConfigReader
+    from marimo._config.manager import ConfigResolver
     from marimo._runtime.commands import AppMetadata
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._types.ids import CellId_t
@@ -49,7 +49,7 @@ class KernelManagerImpl(KernelManager):
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        config_manager: MarimoConfigReader,
+        config_manager: ConfigResolver,
         virtual_file_storage: VirtualFileStorageType | None,
         redirect_console_to_browser: bool,
     ) -> None:

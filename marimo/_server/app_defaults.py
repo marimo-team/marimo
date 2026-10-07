@@ -21,7 +21,7 @@ class AppDefaults:
     @staticmethod
     def from_config_manager(config: MarimoConfigManager) -> AppDefaults:
         return AppDefaults(
-            width=config.default_width,
-            auto_download=config.default_auto_download,
-            sql_output=config.default_sql_output,
+            width=config.resolver.default_width,
+            auto_download=config.resolver.default_auto_download,
+            sql_output=config.resolver.default_sql_output,
         )
