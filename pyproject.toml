@@ -306,10 +306,13 @@ docs = [
 
 
 [tool.uv]
-# TODO: Remove after the delayed 26.9.0 Apple Silicon wheel clears CI's
-# seven-day cutoff (2026-10-06 at 06:25 UTC).
-constraint-dependencies = [
-    "chdb-core!=26.9.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
+# Keep targets aligned with .github/workflows/test_be.yaml.
+# Require eligible wheels for the backend CI matrix so delayed uploads
+# cause resolution to backtrack instead of failing during installation.
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64' and python_version >= '3.10' and python_version < '3.15'",
+    "sys_platform == 'darwin' and platform_machine == 'arm64' and python_version == '3.10'",
+    "sys_platform == 'win32' and platform_machine == 'AMD64' and python_version == '3.10'",
 ]
 # Mirror CI's dependency window (UV_EXCLUDE_NEWER in .github/workflows) so local
 # resolution reproduces what CI resolves at setup time, including the ruff version.
