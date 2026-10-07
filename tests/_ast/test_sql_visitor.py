@@ -293,6 +293,18 @@ class TestFindSQLDefs:
                 name VARCHAR
             ) -- Comment at the end
             """,
+            """
+            CREATE/* after CREATE */TABLE/* after TABLE */
+            IF/* after IF */NOT/* after NOT */EXISTS
+            -- Before the table name
+            my_table (id INT)
+            """,
+            """
+            CREATE -- Before OR
+            OR /* Before REPLACE */ REPLACE
+            /* Before TEMP */ TEMP -- Before TABLE
+            TABLE /* Before the table name */ my_table (id INT)
+            """,
         ],
     )
     def test_find_sql_defs_many_comments(
@@ -390,10 +402,18 @@ class TestFindSQLDefs:
         )
 
     @staticmethod
-    def test_find_sql_defs_with_catalog_and_schema() -> None:
-        sql = """
-        CREATE TABLE my_catalog.my_schema.my_table (id INT);
-        """
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "CREATE TABLE my_catalog.my_schema.my_table (id INT);",
+            """
+            CREATE TABLE my_catalog /* Before the schema */ . my_schema
+            -- Before the table
+            . my_table (id INT);
+            """,
+        ],
+    )
+    def test_find_sql_defs_with_catalog_and_schema(sql: str) -> None:
         assert find_sql_defs(sql) == SQLDefs(
             tables=[
                 SQLRef(
