@@ -375,7 +375,7 @@ def python_print_polars(
                 [
                     df_name,
                     f"if {df_name}.collect_schema()[{column}] == pl.String:",
-                    f"    {df_name} = {df_name}.with_columns(pl.col({column}).str.{parser}(strict={strict}))",
+                    f"    {df_name} = {df_name}.with_columns(pl.col({column}).str.{parser}())",
                     "else:",
                     f"    {df_name} = {df_name}.cast({{{column}: pl.{dtype}}}, strict={strict})",
                 ]

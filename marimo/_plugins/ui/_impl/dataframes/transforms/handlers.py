@@ -117,23 +117,10 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             and data_type_str in {"date", "datetime64"}
             and df.collect_schema()[transform.column_id] == nw.String
         ):
-            if transform.errors == "raise":
-                column = col(transform.column_id)
-                if data_type_str == "date":
-                    return df.with_columns(column.str.to_date())
-                return df.with_columns(column.str.to_datetime())
-
-            # Narwhals' parsers do not expose non-strict conversion yet.
-            native_df = df.to_native()
-            if nw.dependencies.is_polars_lazyframe(native_df):
-                import polars as pl
-
-                native_column = pl.col(transform.column_id)
-                if data_type_str == "date":
-                    converted = native_column.str.to_date(strict=False)
-                else:
-                    converted = native_column.str.to_datetime(strict=False)
-                return nw.from_native(native_df.with_columns(converted))
+            column = col(transform.column_id)
+            if data_type_str == "date":
+                return df.with_columns(column.str.to_date())
+            return df.with_columns(column.str.to_datetime())
 
         if transform.errors == "ignore":
             # For ignore mode, wrap cast in a try-except at the expression level

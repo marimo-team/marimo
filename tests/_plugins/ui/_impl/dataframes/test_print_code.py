@@ -1042,6 +1042,7 @@ def test_print_code_result_matches_actual_transform_polars(
     not DependencyManager.polars.has(), reason="polars not installed"
 )
 @pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("errors", ["raise", "ignore"])
 @pytest.mark.parametrize(
     ("data_type", "values", "expected_values"),
     [
@@ -1081,6 +1082,7 @@ def test_print_code_result_matches_actual_transform_polars(
 )
 def test_polars_temporal_conversion_code_matches_runtime(
     lazy: bool,
+    errors: Literal["raise", "ignore"],
     data_type: str,
     values: list[str | datetime.date | int | None],
     expected_values: list[datetime.date | None],
@@ -1095,7 +1097,7 @@ def test_polars_temporal_conversion_code_matches_runtime(
         type=TransformType.COLUMN_CONVERSION,
         column_id=column,
         data_type=data_type,
-        errors="raise",
+        errors=errors,
     )
     runtime = (
         NarwhalsTransformHandler.handle_column_conversion(
@@ -1175,7 +1177,6 @@ def test_polars_temporal_conversion_invalid_strings(
     data_type: str, errors: Literal["raise", "ignore"]
 ) -> None:
     import polars as pl
-    import polars.testing as pl_testing
 
     source = pl.LazyFrame({"event_time": ["2026-10-07", "invalid", None]})
     transform = ColumnConversionTransform(
@@ -1195,20 +1196,10 @@ def test_polars_temporal_conversion_invalid_strings(
         namespace,
     )
     generated = namespace["df_next"]
-    if errors == "raise":
-        with pytest.raises(nw.exceptions.InvalidOperationError):
-            runtime.collect()
-        with pytest.raises(pl.exceptions.InvalidOperationError):
-            generated.collect()
-    else:
-        expected_value: datetime.date
-        if data_type == "date":
-            expected_value = datetime.date(2026, 10, 7)
-        else:
-            expected_value = datetime.datetime(2026, 10, 7)
-        expected = pl.DataFrame({"event_time": [expected_value, None, None]})
-        pl_testing.assert_frame_equal(runtime.collect().to_native(), expected)
-        pl_testing.assert_frame_equal(generated.collect(), expected)
+    with pytest.raises(nw.exceptions.InvalidOperationError):
+        runtime.collect()
+    with pytest.raises(pl.exceptions.InvalidOperationError):
+        generated.collect()
 
 
 @pytest.mark.skipif(
