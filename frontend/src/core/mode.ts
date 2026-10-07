@@ -92,7 +92,6 @@ export function isNotebookPage(): boolean {
 }
 
 export const kioskModeAtom = atom<boolean>(false);
-export const captureModeAtom = atom<boolean>(false);
 
 /**
  * Whether installing packages is allowed in the current view. False in read

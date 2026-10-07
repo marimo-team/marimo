@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getSerializedLayout } from "@/core/layout/layout";
 import { initialLayoutState, layoutStateAtom } from "@/core/layout/state";
-import { captureModeAtom, kioskModeAtom } from "@/core/mode";
+import { kioskModeAtom } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
@@ -58,7 +58,7 @@ describe("mount", () => {
     vi.mocked(isStaticNotebook).mockReturnValue(false);
     store.set(layoutStateAtom, initialLayoutState());
     store.set(kioskModeAtom, false);
-    store.set(captureModeAtom, false);
+    delete window.__marimoCapture;
     // Reset connection atom to initial state
     store.set(connectionAtom, { state: WebSocketState.NOT_STARTED });
   });
@@ -195,20 +195,17 @@ describe("mount", () => {
 
     expect(error).toBeUndefined();
     expect(store.get(kioskModeAtom)).toBe(true);
-    expect(store.get(captureModeAtom)).toBe(false);
+    expect(window.__marimoCapture).toBeDefined();
   });
 
   it.each([
-    ["/?kiosk=true&capture=true", true],
-    ["/?kiosk=true&capture=false", false],
-    ["/?capture=true", false],
-  ])(
-    "enables capture metadata only on screenshot pages: %s",
-    (url, expected) => {
-      window.history.replaceState({}, "", url);
-      const error = mountRead();
-      expect(error).toBeUndefined();
-      expect(store.get(captureModeAtom)).toBe(expected);
-    },
-  );
+    ["/?kiosk=true", true],
+    ["/?kiosk=false", false],
+    ["/", false],
+  ])("installs the capture getter only in kiosk mode: %s", (url, expected) => {
+    window.history.replaceState({}, "", url);
+    const error = mountRead();
+    expect(error).toBeUndefined();
+    expect(Boolean(window.__marimoCapture)).toBe(expected);
+  });
 });

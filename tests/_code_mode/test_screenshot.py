@@ -82,7 +82,6 @@ class TestScreenshotSessionAuthUrl:
             "access_token": ["secret+&=#?"],
             "file": ["notebooks/my notebook + #1.py"],
             "kiosk": ["true"],
-            "capture": ["true"],
         }
 
     def test_page_url_omits_token_when_none(self) -> None:
@@ -90,12 +89,12 @@ class TestScreenshotSessionAuthUrl:
         page_url = session._page_url()
 
         assert "access_token" not in page_url
-        assert page_url == "http://localhost:9999?kiosk=true&capture=true"
+        assert page_url == "http://localhost:9999?kiosk=true"
 
     def test_page_url_preserves_base_path_query_and_fragment(self) -> None:
         session = _ScreenshotSession(
             "http://localhost:9999/base/?theme=dark&theme=light&kiosk=false"
-            "&capture=false&session_id=editor&file=old.py&access_token=old#output",
+            "&session_id=editor&file=old.py&access_token=old#output",
             screenshot_auth_token="secret",
             file_key="__new__notebook",
         )
@@ -105,7 +104,6 @@ class TestScreenshotSessionAuthUrl:
         assert parse_qs(url.query) == {
             "theme": ["dark", "light"],
             "kiosk": ["true"],
-            "capture": ["true"],
             "file": ["__new__notebook"],
             "access_token": ["secret"],
         }

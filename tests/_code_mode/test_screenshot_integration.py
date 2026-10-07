@@ -225,8 +225,9 @@ assert image.startswith(b"\\x89PNG\\r\\n\\x1a\\n")
 assert {marker!r} in await session._page.locator("#output-" + cell_id).inner_text()
 assert parse_qs(urlsplit(session._page.url).query)["file"] == [{key!r}]
 assert parse_qs(urlsplit(session._page.url).query)["kiosk"] == ["true"]
-assert parse_qs(urlsplit(session._page.url).query)["capture"] == ["true"]
-assert await session._page.locator("[data-cell-output-id]").count() > 0
+assert "capture" not in parse_qs(urlsplit(session._page.url).query)
+assert await session._page.locator("[data-cell-output-id]").count() == 0
+assert await session._page.evaluate("(id) => window.__marimoCapture.getCellState(id)", cell_id) == "ready"
 # Reuse a page with rich output after replacing it with newer rich output.
 updated_code = {source.replace(marker, f"{marker} UPDATED")!r}
 async with cm.get_context() as update_ctx:
@@ -308,6 +309,13 @@ image
                             ).count()
                             == 0
                         )
+                        assert (
+                            await kiosk.evaluate(
+                                "(id) => window.__marimoCapture.getCellState(id)",
+                                cell_id,
+                            )
+                            == "ready"
+                        )
                         await kiosk.close()
                         assert not websocket.is_closed()
                         assert (
@@ -354,16 +362,16 @@ async def test_screenshot_waits_for_frontend_state_and_rendering() -> None:
             page = await browser.new_page()
             session = _ScreenshotSession("http://localhost:1234")
             session._page = page
-            for state in ("unknown", "pending", "available"):
-                content = "old output" if state != "available" else ""
-                await page.set_content(
-                    f'<span hidden data-cell-output-id="a" data-output-state="{state}"></span>'
-                    f'<div id="output-a">{content}</div>'
+            for state in ("unknown", "pending"):
+                await page.set_content('<div id="output-a">old output</div>')
+                await page.evaluate(
+                    "state => { window.__marimoCapture = { getCellState: () => state }; }",
+                    state,
                 )
                 with pytest.raises(BrowserTimeoutError):
                     await session._wait_for_output(CellId_t("a"), timeout=50)
                 await page.evaluate("""() => {
-                    document.querySelector('[data-cell-output-id]').dataset.outputState = 'available';
+                    window.__marimoCapture.getCellState = () => 'ready';
                     document.getElementById('output-a').textContent = 'new output';
                 }""")
                 assert (
@@ -372,17 +380,18 @@ async def test_screenshot_waits_for_frontend_state_and_rendering() -> None:
                 )
 
             await page.evaluate("""() => {
-                document.querySelector('[data-cell-output-id]').dataset.outputState = 'pending';
+                window.__marimoCapture.getCellState = () => 'pending';
             }""")
             wait = asyncio.create_task(
                 session._wait_for_output(CellId_t("a"), timeout=1000)
             )
             await page.evaluate("""() => {
-                document.querySelector('[data-cell-output-id]').dataset.outputState = 'empty';
+                window.__marimoCapture.getCellState = () => 'empty';
             }""")
             assert await wait == "empty"
 
-            # Older frontend assets have no marker but can still render output.
+            # Older frontend assets have no getter but can still render output.
+            await page.evaluate("delete window.__marimoCapture")
             await page.set_content('<div id="output-a">rich output</div>')
             assert (
                 await session._wait_for_output(CellId_t("a"), timeout=1000)
