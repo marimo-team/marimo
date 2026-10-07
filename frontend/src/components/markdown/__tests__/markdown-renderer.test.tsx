@@ -46,14 +46,14 @@ describe("MarkdownRenderer", () => {
       <MarkdownRenderer content="[PDF](zotero://open-pdf/library/items/IDT2EG5W)" />,
     );
 
-    expect(await screen.findByRole("button", { name: "PDF" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "PDF" }),
+    ).toBeInTheDocument();
   });
 
   it("opens the original custom URI from Streamdown's link-safety dialog", async () => {
     const url = "zotero://open-pdf/library/items/IDT2EG5W?page=1";
-    const windowOpen = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => null);
+    const windowOpen = vi.spyOn(window, "open").mockImplementation(() => null);
 
     render(<MarkdownRenderer content={`[PDF](${url})`} />);
 
