@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { OutputMessage } from "@/core/kernel/messages";
 import { isConnectedAtom } from "@/core/network/connection";
 import type { JotaiStore } from "@/core/state/jotai";
 import { getMimeBundleEntries, processMimeBundle } from "@/utils/mime-types";
@@ -11,10 +10,9 @@ import { isOutputEmpty } from "./outputs";
 import type { CellRuntimeState } from "./types";
 
 type OutputState = "unknown" | "pending" | "empty" | "available";
-type CaptureState = Exclude<OutputState, "available"> | "ready" | "missing";
 
 interface CaptureInterface {
-  getCellState(cellId: string): CaptureState;
+  getCellState(cellId: string): OutputState | "missing";
 }
 
 declare global {
@@ -22,9 +20,6 @@ declare global {
     __marimoCapture?: CaptureInterface;
   }
 }
-
-// Weak keys release removed output elements without a separate cleanup registry.
-const committedOutputs = new WeakMap<Element, OutputMessage>();
 
 export function getCellOutputState(
   runtime: CellRuntimeState | undefined,
@@ -85,32 +80,7 @@ export function installCaptureInterface(store: JotaiStore): void {
       if (!store.get(isConnectedAtom)) {
         return "unknown";
       }
-      const state = getCellOutputState(runtime);
-      if (state !== "available") {
-        return state;
-      }
-      const element = document.getElementById(`output-${cellId}`);
-      if (
-        !element ||
-        committedOutputs.get(element) !== runtime.output ||
-        element.getClientRects().length === 0 ||
-        (element.children.length === 0 && !element.textContent?.trim())
-      ) {
-        return "pending";
-      }
-      return "ready";
+      return getCellOutputState(runtime);
     },
-  };
-}
-
-/** Ref callbacks run during commit, after child DOM mutations. */
-export function getCaptureOutputRef(output: OutputMessage) {
-  if (!window.__marimoCapture) {
-    return undefined;
-  }
-  return (element: HTMLDivElement | null) => {
-    if (element) {
-      committedOutputs.set(element, output);
-    }
   };
 }
