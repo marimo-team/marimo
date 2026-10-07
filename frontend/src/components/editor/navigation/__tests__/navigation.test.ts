@@ -234,6 +234,38 @@ describe("useCellNavigationProps", () => {
   };
 
   describe("keyboard shortcuts", () => {
+    it.each([
+      { cellId: cellId1, key: "0", before: false },
+      { cellId: cellId2, key: "9", before: true },
+    ])(
+      "moves across saved boundaries in command mode ($key)",
+      ({ cellId, key, before }) => {
+        store.set(platformAtom, "linux");
+        store.set(notebookAtom, {
+          ...store.get(notebookAtom),
+          multiColumn: false,
+          cellIds: MultiColumn.from([[cellId1], [cellId2, cellId3]]),
+        });
+        const { result } = renderWithProvider(() =>
+          useCellNavigationProps(cellId, options),
+        );
+        act(() => {
+          result.current.onKeyDown?.(
+            Mocks.keyboardEvent({
+              key,
+              code: `Digit${key}`,
+              ctrlKey: true,
+              shiftKey: true,
+            }),
+          );
+        });
+        expect(mockCellActions.moveCell).toHaveBeenCalledWith({
+          cellId,
+          before,
+        });
+      },
+    );
+
     it("should copy cell when 'c' key is pressed", () => {
       const { result } = renderWithProvider(() =>
         useCellNavigationProps(mockCellId, options),
