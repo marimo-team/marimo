@@ -1,7 +1,82 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, test } from "vitest";
-import { matchingPageRanges } from "../pagination";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { DataTablePagination, matchingPageRanges } from "../pagination";
+
+function PaginationHarness({
+  totalPages = 3,
+  loading = false,
+}: {
+  totalPages?: number;
+  loading?: boolean;
+}) {
+  const table = useReactTable({
+    locale: "en-US",
+    data: [],
+    columns: [],
+    getCoreRowModel: getCoreRowModel(),
+    manualPagination: true,
+    pageCount: totalPages,
+  });
+  return (
+    <TooltipProvider>
+      <DataTablePagination table={table} tableLoading={loading} />
+    </TooltipProvider>
+  );
+}
+
+test("named navigation controls preserve page updates and boundaries", () => {
+  render(<PaginationHarness />);
+  expect(screen.getByRole("button", { name: "First page" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+  expect(
+    screen.getByRole("button", { name: "Choose page, current page 2 of 3" }),
+  ).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Last page" }));
+  expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Last page" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+  fireEvent.click(screen.getByRole("button", { name: "First page" }));
+  expect(
+    screen.getByRole("button", { name: "Choose page, current page 1 of 3" }),
+  ).toBeEnabled();
+});
+
+test("loading prevents navigation and a single page disables controls", () => {
+  const { rerender } = render(<PaginationHarness loading={true} />);
+  fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+  fireEvent.click(screen.getByRole("button", { name: "Last page" }));
+  expect(
+    screen.getByRole("button", { name: "Choose page, current page 1 of 3" }),
+  ).toBeEnabled();
+  rerender(<PaginationHarness totalPages={1} />);
+  for (const name of [
+    "First page",
+    "Previous page",
+    "Next page",
+    "Last page",
+    "Choose page, current page 1 of 1",
+  ]) {
+    expect(screen.getByRole("button", { name })).toBeDisabled();
+  }
+});
+
+test("page picker exposes named dialog and search", () => {
+  render(<PaginationHarness />);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Choose page, current page 1 of 3" }),
+  );
+  expect(
+    screen.getByRole("dialog", { name: "Choose page" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("combobox", { name: "Search pages" }),
+  ).toBeInTheDocument();
+});
 
 test("empty prefix returns no ranges", () => {
   expect(matchingPageRanges("", 500)).toEqual([]);
