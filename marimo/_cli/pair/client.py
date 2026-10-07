@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import http.client
 import json
-import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
@@ -43,6 +42,10 @@ class AmbiguousSessionError(PairError):
 
 class StaleSessionError(PairError):
     """The server rejected the session ID as unknown."""
+
+
+class StableSessionUnsupportedError(PairError):
+    """The server cannot resolve stable session IDs."""
 
 
 @dataclass(frozen=True)
@@ -183,10 +186,12 @@ def _raise_for_status(response: HTTPResponse) -> None:
         return
     detail = _response_detail(response)
     response.close()
-    if isinstance(detail, str) and detail.startswith("Invalid session id"):
+    if isinstance(detail, str) and detail.startswith(
+        ("Invalid session id", "Invalid stable session id")
+    ):
         raise StaleSessionError(detail)
     if detail == "Missing Marimo-Session-Id header":
-        raise PairError("Internal: should not happen after resolution.")
+        raise StableSessionUnsupportedError
     if detail:
         raise PairError(detail)
     raise PairError(f"Server returned {response.status}.")
@@ -205,7 +210,7 @@ def execute(
     request_url = _endpoint_url(url, "/api/kernel/execute")
     headers = {
         "Content-Type": "application/json",
-        "Marimo-Session-Id": session_id,
+        "Marimo-Stable-Session-Id": session_id,
     }
     if token is not None:
         headers["Authorization"] = f"Bearer {token}"
@@ -314,54 +319,42 @@ def list_sessions(
             raise PairError(message)
         if "filename" not in session or "path" not in session:
             raise PairError(message)
+        if "session_id" not in session:
+            raise StableSessionUnsupportedError
+        stable_session_id = session["session_id"]
         filename = session["filename"]
         path = session["path"]
-        if (filename is not None and not isinstance(filename, str)) or (
-            path is not None and not isinstance(path, str)
+        if (
+            not isinstance(stable_session_id, str)
+            or (filename is not None and not isinstance(filename, str))
+            or (path is not None and not isinstance(path, str))
         ):
             raise PairError(message)
-        sessions[session_id] = {"filename": filename, "path": path}
+        sessions[session_id] = {
+            "session_id": stable_session_id,
+            "filename": filename,
+            "path": path,
+        }
     return sessions
 
 
-def resolve_session(*, url: str, token: str | None, file: str | None) -> str:
+def resolve_session(*, url: str, token: str | None) -> str:
     sessions = list_sessions(url=url, token=token)
     safe_url = display_url(url)
-    if file is None:
-        candidates = list(sessions)
-    else:
-        for field, value in (
-            ("path", file),
-            ("filename", file),
-            ("path", os.path.abspath(file)),
-        ):
-            candidates = [
-                session_id
-                for session_id, session in sessions.items()
-                if session[field] == value
-            ]
-            if candidates:
-                break
-
-    if len(candidates) == 1:
-        return candidates[0]
-    if not candidates:
-        if file is None:
-            message = f"No running session on {safe_url}."
-        else:
-            message = (
-                f"No running session for notebook '{file}' on {safe_url}."
-            )
+    if len(sessions) == 1:
+        stable_session_id = next(iter(sessions.values()))["session_id"]
+        assert stable_session_id is not None
+        return stable_session_id
+    if not sessions:
+        message = f"No running session on {safe_url}."
         raise NoSessionError(message, url=safe_url)
 
-    candidates.sort()
-    if file is None:
-        message = f"Server {safe_url} has {len(candidates)} running sessions."
-    else:
-        message = (
-            f"Notebook '{file}' has {len(candidates)} running sessions "
-            f"on {safe_url}."
-        )
+    candidates = sorted(
+        session["session_id"]
+        for session in sessions.values()
+        if session["session_id"] is not None
+    )
+    message = f"Server {safe_url} has {len(candidates)} running sessions."
     raise AmbiguousSessionError(
         message, url=safe_url, candidates=tuple(candidates)
     )
