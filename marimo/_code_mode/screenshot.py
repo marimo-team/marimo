@@ -137,6 +137,7 @@ class _ScreenshotSession:
         self._browser: Any = None
         self._page: Any = None
         self._init_lock = asyncio.Lock()
+        self._capture_lock = asyncio.Lock()
 
     async def _ensure_ready(self) -> None:
         """Launch browser and navigate to the notebook if not already done."""
@@ -254,6 +255,11 @@ class _ScreenshotSession:
         Raises :class:`ScreenshotError` if the cell container is
         missing, has no content, or no output element becomes visible.
         """
+        # Navigation and screenshotting must share exclusive access to the page.
+        async with self._capture_lock:
+            return await self._capture(cell_id, timeout_ms=timeout_ms)
+
+    async def _capture(self, cell_id: CellId_t, *, timeout_ms: int) -> bytes:
         reused_page = self._page is not None
         await self._ensure_ready()
         assert self._page is not None
@@ -494,7 +500,7 @@ class _ScreenshotSession:
 
     async def close(self) -> None:
         """Release browser resources."""
-        async with self._init_lock:
+        async with self._capture_lock, self._init_lock:
             browser = self._browser
             playwright = self._playwright
             self._browser = None

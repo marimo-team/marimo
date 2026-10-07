@@ -653,3 +653,79 @@ async def test_close_stops_playwright_even_if_browser_close_fails(
         assert session._playwright is None
         await session.close()
         playwright_mock.stop.assert_awaited_once()
+
+
+@pytest.mark.parametrize("first_fails", [False, True])
+async def test_concurrent_captures_serialize_navigation_and_screenshot(
+    first_fails: bool,
+) -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    target = AsyncMock()
+    screenshot_started = asyncio.Event()
+    finish_screenshot = asyncio.Event()
+    calls = 0
+
+    async def screenshot(**_kwargs: object) -> bytes:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            screenshot_started.set()
+            await finish_screenshot.wait()
+            if first_fails:
+                raise RuntimeError("capture failed")
+        return b"png"
+
+    target.screenshot.side_effect = screenshot
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+        patch.object(session, "_wait_for_output", return_value="ready"),
+        patch.object(session, "_resolve_output_locator", return_value=target),
+    ):
+        first = asyncio.create_task(session.capture(CellId_t("cell-a")))
+        await asyncio.wait_for(screenshot_started.wait(), timeout=1)
+        second = asyncio.create_task(session.capture(CellId_t("cell-b")))
+        try:
+            await asyncio.sleep(0)
+            navigate.assert_awaited_once_with(initial=False)
+            target.screenshot.assert_awaited_once()
+            assert not second.done()
+        finally:
+            finish_screenshot.set()
+            results = await asyncio.gather(
+                first, second, return_exceptions=True
+            )
+        if first_fails:
+            assert isinstance(results[0], RuntimeError)
+        else:
+            assert results[0] == b"png"
+        assert results[1] == b"png"
+        assert navigate.await_count == 2
+
+
+async def test_close_waits_for_active_capture() -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    browser = AsyncMock()
+    session._browser = browser
+    capture_started = asyncio.Event()
+    finish_capture = asyncio.Event()
+
+    async def capture(*_args: object, **_kwargs: object) -> bytes:
+        capture_started.set()
+        await finish_capture.wait()
+        assert session._browser is browser
+        return b"png"
+
+    with patch.object(session, "_capture", side_effect=capture):
+        capturing = asyncio.create_task(session.capture(CellId_t("cell-a")))
+        await asyncio.wait_for(capture_started.wait(), timeout=1)
+        closing = asyncio.create_task(session.close())
+        try:
+            await asyncio.sleep(0)
+            browser.close.assert_not_awaited()
+        finally:
+            finish_capture.set()
+            assert await capturing == b"png"
+            await closing
+        browser.close.assert_awaited_once()
