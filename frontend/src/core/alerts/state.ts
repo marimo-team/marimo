@@ -52,6 +52,19 @@ export function isEnvironmentOperationAlert(
   return alert.kind === "environment";
 }
 
+/**
+ * Identifies a missing-package alert by what it asks about, so a dismissal
+ * survives re-runs of the same failing cell while a genuinely different
+ * set of missing packages still gets its own banner.
+ */
+function missingPackageFingerprint(alert: MissingPackageAlert): string {
+  return JSON.stringify({
+    packages: [...alert.packages].sort(),
+    isolated: alert.isolated,
+    source: alert.source ?? null,
+  });
+}
+
 interface AlertState {
   packageAlert:
     | Identified<MissingPackageAlert>
@@ -59,6 +72,8 @@ interface AlertState {
     | null;
   environments: Record<EnvironmentSource, EnvironmentState>;
   startupLogsAlert: StartupLogsAlert | null;
+  /** Fingerprints of missing-package alerts dismissed this session. */
+  dismissedMissingPackageAlerts: string[];
 }
 
 function setEnvironment(
@@ -115,12 +130,19 @@ export const { valueAtom: alertAtom, useActions: useAlertActions } =
         kernel: emptyEnvironmentState(),
         server: emptyEnvironmentState(),
       },
+      dismissedMissingPackageAlerts: [],
     }),
     {
-      addMissingPackageAlert: (state, alert: MissingPackageAlert) => ({
-        ...state,
-        packageAlert: { id: generateUUID(), ...alert },
-      }),
+      addMissingPackageAlert: (state, alert: MissingPackageAlert) => {
+        if (
+          state.dismissedMissingPackageAlerts.includes(
+            missingPackageFingerprint(alert),
+          )
+        ) {
+          return state;
+        }
+        return { ...state, packageAlert: { id: generateUUID(), ...alert } };
+      },
 
       updateEnvironment: (
         state,
@@ -160,6 +182,25 @@ export const { valueAtom: alertAtom, useActions: useAlertActions } =
         state.packageAlert?.id === id
           ? { ...state, packageAlert: null }
           : state,
+
+      // Closing the banner means "stop asking about these packages": the
+      // alert stays hidden when the same failing import runs again, while
+      // a different set of missing packages still shows up.
+      dismissMissingPackageAlert: (state, id: string) => {
+        const alert = state.packageAlert;
+        if (alert?.id !== id || alert.kind !== "missing") {
+          return state;
+        }
+        const fingerprint = missingPackageFingerprint(alert);
+        return {
+          ...state,
+          packageAlert: null,
+          dismissedMissingPackageAlerts:
+            state.dismissedMissingPackageAlerts.includes(fingerprint)
+              ? state.dismissedMissingPackageAlerts
+              : [...state.dismissedMissingPackageAlerts, fingerprint],
+        };
+      },
 
       addStartupLog: (
         state,
