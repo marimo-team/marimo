@@ -11,6 +11,8 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 )
 from marimo._utils.assert_never import assert_never
 
+POLARS_EXPLICIT_EXPLODE_MIN_VERSION = "1.36.0"
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -492,10 +494,13 @@ def python_print_polars(
     elif transform.type == TransformType.EXPLODE_COLUMNS:
         column_ids = transform.column_ids
         explode_columns = _list_of_strings(column_ids)
+        explode_min_version = tuple(
+            map(int, POLARS_EXPLICIT_EXPLODE_MIN_VERSION.split(".")[:2])
+        )
         return "\n".join(
             [
                 df_name,
-                'if tuple(map(int, pl.__version__.split(".")[:2])) >= (1, 36):',
+                f'if tuple(map(int, pl.__version__.split(".")[:2])) >= {explode_min_version}:',
                 f"    {df_name} = {df_name}.explode({explode_columns}, empty_as_null=True, keep_nulls=True)",
                 "else:",
                 f"    {df_name} = {df_name}.explode({explode_columns})",
