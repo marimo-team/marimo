@@ -28,9 +28,17 @@ jobs:
           python-version: '3.13'
           enable-cache: true
       - name: Check newest upstream release
+        id: protocol
         shell: bash
         run: |
           requirement=$(uv run --no-project --python 3.13 --with packaging python scripts/check_ai_sdk_compatibility.py --requirement upstream)
           # Bypass the repository's release-age policy and refresh the package index
           # so cached environments do not hide a newly published release.
           uv run --no-config --no-project --python 3.13 --refresh-package pydantic-ai-slim --refresh-package pydantic-graph --with-editable . --with "$requirement" python scripts/check_ai_sdk_compatibility.py
+      - name: Report dependency rollout requirement
+        if: failure() && steps.protocol.outcome == 'failure'
+        shell: bash
+        run: |
+          message="When updating pydantic-ai to resolve this compatibility failure, Molab dependencies must also be upgraded."
+          echo "::warning::$message"
+          printf '%s\n' "$message" >> "$GITHUB_STEP_SUMMARY"
