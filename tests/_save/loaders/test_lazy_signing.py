@@ -1364,9 +1364,11 @@ class TestReadYourWrites(_FileStoreLoaderTest):
         loaded = loader.load_cache(key("ryw_hash"))
         assert loaded is not None
         assert loaded.defs["v"] == 7
-        assert "ryw_hash" not in {
-            k.rsplit("_", 1)[-1] for k in loader._inflight
-        }, "settled writes are forgotten"
+        from marimo._save.loaders.lazy import _cache_state
+
+        assert not any(
+            "ryw_hash" in k for k in _cache_state().pending_writes
+        ), "settled writes are forgotten"
 
     def test_unrelated_key_does_not_wait(self) -> None:
         import time
@@ -1377,3 +1379,14 @@ class TestReadYourWrites(_FileStoreLoaderTest):
         assert not loader.cache_hit(key("other_hash"))
         assert time.monotonic() - start < 0.5
         loader.flush()
+
+    def test_new_loader_instance_sees_pending_write(self) -> None:
+        # A named block re-created in another cell gets a fresh loader over
+        # the same store; it must still see the first loader's in-flight write.
+        writer = self._slow_loader()
+        assert writer.save_cache(_simple_cache(hash_val="shared_hash", v=3))
+        reader = self._loader(verification="off")
+        assert reader.cache_hit(key("shared_hash"))
+        loaded = reader.load_cache(key("shared_hash"))
+        assert loaded is not None
+        assert loaded.defs["v"] == 3

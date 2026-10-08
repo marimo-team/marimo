@@ -697,10 +697,6 @@ class LazyLoader(BasePersistenceLoader):
             store = prev.store if prev is not None else self._default_store()
         super().__init__(name, "jsonl", store)
         self._pending: list[threading.Thread] = []
-        # Writes in flight, by manifest key, so a lookup that follows its own
-        # save (same key, same session) waits for that write instead of
-        # missing on a manifest the background thread has not written yet.
-        self._inflight: dict[str, threading.Event] = {}
         self._trusted_fingerprints = normalize_fingerprints(trusted_signers)
         self._verification = verification
         self._degrade_warned = False
@@ -903,13 +899,18 @@ class LazyLoader(BasePersistenceLoader):
         return list(_cache_state().active_lazy_loaders.values())
 
     def _await_write(self, manifest_key: str) -> None:
-        """Block until a pending write of this manifest (if any) lands."""
-        done = self._inflight.get(manifest_key)
+        """Block until a pending write of this manifest (if any) lands.
+
+        The in-flight map lives on the session cache state, so it covers a
+        lookup from a different loader instance over the same store.
+        """
+        pending = _cache_state().pending_writes
+        done = pending.get(manifest_key)
         if done is None:
             return
         done.wait()
-        if self._inflight.get(manifest_key) is done:
-            del self._inflight[manifest_key]
+        if pending.get(manifest_key) is done:
+            del pending[manifest_key]
 
     def cache_hit(self, key: HashKey) -> bool:
         self._await_write(str(self.build_path(key)))
@@ -1585,7 +1586,7 @@ class LazyLoader(BasePersistenceLoader):
             finally:
                 done.set()
 
-        self._inflight[manifest_key] = done
+        _cache_state().pending_writes[manifest_key] = done
         self._dispatch_write(_tracked_write)
         return True
 
