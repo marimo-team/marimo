@@ -7,6 +7,7 @@ from textwrap import dedent
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._sql.duckdb_utils import is_duckdb_v2
 from marimo._sql.parse import (
     SqlParseError,
     SqlParseResult,
@@ -16,6 +17,20 @@ from marimo._sql.parse import (
 )
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+@pytest.mark.parametrize(
+    ("version", "expected"),
+    [("1.5.6", False), ("2.0.0.dev2610011535", True), ("2.0.0", True)],
+)
+def test_is_duckdb_v2(
+    monkeypatch: pytest.MonkeyPatch, version: str, expected: bool
+):
+    import duckdb
+
+    monkeypatch.setattr(duckdb, "__version__", version)
+    assert is_duckdb_v2() is expected
 
 
 def test_sql_parse_result_with_errors():

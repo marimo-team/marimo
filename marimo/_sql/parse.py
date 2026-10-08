@@ -8,6 +8,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._sql.duckdb_utils import is_duckdb_v2
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -138,7 +139,7 @@ def _parse_sql_duckdb(
 
     position = int(parsed_error.position or 0)
     # DuckDB 2 reports UTF-8 byte offsets; DuckDB 1 uses code points.
-    if int(duckdb.__version__.split(".")[0]) >= 2:
+    if is_duckdb_v2():
         subquery = query.encode("utf-8")[:position].decode("utf-8")
         position = len(subquery)
     else:
