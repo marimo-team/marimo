@@ -5,23 +5,22 @@ from __future__ import annotations
 
 import ast
 import copy
-from typing import TYPE_CHECKING, Any
+import pickle
+from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.watch._directory import DirectoryState
-from marimo._save.encode import deterministic_dumps
-from marimo._save.hash import hash_raw_module
+from marimo._save.encode import deterministic_dumps, primitive_to_bytes
+from marimo._save.hash import hash_raw_module, hash_wrapped_functions
 from marimo._save.loaders.lazy import LazyLoader
 from marimo._save.signing import CacheSigner, generate_keypair
 from marimo._save.stores.file import FileStore
 from marimo._types.ids import CellId_t
 from tests._runtime._helpers.session import mocked_kernel_session
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def command(cell_id: int, code: str) -> ExecuteCellCommand:
@@ -63,6 +62,87 @@ def test_directory_walk_returns_entries(tmp_path: Path) -> None:
     assert [(str(root), dirs, files) for root, dirs, files in entries] == [
         (str(tmp_path), [], ["added.txt"])
     ]
+    # os.walk (pre-3.12) yields str roots; the wrapper normalizes them.
+    assert all(isinstance(root, Path) for root, _, _ in entries)
+
+
+def test_directory_repr_tracks_entries(tmp_path: Path) -> None:
+    state = DirectoryState(tmp_path)
+    before = repr(state)
+    assert before == repr(state)
+    (tmp_path / "added.txt").write_text("x")
+    assert repr(state) != before
+
+
+def test_bound_builtin_receiver_distinguishes_hash() -> None:
+    assert hash_wrapped_functions([1].copy) == hash_wrapped_functions([1].copy)
+    assert hash_wrapped_functions([1].copy) != hash_wrapped_functions([2].copy)
+    assert hash_wrapped_functions(len) == hash_wrapped_functions(len)
+
+
+def test_bound_builtin_unpicklable_receiver_raises(tmp_path: Path) -> None:
+    with open(tmp_path / "f", "w") as fh:  # noqa: PTH123
+        with pytest.raises(TypeError):
+            hash_wrapped_functions(fh.write)
+
+
+def _operation_with_helper_default(body: str) -> Any:
+    ns: dict[str, Any] = {"__name__": __name__}
+    exec(
+        f"def helper():\n    return {body}\n"
+        "def operation(cb=helper):\n    return cb()",
+        ns,
+    )
+    return ns["operation"]
+
+
+def test_callable_default_fingerprinted_by_content() -> None:
+    def defaults(fn: Any) -> bytes:
+        return deterministic_dumps(
+            (fn.__defaults__, fn.__kwdefaults__), "sha256"
+        )
+
+    one = defaults(_operation_with_helper_default("1"))
+    assert one == defaults(_operation_with_helper_default("1"))
+    assert one != defaults(_operation_with_helper_default("2"))
+
+
+def test_closure_values_fingerprinted() -> None:
+    def make(n: int) -> Any:
+        def callback() -> int:
+            return n
+
+        return callback
+
+    assert deterministic_dumps(make(1), "sha256") == deterministic_dumps(
+        make(1), "sha256"
+    )
+    assert deterministic_dumps(make(1), "sha256") != deterministic_dumps(
+        make(2), "sha256"
+    )
+
+
+def test_self_referential_closure_terminates() -> None:
+    def make() -> Any:
+        def recurse(n: int) -> int:
+            return n if n == 0 else recurse(n - 1)
+
+        return recurse
+
+    assert deterministic_dumps(make(), "sha256") == deterministic_dumps(
+        make(), "sha256"
+    )
+
+
+def test_local_scalar_subclass_is_keyable() -> None:
+    class Celsius(float):
+        pass
+
+    with pytest.raises(Exception):  # noqa: B017 - local class, unreferenceable
+        pickle.dumps(Celsius(1.0))
+    assert primitive_to_bytes(Celsius(1.0)) == primitive_to_bytes(Celsius(1.0))
+    assert primitive_to_bytes(Celsius(1.0)) != primitive_to_bytes(Celsius(2.0))
+    assert primitive_to_bytes(Celsius(1.0)) != primitive_to_bytes(1.0)
 
 
 @pytest.mark.parametrize(
@@ -165,6 +245,42 @@ async def test_helper_default_edit_invalidates(parameter: str) -> None:
         await k.run(
             [command(1, f"def operation({parameter}=2):\n    return x")]
         )
+        assert k.globals["result"] == 2
+
+
+async def test_bound_builtin_receiver_edit_invalidates() -> None:
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import marimo as mo"),
+                command(1, "op=[1].copy"),
+                command(2, "@mo.cache\ndef f():\n    return op()\nresult=f()"),
+            ]
+        )
+        assert k.globals["result"] == [1]
+        await k.run([command(1, "op=[2].copy")])
+        assert k.globals["result"] == [2]
+
+
+async def test_helper_default_encoding_error_uses_producer() -> None:
+    # A default that pickle cannot encode for a reason other than
+    # PicklingError/TypeError (here, recursion depth) must not abort the call.
+    deep = "functools.reduce(lambda a, _: [a], range(5000), 0)"
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import functools\nimport marimo as mo"),
+                command(1, f"def operation(x={deep}):\n    return 1"),
+                command(
+                    2,
+                    "@mo.cache\ndef f():\n    return operation()\nresult=f()",
+                ),
+            ]
+        )
+        assert k.globals.get("result") == 1
+        await k.run([command(1, f"def operation(x={deep}):\n    return 2")])
         assert k.globals["result"] == 2
 
 

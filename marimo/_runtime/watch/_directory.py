@@ -27,7 +27,9 @@ _TEST_SLEEP_INTERVAL: float | None = None
 def walk(path: Path) -> Iterable[tuple[Path, list[str], list[str]]]:
     if sys.version_info >= (3, 12):
         return path.walk()
-    return os.walk(path)
+    # os.walk yields str roots; normalize so callers and the fingerprint see
+    # the same shape on every supported Python.
+    return ((Path(root), dirs, files) for root, dirs, files in os.walk(path))
 
 
 def _hashable_walk(
@@ -87,11 +89,21 @@ class DirectoryState(PathState):
         staticmethod(watch_directory)
     )
 
+    def _snapshot(
+        self,
+    ) -> tuple[
+        list[tuple[Path, list[str], list[str]]],
+        list[tuple[Path, tuple[str], tuple[str]]],
+    ]:
+        """Walk once; return the raw entries and their canonical order."""
+        items = list(walk(self._value))
+        entries = sorted(_hashable_walk(items))
+        write_side_effect(f"walk:{entries}")
+        return items, entries
+
     def walk(self) -> Iterable[tuple[Path, list[str], list[str]]]:
         """Walk the directory."""
-        items = list(walk(self._value))
-        as_list = list(_hashable_walk(items))
-        write_side_effect(f"walk:{sorted(as_list)}")
+        items, _ = self._snapshot()
         return iter(items)
 
     def iterdir(self) -> Iterable[Path]:
@@ -114,10 +126,8 @@ class DirectoryState(PathState):
 
     def __repr__(self) -> str:
         """Return a string representation of the file state."""
-        _walk = self.walk()  # Call to issue side effect
-        _hash = hashlib.sha256(
-            repr(sorted(_hashable_walk(_walk))).encode()
-        ).hexdigest()
+        _, entries = self._snapshot()  # Also issues the side effect.
+        _hash = hashlib.sha256(repr(entries).encode()).hexdigest()
         return f"DirectoryState({self._value}: {_hash})"
 
 

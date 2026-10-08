@@ -6,7 +6,6 @@ import base64
 import dataclasses
 import hashlib
 import inspect
-import pickle
 import sys
 import types
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -135,9 +134,13 @@ def hash_module(code: CodeType | None, hash_type: str = DEFAULT_HASH) -> bytes:
 
 
 def hash_wrapped_functions(
-    wrapped: Callable[..., Any], hash_type: str = DEFAULT_HASH
+    wrapped: Callable[..., Any],
+    hash_type: str = DEFAULT_HASH,
+    _seen: set[int] | None = None,
 ) -> bytes:
-    seen: set[int] = set()
+    # `_seen` is shared with deterministic_dumps so a function reached again
+    # through a default or a closure cell contributes once instead of looping.
+    seen: set[int] = set() if _seen is None else _seen
 
     def process_function(fn: Callable[..., Any]) -> bytes:
         # There is a chance for a circular reference, likely manually created,
@@ -151,7 +154,9 @@ def hash_wrapped_functions(
             hash_alg.update(
                 type_sign(
                     deterministic_dumps(
-                        (fn.__defaults__, fn.__kwdefaults__), hash_type
+                        (fn.__defaults__, fn.__kwdefaults__),
+                        hash_type,
+                        _seen=seen,
                     ),
                     "defaults",
                 )
@@ -159,12 +164,17 @@ def hash_wrapped_functions(
         else:
             # Builtin functions do not expose Python bytecode, so use their
             # qualified name to distinguish functions from different modules.
-            hash_alg.update(
-                type_sign(
-                    primitive_to_bytes((fn.__module__, fn.__qualname__)),
-                    "builtin",
+            parts = [primitive_to_bytes((fn.__module__, fn.__qualname__))]
+            # A bound builtin method ([1].copy, "".join) closes over its
+            # receiver, and the name alone cannot tell [1].copy from [2].copy.
+            # An unpicklable receiver raises, which routes the function to
+            # producer identity.
+            receiver = getattr(fn, "__self__", None)
+            if receiver is not None and not inspect.ismodule(receiver):
+                parts.append(
+                    deterministic_dumps(receiver, hash_type, _seen=seen)
                 )
-            )
+            hash_alg.update(iterable_sign(parts, "builtin"))
         fn_hash = hash_alg.digest()
         if hasattr(fn, "__wrapped__"):
             child_hash = process_function(fn.__wrapped__)
@@ -892,7 +902,8 @@ class BlockHasher:
                     serial_value = hash_wrapped_functions(
                         value, self.hash_alg.name
                     )
-                except (pickle.PicklingError, AttributeError, TypeError):
+                except Exception:  # noqa: S112
+                    # Encoding runs user reducers, which may raise anything.
                     # A default that cannot be encoded needs producer identity.
                     continue
             # A restored stub — a placeholder left in scope for a value we

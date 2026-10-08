@@ -64,7 +64,7 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "3npZ-M5wwDB0zG3H3PSfQOAfsudJ2UdAbw735A2KcG8"
+            expected_hash = "6SiiOkuVBE52HrtL_zkk-rhUCpZsAp4ZZIxjgnbJ8Zk"
 
             return expected_hash, persistent_cache, MockLoader
 
@@ -190,7 +190,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "nTzt1flCCbf7reZCc1-5DrSzstcrUI-D8UGqEerDWKI"
+                == "2OOcX6OHBNfCb27go9gDqeC4mcFZN50R2vp92N73B7k"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -211,7 +211,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "nTzt1flCCbf7reZCc1-5DrSzstcrUI-D8UGqEerDWKI"
+                == "2OOcX6OHBNfCb27go9gDqeC4mcFZN50R2vp92N73B7k"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -238,7 +238,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "nTzt1flCCbf7reZCc1-5DrSzstcrUI-D8UGqEerDWKI"
+                == "2OOcX6OHBNfCb27go9gDqeC4mcFZN50R2vp92N73B7k"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -259,7 +259,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "nTzt1flCCbf7reZCc1-5DrSzstcrUI-D8UGqEerDWKI"
+                == "2OOcX6OHBNfCb27go9gDqeC4mcFZN50R2vp92N73B7k"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -802,7 +802,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "pBZKYPYyDR5uEKFLKht3VSHEvnMkkEpciMcfpwbSMcc"
+            expected_hash = "GsWGMcZl4Tc7kHWb1crtSuFX4OL8jFVjNxHt_Gx2Qs8"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
@@ -2968,7 +2968,15 @@ def test_signed_stateful_bytes_bytearray_is_signed_bytes() -> None:
 def test_signed_stateful_bytes_unpicklable_raises() -> None:
     hasher = BlockHasher.__new__(BlockHasher)
     with pytest.raises(TypeError, match="neither"):
-        hasher._signed_stateful_bytes(lambda: None, "ui")
+        hasher._signed_stateful_bytes((_ for _ in ()), "ui")
+
+
+def test_signed_stateful_bytes_function_keyed_by_content() -> None:
+    # Functions are fingerprinted rather than pickled by reference.
+    hasher = BlockHasher.__new__(BlockHasher)
+    one = hasher._signed_stateful_bytes(lambda: 1, "ui")
+    assert one == hasher._signed_stateful_bytes(lambda: 1, "ui")
+    assert one != hasher._signed_stateful_bytes(lambda: 2, "ui")
 
 
 NOTEBOOK_WITH_SETUP = """import marimo
