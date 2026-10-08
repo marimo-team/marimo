@@ -1230,3 +1230,312 @@ def test_dataframe_transformed_value_and_obsolete_choice() -> None:
         feature["properties"]["name"]
         for feature in _artifact(subject)["features"]
     ] == ["null"]
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize("empty", [False, True])
+def test_duckdb_geojson_properties_and_secondary_wkt(
+    duckdb_crs_conn: Any, widget: Any, empty: bool
+) -> None:
+
+    conn = duckdb_crs_conn
+    source = fixtures.duckdb_export_relation(conn)
+    if empty:
+        source = source.limit(0)
+    before = source.to_arrow_table()
+    subject = widget(source)
+    ordinary = subject._download_as(DownloadAsArgs(format="json"))
+    expected = json.loads(from_data_uri(ordinary.url)[1])
+    for row in expected:
+        del row["geom"]
+    document = _artifact(subject, "geom")
+    assert "crs" not in document
+    assert [f["properties"] for f in document["features"]] == expected
+    if not empty:
+        assert document["features"][0]["geometry"]["coordinates"] == [
+            10,
+            0,
+        ]
+        assert document["features"][1]["geometry"] is None
+        assert (
+            "20.1234567890123"
+            in document["features"][0]["properties"]["alternate"]
+        )
+    assert source.to_arrow_table().equals(before, check_metadata=True)
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+def test_duckdb_geojson_projected_geometry_choice(
+    duckdb_spatial_conn: Any, widget: Any
+) -> None:
+
+    conn = duckdb_spatial_conn
+    try:
+        source = conn.sql(
+            "SELECT 'POINT (1113194.9079327357 0)'::GEOMETRY('EPSG:3857') AS projected, 'POINT (20 5)'::GEOMETRY('OGC:CRS84') AS geographic"
+        )
+    except Exception as e:
+        pytest.skip(f"CRS-parameterized geometry unavailable: {e}")
+    subject = widget(source)
+    document = _artifact(subject, "projected")
+    assert document["features"][0]["geometry"]["coordinates"] == pytest.approx(
+        [10, 0]
+    )
+    assert (
+        document["features"][0]["properties"]["geographic"] == "POINT (20 5)"
+    )
+    document = _artifact(subject, "geographic")
+    assert document["features"][0]["geometry"]["coordinates"] == [20, 5]
+    assert (
+        "1113194.9079327357"
+        in document["features"][0]["properties"]["projected"]
+    )
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+def test_duckdb_geojson_missing_crs_and_alternate_choice(
+    duckdb_crs_conn: Any, widget: Any
+) -> None:
+
+    conn = duckdb_crs_conn
+    subject = widget(fixtures.duckdb_export_relation(conn))
+    response = subject._download_geojson(
+        DownloadGeoJSONArgs(format="geojson", geometry_column="alternate")
+    )
+    assert response.code == "missing_crs"
+    assert response.column == "alternate"
+    assert response.url == ""
+    assert "Declare its source CRS" in response.error
+    assert len(_artifact(subject, "geom")["features"]) == 3
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+def test_duckdb_geojson_effective_rows(
+    duckdb_crs_conn: Any,
+) -> None:
+
+    conn = duckdb_crs_conn
+    source = fixtures.duckdb_export_relation(conn)
+    table = ui.table(source)
+    table._update(["0", "2"])
+    assert [
+        f["properties"]["id"] for f in _artifact(table, "geom")["features"]
+    ] == [1, 3]
+    frame = ui.dataframe(source, limit=1)
+    assert len(_artifact(frame, "geom")["features"]) == 3
+    frame._update(
+        {"transforms": [{"type": "select_columns", "column_ids": ["geom"]}]}
+    )
+    assert [f["properties"] for f in _artifact(frame)["features"]] == [
+        {},
+        {},
+        {},
+    ]
+    searched = ui.table(source)
+    searched._searched_manager = searched._manager.search("first")
+    assert [
+        f["properties"]["id"] for f in _artifact(searched, "geom")["features"]
+    ] == [1]
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    "value", ["NULL", "'POINT EMPTY'", "'POINT Z (1 2 3)'"]
+)
+def test_duckdb_geojson_geometry_only(
+    duckdb_crs_conn: Any, widget: Any, value: str
+) -> None:
+
+    conn = duckdb_crs_conn
+    subject = widget(
+        conn.sql(f"SELECT {value}::GEOMETRY('OGC:CRS84') AS geom")
+    )
+    feature = _artifact(subject)["features"][0]
+    assert feature["properties"] == {}
+    if value == "NULL":
+        assert feature["geometry"] is None
+    elif "EMPTY" in value:
+        assert (
+            feature["geometry"] is None
+            or feature["geometry"]["coordinates"] == []
+        )
+    else:
+        assert feature["geometry"]["coordinates"] == [1, 2, 3]
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize("wkt", ["POINT M (1 2 3)", "POINT ZM (1 2 3 4)"])
+def test_duckdb_geojson_measured_geometry_rejects(
+    duckdb_crs_conn: Any, widget: Any, wkt: str
+) -> None:
+
+    conn = duckdb_crs_conn
+    response = widget(
+        conn.sql(f"SELECT '{wkt}'::GEOMETRY('OGC:CRS84') AS geom")
+    )._download_geojson(DownloadGeoJSONArgs(format="geojson"))
+    assert response.code == "unsupported_representation"
+    assert response.url == ""
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize("value", ["'NaN'::DOUBLE", "'Infinity'::DOUBLE"])
+def test_duckdb_geojson_nonfinite_properties_follow_json_policy(
+    duckdb_crs_conn: Any, widget: Any, value: str
+) -> None:
+
+    conn = duckdb_crs_conn
+    subject = widget(
+        conn.sql(
+            f"SELECT 'POINT (1 2)'::GEOMETRY('OGC:CRS84') AS geom, {value} AS value"
+        )
+    )
+    response = subject._download_geojson(DownloadGeoJSONArgs(format="geojson"))
+    if "NaN" in value:
+        assert response.code == "conversion_failed"
+        assert response.url == ""
+    else:
+        ordinary = subject._download_as(DownloadAsArgs(format="json"))
+        expected = json.loads(from_data_uri(ordinary.url)[1])[0]
+        del expected["geom"]
+        assert _artifact(subject)["features"][0]["properties"] == expected
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+@pytest.mark.parametrize("missing", ["geopandas", "pyarrow"])
+def test_duckdb_geojson_missing_packages(
+    duckdb_crs_conn: Any, widget: Any, missing: str
+) -> None:
+
+    conn = duckdb_crs_conn
+    subject = widget(conn.sql("SELECT NULL::GEOMETRY('OGC:CRS84') AS geom"))
+    with patch.object(
+        getattr(DependencyManager, missing), "has", return_value=False
+    ):
+        response = subject._download_geojson(
+            DownloadGeoJSONArgs(format="geojson")
+        )
+    assert response.code == "missing_packages"
+    assert response.missing_packages == [missing]
+    assert response.url == ""
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    "kind", ["POINT_2D", "LINESTRING_2D", "POLYGON_2D", "BOX_2D"]
+)
+def test_duckdb_geojson_fixed_layout_rejects(
+    duckdb_spatial_conn: Any, widget: Any, kind: str
+) -> None:
+
+    conn = duckdb_spatial_conn
+    response = widget(
+        conn.sql(f"SELECT NULL::{kind} AS geom")
+    )._download_geojson(DownloadGeoJSONArgs(format="geojson"))
+    assert response.code == "unsupported_representation"
+    assert response.url == ""
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    ("payload", "code"),
+    [
+        (b"[]", "invalid_metadata"),
+        (b'{"crs":"123","crs_type":"srid"}', "missing_crs"),
+    ],
+)
+def test_duckdb_geojson_declaration_rejects(
+    duckdb_crs_conn: Any, widget: Any, payload: bytes, code: str
+) -> None:
+    import pyarrow as pa
+
+    conn = duckdb_crs_conn
+    subject = widget(
+        conn.sql("SELECT 'POINT (1 2)'::GEOMETRY('OGC:CRS84') AS geom")
+    )
+    schema = pa.schema(
+        [
+            pa.field(
+                "geom",
+                pa.binary(),
+                metadata={
+                    b"ARROW:extension:name": b"geoarrow.wkb",
+                    b"ARROW:extension:metadata": payload,
+                },
+            )
+        ]
+    )
+    with patch(
+        "marimo._plugins.ui._impl.tables.geometry_export._duckdb_geometry_schema",
+        return_value=schema,
+    ):
+        response = subject._download_geojson(
+            DownloadGeoJSONArgs(format="geojson")
+        )
+    assert response.code == code
+    assert response.url == ""
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+def test_duckdb_unknown_crs_geojson_rejects_on_older_versions(
+    duckdb_export_conn: Any,
+    widget: Any,
+) -> None:
+
+    conn = duckdb_export_conn
+    response = widget(
+        conn.sql("SELECT 'POINT (1 2)'::GEOMETRY AS geom")
+    )._download_geojson(DownloadGeoJSONArgs(format="geojson"))
+    assert response.code == "missing_crs"
+    assert response.url == ""
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+def test_duckdb_closed_connection_is_structured_failure() -> None:
+    from marimo._plugins.ui._impl.tables.geometry_export import (
+        GeometryExportError,
+        has_geometry_columns,
+        serialize_geojson,
+    )
+    from marimo._plugins.ui._impl.tables.utils import get_table_manager
+
+    conn = fixtures.duckdb_crs_geometry_connection()
+    manager = get_table_manager(
+        conn.sql("SELECT NULL::GEOMETRY('OGC:CRS84') AS geom")
+    )
+    assert has_geometry_columns(manager)
+    conn.close()
+    with pytest.raises(GeometryExportError) as error:
+        serialize_geojson(manager, None)
+    assert error.value.code == "conversion_failed"
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+def test_duckdb_registered_wkb_preserves_crs(widget: Any) -> None:
+    import pyarrow as pa
+
+    class GeometryType(pa.ExtensionType):
+        def __init__(self, metadata: bytes = b"{}") -> None:
+            self.metadata = metadata
+            super().__init__(pa.binary(), "geoarrow.wkb")
+
+        def __arrow_ext_serialize__(self) -> bytes:
+            return self.metadata
+
+        @classmethod
+        def __arrow_ext_deserialize__(
+            cls, storage: Any, metadata: bytes
+        ) -> Any:
+            return cls(metadata)
+
+    conn = fixtures.duckdb_crs_geometry_connection()
+    pa.register_extension_type(GeometryType())  # type: ignore[arg-type]
+    try:
+        document = _artifact(
+            widget(
+                conn.sql("SELECT 'POINT (1 2)'::GEOMETRY('OGC:CRS84') AS geom")
+            )
+        )
+        assert document["features"][0]["geometry"]["coordinates"] == [1, 2]
+    finally:
+        pa.unregister_extension_type("geoarrow.wkb")
+        conn.close()

@@ -1210,3 +1210,299 @@ def test_pandas_duplicate_columns_precede_dependency_errors() -> None:
         "invalid_metadata",
         "GeoParquet export requires unique column names.",
     )
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize("empty", [False, True])
+@pytest.mark.parametrize("choice", ["geom", "alternate"])
+def test_duckdb_geoparquet_keeps_native_geometry(
+    duckdb_crs_conn: Any, widget: Any, empty: bool, choice: str
+) -> None:
+    import geopandas as gpd
+    import pyarrow.parquet as pq
+    from pyproj import CRS
+
+    conn = duckdb_crs_conn
+    source = fixtures.duckdb_export_relation(conn)
+    if empty:
+        source = source.limit(0)
+    before = source.to_arrow_table()
+    artifact, _ = _artifact(widget(source), choice)
+    result = pq.read_table(io.BytesIO(artifact))
+    geo = json.loads(result.schema.metadata[b"geo"])
+    assert geo["version"] == "1.0.0"
+    assert geo["primary_column"] == choice
+    assert geo["columns"]["alternate"]["crs"] is None
+    assert CRS.from_json_dict(
+        geo["columns"]["geom"]["crs"]
+    ) == CRS.from_user_input("OGC:CRS84")
+    assert result.column_names == before.column_names
+    assert result["big"].to_pylist() == before["big"].to_pylist()
+    assert result["geom"].to_pylist() == before["geom"].to_pylist()
+    assert source.to_arrow_table().equals(before, check_metadata=True)
+    restored = gpd.read_parquet(io.BytesIO(artifact))
+    assert len(restored) == (0 if empty else 3)
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+def test_duckdb_selected_rows_preserve_native_declarations(
+    duckdb_export_conn: Any,
+) -> None:
+    import pyarrow.parquet as pq
+
+    from marimo._plugins.ui._impl.tables.geometry_export import (
+        serialize_geoparquet,
+    )
+    from marimo._plugins.ui._impl.tables.utils import get_table_manager
+
+    conn = duckdb_export_conn
+    source = fixtures.duckdb_export_relation(conn, known_crs=False)
+    selected = get_table_manager(source).select_rows([2, 0])
+    assert selected.data.implementation.is_duckdb()
+    artifact = serialize_geoparquet(selected, "geom")
+    assert artifact is not None
+    result = pq.read_table(io.BytesIO(artifact))
+    assert result["id"].to_pylist() == [3, 1]
+    assert (
+        json.loads(result.schema.metadata[b"geo"])["columns"]["geom"]["crs"]
+        is None
+    )
+    subject = ui.table(source)
+    subject._update(["0", "2"])
+    result = pq.read_table(io.BytesIO(_artifact(subject, "geom")[0]))
+    assert result["id"].to_pylist() == [1, 3]
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+def test_duckdb_dataframe_exports_full_transformed_rows(
+    duckdb_export_conn: Any,
+) -> None:
+    import pyarrow.parquet as pq
+
+    conn = duckdb_export_conn
+    subject = ui.dataframe(
+        fixtures.duckdb_export_relation(conn, known_crs=False), limit=1
+    )
+    result = pq.read_table(io.BytesIO(_artifact(subject, "geom")[0]))
+    assert result["id"].to_pylist() == [1, 2, 3]
+    subject._update(
+        {
+            "transforms": [
+                {"type": "select_columns", "column_ids": ["id", "geom"]}
+            ]
+        }
+    )
+    result = pq.read_table(io.BytesIO(_artifact(subject)[0]))
+    assert result.column_names == ["id", "geom"]
+    assert result.num_rows == 3
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+def test_duckdb_geoparquet_quotes_identifiers(
+    duckdb_export_conn: Any, widget: Any
+) -> None:
+    import pyarrow.parquet as pq
+
+    conn = duckdb_export_conn
+    source = conn.sql(
+        'SELECT \'POINT (1 2)\'::GEOMETRY AS "g""eom", DATE \'2026-10-08\' AS "date", 1.25::DECIMAL(8,2) AS amount'
+    )
+    artifact, _ = _artifact(widget(source))
+    result = pq.read_table(io.BytesIO(artifact))
+    assert result.column_names == ['g"eom', "date", "amount"]
+    assert str(result["amount"][0].as_py()) == "1.25"
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    "kind", ["POINT_2D", "LINESTRING_2D", "POLYGON_2D", "BOX_2D"]
+)
+def test_duckdb_fixed_layout_rejects_without_artifact(
+    duckdb_spatial_conn: Any, widget: Any, kind: str
+) -> None:
+
+    conn = duckdb_spatial_conn
+    subject = widget(conn.sql(f"SELECT NULL::{kind} AS geom"))
+    response = subject._download_as(DownloadAsArgs(format="parquet"))
+    assert response.code == "unsupported_representation"
+    assert response.url == ""
+    assert kind in response.error
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize("wkt", ["POINT M (1 2 3)", "POINT ZM (1 2 3 4)"])
+def test_duckdb_measured_geometry_rejects(
+    duckdb_export_conn: Any, widget: Any, wkt: str
+) -> None:
+
+    conn = duckdb_export_conn
+    response = widget(
+        conn.sql(f"SELECT '{wkt}'::GEOMETRY AS geom")
+    )._download_as(DownloadAsArgs(format="parquet"))
+    assert response.code == "unsupported_representation"
+    assert response.url == ""
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+def test_duckdb_projected_and_geographic_crs(
+    duckdb_spatial_conn: Any, widget: Any
+) -> None:
+    import pyarrow.parquet as pq
+    from pyproj import CRS
+
+    conn = duckdb_spatial_conn
+    try:
+        source = conn.sql(
+            "SELECT 'POINT (1113194.9079327357 0)'::GEOMETRY('EPSG:3857') AS projected, 'POINT (20 5)'::GEOMETRY('OGC:CRS84') AS geographic"
+        )
+    except Exception as e:
+        pytest.skip(f"CRS-parameterized geometry unavailable: {e}")
+    result = pq.read_table(
+        io.BytesIO(_artifact(widget(source), "projected")[0])
+    )
+    geo = json.loads(result.schema.metadata[b"geo"])
+    assert CRS.from_json_dict(
+        geo["columns"]["projected"]["crs"]
+    ) == CRS.from_epsg(3857)
+    assert CRS.from_json_dict(
+        geo["columns"]["geographic"]["crs"]
+    ) == CRS.from_user_input("OGC:CRS84")
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    "value", ["NULL", "'POINT EMPTY'", "'POINT Z (1 2 3)'"]
+)
+def test_duckdb_geometry_only_roundtrip(
+    duckdb_export_conn: Any, widget: Any, value: str
+) -> None:
+    import pyarrow.parquet as pq
+    from shapely import from_wkb
+
+    conn = duckdb_export_conn
+    artifact, _ = _artifact(
+        widget(conn.sql(f"SELECT {value}::GEOMETRY AS geom"))
+    )
+    result = pq.read_table(io.BytesIO(artifact))
+    assert result.num_rows == 1
+    geometry = from_wkb(result["geom"][0].as_py())
+    if value == "NULL":
+        assert geometry is None
+    elif "EMPTY" in value:
+        assert geometry.is_empty
+    else:
+        assert geometry.has_z
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+def test_duckdb_conversion_failure_is_atomic(
+    duckdb_export_conn: Any, widget: Any
+) -> None:
+
+    conn = duckdb_export_conn
+    subject = widget(conn.sql("SELECT 'POINT (1 2)'::GEOMETRY AS geom"))
+    with patch(
+        "marimo._plugins.ui._impl.tables.geometry_export._duckdb_geometry_schema",
+        side_effect=RuntimeError("conversion unavailable"),
+    ):
+        response = subject._download_as(DownloadAsArgs(format="parquet"))
+    assert response.code == "conversion_failed"
+    assert response.url == ""
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+@pytest.mark.parametrize("missing", ["geopandas", "pyarrow"])
+def test_duckdb_geoparquet_missing_package_is_atomic(
+    duckdb_export_conn: Any, widget: Any, missing: str
+) -> None:
+
+    conn = duckdb_export_conn
+    subject = widget(conn.sql("SELECT NULL::GEOMETRY AS geom"))
+    with patch.object(
+        getattr(DependencyManager, missing), "has", return_value=False
+    ):
+        response = subject._download_as(DownloadAsArgs(format="parquet"))
+    assert response.code == "missing_packages"
+    assert response.missing_packages == [missing]
+    assert response.url == ""
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    ("choice", "code"),
+    [(None, "geometry_required"), ("missing", "invalid_geometry")],
+)
+def test_duckdb_geoparquet_choice_is_validated(
+    duckdb_export_conn: Any, widget: Any, choice: str | None, code: str
+) -> None:
+
+    conn = duckdb_export_conn
+    subject = widget(fixtures.duckdb_export_relation(conn, known_crs=False))
+    response = subject._download_as(
+        DownloadAsArgs(format="parquet", geometry_column=choice)
+    )
+    assert response.code == code
+    assert response.url == ""
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize("format_name", ["parquet", "geojson"])
+def test_duckdb_export_parses_source_declarations_once(
+    duckdb_crs_conn: Any,
+    format_name: str,
+) -> None:
+    from marimo._plugins.ui._impl.tables import geometry_export as export
+    from marimo._plugins.ui._impl.tables.utils import get_table_manager
+
+    conn = duckdb_crs_conn
+    source = get_table_manager(fixtures.duckdb_export_relation(conn))
+    with (
+        patch.object(
+            export,
+            "_duckdb_geometry_schema",
+            wraps=export._duckdb_geometry_schema,
+        ) as schema,
+        patch.object(
+            export,
+            "_arrow_geometry_declaration",
+            wraps=export._arrow_geometry_declaration,
+        ) as declaration,
+    ):
+        if format_name == "parquet":
+            export.serialize_geoparquet(source, "geom")
+        else:
+            export.serialize_geojson(source, "geom")
+    assert schema.call_count == 1
+    assert declaration.call_count == 2
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+@pytest.mark.parametrize("format_name", ["parquet", "geojson"])
+@pytest.mark.parametrize("failure", ["invalid_geometry", "missing_packages"])
+def test_duckdb_preflight_rejects_before_collection(
+    duckdb_export_conn: Any, format_name: str, failure: str
+) -> None:
+    from marimo._plugins.ui._impl.tables import geometry_export as export
+    from marimo._plugins.ui._impl.tables.utils import get_table_manager
+
+    manager = get_table_manager(
+        fixtures.duckdb_export_relation(duckdb_export_conn, known_crs=False)
+    )
+    writer = (
+        export.serialize_geoparquet
+        if format_name == "parquet"
+        else export.serialize_geojson
+    )
+    choice = "absent" if failure == "invalid_geometry" else "geom"
+    with (
+        patch.object(export, "_duckdb_to_arrow_manager") as collect,
+        patch.object(
+            DependencyManager.geopandas,
+            "has",
+            return_value=failure != "missing_packages",
+        ),
+        pytest.raises(export.GeometryExportError) as error,
+    ):
+        writer(manager, choice)
+    assert error.value.code == failure
+    collect.assert_not_called()
