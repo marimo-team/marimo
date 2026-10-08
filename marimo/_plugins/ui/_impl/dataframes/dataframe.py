@@ -40,6 +40,7 @@ from marimo._plugins.ui._impl.tables.geometry_export import (
     ExportMetadata,
     GeometryExportError,
     get_export_metadata,
+    has_geometry_columns,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldTypes,
@@ -394,7 +395,15 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             ValueError: If format is not supported.
         """
         df = self._value
-        manager = self._get_cached_table_manager(df, self._limit)
+        if args.format in ("parquet", "geojson"):
+            full_manager = get_table_manager(df)
+            manager = (
+                full_manager
+                if has_geometry_columns(full_manager)
+                else self._get_cached_table_manager(df, self._limit)
+            )
+        else:
+            manager = self._get_cached_table_manager(df, self._limit)
 
         bound_filename = get_bound_name(self._id)
 
