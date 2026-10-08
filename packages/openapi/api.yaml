@@ -3038,7 +3038,8 @@ components:
         \ per cell if resumed.\n        app_config: Application configuration.\n \
         \       kiosk: Whether running in kiosk mode.\n        capabilities: Available\
         \ kernel capabilities.\n        auto_instantiated: Whether cells already executed\
-        \ (run mode)."
+        \ (run mode).\n        stable_session_id: Server-owned Session identity that\
+        \ survives\n            browser reconnects. None where no server Session exists."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
@@ -3088,6 +3089,11 @@ components:
           - kernel-ready
         resumed:
           type: boolean
+        stable_session_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         ui_values:
           anyOf:
           - type: object
