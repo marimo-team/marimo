@@ -113,6 +113,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
+      # Keep targets aligned with tool.uv.required-environments in pyproject.toml.
       matrix:
         python-version: ["3.10"]
         dependencies: ["core", "core,optional"]
@@ -150,6 +151,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 25
     strategy:
+      # Keep targets aligned with tool.uv.required-environments in pyproject.toml.
       matrix:
         python-version: ["3.10"]
         dependencies: ["core", "core,optional"]
@@ -169,6 +171,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 25
     strategy:
+      # Keep targets aligned with tool.uv.required-environments in pyproject.toml.
       matrix:
         python-version: ["3.10"]
         dependencies: ["core", "core,optional"]
