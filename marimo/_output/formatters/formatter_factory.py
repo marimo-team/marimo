@@ -4,11 +4,6 @@ from __future__ import annotations
 import abc
 from collections.abc import Callable
 
-from marimo import _loggers
-from marimo._config.config import Theme
-
-LOGGER = _loggers.marimo_logger()
-
 Unregister = Callable[[], None]
 
 
@@ -36,29 +31,3 @@ class FormatterFactory(abc.ABC):
         patches.
         """
         raise NotImplementedError
-
-    def apply_theme(self, theme: Theme) -> None:
-        """
-        Apply the theme (light/dark) to third party libraries.
-        If the theme is set to "system", then we fallback to "light".
-
-        Args:
-            theme: The theme to apply.
-        """
-        del theme
-        return
-
-    def apply_theme_safe(self, theme: Theme) -> None:
-        """
-        Apply the theme (light/dark) to third party libraries.
-        If the theme is set to "system", then we fallback to "light".
-
-        Args:
-            theme: The theme to apply.
-        """
-        try:
-            self.apply_theme(theme)
-        except Exception as e:
-            LOGGER.error(
-                f"Error applying theme {theme} for {self.package_name()}: {e}"
-            )
