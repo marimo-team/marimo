@@ -7,7 +7,6 @@ from textwrap import dedent
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.duckdb_utils import is_duckdb_v2
 from marimo._sql.parse import (
     SqlParseError,
     SqlParseResult,
@@ -15,6 +14,7 @@ from marimo._sql.parse import (
     parse_sql,
     replace_brackets_with_quotes,
 )
+from marimo._sql.utils import is_duckdb_v2
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 

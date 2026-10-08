@@ -8,7 +8,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.duckdb_utils import is_duckdb_v2
+from marimo._sql.utils import is_duckdb_v2
 
 if TYPE_CHECKING:
     from collections.abc import Callable
