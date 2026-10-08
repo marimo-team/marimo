@@ -8,6 +8,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._sql.utils import is_duckdb_v2
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -137,11 +138,18 @@ def _parse_sql_duckdb(
         return SqlParseResult(success=True, errors=[]), None
 
     position = int(parsed_error.position or 0)
-    subquery = query[:position]
+    # DuckDB 2 reports UTF-8 byte offsets; DuckDB 1 uses code points.
+    if is_duckdb_v2():
+        subquery = query.encode("utf-8")[:position].decode("utf-8")
+        position = len(subquery)
+    else:
+        subquery = query[:position]
     line_number = subquery.count("\n") + 1
 
     last_newline_idx = subquery.rfind("\n")
-    column_number = position - last_newline_idx - 1
+    # CodeMirror positions use UTF-16 code units, including surrogate pairs.
+    line_prefix = subquery[last_newline_idx + 1 :]
+    column_number = len(line_prefix.encode("utf-16-le")) // 2
 
     # Adjust column_number to account for any added quotes from bracket replacements
     # SELECT {id} FRO users
