@@ -1,0 +1,24 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+.completion-banner-presence {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-0.5rem);
+  transition:
+    grid-template-rows 300ms ease-in-out,
+    opacity 300ms ease-in-out,
+    transform 300ms ease-in-out;
+}
+
+.completion-banner-presence[data-state="open"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .completion-banner-presence {
+    transition: none;
+  }
+}

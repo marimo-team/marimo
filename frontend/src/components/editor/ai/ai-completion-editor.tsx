@@ -54,6 +54,7 @@ import {
 } from "./completion-handlers";
 import { addContextCompletion, getAICompletionBody } from "./completion-utils";
 import { useStagedAICell } from "@/core/ai/staged-cells";
+import { CompletionBannerPresence } from "./completion-banner-presence";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -239,25 +240,20 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const handleDeclineCompletion = () => {
     stop();
     setShowInputPrompt(true);
-    inputRef.current?.view?.focus();
+    // Wait for the visible prompt and its CodeMirror view to commit.
+    requestAnimationFrame(() => inputRef.current?.view?.focus());
   };
 
-  const showCompletionBanner =
-    enabled && triggerImmediately && (completion || isLoading);
+  const showCompletionBanner = Boolean(
+    enabled && triggerImmediately && (completion || isLoading),
+  );
   // Set default output area to below if not specified
   outputArea = outputArea ?? "below";
 
   const showInput = enabled && (!triggerImmediately || showInputPrompt);
 
   const completionBanner = (
-    <div
-      className={cn(
-        "w-full bg-(--cm-background) flex justify-center transition-all duration-300 ease-in-out overflow-hidden",
-        showCompletionBanner
-          ? "max-h-20 opacity-100 translate-y-0"
-          : "max-h-0 opacity-0 -translate-y-2",
-      )}
-    >
+    <CompletionBannerPresence open={showCompletionBanner}>
       <CompletionBanner
         status={isLoading ? "loading" : "generated"}
         onAccept={handleAcceptCompletion}
@@ -267,7 +263,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         runCell={runCell}
         className="mt-4 mb-3 w-lg"
       />
-    </div>
+    </CompletionBannerPresence>
   );
 
   const renderMergeEditor = (originalCode: string, modifiedCode: string) => {
@@ -327,7 +323,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
     >
       <div
         className={cn(
-          "flex items-center gap-2 px-3 transition-all rounded-[inherit] rounded-b-none duration-300",
+          "flex items-center gap-2 px-3 transition-[max-height,min-height] rounded-[inherit] rounded-b-none duration-300",
           showInput && "max-h-[400px] border-b min-h-11 visible",
           !showInput && "max-h-0 min-h-0 invisible",
         )}

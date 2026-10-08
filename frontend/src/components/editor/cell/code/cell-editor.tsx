@@ -527,7 +527,7 @@ const CellEditorInternal = ({
       currentLanguageAdapter={languageAdapter}
       declineChange={useEvent(() => {
         setAiCompletionCell(null);
-        editorViewRef.current?.focus();
+        requestAnimationFrame(() => editorViewRef.current?.focus());
       })}
       onChange={useEvent((newCode) => {
         editorViewRef.current?.dispatch({
@@ -546,8 +546,8 @@ const CellEditorInternal = ({
             insert: newCode,
           },
         });
-        editorViewRef.current?.focus();
         setAiCompletionCell(null);
+        requestAnimationFrame(() => editorViewRef.current?.focus());
       })}
       runCell={handleRunCell}
       outputArea={outputArea}
