@@ -35,6 +35,33 @@ describe("FQL shared contracts", () => {
     expect(conformanceSuite.version).toBe(1);
   });
 
+  it("preserves the shared refusal cases", () => {
+    expect(conformanceSuite.refusals).toEqual([
+      {
+        id: "missing_column",
+        request: "Show vehicles with horsepower above 200.",
+        explanation: "The table has no horsepower column.",
+      },
+      {
+        id: "unavailable_statistic",
+        request: "Show vehicles with a price above the median.",
+        explanation:
+          "The median price is unavailable. Provide a concrete price threshold instead.",
+      },
+    ]);
+  });
+
+  it("rejects a refusal without an explanation", () => {
+    expect(
+      TableFilterConformanceSuiteSchema.safeParse({
+        ...conformanceCasesJson,
+        refusals: [
+          { id: "missing_column", request: "Filter an absent column." },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
   it("uses unique operation IDs, aliases, case IDs, and row IDs", () => {
     const operationIds = operationCatalog.operations.map(
       (operation) => operation.id,
@@ -42,7 +69,10 @@ describe("FQL shared contracts", () => {
     const aliases = conformanceSuite.table.columns.map(
       (column) => column.alias,
     );
-    const caseIds = conformanceSuite.cases.map((testCase) => testCase.id);
+    const caseIds = [
+      ...conformanceSuite.cases.map((testCase) => testCase.id),
+      ...conformanceSuite.refusals.map((testCase) => testCase.id),
+    ];
     const rowIds = conformanceSuite.table.rows.map((row) => row.row_id);
 
     expect(new Set(operationIds).size).toBe(operationIds.length);
