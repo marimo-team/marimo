@@ -46,6 +46,7 @@ jobs:
               - 'scripts/check_ai_sdk_compatibility.py'
               - '.github/actions/install/**'
               - '.github/workflows/test_ai_sdk_compatibility.yaml'
+              - '.github/workflows/test_ai_sdk_canary.yaml'
 
   compatibility:
     needs: changes

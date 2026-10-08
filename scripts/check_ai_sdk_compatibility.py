@@ -2,8 +2,9 @@
 """Exercise the pydantic-ai → frontend SDK → marimo chat history boundary.
 
 Run with Python 3.12+ and installed frontend dependencies. No model API or
-browser is used. `--requirement minimum|latest` prints the dependency constraint
-for CI, deriving both cases from the recommended extra in pyproject.toml.
+browser is used. `--requirement minimum|latest|upstream` prints the dependency
+constraint for CI. Minimum and latest follow the recommended extra; upstream
+keeps its provider extras but tests the newest release without version bounds.
 """
 
 from __future__ import annotations
@@ -26,7 +27,9 @@ if TYPE_CHECKING:
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def dependency_requirement(resolution: Literal["minimum", "latest"]) -> str:
+def dependency_requirement(
+    resolution: Literal["minimum", "latest", "upstream"],
+) -> str:
     from packaging.requirements import Requirement
 
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())
@@ -36,12 +39,14 @@ def dependency_requirement(resolution: Literal["minimum", "latest"]) -> str:
         for value in requirements
         if Requirement(value).name == "pydantic-ai-slim"
     )
+    extras = ",".join(sorted(requirement.extras))
+    if resolution == "upstream":
+        return f"{requirement.name}[{extras}]"
     if resolution == "latest":
         return str(requirement)
     minimum = next(
         spec.version for spec in requirement.specifier if spec.operator == ">="
     )
-    extras = ",".join(sorted(requirement.extras))
     return f"{requirement.name}[{extras}]=={minimum}"
 
 
@@ -160,7 +165,9 @@ async def check_compatibility() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--requirement", choices=("minimum", "latest"))
+    parser.add_argument(
+        "--requirement", choices=("minimum", "latest", "upstream")
+    )
     args = parser.parse_args()
     if args.requirement:
         sys.stdout.write(f"{dependency_requirement(args.requirement)}\n")
