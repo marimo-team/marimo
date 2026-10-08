@@ -55,6 +55,9 @@ HAS_ZMQ = DependencyManager.zmq.has()
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
+# Match the CLI's default IPv4 binding so probes don't try IPv6 first.
+DEFAULT_HOST = "127.0.0.1"
+
 
 def _is_win32() -> bool:
     return sys.platform == "win32"
@@ -113,7 +116,7 @@ def _check_shutdown(
 
 def _try_fetch(
     port: int,
-    host: str = "127.0.0.1",
+    host: str = DEFAULT_HOST,
     token: str | None = None,
     *,
     timeout: float = 60,
@@ -162,7 +165,7 @@ def test_try_fetch_waits_for_startup(
         elapsed += seconds
 
     def open_url(url: str, *, timeout: float = 5) -> Any:
-        assert url == "http://127.0.0.1:2718?access_token=secret"
+        assert url == f"http://{DEFAULT_HOST}:2718?access_token=secret"
         assert 0 < timeout <= 5
         if request_duration:
             sleep(min(request_duration, timeout))
@@ -188,7 +191,7 @@ def test_try_fetch_waits_for_startup(
         assert ready_after <= elapsed < ready_after + 0.6
 
 
-def _check_started(port: int, host: str = "127.0.0.1") -> bytes | None:
+def _check_started(port: int, host: str = DEFAULT_HOST) -> bytes | None:
     assert _try_fetch(port, host) is not None
 
 
@@ -216,7 +219,7 @@ def _check_contents(
 
 
 def _get_port() -> int:
-    return find_free_port(2718, attempts=25, addr="127.0.0.1")
+    return find_free_port(2718, attempts=25, addr=DEFAULT_HOST)
 
 
 def _read_toml(filepath: Path) -> dict[str, Any] | None:
@@ -886,7 +889,7 @@ def test_cli_kernel_killed_when_server_killed() -> None:
     try:
         assert _try_fetch(port) is not None
         # Opening a WebSocket causes the server to spawn a kernel process.
-        with connect(f"ws://127.0.0.1:{port}/ws?session_id=s1"):
+        with connect(f"ws://{DEFAULT_HOST}:{port}/ws?session_id=s1"):
             server = psutil.Process(p.pid)
             deadline = time.time() + 10
             kernel_pids: list[int] = []
@@ -1042,7 +1045,7 @@ def test_cli_run_directory_gallery_can_open_file() -> None:
         assert contents is not None
         assert b'"mode": "gallery"' in contents
 
-        url = f"http://127.0.0.1:{port}/?file=run.py"
+        url = f"http://{DEFAULT_HOST}:{port}/?file=run.py"
         notebook_contents = urllib.request.urlopen(url).read()
         assert b'"mode": "read"' in notebook_contents
     finally:
@@ -1102,7 +1105,7 @@ def test_cli_run_directory_gallery_sandbox_can_open_file() -> None:
         assert b'"mode": "gallery"' in contents
 
         # Open a specific notebook from gallery
-        url = f"http://127.0.0.1:{port}/?file=run.py"
+        url = f"http://{DEFAULT_HOST}:{port}/?file=run.py"
         notebook_contents = urllib.request.urlopen(url).read()
         assert b'"mode": "read"' in notebook_contents
     finally:
@@ -1525,14 +1528,16 @@ def test_editor_sandbox_supplies_server_tools(
                     **({"file": str(notebook)} if entry == "folder" else {}),
                 }
             )
-            with connect(f"ws://127.0.0.1:{port}/ws?{query}") as websocket:
+            with connect(
+                f"ws://{DEFAULT_HOST}:{port}/ws?{query}"
+            ) as websocket:
                 while True:
                     message = json.loads(websocket.recv(timeout=60))
                     assert message["op"] != "kernel-startup-error", message
                     if message["op"] == "kernel-ready":
                         break
                 request = urllib.request.Request(
-                    f"http://127.0.0.1:{port}/api/kernel/format",
+                    f"http://{DEFAULT_HOST}:{port}/api/kernel/format",
                     data=json.dumps(
                         {
                             "codes": {"cell": "x=  1"},
