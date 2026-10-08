@@ -4,5 +4,5 @@ marimo-lens>=0.2.3
 marimo[sandbox]
 marimo[sql]
 nbformat>=5.7.0
-pydantic-ai-slim[openai]>=1.107.0,<3.0.0
+pydantic-ai-slim[openai]>=2.34.0,<3.0.0
 ruff
