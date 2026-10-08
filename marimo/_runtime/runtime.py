@@ -2623,14 +2623,13 @@ def _create_streams(
 
 def _install_subprocess_handlers(
     kernel: Kernel,
-    user_config: MarimoConfig,
     interrupt_queue: QueueType[bool] | None,
 ) -> None:
     # Subprocess kernels don't share state with the host, so they need
     # their own formatter import hooks and signal handlers.
     from marimo._output.formatters.formatters import register_formatters
 
-    register_formatters(theme=user_config["display"]["theme"])
+    register_formatters()
 
     signal.signal(signal.SIGINT, handlers.construct_interrupt_handler())
 
@@ -2712,11 +2711,7 @@ def launch_kernel(
                 kernel.start_out_of_band_worker(completion_queue)
 
             if is_subprocess:
-                # Read theme from kernel.user_config — create_kernel may have
-                # mutated it for run mode (autorun + auto_reload off).
-                _install_subprocess_handlers(
-                    kernel, kernel.user_config, interrupt_queue
-                )
+                _install_subprocess_handlers(kernel, interrupt_queue)
 
             # The control loop is asynchronous so that (a) user code can use
             # top-level await, and (b) background asyncio tasks created by
