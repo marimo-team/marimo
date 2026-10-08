@@ -104,7 +104,7 @@ const SourceBadge: React.FC<{ source?: "kernel" | "server" }> = ({
 
 export const PackageAlert: React.FC = () => {
   const { packageAlert } = useAlerts();
-  const { clearPackageAlert } = useAlertActions();
+  const { clearPackageAlert, dismissMissingPackageAlert } = useAlertActions();
   const [userConfig] = useResolvedMarimoConfig();
   const sandbox = useAtomValue(sandboxAtom);
   const [desiredPackageVersions, setDesiredPackageVersions] = useState<
@@ -161,7 +161,7 @@ export const PackageAlert: React.FC = () => {
               variant="text"
               data-testid="remove-banner-button"
               size="icon"
-              onClick={() => clearPackageAlert(packageAlert.id)}
+              onClick={() => dismissMissingPackageAlert(packageAlert.id)}
             >
               <XIcon className="w-5 h-5" />
             </Button>
@@ -211,6 +211,13 @@ export const PackageAlert: React.FC = () => {
                   })}
                 </tbody>
               </table>
+              <p className="mt-2">
+                You can install these packages, or close this banner to stop
+                seeing it for this set of packages.{" "}
+                <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management/">
+                  Learn more about package management
+                </ExternalLink>
+              </p>
             </div>
             <div className="ml-auto flex flex-row items-baseline">
               {packageAlert.isolated ? (
