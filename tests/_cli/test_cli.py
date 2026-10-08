@@ -113,7 +113,7 @@ def _check_shutdown(
 
 def _try_fetch(
     port: int,
-    host: str = "localhost",
+    host: str = "127.0.0.1",
     token: str | None = None,
     *,
     timeout: float = 60,
@@ -162,7 +162,7 @@ def test_try_fetch_waits_for_startup(
         elapsed += seconds
 
     def open_url(url: str, *, timeout: float = 5) -> Any:
-        assert url == "http://localhost:2718?access_token=secret"
+        assert url == "http://127.0.0.1:2718?access_token=secret"
         assert 0 < timeout <= 5
         if request_duration:
             sleep(min(request_duration, timeout))
@@ -188,7 +188,7 @@ def test_try_fetch_waits_for_startup(
         assert ready_after <= elapsed < ready_after + 0.6
 
 
-def _check_started(port: int, host: str = "localhost") -> bytes | None:
+def _check_started(port: int, host: str = "127.0.0.1") -> bytes | None:
     assert _try_fetch(port, host) is not None
 
 
@@ -529,7 +529,7 @@ def test_cli_edit_token() -> None:
             "--skip-update-check",
         ]
     )
-    contents = _try_fetch(port, "localhost", "secret")
+    contents = _try_fetch(port, token="secret")
     _check_contents(p, b'"mode": "home"', contents)
     _check_contents(
         p,
@@ -559,7 +559,7 @@ def test_cli_edit_token_password_file_stdin() -> None:
         p.stdin.write(b"secret_from_stdin")
         p.stdin.close()
 
-    contents = _try_fetch(port, "localhost", "secret_from_stdin")
+    contents = _try_fetch(port, token="secret_from_stdin")
     _check_contents(p, b'"mode": "home"', contents)
     _check_contents(
         p,
@@ -619,7 +619,7 @@ def test_cli_run_token_password_file_stdin(tmp_path: Path) -> None:
         p.stdin.write(b"run_secret")
         p.stdin.close()
 
-    contents = _try_fetch(port, "localhost", "run_secret")
+    contents = _try_fetch(port, token="run_secret")
     _check_contents(p, b'"appConfig":', contents)
 
 
@@ -646,7 +646,7 @@ def test_cli_edit_token_password_file_path() -> None:
             ],
         )
 
-        contents = _try_fetch(port, "localhost", "file_secret")
+        contents = _try_fetch(port, token="file_secret")
         _check_contents(p, b'"mode": "home"', contents)
         _check_contents(
             p,
@@ -886,7 +886,7 @@ def test_cli_kernel_killed_when_server_killed() -> None:
     try:
         assert _try_fetch(port) is not None
         # Opening a WebSocket causes the server to spawn a kernel process.
-        with connect(f"ws://localhost:{port}/ws?session_id=s1"):
+        with connect(f"ws://127.0.0.1:{port}/ws?session_id=s1"):
             server = psutil.Process(p.pid)
             deadline = time.time() + 10
             kernel_pids: list[int] = []
@@ -1042,7 +1042,7 @@ def test_cli_run_directory_gallery_can_open_file() -> None:
         assert contents is not None
         assert b'"mode": "gallery"' in contents
 
-        url = f"http://localhost:{port}/?file=run.py"
+        url = f"http://127.0.0.1:{port}/?file=run.py"
         notebook_contents = urllib.request.urlopen(url).read()
         assert b'"mode": "read"' in notebook_contents
     finally:
@@ -1102,7 +1102,7 @@ def test_cli_run_directory_gallery_sandbox_can_open_file() -> None:
         assert b'"mode": "gallery"' in contents
 
         # Open a specific notebook from gallery
-        url = f"http://localhost:{port}/?file=run.py"
+        url = f"http://127.0.0.1:{port}/?file=run.py"
         notebook_contents = urllib.request.urlopen(url).read()
         assert b'"mode": "read"' in notebook_contents
     finally:
@@ -1525,14 +1525,14 @@ def test_editor_sandbox_supplies_server_tools(
                     **({"file": str(notebook)} if entry == "folder" else {}),
                 }
             )
-            with connect(f"ws://localhost:{port}/ws?{query}") as websocket:
+            with connect(f"ws://127.0.0.1:{port}/ws?{query}") as websocket:
                 while True:
                     message = json.loads(websocket.recv(timeout=60))
                     assert message["op"] != "kernel-startup-error", message
                     if message["op"] == "kernel-ready":
                         break
                 request = urllib.request.Request(
-                    f"http://localhost:{port}/api/kernel/format",
+                    f"http://127.0.0.1:{port}/api/kernel/format",
                     data=json.dumps(
                         {
                             "codes": {"cell": "x=  1"},
