@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { JSX } from "react";
+import { type JSX, useId } from "react";
 import { z } from "zod";
 import { cn } from "@/utils/cn";
 import {
@@ -56,6 +56,7 @@ interface TextAreaComponentProps extends Data {
 }
 
 const TextAreaComponent = (props: TextAreaComponentProps) => {
+  const controlId = useId();
   const bottomAdornment = props.maxLength ? (
     <span className="text-muted-foreground text-xs font-medium">
       {props.value.length}/{props.maxLength}
@@ -64,8 +65,14 @@ const TextAreaComponent = (props: TextAreaComponentProps) => {
 
   if (props.debounce === true) {
     return (
-      <Labeled label={props.label} align="top" fullWidth={props.fullWidth}>
+      <Labeled
+        controlId={controlId}
+        label={props.label}
+        align="top"
+        fullWidth={props.fullWidth}
+      >
         <OnBlurredTextarea
+          id={controlId}
           className={cn("font-code", {
             "w-full": props.fullWidth,
           })}
@@ -86,8 +93,14 @@ const TextAreaComponent = (props: TextAreaComponentProps) => {
 
   if (typeof props.debounce === "number") {
     return (
-      <Labeled label={props.label} align="top" fullWidth={props.fullWidth}>
+      <Labeled
+        controlId={controlId}
+        label={props.label}
+        align="top"
+        fullWidth={props.fullWidth}
+      >
         <DebouncedTextarea
+          id={controlId}
           className={cn("font-code", {
             "w-full": props.fullWidth,
           })}
@@ -108,8 +121,14 @@ const TextAreaComponent = (props: TextAreaComponentProps) => {
   }
 
   return (
-    <Labeled label={props.label} align="top" fullWidth={props.fullWidth}>
+    <Labeled
+      controlId={controlId}
+      label={props.label}
+      align="top"
+      fullWidth={props.fullWidth}
+    >
       <Textarea
+        id={controlId}
         className={cn("font-code", {
           "w-full": props.fullWidth,
         })}
