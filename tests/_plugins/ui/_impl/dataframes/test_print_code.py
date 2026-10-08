@@ -1129,6 +1129,66 @@ def test_polars_temporal_conversion_code_matches_runtime(
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="polars not installed"
 )
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("multiple_columns", [False, True])
+@pytest.mark.parametrize("empty_frame", [False, True])
+def test_polars_explode_code_preserves_empty_and_null_rows(
+    lazy: bool, multiple_columns: bool, empty_frame: bool
+) -> None:
+    import polars as pl
+    import polars.testing as pl_testing
+
+    column = 'list "values"'
+    original = pl.DataFrame(
+        {
+            column: [[1, 2], [], None],
+            "other": [[3, 4], [], None],
+            "id": [0, 1, 2],
+        }
+    )
+    columns = [column, "other"] if multiple_columns else [column]
+    expected = pl.DataFrame(
+        {
+            column: [1, 2, None, None],
+            "other": (
+                [3, 4, None, None]
+                if multiple_columns
+                else [[3, 4], [3, 4], [], None]
+            ),
+            "id": [0, 0, 1, 2],
+        }
+    )
+    if empty_frame:
+        original = original.head(0)
+        expected = expected.head(0)
+    source = original.lazy() if lazy else original
+    transform = ExplodeColumnsTransform(
+        type=TransformType.EXPLODE_COLUMNS, column_ids=columns
+    )
+    runtime = (
+        NarwhalsTransformHandler.handle_explode_columns(
+            nw.from_native(source).lazy(), transform
+        )
+        .collect()
+        .to_native()
+    )
+    namespace = {"pl": pl, "df": source}
+    exec(
+        python_print_transforms(
+            "df", original.columns, [transform], python_print_polars
+        ),
+        namespace,
+    )
+    generated = namespace["df_next"]
+    if lazy:
+        generated = generated.collect()
+    pl_testing.assert_frame_equal(runtime, expected)
+    pl_testing.assert_frame_equal(generated, expected)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
 @pytest.mark.parametrize("values", [[], [None, None]])
 @pytest.mark.parametrize("data_type", ["date", "datetime64"])
 def test_polars_temporal_conversion_without_non_null_values(
