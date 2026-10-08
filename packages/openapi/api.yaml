@@ -87,8 +87,8 @@ components:
           type: string
         context:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/AiCompletionContext'
+          - type: 'null'
           default: null
         id:
           anyOf:
@@ -471,16 +471,16 @@ components:
           - items:
               $ref: '#/components/schemas/CellOutput'
             type: array
-          - type: 'null'
           - $ref: '#/components/schemas/CellOutput'
+          - type: 'null'
           default: null
         op:
           enum:
           - cell-op
         output:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/CellOutput'
+          - type: 'null'
           default: null
         run_id:
           anyOf:
@@ -1133,8 +1133,8 @@ components:
           - data-column-preview
         stats:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/ColumnStats'
+          - type: 'null'
           default: null
         table_name:
           type: string
@@ -1530,8 +1530,8 @@ components:
             propertyName: kind
         tree:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/DependencyTreeNode'
+          - type: 'null'
       required:
       - tree
       - context
@@ -2009,8 +2009,8 @@ components:
       properties:
         cellOutputs:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/CellOutputs'
+          - type: 'null'
           default: null
         code:
           type: string
@@ -2043,8 +2043,8 @@ components:
       properties:
         cellOutputs:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/CellOutputs'
+          - type: 'null'
           default: null
         code:
           type: string
@@ -2254,8 +2254,8 @@ components:
       properties:
         info:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FileInfo'
+          - type: 'null'
           default: null
         message:
           anyOf:
@@ -2322,8 +2322,8 @@ components:
       properties:
         info:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FileInfo'
+          - type: 'null'
           default: null
         message:
           anyOf:
@@ -2416,8 +2416,8 @@ components:
           type: string
         opengraph:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/OpenGraphMetadata'
+          - type: 'null'
           default: null
         path:
           type: string
@@ -2472,8 +2472,8 @@ components:
       properties:
         info:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FileInfo'
+          - type: 'null'
           default: null
         message:
           anyOf:
@@ -2582,8 +2582,8 @@ components:
       properties:
         info:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FileInfo'
+          - type: 'null'
           default: null
         message:
           anyOf:
@@ -3038,7 +3038,8 @@ components:
         \ per cell if resumed.\n        app_config: Application configuration.\n \
         \       kiosk: Whether running in kiosk mode.\n        capabilities: Available\
         \ kernel capabilities.\n        auto_instantiated: Whether cells already executed\
-        \ (run mode)."
+        \ (run mode).\n        stable_session_id: Server-owned Session identity that\
+        \ survives\n            browser reconnects. None where no server Session exists."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
@@ -3088,6 +3089,11 @@ components:
           - kernel-ready
         resumed:
           type: boolean
+        stable_session_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         ui_values:
           anyOf:
           - type: object
@@ -4140,8 +4146,8 @@ components:
           type: array
         esm_spec:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/EsmSpec'
+          - type: 'null'
           default: null
         method:
           enum:
@@ -4204,8 +4210,8 @@ components:
           type: array
         esm_spec:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/EsmSpec'
+          - type: 'null'
           default: null
         method:
           enum:
@@ -5116,8 +5122,8 @@ components:
           $ref: '#/components/schemas/RequestId'
         table:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/DataTable'
+          - type: 'null'
       required:
       - op
       - request_id
@@ -6471,15 +6477,15 @@ components:
           - validate-sql-result
         parse_result:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/SqlParseResult'
+          - type: 'null'
           default: null
         request_id:
           type: string
         validate_result:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/SqlCatalogCheckResult'
+          - type: 'null'
           default: null
       required:
       - op
@@ -6577,12 +6583,12 @@ components:
       title: VariablesNotification
       type: object
     VenvConfig:
-      description: "Configuration for an external Python environment in edit mode.\n\n\
-        \    Launches the notebook kernel in an existing virtualenv. Applies to\n    single\
-        \ notebooks and directories when editing without `--sandbox`.\n\n    **Keys.**\n\
-        \n    - `path`: path to a virtualenv directory (absolute or relative to\n    \
-        \  pyproject.toml)\n    - `writable`: if true, marimo will manage script metadata\
-        \ (inline\n      dependencies). Defaults to false."
+      description: "Configuration for an external Python environment in edit mode.\n\
+        \n    Launches the notebook kernel in an existing virtualenv. Applies to\n\
+        \    single notebooks and directories when editing without `--sandbox`.\n\n\
+        \    **Keys.**\n\n    - `path`: path to a virtualenv directory (absolute or\
+        \ relative to\n      pyproject.toml)\n    - `writable`: if true, marimo will\
+        \ manage script metadata (inline\n      dependencies). Defaults to false."
       properties:
         path:
           type: string

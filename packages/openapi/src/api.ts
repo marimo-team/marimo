@@ -3862,7 +3862,7 @@ export interface components {
     AiCompletionRequest: {
       code: string;
       /** @default null */
-      context?: null | components["schemas"]["AiCompletionContext"];
+      context?: components["schemas"]["AiCompletionContext"] | null;
       /** @default null */
       id?: string | null;
       includeOtherCode: string;
@@ -4145,12 +4145,12 @@ export interface components {
       /** @default null */
       console?:
         | components["schemas"]["CellOutput"][]
-        | null
-        | components["schemas"]["CellOutput"];
+        | components["schemas"]["CellOutput"]
+        | null;
       /** @enum {unknown} */
       op: "cell-op";
       /** @default null */
-      output?: null | components["schemas"]["CellOutput"];
+      output?: components["schemas"]["CellOutput"] | null;
       /** @default null */
       run_id?: string | null;
       serialization?: string | null;
@@ -4526,7 +4526,7 @@ export interface components {
       /** @enum {unknown} */
       op: "data-column-preview";
       /** @default null */
-      stats?: null | components["schemas"]["ColumnStats"];
+      stats?: components["schemas"]["ColumnStats"] | null;
       table_name: string;
     };
     /**
@@ -4766,7 +4766,7 @@ export interface components {
       context:
         | components["schemas"]["SandboxPackageContext"]
         | components["schemas"]["PackageManagerContext"];
-      tree: null | components["schemas"]["DependencyTreeNode"];
+      tree: components["schemas"]["DependencyTreeNode"] | null;
     };
     /**
      * DetectedDataSource
@@ -5062,7 +5062,7 @@ export interface components {
      */
     ExecuteScratchpadCommand: {
       /** @default null */
-      cellOutputs?: null | components["schemas"]["CellOutputs"];
+      cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
@@ -5076,7 +5076,7 @@ export interface components {
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
       /** @default null */
-      cellOutputs?: null | components["schemas"]["CellOutputs"];
+      cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
@@ -5190,7 +5190,7 @@ export interface components {
     /** FileCopyResponse */
     FileCopyResponse: {
       /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
+      info?: components["schemas"]["FileInfo"] | null;
       /** @default null */
       message?: string | null;
       success: boolean;
@@ -5227,7 +5227,7 @@ export interface components {
     /** FileCreateResponse */
     FileCreateResponse: {
       /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
+      info?: components["schemas"]["FileInfo"] | null;
       /** @default null */
       message?: string | null;
       success: boolean;
@@ -5271,7 +5271,7 @@ export interface components {
       lastModified?: number | null;
       name: string;
       /** @default null */
-      opengraph?: null | components["schemas"]["OpenGraphMetadata"];
+      opengraph?: components["schemas"]["OpenGraphMetadata"] | null;
       path: string;
       /** @default null */
       size?: number | null;
@@ -5294,7 +5294,7 @@ export interface components {
     /** FileMoveResponse */
     FileMoveResponse: {
       /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
+      info?: components["schemas"]["FileInfo"] | null;
       /** @default null */
       message?: string | null;
       success: boolean;
@@ -5345,7 +5345,7 @@ export interface components {
     /** FileUpdateResponse */
     FileUpdateResponse: {
       /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
+      info?: components["schemas"]["FileInfo"] | null;
       /** @default null */
       message?: string | null;
       success: boolean;
@@ -5677,6 +5677,8 @@ export interface components {
      *             kiosk: Whether running in kiosk mode.
      *             capabilities: Available kernel capabilities.
      *             auto_instantiated: Whether cells already executed (run mode).
+     *             stable_session_id: Server-owned Session identity that survives
+     *                 browser reconnects. None where no server Session exists.
      */
     KernelReadyNotification: {
       app_config: components["schemas"]["_AppConfig"];
@@ -5699,6 +5701,8 @@ export interface components {
       /** @enum {unknown} */
       op: "kernel-ready";
       resumed: boolean;
+      /** @default null */
+      stable_session_id?: string | null;
       ui_values: Record<string, any> | null;
     };
     /**
@@ -6309,7 +6313,7 @@ export interface components {
       buffer_paths: (string | number)[][];
       buffers: components["schemas"]["Base64String"][];
       /** @default null */
-      esm_spec?: null | components["schemas"]["EsmSpec"];
+      esm_spec?: components["schemas"]["EsmSpec"] | null;
       /** @enum {unknown} */
       method: "open";
       state: Record<string, any>;
@@ -6341,7 +6345,7 @@ export interface components {
       buffer_paths: (string | number)[][];
       buffers: components["schemas"]["Base64String"][];
       /** @default null */
-      esm_spec?: null | components["schemas"]["EsmSpec"];
+      esm_spec?: components["schemas"]["EsmSpec"] | null;
       /** @enum {unknown} */
       method: "update";
       state: Record<string, any>;
@@ -6940,7 +6944,7 @@ export interface components {
       /** @enum {unknown} */
       op: "sql-table-preview";
       request_id: components["schemas"]["RequestId"];
-      table: null | components["schemas"]["DataTable"];
+      table: components["schemas"]["DataTable"] | null;
     };
     /**
      * SafeLiteralDiscoveryValue
@@ -7784,10 +7788,10 @@ export interface components {
       /** @enum {unknown} */
       op: "validate-sql-result";
       /** @default null */
-      parse_result?: null | components["schemas"]["SqlParseResult"];
+      parse_result?: components["schemas"]["SqlParseResult"] | null;
       request_id: string;
       /** @default null */
-      validate_result?: null | components["schemas"]["SqlCatalogCheckResult"];
+      validate_result?: components["schemas"]["SqlCatalogCheckResult"] | null;
     };
     /** VariableContext */
     VariableContext: {
