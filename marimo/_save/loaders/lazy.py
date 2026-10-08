@@ -697,6 +697,10 @@ class LazyLoader(BasePersistenceLoader):
             store = prev.store if prev is not None else self._default_store()
         super().__init__(name, "jsonl", store)
         self._pending: list[threading.Thread] = []
+        # Writes in flight, by manifest key, so a lookup that follows its own
+        # save (same key, same session) waits for that write instead of
+        # missing on a manifest the background thread has not written yet.
+        self._inflight: dict[str, threading.Event] = {}
         self._trusted_fingerprints = normalize_fingerprints(trusted_signers)
         self._verification = verification
         self._degrade_warned = False
@@ -898,6 +902,19 @@ class LazyLoader(BasePersistenceLoader):
         """Loaders the current session has created (for flush/export)."""
         return list(_cache_state().active_lazy_loaders.values())
 
+    def _await_write(self, manifest_key: str) -> None:
+        """Block until a pending write of this manifest (if any) lands."""
+        done = self._inflight.get(manifest_key)
+        if done is None:
+            return
+        done.wait()
+        if self._inflight.get(manifest_key) is done:
+            del self._inflight[manifest_key]
+
+    def cache_hit(self, key: HashKey) -> bool:
+        self._await_write(str(self.build_path(key)))
+        return super().cache_hit(key)
+
     def mark_stale(self, manifest_key: str) -> None:
         """Force this manifest to miss for the rest of the session."""
         _cache_state().stale_keys.add(manifest_key)
@@ -918,6 +935,7 @@ class LazyLoader(BasePersistenceLoader):
         # Invalidated for re-execution this session.
         if manifest_key in _cache_state().stale_keys:
             return None
+        self._await_write(manifest_key)
         blob: bytes | None = None
         try:
             blob = self.store.get(manifest_key)
@@ -1559,7 +1577,16 @@ class LazyLoader(BasePersistenceLoader):
             except Exception:
                 LOGGER.exception("Failed to write cache blobs for %s", path)
 
-        self._dispatch_write(_serialize_and_write)
+        done = threading.Event()
+
+        def _tracked_write() -> None:
+            try:
+                _serialize_and_write()
+            finally:
+                done.set()
+
+        self._inflight[manifest_key] = done
+        self._dispatch_write(_tracked_write)
         return True
 
     def _dispatch_write(self, write_fn: Callable[[], None]) -> None:

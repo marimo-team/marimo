@@ -1332,3 +1332,48 @@ class TestUntrustedLayerCannotAnchorTrust(_FileStoreLoaderTest):
         loaded = reader.load_cache(key("committed_control"))
         assert loaded is not None
         assert loaded.defs["payload"] == 1
+
+
+class TestReadYourWrites(_FileStoreLoaderTest):
+    """A lookup that follows its own save must see the entry even though the
+    write runs on a background thread (regression: the first re-call after a
+    save missed because the manifest was not on disk yet)."""
+
+    def _slow_loader(self, delay: float = 0.2) -> LazyLoader:
+        import time
+
+        loader = self._loader(verification="off")
+        original = loader._dispatch_write
+
+        def delayed(write_fn: Any) -> None:
+            def run() -> None:
+                time.sleep(delay)
+                write_fn()
+
+            original(run)
+
+        loader._dispatch_write = delayed  # type: ignore[method-assign]
+        return loader
+
+    def test_hit_and_load_wait_for_pending_write(self) -> None:
+        loader = self._slow_loader()
+        cache = _simple_cache(hash_val="ryw_hash", v=7)
+        assert loader.save_cache(cache)
+        # No flush: the lookup itself must wait for the in-flight write.
+        assert loader.cache_hit(key("ryw_hash"))
+        loaded = loader.load_cache(key("ryw_hash"))
+        assert loaded is not None
+        assert loaded.defs["v"] == 7
+        assert "ryw_hash" not in {
+            k.rsplit("_", 1)[-1] for k in loader._inflight
+        }, "settled writes are forgotten"
+
+    def test_unrelated_key_does_not_wait(self) -> None:
+        import time
+
+        loader = self._slow_loader(delay=1.0)
+        assert loader.save_cache(_simple_cache(hash_val="slow_hash", v=1))
+        start = time.monotonic()
+        assert not loader.cache_hit(key("other_hash"))
+        assert time.monotonic() - start < 0.5
+        loader.flush()
