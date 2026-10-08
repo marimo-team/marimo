@@ -73,7 +73,7 @@ interface TextComponentProps extends Data {
 }
 
 const TextComponent = (props: TextComponentProps) => {
-  const controlId = useId();
+  const inputId = useId();
   // Before first real keystroke: show masked placeholder, suppress setValue.
   // After first keystroke: normal password field.
   const initiallyMasked =
@@ -126,7 +126,7 @@ const TextComponent = (props: TextComponentProps) => {
   if (props.debounce === true) {
     input = (
       <OnBlurredInput
-        id={controlId}
+        id={inputId}
         data-testid="marimo-plugin-text-input"
         type={props.kind}
         icon={icon[props.kind]}
@@ -145,7 +145,7 @@ const TextComponent = (props: TextComponentProps) => {
   } else if (typeof props.debounce === "number") {
     input = (
       <DebouncedInput
-        id={controlId}
+        id={inputId}
         data-testid="marimo-plugin-text-input"
         type={props.kind}
         icon={icon[props.kind]}
@@ -166,7 +166,7 @@ const TextComponent = (props: TextComponentProps) => {
   } else {
     input = (
       <Input
-        id={controlId}
+        id={inputId}
         data-testid="marimo-plugin-text-input"
         type={props.kind}
         icon={icon[props.kind]}
@@ -187,7 +187,7 @@ const TextComponent = (props: TextComponentProps) => {
 
   return (
     <Labeled
-      controlId={controlId}
+      controlId={inputId}
       label={props.label}
       fullWidth={props.fullWidth}
     >

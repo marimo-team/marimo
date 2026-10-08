@@ -56,7 +56,7 @@ interface TextAreaComponentProps extends Data {
 }
 
 const TextAreaComponent = (props: TextAreaComponentProps) => {
-  const controlId = useId();
+  const textareaId = useId();
   const bottomAdornment = props.maxLength ? (
     <span className="text-muted-foreground text-xs font-medium">
       {props.value.length}/{props.maxLength}
@@ -66,13 +66,13 @@ const TextAreaComponent = (props: TextAreaComponentProps) => {
   if (props.debounce === true) {
     return (
       <Labeled
-        controlId={controlId}
+        controlId={textareaId}
         label={props.label}
         align="top"
         fullWidth={props.fullWidth}
       >
         <OnBlurredTextarea
-          id={controlId}
+          id={textareaId}
           className={cn("font-code", {
             "w-full": props.fullWidth,
           })}
@@ -94,13 +94,13 @@ const TextAreaComponent = (props: TextAreaComponentProps) => {
   if (typeof props.debounce === "number") {
     return (
       <Labeled
-        controlId={controlId}
+        controlId={textareaId}
         label={props.label}
         align="top"
         fullWidth={props.fullWidth}
       >
         <DebouncedTextarea
-          id={controlId}
+          id={textareaId}
           className={cn("font-code", {
             "w-full": props.fullWidth,
           })}
@@ -122,13 +122,13 @@ const TextAreaComponent = (props: TextAreaComponentProps) => {
 
   return (
     <Labeled
-      controlId={controlId}
+      controlId={textareaId}
       label={props.label}
       align="top"
       fullWidth={props.fullWidth}
     >
       <Textarea
-        id={controlId}
+        id={textareaId}
         className={cn("font-code", {
           "w-full": props.fullWidth,
         })}
