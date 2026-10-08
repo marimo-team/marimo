@@ -216,7 +216,6 @@ def _check_contents(
 
 
 def _get_port() -> int:
-    # Refused connections can be slow on Windows; check availability by binding.
     return find_free_port(2718, attempts=25, addr="127.0.0.1")
 
 
