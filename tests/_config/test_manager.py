@@ -1395,6 +1395,7 @@ def test_project_config_manager_strips_signing_and_verification(
 
     [tool.marimo.cache]
     verification = "off"
+    loader = "pickle"
 
     [tool.marimo.cache.store]
     type = "file"
@@ -1405,7 +1406,8 @@ def test_project_config_manager_strips_signing_and_verification(
 
     assert "signing" not in config
     # `cache.store` is not a trust anchor, so a project may still choose one;
-    # the verifying loaders check its bytes before unpickling.
+    # the verifying loaders check its bytes before unpickling. `cache.loader`
+    # goes: selecting `"pickle"` would read that store unverified.
     assert config.get("cache") == {"store": {"type": "file"}}
 
 
@@ -1456,6 +1458,7 @@ def test_workspace_marimo_toml_strips_signing_and_verification(
 
             [cache]
             verification = "off"
+            loader = "pickle"
 
             [cache.store]
             type = "file"
@@ -1475,6 +1478,7 @@ def test_workspace_marimo_toml_strips_signing_and_verification(
 
     assert "signing" not in config
     assert config.get("cache", {}).get("verification") is None
+    assert config.get("cache", {}).get("loader") is None
     # The store goes too, unlike the project and script layers. A store set
     # here would load as the user layer, so `cache_store_is_untrusted` could
     # not tell it apart from one the operator chose, and the unsigned pickle

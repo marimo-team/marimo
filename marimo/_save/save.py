@@ -56,13 +56,13 @@ from marimo._save.hash import (
     content_cache_attempt_from_base,
 )
 from marimo._save.loaders import (
-    PERSISTENT_LOADERS,
+    DEFAULT_LOADER,
     Loader,
     LoaderKey,
     LoaderPartial,
     LoaderType,
     MemoryLoader,
-    resolve_loader,
+    get_persistent_loader,
 )
 from marimo._save.stores.file import FileStore
 from marimo._save.toplevel import get_cell_id_from_scope, graph_from_scope
@@ -1237,11 +1237,17 @@ def lru_cache(  # type: ignore[misc]
     )
 
 
+def _default_loader_key() -> str:
+    """`cache.loader` from the session config, else `DEFAULT_LOADER`."""
+    ctx = safe_get_context()
+    return ctx.cache.loader if ctx is not None else DEFAULT_LOADER
+
+
 @overload
 def persistent_cache(
     fn: Callable[P, Coroutine[Any, Any, R]],
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: LoaderKey | str | None = None,
     pin_modules: bool = False,
 ) -> _cache_call_async[P, R]: ...
 
@@ -1250,7 +1256,7 @@ def persistent_cache(
 def persistent_cache(
     fn: Callable[P, R],
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: LoaderKey | str | None = None,
     pin_modules: bool = False,
 ) -> _cache_call[P, R]: ...
 
@@ -1259,7 +1265,7 @@ def persistent_cache(
 def persistent_cache(
     fn: None = None,
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: LoaderKey | str | None = None,
     pin_modules: bool = False,
 ) -> _cache_call[Any, Any]: ...
 
@@ -1268,7 +1274,7 @@ def persistent_cache(
 def persistent_cache(
     name: str,
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: LoaderKey | str | None = None,
     pin_modules: bool = False,
 ) -> _cache_context: ...
 
@@ -1276,7 +1282,7 @@ def persistent_cache(
 def persistent_cache(  # type: ignore[misc]
     name: str | Callable[..., Any] | None = None,
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: LoaderKey | str | None = None,
     store: Store | None = None,
     fn: Callable[..., Any] | None = None,
     *args: Any,
@@ -1346,8 +1352,12 @@ def persistent_cache(  # type: ignore[misc]
             invalidate the cache, change the name.
         save_path: the folder in which to save the cache, defaults to
             `__marimo__/cache` in the directory of the notebook file
-        method: the serialization method to use, current options are "json",
-            and "pickle" (default).
+        method: the serialization method: "lazy", "json", "pickle", or the
+            name of an installed `marimo.cache.loader` entry point. Defaults
+            to the `cache.loader` setting in your user configuration, else
+            "lazy". With `[cache] verification = "on"`, the lazy method
+            signs entries and verifies them before loading; unverifiable
+            entries are recomputed. "json" and "pickle" never verify.
         store: optional store.
         fn: the wrapped function if no settings are passed.
         *args: positional arguments passed to `cache()`
@@ -1364,11 +1374,9 @@ def persistent_cache(  # type: ignore[misc]
             "loader is not a valid argument "
             "for persistent_cache, use mo.cache instead."
         )
-    if method not in PERSISTENT_LOADERS:
-        raise ValueError(
-            f"Invalid method {method}, expected one of "
-            f"{PERSISTENT_LOADERS.keys()}"
-        )
+    if method is None:
+        method = _default_loader_key()
+    loader_type = get_persistent_loader(method)
     if save_path is not None and store is not None:
         raise ValueError(
             "save_path and store cannot both be provided, "
@@ -1384,7 +1392,7 @@ def persistent_cache(  # type: ignore[misc]
     if store is not None:
         partial_args["store"] = store
 
-    loader = resolve_loader(PERSISTENT_LOADERS[method]).partial(**partial_args)
+    loader = loader_type.partial(**partial_args)
     # Injection hook for testing
     if "_loader" in kwargs:
         loader = kwargs.pop("_loader")

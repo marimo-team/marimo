@@ -131,11 +131,14 @@ def allowlist_script_config(
 #   signing              trusting a key is a code-execution grant, because a
 #                        cache restore is `pickle.loads`
 #   cache.verification   whether signatures are checked at all
+#   cache.loader         `"pickle"` neither signs nor verifies, so selecting it
+#                        reads the operator's own trusted store unverified
 #
-# Both are anchored only in trusted user/environment config.
+# All three are anchored only in trusted user/environment config.
 _UNTRUSTED_MARIMO_KEYS: tuple[tuple[str, ...], ...] = (
     ("signing",),
     ("cache", "verification"),
+    ("cache", "loader"),
 )
 
 # `cache.store` is not a trust anchor on its own: the verifying loaders check
