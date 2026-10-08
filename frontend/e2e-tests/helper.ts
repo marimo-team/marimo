@@ -113,16 +113,28 @@ export async function exportAsHTMLAndTakeScreenshot(page: Page) {
   ]);
 
   // Wait for the download process to complete and save the downloaded file somewhere.
-  const path = `e2e-tests/exports/${download.suggestedFilename()}`;
-  await download.saveAs(path);
+  const exportPath = `e2e-tests/exports/${download.suggestedFilename()}`;
+  await download.saveAs(exportPath);
 
   // Open a new page and take a screenshot
   const exportPage = await page.context().newPage();
-  const fullPath = `${process.cwd()}/${path}`;
+  // Dependency updates change chunk hashes before those assets reach the CDN.
+  await exportPage.route(
+    "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@*/dist/**",
+    async (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      const assetPath = pathname.slice(pathname.indexOf("/dist/") + 6);
+      await route.fulfill({
+        path: path.join(process.cwd(), "../marimo/_static", assetPath),
+      });
+    },
+  );
+  const fullPath = `${process.cwd()}/${exportPath}`;
   await exportPage.goto(`file://${fullPath}`, {
     waitUntil: "networkidle",
   });
-  await takeScreenshot(exportPage, path);
+  await expect(exportPage.getByTestId("static-notebook-banner")).toBeVisible();
+  await takeScreenshot(exportPage, exportPath);
 
   // Toggle code
   if (await exportPage.isVisible("[data-testid=show-code]")) {
@@ -132,7 +144,7 @@ export async function exportAsHTMLAndTakeScreenshot(page: Page) {
   }
 
   // Take screenshot of code
-  await takeScreenshot(exportPage, `code-${path}`);
+  await takeScreenshot(exportPage, `code-${exportPath}`);
 }
 
 export async function exportAsPNG(page: Page) {
