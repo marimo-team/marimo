@@ -124,6 +124,7 @@ async def check_round_trip(scenario: Literal["completed", "approval"]) -> None:
             subprocess.run,
             [
                 "node",
+                "--experimental-strip-types",
                 str(ROOT / "frontend/scripts/check-ai-sdk-compatibility.ts"),
                 str(stream_path),
                 str(history_path),
