@@ -360,6 +360,26 @@ def python_print_polars(
 
     if transform.type == TransformType.COLUMN_CONVERSION:
         column_id, data_type = transform.column_id, transform.data_type
+        temporal_parsers = {
+            "date": ("Date", "to_date"),
+            "datetime64": ("Datetime", "to_datetime"),
+        }
+        temporal_parser = temporal_parsers.get(
+            data_type.replace("_", "").lower()
+        )
+        if temporal_parser is not None:
+            dtype, parser = temporal_parser
+            column = _as_literal(column_id)
+            strict = transform.errors == "raise"
+            return "\n".join(
+                [
+                    df_name,
+                    f"if {df_name}.collect_schema()[{column}] == pl.String:",
+                    f"    {df_name} = {df_name}.with_columns(pl.col({column}).str.{parser}())",
+                    "else:",
+                    f"    {df_name} = {df_name}.cast({{{column}: pl.{dtype}}}, strict={strict})",
+                ]
+            )
         try:
             import polars.datatypes as pl_datatypes
 
