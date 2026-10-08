@@ -198,6 +198,19 @@ def test_reference_uses_every_catalog_operation() -> None:
     ]
 
 
+def test_frontend_reference_fixture_matches_production_renderer() -> None:
+    fixture_path = (
+        Path(__file__).resolve().parents[3]
+        / "frontend/src/components/data-table/__tests__/fixtures/table-filter-reference.json"
+    )
+    operations = DEFAULT_TABLE_FILTER_ASSETS.operations
+    assert json.loads(fixture_path.read_text(encoding="utf-8")) == {
+        "version": 1,
+        "text": build_table_filter_reference(operations),
+        "operations": msgspec.json.decode(msgspec.json.encode(operations)),
+    }, "Regenerate with uv run scripts/generate_table_filter_reference.py"
+
+
 def test_prompt_accepts_assets_without_file_access(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
