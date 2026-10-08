@@ -1,0 +1,82 @@
+name: AI SDK Compatibility
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  PYDANTIC_AI_NO_BANNER: '1'
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      chat: ${{ steps.filter.outputs.chat }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
+        id: filter
+        with:
+          filters: |
+            chat:
+              - 'frontend/package.json'
+              - 'frontend/scripts/check-ai-sdk-compatibility.ts'
+              - 'frontend/src/components/chat/**'
+              - 'frontend/src/components/editor/ai/**'
+              - 'frontend/src/core/ai/**'
+              - 'frontend/src/plugins/impl/chat/**'
+              - 'marimo/_ai/**'
+              - 'marimo/_plugins/ui/_impl/chat/**'
+              - 'marimo/_server/ai/**'
+              - 'marimo/_server/api/endpoints/ai.py'
+              - 'marimo/_server/models/completion.py'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'pyproject.toml'
+              - 'scripts/check_ai_sdk_compatibility.py'
+              - '.github/actions/install/**'
+              - '.github/workflows/test_ai_sdk_compatibility.yaml'
+
+  compatibility:
+    needs: changes
+    if: needs.changes.outputs.chat == 'true'
+    name: Chat protocol / ${{ matrix.resolution }} pydantic-ai
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        resolution: [minimum, latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/install
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - name: Check stream and second-turn history
+        shell: bash
+        run: |
+          requirement=$(uv run --no-project --python 3.13 --with packaging python scripts/check_ai_sdk_compatibility.py --requirement "${{ matrix.resolution }}")
+          uv run --no-project --python 3.13 --with-editable . --with "$requirement" python scripts/check_ai_sdk_compatibility.py
+
+  compatibility_check:
+    name: AI SDK compatibility
+    needs: [changes, compatibility]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require compatibility checks for relevant changes
+        env:
+          CHECK_PASSED: ${{ needs.changes.result == 'success' && (needs.changes.outputs.chat != 'true' || needs.compatibility.result == 'success') }}
+        run: test "$CHECK_PASSED" = "true"
