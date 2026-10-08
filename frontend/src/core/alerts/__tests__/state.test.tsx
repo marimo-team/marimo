@@ -238,3 +238,68 @@ it.each(["kernel", "server"] as const)(
     expect(getPackageAlert(store.get(alertAtom))?.id).toBe("latest-result");
   },
 );
+
+it("keeps a dismissed missing-package alert from reappearing for the same packages", () => {
+  const store = createStore();
+  const { result } = renderHook(() => useAlertActions(), {
+    wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+  });
+  const missing = {
+    kind: "missing" as const,
+    packages: ["numpy", "pandas"],
+    isolated: true,
+  };
+
+  // The banner shows for a new set of missing packages.
+  act(() => result.current.addMissingPackageAlert(missing));
+  const shown = getPackageAlert(store.get(alertAtom));
+  expect(shown).toMatchObject(missing);
+
+  // Dismissing it keeps it hidden when the same failing import runs again.
+  act(() => result.current.dismissMissingPackageAlert(shown!.id));
+  expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+  act(() => result.current.addMissingPackageAlert(missing));
+  expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+
+  // Package order does not matter: the same set stays dismissed.
+  act(() =>
+    result.current.addMissingPackageAlert({
+      ...missing,
+      packages: ["pandas", "numpy"],
+    }),
+  );
+  expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+
+  // A genuinely different set of missing packages still gets its own banner.
+  act(() =>
+    result.current.addMissingPackageAlert({
+      ...missing,
+      packages: ["numpy", "pandas", "polars"],
+    }),
+  );
+  expect(getPackageAlert(store.get(alertAtom))).toMatchObject({
+    packages: ["numpy", "pandas", "polars"],
+  });
+
+  // Clearing without dismissing (e.g. the user chose Install) does not
+  // suppress the next alert for the same packages.
+  act(() =>
+    result.current.addMissingPackageAlert({
+      kind: "missing",
+      packages: ["scipy"],
+      isolated: true,
+    }),
+  );
+  const scipy = getPackageAlert(store.get(alertAtom));
+  act(() => result.current.clearPackageAlert(scipy!.id));
+  act(() =>
+    result.current.addMissingPackageAlert({
+      kind: "missing",
+      packages: ["scipy"],
+      isolated: true,
+    }),
+  );
+  expect(getPackageAlert(store.get(alertAtom))).toMatchObject({
+    packages: ["scipy"],
+  });
+});
