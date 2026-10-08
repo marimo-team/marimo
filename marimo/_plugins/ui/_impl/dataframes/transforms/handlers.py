@@ -506,7 +506,9 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         if nw.dependencies.is_polars_lazyframe(native_df):
             import polars as pl
 
-            # Narwhals >=2.23 preserves empty-list rows; keep compatibility with older versions.
+            # Polars 2 drops empty-list rows unless empty_as_null=True.
+            # Narwhals >=2.23 sets these options, available since Polars 1.36.
+            # Set them here too so older Narwhals preserves the same rows.
             if tuple(map(int, pl.__version__.split(".")[:2])) >= (1, 36):
                 return nw.from_native(
                     native_df.explode(
