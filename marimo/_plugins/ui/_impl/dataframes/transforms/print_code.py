@@ -491,7 +491,16 @@ def python_print_polars(
 
     elif transform.type == TransformType.EXPLODE_COLUMNS:
         column_ids = transform.column_ids
-        return f"{df_name}.explode({_list_of_strings(column_ids)})"
+        explode_columns = _list_of_strings(column_ids)
+        return "\n".join(
+            [
+                df_name,
+                'if tuple(map(int, pl.__version__.split(".")[:2])) >= (1, 36):',
+                f"    {df_name} = {df_name}.explode({explode_columns}, empty_as_null=True, keep_nulls=True)",
+                "else:",
+                f"    {df_name} = {df_name}.explode({explode_columns})",
+            ]
+        )
 
     elif transform.type == TransformType.EXPAND_DICT:
         column_id = _as_literal(transform.column_id)

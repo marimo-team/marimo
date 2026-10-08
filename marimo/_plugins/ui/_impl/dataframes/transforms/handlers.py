@@ -502,6 +502,19 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_explode_columns(
         df: DataFrame, transform: ExplodeColumnsTransform
     ) -> DataFrame:
+        native_df = df.to_native()
+        if nw.dependencies.is_polars_lazyframe(native_df):
+            import polars as pl
+
+            # Polars 2 drops empty lists by default; preserve their rows.
+            if tuple(map(int, pl.__version__.split(".")[:2])) >= (1, 36):
+                return nw.from_native(
+                    native_df.explode(
+                        transform.column_ids,
+                        empty_as_null=True,
+                        keep_nulls=True,
+                    )
+                )
         return df.explode(transform.column_ids)
 
     @staticmethod
