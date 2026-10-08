@@ -1,0 +1,21 @@
+name: Inherit uv cooldown
+description: Apply the project cooldown to tools, standalone scripts, and subprocesses that do not read its configuration.
+
+runs:
+  using: composite
+  steps:
+    - name: Read project cooldown
+      shell: bash
+      # tomllib needs Python 3.11+, independently of the version under test.
+      # This command has no dependencies and must not resolve the project.
+      run: |
+        uv run --no-project --no-config --python '>=3.11' python - <<'PYTHON'
+        import os
+        import pathlib
+        import tomllib
+
+        config = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+        cooldown = config["tool"]["uv"]["exclude-newer"]
+        with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+            env.write(f"UV_EXCLUDE_NEWER={cooldown}\n")
+        PYTHON

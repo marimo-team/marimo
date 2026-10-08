@@ -21,6 +21,8 @@ runs:
         python-version: ${{ inputs.python-version }}
         enable-cache: true
 
+    - uses: ./.github/actions/uv-cooldown
+
     # This step is needed since some of our tests rely on the index.html file
     - name: Create assets directory, copy over index.html
       shell: bash

@@ -14,7 +14,6 @@ concurrency:
 
 env:
   UV_SYSTEM_PYTHON: 1
-  UV_EXCLUDE_NEWER: "7 days"
 
 jobs:
   export-notebooks:
@@ -33,6 +32,8 @@ jobs:
         with:
           enable-cache: true
           python-version: 3.12
+
+      - uses: ./.github/actions/uv-cooldown
 
       - name: 🛠️ Run export
         run: |

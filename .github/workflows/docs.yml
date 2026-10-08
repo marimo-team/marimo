@@ -15,9 +15,6 @@ permissions:
   contents: read
   id-token: write # required for Doppler OIDC
 
-env:
-  UV_EXCLUDE_NEWER: "7 days"
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
