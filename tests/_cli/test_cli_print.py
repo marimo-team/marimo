@@ -8,7 +8,7 @@ from marimo._cli.print import echo
 
 
 def _stream(encoding: str) -> io.TextIOWrapper:
-    return io.TextIOWrapper(io.BytesIO(), encoding=encoding)
+    return io.TextIOWrapper(io.BytesIO(), encoding=encoding, newline="")
 
 
 def _read(stream: io.TextIOWrapper) -> str:
