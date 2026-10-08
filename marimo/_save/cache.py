@@ -37,6 +37,7 @@ UNEXPECTED_FAILURE_BOILERPLATE = (
 
 if TYPE_CHECKING:
     import threading
+
     from marimo._ast.visitor import Name
     from marimo._config.config import CacheLoader
     from marimo._runtime.context.types import RuntimeContext
