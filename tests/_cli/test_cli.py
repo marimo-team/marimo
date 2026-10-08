@@ -13,7 +13,6 @@ import json
 import os
 import shutil
 import signal
-import socket
 import subprocess
 import sys
 import tempfile
@@ -44,6 +43,7 @@ from marimo._server.workspace import (
 )
 from marimo._templates import get_version
 from marimo._utils.env import is_env_true
+from marimo._utils.net import find_free_port
 from marimo._utils.platform import is_windows
 from marimo._utils.toml import toml_reader
 
@@ -216,16 +216,8 @@ def _check_contents(
 
 
 def _get_port() -> int:
-    port = 2718
-    max_tries = 25
-    for _ in range(max_tries):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            in_use = s.connect_ex(("localhost", port)) == 0
-        if in_use:
-            port += 1
-        else:
-            return port
-    raise OSError("Could not find an unused port.")
+    # Refused connections can be slow on Windows; check availability by binding.
+    return find_free_port(2718, attempts=25, addr="127.0.0.1")
 
 
 def _read_toml(filepath: Path) -> dict[str, Any] | None:
