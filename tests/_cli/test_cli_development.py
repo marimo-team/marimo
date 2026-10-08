@@ -5,6 +5,8 @@ import subprocess
 
 import yaml
 
+from marimo._cli.development.commands import _generate_server_api_schema
+
 
 def test_cli_development_openapi() -> None:
     p = subprocess.run(
@@ -36,3 +38,49 @@ def test_openapi_up_to_date() -> None:
     assert current_content == generated_content, (
         f"packages/openapi/api.yaml is not up to date. Run '{cmd}' to update it."
     )
+
+
+def test_table_filter_openapi_contract() -> None:
+    schema = _generate_server_api_schema()
+    endpoint = schema["paths"]["/api/ai/table-filter"]["post"]
+    request_body = endpoint["requestBody"]["content"]["application/json"]
+    response_body = endpoint["responses"][200]["content"]["application/json"]
+    assert request_body["schema"] == {
+        "$ref": "#/components/schemas/AiTableFilterRequest"
+    }
+    assert response_body["schema"] == {
+        "$ref": "#/components/schemas/AiTableFilterResponse"
+    }
+    assert endpoint["parameters"] == [
+        {
+            "in": "header",
+            "name": "Marimo-Session-Id",
+            "schema": {"type": "string"},
+            "required": True,
+        }
+    ]
+    models = schema["components"]["schemas"]
+    request = models["AiTableFilterRequest"]
+    response = models["AiTableFilterResponse"]
+    assert request["required"] == ["request", "context"]
+    assert request["properties"] == {
+        "request": {"type": "string"},
+        "context": {"$ref": "#/components/schemas/FilterContext"},
+    }
+    assert response["required"] == ["fql", "explanation", "aliases"]
+    assert response["properties"] == {
+        "fql": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+        "explanation": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+        "aliases": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/TableFilterAlias"},
+        },
+    }
+    assert models["FilterContext"]["properties"]["columns"] == {
+        "type": "array",
+        "items": {"$ref": "#/components/schemas/FilterContextColumn"},
+    }
+    assert models["TableFilterAlias"]["properties"] == {
+        "name": {"type": "string"},
+        "alias": {"type": "string"},
+    }

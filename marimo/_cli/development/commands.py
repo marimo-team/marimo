@@ -245,6 +245,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models,
         packages,
         secrets,
+        table_filter,
     )
     from marimo._session import requests as session_requests
     from marimo._snippets import snippets
@@ -354,6 +355,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         completion.AiCompletionRequest,
         completion.AiInlineCompletionRequest,
         completion.ChatRequest,
+        table_filter.AiTableFilterRequest,
+        table_filter.AiTableFilterResponse,
         export.AutoExportAsIPYNBRequest,
         export.AutoExportAsMarkdownRequest,
         export.ExportAsHTMLRequest,

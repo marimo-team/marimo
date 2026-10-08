@@ -284,6 +284,48 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ai/table-filter": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      /** @description A filter request and bounded table context */
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["AiTableFilterRequest"];
+        };
+      };
+      responses: {
+        /** @description FQL or an explanation, with column aliases */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["AiTableFilterResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/cache/clear": {
     parameters: {
       query?: never;
@@ -3956,6 +3998,17 @@ export interface components {
       displayed_models: string[];
       edit_model?: string;
     };
+    /** AiTableFilterRequest */
+    AiTableFilterRequest: {
+      context: components["schemas"]["FilterContext"];
+      request: string;
+    };
+    /** AiTableFilterResponse */
+    AiTableFilterResponse: {
+      aliases: components["schemas"]["TableFilterAlias"][];
+      explanation: string | null;
+      fql: string | null;
+    };
     /**
      * AlertNotification
      * @description User-facing alert message.
@@ -5349,6 +5402,89 @@ export interface components {
       /** @default null */
       message?: string | null;
       success: boolean;
+    };
+    /**
+     * FilterContext
+     * @description Bounded schema and value context for table-filter generation.
+     */
+    FilterContext: {
+      columns: components["schemas"]["FilterContextColumn"][];
+      omissions: components["schemas"]["FilterContextOmission"][];
+      row_count: number | null;
+    };
+    /** FilterContextColumn */
+    FilterContextColumn: {
+      /** @default null */
+      examples?: string[] | null;
+      name: string;
+      source_type: string;
+      /** @default null */
+      statistics?: components["schemas"]["FilterContextStatistics"] | null;
+      /** @enum {unknown} */
+      type:
+        | "boolean"
+        | "date"
+        | "datetime"
+        | "geometry"
+        | "integer"
+        | "number"
+        | "string"
+        | "time"
+        | "unknown";
+    };
+    /** FilterContextOmission */
+    FilterContextOmission: {
+      /** @default null */
+      column?: string | null;
+      /** @default null */
+      count?: number | null;
+      /** @default null */
+      fields?:
+        | (
+            | "max"
+            | "mean"
+            | "median"
+            | "min"
+            | "nulls"
+            | "p25"
+            | "p5"
+            | "p75"
+            | "p95"
+            | "std"
+          )[]
+        | null;
+      /** @enum {unknown} */
+      kind: "examples" | "schema" | "statistics";
+      /** @enum {unknown} */
+      reason:
+        | "row_count_unknown"
+        | "row_limit"
+        | "size_limit"
+        | "unavailable"
+        | "value_too_long";
+    };
+    /** FilterContextStatistics */
+    FilterContextStatistics: {
+      /** @default null */
+      max?: number | null;
+      /** @default null */
+      mean?: number | null;
+      /** @default null */
+      median?: number | null;
+      /** @default null */
+      min?: number | null;
+      /** @default null */
+      nulls?: number | null;
+      /** @default null */
+      p25?: number | null;
+      /** @default null */
+      p5?: number | null;
+      /** @default null */
+      p75?: number | null;
+      /** @default null */
+      p95?: number | null;
+      /** @default null */
+      std?: number | null;
     };
     /**
      * FocusCellNotification
@@ -7538,6 +7674,14 @@ export interface components {
       /** @default false */
       restartRequired?: boolean;
       success: boolean;
+    };
+    /**
+     * TableFilterAlias
+     * @description A parser-safe field name associated with an original column name.
+     */
+    TableFilterAlias: {
+      alias: string;
+      name: string;
     };
     /**
      * ToolDefinition

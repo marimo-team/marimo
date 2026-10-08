@@ -231,6 +231,37 @@ components:
       - displayed_models
       title: AiModelConfig
       type: object
+    AiTableFilterRequest:
+      properties:
+        context:
+          $ref: '#/components/schemas/FilterContext'
+        request:
+          type: string
+      required:
+      - request
+      - context
+      title: AiTableFilterRequest
+      type: object
+    AiTableFilterResponse:
+      properties:
+        aliases:
+          items:
+            $ref: '#/components/schemas/TableFilterAlias'
+          type: array
+        explanation:
+          anyOf:
+          - type: string
+          - type: 'null'
+        fql:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - fql
+      - explanation
+      - aliases
+      title: AiTableFilterResponse
+      type: object
     AlertNotification:
       description: "User-facing alert message.\n\n    Attributes:\n        title:\
         \ Alert title.\n        description: Alert body (may contain HTML).\n    \
@@ -2595,6 +2626,173 @@ components:
       required:
       - success
       title: FileUpdateResponse
+      type: object
+    FilterContext:
+      description: Bounded schema and value context for table-filter generation.
+      properties:
+        columns:
+          items:
+            $ref: '#/components/schemas/FilterContextColumn'
+          type: array
+        omissions:
+          items:
+            $ref: '#/components/schemas/FilterContextOmission'
+          type: array
+        row_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+      required:
+      - row_count
+      - columns
+      - omissions
+      title: FilterContext
+      type: object
+    FilterContextColumn:
+      properties:
+        examples:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          default: null
+        name:
+          type: string
+        source_type:
+          type: string
+        statistics:
+          anyOf:
+          - $ref: '#/components/schemas/FilterContextStatistics'
+          - type: 'null'
+          default: null
+        type:
+          enum:
+          - boolean
+          - date
+          - datetime
+          - geometry
+          - integer
+          - number
+          - string
+          - time
+          - unknown
+      required:
+      - name
+      - type
+      - source_type
+      title: FilterContextColumn
+      type: object
+    FilterContextOmission:
+      properties:
+        column:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        fields:
+          anyOf:
+          - items:
+              enum:
+              - max
+              - mean
+              - median
+              - min
+              - nulls
+              - p25
+              - p5
+              - p75
+              - p95
+              - std
+            type: array
+          - type: 'null'
+          default: null
+        kind:
+          enum:
+          - examples
+          - schema
+          - statistics
+        reason:
+          enum:
+          - row_count_unknown
+          - row_limit
+          - size_limit
+          - unavailable
+          - value_too_long
+      required:
+      - kind
+      - reason
+      title: FilterContextOmission
+      type: object
+    FilterContextStatistics:
+      properties:
+        max:
+          anyOf:
+          - type: integer
+          - type: number
+          - type: 'null'
+          default: null
+        mean:
+          anyOf:
+          - type: integer
+          - type: number
+          - type: 'null'
+          default: null
+        median:
+          anyOf:
+          - type: integer
+          - type: number
+          - type: 'null'
+          default: null
+        min:
+          anyOf:
+          - type: integer
+          - type: number
+          - type: 'null'
+          default: null
+        nulls:
+          anyOf:
+          - type: integer
+          - type: number
+          - type: 'null'
+          default: null
+        p25:
+          anyOf:
+          - type: integer
+          - type: number
+          - type: 'null'
+          default: null
+        p5:
+          anyOf:
+          - type: integer
+          - type: number
+          - type: 'null'
+          default: null
+        p75:
+          anyOf:
+          - type: integer
+          - type: number
+          - type: 'null'
+          default: null
+        p95:
+          anyOf:
+          - type: integer
+          - type: number
+          - type: 'null'
+          default: null
+        std:
+          anyOf:
+          - type: integer
+          - type: number
+          - type: 'null'
+          default: null
+      required: []
+      title: FilterContextStatistics
       type: object
     FocusCellNotification:
       description: "Focuses a cell (kiosk mode).\n\n    Attributes:\n        cell_id:\
@@ -6095,6 +6293,18 @@ components:
       - success
       title: SyncSandboxResponse
       type: object
+    TableFilterAlias:
+      description: A parser-safe field name associated with an original column name.
+      properties:
+        alias:
+          type: string
+        name:
+          type: string
+      required:
+      - name
+      - alias
+      title: TableFilterAlias
+      type: object
     ToolDefinition:
       description: Tool definition compatible with ai-sdk-ui format.
       properties:
@@ -6799,6 +7009,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/MCPStatusResponse'
           description: Get MCP server status
+  /api/ai/table-filter:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiTableFilterRequest'
+        description: A filter request and bounded table context
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiTableFilterResponse'
+          description: FQL or an explanation, with column aliases
   /api/cache/clear:
     post:
       parameters:
