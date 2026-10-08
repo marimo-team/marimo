@@ -66,10 +66,18 @@ jobs:
           python-version: '3.13'
           enable-cache: true
       - name: Check stream and second-turn history
+        id: protocol
         shell: bash
         run: |
           requirement=$(uv run --no-project --python 3.13 --with packaging python scripts/check_ai_sdk_compatibility.py --requirement "${{ matrix.resolution }}")
           uv run --no-project --python 3.13 --with-editable . --with "$requirement" python scripts/check_ai_sdk_compatibility.py
+      - name: Report dependency rollout requirement
+        if: failure() && steps.protocol.outcome == 'failure'
+        shell: bash
+        run: |
+          message="When updating pydantic-ai to resolve this compatibility failure, Molab dependencies must also be upgraded."
+          echo "::warning::$message"
+          printf '%s\n' "$message" >> "$GITHUB_STEP_SUMMARY"
 
   compatibility_check:
     name: AI SDK compatibility
@@ -81,3 +89,10 @@ jobs:
         env:
           CHECK_PASSED: ${{ needs.changes.result == 'success' && (needs.changes.outputs.chat != 'true' || needs.compatibility.result == 'success') }}
         run: test "$CHECK_PASSED" = "true"
+      - name: Report dependency rollout requirement
+        if: failure() && needs.compatibility.result == 'failure'
+        shell: bash
+        run: |
+          message="When updating pydantic-ai to resolve this compatibility failure, Molab dependencies must also be upgraded."
+          echo "::warning::$message"
+          printf '%s\n' "$message" >> "$GITHUB_STEP_SUMMARY"
