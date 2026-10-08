@@ -1041,6 +1041,170 @@ def test_print_code_result_matches_actual_transform_polars(
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="polars not installed"
 )
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("errors", ["raise", "ignore"])
+@pytest.mark.parametrize(
+    ("data_type", "values", "expected_values"),
+    [
+        (
+            "date",
+            ["2026-10-07", None, "2026-10-08"],
+            [datetime.date(2026, 10, 7), None, datetime.date(2026, 10, 8)],
+        ),
+        (
+            "datetime64",
+            ["2026-10-07 12:34:56.123456", None, "2026-10-08 00:00:00"],
+            [
+                datetime.datetime(2026, 10, 7, 12, 34, 56, 123456),
+                None,
+                datetime.datetime(2026, 10, 8),
+            ],
+        ),
+        (
+            "datetime64",
+            [datetime.date(2026, 10, 7), None],
+            [datetime.datetime(2026, 10, 7), None],
+        ),
+        (
+            "date",
+            [datetime.datetime(2026, 10, 7, 12), None],
+            [datetime.date(2026, 10, 7), None],
+        ),
+        (
+            "datetime64",
+            [0, 1_000_000],
+            [
+                datetime.datetime(1970, 1, 1),
+                datetime.datetime(1970, 1, 1, 0, 0, 1),
+            ],
+        ),
+    ],
+)
+def test_polars_temporal_conversion_code_matches_runtime(
+    lazy: bool,
+    errors: Literal["raise", "ignore"],
+    data_type: str,
+    values: list[str | datetime.date | int | None],
+    expected_values: list[datetime.date | None],
+) -> None:
+    import polars as pl
+    import polars.testing as pl_testing
+
+    column = 'event "time"'
+    original = pl.DataFrame({column: values, "id": range(len(values))})
+    source = original.lazy() if lazy else original
+    transform = ColumnConversionTransform(
+        type=TransformType.COLUMN_CONVERSION,
+        column_id=column,
+        data_type=data_type,
+        errors=errors,
+    )
+    runtime = (
+        NarwhalsTransformHandler.handle_column_conversion(
+            nw.from_native(source).lazy(), transform
+        )
+        .collect()
+        .to_native()
+    )
+    namespace = {"pl": pl, "df": source}
+    exec(
+        python_print_transforms(
+            "df", original.columns, [transform], python_print_polars
+        ),
+        namespace,
+    )
+    generated = namespace["df_next"]
+    if lazy:
+        generated = generated.collect()
+    expected = pl.DataFrame(
+        {column: expected_values, "id": range(len(values))}
+    )
+    pl_testing.assert_frame_equal(runtime, expected)
+    pl_testing.assert_frame_equal(generated, expected)
+    pl_testing.assert_frame_equal(
+        original, pl.DataFrame({column: values, "id": range(len(values))})
+    )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
+@pytest.mark.parametrize("values", [[], [None, None]])
+@pytest.mark.parametrize("data_type", ["date", "datetime64"])
+def test_polars_temporal_conversion_without_non_null_values(
+    values: list[None], data_type: str
+) -> None:
+    import polars as pl
+    import polars.testing as pl_testing
+
+    source = pl.LazyFrame(
+        {"event_time": values}, schema={"event_time": pl.String}
+    )
+    transform = ColumnConversionTransform(
+        type=TransformType.COLUMN_CONVERSION,
+        column_id="event_time",
+        data_type=data_type,
+        errors="raise",
+    )
+    runtime = (
+        NarwhalsTransformHandler.handle_column_conversion(
+            nw.from_native(source), transform
+        )
+        .collect()
+        .to_native()
+    )
+    namespace = {"pl": pl, "df": source}
+    exec(
+        python_print_transforms(
+            "df", ["event_time"], [transform], python_print_polars
+        ),
+        namespace,
+    )
+    dtype = pl.Date if data_type == "date" else pl.Datetime
+    expected = pl.DataFrame(
+        {"event_time": values}, schema={"event_time": dtype}
+    )
+    pl_testing.assert_frame_equal(runtime, expected)
+    pl_testing.assert_frame_equal(namespace["df_next"].collect(), expected)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
+@pytest.mark.parametrize("data_type", ["date", "datetime64"])
+@pytest.mark.parametrize("errors", ["raise", "ignore"])
+def test_polars_temporal_conversion_invalid_strings(
+    data_type: str, errors: Literal["raise", "ignore"]
+) -> None:
+    import polars as pl
+
+    source = pl.LazyFrame({"event_time": ["2026-10-07", "invalid", None]})
+    transform = ColumnConversionTransform(
+        type=TransformType.COLUMN_CONVERSION,
+        column_id="event_time",
+        data_type=data_type,
+        errors=errors,
+    )
+    runtime = NarwhalsTransformHandler.handle_column_conversion(
+        nw.from_native(source), transform
+    )
+    namespace = {"pl": pl, "df": source}
+    exec(
+        python_print_transforms(
+            "df", ["event_time"], [transform], python_print_polars
+        ),
+        namespace,
+    )
+    generated = namespace["df_next"]
+    with pytest.raises(nw.exceptions.InvalidOperationError):
+        runtime.collect()
+    with pytest.raises(pl.exceptions.InvalidOperationError):
+        generated.collect()
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
 def test_print_code_expand_dict_nested_dict_polars() -> None:
     import polars as pl
     import polars.testing as pl_testing

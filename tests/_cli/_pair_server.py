@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 class PairTestServer:
     url: str
     session_id: str
+    stable_session_id: str
     _process: subprocess.Popen[bytes]
     _websocket: ClientConnection
     _stderr_path: Path
@@ -193,9 +194,15 @@ def pair_test_server(tmp_path: Path) -> Generator[PairTestServer, None, None]:
             open_timeout=5,
         )
         _wait_for_kernel_ready(websocket)
+        with urllib.request.urlopen(
+            f"{url}/api/sessions", timeout=5
+        ) as response:
+            sessions = json.load(response)
+        stable_session_id = sessions[session_id]["session_id"]
         server = PairTestServer(
             url=url,
             session_id=session_id,
+            stable_session_id=stable_session_id,
             _process=process,
             _websocket=websocket,
             _stderr_path=stderr_path,
