@@ -38,8 +38,9 @@ function getFileFlag(file: string | undefined): string {
 /** Identifies the specific running notebook to pair on. */
 export interface ConnectionInfo {
   url: string;
-  /** The server's file key or notebook filename, when known. */
+  /** The server's file key, when known. */
   file?: string;
+  /** The stable session ID, when known. */
   session?: string;
 }
 
@@ -49,7 +50,7 @@ export interface ConnectionInfo {
  */
 export function getTerminalCommand(
   agent: Exclude<AgentTab, "prompt">,
-  { url, file, session }: ConnectionInfo,
+  { url, session }: ConnectionInfo,
   withToken: boolean,
   preview?: PairPreviewConfig,
 ): string {
@@ -58,7 +59,6 @@ export function getTerminalCommand(
   const base = [
     `${prefix}${command} pair prompt`,
     `--url ${shellQuote(url)}`,
-    file ? `--file ${shellQuote(file)}` : "",
     preview && session ? `--session ${shellQuote(session)}` : "",
     withToken ? "--with-token" : "",
     preview ? "" : `--${agent}`,
@@ -92,7 +92,6 @@ export function getRawPrompt(
     return formatPrompt(templates.prompt, {
       command,
       url,
-      file: file ? formatPrompt(templates.file, { file }) : "",
       session: session ? formatPrompt(templates.session, { session }) : "",
       authentication: token
         ? formatPrompt(templates.token, { token: shellQuote(token) })

@@ -184,6 +184,10 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     import duckdb
 
     tokens = duckdb.tokenize(sql_statement)
+    # DuckDB 2 emits comments as tokens; definition matching needs only syntax.
+    comment_type = getattr(duckdb.token_type, "comment", None)
+    if comment_type is not None:
+        tokens = [token for token in tokens if token[1] != comment_type]
     token_extractor = _TokenExtractor(
         sql_statement=sql_statement, tokens=tokens
     )

@@ -10,7 +10,7 @@ from marimo._server.config import StarletteServerState
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
-from marimo._types.ids import SessionId
+from marimo._types.ids import SessionId, StableSessionId
 from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
@@ -23,6 +23,8 @@ if TYPE_CHECKING:
     from marimo._session import Session
 
 LOGGER = loggers.marimo_logger()
+
+STABLE_SESSION_ID_HEADER = "Marimo-Stable-Session-Id"
 
 
 class AppStateBase:
@@ -169,6 +171,30 @@ class AppState(AppStateBase):
                 ],
             )
             raise ValueError(f"Invalid session id: {session_id}")
+        return session
+
+    def require_current_session_with_stable_id(self) -> Session:
+        """Resolve a session from the stable or browser routing header."""
+        stable_session_id = self.request.headers.get(STABLE_SESSION_ID_HEADER)
+        if stable_session_id is None:
+            return self.require_current_session()
+        if self.get_current_session_id() is not None:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=(
+                    f"{STABLE_SESSION_ID_HEADER} cannot be combined with "
+                    "Marimo-Session-Id."
+                ),
+            )
+
+        session = self.session_manager.get_session_by_stable_id(
+            StableSessionId(stable_session_id)
+        )
+        if session is None:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"Invalid stable session id: {stable_session_id}",
+            )
         return session
 
     def require_query_params(self, param: str) -> str:
