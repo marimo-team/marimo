@@ -11,7 +11,7 @@ import { kernelStartupErrorAtom } from "@/core/errors/state";
 import { connectionAtom, startupProgressAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { sandboxAtom } from "@/core/packages/sandbox-state";
-import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
+import { WebSocketClosedReason, ConnectionState } from "@/core/websocket/types";
 import PackagesPanel from "../packages-panel";
 import { PanelSectionProvider } from "../panel-context";
 import { RuntimeStatusToggle } from "../runtime-status-toggle";
@@ -43,8 +43,8 @@ function mount({
   store.set(
     connectionAtom,
     preparing
-      ? { state: WebSocketState.CONNECTING, phase: "preparing-environment" }
-      : { state: WebSocketState.OPEN },
+      ? { state: ConnectionState.CONNECTING, phase: "preparing-environment" }
+      : { state: ConnectionState.OPEN },
   );
   store.set(alertAtom, (state) => ({
     ...state,
@@ -287,11 +287,11 @@ it.each([false, true])(
         log_mode: "replace",
       });
       store.set(connectionAtom, {
-        state: WebSocketState.CONNECTING,
+        state: ConnectionState.CONNECTING,
         phase: "starting-kernel",
       });
     });
-    act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
+    act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
     await screen.findByText("numpy");
     expect(toggle).toHaveAttribute("aria-expanded", String(inspecting));
     if (!inspecting) {
@@ -322,7 +322,7 @@ it("opens a startup error even after collapsing preparation and keeps both step 
     });
     store.set(kernelStartupErrorAtom, "Could not import the runtime");
     store.set(connectionAtom, {
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       phase: "starting-kernel",
       code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
       reason: "Kernel startup failed",
@@ -355,7 +355,7 @@ it.each(["uv", "pixi"] as const)(
   "shows connection status and errors before the %s startup phase arrives",
   (backend) => {
     const { store } = mount({ backend, preparing: true });
-    act(() => store.set(connectionAtom, { state: WebSocketState.CONNECTING }));
+    act(() => store.set(connectionAtom, { state: ConnectionState.CONNECTING }));
     const details = within(
       screen.getByRole("region", { name: "Sandbox details" }),
     );
@@ -365,7 +365,7 @@ it.each(["uv", "pixi"] as const)(
     act(() => {
       store.set(kernelStartupErrorAtom, "Kernel process exited unexpectedly");
       store.set(connectionAtom, {
-        state: WebSocketState.CLOSED,
+        state: ConnectionState.CLOSED,
         code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
         reason: "Kernel startup failed",
       });
@@ -397,7 +397,7 @@ it("uses the same disclosure for an existing environment and updates it through 
   expect(within(details).getAllByRole("listitem")).toHaveLength(1);
   expect(within(details).queryByRole("button", { name: "Sync" })).toBeNull();
 
-  act(() => store.set(connectionAtom, { state: WebSocketState.CONNECTING }));
+  act(() => store.set(connectionAtom, { state: ConnectionState.CONNECTING }));
   expect(toggle).toHaveTextContent(/^Runtime$/);
   expect(within(toggle).getByRole("status")).toHaveAccessibleName(
     "Connecting…",
@@ -407,7 +407,7 @@ it("uses the same disclosure for an existing environment and updates it through 
   expect(details).not.toBeVisible();
   act(() =>
     store.set(connectionAtom, {
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
       reason: "Kernel startup failed",
     }),
@@ -422,7 +422,7 @@ it("uses the same disclosure for an existing environment and updates it through 
     "Runtime details, Kernel failed to start",
   );
 
-  act(() => store.set(connectionAtom, { state: WebSocketState.NOT_STARTED }));
+  act(() => store.set(connectionAtom, { state: ConnectionState.NOT_STARTED }));
   expect(toggle).toHaveTextContent(/^Runtime$/);
   expect(within(toggle).getByRole("status")).toHaveAccessibleName(
     "Kernel not connected",

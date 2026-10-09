@@ -6,7 +6,7 @@ import { islandsInitializedAtom } from "../../islands/state";
 import { kernelStateAtom } from "../../kernel/state";
 import { connectionAtom } from "../../network/connection";
 import { wasmInitStateAtom } from "../../wasm/state";
-import { WebSocketState } from "../../websocket/types";
+import { ConnectionState } from "../../websocket/types";
 import {
   canRunCellsAtom,
   islandsAdapter,
@@ -50,13 +50,13 @@ describe("wasmAdapter", () => {
 
 describe("remoteAdapter", () => {
   it.each([
-    [{ state: WebSocketState.OPEN }, { kind: "ready" }],
+    [{ state: ConnectionState.OPEN }, { kind: "ready" }],
     [
-      { state: WebSocketState.CONNECTING },
+      { state: ConnectionState.CONNECTING },
       { kind: "connecting", progress: { label: "Connecting…" } },
     ],
     [
-      { state: WebSocketState.NOT_STARTED },
+      { state: ConnectionState.NOT_STARTED },
       { kind: "connecting", progress: { label: "Not connected" } },
     ],
   ] as const)("maps %j to %j", (conn, expected) => {
@@ -68,7 +68,7 @@ describe("remoteAdapter", () => {
   it("surfaces the close reason when closed", () => {
     const store = createStore();
     store.set(connectionAtom, {
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       code: "KERNEL_DISCONNECTED",
       reason: "Kernel went away",
     });
@@ -125,7 +125,7 @@ describe("canRunCellsAtom", () => {
   it("is false on a remote adapter until kernel acks", () => {
     const store = createStore();
     // Default adapter in test env is remote.
-    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
     expect(store.get(canRunCellsAtom)).toBe(false);
 
     store.set(kernelStateAtom, { isInstantiated: true, error: null });

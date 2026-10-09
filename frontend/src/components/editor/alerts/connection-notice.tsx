@@ -8,7 +8,7 @@ import type { AppConfig } from "@/core/config/config-schema";
 import { connectionAtom } from "@/core/network/connection";
 import { useConnectionNotice } from "@/core/network/useConnectionNotice";
 import { sandboxAtom } from "@/core/packages/sandbox-state";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import { useInterval } from "@/hooks/useInterval";
 import { cn } from "@/utils/cn";
 import { runtimeDetailsExpandedAtom } from "../chrome/panels/runtime-details-state";
@@ -42,7 +42,7 @@ export const ConnectionNotice = ({
 
   // Reconnection uses the footer indicator while existing cells stay visible.
   const reconnecting =
-    connection.state === WebSocketState.CONNECTING &&
+    connection.state === ConnectionState.CONNECTING &&
     connection.phase === "reconnecting";
 
   const openDetails = () => {
