@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import csv
+import io
 import json
 from datetime import date, timedelta
 from enum import Enum
@@ -1508,6 +1510,13 @@ def test_display_config_unpacks(df: Any) -> None:
 
 
 DOWNLOAD_FORMATS = ["csv", "tsv", "json", "parquet"]
+TEXT_DOWNLOAD_FORMATS = ["csv", "tsv", "json"]
+LONG_GEOMETRY_WKT = (
+    "LINESTRING Z ("
+    + ", ".join(f"{index} {index % 17} {index % 11}" for index in range(160))
+    + ")"
+)
+POINT_GEOMETRY_WKT = "POINT Z (1 2 3)"
 
 # Parquet export requires pandas+pyarrow or polars (see the `_download_as`
 # short-circuit in `table.py`). In environments without those — e.g. the
@@ -1632,6 +1641,279 @@ def test_download_as(df: Any) -> None:
         # For row selection, selection is respected (single row)
         assert len(selected_nw) == 1
         assert selected_nw["cities"][0] == "New York"
+
+
+def _download_text_rows(
+    table: ui.table[Any], format_type: str
+) -> list[dict[str, Any]]:
+    url = table._download_as(DownloadAsArgs(format=format_type)).url
+    data = from_data_uri(url)[1]
+    if format_type == "json":
+        rows = json.loads(data)
+        assert isinstance(rows, list)
+        return rows
+    delimiter = "," if format_type == "csv" else "\t"
+    return list(
+        csv.DictReader(io.StringIO(data.decode("utf-8")), delimiter=delimiter)
+    )
+
+
+def _assert_complete_geometry_rows(
+    rows: list[dict[str, Any]],
+    format_type: str,
+    expected_long: str,
+) -> None:
+    by_label = {row["row_label"]: row["geometry"] for row in rows}
+    assert by_label["long"] == expected_long
+    assert by_label["point"] == POINT_GEOMETRY_WKT
+    if format_type == "json":
+        assert by_label["null"] is None
+    else:
+        assert by_label["null"] == ""
+
+
+@pytest.mark.requires("geopandas")
+@pytest.mark.parametrize("format_type", TEXT_DOWNLOAD_FORMATS)
+def test_download_geopandas_geometry_as_complete_text(
+    format_type: str,
+) -> None:
+    import geopandas as gpd
+    from shapely import from_wkt
+
+    long_geometry = from_wkt(LONG_GEOMETRY_WKT)
+    point_geometry = from_wkt(POINT_GEOMETRY_WKT)
+    source = gpd.GeoDataFrame(
+        {
+            "row_label": ["long", "point", "null"],
+            "geometry": [long_geometry, point_geometry, None],
+        },
+        geometry="geometry",
+        crs="EPSG:4326",
+    )
+
+    rows = _download_text_rows(ui.table(source), format_type)
+
+    _assert_complete_geometry_rows(rows, format_type, long_geometry.wkt)
+    assert source.geometry.iloc[0].equals_exact(long_geometry, tolerance=0)
+    assert str(source.geometry.dtype) == "geometry"
+    assert source.crs == "EPSG:4326"
+
+
+@pytest.mark.requires("geopandas")
+@pytest.mark.parametrize("format_type", TEXT_DOWNLOAD_FORMATS)
+def test_download_pandas_geometry_dtype_as_complete_text(
+    format_type: str,
+) -> None:
+    import geopandas as gpd
+    import pandas as pd
+    from shapely import from_wkt
+
+    long_geometry = from_wkt(LONG_GEOMETRY_WKT)
+    geopandas_source = gpd.GeoDataFrame(
+        {
+            "row_label": ["long", "point", "null"],
+            "geometry": [
+                long_geometry,
+                from_wkt(POINT_GEOMETRY_WKT),
+                None,
+            ],
+        },
+        geometry="geometry",
+        crs="EPSG:4326",
+        index=[3, 5, 8],
+    )
+    source = pd.DataFrame(geopandas_source)
+    original = source.copy(deep=True)
+
+    rows = _download_text_rows(ui.table(source), format_type)
+
+    _assert_complete_geometry_rows(rows, format_type, long_geometry.wkt)
+    assert type(source) is pd.DataFrame
+    assert not hasattr(source["geometry"], "to_wkt")
+    assert str(source["geometry"].dtype) == "geometry"
+    assert source["geometry"].array.crs == "EPSG:4326"
+    pd.testing.assert_frame_equal(source, original)
+
+
+@pytest.mark.requires("pyarrow")
+@pytest.mark.parametrize("format_type", TEXT_DOWNLOAD_FORMATS)
+def test_download_arrow_wkt_as_complete_text(format_type: str) -> None:
+    import pyarrow as pa
+
+    metadata = {b"ARROW:extension:name": b"geoarrow.wkt"}
+    schema = pa.schema(
+        [
+            pa.field("row_label", pa.string()),
+            pa.field("geometry", pa.string(), metadata=metadata),
+        ]
+    )
+    source = pa.table(
+        {
+            "row_label": ["long", "point", "null"],
+            "geometry": [
+                LONG_GEOMETRY_WKT,
+                POINT_GEOMETRY_WKT,
+                None,
+            ],
+        },
+        schema=schema,
+    )
+
+    rows = _download_text_rows(ui.table(source), format_type)
+
+    _assert_complete_geometry_rows(rows, format_type, LONG_GEOMETRY_WKT)
+    assert source.schema.field("geometry").metadata == metadata
+
+
+@pytest.mark.requires("pyarrow", "shapely")
+@pytest.mark.parametrize("format_type", TEXT_DOWNLOAD_FORMATS)
+def test_download_arrow_wkb_as_complete_wkt(format_type: str) -> None:
+    import pyarrow as pa
+    from shapely import from_wkt
+
+    long_geometry = from_wkt(LONG_GEOMETRY_WKT)
+    point_geometry = from_wkt(POINT_GEOMETRY_WKT)
+    metadata = {b"ARROW:extension:name": b"geoarrow.wkb"}
+    schema = pa.schema(
+        [
+            pa.field("row_label", pa.string()),
+            pa.field("geometry", pa.binary(), metadata=metadata),
+        ]
+    )
+    source = pa.table(
+        {
+            "row_label": ["long", "point", "null"],
+            "geometry": [long_geometry.wkb, point_geometry.wkb, None],
+        },
+        schema=schema,
+    )
+
+    rows = _download_text_rows(ui.table(source), format_type)
+
+    _assert_complete_geometry_rows(rows, format_type, long_geometry.wkt)
+    assert source.column("geometry")[0].as_py() == long_geometry.wkb
+    assert source.schema.field("geometry").metadata == metadata
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+@pytest.mark.parametrize("format_type", TEXT_DOWNLOAD_FORMATS)
+def test_download_duckdb_geometry_as_complete_text(
+    format_type: str,
+) -> None:
+    from tests._plugins.ui._impl.tables.geometry_fixtures import (
+        duckdb_spatial_connection,
+    )
+
+    connection = duckdb_spatial_connection()
+    try:
+        source = connection.sql(
+            "SELECT * FROM (VALUES "
+            "('long', ST_GeomFromText(?)), "
+            "('point', ST_GeomFromText(?)), "
+            "('null', NULL)) AS data(row_label, geometry)",
+            params=[LONG_GEOMETRY_WKT, POINT_GEOMETRY_WKT],
+        )
+
+        with patch.object(
+            DependencyManager.shapely, "has", return_value=False
+        ):
+            rows = _download_text_rows(ui.table(source), format_type)
+
+        _assert_complete_geometry_rows(rows, format_type, LONG_GEOMETRY_WKT)
+        assert str(source.types[1]) == "GEOMETRY"
+    finally:
+        connection.close()
+
+
+@pytest.mark.requires("pyarrow")
+def test_geometry_text_download_preserves_row_selection() -> None:
+    import pyarrow as pa
+
+    metadata = {b"ARROW:extension:name": b"geoarrow.wkt"}
+    schema = pa.schema(
+        [
+            pa.field("row_label", pa.string()),
+            pa.field("geometry", pa.string(), metadata=metadata),
+        ]
+    )
+    source = pa.table(
+        {
+            "row_label": ["long", "point", "null"],
+            "geometry": [
+                LONG_GEOMETRY_WKT,
+                POINT_GEOMETRY_WKT,
+                None,
+            ],
+        },
+        schema=schema,
+    )
+    table = ui.table(source, selection="multi")
+    table._convert_value(["0", "2"])
+
+    rows = _download_text_rows(table, "json")
+
+    assert rows == [
+        {"row_label": "long", "geometry": LONG_GEOMETRY_WKT},
+        {"row_label": "null", "geometry": None},
+    ]
+
+
+@pytest.mark.requires("pyarrow", "shapely")
+def test_invalid_wkb_does_not_publish_an_artifact() -> None:
+    import pyarrow as pa
+    from shapely.errors import GEOSException
+
+    metadata = {b"ARROW:extension:name": b"geoarrow.wkb"}
+    field = pa.field("geometry", pa.binary(), metadata=metadata)
+    source = pa.table(
+        {
+            "geometry": [
+                bytes.fromhex("0101000000000000000000f03f0000000000000040"),
+                b"invalid",
+            ]
+        },
+        schema=pa.schema([field]),
+    )
+
+    with (
+        patch(
+            "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+        ) as publish,
+        pytest.raises(GEOSException),
+    ):
+        ui.table(source)._download_as(DownloadAsArgs(format="json"))
+
+    publish.assert_not_called()
+
+
+@pytest.mark.requires("pyarrow")
+def test_get_size_bytes_includes_complete_geometry_text() -> None:
+    import pyarrow as pa
+
+    schema = pa.schema(
+        [
+            pa.field("row_label", pa.string()),
+            pa.field(
+                "geometry",
+                pa.string(),
+                metadata={
+                    b"ARROW:extension:name": b"geoarrow.wkt",
+                },
+            ),
+        ]
+    )
+    source = pa.table(
+        {
+            "row_label": ["long"],
+            "geometry": [LONG_GEOMETRY_WKT],
+        },
+        schema=schema,
+    )
+
+    size_bytes = ui.table(source)._get_size_bytes(EmptyArgs()).size_bytes
+
+    assert size_bytes is not None
+    assert size_bytes > len(LONG_GEOMETRY_WKT)
 
 
 def test_get_size_bytes_rpc_extrapolates_from_sample() -> None:
