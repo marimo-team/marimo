@@ -103,9 +103,8 @@ class TestDecoratorImports:
             assert other() != my_module.__version__
             other_hash = other._last_hash
             assert doesnt_have_namespace() == my_module.__version__
-            # By virtue of backwards compatibility, this is true.
-            # TODO: Negate and fix.
-            assert other_hash == doesnt_have_namespace._last_hash
+            # Module identity contributes even without version pinning.
+            assert other_hash != doesnt_have_namespace._last_hash
 
         @app.cell
         def has_dep_with_differing_name_works_pinned() -> tuple[int]:
@@ -173,9 +172,8 @@ class TestDecoratorImports:
                     assert other() != my_module.__version__
                     other_hash = other._last_hash
                     assert doesnt_have_namespace() == my_module.__version__
-                    # By virtue of backwards compatibility, this is true.
-                    # TODO: Negate and fix.
-                    assert other_hash == doesnt_have_namespace._last_hash
+                    # Module identity contributes even without version pinning.
+                    assert other_hash != doesnt_have_namespace._last_hash
 
                     assert other_pinned() != my_module.__version__
                     other_hash_pinned = other_pinned._last_hash
