@@ -12,6 +12,7 @@ import { ShowInKioskMode } from "../../kiosk-mode";
 import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
 import { FooterItem } from "./footer-item";
 import { AIStatusIcon } from "./footer-items/ai-status";
+import { AttachmentStatus } from "./footer-items/attachment-status";
 import {
   BackendConnectionStatus,
   connectionStatusAtom,
@@ -107,6 +108,7 @@ export const Footer: React.FC = () => {
 
       <div className="flex items-center shrink-0 min-w-0">
         <MachineStats />
+        <AttachmentStatus />
         <AIStatusIcon />
         <CopilotStatusIcon />
         <RTCStatus />
