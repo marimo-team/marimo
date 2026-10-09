@@ -1819,9 +1819,9 @@ class Kernel:
         if error:
             # Surface the diagnostic on stderr so SSE clients (e.g. the
             # /api/kernel/execute CLI path) see it — compile errors
-            # never hit ``write_traceback``, so without this the error
-            # only reaches the ``CellNotification`` side channel and
-            # the SSE ``done`` event drops it.
+            # never hit `write_traceback`, so without this the error
+            # only reaches the `CellNotification` side channel and
+            # the SSE `done` event drops it.
             CellNotificationUtils.broadcast_console_output(
                 channel=CellChannel.STDERR,
                 mimetype="text/plain",

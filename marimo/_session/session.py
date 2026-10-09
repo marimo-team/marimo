@@ -392,7 +392,7 @@ class SessionImpl(Session):
         task = self._kernel_manager.kernel_task
         if task is None or task.is_alive():
             return None
-        # ``exitcode`` is provided by multiprocessing.Process; threads don't
+        # `exitcode` is provided by multiprocessing.Process; threads don't
         # have one, so we treat absence as "unknown".
         exitcode = getattr(task, "exitcode", None)
         return classify_kernel_exit(exitcode)

@@ -14,8 +14,8 @@
     "./providers.json": "./data/generated/providers.json"
   },
   "scripts": {
-    "codegen": "node --experimental-transform-types src/generate.ts",
-    "sync-models": "node --experimental-transform-types src/sync-models.ts",
+    "codegen": "node --experimental-strip-types src/generate.ts",
+    "sync-models": "node --experimental-strip-types src/sync-models.ts",
     "test": "vitest",
     "build": "echo 'No build step'"
   },

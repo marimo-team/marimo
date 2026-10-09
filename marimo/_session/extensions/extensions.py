@@ -103,9 +103,9 @@ class HeartbeatExtension(SessionExtension):
                 )
                 # Notify the frontend before closing the WS so the user sees
                 # a persistent banner with the real cause instead of just a
-                # "disconnected" UI. ``notify`` only queues the frame on each
+                # "disconnected" UI. `notify` only queues the frame on each
                 # consumer's send queue; yield to the event loop afterwards
-                # so the WS writer task drains it before ``session.close``
+                # so the WS writer task drains it before `session.close`
                 # detaches the consumers. Inner guard isolates a broadcast
                 # failure from cleanup -- we still want to close the session
                 # and log even if the banner can't be delivered.
@@ -350,8 +350,8 @@ class NotificationListenerExtension(SessionExtension):
                 self._unnamed_autosave_logged = True
             return
 
-        # Deep-copy on the caller thread. ``NotebookCell`` and
-        # ``CellConfig`` are mutable and owned by the document, so a
+        # Deep-copy on the caller thread. `NotebookCell` and
+        # `CellConfig` are mutable and owned by the document, so a
         # shallow copy would let the event-loop thread mutate fields
         # under the worker thread's feet (torn snapshot).
         cells_snapshot: list[NotebookCell] = copy.deepcopy(

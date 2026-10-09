@@ -103,7 +103,7 @@ class AsyncBackgroundTask(ABC):
             self.running = False
             return
 
-        # Reuse the task's loop — a fresh loop via ``asyncio.run`` would
+        # Reuse the task's loop — a fresh loop via `asyncio.run` would
         # error with "future attached to a different event loop".
         task_loop = self.task.get_loop()
 
