@@ -969,7 +969,12 @@ def test_dotenv_explicit_precedence_snapshot(config_tree: Path) -> None:
             '["script.env"]',
             ["memory.env"],
         ),
-        ("absolute_path", f'["{(project / "absolute.env").as_posix()}"]', None, None),
+        (
+            "absolute_path",
+            f'["{(project / "absolute.env").as_posix()}"]',
+            None,
+            None,
+        ),
     ]:
         pyproject.write_text(
             "[tool.marimo.runtime]\n"
