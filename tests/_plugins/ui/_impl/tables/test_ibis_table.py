@@ -250,7 +250,7 @@ class TestIbisTableManagerFactory(unittest.TestCase):
 
     def test_get_sample_values(self) -> None:
         sample_values = self.manager.get_sample_values("A")
-        assert sample_values == []
+        assert sample_values is None
 
     def test_search(self) -> None:
         import ibis

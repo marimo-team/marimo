@@ -4,9 +4,7 @@ from __future__ import annotations
 import datetime
 import functools
 import io
-import json
 import math
-from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -16,6 +14,7 @@ from narwhals.typing import IntoDataFrameT, IntoLazyFrameT
 
 from marimo import _loggers
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -34,6 +33,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
     TableCoordinate,
     TableManager,
+    is_missing_sample_value,
 )
 from marimo._utils.narwhals_utils import (
     can_narwhalify,
@@ -46,6 +46,7 @@ from marimo._utils.narwhals_utils import (
     is_narwhals_time_type,
     unwrap_py_scalar,
 )
+from marimo._utils.serialization import serialize_sample_value
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.table import SortArgs
@@ -382,7 +383,12 @@ class NarwhalsTableManager(
         return NarwhalsTableManager(filtered)
 
     def get_stats(self, column: str) -> ColumnStats:
-        stats = self._get_stats_internal(column)
+        return self.get_stats_for_columns([column])[column]
+
+    def get_stats_for_columns(
+        self, columns: list[str]
+    ) -> dict[str, ColumnStats]:
+        stats_by_column = self._get_stats_internal_for_columns(columns)
         import warnings
 
         with warnings.catch_warnings():
@@ -392,20 +398,90 @@ class NarwhalsTableManager(
                 category=UserWarning,
             )
 
-            # Normalize values to Python builtins
-            for field in msgspec.structs.fields(stats):
-                value = getattr(stats, field.name)
-                if value is not None:
-                    setattr(stats, field.name, unwrap_py_scalar(value))
+            for stats in stats_by_column.values():
+                # Normalize values to Python builtins
+                for field in msgspec.structs.fields(stats):
+                    value = getattr(stats, field.name)
+                    if value is not None:
+                        setattr(stats, field.name, unwrap_py_scalar(value))
 
-        return stats
+        return stats_by_column
 
-    def _get_stats_internal(self, column: str) -> ColumnStats:
+    def _get_stats_internal_for_columns(
+        self, columns: list[str]
+    ) -> dict[str, ColumnStats]:
+        requested_columns = list(dict.fromkeys(columns))
+        stats_by_column = {
+            column: ColumnStats()
+            for column in requested_columns
+            if column not in self.nw_schema
+        }
+        columns = [
+            column for column in requested_columns if column in self.nw_schema
+        ]
+        if not columns:
+            return stats_by_column
+
+        frame = self.as_lazy_frame()
+        expressions: list[nw.Expr] = []
+        aliases_by_column: dict[str, dict[str, str]] = {}
+        units_by_column: dict[str, dict[str, str]] = {}
+
+        for index, column in enumerate(columns):
+            column_expressions, units = self._get_stats_expressions(
+                frame, column
+            )
+            aliases: dict[str, str] = {}
+            for field, expression in column_expressions.items():
+                alias = f"column_{index}_{field}"
+                aliases[field] = alias
+                expressions.append(expression.alias(alias))
+            aliases_by_column[column] = aliases
+            units_by_column[column] = units
+
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="Mean of empty slice|Degrees of freedom",
+                category=RuntimeWarning,
+            )
+            stats_row = (
+                frame.select(*expressions).collect().rows(named=True)[0]
+            )
+
+        for column in columns:
+            stats_dict = {
+                field: stats_row[alias]
+                for field, alias in aliases_by_column[column].items()
+            }
+            units = units_by_column[column]
+
+            # Maybe add units to the stats
+            for key, value in stats_dict.items():
+                if key in units:
+                    stats_dict[key] = f"{value} {units[key]}"
+
+            # Maybe coerce null count to int
+            if stats_dict["nulls"] is not None:
+                stats_dict["nulls"] = int(stats_dict["nulls"])
+
+            stats_by_column[column] = ColumnStats(**stats_dict)
+
+        return {
+            column: stats_by_column[column] for column in requested_columns
+        }
+
+    def _get_stats_expressions(
+        self,
+        frame: nw.LazyFrame[Any],
+        column: str,
+    ) -> tuple[dict[str, nw.Expr], dict[str, str]]:
         # If column is not in the dataframe, return empty stats
         if column not in self.nw_schema:
-            return ColumnStats()
+            return {}, {}
 
-        frame = self.data.lazy()
         col = nw.col(column)
         dtype = self.nw_schema[column]
         units: dict[str, str] = {}
@@ -538,27 +614,7 @@ class NarwhalsTableManager(
                     }
                 )
 
-        import warnings
-
-        stats = frame.select(**exprs)
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message="Mean of empty slice|Degrees of freedom",
-                category=RuntimeWarning,
-            )
-            stats_dict = stats.collect().rows(named=True)[0]
-
-        # Maybe add units to the stats
-        for key, value in stats_dict.items():
-            if key in units:
-                stats_dict[key] = f"{value} {units[key]}"
-
-        # Maybe coerce null count to int
-        if stats_dict["nulls"] is not None:
-            stats_dict["nulls"] = int(stats_dict["nulls"])
-
-        return ColumnStats(**stats_dict)
+        return exprs, units
 
     def get_bin_values(self, column: str, num_bins: int) -> list[BinValue]:
         if column not in self.nw_schema:
@@ -737,60 +793,45 @@ class NarwhalsTableManager(
             # If an exception occurs, try converting to strings first
             return frame[column].cast(nw.String).unique().to_list()
 
-    def get_sample_values(self, column: str) -> list[str | int | float]:
-        # Skip lazy frames
+    def get_sample_values(
+        self,
+        column: str,
+        max_values: int = 3,
+    ) -> list[Any] | None:
         if is_narwhals_lazyframe(self.data):
-            return []
+            return None
 
-        # Sample 3 values from the column
-        SAMPLE_SIZE = 3
         try:
+            series = self.data[column].head(max_values)
 
-            def _json_default(o: Any) -> str:
-                if isinstance(o, Enum):
-                    return o.name
-                return str(o)
-
-            def to_primitive(value: Any) -> str | int | float:
-                if isinstance(value, Enum):
-                    return value.name
-                if isinstance(value, (int, float)):
-                    return value
-                if isinstance(value, (list, dict)):
-                    try:
-                        return json.dumps(value, default=_json_default)
-                    except (TypeError, ValueError):
-                        return str(value)
-                return str(value)
-
-            if self.data[column].dtype == nw.Datetime:
+            if series.dtype == nw.Datetime:
                 # Drop timezone info for datetime columns
                 # It's ok to drop timezone since these are just sample values
                 # and not used for any calculations
                 values = (
-                    self.data[column]
-                    .dt.replace_time_zone(None)
-                    .head(SAMPLE_SIZE)
+                    series.dt.replace_time_zone(None)
+                    .head(max_values)
                     .to_list()
                 )
             else:
-                values = self.data[column].head(SAMPLE_SIZE).to_list()
-            # For non-numeric columns, NaN represents null values
-            # (e.g., pandas 3 with StringDtype stores None as NaN)
-            if not self.data[column].dtype.is_numeric():
-                import math
+                values = series.to_list()
+            return [
+                value
+                if is_missing_sample_value(value)
+                else serialize_sample_value(value)
+                for value in values
+            ]
+        except Exception:
+            # Control-flow exceptions must propagate; ordinary backend errors
+            # mean sampling is unavailable, as with metadata-only frames.
+            return None
+        except BaseException as error:
+            if DependencyManager.polars.has():
+                import polars as pl
 
-                values = [
-                    None if isinstance(v, float) and math.isnan(v) else v
-                    for v in values
-                ]
-            # Serialize values to primitives
-            return [to_primitive(v) for v in values]
-        except BaseException:
-            # Catch-all: some libraries like Polars have bugs and raise
-            # BaseExceptions, which shouldn't crash the kernel
-            # May be metadata-only frame
-            return []
+                if isinstance(error, pl.exceptions.PanicException):
+                    return None
+            raise
 
     def sort_values(self, by: list[SortArgs]) -> TableManager[Any]:
         if not by:
