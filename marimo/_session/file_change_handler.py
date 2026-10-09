@@ -243,8 +243,8 @@ class FileChangeCoordinator:
                 )
                 return FileChangeResult(handled=False)
 
-        # Reload the file manager to get the latest code. ``reload``
-        # mutates the existing document in place via ``apply()`` and
+        # Reload the file manager to get the latest code. `reload`
+        # mutates the existing document in place via `apply()` and
         # returns the stamped transaction, so we just relay it.
         try:
             transaction, changed_cell_ids = (

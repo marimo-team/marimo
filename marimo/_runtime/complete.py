@@ -191,7 +191,7 @@ def _convert_docstring_to_markdown(
             )
 
     # Prefer markdown rendering when math syntax is present.
-    # This ensures ``.. math::`` and markdown delimiters are interpreted by
+    # This ensures `.. math::` and markdown delimiters are interpreted by
     # the same TeX pipeline used elsewhere in marimo output.
     if _contains_math_syntax(raw_docstring):
         return as_md_html(raw_docstring)

@@ -313,7 +313,7 @@ class NotebookDocument:
 # ------------------------------------------------------------------
 
 #: Document snapshot for the current scratchpad execution. Set by the
-#: kernel before running code_mode so ``AsyncCodeModeContext`` can read
+#: kernel before running code_mode so `AsyncCodeModeContext` can read
 #: cell ordering, code, names, and configs without the kernel carrying
 #: mutable document state.
 _current_document: ContextVar[NotebookDocument | None] = ContextVar(
