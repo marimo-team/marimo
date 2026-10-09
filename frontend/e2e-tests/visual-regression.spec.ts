@@ -174,10 +174,7 @@ async function prepareVisualCase(
         border: style.borderColor,
       };
     });
-    const expectedBorder = await resolveColor(
-      page,
-      `color-mix(in srgb, var(${semanticToken}), transparent 0%)`,
-    );
+    const expectedBorder = await resolveColor(page, `var(${semanticToken})`);
 
     expect(colors.border, label).toBe(expectedBorder);
     expect(colors.border, label).not.toBe(colors.background);
