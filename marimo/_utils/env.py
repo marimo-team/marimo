@@ -3,6 +3,13 @@ from __future__ import annotations
 
 import os
 
+PAIR_PREVIEW_ENV = "MARIMO_PAIR_NEXT"
+
+
+def pair_preview_enabled() -> bool:
+    """Return whether the Pair preview is enabled."""
+    return is_env_true(PAIR_PREVIEW_ENV)
+
 
 def is_env_true(key: str, default: bool = False) -> bool:
     """Return True if the env var `key` is set to a truthy value ("true"/"1").
