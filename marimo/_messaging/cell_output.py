@@ -35,6 +35,8 @@ class CellOutput(msgspec.Struct):
     mimetype: KnownMimeType
     data: str | list[Error] | dict[str, Any]
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
+    # Source code associated with this output, omitted when unavailable.
+    code: str | msgspec.UnsetType = msgspec.UNSET
 
     def __repr__(self) -> str:
         return f"CellOutput(channel={self.channel}, mimetype={self.mimetype}, timestamp={self.timestamp})"
@@ -79,9 +81,12 @@ class CellOutput(msgspec.Struct):
         )
 
     @staticmethod
-    def errors(data: list[Error]) -> CellOutput:
+    def errors(
+        data: list[Error], *, code: str | msgspec.UnsetType = msgspec.UNSET
+    ) -> CellOutput:
         return CellOutput(
             channel=CellChannel.MARIMO_ERROR,
             mimetype="application/vnd.marimo+error",
             data=data,
+            code=code,
         )
