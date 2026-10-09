@@ -40,8 +40,8 @@ export interface ConnectionInfo {
   url: string;
   /** The server's file key, when known. */
   file?: string;
-  /** The stable session ID, when known. */
-  session?: string;
+  /** The host notebook ID, when known. */
+  notebook?: string;
 }
 
 /**
@@ -50,7 +50,7 @@ export interface ConnectionInfo {
  */
 export function getTerminalCommand(
   agent: Exclude<AgentTab, "prompt">,
-  { url, session }: ConnectionInfo,
+  { url, notebook }: ConnectionInfo,
   withToken: boolean,
   preview?: PairPreviewConfig,
 ): string {
@@ -59,7 +59,7 @@ export function getTerminalCommand(
   const base = [
     `${prefix}${command} pair prompt`,
     `--url ${shellQuote(url)}`,
-    preview && session ? `--session ${shellQuote(session)}` : "",
+    preview && notebook ? `--notebook ${shellQuote(notebook)}` : "",
     withToken ? "--with-token" : "",
     preview ? "" : `--${agent}`,
   ]
@@ -83,7 +83,7 @@ export function getTerminalCommand(
  * an agent behaves the same as the terminal commands.
  */
 export function getRawPrompt(
-  { url, file, session }: ConnectionInfo,
+  { url, file, notebook }: ConnectionInfo,
   token: string | null,
   preview?: PairPreviewConfig,
 ): string {
@@ -92,7 +92,7 @@ export function getRawPrompt(
     return formatPrompt(templates.prompt, {
       command,
       url,
-      session: session ? formatPrompt(templates.session, { session }) : "",
+      notebook: notebook ? formatPrompt(templates.notebook, { notebook }) : "",
       authentication: token
         ? formatPrompt(templates.token, { token: shellQuote(token) })
         : "",

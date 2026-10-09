@@ -15,9 +15,12 @@ export interface CellOutputHandoff<Output> {
 
 export interface ErrorHandoffOutput {
   type: "error";
+  instructions: string;
   message: string;
   traceback?: string;
 }
+
+export const ERROR_HANDOFF_INSTRUCTIONS = "Fix this notebook error.";
 
 export function buildErrorReport(
   cellId: CellId,
@@ -42,14 +45,16 @@ export function buildErrorReport(
     message = traceback.split("\n").findLast((line) => line.length > 0) ?? "";
   }
 
+  // Put repair intent before evidence so it survives prefix truncation.
   return {
     type: "cell-output",
     cell_id: cellId,
-    ...(evidence.code === undefined ? {} : { code: evidence.code }),
     output: {
       type: "error",
+      instructions: ERROR_HANDOFF_INSTRUCTIONS,
       message,
       ...(traceback ? { traceback } : {}),
     },
+    ...(evidence.code === undefined ? {} : { code: evidence.code }),
   };
 }

@@ -54,13 +54,41 @@ export const PairWithAgentModal: React.FC<{
   const runtimeManager = useRuntimeManager();
   const preview = useAtomValue(pairPreviewAtom);
   const stableSessionId = useAtomValue(stableSessionIdAtom);
+  const [notebookId, setNotebookId] = useState<string | undefined>();
+  useEffect(() => {
+    if (!preview || !stableSessionId) {
+      setNotebookId(undefined);
+      return;
+    }
+    let cancelled = false;
+    API.get<Record<string, { session_id: string; notebook_id: string | null }>>(
+      "/sessions",
+    )
+      .then((sessions) => {
+        if (!cancelled) {
+          setNotebookId(
+            Object.values(sessions).find(
+              (session) => session.session_id === stableSessionId,
+            )?.notebook_id ?? undefined,
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setNotebookId(undefined);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [preview, stableSessionId]);
   const commandStep = preview ? 1 : 2;
   const authToken = useAuthToken();
   const hasToken = Boolean(authToken);
   const connection: ConnectionInfo = {
     url: runtimeManager.httpURL.toString(),
     file: preview ? undefined : getFileFromURL(window.location.href),
-    session: preview ? (stableSessionId ?? undefined) : undefined,
+    notebook: preview ? notebookId : undefined,
   };
 
   return (

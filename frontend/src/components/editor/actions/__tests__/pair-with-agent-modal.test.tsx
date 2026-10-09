@@ -43,6 +43,19 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 const STABLE_ID = "sess-stable-1" as StableSessionId;
+const NOTEBOOK_ID = "nb-one";
+function responseFor(url: string | URL | Request, token: string | null = null) {
+  return Promise.resolve(
+    new Response(
+      JSON.stringify(
+        String(url).endsWith("/api/sessions")
+          ? { one: { session_id: STABLE_ID, notebook_id: NOTEBOOK_ID } }
+          : { token },
+      ),
+      { headers: { "Content-Type": "application/json" } },
+    ),
+  );
+}
 
 describe("PairWithAgentModal", () => {
   beforeEach(() => {
@@ -57,7 +70,7 @@ describe("PairWithAgentModal", () => {
     window.history.replaceState({}, "", "/?file=notebook.py");
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response(JSON.stringify({ token: null }))),
+      vi.fn().mockImplementation((url) => responseFor(url)),
     );
   });
 
@@ -69,7 +82,7 @@ describe("PairWithAgentModal", () => {
   });
 
   it.each(["Claude", "Codex", "OpenCode", "Prompt"])(
-    "omits skill installation and targets the stable session in %s preview",
+    "omits skill installation and targets the host notebook in %s preview",
     async (tab) => {
       await act(async () => {
         render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
@@ -81,7 +94,7 @@ describe("PairWithAgentModal", () => {
 
       const panel = screen.getByRole("tabpanel");
       expect(within(panel).queryAllByText(/skill/i)).toEqual([]);
-      expect(panel).toHaveTextContent(STABLE_ID);
+      expect(panel).toHaveTextContent(NOTEBOOK_ID);
       expect(panel).not.toHaveTextContent("--file");
       expect(panel).not.toHaveTextContent("File:");
       expect(panel).not.toHaveTextContent("notebook.py");
@@ -95,7 +108,7 @@ describe("PairWithAgentModal", () => {
       );
       await waitFor(() => expect(copyToClipboard).toHaveBeenCalledOnce());
       const copied = vi.mocked(copyToClipboard).mock.calls[0][0];
-      expect(copied).toContain(STABLE_ID);
+      expect(copied).toContain(NOTEBOOK_ID);
       expect(copied).not.toContain("notebook.py");
     },
   );
@@ -113,8 +126,8 @@ describe("PairWithAgentModal", () => {
       });
 
       const panel = screen.getByRole("tabpanel");
-      expect(panel).not.toHaveTextContent("--session");
-      expect(panel).not.toHaveTextContent("Session:");
+      expect(panel).not.toHaveTextContent("--notebook");
+      expect(panel).not.toHaveTextContent("Notebook:");
       expect(panel).toHaveTextContent("http://localhost:8000");
     },
   );
@@ -150,8 +163,8 @@ describe("PairWithAgentModal", () => {
     "masks the raw token but copies it intact (preview=%s)",
     async (preview) => {
       store.set(pairPreviewAtom, preview ? PAIR_PREVIEW : undefined);
-      vi.mocked(fetch).mockResolvedValue(
-        new Response(JSON.stringify({ token: "secret-token" })),
+      vi.mocked(fetch).mockImplementation((url) =>
+        responseFor(url, "secret-token"),
       );
       await act(async () => {
         render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
@@ -178,8 +191,8 @@ describe("PairWithAgentModal", () => {
   );
 
   it("copies a preview terminal command without the token and lets the user copy the token separately", async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ token: "secret-token" })),
+    vi.mocked(fetch).mockImplementation((url) =>
+      responseFor(url, "secret-token"),
     );
     await act(async () => {
       render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
@@ -195,7 +208,7 @@ describe("PairWithAgentModal", () => {
       expect(copyToClipboard).toHaveBeenCalledWith(
         String.raw`claude "$(MARIMO_PAIR_NEXT=1 uvx marimo@latest pair prompt \
   --url http://localhost:8000/ \
-  --session ${STABLE_ID} \
+  --notebook ${NOTEBOOK_ID} \
   --with-token)"`,
       ),
     );

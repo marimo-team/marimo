@@ -4,11 +4,11 @@ import { useAtomValue } from "jotai";
 import { SendIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/use-toast";
 import {
   agentAttachmentsAtom,
   attachmentLabel,
 } from "@/core/attachments/state";
+import { agentToast } from "@/core/attachments/toast";
 import { pairPreviewAtom } from "@/core/config/pair";
 import { stableSessionIdAtom } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
@@ -38,9 +38,11 @@ export function SendErrorReportButton({
         `/pair/notebooks/${encodeURIComponent(stableSessionId)}/messages`,
         getContent(),
       );
-      toast({ title: `Sent to ${agents.map(attachmentLabel).join(", ")}` });
+      agentToast({
+        title: `Sent to ${agents.map(attachmentLabel).join(", ")}`,
+      });
     } catch (error) {
-      toast({
+      agentToast({
         variant: "danger",
         title:
           error instanceof HTTPError && error.status === 409

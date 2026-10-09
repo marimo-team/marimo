@@ -2,7 +2,8 @@
 
 import { useAtomValue } from "jotai";
 import { BotIcon } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -13,43 +14,77 @@ import {
   agentAttachmentsAtom,
   attachmentLabel,
 } from "@/core/attachments/state";
+import { agentToast } from "@/core/attachments/toast";
 import { pairPreviewAtom } from "@/core/config/pair";
+import { stableSessionIdAtom } from "@/core/kernel/session";
+import { API } from "@/core/network/api";
 import { useTimeAgo } from "@/hooks/useFormatting";
-import { Objects } from "@/utils/objects";
 import { FooterItem } from "../footer-item";
 
 export function AttachmentStatus() {
   const pairPreview = useAtomValue(pairPreviewAtom);
   const agents = useAtomValue(agentAttachmentsAtom);
-  if (!pairPreview) {
+  const [open, setOpen] = useState(false);
+  const previous = useRef(new Set<string>());
+  const automatic = useRef(false);
+  const timeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const stopTimer = useCallback(() => clearTimeout(timeout.current), []);
+  const startTimer = useCallback(() => {
+    stopTimer();
+    timeout.current = setTimeout(() => setOpen(false), 3000);
+  }, [stopTimer]);
+  const preserveEditorFocus = (event: Event) => {
+    if (automatic.current) {
+      event.preventDefault();
+    }
+  };
+
+  useEffect(() => {
+    const current = new Set(
+      pairPreview ? agents.map((agent) => agent.identity ?? agent.id) : [],
+    );
+    const connected = [...current].some((id) => !previous.current.has(id));
+    for (const id of current) {
+      previous.current.add(id);
+    }
+    if (current.size === 0) {
+      stopTimer();
+      setOpen(false);
+    } else if (connected) {
+      automatic.current = true;
+      setOpen(true);
+      startTimer();
+    }
+  }, [agents, pairPreview, startTimer, stopTimer]);
+
+  useEffect(() => stopTimer, [stopTimer]);
+
+  if (!pairPreview || agents.length === 0) {
     return null;
   }
-  const groups = Objects.groupBy(
-    agents,
-    (attachment) =>
-      attachment.identity
-        ? `identity:${attachment.identity}`
-        : `attachment:${attachment.id}`,
-    (attachment) => attachment,
-  );
-  return Object.entries(groups).map(([identity, attachments]) => (
-    <AttachmentStatusItem key={identity} attachments={attachments} />
-  ));
-}
+  const identities = new Set(agents.map((agent) => agent.identity ?? agent.id));
+  const label =
+    identities.size === 1
+      ? `${attachmentLabel(agents[0])} connected`
+      : `${identities.size} agents connected`;
 
-function AttachmentStatusItem({ attachments }: { attachments: Attachment[] }) {
-  const [open, setOpen] = useState(false);
-  const timeAgo = useTimeAgo();
-  const label = attachmentLabel(attachments[0]);
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        automatic.current = false;
+        stopTimer();
+        setOpen(nextOpen);
+      }}
+    >
       <PopoverTrigger asChild={true}>
         <FooterItem
           asChild={true}
-          tooltip={`${label}: connected`}
+          tooltip={label}
           selected={open}
           data-testid="footer-attachment-status"
-          aria-label={`${label}: Connected`}
+          aria-label={label}
         >
           <button type="button">
             <span className="flex items-center gap-1.5">
@@ -59,24 +94,84 @@ function AttachmentStatusItem({ attachments }: { attachments: Attachment[] }) {
           </button>
         </FooterItem>
       </PopoverTrigger>
-      <PopoverContent className="w-64 text-sm">
-        <h4 className="font-medium">{label}</h4>
-        <ul className="space-y-2">
-          {attachments.map((attachment) => (
-            <li key={attachment.id}>
-              <p
-                className="truncate text-xs text-muted-foreground"
-                title={attachment.id}
-              >
-                {attachment.id}
-              </p>
-              <p className="text-muted-foreground">
-                Connected {timeAgo(attachment.since)}
-              </p>
-            </li>
+      <PopoverContent
+        className="w-80 p-0 text-sm"
+        side="top"
+        align="start"
+        onOpenAutoFocus={preserveEditorFocus}
+        onCloseAutoFocus={preserveEditorFocus}
+        onPointerEnter={stopTimer}
+        onPointerLeave={() => {
+          if (automatic.current) {
+            startTimer();
+          }
+        }}
+        onFocusCapture={() => {
+          automatic.current = false;
+          stopTimer();
+        }}
+      >
+        <h4 className="font-medium px-4 py-3 border-b">{label}</h4>
+        <div className="max-h-72 overflow-auto divide-y">
+          {agents.map((attachment) => (
+            <AttachmentStatusItem key={attachment.id} attachment={attachment} />
           ))}
-        </ul>
+        </div>
+        <p className="px-4 py-3 border-t text-xs text-muted-foreground">
+          Disconnect removes the notebook connection. The agent session keeps
+          running.
+        </p>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function AttachmentStatusItem({ attachment }: { attachment: Attachment }) {
+  const stableSessionId = useAtomValue(stableSessionIdAtom);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const timeAgo = useTimeAgo();
+  const label = attachmentLabel(attachment);
+
+  const disconnect = async () => {
+    if (disconnecting || !stableSessionId) {
+      return;
+    }
+    setDisconnecting(true);
+    try {
+      await API.post(
+        `/pair/notebooks/${encodeURIComponent(stableSessionId)}/attachments/detach`,
+        { attachment_id: attachment.id },
+      );
+    } catch {
+      agentToast({ variant: "danger", title: `Could not disconnect ${label}` });
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
+  return (
+    <div className="flex items-start gap-3 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <h5 className="font-medium">{label}</h5>
+        <p className="text-xs text-muted-foreground mt-1">
+          Connected {timeAgo(attachment.since)}
+        </p>
+        <p
+          className="text-xs font-mono text-muted-foreground truncate mt-1"
+          title={attachment.id}
+        >
+          {attachment.id}
+        </p>
+      </div>
+      <Button
+        size="xs"
+        variant="outlineDestructive"
+        disabled={disconnecting || !stableSessionId}
+        onClick={disconnect}
+        aria-label={`Disconnect ${label}`}
+      >
+        {disconnecting ? "Disconnecting…" : "Disconnect"}
+      </Button>
+    </div>
   );
 }

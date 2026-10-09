@@ -7,7 +7,7 @@ export const pairPreviewSchema = z.object({
   command: z.string(),
   templates: z.object({
     prompt: z.string(),
-    session: z.string(),
+    notebook: z.string(),
     token_file: z.string(),
     token: z.string(),
   }),

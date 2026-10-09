@@ -15,7 +15,7 @@ import { PAIR_PREVIEW } from "@/__tests__/fixtures/pair-preview";
 const CONNECTION: ConnectionInfo = {
   url: "http://localhost:8000",
   file: "notebooks/example.py",
-  session: "s_ab12cd",
+  notebook: "s_ab12cd",
 };
 
 const CONNECTION_WITHOUT_FILE: ConnectionInfo = {
@@ -112,14 +112,14 @@ describe("getTerminalCommand", () => {
       expect(
         getTerminalCommand(
           "claude",
-          { url: "http://host:8000?a=1&b=2", session: "s_' {file}" },
+          { url: "http://host:8000?a=1&b=2", notebook: "s_' {file}" },
           false,
           { ...PAIR_PREVIEW, command: "uvx marimo@latest" },
         ),
       ).toBe(
         String.raw`claude "$(MARIMO_PAIR_NEXT=1 uvx marimo@latest pair prompt \
   --url 'http://host:8000?a=1&b=2' \
-  --session 's_'"'"' {file}')"`,
+  --notebook 's_'"'"' {file}')"`,
       );
       expect(
         getTerminalCommand(
@@ -147,14 +147,14 @@ describe("getTerminalCommand", () => {
       expect(
         getTerminalCommand(
           agent,
-          { ...CONNECTION, session: "s_ab12cd" },
+          { ...CONNECTION, notebook: "s_ab12cd" },
           true,
           PAIR_PREVIEW,
         ),
       ).toBe(
         String.raw`${cli} "$(MARIMO_PAIR_NEXT=1 uvx marimo@latest pair prompt \
   --url http://localhost:8000 \
-  --session s_ab12cd \
+  --notebook s_ab12cd \
   --with-token)"`,
       );
     },
@@ -180,7 +180,7 @@ describe("getTerminalCommand", () => {
 
   it("omits the session outside the preview", () => {
     expect(getTerminalCommand("claude", CONNECTION, false)).not.toContain(
-      "--session",
+      "--notebook",
     );
   });
 
@@ -192,7 +192,7 @@ describe("getTerminalCommand", () => {
         false,
         PAIR_PREVIEW,
       ),
-    ).not.toContain("--session");
+    ).not.toContain("--notebook");
   });
 
   it("shell-escapes a url containing metacharacters", () => {
@@ -222,7 +222,7 @@ describe("getRawPrompt", () => {
       getRawPrompt(
         {
           url: "http://host/{session}",
-          session: "{command}/it's",
+          notebook: "{command}/it's",
         },
         "tok'en {session} $&",
         {
@@ -230,21 +230,21 @@ describe("getRawPrompt", () => {
           command: "custom marimo",
           templates: {
             ...PAIR_PREVIEW.templates,
-            prompt: "{command}\n{url}\n{session}{authentication}",
+            prompt: "{command}\n{url}\n{notebook}{authentication}",
           },
         },
       ),
     ).toBe(
-      "custom marimo\nhttp://host/{session}\nSession: {command}/it's\n" +
-        `\n\nFor authenticated Pair commands, set \`export MARIMO_TOKEN='tok'"'"'en {session} $&'\` in the shell that runs marimo.`,
+      "custom marimo\nhttp://host/{session}\nNotebook: {command}/it's\n" +
+        `\n\nFor authenticated notebook discovery, set \`export MARIMO_TOKEN='tok'"'"'en {session} $&'\` in the shell that runs marimo.`,
     );
   });
 
   it.each([
     [CONNECTION_WITHOUT_FILE, ""],
     [
-      { ...CONNECTION_WITHOUT_FILE, session: "s_ab12cd" },
-      "Session: s_ab12cd\n",
+      { ...CONNECTION_WITHOUT_FILE, notebook: "s_ab12cd" },
+      "Notebook: s_ab12cd\n",
     ],
     [{ ...CONNECTION_WITHOUT_FILE, file: "notebook.py" }, ""],
   ])("omits absent preview fields for %j", (connection, fields) => {
@@ -252,21 +252,19 @@ describe("getRawPrompt", () => {
       "Pair with me on this running marimo notebook.\n\n" +
         `URL: http://localhost:8000\n${fields}\n` +
         "Run `uvx marimo@latest pair --help` first.\n" +
-        "Use `uvx marimo@latest` for all marimo commands.\n\n" +
-        "Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).",
+        "Use `uvx marimo@latest` for all marimo commands.",
     );
   });
 
   it("renders the shared preview template with the session and no file", () => {
     expect(
-      getRawPrompt({ ...CONNECTION, session: "s_ab12cd" }, null, PAIR_PREVIEW),
+      getRawPrompt({ ...CONNECTION, notebook: "s_ab12cd" }, null, PAIR_PREVIEW),
     ).toBe(
       "Pair with me on this running marimo notebook.\n\n" +
         "URL: http://localhost:8000\n" +
-        "Session: s_ab12cd\n\n" +
+        "Notebook: s_ab12cd\n\n" +
         "Run `uvx marimo@latest pair --help` first.\n" +
-        "Use `uvx marimo@latest` for all marimo commands.\n\n" +
-        "Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).",
+        "Use `uvx marimo@latest` for all marimo commands.",
     );
   });
 
@@ -284,7 +282,7 @@ describe("getRawPrompt", () => {
     const prompt = getRawPrompt(CONNECTION_WITHOUT_FILE, null);
     expect(prompt).toContain("execute-code.sh --url http://localhost:8000");
     expect(prompt).not.toContain("--file");
-    expect(prompt).not.toContain("--session");
+    expect(prompt).not.toContain("--notebook");
   });
 
   it("omits the token hint when there is no token", () => {
