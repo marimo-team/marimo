@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
-from unittest.mock import patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -56,6 +56,22 @@ def test_is_compatible() -> None:
     assert isinstance(engine, DBAPIEngine)
     assert isinstance(engine, QueryEngine)
     assert not isinstance(engine, EngineCatalog)
+
+
+@pytest.mark.parametrize("raises_during_inspection", [False, True])
+def test_is_compatible_closes_rejected_cursor(
+    raises_during_inspection: bool,
+) -> None:
+    cursor = MagicMock(spec=["fetchall", "close"])
+    if raises_during_inspection:
+        type(cursor).execute = PropertyMock(
+            side_effect=RuntimeError("offline")
+        )
+    connection = MagicMock(spec=sqlite3.Connection)
+    connection.cursor.return_value = cursor
+
+    assert not DBAPIEngine.is_compatible(connection)
+    cursor.close.assert_called_once_with()
 
 
 def test_is_compatible_rejects_fabricated_attributes() -> None:

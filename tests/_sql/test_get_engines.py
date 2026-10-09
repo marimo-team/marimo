@@ -311,19 +311,49 @@ def test_get_engines_from_variables_adbc_sqlite() -> None:
         conn.close()
 
 
-def test_get_engines_from_variables_sqlite3_is_not_adbc() -> None:
+@pytest.mark.parametrize("raises_on_close", [False, True])
+def test_get_engines_from_variables_sqlite3_closes_probe_cursors(
+    raises_on_close: bool,
+) -> None:
     import sqlite3
 
-    conn = sqlite3.connect(":memory:")
-    try:
-        variables: list[tuple[str, object]] = [("sqlite3_conn", conn)]
-        engines = get_engines_from_variables(variables)
+    cursors: list[sqlite3.Cursor] = []
 
-        assert len(engines) == 1
-        var_name, engine = engines[0]
-        assert var_name == "sqlite3_conn"
-        assert isinstance(engine, DBAPIEngine)
-        assert not isinstance(engine, AdbcDBAPIEngine)
+    class TrackingCursor(sqlite3.Cursor):
+        def close(self) -> None:
+            super().close()
+            if raises_on_close:
+                raise RuntimeError("cleanup failed")
+
+    class TrackingConnection(sqlite3.Connection):
+        def cursor(self) -> sqlite3.Cursor:
+            cursor = super().cursor(factory=TrackingCursor)
+            cursors.append(cursor)
+            return cursor
+
+    conn = sqlite3.connect(":memory:", factory=TrackingConnection)
+    try:
+        user_cursor = conn.cursor()
+        cursors.clear()
+        variables: list[tuple[str, object]] = [("sqlite3_conn", conn)]
+        for _ in range(3):
+            engines = get_engines_from_variables(variables)
+
+            assert len(engines) == 1
+            var_name, engine = engines[0]
+            assert var_name == "sqlite3_conn"
+            assert isinstance(engine, DBAPIEngine)
+            assert not isinstance(engine, AdbcDBAPIEngine)
+
+        assert len(cursors) == 3
+        for cursor in cursors:
+            with pytest.raises(
+                sqlite3.ProgrammingError, match="closed cursor"
+            ):
+                cursor.execute("SELECT 1")
+
+        assert conn.execute("SELECT 1").fetchone() == (1,)
+        assert user_cursor.execute("SELECT 2").fetchone() == (2,)
     finally:
         conn.close()
 
