@@ -15,8 +15,10 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
+from marimo._messaging.attachments import Attachment
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
+    AttachmentsNotification,
     NotificationMessage,
 )
 from marimo._messaging.serde import serialize_kernel_message
@@ -46,6 +48,7 @@ from marimo._session.extensions.types import (
     ExtensionRegistry,
     SessionExtension,
 )
+from marimo._session.handoff_stream import HandoffStream
 from marimo._session.kernel_exit import classify_kernel_exit
 from marimo._session.managers import (
     KernelManagerImpl,
@@ -254,6 +257,9 @@ class SessionImpl(Session):
         self._stable_id = _new_stable_session_id()
         self.app_file_manager = app_file_manager
         self.room = Room()
+        self.handoffs = HandoffStream(
+            on_attachments_changed=self._notify_attachments
+        )
         self._kernel_manager = kernel_manager
         self.ttl_seconds = (
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
@@ -497,6 +503,12 @@ class SessionImpl(Session):
         self._event_bus.emit_notification_sent(self, notification)
         self.room.broadcast(notification, except_consumer=from_consumer_id)
 
+    def _notify_attachments(self, attachments: list[Attachment]) -> None:
+        self.notify(
+            AttachmentsNotification(attachments=attachments),
+            from_consumer_id=None,
+        )
+
     def close(self, *, graceful: bool = False) -> None:
         """
         Close the session.
@@ -510,6 +522,7 @@ class SessionImpl(Session):
             return
 
         self._closed = True
+        self.handoffs.close()
 
         # Close extensions
         self._detach_extensions()

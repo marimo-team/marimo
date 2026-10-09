@@ -789,6 +789,58 @@ describe("cell reducer", () => {
     `);
   });
 
+  it("keeps error evidence after an edit and a new queued run", () => {
+    const code = "raise ValueError('old failure')";
+    const output: OutputMessage = {
+      channel: "marimo-error",
+      mimetype: "application/vnd.marimo+error",
+      data: [
+        {
+          type: "exception",
+          msg: "old failure",
+          exception_type: "ValueError",
+          raising_cell: null,
+          traceback: "<pre>ValueError: old failure</pre>",
+        },
+      ],
+      code,
+      timestamp: 1,
+    };
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output,
+      console: {
+        channel: "stderr",
+        mimetype: "application/vnd.marimo+traceback",
+        data: "<pre>ValueError: old failure</pre>",
+        code,
+        timestamp: 1,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: 1,
+    });
+    actions.updateCellCode({
+      cellId: firstCellId,
+      code: "print('new code')",
+      formattingChange: false,
+    });
+    actions.prepareForRun({ cellId: firstCellId });
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "queued",
+      stale_inputs: null,
+      timestamp: 2,
+    });
+    const runtime = state.cellRuntime[firstCellId];
+    expect(state.cellData[firstCellId].lastCodeRun).toBe("print('new code')");
+    expect(runtime.output).toEqual(output);
+    expect(runtime.consoleOutputs[0].code).toBe(code);
+    expect(runtime.consoleOutputs[0].data).toContain("old failure");
+  });
+
   it("can run cell and receive cell messages", () => {
     // HAPPY PATH
     /////////////////

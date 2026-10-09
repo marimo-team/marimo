@@ -10,6 +10,7 @@ from contextlib import ExitStack
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, Mock, patch
 
+import msgspec
 import pytest
 
 from marimo._ast.variables import is_mangled_local
@@ -49,7 +50,7 @@ from marimo._runtime.runtime import (
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
-from tests._messaging.mocks import MockStderr, MockStream
+from tests._messaging.mocks import MockStream
 from tests._runtime._helpers.factories import default_app_metadata
 from tests._runtime._helpers.session import mocked_kernel_session
 from tests.conftest import ExecReqProvider, MockedKernel, mock_pyodide
@@ -1685,10 +1686,9 @@ except NameError:
                 ),
             ]
         )
-        # Runtime error expected- since not a kernel error check stderr
+        # Runtime failures carry their diagnostics in the output stream.
         assert "C" not in k.globals
         stream = MockStream(k.stream)
-        stderr = MockStderr(k.stderr)
         if k.execution_type == "strict":
             assert (
                 "name `R` is referenced before definition."
@@ -1703,8 +1703,12 @@ except NameError:
                 "Name `C` is not defined. It was expected to be defined in"
                 in stream.operations[-2]["output"]["data"][0]["msg"]
             )
-            assert "NameError" in stderr.messages[0]
-            assert "NameError" in stderr.messages[-1]
+            assert any(
+                op.console is not None
+                and not isinstance(op.console, list)
+                and "NameError" in str(op.console.data)
+                for op in stream.cell_notifications
+            )
 
     @staticmethod
     async def test_run_scratch(mocked_kernel: MockedKernel) -> None:
@@ -4166,6 +4170,98 @@ class TestStateTransitions:
 
 
 class TestErrorHandling:
+    @pytest.mark.parametrize(
+        "code",
+        [
+            "raise ValueError('failed snapshot')",
+            "x =",
+            "from marimo._runtime.control_flow import MarimoInterrupt; raise MarimoInterrupt()",
+        ],
+    )
+    async def test_error_captures_source_code(
+        self,
+        mocked_kernel: MockedKernel,
+        exec_req: ExecReqProvider,
+        code: str,
+    ) -> None:
+        request = exec_req.get(code)
+        await mocked_kernel.k.run([request])
+        error_op = _filter_to_error_ops(
+            mocked_kernel.stream.cell_notifications
+        )[0]
+        assert error_op.output is not None
+        assert error_op.output.code == code
+        if code.startswith("raise ValueError"):
+            error = _parse_error_output(error_op)[0]
+            assert isinstance(error, MarimoExceptionRaisedError)
+            assert error.traceback is not None
+            assert "failed snapshot" in error.traceback
+
+        await mocked_kernel.k.run(
+            [ExecuteCellCommand(cell_id=request.cell_id, code="42")]
+        )
+        assert error_op.output.code == code
+
+    async def test_cancelled_descendant_captures_own_code(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        await mocked_kernel.k.run(
+            [
+                exec_req.get("x = 0; raise ValueError('ancestor failure')"),
+                child := exec_req.get("x + 1"),
+            ]
+        )
+        error_ops = _filter_to_error_ops(
+            mocked_kernel.stream.cell_notifications
+        )
+        child_op = next(op for op in error_ops if op.cell_id == child.cell_id)
+        assert child_op.output is not None
+        assert child_op.output.code == child.code
+        assert child_op.console == []
+        error = _parse_error_output(child_op)[0]
+        assert isinstance(error, MarimoExceptionRaisedError)
+        assert error.traceback is None
+        assert error.raising_cell is not None
+
+    async def test_full_traceback_precedes_console_truncation(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        request = exec_req.get("raise ValueError('full evidence ' * 1000)")
+        with patch.dict("os.environ", {"MARIMO_STD_STREAM_MAX_BYTES": "64"}):
+            await mocked_kernel.k.run([request])
+        traceback = next(
+            op.console
+            for op in mocked_kernel.stream.cell_notifications
+            if op.console is not None
+            and not isinstance(op.console, list)
+            and op.console.mimetype == "application/vnd.marimo+traceback"
+        )
+        assert traceback.code == request.code
+        assert str(traceback.data).count("full evidence ") >= 1000
+
+    async def test_formatter_traceback_captures_source_code(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        request = exec_req.get(
+            "class Broken:\n"
+            "    def _mime_(self):\n"
+            "        raise ValueError('formatter failure')\n"
+            "Broken()"
+        )
+        await mocked_kernel.k.run([request])
+        notifications = mocked_kernel.stream.cell_notifications
+        tracebacks = [
+            op.console
+            for op in notifications
+            if op.console is not None
+            and not isinstance(op.console, list)
+            and op.console.mimetype == "application/vnd.marimo+traceback"
+        ]
+        assert tracebacks
+        assert tracebacks[-1].code == request.code
+        assert "formatter failure" in str(tracebacks[-1].data)
+        assert not _filter_to_error_ops(notifications)
+
     async def test_error_handling(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
     ) -> None:
@@ -4194,6 +4290,8 @@ class TestErrorHandling:
         assert len(errors) == 1
         assert isinstance(errors[0], MarimoInternalError)
         assert errors[0].msg.startswith("An internal error occurred: ")
+        assert error_cell_notification[0].output is not None
+        assert error_cell_notification[0].output.code is msgspec.UNSET
 
         # Verify no traceback leaks via console output
         for op in cell_notifications:

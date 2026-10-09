@@ -1,16 +1,20 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any, cast
+from uuid import uuid4
 
 from marimo import _loggers as loggers
 from marimo._cli.tips import CliTip
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
+from marimo._messaging.attachments import Attachment, AttachmentKind
 from marimo._server.config import StarletteServerState
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._types.ids import SessionId, StableSessionId
+from marimo._utils.env import pair_preview_enabled
 from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
@@ -25,6 +29,9 @@ if TYPE_CHECKING:
 LOGGER = loggers.marimo_logger()
 
 STABLE_SESSION_ID_HEADER = "Marimo-Stable-Session-Id"
+ATTACHMENT_ID_HEADER = "Marimo-Attachment-Id"
+ATTACHMENT_KIND_HEADER = "Marimo-Attachment-Kind"
+ATTACHMENT_NAME_HEADER = "Marimo-Attachment-Name"
 
 
 class AppStateBase:
@@ -187,13 +194,74 @@ class AppState(AppStateBase):
                 ),
             )
 
+        return self.session_by_stable_id(stable_session_id)
+
+    def require_pair_preview(self) -> None:
+        """Reject Pair routes when the preview is disabled."""
+        if not pair_preview_enabled():
+            raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
+
+    def attachment_id_from_request(self) -> str | None:
+        """Read execute attribution when the Pair preview is enabled."""
+        if not pair_preview_enabled():
+            return None
+        attachment_id = self.request.headers.get(ATTACHMENT_ID_HEADER)
+        if attachment_id is None:
+            return None
+        if not attachment_id:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=f"{ATTACHMENT_ID_HEADER} must be nonempty.",
+            )
+        if self.request.headers.get(STABLE_SESSION_ID_HEADER) is None:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=(
+                    f"{ATTACHMENT_ID_HEADER} requires "
+                    f"{STABLE_SESSION_ID_HEADER}."
+                ),
+            )
+        return attachment_id
+
+    def attachment_from_request(self) -> Attachment:
+        """Read stream identity or mint an anonymous client attachment."""
+        raw_id = self.request.headers.get(ATTACHMENT_ID_HEADER)
+        if raw_id is None:
+            return Attachment(
+                id=f"att_{uuid4()}",
+                kind="client",
+                name=None,
+                since=time.time(),
+            )
+        kind = self.request.headers.get(ATTACHMENT_KIND_HEADER, "client")
+        if not raw_id or kind not in ("agent", "client"):
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=(
+                    f"{ATTACHMENT_ID_HEADER} must be nonempty and "
+                    f"{ATTACHMENT_KIND_HEADER} must be agent or client."
+                ),
+            )
+        return Attachment(
+            id=raw_id,
+            kind=cast(AttachmentKind, kind),
+            name=self.request.headers.get(ATTACHMENT_NAME_HEADER),
+            since=time.time(),
+        )
+
+    def session_by_stable_id(self, stable_id: str) -> Session:
+        """Resolve a notebook's stable session ID.
+
+        Args:
+            stable_id (str): Stable session ID from the route.
+        """
         session = self.session_manager.get_session_by_stable_id(
-            StableSessionId(stable_session_id)
+            StableSessionId(stable_id)
         )
         if session is None:
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
-                detail=f"Invalid stable session id: {stable_session_id}",
+                detail=f"Invalid stable session id: {stable_id}",
             )
         return session
 

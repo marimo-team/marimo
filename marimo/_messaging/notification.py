@@ -30,6 +30,7 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.attachments import Attachment
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.context import RUN_ID_CTX, RunId_t
@@ -83,6 +84,17 @@ class Notification(msgspec.Struct, tag_field="op"):
     """
 
     name: ClassVar[str]
+
+
+class AttachmentsNotification(Notification, tag="attachments"):
+    """Replace the current list of attachments on this Session.
+
+    Args:
+        attachments (list[Attachment]): Full list of live attachments.
+    """
+
+    name: ClassVar[str] = "attachments"
+    attachments: list[Attachment]
 
 
 class CellNotification(Notification, tag="cell-op"):
@@ -1147,4 +1159,5 @@ NotificationMessage = (
     | NotebookDocumentTransactionNotification
     # Consumer
     | ConsumerCapabilitiesNotification
+    | AttachmentsNotification
 )

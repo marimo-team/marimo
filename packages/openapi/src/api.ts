@@ -3984,6 +3984,35 @@ export interface components {
     AnthropicConfig: {
       api_key?: string;
     };
+    /**
+     * Attachment
+     * @description A connection to a notebook's handoff stream.
+     *
+     *         Args:
+     *             id (str): Identity supplied by the client or minted by the server.
+     *             kind (AttachmentKind): Whether the connection receives handoffs.
+     *             name (str | None): Human-readable label for the connection.
+     *             since (float): Time of attachment in epoch seconds.
+     */
+    Attachment: {
+      id: string;
+      /** @enum {unknown} */
+      kind: "agent" | "client";
+      name: string | null;
+      since: number;
+    };
+    /**
+     * AttachmentsNotification
+     * @description Replace the current list of attachments on this Session.
+     *
+     *         Args:
+     *             attachments (list[Attachment]): Full list of live attachments.
+     */
+    AttachmentsNotification: {
+      attachments: components["schemas"]["Attachment"][];
+      /** @enum {unknown} */
+      op: "attachments";
+    };
     /** AutoExportAsIPYNBRequest */
     AutoExportAsIPYNBRequest: {
       download: boolean;
@@ -4163,6 +4192,7 @@ export interface components {
     /** CellOutput */
     CellOutput: {
       channel: components["schemas"]["CellChannel"];
+      code?: string;
       data:
         | string
         | (
@@ -5843,7 +5873,8 @@ export interface components {
         | components["schemas"]["FocusCellNotification"]
         | components["schemas"]["ActiveLineNotification"]
         | components["schemas"]["NotebookDocumentTransactionNotification"]
-        | components["schemas"]["ConsumerCapabilitiesNotification"];
+        | components["schemas"]["ConsumerCapabilitiesNotification"]
+        | components["schemas"]["AttachmentsNotification"];
     };
     /**
      * LanguageServersConfig

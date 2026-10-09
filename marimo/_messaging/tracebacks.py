@@ -42,9 +42,34 @@ def _show_tracebacks_enabled() -> bool:
         return True  # no context → not in run mode, always show
 
 
-def write_traceback(traceback: str) -> None:
+def write_traceback(traceback: str, *, code: str | None = None) -> None:
     in_run_mode = get_mode() == "run"
     code_mode = is_code_mode_request()
+    ctx = safe_get_context()
+
+    if not in_run_mode and ctx is not None and ctx.cell_id is not None:
+        if code is None:
+            cell = ctx.graph.cells.get(ctx.cell_id)
+            code = cell.code if cell is not None else None
+        if code is not None:
+            # Keep the complete traceback and its source together, before
+            # console buffering or display truncation can discard evidence.
+            ctx.stream.flush_console()
+            broadcast_notification(
+                CellNotification(
+                    cell_id=ctx.cell_id,
+                    console=CellOutput(
+                        channel=CellChannel.STDERR,
+                        mimetype="application/vnd.marimo+traceback",
+                        data=traceback
+                        if code_mode
+                        else _highlight_traceback(traceback),
+                        code=code,
+                    ),
+                ),
+                ctx.stream,
+            )
+            return
 
     if isinstance(sys.stderr, Stderr) and not code_mode:
         # In run mode, only forward to the frontend if show_tracebacks is on.
@@ -57,7 +82,6 @@ def write_traceback(traceback: str) -> None:
     else:
         # When stderr is not redirected (e.g., run mode with redirect_console_to_browser=False),
         # send the traceback directly via the stream to ensure exceptions reach the frontend
-        ctx = safe_get_context()
         if ctx is not None and ctx.cell_id is not None:
             # In run mode, only forward to the frontend if show_tracebacks is on.
             if in_run_mode and not _show_tracebacks_enabled():

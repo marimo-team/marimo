@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 EXECUTION_TIMEOUT = (
     30.0  # seconds — used only by wait(); stream() has no timeout
 )
+ATTACHMENT_ID_META_KEY = "attachment_id"
 
 # Channel name constants for SSE events
 _CHANNEL_MAP = {
@@ -249,6 +250,34 @@ class ScratchCellListener(EventAwareExtension):
 # -- Helpers ------------------------------------------------------------------
 
 
+def build_scratchpad_request(
+    session: Session,
+    request: Request,
+    *,
+    server_url: str,
+    auth_token: str,
+    attachment_id: str | None = None,
+) -> HTTPRequest:
+    """Build kernel request metadata for scratchpad execution.
+
+    Args:
+        session (Session): Notebook that owns the scratchpad.
+        request (Request): HTTP request to serialize.
+        server_url (str): Trusted URL for screenshot callbacks.
+        auth_token (str): Token for screenshot callbacks.
+        attachment_id (str | None, optional): Identity supplied by the caller.
+    """
+    http_req = HTTPRequest.from_request(request)
+    http_req.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
+    http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
+    http_req.meta[SCREENSHOT_FILE_KEY] = (
+        session.app_file_manager.path or session.initialization_id
+    )
+    if attachment_id is not None:
+        http_req.meta[ATTACHMENT_ID_META_KEY] = attachment_id
+    return http_req
+
+
 def snapshot_for_scratchpad(
     session: Session,
 ) -> tuple[tuple[NotebookCell, ...], CellOutputs]:
@@ -387,11 +416,8 @@ async def run_scratchpad_code(
     timeout: float = EXECUTION_TIMEOUT,
 ) -> CodeExecutionResult:
     """Drive the kernel scratchpad on behalf of code-mode"""
-    http_req = HTTPRequest.from_request(request)
-    http_req.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
-    http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
-    http_req.meta[SCREENSHOT_FILE_KEY] = (
-        session.app_file_manager.path or session.initialization_id
+    http_req = build_scratchpad_request(
+        session, request, server_url=server_url, auth_token=auth_token
     )
 
     session.instantiate(
