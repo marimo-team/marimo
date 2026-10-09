@@ -11,7 +11,7 @@ import { kernelStartupErrorAtom } from "@/core/errors/state";
 import { connectionAtom, startupProgressAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { sandboxAtom } from "@/core/packages/sandbox-state";
-import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
+import { WebSocketClosedReason, ConnectionState } from "@/core/websocket/types";
 import PackagesPanel from "../packages-panel";
 import { PanelSectionProvider } from "../panel-context";
 import { SandboxToggle } from "../sandbox-toggle";
@@ -43,8 +43,8 @@ function mount({
   store.set(
     connectionAtom,
     preparing
-      ? { state: WebSocketState.CONNECTING, phase: "preparing-environment" }
-      : { state: WebSocketState.OPEN },
+      ? { state: ConnectionState.CONNECTING, phase: "preparing-environment" }
+      : { state: ConnectionState.OPEN },
   );
   store.set(alertAtom, (state) => ({
     ...state,
@@ -283,11 +283,11 @@ it.each([false, true])(
         log_mode: "replace",
       });
       store.set(connectionAtom, {
-        state: WebSocketState.CONNECTING,
+        state: ConnectionState.CONNECTING,
         phase: "starting-kernel",
       });
     });
-    act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
+    act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
     await screen.findByText("numpy");
     expect(toggle).toHaveAttribute("aria-expanded", String(inspecting));
     if (!inspecting) {
@@ -318,7 +318,7 @@ it("opens a startup error even after collapsing preparation and keeps both step 
     });
     store.set(kernelStartupErrorAtom, "Could not import the runtime");
     store.set(connectionAtom, {
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       phase: "starting-kernel",
       code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
       reason: "Kernel startup failed",

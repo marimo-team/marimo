@@ -5,7 +5,7 @@ import { Logger } from "@/utils/Logger";
 import { connectionAtom } from "../network/connection";
 import { store } from "../state/jotai";
 import { isAppNotStarted } from "../websocket/connection-utils";
-import { WebSocketState } from "../websocket/types";
+import { ConnectionState } from "../websocket/types";
 import { RuntimeManager } from "./runtime";
 import type { RuntimeConfig } from "./types";
 
@@ -36,7 +36,7 @@ export function useConnectToRuntime(): () => Promise<void> {
   const [connection, setConnection] = useAtom(connectionAtom);
   return useEvent(async () => {
     if (isAppNotStarted(connection.state)) {
-      setConnection({ state: WebSocketState.CONNECTING });
+      setConnection({ state: ConnectionState.CONNECTING });
       await runtimeManager.init();
     } else {
       Logger.log("Runtime already started or starting...");

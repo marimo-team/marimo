@@ -6,7 +6,7 @@ import {
   getConnectionTooltip,
   isAppInteractionDisabled,
 } from "@/core/websocket/connection-utils";
-import type { WebSocketState } from "@/core/websocket/types";
+import type { ConnectionState } from "@/core/websocket/types";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
 import { ToolbarItem } from "./toolbar";
 
@@ -16,7 +16,7 @@ function computeColor({
   loading,
   inactive,
 }: {
-  connectionState: WebSocketState;
+  connectionState: ConnectionState;
   needsRun: boolean;
   loading: boolean;
   inactive: boolean;
@@ -37,7 +37,7 @@ export const RunButton = (props: {
   edited: boolean;
   status: RuntimeState;
   needsRun: boolean;
-  connectionState: WebSocketState;
+  connectionState: ConnectionState;
   config: CellConfig;
   onClick?: () => void;
 }): JSX.Element => {

@@ -24,7 +24,7 @@ import {
 } from "@/core/packages/sandbox-state";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
+import { WebSocketClosedReason, ConnectionState } from "@/core/websocket/types";
 import { chromeAtom } from "../../state";
 import PackagesPanel from "../packages-panel";
 import { PanelSectionProvider } from "../panel-context";
@@ -52,7 +52,7 @@ vi.mock("@/plugins/impl/code/LazyAnyLanguageCodeMirror", () => ({
 const manifest =
   'dependencies = ["numpy==0.0.0"]\n\n[tool.custom]\nlabel = "experiment"\n';
 const failed = {
-  state: WebSocketState.CLOSED,
+  state: ConnectionState.CLOSED,
   code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
   phase: "preparing-environment",
   reason: "Kernel startup failed",
@@ -117,7 +117,7 @@ it("keeps a whole-manifest repair open through failure and closes only after syn
   const reconnect = vi.fn(async () => {
     store.set(kernelStartupErrorAtom, null);
     store.set(connectionAtom, {
-      state: WebSocketState.CONNECTING,
+      state: ConnectionState.CONNECTING,
       phase: "preparing-environment",
     });
   });
@@ -161,7 +161,7 @@ it("keeps a whole-manifest repair open through failure and closes only after syn
   );
   fireEvent.click(dialog.getByRole("button", { name: "Sync" }));
   await waitFor(() => expect(reconnect).toHaveBeenCalledTimes(2));
-  act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );

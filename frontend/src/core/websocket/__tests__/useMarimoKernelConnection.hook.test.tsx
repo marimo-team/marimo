@@ -52,7 +52,7 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { initialRunCompletedAtom } from "../../kernel/state";
 import { connectionAtom, startupProgressAtom } from "../../network/connection";
 import type { SessionId } from "../../kernel/session";
-import { WebSocketClosedReason, WebSocketState } from "../types";
+import { WebSocketClosedReason, ConnectionState } from "../types";
 import type { IConnectionTransport } from "../transports/transport";
 import { useMarimoKernelConnection } from "../useMarimoKernelConnection";
 import { useConnectionTransport } from "../useWebSocket";
@@ -118,7 +118,7 @@ describe("useMarimoKernelConnection.reconnect()", () => {
     isHealthy = vi.fn<() => Promise<boolean>>().mockResolvedValue(true);
     store = createStore();
     store.set(connectionAtom, {
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       code: WebSocketClosedReason.KERNEL_DISCONNECTED,
       reason: "kernel not found",
     });
@@ -163,7 +163,7 @@ describe("useMarimoKernelConnection.reconnect()", () => {
     expect(isHealthy).toHaveBeenCalledOnce();
     expect(transport.reconnect).toHaveBeenCalledOnce();
     expect(store.get(connectionAtom)).toEqual({
-      state: WebSocketState.CONNECTING,
+      state: ConnectionState.CONNECTING,
     });
   });
 
@@ -176,7 +176,7 @@ describe("useMarimoKernelConnection.reconnect()", () => {
     expect(isHealthy).toHaveBeenCalledOnce();
     expect(transport.reconnect).not.toHaveBeenCalled();
     expect(store.get(connectionAtom)).toEqual({
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       code: WebSocketClosedReason.KERNEL_DISCONNECTED,
       reason: "kernel not found",
     });
@@ -215,7 +215,7 @@ it.each(["kernel-ready", "reconnected"])(
   "waits for %s before marking the session connected",
   async (op) => {
     const store = createStore();
-    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
     vi.mocked(useConnectionTransport).mockClear();
     vi.mocked(useConnectionTransport).mockReturnValue(
       makeTransport(WebSocket.OPEN),
@@ -229,7 +229,7 @@ it.each(["kernel-ready", "reconnected"])(
     await act(async () => {
       await options.onOpen(new Event("open"));
     });
-    expect(store.get(connectionAtom).state).toBe(WebSocketState.CONNECTING);
+    expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
 
     act(() => {
       options.onMessage(
@@ -257,7 +257,7 @@ it.each(["kernel-ready", "reconnected"])(
         }),
       );
     });
-    expect(store.get(connectionAtom).state).toBe(WebSocketState.OPEN);
+    expect(store.get(connectionAtom).state).toBe(ConnectionState.OPEN);
   },
 );
 
@@ -267,7 +267,7 @@ describe("connection notice", () => {
 
   function renderNotice() {
     const store = createStore();
-    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
     const transport = makeTransport(WebSocket.OPEN);
     vi.mocked(useConnectionTransport).mockReturnValue(transport);
     vi.mocked(useRuntimeManager).mockReturnValue(
@@ -345,7 +345,7 @@ describe("connection notice", () => {
     act(() => options.onClose(new CloseEvent("close")));
     act(() => vi.advanceTimersByTime(500));
     expect(store.get(connectionAtom)).toEqual({
-      state: WebSocketState.CONNECTING,
+      state: ConnectionState.CONNECTING,
       phase: "reconnecting",
     });
     expect(
@@ -388,7 +388,7 @@ describe("connection notice", () => {
       logs: "Kernel startup output\n",
       log_mode: "replace",
     });
-    expect(store.get(connectionAtom)).toEqual({ state: WebSocketState.OPEN });
+    expect(store.get(connectionAtom)).toEqual({ state: ConnectionState.OPEN });
     expect(store.get(startupProgressAtom)).toEqual({
       phase: "starting-kernel",
       logs: "Kernel startup output\n",
