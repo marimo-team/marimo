@@ -151,20 +151,15 @@ def _parse_sql_duckdb(
     line_prefix = subquery[last_newline_idx + 1 :]
     column_number = len(line_prefix.encode("utf-16-le")) // 2
 
-    # Adjust column_number to account for any added quotes from bracket replacements
-    # SELECT {id} FRO users
-    #             ^ error position should be here
-    # SELECT {id} FRO users
-    #               ^ user sees this
-    # So in this case, we subtract the offset from the column position.
-    # If the error is before the brackets, we don't need to add the offset because it just increases the string length
-    # Column position will be the same as the user sees.
+    # Bracket indices refer to the original SQL, but the error position refers
+    # to SQL with added quotes. Compare both in the latter coordinate system.
     error_line_start = last_newline_idx + 1
     cumulative_offset = 0
+    preceding_offset = 0
     for idx, offset in idx_to_offset_dict.items():
-        # Only count replacements that are on the same line as the error
-        # and come before the error position
-        if error_line_start <= idx < position:
+        sanitized_idx = idx + preceding_offset
+        preceding_offset += offset
+        if error_line_start <= sanitized_idx < position:
             cumulative_offset += offset
     column_number -= cumulative_offset
 
