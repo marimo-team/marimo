@@ -134,18 +134,24 @@ def test_mangle_keeps_names_bound_by_a_match_pattern() -> None:
 
     for source in (
         "def _f(v):\n    match v:\n        case _x:\n            return _x",
-        "def _f(v):\n"
-        "    match v:\n"
-        "        case [1] as _x:\n"
-        "            return _x",
-        "def _f(v):\n"
-        "    match v:\n"
-        "        case [1, *_x]:\n"
-        "            return _x",
-        "def _f(v):\n"
-        "    match v:\n"
-        "        case {1: _a, **_x}:\n"
-        "            return _a, _x",
+        (
+            "def _f(v):\n"
+            "    match v:\n"
+            "        case [1] as _x:\n"
+            "            return _x"
+        ),
+        (
+            "def _f(v):\n"
+            "    match v:\n"
+            "        case [1, *_x]:\n"
+            "            return _x"
+        ),
+        (
+            "def _f(v):\n"
+            "    match v:\n"
+            "        case {1: _a, **_x}:\n"
+            "            return _a, _x"
+        ),
     ):
         assert debugger._mangle_cell_locals(source) == source
 
