@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from marimo._runtime import commands
     from marimo._session.consumer import SessionConsumer
     from marimo._session.extensions.types import SessionExtension
+    from marimo._session.handoff_stream import HandoffStream
     from marimo._session.model import (
         ConnectionState,
         SessionMode,
@@ -141,6 +142,7 @@ class Session(Protocol):
     ttl_seconds: int
     scratchpad_lock: asyncio.Lock
     room: Room
+    handoffs: HandoffStream
 
     @property
     def stable_id(self) -> StableSessionId:
