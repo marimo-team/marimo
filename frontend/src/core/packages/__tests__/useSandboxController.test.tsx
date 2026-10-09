@@ -17,7 +17,7 @@ import type {
 } from "@/core/network/types";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import { HTTPError } from "@/utils/errors";
 import { packageDataVersionAtom } from "../package-data";
 import {
@@ -52,7 +52,7 @@ beforeEach(() => {
   store.set(sandboxAtom, null);
   store.set(sandboxSyncAtom, { kind: "succeeded" });
   store.set(sandboxActionsAtom, null);
-  store.set(connectionAtom, { state: WebSocketState.OPEN });
+  store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(kernelStartupErrorAtom, null);
   store.set(filenameAtom, "notebook.py");
   store.set(packageDataVersionAtom, 0);

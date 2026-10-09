@@ -7,7 +7,7 @@ import {
   isAppConnecting,
 } from "@/core/websocket/connection-utils";
 import { connectionAtom } from "../../network/connection";
-import { WebSocketState } from "../../websocket/types";
+import { ConnectionState } from "../../websocket/types";
 
 /**
  * State effect for updating readonly status based on connection
@@ -111,7 +111,7 @@ export function dynamicReadonly(store: ReturnType<typeof createStore>) {
     // Subscribe to connectionAtom and manage listeners
     const unsubscribe = store.sub(connectionAtom, () => {
       const connection = store.get(connectionAtom);
-      if (connection.state === WebSocketState.CONNECTING) {
+      if (connection.state === ConnectionState.CONNECTING) {
         attachListeners();
       } else {
         detachListeners();

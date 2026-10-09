@@ -6,8 +6,7 @@ export type ConnectionPhase =
   | NotificationMessageData<"startup-progress">["phase"]
   | "reconnecting";
 
-// TODO: rename to ConnectionState
-export const WebSocketState = {
+export const ConnectionState = {
   NOT_STARTED: "NOT_STARTED",
   CONNECTING: "CONNECTING",
   OPEN: "OPEN",
@@ -15,8 +14,8 @@ export const WebSocketState = {
   CLOSED: "CLOSED",
 } as const;
 
-export type WebSocketState =
-  (typeof WebSocketState)[keyof typeof WebSocketState];
+export type ConnectionState =
+  (typeof ConnectionState)[keyof typeof ConnectionState];
 
 export const WebSocketClosedReason = {
   KERNEL_DISCONNECTED: "KERNEL_DISCONNECTED",
@@ -28,7 +27,7 @@ export type WebSocketClosedReason =
 
 export type ConnectionStatus =
   | {
-      state: typeof WebSocketState.CLOSED;
+      state: typeof ConnectionState.CLOSED;
       code: WebSocketClosedReason;
       /**
        * Human-readable reason for closing the connection.
@@ -37,12 +36,12 @@ export type ConnectionStatus =
       phase?: ConnectionPhase;
     }
   | {
-      state: typeof WebSocketState.CONNECTING;
+      state: typeof ConnectionState.CONNECTING;
       phase?: ConnectionPhase;
     }
   | {
       state:
-        | typeof WebSocketState.OPEN
-        | typeof WebSocketState.CLOSING
-        | typeof WebSocketState.NOT_STARTED;
+        | typeof ConnectionState.OPEN
+        | typeof ConnectionState.CLOSING
+        | typeof ConnectionState.NOT_STARTED;
     };

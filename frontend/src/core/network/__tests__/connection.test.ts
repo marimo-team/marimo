@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
-import { WebSocketState } from "../../websocket/types";
+import { ConnectionState } from "../../websocket/types";
 import { connectionAtom, waitForConnectionOpenIfNotebook } from "../connection";
 
 const NEVER = Symbol("never");
@@ -20,7 +20,7 @@ function settledOrNever(promise: Promise<unknown>) {
 
 describe("waitForConnectionOpenIfNotebook", () => {
   afterEach(() => {
-    store.set(connectionAtom, { state: WebSocketState.NOT_STARTED });
+    store.set(connectionAtom, { state: ConnectionState.NOT_STARTED });
     store.set(initialModeAtom, undefined);
   });
 
@@ -39,7 +39,7 @@ describe("waitForConnectionOpenIfNotebook", () => {
     const promise = waitForConnectionOpenIfNotebook();
     await expect(settledOrNever(promise)).resolves.toBe(NEVER);
 
-    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
     await expect(settledOrNever(promise)).resolves.not.toBe(NEVER);
   });
 });

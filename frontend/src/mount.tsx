@@ -62,7 +62,7 @@ import {
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
-import { WebSocketState } from "./core/websocket/types";
+import { ConnectionState } from "./core/websocket/types";
 import {
   handleWidgetMessage,
   WIDGET_REGISTRY,
@@ -359,7 +359,7 @@ function initStore(options: unknown) {
     });
     // If the remote runtime is not lazy, start it in CONNECTING
     if (!firstRuntimeConfig.lazy && !isStaticNotebook()) {
-      store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+      store.set(connectionAtom, { state: ConnectionState.CONNECTING });
     }
   } else {
     store.set(runtimeConfigAtom, {

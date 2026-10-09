@@ -84,7 +84,7 @@ import { isWasm } from "../wasm/utils";
 import {
   type ConnectionStatus,
   WebSocketClosedReason,
-  WebSocketState,
+  ConnectionState,
 } from "./types";
 
 const SUPPORTS_LAZY_KERNELS = true;
@@ -116,7 +116,7 @@ export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
       return {
         kind: "gave-up",
         status: {
-          state: WebSocketState.CLOSED,
+          state: ConnectionState.CLOSED,
           code: WebSocketClosedReason.KERNEL_DISCONNECTED,
           reason: "kernel not found",
         },
@@ -128,7 +128,7 @@ export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
       return {
         kind: "terminal",
         status: {
-          state: WebSocketState.CLOSED,
+          state: ConnectionState.CLOSED,
           code: WebSocketClosedReason.KERNEL_DISCONNECTED,
           reason: "kernel not found",
         },
@@ -138,7 +138,7 @@ export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
       return {
         kind: "terminal",
         status: {
-          state: WebSocketState.CLOSED,
+          state: ConnectionState.CLOSED,
           code: WebSocketClosedReason.KERNEL_DISCONNECTED,
           reason: "not authorized",
         },
@@ -148,7 +148,7 @@ export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
       return {
         kind: "terminal",
         status: {
-          state: WebSocketState.CLOSED,
+          state: ConnectionState.CLOSED,
           code: WebSocketClosedReason.KERNEL_DISCONNECTED,
           reason: "kiosk mode is not available for this session",
         },
@@ -158,7 +158,7 @@ export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
       return {
         kind: "terminal",
         status: {
-          state: WebSocketState.CLOSED,
+          state: ConnectionState.CLOSED,
           code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
           reason: "Failed to start kernel sandbox",
         },
@@ -175,7 +175,7 @@ export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
 
   return {
     kind: "retry",
-    status: { state: WebSocketState.CONNECTING },
+    status: { state: ConnectionState.CONNECTING },
   };
 }
 
@@ -256,17 +256,17 @@ export function useMarimoKernelConnection(opts: {
         const { phase } = msg.data;
         updateStartupProgress(msg.data);
         setConnection((previous) =>
-          previous.state === WebSocketState.OPEN ||
-          (previous.state === WebSocketState.CONNECTING &&
+          previous.state === ConnectionState.OPEN ||
+          (previous.state === ConnectionState.CONNECTING &&
             previous.phase === phase)
             ? previous
-            : { state: WebSocketState.CONNECTING, phase },
+            : { state: ConnectionState.CONNECTING, phase },
         );
         return;
       }
       case "kernel-ready": {
         setKernelStartupError(null);
-        setConnection({ state: WebSocketState.OPEN });
+        setConnection({ state: ConnectionState.OPEN });
         setInitialRunCompleted(
           Boolean(msg.data.resumed || msg.data.auto_instantiated),
         );
@@ -479,7 +479,7 @@ export function useMarimoKernelConnection(opts: {
 
       case "reconnected":
         setKernelStartupError(null);
-        setConnection({ state: WebSocketState.OPEN });
+        setConnection({ state: ConnectionState.OPEN });
         return;
 
       case "focus-cell":
@@ -524,12 +524,12 @@ export function useMarimoKernelConnection(opts: {
     }
     shouldTryReconnecting.current = true;
     setKernelStartupError(null);
-    setConnection({ state: WebSocketState.CONNECTING });
+    setConnection({ state: ConnectionState.CONNECTING });
     const healthy = await runtimeManager.reconcileFromHealth();
     if (!healthy) {
       shouldTryReconnecting.current = false;
       setConnection({
-        state: WebSocketState.CLOSED,
+        state: ConnectionState.CLOSED,
         code: WebSocketClosedReason.KERNEL_DISCONNECTED,
         reason: "kernel not found",
       });
@@ -605,17 +605,17 @@ export function useMarimoKernelConnection(opts: {
       setConnection((previous) => {
         const status = decision.status;
         if (
-          status.state === WebSocketState.CLOSED &&
+          status.state === ConnectionState.CLOSED &&
           status.code === WebSocketClosedReason.KERNEL_STARTUP_ERROR &&
-          (previous.state === WebSocketState.CONNECTING ||
-            previous.state === WebSocketState.CLOSED)
+          (previous.state === ConnectionState.CONNECTING ||
+            previous.state === ConnectionState.CLOSED)
         ) {
           return { ...status, phase: previous.phase };
         }
         if (
-          status.state === WebSocketState.CONNECTING &&
-          (previous.state === WebSocketState.OPEN ||
-            (previous.state === WebSocketState.CONNECTING &&
+          status.state === ConnectionState.CONNECTING &&
+          (previous.state === ConnectionState.OPEN ||
+            (previous.state === ConnectionState.CONNECTING &&
               previous.phase === "reconnecting"))
         ) {
           return { ...status, phase: "reconnecting" };
@@ -640,7 +640,7 @@ export function useMarimoKernelConnection(opts: {
     onError: (e) => {
       Logger.warn("WebSocket error", e);
       setConnection({
-        state: WebSocketState.CLOSED,
+        state: ConnectionState.CLOSED,
         code: WebSocketClosedReason.KERNEL_DISCONNECTED,
         reason: "kernel not found",
       });

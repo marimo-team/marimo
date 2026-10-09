@@ -8,7 +8,7 @@ import { useRequestClient } from "@/core/network/requests";
 import { useFilename } from "@/core/saving/filename";
 import { waitFor } from "@/core/state/jotai";
 import { isWasm } from "@/core/wasm/utils";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import { HTTPError, prettyError } from "@/utils/errors";
 import { invalidatePackageData } from "./package-data";
 import {
@@ -67,7 +67,7 @@ export function useSandboxController(onReconnect: () => Promise<void>) {
     if (
       inFlight.current ||
       operation.kind === "running" ||
-      connection.state === WebSocketState.CONNECTING
+      connection.state === ConnectionState.CONNECTING
     ) {
       return false;
     }
@@ -91,10 +91,10 @@ export function useSandboxController(onReconnect: () => Promise<void>) {
         const status = await waitFor(
           connectionAtom,
           (value) =>
-            value.state === WebSocketState.OPEN ||
-            value.state === WebSocketState.CLOSED,
+            value.state === ConnectionState.OPEN ||
+            value.state === ConnectionState.CLOSED,
         );
-        if (status.state === WebSocketState.CLOSED) {
+        if (status.state === ConnectionState.CLOSED) {
           setOperation({ kind: "idle" });
           return false;
         }
@@ -177,7 +177,7 @@ export function useSandboxController(onReconnect: () => Promise<void>) {
     saving ||
     loading ||
     operation.kind === "running" ||
-    connection.state === WebSocketState.CONNECTING;
+    connection.state === ConnectionState.CONNECTING;
   const diagnostic =
     error ??
     (operation.kind === "failed"

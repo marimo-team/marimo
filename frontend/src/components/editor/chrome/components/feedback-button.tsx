@@ -39,7 +39,7 @@ import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { cn } from "@/utils/cn";
@@ -78,7 +78,7 @@ function getNotebookSourceUnavailableReason(args: {
   hasRequestClient: boolean;
   filename: string | null;
   codeAvailable: boolean;
-  connectionState: WebSocketState;
+  connectionState: ConnectionState;
 }): string | undefined {
   if (!args.hasRequestClient) {
     return "Notebook source is unavailable.";
@@ -89,7 +89,7 @@ function getNotebookSourceUnavailableReason(args: {
   if (!args.codeAvailable) {
     return "Notebook source is hidden in this view.";
   }
-  if (args.connectionState !== WebSocketState.OPEN) {
+  if (args.connectionState !== ConnectionState.OPEN) {
     return "Connect the notebook to include its source.";
   }
   return undefined;

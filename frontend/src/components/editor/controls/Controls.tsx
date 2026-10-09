@@ -21,7 +21,7 @@ import {
   getConnectionTooltip,
   isAppInteractionDisabled,
 } from "@/core/websocket/connection-utils";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
 import {
@@ -43,7 +43,7 @@ interface ControlsProps {
   onTogglePresenting: () => void;
   onInterrupt: () => void;
   onRun: () => void;
-  connectionState: WebSocketState;
+  connectionState: ConnectionState;
   running: boolean;
   appConfig: AppConfig;
 }
@@ -60,7 +60,7 @@ export const Controls = ({
   const undoLabel = useAtomValue(undoLabelAtom);
   const needsRun = useAtomValue(needsRunAtom);
   const { undoDeleteCell } = useCellActions();
-  const closed = connectionState === WebSocketState.CLOSED;
+  const closed = connectionState === ConnectionState.CLOSED;
 
   let undoControl: JSX.Element | null = null;
   if (!closed && undoAvailable) {

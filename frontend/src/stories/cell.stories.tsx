@@ -14,7 +14,7 @@ import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve";
 import type { CellConfig } from "@/core/network/types";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import { MultiColumn } from "@/utils/id-tree";
 import type { Milliseconds, Seconds } from "@/utils/time";
 import { Cell as EditorCell } from "../components/editor/notebook-cell";
@@ -84,7 +84,7 @@ const Cell: React.FC<{
 
   const store = createStore();
   store.set(notebookAtom, notebook);
-  store.set(connectionAtom, { state: WebSocketState.OPEN });
+  store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   return (
     <Provider store={store}>

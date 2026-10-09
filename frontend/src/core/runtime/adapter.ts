@@ -8,7 +8,7 @@ import { connectionAtom } from "../network/connection";
 import { isStaticNotebook } from "../static/static-state";
 import { wasmInitStateAtom } from "../wasm/state";
 import { isWasm } from "../wasm/utils";
-import { WebSocketState } from "../websocket/types";
+import { ConnectionState } from "../websocket/types";
 
 export type RuntimeKind = "wasm" | "remote" | "static" | "islands";
 
@@ -76,19 +76,19 @@ export const wasmAdapter: RuntimeAdapter = {
 const remoteStateAtom = atom<AdapterState>((get) => {
   const conn = get(connectionAtom);
   switch (conn.state) {
-    case WebSocketState.OPEN:
+    case ConnectionState.OPEN:
       return { kind: "ready" };
-    case WebSocketState.CONNECTING:
+    case ConnectionState.CONNECTING:
       return { kind: "connecting", progress: { label: "Connecting…" } };
-    case WebSocketState.NOT_STARTED:
+    case ConnectionState.NOT_STARTED:
       return { kind: "connecting", progress: { label: "Not connected" } };
-    case WebSocketState.CLOSING:
-    case WebSocketState.CLOSED:
+    case ConnectionState.CLOSING:
+    case ConnectionState.CLOSED:
       return {
         kind: "failed",
         error: {
           message:
-            conn.state === WebSocketState.CLOSED
+            conn.state === ConnectionState.CLOSED
               ? conn.reason
               : "Disconnecting",
           errorKind: "runtime",

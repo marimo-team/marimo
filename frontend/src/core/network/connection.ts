@@ -4,14 +4,14 @@ import { atomWithReducer } from "jotai/utils";
 import type { NotificationMessageData } from "../kernel/messages";
 import { isNotebookPage } from "../mode";
 import { waitFor } from "../state/jotai";
-import { type ConnectionStatus, WebSocketState } from "../websocket/types";
+import { type ConnectionStatus, ConnectionState } from "../websocket/types";
 
 /**
  * Atom for storing the connection status.
  * Initialized to NOT_STARTED.
  */
 export const connectionAtom = atom<ConnectionStatus>({
-  state: WebSocketState.NOT_STARTED,
+  state: ConnectionState.NOT_STARTED,
 });
 
 type StartupProgress = NotificationMessageData<"startup-progress">;
@@ -33,7 +33,7 @@ export const startupProgressAtom = atomWithReducer<
 
 export function waitForConnectionOpen() {
   return waitFor(connectionAtom, (value) => {
-    return value.state === WebSocketState.OPEN;
+    return value.state === ConnectionState.OPEN;
   });
 }
 
@@ -53,28 +53,28 @@ export function waitForConnectionOpenIfNotebook() {
 
 export const isConnectingAtom = atom((get) => {
   const connection = get(connectionAtom);
-  return connection.state === WebSocketState.CONNECTING;
+  return connection.state === ConnectionState.CONNECTING;
 });
 
 export const isConnectedAtom = atom((get) => {
   const connection = get(connectionAtom);
-  return connection.state === WebSocketState.OPEN;
+  return connection.state === ConnectionState.OPEN;
 });
 
 export const canInteractWithAppAtom = atom((get) => {
   const connection = get(connectionAtom);
   return (
-    connection.state === WebSocketState.OPEN ||
-    connection.state === WebSocketState.NOT_STARTED
+    connection.state === ConnectionState.OPEN ||
+    connection.state === ConnectionState.NOT_STARTED
   );
 });
 
 export const isClosedAtom = atom((get) => {
   const connection = get(connectionAtom);
-  return connection.state === WebSocketState.CLOSED;
+  return connection.state === ConnectionState.CLOSED;
 });
 
 export const isNotStartedAtom = atom((get) => {
   const connection = get(connectionAtom);
-  return connection.state === WebSocketState.NOT_STARTED;
+  return connection.state === ConnectionState.NOT_STARTED;
 });

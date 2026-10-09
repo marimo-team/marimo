@@ -9,7 +9,7 @@ import { getAppConfig } from "../config/config";
 import { KnownQueryParams } from "../constants";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
-import { WebSocketState } from "../websocket/types";
+import { ConnectionState } from "../websocket/types";
 import { filenameAtom } from "./file-state";
 
 export function useFilename() {
@@ -24,7 +24,7 @@ export function useUpdateFilename() {
 
   const handleFilenameChange = useEvent(async (name: string) => {
     const appConfig = getAppConfig();
-    if (connection.state !== WebSocketState.OPEN) {
+    if (connection.state !== ConnectionState.OPEN) {
       openAlert("Failed to save notebook: not connected to a kernel.");
       return null;
     }

@@ -5,7 +5,7 @@ import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
 import {
   type ConnectionPhase,
   WebSocketClosedReason,
-  WebSocketState,
+  ConnectionState,
 } from "@/core/websocket/types";
 import { connectionAtom } from "./connection";
 
@@ -37,7 +37,7 @@ export const connectionNoticeAtom = atom<ConnectionNotice | null>((get) => {
   if (
     sandbox &&
     (syncing || syncError !== null) &&
-    connection.state === WebSocketState.OPEN
+    connection.state === ConnectionState.OPEN
   ) {
     return {
       kind: "sync",
@@ -56,7 +56,7 @@ export const connectionNoticeAtom = atom<ConnectionNotice | null>((get) => {
       error: syncError,
     };
   }
-  if (connection.state === WebSocketState.CONNECTING) {
+  if (connection.state === ConnectionState.CONNECTING) {
     const messages = {
       "preparing-environment": {
         title: "Preparing environment…",
@@ -88,7 +88,7 @@ export const connectionNoticeAtom = atom<ConnectionNotice | null>((get) => {
       error: null,
     };
   }
-  if (connection.state === WebSocketState.CLOSED) {
+  if (connection.state === ConnectionState.CLOSED) {
     const startupFailed =
       connection.code === WebSocketClosedReason.KERNEL_STARTUP_ERROR;
     const environmentFailed =
