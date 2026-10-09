@@ -7,6 +7,24 @@ import {
   TerminalBuffer,
 } from "../ansi-reduce";
 
+test("preserves source evidence through stateful output and serialization", () => {
+  const output = StatefulOutputMessage.create({
+    channel: "stderr",
+    mimetype: "application/vnd.marimo+traceback",
+    timestamp: 1,
+    data: "<pre>ValueError:",
+    code: "raise ValueError('failed code')",
+  }).appendData(" failed code</pre>");
+  expect(output.code).toBe("raise ValueError('failed code')");
+  expect(output.toJSON()).toEqual({
+    channel: "stderr",
+    mimetype: "application/vnd.marimo+traceback",
+    timestamp: 1,
+    data: "<pre>ValueError: failed code</pre>",
+    code: "raise ValueError('failed code')",
+  });
+});
+
 describe("TerminalBuffer", () => {
   test("writeChar writes single character", () => {
     const buffer = new TerminalBuffer();

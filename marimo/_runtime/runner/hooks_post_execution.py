@@ -45,6 +45,7 @@ from marimo._runtime.context.types import (
     get_context,
     get_global_context,
 )
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.runner.hook_context import PostExecutionHookContext
@@ -364,7 +365,7 @@ def _broadcast_outputs(
         ):
             ctx.exceptions[cell.cell_id] = formatted_output.exception
         if formatted_output.traceback is not None:
-            write_traceback(formatted_output.traceback)
+            write_traceback(formatted_output.traceback, code=cell.code)
 
         CellNotificationUtils.broadcast_output(
             channel=CellChannel.OUTPUT,
@@ -380,6 +381,7 @@ def _broadcast_outputs(
             data=[run_result.output],
             clear_console=True,
             cell_id=cell.cell_id,
+            code=cell.code,
         )
     elif isinstance(run_result.exception, MarimoInterrupt):
         LOGGER.debug("Cell %s was interrupted", cell.cell_id)
@@ -389,12 +391,14 @@ def _broadcast_outputs(
             data=[MarimoInterruptionError()],
             clear_console=False,
             cell_id=cell.cell_id,
+            code=cell.code,
         )
     elif isinstance(run_result.exception, MarimoExceptionRaisedError):
         CellNotificationUtils.broadcast_error(
             data=[run_result.exception],
             clear_console=False,
             cell_id=cell.cell_id,
+            code=cell.code,
         )
     elif isinstance(run_result.exception, MarimoSQLError):
         LOGGER.debug("Cell %s raised a SQL error", cell.cell_id)
@@ -402,6 +406,7 @@ def _broadcast_outputs(
             data=[run_result.exception],
             clear_console=True,
             cell_id=cell.cell_id,
+            code=cell.code,
         )
     elif run_result.exception is not None:
         LOGGER.debug(
@@ -419,11 +424,10 @@ def _broadcast_outputs(
         if not msg:
             msg = f"This cell raised an exception: {exception_type}"
 
-        # Include formatted traceback if enabled in config
         formatted_traceback = None
-        show_tracebacks = False
+        show_tracebacks = get_mode() == "edit"
         if ctx.user_config is not None:
-            show_tracebacks = bool(
+            show_tracebacks = show_tracebacks or bool(
                 ctx.user_config["runtime"].get("show_tracebacks", False)
             )
 
@@ -445,6 +449,7 @@ def _broadcast_outputs(
             ],
             clear_console=False,
             cell_id=cell.cell_id,
+            code=cell.code,
         )
 
 

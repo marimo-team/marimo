@@ -448,6 +448,8 @@ class CellMetadata:
     """
 
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
+    # Retain validated source even when a syntax error prevents registration.
+    code: str | None = None
 
 
 def _get_attached_catalogs() -> set[str]:
@@ -873,6 +875,7 @@ class Kernel:
             cell.configure(self.cell_metadata[cell_id].config)
         elif cell_id not in self.cell_metadata:
             self.cell_metadata[cell_id] = CellMetadata()
+        self.cell_metadata[cell_id].code = cell.code
 
         self.graph.register_cell(cell_id, cell)
         if stale:
@@ -1249,6 +1252,9 @@ class Kernel:
 
         # Register and delete cells
         for er in execution_requests:
+            self.cell_metadata.setdefault(
+                er.cell_id, CellMetadata()
+            ).code = er.code
             old_children, error = self._maybe_register_cell(
                 er.cell_id, er.code, stale=er.cell_id in cells_starting_stale
             )
@@ -1389,7 +1395,10 @@ class Kernel:
             )
             with execution.activate():
                 CellNotificationUtils.broadcast_error(
-                    data=self.errors[cid], clear_console=True, cell_id=cid
+                    data=self.errors[cid],
+                    clear_console=True,
+                    cell_id=cid,
+                    code=self.cell_metadata[cid].code,
                 )
             execution.finish()
 
@@ -1775,6 +1784,7 @@ class Kernel:
                     data=[MarimoInterruptionError()],
                     clear_console=False,
                     cell_id=request.cell_id,
+                    code=request.code,
                 )
 
                 # TODO(akshayka): This hack is needed because the FE
@@ -1849,6 +1859,7 @@ class Kernel:
                 data=[error],
                 clear_console=False,
                 cell_id=SCRATCH_CELL_ID,
+                code=code,
             )
             CellNotificationUtils.broadcast_status(
                 cell_id=SCRATCH_CELL_ID,
@@ -1926,10 +1937,11 @@ class Kernel:
         # Stale cells that are enabled will need to be run.
         stale_cells: set[CellId_t] = set()
         for cell_id, config in request.configs.items():
-            previous = self.cell_metadata.get(cell_id, CellMetadata()).config
+            metadata = self.cell_metadata.setdefault(cell_id, CellMetadata())
+            previous = metadata.config
             merged = CellConfig.from_dict(previous.asdict())
             merged.configure(config)
-            self.cell_metadata[cell_id] = CellMetadata(config=merged)
+            metadata.config = merged
             cell = self.graph.cells.get(cell_id)
             if cell is None:
                 continue

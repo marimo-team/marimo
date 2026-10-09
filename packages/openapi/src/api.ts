@@ -4195,6 +4195,7 @@ export interface components {
     /** CellOutput */
     CellOutput: {
       channel: components["schemas"]["CellChannel"];
+      code?: string;
       data:
         | string
         | (

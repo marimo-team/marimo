@@ -10,6 +10,7 @@ from contextlib import ExitStack
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, Mock, patch
 
+import msgspec
 import pytest
 
 from marimo._ast.variables import is_mangled_local
@@ -4177,6 +4178,59 @@ class TestStateTransitions:
 
 
 class TestErrorHandling:
+    @pytest.mark.parametrize(
+        "code",
+        [
+            "raise ValueError('failed snapshot')",
+            "x =",
+            "from marimo._runtime.control_flow import MarimoInterrupt; raise MarimoInterrupt()",
+        ],
+    )
+    async def test_error_captures_source_code(
+        self,
+        mocked_kernel: MockedKernel,
+        exec_req: ExecReqProvider,
+        code: str,
+    ) -> None:
+        request = exec_req.get(code)
+        await mocked_kernel.k.run([request])
+        error_op = _filter_to_error_ops(
+            mocked_kernel.stream.cell_notifications
+        )[0]
+        assert error_op.output is not None
+        assert error_op.output.code == code
+        if code.startswith("raise ValueError"):
+            error = _parse_error_output(error_op)[0]
+            assert isinstance(error, MarimoExceptionRaisedError)
+            assert error.traceback is not None
+            assert "failed snapshot" in error.traceback
+
+        await mocked_kernel.k.run(
+            [ExecuteCellCommand(cell_id=request.cell_id, code="42")]
+        )
+        assert error_op.output.code == code
+
+    async def test_cancelled_descendant_captures_own_code(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        await mocked_kernel.k.run(
+            [
+                exec_req.get("x = 0; raise ValueError('ancestor failure')"),
+                child := exec_req.get("x + 1"),
+            ]
+        )
+        error_ops = _filter_to_error_ops(
+            mocked_kernel.stream.cell_notifications
+        )
+        child_op = next(op for op in error_ops if op.cell_id == child.cell_id)
+        assert child_op.output is not None
+        assert child_op.output.code == child.code
+        assert child_op.console == []
+        error = _parse_error_output(child_op)[0]
+        assert isinstance(error, MarimoExceptionRaisedError)
+        assert error.traceback is None
+        assert error.raising_cell is not None
+
     async def test_error_handling(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
     ) -> None:
@@ -4205,6 +4259,8 @@ class TestErrorHandling:
         assert len(errors) == 1
         assert isinstance(errors[0], MarimoInternalError)
         assert errors[0].msg.startswith("An internal error occurred: ")
+        assert error_cell_notification[0].output is not None
+        assert error_cell_notification[0].output.code is msgspec.UNSET
 
         # Verify no traceback leaks via console output
         for op in cell_notifications:

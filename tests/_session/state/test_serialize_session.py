@@ -6,6 +6,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import msgspec
 import pytest
 
 from marimo import __version__
@@ -13,6 +14,7 @@ from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
     CellNotification,
@@ -117,6 +119,132 @@ def test_serialize_session_with_error(session_view: SessionView):
         view, cell_ids=[CELL1], drop_virtual_file_outputs=False
     )
     snapshot("error_session.json", json.dumps(result, indent=2))
+
+
+@pytest.mark.parametrize("dictionary", [False, True])
+def test_exception_type_survives_cache_round_trip(
+    session_view: SessionView, *, dictionary: bool
+) -> None:
+    error = MarimoExceptionRaisedError(
+        msg="bad value",
+        exception_type="ValueError",
+        raising_cell=None,
+    )
+    session_view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1,
+        output=CellOutput.errors([asdict(error) if dictionary else error]),
+    )
+    session_view.last_executed_code[CELL1] = "raise ValueError('bad value')"
+    saved = serialize_session_view(
+        session_view, [CELL1], drop_virtual_file_outputs=False
+    )
+    assert saved["cells"][0]["outputs"] == [
+        {
+            "type": "error",
+            "ename": "ValueError",
+            "evalue": "bad value",
+            "traceback": [],
+        }
+    ]
+    restored = deserialize_session(
+        saved, _build_code_hash_to_cell_id_mapping(saved)
+    )
+    output = restored.cell_notifications[CELL1].output
+    assert output is not None
+    assert output.data == [error]
+
+
+@pytest.mark.parametrize("dictionary", [False, True])
+def test_error_evidence_survives_cache_round_trip(
+    session_view: SessionView, *, dictionary: bool
+) -> None:
+    code = "raise ValueError('failed code')"
+    traceback = (
+        '<span class="codehilite"><pre>ValueError: failed code\n</pre></span>'
+    )
+    error = MarimoExceptionRaisedError(
+        msg="failed code",
+        exception_type="ValueError",
+        raising_cell=None,
+        traceback=traceback,
+    )
+    output = CellOutput.errors(
+        [asdict(error) if dictionary else error],  # type: ignore[list-item]
+        code=code,
+    )
+    session_view.add_notification(
+        _make_cell_notification(
+            CELL1,
+            output=output,
+            console=[
+                CellOutput(
+                    channel=CellChannel.STDERR,
+                    mimetype="application/vnd.marimo+traceback",
+                    data=traceback,
+                    code=code,
+                )
+            ],
+        )
+    )
+    session_view.add_notification(
+        CellNotification(cell_id=CELL1, status="queued")
+    )
+    session_view.last_executed_code[CELL1] = "newer code"
+    saved = serialize_session_view(
+        session_view, [CELL1], drop_virtual_file_outputs=False
+    )
+    saved_error = saved["cells"][0]["outputs"][0]
+    assert saved_error["type"] == "error"
+    assert saved_error["code"] == code
+    assert saved_error["traceback"] == [traceback]
+    restored = deserialize_session(
+        saved, _build_code_hash_to_cell_id_mapping(saved)
+    )
+    notification = restored.cell_notifications[CELL1]
+    assert notification.output is not None
+    assert notification.output.code == code
+    assert notification.output.data == [error]
+    assert isinstance(notification.console, list)
+    assert notification.console[0].code == code
+    assert notification.console[0].data == traceback
+
+
+@pytest.mark.parametrize(
+    ("entries", "expected"),
+    [
+        ([], None),
+        (["Traceback", "ValueError: bad"], "Traceback\nValueError: bad"),
+        (["Traceback\n", "ValueError: bad"], "Traceback\nValueError: bad"),
+        (["<pre>ValueError: bad\n</pre>"], "<pre>ValueError: bad\n</pre>"),
+        ("<pre>ValueError: bad\n</pre>", "<pre>ValueError: bad\n</pre>"),
+    ],
+)
+def test_restored_legacy_traceback_preserves_boundaries(
+    session_view: SessionView,
+    entries: list[str] | str,
+    expected: str | None,
+) -> None:
+    session_view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1, output=CellOutput.errors([UnknownError(msg="bad")])
+    )
+    session_view.last_executed_code[CELL1] = "legacy code"
+    saved = serialize_session_view(
+        session_view, [CELL1], drop_virtual_file_outputs=False
+    )
+    error = saved["cells"][0]["outputs"][0]
+    assert error["type"] == "error"
+    error["ename"] = "exception"
+    error["traceback"] = entries  # type: ignore[typeddict-item]
+    restored = deserialize_session(
+        saved, _build_code_hash_to_cell_id_mapping(saved)
+    )
+    output = restored.cell_notifications[CELL1].output
+    assert output is not None
+    assert output.code is msgspec.UNSET
+    assert isinstance(output.data, list)
+    assert isinstance(output.data[0], MarimoExceptionRaisedError)
+    assert output.data[0].exception_type == "exception"
+    assert output.data[0].traceback == expected
 
 
 def test_serialize_session_with_console(session_view: SessionView):
@@ -1002,9 +1130,9 @@ def test_serialize_session_with_mixed_error_formats(session_view: SessionView):
     # Check first error (dictionary with explicit no traceback)
     error1 = cell["outputs"][0]
     assert error1["type"] == "error"
-    assert error1["ename"] == "exception"
+    assert error1["ename"] == "ValueError"
     assert error1["evalue"] == "Invalid value"
-    assert error1["traceback"] is None
+    assert error1["traceback"] == []
 
     # Check second error (object format)
     error2 = cell["outputs"][1]

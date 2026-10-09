@@ -368,6 +368,7 @@ export class StatefulOutputMessage implements OutputMessage {
   public readonly mimetype: OutputMessage["mimetype"];
   public readonly channel: OutputMessage["channel"];
   public readonly timestamp: OutputMessage["timestamp"];
+  public readonly code: OutputMessage["code"];
   private ansiReducer = new AnsiReducer();
   private _data: string;
 
@@ -383,6 +384,7 @@ export class StatefulOutputMessage implements OutputMessage {
       message.channel,
       message.timestamp,
       ansiReducer,
+      message.code,
     );
   }
 
@@ -391,10 +393,12 @@ export class StatefulOutputMessage implements OutputMessage {
     channel: OutputMessage["channel"],
     timestamp: OutputMessage["timestamp"],
     ansiReducer: AnsiReducer,
+    code: OutputMessage["code"],
   ) {
     this.mimetype = mimetype;
     this.channel = channel;
     this.timestamp = timestamp;
+    this.code = code;
     this.ansiReducer = ansiReducer;
     this._data = this.ansiReducer.render();
   }
@@ -406,6 +410,7 @@ export class StatefulOutputMessage implements OutputMessage {
       this.channel,
       this.timestamp,
       this.ansiReducer,
+      this.code,
     );
   }
 
@@ -415,6 +420,7 @@ export class StatefulOutputMessage implements OutputMessage {
       channel: this.channel,
       timestamp: this.timestamp,
       data: this.data,
+      ...(this.code === undefined ? {} : { code: this.code }),
     };
   }
 }

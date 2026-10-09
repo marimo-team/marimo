@@ -11,9 +11,9 @@
       "outputs": [
         {
           "type": "error",
-          "ename": "exception",
+          "ename": "ValueError",
           "evalue": "Invalid value",
-          "traceback": null
+          "traceback": []
         },
         {
           "type": "error",

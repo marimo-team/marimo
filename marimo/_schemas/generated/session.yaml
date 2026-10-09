@@ -28,6 +28,8 @@ components:
       type: object
     DataOutput:
       properties:
+        code:
+          type: string
         data:
           additionalProperties: {}
           type: object
@@ -41,6 +43,8 @@ components:
       type: object
     ErrorOutput:
       properties:
+        code:
+          type: string
         ename:
           type: string
         evalue:
@@ -88,6 +92,8 @@ components:
       type: object
     StreamMediaOutput:
       properties:
+        code:
+          type: string
         data:
           type: string
         mimetype:
@@ -133,6 +139,8 @@ components:
       type: object
     StreamOutput:
       properties:
+        code:
+          type: string
         mimetype:
           enum:
           - application/json

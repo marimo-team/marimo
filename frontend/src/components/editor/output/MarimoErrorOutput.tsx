@@ -23,6 +23,7 @@ import { ExternalLink } from "@/components/ui/links";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import { resolvedMarimoConfigAtom } from "@/core/config/config";
+import { viewStateAtom } from "@/core/mode";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { splitMangledLocals } from "@/utils/local-variables";
 import type { MarimoError } from "../../../core/kernel/messages";
@@ -111,6 +112,9 @@ export const MarimoErrorOutput = ({
   // only helpful when outputs are displayed above the editor.
   const showConsoleHint =
     useAtomValue(resolvedMarimoConfigAtom).display.cell_output === "above";
+  // The editor shows tracebacks in the console area, so the inline copy is
+  // for published apps, which have no console.
+  const showInlineTraceback = useAtomValue(viewStateAtom).mode === "read";
 
   let titleContents: string | null =
     "This cell wasn't run because it has errors";
@@ -558,7 +562,9 @@ export const MarimoErrorOutput = ({
                     <p className="text-muted-foreground">
                       {processTextForUrls(error.msg, `exception-${idx}`)}
                     </p>
-                    {"traceback" in error && error.traceback ? (
+                    {showInlineTraceback &&
+                    "traceback" in error &&
+                    error.traceback ? (
                       <CollapsibleTraceback traceback={error.traceback} />
                     ) : (
                       showConsoleHint && (
@@ -572,9 +578,11 @@ export const MarimoErrorOutput = ({
                   <div>
                     {processTextForUrls(error.msg, `exception-${idx}`)}
                     <CellLinkError cellId={error.raising_cell} />
-                    {"traceback" in error && error.traceback && (
-                      <CollapsibleTraceback traceback={error.traceback} />
-                    )}
+                    {showInlineTraceback &&
+                      "traceback" in error &&
+                      error.traceback && (
+                        <CollapsibleTraceback traceback={error.traceback} />
+                      )}
                   </div>
                 )}
               </li>
