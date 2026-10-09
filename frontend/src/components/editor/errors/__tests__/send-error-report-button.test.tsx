@@ -18,9 +18,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { type Attachment, attachmentsAtom } from "@/core/attachments/state";
 import { exportedForTesting, notebookAtom } from "@/core/cells/cells";
-import type {
-  CellOutputHandoff,
-  ErrorHandoffOutput,
+import {
+  type CellOutputHandoff,
+  type ErrorHandoffOutput,
+  ERROR_HANDOFF_INSTRUCTIONS,
 } from "@/core/cells/error-report";
 import { pairPreviewAtom } from "@/core/config/pair";
 import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
@@ -54,7 +55,11 @@ const REPORT: CellOutputHandoff<ErrorHandoffOutput> = {
   type: "cell-output",
   cell_id: CELL_ID,
   code: CODE,
-  output: { type: "error", message: MESSAGE },
+  output: {
+    type: "error",
+    instructions: ERROR_HANDOFF_INSTRUCTIONS,
+    message: MESSAGE,
+  },
 };
 const ERRORS: MarimoError[] = [
   {
@@ -98,6 +103,12 @@ describe("SendErrorReportButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(API.post).mockResolvedValue("");
+    vi.mocked(toast).mockReturnValue({
+      id: "notice",
+      dismiss: vi.fn(),
+      update: vi.fn(),
+      upsert: vi.fn(),
+    });
   });
 
   it("hides outside the preview without building content", () => {
@@ -131,7 +142,10 @@ describe("SendErrorReportButton", () => {
     expect(getContent).not.toHaveBeenCalled();
     send();
     await waitFor(() =>
-      expect(toast).toHaveBeenCalledWith({ title: "Sent to Pi, Claude Code" }),
+      expect(toast).toHaveBeenCalledWith({
+        title: "Sent to Pi, Claude Code",
+        duration: 3000,
+      }),
     );
     expect(API.post).toHaveBeenCalledWith(ROUTE, REPORT);
     expect(getContent).toHaveBeenCalledOnce();
@@ -183,12 +197,19 @@ describe("SendErrorReportButton", () => {
     renderButton();
     send();
     await waitFor(() =>
-      expect(toast).toHaveBeenCalledWith({ variant: "danger", title }),
+      expect(toast).toHaveBeenCalledWith({
+        variant: "danger",
+        title,
+        duration: 5000,
+      }),
     );
     expect(screen.getByRole("button")).toBeEnabled();
     send();
     await waitFor(() =>
-      expect(toast).toHaveBeenCalledWith({ title: "Sent to Pi" }),
+      expect(toast).toHaveBeenCalledWith({
+        title: "Sent to Pi",
+        duration: 3000,
+      }),
     );
     expect(API.post).toHaveBeenCalledTimes(2);
     expect(API.post).toHaveBeenLastCalledWith(ROUTE, REPORT);
@@ -215,6 +236,7 @@ describe("SendErrorReportButton", () => {
         ...REPORT,
         output: {
           type: "error",
+          instructions: ERROR_HANDOFF_INSTRUCTIONS,
           message: MESSAGE,
           traceback: "Traceback\nNameError: df is not defined",
         },
@@ -257,6 +279,7 @@ describe("SendErrorReportButton", () => {
         ...REPORT,
         output: {
           type: "error",
+          instructions: ERROR_HANDOFF_INSTRUCTIONS,
           message: "ValueError: bad <value>",
           traceback: "Traceback\nValueError: bad <value>",
         },
@@ -373,7 +396,11 @@ describe("SendErrorReportButton", () => {
         type: "cell-output",
         cell_id: CELL_ID,
         code: "x + 1",
-        output: { type: "error", message: "Ancestor failed" },
+        output: {
+          type: "error",
+          instructions: ERROR_HANDOFF_INSTRUCTIONS,
+          message: "Ancestor failed",
+        },
       }),
     );
   });
@@ -396,6 +423,7 @@ describe("SendErrorReportButton", () => {
         code: "slow()",
         output: {
           type: "error",
+          instructions: ERROR_HANDOFF_INSTRUCTIONS,
           message: "This cell was interrupted and needs to be re-run",
         },
       }),

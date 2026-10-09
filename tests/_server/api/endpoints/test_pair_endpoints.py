@@ -13,14 +13,14 @@ from starlette.applications import Starlette
 
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import get_default_config_manager
-from marimo._messaging.attachments import Attachment
-from marimo._messaging.notification import AttachmentsNotification
-from marimo._messaging.serde import deserialize_kernel_message
-from marimo._server.api.deps import (
+from marimo._messaging.attachments import (
     ATTACHMENT_ID_HEADER,
     ATTACHMENT_KIND_HEADER,
     ATTACHMENT_NAME_HEADER,
+    Attachment,
 )
+from marimo._messaging.notification import AttachmentsNotification
+from marimo._messaging.serde import deserialize_kernel_message
 from marimo._server.api.endpoints import pair
 from marimo._server.sse import HEARTBEAT_EVENT
 from marimo._session.consumer import SessionConsumer
@@ -336,7 +336,9 @@ async def test_invalid_json_returns_400(
 
 
 @pytest.mark.parametrize("enabled", [None, "0", "false"])
-@pytest.mark.parametrize("operation", ["events", "handoffs"])
+@pytest.mark.parametrize(
+    "operation", ["events", "handoffs", "attachments/detach"]
+)
 async def test_preview_off_returns_404(
     session: SessionImpl,
     http: httpx.AsyncClient,
@@ -356,7 +358,9 @@ async def test_preview_off_returns_404(
 
 
 @pytest.mark.parametrize("identity", ["unknown", "browser"])
-@pytest.mark.parametrize("operation", ["events", "handoffs"])
+@pytest.mark.parametrize(
+    "operation", ["events", "handoffs", "attachments/detach"]
+)
 async def test_routes_require_a_stable_session_id(
     session: SessionImpl,
     http: httpx.AsyncClient,
@@ -371,18 +375,69 @@ async def test_routes_require_a_stable_session_id(
     assert session.handoffs.attachments() == []
 
 
-@pytest.mark.parametrize("operation", ["events", "handoffs"])
+@pytest.mark.parametrize(
+    "operation", ["events", "handoffs", "attachments/detach"]
+)
 async def test_routes_require_authentication(
     session: SessionImpl,
     http: httpx.AsyncClient,
     operation: str,
 ) -> None:
+    attachment = Attachment(id="a1", kind="agent", name="Codex", since=0)
+    session.handoffs.attach(attachment)
     http.headers.clear()
     response = await http.request(
         "GET" if operation == "events" else "POST", _path(session, operation)
     )
     assert response.status_code == 401
-    assert session.handoffs.attachments() == []
+    assert session.handoffs.attachments() == [attachment]
+
+
+@pytest.mark.parametrize("payload", [{}, {"attachment_id": 1}, None])
+async def test_detach_rejects_invalid_requests_without_removing_attachments(
+    session: SessionImpl,
+    http: httpx.AsyncClient,
+    payload: object,
+) -> None:
+    attachment = Attachment(id="a1", kind="agent", name="Codex", since=0)
+    session.handoffs.attach(attachment)
+    response = await http.post(
+        _path(session, "attachments/detach"), json=payload
+    )
+    assert response.status_code == 400
+    assert session.handoffs.attachments() == [attachment]
+
+
+@pytest.mark.parametrize("attachment_id", ["a1", "agent/opaque?id"])
+async def test_detach_ends_only_the_selected_stream(
+    client: TestClient,
+    session: SessionImpl,
+    http: httpx.AsyncClient,
+    attachment_id: str,
+) -> None:
+    async with (
+        PairStream(client, session, attachment_id) as first,
+        PairStream(client, session, "a2", name="Codex") as second,
+    ):
+        await first.ready()
+        await second.ready()
+        response = await http.post(
+            _path(session, "attachments/detach"),
+            json={"attachment_id": attachment_id},
+        )
+        assert response.status_code == 204
+        assert await first.next_chunk() is None
+        assert [a.id for a in session.handoffs.attachments()] == ["a2"]
+        response = await http.post(_path(session, "handoffs"), json="later")
+        assert response.status_code == 202
+        assert await second.next_chunk() == sse_event("handoff", "later")
+        response = await http.post(
+            _path(session, "attachments/detach"),
+            json={"attachment_id": attachment_id},
+        )
+        assert response.status_code == 204
+        assert isinstance(session._kernel_manager, Mock)
+        session._kernel_manager.close_kernel.assert_not_called()
 
 
 @pytest.mark.parametrize(

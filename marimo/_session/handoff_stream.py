@@ -92,7 +92,7 @@ class HandoffStream:
         self._on_attachments_changed(self.attachments())
         return handle
 
-    def _detach(self, attachment_id: str) -> None:
+    def detach(self, attachment_id: str) -> None:
         """Remove an attachment and end its queue.
 
         Args:
@@ -111,7 +111,7 @@ class HandoffStream:
             handle (AttachmentHandle): Connection to release.
         """
         if self._handles.get(handle.attachment.id) is handle:
-            self._detach(handle.attachment.id)
+            self.detach(handle.attachment.id)
 
     def attachments(self) -> list[Attachment]:
         """Return the full list of live attachments."""

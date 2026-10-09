@@ -10,6 +10,7 @@ from starlette.authentication import requires
 from starlette.responses import Response, StreamingResponse
 
 from marimo._server.api.deps import AppState
+from marimo._server.api.utils import parse_request
 from marimo._server.router import APIRouter
 from marimo._server.sse import (
     HEARTBEAT_EVENT,
@@ -26,6 +27,10 @@ if TYPE_CHECKING:
 
 pair_router = APIRouter()
 PING_INTERVAL = 15.0
+
+
+class _DetachAttachmentRequest(msgspec.Struct):
+    attachment_id: str
 
 
 class _HandoffResponse(StreamingResponse):
@@ -78,6 +83,27 @@ async def events(request: Request) -> StreamingResponse:
             session.handoffs.release(handle)
 
     return _HandoffResponse(stream())
+
+
+@pair_router.post(
+    "/notebooks/{id}/attachments/detach",
+    include_in_schema=False,
+)
+@requires("edit")
+async def detach(request: Request) -> Response:
+    """End a notebook attachment without stopping its agent session."""
+    state = AppState(request)
+    state.require_pair_preview()
+    session = state.session_by_stable_id(request.path_params["id"])
+    try:
+        body = await parse_request(request, cls=_DetachAttachmentRequest)
+    except msgspec.DecodeError as error:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Invalid attachment detach request.",
+        ) from error
+    session.handoffs.detach(body.attachment_id)
+    return Response(status_code=204)
 
 
 @pair_router.post("/notebooks/{id}/handoffs", include_in_schema=False)
