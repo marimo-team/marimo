@@ -1,0 +1,246 @@
+{
+  "version": 1,
+  "text": "- exact_text [string] -> equals: column=\"value\". Example: text_value=\"chevrolet\". Match the complete text value exactly.\n- not_exact_text [string] -> does_not_equal: column!=\"value\". Example: text_value!=\"chevrolet\". Reject the complete text value exactly.\n- contains_text [string] -> contains: column:\"*value*\". Example: text_value:\"*chev*\". Match text that contains the value.\n- starts_with_text [string] -> starts_with: column:\"value*\". Example: text_value:\"chev*\". Match text that starts with the value.\n- ends_with_text [string] -> ends_with: column:\"*value\". Example: text_value:\"*let\". Match text that ends with the value.\n- regex_text [string] -> regex: column:\"/pattern/\". Example: text_value:\"/chev.*/\". Match text with a regular expression.\n- contains_empty_text [string] -> is_not_null: column:\"**\". Example: text_value:\"**\". Match every non-null text value.\n- empty_text [string] -> is_empty: column:\"\". Example: text_value:\"\". Match the empty string.\n- scalar_equal [integer, number, date, datetime, time] -> ==: column=value. Example: quantity=4. Match an equal typed scalar value.\n- scalar_not_equal [integer, number, date, datetime, time] -> !=: column!=value. Example: quantity!=4. Reject an equal typed scalar value.\n- greater_than [integer, number, date, datetime, time] -> >: column>value. Example: quantity>4. Match a typed scalar value above the bound.\n- greater_than_or_equal [integer, number, date, datetime, time] -> >=: column>=value. Example: quantity>=4. Match a typed scalar value on or above the bound.\n- less_than [integer, number, date, datetime, time] -> <: column<value. Example: quantity<4. Match a typed scalar value below the bound.\n- less_than_or_equal [integer, number, date, datetime, time] -> <=: column<=value. Example: quantity<=4. Match a typed scalar value on or below the bound.\n- in_list [string, integer, number] -> in: column:(value1,value2). Example: text_value:(\"chevrolet\",\"ford\"). Match one value from an exact, non-null list.\n- not_in_list [string, integer, number] -> not_in: NOT column:(value1,value2). Example: NOT text_value:(\"chevrolet\",\"ford\"). Reject every value from an exact, non-null list.\n- is_null [string, boolean, integer, number, date, datetime, time] -> is_null: column:null or column:\"null\". Example: text_value:null. Match a missing value. The colon form reserves quoted null too; use column=\"null\" to match that exact text.\n- is_not_null [string, boolean, integer, number, date, datetime, time] -> is_not_null: NOT column:null. Example: NOT text_value:null. Match a present value.\n- boolean_true [boolean] -> is_true: column:true. Example: active:true. Match the boolean value true.\n- boolean_false [boolean] -> is_false: column:false. Example: active:false. Match the boolean value false.",
+  "operations": [
+    {
+      "id": "exact_text",
+      "fql_form": "column=\"value\"",
+      "example": "text_value=\"chevrolet\"",
+      "native_operator": "equals",
+      "supported_types": [
+        "string"
+      ],
+      "meaning": "Match the complete text value exactly."
+    },
+    {
+      "id": "not_exact_text",
+      "fql_form": "column!=\"value\"",
+      "example": "text_value!=\"chevrolet\"",
+      "native_operator": "does_not_equal",
+      "supported_types": [
+        "string"
+      ],
+      "meaning": "Reject the complete text value exactly."
+    },
+    {
+      "id": "contains_text",
+      "fql_form": "column:\"*value*\"",
+      "example": "text_value:\"*chev*\"",
+      "native_operator": "contains",
+      "supported_types": [
+        "string"
+      ],
+      "meaning": "Match text that contains the value."
+    },
+    {
+      "id": "starts_with_text",
+      "fql_form": "column:\"value*\"",
+      "example": "text_value:\"chev*\"",
+      "native_operator": "starts_with",
+      "supported_types": [
+        "string"
+      ],
+      "meaning": "Match text that starts with the value."
+    },
+    {
+      "id": "ends_with_text",
+      "fql_form": "column:\"*value\"",
+      "example": "text_value:\"*let\"",
+      "native_operator": "ends_with",
+      "supported_types": [
+        "string"
+      ],
+      "meaning": "Match text that ends with the value."
+    },
+    {
+      "id": "regex_text",
+      "fql_form": "column:\"/pattern/\"",
+      "example": "text_value:\"/chev.*/\"",
+      "native_operator": "regex",
+      "supported_types": [
+        "string"
+      ],
+      "meaning": "Match text with a regular expression."
+    },
+    {
+      "id": "contains_empty_text",
+      "fql_form": "column:\"**\"",
+      "example": "text_value:\"**\"",
+      "native_operator": "is_not_null",
+      "supported_types": [
+        "string"
+      ],
+      "meaning": "Match every non-null text value."
+    },
+    {
+      "id": "empty_text",
+      "fql_form": "column:\"\"",
+      "example": "text_value:\"\"",
+      "native_operator": "is_empty",
+      "supported_types": [
+        "string"
+      ],
+      "meaning": "Match the empty string."
+    },
+    {
+      "id": "scalar_equal",
+      "fql_form": "column=value",
+      "example": "quantity=4",
+      "native_operator": "==",
+      "supported_types": [
+        "integer",
+        "number",
+        "date",
+        "datetime",
+        "time"
+      ],
+      "meaning": "Match an equal typed scalar value."
+    },
+    {
+      "id": "scalar_not_equal",
+      "fql_form": "column!=value",
+      "example": "quantity!=4",
+      "native_operator": "!=",
+      "supported_types": [
+        "integer",
+        "number",
+        "date",
+        "datetime",
+        "time"
+      ],
+      "meaning": "Reject an equal typed scalar value."
+    },
+    {
+      "id": "greater_than",
+      "fql_form": "column>value",
+      "example": "quantity>4",
+      "native_operator": ">",
+      "supported_types": [
+        "integer",
+        "number",
+        "date",
+        "datetime",
+        "time"
+      ],
+      "meaning": "Match a typed scalar value above the bound."
+    },
+    {
+      "id": "greater_than_or_equal",
+      "fql_form": "column>=value",
+      "example": "quantity>=4",
+      "native_operator": ">=",
+      "supported_types": [
+        "integer",
+        "number",
+        "date",
+        "datetime",
+        "time"
+      ],
+      "meaning": "Match a typed scalar value on or above the bound."
+    },
+    {
+      "id": "less_than",
+      "fql_form": "column<value",
+      "example": "quantity<4",
+      "native_operator": "<",
+      "supported_types": [
+        "integer",
+        "number",
+        "date",
+        "datetime",
+        "time"
+      ],
+      "meaning": "Match a typed scalar value below the bound."
+    },
+    {
+      "id": "less_than_or_equal",
+      "fql_form": "column<=value",
+      "example": "quantity<=4",
+      "native_operator": "<=",
+      "supported_types": [
+        "integer",
+        "number",
+        "date",
+        "datetime",
+        "time"
+      ],
+      "meaning": "Match a typed scalar value on or below the bound."
+    },
+    {
+      "id": "in_list",
+      "fql_form": "column:(value1,value2)",
+      "example": "text_value:(\"chevrolet\",\"ford\")",
+      "native_operator": "in",
+      "supported_types": [
+        "string",
+        "integer",
+        "number"
+      ],
+      "meaning": "Match one value from an exact, non-null list."
+    },
+    {
+      "id": "not_in_list",
+      "fql_form": "NOT column:(value1,value2)",
+      "example": "NOT text_value:(\"chevrolet\",\"ford\")",
+      "native_operator": "not_in",
+      "supported_types": [
+        "string",
+        "integer",
+        "number"
+      ],
+      "meaning": "Reject every value from an exact, non-null list."
+    },
+    {
+      "id": "is_null",
+      "fql_form": "column:null or column:\"null\"",
+      "example": "text_value:null",
+      "native_operator": "is_null",
+      "supported_types": [
+        "string",
+        "boolean",
+        "integer",
+        "number",
+        "date",
+        "datetime",
+        "time"
+      ],
+      "meaning": "Match a missing value. The colon form reserves quoted null too; use column=\"null\" to match that exact text."
+    },
+    {
+      "id": "is_not_null",
+      "fql_form": "NOT column:null",
+      "example": "NOT text_value:null",
+      "native_operator": "is_not_null",
+      "supported_types": [
+        "string",
+        "boolean",
+        "integer",
+        "number",
+        "date",
+        "datetime",
+        "time"
+      ],
+      "meaning": "Match a present value."
+    },
+    {
+      "id": "boolean_true",
+      "fql_form": "column:true",
+      "example": "active:true",
+      "native_operator": "is_true",
+      "supported_types": [
+        "boolean"
+      ],
+      "meaning": "Match the boolean value true."
+    },
+    {
+      "id": "boolean_false",
+      "fql_form": "column:false",
+      "example": "active:false",
+      "native_operator": "is_false",
+      "supported_types": [
+        "boolean"
+      ],
+      "meaning": "Match the boolean value false."
+    }
+  ]
+}
