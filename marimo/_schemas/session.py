@@ -10,7 +10,13 @@ It may be externally used and must be kept backwards compatible.
 
 from __future__ import annotations
 
+import sys
 from typing import Any, Literal
+
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._schemas.common import BaseDict
@@ -31,6 +37,7 @@ class StreamOutput(BaseDict):
     name: Literal["stdout", "stderr"]
     text: str
     mimetype: KnownMimeType | None
+    code: NotRequired[str]
 
 
 class StreamMediaOutput(BaseDict):
@@ -38,6 +45,7 @@ class StreamMediaOutput(BaseDict):
     name: Literal["media"]
     data: str
     mimetype: KnownMimeType
+    code: NotRequired[str]
 
 
 class ErrorOutput(BaseDict):
@@ -45,11 +53,13 @@ class ErrorOutput(BaseDict):
     ename: str
     evalue: str
     traceback: list[str]
+    code: NotRequired[str]
 
 
 class DataOutput(BaseDict):
     type: Literal["data"]
     data: dict[str, Any]  # MIME-type bundles
+    code: NotRequired[str]
 
 
 # Union of all possible output types
@@ -67,8 +77,8 @@ class Cell(BaseDict):
     outputs: list[OutputType]
     console: list[ConsoleType]
 
-    # We don't need to store code or cell config
-    # since that exists in the notebook.py itself
+    # Cell code and configuration live in notebook.py. An output can retain
+    # the source that produced it even after the notebook code changes.
 
 
 # Notebook session metadata

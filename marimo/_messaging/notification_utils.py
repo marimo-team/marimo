@@ -10,6 +10,8 @@ import sys
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+import msgspec
+
 from marimo import _loggers as loggers
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.errors import (
@@ -218,6 +220,7 @@ class CellNotificationUtils:
         clear_console: bool,
         cell_id: CellId_t,
         execution_id: str | None = None,
+        code: str | None = None,
     ) -> None:
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
@@ -265,7 +268,12 @@ class CellNotificationUtils:
         broadcast_notification(
             CellNotification(
                 cell_id=cell_id,
-                output=CellOutput.errors(safe_errors),
+                output=CellOutput.errors(
+                    safe_errors,
+                    code=code
+                    if code is not None and get_mode() == "edit"
+                    else msgspec.UNSET,
+                ),
                 console=console,
                 status=None,
                 execution_id=execution_id,

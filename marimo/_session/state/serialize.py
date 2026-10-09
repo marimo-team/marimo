@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+import msgspec
+
 from marimo import _loggers
 from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -95,12 +97,15 @@ def _normalize_error(error: MarimoError | dict[str, Any]) -> ErrorOutput:
     if isinstance(error, dict):
         return ErrorOutput(
             type="error",
-            ename=error.get("type", "UnknownError"),
+            ename=error.get("exception_type")
+            or error.get("type", "UnknownError"),
             evalue=error.get("msg", ""),
-            traceback=error.get("traceback", []),
+            traceback=as_list(error.get("traceback")),
         )
     else:
-        if isinstance(error, UnknownError) and error.error_type:
+        if isinstance(error, MarimoExceptionRaisedError):
+            ename = error.exception_type
+        elif isinstance(error, UnknownError) and error.error_type:
             # UnknownError with custom error_type field
             ename = error.error_type
         else:
@@ -111,8 +116,21 @@ def _normalize_error(error: MarimoError | dict[str, Any]) -> ErrorOutput:
             type="error",
             ename=ename,
             evalue=error.describe(),
-            traceback=getattr(error, "traceback", []),
+            traceback=as_list(getattr(error, "traceback", None)),
         )
+
+
+def _restore_traceback(traceback: str | list[str] | None) -> str | None:
+    entries = as_list(traceback)
+    if not entries:
+        return None
+    return (
+        "".join(
+            entry if entry.endswith("\n") else entry + "\n"
+            for entry in entries[:-1]
+        )
+        + entries[-1]
+    )
 
 
 def serialize_session_view(
@@ -177,6 +195,10 @@ def serialize_session_view(
                     )
                 )
 
+        if cell_notif.output and isinstance(cell_notif.output.code, str):
+            for output in outputs:
+                output["code"] = cell_notif.output.code
+
         # Convert console outputs
         for console_out in as_list(cell_notif.console):
             assert isinstance(console_out, CellOutput)
@@ -201,6 +223,9 @@ def serialize_session_view(
                         mimetype=console_out.mimetype,
                     )
                 )
+
+            if isinstance(console_out.code, str):
+                console[-1]["code"] = console_out.code
 
         code_hash = _hash_code(view.last_executed_code.get(cell_id))
 
@@ -250,8 +275,12 @@ def deserialize_session(
                                 exception_type=output["ename"],
                                 msg=output["evalue"],
                                 raising_cell=None,
+                                traceback=_restore_traceback(
+                                    output.get("traceback")
+                                ),
                             )
                         ],
+                        code=output.get("code", msgspec.UNSET),
                     )
                 )
             elif output["type"] == "data":
@@ -267,6 +296,7 @@ def deserialize_session(
                                 next(iter(output["data"].keys())),
                             ),
                             data=next(iter(output["data"].values())),
+                            code=output.get("code", msgspec.UNSET),
                         )
                     )
                 else:
@@ -276,6 +306,7 @@ def deserialize_session(
                             channel=CellChannel.OUTPUT,
                             mimetype="application/vnd.marimo+mimebundle",
                             data=output["data"],
+                            code=output.get("code", msgspec.UNSET),
                         )
                     )
             else:
@@ -294,6 +325,7 @@ def deserialize_session(
                         channel=CellChannel.MEDIA,
                         data=console["data"],
                         mimetype=console["mimetype"],
+                        code=console.get("code", msgspec.UNSET),
                     )
                 )
             else:
@@ -326,6 +358,7 @@ def deserialize_session(
                         else CellChannel.STDOUT,
                         data=data,
                         mimetype=mimetype,
+                        code=console.get("code", msgspec.UNSET),
                     )
                 )
 

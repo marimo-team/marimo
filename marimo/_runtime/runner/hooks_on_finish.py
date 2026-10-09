@@ -34,6 +34,7 @@ def _send_interrupt_errors(ctx: OnFinishHookContext) -> None:
                 clear_console=True,
                 cell_id=cid,
                 execution_id=ctx.execution_ids.get(cid),
+                code=ctx.graph.cells[cid].code,
             )
 
 
@@ -85,6 +86,7 @@ def _send_cancellation_errors(ctx: OnFinishHookContext) -> None:
                 clear_console=True,
                 cell_id=cid,
                 execution_id=ctx.execution_ids.get(cid),
+                code=cell.code,
             )
 
 
