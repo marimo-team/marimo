@@ -11,11 +11,11 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@github/copilot-language-server": "^1.539.0"
+    "@github/copilot-language-server": "^1.548.0"
   },
   "devDependencies": {
     "@types/minimist": "^1.2.5",
-    "@types/node": "^24.13.3",
+    "@types/node": "^24.13.6",
     "@types/ws": "^8.18.1",
     "jsonrpc-ws-proxy": "^0.0.5",
     "minimist": "^1.2.8",
