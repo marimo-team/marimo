@@ -264,6 +264,48 @@ components:
       required: []
       title: AnthropicConfig
       type: object
+    Attachment:
+      description: "A connection to a notebook's handoff stream.\n\n    Args:\n  \
+        \      id (str): Identity supplied by the client or minted by the server.\n\
+        \        kind (AttachmentKind): Whether the connection receives handoffs.\n\
+        \        name (str | None): Human-readable label for the connection.\n   \
+        \     since (float): Time of attachment in epoch seconds."
+      properties:
+        id:
+          type: string
+        kind:
+          enum:
+          - agent
+          - client
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+        since:
+          type: number
+      required:
+      - id
+      - kind
+      - name
+      - since
+      title: Attachment
+      type: object
+    AttachmentsNotification:
+      description: "Replace the current list of attachments on this Session.\n\n \
+        \   Args:\n        attachments (list[Attachment]): Full list of live attachments."
+      properties:
+        attachments:
+          items:
+            $ref: '#/components/schemas/Attachment'
+          type: array
+        op:
+          enum:
+          - attachments
+      required:
+      - op
+      - attachments
+      title: AttachmentsNotification
+      type: object
     AutoExportAsIPYNBRequest:
       properties:
         download:
@@ -3319,10 +3361,12 @@ components:
           - $ref: '#/components/schemas/ActiveLineNotification'
           - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
           - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
+          - $ref: '#/components/schemas/AttachmentsNotification'
           discriminator:
             mapping:
               active-line: '#/components/schemas/ActiveLineNotification'
               alert: '#/components/schemas/AlertNotification'
+              attachments: '#/components/schemas/AttachmentsNotification'
               banner: '#/components/schemas/BannerNotification'
               cache-cleared: '#/components/schemas/CacheClearedNotification'
               cache-info: '#/components/schemas/CacheInfoNotification'

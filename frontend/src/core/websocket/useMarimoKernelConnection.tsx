@@ -5,6 +5,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useRef } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
+import { attachmentsAtom } from "@/core/attachments/state";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import { applyTransactionChanges } from "@/core/cells/document-changes";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
@@ -236,6 +237,7 @@ export function useMarimoKernelConnection(opts: {
   } = useAlertActions();
   const setKioskMode = useSetAtom(kioskModeAtom);
   const setStableSessionId = useSetAtom(stableSessionIdAtom);
+  const setAttachments = useSetAtom(attachmentsAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
   const transportType = useAtomValue(connectionTransportTypeAtom);
@@ -251,6 +253,9 @@ export function useMarimoKernelConnection(opts: {
     switch (msg.data.op) {
       case "reload":
         reloadSafe();
+        return;
+      case "attachments":
+        setAttachments(msg.data.attachments);
         return;
       case "startup-progress": {
         const { phase } = msg.data;
@@ -283,6 +288,7 @@ export function useMarimoKernelConnection(opts: {
           existingCells,
         });
         if (!msg.data.resumed) {
+          setAttachments([]);
           // A freshly started kernel may expose a different environment
           // (e.g. new env vars); re-run discovery instead of reusing stale
           // suggestions from the previous kernel instance.
@@ -559,6 +565,7 @@ export function useMarimoKernelConnection(opts: {
      */
     onOpen: async () => {
       updateStartupProgress(null);
+      setAttachments([]);
       // If we are open, we can reset our reconnecting flag.
       shouldTryReconnecting.current = true;
     },
@@ -601,6 +608,7 @@ export function useMarimoKernelConnection(opts: {
      */
     onClose: (e) => {
       Logger.warn("WebSocket closed", e.code, e.reason);
+      setAttachments([]);
       const decision = classifyCloseEvent(e);
       setConnection((previous) => {
         const status = decision.status;
@@ -639,6 +647,7 @@ export function useMarimoKernelConnection(opts: {
      */
     onError: (e) => {
       Logger.warn("WebSocket error", e);
+      setAttachments([]);
       setConnection({
         state: WebSocketState.CLOSED,
         code: WebSocketClosedReason.KERNEL_DISCONNECTED,

@@ -43,6 +43,11 @@ vi.mock("@/core/runtime/config", async () => {
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import { alertAtom, getPackageAlert } from "@/core/alerts/state";
+import {
+  type Attachment,
+  attachmentsAtom,
+  agentAttachmentsAtom,
+} from "@/core/attachments/state";
 import { notebookAtom } from "@/core/cells/cells";
 import { AppConfigSchema } from "@/core/config/config-schema";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
@@ -184,6 +189,38 @@ describe("useMarimoKernelConnection.reconnect()", () => {
 });
 
 describe("useMarimoKernelConnection messages", () => {
+  it("replaces attachment snapshots, including the last detach", () => {
+    const store = createStore();
+    vi.mocked(useConnectionTransport).mockReturnValue(
+      makeTransport(WebSocket.OPEN),
+    );
+    vi.mocked(useRuntimeManager).mockReturnValue(
+      makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
+    );
+    renderConnectionHook(store);
+    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
+    const agent: Attachment = { id: "a1", kind: "agent", name: "Pi", since: 1 };
+    const client: Attachment = {
+      id: "c1",
+      kind: "client",
+      name: null,
+      since: 2,
+    };
+    for (const attachments of [[agent, client], [client], []]) {
+      act(() =>
+        options.onMessage(
+          new MessageEvent("message", {
+            data: JSON.stringify({
+              op: "attachments",
+              data: { op: "attachments", attachments },
+            }),
+          }),
+        ),
+      );
+      expect(store.get(attachmentsAtom)).toEqual(attachments);
+    }
+  });
+
   it("records completion of the initial run", () => {
     const store = createStore();
     vi.mocked(useConnectionTransport).mockClear();
@@ -208,6 +245,94 @@ describe("useMarimoKernelConnection messages", () => {
       );
     });
     expect(store.get(initialRunCompletedAtom)).toBe(true);
+  });
+});
+
+describe("attachment snapshots across browser connections", () => {
+  const agent: Attachment = { id: "a1", kind: "agent", name: "Pi", since: 1 };
+
+  function connectedSession() {
+    const store = createStore();
+    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(attachmentsAtom, [agent]);
+    const transport = makeTransport(WebSocket.OPEN);
+    vi.mocked(useConnectionTransport).mockReturnValue(transport);
+    vi.mocked(useRuntimeManager).mockReturnValue(
+      makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
+    );
+    renderConnectionHook(store);
+    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
+    const receive = (data: NotificationPayload["data"]) =>
+      act(() => {
+        options.onMessage(
+          new MessageEvent("message", {
+            data: JSON.stringify({ op: data.op, data }),
+          }),
+        );
+      });
+    return { store, transport, options, receive };
+  }
+
+  it.each([
+    "MARIMO_NO_FILE_KEY",
+    "MARIMO_NO_SESSION_ID",
+    "MARIMO_NO_SESSION",
+    "MARIMO_SHUTDOWN",
+    "MARIMO_KERNEL_STARTUP_ERROR",
+    "MARIMO_UNAUTHORIZED",
+    "MARIMO_KIOSK_NOT_ALLOWED",
+    "MARIMO_TRANSPORT_EXHAUSTED",
+  ])("clears cached attachments on %s", (reason) => {
+    const { store, transport, options } = connectedSession();
+    act(() => options.onClose(new CloseEvent("close", { reason })));
+    expect(store.get(attachmentsAtom)).toEqual([]);
+    expect(store.get(agentAttachmentsAtom)).toEqual([]);
+    expect(store.get(connectionAtom).state).toBe(WebSocketState.CLOSED);
+    expect(transport.reconnect).not.toHaveBeenCalled();
+  });
+
+  it("clears the snapshot on transport error", () => {
+    const { store, options } = connectedSession();
+    act(() => options.onError(new Event("error")));
+    expect(store.get(attachmentsAtom)).toEqual([]);
+    expect(store.get(agentAttachmentsAtom)).toEqual([]);
+  });
+
+  it("waits for a fresh snapshot after a transient reconnect", async () => {
+    const { store, transport, options, receive } = connectedSession();
+    act(() => options.onClose(new CloseEvent("close")));
+    expect(store.get(attachmentsAtom)).toEqual([]);
+    expect(store.get(connectionAtom).state).toBe(WebSocketState.CONNECTING);
+    expect(transport.reconnect).toHaveBeenCalledOnce();
+
+    await act(async () => options.onOpen(new Event("open")));
+    receive({ op: "reconnected" });
+    expect(store.get(connectionAtom).state).toBe(WebSocketState.OPEN);
+    expect(store.get(agentAttachmentsAtom)).toEqual([]);
+
+    const refreshed = { ...agent, id: "a2", name: "Codex" };
+    receive({ op: "attachments", attachments: [refreshed] });
+    expect(store.get(agentAttachmentsAtom)).toEqual([refreshed]);
+    receive({ op: "attachments", attachments: [] });
+    expect(store.get(agentAttachmentsAtom)).toEqual([]);
+  });
+
+  it("keeps a fresh snapshot hidden until the session is ready", async () => {
+    const { store, options, receive } = connectedSession();
+    act(() => options.onClose(new CloseEvent("close")));
+    await act(async () => options.onOpen(new Event("open")));
+    receive({ op: "attachments", attachments: [agent] });
+    expect(store.get(attachmentsAtom)).toEqual([agent]);
+    expect(store.get(agentAttachmentsAtom)).toEqual([]);
+    receive({ op: "reconnected" });
+    expect(store.get(agentAttachmentsAtom)).toEqual([agent]);
+  });
+
+  it("invalidates an old snapshot when a new transport opens", async () => {
+    const { store, options } = connectedSession();
+    await act(async () => options.onOpen(new Event("open")));
+    expect(store.get(attachmentsAtom)).toEqual([]);
+    expect(store.get(agentAttachmentsAtom)).toEqual([]);
   });
 });
 
@@ -258,6 +383,52 @@ it.each(["kernel-ready", "reconnected"])(
       );
     });
     expect(store.get(connectionAtom).state).toBe(WebSocketState.OPEN);
+  },
+);
+
+it.each([true, false])(
+  "keeps attachments only when kernel-ready resumes the session: %s",
+  (resumed) => {
+    const store = createStore();
+    const attachments: Attachment[] = [
+      { id: "a1", kind: "agent", name: "Pi", since: 1 },
+    ];
+    store.set(attachmentsAtom, attachments);
+    vi.mocked(useConnectionTransport).mockReturnValue(
+      makeTransport(WebSocket.OPEN),
+    );
+    vi.mocked(useRuntimeManager).mockReturnValue(
+      makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
+    );
+    renderConnectionHook(store);
+    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
+    act(() =>
+      options.onMessage(
+        new MessageEvent("message", {
+          data: JSON.stringify({
+            op: "kernel-ready",
+            data: {
+              op: "kernel-ready",
+              cell_ids: [],
+              codes: [],
+              names: [],
+              configs: [],
+              layout: null,
+              resumed,
+              ui_values: {},
+              last_executed_code: {},
+              last_execution_time: {},
+              app_config: { width: "normal" },
+              kiosk: false,
+              capabilities: { terminal: false },
+              auto_instantiated: true,
+              consumer_capabilities: { edit: true, interact: true },
+            },
+          }),
+        }),
+      ),
+    );
+    expect(store.get(attachmentsAtom)).toEqual(resumed ? attachments : []);
   },
 );
 
