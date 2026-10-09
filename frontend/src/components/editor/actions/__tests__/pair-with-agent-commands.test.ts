@@ -252,8 +252,7 @@ describe("getRawPrompt", () => {
       "Pair with me on this running marimo notebook.\n\n" +
         `URL: http://localhost:8000\n${fields}\n` +
         "Run `uvx marimo@latest pair --help` first.\n" +
-        "Use `uvx marimo@latest` for all marimo commands.\n\n" +
-        "Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).",
+        "Use `uvx marimo@latest` for all marimo commands.",
     );
   });
 
@@ -265,8 +264,7 @@ describe("getRawPrompt", () => {
         "URL: http://localhost:8000\n" +
         "Session: s_ab12cd\n\n" +
         "Run `uvx marimo@latest pair --help` first.\n" +
-        "Use `uvx marimo@latest` for all marimo commands.\n\n" +
-        "Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).",
+        "Use `uvx marimo@latest` for all marimo commands.",
     );
   });
 

@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from unittest.mock import Mock
 
 import pytest
 
@@ -68,7 +69,7 @@ def _patch_response(
 
     def fake_open_response(**kwargs: Any) -> Any:
         calls.append(kwargs)
-        return response
+        return client.EventStream(response, Mock())
 
     monkeypatch.setattr(client, "open_response", fake_open_response)
     return calls

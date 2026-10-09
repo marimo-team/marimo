@@ -7,6 +7,7 @@ import os
 import re
 import shlex
 import sys
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -16,17 +17,26 @@ from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._cli.pair.client import (
     AmbiguousSessionError,
     NoSessionError,
+    PairConnectionError,
     PairError,
     PairInputError,
     StableSessionUnsupportedError,
     StaleSessionError,
     display_url,
     execute as execute_code,
+    iter_sse,
     list_sessions,
     load_token,
+    open_events,
     registry_urls,
     resolve_session,
 )
+from marimo._cli.pair.connection import (
+    ConnectionStore,
+    attachment_id,
+)
+from marimo._cli.pair.forwarder import ForwarderConfig, start_forwarder
+from marimo._cli.pair.harnesses import detect_target, environment_identity
 from marimo._cli.pair.prompts import render_prompt
 from marimo._server.ai.skills import utils as skills_utils
 from marimo._utils.env import pair_preview_enabled
@@ -216,6 +226,12 @@ class _DocsCommand(ColoredCommand):
         marimo edit <notebook.py> --no-token
       If you do not have the server URL or session:
         marimo pair notebook list
+      Connect to the notebook before waiting for work.
+      Run marimo pair connect --help to check supported harnesses.
+      If your harness is supported, enable MARIMO_PAIR_NEXT=1 on the CLI
+      and server, then run:
+        marimo pair connect --url <URL> --session <SESSION>
+      Otherwise, work with the notebook using pair execute:
       marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
       import marimo._code_mode as cm
       async with cm.get_context() as ctx:
@@ -239,6 +255,17 @@ class _DocsCommand(ColoredCommand):
       If one notebook has several sessions, ask the user which one.
       Do not switch sessions after authentication or connection errors,
       or when execution is unconfirmed.
+
+    \b
+    Handoffs (preview):
+      Enable MARIMO_PAIR_NEXT=1 on the CLI and server.
+      Inside Codex, run marimo pair connect --url <URL> --session <SESSION>.
+      Codex must use its shared daemon and support codex queue.
+      Notebook handoffs arrive here as messages from marimo.
+      Oversized handoffs include a complete JSON file on this machine.
+      Files remain after detach. Cleanup removes owned files older than 24 hours.
+      Use pair events --url <URL> --session <SESSION> for a live tail.
+      Use pair detach --session <SESSION> to stop the inbox.
 
     \b
     Rules:
@@ -517,7 +544,7 @@ def _failure_guidance(
         return message, _TOKEN_NEXT
     if message.startswith("The server URL"):
         return message, ("Use the url field from:\nmarimo pair notebook list")
-    if message == "Could not connect to the server.":
+    if isinstance(error, PairConnectionError):
         return f"Could not connect to {safe_url}.", (
             "Check the URL. To find live servers: marimo pair notebook list"
         )
@@ -846,6 +873,121 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
 
 
 notebook.add_command(list_notebooks)
+
+
+def _require_handoffs() -> None:
+    if not pair_preview_enabled():
+        raise PairInputError(
+            "Handoffs require MARIMO_PAIR_NEXT=1 on the CLI and server."
+        )
+
+
+@click.command(
+    cls=ColoredCommand,
+    help=(
+        "Connect this harness inbox to a live notebook.\n\n"
+        "Currently supported harnesses: Codex.\n\n"
+        "For other harnesses, use pair execute to work with the notebook."
+    ),
+)
+@click.option("--url", required=True, help="Server URL.")
+@click.option(
+    "--session",
+    "session_id",
+    required=True,
+    help="Stable notebook session ID.",
+)
+@click.option("--token-file", type=click.Path(path_type=Path, dir_okay=False))
+@click.option(
+    "--harness", type=click.Choice(["codex"]), help="Select the inbox harness."
+)
+def connect(
+    url: str, session_id: str, token_file: Path | None, harness: str | None
+) -> None:
+    try:
+        _require_handoffs()
+        adapter, target = detect_target(os.environ, harness)
+        adapter.check()
+        token = load_token(token_file, os.environ)
+        identity = attachment_id(session_id, target.kind, target.address)
+        store = ConnectionStore()
+        with store.locked(identity):
+            store.stop(identity)
+            start_forwarder(
+                ForwarderConfig(url, session_id, identity, token, target),
+                store,
+            )
+        click.echo(
+            f"Connected as {target.label}. Handoffs from this notebook arrive here as messages from marimo."
+        )
+    except (PairError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+
+
+@click.command(
+    cls=ColoredCommand,
+    help="Stop the forwarder and detach its notebook inbox.",
+)
+@click.option(
+    "--session",
+    "session_id",
+    required=True,
+    help="Stable notebook session ID.",
+)
+def detach(session_id: str) -> None:
+    try:
+        _require_handoffs()
+        store = ConnectionStore()
+        kind, conversation = environment_identity(os.environ)
+        selected = store.select(
+            session_id, kind=kind, conversation=conversation
+        )
+        if selected is not None:
+            with store.locked(selected.attachment_id):
+                store.stop(selected.attachment_id)
+        click.echo("Detached.")
+    except (PairError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+
+
+@click.command(
+    cls=ColoredCommand,
+    help="Attach as an agent and print live handoffs until interrupted.",
+)
+@click.option("--url", required=True, help="Server URL.")
+@click.option(
+    "--session",
+    "session_id",
+    required=True,
+    help="Stable notebook session ID.",
+)
+@click.option("--token-file", type=click.Path(path_type=Path, dir_okay=False))
+def events(url: str, session_id: str, token_file: Path | None) -> None:
+    try:
+        _require_handoffs()
+        response = open_events(
+            url=url,
+            session=session_id,
+            token=load_token(token_file, os.environ),
+            attachment=str(uuid.uuid4()),
+            name="pair events",
+        )
+        try:
+            for event in iter_sse(response):
+                click.echo(f"{event.name}: {event.data}")
+        finally:
+            response.close()
+    except StaleSessionError:
+        return
+    except (PairError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+    except KeyboardInterrupt:
+        return
+
+
+pair.add_command(connect)
+pair.add_command(detach)
+pair.add_command(events)
 pair.add_command(execute)
 pair.add_command(docs)
 pair.add_command(notebook)

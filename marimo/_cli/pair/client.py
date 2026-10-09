@@ -3,10 +3,17 @@ from __future__ import annotations
 
 import http.client
 import json
+import socket
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
+from marimo._messaging.attachments import (
+    ATTACHMENT_ID_HEADER,
+    ATTACHMENT_KIND_HEADER,
+    ATTACHMENT_NAME_HEADER,
+    STABLE_SESSION_ID_HEADER,
+)
 from marimo._server.api.utils import format_url_host
 from marimo._server.server_registry import _servers_dir
 
@@ -23,6 +30,10 @@ class PairError(Exception):
 
 class PairInputError(PairError):
     """Invalid local input that prevents a server operation."""
+
+
+class PairConnectionError(PairError):
+    """A transport failure while connecting to the notebook server."""
 
 
 class NoSessionError(PairError):
@@ -98,7 +109,9 @@ def _endpoint_url(url: str, path: str) -> str:
     ).geturl()
 
 
-def iter_sse(lines: Iterable[bytes]) -> Iterator[SSEEvent]:
+def iter_sse(
+    lines: Iterable[bytes], *, heartbeats: bool = False
+) -> Iterator[SSEEvent]:
     name = "message"
     data: list[str] = []
 
@@ -111,6 +124,8 @@ def iter_sse(lines: Iterable[bytes]) -> Iterator[SSEEvent]:
             data = []
             continue
         if line.startswith(":"):
+            if heartbeats:
+                yield SSEEvent(name="heartbeat", data="")
             continue
 
         field, separator, value = line.partition(":")
@@ -126,8 +141,13 @@ def iter_sse(lines: Iterable[bytes]) -> Iterator[SSEEvent]:
 
 
 def open_response(
-    *, method: str, url: str, headers: dict[str, str], body: bytes | None
-) -> HTTPResponse:
+    *,
+    method: str,
+    url: str,
+    headers: dict[str, str],
+    body: bytes | None,
+    read_timeout: float | None = None,
+) -> EventStream:
     try:
         parsed = urlsplit(url)
         port = parsed.port
@@ -150,20 +170,29 @@ def open_response(
             timeout=5.0,
         )
         connection.connect()
-        if connection.sock is not None:
-            connection.sock.settimeout(None)
+        assert connection.sock is not None
+        response_socket = connection.sock
+        response_socket.settimeout(read_timeout)
         path = parsed.path or "/"
         if parsed.query:
             path = f"{path}?{parsed.query}"
         connection.request(method, path, body=body, headers=headers)
         response = connection.getresponse()
     except (ValueError, http.client.InvalidURL) as error:
+        connection.close()
         raise PairInputError("The server URL is invalid.") from error
     except (OSError, http.client.HTTPException) as error:
-        raise PairError("Could not connect to the server.") from error
+        connection.close()
+        raise PairConnectionError(
+            "Could not connect to the server."
+        ) from error
 
-    _raise_for_status(response)
-    return response
+    try:
+        _raise_for_status(response)
+    except PairError:
+        connection.close()
+        raise
+    return EventStream(response, response_socket)
 
 
 def _response_detail(response: HTTPResponse) -> str | None:
@@ -210,7 +239,7 @@ def execute(
     request_url = _endpoint_url(url, "/api/kernel/execute")
     headers = {
         "Content-Type": "application/json",
-        "Marimo-Stable-Session-Id": session_id,
+        STABLE_SESSION_ID_HEADER: session_id,
     }
     if token is not None:
         headers["Authorization"] = f"Bearer {token}"
@@ -281,6 +310,54 @@ def execute(
         response.close()
 
 
+@dataclass(frozen=True)
+class EventStream:
+    response: HTTPResponse
+    socket: socket.socket
+
+    def __iter__(self) -> Iterator[bytes]:
+        return iter(self.response)
+
+    def close(self) -> None:
+        # Shutdown interrupts a blocked reader before closing its file handle.
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        try:
+            self.response.close()
+        finally:
+            self.socket.close()
+
+
+def open_events(
+    *,
+    url: str,
+    session: str,
+    token: str | None,
+    attachment: str,
+    name: str,
+) -> EventStream:
+    from urllib.parse import quote
+
+    headers = {
+        ATTACHMENT_ID_HEADER: attachment,
+        ATTACHMENT_KIND_HEADER: "agent",
+        ATTACHMENT_NAME_HEADER: name,
+    }
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
+    return open_response(
+        method="GET",
+        url=_endpoint_url(
+            url, f"/api/pair/notebooks/{quote(session, safe='')}/events"
+        ),
+        headers=headers,
+        body=None,
+        read_timeout=45,
+    )
+
+
 def list_sessions(
     *, url: str, token: str | None
 ) -> dict[str, dict[str, str | None]]:
@@ -296,7 +373,7 @@ def list_sessions(
     )
     try:
         try:
-            payload = json.load(response)
+            payload = json.load(response.response)
         except (
             OSError,
             UnicodeError,

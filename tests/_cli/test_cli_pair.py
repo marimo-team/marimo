@@ -67,6 +67,12 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
       marimo edit <notebook.py> --no-token
     If you do not have the server URL or session:
       marimo pair notebook list
+    Connect to the notebook before waiting for work.
+    Run marimo pair connect --help to check supported harnesses.
+    If your harness is supported, enable MARIMO_PAIR_NEXT=1 on the CLI
+    and server, then run:
+      marimo pair connect --url <URL> --session <SESSION>
+    Otherwise, work with the notebook using pair execute:
     marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
     import marimo._code_mode as cm
     async with cm.get_context() as ctx:
@@ -89,6 +95,16 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     If one notebook has several sessions, ask the user which one.
     Do not switch sessions after authentication or connection errors,
     or when execution is unconfirmed.
+
+  Handoffs (preview):
+    Enable MARIMO_PAIR_NEXT=1 on the CLI and server.
+    Inside Codex, run marimo pair connect --url <URL> --session <SESSION>.
+    Codex must use its shared daemon and support codex queue.
+    Notebook handoffs arrive here as messages from marimo.
+    Oversized handoffs include a complete JSON file on this machine.
+    Files remain after detach. Cleanup removes owned files older than 24 hours.
+    Use pair events --url <URL> --session <SESSION> for a live tail.
+    Use pair detach --session <SESSION> to stop the inbox.
 
   Rules:
     Cells are the unit of work. The scratchpad is temporary; only code mode edits persist.
@@ -115,7 +131,10 @@ Options:
   -h, --help  Show this message and exit.
 
 Commands:
+  connect   Connect this harness inbox to a live...
+  detach    Stop the forwarder and detach its notebook...
   docs      Read notebook guidance on demand.
+  events    Attach as an agent and print live handoffs...
   execute   Run Python in a live notebook session.
   notebook  Find active notebooks and their sessions.
   prompt    Generate a prompt for pair programming on...
@@ -1574,9 +1593,7 @@ class TestPairPromptPreview:
             "Pair with me on this running marimo notebook.\n\n"
             "URL: http://localhost:2718\n\n"
             f"Run `{command} pair --help` first.\n"
-            f"Use `{command}` for all marimo commands.\n\n"
-            "Once connected, send a fun toast using `mo.status.toast(...)` "
-            "(`import marimo as mo`).\n"
+            f"Use `{command}` for all marimo commands.\n"
         )
 
     def test_with_token_uses_private_file(self, tmp_path: Path) -> None:
@@ -1624,8 +1641,6 @@ Session: s_ab12cd
 Run `uvx marimo@latest pair --help` first.
 Use `uvx marimo@latest` for all marimo commands.
 
-Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
-
 For authenticated Pair commands, pass `--token-file <TOKEN_FILE>`.
 """)
 
@@ -1653,8 +1668,6 @@ URL: http://localhost:2718
 
 Run `uvx marimo@latest pair --help` first.
 Use `uvx marimo@latest` for all marimo commands.
-
-Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 """)
 
     def test_prompt_preserves_connection_details(self) -> None:
@@ -1680,8 +1693,6 @@ Session: {command}/it's session
 
 Run `uvx marimo@latest pair --help` first.
 Use `uvx marimo@latest` for all marimo commands.
-
-Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 """)
 
     @pytest.mark.parametrize("flag", ["1", "true", " TRUE "])
@@ -1708,8 +1719,6 @@ Session: sess-stable
 
 Run `uvx marimo@latest pair --help` first.
 Use `uvx marimo@latest` for all marimo commands.
-
-Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 """)
 
 
