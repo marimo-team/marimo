@@ -12,8 +12,10 @@ import {
 } from "react";
 import { z } from "zod";
 import {
-  type DownloadAsArgs,
+  type DownloadAsFunction,
   DownloadAsSchema,
+  type DownloadGeoJSON,
+  DownloadGeoJSONSchema,
   type GetExportMetadata,
   GetExportMetadataSchema,
 } from "@/components/data-table/schemas";
@@ -84,7 +86,8 @@ type PluginFunctions = {
     data: TableData<T>;
     total_rows: number;
   }>;
-  download_as: DownloadAsArgs;
+  download_as: DownloadAsFunction;
+  download_geojson: DownloadGeoJSON;
   get_export_metadata: GetExportMetadata;
   get_size_bytes: (opts: Record<string, never>) => Promise<{
     size_bytes?: number | null;
@@ -156,6 +159,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         }),
       ),
     download_as: DownloadAsSchema,
+    download_geojson: DownloadGeoJSONSchema,
     get_export_metadata: GetExportMetadataSchema,
     get_size_bytes: rpc
       .input(z.object({}))
@@ -178,7 +182,7 @@ interface DataTableProps extends Data, PluginFunctions {
   setValue: (value: S) => void;
   host: HTMLElement;
   showDownload: boolean;
-  download_as: DownloadAsArgs;
+  download_as: DownloadAsFunction;
 }
 
 const EMPTY: Transformations = {
@@ -198,6 +202,7 @@ export const DataFrameComponent = memo(
     get_column_values,
     search,
     download_as,
+    download_geojson,
     get_export_metadata,
     get_size_bytes,
     host,
@@ -342,6 +347,7 @@ export const DataFrameComponent = memo(
           rowHeaders={row_headers || Arrays.EMPTY}
           showDownload={showDownload}
           download_as={download_as}
+          download_geojson={download_geojson}
           get_export_metadata={get_export_metadata}
           get_size_bytes={get_size_bytes}
           showSearch={false}

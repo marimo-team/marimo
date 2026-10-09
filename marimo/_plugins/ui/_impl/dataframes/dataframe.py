@@ -28,6 +28,7 @@ from marimo._plugins.ui._impl.table import (
     DownloadAsArgs,
     DownloadAsOptions,
     DownloadAsResponse,
+    DownloadGeoJSONArgs,
     GetSizeBytesResponse,
     SearchTableArgs,
     SearchTableResponse,
@@ -236,6 +237,11 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                     function=self._download_as,
                 ),
                 Function(
+                    name="download_geojson",
+                    arg_cls=DownloadGeoJSONArgs,
+                    function=self._download_geojson,
+                ),
+                Function(
                     name="get_export_metadata",
                     arg_cls=EmptyArgs,
                     function=self._get_export_metadata,
@@ -363,13 +369,23 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         return get_export_metadata(get_table_manager(self._value))
 
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
+        return self._download(args)
+
+    def _download_geojson(
+        self, args: DownloadGeoJSONArgs
+    ) -> DownloadAsResponse:
+        return self._download(args)
+
+    def _download(
+        self, args: DownloadAsArgs | DownloadGeoJSONArgs
+    ) -> DownloadAsResponse:
         """Download the transformed dataframe in the specified format.
 
         Downloads the dataframe with all current transformations applied.
 
         Args:
-            args (DownloadAsArgs): Arguments specifying the download format.
-                format must be one of 'csv', 'tsv', 'json', or 'parquet'.
+            args (DownloadAsArgs | DownloadGeoJSONArgs): Arguments specifying
+                the download format and optional export settings.
 
         Returns:
             DownloadAsResponse: URL and filename for the downloaded file.
