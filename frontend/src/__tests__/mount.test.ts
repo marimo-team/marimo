@@ -58,6 +58,7 @@ describe("mount", () => {
     vi.mocked(isStaticNotebook).mockReturnValue(false);
     store.set(layoutStateAtom, initialLayoutState());
     store.set(kioskModeAtom, false);
+    delete window.__marimoCapture;
     // Reset connection atom to initial state
     store.set(connectionAtom, { state: WebSocketState.NOT_STARTED });
   });
@@ -194,5 +195,17 @@ describe("mount", () => {
 
     expect(error).toBeUndefined();
     expect(store.get(kioskModeAtom)).toBe(true);
+    expect(window.__marimoCapture).toBeDefined();
+  });
+
+  it.each([
+    ["/?kiosk=true", true],
+    ["/?kiosk=false", false],
+    ["/", false],
+  ])("installs the capture getter only in kiosk mode: %s", (url, expected) => {
+    window.history.replaceState({}, "", url);
+    const error = mountRead();
+    expect(error).toBeUndefined();
+    expect(Boolean(window.__marimoCapture)).toBe(expected);
   });
 });

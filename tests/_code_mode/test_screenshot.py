@@ -330,26 +330,223 @@ async def test_screenshot_passes_credentials_and_reuses_browser(
         session.return_value.close.assert_awaited_once()
 
 
-async def test_screenshot_rejects_currently_empty_browser_output() -> None:
+@pytest.mark.parametrize("reused_page", [False, True])
+async def test_empty_browser_output_refreshes_only_a_reused_page(
+    reused_page: bool,
+) -> None:
     session = _ScreenshotSession("http://localhost:1234")
-    session._page = MagicMock()
+    if reused_page:
+        session._page = MagicMock()
+
+    async def ready() -> None:
+        session._page = MagicMock()
+
     with (
-        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
-        patch.object(session, "_wait_for_container", new_callable=AsyncMock),
+        patch.object(session, "_ensure_ready", side_effect=ready),
         patch.object(
-            session,
-            "_container_has_content",
-            new_callable=AsyncMock,
-            return_value=False,
-        ) as has_content,
+            session, "_wait_for_output", return_value="empty"
+        ) as wait,
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
         patch.object(
             session, "_resolve_output_locator", new_callable=AsyncMock
-        ) as resolve_output,
+        ) as resolve,
     ):
-        with pytest.raises(ScreenshotError, match="has no rendered content"):
+        with pytest.raises(ScreenshotError, match="has no rendered output"):
             await session.capture(CellId_t("cell-a"))
-        has_content.assert_awaited_once_with("#output-cell-a")
-        resolve_output.assert_not_awaited()
+        assert wait.await_count == (2 if reused_page else 1)
+        if reused_page:
+            navigate.assert_awaited_once_with(initial=False)
+        else:
+            navigate.assert_not_awaited()
+        resolve.assert_not_awaited()
+
+
+async def test_reused_empty_browser_refreshes_before_rejecting_new_output() -> (
+    None
+):
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    target = AsyncMock()
+    target.screenshot.return_value = b"png"
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+        patch.object(
+            session, "_wait_for_output", side_effect=["empty", "ready"]
+        ),
+        patch.object(session, "_resolve_output_locator", return_value=target),
+    ):
+        assert await session.capture(CellId_t("cell-a")) == b"png"
+        navigate.assert_awaited_once_with(initial=False)
+
+
+@pytest.mark.parametrize("refreshed_state", ["ready", "empty"])
+async def test_reused_ready_output_is_refreshed_before_capture(
+    refreshed_state: str,
+) -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    target = AsyncMock()
+    target.screenshot.return_value = b"fresh png"
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+        patch.object(
+            session, "_wait_for_output", side_effect=["ready", refreshed_state]
+        ),
+        patch.object(session, "_resolve_output_locator", return_value=target),
+    ):
+        if refreshed_state == "ready":
+            assert await session.capture(CellId_t("cell-a")) == b"fresh png"
+        else:
+            with pytest.raises(
+                ScreenshotError, match="has no rendered output"
+            ):
+                await session.capture(CellId_t("cell-a"))
+            target.screenshot.assert_not_awaited()
+        navigate.assert_awaited_once_with(initial=False)
+
+
+async def test_missing_container_and_empty_output_share_one_refresh() -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+        patch.object(
+            session, "_wait_for_output", side_effect=[TimeoutError, "empty"]
+        ),
+    ):
+        with pytest.raises(ScreenshotError, match="has no rendered output"):
+            await session.capture(CellId_t("cell-a"))
+        navigate.assert_awaited_once_with(initial=False)
+
+
+async def test_rendering_wait_and_screenshot_share_timeout_budget() -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_wait_for_output", return_value="ready"),
+        patch.object(
+            session, "_resolve_output_locator", new_callable=AsyncMock
+        ) as resolve,
+        patch(
+            "marimo._code_mode.screenshot.time.monotonic",
+            side_effect=[0, 0.001, 0.050],
+        ),
+    ):
+        with pytest.raises(ScreenshotError, match="Screenshot timed out"):
+            await session.capture(CellId_t("cell-a"), timeout_ms=20)
+        resolve.assert_not_awaited()
+
+
+@pytest.mark.parametrize("kind", ["deadline", "playwright", "reload"])
+async def test_refresh_failure_is_actionable(kind: str) -> None:
+    error: Exception
+    if kind == "deadline":
+        error = TimeoutError()
+    elif kind == "playwright":
+        playwright = pytest.importorskip("playwright.async_api")
+        error = playwright.TimeoutError("navigation timed out")
+    else:
+        error = RuntimeError("reload failed")
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_wait_for_output", return_value="empty"),
+        patch.object(session, "_navigate", side_effect=error),
+    ):
+        with pytest.raises(ScreenshotError, match="refreshing") as raised:
+            await session.capture(CellId_t("cell-a"))
+        assert "Fix:" in str(raised.value)
+        assert raised.value.__cause__ is error
+
+
+async def test_pending_probe_preserves_exhausted_budget_error() -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(
+            session, "_wait_for_output", return_value="pending"
+        ) as wait,
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+        patch(
+            "marimo._code_mode.screenshot.time.monotonic",
+            side_effect=[0, 0.001, 0.050],
+        ),
+    ):
+        with pytest.raises(ScreenshotError, match="Screenshot timed out"):
+            await session.capture(CellId_t("cell-a"), timeout_ms=20)
+        assert wait.await_count == 1
+        navigate.assert_not_awaited()
+
+
+async def test_known_cell_gets_full_rendering_wait_without_refresh() -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+
+    async def ready() -> None:
+        session._page = AsyncMock()
+
+    target = AsyncMock()
+    target.screenshot.return_value = b"png"
+    with (
+        patch.object(session, "_ensure_ready", side_effect=ready),
+        patch.object(
+            session, "_wait_for_output", side_effect=["pending", "ready"]
+        ) as wait,
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+        patch.object(session, "_resolve_output_locator", return_value=target),
+    ):
+        assert await session.capture(CellId_t("cell-a")) == b"png"
+        assert wait.await_args_list[1].kwargs["timeout"] > 5000
+        navigate.assert_not_awaited()
+
+
+async def test_known_cell_render_timeout_is_actionable_without_refresh() -> (
+    None
+):
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(
+            session, "_wait_for_output", side_effect=["pending", TimeoutError]
+        ),
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+    ):
+        with pytest.raises(
+            ScreenshotError, match="no visible rendered output after waiting"
+        ):
+            await session.capture(CellId_t("cell-a"))
+        navigate.assert_not_awaited()
+
+
+@pytest.mark.parametrize("state", ["empty", "ready", "pending"])
+async def test_browser_state_handle_is_disposed(state: str) -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    handle = session._page.wait_for_function.return_value
+    handle.json_value.return_value = state
+    assert (
+        await session._wait_for_output(CellId_t("cell-a"), timeout=1000)
+        == state
+    )
+    handle.dispose.assert_awaited_once()
+
+
+async def test_unexpected_browser_state_is_rejected_and_disposed() -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    handle = session._page.wait_for_function.return_value
+    handle.json_value.return_value = "unknown"
+    with pytest.raises(
+        ScreenshotError, match="Unexpected browser output state"
+    ):
+        await session._wait_for_output(CellId_t("cell-a"), timeout=1000)
+    handle.dispose.assert_awaited_once()
 
 
 @pytest.fixture
@@ -358,6 +555,7 @@ def playwright_mock() -> MagicMock:
     playwright.stop = AsyncMock()
     browser = AsyncMock()
     page = AsyncMock()
+    page.on = MagicMock()
     browser.new_context.return_value.new_page.return_value = page
     playwright.chromium.launch = AsyncMock(return_value=browser)
     return playwright
@@ -455,3 +653,79 @@ async def test_close_stops_playwright_even_if_browser_close_fails(
         assert session._playwright is None
         await session.close()
         playwright_mock.stop.assert_awaited_once()
+
+
+@pytest.mark.parametrize("first_fails", [False, True])
+async def test_concurrent_captures_serialize_navigation_and_screenshot(
+    first_fails: bool,
+) -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    session._page = AsyncMock()
+    target = AsyncMock()
+    screenshot_started = asyncio.Event()
+    finish_screenshot = asyncio.Event()
+    calls = 0
+
+    async def screenshot(**_kwargs: object) -> bytes:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            screenshot_started.set()
+            await finish_screenshot.wait()
+            if first_fails:
+                raise RuntimeError("capture failed")
+        return b"png"
+
+    target.screenshot.side_effect = screenshot
+    with (
+        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
+        patch.object(session, "_wait_for_output", return_value="ready"),
+        patch.object(session, "_resolve_output_locator", return_value=target),
+    ):
+        first = asyncio.create_task(session.capture(CellId_t("cell-a")))
+        await asyncio.wait_for(screenshot_started.wait(), timeout=1)
+        second = asyncio.create_task(session.capture(CellId_t("cell-b")))
+        try:
+            await asyncio.sleep(0)
+            navigate.assert_awaited_once_with(initial=False)
+            target.screenshot.assert_awaited_once()
+            assert not second.done()
+        finally:
+            finish_screenshot.set()
+            results = await asyncio.gather(
+                first, second, return_exceptions=True
+            )
+        if first_fails:
+            assert isinstance(results[0], RuntimeError)
+        else:
+            assert results[0] == b"png"
+        assert results[1] == b"png"
+        assert navigate.await_count == 2
+
+
+async def test_close_waits_for_active_capture() -> None:
+    session = _ScreenshotSession("http://localhost:1234")
+    browser = AsyncMock()
+    session._browser = browser
+    capture_started = asyncio.Event()
+    finish_capture = asyncio.Event()
+
+    async def capture(*_args: object, **_kwargs: object) -> bytes:
+        capture_started.set()
+        await finish_capture.wait()
+        assert session._browser is browser
+        return b"png"
+
+    with patch.object(session, "_capture", side_effect=capture):
+        capturing = asyncio.create_task(session.capture(CellId_t("cell-a")))
+        await asyncio.wait_for(capture_started.wait(), timeout=1)
+        closing = asyncio.create_task(session.close())
+        try:
+            await asyncio.sleep(0)
+            browser.close.assert_not_awaited()
+        finally:
+            finish_capture.set()
+            assert await capturing == b"png"
+            await closing
+        browser.close.assert_awaited_once()
