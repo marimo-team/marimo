@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { ExternalLink } from "@/components/ui/links";
 import { Tooltip } from "@/components/ui/tooltip";
+import { buildErrorReport } from "@/core/cells/error-report";
 import type { CellId } from "@/core/cells/ids";
 import { resolvedMarimoConfigAtom } from "@/core/config/config";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -32,6 +33,7 @@ import { openPackageManager } from "../chrome/panels/packages-utils";
 import { useChromeActions } from "../chrome/state";
 import { AutoFixButton } from "../errors/auto-fix";
 import { MangledSegments } from "../errors/mangled-local-chip";
+import { SendErrorReportButton } from "../errors/send-error-report-button";
 import { CellLinkError } from "../links/cell-link";
 import { processTextForUrls } from "./console/text-rendering";
 
@@ -93,6 +95,7 @@ const Tip = (props: {
 interface Props {
   cellId: CellId | undefined;
   errors: MarimoError[];
+  code?: string;
   className?: string;
 }
 
@@ -102,6 +105,7 @@ interface Props {
 export const MarimoErrorOutput = ({
   errors,
   cellId,
+  code,
   className,
 }: Props): JSX.Element => {
   const chromeActions = useChromeActions();
@@ -208,7 +212,6 @@ export const MarimoErrorOutput = ({
     (e): e is Extract<MarimoError, { type: "sql-error" }> =>
       e.type === "sql-error",
   );
-
   const openScratchpad = () => {
     chromeActions.openApplication("scratchpad");
   };
@@ -728,6 +731,11 @@ export const MarimoErrorOutput = ({
     >
       {title}
       <div className="flex flex-col gap-4">{renderMessages()}</div>
+      {cellId && errors.length > 0 && (
+        <SendErrorReportButton
+          getContent={() => buildErrorReport(cellId, { code, errors })}
+        />
+      )}
     </Alert>
   );
 };

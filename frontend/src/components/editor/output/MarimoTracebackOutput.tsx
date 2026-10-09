@@ -22,6 +22,7 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { Tooltip } from "@/components/ui/tooltip";
 import { getCellEditorView } from "@/core/cells/cells";
+import { buildErrorReport } from "@/core/cells/error-report";
 import type { CellId } from "@/core/cells/ids";
 import { SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { toggleBreakpoint } from "@/core/codemirror/cells/debugger-state";
@@ -46,12 +47,14 @@ import {
 import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
 import { AIFixButton, buildFixInChatPrompt } from "../errors/auto-fix";
 import { MangledSegments } from "../errors/mangled-local-chip";
+import { SendErrorReportButton } from "../errors/send-error-report-button";
 import { CellLinkTraceback } from "../links/cell-link";
 import type { OnRefactorWithAI } from "../Output";
 
 interface Props {
   cellId: CellId | undefined;
   traceback: string;
+  code?: string;
   onRefactorWithAI?: OnRefactorWithAI;
 }
 
@@ -62,6 +65,7 @@ export const MarimoTracebackOutput = ({
   onRefactorWithAI,
   traceback,
   cellId,
+  code,
 }: Props): JSX.Element => {
   const htmlTraceback = renderHTML({
     html: traceback,
@@ -131,6 +135,11 @@ export const MarimoTracebackOutput = ({
         </div>
       )}
       <div className="flex gap-2">
+        {cellId && lastTracebackLine && (
+          <SendErrorReportButton
+            getContent={() => buildErrorReport(cellId, { code, traceback })}
+          />
+        )}
         {showAIFix && (
           <AIFixButton
             tooltip="Fix with AI"
