@@ -16,7 +16,7 @@ def get_pair_command() -> str:
 @dataclass(frozen=True)
 class PromptTemplates:
     prompt: str
-    session: str
+    notebook: str
     token_file: str
     token: str
 
@@ -31,15 +31,17 @@ def load_prompt_templates() -> PromptTemplates:
 def render_prompt(
     *,
     url: str,
-    session_id: str | None = None,
+    notebook_id: str | None = None,
     token_file: Path | None = None,
 ) -> str:
     templates = load_prompt_templates()
     return templates.prompt.format(
         command=get_pair_command(),
         url=url,
-        session=(
-            templates.session.format(session=session_id) if session_id else ""
+        notebook=(
+            templates.notebook.format(notebook=notebook_id)
+            if notebook_id
+            else ""
         ),
         authentication=(
             templates.token_file.format(

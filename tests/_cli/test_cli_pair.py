@@ -17,13 +17,14 @@ from inline_snapshot import snapshot
 from marimo._cli.cli import main as cli_main
 from marimo._cli.pair import commands
 from marimo._cli.pair.client import (
-    AmbiguousSessionError,
+    AmbiguousNotebookError,
     ExecutionResult,
-    NoSessionError,
+    HostEndpoint,
+    NoNotebookError,
+    NotebookUnsupportedError,
     PairError,
     PairInputError,
-    StableSessionUnsupportedError,
-    StaleSessionError,
+    StaleNotebookError,
 )
 from marimo._cli.pair.commands import (
     AgentConfig,
@@ -43,6 +44,13 @@ TEST_URL = "https://localhost:8000?auth=tok123"
 def _isolate_pair_preview(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("MARIMO_PAIR_NEXT", raising=False)
     monkeypatch.setattr(
+        commands,
+        "resolve_host",
+        lambda url: HostEndpoint(
+            url.rstrip("/") + "/api/marimo/v1", "host-secret"
+        ),
+    )
+    monkeypatch.setattr(
         "marimo._cli.pair.prompts.is_editable", lambda _: False
     )
 
@@ -59,22 +67,29 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
   Pair with a live marimo notebook.
 
   Authentication:
-    If a token-file path is supplied, add --token-file <PATH> to every
-    execute and notebook list command. Pass the path, not the file contents.
+    Notebook discovery uses the editor token. Pass --token-file <PATH> to
+    notebook list or execute without --notebook when a token is required.
+    Host commands read their token from the private local host record.
 
   Workflow:
     If no server is running, start one in the background:
       marimo edit <notebook.py> --no-token
-    If you do not have the server URL or session:
+    If you do not have the server URL or notebook ID:
       marimo pair notebook list
-    marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
+    Connect to the notebook before waiting for work.
+    Run marimo pair connect --help to check supported harnesses.
+    If your harness is supported, enable MARIMO_PAIR_NEXT=1 on the CLI
+    and server, then run:
+      marimo pair connect --url <URL> --notebook <NOTEBOOK>
+    Otherwise, work with the notebook using pair execute:
+    marimo pair execute --url <URL> --notebook <NOTEBOOK> --code-file - <<'PY'
     import marimo._code_mode as cm
     async with cm.get_context() as ctx:
         ctx.packages.add("pandas")
         cid = ctx.create_cell("import pandas as pd")
         ctx.run_cell(cid)
     PY
-    marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
+    marimo pair execute --url <URL> --notebook <NOTEBOOK> --code-file - <<'PY'
     import marimo._code_mode as cm
     async with cm.get_context() as ctx:
         cell = ctx.cells["<CELL_ID>"]
@@ -82,13 +97,22 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     PY
 
   Target selection:
-    --session takes the session_id from marimo pair notebook list. It does not
-    change when the page reloads or the notebook is renamed. If a command reports
-    an unknown session, the notebook was closed or restarted: run
-    marimo pair notebook list again and pick the new session_id.
-    If one notebook has several sessions, ask the user which one.
-    Do not switch sessions after authentication or connection errors,
+    --notebook takes notebook_id from marimo pair notebook list. It survives
+    kernel restarts and page reloads. Only saved notebooks inside the project
+    root have a host notebook ID. Host commands need a local edit server.
+    If several notebooks are open, ask the user which one.
+    Do not switch notebooks after authentication or connection errors,
     or when execution is unconfirmed.
+
+  Agent messages (preview):
+    Enable MARIMO_PAIR_NEXT=1 on the CLI and server.
+    Inside Codex, run marimo pair connect --url <URL> --notebook <NOTEBOOK>.
+    Codex must use its shared daemon and support codex queue.
+    Notebook agent messages arrive here as messages from marimo.
+    Oversized agent messages include a complete JSON file on this machine.
+    Files remain after detach. Cleanup removes owned files older than 24 hours.
+    Use pair events --url <URL> --notebook <NOTEBOOK> for a live tail.
+    Use pair detach --notebook <NOTEBOOK> to stop the inbox.
 
   Rules:
     Cells are the unit of work. The scratchpad is temporary; only code mode edits persist.
@@ -109,15 +133,18 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     ctx.delete_cell(cid)
     ctx.packages.add("pandas>=2")  # queued, installs on exit
     If a cm call fails, run help(cm):
-      marimo pair execute --url <URL> --session <SESSION> -c 'import marimo._code_mode as cm; help(cm)'
+      marimo pair execute --url <URL> --notebook <NOTEBOOK> -c 'import marimo._code_mode as cm; help(cm)'
 
 Options:
   -h, --help  Show this message and exit.
 
 Commands:
+  connect   Connect this harness inbox to a live...
+  detach    Stop the forwarder and detach its notebook...
   docs      Read notebook guidance on demand.
-  execute   Run Python in a live notebook session.
-  notebook  Find active notebooks and their sessions.
+  events    Attach as an agent and print live agent...
+  execute   Run Python in a live notebook.
+  notebook  Find active notebooks and their IDs.
   prompt    Generate a prompt for pair programming on...
 """)
 
@@ -129,7 +156,7 @@ Commands:
         assert "--codex" in result.output
         assert "--opencode" in result.output
         assert "--file" not in result.output
-        assert "--session" in result.output
+        assert "--notebook" in result.output
 
 
 class TestPairExecute:
@@ -155,7 +182,7 @@ Usage: main pair execute [OPTIONS]
 
 Options:
   --url URL          Server URL.  [required]
-  --session ID       Stable session_id from marimo pair notebook list.
+  --notebook ID      Host notebook_id from marimo pair notebook list.
   --token-file PATH  Read the server token from a local file.
   -c TEXT            Inline Python.
   --code-file PATH   Read Python from a UTF-8 file, or from stdin when PATH is
@@ -198,7 +225,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 *resolved_arguments,
             ],
@@ -217,7 +244,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 "-c",
                 "",
@@ -248,7 +275,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 "--code-file",
                 str(code_file),
@@ -277,7 +304,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 "--code-file",
                 "-",
@@ -301,7 +328,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 "--code-file",
                 str(code_file),
@@ -329,7 +356,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 "--code-file",
                 str(code_file),
@@ -361,7 +388,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 "-c",
                 "print(1)",
@@ -369,17 +396,18 @@ Options:
         )
 
         assert result.exit_code == 0
-        assert calls[0]["url"] == TEST_URL
-        assert calls[0]["session_id"] == "s_ab12cd"
+        assert calls[0]["url"] == TEST_URL + "/api/marimo/v1"
+        assert calls[0]["notebook_id"] == "s_ab12cd"
         assert calls[0]["code"] == "print(1)"
-        assert calls[0]["token"] is None
+        assert calls[0]["token"] == "host-secret"
         assert calls[0]["stream"] is False
         assert json.loads(result.output) == {
             "success": True,
+            "outcome": "succeeded",
             "output": {"mimetype": "text/plain", "data": "done"},
             "stdout": "",
             "stderr": "",
-            "session": {"id": "s_ab12cd"},
+            "notebook": {"id": "s_ab12cd"},
         }
 
     def test_execute_failure_exits_one(
@@ -389,6 +417,7 @@ Options:
             del kwargs
             return ExecutionResult(
                 success=False,
+                outcome="failed",
                 output=None,
                 stdout="",
                 stderr="failed",
@@ -403,7 +432,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 "-c",
                 "raise ValueError",
@@ -413,10 +442,11 @@ Options:
         assert result.exit_code == 1
         assert json.loads(result.output) == {
             "success": False,
+            "outcome": "failed",
             "output": None,
             "stdout": "",
             "stderr": "failed",
-            "session": {"id": "s_ab12cd"},
+            "notebook": {"id": "s_ab12cd"},
         }
 
     @pytest.mark.parametrize(
@@ -456,7 +486,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 "-c",
                 "x",
@@ -469,7 +499,7 @@ Options:
         assert payload["stderr"] == stderr
         assert expected in payload["next"]
         assert (
-            "--session s_ab12cd" in payload["next"]
+            "--notebook s_ab12cd" in payload["next"]
             or "top level" in (payload["next"])
         )
 
@@ -480,6 +510,7 @@ Options:
             del kwargs
             return ExecutionResult(
                 success=False,
+                outcome="failed",
                 output=None,
                 stdout="",
                 stderr='KeyError: "Cell \'a"b\' not found"',
@@ -493,7 +524,7 @@ Options:
                 "execute",
                 "--url",
                 "http://one/a b",
-                "--session",
+                "--notebook",
                 "s'1",
                 "-c",
                 "x",
@@ -503,7 +534,7 @@ Options:
         assert result.exit_code == 1
         payload = json.loads(result.output)
         assert "--url 'http://one/a b'" in payload["next"]
-        assert "--session 's'\"'\"'1'" in payload["next"]
+        assert "--notebook 's'\"'\"'1'" in payload["next"]
         assert "ctx.cells['a\"b']" in payload["next"]
 
     def test_execute_stream_failure_prints_next_lines(
@@ -511,7 +542,7 @@ Options:
     ) -> None:
         def fail_execute(**kwargs: Any) -> ExecutionResult:
             del kwargs
-            raise StaleSessionError("Invalid session id: s_old")
+            raise StaleNotebookError("Invalid session id: s_old")
 
         monkeypatch.setattr(commands, "execute_code", fail_execute)
         result = _runner.invoke(
@@ -521,7 +552,7 @@ Options:
                 "execute",
                 "--url",
                 "http://one",
-                "--session",
+                "--notebook",
                 "s_old",
                 "--stream",
                 "-c",
@@ -532,8 +563,8 @@ Options:
         assert result.exit_code == 2
         assert result.stdout == ""
         assert result.stderr == (
-            "error: No session s_old on http://one. "
-            "The notebook was closed or restarted.\n"
+            "error: No notebook s_old on http://one. "
+            "Run notebook list to find the current host notebook.\n"
             "  next: marimo pair notebook list --url http://one\n"
         )
 
@@ -552,7 +583,7 @@ Options:
                 "execute",
                 "--url",
                 "http://one",
-                "--session",
+                "--notebook",
                 "s",
                 "-c",
                 "1",
@@ -562,8 +593,7 @@ Options:
         assert result.exit_code == 2
         payload = json.loads(result.output)
         assert payload["error"] == "Authentication failed."
-        assert "MARIMO_TOKEN" in payload["next"]
-        assert "Never print the token" in payload["next"]
+        assert "host discovery" in payload["next"]
 
     def test_execute_invalid_url_has_list_next(self) -> None:
         result = _runner.invoke(
@@ -573,7 +603,7 @@ Options:
                 "execute",
                 "--url",
                 "ftp://x",
-                "--session",
+                "--notebook",
                 "s",
                 "-c",
                 "1",
@@ -600,7 +630,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 "-c",
                 "print(1)",
@@ -614,7 +644,7 @@ Options:
             "output": None,
             "stdout": None,
             "stderr": None,
-            "session": {"id": "s_ab12cd"},
+            "notebook": {"id": "s_ab12cd"},
         }
 
     def test_execute_reports_server_without_stable_sessions(
@@ -622,7 +652,7 @@ Options:
     ) -> None:
         def fail_execute(**kwargs: Any) -> ExecutionResult:
             del kwargs
-            raise StableSessionUnsupportedError
+            raise NotebookUnsupportedError
 
         monkeypatch.setattr(commands, "execute_code", fail_execute)
         result = _runner.invoke(
@@ -632,7 +662,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 "-c",
                 "print(1)",
@@ -645,12 +675,12 @@ Options:
             "success": False,
             "error": (
                 "Server https://localhost:8000 runs a marimo version "
-                "without session_id. Upgrade marimo on the server."
+                "without notebook_id. Upgrade marimo on the server."
             ),
             "output": None,
             "stdout": None,
             "stderr": None,
-            "session": {"id": "s_ab12cd"},
+            "notebook": {"id": "s_ab12cd"},
         }
         assert "next" not in payload
 
@@ -669,7 +699,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 "-c",
                 "print(1)",
@@ -707,7 +737,7 @@ Options:
                 "execute",
                 "--url",
                 TEST_URL,
-                "--session",
+                "--notebook",
                 "s_ab12cd",
                 "--token-file",
                 str(token_file),
@@ -718,8 +748,8 @@ Options:
         )
 
         assert result.exit_code == 0
-        assert token_calls == [token_file]
-        assert execute_calls[0]["token"] == "secret"
+        assert token_calls == []
+        assert execute_calls[0]["token"] == "host-secret"
         assert execute_calls[0]["stream"] is True
         assert result.output == ""
 
@@ -739,7 +769,7 @@ Options:
                 success=True, output=None, stdout="", stderr=""
             )
 
-        monkeypatch.setattr(commands, "resolve_session", fake_resolve)
+        monkeypatch.setattr(commands, "resolve_notebook", fake_resolve)
         monkeypatch.setattr(commands, "execute_code", fake_execute)
         result = _runner.invoke(
             cli_main,
@@ -755,7 +785,7 @@ Options:
 
         assert result.exit_code == 0
         assert resolve_calls == [{"url": "http://one", "token": None}]
-        assert execute_calls[0]["session_id"] == "s_one"
+        assert execute_calls[0]["notebook_id"] == "s_one"
 
     def test_execute_rejects_file_selector(
         self, monkeypatch: pytest.MonkeyPatch
@@ -788,12 +818,12 @@ Options:
     ) -> None:
         def fake_resolve(**kwargs: Any) -> str:
             del kwargs
-            raise NoSessionError(
+            raise NoNotebookError(
                 "No running session on http://one.",
                 url="http://user:password@one?access_token=secret",
             )
 
-        monkeypatch.setattr(commands, "resolve_session", fake_resolve)
+        monkeypatch.setattr(commands, "resolve_notebook", fake_resolve)
         monkeypatch.setattr(
             commands,
             "execute_code",
@@ -818,7 +848,7 @@ Options:
         assert payload["next"].endswith(
             "marimo pair notebook list --url http://one"
         )
-        assert payload["session"] == {"id": None}
+        assert payload["notebook"] == {"id": None}
         assert "password" not in result.output
         assert "secret" not in result.output
 
@@ -827,13 +857,13 @@ Options:
     ) -> None:
         def fake_resolve(**kwargs: Any) -> str:
             del kwargs
-            raise AmbiguousSessionError(
+            raise AmbiguousNotebookError(
                 "Server http://one has 2 running sessions.",
                 url="http://user:password@one?access_token=secret",
                 candidates=("sess-a", "sess-b"),
             )
 
-        monkeypatch.setattr(commands, "resolve_session", fake_resolve)
+        monkeypatch.setattr(commands, "resolve_notebook", fake_resolve)
         monkeypatch.setattr(
             commands,
             "execute_code",
@@ -855,11 +885,11 @@ Options:
         payload = json.loads(result.output)
         assert "has 2 running sessions" in payload["error"]
         assert (
-            "sess-a: marimo pair execute --url http://one --session sess-a"
+            "sess-a: marimo pair execute --url http://one --notebook sess-a"
             in (payload["next"])
         )
         assert (
-            "sess-b: marimo pair execute --url http://one --session sess-b"
+            "sess-b: marimo pair execute --url http://one --notebook sess-b"
             in (payload["next"])
         )
         assert "password" not in result.output
@@ -878,7 +908,7 @@ Options:
 
         monkeypatch.setattr(
             commands,
-            "resolve_session",
+            "resolve_notebook",
             lambda **_kwargs: pytest.fail("resolve must not run"),
         )
         monkeypatch.setattr(commands, "execute_code", fake_execute)
@@ -889,7 +919,7 @@ Options:
                 "execute",
                 "--url",
                 "http://user:password@one?access_token=secret",
-                "--session",
+                "--notebook",
                 "s_given",
                 "-c",
                 "print(1)",
@@ -897,14 +927,14 @@ Options:
         )
 
         assert result.exit_code == 0
-        assert execute_calls[0]["session_id"] == "s_given"
+        assert execute_calls[0]["notebook_id"] == "s_given"
 
     def test_execute_stale_session_maps_to_targeted_message(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         def fail_execute(**kwargs: Any) -> ExecutionResult:
             del kwargs
-            raise StaleSessionError("Invalid stable session id: sess-old")
+            raise StaleNotebookError("Invalid stable session id: sess-old")
 
         monkeypatch.setattr(commands, "execute_code", fail_execute)
         result = _runner.invoke(
@@ -914,7 +944,7 @@ Options:
                 "execute",
                 "--url",
                 "http://user:password@one?access_token=secret",
-                "--session",
+                "--notebook",
                 "sess-old",
                 "-c",
                 "print(1)",
@@ -924,8 +954,8 @@ Options:
         assert result.exit_code == 2
         payload = json.loads(result.output)
         assert payload["error"] == (
-            "No session sess-old on http://one. "
-            "The notebook was closed or restarted."
+            "No notebook sess-old on http://one. "
+            "Run notebook list to find the current host notebook."
         )
         assert payload["next"].endswith(
             "marimo pair notebook list --url http://one"
@@ -1008,13 +1038,13 @@ class TestPairNotebooks:
         assert result.output == snapshot("""\
 Usage: main pair notebook [OPTIONS] COMMAND [ARGS]...
 
-  Find active notebooks and their sessions.
+  Find active notebooks and their IDs.
 
 Options:
   -h, --help  Show this message and exit.
 
 Commands:
-  list  List active notebooks and their session IDs.
+  list  List active notebooks and their host IDs.
 """)
 
     def test_notebook_list_help(self) -> None:
@@ -1026,7 +1056,7 @@ Commands:
         assert result.output == snapshot("""\
 Usage: main pair notebook list [OPTIONS]
 
-  List active notebooks and their session IDs.
+  List active notebooks and their host IDs.
 
 Options:
   --url URL          Server URL. Repeat to list more than one server.
@@ -1045,11 +1075,13 @@ Options:
                     "session_id": "sess-stable-2",
                     "filename": "analysis.py",
                     "path": "/work/analysis.py",
+                    "notebook_id": "nb-analysis",
                 },
                 "session-1": {
                     "session_id": "sess-stable-1",
                     "filename": "analysis.py",
                     "path": "/work/analysis.py",
+                    "notebook_id": "nb-analysis",
                 },
             },
         )
@@ -1066,6 +1098,7 @@ Options:
                     "server": {"url": "http://one"},
                     "name": "analysis.py",
                     "path": "/work/analysis.py",
+                    "notebook_id": "nb-analysis",
                     "sessions": [
                         {
                             "id": "session-1",
@@ -1218,6 +1251,7 @@ Options:
                     "session_id": "sess-stable-1",
                     "filename": "analysis.py",
                     "path": "/work/analysis.py",
+                    "notebook_id": "nb-analysis",
                 }
             }
 
@@ -1242,6 +1276,7 @@ Options:
                     "server": {"url": "http://good"},
                     "name": "analysis.py",
                     "path": "/work/analysis.py",
+                    "notebook_id": "nb-analysis",
                     "sessions": [
                         {
                             "id": "session-1",
@@ -1271,6 +1306,7 @@ Options:
                     "session_id": "sess-stable-1",
                     "filename": "analysis.py",
                     "path": "/work/analysis.py",
+                    "notebook_id": "nb-analysis",
                 }
             }
 
@@ -1315,7 +1351,7 @@ Options:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         def fail_list_sessions(**_kwargs: Any) -> None:
-            raise StableSessionUnsupportedError
+            raise NotebookUnsupportedError
 
         monkeypatch.setattr(commands, "list_sessions", fail_list_sessions)
 
@@ -1329,7 +1365,7 @@ Options:
         assert payload["notebooks"] == []
         assert payload["warnings"] == [
             (
-                "Server http://one runs a marimo version without session_id. "
+                "Server http://one runs a marimo version without notebook_id. "
                 "Upgrade marimo on the server."
             )
         ]
@@ -1453,29 +1489,29 @@ Once you are connected, send a fun toast (mo.status.toast(...)) to the user insi
         )
         assert result.exit_code == 0
         assert "--file" not in result.output
-        assert "--session" not in result.output
+        assert "--notebook" not in result.output
 
     def test_prompt_with_session(self) -> None:
         result = _runner.invoke(
             cli_main,
-            ["pair", "prompt", "--url", TEST_URL, "--session", "s_ab12cd"],
+            ["pair", "prompt", "--url", TEST_URL, "--notebook", "s_ab12cd"],
         )
         assert result.exit_code == 0
         assert result.output == snapshot("""\
-Use the /marimo-pair skill to pair-program on a running marimo notebook.
+Pair with me on this running marimo notebook.
 
-Connect to the notebook at: https://localhost:8000?auth=tok123
+URL: https://localhost:8000?auth=tok123
+Notebook: s_ab12cd
 
-Use `execute-code.sh --url 'https://localhost:8000?auth=tok123' --session s_ab12cd` from the marimo-pair skill to execute code in the notebook.
-
-Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.
+Run `uvx marimo@latest pair --help` first.
+Use `uvx marimo@latest` for all marimo commands.
 """)
 
     def test_prompt_shell_quotes_session_ids(self) -> None:
         cases = [
-            ("sess-stable", "--session sess-stable"),
-            ("sess stable", "--session 'sess stable'"),
-            ("sess'quote", """--session 'sess'"'"'quote'"""),
+            ("sess-stable", "Notebook: sess-stable"),
+            ("sess stable", "Notebook: sess stable"),
+            ("sess'quote", "Notebook: sess'quote"),
         ]
         for session_id, expected in cases:
             result = _runner.invoke(
@@ -1485,7 +1521,7 @@ Once you are connected, send a fun toast (mo.status.toast(...)) to the user insi
                     "prompt",
                     "--url",
                     TEST_URL,
-                    "--session",
+                    "--notebook",
                     session_id,
                 ],
             )
@@ -1574,9 +1610,7 @@ class TestPairPromptPreview:
             "Pair with me on this running marimo notebook.\n\n"
             "URL: http://localhost:2718\n\n"
             f"Run `{command} pair --help` first.\n"
-            f"Use `{command}` for all marimo commands.\n\n"
-            "Once connected, send a fun toast using `mo.status.toast(...)` "
-            "(`import marimo as mo`).\n"
+            f"Use `{command}` for all marimo commands.\n"
         )
 
     def test_with_token_uses_private_file(self, tmp_path: Path) -> None:
@@ -1589,7 +1623,7 @@ class TestPairPromptPreview:
                     "prompt",
                     "--url",
                     "http://localhost:2718",
-                    "--session",
+                    "--notebook",
                     "s_ab12cd",
                     "--with-token",
                 ],
@@ -1619,14 +1653,12 @@ class TestPairPromptPreview:
 Pair with me on this running marimo notebook.
 
 URL: http://localhost:2718
-Session: s_ab12cd
+Notebook: s_ab12cd
 
 Run `uvx marimo@latest pair --help` first.
 Use `uvx marimo@latest` for all marimo commands.
 
-Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
-
-For authenticated Pair commands, pass `--token-file <TOKEN_FILE>`.
+For authenticated notebook discovery, pass `--token-file <TOKEN_FILE>`.
 """)
 
     @pytest.mark.parametrize("agent", ["--claude", "--codex", "--opencode"])
@@ -1653,8 +1685,6 @@ URL: http://localhost:2718
 
 Run `uvx marimo@latest pair --help` first.
 Use `uvx marimo@latest` for all marimo commands.
-
-Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 """)
 
     def test_prompt_preserves_connection_details(self) -> None:
@@ -1665,7 +1695,7 @@ Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as
                 "prompt",
                 "--url",
                 "http://localhost:2718/{session}",
-                "--session",
+                "--notebook",
                 "{command}/it's session",
             ],
             env={"MARIMO_PAIR_NEXT": "1"},
@@ -1676,12 +1706,10 @@ Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as
 Pair with me on this running marimo notebook.
 
 URL: http://localhost:2718/{session}
-Session: {command}/it's session
+Notebook: {command}/it's session
 
 Run `uvx marimo@latest pair --help` first.
 Use `uvx marimo@latest` for all marimo commands.
-
-Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 """)
 
     @pytest.mark.parametrize("flag", ["1", "true", " TRUE "])
@@ -1693,7 +1721,7 @@ Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as
                 "prompt",
                 "--url",
                 "http://localhost:2718",
-                "--session",
+                "--notebook",
                 "sess-stable",
             ],
             env={"MARIMO_PAIR_NEXT": flag},
@@ -1704,12 +1732,10 @@ Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as
 Pair with me on this running marimo notebook.
 
 URL: http://localhost:2718
-Session: sess-stable
+Notebook: sess-stable
 
 Run `uvx marimo@latest pair --help` first.
 Use `uvx marimo@latest` for all marimo commands.
-
-Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
 """)
 
 
@@ -1776,16 +1802,16 @@ class TestPairPromptWithToken:
                     "prompt",
                     "--url",
                     TEST_URL,
-                    "--session",
+                    "--notebook",
                     "sess stable",
                     "--with-token",
                 ],
                 input="my-secret-token\n",
             )
         assert result.exit_code == 0
-        assert "--session 'sess stable'" in result.output
+        assert "Notebook: sess stable" in result.output
         # The token hint should target the same session.
-        assert "--session 'sess stable' --token" in result.output
+        assert "--token-file" in result.output
 
     def test_with_token_still_requires_url(self) -> None:
         result = _runner.invoke(

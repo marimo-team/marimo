@@ -1,0 +1,118 @@
+# Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
+import json
+import subprocess
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from marimo._cli.pair.client import PairError, PairInputError
+from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
+from marimo._utils.platform import is_windows
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+
+class CodexAdapter:
+    kind = "codex"
+    # Leave room for the executable and options within Windows command limits.
+    inbox_bytes = 8 * 1024
+
+    @staticmethod
+    def executable() -> str:
+        # Batch shims can interpret handoff text as shell syntax on Windows.
+        return "codex.exe" if is_windows() else "codex"
+
+    def detect(self, env: Mapping[str, str]) -> DeliveryTarget | None:
+        import psutil
+
+        address = self.identity(env)
+        if not address:
+            return None
+        owner = None
+        try:
+            for process in psutil.Process().parents():
+                if Path(process.name()).stem.lower().startswith("codex"):
+                    arguments = process.cmdline()
+                    if "--no-daemon" in arguments or any(
+                        argument.endswith("stdio://") for argument in arguments
+                    ):
+                        raise PairInputError(
+                            "This Codex session does not use the shared daemon. "
+                            "Run connect inside a native Codex daemon session."
+                        )
+                    owner = ProcessHandle.capture(process.pid)
+                    break
+        except psutil.Error as error:
+            raise PairInputError(
+                "Could not identify the Codex process."
+            ) from error
+        if owner is None:
+            raise PairInputError("Run connect inside a native Codex session.")
+        return DeliveryTarget(self.kind, address, "Codex", process=owner)
+
+    def identity(self, env: Mapping[str, str]) -> str | None:
+        return env.get("CODEX_SESSION_ID") or env.get("CODEX_THREAD_ID")
+
+    def check(self) -> None:
+        try:
+            result = subprocess.run(
+                [self.executable(), "app-server", "daemon", "version"],
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+            info = json.loads(result.stdout)
+            running = (
+                isinstance(info, dict) and info.get("status") == "running"
+            )
+            if result.returncode == 0 and running:
+                queue_help = subprocess.run(
+                    [self.executable(), "queue", "--help"],
+                    capture_output=True,
+                    timeout=5,
+                    check=False,
+                )
+                if queue_help.returncode != 0:
+                    raise PairInputError(
+                        "Install a Codex CLI with queue support."
+                    )
+        except (OSError, subprocess.TimeoutExpired, ValueError) as error:
+            raise PairInputError(
+                "Could not check the Codex daemon. "
+                "Install a Codex CLI with queue support."
+            ) from error
+        if result.returncode != 0 or not running:
+            raise PairInputError(
+                "The Codex daemon is not running. "
+                "Run codex app-server daemon start, then reconnect."
+            )
+
+    def send(self, target: DeliveryTarget, text: str) -> None:
+        try:
+            result = subprocess.run(
+                [
+                    self.executable(),
+                    "queue",
+                    "--thread",
+                    target.address,
+                    "--message",
+                    text,
+                ],
+                capture_output=True,
+                timeout=15,
+                check=False,
+            )
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+            raise PairError(
+                "Could not deliver the handoff to Codex."
+            ) from error
+        if result.returncode != 0:
+            raise PairError(
+                "Codex rejected the handoff. Check that the conversation "
+                "uses the shared daemon and supports codex queue."
+            )
+
+    def alive(self, target: DeliveryTarget) -> bool:
+        return target.process is not None and target.process.alive()

@@ -3,17 +3,29 @@ from __future__ import annotations
 
 import http.client
 import json
-from dataclasses import dataclass
+import queue
+import signal
+import socket
+import threading
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
+from uuid import uuid4
 
 from marimo._server.api.utils import format_url_host
+from marimo._server.host import (
+    ATTACHMENT_IDENTITY,
+    ATTACHMENT_KIND,
+    ATTACHMENT_NAME,
+    HOST_API_PATH,
+)
 from marimo._server.server_registry import _servers_dir
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Mapping
     from http.client import HTTPResponse
     from pathlib import Path
+    from types import FrameType
     from typing import TextIO
 
 
@@ -25,13 +37,25 @@ class PairInputError(PairError):
     """Invalid local input that prevents a server operation."""
 
 
-class NoSessionError(PairError):
+class PairConnectionError(PairError):
+    """A transport failure while connecting to the notebook server."""
+
+
+class NoRuntimeError(PairError):
+    """The notebook has no running kernel."""
+
+
+class RunConflictError(PairError):
+    """The notebook already has an active run."""
+
+
+class NoNotebookError(PairError):
     def __init__(self, message: str, *, url: str) -> None:
         super().__init__(message)
         self.url = url
 
 
-class AmbiguousSessionError(PairError):
+class AmbiguousNotebookError(PairError):
     def __init__(
         self, message: str, *, url: str, candidates: tuple[str, ...]
     ) -> None:
@@ -40,18 +64,19 @@ class AmbiguousSessionError(PairError):
         self.candidates = candidates
 
 
-class StaleSessionError(PairError):
-    """The server rejected the session ID as unknown."""
+class StaleNotebookError(PairError):
+    """The server rejected the Notebook ID as unknown."""
 
 
-class StableSessionUnsupportedError(PairError):
-    """The server cannot resolve stable session IDs."""
+class NotebookUnsupportedError(PairError):
+    """The server discovery does not expose host notebooks."""
 
 
 @dataclass(frozen=True)
 class SSEEvent:
     name: str
     data: str
+    id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -60,6 +85,7 @@ class ExecutionResult:
     output: dict[str, str] | None
     stdout: str
     stderr: str
+    outcome: str = "succeeded"
 
 
 def load_token(
@@ -98,19 +124,24 @@ def _endpoint_url(url: str, path: str) -> str:
     ).geturl()
 
 
-def iter_sse(lines: Iterable[bytes]) -> Iterator[SSEEvent]:
+def iter_sse(
+    lines: Iterable[bytes], *, heartbeats: bool = False
+) -> Iterator[SSEEvent]:
     name = "message"
     data: list[str] = []
+    cursor: str | None = None
 
     for raw_line in lines:
         line = raw_line.decode("utf-8").rstrip("\r\n")
         if not line:
             if data:
-                yield SSEEvent(name=name, data="\n".join(data))
+                yield SSEEvent(name=name, data="\n".join(data), id=cursor)
             name = "message"
             data = []
             continue
         if line.startswith(":"):
+            if heartbeats:
+                yield SSEEvent(name="heartbeat", data="")
             continue
 
         field, separator, value = line.partition(":")
@@ -118,16 +149,23 @@ def iter_sse(lines: Iterable[bytes]) -> Iterator[SSEEvent]:
             value = value[1:]
         if field == "event":
             name = value
+        elif field == "id" and "\0" not in value:
+            cursor = value
         elif field == "data":
             data.append(value)
 
     if data:
-        yield SSEEvent(name=name, data="\n".join(data))
+        yield SSEEvent(name=name, data="\n".join(data), id=cursor)
 
 
 def open_response(
-    *, method: str, url: str, headers: dict[str, str], body: bytes | None
-) -> HTTPResponse:
+    *,
+    method: str,
+    url: str,
+    headers: dict[str, str],
+    body: bytes | None,
+    read_timeout: float | None = None,
+) -> EventStream:
     try:
         parsed = urlsplit(url)
         port = parsed.port
@@ -150,32 +188,44 @@ def open_response(
             timeout=5.0,
         )
         connection.connect()
-        if connection.sock is not None:
-            connection.sock.settimeout(None)
+        assert connection.sock is not None
+        response_socket = connection.sock
+        response_socket.settimeout(read_timeout)
         path = parsed.path or "/"
         if parsed.query:
             path = f"{path}?{parsed.query}"
         connection.request(method, path, body=body, headers=headers)
         response = connection.getresponse()
     except (ValueError, http.client.InvalidURL) as error:
+        connection.close()
         raise PairInputError("The server URL is invalid.") from error
     except (OSError, http.client.HTTPException) as error:
-        raise PairError("Could not connect to the server.") from error
+        connection.close()
+        raise PairConnectionError(
+            "Could not connect to the server."
+        ) from error
 
-    _raise_for_status(response)
-    return response
+    try:
+        _raise_for_status(response)
+    except PairError:
+        connection.close()
+        raise
+    return EventStream(response, response_socket)
 
 
-def _response_detail(response: HTTPResponse) -> str | None:
+def _response_problem(response: HTTPResponse) -> tuple[str | None, str | None]:
     try:
         payload = json.loads(response.read())
     except (OSError, UnicodeError, ValueError, http.client.HTTPException):
-        return None
+        return None, None
     if isinstance(payload, dict):
         detail = payload.get("detail")
-        if isinstance(detail, str):
-            return detail
-    return None
+        problem = payload.get("type")
+        return (
+            detail if isinstance(detail, str) else None,
+            problem if isinstance(problem, str) else None,
+        )
+    return None, None
 
 
 def _raise_for_status(response: HTTPResponse) -> None:
@@ -184,14 +234,22 @@ def _raise_for_status(response: HTTPResponse) -> None:
         raise PairError("Authentication failed.")
     if 200 <= response.status < 300:
         return
-    detail = _response_detail(response)
+    detail, problem = _response_problem(response)
     response.close()
     if isinstance(detail, str) and detail.startswith(
         ("Invalid session id", "Invalid stable session id")
     ):
-        raise StaleSessionError(detail)
+        raise StaleNotebookError(detail)
     if detail == "Missing Marimo-Session-Id header":
-        raise StableSessionUnsupportedError
+        raise NotebookUnsupportedError
+    if response.status == 404:
+        raise StaleNotebookError(detail or "Unknown notebook.")
+    if problem == "tag:marimo.io,2026:host/no-runtime":
+        raise NoRuntimeError(detail or "The notebook has no running kernel.")
+    if problem == "tag:marimo.io,2026:host/conflict":
+        raise RunConflictError(
+            detail or "The notebook already has an active run."
+        )
     if detail:
         raise PairError(detail)
     raise PairError(f"Server returned {response.status}.")
@@ -200,85 +258,330 @@ def _raise_for_status(response: HTTPResponse) -> None:
 def execute(
     *,
     url: str,
-    session_id: str,
-    token: str | None,
+    notebook_id: str,
+    token: str,
     code: str,
     stdout: TextIO,
     stderr: TextIO,
     stream: bool,
 ) -> ExecutionResult:
-    request_url = _endpoint_url(url, "/api/kernel/execute")
-    headers = {
-        "Content-Type": "application/json",
-        "Marimo-Stable-Session-Id": session_id,
-    }
-    if token is not None:
-        headers["Authorization"] = f"Bearer {token}"
-    body = json.dumps({"code": code}).encode("utf-8")
-    response = open_response(
-        method="POST",
-        url=request_url,
-        headers=headers,
-        body=body,
+    response = open_events(
+        url=url,
+        notebook=notebook_id,
+        token=token,
+        identity=str(uuid4()),
+        name="pair execute",
+        kind="client",
+        types="run,execution,console",
+        read_timeout=45,
     )
     stdout_parts: list[str] = []
     stderr_parts: list[str] = []
+    executions: set[str] = set()
+    output: dict[str, str] | None = None
+    run_url = _endpoint_url(
+        url, f"/notebooks/{quote(notebook_id, safe='')}/runtime/runs"
+    )
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
 
-    def write_event(target: TextIO, parts: list[str], value: str) -> None:
+    def mutation(
+        method: str, endpoint: str, body: bytes | None = None
+    ) -> object:
+        reply = open_response(
+            method=method,
+            url=endpoint,
+            headers={**headers, "Idempotency-Key": str(uuid4())},
+            body=body,
+        )
+        try:
+            return json.load(reply.response)
+        finally:
+            reply.close()
+
+    def write(target: TextIO, parts: list[str], value: str) -> None:
         if stream:
             target.write(value)
             target.flush()
         else:
             parts.append(value)
 
+    stopped = threading.Event()
+    interrupted = threading.Event()
+    interrupt_sent = False
+    reader: threading.Thread | None = None
+    previous_handler = None
+
+    def request_interrupt(_signum: int, _frame: FrameType | None) -> None:
+        interrupted.set()
+
     try:
-        try:
-            for event in iter_sse(response):
-                payload = json.loads(event.data)
-                if event.name == "stdout":
-                    write_event(stdout, stdout_parts, payload["data"])
-                elif event.name == "stderr":
-                    write_event(stderr, stderr_parts, payload["data"])
-                elif event.name == "done":
-                    raw_output = payload.get("output")
-                    data = ""
-                    mimetype = "text/plain"
-                    if isinstance(raw_output, dict):
-                        data = str(raw_output.get("data") or "")
-                        mimetype = str(
-                            raw_output.get("mimetype") or "text/plain"
-                        )
-                    output = (
-                        None
-                        if not data
-                        else {"mimetype": mimetype, "data": data}
-                    )
+        events = iter_sse(response)
+        for initial_event in events:
+            if initial_event.name == "ready":
+                break
+        else:
+            raise PairError("The notebook stream ended before it was ready.")
+        if threading.current_thread() is threading.main_thread():
+            previous_handler = signal.signal(signal.SIGINT, request_interrupt)
+        started = mutation(
+            "POST", run_url, json.dumps({"code": code}).encode()
+        )
+        if not isinstance(started, dict) or not isinstance(
+            started.get("id"), str
+        ):
+            raise PairError("The server returned an invalid run.")
+        run_id = str(started["id"])
+        incoming: queue.Queue[SSEEvent | BaseException | None] = queue.Queue(
+            maxsize=64
+        )
+
+        def read() -> None:
+            def put(value: SSEEvent | BaseException | None) -> None:
+                while not stopped.is_set():
+                    try:
+                        incoming.put(value, timeout=0.1)
+                        return
+                    except queue.Full:
+                        continue
+
+            try:
+                for value in events:
+                    put(value)
+            except (
+                OSError,
+                http.client.HTTPException,
+                ValueError,
+                AttributeError,
+            ) as error:
+                put(error)
+            finally:
+                put(None)
+
+        reader = threading.Thread(target=read, daemon=True)
+        reader.start()
+        while True:
+            if interrupted.is_set() and not interrupt_sent:
+                interrupt_sent = True
+                try:
+                    mutation("DELETE", f"{run_url}/{quote(run_id, safe='')}")
+                except RunConflictError:
+                    # Completion can win the race with the interrupt request.
+                    pass
+            try:
+                event = incoming.get(timeout=0.1)
+            except queue.Empty:
+                continue
+            except KeyboardInterrupt:
+                interrupted.set()
+                continue
+            if event is None:
+                raise StopIteration
+            if isinstance(event, BaseException):
+                raise event
+            payload = json.loads(event.data)
+            if event.name == "execution":
+                execution = payload["execution"]
+                if execution.get("run_id") != run_id:
+                    continue
+                executions.add(execution["id"])
+                outcome = execution.get("outcome")
+                if isinstance(outcome, dict):
+                    if outcome.get("kind") == "value":
+                        output = outcome.get("display")
+                    elif outcome.get("kind") == "error":
+                        error = outcome["error"]
+                        traceback = error.get("traceback")
+                        if (
+                            isinstance(traceback, dict)
+                            and traceback.get("mimetype") == "text/plain"
+                        ):
+                            text = traceback["data"]
+                        else:
+                            name = error.get("name")
+                            text = (
+                                f"{name}: {error['message']}"
+                                if name
+                                else error["message"]
+                            )
+                        write(stderr, stderr_parts, text.rstrip("\n") + "\n")
+            elif event.name == "console":
+                console = payload["console"]
+                if console["execution_id"] in executions:
+                    if console["name"] == "stdout":
+                        write(stdout, stdout_parts, console["text"])
+                    else:
+                        write(stderr, stderr_parts, console["text"])
+            elif event.name == "run":
+                run = payload["run"]
+                if run["id"] == run_id and run["status"] == "completed":
                     if stream and output is not None:
                         stdout.write(f"{output['data']}\n")
+                    if run["outcome"] not in (
+                        "succeeded",
+                        "failed",
+                        "interrupted",
+                    ):
+                        raise ValueError("Missing run outcome")
                     return ExecutionResult(
-                        success=bool(payload["success"]),
+                        success=run["outcome"] == "succeeded",
                         output=output,
                         stdout="".join(stdout_parts),
                         stderr="".join(stderr_parts),
+                        outcome=run["outcome"],
                     )
-        except (
-            OSError,
-            http.client.HTTPException,
-            ValueError,
-            KeyError,
-            TypeError,
-        ) as error:
-            # A malformed event means the outcome is unknown. The code may
-            # have run, so the caller must inspect rather than retry.
-            raise PairError(
-                "The execution response ended before completion was confirmed."
-            ) from error
-
+    except (
+        StopIteration,
+        OSError,
+        http.client.HTTPException,
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+    ) as error:
         raise PairError(
             "The execution response ended before completion was confirmed."
-        )
+        ) from error
     finally:
+        if previous_handler is not None:
+            signal.signal(signal.SIGINT, previous_handler)
+        stopped.set()
         response.close()
+        if reader is not None:
+            reader.join(timeout=1)
+
+
+@dataclass(frozen=True)
+class EventStream:
+    response: HTTPResponse
+    socket: socket.socket
+
+    def __iter__(self) -> Iterator[bytes]:
+        return iter(self.response)
+
+    def close(self) -> None:
+        # Shutdown interrupts a blocked reader before closing its file handle.
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        try:
+            self.response.close()
+        finally:
+            self.socket.close()
+
+
+def open_events(
+    *,
+    url: str,
+    notebook: str,
+    token: str | None,
+    identity: str,
+    name: str,
+    cursor: str | None = None,
+    kind: str = "agent",
+    types: str = "custom,attachment",
+    read_timeout: float | None = 45,
+) -> EventStream:
+    headers = {
+        ATTACHMENT_IDENTITY: identity,
+        ATTACHMENT_KIND: kind,
+        ATTACHMENT_NAME: name,
+    }
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
+    if cursor is not None:
+        headers["Last-Event-ID"] = cursor
+    return open_response(
+        method="GET",
+        url=_endpoint_url(url, f"/notebooks/{quote(notebook, safe='')}/events")
+        + f"?types={types}",
+        headers=headers,
+        body=None,
+        read_timeout=read_timeout,
+    )
+
+
+@dataclass(frozen=True)
+class HostEndpoint:
+    url: str
+    token: str = field(repr=False)
+
+
+def resolve_host(url: str, *, root: Path | None = None) -> HostEndpoint:
+    import os
+    import stat
+
+    import msgspec
+    import psutil
+
+    from marimo._core import protocol
+    from marimo._utils.xdg import marimo_state_dir
+
+    def normalized(value: str) -> tuple[str, str | None, int, str]:
+        parsed = urlsplit(value)
+        if parsed.scheme not in ("http", "https") or parsed.hostname is None:
+            raise PairInputError("The server URL must use http or https.")
+        host = parsed.hostname.lower()
+        if host == "localhost":
+            host = "127.0.0.1"
+        path = parsed.path.rstrip("/")
+        path = path.removesuffix(HOST_API_PATH)
+        return (
+            parsed.scheme,
+            host,
+            parsed.port or (443 if parsed.scheme == "https" else 80),
+            path,
+        )
+
+    try:
+        selected = normalized(url)
+    except ValueError as error:
+        raise PairInputError("The server URL is invalid.") from error
+    directory = root if root is not None else marimo_state_dir() / "hosts-v1"
+    for path in sorted(directory.glob("*.json")):
+        try:
+            descriptor = os.open(
+                path,
+                os.O_RDONLY
+                | getattr(os, "O_NOFOLLOW", 0)
+                | getattr(os, "O_NONBLOCK", 0),
+            )
+            with os.fdopen(descriptor, "rb") as record_file:
+                info = os.fstat(record_file.fileno())
+                if not stat.S_ISREG(info.st_mode):
+                    continue
+                if os.name == "posix" and (
+                    info.st_uid != os.getuid() or info.st_mode & 0o077
+                ):
+                    continue
+                record = msgspec.json.decode(
+                    record_file.read(), type=protocol.HostRecord
+                )
+            if normalized(record.url) != selected:
+                continue
+            process = psutil.Process(record.process.pid)
+            if (
+                not process.is_running()
+                or process.status() == psutil.STATUS_ZOMBIE
+            ):
+                continue
+            if (
+                abs(
+                    process.create_time()
+                    - record.process.started_at.timestamp()
+                )
+                > 1e-6
+            ):
+                continue
+            return HostEndpoint(record.url, record.token)
+        except (OSError, ValueError, msgspec.DecodeError, psutil.Error):
+            continue
+    raise PairError(
+        "No live host record matches this URL. Pair requires a local edit server."
+    )
 
 
 def list_sessions(
@@ -296,7 +599,7 @@ def list_sessions(
     )
     try:
         try:
-            payload = json.load(response)
+            payload = json.load(response.response)
         except (
             OSError,
             UnicodeError,
@@ -320,7 +623,7 @@ def list_sessions(
         if "filename" not in session or "path" not in session:
             raise PairError(message)
         if "session_id" not in session:
-            raise StableSessionUnsupportedError
+            raise NotebookUnsupportedError
         stable_session_id = session["session_id"]
         filename = session["filename"]
         path = session["path"]
@@ -330,33 +633,39 @@ def list_sessions(
             or (path is not None and not isinstance(path, str))
         ):
             raise PairError(message)
+        notebook_id = session.get("notebook_id")
+        if notebook_id is not None and not isinstance(notebook_id, str):
+            raise PairError(message)
         sessions[session_id] = {
             "session_id": stable_session_id,
             "filename": filename,
             "path": path,
+            "notebook_id": notebook_id,
         }
     return sessions
 
 
-def resolve_session(*, url: str, token: str | None) -> str:
+def resolve_notebook(*, url: str, token: str | None) -> str:
     sessions = list_sessions(url=url, token=token)
-    safe_url = display_url(url)
-    if len(sessions) == 1:
-        stable_session_id = next(iter(sessions.values()))["session_id"]
-        assert stable_session_id is not None
-        return stable_session_id
-    if not sessions:
-        message = f"No running session on {safe_url}."
-        raise NoSessionError(message, url=safe_url)
-
     candidates = sorted(
-        session["session_id"]
-        for session in sessions.values()
-        if session["session_id"] is not None
+        {
+            session["notebook_id"]
+            for session in sessions.values()
+            if session["notebook_id"] is not None
+        }
     )
-    message = f"Server {safe_url} has {len(candidates)} running sessions."
-    raise AmbiguousSessionError(
-        message, url=safe_url, candidates=tuple(candidates)
+    safe_url = display_url(url)
+    if len(candidates) == 1:
+        return candidates[0]
+    if not candidates:
+        raise NoNotebookError(
+            f"No host notebook on {safe_url}. Save and open the notebook in edit mode.",
+            url=safe_url,
+        )
+    raise AmbiguousNotebookError(
+        f"Server {safe_url} has {len(candidates)} notebooks.",
+        url=safe_url,
+        candidates=tuple(candidates),
     )
 
 

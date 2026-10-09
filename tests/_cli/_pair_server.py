@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -26,6 +27,7 @@ class PairTestServer:
     url: str
     session_id: str
     stable_session_id: str
+    notebook_id: str
     _process: subprocess.Popen[bytes]
     _websocket: ClientConnection
     _stderr_path: Path
@@ -167,6 +169,8 @@ def _start_server(
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=stderr_file,
+                cwd=notebook.parent,
+                env={**os.environ, "MARIMO_ENABLE_HOST": "1"},
             )
         url = f"http://127.0.0.1:{port}"
         try:
@@ -203,6 +207,7 @@ def pair_test_server(tmp_path: Path) -> Generator[PairTestServer, None, None]:
             url=url,
             session_id=session_id,
             stable_session_id=stable_session_id,
+            notebook_id=sessions[session_id]["notebook_id"],
             _process=process,
             _websocket=websocket,
             _stderr_path=stderr_path,

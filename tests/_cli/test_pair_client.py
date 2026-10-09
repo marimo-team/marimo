@@ -1,24 +1,24 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import http.client
 import io
 import json
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from unittest.mock import Mock
 
 import pytest
 
 from marimo._cli.pair import client
 from marimo._cli.pair.client import (
-    AmbiguousSessionError,
-    NoSessionError,
+    AmbiguousNotebookError,
+    NoNotebookError,
+    NotebookUnsupportedError,
     PairError,
     PairInputError,
     SSEEvent,
-    StableSessionUnsupportedError,
-    StaleSessionError,
+    StaleNotebookError,
 )
 
 if TYPE_CHECKING:
@@ -68,7 +68,7 @@ def _patch_response(
 
     def fake_open_response(**kwargs: Any) -> Any:
         calls.append(kwargs)
-        return response
+        return client.EventStream(response, Mock())
 
     monkeypatch.setattr(client, "open_response", fake_open_response)
     return calls
@@ -117,334 +117,143 @@ def test_display_url_removes_credentials_query_and_fragment() -> None:
     assert client.display_url("http://[::1") == "<invalid URL>"
 
 
-@pytest.mark.parametrize(
-    ("fixture", "expected"),
-    [
-        (
-            "execute-success.sse",
+def test_iter_sse_reads_cursor_multiline_and_ignores_invalid_ids() -> None:
+    assert list(
+        client.iter_sse(
             [
-                SSEEvent("stdout", '{"data":"hello\\n"}'),
-                SSEEvent(
-                    "done",
-                    '{"success":true,"output":{"mimetype":"text/plain","data":"2"}}',
-                ),
-            ],
-        ),
-        (
-            "execute-failure.sse",
-            [
-                SSEEvent("stderr", '{"data":"ValueError: boom\\n"}'),
-                SSEEvent(
-                    "done",
-                    '{"success":false,"output":{"mimetype":"text/plain","data":""}}',
-                ),
-            ],
-        ),
-    ],
-)
-def test_iter_sse_fixtures(fixture: str, expected: list[SSEEvent]) -> None:
-    assert list(client.iter_sse(io.BytesIO(_fixture(fixture)))) == expected
-
-
-def test_iter_sse_handles_crlf_comments_and_multiline_data() -> None:
-    lines = [
-        b": keep-alive\r\n",
-        b"event: custom\r\n",
-        b"data: first\r\n",
-        b"data: second\r\n",
-        b"\r\n",
-    ]
-
-    assert list(client.iter_sse(lines)) == [
-        SSEEvent("custom", "first\nsecond")
+                b": comment\r\n",
+                b"id: cursor-1\r\n",
+                b"event: custom\r\n",
+                b"data: one\r\n",
+                b"data: two\r\n",
+                b"\r\n",
+                b"id: bad\0cursor\n",
+                b"data: three\n",
+                b"\n",
+                b"id:\n",
+                b"data: four\n",
+            ]
+        )
+    ) == [
+        SSEEvent("custom", "one\ntwo", "cursor-1"),
+        SSEEvent("message", "three", "cursor-1"),
+        SSEEvent("message", "four", ""),
     ]
 
 
-def test_iter_sse_dispatches_unterminated_final_record() -> None:
-    assert list(client.iter_sse([b"data: final"])) == [
-        SSEEvent("message", "final")
-    ]
-
-
-def test_execute_sends_request_and_streams_in_event_order(
+def test_open_events_uses_host_headers_and_cursor(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    response = io.BytesIO(
-        b"event: stdout\n"
-        b'data: {"data":"out"}\n\n'
-        b"event: stderr\n"
-        b'data: {"data":"err"}\n\n'
-        b"event: done\n"
-        b'data: {"success":true,"output":{"data":"result"}}\n\n'
+    calls = _patch_response(monkeypatch, io.BytesIO())
+    client.open_events(
+        url="http://localhost:2718/base/api/marimo/v1",
+        notebook="nb-one",
+        token="private",
+        identity="p1_one",
+        name="Codex",
+        cursor="cursor-1",
     )
-    calls = _patch_response(monkeypatch, response)
-    records: list[tuple[str, str]] = []
-    stdout = RecordingStream("stdout", records)
-    stderr = RecordingStream("stderr", records)
-
-    result = client.execute(
-        url="https://example.com/base/?access_token=query-token#part",
-        session_id="session-1",
-        token="secret-token",
-        code="print(1)",
-        stdout=stdout,
-        stderr=stderr,
-        stream=True,
-    )
-
-    assert result == client.ExecutionResult(
-        success=True,
-        output={"mimetype": "text/plain", "data": "result"},
-        stdout="",
-        stderr="",
-    )
-    assert records == [
-        ("stdout", "out"),
-        ("stdout", "flush"),
-        ("stderr", "err"),
-        ("stderr", "flush"),
-        ("stdout", "result\n"),
-    ]
     assert calls == [
         {
-            "method": "POST",
-            "url": "https://example.com/base/api/kernel/execute?access_token=query-token",
+            "method": "GET",
+            "url": "http://localhost:2718/base/api/marimo/v1/notebooks/nb-one/events?types=custom,attachment",
             "headers": {
-                "Content-Type": "application/json",
-                "Marimo-Stable-Session-Id": "session-1",
-                "Authorization": "Bearer secret-token",
+                "Marimo-Attachment-Identity": "p1_one",
+                "Marimo-Attachment-Kind": "agent",
+                "Marimo-Attachment-Name": "Codex",
+                "Authorization": "Bearer private",
+                "Last-Event-ID": "cursor-1",
             },
-            "body": json.dumps({"code": "print(1)"}).encode(),
+            "body": None,
+            "read_timeout": 45,
         }
     ]
-    assert "secret-token" not in calls[0]["url"]
-    assert b"secret-token" not in calls[0]["body"]
-    assert response.closed
 
 
-def test_execute_omits_authorization_without_token(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("outcome", ["succeeded", "failed", "interrupted"])
+@pytest.mark.parametrize("stream", [True, False])
+def test_execute_host_run_filters_other_runs(
+    monkeypatch: pytest.MonkeyPatch, outcome: str, stream: bool
 ) -> None:
-    response = io.BytesIO(_fixture("execute-success.sse"))
-    calls = _patch_response(monkeypatch, response)
+    response = io.BytesIO(_fixture(f"host-run-{outcome}.sse"))
+    calls: list[dict[str, Any]] = []
 
-    client.execute(
-        url="http://localhost:2718",
-        session_id="session-1",
-        token=None,
-        code="1 + 1",
-        stdout=io.StringIO(),
-        stderr=io.StringIO(),
-        stream=True,
-    )
+    def open_response(**kwargs: Any) -> client.EventStream:
+        calls.append(kwargs)
+        if kwargs["method"] == "GET":
+            return client.EventStream(response, Mock())
+        # The ready frame must be consumed before submission.
+        assert response.tell() > 0
+        return client.EventStream(io.BytesIO(b'{"id":"run-one"}'), Mock())
 
-    assert len(calls) == 1
-    assert "Authorization" not in calls[0]["headers"]
-
-
-@pytest.mark.parametrize(
-    "url",
-    [
-        "ftp://localhost/not-http",
-        "http:///missing-host",
-        "http://localhost:0",
-        "http://localhost:not-a-port?access_token=secret",
-        "http://[::1",
-    ],
-)
-def test_open_response_rejects_invalid_url_without_exposing_it(
-    url: str,
-) -> None:
-    with pytest.raises(PairInputError) as exc_info:
-        client.open_response(
-            method="GET",
-            url=url,
-            headers={},
-            body=None,
-        )
-
-    assert str(exc_info.value) in (
-        "The server URL is invalid.",
-        "The server URL must use http or https.",
-    )
-    assert "secret" not in str(exc_info.value)
-
-
-def test_execute_buffers_output_until_done(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-
-    class InspectingResponse(io.BytesIO):
-        def readline(self, size: int = -1) -> bytes:
-            line = super().readline(size)
-            if line == b"event: done\n":
-                assert stdout.getvalue() == ""
-                assert stderr.getvalue() == ""
-            return line
-
-    response = InspectingResponse(_fixture("execute-success.sse"))
-    calls = _patch_response(monkeypatch, response)
-
+    monkeypatch.setattr(client, "open_response", open_response)
+    stdout, stderr = io.StringIO(), io.StringIO()
     result = client.execute(
-        url="http://localhost:2718",
-        session_id="session-1",
-        token=None,
-        code="1 + 1",
+        url="http://localhost:2718/api/marimo/v1",
+        notebook_id="nb-one",
+        token="private",
+        code="print(42)",
         stdout=stdout,
         stderr=stderr,
-        stream=False,
+        stream=stream,
     )
-
-    assert result.success
-    assert result.stdout == "hello\n"
-    assert result.stderr == ""
-    assert result.output == {"mimetype": "text/plain", "data": "2"}
-    assert stdout.getvalue() == ""
-    assert stderr.getvalue() == ""
-    assert len(calls) == 1
-
-
-def test_execute_returns_unsuccessful_result(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    response = io.BytesIO(_fixture("execute-failure.sse"))
-    calls = _patch_response(monkeypatch, response)
-    stderr = io.StringIO()
-
-    result = client.execute(
-        url="http://localhost:2718",
-        session_id="session-1",
-        token=None,
-        code="raise ValueError",
-        stdout=io.StringIO(),
-        stderr=stderr,
-        stream=False,
-    )
-
     assert result == client.ExecutionResult(
-        success=False,
-        output=None,
-        stdout="",
-        stderr="ValueError: boom\n",
+        outcome == "succeeded",
+        {"mimetype": "text/plain", "data": "42"},
+        "" if stream else "hello\n",
+        "" if stream else "warning\n",
+        outcome,
     )
-    assert stderr.getvalue() == ""
-    assert len(calls) == 1
+    assert stdout.getvalue() == ("hello\n42\n" if stream else "")
+    assert stderr.getvalue() == ("warning\n" if stream else "")
+    assert [call["method"] for call in calls] == ["GET", "POST"]
+    assert json.loads(calls[1]["body"]) == {"code": "print(42)"}
+    from uuid import UUID
 
-
-def test_execute_rejects_missing_done(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    response = io.BytesIO(b'event: stdout\ndata: {"data":"partial"}\n\n')
-    calls = _patch_response(monkeypatch, response)
-
-    with pytest.raises(PairError, match="ended before completion"):
-        client.execute(
-            url="http://localhost:2718",
-            session_id="session-1",
-            token=None,
-            code="print(1)",
-            stdout=io.StringIO(),
-            stderr=io.StringIO(),
-            stream=True,
-        )
-
-    assert len(calls) == 1
+    UUID(calls[1]["headers"]["Idempotency-Key"])
+    assert response.closed
 
 
 @pytest.mark.parametrize(
     "body",
     [
-        b"event: stdout\ndata: not json\n\n",
-        b'event: done\ndata: {"output":null}\n\n',
-        b"event: stdout\ndata: []\n\n",
+        b"",
+        b"event: ready\ndata: {}\n\n",
+        b"event: ready\ndata: {}\n\nevent: execution\ndata: invalid\n\n",
     ],
-    ids=["non_json", "done_without_success", "wrong_shape"],
 )
-def test_execute_treats_malformed_events_as_unconfirmed(
+def test_execute_missing_completion_is_unconfirmed(
     monkeypatch: pytest.MonkeyPatch, body: bytes
 ) -> None:
-    response = io.BytesIO(body)
-    _patch_response(monkeypatch, response)
+    def open_response(**kwargs: Any) -> client.EventStream:
+        return client.EventStream(
+            io.BytesIO(
+                body if kwargs["method"] == "GET" else b'{"id":"run-one"}'
+            ),
+            Mock(),
+        )
 
-    with pytest.raises(PairError, match="ended before completion"):
+    monkeypatch.setattr(client, "open_response", open_response)
+    with pytest.raises(PairError):
         client.execute(
-            url="http://localhost:2718",
-            session_id="session-1",
-            token=None,
-            code="print(1)",
+            url="http://localhost:2718/api/marimo/v1",
+            notebook_id="nb-one",
+            token="private",
+            code="1",
             stdout=io.StringIO(),
             stderr=io.StringIO(),
             stream=False,
         )
 
 
-def test_execute_keeps_buffered_output_after_read_error(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(
+    "url", ["ftp://localhost", "http://[", "http://localhost:99999"]
+)
+def test_open_response_rejects_invalid_url_without_exposing_it(
+    url: str,
 ) -> None:
-    response = RaisingResponse(
-        [b"event: stdout\n", b'data: {"data":"partial"}\n', b"\n"],
-        OSError("connection lost"),
-    )
-    calls = _patch_response(monkeypatch, response)
-    stdout = io.StringIO()
-
-    with pytest.raises(PairError, match="ended before completion"):
-        client.execute(
-            url="http://localhost:2718",
-            session_id="session-1",
-            token=None,
-            code="print(1)",
-            stdout=stdout,
-            stderr=io.StringIO(),
-            stream=True,
-        )
-
-    assert stdout.getvalue() == "partial"
-    assert response.closed
-    assert len(calls) == 1
-
-
-def test_execute_rejects_truncated_http_response(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    response = RaisingResponse([], http.client.IncompleteRead(b"partial"))
-    _patch_response(monkeypatch, response)
-
-    with pytest.raises(PairError, match="ended before completion"):
-        client.execute(
-            url="http://localhost:2718",
-            session_id="session-1",
-            token=None,
-            code="print(1)",
-            stdout=io.StringIO(),
-            stderr=io.StringIO(),
-            stream=True,
-        )
-
-    assert response.closed
-
-
-def test_execute_closes_response_after_keyboard_interrupt(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    response = RaisingResponse([], KeyboardInterrupt())
-    calls = _patch_response(monkeypatch, response)
-
-    with pytest.raises(KeyboardInterrupt):
-        client.execute(
-            url="http://localhost:2718",
-            session_id="session-1",
-            token=None,
-            code="while True: pass",
-            stdout=io.StringIO(),
-            stderr=io.StringIO(),
-            stream=True,
-        )
-
-    assert response.closed
-    assert len(calls) == 1
+    with pytest.raises(PairInputError):
+        client.open_response(method="GET", url=url, headers={}, body=None)
 
 
 def test_list_sessions_sends_request_and_parses_response(
@@ -457,12 +266,14 @@ def test_list_sessions_sends_request_and_parses_response(
                     "session_id": "sess-stable-1",
                     "filename": "analysis.py",
                     "path": "/work/analysis.py",
+                    "notebook_id": "nb-analysis",
                     "state": "idle",
                 },
                 "session-2": {
                     "session_id": "sess-stable-2",
                     "filename": None,
                     "path": None,
+                    "notebook_id": None,
                 },
             }
         ).encode()
@@ -482,11 +293,13 @@ def test_list_sessions_sends_request_and_parses_response(
             "session_id": "sess-stable-1",
             "filename": "analysis.py",
             "path": "/work/analysis.py",
+            "notebook_id": "nb-analysis",
         },
         "session-2": {
             "session_id": "sess-stable-2",
             "filename": None,
             "path": None,
+            "notebook_id": None,
         },
     }
     assert calls == [
@@ -531,6 +344,7 @@ def test_list_sessions_omits_authorization_without_token(
             "session-1": {
                 "session_id": "sess-stable",
                 "path": "/work/analysis.py",
+                "notebook_id": "nb-analysis",
             }
         },
         {
@@ -538,6 +352,7 @@ def test_list_sessions_omits_authorization_without_token(
                 "session_id": "sess-stable",
                 "filename": [],
                 "path": None,
+                "notebook_id": None,
             }
         },
         {
@@ -552,6 +367,7 @@ def test_list_sessions_omits_authorization_without_token(
                 "session_id": None,
                 "filename": None,
                 "path": None,
+                "notebook_id": None,
             }
         },
     ],
@@ -605,13 +421,14 @@ def test_list_sessions_rejects_server_without_stable_ids(
                 "session-1": {
                     "filename": "analysis.py",
                     "path": "/work/analysis.py",
+                    "notebook_id": "nb-analysis",
                 }
             }
         ).encode()
     )
     _patch_response(monkeypatch, response)
 
-    with pytest.raises(StableSessionUnsupportedError):
+    with pytest.raises(NotebookUnsupportedError):
         client.list_sessions(url="http://localhost:2718", token=None)
 
     assert response.closed
@@ -707,7 +524,7 @@ def test_raise_for_status_maps_invalid_session_id() -> None:
         500, json.dumps({"detail": "Invalid session id: s_old"}).encode()
     )
 
-    with pytest.raises(StaleSessionError, match="Invalid session id"):
+    with pytest.raises(StaleNotebookError, match="Invalid session id"):
         client._raise_for_status(response)
 
     assert response.closed
@@ -719,7 +536,7 @@ def test_raise_for_status_maps_invalid_stable_session_id() -> None:
         json.dumps({"detail": "Invalid stable session id: sess-old"}).encode(),
     )
 
-    with pytest.raises(StaleSessionError, match="Invalid stable session id"):
+    with pytest.raises(StaleNotebookError, match="Invalid stable session id"):
         client._raise_for_status(response)
 
     assert response.closed
@@ -731,7 +548,7 @@ def test_raise_for_status_maps_missing_legacy_header_to_upgrade() -> None:
         json.dumps({"detail": "Missing Marimo-Session-Id header"}).encode(),
     )
 
-    with pytest.raises(StableSessionUnsupportedError):
+    with pytest.raises(NotebookUnsupportedError):
         client._raise_for_status(response)
 
     assert response.closed
@@ -769,12 +586,13 @@ def test_resolve_session_returns_only_stable_session_id(
                 "session_id": "sess-stable",
                 "filename": "analysis.py",
                 "path": "/work/analysis.py",
+                "notebook_id": "nb-analysis",
             }
         },
     )
 
-    assert client.resolve_session(url="http://one", token=None) == (
-        "sess-stable"
+    assert (
+        client.resolve_notebook(url="http://one", token=None) == "nb-analysis"
     )
 
 
@@ -783,8 +601,8 @@ def test_resolve_session_zero_matches(
 ) -> None:
     monkeypatch.setattr(client, "list_sessions", lambda **_kwargs: {})
 
-    with pytest.raises(NoSessionError, match="No running session") as exc_info:
-        client.resolve_session(
+    with pytest.raises(NoNotebookError, match="No host notebook") as exc_info:
+        client.resolve_notebook(
             url="http://user:password@one?access_token=secret",
             token=None,
         )
@@ -802,19 +620,136 @@ def test_resolve_session_many_matches(
         "list_sessions",
         lambda **_kwargs: {
             "routing-b": {
-                "session_id": "sess-b",
+                "notebook_id": "sess-b",
                 "filename": "nb.py",
                 "path": "/b/nb.py",
             },
             "routing-a": {
-                "session_id": "sess-a",
+                "notebook_id": "sess-a",
                 "filename": "nb.py",
                 "path": "/a/nb.py",
             },
         },
     )
 
-    with pytest.raises(AmbiguousSessionError) as exc_info:
-        client.resolve_session(url="http://one", token=None)
+    with pytest.raises(AmbiguousNotebookError) as exc_info:
+        client.resolve_notebook(url="http://one", token=None)
 
     assert exc_info.value.candidates == ("sess-a", "sess-b")
+
+
+def _host_record(
+    path: Path, *, url: str, started: float | None = None
+) -> None:
+    from datetime import datetime, timezone
+
+    import msgspec
+    import psutil
+
+    from marimo._core import protocol
+
+    path.write_bytes(
+        msgspec.json.encode(
+            protocol.HostRecord(
+                version=1,
+                process=protocol.Process(
+                    pid=os.getpid(),
+                    started_at=datetime.fromtimestamp(
+                        psutil.Process().create_time()
+                        if started is None
+                        else started,
+                        tz=timezone.utc,
+                    ),
+                ),
+                name="marimo",
+                url=url,
+                token="private-host-token",
+            )
+        )
+    )
+    path.chmod(0o600)
+
+
+def test_resolve_host_skips_stale_and_malformed_records(
+    tmp_path: Path,
+) -> None:
+    _host_record(
+        tmp_path / "a-stale.json",
+        url="http://127.0.0.1:2718/base/api/marimo/v1",
+        started=1,
+    )
+    (tmp_path / "b-malformed.json").write_text("{}")
+    _host_record(
+        tmp_path / "c-live.json",
+        url="http://127.0.0.1:2718/base/api/marimo/v1",
+    )
+    result = client.resolve_host("http://localhost:2718/base/", root=tmp_path)
+    assert result == client.HostEndpoint(
+        "http://127.0.0.1:2718/base/api/marimo/v1", "private-host-token"
+    )
+    assert "private-host-token" not in repr(result)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX private file validation")
+@pytest.mark.parametrize(
+    "kind", ["public", "symlink", "wrong-port", "wrong-base"]
+)
+def test_resolve_host_rejects_unsafe_or_unmatched_records(
+    tmp_path: Path, kind: str
+) -> None:
+    record = tmp_path / "record.json"
+    _host_record(record, url="http://127.0.0.1:2718/api/marimo/v1")
+    selected = "http://localhost:2718"
+    if kind == "public":
+        record.chmod(0o644)
+    elif kind == "symlink":
+        record.rename(tmp_path / "record.private")
+        record.symlink_to(tmp_path / "record.private")
+    elif kind == "wrong-port":
+        selected = "http://localhost:2719"
+    else:
+        selected += "/base"
+    with pytest.raises(PairError, match="local edit server"):
+        client.resolve_host(selected, root=tmp_path)
+
+
+def test_resolve_notebook_filters_unsaved_and_deduplicates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        client,
+        "list_sessions",
+        lambda **_: {
+            "one": {"notebook_id": "nb-one"},
+            "two": {"notebook_id": None},
+            "three": {"notebook_id": "nb-one"},
+        },
+    )
+    assert (
+        client.resolve_notebook(url="http://localhost:2718", token=None)
+        == "nb-one"
+    )
+
+
+@pytest.mark.parametrize(
+    ("problem", "error"),
+    [
+        ("no-runtime", client.NoRuntimeError),
+        ("conflict", client.RunConflictError),
+    ],
+)
+def test_host_problem_types_map_to_cli_errors(
+    problem: str, error: type[PairError]
+) -> None:
+    response = FakeStatusResponse(
+        409,
+        json.dumps(
+            {
+                "type": f"tag:marimo.io,2026:host/{problem}",
+                "detail": "host detail",
+            }
+        ).encode(),
+    )
+    with pytest.raises(error, match="host detail"):
+        client._raise_for_status(response)
+    assert response.closed
