@@ -268,3 +268,54 @@ async def test_progress_async_for_loop_without_collection_error():
     ):
         async for _ in progress_bar(total=1):
             pass
+
+
+@patch("marimo._runtime.output._output.flush")
+def test_update_progress_fast_updates_trailing_flush(mock_flush: Any) -> None:
+    progress = _Progress(
+        title="Test",
+        subtitle="Initial",
+        total=5,
+        show_rate=False,
+        show_eta=False,
+    )
+    progress.update_progress(increment=1, subtitle="Step 1")
+    progress.update_progress(increment=1, subtitle="Step 2")
+    assert mock_flush.call_count == 1
+    deadline = time.monotonic() + 1.0
+    while mock_flush.call_count < 2 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert mock_flush.call_count == 2
+    progress.close()
+
+
+@patch("marimo._runtime.output._output.flush")
+def test_progress_bar_fast_iterations_updates_subtitle_trailing(
+    mock_flush: Any,
+) -> None:
+    # Regression test for #10725: fast iterations in a loop must flush
+    # the latest subtitle and progress state to the UI after the debounce window.
+    progress = _Progress(
+        title="Loop Test",
+        subtitle="Initial",
+        total=5,
+        show_rate=False,
+        show_eta=False,
+    )
+    items = [(0, "first"), (0, "second"), (0, "third")]
+    for item in items:
+        progress.update_progress(increment=1, subtitle=item[1])
+
+    # First update executed on leading edge
+    assert mock_flush.call_count == 1
+    # State in _Progress reflects the latest update
+    assert "third" in progress._text
+    assert progress.current == 3
+    assert progress.total == 5
+
+    # Wait for trailing flush to deliver the final state
+    deadline = time.monotonic() + 1.0
+    while mock_flush.call_count < 2 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert mock_flush.call_count == 2
+    progress.close()
