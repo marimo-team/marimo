@@ -9,6 +9,11 @@ import msgspec
 
 AttachmentKind = Literal["agent", "client"]
 
+STABLE_SESSION_ID_HEADER = "Marimo-Stable-Session-Id"
+ATTACHMENT_ID_HEADER = "Marimo-Attachment-Id"
+ATTACHMENT_KIND_HEADER = "Marimo-Attachment-Kind"
+ATTACHMENT_NAME_HEADER = "Marimo-Attachment-Name"
+
 
 class Attachment(msgspec.Struct, frozen=True):
     """A connection to a notebook's handoff stream.

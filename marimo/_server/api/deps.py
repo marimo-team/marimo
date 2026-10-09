@@ -8,7 +8,14 @@ from uuid import uuid4
 from marimo import _loggers as loggers
 from marimo._cli.tips import CliTip
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
-from marimo._messaging.attachments import Attachment, AttachmentKind
+from marimo._messaging.attachments import (
+    ATTACHMENT_ID_HEADER,
+    ATTACHMENT_KIND_HEADER,
+    ATTACHMENT_NAME_HEADER,
+    STABLE_SESSION_ID_HEADER,
+    Attachment,
+    AttachmentKind,
+)
 from marimo._server.config import StarletteServerState
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
@@ -27,11 +34,6 @@ if TYPE_CHECKING:
     from marimo._session import Session
 
 LOGGER = loggers.marimo_logger()
-
-STABLE_SESSION_ID_HEADER = "Marimo-Stable-Session-Id"
-ATTACHMENT_ID_HEADER = "Marimo-Attachment-Id"
-ATTACHMENT_KIND_HEADER = "Marimo-Attachment-Kind"
-ATTACHMENT_NAME_HEADER = "Marimo-Attachment-Name"
 
 
 class AppStateBase:

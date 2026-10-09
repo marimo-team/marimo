@@ -15,13 +15,13 @@ from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
+from marimo._messaging.attachments import ATTACHMENT_ID_HEADER
 from marimo._messaging.notification import ConsumerCapabilities
 from marimo._runtime.commands import (
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
 )
 from marimo._server import scratchpad as scratchpad_mod
-from marimo._server.api.deps import ATTACHMENT_ID_HEADER
 from marimo._server.api.utils import enforce_consumer_capability
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.http import HTTPException
