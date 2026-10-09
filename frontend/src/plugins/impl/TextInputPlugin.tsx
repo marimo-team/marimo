@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { AtSignIcon, GlobeIcon, LockIcon } from "lucide-react";
-import { type JSX, useRef, useState } from "react";
+import { type JSX, useId, useRef, useState } from "react";
 import { z } from "zod";
 import {
   DebouncedInput,
@@ -73,6 +73,7 @@ interface TextComponentProps extends Data {
 }
 
 const TextComponent = (props: TextComponentProps) => {
+  const inputId = useId();
   // Before first real keystroke: show masked placeholder, suppress setValue.
   // After first keystroke: normal password field.
   const initiallyMasked =
@@ -125,6 +126,7 @@ const TextComponent = (props: TextComponentProps) => {
   if (props.debounce === true) {
     input = (
       <OnBlurredInput
+        id={inputId}
         data-testid="marimo-plugin-text-input"
         type={props.kind}
         icon={icon[props.kind]}
@@ -143,6 +145,7 @@ const TextComponent = (props: TextComponentProps) => {
   } else if (typeof props.debounce === "number") {
     input = (
       <DebouncedInput
+        id={inputId}
         data-testid="marimo-plugin-text-input"
         type={props.kind}
         icon={icon[props.kind]}
@@ -163,6 +166,7 @@ const TextComponent = (props: TextComponentProps) => {
   } else {
     input = (
       <Input
+        id={inputId}
         data-testid="marimo-plugin-text-input"
         type={props.kind}
         icon={icon[props.kind]}
@@ -182,7 +186,11 @@ const TextComponent = (props: TextComponentProps) => {
   }
 
   return (
-    <Labeled label={props.label} fullWidth={props.fullWidth}>
+    <Labeled
+      controlId={inputId}
+      label={props.label}
+      fullWidth={props.fullWidth}
+    >
       {input}
     </Labeled>
   );
