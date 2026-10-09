@@ -201,6 +201,28 @@ class AppState(AppStateBase):
         if not pair_preview_enabled():
             raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
 
+    def attachment_id_from_request(self) -> str | None:
+        """Read execute attribution when the Pair preview is enabled."""
+        if not pair_preview_enabled():
+            return None
+        attachment_id = self.request.headers.get(ATTACHMENT_ID_HEADER)
+        if attachment_id is None:
+            return None
+        if not attachment_id:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=f"{ATTACHMENT_ID_HEADER} must be nonempty.",
+            )
+        if self.request.headers.get(STABLE_SESSION_ID_HEADER) is None:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=(
+                    f"{ATTACHMENT_ID_HEADER} requires "
+                    f"{STABLE_SESSION_ID_HEADER}."
+                ),
+            )
+        return attachment_id
+
     def attachment_from_request(self) -> Attachment:
         """Read stream identity or mint an anonymous client attachment."""
         raw_id = self.request.headers.get(ATTACHMENT_ID_HEADER)

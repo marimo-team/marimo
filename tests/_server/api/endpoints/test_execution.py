@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import time
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -16,9 +17,15 @@ from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.notification import ConsumerCapabilities
-from marimo._runtime.commands import ExecuteCellsCommand
+from marimo._runtime.commands import (
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
+)
+from marimo._server import scratchpad as scratchpad_mod
+from marimo._server.api.deps import ATTACHMENT_ID_HEADER
 from marimo._server.api.utils import enforce_consumer_capability
 from marimo._types.ids import CellId_t, SessionId
+from marimo._utils.env import PAIR_PREVIEW_ENV
 from marimo._utils.http import HTTPException
 from marimo._utils.lists import first
 from tests._server.api.endpoints.ws_helpers import (
@@ -45,6 +52,36 @@ HEADERS = {
     **token_header("fake-token"),
 }
 STABLE_SESSION_HEADER = "Marimo-Stable-Session-Id"
+
+
+def _execute_command(
+    client: TestClient, headers: dict[str, str]
+) -> ExecuteScratchpadCommand:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session is not None
+
+    async def empty_stream(_self: object) -> AsyncGenerator[str, None]:
+        if False:
+            yield ""
+
+    with (
+        patch.object(session, "put_control_request") as put_control_request,
+        patch.object(
+            scratchpad_mod.ScratchCellListener, "stream", empty_stream
+        ),
+    ):
+        response = client.post(
+            "/api/kernel/execute", headers=headers, json={"code": "x = 1"}
+        )
+
+    assert response.status_code == 200, response.text
+    commands = [
+        call.args[0]
+        for call in put_control_request.call_args_list
+        if isinstance(call.args[0], ExecuteScratchpadCommand)
+    ]
+    assert len(commands) == 1
+    return commands[0]
 
 
 def _count_execute_interrupts(
@@ -310,6 +347,133 @@ class TestExecutionRoutes_EditMode:
         ]
         assert len(scratchpad_commands) == 1
         assert scratchpad_commands[0].code == "x = 1"
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_carries_attachment_attribution(
+        client: TestClient,
+    ) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        with patch.dict(os.environ, {PAIR_PREVIEW_ENV: "1"}):
+            command = _execute_command(
+                client,
+                {
+                    STABLE_SESSION_HEADER: session.stable_id,
+                    ATTACHMENT_ID_HEADER: "unregistered-agent",
+                    **token_header("fake-token"),
+                },
+            )
+
+        assert command.code == "x = 1"
+        assert command.request is not None
+        assert command.request.meta[scratchpad_mod.ATTACHMENT_ID_META_KEY] == (
+            "unregistered-agent"
+        )
+        assert ATTACHMENT_ID_HEADER.lower() not in command.request.headers
+        assert session.handoffs.attachments() == []
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_attachment_requires_stable_session_id(
+        client: TestClient,
+    ) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        with (
+            patch.dict(os.environ, {PAIR_PREVIEW_ENV: "1"}),
+            patch.object(session, "instantiate") as instantiate,
+            patch.object(
+                session, "put_control_request"
+            ) as put_control_request,
+        ):
+            response = client.post(
+                "/api/kernel/execute",
+                headers={**HEADERS, ATTACHMENT_ID_HEADER: "a1"},
+                json={"code": "x = 1"},
+            )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": (
+                f"{ATTACHMENT_ID_HEADER} requires {STABLE_SESSION_HEADER}."
+            )
+        }
+        instantiate.assert_not_called()
+        put_control_request.assert_not_called()
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_rejects_empty_attachment_before_side_effects(
+        client: TestClient,
+    ) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        for headers in (
+            {**HEADERS, ATTACHMENT_ID_HEADER: ""},
+            {
+                **token_header("fake-token"),
+                STABLE_SESSION_HEADER: session.stable_id,
+                ATTACHMENT_ID_HEADER: "",
+            },
+        ):
+            with (
+                patch.dict(os.environ, {PAIR_PREVIEW_ENV: "1"}),
+                patch.object(session, "instantiate") as instantiate,
+                patch.object(
+                    session, "put_control_request"
+                ) as put_control_request,
+            ):
+                response = client.post(
+                    "/api/kernel/execute",
+                    headers=headers,
+                    json={"code": "x = 1"},
+                )
+            assert response.status_code == 400
+            assert response.json() == {
+                "detail": f"{ATTACHMENT_ID_HEADER} must be nonempty."
+            }
+            instantiate.assert_not_called()
+            put_control_request.assert_not_called()
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_ignores_attachment_when_preview_is_off(
+        client: TestClient,
+    ) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        for headers in (
+            {**HEADERS, ATTACHMENT_ID_HEADER: ""},
+            {**HEADERS, ATTACHMENT_ID_HEADER: "a1"},
+            {
+                STABLE_SESSION_HEADER: session.stable_id,
+                ATTACHMENT_ID_HEADER: "a1",
+                **token_header("fake-token"),
+            },
+        ):
+            with patch.dict(os.environ, {PAIR_PREVIEW_ENV: "0"}):
+                command = _execute_command(client, headers)
+
+            assert command.request is not None
+            assert (
+                scratchpad_mod.ATTACHMENT_ID_META_KEY
+                not in command.request.meta
+            )
+            assert ATTACHMENT_ID_HEADER.lower() not in command.request.headers
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_without_attachment_when_preview_is_on(
+        client: TestClient,
+    ) -> None:
+        with patch.dict(os.environ, {PAIR_PREVIEW_ENV: "1"}):
+            command = _execute_command(client, HEADERS)
+        assert command.request is not None
+        assert (
+            scratchpad_mod.ATTACHMENT_ID_META_KEY not in command.request.meta
+        )
 
     @staticmethod
     @with_session(SESSION_ID)
