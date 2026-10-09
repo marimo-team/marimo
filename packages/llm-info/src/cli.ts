@@ -6,6 +6,7 @@ import type { SyncMode } from "./sync-models.ts";
 
 export interface CliArgs {
   mode: SyncMode;
+  metadataOnly?: boolean;
   maxPerProvider?: number;
   providers?: string[];
 }
@@ -100,6 +101,7 @@ function parseProviders(argv: readonly string[]): string[] | undefined {
 export function parseCliArgs(argv: readonly string[]): CliArgs {
   return {
     mode: parseMode(argv),
+    ...(argv.includes("--metadata-only") && { metadataOnly: true }),
     maxPerProvider: parseMaxPerProvider(argv),
     providers: parseProviders(argv),
   };

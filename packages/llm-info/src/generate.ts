@@ -5,18 +5,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { z } from "zod";
+import {
+  CAPABILITIES,
+  CostSchema,
+  ModelLimitsSchema,
+  ReasoningOptionSchema,
+} from "./metadata.ts";
 import { Logger } from "./simple_logger.ts";
 
 const ROLES = ["chat", "edit", "rerank", "embed", "autocomplete"] as const;
-const CAPABILITIES = ["thinking", "tool_calling"] as const;
 const DATA_TYPES = ["text", "image", "pdf"] as const;
-
-const CostSchema = z
-  .object({
-    input: z.number().optional(),
-    output: z.number().optional(),
-  })
-  .partial();
 
 /** YAML may parse `YYYY-MM-DD` scalars as Date; coerce back to ISO string. */
 const ReleaseDateSchema = z
@@ -38,6 +36,8 @@ export const LLMInfoSchema = z.object({
   output_types: z.array(z.enum(DATA_TYPES)).default([]),
   release_date: ReleaseDateSchema,
   cost: CostSchema.optional(),
+  reasoning_options: z.array(ReasoningOptionSchema).optional(),
+  limits: ModelLimitsSchema.optional(),
 });
 
 /** Top-level shape of `models.yml` / `models.json`: provider id → models. */

@@ -9,6 +9,10 @@ anthropic:
     output_types: [text]
     release_date: 2026-09-28
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Opus 5.5
     model: claude-opus-5-5
@@ -19,6 +23,10 @@ anthropic:
     output_types: [text]
     release_date: 2026-09-22
     cost: {input: 4, output: 20}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Fable 5.1
     model: claude-fable-5-1
@@ -29,6 +37,10 @@ anthropic:
     output_types: [text]
     release_date: 2026-09-01
     cost: {input: 10, output: 50}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Opus 5
     model: claude-opus-5
@@ -39,6 +51,10 @@ anthropic:
     output_types: [text]
     release_date: 2026-07-24
     cost: {input: 5, output: 25}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Fable 5
     model: claude-fable-5
@@ -47,8 +63,12 @@ anthropic:
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
     output_types: [text]
-    release_date: 2026-06-09
+    release_date: 2026-06-07
     cost: {input: 10, output: 50}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Sonnet 5
     model: claude-sonnet-5
@@ -57,8 +77,13 @@ anthropic:
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
     output_types: [text]
-    release_date: 2026-06-30
+    release_date: 2026-06-29
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Opus 4.8
     model: claude-opus-4-8
@@ -69,6 +94,10 @@ anthropic:
     output_types: [text]
     release_date: 2026-05-28
     cost: {input: 5, output: 25}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Sonnet 4.6
     model: claude-sonnet-4-6
@@ -79,6 +108,12 @@ anthropic:
     output_types: [text]
     release_date: 2026-02-17
     cost: {input: 3, output: 15}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, max]
+      - type: budget_tokens
+        min: 1024
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Haiku 4.5
     model: claude-haiku-4-5
@@ -89,6 +124,10 @@ anthropic:
     output_types: [text]
     release_date: 2025-10-15
     cost: {input: 1, output: 5}
+    reasoning_options:
+      - type: budget_tokens
+        min: 1024
+    limits: {context: 200000, output: 64000}
 
 openai:
   - name: GPT-6.1 Sol
@@ -100,6 +139,10 @@ openai:
     output_types: [text]
     release_date: 2026-09-29
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-6 Luna
     model: gpt-6-luna
@@ -110,6 +153,10 @@ openai:
     output_types: [text]
     release_date: 2026-09-22
     cost: {input: 0.1, output: 0.5}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-6 Sol
     model: gpt-6-sol
@@ -120,6 +167,10 @@ openai:
     output_types: [text]
     release_date: 2026-09-22
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: Daybreak Blue
     model: gpt-daybreak-blue-latest
@@ -130,6 +181,10 @@ openai:
     output_types: [text]
     release_date: 2026-08-07
     cost: {input: 4, output: 20}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: Daybreak Red
     model: gpt-daybreak-red-latest
@@ -140,6 +195,10 @@ openai:
     output_types: [text]
     release_date: 2026-08-07
     cost: {input: 12.5, output: 75}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 400000, output: 128000}
 
   - name: GPT-6 Astra
     model: gpt-6-astra
@@ -150,6 +209,10 @@ openai:
     output_types: [text]
     release_date: 2026-09-04
     cost: {input: 10, output: 50}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-5.6
     model: gpt-5.6
@@ -159,7 +222,11 @@ openai:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 5, output: 30}
+    cost: {input: 4, output: 20}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-5.6 Luna
     model: gpt-5.6-luna
@@ -169,7 +236,11 @@ openai:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 1, output: 6}
+    cost: {input: 0.2, output: 1.2}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-5.6 Sol
     model: gpt-5.6-sol
@@ -179,7 +250,11 @@ openai:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 5, output: 30}
+    cost: {input: 4, output: 20}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-5.6 Terra
     model: gpt-5.6-terra
@@ -189,7 +264,11 @@ openai:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 2.5, output: 15}
+    cost: {input: 2, output: 12}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-5.5
     model: gpt-5.5
@@ -200,6 +279,10 @@ openai:
     output_types: [text]
     release_date: 2026-04-23
     cost: {input: 5, output: 30}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh]
+    limits: {context: 1050000, output: 128000}
 
 google:
   - name: Claude Sonnet 5.5
@@ -211,6 +294,10 @@ google:
     output_types: [text]
     release_date: 2026-09-28
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Opus 5.5
     model: claude-opus-5-5@default
@@ -221,6 +308,10 @@ google:
     output_types: [text]
     release_date: 2026-09-22
     cost: {input: 4, output: 20}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Grok 4.6
     model: xai/grok-4.6
@@ -231,6 +322,8 @@ google:
     output_types: [text]
     release_date: 2026-08-12
     cost: {input: 2, output: 6}
+    reasoning_options: []
+    limits: {context: 524288, output: 500000}
 
   - name: Gemini 3.8 Flash
     model: gemini-3.8-flash
@@ -241,6 +334,10 @@ google:
     output_types: [text]
     release_date: 2026-09-02
     cost: {input: 0.75, output: 3.75}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high]
+    limits: {context: 1048576, output: 65536}
 
   - name: Claude Fable 5.1
     model: claude-fable-5-1@default
@@ -251,6 +348,10 @@ google:
     output_types: [text]
     release_date: 2026-09-01
     cost: {input: 10, output: 50}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Gemini Flash Latest
     model: gemini-flash-latest
@@ -261,6 +362,10 @@ google:
     output_types: [text]
     release_date: 2026-08-13
     cost: {input: 0.75, output: 3.75}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high]
+    limits: {context: 1048576, output: 65536}
 
   - name: Gemini 3.7 Flash
     model: gemini-3.7-flash
@@ -271,6 +376,10 @@ google:
     output_types: [text]
     release_date: 2026-08-13
     cost: {input: 0.75, output: 3.75}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high]
+    limits: {context: 1048576, output: 65536}
 
   - name: Gemma 4 26B A4B IT
     model: gemma-4-26b-a4b-it
@@ -280,6 +389,9 @@ google:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-04-02
+    reasoning_options:
+      - type: toggle
+    limits: {context: 262144, output: 32768}
 
   - name: Gemma 4 31B IT
     model: gemma-4-31b-it
@@ -289,6 +401,9 @@ google:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-04-02
+    reasoning_options:
+      - type: toggle
+    limits: {context: 262144, output: 32768}
 
   - name: Nano Banana 2 Lite
     model: gemini-3.1-flash-lite-image
@@ -299,6 +414,10 @@ google:
     output_types: [text, image]
     release_date: 2026-06-30
     cost: {input: 0.25, output: 30}
+    reasoning_options:
+      - type: effort
+        values: [minimal, high]
+    limits: {context: 65536, output: 4096}
 
   - name: Nano Banana 2
     model: gemini-3.1-flash-image
@@ -309,6 +428,10 @@ google:
     output_types: [text, image]
     release_date: 2026-05-28
     cost: {input: 0.5, output: 60}
+    reasoning_options:
+      - type: effort
+        values: [minimal, high]
+    limits: {context: 131072, output: 32768}
 
   - name: Claude Opus 5
     model: claude-opus-5@default
@@ -319,6 +442,10 @@ google:
     output_types: [text]
     release_date: 2026-07-24
     cost: {input: 5, output: 25}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Sonnet 5
     model: claude-sonnet-5@default
@@ -329,6 +456,11 @@ google:
     output_types: [text]
     release_date: 2026-06-30
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Opus 4.8
     model: claude-opus-4-8@default
@@ -339,6 +471,10 @@ google:
     output_types: [text]
     release_date: 2026-05-28
     cost: {input: 5, output: 25}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
 bedrock:
   - name: GPT-6.1 Sol (Global)
@@ -350,6 +486,10 @@ bedrock:
     output_types: [text]
     release_date: 2026-09-29
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: Claude Opus 5.5 (Global)
     model: global.anthropic.claude-opus-5-5
@@ -360,6 +500,10 @@ bedrock:
     output_types: [text]
     release_date: 2026-09-22
     cost: {input: 4, output: 20}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: GPT-6 Luna (Global)
     model: global.openai.gpt-6-luna
@@ -370,16 +514,24 @@ bedrock:
     output_types: [text]
     release_date: 2026-09-22
     cost: {input: 0.1, output: 0.5}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-6 Astra (Global)
     model: global.openai.gpt-6-astra
     description: "OpenAI model for advanced analysis, software engineering, deep research, scientific work, and document creation"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
+    input_types: [text, image]
     output_types: [text]
     release_date: 2026-09-04
     cost: {input: 10, output: 50}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: Grok 4.6 (Global)
     model: global.xai.grok-4.6
@@ -390,6 +542,10 @@ bedrock:
     output_types: [text]
     release_date: 2026-08-12
     cost: {input: 2, output: 6}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh]
+    limits: {context: 500000, output: 500000}
 
   - name: Claude Fable 5.1 (Global)
     model: global.anthropic.claude-fable-5-1
@@ -400,6 +556,10 @@ bedrock:
     output_types: [text]
     release_date: 2026-09-01
     cost: {input: 10, output: 50}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Grok 4.6
     model: xai.grok-4.6
@@ -410,26 +570,38 @@ bedrock:
     output_types: [text]
     release_date: 2026-08-12
     cost: {input: 2.2, output: 6.6}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh]
+    limits: {context: 500000, output: 500000}
 
   - name: GPT-5.6 Luna (Global)
     model: global.openai.gpt-5.6-luna
     description: "Fast, cost-efficient model in OpenAI's GPT-5.6 series, suited for high-volume, latency-sensitive chat and lightweight agentic workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
+    input_types: [text, image]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 0.22, output: 1.32}
+    cost: {input: 0.2, output: 1.2}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-5.6 Sol (Global)
     model: global.openai.gpt-5.6-sol
     description: "Flagship model in OpenAI's GPT-5.6 series, suited for complex reasoning, coding, and agentic workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
+    input_types: [text, image]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 5.5, output: 33}
+    cost: {input: 4, output: 20}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: Claude Opus 5 (Global)
     model: global.anthropic.claude-opus-5
@@ -440,6 +612,11 @@ bedrock:
     output_types: [text]
     release_date: 2026-07-24
     cost: {input: 5, output: 25}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: GPT-5.6 Luna
     model: openai.gpt-5.6-luna
@@ -449,7 +626,11 @@ bedrock:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 1, output: 6}
+    cost: {input: 0.22, output: 1.32}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-5.6 Sol
     model: openai.gpt-5.6-sol
@@ -459,7 +640,11 @@ bedrock:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 5, output: 30}
+    cost: {input: 4.4, output: 22}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-5.6 Terra
     model: openai.gpt-5.6-terra
@@ -469,7 +654,11 @@ bedrock:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 2.5, output: 15}
+    cost: {input: 2.2, output: 13.2}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: Claude Fable 5 (Global)
     model: global.anthropic.claude-fable-5
@@ -480,6 +669,10 @@ bedrock:
     output_types: [text]
     release_date: 2026-06-09
     cost: {input: 10, output: 50}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Sonnet 5 (Global)
     model: global.anthropic.claude-sonnet-5
@@ -490,6 +683,11 @@ bedrock:
     output_types: [text]
     release_date: 2026-06-30
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Fable 5 (Global)
     model: global.anthropic.claude-fable-5
@@ -500,6 +698,10 @@ bedrock:
     output_types: [text]
     release_date: 2026-06-09
     cost: {input: 10, output: 50}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Sonnet 5 (Global)
     model: global.anthropic.claude-sonnet-5
@@ -510,6 +712,11 @@ bedrock:
     output_types: [text]
     release_date: 2026-06-30
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Opus 4.8 (Global)
     model: global.anthropic.claude-opus-4-8
@@ -520,6 +727,11 @@ bedrock:
     output_types: [text]
     release_date: 2026-05-28
     cost: {input: 5, output: 25}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: GLM-5
     model: zai.glm-5
@@ -528,8 +740,11 @@ bedrock:
     capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
-    release_date: 2026-03-18
+    release_date: 2026-02-12
     cost: {input: 1, output: 3.2}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 202752, output: 131072}
 
   - name: NVIDIA Nemotron 3 Super 120B A12B
     model: nvidia.nemotron-super-3-120b
@@ -540,6 +755,8 @@ bedrock:
     output_types: [text]
     release_date: 2026-03-11
     cost: {input: 0.15, output: 0.65}
+    reasoning_options: []
+    limits: {context: 262144, output: 131072}
 
   - name: Claude Sonnet 4.6
     model: anthropic.claude-sonnet-4-6
@@ -549,7 +766,14 @@ bedrock:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-02-17
-    cost: {input: 3, output: 15}
+    cost: {input: 3.3, output: 16.5}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, max]
+      - type: budget_tokens
+        min: 1024
+    limits: {context: 1000000, output: 128000}
 
 azure:
   - name: GPT-6.1 Sol
@@ -561,6 +785,10 @@ azure:
     output_types: [text]
     release_date: 2026-09-29
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: Claude Sonnet 5.5
     model: claude-sonnet-5-5
@@ -571,6 +799,10 @@ azure:
     output_types: [text]
     release_date: 2026-09-28
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Opus 5.5
     model: claude-opus-5-5
@@ -581,6 +813,10 @@ azure:
     output_types: [text]
     release_date: 2026-09-22
     cost: {input: 4, output: 20}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: GPT-6 Luna
     model: gpt-6-luna
@@ -591,6 +827,10 @@ azure:
     output_types: [text]
     release_date: 2026-09-22
     cost: {input: 0.1, output: 0.5}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-6 Sol
     model: gpt-6-sol
@@ -601,6 +841,10 @@ azure:
     output_types: [text]
     release_date: 2026-09-22
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT Image 2.5 Flare
     model: gpt-image-2.5-flare
@@ -611,6 +855,7 @@ azure:
     output_types: [image]
     release_date: 2026-09-08
     cost: {input: 5, output: 30}
+    limits: {context: 0, output: 0}
 
   - name: GPT Image 2.5 Sunburst
     model: gpt-image-2.5-sunburst
@@ -621,6 +866,7 @@ azure:
     output_types: [image]
     release_date: 2026-09-08
     cost: {input: 5, output: 30}
+    limits: {context: 0, output: 0}
 
   - name: GPT-6 Astra
     model: gpt-6-astra
@@ -631,6 +877,10 @@ azure:
     output_types: [text]
     release_date: 2026-09-04
     cost: {input: 10, output: 50}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: Claude Fable 5.1
     model: claude-fable-5-1
@@ -641,6 +891,10 @@ azure:
     output_types: [text]
     release_date: 2026-09-01
     cost: {input: 10, output: 50}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Grok 4.6
     model: grok-4.6
@@ -650,6 +904,10 @@ azure:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-08-12
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh]
+    limits: {context: 200000, output: 128000}
 
   - name: Claude Opus 5
     model: claude-opus-5
@@ -660,6 +918,10 @@ azure:
     output_types: [text]
     release_date: 2026-07-24
     cost: {input: 5, output: 25}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: GPT-5.6 Luna
     model: gpt-5.6-luna
@@ -669,7 +931,11 @@ azure:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 1, output: 6}
+    cost: {input: 0.2, output: 1.2}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-5.6 Sol
     model: gpt-5.6-sol
@@ -679,7 +945,11 @@ azure:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 5, output: 30}
+    cost: {input: 4, output: 20}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT-5.6 Terra
     model: gpt-5.6-terra
@@ -689,7 +959,11 @@ azure:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 2.5, output: 15}
+    cost: {input: 2, output: 12}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: GPT Chat Latest
     model: gpt-chat-latest
@@ -700,6 +974,10 @@ azure:
     output_types: [text]
     release_date: 2026-05-05
     cost: {input: 5, output: 30}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high]
+    limits: {context: 400000, output: 128000}
 
   - name: Claude Fable 5
     model: claude-fable-5
@@ -710,6 +988,10 @@ azure:
     output_types: [text]
     release_date: 2026-06-09
     cost: {input: 10, output: 50}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Sonnet 5
     model: claude-sonnet-5
@@ -720,6 +1002,11 @@ azure:
     output_types: [text]
     release_date: 2026-06-30
     cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: GPT-5.5
     model: gpt-5.5
@@ -730,6 +1017,10 @@ azure:
     output_types: [text]
     release_date: 2026-04-24
     cost: {input: 5, output: 30}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh]
+    limits: {context: 1050000, output: 128000}
 
   - name: Grok 4.20 (Non-Reasoning)
     model: grok-4-20-non-reasoning
@@ -740,6 +1031,7 @@ azure:
     output_types: [text]
     release_date: 2026-04-08
     cost: {input: 2, output: 6}
+    limits: {context: 262000, output: 8192}
 
   - name: Grok 4.20 (Reasoning)
     model: grok-4-20-reasoning
@@ -750,6 +1042,8 @@ azure:
     output_types: [text]
     release_date: 2026-04-08
     cost: {input: 2, output: 6}
+    reasoning_options: []
+    limits: {context: 262000, output: 8192}
 
   - name: Claude Opus 4.8
     model: claude-opus-4-8
@@ -760,6 +1054,10 @@ azure:
     output_types: [text]
     release_date: 2026-05-28
     cost: {input: 5, output: 25}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
 
   - name: Claude Sonnet 4.6
     model: claude-sonnet-4-6
@@ -770,6 +1068,12 @@ azure:
     output_types: [text]
     release_date: 2026-02-17
     cost: {input: 3, output: 15}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, max]
+      - type: budget_tokens
+        min: 1024
+    limits: {context: 1000000, output: 64000}
 
   - name: DeepSeek-V4-Flash
     model: deepseek-v4-flash
@@ -780,6 +1084,8 @@ azure:
     output_types: [text]
     release_date: 2026-04-24
     cost: {input: 0.19, output: 0.51}
+    reasoning_options: []
+    limits: {context: 1000000, output: 384000}
 
   - name: DeepSeek-V4-Pro
     model: deepseek-v4-pro
@@ -790,6 +1096,8 @@ azure:
     output_types: [text]
     release_date: 2026-04-24
     cost: {input: 1.74, output: 3.48}
+    reasoning_options: []
+    limits: {context: 1000000, output: 384000}
 
 ollama:
   - name: DeepSeek V4.1 Flash
@@ -800,6 +1108,12 @@ ollama:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-09-10
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, high, max]
+    limits: {context: 1048576, output: 384000}
+    cost: {input: 0.15, output: 0.6}
 
   - name: DeepSeek V4 Pro 0813
     model: deepseek-v4-pro:0813
@@ -809,6 +1123,12 @@ ollama:
     input_types: [text]
     output_types: [text]
     release_date: 2026-08-12
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [high, max]
+    limits: {context: 1048576, output: 1048576}
+    cost: {input: 0.66, output: 1.98}
 
   - name: GLM-5.3-Flash
     model: glm-5.3-flash
@@ -818,6 +1138,11 @@ ollama:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-08-26
+    reasoning_options:
+      - type: effort
+        values: [low, high, max]
+    limits: {context: 1000000, output: 131072}
+    cost: {input: 0.15, output: 0.5}
 
   - name: GLM-5.3
     model: glm-5.3
@@ -827,6 +1152,11 @@ ollama:
     input_types: [text]
     output_types: [text]
     release_date: 2026-08-14
+    reasoning_options:
+      - type: effort
+        values: [low, high, max]
+    limits: {context: 1048576, output: 131072}
+    cost: {input: 1.4, output: 4.4}
 
   - name: DeepSeek V4 Flash 0731
     model: deepseek-v4-flash:0731
@@ -836,6 +1166,12 @@ ollama:
     input_types: [text]
     output_types: [text]
     release_date: 2026-07-31
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [high, max]
+    limits: {context: 1048576, output: 1048576}
+    cost: {input: 0.22, output: 0.66}
 
   - name: kimi-k3
     model: kimi-k3
@@ -845,6 +1181,12 @@ ollama:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-07-16
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, high, max]
+    limits: {context: 1048576, output: 131072}
+    cost: {input: 3, output: 15}
 
   - name: DeepSeek V4 Flash
     model: deepseek-v4-flash
@@ -854,6 +1196,12 @@ ollama:
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-24
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [high, max]
+    limits: {context: 1048576, output: 1048576}
+    cost: {input: 0.22, output: 0.66}
 
   - name: DeepSeek V4 Pro
     model: deepseek-v4-pro
@@ -863,6 +1211,12 @@ ollama:
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-24
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [high, max]
+    limits: {context: 1048576, output: 1048576}
+    cost: {input: 0.66, output: 1.98}
 
   - name: Gemma 4 31B
     model: gemma4:31b
@@ -872,6 +1226,10 @@ ollama:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-04-02
+    reasoning_options:
+      - type: toggle
+    limits: {context: 262144, output: 262144}
+    cost: {input: 0.14, output: 0.4}
 
   - name: GLM 5.2
     model: glm-5.2
@@ -881,6 +1239,11 @@ ollama:
     input_types: [text]
     output_types: [text]
     release_date: 2026-06-13
+    reasoning_options:
+      - type: effort
+        values: [high, max]
+    limits: {context: 976000, output: 131072}
+    cost: {input: 1.4, output: 4.4}
 
   - name: MiniMax M3
     model: minimax-m3
@@ -890,6 +1253,12 @@ ollama:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-05-31
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, max]
+    limits: {context: 512000, output: 131072}
+    cost: {input: 0.6, output: 2.4}
 
   - name: MiniMax M2.7
     model: minimax-m2.7
@@ -899,6 +1268,10 @@ ollama:
     input_types: [text]
     output_types: [text]
     release_date: 2026-03-18
+    reasoning_options:
+      - type: toggle
+    limits: {context: 196608, output: 196608}
+    cost: {input: 0.3, output: 1.2}
 
   - name: NVIDIA Nemotron 3 Ultra
     model: nemotron-3-ultra
@@ -908,6 +1281,10 @@ ollama:
     input_types: [text]
     output_types: [text]
     release_date: 2026-06-04
+    reasoning_options:
+      - type: toggle
+    limits: {context: 262144, output: 128000}
+    cost: {input: 0.1, output: 3}
 
   - name: NVIDIA Nemotron 3 Super 120B
     model: nemotron-3-super
@@ -917,6 +1294,10 @@ ollama:
     input_types: [text]
     output_types: [text]
     release_date: 2026-03-11
+    reasoning_options:
+      - type: toggle
+    limits: {context: 262144, output: 65536}
+    cost: {input: 0.015, output: 0.6}
 
   - name: Qwen 3.5 397B
     model: qwen3.5:397b
@@ -926,6 +1307,10 @@ ollama:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-02-15
+    reasoning_options:
+      - type: toggle
+    limits: {context: 262144, output: 65536}
+    cost: {input: 0.6, output: 3.6}
 
 wandb:
   - name: DeepSeek V4.1 Flash
@@ -937,6 +1322,9 @@ wandb:
     output_types: [text]
     release_date: 2026-09-10
     cost: {input: 0.2, output: 0.65}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 1048576, output: 1048576}
 
   - name: GLM 5.3 Flash
     model: zai-org/GLM-5.3-Flash
@@ -947,6 +1335,8 @@ wandb:
     output_types: [text]
     release_date: 2026-08-26
     cost: {input: 0.15, output: 0.5}
+    reasoning_options: []
+    limits: {context: 1048576, output: 1048576}
 
   - name: Granite 4.2 8B
     model: ibm-granite/granite-4.2-8b
@@ -957,6 +1347,9 @@ wandb:
     output_types: [text]
     release_date: 2026-08-24
     cost: {input: 0.1, output: 0.15}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 131072, output: 131072}
 
   - name: DeepSeek V4 Pro 0813
     model: deepseek-ai/DeepSeek-V4-Pro-0813
@@ -967,6 +1360,9 @@ wandb:
     output_types: [text]
     release_date: 2026-08-13
     cost: {input: 1.31, output: 3.96}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 1048576, output: 1048576}
 
   - name: Qwen3.8 27B
     model: Qwen/Qwen3.8-27B
@@ -977,6 +1373,9 @@ wandb:
     output_types: [text]
     release_date: 2026-08-14
     cost: {input: 0.4, output: 3}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 262144, output: 262144}
 
   - name: Nemotron 3.5 Lightning
     model: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B
@@ -986,7 +1385,10 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2026-08-11
-    cost: {input: 0.1, output: 0.25}
+    cost: {input: 0.07, output: 0.2}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 262144, output: 262144}
 
   - name: DeepSeek V4 Flash 0731
     model: deepseek-ai/DeepSeek-V4-Flash-0731
@@ -997,6 +1399,9 @@ wandb:
     output_types: [text]
     release_date: 2026-07-31
     cost: {input: 0.13, output: 0.28}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 262144, output: 262144}
 
   - name: MiniMax M3
     model: MiniMaxAI/MiniMax-M3
@@ -1007,6 +1412,8 @@ wandb:
     output_types: [text]
     release_date: 2026-06-12
     cost: {input: 0.23, output: 0.96}
+    reasoning_options: []
+    limits: {context: 262144, output: 262144}
 
   - name: DeepSeek V4-Flash
     model: deepseek-ai/DeepSeek-V4-Flash
@@ -1017,6 +1424,9 @@ wandb:
     output_types: [text]
     release_date: 2026-04-24
     cost: {input: 0.14, output: 0.28}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 1048576, output: 1048576}
 
   - name: DeepSeek V4 Pro
     model: deepseek-ai/DeepSeek-V4-Pro
@@ -1027,6 +1437,9 @@ wandb:
     output_types: [text]
     release_date: 2026-04-24
     cost: {input: 1.15, output: 2.55}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 1048576, output: 1048576}
 
   - name: GLM 5.2
     model: zai-org/GLM-5.2
@@ -1037,6 +1450,9 @@ wandb:
     output_types: [text]
     release_date: 2026-06-16
     cost: {input: 0.76, output: 2.42}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 1048576, output: 1048576}
 
   - name: Nemotron 3 Ultra
     model: nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B
@@ -1046,7 +1462,10 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2026-06-04
-    cost: {input: 0.75, output: 2.75}
+    cost: {input: 0.5, output: 2.15}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 262144, output: 262144}
 
   - name: NVIDIA Nemotron 3 Super 120B
     model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8
@@ -1066,7 +1485,9 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2025-08-05
-    cost: {input: 0.04, output: 0.14}
+    cost: {input: 0.03, output: 0.17}
+    reasoning_options: []
+    limits: {context: 131072, output: 131072}
 
   - name: gpt-oss-20b
     model: openai/gpt-oss-20b
@@ -1077,16 +1498,19 @@ wandb:
     output_types: [text]
     release_date: 2025-08-05
     cost: {input: 0.03, output: 0.13}
+    reasoning_options: []
+    limits: {context: 131072, output: 131072}
 
   - name: Mellum2 12B A2.5B
     model: JetBrains/Mellum2-12B-A2.5B-Instruct
     description: "Mellum2-12B-A2.5B-Instruct is a fast MoE model with 131K context built for coding, tool use, and low-latency AI workflows"
     roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
+    capabilities: [tool_calling]
     input_types: [text]
     output_types: [text]
     release_date: 2026-06-01
     cost: {input: 0.05, output: 0.1}
+    limits: {context: 131072, output: 131072}
 
 opencode-go:
   - name: LongCat 2.5 Preview Free
@@ -1098,6 +1522,9 @@ opencode-go:
     output_types: [text]
     release_date: 2026-09-25
     cost: {input: 0, output: 0}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 1000000, output: 131072}
 
   - name: Space Bunny Free
     model: space-bunny-free
@@ -1108,6 +1535,10 @@ opencode-go:
     output_types: [text]
     release_date: 2026-09-23
     cost: {input: 0, output: 0}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1048576, output: 524288}
 
   - name: GPT-6 Luna
     model: gpt-6-luna
@@ -1118,6 +1549,10 @@ opencode-go:
     output_types: [text]
     release_date: 2026-09-22
     cost: {input: 0.1, output: 0.5}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: MiMo-V2.6-Flash
     model: mimo-v2.6-flash
@@ -1128,6 +1563,8 @@ opencode-go:
     output_types: [text]
     release_date: 2026-09-22
     cost: {input: 0.14, output: 0.28}
+    reasoning_options: []
+    limits: {context: 1048576, output: 131072}
 
   - name: MiMo-V2.6-Pro
     model: mimo-v2.6-pro
@@ -1138,6 +1575,8 @@ opencode-go:
     output_types: [text]
     release_date: 2026-09-22
     cost: {input: 0.435, output: 0.87}
+    reasoning_options: []
+    limits: {context: 1048576, output: 131072}
 
   - name: DeepSeek V4.1 Flash
     model: deepseek-v4.1-flash
@@ -1148,6 +1587,10 @@ opencode-go:
     output_types: [text]
     release_date: 2026-09-10
     cost: {input: 0.15, output: 0.6}
+    reasoning_options:
+      - type: effort
+        values: [low, high, max]
+    limits: {context: 1000000, output: 384000}
 
   - name: Muse Spark 1.3 Contributor
     model: muse-spark-1.3-contributor
@@ -1158,6 +1601,10 @@ opencode-go:
     output_types: [text]
     release_date: 2026-09-02
     cost: {input: 0.1, output: 0.2}
+    reasoning_options:
+      - type: effort
+        values: [minimal, low, medium, high, xhigh]
+    limits: {context: 1048576, output: 131072}
 
   - name: Hy4 preview
     model: hy4-preview
@@ -1168,6 +1615,10 @@ opencode-go:
     output_types: [text]
     release_date: 2026-08-28
     cost: {input: 0.834, output: 2.501}
+    reasoning_options:
+      - type: effort
+        values: [none, high]
+    limits: {context: 1024000, output: 64000}
 
   - name: GLM-5.3-Flash (2x usage)
     model: glm-5.3-flash
@@ -1177,7 +1628,11 @@ opencode-go:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-08-26
-    cost: {input: 0.075, output: 0.25}
+    cost: {input: 0.15, output: 0.5}
+    reasoning_options:
+      - type: effort
+        values: [low, high, max]
+    limits: {context: 1000000, output: 131072}
 
   - name: Qwen3.8 Flash
     model: qwen3.8-flash
@@ -1188,6 +1643,12 @@ opencode-go:
     output_types: [text]
     release_date: 2026-08-26
     cost: {input: 0.15, output: 0.47}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, xhigh]
+      - type: budget_tokens
+    limits: {context: 1000000, output: 131072}
 
   - name: DeepSeek V4 Flash Vision Exp
     model: deepseek-v4-flash-vision-exp
@@ -1197,7 +1658,12 @@ opencode-go:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-08-21
-    cost: {input: 0.22, output: 0.66}
+    cost: {input: 0.15, output: 0.6}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, high, max]
+    limits: {context: 1000000, output: 384000}
 
   - name: GLM-5.3
     model: glm-5.3
@@ -1208,6 +1674,10 @@ opencode-go:
     output_types: [text]
     release_date: 2026-08-14
     cost: {input: 1.4, output: 4.4}
+    reasoning_options:
+      - type: effort
+        values: [low, high, max]
+    limits: {context: 1000000, output: 131072}
 
   - name: Qwen3.8 Max
     model: qwen3.8-max
@@ -1218,6 +1688,13 @@ opencode-go:
     output_types: [text]
     release_date: 2026-08-03
     cost: {input: 2, output: 6}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, xhigh]
+      - type: budget_tokens
+        max: 262144
+    limits: {context: 1000000, output: 131072}
 
   - name: GPT-5.6 Luna (2x usage)
     model: gpt-5.6-luna
@@ -1227,7 +1704,11 @@ opencode-go:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-07-09
-    cost: {input: 0.1, output: 0.6}
+    cost: {input: 0.2, output: 1.2}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
 
   - name: Kimi K3 (2x usage)
     model: kimi-k3
@@ -1238,6 +1719,10 @@ opencode-go:
     output_types: [text]
     release_date: 2026-07-16
     cost: {input: 3, output: 15}
+    reasoning_options:
+      - type: effort
+        values: [max]
+    limits: {context: 1048576, output: 131072}
 
   - name: DeepSeek V4 Flash
     model: deepseek-v4-flash
@@ -1246,8 +1731,12 @@ opencode-go:
     capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
-    release_date: 2026-04-24
-    cost: {input: 0.14, output: 0.28}
+    release_date: 2026-07-31
+    cost: {input: 0.15, output: 0.6}
+    reasoning_options:
+      - type: effort
+        values: [low, high, max]
+    limits: {context: 1000000, output: 384000}
 
   - name: DeepSeek V4 Pro
     model: deepseek-v4-pro
@@ -1257,7 +1746,11 @@ opencode-go:
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-24
-    cost: {input: 1.74, output: 3.48}
+    cost: {input: 0.66, output: 1.98}
+    reasoning_options:
+      - type: effort
+        values: [high, max]
+    limits: {context: 1000000, output: 384000}
 
   - name: GLM 5.2
     model: glm-5.2
@@ -1268,6 +1761,10 @@ opencode-go:
     output_types: [text]
     release_date: 2026-06-13
     cost: {input: 1.4, output: 4.4}
+    reasoning_options:
+      - type: effort
+        values: [high, max]
+    limits: {context: 1000000, output: 131072}
 
   - name: Qwen3.7 Plus
     model: qwen3.7-plus
@@ -1278,6 +1775,11 @@ opencode-go:
     output_types: [text]
     release_date: 2026-06-02
     cost: {input: 0.4, output: 1.6}
+    reasoning_options:
+      - type: toggle
+      - type: budget_tokens
+        max: 262144
+    limits: {context: 1000000, output: 65536}
 
   - name: Qwen3.7 Max
     model: qwen3.7-max
@@ -1288,6 +1790,11 @@ opencode-go:
     output_types: [text]
     release_date: 2026-05-21
     cost: {input: 2.5, output: 7.5}
+    reasoning_options:
+      - type: toggle
+      - type: budget_tokens
+        max: 262144
+    limits: {context: 1000000, output: 65536}
 
   - name: MiniMax M3 (3x usage)
     model: minimax-m3
@@ -1297,4 +1804,7 @@ opencode-go:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-05-31
-    cost: {input: 0.1, output: 0.4}
+    cost: {input: 0.3, output: 1.2}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 1000000, output: 131072}
