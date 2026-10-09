@@ -15,10 +15,12 @@ from marimo._data.models import (
     DataTableColumn,
     Schema,
 )
+from marimo._messaging.attachments import Attachment
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import UnknownError
 from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.notification import (
+    AttachmentsNotification,
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
@@ -81,6 +83,30 @@ updated_output = CellOutput(
 
 initial_status: RuntimeStateType = "running"
 updated_status: RuntimeStateType = "running"
+
+
+def test_attachment_replay_starts_without_a_notification(
+    session_view: SessionView,
+) -> None:
+    assert session_view.notifications == []
+
+
+@pytest.mark.parametrize("clear", [False, True])
+def test_attachment_changes_are_not_retained_for_replay(
+    session_view: SessionView, *, clear: bool
+) -> None:
+    agent = Attachment(id="a1", kind="agent", name="Claude Code", since=1.0)
+    other = Attachment(id="a2", kind="agent", name="Codex", since=2.0)
+    client = Attachment(id="c1", kind="client", name=None, since=3.0)
+    session_view.add_raw_notification(
+        serialize_kernel_message(
+            AttachmentsNotification(attachments=[agent, other, client])
+        )
+    )
+    latest = AttachmentsNotification(attachments=[] if clear else [other])
+    session_view.add_raw_notification(serialize_kernel_message(latest))
+
+    assert session_view.notifications == []
 
 
 def test_session_view_cell_notification(session_view: SessionView) -> None:

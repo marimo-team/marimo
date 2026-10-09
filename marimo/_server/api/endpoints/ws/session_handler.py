@@ -13,6 +13,7 @@ from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.notification import (
     AlertNotification,
+    AttachmentsNotification,
     BannerNotification,
     EnvironmentOperationNotification,
     EnvironmentStateNotification,
@@ -360,6 +361,9 @@ class SessionHandler(SessionConsumer, abc.ABC):
     def _write_environment_state(self, session: Session) -> None:
         # Attachment and snapshot delivery run in one event-loop turn, before
         # any later live deltas. Empty states also clear a previous session.
+        self._serialize_and_notify(
+            AttachmentsNotification(attachments=session.handoffs.attachments())
+        )
         for source in ("kernel", "server"):
             self._serialize_and_notify(
                 EnvironmentStateNotification(

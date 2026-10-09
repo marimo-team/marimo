@@ -3,6 +3,8 @@
 import { createStore } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RuntimeState } from "@/core/kernel/RuntimeState";
+import { attachmentsAtom } from "@/core/attachments/state";
+import { Logger } from "@/utils/Logger";
 import { initializeIslands } from "../bootstrap";
 import type { IslandsPyodideBridge } from "../bridge";
 import { islandsHydratedAtom, islandsPendingInitialRunsAtom } from "../state";
@@ -47,6 +49,21 @@ describe("initializeIslands", () => {
 
     expect(store.get(islandsHydratedAtom)).toBe(false);
     store.set(islandsPendingInitialRunsAtom, new Set([1, 2]));
+
+    const errors = vi.spyOn(Logger, "error");
+    consumeMessage?.({
+      sessionGeneration: 1,
+      message: JSON.stringify({
+        op: "attachments",
+        data: {
+          op: "attachments",
+          attachments: [{ id: "a1", kind: "agent", name: "Pi", since: 1 }],
+        },
+      }) as IslandsKernelMessage["message"],
+    });
+    expect(errors).not.toHaveBeenCalled();
+    expect(store.get(attachmentsAtom)).toEqual([]);
+    expect(store.get(islandsPendingInitialRunsAtom)).toEqual(new Set([1, 2]));
 
     consumeMessage?.(completedRun(1));
     expect(store.get(islandsHydratedAtom)).toBe(false);
