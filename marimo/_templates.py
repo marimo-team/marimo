@@ -23,7 +23,7 @@ from marimo._schemas.session import NotebookSessionV1
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._session.notebook import read_css_file, read_html_head_file
-from marimo._utils.env import is_env_true
+from marimo._utils.env import pair_preview_enabled
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
 
@@ -140,7 +140,7 @@ def _get_mount_config(
     }
 
     pair_preview = ""
-    if is_env_true("MARIMO_PAIR_NEXT"):
+    if pair_preview_enabled():
         pair_preview = ',\n            "pairPreview": ' + json_script(
             {
                 "command": get_pair_command(),
