@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import msgspec
 import pytest
 
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -90,6 +91,14 @@ def test_serialize_cell_output():
 def test_identity(subject: CellOutput):
     serialized = serialize(subject)
     assert subject == parse_raw(serialized, CellOutput)
+
+
+@pytest.mark.parametrize("code", ["raise ValueError('failed code')", ""])
+def test_source_code_round_trip(code: str) -> None:
+    output = CellOutput.errors([MarimoSyntaxError(msg="bad code")], code=code)
+    encoded = msgspec.json.encode(output)
+    restored = msgspec.json.decode(encoded, type=CellOutput)
+    assert restored.code == code
 
 
 def test_cell_output_static_methods():

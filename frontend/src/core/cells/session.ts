@@ -206,8 +206,18 @@ function createCellRuntimeFromSession(
         channel: "marimo-error",
         data: [
           {
-            type: "unknown",
+            type: "exception",
             msg: primaryOutput.evalue,
+            exception_type: primaryOutput.ename,
+            raising_cell: null,
+            traceback:
+              primaryOutput.traceback
+                ?.map((entry, index, entries) =>
+                  index === entries.length - 1 || entry.endsWith("\n")
+                    ? entry
+                    : `${entry}\n`,
+                )
+                .join("") || null,
           },
         ],
         mimetype: "application/vnd.marimo+error",
@@ -222,6 +232,9 @@ function createCellRuntimeFromSession(
         mimetype: mimeType as "application/json",
         timestamp: DEFAULT_TIMESTAMP,
       };
+    }
+    if (runtimeState.output && primaryOutput.code !== undefined) {
+      runtimeState.output.code = primaryOutput.code;
     }
   }
 
@@ -238,6 +251,9 @@ function createCellRuntimeFromSession(
           data: consoleOutput.data,
           mimetype: consoleOutput.mimetype,
           timestamp: DEFAULT_TIMESTAMP,
+          ...(consoleOutput.code === undefined
+            ? {}
+            : { code: consoleOutput.code }),
         };
       }
       // Handle StreamOutput (type: "stream")
@@ -246,6 +262,9 @@ function createCellRuntimeFromSession(
         data: consoleOutput.text,
         mimetype: consoleOutput.mimetype ?? "text/plain",
         timestamp: DEFAULT_TIMESTAMP,
+        ...(consoleOutput.code === undefined
+          ? {}
+          : { code: consoleOutput.code }),
       };
     }),
   };

@@ -20,6 +20,7 @@ export interface components {
       )[];
     };
     DataOutput: {
+      code?: string;
       data: {
         [key: string]: unknown;
       };
@@ -27,6 +28,7 @@ export interface components {
       type: "data";
     };
     ErrorOutput: {
+      code?: string;
       ename: string;
       evalue: string;
       traceback: string[];
@@ -43,6 +45,7 @@ export interface components {
       version: string;
     };
     StreamMediaOutput: {
+      code?: string;
       data: string;
       /** @enum {string} */
       mimetype:
@@ -76,6 +79,7 @@ export interface components {
       type: "streamMedia";
     };
     StreamOutput: {
+      code?: string;
       /** @enum {string|null} */
       mimetype:
         | "application/json"

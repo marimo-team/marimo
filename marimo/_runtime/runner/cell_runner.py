@@ -25,9 +25,10 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.notification import InterruptedNotification
 from marimo._messaging.notification_utils import broadcast_notification
-from marimo._messaging.tracebacks import write_traceback
+from marimo._messaging.tracebacks import _highlight_traceback, write_traceback
 from marimo._runtime import dataflow
 from marimo._runtime.context.types import safe_get_context
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.exceptions import (
     MarimoMissingRefError,
@@ -519,6 +520,14 @@ class Runner:
         elif isinstance(unwrapped_exception, MarimoStopError):
             output = unwrapped_exception.output
             exception = unwrapped_exception
+        if (
+            isinstance(exception, MarimoExceptionRaisedError)
+            and unwrapped_exception is not None
+            and get_mode() == "edit"
+        ):
+            exception.traceback = _highlight_traceback(
+                "".join(traceback.format_exception(unwrapped_exception))
+            )
         return RunResult(
             output=output, exception=exception
         ), unwrapped_exception
@@ -619,7 +628,7 @@ class Runner:
                 type(exc), exc, exc.__traceback__, file=tmpio
             )
             tmpio.seek(0)
-            write_traceback(tmpio.read())
+            write_traceback(tmpio.read(), code=self.graph.cells[cell_id].code)
             return RunResult(output=None, exception=MarimoInterrupt())
 
         # Should cover all cell runtime exceptions.
@@ -674,7 +683,9 @@ class Runner:
                     file=tmpio,
                 )
                 tmpio.seek(0)
-                write_traceback(tmpio.read())
+                write_traceback(
+                    tmpio.read(), code=self.graph.cells[cell_id].code
+                )
             return run_result
 
         # Anything else escaping the Evaluator is unexpected.
@@ -685,7 +696,7 @@ class Runner:
             type(exc), exc, exc.__traceback__, file=tmpio
         )
         tmpio.seek(0)
-        write_traceback(tmpio.read())
+        write_traceback(tmpio.read(), code=self.graph.cells[cell_id].code)
         return RunResult(output=None, exception=UnknownError(f"{exc}"))
 
     def _update_debugger_state(
