@@ -6,6 +6,7 @@ import functools
 import io
 import json
 import math
+import uuid
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -35,6 +36,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCoordinate,
     TableManager,
 )
+from marimo._sql.sql_quoting import quote_sql_identifier
 from marimo._utils.narwhals_utils import (
     can_narwhalify,
     dataframe_to_csv,
@@ -58,6 +60,51 @@ UNSTABLE_API_WARNING = "`Series.hist` is being called from the stable API althou
 NAN_VALUE = "NaN"
 POSITIVE_INF = str(float("inf"))
 NEGATIVE_INF = str(float("-inf"))
+
+
+def _duckdb_snapshot_needs_text(dtype: Any) -> bool:
+    if dtype.id in {"time with time zone", "bit", "uhugeint"}:
+        return True
+    if dtype.id in {"list", "struct", "map", "array"}:
+        return any(
+            _duckdb_snapshot_needs_text(child)
+            for name, child in dtype.children
+            if name != "size"
+        )
+    return False
+
+
+def _snapshot_duckdb_relation(relation: Any) -> tuple[Any, int]:
+    """Bind one portable copy back to the source connection's native types."""
+    expressions = []
+    restored = []
+    for name, dtype in zip(relation.columns, relation.types, strict=True):
+        quoted = quote_sql_identifier(name, dialect="duckdb")
+        is_geometry = str(dtype).startswith("GEOMETRY")
+        if is_geometry:
+            expressions.append(f"ST_AsWKB({quoted})::BLOB AS {quoted}")
+        elif _duckdb_snapshot_needs_text(dtype):
+            # Arrow cannot round-trip these native values without data loss.
+            expressions.append(f"{quoted}::VARCHAR AS {quoted}")
+        else:
+            expressions.append(quoted)
+        value = f"ST_GeomFromWKB({quoted})" if is_geometry else quoted
+        restored.append(f"{value}::{dtype} AS {quoted}")
+    table = relation.project(", ".join(expressions)).to_arrow_table()
+    suffix = uuid.uuid4().hex
+    data_name = f"__marimo_selection_data_{suffix}"
+    view = f"__marimo_selection_source_{suffix}"
+    # DuckDB captures the Arrow object through its Python replacement scan.
+    # A unique binding avoids shadowing a table in the user's connection.
+    globals()[data_name] = table
+    try:
+        snapshot = relation.query(
+            view, f"SELECT {', '.join(restored)} FROM {data_name}"
+        )
+    finally:
+        globals().pop(data_name)
+        relation.query(view, f"DROP VIEW IF EXISTS {view}")
+    return snapshot, table.num_rows
 
 
 class NarwhalsTableManager(
@@ -170,10 +217,68 @@ class NarwhalsTableManager(
                 self.data.filter(nw.col(INDEX_COLUMN_NAME).is_in(indices))
             )
 
+        if self.data.implementation.is_duckdb() and self._geometry_columns:
+            relation: Any = self.data.to_native()
+            if min(indices) < 0:
+                raise IndexError("Row index out of bounds")
+            index_name = "__marimo_export_row"
+            occupied = {name.casefold() for name in relation.columns}
+            while index_name.casefold() in occupied:
+                index_name += "_"
+            quoted_index = quote_sql_identifier(index_name, dialect="duckdb")
+            columns = ", ".join(
+                quote_sql_identifier(name, dialect="duckdb")
+                for name in relation.columns
+            )
+            indexed = relation.project(
+                f"{columns}, row_number() OVER () - 1 AS {quoted_index}"
+            )
+            selected_columns = ", ".join(
+                f"source.{quote_sql_identifier(name, dialect='duckdb')}"
+                for name in relation.columns
+            )
+            indexed, row_count = _snapshot_duckdb_relation(indexed)
+            if max(indices) >= row_count:
+                raise IndexError("Row index out of bounds")
+            view = f"__marimo_selection_indexes_{uuid.uuid4().hex}"
+            try:
+                requested = relation.query(
+                    view,
+                    f"SELECT * FROM unnest([{', '.join(str(int(i)) for i in indices)}]) "
+                    "WITH ORDINALITY AS selected(row_index, ordinal)",
+                )
+            finally:
+                relation.query(view, f"DROP VIEW IF EXISTS {view}")
+            selected = (
+                indexed.set_alias("source")
+                .join(
+                    requested.set_alias("selected"),
+                    f"source.{quoted_index} = selected.row_index",
+                )
+                .order("selected.ordinal")
+                .project(selected_columns)
+            )
+            return self.with_new_data(
+                nw.from_native(selected, pass_through=False)
+            )
+
         df = self.as_frame()
         return self.with_new_data(df[indices])
 
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
+        if self.data.implementation.is_duckdb() and self._geometry_columns:
+            relation: Any = self.data.to_native()
+            return self.with_new_data(
+                nw.from_native(
+                    relation.project(
+                        ", ".join(
+                            quote_sql_identifier(name, dialect="duckdb")
+                            for name in columns
+                        )
+                    ),
+                    pass_through=False,
+                )
+            )
         return self.with_new_data(self.data.select(columns))
 
     def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
@@ -202,6 +307,10 @@ class NarwhalsTableManager(
             ]
 
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
+        if self.data.implementation.is_duckdb() and self._geometry_columns:
+            return self.select_columns(
+                [name for name in self.data.columns if name not in columns]
+            )
         return self.with_new_data(self.data.drop(columns, strict=False))
 
     def get_row_headers(self) -> FieldTypes:

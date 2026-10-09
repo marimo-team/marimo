@@ -972,3 +972,203 @@ assert downloaded[1]["geom"] is None
         )
     except subprocess.CalledProcessError as e:
         raise AssertionError(e.stderr) from e
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+@pytest.mark.parametrize("indices", [[2, 0, 2], [1, 1], [], [2, 1, 0]])
+def test_duckdb_geometry_selection_preserves_order_and_duplicates(
+    indices: list[int],
+) -> None:
+    conn = geo.duckdb_export_connection()
+    try:
+        source = conn.sql(
+            'SELECT i AS id, \'POINT (1 2)\'::GEOMETRY AS "g""eom", 1 AS "__marimo_export_row" FROM range(3) t(i)'
+        )
+        manager = get_table_manager(source).select_rows(indices)
+        assert manager.data.implementation.is_duckdb()
+        assert manager.as_frame().get_column("id").to_list() == indices
+        assert 'g"eom' in manager.get_column_names()
+        assert manager.data.to_native().types[1] == source.types[1]
+    finally:
+        conn.close()
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+@pytest.mark.parametrize("indices", [[-1], [3], [0, 3], [2, -1]])
+def test_duckdb_geometry_selection_rejects_out_of_bounds(
+    indices: list[int],
+) -> None:
+    conn = geo.duckdb_export_connection()
+    try:
+        with pytest.raises(IndexError, match="out of bounds"):
+            get_table_manager(
+                conn.sql(
+                    "SELECT i AS id, NULL::GEOMETRY AS geom FROM range(3) t(i)"
+                )
+            ).select_rows(indices)
+    finally:
+        conn.close()
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+@pytest.mark.parametrize(
+    "name", ["__MARIMO_EXPORT_ROW", "__Marimo_Export_Row"]
+)
+def test_duckdb_selection_avoids_case_insensitive_index_collision(
+    name: str,
+) -> None:
+    conn = geo.duckdb_export_connection()
+    try:
+        source = conn.sql(
+            f'SELECT i AS id, NULL::GEOMETRY AS geom, 99 AS "{name}", 98 AS "__MARIMO_EXPORT_ROW_" FROM range(3) t(i)'
+        )
+        manager = get_table_manager(source).select_rows([2, 0, 2])
+        rows = manager.data.to_native().fetchall()
+        assert [row[0] for row in rows] == [2, 0, 2]
+        assert [row[2:] for row in rows] == [(99, 98)] * 3
+        assert manager.data.to_native().types == source.types
+    finally:
+        conn.close()
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+def test_duckdb_selection_preserves_nonportable_arrow_values() -> None:
+    conn = geo.duckdb_export_connection()
+    try:
+        source = conn.sql(
+            "SELECT NULL::GEOMETRY AS geom, '01010'::BIT AS bits, '12:34:56+05:30'::TIMETZ AS clock, 340282366920938463463374607431768211455::UHUGEINT AS large, ['01010'::BIT, NULL] AS bit_list, {'clock': '12:34:56+05:30'::TIMETZ} AS nested_clock, ['12:34:56+05:30'::TIMETZ, NULL]::TIMETZ[2] AS clock_array, MAP {'clock': '12:34:56+05:30'::TIMETZ} AS clock_map"
+        )
+        selected = get_table_manager(source).select_rows([0, 0])
+        native = selected.data.to_native()
+        assert native.types == source.types
+        assert native.fetchall() == source.fetchall() * 2
+    finally:
+        conn.close()
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+def test_duckdb_selection_evaluates_volatile_source_once() -> None:
+    conn = geo.duckdb_export_connection()
+    calls = []
+
+    def include(value: int) -> bool:
+        calls.append(value)
+        return len(calls) <= 3
+
+    try:
+        conn.create_function("include_row", include, side_effects=True)
+        source = conn.sql(
+            "SELECT i AS id, 'POINT (1 2)'::GEOMETRY AS geom FROM range(3) t(i) WHERE include_row(i)"
+        )
+        manager = get_table_manager(source).select_rows([2, 0, 2])
+        assert len(calls) == 3
+        for _ in range(2):
+            assert [row[0] for row in manager.data.to_native().fetchall()] == [
+                2,
+                0,
+                2,
+            ]
+        assert len(calls) == 3
+        assert manager.data.to_native().types == source.types
+    finally:
+        conn.close()
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+def test_duckdb_snapshot_lifetime_follows_derived_native_relation() -> None:
+    import gc
+
+    conn = geo.duckdb_export_connection()
+    try:
+        source = get_table_manager(
+            conn.sql(
+                "SELECT i AS id, NULL::GEOMETRY AS geom FROM range(3) t(i)"
+            )
+        )
+        before = conn.sql(
+            "SELECT table_name FROM duckdb_tables() WHERE temporary"
+        ).fetchall()
+        selected = source.select_rows([2, 0, 2])
+        derived = selected.select_columns(["id", "geom"])
+        native = derived.data.to_native()
+        descendant = native.project("id, geom")
+        del selected, derived
+        del native
+        gc.collect()
+        assert [row[0] for row in descendant.fetchall()] == [2, 0, 2]
+        assert (
+            conn.sql(
+                "SELECT table_name FROM duckdb_tables() WHERE temporary"
+            ).fetchall()
+            == before
+        )
+        del descendant
+        gc.collect()
+        assert (
+            conn.sql(
+                "SELECT table_name FROM duckdb_tables() WHERE temporary"
+            ).fetchall()
+            == before
+        )
+        assert (
+            conn.sql(
+                "SELECT view_name FROM duckdb_views() WHERE NOT internal AND view_name LIKE '__marimo_selection_source_%'"
+            ).fetchall()
+            == []
+        )
+    finally:
+        conn.close()
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+def test_duckdb_invalid_selection_releases_snapshot() -> None:
+    import gc
+
+    conn = geo.duckdb_export_connection()
+    try:
+        source = get_table_manager(conn.sql("SELECT NULL::GEOMETRY AS geom"))
+        with pytest.raises(IndexError):
+            source.select_rows([1])
+        gc.collect()
+        assert (
+            conn.sql(
+                "SELECT table_name FROM duckdb_tables() WHERE temporary AND table_name LIKE '__marimo_selection_%'"
+            ).fetchall()
+            == []
+        )
+    finally:
+        conn.close()
+
+
+@pytest.mark.requires("duckdb", "geopandas", "pyarrow")
+def test_duckdb_selection_snapshot_preserves_crs_after_source_changes() -> (
+    None
+):
+    from marimo._plugins.ui._impl.tables.geometry_export import (
+        get_export_metadata,
+    )
+
+    conn = geo.duckdb_crs_geometry_connection()
+    try:
+        conn.execute(
+            "CREATE TABLE locations AS SELECT i AS id, 'POINT (1 2)'::GEOMETRY('OGC:CRS84') AS geom FROM range(3) t(i)"
+        )
+        original = get_table_manager(conn.table("locations"))
+        metadata = get_export_metadata(original)
+        selected = original.select_rows([2, 0, 2])
+        conn.execute("DELETE FROM locations")
+        assert (
+            selected.data.to_native().types == original.data.to_native().types
+        )
+        assert (
+            get_export_metadata(selected).geometry_columns
+            == metadata.geometry_columns
+        )
+        assert [row[0] for row in selected.data.to_native().fetchall()] == [
+            2,
+            0,
+            2,
+        ]
+        assert conn.table("locations").count("*").fetchall() == [(0,)]
+    finally:
+        conn.close()
