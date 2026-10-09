@@ -1424,3 +1424,199 @@ def test_save_scope_and_refresh_snapshot(config_tree: Path) -> None:
             },
         }
     )
+
+
+# One non-default value in every section, including each security-sensitive
+# key. Whatever replaces the per-origin allowlists and denylists must keep the
+# same set of dropped keys for every origin.
+TRUST_PROBE = """\
+[ai.open_ai]
+base_url = "https://probe.invalid"
+[mcp]
+presets = ["context7"]
+[completion]
+copilot = "custom"
+[server]
+browser = "probe-browser"
+[file_browser]
+folders = [{ path = "/probe" }]
+[signing]
+private_key_path = "probe.key"
+trusted_signers = { probe = "owner" }
+[cache]
+verification = "strict"
+store = "disk"
+[runtime]
+auto_instantiate = true
+on_cell_change = "lazy"
+[experimental]
+isolate_apps = true
+line_timing = true
+[display]
+custom_css = ["probe.css"]
+theme = "dark"
+[formatting]
+line_length = 100
+[save]
+autosave = "off"
+[keymap]
+preset = "vim"
+[diagnostics]
+sql_linter = false
+[lint]
+select = ["probe"]
+[snippets]
+include_default_snippets = false
+[datasources]
+auto_discover_tables = false
+[language_servers.pylsp]
+enabled = true
+[sharing]
+wasm = false
+[venv]
+path = "probe-venv"
+[package_management]
+manager = "uv"
+"""
+
+TRUST_PROBE_PATHS = (
+    "ai.open_ai.base_url",
+    "mcp.presets",
+    "completion.copilot",
+    "server.browser",
+    "file_browser.folders",
+    "signing.private_key_path",
+    "signing.trusted_signers",
+    "cache.verification",
+    "cache.store",
+    "runtime.auto_instantiate",
+    "runtime.on_cell_change",
+    "experimental.isolate_apps",
+    "experimental.line_timing",
+    "display.custom_css",
+    "display.theme",
+    "formatting.line_length",
+    "save.autosave",
+    "keymap.preset",
+    "diagnostics.sql_linter",
+    "lint.select",
+    "snippets.include_default_snippets",
+    "datasources.auto_discover_tables",
+    "language_servers.pylsp.enabled",
+    "sharing.wasm",
+    "venv.path",
+    "package_management.manager",
+)
+
+
+def _get_path(config: Any, dotted: str) -> Any:
+    for key in dotted.split("."):
+        if not isinstance(config, dict) or key not in config:
+            return None
+        config = config[key]
+    return config
+
+
+def _resolve_for_trust(current_path: Path | None) -> Any:
+    get_user_config_path.cache_clear()
+    return get_default_config_manager(
+        current_path=None if current_path is None else str(current_path)
+    ).get_config(hide_secrets=False)
+
+
+def _dropped_probe_paths(config: Any, baseline: Any) -> list[str]:
+    return [
+        path
+        for path in TRUST_PROBE_PATHS
+        if _get_path(config, path) == _get_path(baseline, path)
+    ]
+
+
+def test_trust_boundary_matrix_snapshot(
+    config_tree: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Which probe settings each origin is not allowed to set, key by key."""
+    home = config_tree / "home"
+    project = home / "project"
+    nested = project / "nested"
+    nested.mkdir()
+    notebook = project / "app.py"
+    xdg = config_tree / "xdg" / "marimo" / "marimo.toml"
+    xdg.parent.mkdir(parents=True)
+    tool_probe = ("\n" + TRUST_PROBE).replace("\n[", "\n[tool.marimo.")
+    cases: dict[str, list[str]] = {}
+
+    def capture(
+        name: str, path: Path, content: str, current_path: Path | None = None
+    ) -> None:
+        baseline = _resolve_for_trust(current_path)
+        path.write_text(content, encoding="utf-8")
+        cases[name] = _dropped_probe_paths(
+            _resolve_for_trust(current_path), baseline
+        )
+        path.unlink()
+
+    capture("xdg", xdg, TRUST_PROBE)
+    capture("home", home / ".marimo.toml", TRUST_PROBE)
+    capture("workspace_cwd", project / ".marimo.toml", TRUST_PROBE)
+    monkeypatch.chdir(nested)
+    capture("workspace_parent", project / ".marimo.toml", TRUST_PROBE)
+    monkeypatch.chdir(project)
+    capture("pyproject", project / "pyproject.toml", tool_probe, project)
+    write_script(notebook, "")
+    baseline = _resolve_for_trust(notebook)
+    write_script(notebook, tool_probe)
+    cases["script"] = _dropped_probe_paths(
+        _resolve_for_trust(notebook), baseline
+    )
+
+    assert cases == snapshot(
+        {
+            "xdg": [],
+            "home": [],
+            "workspace_cwd": [
+                "signing.private_key_path",
+                "signing.trusted_signers",
+                "cache.verification",
+                "cache.store",
+            ],
+            "workspace_parent": [
+                "signing.private_key_path",
+                "signing.trusted_signers",
+                "cache.verification",
+                "cache.store",
+            ],
+            "pyproject": [
+                "signing.private_key_path",
+                "signing.trusted_signers",
+                "cache.verification",
+            ],
+            "script": [
+                "ai.open_ai.base_url",
+                "mcp.presets",
+                "completion.copilot",
+                "server.browser",
+                "file_browser.folders",
+                "signing.private_key_path",
+                "signing.trusted_signers",
+                "cache.verification",
+                "cache.store",
+                "runtime.auto_instantiate",
+                "experimental.isolate_apps",
+                "display.custom_css",
+            ],
+        }
+    )
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlinks need privileges")
+def test_trust_symlinked_workspace_config_snapshot(config_tree: Path) -> None:
+    """Trust follows the resolved path, so a symlink to the XDG file is trusted."""
+    xdg = config_tree / "xdg" / "marimo" / "marimo.toml"
+    xdg.parent.mkdir(parents=True)
+    baseline = _resolve_for_trust(None)
+    xdg.write_text(TRUST_PROBE, encoding="utf-8")
+    (config_tree / "home" / "project" / ".marimo.toml").symlink_to(xdg)
+    assert _dropped_probe_paths(_resolve_for_trust(None), baseline) == (
+        snapshot([])
+    )
