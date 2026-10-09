@@ -39,7 +39,12 @@ from marimo._server.api.endpoints.ws.ws_connection_validator import (
 )
 from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._server.api.utils import format_url_host, open_url_in_browser
-from marimo._server.host import HOST_API_PATH
+from marimo._server.host import (
+    ATTACHMENT_IDENTITY,
+    ATTACHMENT_KIND,
+    ATTACHMENT_NAME,
+    HOST_API_PATH,
+)
 from marimo._server.host.context import CachedMutation
 from marimo._server.host.events import serialize_event
 from marimo._server.host.websocket import EditorEventSocket
@@ -65,9 +70,6 @@ _Body = TypeVar("_Body", bound=msgspec.Struct)
 PROBLEM_TYPE_PREFIX = "tag:marimo.io,2026:host/"
 """Prefix for host protocol problem types."""
 
-ATTACHMENT_IDENTITY = "Marimo-Attachment-Identity"
-ATTACHMENT_KIND = "Marimo-Attachment-Kind"
-ATTACHMENT_NAME = "Marimo-Attachment-Name"
 
 _ATTACHMENT_HEADERS = {
     "identity": ATTACHMENT_IDENTITY,
