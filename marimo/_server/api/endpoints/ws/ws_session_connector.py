@@ -226,6 +226,7 @@ class SessionConnector:
             session_consumer=self.handler,
             file_key=self.params.file_key,
             auto_instantiate=self.params.auto_instantiate,
+            main=True,
         )
 
         self._notify_kernel_ready(new_session)

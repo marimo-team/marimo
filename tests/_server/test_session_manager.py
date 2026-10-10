@@ -106,6 +106,7 @@ async def test_create_session_new(
         query_params={},
         file_key=NEW_FILE,
         auto_instantiate=False,
+        main=True,
     )
     assert session_id in session_manager.sessions
     assert session_manager.get_session(session_id) is session
@@ -124,6 +125,7 @@ async def test_create_session_absolute_url(
         query_params={},
         file_key=temp_marimo_file,
         auto_instantiate=False,
+        main=True,
     )
     assert session_id in session_manager.sessions
     assert session_manager.get_session(session_id) is session
@@ -264,6 +266,7 @@ async def test_create_session_with_script_config_overrides(
         query_params={},
         file_key=str(tmp_path / "test.py"),
         auto_instantiate=False,
+        main=True,
     )
     assert session_id in session_manager.sessions
     assert session_manager.get_session(session_id) is session
@@ -471,6 +474,7 @@ async def test_recents_touch_called_on_session_create(
         query_params={},
         file_key=str(tmp_file),
         auto_instantiate=False,
+        main=True,
     )
 
     # Allow async event to process
@@ -509,7 +513,7 @@ async def test_concurrent_startup_survives_disconnected_waiter(
 
     async def connect() -> Session:
         return await session_manager.create_session(
-            session_id, mock_session_consumer, {}, NEW_FILE, False
+            session_id, mock_session_consumer, {}, NEW_FILE, False, main=True
         )
 
     first = asyncio.create_task(connect())
@@ -558,7 +562,7 @@ async def test_shutdown_waits_for_pending_startup_cleanup(
     monkeypatch.setattr(SessionImpl, "create", create)
     startup = asyncio.create_task(
         session_manager.create_session(
-            session_id, mock_session_consumer, {}, NEW_FILE, False
+            session_id, mock_session_consumer, {}, NEW_FILE, False, main=True
         )
     )
     await asyncio.wait_for(entered.wait(), 5)
@@ -569,7 +573,12 @@ async def test_shutdown_waits_for_pending_startup_cleanup(
         assert not session_manager.sessions
         with pytest.raises(KernelStartupError, match="shut down"):
             await session_manager.create_session(
-                session_id, mock_session_consumer, {}, NEW_FILE, False
+                session_id,
+                mock_session_consumer,
+                {},
+                NEW_FILE,
+                False,
+                main=True,
             )
     finally:
         release.set()
@@ -818,6 +827,7 @@ async def test_abandoned_completed_startup_expires(
             {},
             NEW_FILE,
             False,
+            main=True,
         )
     )
     try:
@@ -860,6 +870,7 @@ async def test_startup_retention_ignores_long_session_ttl(
             {},
             NEW_FILE,
             False,
+            main=True,
         )
     )
     try:
@@ -901,8 +912,74 @@ async def test_startup_never_hands_out_a_session_owned_by_another_consumer(
                 {},
                 NEW_FILE,
                 False,
+                main=True,
             )
         assert mock_session.room.main_consumer is other
+        assert not session_manager.is_session_starting(session_id, NEW_FILE)
+    finally:
+        await session_manager.shutdown()
+
+
+async def test_secondary_consumer_joins_beside_the_main_one(
+    session_manager: SessionManager,
+    mock_session: Session,
+    mock_session_consumer: SessionConsumer,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._session.session import SessionImpl
+
+    mock_session.app_file_manager = AppFileManager(filename=None)
+    other = Mock(spec=SessionConsumer)
+    other.consumer_id = "other_consumer_id"
+    mock_session.room.add_consumer(other, main=True)
+
+    async def create(**_kwargs: object) -> Session:
+        return mock_session
+
+    monkeypatch.setattr(SessionImpl, "create", create)
+    try:
+        session = await session_manager.create_session(
+            session_id,
+            mock_session_consumer,
+            {},
+            NEW_FILE,
+            False,
+            main=False,
+        )
+        assert session is mock_session
+        assert mock_session.room.main_consumer is other
+        assert mock_session.room.size == 2
+        assert not session_manager.is_session_starting(session_id, NEW_FILE)
+    finally:
+        await session_manager.shutdown()
+
+
+async def test_secondary_consumer_leaves_the_main_seat_open(
+    session_manager: SessionManager,
+    mock_session: Session,
+    mock_session_consumer: SessionConsumer,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._session.session import SessionImpl
+
+    mock_session.app_file_manager = AppFileManager(filename=None)
+
+    async def create(**_kwargs: object) -> Session:
+        return mock_session
+
+    monkeypatch.setattr(SessionImpl, "create", create)
+    try:
+        await session_manager.create_session(
+            session_id,
+            mock_session_consumer,
+            {},
+            NEW_FILE,
+            False,
+            main=False,
+        )
+        assert mock_session.room.main_consumer is None
+        assert mock_session.room.size == 1
+        # A secondary consumer completes startup, preventing expiration.
         assert not session_manager.is_session_starting(session_id, NEW_FILE)
     finally:
         await session_manager.shutdown()
@@ -941,6 +1018,7 @@ async def test_retry_waits_for_expired_startup_cleanup(
             {},
             NEW_FILE,
             False,
+            main=True,
         )
     )
     try:
@@ -956,6 +1034,7 @@ async def test_retry_waits_for_expired_startup_cleanup(
                 {},
                 NEW_FILE,
                 False,
+                main=True,
             )
         )
         await asyncio.sleep(0)
@@ -990,7 +1069,7 @@ async def test_closed_startup_cannot_be_attached(
     monkeypatch.setattr(SessionImpl, "create", create)
     first = asyncio.create_task(
         session_manager.create_session(
-            session_id, mock_session_consumer, {}, NEW_FILE, False
+            session_id, mock_session_consumer, {}, NEW_FILE, False, main=True
         )
     )
     try:
@@ -1032,7 +1111,12 @@ async def test_closed_startup_cannot_be_attached(
         monkeypatch.setattr(SessionImpl, "create", restart)
         assert (
             await session_manager.create_session(
-                session_id, mock_session_consumer, {}, NEW_FILE, False
+                session_id,
+                mock_session_consumer,
+                {},
+                NEW_FILE,
+                False,
+                main=True,
             )
             is replacement
         )

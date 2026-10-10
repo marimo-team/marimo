@@ -217,8 +217,15 @@ class SessionManager:
         query_params: SerializedQueryParams,
         file_key: MarimoFileKey,
         auto_instantiate: bool,
+        *,
+        main: bool,
     ) -> Session:
-        """Return a ready session, retaining ownership during startup."""
+        """Return a ready session, retaining ownership during startup.
+
+        `main=True` assigns the editing connection to the consumer.
+        Secondary consumers receive updates alongside the editing client
+        and can connect before an editing client arrives.
+        """
         if self._closed:
             raise KernelStartupError("Session manager is shut down")
         key = self._connection_key(session_id, file_key)
@@ -237,6 +244,7 @@ class SessionManager:
                 query_params,
                 file_key,
                 auto_instantiate,
+                main=main,
             )
         if pending is None:
             startup = SessionStartup()
@@ -282,7 +290,7 @@ class SessionManager:
                 if self._pending.get(key) is pending:
                     self._pending.pop(key)
                 raise KernelStartupError("Session closed during startup")
-            if session.room.main_consumer is not None:
+            if main and session.room.main_consumer is not None:
                 # The connection lock serializes attachment per key, so a
                 # second main consumer means a caller bypassed it. The session
                 # is in use either way, so its startup bookkeeping is done.
@@ -293,7 +301,7 @@ class SessionManager:
                 self._repository.update_session_id_sync(
                     previous_id, session_id
                 )
-            session.connect_consumer(session_consumer, main=True)
+            session.connect_consumer(session_consumer, main=main)
             attached = True
             return session
         finally:
