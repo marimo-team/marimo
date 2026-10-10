@@ -7,7 +7,7 @@ echo "[check: copyright]"
 echo "[check: lint]"
 uv run ruff check --fix
 echo "[check: core imports]"
-uv run python scripts/check_core_imports.py
+uv run python scripts/check_core_imports.py || exit $?
 echo "[check: format]"
 uv run ruff format
 echo "[check: typecheck]"

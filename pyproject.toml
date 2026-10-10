@@ -542,6 +542,9 @@ markers = [
     "network: requires internet access to package indexes (deselect with '-m \"not network\"')",
 ]
 
+[tool.inline-snapshot]
+format-command = 'ruff format --stdin-filename "{filename}"'
+
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]
 

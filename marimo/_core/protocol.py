@@ -134,9 +134,9 @@ else:
 
 
 Lifecycle: TypeAlias = Annotated[
-    Literal["queued", "running", "idle"],
+    Literal["queued", "running", "completed"],
     Meta(
-        description="Where a run or execution is in its lifecycle. An execution is\n`queued` until it starts, `running` while code executes, and\n`idle` once it has ended. How it ended is its `outcome`.\n"
+        description="Where a run or execution is in its lifecycle. An execution is\n`queued` until it starts, `running` while code executes, and\n`completed` once it has ended. How it ended is its `outcome`.\n"
     ),
 ]
 
@@ -287,6 +287,14 @@ else:
             ),
         ],
     )
+
+
+RunOutcome: TypeAlias = Annotated[
+    Literal["succeeded", "failed", "interrupted"],
+    Meta(
+        description="How a run ended. `succeeded` means its work settled without an\nexecution error or interruption. `failed` means an execution\nfailed or the host could not finish the cycle. `interrupted`\nmeans the cycle was cut short by interruption, even if an earlier\nexecution failed. Execution outcomes retain their individual results.\n"
+    ),
+]
 
 
 class RunRequest(Struct):
@@ -668,7 +676,7 @@ class NotebookMessage(Struct):
 Outcome: TypeAlias = Annotated[
     ValueOutcome | ErrorOutcome | InterruptedOutcome,
     Meta(
-        description="How an execution ended, tagged on `kind`. A `value` carries the\nexecution's value as last rendered; while the execution is\nrunning it is the value so far, and it is final once the\nexecution is `idle`. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution. Other\nkinds are defined by later versions of this protocol.\n"
+        description="How an execution ended, tagged on `kind`. A `value` carries the\nexecution's value as last rendered; while the execution is\nrunning it is the value so far, and it is final once the\nexecution is `completed`. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution. Other\nkinds are defined by later versions of this protocol.\n"
     ),
 ]
 
@@ -774,7 +782,7 @@ class Run(Struct):
         Annotated[
             ExecutionId,
             Meta(
-                description="The execution that caused this runtime-scheduled run. Null for a client request or when the runtime does not know the source."
+                description="The execution that caused this runtime-scheduled run. This records provenance, not membership in that execution's run, and does not extend the earlier run's lifetime. Null for a client request or when the runtime does not know the source."
             ),
         ]
         | None
@@ -783,13 +791,22 @@ class Run(Struct):
         Annotated[
             datetime,
             Meta(
-                description="When the run ended. Null until the run is `idle`."
+                description="When the run ended. Null until the run is `completed`."
             ),
         ]
         | None
     )
     id: RunId
     notebook_id: NotebookId
+    outcome: (
+        Annotated[
+            RunOutcome,
+            Meta(
+                description="Null until completed, then final. Published with the terminal status and completed_at. An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested."
+            ),
+        ]
+        | None
+    )
     started_at: (
         Annotated[
             datetime,
@@ -802,7 +819,7 @@ class Run(Struct):
     status: Annotated[
         Lifecycle,
         Meta(
-            description="Queued until the first execution starts, running while any execution is queued or running, and idle when the queue drains. A run can go idle with no executions."
+            description="Queued until the first execution starts, running until the cycle has settled or been terminated, and completed once all member executions are terminal and no more can be scheduled in this run. A run can complete with no executions."
         ),
     ]
 
@@ -919,7 +936,7 @@ class Execution(Struct):
         Annotated[
             datetime,
             Meta(
-                description="When the execution ended. Null until it is idle."
+                description="When the execution ended. Null until it is completed."
             ),
         ]
         | None
@@ -929,7 +946,7 @@ class Execution(Struct):
         Annotated[
             Outcome,
             Meta(
-                description="How the execution ended. Null while queued; while running, a value carries the display so far; final once idle."
+                description="How the execution ended. Null while queued; while running, a value carries the display so far; final once completed."
             ),
         ]
         | None
@@ -938,7 +955,7 @@ class Execution(Struct):
         Annotated[
             RunId,
             Meta(
-                description="The run that queued this execution. May name a run the host has dropped. Null for a restored result whose run is unknown."
+                description="The run that owns this execution. Every live execution belongs to exactly one run. May name a run the host has dropped. Null only for a restored result whose run is unknown."
             ),
         ]
         | None
