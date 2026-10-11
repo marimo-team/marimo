@@ -16,13 +16,21 @@ import {
   ContextMenuTrigger,
 } from "../ui/context-menu";
 import { DATA_CELL_ID } from "./cell-utils";
-import {
-  Filter,
-  isMembershipFilterType,
-  type MembershipFilterType,
-} from "./filters";
+import { Filter } from "./filters";
 import { selectedCellsAtom } from "./range-focus/atoms";
 import { getClipboardContent, getRawValue } from "./utils";
+
+type Comparison = "eq" | "neq";
+
+const symbolOp = {
+  eq: "==",
+  neq: "!=",
+} as const;
+
+const textOp = {
+  eq: "equals",
+  neq: "does_not_equal",
+} as const;
 
 export const DataTableContextMenu = <TData,>({
   contextMenuRef,
@@ -102,19 +110,43 @@ export const CellContextMenu = <TData,>({
 
   const column = cell.column;
   const filterType = column.columnDef.meta?.filterType;
-  const membershipFilterType: MembershipFilterType | undefined =
-    column.getCanFilter() && filterType && isMembershipFilterType(filterType)
-      ? filterType
-      : undefined;
+  const canFilter = column.getCanFilter();
 
-  const handleFilterCell = (
-    type: MembershipFilterType,
-    operator: "in" | "not_in",
+  const getFilter = (
+    type: string | undefined,
+    value: unknown,
+    comparison: Comparison = "eq",
   ) => {
-    const filter =
-      type === "number"
-        ? Filter.number({ operator, values: [rawValue] })
-        : Filter.text({ operator, values: [rawValue] });
+    switch (type) {
+      case "number":
+        return Filter.number({
+          operator: symbolOp[comparison],
+          value: value as number,
+        });
+      case "text":
+        return Filter.text({
+          operator: textOp[comparison],
+          text: value as string,
+        });
+      case "date":
+      case "datetime":
+      case "time":
+        return Filter[type]({
+          operator: symbolOp[comparison],
+          value: new Date(value as string),
+        });
+      case "boolean":
+        const target = comparison === "eq" ? value : !(value as boolean);
+        return Filter.boolean({
+          operator: target ? "is_true" : "is_false",
+        });
+      default:
+        return undefined;
+    }
+  };
+
+  const handleFilterCell = (comparison: Comparison) => {
+    const filter = getFilter(filterType, rawValue, comparison);
     column.setFilterValue(filter);
   };
 
@@ -130,18 +162,14 @@ export const CellContextMenu = <TData,>({
           Copy selected cells
         </ContextMenuItem>
       )}
-      {membershipFilterType && (
+      {canFilter && (
         <>
           <ContextMenuSeparator />
-          <ContextMenuItem
-            onClick={() => handleFilterCell(membershipFilterType, "in")}
-          >
+          <ContextMenuItem onClick={() => handleFilterCell("eq")}>
             <FilterIcon className="mo-dropdown-icon h-3 w-3" />
             Filter by this value
           </ContextMenuItem>
-          <ContextMenuItem
-            onClick={() => handleFilterCell(membershipFilterType, "not_in")}
-          >
+          <ContextMenuItem onClick={() => handleFilterCell("neq")}>
             <FilterIcon className="mo-dropdown-icon h-3 w-3" />
             Remove rows with this value
           </ContextMenuItem>
