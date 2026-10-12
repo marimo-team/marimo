@@ -327,6 +327,228 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
     assert gone.json()["type"].endswith("/no-runtime")
 
 
+async def test_slow_restart_keeps_its_receipt(harness: Harness) -> None:
+    nid = await harness.running()
+    notebook = harness.host.notebook(nid)
+    path = f"/notebooks/{nid}/runtime/restart"
+    accepted = await finished(
+        harness.app, "POST", path, headers=key("restart")
+    )
+    assert accepted.status == 202
+
+    # The receipt's 30-second window must not begin during shutdown/startup.
+    harness.now = 100
+    harness.app.state.host_context.expire()
+    notebook.observe(be.Exited())
+    notebook.observe(be.Running("0.25.0"))
+    calls = list(harness.backend().calls)
+
+    retried = await finished(harness.app, "POST", path, headers=key("restart"))
+    assert (retried.status, retried.json(), harness.backend().calls) == (
+        accepted.status,
+        accepted.json(),
+        calls,
+    )
+
+    harness.now = 129
+    retried = await finished(harness.app, "POST", path, headers=key("restart"))
+    assert (retried.json(), harness.backend().calls) == (
+        accepted.json(),
+        calls,
+    )
+    harness.now = 130
+    fresh = await finished(harness.app, "POST", path, headers=key("restart"))
+    assert fresh.status == 202
+    assert fresh.json()["id"] != accepted.json()["id"]
+    assert harness.backend().calls == [*calls, ("stop",)]
+
+
+@pytest.mark.parametrize(
+    ("operation", "failed"),
+    [
+        ("start", False),
+        ("start", True),
+        ("stop", False),
+        ("restart", False),
+        ("restart", True),
+    ],
+)
+async def test_lifecycle_receipts_expire_after_terminal_events(
+    harness: Harness, operation: str, failed: bool
+) -> None:
+    nid = harness.notebook_id
+    if operation != "start":
+        await harness.running()
+    notebook = harness.host.notebook(nid)
+    context = harness.app.state.host_context
+    listeners = list(harness.host._stream._listeners)
+    method = {"start": "PUT", "stop": "DELETE", "restart": "POST"}[operation]
+    path = f"/notebooks/{nid}/runtime"
+    if operation == "restart":
+        path += "/restart"
+    accepted = await finished(
+        harness.app, method, path, headers=key("lifecycle")
+    )
+    assert accepted.status == 202
+    for now in (100, 200):
+        harness.now = now
+        context.expire()
+        calls = list(harness.backend().calls)
+        replayed = await finished(
+            harness.app, method, path, headers=key("lifecycle")
+        )
+        assert (replayed.status, replayed.json(), harness.backend().calls) == (
+            202,
+            accepted.json(),
+            calls,
+        )
+        if operation == "restart" and now == 100:
+            notebook.observe(be.Exited())
+    notebook.observe(
+        be.Exited("failed" if failed else None)
+        if failed or operation == "stop"
+        else be.Running()
+    )
+    assert harness.host._stream._listeners == listeners
+    calls = list(harness.backend().calls)
+    harness.now = 229
+    context.expire()
+    replayed = await finished(
+        harness.app, method, path, headers=key("lifecycle")
+    )
+    assert (replayed.status, replayed.json(), harness.backend().calls) == (
+        202,
+        accepted.json(),
+        calls,
+    )
+    harness.now = 230
+    assert context.remembered("lifecycle") is None
+
+
+@pytest.mark.parametrize(
+    "operation", ["start", "stop", "restart", "replacement"]
+)
+async def test_stop_settles_superseded_lifecycle_receipts(
+    harness: Harness, operation: str
+) -> None:
+    nid = harness.notebook_id
+    if operation != "start":
+        await harness.running()
+    notebook = harness.host.notebook(nid)
+    context = harness.app.state.host_context
+    listeners = list(harness.host._stream._listeners)
+    path = f"/notebooks/{nid}/runtime"
+    method = "PUT" if operation == "start" else "DELETE"
+    pending_path = path
+    if operation in {"restart", "replacement"}:
+        method, pending_path = "POST", path + "/restart"
+    accepted = await finished(
+        harness.app, method, pending_path, headers=key("pending")
+    )
+    if operation == "replacement":
+        notebook.observe(be.Exited())
+    harness.now = 100
+    stops = [
+        await finished(harness.app, "DELETE", path, headers=key(request_id))
+        for request_id in ("stop-1", "stop-2")
+    ]
+    harness.now = 200
+    notebook.observe(be.Exited())
+    assert harness.host._stream._listeners == listeners
+    calls = list(harness.backend().calls)
+    harness.now = 229
+    context.expire()
+    for request_id, verb, url, response in [
+        ("pending", method, pending_path, accepted),
+        ("stop-1", "DELETE", path, stops[0]),
+        ("stop-2", "DELETE", path, stops[1]),
+    ]:
+        replayed = await finished(
+            harness.app, verb, url, headers=key(request_id)
+        )
+        assert (replayed.status, replayed.json(), harness.backend().calls) == (
+            202,
+            response.json(),
+            calls,
+        )
+    harness.now = 230
+    assert [
+        context.remembered(request_id)
+        for request_id in ("pending", "stop-1", "stop-2")
+    ] == [None, None, None]
+
+
+@pytest.mark.parametrize(
+    "operation", ["start", "stop", "restart", "failed-stop"]
+)
+async def test_synchronous_lifecycle_completion(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch, operation: str
+) -> None:
+    nid = harness.notebook_id
+    if operation != "start":
+        await harness.running()
+    notebook = harness.host.notebook(nid)
+    if operation == "failed-stop":
+        notebook.observe(be.Exited("failed"))
+    backend = harness.backend()
+    start, stop = backend.start, backend.stop
+
+    def start_immediately(runtime_id: str) -> None:
+        start(runtime_id)
+        notebook.observe(be.Running())
+
+    def stop_immediately() -> None:
+        stop()
+        notebook.observe(be.Exited())
+
+    monkeypatch.setattr(backend, "start", start_immediately)
+    monkeypatch.setattr(backend, "stop", stop_immediately)
+    listeners = list(harness.host._stream._listeners)
+    method = "PUT" if operation == "start" else "DELETE"
+    path = f"/notebooks/{nid}/runtime"
+    if operation == "restart":
+        method, path = "POST", path + "/restart"
+    accepted = await finished(
+        harness.app, method, path, headers=key("immediate")
+    )
+    assert accepted.status == 202
+    assert harness.host._stream._listeners == listeners
+    calls = list(backend.calls)
+    harness.now = 29
+    replayed = await finished(
+        harness.app, method, path, headers=key("immediate")
+    )
+    assert (replayed.status, replayed.json(), backend.calls) == (
+        202,
+        accepted.json(),
+        calls,
+    )
+    harness.now = 30
+    assert harness.app.state.host_context.remembered("immediate") is None
+
+
+async def test_noop_and_rejected_lifecycle_requests_release_their_listeners(
+    harness: Harness,
+) -> None:
+    nid = await harness.running()
+    context = harness.app.state.host_context
+    listeners = list(harness.host._stream._listeners)
+    path = f"/notebooks/{nid}/runtime"
+    existing = await finished(
+        harness.app, "PUT", path, headers=key("existing")
+    )
+    assert existing.status == 200
+    assert harness.host._stream._listeners == listeners
+    rejected = await finished(
+        harness.app, "PUT", path, headers=key("invalid"), body=b"{"
+    )
+    assert rejected.status == 400
+    assert context.remembered("invalid") is None
+    assert harness.host._stream._listeners == listeners
+    harness.now = 30
+    assert context.remembered("existing") is None
+
+
 async def test_run_filter_over_http(harness: Harness) -> None:
     nid = await harness.running()
     notebook = harness.host.notebook(nid)
