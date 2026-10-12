@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import patch
 
 import pytest
@@ -10,6 +10,10 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.table import DownloadAsArgs, DownloadGeoJSONArgs
+from marimo._plugins.ui._impl.tables.geometry_export import (
+    ExportFormatEligibility,
+)
+from marimo._runtime.functions import EmptyArgs
 from marimo._utils.data_uri import from_data_uri
 from tests._plugins.ui._impl.tables import geometry_fixtures as fixtures
 
@@ -686,11 +690,484 @@ def test_invalid_choice_is_rejected_atomically(
     publish.assert_not_called()
 
 
-@pytest.mark.requires("pyarrow")
-def test_arrow_geometry_is_not_exported_as_geojson(widget: Any) -> None:
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    "factory",
+    [
+        fixtures.arrow_wkb_known_crs,
+        fixtures.arrow_wkt,
+        fixtures.arrow_multi_geometry,
+    ],
+)
+def test_arrow_geometry_is_eligible_for_geojson(
+    widget: Any, factory: Any
+) -> None:
+    metadata = widget(factory())._get_export_metadata(EmptyArgs())
+    assert metadata.formats["geojson"] == ExportFormatEligibility(
+        available=True
+    )
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+def test_arrow_geojson_checks_shapely_version(widget: Any) -> None:
     subject = widget(fixtures.arrow_wkb_known_crs())
-    response = subject._download_geojson(DownloadGeoJSONArgs(format="geojson"))
-    assert (response.url, response.code) == ("", "unsupported_representation")
+    with patch.object(
+        DependencyManager.shapely, "has_at_version", return_value=False
+    ):
+        metadata = subject._get_export_metadata(EmptyArgs())
+    assert metadata.formats["geojson"] == ExportFormatEligibility(
+        available=False,
+        reason="Update shapely to 2.0 or newer to export GeoJSON.",
+    )
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("choice", ["geom_a", "geom_b"])
+@pytest.mark.parametrize("wrapped", [False, True], ids=["native", "narwhals"])
+def test_arrow_geojson_reprojects_and_preserves_source_properties(
+    widget: Any, choice: str, wrapped: bool
+) -> None:
+    import datetime
+
+    import narwhals.stable.v2 as nw
+    import pyarrow as pa
+    from shapely import from_wkt
+
+    source = fixtures.arrow_multi_geometry()
+    source = source.append_column(
+        "count", pa.array([2**63 + 1, None], type=pa.uint64())
+    )
+    source = source.append_column("float", pa.array([1.25, None]))
+    source = source.append_column(
+        "date", pa.array([datetime.date(2026, 10, 5), None])
+    )
+    source = source.append_column(
+        "nested", pa.array([{"items": [1, 2]}, None])
+    )
+    subject = widget(nw.from_native(source) if wrapped else source)
+    before = pa.BufferOutputStream()
+    with pa.ipc.new_stream(before, source.schema) as writer:
+        writer.write_table(source)
+    original_bytes = before.getvalue().to_pybytes()
+    ordinary = subject._download_as(DownloadAsArgs(format="json"))
+    assert ordinary.error is None
+    expected = json.loads(
+        from_data_uri(ordinary.url)[1], parse_constant=_reject_constant
+    )
+    for row in expected:
+        del row[choice]
+
+    document = _artifact(subject, choice)
+    assert document["type"] == "FeatureCollection"
+    assert [
+        feature["properties"] for feature in document["features"]
+    ] == expected
+    assert document["features"][0]["geometry"] == {
+        "type": "Point",
+        "coordinates": pytest.approx(
+            [10, 0] if choice == "geom_a" else [20, 5]
+        ),
+    }
+    assert document["features"][1]["geometry"] is None
+    secondary = "geom_b" if choice == "geom_a" else "geom_a"
+    text = document["features"][0]["properties"][secondary]
+    restored = from_wkt(text)
+    expected_coordinates: list[float] = (
+        [20, 5] if choice == "geom_a" else [1113194.9079327357, 0]
+    )
+    assert next(iter(restored.coords)) == pytest.approx(expected_coordinates)
+    assert document["features"][1]["properties"][secondary] is None
+    after = pa.BufferOutputStream()
+    with pa.ipc.new_stream(after, source.schema) as writer:
+        writer.write_table(source)
+    assert after.getvalue().to_pybytes() == original_bytes
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+def test_arrow_geojson_projected_wkb_uses_sole_geometry(widget: Any) -> None:
+    document = _artifact(widget(fixtures.arrow_wkb_projected()))
+    assert document == {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": pytest.approx([10, 0]),
+                },
+                "properties": {"name": "projected"},
+            },
+            {
+                "type": "Feature",
+                "geometry": None,
+                "properties": {"name": "null"},
+            },
+        ],
+    }
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+def test_arrow_geojson_nonfinite_properties_publish_no_artifact(
+    widget: Any,
+) -> None:
+    import pyarrow as pa
+
+    source = fixtures.arrow_wkb_projected().append_column(
+        "value", pa.array([float("nan"), None])
+    )
+    subject = widget(source)
+    function = next(
+        function
+        for function in subject._args.functions
+        if function.name == "download_geojson"
+    )
+    with patch(
+        "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+    ) as publish:
+        response = function({"format": "geojson"})
+    assert (response.url, response.filename, response.code) == (
+        "",
+        "",
+        "conversion_failed",
+    )
+    publish.assert_not_called()
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("encoding", ["wkb", "wkt"])
+def test_arrow_geojson_secondary_wkt_is_complete(
+    widget: Any, encoding: str
+) -> None:
+    import numpy as np
+    import pyarrow as pa
+    from shapely import from_wkt
+    from shapely.geometry import LineString
+
+    geometry = LineString([(i, i / 7) for i in range(4000)])
+    value = geometry.wkb if encoding == "wkb" else geometry.wkt
+    source = fixtures.arrow_wkb_projected()
+    field = pa.field(
+        "secondary",
+        pa.binary() if encoding == "wkb" else pa.string(),
+        metadata={b"ARROW:extension:name": f"geoarrow.{encoding}".encode()},
+    )
+    source = source.append_column(
+        field, pa.array([value, None], type=field.type)
+    )
+    properties = _artifact(widget(source), "geom_a")["features"][0][
+        "properties"
+    ]
+    assert len(properties["secondary"]) > 40_000
+    assert np.asarray(
+        from_wkt(properties["secondary"]).coords
+    ) == pytest.approx(np.asarray(geometry.coords), rel=1e-15, abs=0)
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("srid", [False, True])
+def test_arrow_geojson_known_alternate_crs_can_be_chosen(
+    widget: Any, srid: bool
+) -> None:
+    source = fixtures.arrow_multi_geometry()
+    raw = b'{"crs":"local-id","crs_type":"srid"}' if srid else b"{}"
+    field = source.schema.field("geom_a").with_metadata(
+        {
+            b"ARROW:extension:name": b"geoarrow.wkb",
+            b"ARROW:extension:metadata": raw,
+        }
+    )
+    subject = widget(source.cast(source.schema.set(1, field)))
+    function = next(
+        function
+        for function in subject._args.functions
+        if function.name == "download_geojson"
+    )
+    response = function({"format": "geojson", "geometry_column": "geom_a"})
+    assert (response.url, response.code, response.column) == (
+        "",
+        "missing_crs",
+        "geom_a",
+    )
+    features = _artifact(subject, "geom_b")["features"]
+    assert features[0]["geometry"]["coordinates"] == [20, 5]
+    assert (
+        features[0]["properties"]["geom_a"] == "POINT (1113194.9079327357 0)"
+    )
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("empty", [False, True])
+def test_arrow_geojson_geometry_only_keeps_rows_and_z(
+    widget: Any, empty: bool
+) -> None:
+    source = fixtures.arrow_wkt().select(["geom"])
+    if empty:
+        source = source.slice(0, 0)
+    expected = (
+        []
+        if empty
+        else [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [1, 2]},
+                "properties": {},
+            },
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [1, 2, 3]},
+                "properties": {},
+            },
+            {"type": "Feature", "geometry": None, "properties": {}},
+        ]
+    )
+    assert _artifact(widget(source)) == {
+        "type": "FeatureCollection",
+        "features": expected,
+    }
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("empty", [False, True])
+@pytest.mark.parametrize(
+    "factory", [fixtures.arrow_wkb_missing_crs, fixtures.arrow_srid_crs]
+)
+def test_arrow_geojson_unknown_crs_rejects_before_reprojection(
+    widget: Any, factory: Any, empty: bool
+) -> None:
+    import geopandas as gpd
+
+    source = factory()
+    if empty:
+        source = source.slice(0, 0)
+    subject = widget(source)
+    function = next(
+        function
+        for function in subject._args.functions
+        if function.name == "download_geojson"
+    )
+    with (
+        patch.object(gpd.GeoSeries, "to_crs") as reproject,
+        patch(
+            "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+        ) as publish,
+    ):
+        response = function({"format": "geojson"})
+    assert (
+        response.url,
+        response.filename,
+        response.code,
+        response.column,
+    ) == ("", "", "missing_crs", "geom")
+    assert (
+        response.error
+        == "Geometry column 'geom' needs a CRS for GeoJSON export. Declare its source CRS in Python before exporting."
+    )
+    reproject.assert_not_called()
+    publish.assert_not_called()
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    ("factory", "code"),
+    [
+        (fixtures.arrow_malformed_metadata, "invalid_metadata"),
+        (fixtures.arrow_spherical_edges, "unsupported_representation"),
+        (fixtures.arrow_other_geoarrow, "unsupported_representation"),
+        (fixtures.arrow_invalid_wkb, "conversion_failed"),
+    ],
+)
+def test_arrow_geojson_failures_publish_no_artifact(
+    widget: Any, factory: Any, code: str
+) -> None:
+    subject = widget(factory())
+    function = next(
+        function
+        for function in subject._args.functions
+        if function.name == "download_geojson"
+    )
+    with patch(
+        "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+    ) as publish:
+        response = function({"format": "geojson"})
+    assert (response.url, response.filename, response.code) == ("", "", code)
+    publish.assert_not_called()
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("choice", [None, "name", "missing"])
+def test_arrow_geojson_requires_valid_geometry_choice(
+    widget: Any, choice: str | None
+) -> None:
+    subject = widget(fixtures.arrow_multi_geometry())
+    function = next(
+        function
+        for function in subject._args.functions
+        if function.name == "download_geojson"
+    )
+    with patch(
+        "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+    ) as publish:
+        response = function({"format": "geojson", "geometry_column": choice})
+    assert (response.url, response.filename, response.code) == (
+        "",
+        "",
+        "geometry_required" if choice is None else "invalid_geometry",
+    )
+    publish.assert_not_called()
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+def test_arrow_geojson_selected_table_rows_only() -> None:
+    subject = ui.table(fixtures.arrow_multi_geometry(), selection="multi")
+    subject._convert_value(["1"])
+    assert _artifact(subject, "geom_a") == {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": None,
+                "properties": {"name": "null", "geom_b": None},
+            }
+        ],
+    }
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+def test_arrow_geojson_uses_transformed_dataframe_value() -> None:
+    import pyarrow as pa
+
+    subject = ui.dataframe(fixtures.arrow_multi_geometry())
+    subject._update(
+        {
+            "transforms": [
+                {"type": "select_columns", "column_ids": ["name", "geom_b"]}
+            ]
+        }
+    )
+    assert _artifact(subject) == {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [20, 5]},
+                "properties": {"name": "projected"},
+            },
+            {
+                "type": "Feature",
+                "geometry": None,
+                "properties": {"name": "null"},
+            },
+        ],
+    }
+    transformed = subject._value
+    assert isinstance(transformed, pa.Table)
+    subject._value = transformed.slice(1, 1)
+    assert len(_artifact(subject)["features"]) == 1
+    response = subject._download_geojson(
+        DownloadGeoJSONArgs(format="geojson", geometry_column="geom_a")
+    )
+    assert (response.url, response.code, response.column) == (
+        "",
+        "invalid_geometry",
+        "geom_a",
+    )
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("encoding", ["wkb", "wkt"])
+@pytest.mark.parametrize("choice", ["geom_a", "registered"])
+def test_arrow_geojson_registered_primary_and_secondary_geometry(
+    widget: Any, encoding: Literal["wkb", "wkt"], choice: str
+) -> None:
+    import pyarrow as pa
+    from shapely import from_wkt
+
+    name = f"geoarrow.{encoding}"
+    storage_type = pa.binary() if encoding == "wkb" else pa.string()
+
+    class GeometryType(pa.ExtensionType):
+        def __init__(self) -> None:
+            super().__init__(storage_type, name)
+
+        def __arrow_ext_serialize__(self) -> bytes:
+            return b'{"crs":"EPSG:4326"}'
+
+        @classmethod
+        def __arrow_ext_deserialize__(
+            cls, _storage_type: Any, _serialized: bytes
+        ) -> Any:
+            return cls()
+
+    extension = GeometryType()
+    pa.register_extension_type(extension)  # type: ignore[arg-type]
+    try:
+        value = fixtures.WKB_POINT_1_2 if encoding == "wkb" else "POINT (1 2)"
+        values = pa.ExtensionArray.from_storage(
+            extension, pa.array([value, None], type=storage_type)
+        )
+        source = fixtures.arrow_multi_geometry().append_column(
+            "registered", values
+        )
+        subject = widget(source)
+        features = _artifact(subject, choice)["features"]
+        assert features[0]["geometry"]["coordinates"] == pytest.approx(
+            [10, 0] if choice == "geom_a" else [1, 2]
+        )
+        secondary = "registered" if choice == "geom_a" else "geom_a"
+        assert next(
+            iter(from_wkt(features[0]["properties"][secondary]).coords)
+        ) == pytest.approx(
+            [1, 2] if choice == "geom_a" else [1113194.9079327357, 0]
+        )
+        assert features[1]["geometry"] is None
+        assert features[1]["properties"][secondary] is None
+        assert source["registered"].to_pylist() == [value, None]
+    finally:
+        pa.unregister_extension_type(name)
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("missing", ["geopandas", "shapely"])
+def test_arrow_geojson_rechecks_dependencies_before_conversion(
+    widget: Any, missing: str
+) -> None:
+    import geopandas as gpd
+
+    subject = widget(fixtures.arrow_wkb_projected())
+    function = next(
+        function
+        for function in subject._args.functions
+        if function.name == "download_geojson"
+    )
+    dependency = (
+        DependencyManager.geopandas
+        if missing == "geopandas"
+        else DependencyManager.shapely
+    )
+    method = "has" if missing == "geopandas" else "has_at_version"
+    with (
+        patch.object(dependency, method, return_value=False),
+        patch.object(gpd.GeoSeries, "from_wkb") as parse,
+        patch(
+            "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+        ) as publish,
+    ):
+        response = function({"format": "geojson"})
+    assert (
+        response.url,
+        response.filename,
+        response.code,
+        response.missing_packages,
+    ) == (
+        "",
+        "",
+        "missing_packages"
+        if missing == "geopandas"
+        else "unsupported_version",
+        ["geopandas"] if missing == "geopandas" else None,
+    )
+    parse.assert_not_called()
+    publish.assert_not_called()
 
 
 def test_table_selection_search_and_cell_scope() -> None:
