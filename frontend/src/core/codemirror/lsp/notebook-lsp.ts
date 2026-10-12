@@ -343,7 +343,21 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   }
 
   private getNotebookCode() {
-    return store.get(topologicalCodesAtom);
+    const { cellIds, codes } = store.get(topologicalCodesAtom);
+    const editors = this.getNotebookEditors();
+    // EditorView edits do not invalidate the cached notebook atom.
+    return {
+      cellIds,
+      codes: Objects.fromEntries(
+        cellIds.map((id) => {
+          const editor = editors[id];
+          return [
+            id,
+            editor ? getEditorCodeAsPython(editor) : (codes[id] ?? ""),
+          ];
+        }),
+      ),
+    };
   }
 
   private assertCellDocumentUri(
@@ -870,7 +884,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   }
 
   public async textDocumentCompletion(params: LSP.CompletionParams) {
-    const { lens } = this.snapshotter.getLatestSnapshot();
+    const { lens } = await this.sync();
 
     // Check if URI is valid
     if (!CellDocumentUri.is(params.textDocument.uri)) {
