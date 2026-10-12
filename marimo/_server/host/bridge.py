@@ -340,7 +340,12 @@ class SessionBridge(SessionEventListener):
 
 def _from_session(session: Session) -> tuple[list[CellSource], dict[str, Any]]:
     cells = [
-        CellSource(cell.id, cell.code, cell.name, _config(cell.config))
+        CellSource(
+            protocol.CellId(cell.id),
+            cell.code,
+            cell.name,
+            _config(cell.config),
+        )
         for cell in session.document.cells
     ]
     return cells, session.app_file_manager.app.config.asdict_difference()
@@ -350,7 +355,12 @@ def _from_file_manager(
     manager: AppFileManager,
 ) -> tuple[list[CellSource], dict[str, Any]]:
     cells = [
-        CellSource(data.cell_id, data.code, data.name, _config(data.config))
+        CellSource(
+            protocol.CellId(data.cell_id),
+            data.code,
+            data.name,
+            _config(data.config),
+        )
         for data in manager.app.cell_manager.cell_data()
     ]
     return cells, manager.app.config.asdict_difference()

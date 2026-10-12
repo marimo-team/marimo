@@ -109,6 +109,23 @@ class Notebook:
         self._publish_changed(changed, request_id)
         return changed
 
+    def edit(
+        self, changes: Sequence[protocol.Change], *, request_id: str
+    ) -> protocol.EditResponse:
+        """Apply an edit as one unit and publish its effects.
+
+        Raises:
+            EditConflict: If a precondition is stale. Nothing is applied.
+            Invalid: If a change could not apply to any state.
+        """
+        self._require_open()
+        document = self.document
+        applied = document.apply(changes)
+        self._publish_changed(applied.changed, request_id)
+        return protocol.EditResponse(
+            document=document._record, cells=applied.cells
+        )
+
     def mark_saved(self, *, request_id: str | None = None) -> None:
         """Mark the current document revision as saved."""
         self._require_open()
