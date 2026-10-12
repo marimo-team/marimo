@@ -2,7 +2,11 @@
 import type { PropsWithChildren } from "react";
 import type { DisplayConnectionNotice } from "@/core/network/useConnectionNotice";
 import { cn } from "@/utils/cn";
-import { ConnectionStatusIcon, StartupProgress } from "./startup-progress";
+import {
+  ConnectionStatusIcon,
+  hasStartupStages,
+  StartupProgress,
+} from "./startup-progress";
 
 export function ConnectionErrorOutput({ error }: { error: string }) {
   return (
@@ -24,7 +28,7 @@ export function ConnectionDetails({
   notice: DisplayConnectionNotice;
   surface?: "notebook" | "sidebar";
 }>) {
-  const showSteps = notice.kind === "startup";
+  const showSteps = hasStartupStages(notice);
   const failed = !notice.pending && !notice.ready;
   return (
     <div className="min-w-0 text-sm">

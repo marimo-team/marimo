@@ -83,7 +83,7 @@ export function ProgressStages({
           {index < stages.length - 1 && (
             <span
               aria-hidden={true}
-              className="absolute left-2 top-6 -bottom-4 border-l border-border"
+              className="absolute left-2 top-4.5 -bottom-6.5 border-l border-border"
             />
           )}
           <span className="mt-0.5 text-muted-foreground">

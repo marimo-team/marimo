@@ -30,8 +30,8 @@ export const ManifestEditor: Story = {
   name: "Manifest — edit",
   args: { surface: "manifest", phase: "failed" },
 };
-export const ManifestSaveFailed: Story = {
-  name: "Manifest — failed save",
+export const ManifestSyncFailed: Story = {
+  name: "Manifest — sync failed",
   args: { surface: "manifest", phase: "failed", saveResult: "failure" },
 };
 export const ManifestChanged: Story = {

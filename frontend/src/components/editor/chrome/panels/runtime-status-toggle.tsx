@@ -30,7 +30,7 @@ export function RuntimeStatusToggle({ section }: { section: PanelSection }) {
   return (
     <button
       type="button"
-      aria-label={sandbox?.backend ? label : "Runtime details"}
+      aria-label={`${sandbox?.backend ? label : "Runtime details"}, ${statusLabel}`}
       aria-expanded={expanded}
       aria-controls={`runtime-details-${section}`}
       title={statusLabel}

@@ -79,7 +79,7 @@ interface Props {
   detailsOpen: boolean;
 }
 
-function SandboxPreview({
+function RuntimePreview({
   props,
   appConfig,
   reconnect,
@@ -346,7 +346,7 @@ export function RuntimeStory(props: Props) {
         !props.backend ||
         (props.phase !== "preparing" && props.phase !== "failed")
           ? props.backend
-            ? "Launching kernel process\nUsing /home/user/.cache/uv/environments-v2/bike-trips-a274bddc/bin/python\nWaiting for kernel connection\n"
+            ? "Launching kernel process\nWaiting for kernel connection\n"
             : "Launching kernel process\nConnecting to Python runtime\nWaiting for kernel connection\n"
           : "",
       log_mode: "replace",
@@ -497,7 +497,7 @@ export function RuntimeStory(props: Props) {
         </p>
       </header>
       {props.manual && <LifecycleControls backend={props.backend} />}
-      <SandboxPreview
+      <RuntimePreview
         props={props}
         appConfig={appConfig}
         reconnect={reconnect}

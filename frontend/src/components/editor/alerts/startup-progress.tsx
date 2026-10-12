@@ -49,6 +49,16 @@ interface StartupProgressProps {
   surface: "notebook" | "sidebar";
 }
 
+export function hasStartupStages(notice: DisplayConnectionNotice): boolean {
+  return (
+    notice.kind === "startup" &&
+    (!notice.sandbox ||
+      notice.ready ||
+      notice.phase === "preparing-environment" ||
+      notice.phase === "starting-kernel")
+  );
+}
+
 function StartupSummary({ notice }: { notice: DisplayConnectionNotice }) {
   return (
     <header>
@@ -88,8 +98,7 @@ export function ConnectionStatusIcon({
 export function StartupProgress({ notice, surface }: StartupProgressProps) {
   const preparation = useAtomValue(preparationAtom);
   const progress = useAtomValue(startupProgressAtom);
-  const activePhase =
-    notice.phase ?? (notice.sandbox ? undefined : "starting-kernel");
+  const activePhase = notice.sandbox ? notice.phase : "starting-kernel";
   const stages: ProgressStage[] = STEPS.filter(
     (step) => notice.sandbox || step.phase === "starting-kernel",
   ).map(({ phase, titles, descriptions }) => {

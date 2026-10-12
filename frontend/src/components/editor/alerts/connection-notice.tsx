@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { ArrowRightIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -14,19 +14,23 @@ import { runtimeDetailsExpandedAtom } from "../chrome/panels/runtime-details-sta
 import { chromeAtom, useChromeActions } from "../chrome/state";
 import { VerticalLayoutWrapper } from "../renderers/vertical-layout/vertical-layout-wrapper";
 import { ConnectionDetails } from "./connection-details";
-import { ConnectionStatusIcon } from "./startup-progress";
+import { ConnectionStatusIcon, hasStartupStages } from "./startup-progress";
 
 export const ConnectionNotice = ({
   appConfig,
   onRetry,
+  canOpenPackages = true,
 }: {
   appConfig: AppConfig;
   onRetry: () => void;
+  canOpenPackages?: boolean;
 }) => {
   const notice = useConnectionNotice();
   const connection = useAtomValue(connectionAtom);
   const hasCells = useAtomValue(hasCellsAtom);
-  const setDetailsExpanded = useSetAtom(runtimeDetailsExpandedAtom);
+  const [detailsExpanded, setDetailsExpanded] = useAtom(
+    runtimeDetailsExpandedAtom,
+  );
   const chrome = useAtomValue(chromeAtom);
   const packagesOpen =
     (chrome.isSidebarOpen && chrome.selectedPanel === "packages") ||
@@ -44,7 +48,7 @@ export const ConnectionNotice = ({
     openApplication("packages");
   };
 
-  if (hasCells) {
+  if (hasCells && canOpenPackages) {
     const title =
       notice?.ready && notice.kind === "startup" ? "Ready" : notice?.title;
     return (
@@ -63,7 +67,7 @@ export const ConnectionNotice = ({
               type="button"
               onClick={openDetails}
               aria-label={`${title} Open Packages`}
-              aria-expanded={packagesOpen}
+              aria-expanded={packagesOpen && detailsExpanded}
               className="flex h-6 items-center gap-2 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground rounded focus-visible:outline-2 focus-visible:outline-ring"
             >
               <ConnectionStatusIcon notice={notice} />
@@ -85,7 +89,7 @@ export const ConnectionNotice = ({
     return null;
   }
 
-  const showSteps = notice.kind === "startup";
+  const showSteps = hasStartupStages(notice);
   return (
     <VerticalLayoutWrapper
       appConfig={appConfig}
@@ -94,9 +98,18 @@ export const ConnectionNotice = ({
     >
       <section
         aria-label="Notebook startup"
-        className="text-muted-foreground max-w-md mx-auto mt-16 sm:mt-24 px-4"
+        className={cn(
+          "text-muted-foreground max-w-md mx-auto px-4",
+          hasCells ? "mt-4 mb-8" : "mt-16 sm:mt-24",
+        )}
       >
-        <ConnectionDetails notice={notice} surface="notebook" />
+        {!canOpenPackages && showSteps && (
+          <output className="sr-only">{notice.title}</output>
+        )}
+        <ConnectionDetails
+          notice={notice}
+          surface={canOpenPackages ? "notebook" : "sidebar"}
+        />
         <div className={showSteps ? "mt-8" : "ml-6.5"}>
           <div
             className={cn(
@@ -104,7 +117,8 @@ export const ConnectionNotice = ({
               showSteps ? "border-t border-border/60 pt-4" : "mt-5",
             )}
           >
-            {!notice.ready &&
+            {canOpenPackages &&
+              !notice.ready &&
               !packagesOpen &&
               (notice.sandbox || notice.pending) && (
                 <Button

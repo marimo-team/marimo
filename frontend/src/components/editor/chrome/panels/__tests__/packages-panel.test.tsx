@@ -235,7 +235,7 @@ it("keeps packages and the install draft visible while blocking mutations during
   expect(
     screen.queryByRole("list", { name: "Notebook startup stages" }),
   ).not.toBeInTheDocument();
-  const toggle = screen.getByRole("button", { name: "pixi sandbox" });
+  const toggle = screen.getByRole("button", { name: /^pixi sandbox, / });
   fireEvent.click(toggle);
   expect(toggle).toHaveAttribute("aria-expanded", "false");
   act(() =>
