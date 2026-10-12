@@ -330,7 +330,7 @@ wheel-exclude = ["marimo/_smoke_tests/**"]
 
 [tool.ruff]
 line-length = 79
-include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py"]
+include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py", "protocols/**/*.py"]
 exclude = [
     "build",
     "docs",
@@ -459,6 +459,7 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 "**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "dagger/*" = ["TID252"]
+"protocols/host/generate.py" = ["T201"]
 "marimo/_runtime/patches.py" = ["T100"]
 # Prefer multi-line "\n".join([...]) expected strings in codegen tests.
 "tests/_ast/test_codegen.py" = ["FLY002"]
