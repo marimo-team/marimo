@@ -17,12 +17,8 @@ import {
   ContextMenuTrigger,
 } from "../ui/context-menu";
 import { DATA_CELL_ID } from "./cell-utils";
-import {
-  type FilterType,
-  Filter,
-  COMPARISON_OPS,
-  TEXT_SCALAR_OPS,
-} from "./filters";
+import { type FilterType, Filter } from "./filters";
+import { COMPARISON_OPS, TEXT_SCALAR_OPS } from "./filters/operators";
 import { selectedCellsAtom } from "./range-focus/atoms";
 import { getClipboardContent, getRawValue } from "./utils";
 
