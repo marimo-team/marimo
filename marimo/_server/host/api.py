@@ -702,15 +702,15 @@ async def _restart_runtime(request: Request) -> Response:
 
 @_mutation("runtime.run")
 async def _run(request: Request) -> Response:
-    """Queue a run and return 202. Results arrive through notebook events."""
+    """Queue code or document cells. Results arrive on the notebook stream."""
     key = request.headers["Idempotency-Key"]
     notebook = await _notebook(request)
     body = await _decode(request, protocol.RunRequest)
-    if body.code is msgspec.UNSET or body.cells is not msgspec.UNSET:
-        return problem(
-            400, "invalid-request", "This host requires scratch code"
-        )
-    started = notebook.run(body.code, request_id=key)
+    started = notebook.run(
+        None if body.code is msgspec.UNSET else body.code,
+        cells=() if body.cells is msgspec.UNSET else body.cells,
+        request_id=key,
+    )
     return _reply(202, started)
 
 

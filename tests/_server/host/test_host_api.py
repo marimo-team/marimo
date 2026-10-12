@@ -1739,3 +1739,95 @@ async def test_edits_during_a_save_remain_unsaved(
     }
     assert document._record.etag != document._record.saved_etag
     assert "new_value" not in (harness.root / "forecasts.py").read_text()
+
+
+async def test_cell_runs_over_http(harness: Harness) -> None:
+    stream, disconnect = await opened(harness)
+    first = next(
+        r["data"]["cell"] for r in stream.records if r.get("event") == "cell"
+    )
+    disconnect()
+    await harness.running()
+    runs = f"/notebooks/{harness.notebook_id}/runtime/runs"
+
+    def body(**request: object) -> bytes:
+        return json.dumps(request).encode()
+
+    accepted = await finished(
+        harness.app,
+        "POST",
+        runs,
+        headers=key("c1"),
+        body=body(
+            cells=[{"id": first["id"], "code_hash": first["code_hash"]}]
+        ),
+    )
+    assert accepted.status == 202, accepted.body
+    run_id = accepted.json()["id"]
+    assert harness.backend().calls[-1] == ("run_cells", run_id, [first["id"]])
+    (await harness.host.notebook(harness.notebook_id)).observe(
+        be.Done(protocol.RunId(run_id), "succeeded")
+    )
+
+    stale = await finished(
+        harness.app,
+        "POST",
+        runs,
+        headers=key("c2"),
+        body=body(cells=[{"id": first["id"], "code_hash": "0" * 16}]),
+    )
+    assert stale.status == 409, stale.body
+    problem = stale.json()
+    assert problem["type"].endswith("/conflict")
+    assert problem["edit"]["change"] == 0
+    assert problem["edit"]["cell"]["id"] == first["id"]
+
+    missing = await finished(
+        harness.app,
+        "POST",
+        runs,
+        headers=key("c3"),
+        body=body(cells=[{"id": "nope"}]),
+    )
+    assert missing.status == 409, missing.body
+    assert missing.json()["edit"]["cell"] is None
+
+    both = await finished(
+        harness.app,
+        "POST",
+        runs,
+        headers=key("c4"),
+        body=body(code="1", cells=[{"id": first["id"]}]),
+    )
+    assert both.status == 400, both.body
+    # Rejected requests reach the backend only as the completed run's forget.
+    assert [call[0] for call in harness.backend().calls] == [
+        "start",
+        "run_cells",
+        "forget",
+    ]
+
+
+async def test_cell_runs_work_without_opening_a_stream(
+    harness: Harness,
+) -> None:
+    (cell_id,) = AppFileManager(
+        str(harness.root / "forecasts.py")
+    ).app.cell_manager.cell_ids()
+    assert harness.host.peek_notebook(harness.notebook_id) is None
+    await harness.running()
+
+    accepted = await finished(
+        harness.app,
+        "POST",
+        f"/notebooks/{harness.notebook_id}/runtime/runs",
+        headers=key("run-without-stream"),
+        body=json.dumps({"cells": [{"id": cell_id}]}).encode(),
+    )
+
+    assert accepted.status == 202, accepted.body
+    assert harness.backend().calls[-1] == (
+        "run_cells",
+        accepted.json()["id"],
+        [cell_id],
+    )

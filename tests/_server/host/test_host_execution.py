@@ -18,7 +18,13 @@ from marimo._server.workspace import SingleFileWorkspace
 from marimo._session.notebook import AppFileManager
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._utils.marimo_path import MarimoPath
-from tests._server.host.drive import PORT, finished, request, wait_for
+from tests._server.host.drive import (
+    PORT,
+    finished,
+    request,
+    until_ready,
+    wait_for,
+)
 from tests._server.mocks import (
     get_mock_session_manager,
     get_starlette_server_state_init,
@@ -52,7 +58,7 @@ def notebook_source(request: pytest.FixtureRequest) -> str:
 
 
 @pytest.fixture
-async def live_host(
+async def unstarted_host(
     tmp_path: Path,
     notebook_source: str,
 ) -> AsyncIterator[tuple[Starlette, str, Response]]:
@@ -73,27 +79,36 @@ async def live_host(
         app, "GET", f"/notebooks/{notebook.id}/events", headers=AUTH
     )
     try:
-        started = await finished(
-            app,
-            "PUT",
-            f"/notebooks/{notebook.id}/runtime",
-            headers=key("start"),
-        )
-        assert started.status == 202
-        await wait_for(
-            events,
-            lambda response: any(
-                r.get("data", {}).get("runtime", {}).get("status") == "running"
-                for r in response.records
-            ),
-            timeout=15,
-        )
+        await wait_for(events, until_ready)
         yield app, notebook.id, events
     finally:
         disconnect()
         await asyncio.wait_for(task, 5)
         bridge.close()
         await manager.shutdown()
+
+
+@pytest.fixture
+async def live_host(
+    unstarted_host: tuple[Starlette, str, Response],
+) -> tuple[Starlette, str, Response]:
+    app, notebook_id, events = unstarted_host
+    started = await finished(
+        app,
+        "PUT",
+        f"/notebooks/{notebook_id}/runtime",
+        headers=key("start"),
+    )
+    assert started.status == 202
+    await wait_for(
+        events,
+        lambda response: any(
+            r.get("data", {}).get("runtime", {}).get("status") == "running"
+            for r in response.records
+        ),
+        timeout=15,
+    )
+    return unstarted_host
 
 
 async def test_move_preserves_the_running_notebook(
@@ -950,3 +965,159 @@ async def test_rename_reactivity_completes_its_run(
         body=b'{"code":"42"}',
     )
     assert accepted.status == 202
+
+
+@pytest.mark.parametrize(
+    "notebook_source",
+    [
+        (
+            "import marimo\napp = marimo.App()\n"
+            "@app.cell\ndef _():\n    x = 1\n    return (x,)\n"
+            "@app.cell\ndef _(x):\n    print(x + 1)\n    return\n"
+        )
+    ],
+    indirect=True,
+)
+async def test_a_cell_run_includes_its_dependents(
+    live_host: tuple[Starlette, str, Response],
+) -> None:
+    app, notebook_id, events = live_host
+    cells = {
+        r["data"]["cell"]["id"]: r["data"]["cell"]
+        for r in events.records
+        if r.get("event") == "cell"
+    }
+    root = next(cell for cell in cells.values() if "x = 1" in cell["code"])
+    dependent = next(cell for cell in cells.values() if cell is not root)
+
+    async def run(key_name: str, cell: dict[str, Any]) -> dict[str, Any]:
+        accepted = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/runtime/runs",
+            headers=key(key_name),
+            body=json.dumps(
+                {"cells": [{"id": cell["id"], "code_hash": cell["code_hash"]}]}
+            ).encode(),
+        )
+        assert accepted.status == 202, accepted.body
+        run_id = accepted.json()["id"]
+        await wait_for(
+            events,
+            lambda response: any(
+                r.get("data", {}).get("run", {}).get("status") == "completed"
+                and r["data"]["run"]["id"] == run_id
+                for r in response.records
+            ),
+        )
+        executions = {}
+        for r in events.records:
+            execution = r.get("data", {}).get("execution")
+            if execution and execution["run_id"] == run_id:
+                executions[execution["id"]] = execution
+        return {e["cell_id"]: e for e in executions.values()}
+
+    # A cell that has never run brings its ancestors into the graph.
+    first = await run("first", dependent)
+    assert set(first) == set(cells)
+    assert first[dependent["id"]]["outcome"]["kind"] == "value"
+    assert first[dependent["id"]]["code"] is None
+    assert first[dependent["id"]]["code_hash"] == dependent["code_hash"]
+
+    # Once in the graph, a dependent is scheduled with its root's run.
+    second = await run("second", root)
+    assert set(second) == set(cells)
+    assert all(e["status"] == "completed" for e in second.values())
+    assert all(e["caused_by"] is None for e in second.values())
+    assert second[dependent["id"]]["outcome"]["kind"] == "value"
+    assert "2\n2\n" == "".join(
+        r["data"]["console"]["text"]
+        for r in events.records
+        if r.get("event") == "console"
+    )
+
+
+async def test_host_edits_run_before_they_are_saved(
+    unstarted_host: tuple[Starlette, str, Response], tmp_path: Path
+) -> None:
+    app, notebook_id, events = unstarted_host
+    cell = next(
+        r["data"]["cell"] for r in events.records if r.get("event") == "cell"
+    )
+    edited = await finished(
+        app,
+        "POST",
+        f"/notebooks/{notebook_id}/edits",
+        headers=key("edit-before-start"),
+        body=json.dumps(
+            {
+                "changes": [
+                    {
+                        "kind": "put_cell",
+                        "base_etag": cell["etag"],
+                        "cell": {"id": cell["id"], "code": "example = 41"},
+                    },
+                    {
+                        "kind": "put_cell",
+                        "base_etag": None,
+                        "cell": {
+                            "id": "new",
+                            "code": "print(example + 1)",
+                        },
+                    },
+                ]
+            }
+        ).encode(),
+    )
+    assert edited.status == 200, edited.body
+    started = await finished(
+        app,
+        "PUT",
+        f"/notebooks/{notebook_id}/runtime",
+        headers=key("start-after-edit"),
+    )
+    assert started.status == 202
+    await wait_for(
+        events,
+        lambda response: any(
+            r.get("data", {}).get("runtime", {}).get("status") == "running"
+            for r in response.records
+        ),
+        timeout=15,
+    )
+    accepted = await finished(
+        app,
+        "POST",
+        f"/notebooks/{notebook_id}/runtime/runs",
+        headers=key("run-unsaved-cell"),
+        body=json.dumps(
+            {
+                "cells": [
+                    {
+                        "id": "new",
+                        "code_hash": edited.json()["cells"]["new"][
+                            "code_hash"
+                        ],
+                    }
+                ]
+            }
+        ).encode(),
+    )
+    assert accepted.status == 202, accepted.body
+    await wait_for(
+        events,
+        lambda response: any(
+            r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
+            and r["data"]["run"]["status"] == "completed"
+            for r in response.records
+        ),
+    )
+    assert (
+        "".join(
+            r["data"]["console"]["text"]
+            for r in events.records
+            if r.get("event") == "console"
+        )
+        == "42\n"
+    )
+    assert "example = 7" in (tmp_path / "notebook.py").read_text()

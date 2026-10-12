@@ -19,9 +19,12 @@ unnecessary if marimo adopts the core model directly.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from marimo._core import protocol
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class Backend(Protocol):
@@ -45,6 +48,14 @@ class Backend(Protocol):
 
     def run(self, run_id: protocol.RunId, code: str) -> None:
         """Evaluate scratch code and report the run's progress and output."""
+
+    def run_cells(
+        self, run_id: protocol.RunId, cells: Sequence[protocol.Cell]
+    ) -> None:
+        """Run cells of the document, and the cells that depend on them.
+
+        Report each cell's execution with its `cell_id` and no code.
+        """
 
     def interrupt(self, run_id: protocol.RunId) -> None:
         """Interrupt a run and report an `interrupted` execution outcome."""

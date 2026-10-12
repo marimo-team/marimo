@@ -19,7 +19,10 @@ from marimo._messaging.notification import (
     StartupProgressNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
-from marimo._runtime.commands import ExecuteScratchpadCommand
+from marimo._runtime.commands import (
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
+)
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.translate import RunTranslator
 from marimo._server.scratchpad import snapshot_for_scratchpad
@@ -27,10 +30,12 @@ from marimo._session.consumer import SessionConsumer
 from marimo._session.model import ConnectionState
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.types import KernelState
-from marimo._types.ids import ConsumerId, SessionId
+from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from marimo._version import __version__
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from marimo._messaging.types import KernelMessage
     from marimo._server.session_manager import SessionManager
     from marimo._session.events import SessionEventBus
@@ -152,41 +157,70 @@ class SessionBackend(SessionConsumer):
         session.close()
 
     def run(self, run_id: protocol.RunId, code: str) -> None:
+        self._queue_run(run_id, code=code)
+
+    def run_cells(
+        self, run_id: protocol.RunId, cells: Sequence[protocol.Cell]
+    ) -> None:
+        self._queue_run(run_id, cells=cells)
+
+    def _queue_run(
+        self,
+        run_id: protocol.RunId,
+        *,
+        code: str | None = None,
+        cells: Sequence[protocol.Cell] = (),
+    ) -> None:
         session = self.session
         if session is None:
             return
         run = _Run(session, RunTranslator(run_id, code))
         self._run = run
         run.task = asyncio.get_running_loop().create_task(
-            self._run_code(run, code), name=f"host.run.{run_id}"
+            self._execute(run, code, cells), name=f"host.run.{run_id}"
         )
         # A callback also finalizes cancellation before the coroutine starts.
         run.task.add_done_callback(lambda task: self._finish_run(run, task))
 
-    async def _run_code(self, run: _Run, code: str) -> None:
+    async def _execute(
+        self,
+        run: _Run,
+        code: str | None,
+        cells: Sequence[protocol.Cell],
+    ) -> None:
         session = run.session
         async with session.scratchpad_lock:
-            # Register notebook definitions once, without executing cells.
+            # Initialize from the live document, including unsaved host edits.
             session.instantiate(
                 InstantiateNotebookRequest(
-                    object_ids=[], values=[], auto_run=False
+                    object_ids=[],
+                    values=[],
+                    auto_run=False,
+                    codes={
+                        cell.id: cell.code for cell in session.document.cells
+                    },
                 ),
                 http_request=None,
             )
-            cells, outputs = snapshot_for_scratchpad(session)
-            run.submitted = True
-            self._translators[run.translator.run_id] = run.translator
-            session.put_control_request(
-                ExecuteScratchpadCommand(
+            command: ExecuteCellsCommand | ExecuteScratchpadCommand
+            if code is None:
+                command = ExecuteCellsCommand(
+                    cell_ids=[CellId_t(cell.id) for cell in cells],
+                    codes=[cell.code for cell in cells],
+                    run_id=run.translator.run_id,
+                )
+            else:
+                notebook_cells, outputs = snapshot_for_scratchpad(session)
+                command = ExecuteScratchpadCommand(
                     code=code,
-                    request=None,
-                    notebook_cells=cells,
+                    notebook_cells=notebook_cells,
                     cell_outputs=outputs,
                     run_id=run.translator.run_id,
                     allow_stdin=False,
-                ),
-                from_consumer_id=None,
-            )
+                )
+            run.submitted = True
+            self._translators[run.translator.run_id] = run.translator
+            session.put_control_request(command, from_consumer_id=None)
             await run.done.wait()
 
     def _finish_run(self, run: _Run, task: asyncio.Task[None]) -> None:
@@ -196,7 +230,7 @@ class SessionBackend(SessionConsumer):
         if task.cancelled():
             run.translator.interrupted = True
         elif (exception := task.exception()) is not None:
-            LOGGER.error("Scratch run failed in the host: %s", exception)
+            LOGGER.error("Run failed in the host: %s", exception)
             error = protocol.Error(
                 kind="internal",
                 name=None,

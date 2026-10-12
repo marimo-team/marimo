@@ -8,6 +8,7 @@ import asyncio
 import pytest
 
 from marimo._core import backend as be, protocol
+from marimo._core.document import CellSource, Document
 from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,
@@ -15,6 +16,7 @@ from marimo._messaging.notification import (
     StartupProgressNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
+from marimo._runtime.commands import ExecuteCellsCommand
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.backend import SessionBackend
 from marimo._session.types import KernelExitInfo, KernelState
@@ -359,4 +361,53 @@ async def test_submission_failure_is_an_error(
             range=None,
             related=(),
         )
+    )
+
+
+async def test_run_cells_submits_the_cells_under_the_run_id(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    b.start(protocol.RuntimeId("rt1"))
+    await observed.wait_for(be.Running)
+    session = manager.next_session
+    document = Document(
+        protocol.NotebookId("n1"),
+        [CellSource(protocol.CellId("a"), "x = 1")],
+        {},
+    )
+
+    cells = list(document)
+    b.run_cells(protocol.RunId("run-1"), cells)
+    await asyncio.wait_for(session.submitted.wait(), 5)
+    command = session.commands[-1]
+    assert isinstance(command, ExecuteCellsCommand)
+    assert (command.cell_ids, command.codes, command.run_id) == (
+        ["a"],
+        ["x = 1"],
+        "run-1",
+    )
+
+    for phase in ("planned", "running", "completed"):
+        session.broadcast(
+            ExecutionNotification(
+                execution_id="e1",
+                cell_id="a",
+                run_id="run-1",
+                phase=phase,
+                code="x = 1" if phase == "planned" else None,
+            )
+        )
+    session.broadcast(
+        CompletedRunNotification(run_id="run-1", outcome="succeeded")
+    )
+    await observed.wait_for(be.Done)
+    planned = next(m for m in observed.messages if isinstance(m, be.Planned))
+    assert planned.executions == (
+        be.PlannedExecution(
+            protocol.ExecutionId("run-1-1"), "a", cells[0].code_hash, None
+        ),
+    )
+    assert observed.messages[-1] == be.Done(
+        protocol.RunId("run-1"), "succeeded"
     )
