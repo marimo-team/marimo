@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Literal, NewType, TypeAlias
+from typing import TYPE_CHECKING, Annotated, Any, Literal, NewType, TypeAlias
 
 from msgspec import UNSET, Meta, Struct, UnsetType
 
@@ -48,9 +48,65 @@ class Binding(Struct):
     )
 
 
+class CellConfig(Struct):
+    column: (
+        Annotated[
+            int,
+            Meta(
+                description="The column the cell sits in, for multi-column layouts. Null in a single column."
+            ),
+        ]
+        | None
+    )
+    disabled: Annotated[
+        bool, Meta(description="Whether the cell is kept from running.")
+    ]
+    expand_output: Annotated[
+        bool,
+        Meta(
+            description="Whether clients show the full output rather than a scrolled box."
+        ),
+    ]
+    hide_code: Annotated[
+        bool, Meta(description="Whether clients hide the code by default.")
+    ]
+
+
+class CellConfigInput(Struct):
+    column: int | None | UnsetType = UNSET
+    disabled: bool | UnsetType = False
+    expand_output: bool | UnsetType = False
+    hide_code: bool | UnsetType = False
+
+
+class CellInput(Struct):
+    code: Annotated[str, Meta(description="The cell's source code.")]
+    id: Annotated[
+        str,
+        Meta(
+            description="The cell's id. A client chooses the id of a cell it creates."
+        ),
+    ]
+    config: CellConfigInput | UnsetType = UNSET
+    name: (
+        Annotated[
+            str,
+            Meta(description="The cell's name. `_` for an anonymous cell."),
+        ]
+        | UnsetType
+    ) = "_"
+
+
 class DecisionOption(Struct):
     id: Annotated[str, Meta(description="Identifies this answer.")]
     label: Annotated[str, Meta(description="Text to show a person.")]
+
+
+class DeleteCell(Struct, tag_field="kind", tag="delete_cell"):
+    base_etag: Annotated[
+        str, Meta(description="The cell's etag as last read, or `*`.")
+    ]
+    id: Annotated[str, Meta(description="The cell to remove.")]
 
 
 class DisplayData(Struct):
@@ -66,6 +122,14 @@ class DisplayData(Struct):
             description="The format of `data`, such as `text/html` or `image/png`."
         ),
     ]
+
+
+Etag: TypeAlias = Annotated[
+    str,
+    Meta(
+        description="An identifier derived from content, so that every host, kernel,\nand store computes the same value for the same state. It is the\nfirst 16 hexadecimal characters, in lower case, of SHA-256 over\nthe UTF-8 encoding of a canonical text. Each etag says what its\ntext is; a text made of several values is those values joined by\nnewlines. Clients do not compute etags. They read them from the\nstream and from responses, and send them back as preconditions.\n"
+    ),
+]
 
 
 if TYPE_CHECKING:
@@ -161,6 +225,8 @@ ObjectType: TypeAlias = Annotated[
         "host",
         "project",
         "notebook",
+        "document",
+        "cell",
         "runtime",
         "attachment",
         "run",
@@ -169,7 +235,7 @@ ObjectType: TypeAlias = Annotated[
         "display",
     ],
     Meta(
-        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, runtime,\nattachment, run, execution, console, and display.\n"
+        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document, cell,\nruntime, attachment, run, execution, console, and display.\n"
     ),
 ]
 
@@ -224,6 +290,37 @@ ProjectStatus: TypeAlias = Annotated[
         description="How far a host has gotten finding the notebooks in a project.\nWhile it is `indexing`, more notebooks are coming. Once it is\n`indexed`, the host believes it has found every notebook under the\nroot. A `partial` project is one the host stopped scanning on\npurpose, or one with something it could not read.\n"
     ),
 ]
+
+
+class PutCell(Struct, tag_field="kind", tag="put_cell"):
+    base_etag: (
+        Annotated[
+            str,
+            Meta(
+                description="The cell's etag as last read, `*` to skip the check, or null to create the cell. Null when the cell exists, or an etag when it does not, is a `conflict`."
+            ),
+        ]
+        | None
+    )
+    cell: CellInput
+    after: (
+        Annotated[
+            str,
+            Meta(
+                description="The cell a created cell goes after. Ignored for an existing cell."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    before: (
+        Annotated[
+            str,
+            Meta(
+                description="The cell a created cell goes before. Ignored for an existing cell. With neither `after` nor `before`, a created cell goes at the end."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
 
 
 class Range(Struct):
@@ -326,6 +423,43 @@ RuntimeStatus: TypeAlias = Annotated[
 ]
 
 
+class SaveRequest(Struct):
+    decisions: (
+        Annotated[
+            dict[str, str],
+            Meta(
+                description="Answers to the questions in a `decision-required` problem, as for `runtime.start`."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class SetAppConfig(Struct, tag_field="kind", tag="set_app_config"):
+    app_config: Annotated[
+        dict[str, Any], Meta(description="The new app config, whole.")
+    ]
+    base_etag: Annotated[
+        str,
+        Meta(
+            description="The document's `app_config_etag` as last read, or `*`."
+        ),
+    ]
+
+
+class SetOrder(Struct, tag_field="kind", tag="set_order"):
+    base_etag: Annotated[
+        str,
+        Meta(description="The document's `order_etag` as last read, or `*`."),
+    ]
+    order: Annotated[
+        list[str],
+        Meta(
+            description="Every cell id exactly once, in the new order, counting cells this edit creates and leaving out cells it deletes."
+        ),
+    ]
+
+
 class StartRuntimeRequest(Struct):
     decisions: (
         Annotated[
@@ -407,6 +541,17 @@ class AttachmentMessage(Struct):
         ]
         | UnsetType
     ) = UNSET
+
+
+class CellEtags(Struct):
+    code_hash: Etag
+    etag: Etag
+
+
+Change: TypeAlias = Annotated[
+    PutCell | DeleteCell | SetOrder | SetAppConfig,
+    Meta(description="One change to the document, tagged on `kind`."),
+]
 
 
 class Console(Struct):
@@ -528,11 +673,101 @@ class DisplayMessage(Struct):
     ) = UNSET
 
 
+class Document(Struct):
+    app_config: Annotated[
+        dict[str, Any],
+        Meta(
+            description="Notebook-level settings, the keyword arguments to `marimo.App` such as `width` and `title`."
+        ),
+    ]
+    app_config_etag: Annotated[
+        Etag,
+        Meta(
+            description="Identifies the app config alone. Its text is the app config as canonical JSON, with keys sorted by code point, no whitespace, and strings carrying only the escapes JSON requires."
+        ),
+    ]
+    etag: Annotated[
+        Etag,
+        Meta(
+            description="Identifies the document as currently applied. Its text is `order_etag`, `app_config_etag`, and every cell's `etag` in order, so it changes when any of them does."
+        ),
+    ]
+    id: Annotated[
+        NotebookId, Meta(description="The notebook this document belongs to.")
+    ]
+    order: Annotated[
+        list[str],
+        Meta(
+            description="Cell ids in display order. A permutation of the notebook's cells, each appearing exactly once."
+        ),
+    ]
+    order_etag: Annotated[
+        Etag,
+        Meta(
+            description="Identifies the order alone. Its text is the cell ids in order. Editing a cell does not change it."
+        ),
+    ]
+    policy: Annotated[
+        Literal["autorun", "lazy"],
+        Meta(
+            description="When dependents of an evaluated cell run. `autorun` runs them on every change; `lazy` marks them stale and runs them when asked. Set by the host."
+        ),
+    ]
+    saved_etag: (
+        Annotated[
+            Etag,
+            Meta(
+                description="Identifies the document as last written to the host's store, computed the same way over that state. Equal to `etag` when every accepted change has been persisted. Null when nothing has been persisted, which is the case for a scratch copy."
+            ),
+        ]
+        | None
+    )
+
+
+class DocumentMessage(Struct):
+    document: Document
+    request_id: (
+        Annotated[
+            str,
+            Meta(
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    time: (
+        Annotated[
+            datetime,
+            Meta(
+                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class EditRequest(Struct):
+    changes: Annotated[
+        list[Change],
+        Meta(description="The changes, applied in order as one unit."),
+    ]
+
+
+class EditResponse(Struct):
+    cells: Annotated[
+        dict[str, CellEtags | None],
+        Meta(
+            description="The etags of each cell the request created or changed, by id, and null for each cell it deleted."
+        ),
+    ]
+    document: Document
+
+
 class Error(Struct):
     kind: Annotated[
         str,
         Meta(
-            description="The producer's identifier, scoped by source. Open; this RFC defines `exception`, `interrupted`, and `internal`. Clients show unrecognized kinds as plain errors."
+            description="The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions, and reserves `multiple-definitions` and `cycle-dependencies` for analysis, because every host schedules them the same way. Clients show unrecognized kinds as plain errors."
         ),
     ]
     message: Annotated[
@@ -627,7 +862,7 @@ class Notebook(Struct):
     operations: Annotated[
         list[str],
         Meta(
-            description="Operations this client may call on the notebook. A subset of `host.operations`, narrowed by permission and never by state; whether a runtime is attached shows in the `runtime` object, and preconditions still apply when an operation is called. The host sends the notebook again when it changes."
+            description="Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations`, narrowed by permission and never by state; whether a runtime is attached shows in the `runtime` object, and preconditions still apply when an operation is called. The host sends the notebook again when it changes."
         ),
     ]
     path: (
@@ -679,45 +914,6 @@ Outcome: TypeAlias = Annotated[
         description="How an execution ended, tagged on `kind`. A `value` carries the\nexecution's value as last rendered; while the execution is\nrunning it is the value so far, and it is final once the\nexecution is `completed`. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution. Other\nkinds are defined by later versions of this protocol.\n"
     ),
 ]
-
-
-class Problem(Struct):
-    status: Annotated[
-        int,
-        Meta(
-            description="The HTTP status code of the response.", ge=400, le=599
-        ),
-    ]
-    title: Annotated[
-        str,
-        Meta(
-            description="A short, human-readable name for the kind of problem."
-        ),
-    ]
-    type: Annotated[
-        str,
-        Meta(
-            description="What kind of problem this is, as a URI. The kinds this\nprotocol defines all start with `tag:marimo.io,2026:host/` and\nend with one of `invalid-request` (400), `unauthorized` (401),\n`forbidden` (403), `not-found` (404), `not-acceptable` (406),\n`conflict` (409), `no-runtime` (409), `decision-required`\n(409), `internal` (500), or `unsupported-operation` (501). A\nclient that sees a kind it does not recognize falls back to\n`status`.\n"
-        ),
-    ]
-    decisions: (
-        Annotated[
-            list[Decision],
-            Meta(
-                description="The choices the client has to make before the host can carry out the request. Only present for `decision-required`."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    detail: (
-        Annotated[
-            str,
-            Meta(
-                description="A human-readable explanation of what went wrong this time."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
 
 
 class Project(Struct):
@@ -895,6 +1091,105 @@ class RuntimeMessage(Struct):
     ) = UNSET
 
 
+class Analysis(Struct):
+    defs: Annotated[list[str], Meta(description="Names this cell defines.")]
+    errors: Annotated[
+        list[Error],
+        Meta(
+            description="Diagnostics about the code. Only an `error` affects scheduling. `multiple-definitions` lists the definers in `related`, each `range` at its definition; `cycle-dependencies` lists the cycle. Both are reported on every cell involved, differing only in `range`. Every other kind belongs to the analyzer named in `source`."
+        ),
+    ]
+    refs: Annotated[
+        list[str], Meta(description="Names this cell reads from other cells.")
+    ]
+
+
+class Cell(Struct):
+    analysis: (
+        Annotated[
+            Analysis,
+            Meta(
+                description="Derived from the code by the host. Null when the host has no analyzer."
+            ),
+        ]
+        | None
+    )
+    code: Annotated[
+        str,
+        Meta(
+            description="The cell's source code, with newline line endings. A host normalizes other line endings when it loads a file."
+        ),
+    ]
+    code_hash: Annotated[
+        Etag,
+        Meta(
+            description="Identifies the code alone. Its text is `code`. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code."
+        ),
+    ]
+    config: CellConfig
+    etag: Annotated[
+        Etag,
+        Meta(
+            description="Identifies code, name, and config together, and is the precondition for editing the cell. Its text is `code_hash`, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output` in that order, each written as a JSON scalar such as `null`, `0`, or `true`."
+        ),
+    ]
+    id: Annotated[
+        str,
+        Meta(
+            description="Identifies the cell within its notebook. Stable while the host serves the notebook; whether it survives a reload of the store depends on the format. `setup` is the setup cell."
+        ),
+    ]
+    name: Annotated[
+        str,
+        Meta(
+            description="The cell's name. `_` for an anonymous cell; otherwise a Python identifier, unique within the notebook."
+        ),
+    ]
+    notebook_id: NotebookId
+
+
+class CellMessage(Struct):
+    cell: Cell
+    request_id: (
+        Annotated[
+            str,
+            Meta(
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    time: (
+        Annotated[
+            datetime,
+            Meta(
+                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class EditConflict(Struct):
+    cell: (
+        Annotated[
+            Cell,
+            Meta(
+                description="The cell the change named, as it now is. Null when it no longer exists, or when the change named the order or the app config."
+            ),
+        ]
+        | None
+    )
+    change: Annotated[
+        int,
+        Meta(
+            description="The index of the stale change in the request's `changes`. `0` for a save with a stale `If-Match`.",
+            ge=0,
+        ),
+    ]
+    document: Document
+
+
 class Execution(Struct):
     bindings: Annotated[
         list[Binding],
@@ -930,7 +1225,10 @@ class Execution(Struct):
         | None
     )
     code_hash: Annotated[
-        str, Meta(description="A hash of the code that was evaluated.")
+        Etag,
+        Meta(
+            description="The `code_hash` of the code that was evaluated, computed as a cell's is."
+        ),
     ]
     completed_at: (
         Annotated[
@@ -1006,6 +1304,54 @@ class ExecutionMessage(Struct):
             datetime,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class Problem(Struct):
+    status: Annotated[
+        int,
+        Meta(
+            description="The HTTP status code of the response.", ge=400, le=599
+        ),
+    ]
+    title: Annotated[
+        str,
+        Meta(
+            description="A short, human-readable name for the kind of problem."
+        ),
+    ]
+    type: Annotated[
+        str,
+        Meta(
+            description="What kind of problem this is, as a URI. The kinds this\nprotocol defines all start with `tag:marimo.io,2026:host/` and\nend with one of `invalid-request` (400), `unauthorized` (401),\n`forbidden` (403), `not-found` (404), `not-acceptable` (406),\n`conflict` (409), `no-runtime` (409), `decision-required`\n(409), `internal` (500), or `unsupported-operation` (501). A\nclient that sees a kind it does not recognize falls back to\n`status`.\n"
+        ),
+    ]
+    decisions: (
+        Annotated[
+            list[Decision],
+            Meta(
+                description="The choices the client has to make before the host can carry out the request. Only present for `decision-required`."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    detail: (
+        Annotated[
+            str,
+            Meta(
+                description="A human-readable explanation of what went wrong this time."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    edit: (
+        Annotated[
+            EditConflict,
+            Meta(
+                description="Which change was stale and what the host holds instead. Only present for a `conflict` answering an edit or a save."
             ),
         ]
         | UnsetType
