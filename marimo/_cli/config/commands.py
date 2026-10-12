@@ -9,7 +9,7 @@ from marimo._cli.config.utils import highlight_toml_headers
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._cli.print import echo, green
 from marimo._config.manager import (
-    UserConfigManager,
+    UserConfigStore,
     get_default_config_manager,
 )
 from marimo._config.reader import find_nearest_pyproject_toml
@@ -36,7 +36,7 @@ def show() -> None:
 
     config_manager = get_default_config_manager(current_path=current_path)
     # Save config if doesn't exist
-    UserConfigManager().save_config_if_missing()
+    UserConfigStore().save_config_if_missing()
 
     # Show project overrides if they exist
     project_config_path = find_nearest_pyproject_toml(current_path)
