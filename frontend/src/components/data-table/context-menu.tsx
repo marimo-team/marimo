@@ -34,8 +34,8 @@ const symbolOp = {
 } as const;
 
 const textOp = {
-  eq: TEXT_SCALAR_OPS[0],
-  neq: TEXT_SCALAR_OPS[1],
+  eq: TEXT_SCALAR_OPS[1],
+  neq: TEXT_SCALAR_OPS[2],
 } as const;
 
 export const DataTableContextMenu = <TData,>({
@@ -123,6 +123,13 @@ export const CellContextMenu = <TData,>({
     value: unknown,
     comparison: Comparison = "eq",
   ) => {
+    if (value === null) {
+      return {
+        type,
+        operator: comparison === "eq" ? "is_null" : "is_not_null",
+      };
+    }
+
     switch (type) {
       case "number":
         return Filter.number({
