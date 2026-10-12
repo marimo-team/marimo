@@ -41,6 +41,7 @@ from marimo._runtime.commands import (
 )
 from marimo._runtime.context import safe_get_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
+from marimo._runtime.redirect_streams import stdin_context
 from marimo._types.ids import UIElementId
 
 if TYPE_CHECKING:
@@ -189,6 +190,7 @@ class KernelRequestHandlers:
         )
         with (
             self._run_context(request.run_id),
+            stdin_context(request.allow_stdin),
             notebook_document_context(doc),
             notebook_outputs_context(request.cell_outputs),
             http_request_context(request.request),

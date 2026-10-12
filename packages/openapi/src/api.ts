@@ -5062,8 +5062,12 @@ export interface components {
      *                 `ScratchCellListener` can filter for *its* completion and
      *                 ignore `CompletedRun` events from unrelated commands on the
      *                 same session.
+     *             allow_stdin: Whether code may request interactive input. When false,
+     *                 input reads receive EOF for the duration of this command.
      */
     ExecuteScratchpadCommand: {
+      /** @default true */
+      allowStdin?: boolean;
       /** @default null */
       cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
@@ -5078,6 +5082,8 @@ export interface components {
     };
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
+      /** @default true */
+      allowStdin?: boolean;
       /** @default null */
       cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;

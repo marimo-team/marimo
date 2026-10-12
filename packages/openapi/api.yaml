@@ -2017,8 +2017,13 @@ components:
         \     `CompletedRunNotification` emitted at the end of this command\n    \
         \        carries the same `run_id` so a caller holding a\n            `ScratchCellListener`\
         \ can filter for *its* completion and\n            ignore `CompletedRun` events\
-        \ from unrelated commands on the\n            same session."
+        \ from unrelated commands on the\n            same session.\n        allow_stdin:\
+        \ Whether code may request interactive input. When false,\n            input\
+        \ reads receive EOF for the duration of this command."
       properties:
+        allowStdin:
+          default: true
+          type: boolean
         cellOutputs:
           anyOf:
           - $ref: '#/components/schemas/CellOutputs'
@@ -2053,6 +2058,9 @@ components:
       type: object
     ExecuteScratchpadRequest:
       properties:
+        allowStdin:
+          default: true
+          type: boolean
         cellOutputs:
           anyOf:
           - $ref: '#/components/schemas/CellOutputs'
