@@ -37,8 +37,8 @@ from marimo._config.reader import (
 )
 from marimo._config.resolver import merge_config_patches, resolve_config
 from marimo._config.secrets import (
-    mask_secrets,
-    mask_secrets_partial,
+    redact_secrets,
+    redact_secrets_partial,
     remove_secret_placeholders,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -145,7 +145,7 @@ class MarimoConfigManager:
     def get_user_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the user configuration"""
         config = resolve_config(DEFAULT_CONFIG, (self.user_config_mgr.read(),))
-        return mask_secrets(config) if hide_secrets else config
+        return redact_secrets(config) if hide_secrets else config
 
     def get_config_overrides(
         self, *, hide_secrets: bool = True
@@ -156,7 +156,7 @@ class MarimoConfigManager:
         cannot be overridden by any other config source.
         """
         config = self._read_overrides()
-        return mask_secrets_partial(config) if hide_secrets else config
+        return redact_secrets_partial(config) if hide_secrets else config
 
     def _read_overrides(self) -> PartialMarimoConfig:
         return merge_config_patches(
@@ -169,7 +169,7 @@ class MarimoConfigManager:
     ) -> PartialMarimoConfig:
         """Get contextual fallbacks, merged beneath explicit configuration."""
         config = self._read_defaults()
-        return mask_secrets_partial(config) if hide_secrets else config
+        return redact_secrets_partial(config) if hide_secrets else config
 
     def _read_defaults(self) -> PartialMarimoConfig:
         return merge_config_patches(
@@ -187,7 +187,7 @@ class MarimoConfigManager:
             (self.user_config_mgr.read(), self._read_overrides()),
             fallback=self._read_defaults(),
         )
-        return mask_secrets(config) if hide_secrets else config
+        return redact_secrets(config) if hide_secrets else config
 
     def save_config(
         self, config: MarimoConfig | PartialMarimoConfig
