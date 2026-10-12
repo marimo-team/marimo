@@ -3,10 +3,14 @@
 import { useAtomValue } from "jotai";
 import {
   AlertCircleIcon,
+  BracesIcon,
+  BrickWallIcon,
   ChevronRightIcon,
   ClipboardCopyIcon,
   DownloadIcon,
+  FileTextIcon,
   InfoIcon,
+  TableIcon,
 } from "lucide-react";
 import React from "react";
 import { downloadSizeLimitAtom } from "./download-policy/atoms";
@@ -14,6 +18,8 @@ import type {
   DownloadAsArgs,
   DownloadAsOptions,
   DownloadFormat,
+  ExportMetadata,
+  GetExportMetadata,
 } from "./schemas";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
@@ -47,6 +53,7 @@ const EXPORT_OPTIONS = [
     label: "CSV",
     format: "csv",
     description: "Comma-separated values",
+    icon: TableIcon,
     canDownload: true,
     canCopy: true,
   },
@@ -54,6 +61,7 @@ const EXPORT_OPTIONS = [
     label: "TSV",
     format: "tsv",
     description: "Best for Excel and Google Sheets",
+    icon: TableIcon,
     canDownload: true,
     canCopy: true,
   },
@@ -61,6 +69,7 @@ const EXPORT_OPTIONS = [
     label: "JSON",
     format: "json",
     description: "Raw JSON data",
+    icon: BracesIcon,
     canDownload: true,
     canCopy: true,
   },
@@ -68,6 +77,7 @@ const EXPORT_OPTIONS = [
     label: "Parquet",
     format: "parquet",
     description: "Columnar binary format",
+    icon: BrickWallIcon,
     canDownload: true,
     canCopy: false,
   },
@@ -75,6 +85,7 @@ const EXPORT_OPTIONS = [
     label: "Markdown",
     format: "markdown",
     description: "Preserves hyperlinks and formatting",
+    icon: FileTextIcon,
     canDownload: false,
     canCopy: true,
   },
@@ -95,10 +106,8 @@ type ExportFailure =
     }
   | {
       kind: "missing-packages";
-      title: string;
       description?: string | null;
       packages: string[];
-      featureName: string;
       action: ExportAction;
     };
 
@@ -140,7 +149,7 @@ const DEFAULT_SETTINGS: ExportSettings = {
 
 type ConfigurableFormat = keyof ExportSettings;
 
-const isConfigurable = (format: ExportFormat): format is ConfigurableFormat =>
+const isConfigurable = (format: ExportFormat): format is keyof ExportSettings =>
   format in DEFAULT_SETTINGS;
 
 /**
@@ -222,6 +231,8 @@ function settingsSummary(
 
 export interface ExportActionProps {
   downloadAs: DownloadAsArgs;
+  getExportMetadata?: GetExportMetadata;
+  metadataSource?: unknown;
   // JSON-serialized size of the currently-rendered data. Used together with
   // downloadSizeLimitAtom to disable the Export button when a host (e.g.,
   // marimo-lsp inside VS Code) declares a download size cap. Null/undefined
@@ -230,8 +241,11 @@ export interface ExportActionProps {
   sizeBytesIsLoading?: boolean;
 }
 
-const labelForFormat = (format: ExportFormat): string =>
-  EXPORT_OPTIONS.find((option) => option.format === format)?.label ?? format;
+const labelForFormat = (format: ExportFormat, hasGeometry = false): string =>
+  format === "parquet" && hasGeometry
+    ? "GeoParquet"
+    : (EXPORT_OPTIONS.find((option) => option.format === format)?.label ??
+      format);
 
 const failureTitleForAction = (action: ExportAction): string =>
   action.destination === "download"
@@ -242,15 +256,62 @@ const failureDescription = (error: unknown): string =>
   typeof error === "string" ? error : prettyError(error);
 
 export const ExportActions: React.FC<ExportActionProps> = (props) => {
+  const { getExportMetadata, metadataSource } = props;
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
   const [failure, setFailure] = React.useState<ExportFailure | null>(null);
   const [settings, setSettings] =
     React.useState<ExportSettings>(DEFAULT_SETTINGS);
-  const [expandedFormat, setExpandedFormat] =
-    React.useState<ConfigurableFormat | null>(null);
+  const [metadata, setMetadata] = React.useState<ExportMetadata | null>(null);
+  const [metadataLoading, setMetadataLoading] = React.useState(false);
+  const [metadataError, setMetadataError] = React.useState<string | null>(null);
+  const [metadataRefresh, setMetadataRefresh] = React.useState(0);
+  const [geometryColumn, setGeometryColumn] = React.useState<string | null>(
+    null,
+  );
+  const hasGeometry = !!metadata?.geometry_columns.length;
+  const [expandedFormat, setExpandedFormat] = React.useState<
+    ConfigurableFormat | "parquet" | null
+  >(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const dialogRef = React.useRef<HTMLDivElement>(null);
   const latestActionId = React.useRef(0);
+  React.useEffect(() => {
+    latestActionId.current += 1;
+  }, [metadataSource]);
+  React.useEffect(() => {
+    if (!exportDialogOpen || !getExportMetadata) {
+      return;
+    }
+    let active = true;
+    setMetadata(null);
+    setMetadataLoading(true);
+    setMetadataError(null);
+    void getExportMetadata({}).then(
+      (result) => {
+        if (!active) {
+          return;
+        }
+        setMetadata(result);
+        setGeometryColumn((current) =>
+          current !== null &&
+          result.geometry_columns.some((column) => column.name === current)
+            ? current
+            : result.default_geometry_column,
+        );
+        setMetadataLoading(false);
+      },
+      (error: unknown) => {
+        if (!active) {
+          return;
+        }
+        setMetadataError(failureDescription(error));
+        setMetadataLoading(false);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [exportDialogOpen, getExportMetadata, metadataSource, metadataRefresh]);
   const policy = useAtomValue(downloadSizeLimitAtom);
   const overLimit = !!(
     policy &&
@@ -288,6 +349,9 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
       setFailure(null);
       setExpandedFormat(null);
       setSettings(DEFAULT_SETTINGS);
+      setMetadata(null);
+      setMetadataError(null);
+      setGeometryColumn(null);
     }
   };
 
@@ -313,27 +377,33 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     filename: string;
   } | null> => {
     const options = requestOptions(settings, format, action.destination);
-    const response = await props.downloadAs(
-      options ? { format, options } : { format },
-    );
+    const request = {
+      format,
+      ...(options ? { options } : {}),
+      ...(format === "parquet" && geometryColumn !== null
+        ? { geometry_column: geometryColumn }
+        : {}),
+    };
+    const response = await props.downloadAs(request);
+    if (actionId !== latestActionId.current) {
+      return null;
+    }
 
     if (response.missing_packages && response.missing_packages.length > 0) {
       setActionFailure(actionId, {
         kind: "missing-packages",
-        title: "Export failed",
         packages: response.missing_packages,
-        featureName: `${labelForFormat(action.format)} export`,
         description: response.error,
         action,
       });
       return null;
     }
 
-    if (response.error) {
+    if (response.error || response.code || !response.url) {
       setActionFailure(actionId, {
         kind: "error",
         title: failureTitleForAction(action),
-        description: response.error,
+        description: response.error ?? "The export did not produce a file.",
         action,
       });
       return null;
@@ -348,13 +418,16 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   const handleDownload = async (format: DownloadFormat) => {
     const action: ExportAction = { destination: "download", format };
     const actionId = beginAction();
-    const label = labelForFormat(format);
+    const label = labelForFormat(format, hasGeometry);
     try {
       const ok = await withLoadingToast(
         `Preparing ${label} export...`,
         async () => {
           const result = await resolveDownloadUrl(format, action, actionId);
           if (!result) {
+            return false;
+          }
+          if (actionId !== latestActionId.current) {
             return false;
           }
           const rawName = (result.filename ?? "").trim();
@@ -396,7 +469,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     actionId: number,
   ) => {
     await withLoadingToast(
-      `Preparing ${labelForFormat(format)} for clipboard...`,
+      `Preparing ${labelForFormat(format, hasGeometry)} for clipboard...`,
       async () => {
         const sourceFormat = COPY_SOURCE_FORMAT[format];
         const result = await resolveDownloadUrl(sourceFormat, action, actionId);
@@ -457,8 +530,55 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     }
   };
 
+  const retryAfterInstall = async (action: ExportAction) => {
+    if (action.format === "parquet" && getExportMetadata) {
+      const actionId = latestActionId.current;
+      let result: ExportMetadata;
+      try {
+        result = await getExportMetadata({});
+      } catch (error) {
+        if (actionId === latestActionId.current) {
+          setMetadataError(failureDescription(error));
+        }
+        return;
+      }
+      if (actionId !== latestActionId.current) {
+        return;
+      }
+      setMetadata(result);
+      setMetadataError(null);
+      if (result.formats.parquet?.available === false) {
+        setFailure(null);
+        return;
+      }
+      if (
+        geometryColumn !== null &&
+        !result.geometry_columns.some(
+          (column) => column.name === geometryColumn,
+        )
+      ) {
+        setGeometryColumn(result.default_geometry_column);
+        setActionFailure(actionId, {
+          kind: "error",
+          title: failureTitleForAction(action),
+          description:
+            "The selected geometry is no longer available. Choose another geometry to export.",
+          action,
+        });
+        return;
+      }
+      if (result.geometry_columns.length > 0 && geometryColumn === null) {
+        return;
+      }
+    }
+    retryAction(action);
+  };
+
   const toggleExpanded = (format: ExportFormat) => {
-    if (!isConfigurable(format)) {
+    if (
+      !isConfigurable(format) &&
+      !(format === "parquet" && metadata?.geometry_columns.length)
+    ) {
       return;
     }
     setExpandedFormat((current) => (current === format ? null : format));
@@ -505,29 +625,61 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
           className="list-none overflow-hidden rounded-md border divide-y"
         >
           {EXPORT_OPTIONS.map((option) => {
-            const configurableFormat = isConfigurable(option.format)
-              ? option.format
-              : null;
+            const optionLabel = labelForFormat(option.format, hasGeometry);
+            const configurableFormat =
+              isConfigurable(option.format) ||
+              (option.format === "parquet" &&
+                !!metadata?.geometry_columns.length)
+                ? option.format
+                : null;
             const expanded =
               configurableFormat !== null &&
               expandedFormat === configurableFormat;
             const panelId = `export-options-${option.format}`;
             const rowFailure =
               failure?.action.format === option.format ? failure : null;
-            const summary = settingsSummary(settings, option.format);
+            const summary =
+              option.format === "parquet" && metadata?.geometry_columns.length
+                ? geometryColumn === ""
+                  ? "(unnamed geometry)"
+                  : (geometryColumn ?? "Choose geometry")
+                : settingsSummary(settings, option.format);
+            const selectedGeometryIndex =
+              metadata?.geometry_columns.findIndex(
+                (column) => column.name === geometryColumn,
+              ) ?? -1;
+            const parquetEligibility =
+              option.format === "parquet"
+                ? metadata?.formats.parquet
+                : undefined;
+            const missingPackageFailure =
+              rowFailure?.kind === "missing-packages" ? rowFailure : null;
+            const missingPackages =
+              missingPackageFailure?.packages ??
+              (parquetEligibility?.available === false
+                ? parquetEligibility.missing_packages
+                : []);
+            const parquetUnavailable =
+              option.format === "parquet" &&
+              ((!!getExportMetadata && !metadata) ||
+                metadataLoading ||
+                !!metadataError ||
+                parquetEligibility?.available === false ||
+                (!!metadata?.geometry_columns.length &&
+                  geometryColumn === null));
             return (
               <li
                 key={option.format}
                 data-testid={`export-row-${option.format}`}
                 className={cn(expanded && "bg-muted/40")}
               >
-                <div className="grid min-h-[60px] grid-cols-[28px_1fr_auto] items-center gap-x-1 px-2.5 py-2 hover:bg-accent/50">
+                <div className="grid min-h-[60px] grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-1 px-2.5 py-2 hover:bg-accent/50">
                   {configurableFormat ? (
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      aria-label={`${option.label} options`}
+                      aria-label={`${optionLabel} options`}
                       aria-expanded={expanded}
                       aria-controls={panelId}
                       onClick={() => toggleExpanded(option.format)}
@@ -542,30 +694,39 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                   ) : (
                     <span aria-hidden={true} className="h-6 w-6" />
                   )}
-                  <div className="grid gap-1 pl-1">
-                    <span className="flex items-baseline gap-x-2">
-                      <span className="text-sm font-medium leading-tight">
-                        {option.label}
-                      </span>
-                      {summary && (
-                        <span
-                          data-testid={`export-summary-${option.format}`}
-                          className="text-xs text-muted-foreground"
-                        >
-                          {summary}
+                  <div className="flex min-w-0 items-center gap-3 pl-1">
+                    <option.icon
+                      aria-hidden={true}
+                      data-testid={`export-format-icon-${option.format}`}
+                      className="h-4 w-4 shrink-0 text-muted-foreground"
+                    />
+                    <div className="grid min-w-0 gap-1">
+                      <span className="flex min-w-0 items-baseline gap-x-2">
+                        <span className="text-sm font-medium leading-tight">
+                          {optionLabel}
                         </span>
-                      )}
-                    </span>
-                    <span className="text-xs text-muted-foreground leading-tight">
-                      {option.description}
-                    </span>
+                        {summary && (
+                          <span
+                            data-testid={`export-summary-${option.format}`}
+                            className="min-w-0 truncate text-xs text-muted-foreground"
+                          >
+                            {summary}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-xs text-muted-foreground leading-tight">
+                        {option.format === "parquet" && hasGeometry
+                          ? "Parquet with geometry and CRS metadata"
+                          : option.description}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-0.5">
                     <Tooltip
                       content={
                         option.canDownload
-                          ? `Download ${option.label}`
-                          : `${option.label} is available for copy only.`
+                          ? `Download ${optionLabel}`
+                          : `${optionLabel} is available for copy only.`
                       }
                     >
                       <span className="inline-flex">
@@ -573,10 +734,16 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          aria-label={`Download ${option.label}`}
-                          disabled={!option.canDownload}
+                          aria-label={`Download ${optionLabel}`}
+                          disabled={
+                            !option.canDownload ||
+                            parquetUnavailable ||
+                            missingPackages.length > 0
+                          }
                           onClick={
-                            option.canDownload
+                            option.canDownload &&
+                            !parquetUnavailable &&
+                            missingPackages.length === 0
                               ? () => {
                                   void handleDownload(option.format);
                                 }
@@ -590,8 +757,8 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                     <Tooltip
                       content={
                         option.canCopy
-                          ? `Copy ${option.label}`
-                          : `${option.label} is available for download only.`
+                          ? `Copy ${optionLabel}`
+                          : `${optionLabel} is available for download only.`
                       }
                     >
                       <span className="inline-flex">
@@ -599,7 +766,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          aria-label={`Copy ${option.label}`}
+                          aria-label={`Copy ${optionLabel}`}
                           disabled={!option.canCopy}
                           onClick={
                             option.canCopy
@@ -620,42 +787,110 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                     id={panelId}
                     className="grid grid-cols-2 gap-3 border-t bg-muted/50 px-3.5 py-3.5 pl-[52px]"
                   >
-                    <legend className="sr-only">{option.label} options</legend>
-                    <ExportSettingsFields
-                      format={configurableFormat}
-                      settings={settings}
-                      onChange={setSettings}
-                    />
+                    <legend className="sr-only">{optionLabel} options</legend>
+                    {configurableFormat === "parquet" ? (
+                      <SettingField
+                        id="export-primary-geometry"
+                        label="Primary geometry"
+                        help="Geometry column to use as the primary geometry in the GeoParquet file."
+                      >
+                        <NativeSelect
+                          id="export-primary-geometry"
+                          className="mb-0 w-full"
+                          value={String(selectedGeometryIndex)}
+                          onChange={(event) => {
+                            const index = Number(event.target.value);
+                            setGeometryColumn(
+                              metadata?.geometry_columns[index]?.name ?? null,
+                            );
+                          }}
+                        >
+                          <option value="-1" disabled={true}>
+                            Choose geometry
+                          </option>
+                          {metadata?.geometry_columns.map((column, index) => (
+                            <option key={column.name} value={String(index)}>
+                              {column.name || "(unnamed geometry)"}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      </SettingField>
+                    ) : (
+                      <ExportSettingsFields
+                        format={configurableFormat}
+                        settings={settings}
+                        onChange={setSettings}
+                      />
+                    )}
                   </fieldset>
                 )}
-                {rowFailure && (
+                {option.format === "parquet" &&
+                  missingPackages.length === 0 &&
+                  (parquetEligibility?.reason ||
+                    metadataError ||
+                    (!!metadata?.geometry_columns.length &&
+                      geometryColumn === null)) && (
+                    <div className="flex items-center justify-between gap-2 border-t px-3 py-2 pl-[42px] text-xs text-muted-foreground">
+                      <span>
+                        {metadataError
+                          ? `Could not load geometry options: ${metadataError}`
+                          : (parquetEligibility?.reason ??
+                            "Choose a primary geometry column to export GeoParquet.")}
+                      </span>
+                      {metadataError && (
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="outline"
+                          onClick={() =>
+                            setMetadataRefresh((current) => current + 1)
+                          }
+                        >
+                          Retry
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                {missingPackages.length > 0 && (
                   <div className="border-t px-3 py-2 pl-[42px]">
-                    <Alert
-                      variant="destructive"
-                      className="p-3 has-[svg]:pl-9 [&>svg]:left-3 [&>svg]:top-3"
-                    >
-                      <AlertCircleIcon className="h-4 w-4" />
-                      <div>
-                        <AlertTitle className="text-sm">
-                          {rowFailure.title}
-                        </AlertTitle>
-                        <AlertDescription className="text-xs">
-                          {rowFailure.kind === "missing-packages" ? (
-                            <MissingPackagePrompt
-                              packages={rowFailure.packages}
-                              featureName={rowFailure.featureName}
-                              description={rowFailure.description}
-                              onInstall={() => retryAction(rowFailure.action)}
-                              className="items-start"
-                            />
-                          ) : (
-                            rowFailure.description
-                          )}
-                        </AlertDescription>
-                      </div>
-                    </Alert>
+                    <MissingPackagePrompt
+                      packages={missingPackages}
+                      featureName={`${optionLabel} export`}
+                      description={
+                        missingPackageFailure?.description ??
+                        parquetEligibility?.reason
+                      }
+                      onInstall={() => {
+                        void retryAfterInstall(
+                          missingPackageFailure?.action ?? {
+                            destination: "download",
+                            format: "parquet",
+                          },
+                        );
+                      }}
+                      className="items-start"
+                    />
                   </div>
                 )}
+                {rowFailure?.kind === "error" &&
+                  missingPackages.length === 0 && (
+                    <div className="border-t px-3 py-2 pl-[42px]">
+                      <Alert
+                        variant="destructive"
+                        className="p-3 has-[svg]:pl-9 [&>svg]:left-3 [&>svg]:top-3"
+                      >
+                        <AlertCircleIcon className="h-4 w-4" />
+                        <div>
+                          <AlertTitle className="text-sm">
+                            {rowFailure.title}
+                          </AlertTitle>
+                          <AlertDescription className="text-xs">
+                            {rowFailure.description}
+                          </AlertDescription>
+                        </div>
+                      </Alert>
+                    </div>
+                  )}
               </li>
             );
           })}
