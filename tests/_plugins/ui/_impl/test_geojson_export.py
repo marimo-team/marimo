@@ -1082,28 +1082,13 @@ def test_arrow_geojson_registered_primary_and_secondary_geometry(
     import pyarrow as pa
     from shapely import from_wkt
 
-    name = f"geoarrow.{encoding}"
     storage_type = pa.binary() if encoding == "wkb" else pa.string()
-
-    class GeometryType(pa.ExtensionType):
-        def __init__(self) -> None:
-            super().__init__(storage_type, name)
-
-        def __arrow_ext_serialize__(self) -> bytes:
-            return b'{"crs":"EPSG:4326"}'
-
-        @classmethod
-        def __arrow_ext_deserialize__(
-            cls, _storage_type: Any, _serialized: bytes
-        ) -> Any:
-            return cls()
-
-    extension = GeometryType()
-    pa.register_extension_type(extension)  # type: ignore[arg-type]
-    try:
+    with fixtures.registered_arrow_extension(
+        f"geoarrow.{encoding}", storage_type
+    ) as extension:
         value = fixtures.WKB_POINT_1_2 if encoding == "wkb" else "POINT (1 2)"
-        values = pa.ExtensionArray.from_storage(
-            extension, pa.array([value, None], type=storage_type)
+        values = fixtures.registered_extension_column(
+            extension, [[value, None]]
         )
         source = fixtures.arrow_multi_geometry().append_column(
             "registered", values
@@ -1122,8 +1107,6 @@ def test_arrow_geojson_registered_primary_and_secondary_geometry(
         assert features[1]["geometry"] is None
         assert features[1]["properties"][secondary] is None
         assert source["registered"].to_pylist() == [value, None]
-    finally:
-        pa.unregister_extension_type(name)
 
 
 @pytest.mark.requires("geopandas", "pyarrow")
@@ -1513,29 +1496,18 @@ def test_duckdb_closed_connection_is_structured_failure() -> None:
 def test_duckdb_registered_wkb_preserves_crs(widget: Any) -> None:
     import pyarrow as pa
 
-    class GeometryType(pa.ExtensionType):
-        def __init__(self, metadata: bytes = b"{}") -> None:
-            self.metadata = metadata
-            super().__init__(pa.binary(), "geoarrow.wkb")
-
-        def __arrow_ext_serialize__(self) -> bytes:
-            return self.metadata
-
-        @classmethod
-        def __arrow_ext_deserialize__(
-            cls, storage: Any, metadata: bytes
-        ) -> Any:
-            return cls(metadata)
-
     conn = fixtures.duckdb_crs_geometry_connection()
-    pa.register_extension_type(GeometryType())  # type: ignore[arg-type]
     try:
-        document = _artifact(
-            widget(
-                conn.sql("SELECT 'POINT (1 2)'::GEOMETRY('OGC:CRS84') AS geom")
+        with fixtures.registered_arrow_extension(
+            "geoarrow.wkb", pa.binary(), b"{}"
+        ):
+            document = _artifact(
+                widget(
+                    conn.sql(
+                        "SELECT 'POINT (1 2)'::GEOMETRY('OGC:CRS84') AS geom"
+                    )
+                )
             )
-        )
         assert document["features"][0]["geometry"]["coordinates"] == [1, 2]
     finally:
-        pa.unregister_extension_type("geoarrow.wkb")
         conn.close()

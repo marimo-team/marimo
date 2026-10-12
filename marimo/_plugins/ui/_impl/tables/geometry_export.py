@@ -13,7 +13,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.geometry import (
     GeometryColumnInfo,
     GeometryEncoding,
-    find_geometry_columns,
+    arrow_storage_field,
 )
 from marimo._plugins.ui._impl.tables.narwhals_table import (
     NarwhalsTableManager,
@@ -180,7 +180,7 @@ def _describe_export_source(manager: TableManager[Any]) -> _ExportSource:
     if not isinstance(manager, NarwhalsTableManager):
         return _ExportSource(ExportMetadata())
 
-    info_by_name = _export_geometry_columns(manager)
+    info_by_name = manager._geometry_columns
     if not info_by_name:
         return _ExportSource(ExportMetadata())
 
@@ -359,7 +359,7 @@ def _duckdb_geometry_schema(
         reader.close()
     fields = []
     for arrow_field in schema:
-        arrow_field = _arrow_storage_field(arrow_field)
+        arrow_field = arrow_storage_field(arrow_field)
         info = manager._geometry_columns.get(arrow_field.name)
         if info is not None and info.encoding == "wkb":
             metadata = dict(arrow_field.metadata or {})
@@ -380,7 +380,7 @@ def _duckdb_geometry_schema(
 def _arrow_geometry_declaration(
     field: pa.Field[Any],
 ) -> ArrowGeometryDeclaration:
-    field = _arrow_storage_field(field)
+    field = arrow_storage_field(field)
     metadata = field.metadata
     if not metadata:
         return ArrowGeometryDeclaration()
@@ -482,49 +482,8 @@ def has_geometry_columns(manager: TableManager[Any]) -> bool:
         manager (TableManager[Any]): Manager for the export source.
     """
     return isinstance(manager, NarwhalsTableManager) and bool(
-        _export_geometry_columns(manager)
+        manager._geometry_columns
     )
-
-
-def _arrow_storage_field(field: pa.Field[Any]) -> pa.Field[Any]:
-    import pyarrow as pa
-
-    if not isinstance(field.type, pa.ExtensionType):
-        return field
-    extension = field.type
-    if not (
-        extension.extension_name.startswith("geoarrow.")
-        or extension.extension_name == "ogc.wkb"
-    ):
-        return field
-    metadata: dict[bytes | str, bytes | str] = {
-        key: value for key, value in (field.metadata or {}).items()
-    }
-    metadata[b"ARROW:extension:name"] = extension.extension_name.encode()
-    serialized = extension.__arrow_ext_serialize__()
-    if extension.extension_name == "ogc.wkb" and not serialized:
-        metadata.pop(b"ARROW:extension:metadata", None)
-    else:
-        metadata[b"ARROW:extension:metadata"] = serialized
-    return field.with_type(extension.storage_type).with_metadata(metadata)
-
-
-def _export_geometry_columns(
-    manager: NarwhalsTableManager[Any, Any],
-) -> dict[str, GeometryColumnInfo]:
-    if not manager.data.implementation.is_pyarrow():
-        return find_geometry_columns(manager.data)
-
-    import pyarrow as pa
-
-    schema = pa.schema(
-        [
-            _arrow_storage_field(field)
-            for field in manager.data.to_native().schema
-        ]
-    )
-    schema_view = pa.Table.from_batches([], schema=schema)
-    return find_geometry_columns(nw.from_native(schema_view))
 
 
 def _arrow_to_geodataframe(
@@ -1211,7 +1170,7 @@ def _validate_geoparquet(
             or "crs" not in column
             or name not in schema.names
             or not pa.types.is_binary(
-                _arrow_storage_field(schema.field(name)).type
+                arrow_storage_field(schema.field(name)).type
             )
         ):
             raise GeometryExportError(
@@ -1308,7 +1267,7 @@ def _prepare_arrow_export(
             continue
 
         index = export_table.schema.get_field_index(column)
-        field = export_table.schema.field(index)
+        field = arrow_storage_field(export_table.schema.field(index))
         metadata = dict(field.metadata or {})
         metadata.pop(b"ARROW:extension:name", None)
         metadata.pop(b"ARROW:extension:metadata", None)
@@ -1320,7 +1279,15 @@ def _prepare_arrow_export(
             metadata=metadata or None,
         )
 
-        values = export_table.column(index)
+        values = pa.chunked_array(
+            [
+                chunk.storage
+                if isinstance(chunk, pa.ExtensionArray)
+                else chunk
+                for chunk in export_table.column(index).chunks
+            ],
+            type=field.type,
+        )
         export_values: pa.Array[Any] | pa.ChunkedArray[Any]
         if info.encoding == "wkb":
             export_values = pa.array(
