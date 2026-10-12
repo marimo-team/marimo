@@ -177,7 +177,7 @@ class SessionBackend(SessionConsumer):
                 source="marimo",
                 severity="error",
                 range=None,
-                related=[],
+                related=(),
             )
         # Detachment already ended this session's runs in the core model.
         if self.session is run.session:

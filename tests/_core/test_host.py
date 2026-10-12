@@ -262,8 +262,9 @@ def test_catalog_requires_the_project(host: Host) -> None:
 def test_catalog_updates_do_not_share_mutable_records(host: Host) -> None:
     source = project()
     host.update_project(source)
-    source.name = "changed"
-    source.operations.clear()
+    with pytest.raises(AttributeError):
+        source.name = "changed"
+    source = replace(source, name="changed", operations=())
     host.update_project(source)
 
     replay = host.events(0, types={"project"})
@@ -274,20 +275,22 @@ def test_catalog_updates_do_not_share_mutable_records(host: Host) -> None:
     ]
     assert projects == [
         project(),
-        replace(project(), name="changed", operations=[]),
+        replace(project(), name="changed", operations=()),
     ]
 
     original = record()
     host.add_notebook(original, ScriptedBackend())
-    original.name = "caller mutation"
-    original.operations.clear()
+    with pytest.raises(AttributeError):
+        original.name = "caller mutation"
+    original = replace(original, name="caller mutation", operations=())
     view = host.notebooks[original.id]
-    view.name = "reader mutation"
-    view.operations.clear()
+    with pytest.raises(AttributeError):
+        view.name = "reader mutation"
     assert host.notebooks[original.id] == record()
 
     host.update_notebook(original)
-    original.name = "another mutation"
+    with pytest.raises(AttributeError):
+        original.name = "another mutation"
     assert host.notebooks[original.id] == replace(
-        record(), name="caller mutation", operations=[]
+        record(), name="caller mutation", operations=()
     )

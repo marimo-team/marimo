@@ -40,7 +40,7 @@ class Notebook:
         self._backend = backend
         self._stream = stream
         self._closed = False
-        self.runtime: protocol.Runtime | None = None
+        self._runtime: protocol.Runtime | None = None
         self._attachments: dict[str, protocol.Attachment] = {}
         self._runs: dict[str, protocol.Run] = {}
         self._run_requests: dict[str, str | None] = {}
@@ -58,6 +58,11 @@ class Notebook:
     def id(self) -> protocol.NotebookId:
         return self._id
 
+    @property
+    def runtime(self) -> protocol.Runtime | None:
+        """The current runtime, updated by commands and backend observations."""
+        return self._runtime
+
     def _require_open(self) -> None:
         if self._closed:
             raise NotFound(f"no notebook {self.id}")
@@ -73,8 +78,8 @@ class Notebook:
         An existing runtime is returned unchanged, regardless of status.
         """
         self._require_open()
-        if self.runtime is not None:
-            return self.runtime, False
+        if self._runtime is not None:
+            return self._runtime, False
         runtime = self._new_runtime("starting", None, None)
         self._lifecycle_request = request_id
         self._set_runtime(runtime)
@@ -130,22 +135,22 @@ class Notebook:
         return replacement
 
     def _require_runtime(self) -> protocol.Runtime:
-        if self.runtime is None:
+        if self._runtime is None:
             raise NoRuntime(
                 f"notebook {self.id} has no runtime; start one first."
             )
-        return self.runtime
+        return self._runtime
 
     def _set_runtime(self, runtime: protocol.Runtime) -> None:
-        self.runtime = runtime
+        self._runtime = runtime
         self._publish(runtime, self._lifecycle_request)
         if runtime.status in ("running", "failed"):
             self._lifecycle_request = None
 
     def _end_runtime(self) -> None:
-        assert self.runtime is not None
+        assert self._runtime is not None
         self._interrupt_in_flight()
-        runtime, self.runtime = self.runtime, None
+        runtime, self._runtime = self._runtime, None
         self._remove("runtime", runtime.id, self._lifecycle_request)
         self._lifecycle_request = None
 
@@ -358,24 +363,24 @@ class Notebook:
                         self._retired_executions.pop(member.id, None)
 
     def _observe_starting(self, text: str | None) -> None:
-        if self.runtime is None:
+        if self._runtime is None:
             # Track kernels started outside the host API.
             self._set_runtime(self._new_runtime("starting", text, None))
-        elif self.runtime.status == "failed":
+        elif self._runtime.status == "failed":
             self._replace_runtime(text)
-        elif self.runtime.status == "starting":
-            self._set_runtime(replace(self.runtime, message=text))
+        elif self._runtime.status == "starting":
+            self._set_runtime(replace(self._runtime, message=text))
 
     def _observe_running(self, version: str | None) -> None:
-        if self.runtime is None:
+        if self._runtime is None:
             self._set_runtime(self._new_runtime("running", None, version))
             return
-        if self.runtime.status == "failed":
+        if self._runtime.status == "failed":
             self._replace_runtime()
-        if self.runtime.status in ("starting", "running"):
+        if self._runtime.status in ("starting", "running"):
             self._set_runtime(
                 replace(
-                    self.runtime,
+                    self._runtime,
                     status="running",
                     message=None,
                     marimo_version=version,
@@ -383,7 +388,7 @@ class Notebook:
             )
 
     def _observe_exited(self, reason: str | None) -> None:
-        runtime = self.runtime
+        runtime = self._runtime
         if runtime is None:
             return
         if runtime.status == "terminating" and self._replacement is not None:
@@ -392,8 +397,8 @@ class Notebook:
             self._end_runtime()
             self._lifecycle_request = request_id
             self._set_runtime(replacement)
-            assert self.runtime is not None
-            self._backend.start(self.runtime.id)
+            assert self._runtime is not None
+            self._backend.start(self._runtime.id)
         elif runtime.status == "terminating":
             self._end_runtime()
         else:
@@ -453,7 +458,7 @@ class Notebook:
                     cell_id=entry.cell_id,
                     code=entry.code,
                     code_hash=entry.code_hash,
-                    bindings=[],
+                    bindings=(),
                     status="queued",
                     outcome=None,
                     stale=None,
@@ -508,8 +513,8 @@ class Notebook:
             | protocol.Execution
             | Item
         ] = []
-        if self.runtime is not None:
-            bodies.append(self.runtime)
+        if self._runtime is not None:
+            bodies.append(self._runtime)
         bodies.extend(self._attachments.values())
         bodies.extend(self._runs.values())
         bodies.extend(self._executions.values())
@@ -533,8 +538,8 @@ class Notebook:
         self._clear_runs()
         for attachment_id in list(self._attachments):
             self.detach(attachment_id)
-        if self.runtime is not None:
-            runtime, self.runtime = self.runtime, None
+        if self._runtime is not None:
+            runtime, self._runtime = self._runtime, None
             self._remove("runtime", runtime.id, request_id)
 
     def _publish(

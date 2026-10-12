@@ -42,7 +42,7 @@ class Host:
         operations: Sequence[str],
         history: int = 1000,
     ) -> None:
-        self._host = protocol.Host(operations=list(operations))
+        self._host = protocol.Host(operations=tuple(operations))
         self._stream = Stream(history=history)
         # Lookups accept wire strings; stored objects carry branded IDs.
         self._projects: dict[str, protocol.Project] = {}

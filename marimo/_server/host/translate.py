@@ -274,7 +274,7 @@ def _describe(error: Error) -> protocol.Error:
             source="marimo",
             severity="error",
             range=None,
-            related=[],
+            related=(),
         )
     if isinstance(error, MarimoSyntaxError):
         return protocol.Error(
@@ -285,7 +285,7 @@ def _describe(error: Error) -> protocol.Error:
             source="marimo",
             severity="error",
             range=None,
-            related=[],
+            related=(),
         )
     if isinstance(error, UnknownError):
         return protocol.Error(
@@ -296,7 +296,7 @@ def _describe(error: Error) -> protocol.Error:
             source="marimo",
             severity="error",
             range=None,
-            related=[],
+            related=(),
         )
     return protocol.Error(
         kind="internal",
@@ -306,5 +306,5 @@ def _describe(error: Error) -> protocol.Error:
         source="marimo",
         severity="error",
         range=None,
-        related=[],
+        related=(),
     )

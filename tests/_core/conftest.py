@@ -39,7 +39,7 @@ def project(project_id: str = "p1") -> protocol.Project:
         root="/Users/me/forecasting",
         status="indexed",
         message=None,
-        operations=["notebook.create"],
+        operations=("notebook.create",),
     )
 
 
@@ -51,7 +51,7 @@ def record(
         project_id=protocol.ProjectId("p1"),
         path=path,
         name=path.removesuffix(".py"),
-        operations=["runtime.start", "runtime.run"],
+        operations=("runtime.start", "runtime.run"),
         updated_at=None,
     )
 

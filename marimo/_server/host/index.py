@@ -83,7 +83,7 @@ class WorkspaceIndex:
                 root=None if self._root is None else str(self._root),
                 status="partial" if truncated else "indexed",
                 message=_TRUNCATED if truncated else None,
-                operations=list(OPERATIONS),
+                operations=tuple(OPERATIONS),
             )
         )
         seen: set[protocol.NotebookId] = set()
@@ -205,7 +205,9 @@ class WorkspaceIndex:
             project_id=self.project_id,
             path=str(relative),
             name=self._names.get(notebook_id, relative.stem),
-            operations=[op for op in OPERATIONS if op != "notebook.create"],
+            operations=tuple(
+                op for op in OPERATIONS if op != "notebook.create"
+            ),
             updated_at=None
             if modified is None
             else datetime.fromtimestamp(modified, tz=timezone.utc),

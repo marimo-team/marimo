@@ -339,6 +339,6 @@ async def test_submission_failure_is_an_error(
             source="marimo",
             severity="error",
             range=None,
-            related=[],
+            related=(),
         )
     )
