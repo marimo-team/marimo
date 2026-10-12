@@ -74,9 +74,9 @@ export function parsePastedDate(
   }
 
   if (filterType === "time") {
-    const isoTime = parseTimeToDate(trimmed);
-    if (isoTime) {
-      return isoTime;
+    const date = parseTimeToDate(trimmed);
+    if (date) {
+      return date;
     }
   }
 
