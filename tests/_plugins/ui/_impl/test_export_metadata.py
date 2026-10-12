@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import patch
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
-from marimo._plugins.ui._impl.table import DownloadAsArgs
+from marimo._plugins.ui._impl.table import DownloadAsArgs, DownloadAsResponse
 from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._runtime.functions import EmptyArgs
 from marimo._utils.parse_dataclass import parse_raw
@@ -47,6 +47,11 @@ def test_multigeometry_metadata_does_not_read_rows(widget: Any) -> None:
         "primary_geometry_column": "geom_a",
         "default_geometry_column": "geom_a",
         "formats": {
+            "geojson": {
+                "available": True,
+                "reason": None,
+                "missing_packages": [],
+            },
             "parquet": {
                 "available": True,
                 "reason": None,
@@ -92,10 +97,11 @@ def test_ambiguous_geometry_has_no_default(widget: Any) -> None:
     ]
     assert result.primary_geometry_column is None
     assert result.default_geometry_column is None
+    assert result.formats["geojson"].available
 
 
 @pytest.mark.requires("geopandas")
-def test_old_geopandas_is_not_eligible(widget: Any) -> None:
+def test_old_geopandas_blocks_only_geoparquet(widget: Any) -> None:
     with patch.object(
         DependencyManager.geopandas, "get_version", return_value="0.14.0"
     ):
@@ -108,6 +114,7 @@ def test_old_geopandas_is_not_eligible(widget: Any) -> None:
         "reason": "Update geopandas to 0.14.1 or newer to export GeoParquet.",
         "missing_packages": [],
     }
+    assert result.formats["geojson"].available
 
 
 @pytest.mark.requires("geopandas")
@@ -117,6 +124,7 @@ def test_empty_name_can_be_the_source_primary(widget: Any) -> None:
     result = widget(source)._get_export_metadata(EmptyArgs())
     assert result.primary_geometry_column == ""
     assert result.default_geometry_column == ""
+    assert result.formats["geojson"].available
 
 
 @pytest.mark.requires("geopandas")
@@ -138,6 +146,11 @@ def test_missing_pyarrow_is_reported(widget: Any) -> None:
         "reason": "GeoParquet export requires pyarrow.",
         "missing_packages": ["pyarrow"],
     }
+    assert asdict(result.formats["geojson"]) == {
+        "available": True,
+        "reason": None,
+        "missing_packages": [],
+    }
 
 
 @pytest.mark.requires("geopandas")
@@ -150,6 +163,26 @@ def test_missing_geopandas_is_reported(widget: Any) -> None:
         "reason": "This pandas table needs geopandas to export GeoParquet.",
         "missing_packages": ["geopandas"],
     }
+    assert asdict(result.formats["geojson"]) == {
+        "available": False,
+        "reason": "This pandas table needs geopandas to export GeoJSON.",
+        "missing_packages": ["geopandas"],
+    }
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+def test_old_shapely_disables_only_geojson(widget: Any) -> None:
+    subject = widget(fixtures.gdf_multi_geometry())
+    with patch.object(
+        DependencyManager.shapely, "has_at_version", return_value=False
+    ):
+        result = subject._get_export_metadata(EmptyArgs())
+    assert asdict(result.formats["geojson"]) == {
+        "available": False,
+        "reason": "Update shapely to 2.0 or newer to export GeoJSON.",
+        "missing_packages": [],
+    }
+    assert result.formats["parquet"].available
 
 
 @pytest.mark.requires("pyarrow")
@@ -164,6 +197,43 @@ def test_arrow_crs_comes_from_field_metadata(widget: Any) -> None:
         "reason": "GeoParquet export from Arrow tables is not supported yet.",
         "missing_packages": [],
     }
+    assert asdict(result.formats["geojson"]) == {
+        "available": False,
+        "reason": "GeoJSON export from Arrow tables is not supported yet.",
+        "missing_packages": [],
+    }
+
+
+@pytest.mark.requires("geopandas")
+@pytest.mark.parametrize("empty", [False, True])
+def test_geojson_support_does_not_depend_on_default_crs(
+    widget: Any, empty: bool
+) -> None:
+    import geopandas as gpd  # type: ignore[import-untyped]
+
+    source = fixtures.gdf_multi_geometry()
+    source = gpd.GeoDataFrame(
+        {
+            "geom_a": gpd.GeoSeries(list(source["geom_a"])),
+            "geom_b": source["geom_b"],
+        },
+        geometry="geom_a",
+    )
+    if empty:
+        source = source.head(0)
+    subject = widget(source)
+    with patch.object(
+        gpd.GeoSeries,
+        "to_crs",
+        side_effect=AssertionError("Metadata must not reproject geometry"),
+    ):
+        result = subject._get_export_metadata(EmptyArgs())
+    assert result.default_geometry_column == "geom_a"
+    assert [column.crs for column in result.geometry_columns] == [
+        None,
+        "EPSG:3857",
+    ]
+    assert result.formats["geojson"].available
 
 
 @pytest.mark.requires("pandas")
@@ -221,8 +291,36 @@ def test_download_request_accepts_optional_geometry(
     assert parsed.format == payload["format"]
 
 
-@pytest.mark.requires("geopandas", "pyarrow")
-def test_widget_passes_geometry_request_to_export(widget: Any) -> None:
+@pytest.mark.parametrize("geometry_column", [None, "geom_b", ""])
+def test_geojson_request_uses_separate_contract(
+    geometry_column: str | None,
+) -> None:
+    from marimo._plugins.ui._impl.table import DownloadGeoJSONArgs
+
+    payload = {"format": "geojson", "geometry_column": geometry_column}
+    parsed = parse_raw(payload, DownloadGeoJSONArgs)
+    assert parsed.geometry_column == geometry_column
+    assert parsed.format == "geojson"
+    with pytest.raises(
+        ValueError, match="does not fit any type of the literal"
+    ):
+        parse_raw(payload, DownloadAsArgs)
+
+
+def test_download_response_accepts_missing_crs() -> None:
+    parsed = parse_raw(
+        {"code": "missing_crs", "column": "", "error": "Declare a CRS."},
+        DownloadAsResponse,
+    )
+    assert parsed.code == "missing_crs"
+    assert parsed.column == ""
+
+
+@pytest.mark.requires("geopandas")
+@pytest.mark.parametrize("request_format", ["parquet", "geojson"])
+def test_widget_passes_geometry_request_to_export(
+    widget: Any, request_format: Literal["parquet", "geojson"]
+) -> None:
     subject = widget(fixtures.gdf_multi_geometry())
     module = (
         "marimo._plugins.ui._impl.table"
@@ -230,10 +328,11 @@ def test_widget_passes_geometry_request_to_export(widget: Any) -> None:
         else "marimo._plugins.ui._impl.dataframes.dataframe"
     )
     with patch(
-        f"{module}.download_as", return_value=("data:test", "test.parquet")
+        f"{module}.download_as",
+        return_value=("data:test", f"test.{request_format}"),
     ) as export:
         response = subject._download_as(
-            DownloadAsArgs(format="parquet", geometry_column="geom_b")
+            DownloadAsArgs(format=request_format, geometry_column="geom_b")
         )
     assert response.url == "data:test"
     assert export.call_args.kwargs["geometry_column"] == "geom_b"

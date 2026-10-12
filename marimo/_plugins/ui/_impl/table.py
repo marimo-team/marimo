@@ -144,6 +144,13 @@ class DownloadAsArgs:
 
 
 @dataclass
+class DownloadGeoJSONArgs:
+    format: Literal["geojson"]
+    options: DownloadAsOptions | None = None
+    geometry_column: str | None = None
+
+
+@dataclass
 class DownloadAsResponse:
     url: str = ""
     filename: str = ""
@@ -978,6 +985,11 @@ class table(
                     function=self._download_as,
                 ),
                 Function(
+                    name="download_geojson",
+                    arg_cls=DownloadGeoJSONArgs,
+                    function=self._download_geojson,
+                ),
+                Function(
                     name="get_export_metadata",
                     arg_cls=EmptyArgs,
                     function=self._get_export_metadata,
@@ -1079,6 +1091,16 @@ class table(
         return get_export_metadata(self._manager)
 
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
+        return self._download(args)
+
+    def _download_geojson(
+        self, args: DownloadGeoJSONArgs
+    ) -> DownloadAsResponse:
+        return self._download(args)
+
+    def _download(
+        self, args: DownloadAsArgs | DownloadGeoJSONArgs
+    ) -> DownloadAsResponse:
         """Download the table data in the specified format.
 
         For cell-selection modes ("single-cell"/"multi-cell"), selection is
@@ -1094,9 +1116,8 @@ class table(
         user to install the dependency and retry.
 
         Args:
-            args (DownloadAsArgs): The requested download format and
-                optional per-request export options. The format must be
-                one of `'csv'`, `'tsv'`, `'json'`, or `'parquet'`.
+            args (DownloadAsArgs | DownloadGeoJSONArgs): The requested
+                format and optional per-request export options.
 
         Returns:
             DownloadAsResponse: Either a success response with `url` and

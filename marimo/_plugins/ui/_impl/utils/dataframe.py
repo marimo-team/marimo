@@ -13,6 +13,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.geometry_export import (
     GeometryExportError,
     prepare_geometry_text_export,
+    serialize_geojson,
     serialize_geoparquet,
 )
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
@@ -123,7 +124,7 @@ class DownloadOptions:
 @dataclass(frozen=True)
 class _ExportFormat:
     extension: str
-    serialize: Callable[[TableManager[Any], DownloadOptions], bytes]
+    serialize: Callable[[TableManager[Any], DownloadOptions], bytes] | None
 
 
 def _serialize_delimited(
@@ -165,6 +166,7 @@ _EXPORT_FORMATS: dict[str, _ExportFormat] = {
     "tsv": _ExportFormat("tsv", _serialize_delimited("\t")),
     "json": _ExportFormat("json", _serialize_json),
     "parquet": _ExportFormat("parquet", _serialize_parquet),
+    "geojson": _ExportFormat("geojson", None),
 }
 
 
@@ -181,7 +183,7 @@ def download_as(
     Args:
         manager (TableManager[Any]): The table manager to download.
         ext (str): The format to download the table data in. One of
-            `csv`, `tsv`, `json`, or `parquet`.
+            `csv`, `tsv`, `json`, `parquet`, or `geojson`.
         drop_marimo_index (bool, optional): Whether to drop the marimo
             selection column. Defaults to False.
         options (DownloadOptions | None, optional): Per-format output
@@ -212,19 +214,21 @@ def download_as(
         if geometry_column is not None:
             raise GeometryExportError(
                 "invalid_geometry",
-                "A primary geometry can only be chosen for GeoParquet export.",
+                "A primary geometry can only be chosen for geographic export.",
                 column=geometry_column,
             )
         manager = prepare_geometry_text_export(manager)
 
-    artifact = (
-        serialize_geoparquet(manager, geometry_column)
-        if ext == "parquet"
-        else None
-    )
-    vfile = mo_data.any_data(
-        artifact if artifact is not None else fmt.serialize(manager, options),
-        ext=fmt.extension,
-    )
+    artifact = None
+    if ext == "parquet":
+        artifact = serialize_geoparquet(manager, geometry_column)
+    elif ext == "geojson":
+        artifact = serialize_geojson(
+            manager, geometry_column, options.json.ensure_ascii
+        )
+    if artifact is None:
+        assert fmt.serialize is not None
+        artifact = fmt.serialize(manager, options)
+    vfile = mo_data.any_data(artifact, ext=fmt.extension)
     base_name = filename if filename is not None else "download"
     return (vfile.url, f"{base_name}.{fmt.extension}")

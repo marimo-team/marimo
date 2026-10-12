@@ -10,6 +10,7 @@ import {
   DownloadIcon,
   FileTextIcon,
   InfoIcon,
+  MapIcon,
   TableIcon,
 } from "lucide-react";
 import React from "react";
@@ -82,6 +83,14 @@ const EXPORT_OPTIONS = [
     canCopy: false,
   },
   {
+    label: "GeoJSON",
+    format: "geojson",
+    description: "Geometry in longitude and latitude",
+    icon: MapIcon,
+    canDownload: true,
+    canCopy: true,
+  },
+  {
     label: "Markdown",
     format: "markdown",
     description: "Preserves hyperlinks and formatting",
@@ -93,6 +102,10 @@ const EXPORT_OPTIONS = [
 
 type ExportFormat = (typeof EXPORT_OPTIONS)[number]["format"];
 type CopyFormat = Exclude<ExportFormat, "parquet">;
+type GeographicFormat = "parquet" | "geojson";
+
+const isGeographic = (format: ExportFormat): format is GeographicFormat =>
+  format === "parquet" || format === "geojson";
 type ExportAction =
   | { destination: "download"; format: DownloadFormat }
   | { destination: "copy"; format: CopyFormat };
@@ -117,6 +130,7 @@ const COPY_SOURCE_FORMAT: Record<CopyFormat, DownloadFormat> = {
   csv: "csv",
   tsv: "tsv",
   json: "json",
+  geojson: "geojson",
   markdown: "json",
 };
 
@@ -191,6 +205,7 @@ function requestOptions(
       }
       break;
     case "parquet":
+    case "geojson":
       break;
     default:
       logNever(format);
@@ -221,6 +236,7 @@ function settingsSummary(
         ? "Escapes non-ASCII"
         : "Keeps non-ASCII";
     case "parquet":
+    case "geojson":
     case "markdown":
       return null;
     default:
@@ -241,7 +257,10 @@ export interface ExportActionProps {
   sizeBytesIsLoading?: boolean;
 }
 
-const labelForFormat = (format: ExportFormat, hasGeometry = false): string =>
+const labelForFormat = (
+  format: ExportFormat | DownloadFormat,
+  hasGeometry = false,
+): string =>
   format === "parquet" && hasGeometry
     ? "GeoParquet"
     : (EXPORT_OPTIONS.find((option) => option.format === format)?.label ??
@@ -270,7 +289,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   );
   const hasGeometry = !!metadata?.geometry_columns.length;
   const [expandedFormat, setExpandedFormat] = React.useState<
-    ConfigurableFormat | "parquet" | null
+    ConfigurableFormat | GeographicFormat | null
   >(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const dialogRef = React.useRef<HTMLDivElement>(null);
@@ -380,7 +399,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     const request = {
       format,
       ...(options ? { options } : {}),
-      ...(format === "parquet" && geometryColumn !== null
+      ...(isGeographic(format) && geometryColumn !== null
         ? { geometry_column: geometryColumn }
         : {}),
     };
@@ -481,6 +500,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
         switch (format) {
           case "tsv":
           case "csv":
+          case "geojson":
             text = await fetchText(result.url);
             break;
           case "json": {
@@ -498,6 +518,9 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
             return;
         }
 
+        if (actionId !== latestActionId.current) {
+          return;
+        }
         await copyToClipboard(text);
         toast({
           title: "Copied to clipboard",
@@ -531,7 +554,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   };
 
   const retryAfterInstall = async (action: ExportAction) => {
-    if (action.format === "parquet" && getExportMetadata) {
+    if (isGeographic(action.format) && getExportMetadata) {
       const actionId = latestActionId.current;
       let result: ExportMetadata;
       try {
@@ -547,7 +570,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
       }
       setMetadata(result);
       setMetadataError(null);
-      if (result.formats.parquet?.available === false) {
+      if (result.formats[action.format]?.available === false) {
         setFailure(null);
         return;
       }
@@ -570,15 +593,21 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
       if (result.geometry_columns.length > 0 && geometryColumn === null) {
         return;
       }
+      if (
+        action.format === "geojson" &&
+        !result.geometry_columns.find(
+          (column) => column.name === geometryColumn,
+        )?.crs
+      ) {
+        setFailure(null);
+        return;
+      }
     }
     retryAction(action);
   };
 
   const toggleExpanded = (format: ExportFormat) => {
-    if (
-      !isConfigurable(format) &&
-      !(format === "parquet" && metadata?.geometry_columns.length)
-    ) {
+    if (!isConfigurable(format) && !(isGeographic(format) && hasGeometry)) {
       return;
     }
     setExpandedFormat((current) => (current === format ? null : format));
@@ -624,12 +653,13 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
           aria-label="Export formats"
           className="list-none overflow-hidden rounded-md border divide-y"
         >
-          {EXPORT_OPTIONS.map((option) => {
+          {EXPORT_OPTIONS.filter(
+            (option) => option.format !== "geojson" || hasGeometry,
+          ).map((option) => {
             const optionLabel = labelForFormat(option.format, hasGeometry);
             const configurableFormat =
               isConfigurable(option.format) ||
-              (option.format === "parquet" &&
-                !!metadata?.geometry_columns.length)
+              (isGeographic(option.format) && hasGeometry)
                 ? option.format
                 : null;
             const expanded =
@@ -639,7 +669,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
             const rowFailure =
               failure?.action.format === option.format ? failure : null;
             const summary =
-              option.format === "parquet" && metadata?.geometry_columns.length
+              isGeographic(option.format) && hasGeometry
                 ? geometryColumn === ""
                   ? "(unnamed geometry)"
                   : (geometryColumn ?? "Choose geometry")
@@ -648,25 +678,42 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
               metadata?.geometry_columns.findIndex(
                 (column) => column.name === geometryColumn,
               ) ?? -1;
-            const parquetEligibility =
-              option.format === "parquet"
-                ? metadata?.formats.parquet
-                : undefined;
+            const eligibility = isGeographic(option.format)
+              ? metadata?.formats[option.format]
+              : undefined;
+            const selectedGeometry =
+              metadata?.geometry_columns[selectedGeometryIndex];
+            const missingCrs =
+              option.format === "geojson" &&
+              selectedGeometry !== undefined &&
+              !selectedGeometry.crs;
+            const geometryReason = metadataError
+              ? `Could not load geometry options: ${metadataError}`
+              : (eligibility?.reason ??
+                (hasGeometry && geometryColumn === null
+                  ? `Choose a primary geometry column to export ${optionLabel}.`
+                  : missingCrs
+                    ? `Geometry column ${geometryColumn === "" ? "(unnamed geometry)" : geometryColumn} needs a CRS for GeoJSON export. Declare its source CRS in Python before exporting.`
+                    : null));
             const missingPackageFailure =
               rowFailure?.kind === "missing-packages" ? rowFailure : null;
             const missingPackages =
               missingPackageFailure?.packages ??
-              (parquetEligibility?.available === false
-                ? parquetEligibility.missing_packages
+              (eligibility?.available === false
+                ? eligibility.missing_packages
                 : []);
-            const parquetUnavailable =
-              option.format === "parquet" &&
+            const geographicUnavailable =
+              isGeographic(option.format) &&
               ((!!getExportMetadata && !metadata) ||
                 metadataLoading ||
                 !!metadataError ||
-                parquetEligibility?.available === false ||
+                eligibility?.available === false ||
+                missingCrs ||
                 (!!metadata?.geometry_columns.length &&
                   geometryColumn === null));
+            const copyUnavailable =
+              isGeographic(option.format) &&
+              (geographicUnavailable || missingPackages.length > 0);
             return (
               <li
                 key={option.format}
@@ -737,12 +784,12 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                           aria-label={`Download ${optionLabel}`}
                           disabled={
                             !option.canDownload ||
-                            parquetUnavailable ||
+                            geographicUnavailable ||
                             missingPackages.length > 0
                           }
                           onClick={
                             option.canDownload &&
-                            !parquetUnavailable &&
+                            !geographicUnavailable &&
                             missingPackages.length === 0
                               ? () => {
                                   void handleDownload(option.format);
@@ -767,9 +814,9 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                           variant="ghost"
                           size="icon"
                           aria-label={`Copy ${optionLabel}`}
-                          disabled={!option.canCopy}
+                          disabled={!option.canCopy || copyUnavailable}
                           onClick={
-                            option.canCopy
+                            option.canCopy && !copyUnavailable
                               ? () => {
                                   void handleCopyAction(option.format);
                                 }
@@ -788,11 +835,18 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                     className="grid grid-cols-2 gap-3 border-t bg-muted/50 px-3.5 py-3.5 pl-[52px]"
                   >
                     <legend className="sr-only">{optionLabel} options</legend>
-                    {configurableFormat === "parquet" ? (
+                    {isGeographic(configurableFormat) && (
+                      <p className="col-span-2 text-xs text-muted-foreground">
+                        {configurableFormat === "geojson"
+                          ? "Reproject the selected geometry to longitude and latitude (WGS 84). Keep other geometry columns as complete WKT in their source coordinates."
+                          : "Use the selected column as the primary geometry. Preserve all geometry columns and their coordinate reference systems (CRS)."}
+                      </p>
+                    )}
+                    {isGeographic(configurableFormat) ? (
                       <SettingField
                         id="export-primary-geometry"
                         label="Primary geometry"
-                        help="Geometry column to use as the primary geometry in the GeoParquet file."
+                        help={`Geometry column to use as the primary geometry in the ${optionLabel} file.`}
                       >
                         <NativeSelect
                           id="export-primary-geometry"
@@ -824,19 +878,11 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                     )}
                   </fieldset>
                 )}
-                {option.format === "parquet" &&
+                {isGeographic(option.format) &&
                   missingPackages.length === 0 &&
-                  (parquetEligibility?.reason ||
-                    metadataError ||
-                    (!!metadata?.geometry_columns.length &&
-                      geometryColumn === null)) && (
+                  geometryReason && (
                     <div className="flex items-center justify-between gap-2 border-t px-3 py-2 pl-[42px] text-xs text-muted-foreground">
-                      <span>
-                        {metadataError
-                          ? `Could not load geometry options: ${metadataError}`
-                          : (parquetEligibility?.reason ??
-                            "Choose a primary geometry column to export GeoParquet.")}
-                      </span>
+                      <span>{geometryReason}</span>
                       {metadataError && (
                         <Button
                           type="button"
@@ -858,13 +904,16 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                       featureName={`${optionLabel} export`}
                       description={
                         missingPackageFailure?.description ??
-                        parquetEligibility?.reason
+                        eligibility?.reason
                       }
                       onInstall={() => {
                         void retryAfterInstall(
                           missingPackageFailure?.action ?? {
                             destination: "download",
-                            format: "parquet",
+                            format:
+                              option.format === "geojson"
+                                ? "geojson"
+                                : "parquet",
                           },
                         );
                       }}

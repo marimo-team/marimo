@@ -665,6 +665,64 @@ paths:
       responses:
         "204":
           description: Accepted.
+  /plugins/marimo-dataframe/functions/download_geojson/input:
+    summary: marimo-dataframe download_geojson input
+    get:
+      operationId: read_marimo_dataframe_download_geojson_input
+      summary: Read marimo-dataframe download_geojson input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-dataframe download_geojson input accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.download_geojson.input"
+    put:
+      operationId: write_marimo_dataframe_download_geojson_input
+      summary: Write marimo-dataframe download_geojson input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.download_geojson.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/functions/download_geojson/output:
+    summary: marimo-dataframe download_geojson output
+    get:
+      operationId: read_marimo_dataframe_download_geojson_output
+      summary: Read marimo-dataframe download_geojson output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-dataframe download_geojson output accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.download_geojson.output"
+    put:
+      operationId: write_marimo_dataframe_download_geojson_output
+      summary: Write marimo-dataframe download_geojson output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.download_geojson.output"
+      responses:
+        "204":
+          description: Accepted.
   /plugins/marimo-dataframe/functions/get_column_values/input:
     summary: marimo-dataframe get_column_values input
     get:
@@ -2269,6 +2327,62 @@ paths:
       responses:
         "204":
           description: Accepted.
+  /plugins/marimo-table/functions/download_geojson/input:
+    summary: marimo-table download_geojson input
+    get:
+      operationId: read_marimo_table_download_geojson_input
+      summary: Read marimo-table download_geojson input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-table download_geojson input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.download_geojson.input"
+    put:
+      operationId: write_marimo_table_download_geojson_input
+      summary: Write marimo-table download_geojson input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.download_geojson.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/download_geojson/output:
+    summary: marimo-table download_geojson output
+    get:
+      operationId: read_marimo_table_download_geojson_output
+      summary: Read marimo-table download_geojson output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-table download_geojson output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.download_geojson.output"
+    put:
+      operationId: write_marimo_table_download_geojson_output
+      summary: Write marimo-table download_geojson output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.download_geojson.output"
+      responses:
+        "204":
+          description: Accepted.
   /plugins/marimo-table/functions/get_column_summaries/input:
     summary: marimo-table get_column_summaries input
     get:
@@ -3258,13 +3372,6 @@ components:
     marimo-dataframe.download_as.input:
       type: object
       properties:
-        format:
-          type: string
-          enum:
-            - csv
-            - json
-            - parquet
-            - tsv
         geometry_column:
           type:
             - string
@@ -3278,6 +3385,13 @@ components:
               type: string
             ensure_ascii:
               type: boolean
+        format:
+          type: string
+          enum:
+            - csv
+            - json
+            - parquet
+            - tsv
       required:
         - format
     marimo-dataframe.download_as.output:
@@ -3309,6 +3423,66 @@ components:
                 - missing_packages
                 - conversion_failed
             - type: "null"
+        column:
+          type:
+            - string
+            - "null"
+      required:
+        - url
+        - filename
+    marimo-dataframe.download_geojson.input:
+      type: object
+      properties:
+        geometry_column:
+          type:
+            - string
+            - "null"
+        options:
+          type: object
+          properties:
+            separator:
+              type: string
+            encoding:
+              type: string
+            ensure_ascii:
+              type: boolean
+        format:
+          type: string
+          const: geojson
+      required:
+        - format
+    marimo-dataframe.download_geojson.output:
+      type: object
+      properties:
+        url:
+          type: string
+        filename:
+          type: string
+        error:
+          type:
+            - string
+            - "null"
+        missing_packages:
+          anyOf:
+            - type: array
+              items:
+                type: string
+            - type: "null"
+        code:
+          anyOf:
+            - anyOf:
+                - type: string
+                  enum:
+                    - geometry_required
+                    - invalid_geometry
+                    - invalid_metadata
+                    - unsupported_representation
+                    - unsupported_version
+                    - missing_packages
+                    - conversion_failed
+                - type: "null"
+            - type: string
+              const: missing_crs
         column:
           type:
             - string
@@ -4836,13 +5010,6 @@ components:
     marimo-table.download_as.input:
       type: object
       properties:
-        format:
-          type: string
-          enum:
-            - csv
-            - json
-            - parquet
-            - tsv
         geometry_column:
           type:
             - string
@@ -4856,6 +5023,13 @@ components:
               type: string
             ensure_ascii:
               type: boolean
+        format:
+          type: string
+          enum:
+            - csv
+            - json
+            - parquet
+            - tsv
       required:
         - format
     marimo-table.download_as.output:
@@ -4887,6 +5061,66 @@ components:
                 - missing_packages
                 - conversion_failed
             - type: "null"
+        column:
+          type:
+            - string
+            - "null"
+      required:
+        - url
+        - filename
+    marimo-table.download_geojson.input:
+      type: object
+      properties:
+        geometry_column:
+          type:
+            - string
+            - "null"
+        options:
+          type: object
+          properties:
+            separator:
+              type: string
+            encoding:
+              type: string
+            ensure_ascii:
+              type: boolean
+        format:
+          type: string
+          const: geojson
+      required:
+        - format
+    marimo-table.download_geojson.output:
+      type: object
+      properties:
+        url:
+          type: string
+        filename:
+          type: string
+        error:
+          type:
+            - string
+            - "null"
+        missing_packages:
+          anyOf:
+            - type: array
+              items:
+                type: string
+            - type: "null"
+        code:
+          anyOf:
+            - anyOf:
+                - type: string
+                  enum:
+                    - geometry_required
+                    - invalid_geometry
+                    - invalid_metadata
+                    - unsupported_representation
+                    - unsupported_version
+                    - missing_packages
+                    - conversion_failed
+                - type: "null"
+            - type: string
+              const: missing_crs
         column:
           type:
             - string
