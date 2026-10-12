@@ -485,6 +485,10 @@ async def _run(request: Request) -> Response:
     key = request.headers["Idempotency-Key"]
     notebook = _notebook(request)
     body = await _decode(request, protocol.RunRequest)
+    if body.code is msgspec.UNSET or body.cells is not msgspec.UNSET:
+        return problem(
+            400, "invalid-request", "This host requires scratch code"
+        )
     started = notebook.run(body.code, request_id=key)
     return _reply(202, started)
 

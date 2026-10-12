@@ -455,7 +455,11 @@ class Notebook:
                     run_id=run_id,
                     runtime_id=runtime.id,
                     caused_by=entry.caused_by,
-                    cell_id=entry.cell_id,
+                    cell_id=(
+                        protocol.CellId(entry.cell_id)
+                        if entry.cell_id is not None
+                        else None
+                    ),
                     code=entry.code,
                     code_hash=entry.code_hash,
                     bindings=(),
