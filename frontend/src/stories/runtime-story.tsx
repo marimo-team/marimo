@@ -336,19 +336,16 @@ export function RuntimeStory(props: Props) {
         },
       },
     }));
+    const preparingEnvironment =
+      props.backend &&
+      (props.phase === "preparing" || props.phase === "failed");
     state.set(startupProgressAtom, {
-      phase:
-        !props.backend ||
-        (props.phase !== "preparing" && props.phase !== "failed")
-          ? "starting-kernel"
-          : "preparing-environment",
-      logs:
-        !props.backend ||
-        (props.phase !== "preparing" && props.phase !== "failed")
-          ? props.backend
-            ? "Launching kernel process\nWaiting for kernel connection\n"
-            : "Launching kernel process\nConnecting to Python runtime\nWaiting for kernel connection\n"
-          : "",
+      phase: preparingEnvironment ? "preparing-environment" : "starting-kernel",
+      logs: preparingEnvironment
+        ? ""
+        : props.backend
+          ? "Launching kernel process\nWaiting for kernel connection\n"
+          : "Launching kernel process\nConnecting to Python runtime\nWaiting for kernel connection\n",
       log_mode: "replace",
     });
     if (props.existingCells) {

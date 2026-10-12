@@ -71,6 +71,14 @@ function SandboxRestart() {
   );
 }
 
+function RuntimeNoticeDetails({ notice }: { notice: DisplayConnectionNotice }) {
+  return (
+    <ConnectionDetails notice={notice}>
+      {notice.sandbox && <SandboxRecovery notice={notice} />}
+    </ConnectionDetails>
+  );
+}
+
 function SandboxSyncDetails({
   notice,
 }: {
@@ -84,9 +92,7 @@ function SandboxSyncDetails({
     <div className="mt-5 min-w-0">
       {notice ? (
         <div className="mb-5">
-          <ConnectionDetails notice={notice}>
-            <SandboxRecovery notice={notice} />
-          </ConnectionDetails>
+          <RuntimeNoticeDetails notice={notice} />
         </div>
       ) : (
         <p className="text-sm">Environment synced</p>
@@ -111,13 +117,17 @@ export function RuntimeDetails() {
   const section = usePanelSection();
   const sandbox = Boolean(useAtomValue(sandboxAtom)?.backend);
   const connected = useAtomValue(isConnectedAtom);
-  const notice = useAtomValue(connectionNoticeAtom);
+  const connectionNotice = useAtomValue(connectionNoticeAtom);
+  const notice: DisplayConnectionNotice | null = connectionNotice && {
+    ...connectionNotice,
+    ready: false,
+  };
   const preparation = useAtomValue(preparationAtom);
   const progress = useAtomValue(startupProgressAtom);
   const [expanded, setExpanded] = useAtom(runtimeDetailsExpandedAtom);
   const startup: DisplayConnectionNotice | null =
     notice?.kind === "startup"
-      ? { ...notice, ready: false }
+      ? notice
       : preparation || progress || (connected && !sandbox)
         ? {
             kind: "startup",
@@ -143,22 +153,12 @@ export function RuntimeDetails() {
     >
       {notice?.kind === "connection" && (
         <div className="mb-5">
-          <ConnectionDetails notice={{ ...notice, ready: false }}>
-            {sandbox && (
-              <SandboxRecovery notice={{ ...notice, ready: false }} />
-            )}
-          </ConnectionDetails>
+          <RuntimeNoticeDetails notice={notice} />
         </div>
       )}
-      {startup && (
-        <ConnectionDetails notice={startup}>
-          {sandbox && <SandboxRecovery notice={startup} />}
-        </ConnectionDetails>
-      )}
+      {startup && <RuntimeNoticeDetails notice={startup} />}
       {sandbox && connected && (
-        <SandboxSyncDetails
-          notice={notice?.kind === "sync" ? { ...notice, ready: false } : null}
-        />
+        <SandboxSyncDetails notice={notice?.kind === "sync" ? notice : null} />
       )}
       {sandbox && connected && (!notice || notice.pending) && (
         <SandboxActions />
