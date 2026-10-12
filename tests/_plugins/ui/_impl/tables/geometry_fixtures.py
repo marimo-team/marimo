@@ -392,3 +392,31 @@ def ordinary_data() -> dict[str, list[Any]]:
             datetime.datetime(2024, 1, 3),
         ],
     }
+
+
+def duckdb_export_connection() -> duckdb_mod.DuckDBPyConnection:
+    """Connection with core geometry support, or an older spatial extension."""
+    import duckdb
+
+    conn = duckdb.connect()
+    try:
+        _ = conn.sql("SELECT NULL::GEOMETRY").types
+    except duckdb.Error:
+        conn.close()
+        return duckdb_spatial_connection()
+    return conn
+
+
+def duckdb_export_relation(
+    conn: duckdb_mod.DuckDBPyConnection, *, known_crs: bool = True
+) -> duckdb_mod.DuckDBPyRelation:
+    """Two geometry columns, a null row, and nullable ordinary values."""
+    crs = "('OGC:CRS84')" if known_crs else ""
+    return conn.sql(
+        f"SELECT id, geom::GEOMETRY{crs} AS geom, "
+        "alternate::GEOMETRY AS alternate, label, big::BIGINT AS big FROM "
+        "(VALUES (1, 'POINT (10 0)', 'POINT (20.1234567890123 5)', 'first', 9007199254740993), "
+        "(2, NULL, NULL, 'second', NULL), "
+        "(3, 'POINT (30 1)', 'POINT (40 2)', NULL, 7)) "
+        "AS data(id, geom, alternate, label, big)"
+    )

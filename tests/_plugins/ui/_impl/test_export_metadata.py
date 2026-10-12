@@ -330,3 +330,125 @@ def test_widget_passes_geometry_request_to_export(
         )
     assert response.url == "data:test"
     assert export.call_args.kwargs["geometry_column"] == "geom_b"
+
+
+@pytest.mark.requires("duckdb", "pyarrow", "geopandas")
+@pytest.mark.parametrize("empty", [False, True])
+def test_duckdb_export_metadata(
+    duckdb_crs_conn: Any, widget: Any, empty: bool
+) -> None:
+    from pyproj import CRS
+
+    conn = duckdb_crs_conn
+    source = fixtures.duckdb_export_relation(conn)
+    if empty:
+        source = source.limit(0)
+    subject = widget(source)
+    with patch.object(
+        NarwhalsTableManager,
+        "as_frame",
+        side_effect=AssertionError("must not collect"),
+    ):
+        result = subject._get_export_metadata(EmptyArgs())
+    assert [c.name for c in result.geometry_columns] == [
+        "geom",
+        "alternate",
+    ]
+    assert CRS.from_user_input(
+        result.geometry_columns[0].crs
+    ) == CRS.from_user_input("OGC:CRS84")
+    assert result.geometry_columns[1].crs is None
+    assert result.default_geometry_column is None
+    assert all(f.available for f in result.formats.values())
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+def test_duckdb_schema_does_not_execute_source_rows() -> None:
+    import duckdb
+
+    from marimo._plugins.ui._impl.tables.geometry_export import (
+        get_export_metadata,
+    )
+    from marimo._plugins.ui._impl.tables.utils import get_table_manager
+
+    conn = fixtures.duckdb_crs_geometry_connection()
+    calls = []
+
+    def count(value: int) -> int:
+        calls.append(value)
+        return value
+
+    try:
+        conn.create_function(
+            "count_rows",
+            count,
+            [duckdb.sqltypes.BIGINT],
+            duckdb.sqltypes.BIGINT,
+            side_effects=True,
+        )
+        source = conn.sql(
+            "SELECT count_rows(i) AS id, NULL::GEOMETRY('OGC:CRS84') AS geom FROM range(100) t(i)"
+        )
+        manager = get_table_manager(source)
+        result = get_export_metadata(manager)
+        assert result.geometry_columns[0].crs is not None
+        assert calls == []
+    finally:
+        conn.close()
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+@pytest.mark.parametrize("missing", ["geopandas", "pyarrow"])
+def test_duckdb_missing_packages(
+    duckdb_export_conn: Any, widget: Any, missing: str
+) -> None:
+
+    conn = duckdb_export_conn
+    subject = widget(conn.sql("SELECT NULL::GEOMETRY AS geom"))
+    with patch.object(
+        getattr(DependencyManager, missing), "has", return_value=False
+    ):
+        result = subject._get_export_metadata(EmptyArgs())
+    assert all(
+        f.missing_packages == [missing] for f in result.formats.values()
+    )
+    assert result.geometry_columns[0].crs is None
+
+
+@pytest.mark.requires("duckdb", "pyarrow", "geopandas")
+def test_duckdb_fixed_layout_disables_both_formats(
+    duckdb_spatial_conn: Any, widget: Any
+) -> None:
+
+    conn = duckdb_spatial_conn
+    subject = widget(
+        conn.sql(
+            "SELECT ST_Point(1, 2) AS geom, {'x': 1.0, 'y': 2.0}::POINT_2D AS point"
+        )
+    )
+    result = subject._get_export_metadata(EmptyArgs())
+    assert [c.encoding for c in result.geometry_columns] == [
+        "wkb",
+        "other",
+    ]
+    assert all(
+        not f.available and "POINT_2D" in (f.reason or "")
+        for f in result.formats.values()
+    )
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+def test_duckdb_binary_is_not_geometry(widget: Any) -> None:
+    import duckdb
+
+    conn = duckdb.connect()
+    try:
+        result = widget(
+            conn.sql(
+                "SELECT 'POINT (1 2)'::VARCHAR AS geometry, 'abc'::BLOB AS blob"
+            )
+        )._get_export_metadata(EmptyArgs())
+        assert result.geometry_columns == []
+        assert result.formats == {}
+    finally:
+        conn.close()
