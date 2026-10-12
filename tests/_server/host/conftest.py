@@ -10,8 +10,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from marimo._core import backend as be
-from marimo._messaging.notification import NotificationMessage
 from marimo._messaging.notebook import NotebookDocument
+from marimo._messaging.notification import NotificationMessage
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus

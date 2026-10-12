@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import TYPE_CHECKING
+import threading
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -149,6 +150,68 @@ async def test_move_preserves_the_running_notebook(
             "data": "<pre class='text-xs'>42</pre>",
         },
     }
+
+
+async def test_saving_keeps_an_edit_made_while_the_file_is_written(
+    live_host: tuple[Starlette, str, Response],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, notebook_id, events = live_host
+    document = (await app.state.host_context.bridge.host.notebook(notebook_id)).document
+    assert document is not None
+    cell = next(
+        r["data"]["cell"] for r in events.records if r.get("event") == "cell"
+    )
+    session = next(iter(app.state.session_manager.sessions.values()))
+    started = asyncio.Event()
+    release = threading.Event()
+    loop = asyncio.get_running_loop()
+    original_save = AppFileManager.save_from_cells
+
+    def save(manager: AppFileManager, cells: Any) -> str:
+        loop.call_soon_threadsafe(started.set)
+        assert release.wait(5)
+        return original_save(manager, cells)
+
+    monkeypatch.setattr(AppFileManager, "save_from_cells", save)
+    saved, task, _ = request(
+        app,
+        "POST",
+        f"/notebooks/{notebook_id}/save",
+        headers=key("save"),
+        body=b"{}",
+    )
+    try:
+        await asyncio.wait_for(started.wait(), 5)
+        edited = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/edits",
+            headers=key("edit-during-save"),
+            body=json.dumps(
+                {
+                    "changes": [
+                        {
+                            "kind": "put_cell",
+                            "base_etag": cell["etag"],
+                            "cell": {"id": cell["id"], "code": "example = 8"},
+                        }
+                    ]
+                }
+            ).encode(),
+        )
+        assert edited.status == 200, edited.body
+    finally:
+        release.set()
+        await asyncio.wait_for(task, 5)
+
+    # The file has the snapshot; the editor and the host keep the edit.
+    assert saved.status == 200, saved.body
+    assert "example = 7" in (tmp_path / "notebook.py").read_text()
+    assert [c.code for c in session.document.cells] == ["example = 8"]
+    assert [c.code for c in document] == ["example = 8"]
+    assert document._record.saved_etag != document._record.etag
 
 
 @pytest.mark.parametrize(

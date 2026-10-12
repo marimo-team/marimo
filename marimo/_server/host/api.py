@@ -129,6 +129,7 @@ def build_app() -> Router:
         Route("/notebooks/{id}", _delete_notebook, methods=["DELETE"]),
         Route("/notebooks/{id}/events", _notebook_events, methods=["GET"]),
         Route("/notebooks/{id}/edits", _edit_notebook, methods=["POST"]),
+        Route("/notebooks/{id}/save", _save_notebook, methods=["POST"]),
         Route("/notebooks/{id}/open", _open_notebook, methods=["POST"]),
         Route("/notebooks/{id}/runtime", _start_runtime, methods=["PUT"]),
         Route("/notebooks/{id}/runtime", _stop_runtime, methods=["DELETE"]),
@@ -616,6 +617,22 @@ async def _edit_notebook(request: Request) -> Response:
     body = await _decode(request, protocol.EditRequest)
     response = await context.bridge.edit(
         notebook.id, body.changes, request_id=key
+    )
+    return _reply(200, response)
+
+
+@_mutation("notebook.save")
+async def _save_notebook(request: Request) -> Response:
+    """Write the document to its file; 409 with `edit` when `If-Match` is stale."""
+    context = _context(request)
+    key = request.headers["Idempotency-Key"]
+    notebook = await _notebook(request)
+    await _decode(request, protocol.SaveRequest)
+    if_match = request.headers.get("If-Match")
+    response = await context.bridge.save(
+        notebook.id,
+        if_match=None if if_match is None else if_match.strip().strip('"'),
+        request_id=key,
     )
     return _reply(200, response)
 

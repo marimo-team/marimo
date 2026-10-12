@@ -126,12 +126,19 @@ class Notebook:
             document=document._record, cells=applied.cells
         )
 
-    def mark_saved(self, *, request_id: str | None = None) -> None:
-        """Mark the current document revision as saved."""
+    def mark_saved(
+        self,
+        etag: protocol.Etag,
+        *,
+        request_id: str | None = None,
+    ) -> protocol.EditResponse:
+        """Publish the revision that was successfully persisted."""
         self._require_open()
-        document = self.document.mark_saved()
-        if document is not None:
-            self._publish(document, request_id)
+        document = self.document
+        published = document.mark_saved(etag)
+        if published is not None:
+            self._publish(published, request_id)
+        return protocol.EditResponse(document=document._record, cells={})
 
     def _publish_changed(
         self, changed: Changed, request_id: str | None

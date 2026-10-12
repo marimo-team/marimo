@@ -10,7 +10,7 @@ from marimo import _loggers
 from marimo._config.manager import ScriptConfigReader
 from marimo._core import protocol
 from marimo._core.document import CellSource, Document
-from marimo._core.errors import Conflict, NotFound
+from marimo._core.errors import Conflict, EditConflict, NotFound
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from marimo._core.backend import Message
     from marimo._core.document import Policy
     from marimo._core.stream import Event, Sink
+    from marimo._messaging.notebook import NotebookCell
     from marimo._server.session_manager import SessionManager
     from marimo._session.notebook import AppFileManager
     from marimo._session.session import Session
@@ -160,6 +161,62 @@ class SessionBridge(SessionEventListener):
         if session is not None:
             documents.apply_to_session(session, document)
         return response
+
+    async def save(
+        self,
+        notebook_id: str,
+        *,
+        if_match: str | None,
+        request_id: str,
+    ) -> protocol.EditResponse:
+        """Write the document to its file and mark it saved.
+
+        The write goes through a file manager of its own. A session's
+        manager holds the live editor state, which an edit may move on
+        while the snapshot is being written.
+
+        Raises:
+            Conflict: If the document cannot be loaded or has no file.
+            EditConflict: If `if_match` is not the document's etag.
+        """
+        notebook = await self.host.notebook(notebook_id)
+        async with self._files_lock:
+            if self.host.peek_notebook(notebook_id) is not notebook:
+                raise NotFound(f"no notebook {notebook_id}")
+            document = notebook.document
+            file = self.index.file_of(notebook.id)
+            if file is None:
+                raise Conflict("The notebook has no file to save to")
+            # Check and snapshot after waiting for the file lock.
+            snapshot = document._record
+            if if_match is not None and if_match != snapshot.etag:
+                raise EditConflict(
+                    "The document has changed since it was read",
+                    change=0,
+                    cell=None,
+                    document=snapshot,
+                )
+            cells = [
+                documents.to_notebook_cell(cell) for cell in document
+            ]
+            try:
+                await asyncio.to_thread(
+                    self._write, str(file), cells, snapshot.app_config
+                )
+            except Exception as e:
+                raise Conflict(f"The notebook cannot be saved: {e}") from e
+            return notebook.mark_saved(snapshot.etag, request_id=request_id)
+
+    def _write(
+        self,
+        path: str,
+        cells: list[NotebookCell],
+        app_config: dict[str, Any],
+    ) -> None:
+        """Write a snapshot over the file, keeping the file's header."""
+        manager = self._file_manager(path)
+        documents.apply_app_config(manager, app_config)
+        manager.save_from_cells(cells)
 
     def _session_of(self, notebook_id: protocol.NotebookId) -> Session | None:
         backend = self._backends.get(notebook_id)

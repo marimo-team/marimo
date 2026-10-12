@@ -25,6 +25,7 @@ from marimo._server.host.index import WorkspaceIndex
 from marimo._server.main import create_starlette_app
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace, SingleFileWorkspace
+from marimo._session.notebook import AppFileManager
 from tests._core.conftest import ScriptedBackend, make_notebook, runtime_id_of
 from tests._server.host.drive import (
     PORT,
@@ -1542,7 +1543,7 @@ async def opened(harness: Harness) -> tuple[Response, Callable[[], None]]:
     return response, disconnect
 
 
-async def test_an_edit_reaches_the_stream_as_one_unit(
+async def test_an_edit_reaches_the_stream_as_one_unit_and_the_file_on_save(
     harness: Harness,
 ) -> None:
     stream, disconnect = await opened(harness)
@@ -1587,6 +1588,25 @@ async def test_an_edit_reaches_the_stream_as_one_unit(
     assert after_ready[0]["data"]["cell"]["analysis"]["defs"] == ["z"]
     assert "z = 3" not in (harness.root / "forecasts.py").read_text()
 
+    saved = await finished(
+        harness.app,
+        "POST",
+        f"/notebooks/{harness.notebook_id}/save",
+        headers=key("save-1"),
+        body=b"{}",
+    )
+    assert saved.status == 200, saved.body
+    assert (
+        saved.json()["document"]["saved_etag"] == response["document"]["etag"]
+    )
+    text = (harness.root / "forecasts.py").read_text()
+    assert "z = 3" in text
+    assert 'width="medium"' in text
+    await wait_for(stream, lambda r: r.names().count("document") >= 3)
+    assert (
+        stream.records[-1]["data"]["document"]["saved_etag"]
+        == (response["document"]["etag"])
+    )
     disconnect()
 
 
@@ -1623,6 +1643,16 @@ async def test_a_stale_etag_is_a_conflict_that_changes_nothing(
     assert problem["edit"]["cell"]["etag"] == cell["etag"]
     assert problem["edit"]["document"]["etag"] == document["etag"]
 
+    stale_save = await finished(
+        harness.app,
+        "POST",
+        f"/notebooks/{harness.notebook_id}/save",
+        headers={**key("save-stale"), "If-Match": '"0000000000000000"'},
+        body=b"{}",
+    )
+    assert stale_save.status == 409
+    assert stale_save.json()["edit"]["change"] == 0
+
     invalid = await finished(
         harness.app,
         "POST",
@@ -1638,3 +1668,56 @@ async def test_a_stale_etag_is_a_conflict_that_changes_nothing(
     again, disconnect = await opened(harness)
     disconnect()
     assert again.records[3]["data"]["document"]["etag"] == document["etag"]
+
+
+async def test_edits_during_a_save_remain_unsaved(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document = (await harness.host.notebook(harness.notebook_id)).document
+    assert document is not None
+    persisted_etag = document._record.etag
+    started = asyncio.Event()
+    release = threading.Event()
+    loop = asyncio.get_running_loop()
+    original_save = AppFileManager.save_from_cells
+
+    def save(manager, cells):
+        loop.call_soon_threadsafe(started.set)
+        assert release.wait(5)
+        return original_save(manager, cells)
+
+    monkeypatch.setattr(AppFileManager, "save_from_cells", save)
+    saved, task, _ = request(
+        harness.app,
+        "POST",
+        f"/notebooks/{harness.notebook_id}/save",
+        headers=key("save-before-edit"),
+        body=b"{}",
+    )
+    try:
+        await asyncio.wait_for(started.wait(), 5)
+        edited = await finished(
+            harness.app,
+            "POST",
+            f"/notebooks/{harness.notebook_id}/edits",
+            headers=key("edit-during-save"),
+            body=edit_body(
+                {
+                    "kind": "put_cell",
+                    "base_etag": None,
+                    "cell": {"id": "new", "code": "new_value = 42"},
+                }
+            ),
+        )
+        assert edited.status == 200
+    finally:
+        release.set()
+        await asyncio.wait_for(task, 5)
+
+    assert saved.status == 200, saved.body
+    assert saved.json()["document"] == {
+        **edited.json()["document"],
+        "saved_etag": persisted_etag,
+    }
+    assert document._record.etag != document._record.saved_etag
+    assert "new_value" not in (harness.root / "forecasts.py").read_text()
