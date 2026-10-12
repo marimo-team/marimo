@@ -444,3 +444,118 @@ async def test_failed_session_move_preserves_the_notebook(
     assert bridge.host.notebooks[notebook.id].path == "a.py"
     assert (await bridge.host.notebook(notebook.id)).runtime is runtime
     bridge.close()
+
+
+async def test_edits_flow_between_the_host_document_and_a_session(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._ast.cell import CellConfig
+    from marimo._core import protocol
+    from marimo._messaging.notebook import (
+        NotebookCell,
+        NotebookDocument,
+        SetCode,
+        Transaction,
+    )
+    from marimo._messaging.notification import (
+        NotebookDocumentTransactionNotification,
+    )
+    from marimo._types.ids import CellId_t
+
+    prepare(manager, tmp_path, "a.py")
+    session = FakeSession(str(tmp_path / "a.py"))
+    session.document = NotebookDocument(
+        [NotebookCell(CellId_t("Hbol"), "x = 1", "_", CellConfig())]
+    )
+    session.app_file_manager.app.config.asdict_difference.return_value = {}
+    manager.sessions["browser-1"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(tmp_path / "a.py"))
+    assert record is not None
+    events: list[str] = []
+    bridge.host.subscribe(
+        lambda e: events.append(e.name), notebook_id=record.id
+    )
+
+    # The document comes from the session, ids included.
+    document = (await bridge.host.notebook(record.id)).document
+    assert document is not None
+    assert document.order == ["Hbol"]
+
+    # An edit over the protocol reaches the session as one transaction.
+    await bridge.edit(
+        record.id,
+        [
+            protocol.PutCell(
+                base_etag=None,
+                cell=protocol.CellInput(
+                    id=protocol.CellId("new"), code="y = x"
+                ),
+            )
+        ],
+        request_id="edit-1",
+    )
+    assert session.document.cell_ids == ["Hbol", "new"]
+    (notification,) = session.notifications
+    assert isinstance(notification, NotebookDocumentTransactionNotification)
+    assert notification.transaction.source == "host"
+    # The backend saw its own edit come back and mirrored nothing new.
+    assert events == ["cell", "document"]
+
+    # A frontend edit on the session reaches the host's document.
+    applied = session.document.apply(
+        Transaction(
+            changes=(SetCode(CellId_t("Hbol"), "x = 2"),), source="frontend"
+        )
+    )
+    session.broadcast(
+        NotebookDocumentTransactionNotification(transaction=applied)
+    )
+    cell = (await bridge.host.notebook(record.id)).document.cell("Hbol")  # type: ignore[union-attr]
+    assert cell is not None
+    assert cell.code == "x = 2"
+    assert events[-2:] == ["cell", "document"]
+    bridge.close()
+
+
+async def test_a_new_session_adopts_unsaved_host_edits(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._core import protocol
+    from marimo._messaging.notebook import NotebookDocument
+    from marimo._server.host.document import to_notebook_cell
+
+    prepare(manager, tmp_path, "a.py")
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(tmp_path / "a.py"))
+    assert record is not None
+    document = (await bridge.host.notebook(record.id)).document
+    assert document is not None
+    session = FakeSession(str(tmp_path / "a.py"))
+    session.document = NotebookDocument(
+        [to_notebook_cell(cell) for cell in document]
+    )
+    session.app_file_manager.app.config.asdict_difference.return_value = {}
+    await bridge.edit(
+        record.id,
+        [
+            protocol.PutCell(
+                base_etag=None,
+                cell=protocol.CellInput(
+                    id=protocol.CellId("new"), code="unsaved = 42"
+                ),
+            )
+        ],
+        request_id="edit-before-session",
+    )
+
+    await manager.event_bus.emit_session_created(session)  # type: ignore[arg-type]
+
+    assert list(session.document.cells) == [
+        to_notebook_cell(cell) for cell in document
+    ]
+    assert document._record.saved_etag != document._record.etag
+    assert "unsaved" not in (tmp_path / "a.py").read_text()
+    bridge.close()

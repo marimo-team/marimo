@@ -15,6 +15,7 @@ from marimo._messaging.notification import (
     CompletedRunNotification,
     ExecutionNotification,
     InterruptedNotification,
+    NotebookDocumentTransactionNotification,
     StartupProgressNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
@@ -76,12 +77,18 @@ class SessionBackend(SessionConsumer):
         file: Callable[[], str | None],
         manager: SessionManager,
         observe: Observe,
+        document_changed: Callable[[], None] | None = None,
+        session_attached: Callable[[], None] | None = None,
     ) -> None:
         self._notebook_id = notebook_id
         self._file = file
         """Resolve the notebook's current path after file moves."""
         self._manager = manager
         self._observe = observe
+        self._document_changed = document_changed
+        """Called after the session's document changes, from any writer."""
+        self._session_attached = session_attached
+        """Apply pre-session host edits before reporting the runtime ready."""
         self._kernel: _Kernel | None = None
         self._run: _Run | None = None
         self._translators: dict[str, RunTranslator] = {}
@@ -258,6 +265,8 @@ class SessionBackend(SessionConsumer):
         if kernel is None:
             return
         kernel.session = session
+        if self._session_attached is not None:
+            self._session_attached()
         self._observe(be.Running(kernel.runtime_id, __version__))
 
     def on_detach(self) -> None:
@@ -278,6 +287,10 @@ class SessionBackend(SessionConsumer):
 
     def notify(self, notification: KernelMessage) -> None:
         message = deserialize_kernel_message(notification)
+        if isinstance(message, NotebookDocumentTransactionNotification):
+            if self._document_changed is not None and self.session is not None:
+                self._document_changed()
+            return
         if isinstance(message, StartupProgressNotification):
             if (kernel := self._kernel) is not None:
                 phase = _PHASES.get(message.phase, message.phase)
