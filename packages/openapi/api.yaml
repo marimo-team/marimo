@@ -461,8 +461,9 @@ components:
         \ appends, [] clears, None unchanged.\n        status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
         \        stale_inputs: Whether cell has stale inputs from changed dependencies.\n\
         \        run_id: Execution run ID for tracing. Auto-set from context.\n  \
-        \      serialization: Top-level reusability hint. UNSET unchanged, None clears,\
-        \ str sets.\n        timestamp: Creation timestamp, auto-set."
+        \      execution_id: Evaluation of this cell producing the update, when known.\n\
+        \        serialization: Top-level reusability hint. UNSET unchanged, None\
+        \ clears, str sets.\n        timestamp: Creation timestamp, auto-set."
       properties:
         cell_id:
           $ref: '#/components/schemas/CellId'
@@ -472,6 +473,11 @@ components:
               $ref: '#/components/schemas/CellOutput'
             type: array
           - $ref: '#/components/schemas/CellOutput'
+          - type: 'null'
+          default: null
+        execution_id:
+          anyOf:
+          - type: string
           - type: 'null'
           default: null
         op:
@@ -2093,6 +2099,47 @@ components:
       - type
       title: ExecuteStaleCellsCommand
       type: object
+    ExecutionNotification:
+      description: "An attempt's lifecycle, independent of a cell's displayed status.\n\
+        \n    `planned` supplies the source and identity before output is reported.\n\
+        \    `running` means evaluation began. `completed` follows the final output\n\
+        \    and errors, including for attempts that never ran. Buffered and background\n\
+        \    console output may still arrive with the completed attempt's identity."
+      properties:
+        caused_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        cell_id:
+          type: string
+        code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        execution_id:
+          type: string
+        op:
+          enum:
+          - execution
+        phase:
+          enum:
+          - completed
+          - planned
+          - running
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - op
+      - execution_id
+      - cell_id
+      - run_id
+      - phase
+      title: ExecutionNotification
+      type: object
     ExportAsHTMLRequest:
       description: "Request a static HTML export.\n\n    `layout` carries the current\
         \ client layout. An omitted field reads the\n    saved layout file, `null`\
@@ -3287,6 +3334,7 @@ components:
         notification:
           anyOf:
           - $ref: '#/components/schemas/CellNotification'
+          - $ref: '#/components/schemas/ExecutionNotification'
           - $ref: '#/components/schemas/FunctionCallResultNotification'
           - $ref: '#/components/schemas/UIElementMessageNotification'
           - $ref: '#/components/schemas/ModelLifecycleNotification'
@@ -3346,6 +3394,7 @@ components:
               datasets: '#/components/schemas/DatasetsNotification'
               environment-operation: '#/components/schemas/EnvironmentOperationNotification'
               environment-state: '#/components/schemas/EnvironmentStateNotification'
+              execution: '#/components/schemas/ExecutionNotification'
               focus-cell: '#/components/schemas/FocusCellNotification'
               function-call-result: '#/components/schemas/FunctionCallResultNotification'
               interrupted: '#/components/schemas/InterruptedNotification'

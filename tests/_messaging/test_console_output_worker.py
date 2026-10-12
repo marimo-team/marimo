@@ -21,6 +21,29 @@ from tests._messaging.mocks import MockStream
 
 
 class TestConsoleOutputWorker:
+    def test_repeated_evaluations_keep_separate_buffered_output(self) -> None:
+        buffered = {}
+        for execution_id in ("first", "second"):
+            _add_output_to_buffer(
+                ConsoleMsg(
+                    CellChannel.STDOUT,
+                    "cell1",
+                    execution_id,
+                    "text/plain",
+                    run_id="same-run",
+                    execution_id=execution_id,
+                ),
+                buffered,
+            )
+        stream = MockStream()
+        _flush_outputs(buffered, stream)
+        assert [
+            (n.execution_id, n.console.data) for n in stream.cell_notifications
+        ] == [
+            ("first", "first"),
+            ("second", "second"),
+        ]
+
     def test_buffer_preserves_run_ids_across_execution_boundaries(
         self,
     ) -> None:

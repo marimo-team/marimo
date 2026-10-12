@@ -127,6 +127,7 @@ from marimo._runtime.context.kernel_context import (
 )
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._runtime.execution import ExecutionAttempt
 from marimo._runtime.input_override import getpass_override
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._runtime.packages.module_registry import ModuleRegistry
@@ -1364,6 +1365,7 @@ class Kernel:
             self._invalidate_cell_state(cid, exclude_defs=keep_alive_defs)
 
         self.errors = all_errors
+        submitted_code = {er.cell_id: er.code for er in execution_requests}
         for cid in self.errors:
             cell = self.graph.cells.get(cid, None)
             if (
@@ -1382,11 +1384,14 @@ class Kernel:
                 # On syntax errors, we don't have a cell object.
                 CellNotificationUtils.broadcast_stale(cell_id=cid, stale=False)
 
-            CellNotificationUtils.broadcast_error(
-                data=self.errors[cid],
-                clear_console=True,
-                cell_id=cid,
+            execution = ExecutionAttempt.plan(
+                cid, submitted_code.get(cid, cell.code if cell else "")
             )
+            with execution.activate():
+                CellNotificationUtils.broadcast_error(
+                    data=self.errors[cid], clear_console=True, cell_id=cid
+                )
+            execution.finish()
 
         # Always broadcast Variables message after graph mutation to ensure
         # frontend has the latest dependency information
@@ -1813,6 +1818,16 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("run_scratchpad")
     async def run_scratchpad(self, code: str) -> None:
+        execution = ExecutionAttempt.plan(SCRATCH_CELL_ID, code)
+        with execution.activate():
+            try:
+                await self._run_scratchpad(code, execution)
+            finally:
+                execution.finish()
+
+    async def _run_scratchpad(
+        self, code: str, execution: ExecutionAttempt
+    ) -> None:
         roots = {SCRATCH_CELL_ID}
 
         # If cannot compile, don't run
@@ -1865,6 +1880,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=scratchpad_hooks,
+            executions={SCRATCH_CELL_ID: execution},
             user_config=self.user_config,
         )
 

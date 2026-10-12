@@ -4137,6 +4137,7 @@ export interface components {
      *             status: Execution status (idle/running/stale/queued/disabled-transitively).
      *             stale_inputs: Whether cell has stale inputs from changed dependencies.
      *             run_id: Execution run ID for tracing. Auto-set from context.
+     *             execution_id: Evaluation of this cell producing the update, when known.
      *             serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
      *             timestamp: Creation timestamp, auto-set.
      */
@@ -4147,6 +4148,8 @@ export interface components {
         | components["schemas"]["CellOutput"][]
         | components["schemas"]["CellOutput"]
         | null;
+      /** @default null */
+      execution_id?: string | null;
       /** @enum {unknown} */
       op: "cell-op";
       /** @default null */
@@ -5102,6 +5105,28 @@ export interface components {
       type: "execute-stale-cells";
     };
     /**
+     * ExecutionNotification
+     * @description An attempt's lifecycle, independent of a cell's displayed status.
+     *
+     *         `planned` supplies the source and identity before output is reported.
+     *         `running` means evaluation began. `completed` follows the final output
+     *         and errors, including for attempts that never ran. Buffered and background
+     *         console output may still arrive with the completed attempt's identity.
+     */
+    ExecutionNotification: {
+      /** @default null */
+      caused_by?: string | null;
+      cell_id: string;
+      /** @default null */
+      code?: string | null;
+      execution_id: string;
+      /** @enum {unknown} */
+      op: "execution";
+      /** @enum {unknown} */
+      phase: "completed" | "planned" | "running";
+      run_id: string | null;
+    };
+    /**
      * ExportAsHTMLRequest
      * @description Request a static HTML export.
      *
@@ -5803,6 +5828,7 @@ export interface components {
         | components["schemas"]["UnknownError"];
       notification:
         | components["schemas"]["CellNotification"]
+        | components["schemas"]["ExecutionNotification"]
         | components["schemas"]["FunctionCallResultNotification"]
         | components["schemas"]["UIElementMessageNotification"]
         | components["schemas"]["ModelLifecycleNotification"]

@@ -32,7 +32,7 @@ from marimo._data.models import (
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
-from marimo._messaging.context import RUN_ID_CTX, RunId_t
+from marimo._messaging.context import RUN_ID_CTX, RunId_t, execution_id_for
 from marimo._messaging.notebook.changes import Transaction
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
@@ -85,6 +85,24 @@ class Notification(msgspec.Struct, tag_field="op"):
     name: ClassVar[str]
 
 
+class ExecutionNotification(Notification, tag="execution"):
+    """An attempt's lifecycle, independent of a cell's displayed status.
+
+    `planned` supplies the source and identity before output is reported.
+    `running` means evaluation began. `completed` follows the final output
+    and errors, including for attempts that never ran. Buffered and background
+    console output may still arrive with the completed attempt's identity.
+    """
+
+    name: ClassVar[str] = "execution"
+    execution_id: str
+    cell_id: CellId_t
+    run_id: str | None
+    phase: Literal["planned", "running", "completed"]
+    code: str | None = None
+    caused_by: str | None = None
+
+
 class CellNotification(Notification, tag="cell-op"):
     """Updates a cell's state in the frontend.
 
@@ -100,6 +118,7 @@ class CellNotification(Notification, tag="cell-op"):
         status: Execution status (idle/running/stale/queued/disabled-transitively).
         stale_inputs: Whether cell has stale inputs from changed dependencies.
         run_id: Execution run ID for tracing. Auto-set from context.
+        execution_id: Evaluation of this cell producing the update, when known.
         serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
         timestamp: Creation timestamp, auto-set.
     """
@@ -111,6 +130,7 @@ class CellNotification(Notification, tag="cell-op"):
     status: RuntimeStateType | None = None
     stale_inputs: bool | None = None
     run_id: RunId_t | None = None
+    execution_id: str | None = None
     # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's
     # serialization hint unchanged; None explicitly clears it (cell is no
     # longer a top-level definition); a string sets it.
@@ -118,6 +138,8 @@ class CellNotification(Notification, tag="cell-op"):
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
+        if self.execution_id is None:
+            self.execution_id = execution_id_for(self.cell_id)
         if self.run_id is not None:
             return
 
@@ -1084,6 +1106,7 @@ class NotebookDocumentTransactionNotification(
 NotificationMessage = (
     # Cell operations
     CellNotification
+    | ExecutionNotification
     | FunctionCallResultNotification
     | UIElementMessageNotification
     | ModelLifecycleNotification
