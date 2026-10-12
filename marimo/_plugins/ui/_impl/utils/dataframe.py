@@ -10,6 +10,9 @@ from marimo import _loggers
 from marimo._output.data import data as mo_data
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.ui._impl.tables.geometry_export import (
+    prepare_geometry_text_export,
+)
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from marimo._runtime.context.types import (
@@ -199,6 +202,9 @@ def download_as(
     if fmt is None:
         allowed = ", ".join(map(repr, _EXPORT_FORMATS))
         raise ValueError(f"format must be one of {allowed}.")
+
+    if ext in ("csv", "tsv", "json"):
+        manager = prepare_geometry_text_export(manager)
 
     vfile = mo_data.any_data(
         fmt.serialize(manager, options), ext=fmt.extension
