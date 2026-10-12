@@ -20,8 +20,8 @@ class run_id_context:
 
     run_id: RunId_t
 
-    def __init__(self) -> None:
-        self.run_id = str(uuid.uuid4())
+    def __init__(self, run_id: RunId_t | None = None) -> None:
+        self.run_id = run_id if run_id is not None else str(uuid.uuid4())
 
     def __enter__(self) -> None:
         self.token = RUN_ID_CTX.set(self.run_id)

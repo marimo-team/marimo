@@ -12,13 +12,36 @@ from marimo._messaging.console_output_worker import (
     FlushMarker,
     _add_output_to_buffer,
     _can_merge_outputs,
+    _flush_outputs,
     _write_console_output,
     buffered_writer,
 )
+from marimo._messaging.context import run_id_context
 from tests._messaging.mocks import MockStream
 
 
 class TestConsoleOutputWorker:
+    def test_buffer_preserves_run_ids_across_execution_boundaries(
+        self,
+    ) -> None:
+        buffered = {}
+        for run_id in ("first", "second"):
+            with run_id_context(run_id):
+                _add_output_to_buffer(
+                    ConsoleMsg(
+                        CellChannel.STDOUT, "cell1", run_id, "text/plain"
+                    ),
+                    buffered,
+                )
+        stream = MockStream()
+        _flush_outputs(buffered, stream)
+        assert [
+            notification.run_id for notification in stream.cell_notifications
+        ] == [
+            "first",
+            "second",
+        ]
+
     def test_can_merge_outputs(self) -> None:
         # Same stream and mimetype should be mergeable
         msg1 = ConsoleMsg(

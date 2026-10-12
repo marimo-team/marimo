@@ -40,6 +40,7 @@ from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import (
+    RUN_ID_CTX,
     run_id_context,
 )
 from marimo._messaging.errors import (
@@ -1440,7 +1441,7 @@ class Kernel:
     async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
 
-        with run_id_context():
+        with run_id_context(RUN_ID_CTX.get(None)):
             # This patch is an attempt to mitigate problems caused by the fact
             # that in run mode, kernels run in threads and share the same
             # sys.modules. Races can still happen, but this should help in most

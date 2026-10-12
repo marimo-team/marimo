@@ -841,16 +841,22 @@ components:
       title: ColumnStats
       type: object
     CompletedRunNotification:
-      description: "Run of submitted cells and descendants completed.\n\n    Attributes:\n\
-        \        run_id: Correlation ID echoed from the command that triggered\n \
-        \           this completion. `None` for handlers that don't take a\n     \
-        \       `run_id` (everything except `handle_execute_scratchpad`\n        \
-        \    today). Consumers that want to wait for a specific command's\n      \
-        \      completion filter on this field."
+      description: The command's reactive cycle ended, after its console was flushed.
       properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         op:
           enum:
           - completed-run
+        outcome:
+          default: succeeded
+          enum:
+          - failed
+          - interrupted
+          - succeeded
         run_id:
           anyOf:
           - type: string
@@ -2926,6 +2932,10 @@ components:
         op:
           enum:
           - interrupted
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
       required:
       - op
       title: InterruptedNotification

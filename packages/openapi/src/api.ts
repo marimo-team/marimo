@@ -4352,18 +4352,18 @@ export interface components {
     };
     /**
      * CompletedRunNotification
-     * @description Run of submitted cells and descendants completed.
-     *
-     *         Attributes:
-     *             run_id: Correlation ID echoed from the command that triggered
-     *                 this completion. `None` for handlers that don't take a
-     *                 `run_id` (everything except `handle_execute_scratchpad`
-     *                 today). Consumers that want to wait for a specific command's
-     *                 completion filter on this field.
+     * @description The command's reactive cycle ended, after its console was flushed.
      */
     CompletedRunNotification: {
+      /** @default null */
+      error?: string | null;
       /** @enum {unknown} */
       op: "completed-run";
+      /**
+       * @default succeeded
+       * @enum {unknown}
+       */
+      outcome?: "failed" | "interrupted" | "succeeded";
       /** @default null */
       run_id?: string | null;
     };
@@ -5594,6 +5594,7 @@ export interface components {
     InterruptedNotification: {
       /** @enum {unknown} */
       op: "interrupted";
+      run_id?: string | null;
     };
     /** InvokeAiToolRequest */
     InvokeAiToolRequest: {

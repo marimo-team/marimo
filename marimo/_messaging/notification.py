@@ -121,11 +121,6 @@ class CellNotification(Notification, tag="cell-op"):
         if self.run_id is not None:
             return
 
-        # We currently don't support tracing for replayed cell ops (previous session runs)
-        if self.status == "idle":
-            self.run_id = None
-            return
-
         try:
             self.run_id = RUN_ID_CTX.get()
         except LookupError:
@@ -329,21 +324,18 @@ class InterruptedNotification(Notification, tag="interrupted"):
     """Kernel was interrupted by user (SIGINT/Ctrl+C)."""
 
     name: ClassVar[str] = "interrupted"
+    run_id: str | None = msgspec.field(
+        default_factory=lambda: RUN_ID_CTX.get(None)
+    )
 
 
 class CompletedRunNotification(Notification, tag="completed-run"):
-    """Run of submitted cells and descendants completed.
-
-    Attributes:
-        run_id: Correlation ID echoed from the command that triggered
-            this completion. `None` for handlers that don't take a
-            `run_id` (everything except `handle_execute_scratchpad`
-            today). Consumers that want to wait for a specific command's
-            completion filter on this field.
-    """
+    """The command's reactive cycle ended, after its console was flushed."""
 
     name: ClassVar[str] = "completed-run"
     run_id: str | None = None
+    outcome: Literal["succeeded", "failed", "interrupted"] = "succeeded"
+    error: str | None = None
 
 
 class KernelCapabilitiesNotification(msgspec.Struct):
