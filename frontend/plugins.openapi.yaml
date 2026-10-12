@@ -2325,6 +2325,62 @@ paths:
       responses:
         "204":
           description: Accepted.
+  /plugins/marimo-table/functions/get_filter_context/input:
+    summary: marimo-table get_filter_context input
+    get:
+      operationId: read_marimo_table_get_filter_context_input
+      summary: Read marimo-table get_filter_context input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-table get_filter_context input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.get_filter_context.input"
+    put:
+      operationId: write_marimo_table_get_filter_context_input
+      summary: Write marimo-table get_filter_context input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.get_filter_context.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/get_filter_context/output:
+    summary: marimo-table get_filter_context output
+    get:
+      operationId: read_marimo_table_get_filter_context_output
+      summary: Read marimo-table get_filter_context output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-table get_filter_context output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.get_filter_context.output"
+    put:
+      operationId: write_marimo_table_get_filter_context_output
+      summary: Write marimo-table get_filter_context output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.get_filter_context.output"
+      responses:
+        "204":
+          description: Accepted.
   /plugins/marimo-table/functions/get_row_ids/input:
     summary: marimo-table get_row_ids input
     get:
@@ -4853,6 +4909,117 @@ components:
       required:
         - data_url
         - format
+    marimo-table.get_filter_context.input:
+      type: object
+      properties: {}
+    marimo-table.get_filter_context.output:
+      type: object
+      properties:
+        row_count:
+          anyOf:
+            - type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            - type: "null"
+        columns:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum:
+                  - string
+                  - boolean
+                  - integer
+                  - number
+                  - date
+                  - datetime
+                  - time
+                  - geometry
+                  - unknown
+              source_type:
+                type: string
+              examples:
+                type: array
+                items:
+                  type: string
+              statistics:
+                type: object
+                properties:
+                  nulls:
+                    type: number
+                  min:
+                    type: number
+                  p25:
+                    type: number
+                  median:
+                    type: number
+                  p75:
+                    type: number
+                  max:
+                    type: number
+                  mean:
+                    type: number
+                  std:
+                    type: number
+                  p5:
+                    type: number
+                  p95:
+                    type: number
+            required:
+              - name
+              - type
+              - source_type
+        omissions:
+          type: array
+          items:
+            type: object
+            properties:
+              kind:
+                type: string
+                enum:
+                  - examples
+                  - statistics
+                  - schema
+              reason:
+                type: string
+                enum:
+                  - unavailable
+                  - value_too_long
+                  - row_count_unknown
+                  - row_limit
+                  - size_limit
+              column:
+                type: string
+              fields:
+                type: array
+                items:
+                  type: string
+                  enum:
+                    - nulls
+                    - min
+                    - p25
+                    - median
+                    - p75
+                    - max
+                    - mean
+                    - std
+                    - p5
+                    - p95
+              count:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+            required:
+              - kind
+              - reason
+      required:
+        - row_count
+        - columns
+        - omissions
     marimo-table.get_row_ids.input:
       type: object
       properties: {}

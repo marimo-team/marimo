@@ -41,6 +41,12 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
     validate_operator_for_dtype,
 )
+from marimo._plugins.ui._impl.tables.filter_context import (
+    DEFAULT_FILTER_CONTEXT_LIMITS,
+    FilterContext,
+    FilterContextLimits,
+    build_filter_context,
+)
 from marimo._plugins.ui._impl.tables.selection import (
     INDEX_COLUMN_NAME,
     add_selection_column,
@@ -685,6 +691,7 @@ class table(
         _internal_total_rows: int | Literal["too_many"] | None = None,
         _internal_lazy: bool = False,
         _internal_preload: bool = False,
+        _internal_filter_context_limits: FilterContextLimits | None = None,
     ) -> None:
         if page_size is None:
             page_size = self.default_page_size
@@ -705,6 +712,9 @@ class table(
         self._data = data
         # Holds the original data
         self._manager = get_table_manager(data)
+        self._filter_context_limits = (
+            _internal_filter_context_limits or DEFAULT_FILTER_CONTEXT_LIMITS
+        )
 
         # Handle max_columns: use config default if not provided, None means "all"
         if max_columns == MAX_COLUMNS_NOT_PROVIDED:
@@ -1002,6 +1012,11 @@ class table(
                     arg_cls=EmptyArgs,
                     function=self._get_size_bytes,
                 ),
+                Function(
+                    name="get_filter_context",
+                    arg_cls=EmptyArgs,
+                    function=self._get_filter_context,
+                ),
             ),
         )
 
@@ -1058,6 +1073,19 @@ class table(
         del args
         manager = self._searched_manager or self._manager
         return GetSizeBytesResponse(size_bytes=manager.estimate_size_bytes())
+
+    @functools.cached_property
+    def _filter_context(self) -> FilterContext:
+        # Filters mutate only the searched manager; AI context describes the
+        # original table and stays cached for the life of this table element.
+        return build_filter_context(
+            self._manager,
+            self._filter_context_limits,
+        )
+
+    def _get_filter_context(self, args: EmptyArgs) -> FilterContext:
+        del args
+        return self._filter_context
 
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the table data in the specified format.

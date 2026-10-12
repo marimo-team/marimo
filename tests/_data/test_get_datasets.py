@@ -541,6 +541,45 @@ def test_get_datasets_from_variables(df: Any) -> None:
     ]
 
 
+def test_get_datasets_preserves_missing_and_large_sample_values() -> None:
+    pd = pytest.importorskip("pandas")
+    large_integer = 10**400
+
+    datasets = get_datasets_from_variables(
+        [
+            (
+                VariableName("df"),
+                pd.DataFrame(
+                    {
+                        "value": pd.Series(
+                            [None, large_integer, 1], dtype=object
+                        )
+                    }
+                ),
+            )
+        ]
+    )
+
+    assert datasets == [
+        DataTable(
+            name="df",
+            source_type="local",
+            source="memory",
+            num_rows=3,
+            num_columns=1,
+            variable_name=VariableName("df"),
+            columns=[
+                DataTableColumn(
+                    name="value",
+                    type="string",
+                    external_type="object",
+                    sample_values=["None", large_integer, 1],
+                )
+            ],
+        )
+    ]
+
+
 @pytest.mark.requires("duckdb")
 def test_get_table_columns() -> None:
     import duckdb

@@ -61,6 +61,7 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { type CellId, findCellId, UIElementId } from "@/core/cells/ids";
+import { DATA_TYPES } from "@/core/kernel/messages";
 import {
   OBJECT_ID_ATTR,
   RANDOM_ID_ATTR,
@@ -167,6 +168,53 @@ const valueCounts: z.ZodType<ValueCounts> = z.array(
   }),
 );
 
+const filterContextStatistics = z.object({
+  nulls: z.number().optional(),
+  min: z.number().optional(),
+  p25: z.number().optional(),
+  median: z.number().optional(),
+  p75: z.number().optional(),
+  max: z.number().optional(),
+  mean: z.number().optional(),
+  std: z.number().optional(),
+  p5: z.number().optional(),
+  p95: z.number().optional(),
+});
+const filterContextStatisticName = filterContextStatistics.keyof();
+
+const filterContextColumn = z.object({
+  name: z.string(),
+  type: z.enum(DATA_TYPES),
+  source_type: z.string(),
+  examples: z.array(z.string()).optional(),
+  statistics: filterContextStatistics.optional(),
+});
+
+const filterContextOmission = z.object({
+  kind: z.enum(["examples", "statistics", "schema"]),
+  reason: z.enum([
+    "unavailable",
+    "value_too_long",
+    "row_count_unknown",
+    "row_limit",
+    "size_limit",
+  ]),
+  column: z.string().optional(),
+  fields: z.array(filterContextStatisticName).optional(),
+  count: z.number().int().nonnegative().optional(),
+});
+
+export const FilterContextSchema = z.object({
+  row_count: z.number().int().nonnegative().nullable(),
+  columns: z.array(filterContextColumn),
+  omissions: z.array(filterContextOmission),
+});
+
+export type FilterContextStatistics = z.infer<typeof filterContextStatistics>;
+export type FilterContextColumn = z.infer<typeof filterContextColumn>;
+export type FilterContextOmission = z.infer<typeof filterContextOmission>;
+export type FilterContext = z.infer<typeof FilterContextSchema>;
+
 /**
  * Arguments for a data table
  *
@@ -237,6 +285,10 @@ type DataTableFunctions = {
   }>;
 };
 
+type DataTablePluginFunctions = DataTableFunctions & {
+  get_filter_context: (opts: Record<string, never>) => Promise<FilterContext>;
+};
+
 type S = (number | string | { rowId: string; columnName?: string })[];
 
 const cellHoverTextSchema = z
@@ -300,7 +352,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       preload: z.boolean().default(false),
     }),
   )
-  .withFunctions<DataTableFunctions>({
+  .withFunctions<DataTablePluginFunctions>({
     download_as: DownloadAsSchema,
     get_column_summaries: rpc.input(z.looseObject({})).output(
       z.object({
@@ -376,6 +428,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     get_size_bytes: rpc
       .input(z.object({}))
       .output(z.object({ size_bytes: z.number().nullish() })),
+    get_filter_context: rpc.input(z.object({})).output(FilterContextSchema),
   })
   .renderer((props) => {
     return (

@@ -721,6 +721,13 @@ class TestColumnarDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
         sample_values = manager.get_sample_values("age")
         assert sample_values == [22, 25, 28]
+        assert manager.get_sample_values("age", max_values=5) == [
+            22,
+            25,
+            28,
+            30,
+            35,
+        ]
         sample_values = manager.get_sample_values("name")
         assert sample_values == ["Alice", "Bob", "Charlie"]
 

@@ -35,6 +35,16 @@ FieldType = DataType
 FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
 
 
+def is_missing_sample_value(value: Any) -> bool:
+    """Return whether a sampled backend value represents missing data."""
+    if value is None:
+        return True
+    try:
+        return bool(math.isnan(value))
+    except (OverflowError, TypeError, ValueError):
+        return type(value).__name__ in {"NAType", "NaTType"}
+
+
 class TableCoordinate(NamedTuple):
     row_id: int | str
     column_name: str
@@ -241,6 +251,22 @@ class TableManager(abc.ABC, Generic[T]):
     def get_stats(self, column: str) -> ColumnStats:
         pass
 
+    def get_stats_for_columns(
+        self, columns: list[str]
+    ) -> dict[str, ColumnStats]:
+        """Return statistics for each requested column.
+
+        Adapters may override this method to calculate all requested columns
+        in one backend operation.
+
+        Args:
+            columns: Column names in request order.
+
+        Returns:
+            Statistics keyed by column name.
+        """
+        return {column: self.get_stats(column) for column in columns}
+
     @abc.abstractmethod
     def get_bin_values(
         self, column: ColumnName, num_bins: int
@@ -266,8 +292,22 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def get_sample_values(self, column: str) -> list[Any]:
-        pass
+    def get_sample_values(
+        self,
+        column: str,
+        max_values: int = 3,
+    ) -> list[Any] | None:
+        """Return bounded sample values for an eager table.
+
+        Args:
+            column: Column to sample.
+            max_values: Maximum rows to inspect.
+
+        Returns:
+            Sample values, or `None` when sampling is unavailable. Missing
+            sentinels remain distinguishable so callers can choose whether to
+            preserve or omit them.
+        """
 
     @abc.abstractmethod
     def calculate_top_k_rows(
