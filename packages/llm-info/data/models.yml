@@ -1,5 +1,15 @@
 anthropic:
 
+  - name: Claude Haiku 5.5
+    model: claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+
   - name: Claude Sonnet 5.5
     model: claude-sonnet-5-5
     description: "Sonnet-class reasoning model for everyday coding, bug fixes, and document creation"
@@ -202,6 +212,36 @@ openai:
     cost: {input: 5, output: 30}
 
 google:
+  - name: Claude Haiku 5.5
+    model: claude-haiku-5-5@default
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+
+  - name: Nano Banana 2.1
+    model: gemini-nano-banana-2.1
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking]
+    input_types: [text, image]
+    output_types: [text, image]
+    release_date: 2026-10-06
+    cost: {input: 1.5, output: 30}
+
+  - name: Grok 4.7
+    model: xai/grok-4.7
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-21
+    cost: {input: 2, output: 6}
+
   - name: Claude Sonnet 5.5
     model: claude-sonnet-5-5@default
     description: "Sonnet-class reasoning model for everyday coding, bug fixes, and document creation, available through Vertex AI only"
@@ -341,6 +381,56 @@ google:
     cost: {input: 5, output: 25}
 
 bedrock:
+  - name: Claude Haiku 5.5
+    model: anthropic.claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+
+  - name: Claude Haiku 5.5 (AU)
+    model: au.anthropic.claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.11, output: 0.55}
+
+  - name: Claude Haiku 5.5 (EU)
+    model: eu.anthropic.claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.11, output: 0.55}
+
+  - name: Claude Haiku 5.5 (Global)
+    model: global.anthropic.claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+
+  - name: Claude Haiku 5.5 (JP)
+    model: jp.anthropic.claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.11, output: 0.55}
+
   - name: GPT-6.1 Sol (Global)
     model: global.openai.gpt-6.1-sol
     description: "Reasoning model for agentic coding, computer use, and document-heavy professional work"
@@ -552,6 +642,16 @@ bedrock:
     cost: {input: 3, output: 15}
 
 azure:
+  - name: Claude Haiku 5.5
+    model: claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+
   - name: GPT-6.1 Sol
     model: gpt-6.1-sol
     description: "Reasoning model for agentic coding, computer use, and document-heavy professional work"
@@ -792,6 +892,16 @@ azure:
     cost: {input: 1.74, output: 3.48}
 
 ollama:
+  - name: Mistral Large 4
+    model: mistral-large-4
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-06
+    cost: {input: 1.36, output: 4.18}
+
   - name: DeepSeek V4.1 Flash
     model: deepseek-v4.1-flash
     description: "Sparse Mixture-of-Experts model from DeepSeek built on a Causal Encoder-Decoder architecture"
@@ -1089,6 +1199,26 @@ wandb:
     cost: {input: 0.05, output: 0.1}
 
 opencode-go:
+  - name: Claude Haiku 5.5
+    model: claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+
+  - name: Space Bunny
+    model: space-bunny
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-23
+    cost: {input: 0.15, output: 0.6}
+
   - name: LongCat 2.5 Preview Free
     model: longcat-2.5-preview-free
     description: "Multimodal reasoning model from Meituan for coding and agentic workflows, with a one-million-token context window"
