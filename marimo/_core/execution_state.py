@@ -1,0 +1,312 @@
+# Copyright 2026 Marimo. All rights reserved.
+"""Retained runs, executions, and outputs for notebook snapshots."""
+
+from __future__ import annotations
+
+from msgspec.structs import replace
+
+from marimo._core import backend as be, protocol
+from marimo._core.errors import NoRuntime
+from marimo._core.stream import Event, Stream, kind_of, message, utcnow
+
+Item = protocol.Console | protocol.Display
+
+
+class ExecutionState:
+    """Apply execution updates and publish them to connected clients."""
+
+    def __init__(
+        self, notebook_id: protocol.NotebookId, stream: Stream
+    ) -> None:
+        self._id = notebook_id
+        self._stream = stream
+        self._runs: dict[str, protocol.Run] = {}
+        self._run_requests: dict[str, str | None] = {}
+        self._executions: dict[protocol.ExecutionId, protocol.Execution] = {}
+        # Superseded results still contribute to their unfinished run.
+        self._retired_executions: dict[
+            protocol.ExecutionId, protocol.Execution
+        ] = {}
+        self._items: dict[protocol.ItemId, Item] = {}
+
+    @property
+    def id(self) -> protocol.NotebookId:
+        return self._id
+
+    @property
+    def active_run(self) -> protocol.Run | None:
+        return next(
+            (r for r in self._runs.values() if r.status != "completed"), None
+        )
+
+    def run(self, run_id: str) -> protocol.Run | None:
+        return self._runs.get(run_id)
+
+    def request_run(self, request_id: str) -> protocol.Run | None:
+        return next(
+            (
+                self._runs[rid]
+                for rid, key in self._run_requests.items()
+                if key == request_id
+            ),
+            None,
+        )
+
+    def add_run(self, run: protocol.Run, request_id: str) -> None:
+        self._run_requests[run.id] = request_id
+        self._set_run(run)
+
+    def snapshot(self) -> list[Event]:
+        bodies: list[protocol.Run | protocol.Execution | Item] = [
+            *self._runs.values(),
+            *self._executions.values(),
+            *self._items.values(),
+        ]
+        return [
+            Event(
+                kind_of(body),
+                message(body),
+                notebook_id=self.id,
+                run_id=self._run_id(body),
+            )
+            for body in bodies
+        ]
+
+    def observe(
+        self, msg: be.Message, runtime: protocol.Runtime | None
+    ) -> None:
+        match msg:
+            case be.Scheduled(run_id=run_id, caused_by=caused_by):
+                if run_id not in self._runs:
+                    if runtime is None:
+                        raise NoRuntime(f"notebook {self.id} has no runtime")
+                    self._run_requests[run_id] = None
+                    self._set_run(
+                        protocol.Run(
+                            id=run_id,
+                            notebook_id=self.id,
+                            caused_by=caused_by,
+                            status="queued",
+                            outcome=None,
+                            started_at=None,
+                            completed_at=None,
+                        )
+                    )
+            case be.Planned(run_id=run_id, executions=planned):
+                self._observe_planned(run_id, planned, runtime)
+            case be.Status(execution_id=execution_id, status=status):
+                self._observe_status(execution_id, status)
+            case be.Produced(item=item):
+                if item.execution_id in self._executions:
+                    self._items[item.id] = item
+                    self._publish(item)
+            case be.Concluded(execution_id=execution_id, outcome=outcome):
+                if (
+                    execution := self._executions.get(execution_id)
+                ) is not None and execution.status != "completed":
+                    self._set_execution(replace(execution, outcome=outcome))
+            case be.Done(run_id=run_id, outcome=outcome):
+                if (
+                    run := self._runs.get(run_id)
+                ) is not None and run.status != "completed":
+                    members = [
+                        execution
+                        for execution in (
+                            *self._executions.values(),
+                            *self._retired_executions.values(),
+                        )
+                        if execution.run_id == run_id
+                    ]
+                    if any(
+                        execution.status != "completed"
+                        for execution in members
+                    ):
+                        raise ValueError(
+                            "a run cannot complete with unfinished executions"
+                        )
+                    if outcome == "succeeded" and any(
+                        not isinstance(
+                            execution.outcome, protocol.ValueOutcome
+                        )
+                        for execution in members
+                    ):
+                        raise ValueError(
+                            "a successful run cannot contain failed or interrupted executions"
+                        )
+                    self._set_run(
+                        replace(
+                            run,
+                            status="completed",
+                            outcome=outcome,
+                            completed_at=utcnow(),
+                        )
+                    )
+                    for member in members:
+                        self._retired_executions.pop(member.id, None)
+
+    def clear(self) -> None:
+        self._retired_executions.clear()
+        for item in list(self._items.values()):
+            del self._items[item.id]
+            run_id = self._executions[item.execution_id].run_id
+            self._remove(kind_of(item), item.id, run_id)
+        for execution in list(self._executions.values()):
+            del self._executions[execution.id]
+            self._remove(
+                "execution",
+                execution.id,
+                execution.run_id,
+            )
+        for run in list(self._runs.values()):
+            del self._runs[run.id]
+            self._remove("run", run.id, run.id)
+            self._run_requests.pop(run.id, None)
+
+    def _set_run(self, run: protocol.Run) -> None:
+        self._runs[run.id] = run
+        self._publish(run)
+
+    def _set_execution(self, execution: protocol.Execution) -> None:
+        self._executions[execution.id] = execution
+        self._publish(execution)
+
+    def interrupt(self, outcome: protocol.RunOutcome = "interrupted") -> None:
+        now = utcnow()
+        for execution in list(self._executions.values()):
+            if execution.status != "completed":
+                self._set_execution(
+                    replace(
+                        execution,
+                        status="completed",
+                        outcome=protocol.InterruptedOutcome(),
+                        completed_at=now,
+                    )
+                )
+        for run in list(self._runs.values()):
+            if run.status != "completed":
+                self._set_run(
+                    replace(
+                        run,
+                        status="completed",
+                        outcome=outcome,
+                        completed_at=now,
+                    )
+                )
+        self._retired_executions.clear()
+
+    def _observe_planned(
+        self,
+        run_id: protocol.RunId,
+        planned: tuple[be.PlannedExecution, ...],
+        runtime: protocol.Runtime | None,
+    ) -> None:
+        if (
+            run := self._runs.get(run_id)
+        ) is None or run.status == "completed":
+            return
+        if runtime is None:
+            raise NoRuntime(f"notebook {self.id} has no runtime")
+        for entry in planned:
+            if (
+                entry.id in self._executions
+                or entry.id in self._retired_executions
+            ):
+                continue
+            if entry.cell_id is not None:
+                for previous in list(self._executions.values()):
+                    if previous.cell_id == entry.cell_id:
+                        self._retire_execution(previous)
+            self._set_execution(
+                protocol.Execution(
+                    id=entry.id,
+                    run_id=run_id,
+                    runtime_id=runtime.id,
+                    caused_by=entry.caused_by,
+                    cell_id=(
+                        protocol.CellId(entry.cell_id)
+                        if entry.cell_id is not None
+                        else None
+                    ),
+                    code=entry.code,
+                    code_hash=entry.code_hash,
+                    bindings=(),
+                    status="queued",
+                    outcome=None,
+                    stale=None,
+                    started_at=None,
+                    completed_at=None,
+                )
+            )
+
+    def _retire_execution(self, execution: protocol.Execution) -> None:
+        if execution.status != "completed":
+            raise ValueError("cannot replace an unfinished cell execution")
+        run_id = execution.run_id
+        run = self._runs.get(run_id) if run_id is not None else None
+        if run is not None and run.status != "completed":
+            self._retired_executions[execution.id] = execution
+        for item in list(self._items.values()):
+            if item.execution_id == execution.id:
+                del self._items[item.id]
+                self._remove(kind_of(item), item.id, run_id)
+        del self._executions[execution.id]
+        self._remove("execution", execution.id, run_id)
+
+    def _observe_status(
+        self, execution_id: protocol.ExecutionId, status: protocol.Lifecycle
+    ) -> None:
+        execution = self._executions.get(execution_id)
+        if execution is None or execution.status in (status, "completed"):
+            return
+        now = utcnow()
+        if status == "running":
+            execution = replace(execution, status=status, started_at=now)
+            assert execution.run_id is not None
+            run = self._runs[execution.run_id]
+            if run.status == "queued":
+                self._set_run(replace(run, status="running", started_at=now))
+        elif status == "completed":
+            if execution.outcome is None:
+                raise ValueError("a completed execution must have an outcome")
+            execution = replace(execution, status=status, completed_at=now)
+        else:
+            execution = replace(execution, status=status)
+        self._set_execution(execution)
+
+    def _publish(
+        self,
+        body: protocol.Run | protocol.Execution | Item,
+    ) -> None:
+        run_id = self._run_id(body)
+        self._stream.publish(
+            body,
+            notebook_id=self.id,
+            request_id=self._run_requests.get(run_id or ""),
+            run_id=run_id,
+        )
+
+    def _run_id(
+        self,
+        body: protocol.Run | protocol.Execution | Item,
+    ) -> protocol.RunId | None:
+        if isinstance(body, protocol.Run):
+            return body.id
+        if isinstance(body, protocol.Execution):
+            return body.run_id
+        if isinstance(body, (protocol.Console, protocol.Display)):
+            return self._executions[body.execution_id].run_id
+        return None
+
+    def _remove(
+        self,
+        kind: str,
+        object_id: str,
+        run_id: protocol.RunId | None,
+    ) -> None:
+        self._stream.remove(
+            kind,
+            object_id,
+            notebook_id=self.id,
+            request_id=self._run_requests.get(run_id or ""),
+            run_id=run_id,
+        )

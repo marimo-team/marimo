@@ -820,7 +820,7 @@ class TestCellResults:
         notebook.observe(
             be.Done(second.id, "failed" if same_run else "succeeded")
         )
-        assert not notebook._retired_executions
+        assert not notebook._state._retired_executions
         log.clear()
         notebook.observe(be.Produced(item))
         assert not log
