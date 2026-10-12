@@ -166,6 +166,34 @@ export function dateToLocalISOTime(d: Date): string {
 }
 
 /**
+ * Parse a time string into a Date anchored at the Unix epoch day. Supports
+ * the backend's wire format (`HH:MM:SS`, as produced by `dateToLocalISOTime`)
+ * as well as looser pasted text: optional seconds and an optional `am`/`pm`
+ * suffix (e.g. `"14:30"`, `"2:30 PM"`).
+ */
+export function parseTimeToDate(value: string): Date | undefined {
+  const match = /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?$/i.exec(
+    value.trim(),
+  );
+  if (!match) {
+    return undefined;
+  }
+  const [, hStr, mStr, sStr, ampm] = match;
+  let hour = Number.parseInt(hStr, 10);
+  const minute = Number.parseInt(mStr, 10);
+  const second = sStr ? Number.parseInt(sStr, 10) : 0;
+  if (ampm) {
+    const isPm = ampm.toLowerCase() === "pm";
+    if (hour === 12) {
+      hour = isPm ? 12 : 0;
+    } else if (isPm) {
+      hour += 12;
+    }
+  }
+  return new Date(1970, 0, 1, hour, minute, second);
+}
+
+/**
  * Format a Date as `YYYY-MM-DDTHH:MM:SS` (no timezone suffix) using local
  * fields. See `dateToLocalISODate` for the rationale on local vs UTC.
  */

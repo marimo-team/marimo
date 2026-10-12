@@ -6,6 +6,7 @@ import { CopyIcon, FilterIcon, SquareStack } from "lucide-react";
 import type { RefObject } from "react";
 import useEvent from "react-use-event-hook";
 import { copyToClipboard } from "@/utils/copy";
+import { parseTimeToDate } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
 import {
   ContextMenu,
@@ -135,11 +136,17 @@ export const CellContextMenu = <TData,>({
         });
       case "date":
       case "datetime":
-      case "time":
         return Filter[type]({
           operator: symbolOp[comparison],
           value: new Date(value as string),
         });
+      case "time": {
+        const time = parseTimeToDate(value as string);
+        return Filter.time({
+          operator: symbolOp[comparison],
+          value: time as Date,
+        });
+      }
       case "boolean":
         const target = comparison === "eq" ? value : !(value as boolean);
         return Filter.boolean({

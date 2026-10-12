@@ -14,6 +14,7 @@ import {
   dateToLocalISODate,
   dateToLocalISODateTime,
   dateToLocalISOTime,
+  parseTimeToDate,
 } from "@/utils/dates";
 import type { FilterType } from "./filters";
 
@@ -72,24 +73,11 @@ export function parsePastedDate(
     return undefined;
   }
 
-  const timeMatch =
-    filterType === "time"
-      ? trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?$/i)
-      : null;
-  if (timeMatch) {
-    const [, hStr, mStr, sStr, ampm] = timeMatch;
-    let hour = Number.parseInt(hStr, 10);
-    const minute = Number.parseInt(mStr, 10);
-    const second = sStr ? Number.parseInt(sStr, 10) : 0;
-    if (ampm) {
-      const isPm = ampm.toLowerCase() === "pm";
-      if (hour === 12) {
-        hour = isPm ? 12 : 0;
-      } else if (isPm) {
-        hour += 12;
-      }
+  if (filterType === "time") {
+    const isoTime = parseTimeToDate(trimmed);
+    if (isoTime) {
+      return isoTime;
     }
-    return new Date(1970, 0, 1, hour, minute, second);
   }
 
   const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
