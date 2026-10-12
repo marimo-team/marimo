@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Protocol
 
@@ -10,6 +11,23 @@ from marimo import _loggers
 from marimo._utils.http import HTTPException, HTTPStatus
 
 LOGGER = _loggers.marimo_logger()
+
+
+def rename_no_replace(source: Path, target: Path) -> None:
+    """Move a file without replacing an existing destination.
+
+    On POSIX, linking claims the destination atomically before removing the
+    source. Unlike `rename`, it cannot overwrite a concurrently created file.
+    """
+    if os.name == "nt":
+        source.rename(target)
+        return
+    os.link(source, target)
+    try:
+        source.unlink()
+    except OSError:
+        target.unlink()
+        raise
 
 
 class StorageInterface(Protocol):
@@ -144,7 +162,7 @@ class FilesystemStorage(StorageInterface):
         new_path = _ensure_path(new_path)
         self.ensure_parent_dirs(new_path)
         try:
-            old_path.rename(new_path)
+            rename_no_replace(old_path, new_path)
         except Exception as err:
             raise HTTPException(
                 status_code=HTTPStatus.SERVER_ERROR,

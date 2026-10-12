@@ -169,6 +169,11 @@ class SessionManager:
         self._file_change_coordinator = self._create_file_change_coordinator()
 
     @property
+    def event_bus(self) -> SessionEventBus:
+        """Session lifecycle notifications."""
+        return self._event_bus
+
+    @property
     def auth_token(self) -> AuthToken:
         """Get the auth token."""
         return self._token_manager.auth_token

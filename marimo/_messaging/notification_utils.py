@@ -217,6 +217,7 @@ class CellNotificationUtils:
         data: Sequence[Error],
         clear_console: bool,
         cell_id: CellId_t,
+        execution_id: str | None = None,
     ) -> None:
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
@@ -267,6 +268,7 @@ class CellNotificationUtils:
                 output=CellOutput.errors(safe_errors),
                 console=console,
                 status=None,
+                execution_id=execution_id,
             )
         )
 

@@ -277,22 +277,18 @@ class TestAppTrace:
 
         stream_messages = MockStream(k.stream)
         stderr_messages = MockStderr(k.stderr)
+        errors = {
+            m["cell_id"]: m["output"]["data"][0]["msg"]
+            for m in stream_messages.operations
+            if m.get("output") and m["output"]["channel"] == "marimo-error"
+        }
 
         assert "C" not in k.globals
         if k.execution_type == "strict":
-            assert (
-                "name `R` is referenced before definition."
-                in stream_messages.operations[-4]["output"]["data"][0]["msg"]
-            )
-            assert (
-                "This cell wasn't run"
-                in stream_messages.operations[-1]["output"]["data"][0]["msg"]
-            )
+            assert "name `R` is referenced before definition." in errors["0"]
+            assert "This cell wasn't run" in errors["1"]
         else:
-            assert (
-                "Name `C` is not defined."
-                in stream_messages.operations[-2]["output"]["data"][0]["msg"]
-            )
+            assert "Name `C` is not defined." in errors["1"]
             assert "NameError" in stderr_messages.messages[0]
             assert "NameError" in stderr_messages.messages[-1]
 

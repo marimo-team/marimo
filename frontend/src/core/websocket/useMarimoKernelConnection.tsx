@@ -304,6 +304,8 @@ export function useMarimoKernelConnection(opts: {
       case "completed-run":
         setInitialRunCompleted(true);
         return;
+      case "execution":
+        return;
       case "interrupted":
         return;
 
