@@ -7,6 +7,7 @@ import { hasCellsAtom } from "@/core/cells/cells";
 import type { AppConfig } from "@/core/config/config-schema";
 import { connectionAtom } from "@/core/network/connection";
 import { useConnectionNotice } from "@/core/network/useConnectionNotice";
+import { sandboxAtom } from "@/core/packages/sandbox-state";
 import { WebSocketState } from "@/core/websocket/types";
 import { useInterval } from "@/hooks/useInterval";
 import { cn } from "@/utils/cn";
@@ -28,6 +29,7 @@ export const ConnectionNotice = ({
   const notice = useConnectionNotice();
   const connection = useAtomValue(connectionAtom);
   const hasCells = useAtomValue(hasCellsAtom);
+  const sandbox = useAtomValue(sandboxAtom);
   const [detailsExpanded, setDetailsExpanded] = useAtom(
     runtimeDetailsExpandedAtom,
   );
@@ -48,13 +50,17 @@ export const ConnectionNotice = ({
     openApplication("packages");
   };
 
+  if (!notice && !sandbox?.backend) {
+    return null;
+  }
+
   if (hasCells && canOpenPackages) {
     const title =
       notice?.ready && notice.kind === "startup" ? "Ready" : notice?.title;
     return (
       <VerticalLayoutWrapper
         appConfig={appConfig}
-        // Reserve the status row and gutter so completion never shifts cells.
+        // Sandboxes retain this row for subsequent environment syncs.
         className="shrink-0 h-12 pb-0 sm:pb-0 print:hidden"
         innerClassName="pb-0 sm:pb-0 pr-4"
       >

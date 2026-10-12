@@ -221,6 +221,9 @@ it("uses an inline notice for an existing ordinary notebook, opens collapsed det
     store.set(runtimeDetailsExpandedAtom, false);
   });
   act(() => vi.advanceTimersByTime(500));
+  const statusRow = screen.getByRole("region", {
+    name: "Notebook startup",
+  }).parentElement;
   fireEvent.click(screen.getByRole("button", { name: /Open Packages/ }));
   expect(store.get(chromeAtom)).toMatchObject({
     isSidebarOpen: true,
@@ -243,6 +246,7 @@ it("uses an inline notice for an existing ordinary notebook, opens collapsed det
   expect(onRetry).toHaveBeenCalledOnce();
   act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
   expect(screen.queryByRole("region", { name: "Notebook startup" })).toBeNull();
+  expect(statusRow).not.toBeInTheDocument();
 });
 
 it.each([
