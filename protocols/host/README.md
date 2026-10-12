@@ -11,8 +11,8 @@ The OpenAPI schema is the source of truth for `marimo/_core/protocol.py`.
 Generate the types and check them from the repository root:
 
 ```sh
-uv run --locked --script protocols/host/generate.py
-uv run --locked --script protocols/host/generate.py --check
+make host-protocol-codegen
+make host-protocol-check
 ```
 
 Other consumers can generate types from the same schema by pinning a marimo

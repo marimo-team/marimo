@@ -79,7 +79,7 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
             "# Copyright 2026 Marimo. All rights reserved.\n"
             "# AUTO-GENERATED FILE — DO NOT EDIT.\n"
             "# Generated from protocols/host/openapi.yaml.\n"
-            "# Regenerate with `uv run --locked --script protocols/host/generate.py`.\n"
+            "# Regenerate with `make host-protocol-codegen`.\n"
             "# ruff: noqa: TC003 - msgspec resolves annotations at runtime\n"
             "# ruff: noqa: RUF036 - the generator orders unions; the wire shape is the same"
         ),
@@ -162,7 +162,7 @@ def main() -> None:
         if not destination.exists() or destination.read_bytes() != content:
             if args.check:
                 raise SystemExit(
-                    "Host models are stale; run uv run --locked --script protocols/host/generate.py"
+                    "Host models are stale; run make host-protocol-codegen"
                 )
             destination.write_bytes(content)
     print("Host protocol models are current.")
