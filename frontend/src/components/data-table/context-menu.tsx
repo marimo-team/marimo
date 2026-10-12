@@ -16,20 +16,25 @@ import {
   ContextMenuTrigger,
 } from "../ui/context-menu";
 import { DATA_CELL_ID } from "./cell-utils";
-import { Filter } from "./filters";
+import {
+  type FilterType,
+  Filter,
+  COMPARISON_OPS,
+  TEXT_SCALAR_OPS,
+} from "./filters";
 import { selectedCellsAtom } from "./range-focus/atoms";
 import { getClipboardContent, getRawValue } from "./utils";
 
 type Comparison = "eq" | "neq";
 
 const symbolOp = {
-  eq: "==",
-  neq: "!=",
+  eq: COMPARISON_OPS[0],
+  neq: COMPARISON_OPS[1],
 } as const;
 
 const textOp = {
-  eq: "equals",
-  neq: "does_not_equal",
+  eq: TEXT_SCALAR_OPS[0],
+  neq: TEXT_SCALAR_OPS[1],
 } as const;
 
 export const DataTableContextMenu = <TData,>({
@@ -113,7 +118,7 @@ export const CellContextMenu = <TData,>({
   const canFilter = column.getCanFilter();
 
   const getFilter = (
-    type: string | undefined,
+    type: FilterType | undefined,
     value: unknown,
     comparison: Comparison = "eq",
   ) => {
