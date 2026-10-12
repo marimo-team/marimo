@@ -293,6 +293,9 @@ class ExecuteCellsCommand(Command):
         codes: Python code for each cell. Must match length of cell_ids.
         request: HTTP request context if available.
         timestamp: Unix timestamp when command was created.
+        run_id: Optional correlation ID. When set, the notifications the
+            command's run produces carry it, so a caller can follow its
+            run among others on the same session.
     """
 
     # ids of cells to run
@@ -303,6 +306,7 @@ class ExecuteCellsCommand(Command):
     request: HTTPRequest | None = None
     # time at which the request was received
     timestamp: float = msgspec.field(default_factory=time.time)
+    run_id: str | None = None
 
     def __repr__(self) -> str:
         return f"ExecuteCellsCommand(cells={len(self.cell_ids)})"

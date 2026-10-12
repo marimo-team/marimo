@@ -171,7 +171,10 @@ class KernelRequestHandlers:
     async def _handle_execute_multiple(
         self, request: ExecuteCellsCommand
     ) -> None:
-        with self._run_context(), http_request_context(request.request):
+        with (
+            self._run_context(request.run_id),
+            http_request_context(request.request),
+        ):
             await self._kernel.run(request.execution_requests)
 
     async def _handle_sync_graph(self, request: SyncGraphCommand) -> None:
