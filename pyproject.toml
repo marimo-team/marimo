@@ -343,6 +343,7 @@ exclude = [
     "marimo/_test_utils/codegen_data",
     "marimo/_tutorials",
     "scripts",
+    "protocols/**/.venv",
     "tests/_ast/app_data",
     "tests/_ast/cell_data",
     "tests/_ast/codegen_data",
@@ -460,6 +461,7 @@ convention = "google"
 "**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "dagger/*" = ["TID252"]
 "protocols/host/generate.py" = ["T201"]
+"protocols/host/conformance/test_*.py" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "marimo/_runtime/patches.py" = ["T100"]
 # Prefer multi-line "\n".join([...]) expected strings in codegen tests.
 "tests/_ast/test_codegen.py" = ["FLY002"]

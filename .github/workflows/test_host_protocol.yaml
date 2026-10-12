@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-      - name: Check Python model generation
+      - name: Check Python model generation and portable fixtures
         run: make host-protocol-check
       - name: Check generated Python bindings against fixtures
         run: uv run --group test pytest tests/_core/test_protocol.py tests/_lint/test_host_protocol_codegen.py
