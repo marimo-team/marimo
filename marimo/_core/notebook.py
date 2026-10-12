@@ -27,7 +27,8 @@ if TYPE_CHECKING:
 class Notebook:
     """A notebook's state and commands.
 
-    Snapshots preserve insertion order for runs, executions, and items.
+    Snapshots preserve insertion order for runs and executions, and for
+    outputs within each execution.
     Current cell results survive runtime stops and restarts. The host
     chooses how long to retain completed ephemeral results.
     Removing the notebook closes it; further commands raise `NotFound`.

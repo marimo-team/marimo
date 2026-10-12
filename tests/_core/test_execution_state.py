@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pytest
+from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol as p
 from marimo._core.execution_state import RetentionPolicy
@@ -267,3 +268,161 @@ def test_removal_listeners_can_read_snapshots() -> None:
         {("run", run.id)},
         set(),
     ]
+
+
+@pytest.mark.parametrize("cleanup", ["expire", "replace", "clear"])
+def test_outputs_follow_their_execution_through_updates_and_removal(
+    cleanup: str,
+) -> None:
+    clock = Clock()
+    host, notebook = host_at(clock)
+    run = notebook.run("code", request_id="request")
+    first = plan(notebook, run, "first", "a" if cleanup != "expire" else None)
+    second = plan(
+        notebook, run, "second", "b" if cleanup != "expire" else None
+    )
+    first_console = p.Console(
+        first, p.ItemId("first-console"), "stdout", 0, "a"
+    )
+    first_display = p.Display(
+        execution_id=first,
+        id=p.ItemId("first-display"),
+        seq=1,
+        mimetype="text/plain",
+        data="b",
+    )
+    second_console = p.Console(
+        second, p.ItemId("second-console"), "stdout", 0, "c"
+    )
+    second_display = p.Display(
+        execution_id=second,
+        id=p.ItemId("second-display"),
+        seq=1,
+        mimetype="text/plain",
+        data="d",
+    )
+    for item in (second_console, first_console, second_display, first_display):
+        notebook.observe(be.Produced(item))
+    first_console = replace(first_console, text="updated")
+    notebook.observe(be.Produced(first_console))
+    finish(notebook, first)
+    finish(notebook, second)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    initial = host.events(notebook_id=notebook.id)
+    assert [
+        getattr(event.data, event.kind)
+        for event in initial
+        if event.kind in {"console", "display"}
+    ] == [first_console, first_display, second_console, second_display]
+
+    live: list[Event] = []
+    snapshots: list[dict] = []
+
+    def updated(event: Event) -> None:
+        live.append(event)
+        snapshots.append(fold(notebook._snapshot()))
+
+    host.subscribe(
+        updated,
+        notebook_id=notebook.id,
+        types={"run", "execution", "console", "display"},
+    )
+    if cleanup == "expire":
+        clock.now = 10
+        host.expire()
+    elif cleanup == "replace":
+        replacement = notebook.run("code", request_id="replacement")
+        plan(notebook, replacement, "new", "a")
+    else:
+        host.remove_notebook(notebook.id)
+
+    assert [
+        (event.name, event.data.id)
+        for event in live
+        if event.name.endswith(".removed")
+    ] == [
+        ("console.removed", first_console.id),
+        ("display.removed", first_display.id),
+        ("execution.removed", first),
+        *(
+            []
+            if cleanup == "replace"
+            else [
+                ("console.removed", second_console.id),
+                ("display.removed", second_display.id),
+                ("execution.removed", second),
+                ("run.removed", run.id),
+            ]
+        ),
+    ]
+    state = fold(initial)
+    for event, observed in zip(live, snapshots, strict=True):
+        state = fold([event], state)
+        assert state == observed
+
+
+def test_expiration_does_not_scan_unrelated_outputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = Clock()
+    host, notebook = host_at(clock, history=2)
+    run = notebook.run("code", request_id="request")
+    for index in range(1000):
+        execution = plan(notebook, run, str(index))
+        notebook.observe(
+            be.Produced(
+                p.Console(execution, p.ItemId(str(index)), "stdout", 0, "x")
+            )
+        )
+        finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    visits = 0
+    getattribute = p.Console.__getattribute__
+
+    def counted(item: p.Console, name: str) -> object:
+        nonlocal visits
+        if name == "execution_id":
+            visits += 1
+        return getattribute(item, name)
+
+    monkeypatch.setattr(p.Console, "__getattribute__", counted)
+    clock.now = 10
+    host.expire()
+    assert visits <= 1000
+    assert fold(host.events(notebook_id=notebook.id)) == {}
+
+
+def test_planning_does_not_scan_unrelated_cells(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    host, notebook = host_at(Clock(), history=2)
+    run = notebook.run("code", request_id="request")
+    visits = 0
+    getattribute = p.Execution.__getattribute__
+
+    def counted(execution: p.Execution, name: str) -> object:
+        nonlocal visits
+        if name == "cell_id":
+            visits += 1
+        return getattribute(execution, name)
+
+    monkeypatch.setattr(p.Execution, "__getattribute__", counted)
+    notebook.observe(
+        be.Planned(
+            run.id,
+            tuple(
+                be.PlannedExecution(
+                    p.ExecutionId(str(index)), str(index), "hash", None
+                )
+                for index in range(1000)
+            ),
+        )
+    )
+    assert visits <= 2000
+    assert (
+        sum(
+            event.kind == "execution"
+            for event in host.events(notebook_id=notebook.id)
+        )
+        == 1000
+    )

@@ -1,15 +1,15 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Execution state for connecting and reconnecting clients.
 
-Keeping every run, execution, and output would grow without bound.
-`ExecutionState` applies the host's retention policy and emits removal
-events so connected clients stay in sync with fresh snapshots.
-`Stream` retains event history separately for replay.
+Reconnecting clients replay past events, so events are retained.
+Retaining all of them is impractical. `ExecutionState` applies the
+host's retention policy and emits removal events so connected clients
+can update their snapshots.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import isfinite
 from typing import TYPE_CHECKING
 
@@ -23,6 +23,14 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 Item = protocol.Console | protocol.Display
+
+
+@dataclass
+class _RetainedExecution:
+    """An execution with the outputs it produced."""
+
+    execution: protocol.Execution
+    outputs: dict[protocol.ItemId, Item] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -55,12 +63,12 @@ class ExecutionState:
         self._runs: dict[str, protocol.Run] = {}
         self._run_executions: dict[str, set[protocol.ExecutionId]] = {}
         self._run_requests: dict[str, str | None] = {}
-        self._executions: dict[protocol.ExecutionId, protocol.Execution] = {}
+        self._executions: dict[protocol.ExecutionId, _RetainedExecution] = {}
+        self._cell_executions: dict[protocol.CellId, protocol.ExecutionId] = {}
         self._retired_executions: dict[
             protocol.ExecutionId, protocol.RunId
         ] = {}
         self._unsuccessful: set[protocol.RunId] = set()
-        self._items: dict[protocol.ItemId, Item] = {}
         self._completed_at: dict[str, float] = {}
 
     @property
@@ -92,14 +100,15 @@ class ExecutionState:
 
     def expire(self) -> None:
         now = self._clock()
-        for execution in list(self._executions.values()):
+        for retained in list(self._executions.values()):
+            execution = retained.execution
             ended = self._completed_at.get(execution.run_id or "")
             if (
                 execution.cell_id is None
                 and ended is not None
                 and now >= ended + self._retention.ephemeral_seconds
             ):
-                self._retire_execution(execution)
+                self._retire_execution(retained)
 
     def _prune_run(self, run_id: str | None) -> None:
         run = self._runs.get(run_id or "")
@@ -117,8 +126,12 @@ class ExecutionState:
     def snapshot(self) -> list[Event]:
         bodies: list[protocol.Run | protocol.Execution | Item] = [
             *self._runs.values(),
-            *self._executions.values(),
-            *self._items.values(),
+            *(retained.execution for retained in self._executions.values()),
+            *(
+                item
+                for retained in self._executions.values()
+                for item in retained.outputs.values()
+            ),
         ]
         return [
             Event(
@@ -166,20 +179,24 @@ class ExecutionState:
             case be.Status(execution_id=execution_id, status=status):
                 self._observe_status(execution_id, status)
             case be.Produced(item=item):
-                if item.execution_id in self._executions:
-                    self._items[item.id] = item
+                if (
+                    retained := self._executions.get(item.execution_id)
+                ) is not None:
+                    retained.outputs[item.id] = item
                     self._publish(item)
             case be.Concluded(execution_id=execution_id, outcome=outcome):
                 if (
-                    execution := self._executions.get(execution_id)
-                ) is not None and execution.status != "completed":
-                    self._set_execution(replace(execution, outcome=outcome))
+                    retained := self._executions.get(execution_id)
+                ) is not None and retained.execution.status != "completed":
+                    self._set_execution(
+                        replace(retained.execution, outcome=outcome)
+                    )
             case be.Done(run_id=run_id, outcome=outcome):
                 if (
                     run := self._runs.get(run_id)
                 ) is not None and run.status != "completed":
                     members = [
-                        self._executions[eid]
+                        self._executions[eid].execution
                         for eid in self._run_executions[run_id]
                     ]
                     if any(
@@ -221,19 +238,8 @@ class ExecutionState:
     def clear(self) -> None:
         self._retired_executions.clear()
         self._unsuccessful.clear()
-        for item in list(self._items.values()):
-            del self._items[item.id]
-            run_id = self._executions[item.execution_id].run_id
-            self._remove(kind_of(item), item.id, run_id)
-        for execution in list(self._executions.values()):
-            del self._executions[execution.id]
-            if execution.run_id is not None:
-                self._run_executions[execution.run_id].remove(execution.id)
-            self._remove(
-                "execution",
-                execution.id,
-                execution.run_id,
-            )
+        for retained in list(self._executions.values()):
+            self._remove_execution(retained)
         for run in list(self._runs.values()):
             del self._runs[run.id]
             del self._run_executions[run.id]
@@ -250,14 +256,20 @@ class ExecutionState:
         self._publish(run)
 
     def _set_execution(self, execution: protocol.Execution) -> None:
-        self._executions[execution.id] = execution
+        if (retained := self._executions.get(execution.id)) is None:
+            self._executions[execution.id] = _RetainedExecution(execution)
+        else:
+            retained.execution = execution
+        if execution.cell_id is not None:
+            self._cell_executions[execution.cell_id] = execution.id
         if execution.run_id is not None:
             self._run_executions[execution.run_id].add(execution.id)
         self._publish(execution)
 
     def interrupt(self, outcome: protocol.RunOutcome = "interrupted") -> None:
         now = utcnow()
-        for execution in list(self._executions.values()):
+        for retained in list(self._executions.values()):
+            execution = retained.execution
             if execution.status != "completed":
                 self._set_execution(
                     replace(
@@ -302,9 +314,11 @@ class ExecutionState:
             ):
                 continue
             if entry.cell_id is not None:
-                for previous in list(self._executions.values()):
-                    if previous.cell_id == entry.cell_id:
-                        self._retire_execution(previous)
+                previous = self._cell_executions.get(
+                    protocol.CellId(entry.cell_id)
+                )
+                if previous is not None:
+                    self._retire_execution(self._executions[previous])
             self._set_execution(
                 protocol.Execution(
                     id=entry.id,
@@ -327,7 +341,8 @@ class ExecutionState:
                 )
             )
 
-    def _retire_execution(self, execution: protocol.Execution) -> None:
+    def _retire_execution(self, retained: _RetainedExecution) -> None:
+        execution = retained.execution
         if execution.status != "completed":
             raise ValueError("cannot replace an unfinished cell execution")
         run_id = execution.run_id
@@ -336,22 +351,30 @@ class ExecutionState:
             self._retired_executions[execution.id] = run.id
             if not isinstance(execution.outcome, protocol.ValueOutcome):
                 self._unsuccessful.add(run.id)
-        for item in list(self._items.values()):
-            if item.execution_id == execution.id:
-                del self._items[item.id]
-                self._remove(kind_of(item), item.id, run_id)
+        self._remove_execution(retained)
+        self._prune_run(run_id)
+
+    def _remove_execution(self, retained: _RetainedExecution) -> None:
+        execution = retained.execution
+        run_id = execution.run_id
+        for item in list(retained.outputs.values()):
+            del retained.outputs[item.id]
+            self._remove(kind_of(item), item.id, run_id)
         del self._executions[execution.id]
+        if execution.cell_id is not None:
+            del self._cell_executions[execution.cell_id]
         if run_id is not None:
             self._run_executions[run_id].remove(execution.id)
         self._remove("execution", execution.id, run_id)
 
-        self._prune_run(run_id)
-
     def _observe_status(
         self, execution_id: protocol.ExecutionId, status: protocol.Lifecycle
     ) -> None:
-        execution = self._executions.get(execution_id)
-        if execution is None or execution.status in (status, "completed"):
+        retained = self._executions.get(execution_id)
+        if retained is None:
+            return
+        execution = retained.execution
+        if execution.status in (status, "completed"):
             return
         now = utcnow()
         if status == "running":
@@ -389,7 +412,7 @@ class ExecutionState:
         if isinstance(body, protocol.Execution):
             return body.run_id
         if isinstance(body, (protocol.Console, protocol.Display)):
-            return self._executions[body.execution_id].run_id
+            return self._executions[body.execution_id].execution.run_id
         return None
 
     def _remove(
