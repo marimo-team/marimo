@@ -82,6 +82,18 @@ async def _failing_gen(*items: str) -> AsyncIterator[str]:
 
 
 class TestBuildAttributes:
+    def test_table_filter_has_no_tools(self) -> None:
+        assert build_attributes(
+            SpanInfo(
+                endpoint="table_filter", model="openai/test", tool_count=0
+            )
+        ) == {
+            "marimo.ai.endpoint": "table_filter",
+            "marimo.ai.provider": "openai",
+            "marimo.ai.model": "test",
+            "marimo.ai.tool_count": 0,
+        }
+
     def test_qualified_model_with_mode(self) -> None:
         attrs = build_attributes(
             SpanInfo(endpoint="chat", model="openai/gpt-4o", mode="manual")
@@ -258,6 +270,84 @@ class TestTraceCompletion:
         span = exporter.spans[0]
         assert span.status.status_code == StatusCode.ERROR
         assert any(e.name == "exception" for e in span.events)
+
+
+@pytest.mark.requires("opentelemetry", "pydantic_ai")
+@pytest.mark.parametrize("is_valid", [True, False])
+async def test_table_filter_completion_records_result_or_error(
+    is_valid: bool,
+) -> None:
+    from opentelemetry.trace import StatusCode
+    from pydantic_ai.models.test import TestModel
+    from pydantic_ai.profiles import ModelProfile
+
+    from marimo._plugins.ui._impl.tables.filter_context import FilterContext
+    from marimo._server.ai.config import AnyProviderConfig
+    from marimo._server.ai.providers import OpenAIProvider
+    from marimo._server.ai.table_filter import build_table_filter_prompt
+    from marimo._server.ai.table_filter_output import TableFilterOutputError
+
+    tracer, exporter = _setup_tracing()
+    provider = OpenAIProvider(
+        "test", AnyProviderConfig(api_key="test-key", base_url=None)
+    )
+    model = TestModel(
+        custom_output_text=(
+            '{"fql":"column_0=4","explanation":null}'
+            if is_valid
+            else '{"fql":null,"explanation":null}'
+        ),
+        profile=ModelProfile(supports_json_schema_output=True),
+    )
+    prompt = build_table_filter_prompt(
+        FilterContext(row_count=None, columns=[], omissions=[]), "Keep four"
+    )
+    with (
+        patch("marimo._config.settings.GLOBAL_SETTINGS.TRACING", True),
+        patch("marimo._server.ai.tracing.server_tracer", tracer),
+        patch.object(provider, "create_model", return_value=model),
+    ):
+        if is_valid:
+            output = await provider.table_filter_completion(
+                prompt,
+                None,
+                SpanInfo(endpoint="table_filter", model="openai/test"),
+            )
+            assert output.model_dump() == {
+                "fql": "column_0=4",
+                "explanation": None,
+            }
+        else:
+            with pytest.raises(TableFilterOutputError):
+                await provider.table_filter_completion(
+                    prompt,
+                    None,
+                    SpanInfo(endpoint="table_filter", model="openai/test"),
+                )
+
+    assert [
+        {
+            "name": span.name,
+            "attributes": _attributes(span),
+            "status": span.status.status_code,
+            "has_exception": any(
+                event.name == "exception" for event in span.events
+            ),
+        }
+        for span in exporter.spans
+    ] == [
+        {
+            "name": "marimo.ai.completion",
+            "attributes": {
+                "marimo.ai.endpoint": "table_filter",
+                "marimo.ai.provider": "openai",
+                "marimo.ai.model": "test",
+                "marimo.ai.tool_count": 0,
+            },
+            "status": StatusCode.UNSET if is_valid else StatusCode.ERROR,
+            "has_exception": not is_valid,
+        }
+    ]
 
 
 @pytest.mark.requires("opentelemetry", "pydantic_ai")

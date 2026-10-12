@@ -111,6 +111,12 @@ const TableFilterConformanceCaseSchema = z.object({
   expected_row_ids: z.array(z.string()),
 });
 
+const TableFilterRefusalCaseSchema = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9_]*$/),
+  request: z.string().min(1),
+  explanation: z.string().min(1),
+});
+
 /**
  * Runtime schema for `table_filter_conformance_cases.json`.
  *
@@ -124,6 +130,7 @@ export const TableFilterConformanceSuiteSchema = z.object({
     rows: z.array(TableFilterConformanceRowSchema).min(1),
   }),
   cases: z.array(TableFilterConformanceCaseSchema).min(1),
+  refusals: z.array(TableFilterRefusalCaseSchema).min(1),
 });
 
 /**

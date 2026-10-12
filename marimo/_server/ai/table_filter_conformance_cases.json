@@ -502,5 +502,17 @@
       },
       "expected_row_ids": ["r0", "r2", "r6"]
     }
+  ],
+  "refusals": [
+    {
+      "id": "missing_column",
+      "request": "Show vehicles with horsepower above 200.",
+      "explanation": "The table has no horsepower column."
+    },
+    {
+      "id": "unavailable_statistic",
+      "request": "Show vehicles with a price above the median.",
+      "explanation": "The median price is unavailable. Provide a concrete price threshold instead."
+    }
   ]
 }

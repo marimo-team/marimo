@@ -14,6 +14,10 @@ from starlette.responses import (
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import create_simple_prompt, generate_id
 from marimo._config.config import AiConfig, CopilotMode, MarimoConfig
+from marimo._messaging.msgspec_encoder import encode_json_bytes
+from marimo._plugins.ui._impl.tables.filter_context import (
+    TABLE_FILTER_CONTEXT_MAX_BYTES,
+)
 from marimo._secrets.secrets import get_secret_value
 from marimo._server.ai.config import (
     AnyProviderConfig,
@@ -35,6 +39,10 @@ from marimo._server.ai.providers import (
     StreamOptions,
     get_completion_provider,
 )
+from marimo._server.ai.table_filter import (
+    TableFilterContextError,
+    build_table_filter_prompt,
+)
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tracing import SpanInfo
 from marimo._server.api.deps import AppState
@@ -50,6 +58,10 @@ from marimo._server.models.models import (
     InvokeAiToolResponse,
     MCPRefreshResponse,
     MCPStatusResponse,
+)
+from marimo._server.models.table_filter import (
+    AiTableFilterRequest,
+    AiTableFilterResponse,
 )
 from marimo._server.responses import StructResponse
 from marimo._server.router import APIRouter
@@ -199,6 +211,87 @@ async def ai_completion(
                 session_id=session_id,
             )
         ),
+    )
+
+
+@router.post("/table-filter")
+@requires("edit")
+async def ai_table_filter(*, request: Request) -> Response:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        description: A filter request and bounded table context
+        required: true
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/AiTableFilterRequest"
+    responses:
+        200:
+            description: FQL or an explanation, with column aliases
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/AiTableFilterResponse"
+    """
+    app_state = AppState(request)
+    app_state.require_current_session()
+    session_id = app_state.require_current_session_id()
+    body = await parse_request(request, cls=AiTableFilterRequest)
+
+    if not body.request.strip():
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="The table-filter request must contain nonempty text.",
+        )
+
+    # Bound the canonical context, independent of query length and JSON layout.
+    if (
+        any(omission.kind == "schema" for omission in body.context.omissions)
+        or len(encode_json_bytes(body.context))
+        > TABLE_FILTER_CONTEXT_MAX_BYTES
+    ):
+        return StructResponse(
+            AiTableFilterResponse(
+                fql=None,
+                explanation="The table context is too large or its schema is "
+                "incomplete. A filter cannot be generated from this context.",
+                aliases=[],
+            )
+        )
+
+    try:
+        prompt = build_table_filter_prompt(body.context, body.request)
+    except TableFilterContextError as error:
+        return StructResponse(
+            AiTableFilterResponse(fql=None, explanation=str(error), aliases=[])
+        )
+
+    config = app_state.app_config_manager.get_config(hide_secrets=False)
+    model = get_chat_model(get_ai_config(config))
+    provider = get_completion_provider(
+        get_provider_config(model, config),
+        model=model,
+        session_id=f"{session_id}:table_filter",
+    )
+    output = await provider.table_filter_completion(
+        prompt=prompt,
+        max_tokens=get_max_tokens(config),
+        span_info=SpanInfo(
+            endpoint="table_filter", model=model, session_id=session_id
+        ),
+    )
+    return StructResponse(
+        AiTableFilterResponse(
+            fql=output.fql,
+            explanation=output.explanation,
+            aliases=list(prompt.aliases),
+        )
     )
 
 

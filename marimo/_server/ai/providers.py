@@ -89,6 +89,8 @@ if TYPE_CHECKING:
     from starlette.requests import Request
     from starlette.responses import StreamingResponse
 
+    from marimo._server.ai.table_filter import TableFilterPrompt
+    from marimo._server.ai.table_filter_output import TableFilterOutput
     from marimo._session import Session
 
 
@@ -435,6 +437,68 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             )
 
         return str(result.output)
+
+    async def table_filter_completion(
+        self,
+        prompt: TableFilterPrompt,
+        max_tokens: int | None,
+        span_info: SpanInfo,
+    ) -> TableFilterOutput:
+        """Generate one complete table-filter result without tools or repair calls.
+
+        Args:
+            prompt (TableFilterPrompt): The filter prompt and column aliases.
+            max_tokens (int, optional): The provider's output token limit.
+            span_info (SpanInfo): Metadata for the completion span.
+        """
+        from pydantic_ai import Agent, NativeOutput, ToolOutput
+        from pydantic_ai.exceptions import UnexpectedModelBehavior
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+        from pydantic_ai.usage import UsageLimits
+
+        from marimo._server.ai.table_filter_output import (
+            TableFilterOutput,
+            TableFilterOutputError,
+            decode_table_filter_text,
+            table_filter_text_prompt,
+        )
+
+        model = self.create_model()
+        output_type: OutputSpec[TableFilterOutput | str]
+        if profile_get(model.profile, "supports_json_schema_output", False):
+            output_type = NativeOutput(TableFilterOutput)
+        elif profile_get(model.profile, "supports_tools", True):
+            output_type = ToolOutput(TableFilterOutput)
+        else:
+            output_type = str
+            prompt = table_filter_text_prompt(prompt)
+
+        agent: Agent[None, TableFilterOutput | str] = Agent(
+            model,
+            name=span_info.endpoint,
+            model_settings=self._build_model_settings(model, max_tokens),
+            instructions=prompt.system_prompt,
+            output_type=output_type,
+            deps_type=type(None),
+            capabilities=[],
+            retries=0,
+        )
+        span_info.tool_count = 0
+        with trace_completion(span_info):
+            try:
+                result = await agent.run(
+                    message_history=VercelAIAdapter.load_messages(
+                        self.convert_messages(prompt.messages)
+                    ),
+                    usage_limits=UsageLimits(request_limit=1),
+                )
+            except UnexpectedModelBehavior as error:
+                raise TableFilterOutputError(
+                    "The model returned an invalid table-filter result."
+                ) from error
+            if isinstance(result.output, str):
+                return decode_table_filter_text(result.output)
+            return result.output
 
     async def stream_completion_harness(
         self,

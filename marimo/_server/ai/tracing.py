@@ -20,7 +20,13 @@ if TYPE_CHECKING:
 
 @dataclass
 class SpanInfo:
-    endpoint: Literal["completion", "chat", "inline_completion", "invoke_tool"]
+    endpoint: Literal[
+        "completion",
+        "chat",
+        "inline_completion",
+        "invoke_tool",
+        "table_filter",
+    ]
     model: str  # qualified "<provider>/<model>"
     mode: CopilotMode | None = None
     language: str | None = None
