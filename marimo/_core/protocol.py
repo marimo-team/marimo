@@ -73,7 +73,7 @@ class CellConfig(Struct):
 
 
 class CellConfigInput(Struct):
-    column: int | None | UnsetType = UNSET
+    column: int | UnsetType | None = UNSET
     disabled: bool | UnsetType = False
     expand_output: bool | UnsetType = False
     hide_code: bool | UnsetType = False
