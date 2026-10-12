@@ -5,11 +5,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from copy import deepcopy
+from time import monotonic
 from typing import TYPE_CHECKING
 
 from marimo._core import protocol
 from marimo._core.backend import Backend
 from marimo._core.errors import NotFound
+from marimo._core.execution_state import RetentionPolicy
 from marimo._core.notebook import Notebook
 from marimo._core.stream import Event, Listener, Stream, message
 
@@ -41,7 +43,11 @@ class Host:
         *,
         operations: Sequence[str],
         history: int = 1000,
+        retention: RetentionPolicy | None = None,
+        clock: Callable[[], float] = monotonic,
     ) -> None:
+        self.retention = retention or RetentionPolicy()
+        self.clock = clock
         self._host = protocol.Host(operations=tuple(operations))
         self._stream = Stream(history=history)
         # Lookups accept wire strings; stored objects carry branded IDs.
@@ -81,7 +87,9 @@ class Host:
             raise ValueError(
                 f"project {record.project_id} is not in the catalog"
             )
-        notebook = Notebook(record.id, backend, self._stream)
+        notebook = Notebook(
+            record.id, backend, self._stream, self.retention, self.clock
+        )
         self._records[record.id] = deepcopy(record)
         self._notebooks[record.id] = notebook
         self._stream.publish(
@@ -183,6 +191,11 @@ class Host:
             else:
                 events = [e for e in missed if e.visible_in(notebook_id)]
         return [e for e in [*events, ready] if e.wanted(types, run_id)]
+
+    def expire(self) -> None:
+        """Sweep results according to the host's retention policy."""
+        for notebook in list(self._notebooks.values()):
+            notebook.expire()
 
     def subscribe(
         self,

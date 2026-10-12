@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import stat
 import sys
@@ -12,12 +13,13 @@ import msgspec
 import pytest
 import uvicorn
 
-from marimo._core import protocol
+from marimo._core import backend as be, protocol
 from marimo._server.host import HOST_API_PATH, record as record_module
 from marimo._server.host.lifespan import host as host_lifespan
 from marimo._server.host.record import host_url
 from marimo._server.main import create_starlette_app
 from marimo._utils.lifespans import Lifespans
+from tests._core.conftest import ScriptedBackend, project, record
 from tests._server.host.drive import finished
 from tests._server.mocks import get_starlette_server_state_init
 
@@ -80,3 +82,58 @@ async def test_the_lifespan_serves_the_host_while_the_server_runs(
         assert admitted.status == 404
 
     assert list((tmp_path / "hosts-v1").glob("*.json")) == []
+
+
+async def test_idle_host_expires_results_and_stops_maintenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
+    app = create_starlette_app(base_url="", enable_auth=True)
+    get_starlette_server_state_init().apply(app.state)
+    app.state.server = uvicorn.Server(
+        uvicorn.Config(app, host="127.0.0.1", port=1234)
+    )
+    async with host_lifespan(app):
+        context = app.state.host_context
+        host = context.bridge.host
+        now = 0.0
+        host.clock = lambda: now
+        host.update_project(project())
+        notebook = host.add_notebook(record(), ScriptedBackend())
+        notebook.observe(be.Running())
+        headers = {
+            "Authorization": f"Bearer {context.token}",
+            "Idempotency-Key": "run",
+        }
+        response = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook.id}/runtime/runs",
+            headers=headers,
+            body=b'{"code":"42"}',
+        )
+        assert response.status == 202
+        run_id = protocol.RunId(response.json()["id"])
+        eid = protocol.ExecutionId("execution")
+        notebook.observe(
+            be.Planned(run_id, (be.PlannedExecution(eid, None, "hash", "42"),))
+        )
+        notebook.observe(be.Concluded(eid, protocol.ValueOutcome(None)))
+        notebook.observe(be.Status(eid, "completed"))
+        notebook.observe(be.Done(run_id, "succeeded"))
+        removed = asyncio.Event()
+        host.subscribe(
+            lambda event: (
+                removed.set() if event.name == "run.removed" else None
+            ),
+            notebook_id=notebook.id,
+        )
+        [maintenance] = [
+            task
+            for task in asyncio.all_tasks()
+            if task.get_name() == "host.retention"
+        ]
+        now = 300
+        await asyncio.wait_for(removed.wait(), timeout=5)
+    assert maintenance.done()
+    assert app.state.host_context is None

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from marimo._core.backend import Message
+    from marimo._core.stream import Event
     from marimo._server.session_manager import SessionManager
     from marimo._session.session import Session
 
@@ -38,6 +39,9 @@ class SessionBridge(SessionEventListener):
         self.index = WorkspaceIndex(
             self.host, manager.workspace, self._make_backend
         )
+        self._unsubscribe = self.host.subscribe(
+            self._forget_backend, types={"notebook"}
+        )
 
     def open(self) -> None:
         """Index notebooks, adopt sessions, and subscribe to session events."""
@@ -48,6 +52,7 @@ class SessionBridge(SessionEventListener):
 
     def close(self) -> None:
         self._manager.event_bus.unsubscribe(self)
+        self._unsubscribe()
 
     async def refresh(self) -> None:
         """Refresh the catalog without observing a half-finished file move."""
@@ -193,6 +198,10 @@ class SessionBridge(SessionEventListener):
         )
         self._backends[notebook_id] = backend
         return backend
+
+    def _forget_backend(self, event: Event) -> None:
+        if event.name == "notebook.removed" and event.notebook_id is not None:
+            self._backends.pop(event.notebook_id, None)
 
     def _adopt(self, session: Session) -> None:
         path = session.app_file_manager.path

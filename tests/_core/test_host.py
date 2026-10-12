@@ -160,6 +160,7 @@ def test_removing_a_notebook_removes_what_it_owns_first(host: Host) -> None:
     host.remove_notebook("n1", request_id="req-del")
 
     assert names(log) == [
+        "run",
         "run.removed",
         "attachment.removed",
         "runtime.removed",

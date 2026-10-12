@@ -8,7 +8,12 @@ from typing import TYPE_CHECKING
 import pytest
 
 from marimo._core.errors import Conflict
-from marimo._messaging.notification import StartupProgressNotification
+from marimo._messaging.notification import (
+    CompletedRunNotification,
+    ExecutionNotification,
+    StartupProgressNotification,
+)
+from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace
@@ -102,6 +107,45 @@ async def test_session_updates_after_catalog_removal_are_ignored(
 
     assert names(bridge.host.events(cursor)) == ["ready"]
     assert notebook.runtime is None
+    bridge.close()
+
+
+@pytest.mark.parametrize("cell_id", [SCRATCH_CELL_ID, "a"])
+async def test_removed_runs_release_backend_translation_state(
+    manager: FakeManager, tmp_path: Path, cell_id: str
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    session = FakeSession(str(tmp_path / "a.py"))
+    manager.sessions["browser"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    now = 0.0
+    bridge.host.clock = lambda: now
+    bridge.open()
+    record = bridge.index.notebook_for(str(tmp_path / "a.py"))
+    assert record is not None
+    backend = bridge._backends[record.id]
+    for phase in ("planned", "completed"):
+        session.broadcast(
+            ExecutionNotification(
+                run_id="run",
+                execution_id="execution",
+                cell_id=cell_id,
+                phase=phase,
+                code="42",
+            )
+        )
+    session.broadcast(
+        CompletedRunNotification(run_id="run", outcome="succeeded")
+    )
+    assert set(backend._translators) == {"run"}
+    now = 60
+    bridge.host.expire()
+    # Cell results are retained, so their translation state stays too.
+    retained = {"run"} if cell_id != SCRATCH_CELL_ID else set()
+    assert set(backend._translators) == retained
+    bridge.index.forget(record.id)
+    assert backend._translators == {}
+    assert bridge._backends == {}
     bridge.close()
 
 

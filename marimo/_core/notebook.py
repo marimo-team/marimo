@@ -7,17 +7,20 @@ backend updates and publishes events.
 
 from __future__ import annotations
 
+from time import monotonic
 from typing import TYPE_CHECKING
 
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
 from marimo._core.errors import Conflict, NoRuntime, NotFound
-from marimo._core.execution_state import ExecutionState
+from marimo._core.execution_state import ExecutionState, RetentionPolicy
 from marimo._core.ids import mint
 from marimo._core.stream import Event, kind_of, message, utcnow
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._core.stream import Stream
 
 
@@ -25,7 +28,8 @@ class Notebook:
     """A notebook's state and commands.
 
     Snapshots preserve insertion order for runs, executions, and items.
-    Completed results remain available across runtime stops and restarts.
+    Current cell results survive runtime stops and restarts. The host
+    chooses how long to retain completed ephemeral results.
     Removing the notebook closes it; further commands raise `NotFound`.
     """
 
@@ -34,6 +38,8 @@ class Notebook:
         notebook_id: protocol.NotebookId,
         backend: be.Backend,
         stream: Stream,
+        retention: RetentionPolicy | None = None,
+        clock: Callable[[], float] = monotonic,
     ) -> None:
         self._id = notebook_id
         self._backend = backend
@@ -41,10 +47,20 @@ class Notebook:
         self._closed = False
         self._runtime: protocol.Runtime | None = None
         self._attachments: dict[str, protocol.Attachment] = {}
-        self._state = ExecutionState(notebook_id, stream)
+        self._state = ExecutionState(
+            notebook_id,
+            stream,
+            retention or RetentionPolicy(),
+            clock,
+            forget=backend.forget,
+        )
         self._replacement: protocol.Runtime | None = None
         # Associate runtime events with the pending start, stop, or restart.
         self._lifecycle_request: str | None = None
+
+    def expire(self) -> None:
+        """Apply the host's result retention policy."""
+        self._state.expire()
 
     @property
     def id(self) -> protocol.NotebookId:
@@ -323,6 +339,7 @@ class Notebook:
         The host must publish `notebook.removed` after disposing of its state.
         """
         self._closed = True
+        self._state.interrupt()
         self._state.clear()
         for attachment_id in list(self._attachments):
             self.detach(attachment_id)

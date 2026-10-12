@@ -31,6 +31,9 @@ class ScriptedBackend:
     def interrupt(self, run_id: str) -> None:
         self.calls.append(("interrupt", run_id))
 
+    def forget(self, run_id: str) -> None:
+        self.calls.append(("forget", run_id))
+
 
 def project(project_id: str = "p1") -> protocol.Project:
     return protocol.Project(

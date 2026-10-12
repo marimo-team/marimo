@@ -1,7 +1,17 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Retained runs, executions, and outputs for notebook snapshots."""
+"""Execution state for connecting and reconnecting clients.
+
+Keeping every run, execution, and output would grow without bound.
+`ExecutionState` applies the host's retention policy and emits removal
+events so connected clients stay in sync with fresh snapshots.
+`Stream` retains event history separately for replay.
+"""
 
 from __future__ import annotations
+
+from dataclasses import dataclass
+from math import isfinite
+from typing import TYPE_CHECKING
 
 from msgspec.structs import replace
 
@@ -9,25 +19,49 @@ from marimo._core import backend as be, protocol
 from marimo._core.errors import NoRuntime
 from marimo._core.stream import Event, Stream, kind_of, message, utcnow
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 Item = protocol.Console | protocol.Display
 
 
+@dataclass(frozen=True)
+class RetentionPolicy:
+    """How long the host retains ephemeral results after a run completes."""
+
+    ephemeral_seconds: float = 60.0
+
+    def __post_init__(self) -> None:
+        if not isfinite(self.ephemeral_seconds) or self.ephemeral_seconds < 0:
+            raise ValueError("invalid result retention")
+
+
 class ExecutionState:
-    """Apply execution updates and publish them to connected clients."""
+    """Retain current results and remove completed runs with no executions."""
 
     def __init__(
-        self, notebook_id: protocol.NotebookId, stream: Stream
+        self,
+        notebook_id: protocol.NotebookId,
+        stream: Stream,
+        retention: RetentionPolicy,
+        clock: Callable[[], float],
+        forget: Callable[[protocol.RunId], None],
     ) -> None:
         self._id = notebook_id
         self._stream = stream
+        self._retention = retention
+        self._clock = clock
+        self._forget = forget
         self._runs: dict[str, protocol.Run] = {}
+        self._run_executions: dict[str, set[protocol.ExecutionId]] = {}
         self._run_requests: dict[str, str | None] = {}
         self._executions: dict[protocol.ExecutionId, protocol.Execution] = {}
-        # Superseded results still contribute to their unfinished run.
         self._retired_executions: dict[
-            protocol.ExecutionId, protocol.Execution
+            protocol.ExecutionId, protocol.RunId
         ] = {}
+        self._unsuccessful: set[protocol.RunId] = set()
         self._items: dict[protocol.ItemId, Item] = {}
+        self._completed_at: dict[str, float] = {}
 
     @property
     def id(self) -> protocol.NotebookId:
@@ -56,6 +90,30 @@ class ExecutionState:
         self._run_requests[run.id] = request_id
         self._set_run(run)
 
+    def expire(self) -> None:
+        now = self._clock()
+        for execution in list(self._executions.values()):
+            ended = self._completed_at.get(execution.run_id or "")
+            if (
+                execution.cell_id is None
+                and ended is not None
+                and now >= ended + self._retention.ephemeral_seconds
+            ):
+                self._retire_execution(execution)
+
+    def _prune_run(self, run_id: str | None) -> None:
+        run = self._runs.get(run_id or "")
+        if run is None or run.status != "completed":
+            return
+        if self._run_executions[run.id]:
+            return
+        del self._runs[run.id]
+        del self._run_executions[run.id]
+        self._remove("run", run.id, run.id)
+        self._run_requests.pop(run.id, None)
+        self._completed_at.pop(run.id, None)
+        self._forget(run.id)
+
     def snapshot(self) -> list[Event]:
         bodies: list[protocol.Run | protocol.Execution | Item] = [
             *self._runs.values(),
@@ -65,12 +123,23 @@ class ExecutionState:
         return [
             Event(
                 kind_of(body),
-                message(body),
+                message(body, request_id=self._pending_request(body)),
                 notebook_id=self.id,
                 run_id=self._run_id(body),
             )
             for body in bodies
         ]
+
+    def _pending_request(
+        self, body: protocol.Run | protocol.Execution | Item
+    ) -> str | None:
+        run_id = self._run_id(body)
+        run = self._runs.get(run_id or "")
+        return (
+            self._run_requests.get(run.id)
+            if run is not None and run.status != "completed"
+            else None
+        )
 
     def observe(
         self, msg: be.Message, runtime: protocol.Runtime | None
@@ -110,12 +179,8 @@ class ExecutionState:
                     run := self._runs.get(run_id)
                 ) is not None and run.status != "completed":
                     members = [
-                        execution
-                        for execution in (
-                            *self._executions.values(),
-                            *self._retired_executions.values(),
-                        )
-                        if execution.run_id == run_id
+                        self._executions[eid]
+                        for eid in self._run_executions[run_id]
                     ]
                     if any(
                         execution.status != "completed"
@@ -124,11 +189,14 @@ class ExecutionState:
                         raise ValueError(
                             "a run cannot complete with unfinished executions"
                         )
-                    if outcome == "succeeded" and any(
-                        not isinstance(
-                            execution.outcome, protocol.ValueOutcome
+                    if outcome == "succeeded" and (
+                        run_id in self._unsuccessful
+                        or any(
+                            not isinstance(
+                                execution.outcome, protocol.ValueOutcome
+                            )
+                            for execution in members
                         )
-                        for execution in members
                     ):
                         raise ValueError(
                             "a successful run cannot contain failed or interrupted executions"
@@ -141,17 +209,26 @@ class ExecutionState:
                             completed_at=utcnow(),
                         )
                     )
-                    for member in members:
-                        self._retired_executions.pop(member.id, None)
+                    self._retired_executions = {
+                        eid: rid
+                        for eid, rid in self._retired_executions.items()
+                        if rid != run_id
+                    }
+                    self._unsuccessful.discard(run_id)
+
+                    self._prune_run(run_id)
 
     def clear(self) -> None:
         self._retired_executions.clear()
+        self._unsuccessful.clear()
         for item in list(self._items.values()):
             del self._items[item.id]
             run_id = self._executions[item.execution_id].run_id
             self._remove(kind_of(item), item.id, run_id)
         for execution in list(self._executions.values()):
             del self._executions[execution.id]
+            if execution.run_id is not None:
+                self._run_executions[execution.run_id].remove(execution.id)
             self._remove(
                 "execution",
                 execution.id,
@@ -159,15 +236,23 @@ class ExecutionState:
             )
         for run in list(self._runs.values()):
             del self._runs[run.id]
+            del self._run_executions[run.id]
             self._remove("run", run.id, run.id)
             self._run_requests.pop(run.id, None)
+            self._forget(run.id)
+        self._completed_at.clear()
 
     def _set_run(self, run: protocol.Run) -> None:
         self._runs[run.id] = run
+        self._run_executions.setdefault(run.id, set())
+        if run.status == "completed":
+            self._completed_at.setdefault(run.id, self._clock())
         self._publish(run)
 
     def _set_execution(self, execution: protocol.Execution) -> None:
         self._executions[execution.id] = execution
+        if execution.run_id is not None:
+            self._run_executions[execution.run_id].add(execution.id)
         self._publish(execution)
 
     def interrupt(self, outcome: protocol.RunOutcome = "interrupted") -> None:
@@ -193,6 +278,10 @@ class ExecutionState:
                     )
                 )
         self._retired_executions.clear()
+        self._unsuccessful.clear()
+
+        for run_id in list(self._runs):
+            self._prune_run(run_id)
 
     def _observe_planned(
         self,
@@ -244,13 +333,19 @@ class ExecutionState:
         run_id = execution.run_id
         run = self._runs.get(run_id) if run_id is not None else None
         if run is not None and run.status != "completed":
-            self._retired_executions[execution.id] = execution
+            self._retired_executions[execution.id] = run.id
+            if not isinstance(execution.outcome, protocol.ValueOutcome):
+                self._unsuccessful.add(run.id)
         for item in list(self._items.values()):
             if item.execution_id == execution.id:
                 del self._items[item.id]
                 self._remove(kind_of(item), item.id, run_id)
         del self._executions[execution.id]
+        if run_id is not None:
+            self._run_executions[run_id].remove(execution.id)
         self._remove("execution", execution.id, run_id)
+
+        self._prune_run(run_id)
 
     def _observe_status(
         self, execution_id: protocol.ExecutionId, status: protocol.Lifecycle

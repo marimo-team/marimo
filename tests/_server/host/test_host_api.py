@@ -324,20 +324,30 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
 async def test_run_filter_over_http(harness: Harness) -> None:
     nid = await harness.running()
     notebook = harness.host.notebook(nid)
-    notebook.run("1", request_id="first")
-    notebook.observe(be.Done(protocol.RunId("first"), "succeeded"))
+    first = notebook.run("1", request_id="first")
+    notebook.observe(
+        be.Planned(
+            first.id,
+            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h", "1"),),
+        )
+    )
+    notebook.observe(
+        be.Concluded(protocol.ExecutionId("e1"), protocol.ValueOutcome(None))
+    )
+    notebook.observe(be.Status(protocol.ExecutionId("e1"), "completed"))
+    notebook.observe(be.Done(first.id, "succeeded"))
     notebook.run("2", request_id="second")
     response, task, disconnect = request(
         harness.app,
         "GET",
         f"/notebooks/{nid}/events",
         headers=AUTH,
-        query="run_id=first",
+        query=f"run_id={first.id}&types=run",
     )
     try:
         await wait_for(response, until_ready)
         assert response.names() == ["run", "ready"]
-        assert response.records[0]["data"]["run"]["id"] == "first"
+        assert response.records[0]["data"]["run"]["id"] == first.id
     finally:
         disconnect()
         await asyncio.wait_for(task, 5)

@@ -167,6 +167,14 @@ class RunTranslator:
         if not execution.reported or execution.outcome != previous:
             out.append(be.Concluded(execution.id, execution.outcome))
         out.append(be.Status(execution.id, "completed"))
+        self._failed |= isinstance(execution.outcome, protocol.ErrorOutcome)
+        self.interrupted |= isinstance(
+            execution.outcome, protocol.InterruptedOutcome
+        )
+        # The core keeps the reported outcome; release the payload here
+        # while the translator stays alive for late output.
+        execution.outcome = protocol.ValueOutcome(None)
+        execution.errors.clear()
         return out
 
     def finish(
@@ -196,20 +204,12 @@ class RunTranslator:
                     execution, error=error, interrupted=self.interrupted
                 )
             )
+        self._code = None
+        self._error = None
         outcome: protocol.RunOutcome = "succeeded"
-        if (
-            error is not None
-            or self._failed
-            or any(
-                isinstance(e.outcome, protocol.ErrorOutcome)
-                for e in self._executions.values()
-            )
-        ):
+        if error is not None or self._failed:
             outcome = "failed"
-        if self.interrupted or any(
-            isinstance(e.outcome, protocol.InterruptedOutcome)
-            for e in self._executions.values()
-        ):
+        if self.interrupted:
             outcome = "interrupted"
         out.append(be.Done(self.run_id, outcome))
         return out

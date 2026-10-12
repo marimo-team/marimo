@@ -560,11 +560,15 @@ class TestRun:
         self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
     ) -> None:
         running(notebook, backend)
-        notebook.run("1", request_id="first")
-        with pytest.raises(Conflict, match="first"):
+        first = notebook.run("1", request_id="first")
+        with pytest.raises(Conflict, match=first.id):
             notebook.run("2", request_id="second")
-        notebook.observe(be.Done(RunId("first"), "succeeded"))
-        final = log[-1].data
+        notebook.observe(be.Done(first.id, "succeeded"))
+        final = next(
+            event.data
+            for event in reversed(log)
+            if isinstance(event.data, RunMessage)
+        )
         assert isinstance(final, RunMessage)
         assert final.run.status == "completed"
         assert final.run.started_at is None
@@ -616,14 +620,16 @@ class TestRunCompletion:
         log.clear()
         notebook.observe(be.Scheduled(RunId("later"), ExecutionId("e1")))
         notebook.observe(be.Done(RunId("later"), "succeeded"))
-        assert request_ids(log) == [UNSET, UNSET]
+        assert request_ids(log) == [UNSET, UNSET, UNSET]
         assert all(event.run_id == "later" for event in log)
-        final = log[-1].data
+        final = next(
+            event.data
+            for event in reversed(log)
+            if isinstance(event.data, RunMessage)
+        )
         assert isinstance(final, RunMessage)
         assert final.run.caused_by == "e1"
-        assert (
-            notebook.run("3 * 3", request_id=original.id).status == "completed"
-        )
+        assert notebook.run("3 * 3", request_id="run-1").status == "completed"
 
     @pytest.mark.parametrize("outcome", ["failed", "interrupted"])
     def test_can_end_before_any_execution(
@@ -637,7 +643,11 @@ class TestRunCompletion:
         run = notebook.run("pass", request_id="never-started")
         assert run.outcome is None
         notebook.observe(be.Done(run.id, outcome))
-        final = log[-1].data
+        final = next(
+            event.data
+            for event in reversed(log)
+            if isinstance(event.data, RunMessage)
+        )
         assert isinstance(final, RunMessage)
         assert final.run.status == "completed"
         assert final.run.outcome == outcome
@@ -804,6 +814,7 @@ class TestCellResults:
         assert names(log) == [
             "console.removed",
             "execution.removed",
+            *([] if same_run else ["run.removed"]),
             "execution",
         ]
         visible = [

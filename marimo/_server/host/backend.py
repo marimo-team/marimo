@@ -202,6 +202,9 @@ class SessionBackend(SessionConsumer):
         elif run.task is not None:
             run.task.cancel()
 
+    def forget(self, run_id: protocol.RunId) -> None:
+        self._translators.pop(run_id, None)
+
     # Existing sessions
 
     def adopt(self, session: Session) -> None:
