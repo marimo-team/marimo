@@ -31,13 +31,13 @@ def test_catalog_snapshot_and_replay_exclude_runs(host: Host) -> None:
     notebook = host.add_notebook(record(), ScriptedBackend())
     notebook.start()
     notebook.observe(be.Running())
-    notebook.run("1", request_id="r1")
+    run = notebook.run("1", request_id="r1")
     cursor = host.events()[-1].id
     assert cursor is not None
 
     notebook.observe(
         be.Planned(
-            protocol.RunId("r1"),
+            run.id,
             (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h", "1"),),
         )
     )
@@ -64,10 +64,10 @@ def test_a_notebook_stream_sees_only_its_notebook(host: Host) -> None:
     second = host.add_notebook(record("n2", "b.py"), ScriptedBackend())
     first.start()
     first.observe(be.Running())
-    first.run("1", request_id="r1")
+    run = first.run("1", request_id="r1")
     first.observe(
         be.Planned(
-            protocol.RunId("r1"),
+            run.id,
             (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h", "1"),),
         )
     )
@@ -138,7 +138,7 @@ def test_subscribe_filters_the_live_stream(host: Host) -> None:
 
     notebook.start()
     notebook.observe(be.Running())
-    notebook.run("1", request_id="r1")
+    run = notebook.run("1", request_id="r1")
     unsubscribe()
     host.update_project(project("p2"))
 
@@ -153,7 +153,7 @@ def test_removing_a_notebook_removes_what_it_owns_first(host: Host) -> None:
     notebook.start()
     notebook.observe(be.Running())
     notebook.attach()
-    notebook.run("1", request_id="r1")
+    run = notebook.run("1", request_id="r1")
     log: list[Event] = []
     host.subscribe(log.append, notebook_id="n1")
 
@@ -179,7 +179,7 @@ def test_updating_a_notebook_publishes_only_changes(host: Host) -> None:
     notebook = host.add_notebook(record(), backend)
     notebook.start()
     notebook.observe(be.Running())
-    notebook.run("1", request_id="run")
+    run = notebook.run("1", request_id="run")
     runtime = notebook.runtime
     backend.calls.clear()
     log: list[Event] = []
@@ -194,7 +194,9 @@ def test_updating_a_notebook_publishes_only_changes(host: Host) -> None:
     assert host.notebook("n1") is notebook
     assert notebook.runtime is runtime
     assert backend.calls == []
-    assert notebook.run("1", request_id="run").id == "run"
+    assert host.events(notebook_id="n1", types={"run"})[
+        0
+    ].data == protocol.RunMessage(run=run, request_id="run")
     assert host.events(notebook_id="n1")[0].data == protocol.NotebookMessage(
         notebook=moved
     )

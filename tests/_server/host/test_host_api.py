@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 
 from marimo._core import backend as be, protocol
+from marimo._core.execution_state import RetentionPolicy
 from marimo._core.host import Host
 from marimo._core.protocol import ProjectMessage
 from marimo._server.host import api as api_module
@@ -53,6 +54,8 @@ class Harness:
         self.app = app
         self.bridge = bridge
         self.root = root
+        self.now = 0.0
+        self.host.clock = lambda: self.now
         self.backends: dict[str, ScriptedBackend] = {}
 
     @property
@@ -84,7 +87,7 @@ class Harness:
 
 
 @pytest.fixture
-def harness(tmp_path: Path) -> Harness:
+def harness(tmp_path: Path, request: pytest.FixtureRequest) -> Harness:
     (tmp_path / "forecasts.py").write_text("import marimo\n")
     workspace = FixedFilesWorkspace(
         [MarimoFile(name="forecasts.py", path=str(tmp_path / "forecasts.py"))],
@@ -94,6 +97,7 @@ def harness(tmp_path: Path) -> Harness:
     manager = get_mock_session_manager()
     get_starlette_server_state_init(session_manager=manager).apply(app.state)
     bridge = SessionBridge(manager)
+    bridge.host.retention = getattr(request, "param", RetentionPolicy())
     harness = Harness(app, bridge, tmp_path)
 
     def make(notebook_id: str) -> ScriptedBackend:
@@ -107,6 +111,8 @@ def harness(tmp_path: Path) -> Harness:
         bridge=bridge,
         token=TOKEN,
         port=PORT,
+        receipt_seconds=30,
+        clock=lambda: harness.now,
     )
     return harness
 
@@ -426,6 +432,66 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     assert malformed.json()["type"].endswith("/invalid-request")
     unkeyed = await finished(app, "POST", runs, headers=AUTH, body=body)
     assert unkeyed.status == 400
+
+
+@pytest.mark.parametrize(
+    "harness",
+    [RetentionPolicy(ephemeral_seconds=10)],
+    indirect=True,
+)
+@pytest.mark.parametrize("cell_id", [None, "a"])
+async def test_request_receipts_expire_independently_of_results(
+    harness: Harness, cell_id: str | None
+) -> None:
+    nid = await harness.running()
+    notebook = harness.host.notebook(nid)
+    path = f"/notebooks/{nid}/runtime/runs"
+    body = b'{"code":"42"}'
+    accepted = await finished(
+        harness.app, "POST", path, headers=key("run"), body=body
+    )
+    run_id = protocol.RunId(accepted.json()["id"])
+    eid = protocol.ExecutionId("execution")
+    notebook.observe(
+        be.Planned(run_id, (be.PlannedExecution(eid, cell_id, "hash", "42"),))
+    )
+    notebook.observe(be.Status(eid, "running"))
+    harness.now = 100
+    active = await finished(
+        harness.app, "POST", path, headers=key("run"), body=body
+    )
+    assert active.json()["id"] == run_id
+    assert active.json()["status"] == "running"
+    notebook.observe(be.Concluded(eid, protocol.ValueOutcome(None)))
+    notebook.observe(be.Status(eid, "completed"))
+    notebook.observe(be.Done(run_id, "succeeded"))
+    harness.now = 129
+    harness.host.expire()
+    replayed = await finished(
+        harness.app, "POST", path, headers=key("run"), body=body
+    )
+    assert replayed.json()["id"] == run_id
+    assert replayed.json()["status"] == "completed"
+    assert replayed.json()["outcome"] == "succeeded"
+    assert any(
+        event.kind == "execution"
+        for event in harness.host.events(notebook_id=nid)
+    ) == (cell_id is not None)
+    conflicting = await finished(
+        harness.app, "POST", path, headers=key("run"), body=b'{"code":"43"}'
+    )
+    assert conflicting.status == 409
+
+    harness.now = 130
+    fresh = await finished(
+        harness.app, "POST", path, headers=key("run"), body=b'{"code":"43"}'
+    )
+    assert fresh.status == 202
+    assert fresh.json()["id"] != run_id
+    assert [call for call in harness.backend().calls if call[0] == "run"] == [
+        ("run", run_id, "42"),
+        ("run", fresh.json()["id"], "43"),
+    ]
 
 
 @pytest.mark.parametrize("cancel_waiter", [False, True])

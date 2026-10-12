@@ -148,7 +148,7 @@ def _mutation(operation: str) -> Callable[[_Endpoint], _Endpoint]:
                 )
             digest = hashlib.sha256(await request.body()).hexdigest()
             fingerprint = f"{request.method} {request.url.path} {digest}"
-            remembered = context.replies.get(key)
+            remembered = context.remembered(key)
             if remembered is not None:
                 if remembered.fingerprint != fingerprint:
                     return problem(
@@ -166,17 +166,17 @@ def _mutation(operation: str) -> Callable[[_Endpoint], _Endpoint]:
             context.replies[key] = mutation
             unsubscribe: Callable[[], None] | None = None
             if operation == "runtime.run" and request.method == "POST":
-                # Retain the last run state even after a restart removes it
-                # from the notebook. Replaying the key must never execute again.
+                # The receipt outlives results without retaining their payloads.
                 def updated(event: Event) -> None:
                     if isinstance(event.data, protocol.RunMessage):
                         run = event.data.run
-                        if run.id == key:
+                        if event.data.request_id == key:
                             mutation.run = run
                             if (
                                 run.status == "completed"
                                 and unsubscribe is not None
                             ):
+                                context.settle(mutation)
                                 unsubscribe()
 
                 unsubscribe = context.bridge.host.subscribe(
@@ -194,6 +194,10 @@ def _mutation(operation: str) -> Callable[[_Endpoint], _Endpoint]:
                     context.replies.pop(key, None)
                     if unsubscribe is not None:
                         unsubscribe()
+                elif mutation.expires_at is None and (
+                    mutation.run is None or mutation.run.status == "completed"
+                ):
+                    context.settle(mutation)
 
             task.add_done_callback(completed)
             # A disconnected waiter must not cancel a shared mutation.
