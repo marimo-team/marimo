@@ -10,7 +10,9 @@ import narwhals.stable.v2 as nw
 from narwhals.stable.v2 import col
 from narwhals.typing import IntoLazyFrame
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
+    POLARS_EXPLICIT_EXPLODE_MIN_VERSION,
     python_print_ibis,
     python_print_pandas,
     python_print_polars,
@@ -502,6 +504,21 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_explode_columns(
         df: DataFrame, transform: ExplodeColumnsTransform
     ) -> DataFrame:
+        native_df = df.to_native()
+        if nw.dependencies.is_polars_lazyframe(native_df):
+            # Polars 2 drops empty-list rows unless empty_as_null=True.
+            # Narwhals >=2.23 sets these options, available since Polars 1.36.
+            # Set them here too so older Narwhals preserves the same rows.
+            if DependencyManager.polars.has_at_version(
+                min_version=POLARS_EXPLICIT_EXPLODE_MIN_VERSION, quiet=True
+            ):
+                return nw.from_native(
+                    native_df.explode(
+                        transform.column_ids,
+                        empty_as_null=True,
+                        keep_nulls=True,
+                    )
+                )
         return df.explode(transform.column_ids)
 
     @staticmethod

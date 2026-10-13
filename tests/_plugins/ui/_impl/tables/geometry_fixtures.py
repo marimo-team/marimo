@@ -14,6 +14,7 @@ when the extension cannot load.
 from __future__ import annotations
 
 import datetime
+import json
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -217,6 +218,82 @@ def arrow_other_geoarrow() -> pa_mod.Table:
     )
 
 
+def arrow_multi_geometry() -> pa_mod.Table:
+    import pyarrow as pa
+    from pyproj import CRS
+    from shapely.geometry import Point
+
+    fields: list[pa.Field[Any]] = [
+        pa.field("name", pa.string()),
+        pa.field(
+            "geom_a",
+            pa.binary(),
+            metadata={
+                b"ARROW:extension:name": b"geoarrow.wkb",
+                b"ARROW:extension:metadata": b'{"crs":"EPSG:3857"}',
+            },
+        ),
+        pa.field(
+            "geom_b",
+            pa.string(),
+            metadata={
+                b"ARROW:extension:name": b"geoarrow.wkt",
+                b"ARROW:extension:metadata": json.dumps(
+                    {"crs": CRS.from_epsg(4326).to_json_dict()}
+                ).encode(),
+            },
+        ),
+    ]
+    schema = pa.schema(fields)
+    return pa.table(
+        {
+            "name": ["projected", "null"],
+            "geom_a": [Point(1113194.9079327357, 0).wkb, None],
+            "geom_b": ["POINT (20 5)", None],
+        },
+        schema=schema,
+    )
+
+
+def arrow_wkb_projected() -> pa_mod.Table:
+    return arrow_multi_geometry().select(["name", "geom_a"])
+
+
+def _arrow_with_geometry_metadata(raw: bytes) -> pa_mod.Table:
+    source = arrow_wkb_known_crs()
+    field = source.schema.field("geom").with_metadata(
+        {
+            b"ARROW:extension:name": b"geoarrow.wkb",
+            b"ARROW:extension:metadata": raw,
+        }
+    )
+    return source.cast(source.schema.set(1, field))
+
+
+def arrow_malformed_metadata() -> pa_mod.Table:
+    return _arrow_with_geometry_metadata(b"[]")
+
+
+def arrow_spherical_edges() -> pa_mod.Table:
+    return _arrow_with_geometry_metadata(
+        b'{"crs":"EPSG:4326","edges":"spherical"}'
+    )
+
+
+def arrow_srid_crs() -> pa_mod.Table:
+    return _arrow_with_geometry_metadata(
+        b'{"crs":"EPSG:4326","crs_type":"srid"}'
+    )
+
+
+def arrow_invalid_wkb() -> pa_mod.Table:
+    import pyarrow as pa
+
+    return _arrow_table_with_extension(
+        "geoarrow.wkb", [b"invalid", None], pa.binary(), crs=True
+    )
+
+
 # --- DuckDB spatial ----------------------------------------------------
 
 
@@ -315,3 +392,31 @@ def ordinary_data() -> dict[str, list[Any]]:
             datetime.datetime(2024, 1, 3),
         ],
     }
+
+
+def duckdb_export_connection() -> duckdb_mod.DuckDBPyConnection:
+    """Connection with core geometry support, or an older spatial extension."""
+    import duckdb
+
+    conn = duckdb.connect()
+    try:
+        _ = conn.sql("SELECT NULL::GEOMETRY").types
+    except duckdb.Error:
+        conn.close()
+        return duckdb_spatial_connection()
+    return conn
+
+
+def duckdb_export_relation(
+    conn: duckdb_mod.DuckDBPyConnection, *, known_crs: bool = True
+) -> duckdb_mod.DuckDBPyRelation:
+    """Two geometry columns, a null row, and nullable ordinary values."""
+    crs = "('OGC:CRS84')" if known_crs else ""
+    return conn.sql(
+        f"SELECT id, geom::GEOMETRY{crs} AS geom, "
+        "alternate::GEOMETRY AS alternate, label, big::BIGINT AS big FROM "
+        "(VALUES (1, 'POINT (10 0)', 'POINT (20.1234567890123 5)', 'first', 9007199254740993), "
+        "(2, NULL, NULL, 'second', NULL), "
+        "(3, 'POINT (30 1)', 'POINT (40 2)', NULL, 7)) "
+        "AS data(id, geom, alternate, label, big)"
+    )

@@ -1,0 +1,137 @@
+# Copyright 2026 Marimo. All rights reserved.
+"""Event delivery remains ordered and independent of subscribers."""
+
+from __future__ import annotations
+
+import pytest
+
+from marimo._core import backend as be, protocol
+from marimo._core.host import Host
+from marimo._core.notebook import Notebook
+from marimo._core.stream import Event, Stream
+from tests._core.conftest import ScriptedBackend, project
+
+
+def test_subscriber_failure_does_not_prevent_startup(
+    host: Host,
+    notebook: Notebook,
+    backend: ScriptedBackend,
+) -> None:
+    def fail(_event: Event) -> None:
+        raise RuntimeError("subscriber failed")
+
+    host.subscribe(fail)
+    delivered: list[Event] = []
+    host.subscribe(delivered.append)
+
+    runtime, created = notebook.start()
+
+    assert created
+    assert backend.calls == [("start", runtime.id)]
+    assert [e.name for e in delivered] == ["runtime"]
+
+
+def test_nested_publications_follow_the_current_event() -> None:
+    stream = Stream()
+
+    def publish_another(event: Event) -> None:
+        if event.id == 1:
+            stream.publish(project("p2"))
+
+    stream.subscribe(publish_another)
+    delivered: list[Event] = []
+    stream.subscribe(delivered.append)
+
+    stream.publish(project())
+
+    assert [e.id for e in delivered] == [1, 2]
+    assert delivered == stream.since(0)
+
+
+def test_readers_cannot_change_other_readers_or_replay() -> None:
+    stream = Stream()
+
+    def mutate(event: Event) -> None:
+        assert isinstance(event.data, protocol.ProjectMessage)
+        with pytest.raises(AttributeError):
+            event.data.project.name = "subscriber mutation"
+        with pytest.raises(AttributeError):
+            event.data.project.operations.clear()
+
+    stream.subscribe(mutate)
+    delivered: list[Event] = []
+    stream.subscribe(delivered.append)
+    original = project()
+    published = stream.publish(original)
+    with pytest.raises(AttributeError):
+        original.name = "caller mutation"
+
+    assert isinstance(published.data, protocol.ProjectMessage)
+    assert published.data.project == project()
+    with pytest.raises(AttributeError):
+        published.data.project.name = "return value mutation"
+    assert isinstance(delivered[0].data, protocol.ProjectMessage)
+    assert delivered[0].data.project == project()
+    with pytest.raises(AttributeError):
+        delivered[0].data.project.name = "listener mutation"
+
+    replay = stream.since(0)
+    assert replay is not None
+    assert isinstance(replay[0].data, protocol.ProjectMessage)
+    assert replay[0].data.project == project()
+    with pytest.raises(AttributeError):
+        replay[0].data.project.name = "replay mutation"
+    reread = stream.since(0)
+    assert reread is not None
+    assert isinstance(reread[0].data, protocol.ProjectMessage)
+    assert reread[0].data.project == project()
+
+
+def test_deferred_events_join_history_before_delivery() -> None:
+    stream = Stream()
+    delivered: list[Event] = []
+    stream.subscribe(delivered.append)
+
+    with stream.deferred():
+        stream.publish(project())
+        assert [e.id for e in stream.since(0) or []] == [1]
+        assert delivered == []
+
+    assert [e.id for e in delivered] == [1]
+
+
+def test_subscribers_act_after_the_command_reaches_the_backend(
+    host: Host, notebook: Notebook, backend: ScriptedBackend
+) -> None:
+    def stop_on_starting(event: Event) -> None:
+        if event.name == "runtime":
+            notebook.stop()
+
+    host.subscribe(stop_on_starting, types={"runtime"})
+
+    runtime, _ = notebook.start()
+
+    assert backend.calls == [("start", runtime.id), ("stop",)]
+    assert notebook.runtime is not None
+    assert notebook.runtime.status == "terminating"
+
+
+def test_subscribers_cannot_interrupt_a_restart(
+    host: Host, notebook: Notebook, backend: ScriptedBackend
+) -> None:
+    notebook.start()
+    notebook.observe(be.Running())
+    replacement = notebook.restart()
+    backend.calls.clear()
+    started: list[tuple[protocol.Runtime, bool]] = []
+
+    def start_on_removal(event: Event) -> None:
+        if event.name == "runtime.removed":
+            started.append(notebook.start())
+
+    host.subscribe(start_on_removal, types={"runtime"})
+
+    notebook.observe(be.Exited())
+
+    assert backend.calls == [("start", replacement.id)]
+    assert started == [(replacement, False)]

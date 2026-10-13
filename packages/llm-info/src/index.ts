@@ -1,3 +1,12 @@
+import type {
+  AiModelCost,
+  CAPABILITIES,
+  ModelLimits,
+  ReasoningOption,
+} from "./metadata.ts";
+
+export type { AiModelCost, ModelLimits, ReasoningOption } from "./metadata.ts";
+
 export const ROLES = [
   "chat",
   "edit",
@@ -7,18 +16,8 @@ export const ROLES = [
 ] as const;
 export type Role = (typeof ROLES)[number];
 
-type Capability = "thinking" | "tool_calling";
+type Capability = (typeof CAPABILITIES)[number];
 type DataType = "text" | "image" | "pdf";
-
-/**
- * Per-token pricing in USD per 1M tokens, mirroring the `cost` block on
- * `models.dev`. All fields are optional — open-weights / self-hosted models
- * usually have none.
- */
-export interface AiModelCost {
-  input?: number;
-  output?: number;
-}
 
 export interface AiModel {
   name: string;
@@ -31,6 +30,10 @@ export interface AiModel {
   /** ISO `YYYY-MM-DD` — stored as a string to round-trip through YAML/JSON. */
   release_date: string;
   cost?: AiModelCost;
+  /** Provider-specific controls; omitted when unknown. Does not select an effort. */
+  reasoning_options?: ReasoningOption[];
+  /** Token limits for this provider offering; omitted values are unknown. */
+  limits?: ModelLimits;
 }
 
 export type SyncableProviderId =
