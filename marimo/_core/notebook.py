@@ -254,23 +254,30 @@ class Notebook:
         self,
         *,
         identity: str | None = None,
-        kind: str = "client",
+        kind: str | None = None,
         name: str | None = None,
     ) -> protocol.Attachment:
         """Attach a client to this notebook.
 
         Each call creates a separate attachment. `identity` is stored as
-        data. It does not affect the attachment lifetime.
+        data. It does not affect the attachment lifetime. An omitted `kind`
+        is `client`. An empty `name` is stored as null.
+
+        Raises:
+            msgspec.ValidationError: If a value breaks the protocol's
+                constraints on the attachment field of the same name.
         """
         self._require_open()
-        attachment = protocol.Attachment(
-            id=mint(protocol.AttachmentId, "att"),
-            notebook_id=self.id,
-            kind=kind,
-            name=name,
-            since=utcnow(),
-            identity=msgspec.UNSET if identity is None else identity,
-        )
+        fields: dict[str, Any] = {
+            "id": mint(protocol.AttachmentId, "att"),
+            "notebook_id": self.id,
+            "kind": kind or "client",
+            "name": name or None,
+            "since": utcnow(),
+        }
+        if identity is not None:
+            fields["identity"] = identity
+        attachment = msgspec.convert(fields, protocol.Attachment)
         self._attachments[attachment.id] = attachment
         self._publish(attachment, None)
         return attachment
@@ -371,11 +378,11 @@ class Notebook:
             ValueError: If `type` is empty.
         """
         self._require_open()
+        if not type:
+            raise ValueError("type must be a non-empty string")
         # Fail here, in the producer, instead of inside every subscriber's
         # stream when the event is framed.
         msgspec.json.encode(data)
-        if not type:
-            raise ValueError("type must be a non-empty string")
         custom = protocol.Custom(type=type, data=data)
         self._publish(custom, request_id)
         return custom

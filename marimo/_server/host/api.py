@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import re
 import threading
 from collections.abc import Awaitable, Callable
 from functools import wraps
@@ -50,9 +49,12 @@ ATTACHMENT_IDENTITY = "Marimo-Attachment-Identity"
 ATTACHMENT_KIND = "Marimo-Attachment-Kind"
 ATTACHMENT_NAME = "Marimo-Attachment-Name"
 
-_IDENTITY = re.compile(r"[!-~]{1,128}")
-_KIND = re.compile(r"[a-z0-9-]+")
-_NAME_MAX_BYTES = 256
+_ATTACHMENT_HEADERS = {
+    "identity": ATTACHMENT_IDENTITY,
+    "kind": ATTACHMENT_KIND,
+    "name": ATTACHMENT_NAME,
+}
+"""Attachment fields and the request headers that supply them."""
 
 PING = b": ping\n\n"
 PING_SECONDS = 15.0
@@ -364,10 +366,14 @@ async def _notebook_events(request: Request) -> Response:
     run_id = request.query_params.get("run_id")
     if run_id == "":
         return problem(400, "invalid-request", "run_id must not be empty")
-    asked = _attachment_request(request)
-    if isinstance(asked, Response):
-        return asked
-    attachment = notebook.attach(**asked)
+    try:
+        attachment = notebook.attach(
+            identity=request.headers.get(ATTACHMENT_IDENTITY),
+            kind=request.headers.get(ATTACHMENT_KIND),
+            name=request.headers.get(ATTACHMENT_NAME),
+        )
+    except msgspec.ValidationError as e:
+        return problem(400, "invalid-request", _attachment_problem(e))
     return _stream(
         context,
         cursor,
@@ -394,27 +400,13 @@ def _types(request: Request) -> set[str] | None:
     return {kind for kind in asked.split(",") if kind}
 
 
-def _attachment_request(request: Request) -> dict[str, str] | Response:
-    """Read the attachment headers as `Notebook.attach` keyword arguments.
-
-    Absent headers are absent keys, so `attach` supplies the defaults.
-    Returns a 400 problem when a header is present but invalid.
-    """
-    identity = request.headers.get(ATTACHMENT_IDENTITY)
-    kind = request.headers.get(ATTACHMENT_KIND)
-    name = request.headers.get(ATTACHMENT_NAME) or None
-    if identity is not None and not _IDENTITY.fullmatch(identity):
-        return problem(
-            400, "invalid-request", f"{ATTACHMENT_IDENTITY} is invalid"
-        )
-    if kind is not None and not _KIND.fullmatch(kind):
-        return problem(400, "invalid-request", f"{ATTACHMENT_KIND} is invalid")
-    if name is not None and len(name.encode()) > _NAME_MAX_BYTES:
-        return problem(
-            400, "invalid-request", f"{ATTACHMENT_NAME} is too long"
-        )
-    asked = {"identity": identity, "kind": kind, "name": name}
-    return {key: value for key, value in asked.items() if value is not None}
+def _attachment_problem(error: msgspec.ValidationError) -> str:
+    """Name the request header behind a rejected attachment field."""
+    detail = str(error)
+    for field, header in _ATTACHMENT_HEADERS.items():
+        if detail.endswith(f"`$.{field}`"):
+            return f"{header} is invalid"
+    return "attachment headers are invalid"
 
 
 def _stream(

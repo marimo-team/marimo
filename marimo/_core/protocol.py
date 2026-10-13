@@ -585,14 +585,16 @@ class Attachment(Struct, frozen=True):
     kind: Annotated[
         str,
         Meta(
-            description="What kind of thing is attached, supplied by `Marimo-Attachment-Kind`, such as `browser`, `editor`, or `agent`. Defaults to `client` when the header is omitted. Clients accept kinds they do not recognize."
+            description="What kind of thing is attached, supplied by `Marimo-Attachment-Kind`, such as `browser`, `editor`, or `agent`. Defaults to `client` when the header is omitted. Clients accept kinds they do not recognize.",
+            pattern="^[a-z0-9-]+$",
         ),
     ]
     name: (
         Annotated[
             str,
             Meta(
-                description="A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty."
+                description="A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.",
+                max_length=256,
             ),
         ]
         | None

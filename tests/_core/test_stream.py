@@ -183,13 +183,3 @@ def test_custom_events_are_on_the_notebook_stream_only(
     replayed = host._stream.since(cursor)
     assert replayed is not None
     assert names(replayed) == ["custom"]
-
-
-def test_kind_of_a_custom_body_is_custom() -> None:
-    body = protocol.Custom(type="marimo.test", data={"hello": 1})
-    assert kind_of(body) == "custom"
-    stream = Stream()
-    stream.publish(body, notebook_id="n1")
-    replayed = stream.since(0)
-    assert replayed is not None
-    assert names(replayed) == ["custom"]

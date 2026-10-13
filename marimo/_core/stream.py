@@ -14,10 +14,10 @@ from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, TypeAlias
+from typing import TypeAlias
 
 import msgspec
-from msgspec import UNSET, UnsetType
+from msgspec import UNSET
 
 from marimo._core import protocol
 
@@ -38,26 +38,6 @@ NOTEBOOK_KINDS = frozenset(
         "custom",
     }
 )
-
-
-class Unstable(msgspec.Struct, frozen=True):
-    """A notebook event that is not part of the protocol yet.
-
-    `type` is a namespaced name such as `marimo.pair.agent-message`. Clients
-    that do not recognize a type ignore the event. `data` is owned by
-    the producer of that type.
-    """
-
-    id: str
-    notebook_id: str
-    type: str
-    data: Any
-
-
-class UnstableMessage(msgspec.Struct, frozen=True):
-    unstable: Unstable
-    request_id: str | UnsetType = UNSET
-    time: datetime | UnsetType = UNSET
 
 
 Body: TypeAlias = (

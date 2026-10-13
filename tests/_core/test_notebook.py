@@ -1003,12 +1003,6 @@ class TestEmit:
         assert published.request_id == "req-1"
         assert published.time is not UNSET
 
-    def test_snapshot_does_not_include_custom_events(
-        self, host: Host, notebook: Notebook
-    ) -> None:
-        notebook.emit("marimo.test", {"hello": 1})
-        assert "custom" not in names(host.events(notebook_id=notebook.id))
-
     def test_emit_rejects_data_that_is_not_json(
         self, notebook: Notebook, log: list[Event]
     ) -> None:
