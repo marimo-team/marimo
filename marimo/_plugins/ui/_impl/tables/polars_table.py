@@ -208,6 +208,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     )
 
             def _map_to_csv_string(self, column: pl.Series) -> pl.Expr:
+                # Map is a Polars 2 feature absent from older typing stubs.
                 # Entry structs preserve non-string keys and order.
                 entries = (
                     pl.col(column.name)
