@@ -31,7 +31,7 @@ MODELS = {
 
 def stream_events(path: Path) -> list[dict[str, str]]:
     """Read the fixtures' SSE framing, rejecting incomplete examples."""
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     assert text.endswith("\n\n"), f"{path.name}: unterminated event"
     events = []
     for block in text.split("\n\n"):
@@ -139,7 +139,7 @@ def test_json_models(path: Path) -> None:
         if path.parent.name == "problems"
         else MODELS[path.name]
     )
-    round_trip(model, path.read_text())
+    round_trip(model, path.read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize(
@@ -295,7 +295,10 @@ def test_notebook_snapshot_matches_live_history() -> None:
     document = messages("notebook-events.sse", "document")[0]["document"]
     assert len(document["order"]) == len(set(document["order"]))
     assert set(document["order"]) == cells.keys()
-    assert json.loads((FIXTURES / "cell.json").read_text()) == cells["c3"]
+    assert (
+        json.loads((FIXTURES / "cell.json").read_text(encoding="utf-8"))
+        == cells["c3"]
+    )
     assert_document_hash(document, cells)
 
 
@@ -395,7 +398,9 @@ def test_cell_run_request_and_results() -> None:
         m["cell"]["id"]: m["cell"]
         for m in messages("notebook-events.sse", "cell")
     }
-    request = json.loads((FIXTURES / "run-cells-request.json").read_text())
+    request = json.loads(
+        (FIXTURES / "run-cells-request.json").read_text(encoding="utf-8")
+    )
     assert request == {
         "cells": [{"id": "c3", "code_hash": cells["c3"]["code_hash"]}]
     }
@@ -427,8 +432,10 @@ def test_edit_request_response_and_events() -> None:
         for m in messages("notebook-events.sse", "cell")
     }
     before = messages("notebook-events.sse", "document")[0]["document"]
-    request = json.loads((FIXTURES / "edit.json").read_text())
-    response = json.loads((FIXTURES / "edit-response.json").read_text())
+    request = json.loads((FIXTURES / "edit.json").read_text(encoding="utf-8"))
+    response = json.loads(
+        (FIXTURES / "edit-response.json").read_text(encoding="utf-8")
+    )
     changed = {
         m["cell"]["id"]: m["cell"] for m in messages("edits.sse", "cell")
     }
@@ -480,10 +487,10 @@ def test_edit_request_response_and_events() -> None:
     assert messages("edits.sse", "cell.removed")[0]["id"] == "k7f2"
 
     conflict_request = json.loads(
-        (FIXTURES / "edit-conflict-request.json").read_text()
+        (FIXTURES / "edit-conflict-request.json").read_text(encoding="utf-8")
     )
     conflict = json.loads(
-        (FIXTURES / "problems/edit-conflict.json").read_text()
+        (FIXTURES / "problems/edit-conflict.json").read_text(encoding="utf-8")
     )["edit"]
     assert len(conflict_request["changes"]) == 1
     change = conflict_request["changes"][0]
@@ -496,8 +503,10 @@ def test_edit_request_response_and_events() -> None:
 
 
 def test_restored_result_matches_source() -> None:
-    source = json.loads((FIXTURES / "cell.json").read_text())
-    restored = json.loads((FIXTURES / "execution-restored.json").read_text())
+    source = json.loads((FIXTURES / "cell.json").read_text(encoding="utf-8"))
+    restored = json.loads(
+        (FIXTURES / "execution-restored.json").read_text(encoding="utf-8")
+    )
     assert restored["cell_id"] == source["id"]
     assert restored["code_hash"] == content_hash(source["code"])
     assert restored["run_id"] is None
@@ -531,7 +540,9 @@ def test_identifier_constraints(name: str) -> None:
 
 @pytest.mark.parametrize("field", ["run_id", "runtime_id", "caused_by"])
 def test_required_nullable_fields(field: str) -> None:
-    wire = json.loads((FIXTURES / "execution-restored.json").read_text())
+    wire = json.loads(
+        (FIXTURES / "execution-restored.json").read_text(encoding="utf-8")
+    )
     missing = {key: value for key, value in wire.items() if key != field}
     with pytest.raises(
         msgspec.ValidationError, match="missing required field"
