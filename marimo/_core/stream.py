@@ -35,7 +35,8 @@ Body: TypeAlias = (
     | protocol.Display
     | protocol.Custom
 )
-"""Every object a stream carries. The kind tables below derive from it."""
+"""Every object a stream carries. The wrapper map and the notebook kinds
+derive from it; the catalog kinds are a chosen subset."""
 
 
 def _kind(body_type: type[msgspec.Struct]) -> str:

@@ -144,10 +144,10 @@ def _host_header_ok(header: str | None, port: int) -> bool:
     if header is None:
         return False
     if header.startswith("["):
-        name, _, after = header.partition("]")
-        name = name[1:]
-        if after and not after.startswith(":"):
+        name, closed, after = header.partition("]")
+        if not closed or (after and not after.startswith(":")):
             return False
+        name = name[1:]
         given = after[1:]
     else:
         name, _, given = header.partition(":")

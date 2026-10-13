@@ -27,17 +27,21 @@ def host_url(host: str, port: int, base_url: str) -> str | None:
     reach, because a record would then name a URL nobody can open.
     """
     name = host.strip("[]")
-    if name == "localhost":
+    if name.lower() == "localhost":
         loopback = "127.0.0.1"
     else:
         try:
             address = ip_address(name)
         except ValueError:
             return None
-        if not (address.is_loopback or address.is_unspecified):
+        if address.is_unspecified:
+            # A wildcard IPv6 bind is v6-only, so its loopback is ::1.
+            loopback = "[::1]" if address.version == 6 else "127.0.0.1"
+        elif address.is_loopback:
+            # A socket bound to one loopback address refuses the others.
+            loopback = f"[{address}]" if address.version == 6 else str(address)
+        else:
             return None
-        # A wildcard IPv6 bind is v6-only, so its loopback is ::1.
-        loopback = "[::1]" if address.version == 6 else "127.0.0.1"
     return f"http://{loopback}:{port}{base_url}{HOST_API_PATH}"
 
 
