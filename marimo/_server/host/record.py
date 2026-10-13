@@ -7,7 +7,7 @@ import atexit
 import os
 import tempfile
 from datetime import datetime, timezone
-from ipaddress import ip_address
+from ipaddress import IPv6Address, ip_address
 from uuid import uuid4
 
 import msgspec
@@ -34,6 +34,9 @@ def host_url(host: str, port: int, base_url: str) -> str | None:
             address = ip_address(name)
         except ValueError:
             return None
+        if isinstance(address, IPv6Address) and address.ipv4_mapped:
+            # Only Python 3.13 treats a mapped loopback as loopback.
+            address = address.ipv4_mapped
         if address.is_unspecified:
             # A wildcard IPv6 bind is v6-only, so its loopback is ::1.
             loopback = "[::1]" if address.version == 6 else "127.0.0.1"
