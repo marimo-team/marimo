@@ -35,7 +35,6 @@ import type {
   NotificationMessageType,
 } from "../kernel/messages";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
-import { syncQueryParamsOnNavigation } from "../kernel/queryParamSync";
 import { RuntimeState } from "../kernel/RuntimeState";
 import { initialModeAtom } from "../mode";
 import { requestClientAtom } from "../network/requests";
@@ -153,7 +152,6 @@ export async function initializeIslands(
 
   // Start the runtime
   RuntimeState.INSTANCE.start(bridge.sendComponentValues);
-  syncQueryParamsOnNavigation(bridge.sendUpdateQueryParams);
 }
 
 type IslandsNotificationMessage = {

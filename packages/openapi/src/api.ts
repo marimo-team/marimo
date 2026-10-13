@@ -7771,11 +7771,14 @@ export interface components {
      *         Attributes:
      *             query_params: Every query parameter of the restored URL. A key that
      *                 appears once maps to a string; a repeated key maps to a list.
+     *             request: HTTP request context if available.
      */
     UpdateQueryParamsCommand: {
       queryParams: {
         [key: string]: string | string[];
       };
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
       /** @enum {unknown} */
       type: "update-query-params";
     };

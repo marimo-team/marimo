@@ -126,7 +126,7 @@ class TestUpdateQueryParams:
 
         assert k.globals["seen"] == runs_before
 
-    async def test_does_not_rerun_the_cell_that_binds_the_params(
+    async def test_reruns_the_binding_cell_and_its_descendants(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
         await k.run(
@@ -142,8 +142,59 @@ class TestUpdateQueryParams:
             UpdateQueryParamsCommand(query_params={"tab": "b"})
         )
 
+        # The binding cell's output changed, so it and everything downstream
+        # re-run, like re-running that cell by hand.
+        assert k.globals["binds"] == [1, 1]
         assert k.globals["tab"] == "b"
-        assert k.globals["binds"] == [1]
+
+    async def test_reruns_cells_that_read_through_helper_functions(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # The notebook from issue #4153: the reader never references the
+        # params variable directly, only closures defined next to it.
+        await k.run(
+            [
+                exec_req.get("import marimo as mo"),
+                exec_req.get(
+                    """
+                    query_params = mo.query_params()
+
+                    def set_tab(tab):
+                        query_params["tab"] = tab
+
+                    def get_tab():
+                        return query_params.get("tab", "Tab 1")
+                    """
+                ),
+                exec_req.get("current = get_tab()"),
+            ]
+        )
+        assert k.globals["current"] == "Tab 1"
+
+        await k.update_query_params(
+            UpdateQueryParamsCommand(query_params={"tab": "Tab 3"})
+        )
+
+        assert k.globals["current"] == "Tab 3"
+
+    async def test_reruns_a_cell_that_binds_and_reads_at_once(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get("import marimo as mo"),
+                exec_req.get(
+                    "params = mo.query_params(); tab = params.get('tab')"
+                ),
+            ]
+        )
+        assert k.globals["tab"] is None
+
+        await k.update_query_params(
+            UpdateQueryParamsCommand(query_params={"tab": "b"})
+        )
+
+        assert k.globals["tab"] == "b"
 
     async def test_lazy_kernel_marks_readers_stale_instead_of_running(
         self, lazy_kernel: Kernel, exec_req: ExecReqProvider
@@ -160,6 +211,7 @@ class TestUpdateQueryParams:
         )
 
         assert k.query_params.to_dict() == {"tab": "b"}
+        assert k.graph.cells[bind_cell.cell_id].stale
         assert k.graph.cells[reader_cell.cell_id].stale
-        assert not k.graph.cells[bind_cell.cell_id].stale
+        assert not k.graph.cells[import_cell.cell_id].stale
         assert k.globals["tab"] is None

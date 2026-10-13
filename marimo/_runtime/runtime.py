@@ -1953,9 +1953,12 @@ class Kernel:
     ) -> None:
         """Adopt the query params of a URL the browser restored.
 
-        Re-runs the cells that read `mo.query_params()` (or marks them stale
-        in lazy mode), like a value update does for cells that read a UI
-        element. The frontend is not notified: the URL is already correct.
+        The cells that bind `mo.query_params()` to a variable have a new
+        output, so they and everything downstream re-run (or are marked
+        stale in lazy mode), exactly as if those cells were run by hand.
+        That also covers readers that go through helper functions or
+        closures defined next to the binding. The frontend is not notified:
+        the URL is already correct.
         """
         # Same keys the session strips when the kernel starts.
         params = {
@@ -1968,15 +1971,17 @@ class Kernel:
             return
         self.query_params._replace_all(params)
 
-        # No cell called a setter, so there is no setter cell to exclude;
-        # the sentinel never matches a real cell id.
-        referring_cells = self._find_cells_for_state(
-            self.query_params, setter_cell_id=CellId_t("__external__")
-        )
+        # Only public bindings survive in globals: a private `_params` is
+        # dropped after its cell runs, so it cannot be tracked, like an
+        # inline `mo.query_params().get(...)`.
+        binding_cells: set[CellId_t] = set()
+        for name, value in self.globals.items():
+            if value is self.query_params:
+                binding_cells |= self.graph.get_defining_cells(name)
         if self.reactive_execution_mode == "autorun":
-            await self._run_cells(referring_cells)
+            await self._run_cells(binding_cells)
         else:
-            self.graph.set_stale(referring_cells)
+            self.graph.set_stale(binding_cells)
 
     @kernel_tracer.start_as_current_span("set_ui_element_value")
     async def set_ui_element_value(

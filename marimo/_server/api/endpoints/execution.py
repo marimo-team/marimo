@@ -140,7 +140,10 @@ async def update_query_params(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateQueryParamsRequest)
-    command = UpdateQueryParamsCommand(query_params=body.query_params)
+    command = UpdateQueryParamsCommand(
+        query_params=body.query_params,
+        request=HTTPRequest.from_request(request),
+    )
     enforce_consumer_capability(app_state, command)
     app_state.require_current_session().put_control_request(
         command,

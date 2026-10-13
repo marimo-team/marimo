@@ -218,7 +218,7 @@ class KernelRequestHandlers:
     async def _handle_update_query_params(
         self, request: UpdateQueryParamsCommand
     ) -> None:
-        with self._run_context():
+        with self._run_context(), http_request_context(request.request):
             await self._kernel.update_query_params(request)
 
     async def _handle_pdb_request(self, request: DebugCellCommand) -> None:

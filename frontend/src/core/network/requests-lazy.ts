@@ -30,6 +30,10 @@ type AllRequests = EditRequests & RunRequests;
 //   connection. Use for session-scoped server requests that do not need an
 //   instantiated kernel.
 //
+// - dropWhenDisconnected: Delegates only while the connection is open, and
+//   silently drops the request otherwise. Use for requests that mirror browser
+//   state into the kernel and are meaningless without one.
+//
 // - waitForConnectionOpen: Waits for an existing connection but won't start one.
 //   Use for operations that depend on a running kernel but shouldn't be the
 //   trigger to start it (e.g., saving, interrupting).
@@ -41,6 +45,7 @@ type AllRequests = EditRequests & RunRequests;
 type Action =
   | "throwError"
   | "dropRequest"
+  | "dropWhenDisconnected"
   | "startConnection"
   | "startConnectionWithoutKernel"
   | "waitForConnectionOpen"
@@ -51,7 +56,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendComponentValues: "startConnection",
   // Navigating history must not start a kernel; a kernel started later
   // reads its params from the URL anyway.
-  sendUpdateQueryParams: "dropRequest",
+  sendUpdateQueryParams: "dropWhenDisconnected",
   sendModelValue: "startConnection",
   sendInstantiate: "startConnectionWithoutKernel",
   sendRun: "startConnection",
@@ -191,6 +196,15 @@ export function createLazyRequests(
           );
           // Silently drop the request
           return;
+
+        case "dropWhenDisconnected":
+          if (store.get(connectionAtom).state !== WebSocketState.OPEN) {
+            Logger.debug(
+              `Dropping request: ${key}, since not connected to a kernel.`,
+            );
+            return;
+          }
+          return request(...args);
 
         case "throwError":
           throw new NoKernelConnectedError();

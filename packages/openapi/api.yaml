@@ -6393,7 +6393,7 @@ components:
         \    already correct, so the kernel does not echo the change back.\n\n   \
         \ Attributes:\n        query_params: Every query parameter of the restored\
         \ URL. A key that\n            appears once maps to a string; a repeated key\
-        \ maps to a list."
+        \ maps to a list.\n        request: HTTP request context if available."
       properties:
         queryParams:
           additionalProperties:
@@ -6403,6 +6403,11 @@ components:
                 type: string
               type: array
           type: object
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
         type:
           enum:
           - update-query-params
