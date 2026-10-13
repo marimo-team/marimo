@@ -1097,6 +1097,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         snapshot("polars.download.json", json_str)
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("integer_keys", [False, True])
 def test_map_csv_preserves_keys_and_order(
