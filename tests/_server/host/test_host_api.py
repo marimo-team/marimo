@@ -404,6 +404,34 @@ async def test_a_reconnect_with_one_identity_attaches_fresh(
     await asyncio.wait_for(second_task, 5)
 
 
+async def test_custom_events_use_their_own_sse_kind(
+    harness: Harness,
+) -> None:
+    notebook = harness.host.notebook(harness.notebook_id)
+    path = f"/notebooks/{notebook.id}/events"
+    custom, custom_task, disconnect_custom = request(
+        harness.app, "GET", path, headers=AUTH, query="types=custom"
+    )
+    attachments, attach_task, disconnect_attach = request(
+        harness.app, "GET", path, headers=AUTH, query="types=attachment"
+    )
+    await wait_for(custom, until_ready)
+    await wait_for(attachments, until_ready)
+
+    notebook.emit("marimo.test", {"hello": 1})
+    await wait_for(custom, lambda response: "custom" in response.names())
+    frame = next(r for r in custom.records if r.get("event") == "custom")
+    message = msgspec.convert(frame["data"], protocol.CustomMessage)
+    assert message.custom == protocol.Custom(
+        type="marimo.test", data={"hello": 1}
+    )
+    assert "custom" not in attachments.names()
+
+    disconnect_custom()
+    disconnect_attach()
+    await asyncio.gather(custom_task, attach_task)
+
+
 async def test_invalid_attachment_headers_are_rejected(
     harness: Harness,
 ) -> None:

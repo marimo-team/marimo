@@ -8,8 +8,8 @@ import pytest
 from marimo._core import backend as be, protocol
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
-from marimo._core.stream import Event, Stream
-from tests._core.conftest import ScriptedBackend, project
+from marimo._core.stream import Event, Stream, kind_of
+from tests._core.conftest import ScriptedBackend, names, project
 
 
 def test_subscriber_failure_does_not_prevent_startup(
@@ -159,3 +159,37 @@ def test_subscribers_cannot_start_a_runtime_during_adoption(
         [(replacement, False)],
         [],
     )
+
+
+def test_custom_events_are_on_the_notebook_stream_only(
+    host: Host, notebook: Notebook
+) -> None:
+    cursor = host.events(notebook_id=notebook.id)[-1].id
+    assert cursor is not None
+    custom = notebook.emit("marimo.test", {"hello": 1})
+
+    assert kind_of(custom) == "custom"
+    assert names(host.events(cursor, notebook_id=notebook.id)) == [
+        "custom",
+        "ready",
+    ]
+    assert "custom" not in names(host.events())
+    assert names(
+        host.events(cursor, notebook_id=notebook.id, types={"custom"})
+    ) == ["custom", "ready"]
+    assert names(
+        host.events(cursor, notebook_id=notebook.id, types={"attachment"})
+    ) == ["ready"]
+    replayed = host._stream.since(cursor)
+    assert replayed is not None
+    assert names(replayed) == ["custom"]
+
+
+def test_kind_of_a_custom_body_is_custom() -> None:
+    body = protocol.Custom(type="marimo.test", data={"hello": 1})
+    assert kind_of(body) == "custom"
+    stream = Stream()
+    stream.publish(body, notebook_id="n1")
+    replayed = stream.since(0)
+    assert replayed is not None
+    assert names(replayed) == ["custom"]

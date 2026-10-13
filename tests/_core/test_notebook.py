@@ -18,6 +18,8 @@ from marimo._core.protocol import (
     AttachmentMessage,
     Console,
     ConsoleMessage,
+    Custom,
+    CustomMessage,
     DisplayData,
     Error,
     ErrorOutcome,
@@ -984,6 +986,49 @@ class TestAttachments:
         assert att.identity is UNSET
         wire = msgspec.json.decode(msgspec.json.encode(log[0].data))
         assert "identity" not in wire["attachment"]
+
+
+class TestEmit:
+    def test_emit_publishes_a_custom_event_on_the_notebook_stream(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        custom = notebook.emit("marimo.test", {"hello": 1}, request_id="req-1")
+
+        assert custom == Custom(type="marimo.test", data={"hello": 1})
+        assert names(log) == ["custom"]
+        assert log[0].notebook_id == notebook.id
+        published = log[0].data
+        assert isinstance(published, CustomMessage)
+        assert published.custom == custom
+        assert published.request_id == "req-1"
+        assert published.time is not UNSET
+
+    def test_snapshot_does_not_include_custom_events(
+        self, host: Host, notebook: Notebook
+    ) -> None:
+        notebook.emit("marimo.test", {"hello": 1})
+        assert "custom" not in names(host.events(notebook_id=notebook.id))
+
+    def test_emit_rejects_data_that_is_not_json(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        with pytest.raises(TypeError):
+            notebook.emit("marimo.test", object())
+        assert "custom" not in names(log)
+
+    def test_emit_rejects_an_empty_type(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        with pytest.raises(ValueError):
+            notebook.emit("", 1)
+        assert "custom" not in names(log)
+
+    def test_emit_on_a_closed_notebook_raises(
+        self, host: Host, notebook: Notebook
+    ) -> None:
+        host.remove_notebook(notebook.id)
+        with pytest.raises(NotFound):
+            notebook.emit("marimo.test", {"hello": 1})
 
 
 def _attachment_ids(notebook: Notebook) -> set[str]:
