@@ -14,6 +14,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._core import protocol
 from marimo._core.document import CellSource
+from marimo._core.errors import Invalid
 from marimo._messaging.notebook import (
     CreateCell,
     DeleteCell,
@@ -31,6 +32,8 @@ from marimo._messaging.notification import (
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from marimo._core.document import Document
     from marimo._session.notebook import AppFileManager
     from marimo._session.session import Session
@@ -89,6 +92,21 @@ def to_notebook_cell(cell: protocol.Cell) -> NotebookCell:
         name=cell.name,
         config=_cell_config(cell.config),
     )
+
+
+def normalize_app_config(app_config: Mapping[str, Any]) -> dict[str, Any]:
+    """The app config as the file stores it: known keys, defaults left out.
+
+    Raises:
+        Invalid: If a key is not an app config key.
+    """
+    config = _AppConfig()
+    known = config.asdict()
+    for key, value in app_config.items():
+        if key not in known:
+            raise Invalid(f"{key!r} is not an app config key")
+        setattr(config, key, value)
+    return config.asdict_difference()
 
 
 def apply_app_config(

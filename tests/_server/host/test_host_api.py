@@ -1664,6 +1664,21 @@ async def test_a_stale_etag_is_a_conflict_that_changes_nothing(
     )
     assert invalid.status == 400
     assert invalid.json()["type"].endswith("/invalid-request")
+    unknown = await finished(
+        harness.app,
+        "POST",
+        f"/notebooks/{harness.notebook_id}/edits",
+        headers=key("edit-unknown-config"),
+        body=edit_body(
+            {
+                "kind": "set_app_config",
+                "base_etag": "*",
+                "app_config": {"unknown_setting": "full"},
+            },
+        ),
+    )
+    assert unknown.status == 400
+    assert unknown.json()["detail"] == "'unknown_setting' is not an app config key"
 
     again, disconnect = await opened(harness)
     disconnect()

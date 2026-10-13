@@ -22,6 +22,12 @@ if TYPE_CHECKING:
 Analyzer = Callable[[Mapping[str, str]], Mapping[str, protocol.Analysis]]
 """Derives every cell's analysis from the cells' code, keyed by id in document order."""
 
+Normalizer = Callable[[Mapping[str, Any]], Mapping[str, Any]]
+"""Puts an app config in the form the store keeps, so equal configs have equal etags.
+
+Raises `Invalid` for a config no notebook can have.
+"""
+
 Policy = Literal["autorun", "lazy"]
 
 
@@ -115,6 +121,8 @@ class Document:
     """A notebook document with content-derived revisions.
 
     Cell source uses newline line endings. Analysis covers all cells.
+    Edits normalize app config before hashing. Loaded config must already
+    be normalized.
     """
 
     def __init__(
@@ -125,10 +133,12 @@ class Document:
         *,
         policy: Policy = "autorun",
         analyzer: Analyzer | None = None,
+        normalizer: Normalizer | None = None,
         saved: bool = True,
     ) -> None:
         self._id = notebook_id
         self._analyzer = analyzer
+        self._normalizer = normalizer
         self._policy: Policy = policy
         self._cells: dict[protocol.CellId, protocol.Cell] = {}
         self._order: list[protocol.CellId] = []
@@ -146,6 +156,7 @@ class Document:
         cells: Sequence[protocol.Cell],
         *,
         analyzer: Analyzer | None = None,
+        normalizer: Normalizer | None = None,
     ) -> Document:
         """Restore a document from its protocol records.
 
@@ -172,6 +183,7 @@ class Document:
             document.app_config,
             policy=document.policy,
             analyzer=analyzer,
+            normalizer=normalizer,
             saved=False,
         )
         for cell in restored:
@@ -320,6 +332,8 @@ class Document:
                 if change.base_etag not in ("*", before.app_config_etag):
                     raise stale(index, None)
                 app_config = dict(change.app_config)
+                if self._normalizer is not None:
+                    app_config = dict(self._normalizer(app_config))
             else:
                 raise Invalid(f"change {index} has an unknown kind")
 

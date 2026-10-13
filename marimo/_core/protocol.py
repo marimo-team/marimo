@@ -517,7 +517,10 @@ class SetAppConfig(
     Struct, frozen=True, tag_field="kind", tag="set_app_config"
 ):
     app_config: Annotated[
-        dict[str, Any], Meta(description="The new app config, whole.")
+        dict[str, Any],
+        Meta(
+            description="The new app config, whole. The host stores it in canonical form, which the response carries."
+        ),
     ]
     base_etag: Annotated[
         str,

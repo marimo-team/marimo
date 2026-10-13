@@ -462,6 +462,38 @@ class TestApply:
         assert document.order == ["k7f2", "c3", "c1"]
         assert document._record.app_config == {"a": 1}
 
+    def test_an_edit_app_config_is_normalized_before_hashing(self) -> None:
+        def normalize(config: Mapping[str, object]) -> dict[str, object]:
+            if "bad" in config:
+                raise Invalid("'bad' is not an app config key")
+            return {k: v for k, v in config.items() if v is not None}
+
+        document = Document(
+            NOTEBOOK, fixture_cells(), {}, normalizer=normalize
+        )
+        applied = document.apply(
+            [
+                protocol.SetAppConfig(
+                    base_etag="*", app_config={"width": None, "a": 1}
+                )
+            ]
+        )
+
+        assert applied.changed.document is not None
+        assert applied.changed.document.app_config == {"a": 1}
+        assert applied.changed.document.app_config_etag == app_config_etag(
+            {"a": 1}
+        )
+        with pytest.raises(Invalid):
+            document.apply(
+                [protocol.SetAppConfig(base_etag="*", app_config={"bad": 1})]
+            )
+        assert document._record.app_config == {"a": 1}
+        # Configs that arrive from a store are kept as they are.
+        assert Document(NOTEBOOK, [], {"width": None})._record.app_config == {
+            "width": None
+        }
+
     def test_placement_has_no_precondition(self) -> None:
         document = Document(NOTEBOOK, fixture_cells(), {})
 
