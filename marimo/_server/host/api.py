@@ -108,30 +108,34 @@ def problem(
 
 def build_app() -> Router:
     """Build the host API router."""
+    routes = [
+        Route("/events", _events, methods=["GET"]),
+        Route("/notebooks", _create_notebook, methods=["POST"]),
+        Route("/notebooks/{id}", _update_notebook, methods=["PATCH"]),
+        Route("/notebooks/{id}", _delete_notebook, methods=["DELETE"]),
+        Route("/notebooks/{id}/events", _notebook_events, methods=["GET"]),
+        Route("/notebooks/{id}/open", _open_notebook, methods=["POST"]),
+        Route("/notebooks/{id}/runtime", _start_runtime, methods=["PUT"]),
+        Route("/notebooks/{id}/runtime", _stop_runtime, methods=["DELETE"]),
+        Route(
+            "/notebooks/{id}/runtime/restart",
+            _restart_runtime,
+            methods=["POST"],
+        ),
+        Route("/notebooks/{id}/runtime/runs", _run, methods=["POST"]),
+        Route(
+            "/notebooks/{id}/runtime/runs/{run_id}",
+            _interrupt,
+            methods=["DELETE"],
+        ),
+    ]
+    for route in routes:
+        # Starlette implies HEAD for every GET route, but a HEAD here would
+        # open a real stream and attach a client nobody can see.
+        if route.methods == {"GET", "HEAD"}:
+            route.methods = {"GET"}
     return Router(
-        routes=[
-            Route("/events", _events, methods=["GET"]),
-            Route("/notebooks", _create_notebook, methods=["POST"]),
-            Route("/notebooks/{id}", _update_notebook, methods=["PATCH"]),
-            Route("/notebooks/{id}", _delete_notebook, methods=["DELETE"]),
-            Route("/notebooks/{id}/events", _notebook_events, methods=["GET"]),
-            Route("/notebooks/{id}/open", _open_notebook, methods=["POST"]),
-            Route("/notebooks/{id}/runtime", _start_runtime, methods=["PUT"]),
-            Route(
-                "/notebooks/{id}/runtime", _stop_runtime, methods=["DELETE"]
-            ),
-            Route(
-                "/notebooks/{id}/runtime/restart",
-                _restart_runtime,
-                methods=["POST"],
-            ),
-            Route("/notebooks/{id}/runtime/runs", _run, methods=["POST"]),
-            Route(
-                "/notebooks/{id}/runtime/runs/{run_id}",
-                _interrupt,
-                methods=["DELETE"],
-            ),
-        ],
+        routes=routes,
         default=_not_found,
         # Clients never follow redirects, so a trailing slash is a miss.
         redirect_slashes=False,

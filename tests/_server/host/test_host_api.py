@@ -302,6 +302,19 @@ async def test_a_nul_byte_in_a_path_is_a_400_problem(harness: Harness) -> None:
     assert response.json()["type"].endswith("/invalid-request")
 
 
+async def test_head_on_a_stream_is_a_405_and_attaches_nothing(
+    harness: Harness,
+) -> None:
+    notebook = harness.host.notebook(harness.notebook_id)
+    before = len(notebook._attachments)
+    response = await finished(
+        harness.app, "HEAD", f"/notebooks/{notebook.id}/events", headers=AUTH
+    )
+    assert response.status == 405
+    assert response.headers["allow"] == "GET"
+    assert len(notebook._attachments) == before
+
+
 async def test_a_failure_inside_a_stream_does_not_restart_the_response(
     harness: Harness, monkeypatch: pytest.MonkeyPatch
 ) -> None:
