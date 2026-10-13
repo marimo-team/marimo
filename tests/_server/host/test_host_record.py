@@ -100,6 +100,7 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         host.clock = context.clock = lambda: now
         host.update_project(project())
         notebook = host.add_notebook(record(), ScriptedBackend())
+        notebook.adopt()
         notebook.observe(be.Running())
         headers = {
             "Authorization": f"Bearer {context.token}",

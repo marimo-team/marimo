@@ -294,21 +294,50 @@ class TestRestart:
 
 
 class TestAdoption:
-    @pytest.mark.parametrize("reports_starting", [False, True])
+    def test_a_kernel_someone_else_started_is_published(
+        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+    ) -> None:
+        adopted = notebook.adopt()
+        notebook.observe(be.Starting("Starting the kernel"))
+        notebook.observe(be.Running(marimo_version="0.25.0"))
+
+        assert adopted.status == "starting"
+        assert backend.calls == []
+        assert notebook.runtime is not None
+        assert notebook.runtime.id == adopted.id
+        assert notebook.runtime.status == "running"
+        assert names(log) == ["runtime", "runtime", "runtime"]
+        assert request_ids(log) == [UNSET, UNSET, UNSET]
+
+    def test_reports_without_a_runtime_change_nothing(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        notebook.observe(be.Starting("Starting the kernel"))
+        notebook.observe(be.Running(marimo_version="0.25.0"))
+        notebook.observe(be.Exited())
+
+        assert notebook.runtime is None
+        assert log == []
+
+    def test_only_a_failed_runtime_can_be_replaced(
+        self, notebook: Notebook
+    ) -> None:
+        notebook.start()
+        with pytest.raises(Conflict, match="starting"):
+            notebook.adopt()
+        notebook.observe(be.Running())
+        with pytest.raises(Conflict, match="running"):
+            notebook.adopt()
+
     def test_external_relaunch_recovers_a_failed_runtime(
-        self,
-        notebook: Notebook,
-        backend: ScriptedBackend,
-        host: Host,
-        reports_starting: bool,
+        self, notebook: Notebook, backend: ScriptedBackend, host: Host
     ) -> None:
         before = running(notebook, backend)
-        run = scratch(notebook)
+        scratch(notebook)
         notebook.observe(be.Exited("Kernel exited"))
         backend.calls.clear()
 
-        if reports_starting:
-            notebook.observe(be.Starting("Relaunching"))
+        notebook.adopt()
         notebook.observe(be.Running("0.26.0"))
 
         assert notebook.runtime is not None
@@ -324,17 +353,6 @@ class TestAdoption:
         assert backend.calls == []
         run = notebook.run("1", request_id="after-relaunch")
         assert backend.calls == [("run", run.id, "1")]
-
-    def test_a_kernel_someone_else_started_is_published(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
-    ) -> None:
-        notebook.observe(be.Starting("Starting the kernel"))
-        notebook.observe(be.Running(marimo_version="0.25.0"))
-
-        assert backend.calls == []
-        assert notebook.runtime is not None
-        assert notebook.runtime.status == "running"
-        assert names(log) == ["runtime", "runtime"]
 
     def test_a_kernel_that_dies_on_its_own_fails_and_keeps_results(
         self,

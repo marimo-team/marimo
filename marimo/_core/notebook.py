@@ -150,6 +150,28 @@ class Notebook:
             self._backend.stop()
             return replacement
 
+    # TODO: Remove once sessions start their runtime through `start`.
+    # marimo still creates kernels for browser tabs behind the notebook's
+    # back, so the host learns about them afterwards.
+    def adopt(self) -> protocol.Runtime:
+        """Track a kernel started outside the host API.
+
+        Returns a starting runtime. The backend reports its status.
+
+        Raises:
+            Conflict: If the notebook has a runtime that has not failed.
+        """
+        self._require_open()
+        if self._runtime is not None:
+            if self._runtime.status != "failed":
+                raise Conflict(
+                    f"the notebook has a {self._runtime.status} runtime"
+                )
+            self._end_runtime()
+        runtime = self._new_runtime("starting", None, None)
+        self._set_runtime(runtime)
+        return runtime
+
     def _require_runtime(self) -> protocol.Runtime:
         if self._runtime is None:
             raise NoRuntime(
@@ -256,20 +278,12 @@ class Notebook:
                 self._state.observe(msg, self._runtime)
 
     def _observe_starting(self, text: str | None) -> None:
-        if self._runtime is None:
-            # Track kernels started outside the host API.
-            self._set_runtime(self._new_runtime("starting", text, None))
-        elif self._runtime.status == "failed":
-            self._replace_runtime(text)
-        elif self._runtime.status == "starting":
+        if self._runtime is not None and self._runtime.status == "starting":
             self._set_runtime(replace(self._runtime, message=text))
 
     def _observe_running(self, version: str | None) -> None:
         if self._runtime is None:
-            self._set_runtime(self._new_runtime("running", None, version))
             return
-        if self._runtime.status == "failed":
-            self._replace_runtime()
         if self._runtime.status in ("starting", "running"):
             self._set_runtime(
                 replace(
@@ -300,12 +314,6 @@ class Notebook:
             self._set_runtime(
                 replace(runtime, status="failed", message=reason)
             )
-
-    def _replace_runtime(self, text: str | None = None) -> None:
-        request_id = self._lifecycle_request
-        self._end_runtime()
-        self._lifecycle_request = request_id
-        self._set_runtime(self._new_runtime("starting", text, None))
 
     def _new_runtime(
         self,
