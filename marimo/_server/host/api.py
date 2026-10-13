@@ -9,7 +9,7 @@ import threading
 from collections.abc import Awaitable, Callable
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, TypeAlias, TypeVar, get_args
 from urllib.parse import quote
 
 import msgspec
@@ -57,6 +57,9 @@ _ATTACHMENT_HEADERS = {
 
 PING = b": ping\n\n"
 PING_SECONDS = 15.0
+
+OBJECT_TYPES = frozenset(get_args(get_args(protocol.ObjectType)[0]))
+"""Values the `types` stream filter accepts."""
 
 _TITLES = {
     "invalid-request": "Invalid request",
@@ -369,9 +372,12 @@ async def _events(request: Request) -> Response:
     cursor = _cursor(request)
     if isinstance(cursor, Response):
         return cursor
+    types = _types(request)
+    if isinstance(types, Response):
+        return types
     # Refresh on connection because the catalog has no directory watcher.
     await context.bridge.refresh()
-    return _stream(context, cursor, _types(request), notebook_id=None)
+    return _stream(context, cursor, types, notebook_id=None)
 
 
 async def _notebook_events(request: Request) -> Response:
@@ -384,6 +390,9 @@ async def _notebook_events(request: Request) -> Response:
     cursor = _cursor(request)
     if isinstance(cursor, Response):
         return cursor
+    types = _types(request)
+    if isinstance(types, Response):
+        return types
     run_id = request.query_params.get("run_id")
     if run_id == "":
         return problem(400, "invalid-request", "run_id must not be empty")
@@ -398,7 +407,7 @@ async def _notebook_events(request: Request) -> Response:
     return _stream(
         context,
         cursor,
-        _types(request),
+        types,
         notebook_id=notebook.id,
         run_id=run_id,
         on_close=lambda: notebook.detach(attachment.id),
@@ -418,11 +427,19 @@ def _cursor(request: Request) -> int | Response | None:
         return problem(400, "invalid-request", "Last-Event-ID is too long")
 
 
-def _types(request: Request) -> set[str] | None:
+def _types(request: Request) -> set[str] | Response | None:
     asked = request.query_params.get("types")
     if not asked:
         return None
-    return {kind for kind in asked.split(",") if kind}
+    types = {kind for kind in asked.split(",") if kind}
+    unknown = types - OBJECT_TYPES
+    if unknown:
+        return problem(
+            400,
+            "invalid-request",
+            f"types has no kind named {', '.join(sorted(unknown))}",
+        )
+    return types
 
 
 def _attachment_problem(error: msgspec.ValidationError) -> str:
@@ -534,6 +551,8 @@ async def _update_notebook(request: Request) -> Response:
     record = _record(request)
     body = await _decode(request, protocol.UpdateNotebookRequest)
 
+    if body.path is msgspec.UNSET and body.name is msgspec.UNSET:
+        raise HTTPException(400, "path or name is required")
     index = context.bridge.index
     target = None
     if body.path is not msgspec.UNSET:

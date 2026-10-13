@@ -67,6 +67,7 @@ class HostApiMiddleware:
             response = problem(
                 401, "unauthorized", "Send the host record's token as a bearer"
             )
+            response.headers["WWW-Authenticate"] = "Bearer"
         else:
             scope = {**scope, "root_path": self.prefix}
             started = False

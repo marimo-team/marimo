@@ -302,6 +302,40 @@ async def test_a_nul_byte_in_a_path_is_a_400_problem(harness: Harness) -> None:
     assert response.json()["type"].endswith("/invalid-request")
 
 
+async def test_a_401_names_the_bearer_scheme(harness: Harness) -> None:
+    response = await finished(harness.app, "GET", "/events")
+    assert response.status == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
+@pytest.mark.parametrize("path", ["/events", "/notebooks/{id}/events"])
+@pytest.mark.parametrize("types", ["bogus", "notebook,bogus", "Notebook"])
+async def test_an_unknown_type_filter_is_a_400_problem(
+    harness: Harness, path: str, types: str
+) -> None:
+    response = await finished(
+        harness.app,
+        "GET",
+        path.replace("{id}", harness.notebook_id),
+        headers=AUTH,
+        query=f"types={types}",
+    )
+    assert response.status == 400
+    assert "bogus" in response.json()["detail"] or types == "Notebook"
+
+
+async def test_an_empty_update_is_a_400_problem(harness: Harness) -> None:
+    response = await finished(
+        harness.app,
+        "PATCH",
+        f"/notebooks/{harness.notebook_id}",
+        headers=key("empty"),
+        body=b"{}",
+    )
+    assert response.status == 400
+    assert response.json()["type"].endswith("/invalid-request")
+
+
 async def test_head_on_a_stream_is_a_405_and_attaches_nothing(
     harness: Harness,
 ) -> None:
