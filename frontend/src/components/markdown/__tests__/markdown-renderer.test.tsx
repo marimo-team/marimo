@@ -59,9 +59,7 @@ describe("MarkdownRenderer", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "PDF" }));
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Open link" }),
-    );
+    fireEvent.click(await screen.findByRole("button", { name: "Open link" }));
 
     expect(windowOpen).toHaveBeenCalledWith(url, "_blank", "noreferrer");
     windowOpen.mockRestore();
