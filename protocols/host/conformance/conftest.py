@@ -18,6 +18,8 @@ from contract import Host, accepted, objects, validate
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
+_SCRATCH_UNAVAILABLE = pytest.StashKey[str]()
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
@@ -95,7 +97,11 @@ async def catalog(host: Host) -> list:
 
 
 @pytest.fixture
-async def scratch(host: Host, catalog: list) -> AsyncIterator[dict[str, Any]]:
+async def scratch(
+    host: Host, catalog: list, pytestconfig: pytest.Config
+) -> AsyncIterator[dict[str, Any]]:
+    if _SCRATCH_UNAVAILABLE in pytestconfig.stash:
+        pytest.skip(pytestconfig.stash[_SCRATCH_UNAVAILABLE])
     projects = objects(catalog, "project")
     available = set(objects(catalog, "host")[0]["operations"])
     if not {"notebook.create", "notebook.delete"} <= available:
@@ -119,13 +125,22 @@ async def scratch(host: Host, catalog: list) -> AsyncIterator[dict[str, Any]]:
     assert notebook["id"] not in existing, (
         "create claimed an existing notebook"
     )
-    assert notebook["project_id"] == project["id"]
-    assert (
-        notebook["path"] == name
-        if project["root"]
-        else notebook["name"] == name
-    )
+    if "notebook.delete" not in notebook["operations"]:
+        # Permissions are only known after creation. Avoid creating more
+        # notebooks that this client cannot clean up during this session.
+        reason = (
+            f"scratch notebook {notebook['id']!r} does not permit "
+            "notebook.delete; remove it from the disposable workspace manually"
+        )
+        pytestconfig.stash[_SCRATCH_UNAVAILABLE] = reason
+        pytest.skip(reason)
     try:
+        assert notebook["project_id"] == project["id"]
+        assert (
+            notebook["path"] == name
+            if project["root"]
+            else notebook["name"] == name
+        )
         yield notebook
     finally:
         path = f"/notebooks/{quote(notebook['id'], safe='')}"

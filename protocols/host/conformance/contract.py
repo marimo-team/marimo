@@ -138,7 +138,7 @@ class Host:
         try:
             assert response.status_code == 200
             assert (
-                response.headers["content-type"].split(";")[0]
+                response.headers["content-type"].split(";")[0].strip().lower()
                 == "text/event-stream"
             )
             assert "access-control-allow-origin" not in response.headers
@@ -155,7 +155,10 @@ class Host:
 
 def accepted(response: httpx.Response, status: int, schema: str) -> Any:
     assert response.status_code == status, response.text
-    assert response.headers["content-type"].split(";")[0] == "application/json"
+    assert (
+        response.headers["content-type"].split(";")[0].strip().lower()
+        == "application/json"
+    )
     value = response.json()
     validate(schema, value)
     return value
@@ -164,7 +167,7 @@ def accepted(response: httpx.Response, status: int, schema: str) -> Any:
 def problem(response: httpx.Response, status: int, kind: str) -> Any:
     assert response.status_code == status, response.text
     assert (
-        response.headers["content-type"].split(";")[0]
+        response.headers["content-type"].split(";")[0].strip().lower()
         == "application/problem+json"
     )
     value = response.json()
