@@ -58,7 +58,7 @@ describe("applyEditorEdits", () => {
     expect([...result.columnFields]).toEqual([["D", "string"]]);
   });
 
-  it("moves and removes column type configuration with its column", () => {
+  it("preserves categorical configuration on rename and deletes it on removal", () => {
     const state = {
       data: [{ status: "open", other: "x" }],
       columnFields: new Map([
@@ -109,7 +109,7 @@ describe("applyEditorEdits", () => {
     ]);
   });
 
-  it("renames and removes configured column types", () => {
+  it("preserves boolean configuration on rename and deletes it on removal", () => {
     const state = {
       data: [{ A: true, B: "b" }],
       columnFields: new Map([
