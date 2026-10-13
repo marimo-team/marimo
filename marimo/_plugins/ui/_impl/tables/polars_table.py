@@ -4,7 +4,7 @@ from __future__ import annotations
 import functools
 import io
 from functools import cached_property
-from typing import Any
+from typing import Any, cast
 
 import narwhals.stable.v2 as nw
 
@@ -89,24 +89,8 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         if map_dtype is not None and isinstance(
                             dtype, map_dtype
                         ):
-                            if self._contains_binary(dtype):
-                                raise pl.exceptions.ComputeError(
-                                    "Map columns containing binary data cannot be written to CSV"
-                                ) from None
-                            # Entry structs preserve non-string keys and order.
-                            map_namespace = getattr(
-                                pl.col(column.name), "map", None
-                            )
-                            assert map_namespace is not None
-                            entries = (
-                                map_namespace.entries()
-                                .list.eval(pl.element().struct.json_encode())
-                                .list.join(",")
-                            )
                             result = result.with_columns(
-                                pl.concat_str(
-                                    pl.lit("["), entries, pl.lit("]")
-                                ).alias(column.name)
+                                self._map_to_csv_string(column)
                             )
                         elif isinstance(dtype, pl.Struct):
                             result = result.with_columns(
@@ -219,6 +203,23 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return sanitize_json_bigint(
                         to_json(result), ensure_ascii=ensure_ascii
                     )
+
+            def _map_to_csv_string(self, column: pl.Series) -> pl.Expr:
+                if self._contains_binary(column.dtype):
+                    raise pl.exceptions.ComputeError(
+                        "Map columns containing binary data cannot be written to CSV"
+                    )
+                # Map exists only in Polars 2; older typing stubs omit its namespace.
+                map_column = cast(Any, pl.col(column.name))
+                # Entry structs preserve non-string keys and order.
+                entries = (
+                    map_column.map.entries()
+                    .list.eval(pl.element().struct.json_encode())
+                    .list.join(",")
+                )
+                return pl.concat_str(pl.lit("["), entries, pl.lit("]")).alias(
+                    column.name
+                )
 
             @staticmethod
             def _contains_binary(
