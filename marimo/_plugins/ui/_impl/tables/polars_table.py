@@ -89,6 +89,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         if map_dtype is not None and isinstance(
                             dtype, map_dtype
                         ):
+                            # CSV cannot represent Maps directly. JSON entry
+                            # objects preserve key types and order without
+                            # coercing keys to strings as JSON objects would.
                             result = result.with_columns(
                                 self._map_to_csv_string(column)
                             )
