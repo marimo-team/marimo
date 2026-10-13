@@ -16,15 +16,6 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-import msgspec.yaml
-from datamodel_code_generator import (
-    DataModelType,
-    DatetimeClassType,
-    InputFileType,
-    PythonVersion,
-    generate,
-)
-
 
 # msgspec decodes tuple fields from JSON arrays without changing the wire format.
 class TupleArrays(ast.NodeTransformer):
@@ -47,7 +38,53 @@ def sorted_keys(value: Any) -> Any:
     return value
 
 
+def tuple_arrays(source: bytes) -> bytes:
+    """Rewrite array annotations using the AST's UTF-8 byte offsets."""
+    lines = source.splitlines(keepends=True)
+    # Rewrite annotations only, preserving the generated header and layout.
+    for node in sorted(
+        (
+            node
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.AnnAssign)
+        ),
+        key=lambda node: (node.lineno, node.col_offset),
+        reverse=True,
+    ):
+        annotation = node.annotation
+        if not any(
+            isinstance(child, ast.Subscript)
+            and isinstance(child.value, ast.Name)
+            and child.value.id == "list"
+            for child in ast.walk(annotation)
+        ):
+            continue
+        assert annotation.end_lineno is not None
+        assert annotation.end_col_offset is not None
+        start = (
+            sum(map(len, lines[: annotation.lineno - 1]))
+            + annotation.col_offset
+        )
+        end = (
+            sum(map(len, lines[: annotation.end_lineno - 1]))
+            + annotation.end_col_offset
+        )
+        replacement = ast.unparse(TupleArrays().visit(annotation)).encode(
+            "utf-8"
+        )
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
 def generate_models(document: dict[str, Any], output_path: Path) -> None:
+    from datamodel_code_generator import (
+        DataModelType,
+        DatetimeClassType,
+        InputFileType,
+        PythonVersion,
+        generate,
+    )
+
     # Freeze records and keep identifier types distinct without changing their wire shape.
     schemas = document["components"]["schemas"]
     template_data = defaultdict(dict)
@@ -85,53 +122,7 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
         ),
     )
 
-    output = output_path
-    source = output.read_text(encoding="utf-8")
-    lines = source.splitlines(keepends=True)
-    # Rewrite annotations only, preserving the generated header and layout.
-    for node in sorted(
-        (
-            node
-            for node in ast.walk(ast.parse(source))
-            if isinstance(node, ast.AnnAssign)
-        ),
-        key=lambda node: (node.lineno, node.col_offset),
-        reverse=True,
-    ):
-        annotation = node.annotation
-        if not any(
-            isinstance(child, ast.Subscript)
-            and isinstance(child.value, ast.Name)
-            and child.value.id == "list"
-            for child in ast.walk(annotation)
-        ):
-            continue
-        assert annotation.end_lineno is not None
-        assert annotation.end_col_offset is not None
-        start = (
-            sum(map(len, lines[: annotation.lineno - 1]))
-            + annotation.col_offset
-        )
-        end = (
-            sum(map(len, lines[: annotation.end_lineno - 1]))
-            + annotation.end_col_offset
-        )
-        replacement = ast.unparse(TupleArrays().visit(annotation))
-        source = source[:start] + replacement + source[end:]
-    output.write_text(source, encoding="utf-8")
-
-    subprocess.run(
-        [
-            "ruff",
-            "check",
-            "--isolated",
-            "--select",
-            "RUF036",
-            "--fix",
-            str(output_path),
-        ],
-        check=True,
-    )
+    output_path.write_bytes(tuple_arrays(output_path.read_bytes()))
 
     subprocess.run(
         [
@@ -147,6 +138,8 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
 
 
 def main() -> None:
+    import msgspec.yaml
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
