@@ -491,6 +491,10 @@ Nuances:
   `pd.DataFrame`.
 - Library classes lose their generic parameters. jedi confirms each spelling.
 - A tuple longer than three elements is written as `tuple[int | str, ...]`.
+- A type that says little is dropped: `object`, `Any`, and a union with more
+  than three members.
+- An annotation that does not fit on its parameter line within
+  `formatting.line_length` is dropped.
 - marimo writes jedi's answer unchanged. A wrong answer makes a wrong
   annotation. Your own annotations win.
 - Names jedi cannot infer stay unannotated.

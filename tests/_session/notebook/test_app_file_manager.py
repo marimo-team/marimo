@@ -214,6 +214,8 @@ def test_manifest_and_cell_saves_preserve_each_other(
     assert [cell.code for cell in saved.app.cell_manager.cell_data()] == [
         "x = 2"
     ]
+
+
 _NOTEBOOK_WITH_PARAMETER = """
 import marimo
 
@@ -325,3 +327,15 @@ def test_to_code_skips_type_inference_when_disabled(
 
     monkeypatch.setattr("marimo._ast.type_inference.JediBackend", explode)
     assert "def _(x):" in fm.to_code()
+
+
+def test_line_length_follows_config_and_defaults_to_79(tmp_path: Path) -> None:
+    fm = load_notebook(_write_notebook(tmp_path / "nb.py"))
+    assert fm.line_length == 79
+    reader = _ConfigReader(infer_types="jedi")
+    reader.line_length = 100  # type: ignore[attr-defined]
+    reader.get_config = lambda **_: {  # type: ignore[method-assign]
+        "formatting": {"infer_types": "jedi", "line_length": 100}
+    }
+    fm.config_reader = reader  # type: ignore[assignment]
+    assert fm.line_length == 100

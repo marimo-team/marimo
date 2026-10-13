@@ -642,3 +642,116 @@ def test_library_classes_with_real_jedi() -> None:
     # NB. jedi infers `np.linspace` wrongly, and marimo writes what jedi
     # says. This pins the accepted behavior so a backend change is visible.
     assert "prices: tuple" in source
+
+
+class TestBroadTypes:
+    def test_object_and_any_are_dropped(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        backend = FakeBackend(
+            {
+                "blob": [instance("builtins.object", "object")],
+                "maybe": [
+                    instance("builtins.int", "int"),
+                    instance("builtins.object", "object"),
+                ],
+                "items": [instance("builtins.list", "List[Any]")],
+            }
+        )
+        source = generate(
+            [
+                "blob = object()",
+                "maybe = 1\nif maybe:\n    maybe = object()",
+                "items = [object()]",
+                "print(blob, maybe, items)",
+            ],
+            setup="from typing import Any",
+            backend=backend,
+            monkeypatch=monkeypatch,
+        )
+        assert "def _(blob, items, maybe):" in source
+
+    def test_union_wider_than_three_members_is_dropped(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        backend = FakeBackend(
+            {
+                "three": [
+                    instance("builtins.int", "int"),
+                    instance("builtins.NoneType", "None"),
+                    instance("builtins.str", "str"),
+                ],
+                "four": [
+                    instance("builtins.int", "int"),
+                    instance("builtins.NoneType", "None"),
+                    instance("builtins.str", "str"),
+                    instance("builtins.bytes", "bytes"),
+                ],
+                # The collapsed tuple's element union is four wide.
+                "record": [
+                    instance("builtins.tuple", "Tuple[int, str, float, bytes]")
+                ],
+            }
+        )
+        source = generate(
+            [
+                "three = 1\nthree = None\nthree = 'a'",
+                "four = 1\nfour = None\nfour = 'a'\nfour = b'a'",
+                "record = (1, 'a', 2.0, b'a')",
+                "print(three, four, record)",
+            ],
+            backend=backend,
+            monkeypatch=monkeypatch,
+        )
+        assert "def _(four, record, three: int | None | str):" in source
+
+
+class TestLineLength:
+    def test_annotation_that_does_not_fit_its_line_is_dropped(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        backend = FakeBackend(
+            {
+                # `    x: list[str],` is 17 characters.
+                "x": [instance("builtins.list", "List[str]")],
+                # `    y: dict[str, list[int]],` is 28 characters.
+                "y": [instance("builtins.dict", "Dict[str, List[int]]")],
+            }
+        )
+        monkeypatch.setattr(
+            "marimo._ast.type_inference.JediBackend", lambda: backend
+        )
+        source = codegen.generate_filecontents(
+            ["x = ['a']", "y = {'a': [1]}", "print(x, y)"],
+            ["_", "_", "_"],
+            [CellConfig(), CellConfig(), CellConfig()],
+            infer_types="jedi",
+            line_length=20,
+        )
+        assert "def _(x: list[str], y):" in source
+
+    def test_budget_counts_the_parameter_name(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        backend = FakeBackend(
+            {
+                "a": [instance("builtins.int", "int")],
+                "a_much_longer_name": [instance("builtins.int", "int")],
+            }
+        )
+        monkeypatch.setattr(
+            "marimo._ast.type_inference.JediBackend", lambda: backend
+        )
+        source = codegen.generate_filecontents(
+            [
+                "a = 1",
+                "a_much_longer_name = 2",
+                "print(a, a_much_longer_name)",
+            ],
+            ["_", "_", "_"],
+            [CellConfig(), CellConfig(), CellConfig()],
+            infer_types="jedi",
+            # `    a: int,` is 11 characters; the long name needs 28.
+            line_length=12,
+        )
+        assert "def _(a: int, a_much_longer_name):" in source

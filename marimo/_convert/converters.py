@@ -40,15 +40,20 @@ class MarimoConverterIntermediate:
 
         return convert_from_ir_to_markdown(self.ir, filename, flavor=flavor)
 
-    def to_py(self, *, infer_types: TypeInferenceMode = "off") -> str:
+    def to_py(
+        self, *, infer_types: TypeInferenceMode = "off", line_length: int = 79
+    ) -> str:
         """Convert to python format.
 
         `infer_types` names the backend that annotates unannotated cell
-        parameters with inferred types, or is `"off"`.
+        parameters with inferred types, or is `"off"`. Inferred annotations
+        longer than one parameter line within `line_length` are dropped.
         """
         from marimo._ast.codegen import generate_filecontents_from_ir
 
-        return generate_filecontents_from_ir(self.ir, infer_types=infer_types)
+        return generate_filecontents_from_ir(
+            self.ir, infer_types=infer_types, line_length=line_length
+        )
 
     def to_ir(self) -> NotebookSerialization:
         """Convert to notebook IR."""

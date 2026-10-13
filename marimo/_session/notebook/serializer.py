@@ -24,6 +24,7 @@ class NotebookSerializer(Protocol):
         notebook: NotebookSerializationV1,
         *,
         infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
     ) -> str:
         """Convert notebook IR to the target format.
 
@@ -32,6 +33,8 @@ class NotebookSerializer(Protocol):
             infer_types: Backend that annotates unannotated cell parameters
                 with inferred types, or `"off"`. Formats without signatures
                 ignore this.
+            line_length: Inferred annotations that do not fit one parameter
+                line within this width are dropped.
 
         Returns:
             Serialized notebook content as string
@@ -72,6 +75,7 @@ class PythonNotebookSerializer(NotebookSerializer):
         notebook: NotebookSerializationV1,
         *,
         infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
     ) -> str:
         """Serialize notebook to Python format.
 
@@ -79,7 +83,9 @@ class PythonNotebookSerializer(NotebookSerializer):
         """
         from marimo._ast.codegen import generate_filecontents_from_ir
 
-        return generate_filecontents_from_ir(notebook, infer_types=infer_types)
+        return generate_filecontents_from_ir(
+            notebook, infer_types=infer_types, line_length=line_length
+        )
 
     def deserialize(
         self, content: str, filepath: str | None = None
@@ -107,13 +113,14 @@ class MarkdownNotebookSerializer(NotebookSerializer):
         notebook: NotebookSerializationV1,
         *,
         infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
     ) -> str:
         """Serialize notebook to Markdown format.
 
-        Markdown notebooks have no cell signatures. `infer_types` exists
-        for interface parity and is ignored.
+        Markdown notebooks have no cell signatures. `infer_types` and
+        `line_length` exist for interface parity and are ignored.
         """
-        del infer_types
+        del infer_types, line_length
         from marimo._convert.markdown import convert_from_ir_to_markdown
 
         return convert_from_ir_to_markdown(notebook)
