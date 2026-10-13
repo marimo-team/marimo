@@ -232,8 +232,16 @@ class SessionBackend(SessionConsumer):
         """Observe an existing session as the given runtime."""
         if self.session is not None:
             return
-        self._kernel = _Kernel(runtime_id)
-        session.connect_consumer(self, main=False)
+        kernel = self._kernel = _Kernel(runtime_id)
+        try:
+            session.connect_consumer(self, main=False)
+        except Exception as e:
+            LOGGER.warning("Failed to adopt session", exc_info=True)
+            # Detachment must not report a second exit or close the session
+            # that another client owns.
+            self._kernel = None
+            session.disconnect_consumer(self)
+            self._fail(kernel, str(e) or type(e).__name__)
 
     # Session consumer
 

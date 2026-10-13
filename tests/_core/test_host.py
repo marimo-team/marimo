@@ -232,7 +232,7 @@ def test_removed_notebook_handles_cannot_be_reused(
 
     commands: list[Callable[[], object]] = [
         notebook.start,
-        notebook.adopt,
+        lambda: notebook.adopt(lambda _: None),
         notebook.stop,
         notebook.restart,
         lambda: notebook.run("1", request_id=run.id),

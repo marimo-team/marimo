@@ -333,7 +333,7 @@ class TestAdoption:
     def test_a_kernel_someone_else_started_is_published(
         self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
     ) -> None:
-        adopted = notebook.adopt()
+        adopted = notebook.adopt(lambda _: None)
         notebook.observe(
             be.Starting(runtime_id_of(notebook), "Starting the kernel")
         )
@@ -369,10 +369,10 @@ class TestAdoption:
     ) -> None:
         notebook.start()
         with pytest.raises(Conflict, match="starting"):
-            notebook.adopt()
+            notebook.adopt(lambda _: None)
         notebook.observe(be.Running(runtime_id_of(notebook)))
         with pytest.raises(Conflict, match="running"):
-            notebook.adopt()
+            notebook.adopt(lambda _: None)
 
     def test_external_relaunch_recovers_a_failed_runtime(
         self, notebook: Notebook, backend: ScriptedBackend, host: Host
@@ -382,7 +382,7 @@ class TestAdoption:
         notebook.observe(be.Exited(runtime_id_of(notebook), "Kernel exited"))
         backend.calls.clear()
 
-        notebook.adopt()
+        notebook.adopt(lambda _: None)
         notebook.observe(be.Running(runtime_id_of(notebook), "0.26.0"))
 
         assert notebook.runtime is not None

@@ -153,24 +153,31 @@ class Notebook:
     # TODO: Remove once sessions start their runtime through `start`.
     # marimo still creates kernels for browser tabs behind the notebook's
     # back, so the host learns about them afterwards.
-    def adopt(self) -> protocol.Runtime:
+    def adopt(
+        self, attach: Callable[[protocol.RuntimeId], None]
+    ) -> protocol.Runtime:
         """Track a kernel started outside the host API.
 
-        Returns a starting runtime. The backend reports its status.
+        Returns a starting runtime. Calls `attach` with its ID before
+        delivering events to subscribers. The callback binds the backend
+        synchronously and reports status, including attachment failures,
+        through `observe`.
 
         Raises:
             Conflict: If the notebook has a runtime that has not failed.
         """
-        self._require_open()
-        if self._runtime is not None:
-            if self._runtime.status != "failed":
-                raise Conflict(
-                    f"the notebook has a {self._runtime.status} runtime"
-                )
-            self._end_runtime()
-        runtime = self._new_runtime("starting", None, None)
-        self._set_runtime(runtime)
-        return runtime
+        with self._stream.deferred():
+            self._require_open()
+            if self._runtime is not None:
+                if self._runtime.status != "failed":
+                    raise Conflict(
+                        f"the notebook has a {self._runtime.status} runtime"
+                    )
+                self._end_runtime()
+            runtime = self._new_runtime("starting", None, None)
+            self._set_runtime(runtime)
+            attach(runtime.id)
+            return runtime
 
     def _require_runtime(self) -> protocol.Runtime:
         if self._runtime is None:

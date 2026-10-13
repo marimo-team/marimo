@@ -36,7 +36,7 @@ def host_at(clock: Clock, history: int = 1000) -> tuple[Host, Notebook]:
     )
     host.update_project(project())
     notebook = host.add_notebook(record(), ScriptedBackend())
-    notebook.adopt()
+    notebook.adopt(lambda _: None)
     notebook.observe(be.Running(runtime_id_of(notebook)))
     return host, notebook
 
