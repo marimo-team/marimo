@@ -85,6 +85,7 @@ class NotebookWriter:
         persist: bool,
         previous_path: Path | None = None,
         infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
     ) -> str:
         """Serialize `notebook` for `path` and, if `persist`, write it.
 
@@ -133,7 +134,9 @@ class NotebookWriter:
                 valid=notebook.valid,
                 filename=str(path),
             )
-            contents = handler.serialize(notebook, infer_types=infer_types)
+            contents = handler.serialize(
+                notebook, infer_types=infer_types, line_length=line_length
+            )
 
             if persist:
                 if self.content_matches_last_save(contents):

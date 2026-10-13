@@ -36,6 +36,20 @@ TypeInferenceMode = Literal["off", "jedi"]
 # A fixed-length tuple longer than this is written as `tuple[T, ...]`.
 MAX_TUPLE_ELEMENTS = 3
 
+# A union with more members than this says little about the value. Such a
+# type is dropped rather than written.
+MAX_UNION_MEMBERS = 3
+
+# Types that admit every value. An annotation naming one is dropped.
+_BROAD_TYPES = frozenset({"object", "Any"})
+
+# Used when no formatting config is available.
+DEFAULT_LINE_LENGTH = 79
+
+# What a parameter line costs besides its name and annotation: the indent,
+# the `: ` separator, and the trailing comma.
+_PARAMETER_OVERHEAD = len("    ") + len(": ") + len(",")
+
 # The synthesized module is never written to disk. The stem is what jedi
 # reports as the module of a class the notebook defines.
 PROBE_MODULE_NAME = "__marimo_probe__"
@@ -89,11 +103,13 @@ def infer_annotations(
     *,
     filename: str | None,
     mode: TypeInferenceMode,
+    line_length: int = DEFAULT_LINE_LENGTH,
     backend: Backend | None = None,
 ) -> dict[Name, AnnotationData]:
     """Infer annotations for the variables that cells read as parameters.
 
-    Returns only annotations that the generated file can spell bare.
+    Returns only annotations that the generated file can spell bare and
+    that fit on one parameter line within `line_length`.
     """
     if mode == "off":
         return {}
@@ -122,8 +138,14 @@ def infer_annotations(
     annotations: dict[Name, AnnotationData] = {}
     for name in sorted(inferred):
         node = _declared_type(inferred[name], scope, spellings)
-        if node is not None:
-            annotations[name] = _annotation(node)
+        if node is None:
+            continue
+        annotation = _annotation(node)
+        # NB. A type too long for its own line is dropped, not wrapped.
+        budget = line_length - len(name) - _PARAMETER_OVERHEAD
+        if len(annotation.repr) > budget:
+            continue
+        annotations[name] = annotation
     return annotations
 
 
@@ -438,9 +460,21 @@ def _declared_type(
             return None
         members.append(member)
     node = cast(ast.expr, _Normalize().visit(_union(members)))
-    if _names_in(node) - scope.allowed_refs:
+    if _names_in(node) - scope.allowed_refs or _is_broad(node):
         return None
     return node
+
+
+def _is_broad(node: ast.expr) -> bool:
+    """True when the type names `object` or `Any`, or a union is too wide."""
+    if _names_in(node) & _BROAD_TYPES:
+        return True
+    return any(
+        isinstance(n, ast.BinOp)
+        and isinstance(n.op, ast.BitOr)
+        and len(_union_members(n)) > MAX_UNION_MEMBERS
+        for n in ast.walk(node)
+    )
 
 
 def _member_type(

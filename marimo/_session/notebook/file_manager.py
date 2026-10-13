@@ -107,6 +107,14 @@ class AppFileManager:
         return formatting.get("infer_types", "off")
 
     @property
+    def line_length(self) -> int:
+        """Line width that an inferred annotation must fit within."""
+        if self.config_reader is None:
+            return 79
+        formatting = self.config_reader.get_config().get("formatting", {})
+        return int(formatting.get("line_length", 79))
+
+    @property
     def filename(self) -> str | None:
         """Get the current filename as a Path object."""
         return str(self._filename) if self._filename is not None else None
@@ -240,6 +248,7 @@ class AppFileManager:
                 persist=persist,
                 previous_path=previous_path,
                 infer_types=self.infer_types,
+                line_length=self.line_length,
             )
             # If this is a new unnamed notebook, update the filename
             if self._is_unnamed():
@@ -576,7 +585,7 @@ class AppFileManager:
         from marimo._convert.converters import MarimoConvert
 
         return MarimoConvert.from_ir(self.app.to_ir()).to_py(
-            infer_types=self.infer_types
+            infer_types=self.infer_types, line_length=self.line_length
         )
 
     def _is_unnamed(self) -> bool:

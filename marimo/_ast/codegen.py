@@ -509,7 +509,10 @@ def generate_app_constructor(config: _AppConfig | None) -> str:
 
 
 def generate_filecontents_from_ir(
-    ir: NotebookSerializationV1, *, infer_types: TypeInferenceMode = "off"
+    ir: NotebookSerializationV1,
+    *,
+    infer_types: TypeInferenceMode = "off",
+    line_length: int = 79,
 ) -> str:
     # Markdown frontmatter may contain non-config metadata (e.g., author,
     # description). Suppress warnings for unrecognized keys from markdown.
@@ -539,6 +542,7 @@ def generate_filecontents_from_ir(
         header_comments=header_comments,
         filename=filename,
         infer_types=infer_types,
+        line_length=line_length,
     )
 
 
@@ -581,12 +585,15 @@ def generate_filecontents(
     *,
     filename: str | None = None,
     infer_types: TypeInferenceMode = "off",
+    line_length: int = 79,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file
 
     `infer_types` names the backend that annotates unannotated cell
-    parameters with inferred types, or is `"off"`. `filename` is the
-    notebook's path. The backend uses it to resolve sibling modules.
+    parameters with inferred types, or is `"off"`. An inferred annotation
+    that does not fit on one parameter line within `line_length` is
+    dropped. `filename` is the notebook's path. The backend uses it to
+    resolve sibling modules.
     """
 
     # Normalize internal cell names. Empty names would emit `def ():`
@@ -606,7 +613,11 @@ def generate_filecontents(
 
         extraction.add_default_annotations(
             infer_annotations(
-                extraction, setup_cell, filename=filename, mode=infer_types
+                extraction,
+                setup_cell,
+                filename=filename,
+                mode=infer_types,
+                line_length=line_length,
             )
         )
     cell_blocks = [

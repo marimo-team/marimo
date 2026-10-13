@@ -329,6 +329,18 @@ def test_to_code_skips_type_inference_when_disabled(
     assert "def _(x):" in fm.to_code()
 
 
+def test_line_length_follows_config_and_defaults_to_79(tmp_path: Path) -> None:
+    fm = load_notebook(_write_notebook(tmp_path / "nb.py"))
+    assert fm.line_length == 79
+    reader = _ConfigReader(infer_types="jedi")
+    reader.line_length = 100  # type: ignore[attr-defined]
+    reader.get_config = lambda **_: {  # type: ignore[method-assign]
+        "formatting": {"infer_types": "jedi", "line_length": 100}
+    }
+    fm.config_reader = reader  # type: ignore[assignment]
+    assert fm.line_length == 100
+
+
 def test_on_persisted_reports_the_cells_and_config_written(
     tmp_path: Path,
 ) -> None:
