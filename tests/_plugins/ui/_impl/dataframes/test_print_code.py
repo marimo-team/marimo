@@ -821,9 +821,11 @@ def test_print_code_result_matches_actual_transform_polars(
             "integers": [1, 2, 3],
             "floats": [1.0, 2.0, 3.0],
             "booleans": [True, False, True],
-            "dates": [datetime.date(2021, 1, 1)] * 3,
-            "times": [datetime.time(0, 0, 0)] * 3,
-            "datetimes": [datetime.datetime(2021, 1, 1)] * 3,
+            # Keep these distinct: polars leaves the order of tied rows
+            # undefined, and its lazy and eager engines disagree on it.
+            "dates": [datetime.date(2021, 1, d) for d in (1, 2, 3)],
+            "times": [datetime.time(h, 0, 0) for h in (0, 1, 2)],
+            "datetimes": [datetime.datetime(2021, 1, d) for d in (1, 2, 3)],
             "mixed": [1, 2, 3],
             "dicts": [{"a": 1}, {"b": 2}, {"c": 3}],
             "lists": [[1, 2], [3, 4], [5, 6]],
@@ -850,9 +852,10 @@ def test_print_code_result_matches_actual_transform_polars(
     # Only expand dict for dicts
     if transform.type == TransformType.EXPAND_DICT:
         assume("dicts" == transform.column_id)
-    # Don't sort on dicts or lists
+    # Don't sort on dicts or lists, nor on booleans, which always tie
+    # across three rows.
     if transform.type == TransformType.SORT_COLUMN:
-        assume(transform.column_id not in {"dicts", "lists"})
+        assume(transform.column_id not in {"dicts", "lists", "booleans"})
     # Skip aggregation
     # TODO: unimplemented
     if transform.type == TransformType.AGGREGATE:
