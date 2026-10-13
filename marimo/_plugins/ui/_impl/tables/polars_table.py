@@ -4,7 +4,7 @@ from __future__ import annotations
 import functools
 import io
 from functools import cached_property
-from typing import Any, cast
+from typing import Any
 
 import narwhals.stable.v2 as nw
 
@@ -205,42 +205,16 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     )
 
             def _map_to_csv_string(self, column: pl.Series) -> pl.Expr:
-                if self._contains_binary(column.dtype):
-                    raise pl.exceptions.ComputeError(
-                        "Map columns containing binary data cannot be written to CSV"
-                    )
-                # Map exists only in Polars 2; older typing stubs omit its namespace.
-                map_column = cast(Any, pl.col(column.name))
                 # Entry structs preserve non-string keys and order.
                 entries = (
-                    map_column.map.entries()
+                    pl.col(column.name)
+                    .map.entries()  # type: ignore[attr-defined]
                     .list.eval(pl.element().struct.json_encode())
                     .list.join(",")
                 )
                 return pl.concat_str(pl.lit("["), entries, pl.lit("]")).alias(
                     column.name
                 )
-
-            @staticmethod
-            def _contains_binary(
-                dtype: pl.DataType | pl.datatypes.DataTypeClass,
-            ) -> bool:
-                # Polars' native JSON encoder panics on binary values.
-                if dtype == pl.Binary:
-                    return True
-                if isinstance(dtype, (pl.List, pl.Array)):
-                    return PolarsTableManager._contains_binary(dtype.inner)
-                if isinstance(dtype, pl.Struct):
-                    return any(
-                        PolarsTableManager._contains_binary(field.dtype)
-                        for field in dtype.fields
-                    )
-                map_dtype = getattr(pl, "Map", None)
-                if map_dtype is not None and isinstance(dtype, map_dtype):
-                    return PolarsTableManager._contains_binary(
-                        dtype.key
-                    ) or PolarsTableManager._contains_binary(dtype.value)
-                return False
 
             def _convert_time_to_string(
                 self, result: pl.DataFrame, column: pl.Series

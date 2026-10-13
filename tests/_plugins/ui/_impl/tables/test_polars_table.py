@@ -1145,19 +1145,3 @@ def test_map_csv_preserves_keys_and_order(
     ]
     assert df.equals(original)
     assert manager.schema == original.schema
-
-
-@pytest.mark.parametrize("nested", [False, True])
-def test_map_csv_binary_raises_export_error(nested: bool) -> None:
-    import polars as pl
-
-    map_dtype = getattr(pl, "Map", None)
-    if map_dtype is None:
-        pytest.skip("Map dtype requires Polars 2")
-    dtype = pl.List(pl.Binary) if nested else pl.Binary
-    value = [b"abc"] if nested else b"abc"
-    df = pl.DataFrame(
-        {"map": pl.Series([{1: value}], dtype=map_dtype(pl.Int64, dtype))}
-    )
-    with pytest.raises(pl.exceptions.ComputeError, match="binary data"):
-        PolarsTableManagerFactory.create()(df).to_csv_str()

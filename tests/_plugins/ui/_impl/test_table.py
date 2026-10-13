@@ -27,6 +27,7 @@ from marimo._plugins.ui._impl.table import (
     ColumnSummariesArgs,
     DownloadAsArgs,
     DownloadAsOptions,
+    DownloadAsResponse,
     SearchTableArgs,
     SortArgs,
     TableSearchError,
@@ -3702,3 +3703,49 @@ def test_column_widths_unknown_column():
 def test_column_widths_non_positive():
     with pytest.raises(ValueError, match="positive integer"):
         ui.table({"a": [1, 2]}, column_widths={"a": 0})
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        BaseException("upstream panic"),
+        KeyboardInterrupt(),
+        SystemExit(),
+        GeneratorExit(),
+    ],
+)
+def test_download_contains_export_panic(error: BaseException) -> None:
+    table = ui.table({"a": [1]})
+    with patch(
+        "marimo._plugins.ui._impl.table.download_as", side_effect=error
+    ):
+        if isinstance(error, (KeyboardInterrupt, SystemExit, GeneratorExit)):
+            with pytest.raises(type(error)):
+                table._download_as(DownloadAsArgs(format="csv"))
+        else:
+            assert table._download_as(
+                DownloadAsArgs(format="csv")
+            ) == DownloadAsResponse(error="upstream panic")
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        BaseException("upstream panic"),
+        KeyboardInterrupt(),
+        SystemExit(),
+        GeneratorExit(),
+    ],
+)
+def test_chart_csv_contains_export_panic(error: BaseException) -> None:
+    table = ui.table({"a": [1]})
+    manager = table._searched_manager
+    with (
+        patch.object(DependencyManager.pyarrow, "has", return_value=False),
+        patch.object(type(manager), "to_csv", side_effect=error),
+    ):
+        if isinstance(error, (KeyboardInterrupt, SystemExit, GeneratorExit)):
+            with pytest.raises(type(error)):
+                table._to_chart_data_url(manager)
+        else:
+            assert table._to_chart_data_url(manager)[1] == "json"
