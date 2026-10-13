@@ -1862,7 +1862,7 @@ def test_geometry_text_download_preserves_row_selection() -> None:
 @pytest.mark.requires("pyarrow", "shapely")
 def test_invalid_wkb_does_not_publish_an_artifact() -> None:
     import pyarrow as pa
-    from shapely.errors import GEOSException
+    import shapely
 
     metadata = {b"ARROW:extension:name": b"geoarrow.wkb"}
     field = pa.field("geometry", pa.binary(), metadata=metadata)
@@ -1876,14 +1876,14 @@ def test_invalid_wkb_does_not_publish_an_artifact() -> None:
         schema=pa.schema([field]),
     )
 
-    with (
-        patch(
-            "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
-        ) as publish,
-        pytest.raises(GEOSException),
-    ):
-        ui.table(source)._download_as(DownloadAsArgs(format="json"))
+    with pytest.raises(shapely.errors.GEOSException) as expected:
+        shapely.from_wkb(b"invalid")
+    with patch(
+        "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+    ) as publish:
+        response = ui.table(source)._download_as(DownloadAsArgs(format="json"))
 
+    assert response == DownloadAsResponse(error=str(expected.value))
     publish.assert_not_called()
 
 
