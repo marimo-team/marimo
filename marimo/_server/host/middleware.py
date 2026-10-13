@@ -11,13 +11,19 @@ import hmac
 from ipaddress import IPv6Address, ip_address
 from typing import TYPE_CHECKING
 
+from starlette.exceptions import HTTPException
 from starlette.requests import Request
+from starlette.routing import Match, Route
 
 from marimo import _loggers
 from marimo._server.host import HOST_API_PATH
 from marimo._server.host.api import build_app, problem
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from starlette.responses import Response
+    from starlette.routing import BaseRoute
     from starlette.types import ASGIApp, Receive, Scope, Send
 
 LOGGER = _loggers.marimo_logger()
@@ -62,6 +68,11 @@ class HostApiMiddleware:
             scope = {**scope, "root_path": self.prefix}
             try:
                 await self.host_app(scope, receive, send)
+            except HTTPException as exc:
+                # The bare router has no exception middleware, so a known
+                # path with an unsupported method surfaces here as a 405.
+                response = _router_problem(exc, scope, self.host_app.routes)
+                await response(scope, receive, send)
             except Exception:
                 LOGGER.exception("The host API failed on %s", scope["path"])
                 response = problem(500, "internal", "The host failed")
@@ -71,6 +82,37 @@ class HostApiMiddleware:
 
     def _is_host_path(self, path: str) -> bool:
         return path == self.prefix or path.startswith(self.prefix + "/")
+
+
+def _router_problem(
+    exc: HTTPException, scope: Scope, routes: Sequence[BaseRoute]
+) -> Response:
+    kind = {404: "not-found", 405: "method-not-allowed"}.get(
+        exc.status_code, "internal"
+    )
+    if exc.status_code >= 500:
+        LOGGER.error("The host API failed with %s", exc)
+    response = problem(exc.status_code, kind, exc.detail)
+    if exc.status_code == 405:
+        # The router names only the first route that matched the path, but
+        # a path can be declared once per method.
+        response.headers["Allow"] = ", ".join(
+            sorted(_methods_declared_for(scope, routes))
+        )
+    return response
+
+
+def _methods_declared_for(
+    scope: Scope, routes: Sequence[BaseRoute]
+) -> set[str]:
+    methods: set[str] = set()
+    for route in routes:
+        if (
+            isinstance(route, Route)
+            and route.matches(scope)[0] is not Match.NONE
+        ):
+            methods.update(route.methods or ())
+    return methods
 
 
 def _is_loopback(host: str) -> bool:

@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
     from starlette.requests import Request
-    from starlette.types import ASGIApp
 
     from marimo._core.notebook import Notebook
     from marimo._core.stream import Event
@@ -64,6 +63,7 @@ _TITLES = {
     "unauthorized": "Unauthorized",
     "forbidden": "Forbidden",
     "not-found": "Not found",
+    "method-not-allowed": "Method not allowed",
     "conflict": "Conflict",
     "no-runtime": "No runtime",
     "unsupported-operation": "Unsupported operation",
@@ -86,7 +86,7 @@ def problem(status: int, kind: str, detail: str | None = None) -> Response:
     )
 
 
-def build_app() -> ASGIApp:
+def build_app() -> Router:
     """Build the host API router."""
     return Router(
         routes=[

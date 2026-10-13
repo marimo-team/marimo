@@ -1418,7 +1418,7 @@ class Problem(Struct, frozen=True):
     type: Annotated[
         str,
         Meta(
-            description="What kind of problem this is, as a URI. The kinds this\nprotocol defines all start with `tag:marimo.io,2026:host/` and\nend with one of `invalid-request` (400), `unauthorized` (401),\n`forbidden` (403), `not-found` (404), `not-acceptable` (406),\n`conflict` (409), `no-runtime` (409), `decision-required`\n(409), `internal` (500), or `unsupported-operation` (501). A\nclient that sees a kind it does not recognize falls back to\n`status`.\n"
+            description="What kind of problem this is, as a URI. The kinds this\nprotocol defines all start with `tag:marimo.io,2026:host/` and\nend with one of `invalid-request` (400), `unauthorized` (401),\n`forbidden` (403), `not-found` (404), `method-not-allowed`\n(405), `not-acceptable` (406), `conflict` (409), `no-runtime`\n(409), `decision-required` (409), `internal` (500), or\n`unsupported-operation` (501). A client that sees a kind it\ndoes not recognize falls back to `status`.\n"
         ),
     ]
     decisions: (

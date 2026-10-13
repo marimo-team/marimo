@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import msgspec
 import pytest
+from starlette.routing import Route
 
 from marimo._core import backend as be, protocol
 from marimo._core.execution_state import RetentionPolicy
@@ -157,6 +158,49 @@ async def test_unknown_routes_are_problems(harness: Harness) -> None:
     response = await finished(harness.app, "GET", "/nothing", headers=AUTH)
     assert response.status == 404
     assert response.headers["content-type"] == "application/problem+json"
+
+
+async def test_a_wrong_method_on_a_known_route_is_a_405_problem(
+    harness: Harness,
+) -> None:
+    response = await finished(harness.app, "GET", "/notebooks", headers=AUTH)
+    assert response.status == 405
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json()["type"].endswith("/method-not-allowed")
+    assert "POST" in response.headers["allow"]
+
+
+def _declared_routes() -> dict[str, set[str]]:
+    methods: dict[str, set[str]] = {}
+    for route in api_module.build_app().routes:
+        assert isinstance(route, Route)
+        path = route.path.replace("{id}", "nb-x").replace("{run_id}", "run-x")
+        methods.setdefault(path, set()).update(route.methods or set())
+    return methods
+
+
+_DECLARED = _declared_routes()
+_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+_SWEEP = [
+    (path, method)
+    for path in [*_DECLARED, "/nothing", "/notebooks/nb-x/nothing"]
+    for method in _METHODS
+]
+
+
+@pytest.mark.parametrize(("path", "method"), _SWEEP)
+async def test_every_method_on_every_route_is_a_response_not_a_500(
+    harness: Harness, path: str, method: str
+) -> None:
+    response, _, disconnect = request(harness.app, method, path, headers=AUTH)
+    await wait_for(response, lambda r: r.status != 0)
+    disconnect()
+    assert response.status != 500
+    if not 200 <= response.status < 300:
+        assert response.headers["content-type"] == "application/problem+json"
+    if response.status == 405:
+        allowed = {m.strip() for m in response.headers["allow"].split(",")}
+        assert allowed == _DECLARED[path]
 
 
 @pytest.mark.parametrize(
