@@ -7,6 +7,7 @@ import pytest
 from dirty_equals import IsDatetime
 from inline_snapshot import snapshot
 from msgspec import UNSET
+from msgspec.structs import replace
 
 from marimo._core import backend as be
 from marimo._core.errors import Conflict, NoRuntime, NotFound
@@ -29,6 +30,7 @@ from marimo._core.protocol import (
     RunMessage,
     RunOutcome,
     Runtime,
+    RuntimeMessage,
     ValueOutcome,
 )
 from marimo._core.stream import Event
@@ -56,6 +58,28 @@ def scratch(notebook: Notebook, run_id: str = "run-1") -> Run:
 
 
 class TestStart:
+    def test_runtime_cannot_change_without_an_event(
+        self, notebook: Notebook, host: Host, backend: ScriptedBackend
+    ) -> None:
+        runtime, _ = notebook.start()
+        with pytest.raises(AttributeError):
+            runtime.status = "running"
+        with pytest.raises(AttributeError):
+            notebook.runtime = replace(runtime, status="running")
+        with pytest.raises(Conflict, match="starting"):
+            notebook.run("1", request_id="too-early")
+
+        for events in (
+            host.events(notebook_id=notebook.id),
+            host.events(0, notebook_id=notebook.id),
+        ):
+            assert [
+                event.data.runtime
+                for event in events
+                if isinstance(event.data, RuntimeMessage)
+            ] == [runtime]
+        assert backend.calls == [("start", runtime.id)]
+
     def test_starts_a_runtime_and_asks_the_backend(
         self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
     ) -> None:
@@ -501,7 +525,7 @@ class TestRun:
                     code="3 * 3",
                     code_hash="9f",
                     completed_at=IsDatetime(),
-                    bindings=[],
+                    bindings=(),
                     id=ExecutionId("e7"),
                     outcome=ValueOutcome(
                         display=DisplayData(
@@ -536,11 +560,15 @@ class TestRun:
         self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
     ) -> None:
         running(notebook, backend)
-        notebook.run("1", request_id="first")
-        with pytest.raises(Conflict, match="first"):
+        first = notebook.run("1", request_id="first")
+        with pytest.raises(Conflict, match=first.id):
             notebook.run("2", request_id="second")
-        notebook.observe(be.Done(RunId("first"), "succeeded"))
-        final = log[-1].data
+        notebook.observe(be.Done(first.id, "succeeded"))
+        final = next(
+            event.data
+            for event in reversed(log)
+            if isinstance(event.data, RunMessage)
+        )
         assert isinstance(final, RunMessage)
         assert final.run.status == "completed"
         assert final.run.started_at is None
@@ -592,14 +620,16 @@ class TestRunCompletion:
         log.clear()
         notebook.observe(be.Scheduled(RunId("later"), ExecutionId("e1")))
         notebook.observe(be.Done(RunId("later"), "succeeded"))
-        assert request_ids(log) == [UNSET, UNSET]
+        assert request_ids(log) == [UNSET, UNSET, UNSET]
         assert all(event.run_id == "later" for event in log)
-        final = log[-1].data
+        final = next(
+            event.data
+            for event in reversed(log)
+            if isinstance(event.data, RunMessage)
+        )
         assert isinstance(final, RunMessage)
         assert final.run.caused_by == "e1"
-        assert (
-            notebook.run("3 * 3", request_id=original.id).status == "completed"
-        )
+        assert notebook.run("3 * 3", request_id="run-1").status == "completed"
 
     @pytest.mark.parametrize("outcome", ["failed", "interrupted"])
     def test_can_end_before_any_execution(
@@ -613,7 +643,11 @@ class TestRunCompletion:
         run = notebook.run("pass", request_id="never-started")
         assert run.outcome is None
         notebook.observe(be.Done(run.id, outcome))
-        final = log[-1].data
+        final = next(
+            event.data
+            for event in reversed(log)
+            if isinstance(event.data, RunMessage)
+        )
         assert isinstance(final, RunMessage)
         assert final.run.status == "completed"
         assert final.run.outcome == outcome
@@ -661,7 +695,7 @@ class TestRunCompletion:
                         source="marimo",
                         severity="error",
                         range=None,
-                        related=[],
+                        related=(),
                     )
                 ),
             )
@@ -753,7 +787,7 @@ class TestCellResults:
                 source="marimo",
                 severity="error",
                 range=None,
-                related=[],
+                related=(),
             )
         )
         notebook.observe(be.Concluded(old, failed))
@@ -780,6 +814,7 @@ class TestCellResults:
         assert names(log) == [
             "console.removed",
             "execution.removed",
+            *([] if same_run else ["run.removed"]),
             "execution",
         ]
         visible = [
@@ -796,7 +831,7 @@ class TestCellResults:
         notebook.observe(
             be.Done(second.id, "failed" if same_run else "succeeded")
         )
-        assert not notebook._retired_executions
+        assert not notebook._state._retired_executions
         log.clear()
         notebook.observe(be.Produced(item))
         assert not log

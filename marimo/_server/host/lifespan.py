@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import secrets
 from typing import TYPE_CHECKING
@@ -35,9 +36,15 @@ async def host(app: Starlette) -> AsyncIterator[None]:
     token = secrets.token_urlsafe(32)
     server = state.server.config
     url = host_url(server.host, server.port, state.base_url)
-    app.state.host_context = HostContext(
-        bridge=bridge, token=token, port=server.port
-    )
+    context = HostContext(bridge=bridge, token=token, port=server.port)
+    app.state.host_context = context
+
+    async def maintain() -> None:
+        while True:
+            await asyncio.sleep(1)
+            bridge.host.expire()
+
+    maintenance = asyncio.create_task(maintain(), name="host.retention")
     record = HostRecordFile(url=url, token=token)
     try:
         record.write()
@@ -46,6 +53,9 @@ async def host(app: Starlette) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        maintenance.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await maintenance
         record.remove()
         bridge.close()
         app.state.host_context = None

@@ -47,6 +47,12 @@ class Backend(Protocol):
     def interrupt(self, run_id: protocol.RunId) -> None:
         """Interrupt a run and report an `interrupted` execution outcome."""
 
+    def forget(self, run_id: protocol.RunId) -> None:
+        """Release a run the host no longer retains.
+
+        Later kernel messages for the run are dropped.
+        """
+
 
 # Runtime lifecycle
 

@@ -3,6 +3,7 @@
 # Generated from host-protocol/openapi.yaml in marimo-team/pair.
 # Regenerate with `cargo xtask generate-host-protocol`.
 # ruff: noqa: TC003 - msgspec resolves annotations at runtime
+# ruff: noqa: RUF036 - the generator orders unions; the wire shape is the same
 
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ else:
     )
 
 
-class Binding(Struct):
+class Binding(Struct, frozen=True):
     name: str
     preview: (
         Annotated[
@@ -48,7 +49,7 @@ class Binding(Struct):
     )
 
 
-class CellConfig(Struct):
+class CellConfig(Struct, frozen=True):
     column: (
         Annotated[
             int,
@@ -72,17 +73,32 @@ class CellConfig(Struct):
     ]
 
 
-class CellConfigInput(Struct):
-    column: int | UnsetType | None = UNSET
+class CellConfigInput(Struct, frozen=True):
+    column: int | None | UnsetType = UNSET
     disabled: bool | UnsetType = False
     expand_output: bool | UnsetType = False
     hide_code: bool | UnsetType = False
 
 
-class CellInput(Struct):
+if TYPE_CHECKING:
+    CellId = NewType("CellId", str)
+else:
+    CellId = NewType(
+        "CellId",
+        Annotated[
+            str,
+            Meta(
+                description="Identifies a cell within its notebook. Stable while the host serves the notebook; whether it survives a reload of the store depends on the format. `setup` is the setup cell.",
+                min_length=1,
+            ),
+        ],
+    )
+
+
+class CellInput(Struct, frozen=True):
     code: Annotated[str, Meta(description="The cell's source code.")]
     id: Annotated[
-        str,
+        CellId,
         Meta(
             description="The cell's id. A client chooses the id of a cell it creates."
         ),
@@ -97,19 +113,19 @@ class CellInput(Struct):
     ) = "_"
 
 
-class DecisionOption(Struct):
+class DecisionOption(Struct, frozen=True):
     id: Annotated[str, Meta(description="Identifies this answer.")]
     label: Annotated[str, Meta(description="Text to show a person.")]
 
 
-class DeleteCell(Struct, tag_field="kind", tag="delete_cell"):
+class DeleteCell(Struct, frozen=True, tag_field="kind", tag="delete_cell"):
     base_etag: Annotated[
         str, Meta(description="The cell's etag as last read, or `*`.")
     ]
-    id: Annotated[str, Meta(description="The cell to remove.")]
+    id: Annotated[CellId, Meta(description="The cell to remove.")]
 
 
-class DisplayData(Struct):
+class DisplayData(Struct, frozen=True):
     data: Annotated[
         str,
         Meta(
@@ -147,22 +163,22 @@ else:
     )
 
 
-class Host(Struct):
+class Host(Struct, frozen=True):
     operations: Annotated[
-        list[str],
+        tuple[str, ...],
         Meta(
             description="The operations this host implements, such as `runtime.start`. Whether a client may call one on a given project or notebook is that object's `operations`. Clients accept names they do not recognize."
         ),
     ]
 
 
-class HostMessage(Struct):
+class HostMessage(Struct, frozen=True):
     host: Host
     request_id: (
         Annotated[
             str,
             Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -178,7 +194,9 @@ class HostMessage(Struct):
     ) = UNSET
 
 
-class InterruptedOutcome(Struct, tag_field="kind", tag="interrupted"):
+class InterruptedOutcome(
+    Struct, frozen=True, tag_field="kind", tag="interrupted"
+):
     pass
 
 
@@ -240,7 +258,7 @@ ObjectType: TypeAlias = Annotated[
 ]
 
 
-class OpenNotebookResponse(Struct):
+class OpenNotebookResponse(Struct, frozen=True):
     url: Annotated[
         str,
         Meta(
@@ -249,7 +267,7 @@ class OpenNotebookResponse(Struct):
     ]
 
 
-class Position(Struct):
+class Position(Struct, frozen=True):
     character: Annotated[
         int,
         Meta(
@@ -262,7 +280,7 @@ class Position(Struct):
     ]
 
 
-class Process(Struct):
+class Process(Struct, frozen=True):
     pid: Annotated[int, Meta(description="The process id.", ge=1)]
     started_at: Annotated[
         datetime, Meta(description="When the process started.")
@@ -292,7 +310,7 @@ ProjectStatus: TypeAlias = Annotated[
 ]
 
 
-class PutCell(Struct, tag_field="kind", tag="put_cell"):
+class PutCell(Struct, frozen=True, tag_field="kind", tag="put_cell"):
     base_etag: (
         Annotated[
             str,
@@ -305,7 +323,7 @@ class PutCell(Struct, tag_field="kind", tag="put_cell"):
     cell: CellInput
     after: (
         Annotated[
-            str,
+            CellId,
             Meta(
                 description="The cell a created cell goes after. Ignored for an existing cell."
             ),
@@ -314,7 +332,7 @@ class PutCell(Struct, tag_field="kind", tag="put_cell"):
     ) = UNSET
     before: (
         Annotated[
-            str,
+            CellId,
             Meta(
                 description="The cell a created cell goes before. Ignored for an existing cell. With neither `after` nor `before`, a created cell goes at the end."
             ),
@@ -323,7 +341,7 @@ class PutCell(Struct, tag_field="kind", tag="put_cell"):
     ) = UNSET
 
 
-class Range(Struct):
+class Range(Struct, frozen=True):
     end: Annotated[
         Position,
         Meta(
@@ -333,8 +351,8 @@ class Range(Struct):
     start: Position
 
 
-class Related(Struct):
-    cell_id: str
+class Related(Struct, frozen=True):
+    cell_id: CellId
     message: Annotated[
         str,
         Meta(
@@ -347,7 +365,7 @@ class Related(Struct):
     )
 
 
-class RemovedMessage(Struct):
+class RemovedMessage(Struct, frozen=True):
     id: Annotated[
         str, Meta(description="The id of the object that was removed.")
     ]
@@ -355,7 +373,7 @@ class RemovedMessage(Struct):
         Annotated[
             str,
             Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -371,6 +389,19 @@ class RemovedMessage(Struct):
     ) = UNSET
 
 
+class RequestedCell(Struct, frozen=True):
+    id: CellId
+    code_hash: (
+        Annotated[
+            Etag,
+            Meta(
+                description="The cell's `code_hash` as last read. A cell whose code differs is a `conflict`. Absent, the cell runs as it is."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
 if TYPE_CHECKING:
     RunId = NewType("RunId", str)
 else:
@@ -379,7 +410,7 @@ else:
         Annotated[
             str,
             Meta(
-                description="Identifies a run. The request's `Idempotency-Key` for a client request; minted by the host when the runtime schedules a run.",
+                description="Identifies a run independently of the request's `Idempotency-Key`. Events carry the key in `request_id`.",
                 min_length=1,
             ),
         ],
@@ -394,10 +425,21 @@ RunOutcome: TypeAlias = Annotated[
 ]
 
 
-class RunRequest(Struct):
-    code: Annotated[
-        str, Meta(description="The Python code to run as scratch code.")
-    ]
+class RunRequest(Struct, frozen=True):
+    cells: (
+        Annotated[
+            tuple[RequestedCell, ...],
+            Meta(
+                description="Cells of the document to run, in no particular order. What depends on them runs too, under the document's policy.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    code: (
+        Annotated[str, Meta(description="Python code to run as scratch code.")]
+        | UnsetType
+    ) = UNSET
 
 
 if TYPE_CHECKING:
@@ -423,7 +465,7 @@ RuntimeStatus: TypeAlias = Annotated[
 ]
 
 
-class SaveRequest(Struct):
+class SaveRequest(Struct, frozen=True):
     decisions: (
         Annotated[
             dict[str, str],
@@ -435,7 +477,9 @@ class SaveRequest(Struct):
     ) = UNSET
 
 
-class SetAppConfig(Struct, tag_field="kind", tag="set_app_config"):
+class SetAppConfig(
+    Struct, frozen=True, tag_field="kind", tag="set_app_config"
+):
     app_config: Annotated[
         dict[str, Any], Meta(description="The new app config, whole.")
     ]
@@ -447,20 +491,20 @@ class SetAppConfig(Struct, tag_field="kind", tag="set_app_config"):
     ]
 
 
-class SetOrder(Struct, tag_field="kind", tag="set_order"):
+class SetOrder(Struct, frozen=True, tag_field="kind", tag="set_order"):
     base_etag: Annotated[
         str,
         Meta(description="The document's `order_etag` as last read, or `*`."),
     ]
     order: Annotated[
-        list[str],
+        tuple[CellId, ...],
         Meta(
             description="Every cell id exactly once, in the new order, counting cells this edit creates and leaving out cells it deletes."
         ),
     ]
 
 
-class StartRuntimeRequest(Struct):
+class StartRuntimeRequest(Struct, frozen=True):
     decisions: (
         Annotated[
             dict[str, str],
@@ -472,7 +516,7 @@ class StartRuntimeRequest(Struct):
     ) = UNSET
 
 
-class UpdateNotebookRequest(Struct):
+class UpdateNotebookRequest(Struct, frozen=True):
     name: (
         Annotated[str, Meta(description="The new label to show people.")]
         | UnsetType
@@ -488,7 +532,7 @@ class UpdateNotebookRequest(Struct):
     ) = UNSET
 
 
-class ValueOutcome(Struct, tag_field="kind", tag="value"):
+class ValueOutcome(Struct, frozen=True, tag_field="kind", tag="value"):
     display: (
         Annotated[
             DisplayData,
@@ -500,7 +544,7 @@ class ValueOutcome(Struct, tag_field="kind", tag="value"):
     )
 
 
-class Attachment(Struct):
+class Attachment(Struct, frozen=True):
     id: AttachmentId
     kind: Annotated[
         str,
@@ -521,13 +565,13 @@ class Attachment(Struct):
     since: Annotated[datetime, Meta(description="When it attached.")]
 
 
-class AttachmentMessage(Struct):
+class AttachmentMessage(Struct, frozen=True):
     attachment: Attachment
     request_id: (
         Annotated[
             str,
             Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -543,7 +587,7 @@ class AttachmentMessage(Struct):
     ) = UNSET
 
 
-class CellEtags(Struct):
+class CellEtags(Struct, frozen=True):
     code_hash: Etag
     etag: Etag
 
@@ -554,7 +598,7 @@ Change: TypeAlias = Annotated[
 ]
 
 
-class Console(Struct):
+class Console(Struct, frozen=True):
     execution_id: ExecutionId
     id: ItemId
     name: Annotated[
@@ -571,13 +615,13 @@ class Console(Struct):
     text: Annotated[str, Meta(description="The text, exactly as written.")]
 
 
-class ConsoleMessage(Struct):
+class ConsoleMessage(Struct, frozen=True):
     console: Console
     request_id: (
         Annotated[
             str,
             Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -593,7 +637,7 @@ class ConsoleMessage(Struct):
     ) = UNSET
 
 
-class CreateNotebookRequest(Struct):
+class CreateNotebookRequest(Struct, frozen=True):
     project_id: ProjectId
     name: (
         Annotated[
@@ -615,7 +659,7 @@ class CreateNotebookRequest(Struct):
     ) = UNSET
 
 
-class Decision(Struct):
+class Decision(Struct, frozen=True):
     id: Annotated[
         str,
         Meta(
@@ -623,14 +667,14 @@ class Decision(Struct):
         ),
     ]
     options: Annotated[
-        list[DecisionOption], Meta(description="The possible answers.")
+        tuple[DecisionOption, ...], Meta(description="The possible answers.")
     ]
     prompt: Annotated[
         str, Meta(description="The question, worded for a person.")
     ]
 
 
-class Display(Struct):
+class Display(Struct, frozen=True):
     data: Annotated[
         str,
         Meta(
@@ -651,13 +695,13 @@ class Display(Struct):
     ]
 
 
-class DisplayMessage(Struct):
+class DisplayMessage(Struct, frozen=True):
     display: Display
     request_id: (
         Annotated[
             str,
             Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -673,7 +717,7 @@ class DisplayMessage(Struct):
     ) = UNSET
 
 
-class Document(Struct):
+class Document(Struct, frozen=True):
     app_config: Annotated[
         dict[str, Any],
         Meta(
@@ -696,7 +740,7 @@ class Document(Struct):
         NotebookId, Meta(description="The notebook this document belongs to.")
     ]
     order: Annotated[
-        list[str],
+        tuple[CellId, ...],
         Meta(
             description="Cell ids in display order. A permutation of the notebook's cells, each appearing exactly once."
         ),
@@ -724,13 +768,13 @@ class Document(Struct):
     )
 
 
-class DocumentMessage(Struct):
+class DocumentMessage(Struct, frozen=True):
     document: Document
     request_id: (
         Annotated[
             str,
             Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -746,14 +790,14 @@ class DocumentMessage(Struct):
     ) = UNSET
 
 
-class EditRequest(Struct):
+class EditRequest(Struct, frozen=True):
     changes: Annotated[
-        list[Change],
+        tuple[Change, ...],
         Meta(description="The changes, applied in order as one unit."),
     ]
 
 
-class EditResponse(Struct):
+class EditResponse(Struct, frozen=True):
     cells: Annotated[
         dict[str, CellEtags | None],
         Meta(
@@ -763,7 +807,7 @@ class EditResponse(Struct):
     document: Document
 
 
-class Error(Struct):
+class Error(Struct, frozen=True):
     kind: Annotated[
         str,
         Meta(
@@ -787,7 +831,7 @@ class Error(Struct):
         | None
     )
     related: Annotated[
-        list[Related],
+        tuple[Related, ...],
         Meta(
             description="Every involved cell, including this one, in canonical order. Each copy of a cross-cell error carries the same list; clients deduplicate on kind and related cell ids. Empty when the error involves this code alone."
         ),
@@ -818,11 +862,11 @@ class Error(Struct):
     )
 
 
-class ErrorOutcome(Struct, tag_field="kind", tag="error"):
+class ErrorOutcome(Struct, frozen=True, tag_field="kind", tag="error"):
     error: Error
 
 
-class HostRecord(Struct):
+class HostRecord(Struct, frozen=True):
     name: Annotated[
         str,
         Meta(
@@ -851,7 +895,7 @@ class HostRecord(Struct):
     ]
 
 
-class Notebook(Struct):
+class Notebook(Struct, frozen=True):
     id: NotebookId
     name: Annotated[
         str,
@@ -860,7 +904,7 @@ class Notebook(Struct):
         ),
     ]
     operations: Annotated[
-        list[str],
+        tuple[str, ...],
         Meta(
             description="Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations`, narrowed by permission and never by state; whether a runtime is attached shows in the `runtime` object, and preconditions still apply when an operation is called. The host sends the notebook again when it changes."
         ),
@@ -886,13 +930,13 @@ class Notebook(Struct):
     )
 
 
-class NotebookMessage(Struct):
+class NotebookMessage(Struct, frozen=True):
     notebook: Notebook
     request_id: (
         Annotated[
             str,
             Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -916,7 +960,7 @@ Outcome: TypeAlias = Annotated[
 ]
 
 
-class Project(Struct):
+class Project(Struct, frozen=True):
     id: ProjectId
     message: (
         Annotated[
@@ -934,7 +978,7 @@ class Project(Struct):
         ),
     ]
     operations: Annotated[
-        list[str],
+        tuple[str, ...],
         Meta(
             description="Operations this client may call on the project, today `notebook.create`. A subset of `host.operations`, narrowed by permission and never by state. The host sends the project again when it changes."
         ),
@@ -951,13 +995,13 @@ class Project(Struct):
     status: ProjectStatus
 
 
-class ProjectMessage(Struct):
+class ProjectMessage(Struct, frozen=True):
     project: Project
     request_id: (
         Annotated[
             str,
             Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -973,7 +1017,7 @@ class ProjectMessage(Struct):
     ) = UNSET
 
 
-class Run(Struct):
+class Run(Struct, frozen=True):
     caused_by: (
         Annotated[
             ExecutionId,
@@ -1020,13 +1064,13 @@ class Run(Struct):
     ]
 
 
-class RunMessage(Struct):
+class RunMessage(Struct, frozen=True):
     run: Run
     request_id: (
         Annotated[
             str,
             Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -1042,7 +1086,7 @@ class RunMessage(Struct):
     ) = UNSET
 
 
-class Runtime(Struct):
+class Runtime(Struct, frozen=True):
     id: RuntimeId
     marimo_version: (
         Annotated[
@@ -1069,13 +1113,13 @@ class Runtime(Struct):
     status: RuntimeStatus
 
 
-class RuntimeMessage(Struct):
+class RuntimeMessage(Struct, frozen=True):
     runtime: Runtime
     request_id: (
         Annotated[
             str,
             Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -1091,20 +1135,23 @@ class RuntimeMessage(Struct):
     ) = UNSET
 
 
-class Analysis(Struct):
-    defs: Annotated[list[str], Meta(description="Names this cell defines.")]
+class Analysis(Struct, frozen=True):
+    defs: Annotated[
+        tuple[str, ...], Meta(description="Names this cell defines.")
+    ]
     errors: Annotated[
-        list[Error],
+        tuple[Error, ...],
         Meta(
             description="Diagnostics about the code. Only an `error` affects scheduling. `multiple-definitions` lists the definers in `related`, each `range` at its definition; `cycle-dependencies` lists the cycle. Both are reported on every cell involved, differing only in `range`. Every other kind belongs to the analyzer named in `source`."
         ),
     ]
     refs: Annotated[
-        list[str], Meta(description="Names this cell reads from other cells.")
+        tuple[str, ...],
+        Meta(description="Names this cell reads from other cells."),
     ]
 
 
-class Cell(Struct):
+class Cell(Struct, frozen=True):
     analysis: (
         Annotated[
             Analysis,
@@ -1133,12 +1180,7 @@ class Cell(Struct):
             description="Identifies code, name, and config together, and is the precondition for editing the cell. Its text is `code_hash`, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output` in that order, each written as a JSON scalar such as `null`, `0`, or `true`."
         ),
     ]
-    id: Annotated[
-        str,
-        Meta(
-            description="Identifies the cell within its notebook. Stable while the host serves the notebook; whether it survives a reload of the store depends on the format. `setup` is the setup cell."
-        ),
-    ]
+    id: CellId
     name: Annotated[
         str,
         Meta(
@@ -1148,13 +1190,13 @@ class Cell(Struct):
     notebook_id: NotebookId
 
 
-class CellMessage(Struct):
+class CellMessage(Struct, frozen=True):
     cell: Cell
     request_id: (
         Annotated[
             str,
             Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -1170,12 +1212,12 @@ class CellMessage(Struct):
     ) = UNSET
 
 
-class EditConflict(Struct):
+class EditConflict(Struct, frozen=True):
     cell: (
         Annotated[
             Cell,
             Meta(
-                description="The cell the change named, as it now is. Null when it no longer exists, or when the change named the order or the app config."
+                description="The cell the change named, as it now is. Null when the document does not have it, or when the change named the order or the app config."
             ),
         ]
         | None
@@ -1183,16 +1225,16 @@ class EditConflict(Struct):
     change: Annotated[
         int,
         Meta(
-            description="The index of the stale change in the request's `changes`. `0` for a save with a stale `If-Match`.",
+            description="The index of the stale change in the request's `changes`, or of the stale cell in a run's `cells`. `0` for a save with a stale `If-Match`.",
             ge=0,
         ),
     ]
     document: Document
 
 
-class Execution(Struct):
+class Execution(Struct, frozen=True):
     bindings: Annotated[
-        list[Binding],
+        tuple[Binding, ...],
         Meta(
             description="Names bound in the namespace, with a type and preview, stamped when the execution ends. Empty while running and for scratch code, whose bindings die with the execution."
         ),
@@ -1208,7 +1250,7 @@ class Execution(Struct):
     )
     cell_id: (
         Annotated[
-            str,
+            CellId,
             Meta(
                 description="The cell this execution belongs to. Null for scratch code, a cell outside the document."
             ),
@@ -1288,13 +1330,13 @@ class Execution(Struct):
     status: Lifecycle
 
 
-class ExecutionMessage(Struct):
+class ExecutionMessage(Struct, frozen=True):
     execution: Execution
     request_id: (
         Annotated[
             str,
             Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did."
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -1310,7 +1352,7 @@ class ExecutionMessage(Struct):
     ) = UNSET
 
 
-class Problem(Struct):
+class Problem(Struct, frozen=True):
     status: Annotated[
         int,
         Meta(
@@ -1331,7 +1373,7 @@ class Problem(Struct):
     ]
     decisions: (
         Annotated[
-            list[Decision],
+            tuple[Decision, ...],
             Meta(
                 description="The choices the client has to make before the host can carry out the request. Only present for `decision-required`."
             ),
@@ -1351,7 +1393,7 @@ class Problem(Struct):
         Annotated[
             EditConflict,
             Meta(
-                description="Which change was stale and what the host holds instead. Only present for a `conflict` answering an edit or a save."
+                description="Which change was stale and what the host holds instead. Only present for a `conflict` answering an edit, a save, or a run of cells."
             ),
         ]
         | UnsetType

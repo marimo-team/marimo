@@ -177,7 +177,7 @@ class SessionBackend(SessionConsumer):
                 source="marimo",
                 severity="error",
                 range=None,
-                related=[],
+                related=(),
             )
         # Detachment already ended this session's runs in the core model.
         if self.session is run.session:
@@ -201,6 +201,9 @@ class SessionBackend(SessionConsumer):
             run.session.try_interrupt()
         elif run.task is not None:
             run.task.cancel()
+
+    def forget(self, run_id: protocol.RunId) -> None:
+        self._translators.pop(run_id, None)
 
     # Existing sessions
 

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from marimo._core import protocol
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -51,28 +53,34 @@ def test_readers_cannot_change_other_readers_or_replay() -> None:
 
     def mutate(event: Event) -> None:
         assert isinstance(event.data, protocol.ProjectMessage)
-        event.data.project.name = "subscriber mutation"
-        event.data.project.operations.clear()
+        with pytest.raises(AttributeError):
+            event.data.project.name = "subscriber mutation"
+        with pytest.raises(AttributeError):
+            event.data.project.operations.clear()
 
     stream.subscribe(mutate)
     delivered: list[Event] = []
     stream.subscribe(delivered.append)
     original = project()
     published = stream.publish(original)
-    original.name = "caller mutation"
+    with pytest.raises(AttributeError):
+        original.name = "caller mutation"
 
     assert isinstance(published.data, protocol.ProjectMessage)
     assert published.data.project == project()
-    published.data.project.name = "return value mutation"
+    with pytest.raises(AttributeError):
+        published.data.project.name = "return value mutation"
     assert isinstance(delivered[0].data, protocol.ProjectMessage)
     assert delivered[0].data.project == project()
-    delivered[0].data.project.name = "listener mutation"
+    with pytest.raises(AttributeError):
+        delivered[0].data.project.name = "listener mutation"
 
     replay = stream.since(0)
     assert replay is not None
     assert isinstance(replay[0].data, protocol.ProjectMessage)
     assert replay[0].data.project == project()
-    replay[0].data.project.name = "replay mutation"
+    with pytest.raises(AttributeError):
+        replay[0].data.project.name = "replay mutation"
     reread = stream.since(0)
     assert reread is not None
     assert isinstance(reread[0].data, protocol.ProjectMessage)
