@@ -356,42 +356,47 @@ export const ProviderSelect: React.FC<ProviderSelectProps> = ({
     <OverriddenFormField
       control={form.control}
       name={name}
-      render={({ field, override }) => (
-        <div className="flex flex-col space-y-1">
-          <FormItem className={formItemClasses}>
-            <FormLabel>Provider</FormLabel>
-            <FormControl>
-              <NativeSelect
-                data-testid={testId}
-                onChange={(e) => {
-                  if (e.target.value === "none") {
-                    field.onChange(false);
-                  } else {
-                    field.onChange(e.target.value);
-                  }
-                }}
-                value={asStringOrEmpty(
-                  override.value === true
-                    ? "github"
-                    : override.value === false
-                      ? "none"
-                      : override.value,
-                )}
-                disabled={disabled || override.isOverridden}
-                className="inline-flex mr-2"
-              >
-                {options.map((option) => (
-                  <option value={option} key={option}>
-                    {option}
-                  </option>
-                ))}
-              </NativeSelect>
-            </FormControl>
-            <FormMessage />
-            <IsOverridden override={override} />
-          </FormItem>
-        </div>
-      )}
+      render={({ field, override }) => {
+        const getProviderValue = () => {
+          if (override.value === true) {
+            return "github";
+          }
+          if (override.value === false) {
+            return "none";
+          }
+          return override.value;
+        };
+        return (
+          <div className="flex flex-col space-y-1">
+            <FormItem className={formItemClasses}>
+              <FormLabel>Provider</FormLabel>
+              <FormControl>
+                <NativeSelect
+                  data-testid={testId}
+                  onChange={(e) => {
+                    if (e.target.value === "none") {
+                      field.onChange(false);
+                    } else {
+                      field.onChange(e.target.value);
+                    }
+                  }}
+                  value={asStringOrEmpty(getProviderValue())}
+                  disabled={disabled || override.isOverridden}
+                  className="inline-flex mr-2"
+                >
+                  {options.map((option) => (
+                    <option value={option} key={option}>
+                      {option}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </FormControl>
+              <FormMessage />
+              <IsOverridden override={override} />
+            </FormItem>
+          </div>
+        );
+      }}
     />
   );
 };
@@ -1493,12 +1498,14 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
   const maybeProviderInfo = AiModelRegistry.getProviderInfo(providerId);
   const name = maybeProviderInfo?.name || Strings.startCase(providerId);
 
-  const checkboxState =
-    enabledCount === 0
-      ? false
-      : enabledCount === totalCount
-        ? true
-        : "indeterminate";
+  let checkboxState: false | true | "indeterminate";
+  if (enabledCount === 0) {
+    checkboxState = false;
+  } else if (enabledCount === totalCount) {
+    checkboxState = true;
+  } else {
+    checkboxState = "indeterminate";
+  }
 
   const handleProviderToggle = useEvent(() => {
     const shouldEnable = enabledCount < totalCount / 2;

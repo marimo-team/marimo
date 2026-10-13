@@ -195,11 +195,14 @@ export function SelectList<V>(props: SelectListProps<V>): React.JSX.Element {
   };
 
   const renderTriggerValue = (current: V[] | V | null): React.ReactNode => {
-    const items = Array.isArray(current)
-      ? current
-      : current != null
-        ? [current]
-        : [];
+    let items: V[];
+    if (Array.isArray(current)) {
+      items = current;
+    } else if (current != null) {
+      items = [current];
+    } else {
+      items = [];
+    }
     if (items.length === 0) {
       return <span className="text-muted-foreground">{placeholder}</span>;
     }

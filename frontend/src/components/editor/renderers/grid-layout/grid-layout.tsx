@@ -611,12 +611,14 @@ const GridHoverActions: React.FC<GridHoverActionsProps> = ({
   setPopoverOpened,
 }) => {
   const buttonClassName = "h-4 w-4 opacity-60 hover:opacity-100";
-  const SideIcon =
-    side === "left"
-      ? AlignStartVerticalIcon
-      : side === "right"
-        ? AlignEndVerticalIcon
-        : undefined;
+  let SideIcon;
+  if (side === "left") {
+    SideIcon = AlignStartVerticalIcon;
+  } else if (side === "right") {
+    SideIcon = AlignEndVerticalIcon;
+  } else {
+    SideIcon = undefined;
+  }
 
   return (
     <div

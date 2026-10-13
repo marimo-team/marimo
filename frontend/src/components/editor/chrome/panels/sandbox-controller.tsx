@@ -38,6 +38,33 @@ export function SandboxController({
     saveAndSync,
   } = useSandboxController(onReconnect);
   const { theme } = useTheme();
+  const getSaveStatus = (): "Loading…" | "Unsaved changes" | "Saved" | "" => {
+    if (loading) {
+      return "Loading…";
+    }
+    if (dirty) {
+      return "Unsaved changes";
+    }
+    if (draft !== null) {
+      return "Saved";
+    }
+    return "";
+  };
+  const getSyncButtonLabel = (): string => {
+    if (loading) {
+      return "Loading…";
+    }
+    if (saving) {
+      return "Saving…";
+    }
+    if (pending) {
+      return "Syncing…";
+    }
+    if (dirty) {
+      return "Save & sync";
+    }
+    return "Sync";
+  };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-xl grid-cols-1 max-h-[80vh] overflow-auto">
@@ -72,13 +99,7 @@ export function SandboxController({
         )}
         <DialogFooter className="items-center sm:justify-between gap-3">
           <span className="text-xs text-muted-foreground mr-auto">
-            {loading
-              ? "Loading…"
-              : dirty
-                ? "Unsaved changes"
-                : draft !== null
-                  ? "Saved"
-                  : ""}
+            {getSaveStatus()}
           </span>
           <Button variant="text" size="sm" onClick={() => setOpen(false)}>
             Close
@@ -89,15 +110,7 @@ export function SandboxController({
             onClick={saveAndSync}
           >
             {pending && <Spinner className="size-3 mr-2" />}
-            {loading
-              ? "Loading…"
-              : saving
-                ? "Saving…"
-                : pending
-                  ? "Syncing…"
-                  : dirty
-                    ? "Save & sync"
-                    : "Sync"}
+            {getSyncButtonLabel()}
           </Button>
         </DialogFooter>
       </DialogContent>

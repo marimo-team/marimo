@@ -91,18 +91,23 @@ function setEnvironment(
     selected ??
     incoming.findLast(needsAttention) ??
     operations.findLast(needsAttention);
+  const getPackageAlert = (): AlertState["packageAlert"] => {
+    if (operation) {
+      return {
+        kind: "environment",
+        id: operation.operation_id,
+        source: operation.source,
+      };
+    }
+    if (state.packageAlert?.kind === "missing") {
+      return state.packageAlert;
+    }
+    return null;
+  };
   return {
     ...state,
     environments,
-    packageAlert: operation
-      ? {
-          kind: "environment",
-          id: operation.operation_id,
-          source: operation.source,
-        }
-      : state.packageAlert?.kind === "missing"
-        ? state.packageAlert
-        : null,
+    packageAlert: getPackageAlert(),
   };
 }
 

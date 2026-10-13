@@ -297,15 +297,22 @@ function getPinningStyles<TData>(
     isPinned === "right" && column.getIsFirstColumn("right");
   const fixedWidth = column.columnDef.meta?.width;
 
+  const getBoxShadow = ():
+    | "-4px 0 4px -4px var(--slate-8) inset"
+    | "4px 0 4px -4px var(--slate-8) inset"
+    | undefined => {
+    if (isLastLeftPinnedColumn && column.id !== "__select__") {
+      return "-4px 0 4px -4px var(--slate-8) inset";
+    }
+    if (isFirstRightPinnedColumn) {
+      return "4px 0 4px -4px var(--slate-8) inset";
+    }
+    return undefined;
+  };
   return {
     className: cn(isPinned && "bg-inherit", "shadow-r z-10"),
     style: {
-      boxShadow:
-        isLastLeftPinnedColumn && column.id !== "__select__"
-          ? "-4px 0 4px -4px var(--slate-8) inset"
-          : isFirstRightPinnedColumn
-            ? "4px 0 4px -4px var(--slate-8) inset"
-            : undefined,
+      boxShadow: getBoxShadow(),
       left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
       right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
       opacity: 1,

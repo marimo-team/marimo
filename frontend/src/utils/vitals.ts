@@ -13,12 +13,14 @@ export async function reportVitals() {
     value: number;
     rating: string;
   }) => {
-    const color =
-      metric.rating === "good"
-        ? "green"
-        : metric.rating === "needs-improvement"
-          ? "orange"
-          : "red";
+    let color: string;
+    if (metric.rating === "good") {
+      color = "green";
+    } else if (metric.rating === "needs-improvement") {
+      color = "orange";
+    } else {
+      color = "red";
+    }
     Logger.log(
       `%c [Metric ${metric.name}] ${metric.value}`,
       `background:${color}; color:white; padding:2px 0; border-radius:2px`,

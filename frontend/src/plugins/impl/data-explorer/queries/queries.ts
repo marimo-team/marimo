@@ -196,9 +196,11 @@ function getDefaultGroupBy(args: {
 }) {
   const { hasWildcardFn, hasWildcardField } = args;
 
-  return hasWildcardFn
-    ? "fieldTransform"
-    : hasWildcardField
-      ? "field"
-      : "encoding";
+  if (hasWildcardFn) {
+    return "fieldTransform";
+  }
+  if (hasWildcardField) {
+    return "field";
+  }
+  return "encoding";
 }

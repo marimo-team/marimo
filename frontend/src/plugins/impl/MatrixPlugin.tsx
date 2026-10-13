@@ -440,16 +440,21 @@ const MatrixComponent = ({
                       : null;
                   const rowLabel = rowLabels?.[i] ?? `Row ${i + 1}`;
                   const colLabel = columnLabels?.[j] ?? `Column ${j + 1}`;
+                  const getClassName = (): string => {
+                    if (isDisabled) {
+                      return "cursor-default text-muted-foreground";
+                    }
+                    if (cellEdit) {
+                      return "cursor-text";
+                    }
+                    return "cursor-ew-resize text-link hover:bg-accent";
+                  };
                   return (
                     <td
                       key={j}
                       className={cn(
                         "relative text-center min-w-14 h-8 px-2 transition-colors touch-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden",
-                        isDisabled
-                          ? "cursor-default text-muted-foreground"
-                          : cellEdit
-                            ? "cursor-text"
-                            : "cursor-ew-resize text-link hover:bg-accent",
+                        getClassName(),
                         (isActive || cellEdit != null) && "bg-accent",
                         j === 0 && "bracket-l",
                         j === numCols - 1 && "bracket-r",

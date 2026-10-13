@@ -731,6 +731,25 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
     await tree.copy(node.id, makeDuplicateName(node.data.name));
   });
 
+  const renderFileIcon = () => {
+    if (node.data.isRoot) {
+      return (
+        <FolderRootIcon
+          className="w-4 h-4 shrink-0 mr-2 text-primary"
+          strokeWidth={1.5}
+        />
+      );
+    }
+    if (node.data.isMarimoFile) {
+      return <MarimoIcon className="w-4 h-4 shrink-0 mr-2" strokeWidth={1.5} />;
+    }
+    return (
+      <Icon
+        className={cn("w-4 h-4 shrink-0 mr-2", FILE_ICON_COLOR[fileType])}
+        strokeWidth={1.5}
+      />
+    );
+  };
   return (
     <div
       style={style}
@@ -776,19 +795,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
             "bg-primary/15 hover:bg-primary/15 text-accent-foreground",
         )}
       >
-        {node.data.isRoot ? (
-          <FolderRootIcon
-            className="w-4 h-4 shrink-0 mr-2 text-primary"
-            strokeWidth={1.5}
-          />
-        ) : node.data.isMarimoFile ? (
-          <MarimoIcon className="w-4 h-4 shrink-0 mr-2" strokeWidth={1.5} />
-        ) : (
-          <Icon
-            className={cn("w-4 h-4 shrink-0 mr-2", FILE_ICON_COLOR[fileType])}
-            strokeWidth={1.5}
-          />
-        )}
+        {renderFileIcon()}
         {node.isEditing ? (
           <FileNameInput node={node} />
         ) : (

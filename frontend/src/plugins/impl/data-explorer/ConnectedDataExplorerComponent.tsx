@@ -179,12 +179,14 @@ export const DataExplorerComponent = ({
               title={
                 <div className="flex flex-row gap-1">
                   {plot.fieldInfos.map((info) => {
-                    const label =
-                      info.fieldDef.field === "*"
-                        ? "Count"
-                        : info.fieldDef.fn
-                          ? `${info.fieldDef.fn}(${info.fieldDef.field})`
-                          : info.fieldDef.field.toString();
+                    let label;
+                    if (info.fieldDef.field === "*") {
+                      label = "Count";
+                    } else if (info.fieldDef.fn) {
+                      label = `${info.fieldDef.fn}(${info.fieldDef.field})`;
+                    } else {
+                      label = info.fieldDef.field.toString();
+                    }
                     return (
                       <Badge
                         variant={

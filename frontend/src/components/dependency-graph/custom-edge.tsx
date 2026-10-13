@@ -43,18 +43,30 @@ export const DependencyEdge = memo((props: EdgeProps<DependencyEdgeData>) => {
   const isStateFlow = data?.isStateFlow ?? false;
   // The inline stroke replaces React Flow's stylesheet-driven edge colors, so
   // the selected state must be restyled here too or it becomes invisible.
-  const stroke = selected
-    ? "var(--primary)"
-    : isStateFlow
-      ? STATE_FLOW_EDGE_COLOR
-      : DEFAULT_EDGE_COLOR;
+  let stroke;
+  if (selected) {
+    stroke = "var(--primary)";
+  } else if (isStateFlow) {
+    stroke = STATE_FLOW_EDGE_COLOR;
+  } else {
+    stroke = DEFAULT_EDGE_COLOR;
+  }
 
+  const getStrokeWidth = () => {
+    if (selected) {
+      return 2.5;
+    }
+    if (isStateFlow) {
+      return 2;
+    }
+    return 1.5;
+  };
   return (
     <BaseEdge
       path={path}
       markerEnd={markerEnd}
       style={{
-        strokeWidth: selected ? 2.5 : isStateFlow ? 2 : 1.5,
+        strokeWidth: getStrokeWidth(),
         stroke,
         strokeDasharray: isStateFlow ? "5 3" : undefined,
       }}

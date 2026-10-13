@@ -275,18 +275,22 @@ function UnselectedCell(options: {
   const isAncestorOfSelected = selectedCell.graph.ancestors.has(cell.id);
   const isDescendantOfSelected = selectedCell.graph.descendants.has(cell.id);
   if (isAncestorOfSelected || isDescendantOfSelected) {
+    const getShift = (): undefined | "left" | "right" => {
+      if (isAncestorOfSelected && isDescendantOfSelected) {
+        return undefined;
+      }
+      if (isAncestorOfSelected) {
+        return "left";
+      }
+      return "right";
+    };
     return drawConnectionGlyph({
       circleRadius,
       leftWisker: hasAncestors,
       rightWisker: hasDescendants,
       // Node is a part of the current selection, need to jitter
       // If it's both ancestor and descendant (cycle), keep it centered
-      shift:
-        isAncestorOfSelected && isDescendantOfSelected
-          ? undefined
-          : isAncestorOfSelected
-            ? "left"
-            : "right",
+      shift: getShift(),
     });
   }
 
@@ -305,7 +309,14 @@ function drawConnectionGlyph(options: {
   shift?: "left" | "right";
 }) {
   const { circleRadius, leftWisker, rightWisker, shift } = options;
-  const dx = shift === undefined ? 0 : shift === "left" ? -14 : 14;
+  let dx;
+  if (shift === undefined) {
+    dx = 0;
+  } else if (shift === "left") {
+    dx = -14;
+  } else {
+    dx = 14;
+  }
   return (
     <g transform={`translate(${dx}, 0)`}>
       <g>

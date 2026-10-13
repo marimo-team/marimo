@@ -1439,25 +1439,28 @@ describe("ExportActions GeoJSON", () => {
       fireEvent.click(
         await screen.findByRole("button", { name: "Install geopandas" }),
       );
-      getExportMetadata.mockResolvedValue(
-        prerequisite === "missing-package"
-          ? {
-              ...metadataWithCrs,
-              formats: {
-                geojson: {
-                  available: false,
-                  reason: "GeoJSON requires geopandas.",
-                  missing_packages: ["geopandas"],
-                },
+      const getPrerequisiteMetadata = () => {
+        if (prerequisite === "missing-package") {
+          return {
+            ...metadataWithCrs,
+            formats: {
+              geojson: {
+                available: false,
+                reason: "GeoJSON requires geopandas.",
+                missing_packages: ["geopandas"],
               },
-            }
-          : prerequisite === "missing-crs"
-            ? geometryMetadata
-            : {
-                ...geometryMetadata,
-                geometry_columns: [geometryMetadata.geometry_columns[0]],
-              },
-      );
+            },
+          };
+        }
+        if (prerequisite === "missing-crs") {
+          return geometryMetadata;
+        }
+        return {
+          ...geometryMetadata,
+          geometry_columns: [geometryMetadata.geometry_columns[0]],
+        };
+      };
+      getExportMetadata.mockResolvedValue(getPrerequisiteMetadata());
       await act(async () => mocks.handleInstallPackages.mock.calls[0][1]());
       expect(downloadAs).toHaveBeenCalledTimes(1);
       expect(downloadByURL).not.toHaveBeenCalled();

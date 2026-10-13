@@ -72,6 +72,7 @@
     ],
     // === Core rules ===
     "no-var": "error",
+    "no-nested-ternary": "error",
     "no-console": "error",
     "no-constant-condition": "warn",
     "no-inner-declarations": "error",

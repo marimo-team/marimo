@@ -26,32 +26,44 @@ export const connectionNoticeAtom = atom<ConnectionNotice | null>((get) => {
   const sync = get(sandboxSyncAtom);
   const syncing = sync.kind === "running";
   const restartRequired = sync.kind === "restart-required";
-  const syncError =
-    sync.kind === "failed"
-      ? sync.error
-      : sync.kind === "cancelled"
-        ? "Sandbox sync was interrupted."
-        : restartRequired
-          ? sync.reason
-          : null;
+  let syncError;
+  if (sync.kind === "failed") {
+    syncError = sync.error;
+  } else if (sync.kind === "cancelled") {
+    syncError = "Sandbox sync was interrupted.";
+  } else if (restartRequired) {
+    syncError = sync.reason;
+  } else {
+    syncError = null;
+  }
   if (
     sandbox &&
     (syncing || syncError !== null) &&
     connection.state === WebSocketState.OPEN
   ) {
+    const getTitle = (): string => {
+      if (syncing) {
+        return "Syncing sandbox…";
+      }
+      if (restartRequired) {
+        return "Sandbox restart required";
+      }
+      return "Sandbox sync failed";
+    };
+    const getDescription = (): string => {
+      if (syncing) {
+        return "Applying the saved manifest to this notebook’s environment.";
+      }
+      if (restartRequired) {
+        return "Restart the kernel to use the updated environment.";
+      }
+      return "Review the error details, then try again.";
+    };
     return {
       kind: "sync",
       sandbox,
-      title: syncing
-        ? "Syncing sandbox…"
-        : restartRequired
-          ? "Sandbox restart required"
-          : "Sandbox sync failed",
-      description: syncing
-        ? "Applying the saved manifest to this notebook’s environment."
-        : restartRequired
-          ? "Restart the kernel to use the updated environment."
-          : "Review the error details, then try again.",
+      title: getTitle(),
+      description: getDescription(),
       pending: syncing,
       error: syncError,
     };
@@ -93,20 +105,30 @@ export const connectionNoticeAtom = atom<ConnectionNotice | null>((get) => {
       connection.code === WebSocketClosedReason.KERNEL_STARTUP_ERROR;
     const environmentFailed =
       startupFailed && connection.phase === "preparing-environment";
+    const getFailureTitle = () => {
+      if (environmentFailed) {
+        return "Sandbox setup failed";
+      }
+      if (startupFailed) {
+        return "Kernel failed to start";
+      }
+      return connection.reason;
+    };
+    const getFailureDescription = (): string => {
+      if (environmentFailed) {
+        return "The notebook can’t run yet.";
+      }
+      if (startupFailed) {
+        return "The Python kernel could not start. Check the error details, then try again.";
+      }
+      return "The connection to the notebook’s kernel was lost.";
+    };
     return {
       kind: startupFailed ? "startup" : "connection",
       phase: connection.phase,
       sandbox,
-      title: environmentFailed
-        ? "Sandbox setup failed"
-        : startupFailed
-          ? "Kernel failed to start"
-          : connection.reason,
-      description: environmentFailed
-        ? "The notebook can’t run yet."
-        : startupFailed
-          ? "The Python kernel could not start. Check the error details, then try again."
-          : "The connection to the notebook’s kernel was lost.",
+      title: getFailureTitle(),
+      description: getFailureDescription(),
       pending: false,
       error: startupFailed
         ? (get(kernelStartupErrorAtom) ?? connection.reason)

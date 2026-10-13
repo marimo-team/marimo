@@ -129,17 +129,17 @@ export function renderZodSchema<T extends FieldValues, S>({
   }
 
   if (schema instanceof z.ZodObject) {
+    const getClassName = (): string => {
+      if (direction === "row") {
+        return "flex-row gap-6 items-start";
+      }
+      if (direction === "two-columns") {
+        return "grid grid-cols-2 gap-y-6";
+      }
+      return "flex-col gap-6";
+    };
     return (
-      <div
-        className={cn(
-          "flex",
-          direction === "row"
-            ? "flex-row gap-6 items-start"
-            : direction === "two-columns"
-              ? "grid grid-cols-2 gap-y-6"
-              : "flex-col gap-6",
-        )}
-      >
+      <div className={cn("flex", getClassName())}>
         <FormLabel>{label}</FormLabel>
         {Objects.entries(schema.shape).map(([key, value]) => {
           const isLiteral = value instanceof z.ZodLiteral;
@@ -268,12 +268,14 @@ export function renderZodSchema<T extends FieldValues, S>({
     );
   }
   if (schema instanceof z.ZodDate) {
-    const inputType =
-      special === "datetime"
-        ? "datetime-local"
-        : special === "time"
-          ? "time"
-          : "date";
+    let inputType: string;
+    if (special === "datetime") {
+      inputType = "datetime-local";
+    } else if (special === "time") {
+      inputType = "time";
+    } else {
+      inputType = "date";
+    }
 
     return (
       <FormField

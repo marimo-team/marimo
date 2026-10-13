@@ -239,6 +239,33 @@ const InstallPackageForm: React.FC<{
     );
   };
 
+  const renderPackageManagerIcon = () => {
+    if (loading) {
+      return (
+        <Spinner size="small" className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+      );
+    }
+    if (isSandbox) {
+      return (
+        <BoxIcon
+          aria-hidden="true"
+          className="mr-2 h-4 w-4 shrink-0 opacity-50"
+        />
+      );
+    }
+    return (
+      <Tooltip content={`Change package manager (currently ${packageManager})`}>
+        <button
+          type="button"
+          aria-label="Change package manager"
+          onClick={() => openSettings("packageManagementAndData")}
+          className="pointer-events-auto mr-2 rounded-sm opacity-50 hover:opacity-80 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <BoxIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
+        </button>
+      </Tooltip>
+    );
+  };
   return (
     <div className="flex items-center w-full border-b">
       <SearchInput
@@ -248,32 +275,7 @@ const InstallPackageForm: React.FC<{
             : `Install packages with ${packageManager}...`
         }
         id={PACKAGES_INPUT_ID}
-        icon={
-          loading ? (
-            <Spinner
-              size="small"
-              className="mr-2 h-4 w-4 shrink-0 opacity-50"
-            />
-          ) : isSandbox ? (
-            <BoxIcon
-              aria-hidden="true"
-              className="mr-2 h-4 w-4 shrink-0 opacity-50"
-            />
-          ) : (
-            <Tooltip
-              content={`Change package manager (currently ${packageManager})`}
-            >
-              <button
-                type="button"
-                aria-label="Change package manager"
-                onClick={() => openSettings("packageManagementAndData")}
-                className="pointer-events-auto mr-2 rounded-sm opacity-50 hover:opacity-80 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <BoxIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
-              </button>
-            </Tooltip>
-          )
-        }
+        icon={renderPackageManagerIcon()}
         rootClassName="flex-1 border-none"
         value={input}
         onKeyDown={(e) => {
@@ -564,6 +566,15 @@ const DependencyTreeNode: React.FC<{
     }
   };
 
+  const renderExpandIcon = () => {
+    if (hasChildren) {
+      if (isExpanded) {
+        return <ChevronDownIcon className="w-4 h-4 mr-2 shrink-0" />;
+      }
+      return <ChevronRightIcon className="w-4 h-4 mr-2 shrink-0" />;
+    }
+    return <div className="w-4 mr-2 shrink-0" />;
+  };
   return (
     <div>
       <div
@@ -582,15 +593,7 @@ const DependencyTreeNode: React.FC<{
         aria-expanded={hasChildren ? isExpanded : undefined}
       >
         {/* Expand/collapse arrow */}
-        {hasChildren ? (
-          isExpanded ? (
-            <ChevronDownIcon className="w-4 h-4 mr-2 shrink-0" />
-          ) : (
-            <ChevronRightIcon className="w-4 h-4 mr-2 shrink-0" />
-          )
-        ) : (
-          <div className="w-4 mr-2 shrink-0" />
-        )}
+        {renderExpandIcon()}
 
         {/* Package info */}
         <div className="flex items-center gap-2 flex-1 min-w-0 py-1.5">

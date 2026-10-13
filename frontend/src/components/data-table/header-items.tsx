@@ -282,11 +282,12 @@ export function renderSortIcon<TData, TValue>(column: Column<TData, TValue>) {
 
   const isSorted = column.getIsSorted();
 
-  const Icon: React.FC<React.SVGProps<SVGSVGElement>> = isSorted
-    ? isSorted === "desc"
-      ? DescIcon
-      : AscIcon
-    : ChevronsUpDown;
+  let Icon: React.FC<React.SVGProps<SVGSVGElement>>;
+  if (isSorted) {
+    Icon = isSorted === "desc" ? DescIcon : AscIcon;
+  } else {
+    Icon = ChevronsUpDown;
+  }
 
   return <Icon className="h-3 w-3" />;
 }

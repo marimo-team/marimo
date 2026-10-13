@@ -327,69 +327,78 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     cache: <LazyCachePanel.Component />,
   };
 
+  const renderPanelHeader = () => {
+    if (selectedPanel === "dependencies") {
+      return (
+        <div className="flex items-center justify-between flex-1">
+          <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold">
+            Dependencies
+          </span>
+          <Tabs
+            value={dependencyPanelTab}
+            onValueChange={(value) => {
+              if (value === "minimap" || value === "graph") {
+                setDependencyPanelTab(value);
+              }
+            }}
+          >
+            <TabsList>
+              <TabsTrigger
+                value="minimap"
+                className="py-0.5 text-xs uppercase tracking-wide font-bold"
+              >
+                Minimap
+              </TabsTrigger>
+              <TabsTrigger
+                value="graph"
+                className="py-0.5 text-xs uppercase tracking-wide font-bold"
+              >
+                Graph
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      );
+    }
+    if (selectedPanel === "ai" && agentsEnabled) {
+      return (
+        <Tabs
+          value={aiPanelTab}
+          onValueChange={(value) => {
+            if (value === "chat" || value === "agents") {
+              setAiPanelTab(value);
+            }
+          }}
+        >
+          <TabsList>
+            <TabsTrigger
+              value="chat"
+              className="py-0.5 text-xs uppercase tracking-wide font-bold"
+            >
+              Chat
+            </TabsTrigger>
+            <TabsTrigger
+              value="agents"
+              className="py-0.5 text-xs uppercase tracking-wide font-bold"
+            >
+              Agents
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      );
+    }
+    return (
+      <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold flex-1">
+        {selectedPanel}
+      </span>
+    );
+  };
   const helpPaneBody = (
     <ErrorBoundary>
       <PanelSectionProvider value="sidebar">
         <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
           <div className="p-3 border-b flex justify-between items-center">
-            {selectedPanel === "dependencies" ? (
-              <div className="flex items-center justify-between flex-1">
-                <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold">
-                  Dependencies
-                </span>
-                <Tabs
-                  value={dependencyPanelTab}
-                  onValueChange={(value) => {
-                    if (value === "minimap" || value === "graph") {
-                      setDependencyPanelTab(value);
-                    }
-                  }}
-                >
-                  <TabsList>
-                    <TabsTrigger
-                      value="minimap"
-                      className="py-0.5 text-xs uppercase tracking-wide font-bold"
-                    >
-                      Minimap
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="graph"
-                      className="py-0.5 text-xs uppercase tracking-wide font-bold"
-                    >
-                      Graph
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-            ) : selectedPanel === "ai" && agentsEnabled ? (
-              <Tabs
-                value={aiPanelTab}
-                onValueChange={(value) => {
-                  if (value === "chat" || value === "agents") {
-                    setAiPanelTab(value);
-                  }
-                }}
-              >
-                <TabsList>
-                  <TabsTrigger
-                    value="chat"
-                    className="py-0.5 text-xs uppercase tracking-wide font-bold"
-                  >
-                    Chat
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="agents"
-                    className="py-0.5 text-xs uppercase tracking-wide font-bold"
-                  >
-                    Agents
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            ) : (
-              <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold flex-1">
-                {selectedPanel}
-              </span>
-            )}
+            {renderPanelHeader()}
             {selectedPanel === "packages" && (
               <SandboxToggle section="sidebar" />
             )}

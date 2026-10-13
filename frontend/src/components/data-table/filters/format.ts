@@ -92,12 +92,14 @@ export function formatValue(
     value.type === "datetime" ||
     value.type === "time"
   ) {
-    const format =
-      value.type === "date"
-        ? dateToLocalISODate
-        : value.type === "time"
-          ? dateToLocalISOTime
-          : (d: Date) => exactDateTime(d, ctx.timezone, ctx.locale);
+    let format;
+    if (value.type === "date") {
+      format = dateToLocalISODate;
+    } else if (value.type === "time") {
+      format = dateToLocalISOTime;
+    } else {
+      format = (d: Date) => exactDateTime(d, ctx.timezone, ctx.locale);
+    }
     switch (value.operator) {
       case "between":
         return {

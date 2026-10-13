@@ -178,16 +178,19 @@ export function useSandboxController(onReconnect: () => Promise<void>) {
     loading ||
     operation.kind === "running" ||
     connection.state === WebSocketState.CONNECTING;
-  const diagnostic =
-    error ??
-    (operation.kind === "failed"
-      ? operation.error
-      : operation.kind === "restart-required"
-        ? operation.reason
-        : operation.kind === "cancelled"
-          ? "Sandbox sync was interrupted."
-          : null) ??
-    startupError;
+  const getDiagnostic = () => {
+    if (operation.kind === "failed") {
+      return operation.error;
+    }
+    if (operation.kind === "restart-required") {
+      return operation.reason;
+    }
+    if (operation.kind === "cancelled") {
+      return "Sandbox sync was interrupted.";
+    }
+    return null;
+  };
+  const diagnostic = error ?? getDiagnostic() ?? startupError;
   return {
     filename,
     open,

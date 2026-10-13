@@ -231,6 +231,15 @@ const DataTableInternal = <TData,>({
     return idx + offset;
   }
 
+  const getPaginationState = () => {
+    if (paginationState) {
+      return { pagination: paginationState };
+    }
+    if (pagination && !paginationState) {
+      return {};
+    }
+    return { pagination: { pageIndex: 0, pageSize: data.length } };
+  };
   const table = useReactTable<TData>({
     _features: [
       ColumnPinning,
@@ -300,13 +309,7 @@ const DataTableInternal = <TData,>({
       ...(sorting ? { sorting } : {}),
       columnFilters: filters,
       ...// Controlled state
-      (paginationState
-        ? { pagination: paginationState }
-        : // Uncontrolled state
-          pagination && !paginationState
-          ? {}
-          : // No pagination, show all rows
-            { pagination: { pageIndex: 0, pageSize: data.length } }),
+      getPaginationState(),
       rowSelection: rowSelection ?? {},
       cellSelection: cellSelection ?? [],
       columnVisibility,

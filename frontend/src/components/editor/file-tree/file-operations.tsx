@@ -151,11 +151,14 @@ export function useNotebookFileActions({
   });
 
   const handleDelete = useEvent(() => {
-    const kind: FileItemKind = node.data.isDirectory
-      ? "folder"
-      : node.data.isMarimoFile
-        ? "notebook"
-        : "file";
+    let kind: FileItemKind;
+    if (node.data.isDirectory) {
+      kind = "folder";
+    } else if (node.data.isMarimoFile) {
+      kind = "notebook";
+    } else {
+      kind = "file";
+    }
     confirmDelete({ name: node.data.name, kind }, async () => {
       const result = await deleteFile(node.data);
       if (result) {

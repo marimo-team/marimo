@@ -22,12 +22,14 @@ function keymapBindingMatchesHotkey(
   hotkey: string,
 ): boolean {
   const platform = store.get(platformAtom);
-  const bindingKey =
-    platform === "mac"
-      ? (binding.mac ?? binding.key)
-      : platform === "windows"
-        ? (binding.win ?? binding.key)
-        : (binding.linux ?? binding.key);
+  let bindingKey;
+  if (platform === "mac") {
+    bindingKey = binding.mac ?? binding.key;
+  } else if (platform === "windows") {
+    bindingKey = binding.win ?? binding.key;
+  } else {
+    bindingKey = binding.linux ?? binding.key;
+  }
   return bindingKey === hotkey;
 }
 

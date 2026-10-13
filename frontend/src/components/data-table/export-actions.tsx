@@ -338,11 +338,14 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     props.sizeBytes > policy.limitBytes
   );
   const disabled = !!(policy && (props.sizeBytesIsLoading || overLimit));
-  const tooltipContent = !disabled
-    ? "Export"
-    : props.sizeBytesIsLoading
-      ? "Checking download size…"
-      : policy?.unavailableMessage;
+  let tooltipContent;
+  if (!disabled) {
+    tooltipContent = "Export";
+  } else if (props.sizeBytesIsLoading) {
+    tooltipContent = "Checking download size…";
+  } else {
+    tooltipContent = policy?.unavailableMessage;
+  }
 
   const button = (
     <Button
@@ -668,12 +671,15 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
             const panelId = `export-options-${option.format}`;
             const rowFailure =
               failure?.action.format === option.format ? failure : null;
-            const summary =
-              isGeographic(option.format) && hasGeometry
-                ? geometryColumn === ""
+            let summary;
+            if (isGeographic(option.format) && hasGeometry) {
+              summary =
+                geometryColumn === ""
                   ? "(unnamed geometry)"
-                  : (geometryColumn ?? "Choose geometry")
-                : settingsSummary(settings, option.format);
+                  : (geometryColumn ?? "Choose geometry");
+            } else {
+              summary = settingsSummary(settings, option.format);
+            }
             const selectedGeometryIndex =
               metadata?.geometry_columns.findIndex(
                 (column) => column.name === geometryColumn,
@@ -687,14 +693,18 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
               option.format === "geojson" &&
               selectedGeometry !== undefined &&
               !selectedGeometry.crs;
+            const getGeometryReason = () => {
+              if (hasGeometry && geometryColumn === null) {
+                return `Choose a primary geometry column to export ${optionLabel}.`;
+              }
+              if (missingCrs) {
+                return `Geometry column ${geometryColumn === "" ? "(unnamed geometry)" : geometryColumn} needs a CRS for GeoJSON export. Declare its source CRS in Python before exporting.`;
+              }
+              return null;
+            };
             const geometryReason = metadataError
               ? `Could not load geometry options: ${metadataError}`
-              : (eligibility?.reason ??
-                (hasGeometry && geometryColumn === null
-                  ? `Choose a primary geometry column to export ${optionLabel}.`
-                  : missingCrs
-                    ? `Geometry column ${geometryColumn === "" ? "(unnamed geometry)" : geometryColumn} needs a CRS for GeoJSON export. Declare its source CRS in Python before exporting.`
-                    : null));
+              : (eligibility?.reason ?? getGeometryReason());
             const missingPackageFailure =
               rowFailure?.kind === "missing-packages" ? rowFailure : null;
             const missingPackages =

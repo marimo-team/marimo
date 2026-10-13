@@ -105,12 +105,14 @@ export function getLegacyTemporalSpec(
   base: TopLevelFacetedUnitSpec,
   scale: Scale,
 ): TopLevelFacetedUnitSpec {
-  const format =
-    type === "date"
-      ? "%Y-%m-%d"
-      : type === "time"
-        ? "%H:%M:%S"
-        : "%Y-%m-%dT%H:%M:%S";
+  let format: string;
+  if (type === "date") {
+    format = "%Y-%m-%d";
+  } else if (type === "time") {
+    format = "%H:%M:%S";
+  } else {
+    format = "%Y-%m-%dT%H:%M:%S";
+  }
 
   return {
     ...base,

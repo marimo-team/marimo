@@ -198,11 +198,14 @@ export const FilterByValuesList = <TData, TValue>({
     mergedData.length > 0 &&
     mergedData.every(([value]) => chosenValues.has(value));
 
-  const selectAllState: boolean | "indeterminate" = allVisibleChecked
-    ? true
-    : chosenValues.size > 0
-      ? "indeterminate"
-      : false;
+  let selectAllState: boolean | "indeterminate";
+  if (allVisibleChecked) {
+    selectAllState = true;
+  } else if (chosenValues.size > 0) {
+    selectAllState = "indeterminate";
+  } else {
+    selectAllState = false;
+  }
 
   const handleToggleAll = () => {
     if (!data) {

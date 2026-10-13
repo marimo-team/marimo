@@ -68,9 +68,11 @@ export class DefaultWorkerFactory implements WorkerFactory {
  * Makes worker URLs relative for production builds
  */
 function makeRelativeWorkerUrl(url: string): string {
-  return url.startsWith("./")
-    ? url
-    : url.startsWith("/")
-      ? `.${url}`
-      : `./${url}`;
+  if (url.startsWith("./")) {
+    return url;
+  }
+  if (url.startsWith("/")) {
+    return `.${url}`;
+  }
+  return `./${url}`;
 }

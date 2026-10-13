@@ -14,7 +14,21 @@ export function SandboxToggle({ section }: { section: PanelSection }) {
   if (!sandbox?.backend) {
     return null;
   }
-  const status = notice ? (notice.pending ? "pending" : "error") : "healthy";
+  let status: "pending" | "error" | "healthy";
+  if (notice) {
+    status = notice.pending ? "pending" : "error";
+  } else {
+    status = "healthy";
+  }
+  const getClassName = (): string => {
+    if (status === "error") {
+      return "bg-(--red-9)";
+    }
+    if (status === "pending") {
+      return "bg-muted-foreground motion-safe:animate-pulse";
+    }
+    return "bg-(--grass-9)";
+  };
   return (
     <button
       type="button"
@@ -30,14 +44,7 @@ export function SandboxToggle({ section }: { section: PanelSection }) {
     >
       <output
         aria-label={notice?.title ?? "Sandbox healthy"}
-        className={cn(
-          "size-1.5 shrink-0 rounded-full",
-          status === "error"
-            ? "bg-(--red-9)"
-            : status === "pending"
-              ? "bg-muted-foreground motion-safe:animate-pulse"
-              : "bg-(--grass-9)",
-        )}
+        className={cn("size-1.5 shrink-0 rounded-full", getClassName())}
       />
       {sandbox.backend} sandbox
       <ChevronDownIcon

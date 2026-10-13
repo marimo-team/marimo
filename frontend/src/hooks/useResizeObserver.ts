@@ -44,12 +44,17 @@ export function useResizeObserver<T extends HTMLElement = HTMLElement>(
     }
 
     const observer = new ResizeObserver(([entry]) => {
-      const boxProp =
-        box === "border-box"
-          ? "borderBoxSize"
-          : box === "device-pixel-content-box"
-            ? "devicePixelContentBoxSize"
-            : "contentBoxSize";
+      let boxProp:
+        | "borderBoxSize"
+        | "devicePixelContentBoxSize"
+        | "contentBoxSize";
+      if (box === "border-box") {
+        boxProp = "borderBoxSize";
+      } else if (box === "device-pixel-content-box") {
+        boxProp = "devicePixelContentBoxSize";
+      } else {
+        boxProp = "contentBoxSize";
+      }
 
       const newWidth = extractSize(entry, boxProp, "inlineSize");
       const newHeight = extractSize(entry, boxProp, "blockSize");

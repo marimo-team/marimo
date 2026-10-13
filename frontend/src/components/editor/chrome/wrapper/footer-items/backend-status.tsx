@@ -87,11 +87,12 @@ export const BackendConnectionStatus: React.FC = () => {
     }
 
     const baseStatus = Strings.startCase(connection.toLowerCase());
-    const healthInfo = data?.lastChecked
-      ? data.isHealthy
-        ? "✓ Healthy"
-        : "✗ Unhealthy"
-      : "Health: Unknown";
+    let healthInfo: string;
+    if (data?.lastChecked) {
+      healthInfo = data.isHealthy ? "✓ Healthy" : "✗ Unhealthy";
+    } else {
+      healthInfo = "Health: Unknown";
+    }
 
     const errorInfo = error ? `Error: ${error}` : "";
 

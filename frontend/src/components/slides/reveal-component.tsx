@@ -753,11 +753,14 @@ const RevealSlidesComponent = ({
 
   // `isHeldEdit` means the cell already produces output and is only kept in the
   // overlay so the editor survives the edit, so the parked banners don't apply.
-  const parkedPreviewLabel = isHeldEdit
-    ? null
-    : isNoOutputPreview
-      ? "Hidden as there is no output"
-      : "Skipped in presentation";
+  let parkedPreviewLabel: string | null;
+  if (isHeldEdit) {
+    parkedPreviewLabel = null;
+  } else if (isNoOutputPreview) {
+    parkedPreviewLabel = "Hidden as there is no output";
+  } else {
+    parkedPreviewLabel = "Skipped in presentation";
+  }
 
   const parkedShowCode = isHeldEdit
     ? heldShowsCode
@@ -768,6 +771,24 @@ const RevealSlidesComponent = ({
     showCode: parkedShowCode,
   });
 
+  const getCodeToggleTooltip = (): string => {
+    if (codeAlwaysShown) {
+      return "Code is always shown for this slide";
+    }
+    if (cellShowsCode) {
+      return "Hide code (C)";
+    }
+    return "Show code (C)";
+  };
+  const getCodeToggleLabel = (): string => {
+    if (codeAlwaysShown) {
+      return "Code always shown";
+    }
+    if (cellShowsCode) {
+      return "Hide code";
+    }
+    return "Show code";
+  };
   const slideArea = (
     <div
       ref={containerRef}
@@ -848,15 +869,7 @@ const RevealSlidesComponent = ({
         )}
         <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-70 text-muted-foreground transition-opacity">
           {codeToggleEnabled && (
-            <Tooltip
-              content={
-                codeAlwaysShown
-                  ? "Code is always shown for this slide"
-                  : cellShowsCode
-                    ? "Hide code (C)"
-                    : "Show code (C)"
-              }
-            >
+            <Tooltip content={getCodeToggleTooltip()}>
               <Button
                 data-testid="marimo-plugin-slides-toggle-code"
                 variant="ghost"
@@ -870,13 +883,7 @@ const RevealSlidesComponent = ({
                 )}
                 aria-pressed={cellShowsCode}
                 aria-disabled={codeAlwaysShown}
-                aria-label={
-                  codeAlwaysShown
-                    ? "Code always shown"
-                    : cellShowsCode
-                      ? "Hide code"
-                      : "Show code"
-                }
+                aria-label={getCodeToggleLabel()}
                 onClick={toggleShowCode}
               >
                 <CodeIcon className="h-4 w-4" />

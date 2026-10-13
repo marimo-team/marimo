@@ -148,12 +148,14 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
 
 const CellLogLogger = {
   log: (payload: CellLog) => {
-    const color =
-      payload.level === "stdout"
-        ? "gray"
-        : payload.level === "stderr"
-          ? "red"
-          : "orange";
+    let color: string;
+    if (payload.level === "stdout") {
+      color = "gray";
+    } else if (payload.level === "stderr") {
+      color = "red";
+    } else {
+      color = "orange";
+    }
     const status = payload.level.toUpperCase();
     // oxlint-disable-next-line no-console -- intentional debug logging
     console.log(

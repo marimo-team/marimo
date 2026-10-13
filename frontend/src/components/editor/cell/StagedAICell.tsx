@@ -68,12 +68,17 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
     completionFunc(cellId, stagedAiCell, removeStagedCell, deleteStagedCell);
   };
 
-  const tooltipContent =
-    stagedAiCell.type === "add_cell"
-      ? "AI-generated cell"
-      : isDeletion
-        ? "AI suggests deleting this cell"
-        : "AI changed this cell";
+  let tooltipContent:
+    | "AI-generated cell"
+    | "AI suggests deleting this cell"
+    | "AI changed this cell";
+  if (stagedAiCell.type === "add_cell") {
+    tooltipContent = "AI-generated cell";
+  } else if (isDeletion) {
+    tooltipContent = "AI suggests deleting this cell";
+  } else {
+    tooltipContent = "AI changed this cell";
+  }
 
   return (
     <div className="mo-ai-cell-footer">

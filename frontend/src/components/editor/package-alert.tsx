@@ -558,11 +558,9 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
     (extra) => !/^(dev|test|testing)$/i.test(extra),
   );
 
-  return (
-    <div className="flex items-center max-w-72">
-      <span className="shrink-0 flex-1">{packageName}</span>
-
-      {selectedExtras.length > 0 ? (
+  const renderExtrasSelector = () => {
+    if (selectedExtras.length > 0) {
+      return (
         <span className="flex items-center min-w-0 flex-1">
           <span className="shrink-0">[</span>
           <DropdownMenu
@@ -621,7 +619,10 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
           </DropdownMenu>
           <span className="shrink-0">]</span>
         </span>
-      ) : availableExtras.length > 0 ? (
+      );
+    }
+    if (availableExtras.length > 0) {
+      return (
         <DropdownMenu
           open={isOpen && canSelectExtras}
           onOpenChange={(open) => {
@@ -669,7 +670,15 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
-      ) : null}
+      );
+    }
+    return null;
+  };
+  return (
+    <div className="flex items-center max-w-72">
+      <span className="shrink-0 flex-1">{packageName}</span>
+
+      {renderExtrasSelector()}
     </div>
   );
 };

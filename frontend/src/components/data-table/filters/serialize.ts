@@ -120,12 +120,14 @@ export function filterToFilterCondition(
     case "date":
     case "datetime":
     case "time": {
-      const encode =
-        filter.type === "date"
-          ? dateToLocalISODate
-          : filter.type === "time"
-            ? dateToLocalISOTime
-            : dateToLocalISODateTime;
+      let encode;
+      if (filter.type === "date") {
+        encode = dateToLocalISODate;
+      } else if (filter.type === "time") {
+        encode = dateToLocalISOTime;
+      } else {
+        encode = dateToLocalISODateTime;
+      }
       switch (filter.operator) {
         case "between":
           return [

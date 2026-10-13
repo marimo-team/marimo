@@ -412,17 +412,20 @@ export const FileBrowser = ({
           isDirectory: file.is_directory,
         });
 
+      const onPrimary = () => {
+        if (file.is_directory) {
+          setNewPath(filePath);
+        } else if (canSelect) {
+          toggle();
+        }
+      };
       return {
         key: file.id,
         name: file.name,
         Icon: FILE_TYPE_ICONS[fileType],
         isSelected,
         canSelect,
-        onPrimary: file.is_directory
-          ? () => setNewPath(filePath)
-          : canSelect
-            ? toggle
-            : () => {},
+        onPrimary,
         onToggleSelect: canSelect ? toggle : null,
       };
     }),
@@ -485,12 +488,14 @@ export const FileBrowser = ({
         : (dir.split(delimiter).findLast(Boolean) ?? dir),
   }));
 
-  const selectionKindLabel =
-    selectionMode === "all"
-      ? PluralWords.of("file", "folder")
-      : selectionMode === "directory"
-        ? PluralWords.of("folder")
-        : PluralWords.of("file");
+  let selectionKindLabel;
+  if (selectionMode === "all") {
+    selectionKindLabel = PluralWords.of("file", "folder");
+  } else if (selectionMode === "directory") {
+    selectionKindLabel = PluralWords.of("folder");
+  } else {
+    selectionKindLabel = PluralWords.of("file");
+  }
 
   const renderHeader = () => {
     const displayLabel =

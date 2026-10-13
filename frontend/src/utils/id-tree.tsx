@@ -943,12 +943,14 @@ export class MultiColumn<T> {
       return this;
     }
     const fromIdx = this.indexOfOrThrow(fromCol);
-    const toIdx =
-      toCol === "_left_"
-        ? fromIdx - 1
-        : toCol === "_right_"
-          ? fromIdx + 1
-          : this.indexOfOrThrow(toCol);
+    let toIdx;
+    if (toCol === "_left_") {
+      toIdx = fromIdx - 1;
+    } else if (toCol === "_right_") {
+      toIdx = fromIdx + 1;
+    } else {
+      toIdx = this.indexOfOrThrow(toCol);
+    }
 
     reorderColumnSizes(fromIdx, toIdx);
     return new MultiColumn(arrayMove([...this.columns], fromIdx, toIdx));

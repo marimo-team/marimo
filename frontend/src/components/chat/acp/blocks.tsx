@@ -608,30 +608,41 @@ export const ToolNotificationsBlock = (props: {
 
   return (
     <div className="flex flex-col text-muted-foreground overflow-x-hidden">
-      {toolCalls.map((item) => (
-        <SimpleAccordion
-          key={item.toolCallId}
-          status={
-            item.status === "completed"
-              ? "success"
-              : item.status === "failed"
-                ? "error"
-                : (item.status === "in_progress" ||
-                      item.status === "pending") &&
-                    !props.isLastBlock
-                  ? "loading"
-                  : undefined
+      {toolCalls.map((item) => {
+        const getToolStatus = ():
+          | "success"
+          | "error"
+          | "loading"
+          | undefined => {
+          if (item.status === "completed") {
+            return "success";
           }
-          title={
-            <span data-tool-data={JSON.stringify(item)}>
-              {handleBackticks(toolTitle(item))}
-            </span>
+          if (item.status === "failed") {
+            return "error";
           }
-          defaultIcon={<WrenchIcon className="h-3 w-3" />}
-        >
-          <ToolBodyBlock data={item} />
-        </SimpleAccordion>
-      ))}
+          if (
+            (item.status === "in_progress" || item.status === "pending") &&
+            !props.isLastBlock
+          ) {
+            return "loading";
+          }
+          return undefined;
+        };
+        return (
+          <SimpleAccordion
+            key={item.toolCallId}
+            status={getToolStatus()}
+            title={
+              <span data-tool-data={JSON.stringify(item)}>
+                {handleBackticks(toolTitle(item))}
+              </span>
+            }
+            defaultIcon={<WrenchIcon className="h-3 w-3" />}
+          >
+            <ToolBodyBlock data={item} />
+          </SimpleAccordion>
+        );
+      })}
     </div>
   );
 };

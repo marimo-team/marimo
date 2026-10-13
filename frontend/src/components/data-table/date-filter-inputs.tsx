@@ -187,9 +187,9 @@ export const DateLikeInput = ({
   const seedValue =
     seed === undefined ? undefined : dateToAria(filterType, seed);
 
-  return (
-    <div onPasteCapture={handlePaste} className="contents">
-      {filterType === "time" ? (
+  const renderDateField = () => {
+    if (filterType === "time") {
+      return (
         <TimeField<Time>
           key={seedKey}
           aria-label={ariaLabel}
@@ -198,7 +198,10 @@ export const DateLikeInput = ({
           onChange={handleChange}
           className={className}
         />
-      ) : filterType === "date" ? (
+      );
+    }
+    if (filterType === "date") {
+      return (
         <DatePicker<CalendarDate>
           key={seedKey}
           aria-label={ariaLabel}
@@ -206,17 +209,23 @@ export const DateLikeInput = ({
           onChange={handleChange}
           className={className}
         />
-      ) : (
-        <DatePicker<CalendarDateTime>
-          key={seedKey}
-          aria-label={ariaLabel}
-          defaultValue={seedValue as CalendarDateTime | undefined}
-          granularity="second"
-          hourCycle={24}
-          onChange={handleChange}
-          className={className}
-        />
-      )}
+      );
+    }
+    return (
+      <DatePicker<CalendarDateTime>
+        key={seedKey}
+        aria-label={ariaLabel}
+        defaultValue={seedValue as CalendarDateTime | undefined}
+        granularity="second"
+        hourCycle={24}
+        onChange={handleChange}
+        className={className}
+      />
+    );
+  };
+  return (
+    <div onPasteCapture={handlePaste} className="contents">
+      {renderDateField()}
     </div>
   );
 };

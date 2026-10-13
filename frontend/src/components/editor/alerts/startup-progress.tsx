@@ -56,11 +56,14 @@ function StartupStepOutput({
   const preparation = useAtomValue(preparationAtom);
   const progress = useAtomValue(startupProgressAtom);
   const preparing = phase === "preparing-environment";
-  const logs = preparing
-    ? (preparation?.logs.environment ?? "")
-    : progress?.phase === phase
-      ? progress.logs
-      : "";
+  let logs;
+  if (preparing) {
+    logs = preparation?.logs.environment ?? "";
+  } else if (progress?.phase === phase) {
+    logs = progress.logs;
+  } else {
+    logs = "";
+  }
 
   return (
     <StartupOutput
@@ -75,6 +78,15 @@ function StartupStepOutput({
 }
 
 function StartupSummary({ notice }: { notice: DisplayConnectionNotice }) {
+  const getSummaryDescription = (): string => {
+    if (notice.ready) {
+      return "Your environment and kernel are ready.";
+    }
+    if (notice.pending) {
+      return "Preparing Python and dependencies for this notebook.";
+    }
+    return "Review the setup details below to continue.";
+  };
   return (
     <header>
       <output className="sr-only">{notice.title}</output>
@@ -84,11 +96,7 @@ function StartupSummary({ notice }: { notice: DisplayConnectionNotice }) {
           : "Getting your notebook ready"}
       </h2>
       <p className="text-muted-foreground mt-3 text-sm leading-6">
-        {notice.ready
-          ? "Your environment and kernel are ready."
-          : notice.pending
-            ? "Preparing Python and dependencies for this notebook."
-            : "Review the setup details below to continue."}
+        {getSummaryDescription()}
       </p>
     </header>
   );
@@ -136,13 +144,48 @@ export function StartupProgress({ notice, surface }: StartupProgressProps) {
             notice.ready || (index === 0 && notice.phase === "starting-kernel");
           const active = !notice.ready && notice.phase === phase;
           const failed = active && !notice.pending;
-          const state = complete
-            ? "complete"
-            : failed
-              ? "failed"
-              : active
-                ? "pending"
-                : "waiting";
+          let state: "complete" | "failed" | "pending" | "waiting";
+          if (complete) {
+            state = "complete";
+          } else if (failed) {
+            state = "failed";
+          } else if (active) {
+            state = "pending";
+          } else {
+            state = "waiting";
+          }
+          const renderStepIcon = () => {
+            if (complete) {
+              return <CheckIcon className="size-4" aria-hidden={true} />;
+            }
+            if (active) {
+              return <ConnectionStatusIcon notice={notice} />;
+            }
+            return (
+              <CircleIcon
+                className="size-4 text-muted-foreground/50"
+                aria-hidden={true}
+              />
+            );
+          };
+          const getTitleColor = (): string => {
+            if (failed) {
+              return "text-(--red-11)";
+            }
+            if (complete || active) {
+              return "text-foreground";
+            }
+            return "text-muted-foreground";
+          };
+          const getOutputState = (): "failed" | "running" | "succeeded" => {
+            if (failed) {
+              return "failed";
+            }
+            if (active) {
+              return "running";
+            }
+            return "succeeded";
+          };
           return (
             <li
               key={phase}
@@ -161,38 +204,17 @@ export function StartupProgress({ notice, surface }: StartupProgressProps) {
                   complete ? "text-(--grass-11)" : "text-muted-foreground",
                 )}
               >
-                {complete ? (
-                  <CheckIcon className="size-4" aria-hidden={true} />
-                ) : active ? (
-                  <ConnectionStatusIcon notice={notice} />
-                ) : (
-                  <CircleIcon
-                    className="size-4 text-muted-foreground/50"
-                    aria-hidden={true}
-                  />
-                )}
+                {renderStepIcon()}
               </span>
               <div className="min-w-0 flex-1">
-                <div
-                  className={cn(
-                    "text-sm",
-                    failed
-                      ? "text-(--red-11)"
-                      : complete || active
-                        ? "text-foreground"
-                        : "text-muted-foreground",
-                  )}
-                >
+                <div className={cn("text-sm", getTitleColor())}>
                   {titles[state]}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {descriptions[state]}
                 </p>
                 {surface === "sidebar" && (
-                  <StartupStepOutput
-                    phase={phase}
-                    state={failed ? "failed" : active ? "running" : "succeeded"}
-                  />
+                  <StartupStepOutput phase={phase} state={getOutputState()} />
                 )}
               </div>
             </li>

@@ -161,11 +161,13 @@ export function getEncodingAxisForMark(
       return ["color"];
     case Mark.bar: {
       const direction = getDirectionOfBar(spec);
-      return direction === "horizontal"
-        ? ["y"]
-        : direction === "vertical"
-          ? ["x"]
-          : undefined;
+      if (direction === "horizontal") {
+        return ["y"];
+      }
+      if (direction === "vertical") {
+        return ["x"];
+      }
+      return undefined;
     }
     case Mark.circle:
     case Mark.geoshape:

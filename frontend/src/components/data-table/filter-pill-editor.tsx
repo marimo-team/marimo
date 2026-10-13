@@ -670,12 +670,14 @@ function buildFilterValue({
     return undefined;
   }
   if (isDateLikeType(type)) {
-    const factory =
-      type === "date"
-        ? Filter.date
-        : type === "datetime"
-          ? Filter.datetime
-          : Filter.time;
+    let factory;
+    if (type === "date") {
+      factory = Filter.date;
+    } else if (type === "datetime") {
+      factory = Filter.datetime;
+    } else {
+      factory = Filter.time;
+    }
     if (operator === "is_null" || operator === "is_not_null") {
       return factory({ operator });
     }

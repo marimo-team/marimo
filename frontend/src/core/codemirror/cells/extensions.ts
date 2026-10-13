@@ -433,6 +433,19 @@ export function cellBundle({
 }): Extension[] {
   const debuggerOn = getFeatureFlag("debugger");
   const lineTimingOn = getFeatureFlag("line_timing");
+  const getLineHighlightExtension = () => {
+    if (lineTimingOn) {
+      return activeLineTimer(
+        createObservable(createActiveLineInfoAtom(cellId), store),
+      );
+    }
+    if (debuggerOn) {
+      return debuggerLineHighlighter(
+        createObservable(createDebuggerLineAtom(cellId), store),
+      );
+    }
+    return [];
+  };
   return [
     cellActionsState.of(cellActions),
     cellIdState.of(cellId),
@@ -450,15 +463,7 @@ export function cellBundle({
           createObservable(createCellBreakpointsAtom(cellId), store),
         )
       : [],
-    lineTimingOn
-      ? activeLineTimer(
-          createObservable(createActiveLineInfoAtom(cellId), store),
-        )
-      : debuggerOn
-        ? debuggerLineHighlighter(
-            createObservable(createDebuggerLineAtom(cellId), store),
-          )
-        : [],
+    getLineHighlightExtension(),
   ];
 }
 

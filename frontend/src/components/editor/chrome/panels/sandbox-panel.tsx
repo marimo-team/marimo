@@ -130,6 +130,15 @@ function SandboxSyncDetails({
   if (!operation && !notice) {
     return null;
   }
+  const getOutputState = (): "running" | "succeeded" | "failed" => {
+    if (operation?.status.kind === "running") {
+      return "running";
+    }
+    if (operation?.status.kind === "succeeded") {
+      return "succeeded";
+    }
+    return "failed";
+  };
   return (
     <div className="mt-5 min-w-0">
       {notice ? (
@@ -140,13 +149,7 @@ function SandboxSyncDetails({
       <StartupOutput
         key={operation?.operation_id}
         logs={operation?.logs.environment ?? ""}
-        state={
-          operation?.status.kind === "running"
-            ? "running"
-            : operation?.status.kind === "succeeded"
-              ? "succeeded"
-              : "failed"
-        }
+        state={getOutputState()}
         label="sandbox sync output"
       />
     </div>
@@ -160,20 +163,22 @@ export function SandboxDetails() {
   const preparation = useAtomValue(preparationAtom);
   const progress = useAtomValue(startupProgressAtom);
   const [expanded, setExpanded] = useAtom(sandboxDetailsExpandedAtom);
-  const startup: DisplayConnectionNotice | null =
-    notice?.kind === "startup"
-      ? { ...notice, ready: false }
-      : preparation || progress
-        ? {
-            kind: "startup",
-            sandbox: true,
-            title: "Notebook started",
-            description: "The notebook is ready to run.",
-            pending: false,
-            ready: true,
-            error: null,
-          }
-        : null;
+  let startup: DisplayConnectionNotice | null;
+  if (notice?.kind === "startup") {
+    startup = { ...notice, ready: false };
+  } else if (preparation || progress) {
+    startup = {
+      kind: "startup",
+      sandbox: true,
+      title: "Notebook started",
+      description: "The notebook is ready to run.",
+      pending: false,
+      ready: true,
+      error: null,
+    };
+  } else {
+    startup = null;
+  }
   return (
     <section
       id={`sandbox-details-${section}`}

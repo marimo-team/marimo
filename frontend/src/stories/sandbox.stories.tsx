@@ -29,7 +29,11 @@ import { requestClientAtom } from "@/core/network/requests";
 import { createStaticRequests } from "@/core/network/requests-static";
 import { sandboxActionsAtom, sandboxAtom } from "@/core/packages/sandbox-state";
 import { filenameAtom } from "@/core/saving/file-state";
-import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
+import {
+  type ConnectionStatus,
+  WebSocketClosedReason,
+  WebSocketState,
+} from "@/core/websocket/types";
 import { HTTPError } from "@/utils/errors";
 
 const manifest = `requires-python = ">=3.13"
@@ -166,43 +170,56 @@ function SandboxStory(props: Props) {
       isDeveloperPanelOpen: false,
       selectedDeveloperPanelTab: "errors",
     });
-    state.set(
-      connectionAtom,
-      props.phase === "preparing" || props.phase === "starting"
-        ? {
-            state: WebSocketState.CONNECTING,
-            phase:
-              props.phase === "preparing"
-                ? "preparing-environment"
-                : "starting-kernel",
-          }
-        : props.phase === "failed"
-          ? {
-              state: WebSocketState.CLOSED,
-              code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
-              reason: "Kernel startup failed",
-              phase: "preparing-environment",
-            }
-          : { state: WebSocketState.OPEN },
-    );
+    const getConnectionStatus = (): ConnectionStatus => {
+      if (props.phase === "preparing" || props.phase === "starting") {
+        return {
+          state: WebSocketState.CONNECTING,
+          phase:
+            props.phase === "preparing"
+              ? "preparing-environment"
+              : "starting-kernel",
+        };
+      }
+      if (props.phase === "failed") {
+        return {
+          state: WebSocketState.CLOSED,
+          code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+          reason: "Kernel startup failed",
+          phase: "preparing-environment",
+        };
+      }
+      return { state: WebSocketState.OPEN };
+    };
+    state.set(connectionAtom, getConnectionStatus());
     state.set(
       kernelStartupErrorAtom,
       props.phase === "failed" ? resolutionError : null,
     );
-    const syncStatus: EnvironmentOperation["status"] | null =
-      props.phase === "syncing"
-        ? { kind: "running" }
-        : props.phase === "sync-failed"
-          ? { kind: "failed", error: resolutionError }
-          : props.phase === "restart-required"
-            ? {
-                kind: "restart-required",
-                reason:
-                  "The manifest requires Python 3.14. This kernel uses Python 3.13.",
-              }
-            : props.phase === "synced"
-              ? { kind: "succeeded" }
-              : null;
+    let syncStatus: EnvironmentOperation["status"] | null;
+    if (props.phase === "syncing") {
+      syncStatus = { kind: "running" };
+    } else if (props.phase === "sync-failed") {
+      syncStatus = { kind: "failed", error: resolutionError };
+    } else if (props.phase === "restart-required") {
+      syncStatus = {
+        kind: "restart-required",
+        reason:
+          "The manifest requires Python 3.14. This kernel uses Python 3.13.",
+      };
+    } else if (props.phase === "synced") {
+      syncStatus = { kind: "succeeded" };
+    } else {
+      syncStatus = null;
+    }
+    const getPreparationStatus = (): EnvironmentOperation["status"] => {
+      if (props.phase === "failed") {
+        return { kind: "failed", error: resolutionError };
+      }
+      if (props.phase === "preparing") {
+        return { kind: "running" };
+      }
+      return { kind: "succeeded" };
+    };
     state.set(alertAtom, (value) => ({
       ...value,
       environments: {
@@ -214,12 +231,7 @@ function SandboxStory(props: Props) {
               operation_id: "story-preparation",
               action: "prepare",
               source: "kernel",
-              status:
-                props.phase === "failed"
-                  ? { kind: "failed", error: resolutionError }
-                  : props.phase === "preparing"
-                    ? { kind: "running" }
-                    : { kind: "succeeded" },
+              status: getPreparationStatus(),
               packages: {},
               logs: {
                 environment:

@@ -19,18 +19,18 @@ export function getProtocolAndParentDirectories({
   // Determine protocol (http://, gs://, C:\, s3://, or /)
   const protocolMatch = path.match(/^[\dA-Za-z]+:\/\//);
   const isWindowsPath = /^[A-Za-z]:\\/.test(path);
-  const protocol = protocolMatch
-    ? protocolMatch[0]
-    : isWindowsPath
-      ? path.slice(0, 3)
-      : "/";
+  let protocol;
+  if (protocolMatch) {
+    protocol = protocolMatch[0];
+  } else if (isWindowsPath) {
+    protocol = path.slice(0, 3);
+  } else {
+    protocol = "/";
+  }
 
   // Remove protocol from path
-  const pathWithoutProtocol = isWindowsPath
-    ? path.slice(protocol.length)
-    : protocolMatch
-      ? path.slice(protocol.length)
-      : path;
+  const pathWithoutProtocol =
+    isWindowsPath || protocolMatch ? path.slice(protocol.length) : path;
 
   // Split path into segments
   const segments = pathWithoutProtocol.split(delimiter).filter(Boolean);

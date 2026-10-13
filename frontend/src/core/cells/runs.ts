@@ -65,13 +65,16 @@ const {
       (cellNotification.output.channel === "marimo-error" ||
         cellNotification.output.channel === "stderr");
 
-    let status: CellRun["status"] = erroredOutput
-      ? "error"
-      : cellNotification.status === "queued"
-        ? "queued"
-        : cellNotification.status === "running"
-          ? "running"
-          : "success";
+    let status: CellRun["status"];
+    if (erroredOutput) {
+      status = "error";
+    } else if (cellNotification.status === "queued") {
+      status = "queued";
+    } else if (cellNotification.status === "running") {
+      status = "running";
+    } else {
+      status = "success";
+    }
 
     // Create new run if needed
     if (!existingRun) {

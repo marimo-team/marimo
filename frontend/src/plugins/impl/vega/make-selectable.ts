@@ -472,12 +472,13 @@ function makeChartSelectable(
   // If chartSelection is true, we use the best selection for based on the spec
   // For binned charts, we use point selection
   // Otherwise, we use the best selection for the mark
-  const resolvedChartSelection: SelectionType[] | undefined =
-    chartSelection === true
-      ? binnedFields.length > 0
-        ? ["point"]
-        : getBestSelectionForMark(mark)
-      : [chartSelection];
+  let resolvedChartSelection: SelectionType[] | undefined;
+  if (chartSelection === true) {
+    resolvedChartSelection =
+      binnedFields.length > 0 ? ["point"] : getBestSelectionForMark(mark);
+  } else {
+    resolvedChartSelection = [chartSelection];
+  }
 
   if (!resolvedChartSelection || resolvedChartSelection.length === 0) {
     return spec;

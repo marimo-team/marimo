@@ -37,9 +37,15 @@ export const DataForm = ({
         render={({ field, override }) => {
           const onChange = (e: ChangeEvent<HTMLSelectElement>) => {
             const value = e.target.value;
-            field.onChange(
-              value === "true" ? true : value === "false" ? false : value,
-            );
+            if (value === "true") {
+              field.onChange(true);
+              return;
+            }
+            if (value === "false") {
+              field.onChange(false);
+              return;
+            }
+            field.onChange(value);
           };
           return (
             <FormItem className={formItemClasses}>

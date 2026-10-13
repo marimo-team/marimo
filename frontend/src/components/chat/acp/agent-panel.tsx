@@ -1137,40 +1137,47 @@ const AgentPanel: React.FC = () => {
         error instanceof JsonRpcError ? getDataMessage(error.data) : undefined;
       const displayError = dataMessage ? new Error(dataMessage) : error;
 
+      const getAction = () => {
+        if (!isAgentReady) {
+          return (
+            <Button
+              variant="linkDestructive"
+              size="sm"
+              onClick={() => {
+                disconnect();
+                handleManualConnect();
+              }}
+            >
+              Retry connection
+            </Button>
+          );
+        }
+        if (isAuthError) {
+          return (
+            <Button
+              variant="linkDestructive"
+              size="sm"
+              onClick={handleRestartSession}
+            >
+              Restart session
+            </Button>
+          );
+        }
+        return (
+          <Button
+            variant="linkDestructive"
+            size="sm"
+            onClick={() => setError(null)}
+          >
+            Dismiss
+          </Button>
+        );
+      };
       return (
         <ErrorBanner
           className="w-3/4 mx-auto mt-10"
           error={displayError}
-          action={
-            !isAgentReady ? (
-              <Button
-                variant="linkDestructive"
-                size="sm"
-                onClick={() => {
-                  disconnect();
-                  handleManualConnect();
-                }}
-              >
-                Retry connection
-              </Button>
-            ) : isAuthError ? (
-              <Button
-                variant="linkDestructive"
-                size="sm"
-                onClick={handleRestartSession}
-              >
-                Restart session
-              </Button>
-            ) : (
-              <Button
-                variant="linkDestructive"
-                size="sm"
-                onClick={() => setError(null)}
-              >
-                Dismiss
-              </Button>
-            )
-          }
+          action={getAction()}
         />
       );
     }

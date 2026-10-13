@@ -30,12 +30,14 @@ export function StartupOutput({
   const toggleRef = useRef<HTMLButtonElement>(null);
   const outputId = useId();
   const lines = logs.trimEnd().split(/\r?\n/);
-  const emphasis =
-    state === "failed"
-      ? "text-foreground"
-      : state === "running"
-        ? "last:text-foreground"
-        : undefined;
+  let emphasis: string | undefined;
+  if (state === "failed") {
+    emphasis = "text-foreground";
+  } else if (state === "running") {
+    emphasis = "last:text-foreground";
+  } else {
+    emphasis = undefined;
+  }
 
   useEventListener(outputRef, "keydown", (event) => {
     if (event.key === "Escape") {

@@ -156,11 +156,14 @@ function JsonTree({
   const renderCount = useCallback<CountRenderer>(
     (props, { value }) => {
       const original = tree.getOriginal(value);
-      const count = Array.isArray(original)
-        ? original.length
-        : original && typeof original === "object"
-          ? Object.keys(original).length
-          : 0;
+      let count;
+      if (Array.isArray(original)) {
+        count = original.length;
+      } else if (original && typeof original === "object") {
+        count = Object.keys(original).length;
+      } else {
+        count = 0;
+      }
       return (
         <span {...props}>
           {count} {count === 1 ? "Item" : "Items"}

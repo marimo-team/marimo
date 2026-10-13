@@ -75,8 +75,14 @@ const TabComponent = ({
   }
 
   const isVertical = orientation === "vertical";
-  const childArray =
-    children == null ? [] : Array.isArray(children) ? children : [children];
+  let childArray;
+  if (children == null) {
+    childArray = [];
+  } else if (Array.isArray(children)) {
+    childArray = children;
+  } else {
+    childArray = [children];
+  }
 
   return (
     <Labeled label={label} align="top" fullWidth={true}>

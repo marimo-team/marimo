@@ -154,12 +154,15 @@ export function removeSession(
   sessionId: TabId,
 ): AgentSessionState {
   const filteredSessions = state.sessions.filter((s) => s.tabId !== sessionId);
-  const newActiveTabId =
-    state.activeTabId === sessionId
-      ? filteredSessions.length > 0
+  let newActiveTabId;
+  if (state.activeTabId === sessionId) {
+    newActiveTabId =
+      filteredSessions.length > 0
         ? filteredSessions[filteredSessions.length - 1].tabId
-        : null
-      : state.activeTabId;
+        : null;
+  } else {
+    newActiveTabId = state.activeTabId;
+  }
 
   return {
     sessions: filteredSessions,

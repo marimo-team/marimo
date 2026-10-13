@@ -93,7 +93,13 @@ export interface CodeMirrorSetupOpts {
 
 function getPlaceholderType(opts: CodeMirrorSetupOpts) {
   const { showPlaceholder, enableAI } = opts;
-  return showPlaceholder ? "marimo-import" : enableAI ? "ai" : "none";
+  if (showPlaceholder) {
+    return "marimo-import";
+  }
+  if (enableAI) {
+    return "ai";
+  }
+  return "none";
 }
 
 const CODEMIRROR_TOOLTIP_PORTAL_CLASS = "cm-tooltip-portal";

@@ -122,7 +122,13 @@ export const resolvedThemeAtom = atom((get) => {
     return codeTheme;
   }
   const prefersDarkMode = get(prefersDarkModeAtom);
-  return theme === "system" ? (prefersDarkMode ? "dark" : "light") : theme;
+  if (theme === "system") {
+    if (prefersDarkMode) {
+      return "dark";
+    }
+    return "light";
+  }
+  return theme;
 });
 
 /**

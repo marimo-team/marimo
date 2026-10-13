@@ -142,17 +142,22 @@ export const FeedbackModal: React.FC<{
     false,
   );
 
-  const environment: EnvironmentDiagnostics | undefined =
-    environmentRequest.data
-      ? enrichEnvironment(environmentRequest.data, navigator.userAgent)
-      : environmentRequest.status === "error" || requestClient == null
-        ? createPartialEnvironment(
-            getMarimoVersion(),
-            navigator.userAgent,
-            navigator.language,
-            "Server environment information unavailable",
-          )
-        : undefined;
+  let environment: EnvironmentDiagnostics | undefined;
+  if (environmentRequest.data) {
+    environment = enrichEnvironment(
+      environmentRequest.data,
+      navigator.userAgent,
+    );
+  } else if (environmentRequest.status === "error" || requestClient == null) {
+    environment = createPartialEnvironment(
+      getMarimoVersion(),
+      navigator.userAgent,
+      navigator.language,
+      "Server environment information unavailable",
+    );
+  } else {
+    environment = undefined;
+  }
 
   const codeRequest = useAsyncData(async () => {
     if (!includeCode || !notebookSourceAvailable || requestClient == null) {
@@ -181,13 +186,15 @@ export const FeedbackModal: React.FC<{
   }
 
   const omittedLabels = omitted
-    .map((field) =>
-      field === "bug-description"
-        ? "errors"
-        : field === "reproduction-code"
-          ? "code"
-          : field,
-    )
+    .map((field) => {
+      if (field === "bug-description") {
+        return "errors";
+      }
+      if (field === "reproduction-code") {
+        return "code";
+      }
+      return field;
+    })
     .join(", ");
 
   return (

@@ -90,21 +90,26 @@ export const AIModelDropdown = ({
     ai,
   );
 
-  const activeModel =
-    forRole === "autocomplete"
-      ? ai?.models?.autocomplete_model
-      : forRole === "chat"
-        ? ai?.models?.chat_model
-        : forRole === "edit"
-          ? ai?.models?.edit_model
-          : undefined;
+  let activeModel;
+  if (forRole === "autocomplete") {
+    activeModel = ai?.models?.autocomplete_model;
+  } else if (forRole === "chat") {
+    activeModel = ai?.models?.chat_model;
+  } else if (forRole === "edit") {
+    activeModel = ai?.models?.edit_model;
+  } else {
+    activeModel = undefined;
+  }
 
   // If value is provided, use it, otherwise use the active model
-  const currentValue = value
-    ? AiModelId.parse(value)
-    : activeModel
-      ? AiModelId.parse(activeModel)
-      : undefined;
+  let currentValue;
+  if (value) {
+    currentValue = AiModelId.parse(value);
+  } else if (activeModel) {
+    currentValue = AiModelId.parse(activeModel);
+  } else {
+    currentValue = undefined;
+  }
 
   const iconSizeClass = iconSize === "medium" ? "h-4 w-4" : "h-3 w-3";
 

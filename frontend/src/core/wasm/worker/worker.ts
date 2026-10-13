@@ -305,12 +305,14 @@ const requestHandler = createRPCRequestHandler({
     const bridge = await bridgeReady.promise;
 
     // Serialize the payload
-    const payloadString =
-      payload == null
-        ? null
-        : typeof payload === "string"
-          ? payload
-          : JSON.stringify(payload);
+    let payloadString;
+    if (payload == null) {
+      payloadString = null;
+    } else if (typeof payload === "string") {
+      payloadString = payload;
+    } else {
+      payloadString = JSON.stringify(payload);
+    }
 
     // Make the request
     const response =

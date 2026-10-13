@@ -235,6 +235,15 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
         })
       : undefined;
 
+  const getContents = () => {
+    if (isText) {
+      return internalValue;
+    }
+    if (isCsv) {
+      return data.contents ?? undefined;
+    }
+    return undefined;
+  };
   return (
     <>
       {header}
@@ -242,13 +251,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       <FileContentRenderer
         mimeType={mimeType}
         filename={data.file.name}
-        contents={
-          isText
-            ? internalValue
-            : isCsv
-              ? (data.contents ?? undefined)
-              : undefined
-        }
+        contents={getContents()}
         mediaSource={mediaSource}
         readOnly={!isText}
         onChange={isText ? setInternalValue : undefined}

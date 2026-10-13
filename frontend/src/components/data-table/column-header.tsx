@@ -191,6 +191,15 @@ const SortButton = <TData, TValue>({
     }
   };
 
+  const getAriaLabel = (): string => {
+    if (sortDirection === "asc") {
+      return "Sorted ascending, click to sort descending";
+    }
+    if (sortDirection === "desc") {
+      return "Sorted descending, click to clear sort";
+    }
+    return "Sort column ascending";
+  };
   return (
     <button
       type="button"
@@ -201,13 +210,7 @@ const SortButton = <TData, TValue>({
           ? "text-accent-foreground"
           : "text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 group-focus-within:opacity-100",
       )}
-      aria-label={
-        sortDirection === "asc"
-          ? "Sorted ascending, click to sort descending"
-          : sortDirection === "desc"
-            ? "Sorted descending, click to clear sort"
-            : "Sort column ascending"
-      }
+      aria-label={getAriaLabel()}
       data-testid="data-table-sort-button"
     >
       {renderSortIcon(column)}
