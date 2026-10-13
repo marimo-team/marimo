@@ -5,7 +5,6 @@ import sys
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
-from marimo._config.config import Theme
 from marimo._output.formatters.ai_formatters import (
     GoogleAiFormatter,
     OpenAIFormatter,
@@ -96,7 +95,6 @@ NATIVE_FACTORIES: Sequence[FormatterFactory] = [
 def patch_finder(
     finder: Any,
     third_party_factories: dict[str, FormatterFactory] | None = None,
-    theme: Theme = "light",
 ) -> None:
     """Patch a MetaPathFinder to register formatters for third-parties.
     Python's import logic has roughly the following logic:
@@ -154,7 +152,6 @@ def patch_finder(
             ) -> Any:
                 loader_return_value = original_exec_module(module)
                 factory.register()
-                factory.apply_theme_safe(theme)
                 return loader_return_value
 
             spec.loader.exec_module = exec_module
@@ -176,7 +173,7 @@ def patch_finder(
         finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]
 
 
-def register_formatters(theme: Theme = "light") -> None:
+def register_formatters() -> None:
     """Register formatters with marimo.
 
     marimo comes packaged with rich formatters for a number of third-party
@@ -210,7 +207,6 @@ def register_formatters(theme: Theme = "light") -> None:
     for package, factory in THIRD_PARTY_FACTORIES.items():
         if package in sys.modules:
             factory.register()
-            factory.apply_theme_safe(theme)
             pre_registered.add(package)
 
     third_party_factories = {
@@ -224,14 +220,9 @@ def register_formatters(theme: Theme = "light") -> None:
     # particular, when its module is exec'd). This ensures that formatters are
     # loaded at the last possible moment: when its package is imported.
     for finder in sys.meta_path:
-        patch_finder(
-            finder,
-            third_party_factories=third_party_factories,
-            theme=theme,
-        )
+        patch_finder(finder, third_party_factories=third_party_factories)
 
     # These factories are for builtins or other things that don't require a
     # package import. So we can register them at program start-up.
     for factory in NATIVE_FACTORIES:
         factory.register()
-        factory.apply_theme_safe(theme)

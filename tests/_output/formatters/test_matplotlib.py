@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import base64
+import copy
 import json
 
 import pytest
 
+from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.runtime import Kernel
+from tests._runtime._helpers.session import mocked_kernel_session
 from tests.conftest import ExecReqProvider
 
 HAS_MPL = DependencyManager.matplotlib.has()
@@ -22,7 +25,7 @@ async def test_matplotlib_rc_light(
 
     plt.rcParams["font.family"] = ["monospace"]
 
-    register_formatters(theme="light")
+    register_formatters()
 
     await executing_kernel.run(
         [
@@ -42,32 +45,40 @@ async def test_matplotlib_rc_light(
 
 
 @pytest.mark.skipif(not HAS_MPL, reason="optional dependencies not installed")
-async def test_matplotlib_rc_dark(
-    executing_kernel: Kernel, exec_req: ExecReqProvider
+async def test_matplotlib_rc_ignores_dark_theme(
+    exec_req: ExecReqProvider,
 ) -> None:
+    """A dark notebook theme leaves the matplotlib style untouched."""
     import matplotlib.pyplot as plt  # type: ignore
 
     from marimo._output.formatters.formatters import register_formatters
 
     plt.rcParams["font.family"] = ["monospace"]
 
-    register_formatters(theme="dark")
+    user_config = copy.deepcopy(DEFAULT_CONFIG)
+    user_config["display"]["theme"] = "dark"
 
-    await executing_kernel.run(
-        [
-            exec_req.get(
-                """
-                import matplotlib.pyplot as plt
+    with mocked_kernel_session(user_config=user_config) as tk:
+        register_formatters()
 
-                rcParams = plt.rcParams
-                """
-            )
-        ]
-    )
+        await tk.kernel.run(
+            [
+                exec_req.get(
+                    """
+                    import marimo as mo
+                    import matplotlib.pyplot as plt
 
-    rcParams = executing_kernel.globals["rcParams"]
-    assert rcParams["font.family"] == ["monospace"]
-    assert rcParams["figure.facecolor"] == "black"
+                    theme = mo.app_meta().theme
+                    rcParams = plt.rcParams
+                    """
+                )
+            ]
+        )
+
+        assert tk.kernel.globals["theme"] == "dark"
+        rcParams = tk.kernel.globals["rcParams"]
+        assert rcParams["font.family"] == ["monospace"]
+        assert rcParams["figure.facecolor"] == "white"
 
 
 def _extract_png_dimensions(data_url: str) -> tuple[int, int]:
@@ -93,7 +104,7 @@ async def test_matplotlib_image_resolution_uses_retina_scale(
     """Test that PNG output uses retina scaling without mutating DPI."""
     from marimo._output.formatters.formatters import register_formatters
 
-    register_formatters(theme="light")
+    register_formatters()
 
     await executing_kernel.run(
         [
@@ -155,7 +166,7 @@ async def test_matplotlib_display_size_remains_constant(
     """Test that the display size in the notebook remains constant even if DPI changes."""
     from marimo._output.formatters.formatters import register_formatters
 
-    register_formatters(theme="light")
+    register_formatters()
 
     await executing_kernel.run(
         [
@@ -209,7 +220,7 @@ async def test_matplotlib_backwards_compatibility(
     """Test that existing matplotlib code still works with the new DPI rendering logic."""
     from marimo._output.formatters.formatters import register_formatters
 
-    register_formatters(theme="light")
+    register_formatters()
 
     # Test various matplotlib output types
     await executing_kernel.run(
@@ -256,7 +267,7 @@ async def test_matplotlib_svg_rendering(
     """Test that matplotlib figures are rendered in SVG format."""
     from marimo._output.formatters.formatters import register_formatters
 
-    register_formatters(theme="light")
+    register_formatters()
 
     await executing_kernel.run(
         [
@@ -293,7 +304,7 @@ async def test_matplotlib_svg_rendering_in_layout(
     """Test that the SVG output can be used in a layout."""
     from marimo._output.formatters.formatters import register_formatters
 
-    register_formatters(theme="light")
+    register_formatters()
 
     await executing_kernel.run(
         [

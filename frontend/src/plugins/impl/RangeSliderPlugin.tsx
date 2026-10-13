@@ -98,7 +98,7 @@ const RangeSliderComponent = ({
   const sliderElement = (
     <Labeled
       label={label}
-      id={id}
+      controlId={id}
       align={orientation === "horizontal" ? "left" : "top"}
       className={cn(fullWidth && "my-1 w-full")}
       fullWidth={fullWidth}

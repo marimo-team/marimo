@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
 
@@ -47,17 +46,3 @@ class MatplotlibFormatter(FormatterFactory):
                 return mime_data_artist(bc.patches[0].figure)  # type: ignore
             else:
                 return ("text/plain", str(bc))
-
-    def apply_theme(self, theme: Theme) -> None:
-        import matplotlib.style  # type: ignore
-
-        # Note: we don't set to "default", because that overwrites all
-        # rcParams.
-        #
-        # We also don't try to restore from an rcParams file, because that
-        # may overwrite other rcParams that the user set.
-        #
-        # This means that the style can't be switched from dark to light
-        # without restarting the kernel.
-        if theme == "dark":
-            matplotlib.style.use("dark_background")

@@ -33,7 +33,7 @@ export const SearchableSelect = (props: SearchableSelectProps): JSX.Element => {
   );
 
   return (
-    <Labeled label={label} id={id} fullWidth={fullWidth}>
+    <Labeled label={label} controlId={id} fullWidth={fullWidth}>
       <SelectList<string>
         id={id}
         options={items}

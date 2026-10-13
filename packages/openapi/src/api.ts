@@ -3862,7 +3862,7 @@ export interface components {
     AiCompletionRequest: {
       code: string;
       /** @default null */
-      context?: null | components["schemas"]["AiCompletionContext"];
+      context?: components["schemas"]["AiCompletionContext"] | null;
       /** @default null */
       id?: string | null;
       includeOtherCode: string;
@@ -4137,6 +4137,7 @@ export interface components {
      *             status: Execution status (idle/running/stale/queued/disabled-transitively).
      *             stale_inputs: Whether cell has stale inputs from changed dependencies.
      *             run_id: Execution run ID for tracing. Auto-set from context.
+     *             execution_id: Evaluation of this cell producing the update, when known.
      *             serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
      *             timestamp: Creation timestamp, auto-set.
      */
@@ -4145,12 +4146,14 @@ export interface components {
       /** @default null */
       console?:
         | components["schemas"]["CellOutput"][]
-        | null
-        | components["schemas"]["CellOutput"];
+        | components["schemas"]["CellOutput"]
+        | null;
+      /** @default null */
+      execution_id?: string | null;
       /** @enum {unknown} */
       op: "cell-op";
       /** @default null */
-      output?: null | components["schemas"]["CellOutput"];
+      output?: components["schemas"]["CellOutput"] | null;
       /** @default null */
       run_id?: string | null;
       serialization?: string | null;
@@ -4352,18 +4355,18 @@ export interface components {
     };
     /**
      * CompletedRunNotification
-     * @description Run of submitted cells and descendants completed.
-     *
-     *         Attributes:
-     *             run_id: Correlation ID echoed from the command that triggered
-     *                 this completion. `None` for handlers that don't take a
-     *                 `run_id` (everything except `handle_execute_scratchpad`
-     *                 today). Consumers that want to wait for a specific command's
-     *                 completion filter on this field.
+     * @description The command's reactive cycle ended, after its console was flushed.
      */
     CompletedRunNotification: {
+      /** @default null */
+      error?: string | null;
       /** @enum {unknown} */
       op: "completed-run";
+      /**
+       * @default succeeded
+       * @enum {unknown}
+       */
+      outcome?: "failed" | "interrupted" | "succeeded";
       /** @default null */
       run_id?: string | null;
     };
@@ -4526,7 +4529,7 @@ export interface components {
       /** @enum {unknown} */
       op: "data-column-preview";
       /** @default null */
-      stats?: null | components["schemas"]["ColumnStats"];
+      stats?: components["schemas"]["ColumnStats"] | null;
       table_name: string;
     };
     /**
@@ -4766,7 +4769,7 @@ export interface components {
       context:
         | components["schemas"]["SandboxPackageContext"]
         | components["schemas"]["PackageManagerContext"];
-      tree: null | components["schemas"]["DependencyTreeNode"];
+      tree: components["schemas"]["DependencyTreeNode"] | null;
     };
     /**
      * DetectedDataSource
@@ -5059,10 +5062,14 @@ export interface components {
      *                 `ScratchCellListener` can filter for *its* completion and
      *                 ignore `CompletedRun` events from unrelated commands on the
      *                 same session.
+     *             allow_stdin: Whether code may request interactive input. When false,
+     *                 input reads receive EOF for the duration of this command.
      */
     ExecuteScratchpadCommand: {
+      /** @default true */
+      allowStdin?: boolean;
       /** @default null */
-      cellOutputs?: null | components["schemas"]["CellOutputs"];
+      cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
@@ -5075,8 +5082,10 @@ export interface components {
     };
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
+      /** @default true */
+      allowStdin?: boolean;
       /** @default null */
-      cellOutputs?: null | components["schemas"]["CellOutputs"];
+      cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
@@ -5100,6 +5109,28 @@ export interface components {
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @enum {unknown} */
       type: "execute-stale-cells";
+    };
+    /**
+     * ExecutionNotification
+     * @description An attempt's lifecycle, independent of a cell's displayed status.
+     *
+     *         `planned` supplies the source and identity before output is reported.
+     *         `running` means evaluation began. `completed` follows the final output
+     *         and errors, including for attempts that never ran. Buffered and background
+     *         console output may still arrive with the completed attempt's identity.
+     */
+    ExecutionNotification: {
+      /** @default null */
+      caused_by?: string | null;
+      cell_id: string;
+      /** @default null */
+      code?: string | null;
+      execution_id: string;
+      /** @enum {unknown} */
+      op: "execution";
+      /** @enum {unknown} */
+      phase: "completed" | "planned" | "running";
+      run_id: string | null;
     };
     /**
      * ExportAsHTMLRequest
@@ -5190,7 +5221,7 @@ export interface components {
     /** FileCopyResponse */
     FileCopyResponse: {
       /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
+      info?: components["schemas"]["FileInfo"] | null;
       /** @default null */
       message?: string | null;
       success: boolean;
@@ -5227,7 +5258,7 @@ export interface components {
     /** FileCreateResponse */
     FileCreateResponse: {
       /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
+      info?: components["schemas"]["FileInfo"] | null;
       /** @default null */
       message?: string | null;
       success: boolean;
@@ -5271,7 +5302,7 @@ export interface components {
       lastModified?: number | null;
       name: string;
       /** @default null */
-      opengraph?: null | components["schemas"]["OpenGraphMetadata"];
+      opengraph?: components["schemas"]["OpenGraphMetadata"] | null;
       path: string;
       /** @default null */
       size?: number | null;
@@ -5294,7 +5325,7 @@ export interface components {
     /** FileMoveResponse */
     FileMoveResponse: {
       /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
+      info?: components["schemas"]["FileInfo"] | null;
       /** @default null */
       message?: string | null;
       success: boolean;
@@ -5345,7 +5376,7 @@ export interface components {
     /** FileUpdateResponse */
     FileUpdateResponse: {
       /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
+      info?: components["schemas"]["FileInfo"] | null;
       /** @default null */
       message?: string | null;
       success: boolean;
@@ -5594,6 +5625,7 @@ export interface components {
     InterruptedNotification: {
       /** @enum {unknown} */
       op: "interrupted";
+      run_id?: string | null;
     };
     /** InvokeAiToolRequest */
     InvokeAiToolRequest: {
@@ -5677,6 +5709,8 @@ export interface components {
      *             kiosk: Whether running in kiosk mode.
      *             capabilities: Available kernel capabilities.
      *             auto_instantiated: Whether cells already executed (run mode).
+     *             stable_session_id: Server-owned Session identity that survives
+     *                 browser reconnects. None where no server Session exists.
      */
     KernelReadyNotification: {
       app_config: components["schemas"]["_AppConfig"];
@@ -5699,6 +5733,8 @@ export interface components {
       /** @enum {unknown} */
       op: "kernel-ready";
       resumed: boolean;
+      /** @default null */
+      stable_session_id?: string | null;
       ui_values: Record<string, any> | null;
     };
     /**
@@ -5798,6 +5834,7 @@ export interface components {
         | components["schemas"]["UnknownError"];
       notification:
         | components["schemas"]["CellNotification"]
+        | components["schemas"]["ExecutionNotification"]
         | components["schemas"]["FunctionCallResultNotification"]
         | components["schemas"]["UIElementMessageNotification"]
         | components["schemas"]["ModelLifecycleNotification"]
@@ -6309,7 +6346,7 @@ export interface components {
       buffer_paths: (string | number)[][];
       buffers: components["schemas"]["Base64String"][];
       /** @default null */
-      esm_spec?: null | components["schemas"]["EsmSpec"];
+      esm_spec?: components["schemas"]["EsmSpec"] | null;
       /** @enum {unknown} */
       method: "open";
       state: Record<string, any>;
@@ -6341,7 +6378,7 @@ export interface components {
       buffer_paths: (string | number)[][];
       buffers: components["schemas"]["Base64String"][];
       /** @default null */
-      esm_spec?: null | components["schemas"]["EsmSpec"];
+      esm_spec?: components["schemas"]["EsmSpec"] | null;
       /** @enum {unknown} */
       method: "update";
       state: Record<string, any>;
@@ -6940,7 +6977,7 @@ export interface components {
       /** @enum {unknown} */
       op: "sql-table-preview";
       request_id: components["schemas"]["RequestId"];
-      table: null | components["schemas"]["DataTable"];
+      table: components["schemas"]["DataTable"] | null;
     };
     /**
      * SafeLiteralDiscoveryValue
@@ -7784,10 +7821,10 @@ export interface components {
       /** @enum {unknown} */
       op: "validate-sql-result";
       /** @default null */
-      parse_result?: null | components["schemas"]["SqlParseResult"];
+      parse_result?: components["schemas"]["SqlParseResult"] | null;
       request_id: string;
       /** @default null */
-      validate_result?: null | components["schemas"]["SqlCatalogCheckResult"];
+      validate_result?: components["schemas"]["SqlCatalogCheckResult"] | null;
     };
     /** VariableContext */
     VariableContext: {

@@ -93,6 +93,7 @@ def build_kernel_ready(
         ),
         capabilities=KernelCapabilitiesNotification(),
         auto_instantiated=auto_instantiated,
+        stable_session_id=session.stable_id,
     )
 
 

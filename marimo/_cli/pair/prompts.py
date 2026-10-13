@@ -16,7 +16,6 @@ def get_pair_command() -> str:
 @dataclass(frozen=True)
 class PromptTemplates:
     prompt: str
-    file: str
     session: str
     token_file: str
     token: str
@@ -32,7 +31,6 @@ def load_prompt_templates() -> PromptTemplates:
 def render_prompt(
     *,
     url: str,
-    file_path: str | None = None,
     session_id: str | None = None,
     token_file: Path | None = None,
 ) -> str:
@@ -40,7 +38,6 @@ def render_prompt(
     return templates.prompt.format(
         command=get_pair_command(),
         url=url,
-        file=templates.file.format(file=file_path) if file_path else "",
         session=(
             templates.session.format(session=session_id) if session_id else ""
         ),

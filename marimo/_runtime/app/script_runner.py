@@ -239,9 +239,7 @@ class AppScriptRunner:
             from marimo._output.formatting import FORMATTERS
 
             if not FORMATTERS.is_empty():
-                register_formatters(
-                    theme=get_context().marimo_config["display"]["theme"]
-                )
+                register_formatters()
 
             post_execute_hooks: list[Callable[[], Any]] = []
             if DependencyManager.matplotlib.has():

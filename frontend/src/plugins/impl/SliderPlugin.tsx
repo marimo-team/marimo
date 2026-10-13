@@ -224,7 +224,7 @@ const SliderComponent = ({
   const sliderElement = (
     <Labeled
       label={label}
-      id={id}
+      controlId={id}
       align={orientation === "horizontal" ? "left" : "top"}
       fullWidth={fullWidth}
       className={cn(fullWidth && "my-1 w-full")}

@@ -40,6 +40,7 @@ export const SINGLE_TIME_UNITS = [
 export const COMBINED_TIME_UNITS = [
   "yearmonth",
   "yearmonthdate",
+  "yearmonthdatehours",
   "monthdate",
 ] as const;
 export const TIME_UNITS = [

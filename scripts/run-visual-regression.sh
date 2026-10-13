@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-readonly PLAYWRIGHT_VERSION="1.62.1"
+readonly PLAYWRIGHT_VERSION="1.63.0"
 readonly PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble"
 readonly EDIT_PORT=2738
 readonly RUN_PORT=2739

@@ -15,7 +15,10 @@ import { PAIR_PREVIEW } from "@/__tests__/fixtures/pair-preview";
 import { Dialog } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { pairPreviewAtom } from "@/core/config/pair";
-import { getSessionId } from "@/core/kernel/session";
+import {
+  type StableSessionId,
+  stableSessionIdAtom,
+} from "@/core/kernel/session";
 import { filenameAtom } from "@/core/saving/file-state";
 import {
   DEFAULT_RUNTIME_CONFIG,
@@ -39,10 +42,13 @@ function wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+const STABLE_ID = "sess-stable-1" as StableSessionId;
+
 describe("PairWithAgentModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     store.set(pairPreviewAtom, PAIR_PREVIEW);
+    store.set(stableSessionIdAtom, STABLE_ID);
     store.set(filenameAtom, "/project/my notebook.py");
     store.set(runtimeConfigAtom, {
       ...DEFAULT_RUNTIME_CONFIG,
@@ -57,12 +63,13 @@ describe("PairWithAgentModal", () => {
 
   afterEach(() => {
     store.set(pairPreviewAtom, undefined);
+    store.set(stableSessionIdAtom, null);
     store.set(filenameAtom, null);
     vi.unstubAllGlobals();
   });
 
   it.each(["Claude", "Codex", "OpenCode", "Prompt"])(
-    "omits skill installation and includes the current session in %s preview",
+    "omits skill installation and targets the stable session in %s preview",
     async (tab) => {
       await act(async () => {
         render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
@@ -74,21 +81,29 @@ describe("PairWithAgentModal", () => {
 
       const panel = screen.getByRole("tabpanel");
       expect(within(panel).queryAllByText(/skill/i)).toEqual([]);
-      expect(panel).toHaveTextContent(getSessionId());
-      expect(panel).toHaveTextContent(
-        tab === "Prompt" ? "File: notebook.py" : "--file notebook.py",
-      );
-      expect(panel).not.toHaveTextContent("/project/my notebook.py");
+      expect(panel).toHaveTextContent(STABLE_ID);
+      expect(panel).not.toHaveTextContent("--file");
+      expect(panel).not.toHaveTextContent("File:");
+      expect(panel).not.toHaveTextContent("notebook.py");
       expect(panel).toHaveTextContent(
         tab === "Prompt" ? "1. Copy this prompt" : "1. Run in your terminal",
       );
+      fireEvent.click(
+        within(panel).getByRole("button", {
+          name: tab === "Prompt" ? "Copy prompt" : "Copy command",
+        }),
+      );
+      await waitFor(() => expect(copyToClipboard).toHaveBeenCalledOnce());
+      const copied = vi.mocked(copyToClipboard).mock.calls[0][0];
+      expect(copied).toContain(STABLE_ID);
+      expect(copied).not.toContain("notebook.py");
     },
   );
 
-  it.each(["Claude", "Codex", "OpenCode", "Prompt"])(
-    "includes the known notebook file in %s preview when the URL has no file",
+  it.each(["Claude", "Prompt"])(
+    "omits the session in %s preview before kernel-ready arrives",
     async (tab) => {
-      window.history.replaceState({}, "", "/");
+      store.set(stableSessionIdAtom, null);
       await act(async () => {
         render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
       });
@@ -98,35 +113,9 @@ describe("PairWithAgentModal", () => {
       });
 
       const panel = screen.getByRole("tabpanel");
-      const fileHint =
-        tab === "Prompt"
-          ? "File: /project/my notebook.py"
-          : "--file '/project/my notebook.py'";
-      expect(panel).toHaveTextContent(fileHint);
-      fireEvent.click(
-        within(panel).getByRole("button", {
-          name: tab === "Prompt" ? "Copy prompt" : "Copy command",
-        }),
-      );
-      await waitFor(() => expect(copyToClipboard).toHaveBeenCalledOnce());
-      expect(vi.mocked(copyToClipboard).mock.calls[0][0]).toContain(fileHint);
-    },
-  );
-
-  it.each([null, ""])(
-    "omits the file when the URL and notebook filename are absent (%s)",
-    async (filename) => {
-      window.history.replaceState({}, "", "/");
-      store.set(filenameAtom, filename);
-      await act(async () => {
-        render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
-      });
-      expect(screen.getByRole("tabpanel")).not.toHaveTextContent("--file");
-      fireEvent.mouseDown(screen.getByRole("tab", { name: "Prompt" }), {
-        button: 0,
-        ctrlKey: false,
-      });
-      expect(screen.getByRole("tabpanel")).not.toHaveTextContent("File:");
+      expect(panel).not.toHaveTextContent("--session");
+      expect(panel).not.toHaveTextContent("Session:");
+      expect(panel).toHaveTextContent("http://localhost:8000");
     },
   );
 
@@ -147,7 +136,8 @@ describe("PairWithAgentModal", () => {
       expect(
         within(panel).getByText("npx skills add marimo-team/marimo-pair"),
       ).toBeVisible();
-      expect(panel).not.toHaveTextContent(getSessionId());
+      expect(panel).not.toHaveTextContent(STABLE_ID);
+      expect(panel).not.toHaveTextContent("--file");
       expect(panel).not.toHaveTextContent("MARIMO_PAIR_NEXT");
       expect(panel).not.toHaveTextContent("/project/my notebook.py");
       expect(panel).toHaveTextContent(
@@ -205,8 +195,7 @@ describe("PairWithAgentModal", () => {
       expect(copyToClipboard).toHaveBeenCalledWith(
         String.raw`claude "$(MARIMO_PAIR_NEXT=1 uvx marimo@latest pair prompt \
   --url http://localhost:8000/ \
-  --file notebook.py \
-  --session ${getSessionId()} \
+  --session ${STABLE_ID} \
   --with-token)"`,
       ),
     );

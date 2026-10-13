@@ -115,10 +115,9 @@ class KernelManagerImpl(KernelManager):
             ) -> None:
                 runtime.launch_kernel(*args)
 
-            # install formatter import hooks, which will be shared by all
-            # threads (in edit mode, the single kernel process installs
-            # formatters ...)
-            register_formatters(theme=self.config_manager.theme)
+            # Install formatter import hooks once in the host process. Every
+            # kernel thread shares them.
+            register_formatters()
 
             if self.redirect_console_to_browser:
                 from marimo._messaging.thread_local_streams import (

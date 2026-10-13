@@ -14,8 +14,23 @@ from marimo._sql.parse import (
     parse_sql,
     replace_brackets_with_quotes,
 )
+from marimo._sql.utils import is_duckdb_v2
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+@pytest.mark.parametrize(
+    ("version", "expected"),
+    [("1.5.6", False), ("2.0.0.dev2610011535", True), ("2.0.0", True)],
+)
+def test_is_duckdb_v2(
+    monkeypatch: pytest.MonkeyPatch, version: str, expected: bool
+):
+    import duckdb
+
+    monkeypatch.setattr(duckdb, "__version__", version)
+    assert is_duckdb_v2() is expected
 
 
 def test_sql_parse_result_with_errors():
@@ -309,6 +324,26 @@ FRM table"""
         error = result.errors[0]
         assert error.line == 3
         assert error.column >= 0
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "SELECT 'é'; SELECT * FRM users",
+            "SELECT '😀'; SELECT * FRM users",
+            "SELECT 'é😀';\nSELECT * FRM users",
+            "SELECT 'é😀', {value};\nSELECT * FRM users",
+            "SELECT 'é😀', {value} FRM users",
+            "SELECT 'é😀', {value} FRM users WHERE id = {other}",
+            "SELECT 'é😀'\nFRM users",
+        ],
+    )
+    def test_unicode_error_position(self, query: str):
+        result, error = parse_sql(query, "duckdb")
+        prefix = query[: query.index("users")]
+        expected_line = prefix.count("\n") + 1
+        line_prefix = prefix.rsplit("\n", 1)[-1]
+        expected_column = len(line_prefix.encode("utf-16-le")) // 2
+        self.assert_line_column(result, error, expected_line, expected_column)
 
     def test_error_position_after_offset(self):
         """Test position calculation with offset."""

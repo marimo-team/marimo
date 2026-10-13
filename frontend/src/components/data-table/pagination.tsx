@@ -117,6 +117,7 @@ export const DataTablePagination = <TData,>({
             size="xs"
             variant="text"
             data-testid="first-page-button"
+            aria-label="First page"
             className="hidden h-6 w-5 p-0 lg:flex"
             onClick={() => handlePageChange(() => table.setPageIndex(0))}
             onMouseDown={Events.preventFocus}
@@ -130,6 +131,7 @@ export const DataTablePagination = <TData,>({
             size="xs"
             variant="text"
             data-testid="previous-page-button"
+            aria-label="Previous page"
             className="h-6 w-5 p-0"
             onClick={() => handlePageChange(() => table.previousPage())}
             onMouseDown={Events.preventFocus}
@@ -156,6 +158,7 @@ export const DataTablePagination = <TData,>({
             size="xs"
             variant="text"
             data-testid="next-page-button"
+            aria-label="Next page"
             className="h-6 w-5 p-0"
             onClick={() => handlePageChange(() => table.nextPage())}
             onMouseDown={Events.preventFocus}
@@ -169,6 +172,7 @@ export const DataTablePagination = <TData,>({
             size="xs"
             variant="text"
             data-testid="last-page-button"
+            aria-label="Last page"
             className="hidden h-6 w-5 p-0 lg:flex"
             onClick={() =>
               handlePageChange(() =>
@@ -306,14 +310,24 @@ export const PageSelector = ({
               : "opacity-50 cursor-default",
           )}
           data-testid="page-select"
+          aria-label={`Choose page, current page ${currentPage} of ${totalPages}`}
           disabled={totalPages <= 1}
         >
           {currentPage}
           <ChevronDown className="h-3 w-3 opacity-50 mb-px" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-36 p-0" align="center" sideOffset={6}>
-        <Command shouldFilter={false} value={String(currentPage)}>
+      <PopoverContent
+        className="w-36 p-0"
+        align="center"
+        sideOffset={6}
+        aria-label="Choose page"
+      >
+        <Command
+          label="Search pages"
+          shouldFilter={false}
+          value={String(currentPage)}
+        >
           <CommandInput
             placeholder={`Page (1–${totalPages})`}
             rootClassName="px-2 h-8"

@@ -4,7 +4,7 @@ itsdangerous>=2.0.0
 jedi>=0.18.0,<0.21.0
 loro>=1.10.0; sys_platform != 'emscripten' and sys_platform != 'android'
 markdown>=3.6,<4
-msgspec>=0.20.0
+msgspec>=0.22.0
 narwhals>=2.0.0
 packaging
 psutil>=5.0; sys_platform != 'emscripten' and sys_platform != 'android'

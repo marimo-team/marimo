@@ -36,6 +36,7 @@ from marimo._messaging.notebook.outputs import (
     CellOutputs,
     notebook_outputs_context,
 )
+from marimo._output.formatting import try_format
 from marimo._runtime.commands import HTTPRequest
 from marimo._types.ids import CellId_t
 
@@ -305,10 +306,18 @@ async def test_screenshot_passes_credentials_and_reuses_browser(
     ):
         session.return_value.capture.return_value = b"png"
         ctx = AsyncCodeModeContext(k)
-        assert await ctx.screenshot(doc_cell.id) == b"png"
-        assert await ctx.screenshot(doc_cell.id, as_data_url=True) == (
-            _to_data_url(b"png")
-        )
+        image = await ctx.screenshot(doc_cell.id)
+        data_url = await ctx.screenshot(doc_cell.id, as_data_url=True)
+        assert isinstance(image, bytes)
+        assert image == b"png"
+        assert isinstance(data_url, str)
+        assert data_url == _to_data_url(b"png")
+        for value in (image, data_url):
+            formatted = try_format(value)
+            assert (formatted.mimetype, formatted.data) == (
+                "image/png",
+                _to_data_url(b"png"),
+            )
         session.assert_called_once_with(
             "http://localhost:1234/base",
             screenshot_auth_token="secret",

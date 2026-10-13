@@ -71,6 +71,56 @@ In order to force a theme for an application, you can override the marimo config
 # ///
 ```
 
+## Plot themes
+
+marimo does not change the theme of plotting libraries. In dark mode, plots from [matplotlib](https://matplotlib.org/stable/users/explain/customizing.html#using-style-sheets), [seaborn](https://seaborn.pydata.org/generated/seaborn.set_theme.html), [plotly](https://plotly.com/python/templates/), [bokeh](https://docs.bokeh.org/en/latest/docs/reference/themes.html), and holoviews keep their library default themes, and plots that you save from Python look the same as the plots in the notebook.
+
+Altair charts are the exception. marimo renders them with the Vega dark theme in a dark notebook, but this applies only to the display. Charts that you save with `chart.save()` keep the Altair default theme. A theme that you set with [`alt.theme.enable()`](https://altair-viz.github.io/user_guide/generated/theme/altair.theme.enable.html) takes precedence over the marimo theme.
+
+If you want plots to match a dark notebook, set the theme in the plotting library. `mo.app_meta().theme` returns the current notebook theme. If the notebook theme is `system`, `mo.app_meta().theme` returns `light`, so this check does not detect a dark operating system theme.
+
+=== "matplotlib and seaborn"
+
+    ```python
+    import marimo as mo
+    import matplotlib.style
+
+    if mo.app_meta().theme == "dark":
+        # Seaborn draws with matplotlib, so this style applies to seaborn too.
+        matplotlib.style.use("dark_background")
+    ```
+
+=== "plotly"
+
+    ```python
+    import marimo as mo
+    import plotly.io as pio
+
+    if mo.app_meta().theme == "dark":
+        pio.templates.default = "plotly_dark"
+    ```
+
+=== "bokeh"
+
+    ```python
+    import marimo as mo
+    from bokeh.io import curdoc
+
+    if mo.app_meta().theme == "dark":
+        curdoc().theme = "dark_minimal"
+    ```
+
+=== "holoviews"
+
+    ```python
+    import marimo as mo
+    import holoviews as hv
+
+    if mo.app_meta().theme == "dark":
+        # The holoviews renderer accepts the same theme names as bokeh.
+        hv.renderer("bokeh").theme = "dark_minimal"
+    ```
+
 ## Targeting cells
 
 You can target a cell's styles from the `data-cell-name` attribute. You can also target a cell's output with the `data-cell-role="output"` attribute.

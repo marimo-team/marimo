@@ -39,8 +39,7 @@ def test_render_notebook_pair_preview(
         "command": command,
         "templates": snapshot(
             {
-                "prompt": "Pair with me on this running marimo notebook.\n\nURL: {url}\n{file}{session}\nRun `{command} pair --help` first.\nUse `{command}` for all marimo commands.\n\nOnce connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).{authentication}",
-                "file": "File: {file}\n",
+                "prompt": "Pair with me on this running marimo notebook.\n\nURL: {url}\n{session}\nRun `{command} pair --help` first.\nUse `{command}` for all marimo commands.\n\nOnce connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).{authentication}",
                 "session": "Session: {session}\n",
                 "token_file": "\n\nFor authenticated Pair commands, pass `--token-file {token_file}`.",
                 "token": "\n\nFor authenticated Pair commands, set `export MARIMO_TOKEN={token}` in the shell that runs marimo.",

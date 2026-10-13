@@ -1,0 +1,242 @@
+# Copyright 2026 Marimo. All rights reserved.
+"""Workspace files indexed as a host project.
+
+Notebook IDs persist across rescans and recorded file moves.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from collections.abc import Callable
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from msgspec.structs import replace
+
+from marimo._core import protocol
+from marimo._core.ids import mint
+from marimo._server.host import OPERATIONS
+from marimo._server.workspace import flatten_files
+
+if TYPE_CHECKING:
+    from marimo._core.backend import Backend
+    from marimo._core.host import Host
+    from marimo._server.models.files import FileInfo
+    from marimo._server.workspace import NotebookWorkspace
+
+_TRUNCATED = "The scan stopped at its depth, file count, or time limit"
+
+MakeBackend = Callable[[protocol.NotebookId], "Backend"]
+
+
+class WorkspaceIndex:
+    """A host project and its indexed notebook files."""
+
+    def __init__(
+        self,
+        host: Host,
+        workspace: NotebookWorkspace,
+        make_backend: MakeBackend,
+    ) -> None:
+        self._host = host
+        self._workspace = workspace
+        self._make_backend = make_backend
+        self._root = _root_of(workspace)
+        self.project_id = mint(protocol.ProjectId, "proj")
+        self._ids: dict[Path, protocol.NotebookId] = {}
+        self._names: dict[protocol.NotebookId, str] = {}
+        """Client-selected names preserved across rescans."""
+        self._refresh_lock = asyncio.Lock()
+
+    @property
+    def root(self) -> Path | None:
+        """The project directory, if the workspace has one."""
+        return self._root
+
+    def refresh(self) -> None:
+        """Rescan notebook files and publish catalog changes.
+
+        Keep unlisted notebooks while their files still exist, since scans
+        may be incomplete.
+        """
+        self._apply_scan(*self._scan())
+
+    async def refresh_async(self) -> None:
+        """Scan off-thread, then apply catalog changes on the event loop."""
+        async with self._refresh_lock:
+            files, truncated = await asyncio.to_thread(self._scan)
+            self._apply_scan(files, truncated)
+
+    def _scan(self) -> tuple[list[FileInfo], bool]:
+        self._workspace.invalidate()
+        files = [
+            f for f in flatten_files(self._workspace.files) if f.is_marimo_file
+        ]
+        return files, self._workspace.is_truncated
+
+    def _apply_scan(self, files: list[FileInfo], truncated: bool) -> None:
+        self._host.update_project(
+            protocol.Project(
+                id=self.project_id,
+                name="workspace" if self._root is None else self._root.name,
+                root=None if self._root is None else str(self._root),
+                status="partial" if truncated else "indexed",
+                message=_TRUNCATED if truncated else None,
+                operations=list(OPERATIONS),
+            )
+        )
+        seen: set[protocol.NotebookId] = set()
+        for file in files:
+            notebook = self._publish(Path(file.path), file.last_modified)
+            if notebook is not None:
+                seen.add(notebook.id)
+        for notebook in list(self._host.notebooks.values()):
+            if notebook.project_id != self.project_id:
+                continue
+            if notebook.id in seen or self._exists(notebook):
+                continue
+            if self._host.notebook(notebook.id).runtime is not None:
+                self._host.update_notebook(
+                    replace(notebook, path=None, updated_at=None)
+                )
+            else:
+                self.forget(notebook.id)
+
+    def ensure(
+        self, path: str, *, request_id: str | None = None
+    ) -> protocol.Notebook | None:
+        """Add or update a notebook file under the project root.
+
+        Return `None` if the file is missing or outside the project.
+        """
+        file = Path(path)
+        try:
+            modified: float | None = file.stat().st_mtime
+        except OSError:
+            return None
+        return self._publish(file, modified, request_id=request_id)
+
+    def moved(
+        self,
+        notebook_id: protocol.NotebookId,
+        path: str,
+        *,
+        request_id: str | None = None,
+    ) -> protocol.Notebook | None:
+        """Update a notebook's file path, keeping its ID.
+
+        Return `None` for a path outside the project.
+        """
+        relative = self._relative(Path(path))
+        if relative is None:
+            return None
+        for old, known in list(self._ids.items()):
+            if known == notebook_id:
+                del self._ids[old]
+        self._ids[relative] = notebook_id
+        assert self._root is not None
+        file = self._root / relative
+        try:
+            modified: float | None = file.stat().st_mtime
+        except OSError:
+            modified = None
+        return self._publish(file, modified, request_id=request_id)
+
+    def rename(
+        self,
+        notebook_id: protocol.NotebookId,
+        name: str,
+        *,
+        request_id: str | None = None,
+    ) -> None:
+        """Set a notebook's display name independently of its filename."""
+        record = self._host.notebooks[notebook_id]
+        self._names[notebook_id] = name
+        self._host.update_notebook(
+            replace(record, name=name), request_id=request_id
+        )
+
+    def forget(
+        self,
+        notebook_id: protocol.NotebookId,
+        *,
+        request_id: str | None = None,
+    ) -> None:
+        """Discard a notebook's catalog entry, stored ID, and display name."""
+        for path, known in list(self._ids.items()):
+            if known == notebook_id:
+                del self._ids[path]
+        self._names.pop(notebook_id, None)
+        self._host.remove_notebook(notebook_id, request_id=request_id)
+
+    def notebook_for(self, path: str | None) -> protocol.Notebook | None:
+        """Look up a cataloged notebook by file path."""
+        if path is None:
+            return None
+        relative = self._relative(Path(path))
+        if relative is None or relative not in self._ids:
+            return None
+        return self._host.notebooks.get(self._ids[relative])
+
+    def file_of(self, notebook_id: protocol.NotebookId) -> Path | None:
+        """Return a notebook's absolute file path, if available."""
+        record = self._host.notebooks.get(notebook_id)
+        if record is None or record.path is None or self._root is None:
+            return None
+        return self._root / record.path
+
+    def _publish(
+        self,
+        file: Path,
+        modified: float | None,
+        *,
+        request_id: str | None = None,
+    ) -> protocol.Notebook | None:
+        relative = self._relative(file)
+        if relative is None:
+            return None
+        notebook_id = self._ids.get(relative)
+        if notebook_id is None:
+            notebook_id = mint(protocol.NotebookId, "nb")
+            self._ids[relative] = notebook_id
+        record = protocol.Notebook(
+            id=notebook_id,
+            project_id=self.project_id,
+            path=str(relative),
+            name=self._names.get(notebook_id, relative.stem),
+            operations=[op for op in OPERATIONS if op != "notebook.create"],
+            updated_at=None
+            if modified is None
+            else datetime.fromtimestamp(modified, tz=timezone.utc),
+        )
+        if notebook_id in self._host.notebooks:
+            self._host.update_notebook(record, request_id=request_id)
+        else:
+            backend = self._make_backend(notebook_id)
+            self._host.add_notebook(record, backend, request_id=request_id)
+        return record
+
+    def _exists(self, notebook: protocol.Notebook) -> bool:
+        file = self.file_of(notebook.id)
+        return file is not None and file.exists()
+
+    def _relative(self, file: Path) -> Path | None:
+        """Return the root-relative path, or `None` outside the project."""
+        if self._root is None:
+            return None
+        if not file.is_absolute():
+            file = self._root / file
+        try:
+            return file.resolve().relative_to(self._root.resolve())
+        except ValueError:
+            return None
+
+
+def _root_of(workspace: NotebookWorkspace) -> Path | None:
+    if workspace.directory is not None:
+        return Path(workspace.directory)
+    single = workspace.single_file()
+    if single is not None:
+        return Path(single.path).parent
+    return None

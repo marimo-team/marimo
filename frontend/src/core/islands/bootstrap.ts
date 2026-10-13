@@ -283,6 +283,7 @@ function handleMessage(
         return;
 
       case "consumer-capabilities":
+      case "execution":
         return;
       default:
         logNever(msg);

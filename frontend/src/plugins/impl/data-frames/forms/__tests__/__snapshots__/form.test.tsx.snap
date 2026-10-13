@@ -28,7 +28,6 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
           class="relative"
         >
           <button
-            aria-controls="radix-_r_27_"
             aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -84,7 +83,6 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
           class="relative"
         >
           <button
-            aria-controls="radix-_r_29_"
             aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -153,7 +151,6 @@ exports[`renderZodSchema > should render a form column_conversion 1`] = `
         >
           <button
             aria-autocomplete="none"
-            aria-controls="radix-_r_e_"
             aria-expanded="false"
             class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer forced-color-adjust-none forced-colors:bg-[ButtonFace] forced-colors:text-[ButtonText] forced-colors:disabled:text-[GrayText] shadow-xs-solid border border-input hover:shadow-sm-solid focus-visible:border-primary focus-visible:shadow-md-solid disabled:hover:shadow-xs-solid forced-colors:border-[ButtonText] forced-colors:disabled:border-[GrayText] mb-0 min-w-[180px]"
             data-placeholder=""
@@ -202,7 +199,6 @@ exports[`renderZodSchema > should render a form column_conversion 1`] = `
         </label>
         <button
           aria-autocomplete="none"
-          aria-controls="radix-_r_g_"
           aria-expanded="false"
           class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer forced-color-adjust-none forced-colors:bg-[ButtonFace] forced-colors:text-[ButtonText] forced-colors:disabled:text-[GrayText] shadow-xs-solid border border-input hover:shadow-sm-solid focus-visible:border-primary focus-visible:shadow-md-solid disabled:hover:shadow-xs-solid forced-colors:border-[ButtonText] forced-colors:disabled:border-[GrayText] mb-0 min-w-[180px]"
           data-placeholder=""
@@ -335,7 +331,6 @@ exports[`renderZodSchema > should render a form expand_dict 1`] = `
         >
           <button
             aria-autocomplete="none"
-            aria-controls="radix-_r_2r_"
             aria-expanded="false"
             class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer forced-color-adjust-none forced-colors:bg-[ButtonFace] forced-colors:text-[ButtonText] forced-colors:disabled:text-[GrayText] shadow-xs-solid border border-input hover:shadow-sm-solid focus-visible:border-primary focus-visible:shadow-md-solid disabled:hover:shadow-xs-solid forced-colors:border-[ButtonText] forced-colors:disabled:border-[GrayText] mb-0 min-w-[180px]"
             data-placeholder=""
@@ -402,7 +397,6 @@ exports[`renderZodSchema > should render a form explode_columns 1`] = `
           class="relative"
         >
           <button
-            aria-controls="radix-_r_2p_"
             aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -600,7 +594,6 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
           class="relative"
         >
           <button
-            aria-controls="radix-_r_1p_"
             aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -656,7 +649,6 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
           class="relative"
         >
           <button
-            aria-controls="radix-_r_1r_"
             aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -708,7 +700,6 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
         </label>
         <button
           aria-autocomplete="none"
-          aria-controls="radix-_r_1t_"
           aria-expanded="false"
           class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer forced-color-adjust-none forced-colors:bg-[ButtonFace] forced-colors:text-[ButtonText] forced-colors:disabled:text-[GrayText] shadow-xs-solid border border-input hover:shadow-sm-solid focus-visible:border-primary focus-visible:shadow-md-solid disabled:hover:shadow-xs-solid forced-colors:border-[ButtonText] forced-colors:disabled:border-[GrayText] mb-0 min-w-[180px]"
           data-placeholder=""
@@ -808,7 +799,6 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
           class="relative"
         >
           <button
-            aria-controls="radix-_r_3b_"
             aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -864,7 +854,6 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
           class="relative"
         >
           <button
-            aria-controls="radix-_r_3d_"
             aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -920,7 +909,6 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
           class="relative"
         >
           <button
-            aria-controls="radix-_r_3f_"
             aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -972,7 +960,6 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
         </label>
         <button
           aria-autocomplete="none"
-          aria-controls="radix-_r_3h_"
           aria-expanded="false"
           class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer forced-color-adjust-none forced-colors:bg-[ButtonFace] forced-colors:text-[ButtonText] forced-colors:disabled:text-[GrayText] shadow-xs-solid border border-input hover:shadow-sm-solid focus-visible:border-primary focus-visible:shadow-md-solid disabled:hover:shadow-xs-solid forced-colors:border-[ButtonText] forced-colors:disabled:border-[GrayText] mb-0 min-w-[180px]"
           data-placeholder=""
@@ -1037,7 +1024,6 @@ exports[`renderZodSchema > should render a form rename_column 1`] = `
         >
           <button
             aria-autocomplete="none"
-            aria-controls="radix-_r_6_"
             aria-expanded="false"
             class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer forced-color-adjust-none forced-colors:bg-[ButtonFace] forced-colors:text-[ButtonText] forced-colors:disabled:text-[GrayText] shadow-xs-solid border border-input hover:shadow-sm-solid focus-visible:border-primary focus-visible:shadow-md-solid disabled:hover:shadow-xs-solid forced-colors:border-[ButtonText] forced-colors:disabled:border-[GrayText] mb-0 min-w-[180px]"
             data-placeholder=""
@@ -1315,7 +1301,6 @@ exports[`renderZodSchema > should render a form select_columns 1`] = `
           class="relative"
         >
           <button
-            aria-controls="radix-_r_4_"
             aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -1434,7 +1419,6 @@ exports[`renderZodSchema > should render a form sort_column 1`] = `
         >
           <button
             aria-autocomplete="none"
-            aria-controls="radix-_r_1e_"
             aria-expanded="false"
             class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer forced-color-adjust-none forced-colors:bg-[ButtonFace] forced-colors:text-[ButtonText] forced-colors:disabled:text-[GrayText] shadow-xs-solid border border-input hover:shadow-sm-solid focus-visible:border-primary focus-visible:shadow-md-solid disabled:hover:shadow-xs-solid forced-colors:border-[ButtonText] forced-colors:disabled:border-[GrayText] mb-0 min-w-[180px]"
             data-placeholder=""
@@ -1603,7 +1587,6 @@ exports[`renderZodSchema > should render a form unique 1`] = `
           class="relative"
         >
           <button
-            aria-controls="radix-_r_32_"
             aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -1655,7 +1638,6 @@ exports[`renderZodSchema > should render a form unique 1`] = `
         </label>
         <button
           aria-autocomplete="none"
-          aria-controls="radix-_r_34_"
           aria-expanded="false"
           class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer forced-color-adjust-none forced-colors:bg-[ButtonFace] forced-colors:text-[ButtonText] forced-colors:disabled:text-[GrayText] shadow-xs-solid border border-input hover:shadow-sm-solid focus-visible:border-primary focus-visible:shadow-md-solid disabled:hover:shadow-xs-solid forced-colors:border-[ButtonText] forced-colors:disabled:border-[GrayText] mb-0 min-w-[180px]"
           data-placeholder=""
@@ -1709,7 +1691,6 @@ exports[`renders custom forms column_id 1`] = `
     >
       <button
         aria-autocomplete="none"
-        aria-controls="radix-_r_3q_"
         aria-expanded="false"
         class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer forced-color-adjust-none forced-colors:bg-[ButtonFace] forced-colors:text-[ButtonText] forced-colors:disabled:text-[GrayText] shadow-xs-solid border border-input hover:shadow-sm-solid focus-visible:border-primary focus-visible:shadow-md-solid disabled:hover:shadow-xs-solid forced-colors:border-[ButtonText] forced-colors:disabled:border-[GrayText] mb-0 min-w-[180px]"
         data-placeholder=""
@@ -1763,7 +1744,6 @@ exports[`renders custom forms column_id_array 1`] = `
       class="relative"
     >
       <button
-        aria-controls="radix-_r_41_"
         aria-disabled="false"
         aria-expanded="false"
         aria-haspopup="dialog"
@@ -1814,7 +1794,6 @@ exports[`renders custom forms column_id_dot_array 1`] = `
       class="relative"
     >
       <button
-        aria-controls="radix-_r_43_"
         aria-disabled="false"
         aria-expanded="false"
         aria-haspopup="dialog"
@@ -1870,7 +1849,6 @@ exports[`renders custom forms column_id_optional 1`] = `
     >
       <button
         aria-autocomplete="none"
-        aria-controls="radix-_r_45_"
         aria-expanded="false"
         class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer forced-color-adjust-none forced-colors:bg-[ButtonFace] forced-colors:text-[ButtonText] forced-colors:disabled:text-[GrayText] shadow-xs-solid border border-input hover:shadow-sm-solid focus-visible:border-primary focus-visible:shadow-md-solid disabled:hover:shadow-xs-solid forced-colors:border-[ButtonText] forced-colors:disabled:border-[GrayText] mb-0 min-w-[180px]"
         data-placeholder=""

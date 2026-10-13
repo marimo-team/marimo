@@ -366,6 +366,11 @@ def extract_result(
     return CodeExecutionResult(
         success=len(errors) == 0,
         output=output_data,
+        output_mimetype=(
+            cell_notif.output.mimetype
+            if cell_notif.output is not None
+            else None
+        ),
         stdout=stdout,
         stderr=stderr,
         errors=errors,

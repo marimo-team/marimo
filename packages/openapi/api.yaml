@@ -87,8 +87,8 @@ components:
           type: string
         context:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/AiCompletionContext'
+          - type: 'null'
           default: null
         id:
           anyOf:
@@ -461,8 +461,9 @@ components:
         \ appends, [] clears, None unchanged.\n        status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
         \        stale_inputs: Whether cell has stale inputs from changed dependencies.\n\
         \        run_id: Execution run ID for tracing. Auto-set from context.\n  \
-        \      serialization: Top-level reusability hint. UNSET unchanged, None clears,\
-        \ str sets.\n        timestamp: Creation timestamp, auto-set."
+        \      execution_id: Evaluation of this cell producing the update, when known.\n\
+        \        serialization: Top-level reusability hint. UNSET unchanged, None\
+        \ clears, str sets.\n        timestamp: Creation timestamp, auto-set."
       properties:
         cell_id:
           $ref: '#/components/schemas/CellId'
@@ -471,16 +472,21 @@ components:
           - items:
               $ref: '#/components/schemas/CellOutput'
             type: array
-          - type: 'null'
           - $ref: '#/components/schemas/CellOutput'
+          - type: 'null'
+          default: null
+        execution_id:
+          anyOf:
+          - type: string
+          - type: 'null'
           default: null
         op:
           enum:
           - cell-op
         output:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/CellOutput'
+          - type: 'null'
           default: null
         run_id:
           anyOf:
@@ -841,16 +847,22 @@ components:
       title: ColumnStats
       type: object
     CompletedRunNotification:
-      description: "Run of submitted cells and descendants completed.\n\n    Attributes:\n\
-        \        run_id: Correlation ID echoed from the command that triggered\n \
-        \           this completion. `None` for handlers that don't take a\n     \
-        \       `run_id` (everything except `handle_execute_scratchpad`\n        \
-        \    today). Consumers that want to wait for a specific command's\n      \
-        \      completion filter on this field."
+      description: The command's reactive cycle ended, after its console was flushed.
       properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         op:
           enum:
           - completed-run
+        outcome:
+          default: succeeded
+          enum:
+          - failed
+          - interrupted
+          - succeeded
         run_id:
           anyOf:
           - type: string
@@ -1133,8 +1145,8 @@ components:
           - data-column-preview
         stats:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/ColumnStats'
+          - type: 'null'
           default: null
         table_name:
           type: string
@@ -1530,8 +1542,8 @@ components:
             propertyName: kind
         tree:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/DependencyTreeNode'
+          - type: 'null'
       required:
       - tree
       - context
@@ -2005,12 +2017,17 @@ components:
         \     `CompletedRunNotification` emitted at the end of this command\n    \
         \        carries the same `run_id` so a caller holding a\n            `ScratchCellListener`\
         \ can filter for *its* completion and\n            ignore `CompletedRun` events\
-        \ from unrelated commands on the\n            same session."
+        \ from unrelated commands on the\n            same session.\n        allow_stdin:\
+        \ Whether code may request interactive input. When false,\n            input\
+        \ reads receive EOF for the duration of this command."
       properties:
+        allowStdin:
+          default: true
+          type: boolean
         cellOutputs:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/CellOutputs'
+          - type: 'null'
           default: null
         code:
           type: string
@@ -2041,10 +2058,13 @@ components:
       type: object
     ExecuteScratchpadRequest:
       properties:
+        allowStdin:
+          default: true
+          type: boolean
         cellOutputs:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/CellOutputs'
+          - type: 'null'
           default: null
         code:
           type: string
@@ -2086,6 +2106,47 @@ components:
       required:
       - type
       title: ExecuteStaleCellsCommand
+      type: object
+    ExecutionNotification:
+      description: "An attempt's lifecycle, independent of a cell's displayed status.\n\
+        \n    `planned` supplies the source and identity before output is reported.\n\
+        \    `running` means evaluation began. `completed` follows the final output\n\
+        \    and errors, including for attempts that never ran. Buffered and background\n\
+        \    console output may still arrive with the completed attempt's identity."
+      properties:
+        caused_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        cell_id:
+          type: string
+        code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        execution_id:
+          type: string
+        op:
+          enum:
+          - execution
+        phase:
+          enum:
+          - completed
+          - planned
+          - running
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - op
+      - execution_id
+      - cell_id
+      - run_id
+      - phase
+      title: ExecutionNotification
       type: object
     ExportAsHTMLRequest:
       description: "Request a static HTML export.\n\n    `layout` carries the current\
@@ -2254,8 +2315,8 @@ components:
       properties:
         info:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FileInfo'
+          - type: 'null'
           default: null
         message:
           anyOf:
@@ -2322,8 +2383,8 @@ components:
       properties:
         info:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FileInfo'
+          - type: 'null'
           default: null
         message:
           anyOf:
@@ -2416,8 +2477,8 @@ components:
           type: string
         opengraph:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/OpenGraphMetadata'
+          - type: 'null'
           default: null
         path:
           type: string
@@ -2472,8 +2533,8 @@ components:
       properties:
         info:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FileInfo'
+          - type: 'null'
           default: null
         message:
           anyOf:
@@ -2582,8 +2643,8 @@ components:
       properties:
         info:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FileInfo'
+          - type: 'null'
           default: null
         message:
           anyOf:
@@ -2926,6 +2987,10 @@ components:
         op:
           enum:
           - interrupted
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
       required:
       - op
       title: InterruptedNotification
@@ -3038,7 +3103,8 @@ components:
         \ per cell if resumed.\n        app_config: Application configuration.\n \
         \       kiosk: Whether running in kiosk mode.\n        capabilities: Available\
         \ kernel capabilities.\n        auto_instantiated: Whether cells already executed\
-        \ (run mode)."
+        \ (run mode).\n        stable_session_id: Server-owned Session identity that\
+        \ survives\n            browser reconnects. None where no server Session exists."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
@@ -3088,6 +3154,11 @@ components:
           - kernel-ready
         resumed:
           type: boolean
+        stable_session_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         ui_values:
           anyOf:
           - type: object
@@ -3271,6 +3342,7 @@ components:
         notification:
           anyOf:
           - $ref: '#/components/schemas/CellNotification'
+          - $ref: '#/components/schemas/ExecutionNotification'
           - $ref: '#/components/schemas/FunctionCallResultNotification'
           - $ref: '#/components/schemas/UIElementMessageNotification'
           - $ref: '#/components/schemas/ModelLifecycleNotification'
@@ -3330,6 +3402,7 @@ components:
               datasets: '#/components/schemas/DatasetsNotification'
               environment-operation: '#/components/schemas/EnvironmentOperationNotification'
               environment-state: '#/components/schemas/EnvironmentStateNotification'
+              execution: '#/components/schemas/ExecutionNotification'
               focus-cell: '#/components/schemas/FocusCellNotification'
               function-call-result: '#/components/schemas/FunctionCallResultNotification'
               interrupted: '#/components/schemas/InterruptedNotification'
@@ -4140,8 +4213,8 @@ components:
           type: array
         esm_spec:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/EsmSpec'
+          - type: 'null'
           default: null
         method:
           enum:
@@ -4204,8 +4277,8 @@ components:
           type: array
         esm_spec:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/EsmSpec'
+          - type: 'null'
           default: null
         method:
           enum:
@@ -5116,8 +5189,8 @@ components:
           $ref: '#/components/schemas/RequestId'
         table:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/DataTable'
+          - type: 'null'
       required:
       - op
       - request_id
@@ -6471,15 +6544,15 @@ components:
           - validate-sql-result
         parse_result:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/SqlParseResult'
+          - type: 'null'
           default: null
         request_id:
           type: string
         validate_result:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/SqlCatalogCheckResult'
+          - type: 'null'
           default: null
       required:
       - op
@@ -6577,12 +6650,12 @@ components:
       title: VariablesNotification
       type: object
     VenvConfig:
-      description: "Configuration for an external Python environment in edit mode.\n\n\
-        \    Launches the notebook kernel in an existing virtualenv. Applies to\n    single\
-        \ notebooks and directories when editing without `--sandbox`.\n\n    **Keys.**\n\
-        \n    - `path`: path to a virtualenv directory (absolute or relative to\n    \
-        \  pyproject.toml)\n    - `writable`: if true, marimo will manage script metadata\
-        \ (inline\n      dependencies). Defaults to false."
+      description: "Configuration for an external Python environment in edit mode.\n\
+        \n    Launches the notebook kernel in an existing virtualenv. Applies to\n\
+        \    single notebooks and directories when editing without `--sandbox`.\n\n\
+        \    **Keys.**\n\n    - `path`: path to a virtualenv directory (absolute or\
+        \ relative to\n      pyproject.toml)\n    - `writable`: if true, marimo will\
+        \ manage script metadata (inline\n      dependencies). Defaults to false."
       properties:
         path:
           type: string

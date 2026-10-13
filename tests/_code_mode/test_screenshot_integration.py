@@ -7,6 +7,8 @@ The Playwright CI job supplies built assets and matching Chromium binaries.
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
 import json
 import os
 import signal
@@ -26,7 +28,11 @@ if TYPE_CHECKING:
 
 
 async def _execute(
-    client: httpx.AsyncClient, session_id: str, code: str
+    client: httpx.AsyncClient,
+    session_id: str,
+    code: str,
+    *,
+    verify_png: bool = False,
 ) -> str:
     response = await client.post(
         "/api/kernel/execute",
@@ -50,6 +56,17 @@ async def _execute(
                 stderr += data["data"]
             elif event == "done":
                 assert data["success"], stderr
+                if verify_png:
+                    assert data["output"]["mimetype"] == "image/png"
+                    image_url = data["output"]["data"]
+                    assert image_url.startswith("data:image/png;base64,")
+                    png = base64.b64decode(
+                        image_url.split(",", 1)[1], validate=True
+                    )
+                    assert png.startswith(b"\x89PNG\r\n\x1a\n")
+                    assert (
+                        "PNG_SHA=" + hashlib.sha256(png).hexdigest() in stdout
+                    )
                 completed = True
     assert completed, response.text
     return stdout.strip()
@@ -215,9 +232,14 @@ retry_image = await session.capture(cell_id)
 assert retry_image.startswith(b"\\x89PNG\\r\\n\\x1a\\n")
 assert {marker!r} in await session._page.locator("#output-" + cell_id).inner_text()
 await session.close()
+import hashlib
+print("PNG_SHA=" + hashlib.sha256(image).hexdigest())
 print("CELL_ID=" + cell_id)
+image
 """
-                        stdout = await _execute(client, session_id, code)
+                        stdout = await _execute(
+                            client, session_id, code, verify_png=True
+                        )
                         cell_id = next(
                             line.removeprefix("CELL_ID=")
                             for line in stdout.splitlines()

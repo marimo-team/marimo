@@ -13,6 +13,10 @@ marimo automatically sends the selected data back to Python!
 
 > For a video overview of reactive plots, check out our [YouTube tutorial](https://youtu.be/KFXsm1wr408).
 
+Plots keep their library default themes in both light and dark notebooks. See
+[Plot themes](../configuration/theming.md#plot-themes) if you want plots to
+follow the notebook theme.
+
 ## Reactive plots! ⚡
 
 !!! warning "Requirements"

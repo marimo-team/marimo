@@ -33,6 +33,7 @@ def _send_interrupt_errors(ctx: OnFinishHookContext) -> None:
                 # reflect a previous run and should be cleared
                 clear_console=True,
                 cell_id=cid,
+                execution_id=ctx.execution_ids.get(cid),
             )
 
 
@@ -83,6 +84,7 @@ def _send_cancellation_errors(ctx: OnFinishHookContext) -> None:
                 # reflect a previous run and should be cleared
                 clear_console=True,
                 cell_id=cid,
+                execution_id=ctx.execution_ids.get(cid),
             )
 
 

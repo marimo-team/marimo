@@ -53,7 +53,7 @@ dependencies = [
     "narwhals>=2.0.0",
     # for packaging.version; not sure what the lower bound is.
     "packaging",
-    "msgspec>=0.20.0",
+    "msgspec>=0.22.0",
     # for IPC, required for marimo edit --sandbox, marimo run <multiple notebooks>
     "pyzmq>=27.1.0; python_version < '3.15' and sys_platform != 'emscripten'",
 ]
@@ -107,7 +107,7 @@ recommended = [
     "marimo-lens>=0.2.3",                        # Inspect and select notebook outputs
     "cryptography>=42.0.0",                      # Ed25519 signing of persistent cache manifests
     "altair>=5.4.0",                             # Plotting in datasource viewer
-    "pydantic-ai-slim[openai]>=1.107.0,<3.0.0",  # AI features
+    "pydantic-ai-slim[openai]>=2.34.0,<3.0.0",  # AI features
     "ruff",                                      # Formatting
     "nbformat>=5.7.0",                           # Export as IPYNB
 ]
@@ -146,7 +146,7 @@ dev = [
     # For linting
     "ruff>=0.16.6",
     # For AI
-    "pydantic-ai-slim[openai]>=1.107.0,<3.0.0",
+    "pydantic-ai-slim[openai]>=2.34.0,<3.0.0",
 ]
 
 test = [
@@ -210,7 +210,7 @@ test-optional = [
     "anywidget~=0.9.21",
     "ipython~=8.12.3",
     # testing gen ai
-    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.107.0,<3.0.0",
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=2.34.0,<3.0.0",
     # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
     "cachetools>=5.0.0",
     "boto3>=1.38.46",
@@ -252,7 +252,7 @@ typecheck = [
     "obstore>=0.8.2",
     "huggingface_hub>=1.24.0",
     "fsspec>=2026.2.0",
-    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.107.0,<3.0.0",
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=2.34.0,<3.0.0",
     "loro>=1.5.0",
     "boto3-stubs>=1.38.46",
     "pandas-stubs>=1.5.3.230321",
@@ -306,10 +306,13 @@ docs = [
 
 
 [tool.uv]
-# TODO: Remove after the delayed 26.9.0 Apple Silicon wheel clears CI's
-# seven-day cutoff (2026-10-06 at 06:25 UTC).
-constraint-dependencies = [
-    "chdb-core!=26.9.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
+# Keep targets aligned with .github/workflows/test_be.yaml.
+# For packages without eligible source distributions, require wheels
+# for these targets so resolution can backtrack past incomplete uploads.
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64' and python_version >= '3.10' and python_version < '3.15'",
+    "sys_platform == 'darwin' and platform_machine == 'arm64' and python_version == '3.10'",
+    "sys_platform == 'win32' and platform_machine == 'AMD64' and python_version == '3.10'",
 ]
 # Mirror CI's dependency window (UV_EXCLUDE_NEWER in .github/workflows) so local
 # resolution reproduces what CI resolves at setup time, including the ruff version.
@@ -382,6 +385,7 @@ ignore = [
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
     "DTZ901", # `datetime.min` / `datetime.max` used
     "D421", # Property docstring should not start with a verb (preview rule)
+    "UP052", # Context-manager annotation migration requires a separate change
 
     # Restored to Ruff's default rule set in 0.16.6; enable incrementally
     "RUF069", # Float equality comparison
@@ -537,6 +541,9 @@ markers = [
     "requires(dep1, dep2, ...): requires one or more dependencies to be installed",
     "network: requires internet access to package indexes (deselect with '-m \"not network\"')",
 ]
+
+[tool.inline-snapshot]
+format-command = 'ruff format --stdin-filename "{filename}"'
 
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]

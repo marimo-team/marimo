@@ -40,6 +40,7 @@ from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import (
+    RUN_ID_CTX,
     run_id_context,
 )
 from marimo._messaging.errors import (
@@ -126,6 +127,7 @@ from marimo._runtime.context.kernel_context import (
 )
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._runtime.execution import ExecutionAttempt
 from marimo._runtime.input_override import getpass_override
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._runtime.packages.module_registry import ModuleRegistry
@@ -1363,6 +1365,7 @@ class Kernel:
             self._invalidate_cell_state(cid, exclude_defs=keep_alive_defs)
 
         self.errors = all_errors
+        submitted_code = {er.cell_id: er.code for er in execution_requests}
         for cid in self.errors:
             cell = self.graph.cells.get(cid, None)
             if (
@@ -1381,11 +1384,14 @@ class Kernel:
                 # On syntax errors, we don't have a cell object.
                 CellNotificationUtils.broadcast_stale(cell_id=cid, stale=False)
 
-            CellNotificationUtils.broadcast_error(
-                data=self.errors[cid],
-                clear_console=True,
-                cell_id=cid,
+            execution = ExecutionAttempt.plan(
+                cid, submitted_code.get(cid, cell.code if cell else "")
             )
+            with execution.activate():
+                CellNotificationUtils.broadcast_error(
+                    data=self.errors[cid], clear_console=True, cell_id=cid
+                )
+            execution.finish()
 
         # Always broadcast Variables message after graph mutation to ensure
         # frontend has the latest dependency information
@@ -1440,7 +1446,7 @@ class Kernel:
     async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
 
-        with run_id_context():
+        with run_id_context(RUN_ID_CTX.get(None)):
             # This patch is an attempt to mitigate problems caused by the fact
             # that in run mode, kernels run in threads and share the same
             # sys.modules. Races can still happen, but this should help in most
@@ -1812,6 +1818,16 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("run_scratchpad")
     async def run_scratchpad(self, code: str) -> None:
+        execution = ExecutionAttempt.plan(SCRATCH_CELL_ID, code)
+        with execution.activate():
+            try:
+                await self._run_scratchpad(code, execution)
+            finally:
+                execution.finish()
+
+    async def _run_scratchpad(
+        self, code: str, execution: ExecutionAttempt
+    ) -> None:
         roots = {SCRATCH_CELL_ID}
 
         # If cannot compile, don't run
@@ -1864,6 +1880,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=scratchpad_hooks,
+            executions={SCRATCH_CELL_ID: execution},
             user_config=self.user_config,
         )
 
@@ -2623,14 +2640,13 @@ def _create_streams(
 
 def _install_subprocess_handlers(
     kernel: Kernel,
-    user_config: MarimoConfig,
     interrupt_queue: QueueType[bool] | None,
 ) -> None:
     # Subprocess kernels don't share state with the host, so they need
     # their own formatter import hooks and signal handlers.
     from marimo._output.formatters.formatters import register_formatters
 
-    register_formatters(theme=user_config["display"]["theme"])
+    register_formatters()
 
     signal.signal(signal.SIGINT, handlers.construct_interrupt_handler())
 
@@ -2712,11 +2728,7 @@ def launch_kernel(
                 kernel.start_out_of_band_worker(completion_queue)
 
             if is_subprocess:
-                # Read theme from kernel.user_config — create_kernel may have
-                # mutated it for run mode (autorun + auto_reload off).
-                _install_subprocess_handlers(
-                    kernel, kernel.user_config, interrupt_queue
-                )
+                _install_subprocess_handlers(kernel, interrupt_queue)
 
             # The control loop is asynchronous so that (a) user code can use
             # top-level await, and (b) background asyncio tasks created by

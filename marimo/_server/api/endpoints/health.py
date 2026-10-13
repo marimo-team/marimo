@@ -25,6 +25,8 @@ from marimo._version import __version__
 if TYPE_CHECKING:
     from starlette.requests import Request
 
+    from marimo._types.ids import StableSessionId
+
 LOGGER = _loggers.marimo_logger()
 
 # Router for health/status endpoints
@@ -95,6 +97,7 @@ async def status(request: Request) -> JSONResponse:
 
 
 class SessionInfo(TypedDict):
+    session_id: StableSessionId
     filename: str | None
     path: str | None
 
@@ -108,6 +111,7 @@ async def list_sessions(request: Request) -> JSONResponse:
 
     sessions = {
         session_id: SessionInfo(
+            session_id=session.stable_id,
             filename=session.app_file_manager.filename,
             path=session.app_file_manager.path,
         )

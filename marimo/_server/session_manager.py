@@ -50,7 +50,7 @@ from marimo._session.session import Session, SessionImpl
 from marimo._session.session_repository import SessionRepository
 from marimo._session.startup import SessionStartup
 from marimo._session.types import KernelState
-from marimo._types.ids import ConsumerId, SessionId
+from marimo._types.ids import ConsumerId, SessionId, StableSessionId
 from marimo._utils.asyncio_utils import fire_and_forget
 from marimo._utils.file_watcher import FileWatcherManager
 
@@ -169,6 +169,11 @@ class SessionManager:
         self._file_change_coordinator = self._create_file_change_coordinator()
 
     @property
+    def event_bus(self) -> SessionEventBus:
+        """Session lifecycle notifications."""
+        return self._event_bus
+
+    @property
     def auth_token(self) -> AuthToken:
         """Get the auth token."""
         return self._token_manager.auth_token
@@ -217,8 +222,15 @@ class SessionManager:
         query_params: SerializedQueryParams,
         file_key: MarimoFileKey,
         auto_instantiate: bool,
+        *,
+        main: bool,
     ) -> Session:
-        """Return a ready session, retaining ownership during startup."""
+        """Return a ready session, retaining ownership during startup.
+
+        `main=True` assigns the editing connection to the consumer.
+        Secondary consumers receive updates alongside the editing client
+        and can connect before an editing client arrives.
+        """
         if self._closed:
             raise KernelStartupError("Session manager is shut down")
         key = self._connection_key(session_id, file_key)
@@ -237,6 +249,7 @@ class SessionManager:
                 query_params,
                 file_key,
                 auto_instantiate,
+                main=main,
             )
         if pending is None:
             startup = SessionStartup()
@@ -282,7 +295,7 @@ class SessionManager:
                 if self._pending.get(key) is pending:
                     self._pending.pop(key)
                 raise KernelStartupError("Session closed during startup")
-            if session.room.main_consumer is not None:
+            if main and session.room.main_consumer is not None:
                 # The connection lock serializes attachment per key, so a
                 # second main consumer means a caller bypassed it. The session
                 # is in use either way, so its startup bookkeeping is done.
@@ -293,7 +306,7 @@ class SessionManager:
                 self._repository.update_session_id_sync(
                     previous_id, session_id
                 )
-            session.connect_consumer(session_consumer, main=True)
+            session.connect_consumer(session_consumer, main=main)
             attached = True
             return session
         finally:
@@ -480,6 +493,19 @@ class SessionManager:
 
         # Search for kiosk sessions by consumer ID
         return self._repository.get_by_consumer_id(ConsumerId(session_id))
+
+    def get_session_by_stable_id(
+        self, stable_session_id: StableSessionId
+    ) -> Session | None:
+        """Get a session by its stable ID."""
+        return next(
+            (
+                session
+                for session in self._repository.get_all()
+                if session.stable_id == stable_session_id
+            ),
+            None,
+        )
 
     def get_session_by_file_key(
         self, file_key: MarimoFileKey

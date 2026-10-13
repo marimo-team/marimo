@@ -10,6 +10,12 @@ from marimo import _loggers
 from marimo._output.data import data as mo_data
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.ui._impl.tables.geometry_export import (
+    GeometryExportError,
+    prepare_geometry_text_export,
+    serialize_geojson,
+    serialize_geoparquet,
+)
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from marimo._runtime.context.types import (
@@ -118,7 +124,7 @@ class DownloadOptions:
 @dataclass(frozen=True)
 class _ExportFormat:
     extension: str
-    serialize: Callable[[TableManager[Any], DownloadOptions], bytes]
+    serialize: Callable[[TableManager[Any], DownloadOptions], bytes] | None
 
 
 def _serialize_delimited(
@@ -160,6 +166,7 @@ _EXPORT_FORMATS: dict[str, _ExportFormat] = {
     "tsv": _ExportFormat("tsv", _serialize_delimited("\t")),
     "json": _ExportFormat("json", _serialize_json),
     "parquet": _ExportFormat("parquet", _serialize_parquet),
+    "geojson": _ExportFormat("geojson", None),
 }
 
 
@@ -169,13 +176,14 @@ def download_as(
     drop_marimo_index: bool = False,
     options: DownloadOptions | None = None,
     filename: str | None = None,
+    geometry_column: str | None = None,
 ) -> tuple[str, str]:
     """Download the table data in the specified format.
 
     Args:
         manager (TableManager[Any]): The table manager to download.
         ext (str): The format to download the table data in. One of
-            `csv`, `tsv`, `json`, or `parquet`.
+            `csv`, `tsv`, `json`, `parquet`, or `geojson`.
         drop_marimo_index (bool, optional): Whether to drop the marimo
             selection column. Defaults to False.
         options (DownloadOptions | None, optional): Per-format output
@@ -183,6 +191,8 @@ def download_as(
             Defaults to each format's defaults.
         filename (str | None, optional): The filename to use for the
             downloaded file. Defaults to None, which uses a random filename.
+        geometry_column (str | None, optional): Primary geometry requested
+            for a geometry-aware format. Defaults to None.
 
     Returns:
         tuple: (url, user-facing filename with extension) for the downloaded file.
@@ -200,8 +210,25 @@ def download_as(
         allowed = ", ".join(map(repr, _EXPORT_FORMATS))
         raise ValueError(f"format must be one of {allowed}.")
 
-    vfile = mo_data.any_data(
-        fmt.serialize(manager, options), ext=fmt.extension
-    )
+    if ext in ("csv", "tsv", "json"):
+        if geometry_column is not None:
+            raise GeometryExportError(
+                "invalid_geometry",
+                "A primary geometry can only be chosen for geographic export.",
+                column=geometry_column,
+            )
+        manager = prepare_geometry_text_export(manager)
+
+    artifact = None
+    if ext == "parquet":
+        artifact = serialize_geoparquet(manager, geometry_column)
+    elif ext == "geojson":
+        artifact = serialize_geojson(
+            manager, geometry_column, options.json.ensure_ascii
+        )
+    if artifact is None:
+        assert fmt.serialize is not None
+        artifact = fmt.serialize(manager, options)
+    vfile = mo_data.any_data(artifact, ext=fmt.extension)
     base_name = filename if filename is not None else "download"
     return (vfile.url, f"{base_name}.{fmt.extension}")
