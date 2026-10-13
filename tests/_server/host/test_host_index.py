@@ -16,7 +16,7 @@ from marimo._core.stream import Event
 from marimo._server.host.index import WorkspaceIndex
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace
-from tests._core.conftest import ScriptedBackend, names
+from tests._core.conftest import ScriptedBackend, names, runtime_id_of
 
 
 def workspace(root: Path, *names: str) -> FixedFilesWorkspace:
@@ -136,7 +136,7 @@ def test_deleted_file_keeps_its_runtime_until_stopped(tmp_path: Path) -> None:
     (record,) = host.notebooks.values()
     notebook = host.notebook(record.id)
     notebook.start()
-    notebook.observe(be.Running())
+    notebook.observe(be.Running(runtime_id_of(notebook)))
     runtime = notebook.runtime
     backend.calls.clear()
     (tmp_path / "a.py").unlink()
@@ -152,8 +152,9 @@ def test_deleted_file_keeps_its_runtime_until_stopped(tmp_path: Path) -> None:
     assert backend.calls == []
 
     notebook.stop()
-    notebook.observe(be.Exited())
+    notebook.observe(be.Exited(runtime_id_of(notebook)))
     index.refresh()
 
     assert dict(host.notebooks) == {}
-    assert backend.calls == [("stop",)]
+    assert runtime is not None
+    assert backend.calls == [("stop", runtime.id)]

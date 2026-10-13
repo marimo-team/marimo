@@ -111,7 +111,7 @@ def test_subscribers_act_after_the_command_reaches_the_backend(
 
     runtime, _ = notebook.start()
 
-    assert backend.calls == [("start", runtime.id), ("stop",)]
+    assert backend.calls == [("start", runtime.id), ("stop", runtime.id)]
     assert notebook.runtime is not None
     assert notebook.runtime.status == "terminating"
 
@@ -119,8 +119,8 @@ def test_subscribers_act_after_the_command_reaches_the_backend(
 def test_subscribers_cannot_interrupt_a_restart(
     host: Host, notebook: Notebook, backend: ScriptedBackend
 ) -> None:
-    notebook.start()
-    notebook.observe(be.Running())
+    runtime, _ = notebook.start()
+    notebook.observe(be.Running(runtime.id))
     replacement = notebook.restart()
     backend.calls.clear()
     started: list[tuple[protocol.Runtime, bool]] = []
@@ -131,7 +131,31 @@ def test_subscribers_cannot_interrupt_a_restart(
 
     host.subscribe(start_on_removal, types={"runtime"})
 
-    notebook.observe(be.Exited())
+    notebook.observe(be.Exited(runtime.id))
 
     assert backend.calls == [("start", replacement.id)]
     assert started == [(replacement, False)]
+
+
+def test_subscribers_cannot_start_a_runtime_during_adoption(
+    host: Host, notebook: Notebook, backend: ScriptedBackend
+) -> None:
+    runtime, _ = notebook.start()
+    notebook.observe(be.Exited(runtime.id, "Kernel died"))
+    backend.calls.clear()
+    started: list[tuple[protocol.Runtime, bool]] = []
+    attached: list[protocol.RuntimeId] = []
+
+    def start_on_removal(event: Event) -> None:
+        if event.name == "runtime.removed":
+            started.append(notebook.start())
+
+    host.subscribe(start_on_removal, types={"runtime"})
+
+    replacement = notebook.adopt(attached.append)
+
+    assert (attached, started, backend.calls) == (
+        [replacement.id],
+        [(replacement, False)],
+        [],
+    )

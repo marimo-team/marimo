@@ -30,16 +30,24 @@ from marimo._core.protocol import (
     RunMessage,
     RunOutcome,
     Runtime,
+    RuntimeId,
     RuntimeMessage,
     ValueOutcome,
 )
 from marimo._core.stream import Event
-from tests._core.conftest import ScriptedBackend, names, request_ids
+from tests._core.conftest import (
+    ScriptedBackend,
+    names,
+    request_ids,
+    runtime_id_of,
+)
 
 
 def running(notebook: Notebook, backend: ScriptedBackend) -> Runtime:
     notebook.start(request_id="req-start")
-    notebook.observe(be.Running(marimo_version="0.25.0"))
+    notebook.observe(
+        be.Running(runtime_id_of(notebook), marimo_version="0.25.0")
+    )
     backend.calls.clear()
     assert notebook.runtime is not None
     return notebook.runtime
@@ -106,8 +114,12 @@ class TestStart:
         self, notebook: Notebook, log: list[Event]
     ) -> None:
         notebook.start(request_id="req-1")
-        notebook.observe(be.Starting("Preparing the environment"))
-        notebook.observe(be.Running(marimo_version="0.25.0"))
+        notebook.observe(
+            be.Starting(runtime_id_of(notebook), "Preparing the environment")
+        )
+        notebook.observe(
+            be.Running(runtime_id_of(notebook), marimo_version="0.25.0")
+        )
         notebook.attach()
 
         assert names(log) == ["runtime", "runtime", "runtime", "attachment"]
@@ -121,7 +133,9 @@ class TestStart:
         self, notebook: Notebook, log: list[Event]
     ) -> None:
         notebook.start(request_id="req-1")
-        notebook.observe(be.Exited("No such environment"))
+        notebook.observe(
+            be.Exited(runtime_id_of(notebook), "No such environment")
+        )
 
         assert notebook.runtime is not None
         assert notebook.runtime.status == "failed"
@@ -133,15 +147,15 @@ class TestStop:
     def test_stop_cancels_a_pending_restart(
         self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
     ) -> None:
-        running(notebook, backend)
+        runtime = running(notebook, backend)
         notebook.restart(request_id="restart")
         notebook.stop(request_id="stop")
         log.clear()
 
-        notebook.observe(be.Exited())
+        notebook.observe(be.Exited(runtime.id))
 
         assert notebook.runtime is None
-        assert backend.calls == [("stop",)]
+        assert backend.calls == [("stop", runtime.id)]
         assert names(log) == ["runtime.removed"]
         assert request_ids(log) == ["stop"]
 
@@ -157,9 +171,9 @@ class TestStop:
 
         runtime = notebook.stop(request_id="req-stop")
         assert runtime.status == "terminating"
-        assert backend.calls == [("stop",)]
+        assert backend.calls == [("stop", runtime.id)]
 
-        notebook.observe(be.Exited("Stopped"))
+        notebook.observe(be.Exited(runtime_id_of(notebook), "Stopped"))
         assert notebook.runtime is None
         assert names(log) == ["runtime", "runtime.removed"]
         assert request_ids(log) == ["req-stop", "req-stop"]
@@ -177,7 +191,7 @@ class TestStop:
         log.clear()
 
         notebook.stop()
-        notebook.observe(be.Exited())
+        notebook.observe(be.Exited(runtime_id_of(notebook)))
 
         assert names(log) == [
             "runtime",
@@ -201,7 +215,7 @@ class TestStop:
         self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
     ) -> None:
         notebook.start()
-        notebook.observe(be.Exited("boom"))
+        notebook.observe(be.Exited(runtime_id_of(notebook), "boom"))
         backend.calls.clear()
         log.clear()
 
@@ -228,7 +242,7 @@ class TestStop:
         log.clear()
 
         notebook.stop(request_id="stop")
-        notebook.observe(be.Exited())
+        notebook.observe(be.Exited(runtime_id_of(notebook)))
 
         assert names(log) == [
             "runtime",
@@ -266,12 +280,17 @@ class TestRestart:
         assert notebook.runtime is not None
         assert notebook.runtime.id == before.id
         assert notebook.runtime.status == "terminating"
-        assert backend.calls == [("stop",)]
-        notebook.observe(be.Exited())
+        assert backend.calls == [("stop", before.id)]
+        notebook.observe(be.Exited(before.id))
         assert notebook.runtime is not None
         assert notebook.runtime.id == response.id
-        assert backend.calls == [("stop",), ("start", notebook.runtime.id)]
-        notebook.observe(be.Running(marimo_version="0.25.0"))
+        assert backend.calls == [
+            ("stop", before.id),
+            ("start", notebook.runtime.id),
+        ]
+        notebook.observe(
+            be.Running(runtime_id_of(notebook), marimo_version="0.25.0")
+        )
 
         after = notebook.runtime
         assert after is not None
@@ -292,24 +311,79 @@ class TestRestart:
         assert request_ids(log)[0] == "req-restart"
         assert request_ids(log)[-1] == "req-restart"
 
-
-class TestAdoption:
-    @pytest.mark.parametrize("reports_starting", [False, True])
-    def test_external_relaunch_recovers_a_failed_runtime(
-        self,
-        notebook: Notebook,
-        backend: ScriptedBackend,
-        host: Host,
-        reports_starting: bool,
+    def test_a_late_exit_from_the_old_kernel_leaves_the_replacement(
+        self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         before = running(notebook, backend)
-        run = scratch(notebook)
-        notebook.observe(be.Exited("Kernel exited"))
+        replacement = notebook.restart()
+        notebook.observe(be.Exited(before.id))
+
+        notebook.observe(be.Exited(before.id))
+
+        assert notebook.runtime is not None
+        assert notebook.runtime.id == replacement.id
+        assert notebook.runtime.status == "starting"
+        assert backend.calls == [
+            ("stop", before.id),
+            ("start", replacement.id),
+        ]
+
+
+class TestAdoption:
+    def test_a_kernel_someone_else_started_is_published(
+        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+    ) -> None:
+        adopted = notebook.adopt(lambda _: None)
+        notebook.observe(
+            be.Starting(runtime_id_of(notebook), "Starting the kernel")
+        )
+        notebook.observe(
+            be.Running(runtime_id_of(notebook), marimo_version="0.25.0")
+        )
+
+        assert adopted.status == "starting"
+        assert backend.calls == []
+        assert notebook.runtime is not None
+        assert notebook.runtime.id == adopted.id
+        assert notebook.runtime.status == "running"
+        assert names(log) == ["runtime", "runtime", "runtime"]
+        assert request_ids(log) == [UNSET, UNSET, UNSET]
+
+    def test_reports_about_other_kernels_change_nothing(
+        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+    ) -> None:
+        stranger = RuntimeId("rt-stranger")
+        notebook.observe(be.Running(stranger, marimo_version="0.25.0"))
+        assert notebook.runtime is None
+
+        runtime = running(notebook, backend)
+        log.clear()
+        notebook.observe(be.Starting(stranger, "Starting the kernel"))
+        notebook.observe(be.Exited(stranger, "gone"))
+
+        assert notebook.runtime == runtime
+        assert log == []
+
+    def test_only_a_failed_runtime_can_be_replaced(
+        self, notebook: Notebook
+    ) -> None:
+        notebook.start()
+        with pytest.raises(Conflict, match="starting"):
+            notebook.adopt(lambda _: None)
+        notebook.observe(be.Running(runtime_id_of(notebook)))
+        with pytest.raises(Conflict, match="running"):
+            notebook.adopt(lambda _: None)
+
+    def test_external_relaunch_recovers_a_failed_runtime(
+        self, notebook: Notebook, backend: ScriptedBackend, host: Host
+    ) -> None:
+        before = running(notebook, backend)
+        scratch(notebook)
+        notebook.observe(be.Exited(runtime_id_of(notebook), "Kernel exited"))
         backend.calls.clear()
 
-        if reports_starting:
-            notebook.observe(be.Starting("Relaunching"))
-        notebook.observe(be.Running("0.26.0"))
+        notebook.adopt(lambda _: None)
+        notebook.observe(be.Running(runtime_id_of(notebook), "0.26.0"))
 
         assert notebook.runtime is not None
         assert notebook.runtime.id != before.id
@@ -325,17 +399,6 @@ class TestAdoption:
         run = notebook.run("1", request_id="after-relaunch")
         assert backend.calls == [("run", run.id, "1")]
 
-    def test_a_kernel_someone_else_started_is_published(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
-    ) -> None:
-        notebook.observe(be.Starting("Starting the kernel"))
-        notebook.observe(be.Running(marimo_version="0.25.0"))
-
-        assert backend.calls == []
-        assert notebook.runtime is not None
-        assert notebook.runtime.status == "running"
-        assert names(log) == ["runtime", "runtime"]
-
     def test_a_kernel_that_dies_on_its_own_fails_and_keeps_results(
         self,
         host: Host,
@@ -347,7 +410,7 @@ class TestAdoption:
         run = scratch(notebook)
         log.clear()
 
-        notebook.observe(be.Exited("killed"))
+        notebook.observe(be.Exited(runtime_id_of(notebook), "killed"))
 
         assert notebook.runtime is not None
         assert notebook.runtime.status == "failed"

@@ -19,7 +19,12 @@ from marimo._server.host.lifespan import host as host_lifespan
 from marimo._server.host.record import host_url
 from marimo._server.main import create_starlette_app
 from marimo._utils.lifespans import Lifespans
-from tests._core.conftest import ScriptedBackend, project, record
+from tests._core.conftest import (
+    ScriptedBackend,
+    project,
+    record,
+    runtime_id_of,
+)
 from tests._server.host.drive import finished
 from tests._server.mocks import get_starlette_server_state_init
 
@@ -100,7 +105,8 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         host.clock = context.clock = lambda: now
         host.update_project(project())
         notebook = host.add_notebook(record(), ScriptedBackend())
-        notebook.observe(be.Running())
+        notebook.adopt(lambda _: None)
+        notebook.observe(be.Running(runtime_id_of(notebook)))
         headers = {
             "Authorization": f"Bearer {context.token}",
             "Idempotency-Key": "run",

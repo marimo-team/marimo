@@ -22,8 +22,8 @@ class ScriptedBackend:
     def start(self, runtime_id: str) -> None:
         self.calls.append(("start", runtime_id))
 
-    def stop(self) -> None:
-        self.calls.append(("stop",))
+    def stop(self, runtime_id: str) -> None:
+        self.calls.append(("stop", runtime_id))
 
     def run(self, run_id: str, code: str) -> None:
         self.calls.append(("run", run_id, code))
@@ -33,6 +33,12 @@ class ScriptedBackend:
 
     def forget(self, run_id: str) -> None:
         self.calls.append(("forget", run_id))
+
+
+def runtime_id_of(notebook: Notebook) -> protocol.RuntimeId:
+    """The current runtime's ID, for reports about it."""
+    assert notebook.runtime is not None
+    return notebook.runtime.id
 
 
 def project(project_id: str = "p1") -> protocol.Project:
