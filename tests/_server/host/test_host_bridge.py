@@ -519,6 +519,90 @@ async def test_edits_flow_between_the_host_document_and_a_session(
     bridge.close()
 
 
+async def test_deleted_and_reconfigured_cells_reach_the_kernel(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._runtime.commands import (
+        DeleteCellCommand,
+        UpdateCellConfigCommand,
+    )
+    from marimo._session.notebook import AppFileManager
+
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(
+        NOTEBOOK + "@app.cell\ndef _(x):\n    y = x\n    return (y,)\n"
+    )
+    session = FakeSession(str(path))
+    session.document = AppFileManager(str(path)).app.cell_manager.document
+    session.app_file_manager.app.config.asdict_difference.return_value = {}
+    manager.sessions["browser-1"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    document = (await bridge.host.notebook(record.id)).document
+    assert document is not None
+    first, second = list(document)
+
+    await bridge.edit(
+        record.id,
+        [
+            protocol.PutCell(
+                base_etag=first.etag,
+                cell=protocol.CellInput(
+                    id=first.id,
+                    code=first.code,
+                    config=protocol.CellConfigInput(disabled=True),
+                ),
+            ),
+            protocol.DeleteCell(id=second.id, base_etag=second.etag),
+            protocol.PutCell(
+                base_etag=None,
+                cell=protocol.CellInput(
+                    id=protocol.CellId("new"),
+                    code="z = 1",
+                    config=protocol.CellConfigInput(hide_code=True),
+                ),
+            ),
+        ],
+        request_id="edit-1",
+    )
+
+    default = {
+        "column": None,
+        "disabled": False,
+        "hide_code": False,
+        "expand_output": False,
+    }
+    assert session.commands == [
+        DeleteCellCommand(cell_id=second.id),
+        UpdateCellConfigCommand(
+            configs={
+                first.id: {**default, "disabled": True},
+                "new": {**default, "hide_code": True},
+            }
+        ),
+    ]
+    # A code-only edit has nothing for the kernel until a run carries it.
+    await bridge.edit(
+        record.id,
+        [
+            protocol.PutCell(
+                base_etag="*",
+                cell=protocol.CellInput(
+                    id=protocol.CellId("new"),
+                    code="z = 2",
+                    config=protocol.CellConfigInput(hide_code=True),
+                ),
+            )
+        ],
+        request_id="edit-2",
+    )
+    assert len(session.commands) == 2
+    bridge.close()
+
+
 async def test_an_edit_is_accepted_in_the_form_the_session_mirrors_back(
     manager: FakeManager, tmp_path: Path
 ) -> None:

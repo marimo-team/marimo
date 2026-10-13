@@ -158,7 +158,9 @@ async def test_saving_keeps_an_edit_made_while_the_file_is_written(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     app, notebook_id, events = live_host
-    document = (await app.state.host_context.bridge.host.notebook(notebook_id)).document
+    document = (
+        await app.state.host_context.bridge.host.notebook(notebook_id)
+    ).document
     assert document is not None
     cell = next(
         r["data"]["cell"] for r in events.records if r.get("event") == "cell"

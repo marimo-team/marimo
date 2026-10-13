@@ -4,6 +4,8 @@
 The host owns protocol edits and etags. Sessions still own the editor's
 transaction history. Forward host edits as one session transaction;
 mirroring the resulting notification back into the host is a no-op.
+The kernel learns of deleted and reconfigured cells at once, as it does
+from the editor, and of new code when a run carries it.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from marimo._messaging.notebook import (
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
 )
+from marimo._runtime.commands import DeleteCellCommand, UpdateCellConfigCommand
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -119,24 +122,30 @@ def apply_to_session(session: Session, document: Document) -> None:
     """Apply the document's state to the session as one transaction.
 
     The session tells its consumers, so the frontend sees the edit, and
-    the host backend mirrors it back as a no-op.
+    the host backend mirrors it back as a no-op. The kernel is told of
+    deleted cells and changed configs, so a run does not evaluate a cell
+    the document no longer has or has disabled.
     """
     current = session.document
     changes: list[DocumentChange] = []
+    configs: dict[CellId_t, dict[str, Any]] = {}
     previous: str | None = None
     for cell in document:
         cell_id = CellId_t(cell.id)
         existing = current.get(cell_id)
+        config = _cell_config(cell.config)
         if existing is None:
             changes.append(
                 CreateCell(
                     cell_id=cell_id,
                     code=cell.code,
                     name=cell.name,
-                    config=_cell_config(cell.config),
+                    config=config,
                     after=None if previous is None else CellId_t(previous),
                 )
             )
+            if config != CellConfig():
+                configs[cell_id] = config.asdict()
         else:
             if existing.code != cell.code:
                 changes.append(SetCode(cell_id=cell_id, code=cell.code))
@@ -152,13 +161,13 @@ def apply_to_session(session: Session, document: Document) -> None:
                         expand_output=cell.config.expand_output,
                     )
                 )
+                configs[cell_id] = config.asdict()
         previous = cell.id
     wanted = {str(cell.id) for cell in document}
-    changes.extend(
-        DeleteCell(cell_id=cell_id)
-        for cell_id in current.cell_ids
-        if cell_id not in wanted
-    )
+    deleted = [
+        cell_id for cell_id in current.cell_ids if cell_id not in wanted
+    ]
+    changes.extend(DeleteCell(cell_id=cell_id) for cell_id in deleted)
     if [c for c in current.cell_ids if c in wanted] != [
         CellId_t(c) for c in document.order
     ]:
@@ -173,3 +182,11 @@ def apply_to_session(session: Session, document: Document) -> None:
         NotebookDocumentTransactionNotification(transaction=applied),
         from_consumer_id=None,
     )
+    for cell_id in deleted:
+        session.put_control_request(
+            DeleteCellCommand(cell_id=cell_id), from_consumer_id=None
+        )
+    if configs:
+        session.put_control_request(
+            UpdateCellConfigCommand(configs=configs), from_consumer_id=None
+        )

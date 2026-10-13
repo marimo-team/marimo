@@ -197,9 +197,7 @@ class SessionBridge(SessionEventListener):
                     cell=None,
                     document=snapshot,
                 )
-            cells = [
-                documents.to_notebook_cell(cell) for cell in document
-            ]
+            cells = [documents.to_notebook_cell(cell) for cell in document]
             try:
                 await asyncio.to_thread(
                     self._write, str(file), cells, snapshot.app_config
