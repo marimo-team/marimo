@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from marimo._core import protocol
+from marimo._core import backend as be, protocol
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.stream import Event, Stream
@@ -85,3 +85,53 @@ def test_readers_cannot_change_other_readers_or_replay() -> None:
     assert reread is not None
     assert isinstance(reread[0].data, protocol.ProjectMessage)
     assert reread[0].data.project == project()
+
+
+def test_deferred_events_join_history_before_delivery() -> None:
+    stream = Stream()
+    delivered: list[Event] = []
+    stream.subscribe(delivered.append)
+
+    with stream.deferred():
+        stream.publish(project())
+        assert [e.id for e in stream.since(0) or []] == [1]
+        assert delivered == []
+
+    assert [e.id for e in delivered] == [1]
+
+
+def test_subscribers_act_after_the_command_reaches_the_backend(
+    host: Host, notebook: Notebook, backend: ScriptedBackend
+) -> None:
+    def stop_on_starting(event: Event) -> None:
+        if event.name == "runtime":
+            notebook.stop()
+
+    host.subscribe(stop_on_starting, types={"runtime"})
+
+    runtime, _ = notebook.start()
+
+    assert backend.calls == [("start", runtime.id), ("stop",)]
+    assert notebook.runtime is not None
+    assert notebook.runtime.status == "terminating"
+
+
+def test_subscribers_cannot_interrupt_a_restart(
+    host: Host, notebook: Notebook, backend: ScriptedBackend
+) -> None:
+    notebook.start()
+    notebook.observe(be.Running())
+    replacement = notebook.restart()
+    backend.calls.clear()
+    started: list[tuple[protocol.Runtime, bool]] = []
+
+    def start_on_removal(event: Event) -> None:
+        if event.name == "runtime.removed":
+            started.append(notebook.start())
+
+    host.subscribe(start_on_removal, types={"runtime"})
+
+    notebook.observe(be.Exited())
+
+    assert backend.calls == [("start", replacement.id)]
+    assert started == [(replacement, False)]

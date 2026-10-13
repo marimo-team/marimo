@@ -25,13 +25,17 @@ if TYPE_CHECKING:
 
 
 class Notebook:
-    """A notebook's state and commands.
+    """A document, its results, and the runtime that produces them.
 
-    Snapshots preserve insertion order for runs and executions, and for
-    outputs within each execution.
-    Current cell results survive runtime stops and restarts. The host
-    chooses how long to retain completed ephemeral results.
-    Removing the notebook closes it; further commands raise `NotFound`.
+    Clients attach to a notebook, edit it, and run it. Every change is
+    published as an event so that each client sees the same notebook.
+    Commands change it and call the backend, which reports back through
+    `observe`.
+
+    Subscribers hear about a command once it has reached the backend.
+    Results survive runtime stops and restarts, and the host decides how
+    long completed scratch results are kept. Commands on a notebook the
+    host has removed raise `NotFound`.
     """
 
     def __init__(
@@ -86,14 +90,15 @@ class Notebook:
         Returns the runtime and whether a new runtime was created.
         An existing runtime is returned unchanged, regardless of status.
         """
-        self._require_open()
-        if self._runtime is not None:
-            return self._runtime, False
-        runtime = self._new_runtime("starting", None, None)
-        self._lifecycle_request = request_id
-        self._set_runtime(runtime)
-        self._backend.start(runtime.id)
-        return runtime, True
+        with self._stream.deferred():
+            self._require_open()
+            if self._runtime is not None:
+                return self._runtime, False
+            runtime = self._new_runtime("starting", None, None)
+            self._lifecycle_request = request_id
+            self._set_runtime(runtime)
+            self._backend.start(runtime.id)
+            return runtime, True
 
     def stop(self, *, request_id: str | None = None) -> protocol.Runtime:
         """Stop the runtime for all attached clients, retaining its results.
@@ -105,19 +110,20 @@ class Notebook:
         Raises:
             NoRuntime: If the notebook has no runtime.
         """
-        self._require_open()
-        runtime = self._require_runtime()
-        self._lifecycle_request = request_id
-        self._replacement = None
-        if runtime.status == "terminating":
-            return runtime
-        terminating = replace(runtime, status="terminating")
-        self._set_runtime(terminating)
-        if runtime.status == "failed":
-            self._end_runtime()
-        else:
-            self._backend.stop()
-        return terminating
+        with self._stream.deferred():
+            self._require_open()
+            runtime = self._require_runtime()
+            self._lifecycle_request = request_id
+            self._replacement = None
+            if runtime.status == "terminating":
+                return runtime
+            terminating = replace(runtime, status="terminating")
+            self._set_runtime(terminating)
+            if runtime.status == "failed":
+                self._end_runtime()
+            else:
+                self._backend.stop()
+            return terminating
 
     def restart(self, *, request_id: str | None = None) -> protocol.Runtime:
         """Stop the runtime and start a replacement with a new ID.
@@ -129,19 +135,20 @@ class Notebook:
             NoRuntime: If the notebook has no runtime.
             Conflict: If the runtime is not running.
         """
-        self._require_open()
-        runtime = self._require_runtime()
-        if runtime.status != "running":
-            raise Conflict(
-                f"the runtime is {runtime.status}; only a running one restarts"
-            )
-        self._lifecycle_request = request_id
-        replacement = self._new_runtime("starting", None, None)
-        self._replacement = replacement
-        terminating = replace(runtime, status="terminating")
-        self._set_runtime(terminating)
-        self._backend.stop()
-        return replacement
+        with self._stream.deferred():
+            self._require_open()
+            runtime = self._require_runtime()
+            if runtime.status != "running":
+                raise Conflict(
+                    f"the runtime is {runtime.status}; only a running one restarts"
+                )
+            self._lifecycle_request = request_id
+            replacement = self._new_runtime("starting", None, None)
+            self._replacement = replacement
+            terminating = replace(runtime, status="terminating")
+            self._set_runtime(terminating)
+            self._backend.stop()
+            return replacement
 
     def _require_runtime(self) -> protocol.Runtime:
         if self._runtime is None:
@@ -175,24 +182,25 @@ class Notebook:
             NoRuntime: If the notebook has no runtime.
             Conflict: If the runtime is not running, or a run is in progress.
         """
-        self._require_open()
-        runtime = self._require_runtime()
-        if runtime.status != "running":
-            raise Conflict(f"the runtime is {runtime.status}.")
-        if (active := self._state.active_run) is not None:
-            raise Conflict(f"run {active.id} is in progress.")
-        run = protocol.Run(
-            id=mint(protocol.RunId, "run"),
-            notebook_id=self.id,
-            caused_by=None,
-            status="queued",
-            outcome=None,
-            started_at=None,
-            completed_at=None,
-        )
-        self._state.add_run(run, request_id)
-        self._backend.run(run.id, code)
-        return run
+        with self._stream.deferred():
+            self._require_open()
+            runtime = self._require_runtime()
+            if runtime.status != "running":
+                raise Conflict(f"the runtime is {runtime.status}.")
+            if (active := self._state.active_run) is not None:
+                raise Conflict(f"run {active.id} is in progress.")
+            run = protocol.Run(
+                id=mint(protocol.RunId, "run"),
+                notebook_id=self.id,
+                caused_by=None,
+                status="queued",
+                outcome=None,
+                started_at=None,
+                completed_at=None,
+            )
+            self._state.add_run(run, request_id)
+            self._backend.run(run.id, code)
+            return run
 
     def interrupt(self, run_id: str) -> protocol.Run:
         """Request interruption of a run in progress.
@@ -279,11 +287,11 @@ class Notebook:
         if runtime.status == "terminating" and self._replacement is not None:
             replacement, self._replacement = self._replacement, None
             request_id = self._lifecycle_request
-            self._end_runtime()
-            self._lifecycle_request = request_id
-            self._set_runtime(replacement)
-            assert self._runtime is not None
-            self._backend.start(self._runtime.id)
+            with self._stream.deferred():
+                self._end_runtime()
+                self._lifecycle_request = request_id
+                self._set_runtime(replacement)
+                self._backend.start(replacement.id)
         elif runtime.status == "terminating":
             self._end_runtime()
         else:
@@ -317,7 +325,10 @@ class Notebook:
     # ---- stream --------------------------------------------------------
 
     def _snapshot(self) -> list[Event]:
-        """Return notebook objects as snapshot events, parents first."""
+        """Return notebook objects as snapshot events, parents first.
+
+        Runs, executions, and outputs keep their insertion order.
+        """
         bodies: list[protocol.Runtime | protocol.Attachment] = []
         if self._runtime is not None:
             bodies.append(self._runtime)
