@@ -14,7 +14,7 @@ import { sandboxAtom } from "@/core/packages/sandbox-state";
 import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
 import PackagesPanel from "../packages-panel";
 import { PanelSectionProvider } from "../panel-context";
-import { SandboxToggle } from "../sandbox-toggle";
+import { RuntimeStatusToggle } from "../runtime-status-toggle";
 
 vi.mock("@/utils/reload-safe", () => ({ reloadSafe: vi.fn() }));
 
@@ -89,7 +89,7 @@ function mount({
     <Provider store={store}>
       <TooltipProvider>
         <ModalProvider>
-          <SandboxToggle section="sidebar" />
+          <RuntimeStatusToggle section="sidebar" />
           <PanelSectionProvider value="sidebar">
             <PackagesPanel />
           </PanelSectionProvider>
@@ -103,7 +103,7 @@ function mount({
 it("opens restored preparation and kernel logs without reopening completed startup on refresh", async () => {
   mount();
   await screen.findByText("numpy");
-  const toggle = screen.getByRole("button", { name: "uv sandbox" });
+  const toggle = screen.getByRole("button", { name: /^uv sandbox, / });
   expect(toggle).toHaveAttribute("aria-expanded", "false");
   expect(
     screen.queryByRole("region", { name: "Sandbox details" }),
@@ -164,7 +164,9 @@ it("restores a restart-required sync with the kernel restart action", async () =
     })),
   );
   await screen.findByText("numpy");
-  expect(screen.getByText("Sandbox restart required")).toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: "Sandbox restart required" }),
+  ).toBeVisible();
   expect(
     screen.queryByRole("button", { name: "Retry sync" }),
   ).not.toBeInTheDocument();
@@ -194,7 +196,9 @@ it("restores a restart-required sync with the kernel restart action", async () =
       },
     })),
   );
-  expect(screen.getByText("Sandbox restart required")).toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: "Sandbox restart required" }),
+  ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Restart Kernel" }));
   expect(screen.getByRole("alertdialog")).toHaveTextContent("Restart Kernel");
   expect(client.sendRestart).not.toHaveBeenCalled();
@@ -251,7 +255,7 @@ it("keeps sync output open through completion and restores it quietly after refr
   unmount();
   const refreshed = mount();
   act(() => refreshed.store.set(alertAtom, snapshot));
-  const toggle = screen.getByRole("button", { name: "uv sandbox" });
+  const toggle = screen.getByRole("button", { name: /^uv sandbox, / });
   expect(toggle).toHaveAttribute("aria-expanded", "false");
   fireEvent.click(toggle);
   fireEvent.click(
@@ -266,7 +270,7 @@ it.each([false, true])(
   "retains the progression after completion with inspecting=%s",
   async (inspecting) => {
     const { store, client } = mount({ preparing: true });
-    const toggle = screen.getByRole("button", { name: "uv sandbox" });
+    const toggle = screen.getByRole("button", { name: /^uv sandbox, / });
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(client.getDependencyTree).not.toHaveBeenCalled();
     if (inspecting) {
@@ -308,7 +312,7 @@ it.each([false, true])(
 
 it("opens a startup error even after collapsing preparation and keeps both step outputs available", () => {
   const { store } = mount({ preparing: true, backend: "pixi" });
-  const toggle = screen.getByRole("button", { name: "pixi sandbox" });
+  const toggle = screen.getByRole("button", { name: /^pixi sandbox, / });
   fireEvent.click(toggle);
   act(() => {
     store.set(startupProgressAtom, {
@@ -325,6 +329,7 @@ it("opens a startup error even after collapsing preparation and keeps both step 
     });
   });
   expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(toggle).toHaveTextContent("pixi sandbox");
   expect(within(toggle).getByRole("status")).toHaveAccessibleName(
     "Kernel failed to start",
   );
@@ -346,13 +351,80 @@ it("opens a startup error even after collapsing preparation and keeps both step 
   expect(screen.getByLabelText("Error details")).toBeVisible();
 });
 
-it("does not add a toggle or startup details to an existing environment", async () => {
-  mount({ backend: null });
+it.each(["uv", "pixi"] as const)(
+  "shows connection status and errors before the %s startup phase arrives",
+  (backend) => {
+    const { store } = mount({ backend, preparing: true });
+    act(() => store.set(connectionAtom, { state: WebSocketState.CONNECTING }));
+    const details = within(
+      screen.getByRole("region", { name: "Sandbox details" }),
+    );
+    expect(details.getByRole("status")).toHaveTextContent("Connecting…");
+    expect(details.queryByRole("list")).not.toBeInTheDocument();
+
+    act(() => {
+      store.set(kernelStartupErrorAtom, "Kernel process exited unexpectedly");
+      store.set(connectionAtom, {
+        state: WebSocketState.CLOSED,
+        code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+        reason: "Kernel startup failed",
+      });
+    });
+    expect(details.getByRole("status")).toHaveTextContent(
+      "Kernel failed to start",
+    );
+    expect(details.getByLabelText("Error details")).toHaveTextContent(
+      "Kernel process exited unexpectedly",
+    );
+    expect(details.queryByRole("list")).not.toBeInTheDocument();
+  },
+);
+
+it("uses the same disclosure for an existing environment and updates it through connection changes", async () => {
+  const { store } = mount({ backend: null });
   await screen.findByText("numpy");
-  expect(
-    screen.queryByRole("button", { name: /sandbox/ }),
-  ).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole("region", { name: "Sandbox details" }),
-  ).not.toBeInTheDocument();
+  const toggle = screen.getByRole("button", { name: /^Runtime details, / });
+  expect(toggle).toHaveTextContent(/^Runtime$/);
+  expect(toggle).toHaveAccessibleName("Runtime details, Kernel ready");
+  expect(within(toggle).getByRole("status")).toHaveAccessibleName(
+    "Kernel ready",
+  );
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(toggle);
+  const details = screen.getByRole("region", { name: "Runtime details" });
+  expect(toggle).toHaveAttribute("aria-controls", details.id);
+  expect(within(details).getByText("Kernel started")).toBeVisible();
+  expect(within(details).getAllByRole("listitem")).toHaveLength(1);
+  expect(within(details).queryByRole("button", { name: "Sync" })).toBeNull();
+
+  act(() => store.set(connectionAtom, { state: WebSocketState.CONNECTING }));
+  expect(toggle).toHaveTextContent(/^Runtime$/);
+  expect(within(toggle).getByRole("status")).toHaveAccessibleName(
+    "Connecting…",
+  );
+  expect(within(details).getByText("Starting kernel")).toBeVisible();
+  fireEvent.click(toggle);
+  expect(details).not.toBeVisible();
+  act(() =>
+    store.set(connectionAtom, {
+      state: WebSocketState.CLOSED,
+      code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+      reason: "Kernel startup failed",
+    }),
+  );
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(toggle).toHaveTextContent(/^Runtime$/);
+  expect(within(toggle).getByRole("status")).toHaveAccessibleName(
+    "Kernel failed to start",
+  );
+  expect(details).toBeVisible();
+  expect(toggle).toHaveAccessibleName(
+    "Runtime details, Kernel failed to start",
+  );
+
+  act(() => store.set(connectionAtom, { state: WebSocketState.NOT_STARTED }));
+  expect(toggle).toHaveTextContent(/^Runtime$/);
+  expect(within(toggle).getByRole("status")).toHaveAccessibleName(
+    "Kernel not connected",
+  );
 });
