@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import re
 import threading
 from collections.abc import Awaitable, Callable
 from functools import wraps
@@ -44,6 +45,14 @@ _Body = TypeVar("_Body", bound=msgspec.Struct)
 
 PROBLEM_TYPE_PREFIX = "tag:marimo.io,2026:host/"
 """Prefix for host protocol problem types."""
+
+ATTACHMENT_IDENTITY = "Marimo-Attachment-Identity"
+ATTACHMENT_KIND = "Marimo-Attachment-Kind"
+ATTACHMENT_NAME = "Marimo-Attachment-Name"
+
+_IDENTITY = re.compile(r"[!-~]{1,128}")
+_KIND = re.compile(r"[a-z0-9-]+")
+_NAME_MAX_BYTES = 256
 
 PING = b": ping\n\n"
 PING_SECONDS = 15.0
@@ -355,7 +364,10 @@ async def _notebook_events(request: Request) -> Response:
     run_id = request.query_params.get("run_id")
     if run_id == "":
         return problem(400, "invalid-request", "run_id must not be empty")
-    attachment = notebook.attach()
+    asked = _attachment_request(request)
+    if isinstance(asked, Response):
+        return asked
+    attachment = notebook.attach(**asked)
     return _stream(
         context,
         cursor,
@@ -380,6 +392,29 @@ def _types(request: Request) -> set[str] | None:
     if not asked:
         return None
     return {kind for kind in asked.split(",") if kind}
+
+
+def _attachment_request(request: Request) -> dict[str, str] | Response:
+    """Read the attachment headers as `Notebook.attach` keyword arguments.
+
+    Absent headers are absent keys, so `attach` supplies the defaults.
+    Returns a 400 problem when a header is present but invalid.
+    """
+    identity = request.headers.get(ATTACHMENT_IDENTITY)
+    kind = request.headers.get(ATTACHMENT_KIND)
+    name = request.headers.get(ATTACHMENT_NAME) or None
+    if identity is not None and not _IDENTITY.fullmatch(identity):
+        return problem(
+            400, "invalid-request", f"{ATTACHMENT_IDENTITY} is invalid"
+        )
+    if kind is not None and not _KIND.fullmatch(kind):
+        return problem(400, "invalid-request", f"{ATTACHMENT_KIND} is invalid")
+    if name is not None and len(name.encode()) > _NAME_MAX_BYTES:
+        return problem(
+            400, "invalid-request", f"{ATTACHMENT_NAME} is too long"
+        )
+    asked = {"identity": identity, "kind": kind, "name": name}
+    return {key: value for key, value in asked.items() if value is not None}
 
 
 def _stream(

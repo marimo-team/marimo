@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlsplit
 
+import msgspec
 import pytest
 
 from marimo._core import backend as be, protocol
@@ -292,6 +293,138 @@ async def test_a_notebook_stream_attaches_the_client(harness: Harness) -> None:
         harness.app, "GET", "/notebooks/nope/events", headers=AUTH
     )
     assert missing.status == 404
+
+
+async def test_attachment_headers_name_the_client(harness: Harness) -> None:
+    notebook = harness.host.notebook(harness.notebook_id)
+    response, task, disconnect = request(
+        harness.app,
+        "GET",
+        f"/notebooks/{notebook.id}/events",
+        headers=IDENTIFIED,
+        query="types=attachment",
+    )
+    await wait_for(response, until_ready)
+    assert response.names() == ["attachment", "ready"]
+    message = msgspec.convert(
+        response.records[0]["data"], protocol.AttachmentMessage
+    )
+    assert message.attachment.identity == "k1"
+    assert message.attachment.kind == "agent"
+    assert message.attachment.name == "Codex"
+    disconnect()
+    await asyncio.wait_for(task, 5)
+
+
+async def test_an_empty_attachment_name_is_null(harness: Harness) -> None:
+    response, task, disconnect = request(
+        harness.app,
+        "GET",
+        f"/notebooks/{harness.notebook_id}/events",
+        headers={**AUTH, api_module.ATTACHMENT_NAME: ""},
+        query="types=attachment",
+    )
+    await wait_for(response, until_ready)
+    assert response.records[0]["data"]["attachment"]["name"] is None
+    disconnect()
+    await asyncio.wait_for(task, 5)
+
+
+IDENTIFIED = {
+    **AUTH,
+    api_module.ATTACHMENT_IDENTITY: "k1",
+    api_module.ATTACHMENT_KIND: "agent",
+    api_module.ATTACHMENT_NAME: "Codex",
+}
+
+
+async def until_detached(harness: Harness) -> None:
+    deadline = asyncio.get_running_loop().time() + 5
+    while "attachment" in [e.name for e in harness.host.events()]:
+        assert asyncio.get_running_loop().time() < deadline
+        await asyncio.sleep(0.01)
+
+
+async def test_concurrent_streams_with_one_identity_attach_separately(
+    harness: Harness,
+) -> None:
+    path = f"/notebooks/{harness.notebook_id}/events"
+    first, first_task, disconnect_first = request(
+        harness.app, "GET", path, headers=IDENTIFIED, query="types=attachment"
+    )
+    await wait_for(first, until_ready)
+    second, second_task, disconnect_second = request(
+        harness.app, "GET", path, headers=IDENTIFIED, query="types=attachment"
+    )
+    await wait_for(second, until_ready)
+
+    attachments = [
+        r["data"]["attachment"]
+        for r in second.records
+        if r.get("event") == "attachment"
+    ]
+    assert [a["identity"] for a in attachments] == ["k1", "k1"]
+    assert len({a["id"] for a in attachments}) == 2
+
+    disconnect_first()
+    disconnect_second()
+    await asyncio.gather(first_task, second_task)
+    await until_detached(harness)
+
+
+async def test_a_reconnect_with_one_identity_attaches_fresh(
+    harness: Harness,
+) -> None:
+    path = f"/notebooks/{harness.notebook_id}/events"
+    first, first_task, disconnect_first = request(
+        harness.app, "GET", path, headers=IDENTIFIED, query="types=attachment"
+    )
+    await wait_for(first, until_ready)
+    cursor = first.records[-1]["id"]
+    old = first.records[0]["data"]["attachment"]
+    disconnect_first()
+    await asyncio.wait_for(first_task, 5)
+    await until_detached(harness)
+
+    second, second_task, disconnect_second = request(
+        harness.app,
+        "GET",
+        path,
+        headers={**IDENTIFIED, "Last-Event-ID": cursor},
+        query="types=attachment",
+    )
+    await wait_for(second, until_ready)
+    assert second.names() == ["attachment.removed", "attachment", "ready"]
+    assert second.records[0]["data"]["id"] == old["id"]
+    new = second.records[1]["data"]["attachment"]
+    assert new["identity"] == old["identity"] == "k1"
+    assert new["id"] != old["id"]
+
+    disconnect_second()
+    await asyncio.wait_for(second_task, 5)
+
+
+async def test_invalid_attachment_headers_are_rejected(
+    harness: Harness,
+) -> None:
+    path = f"/notebooks/{harness.notebook_id}/events"
+    empty = await finished(
+        harness.app,
+        "GET",
+        path,
+        headers={**AUTH, api_module.ATTACHMENT_IDENTITY: ""},
+    )
+    assert empty.status == 400
+    assert empty.json()["type"].endswith("/invalid-request")
+
+    uppercase = await finished(
+        harness.app,
+        "GET",
+        path,
+        headers={**AUTH, api_module.ATTACHMENT_KIND: "Agent"},
+    )
+    assert uppercase.status == 400
+    assert uppercase.json()["type"].endswith("/invalid-request")
 
 
 async def test_runtime_lifecycle_over_http(harness: Harness) -> None:

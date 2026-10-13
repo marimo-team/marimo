@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import msgspec
 import pytest
 from dirty_equals import IsDatetime
 from inline_snapshot import snapshot
@@ -14,6 +15,7 @@ from marimo._core.errors import Conflict, NoRuntime, NotFound
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.protocol import (
+    AttachmentMessage,
     Console,
     ConsoleMessage,
     DisplayData,
@@ -950,3 +952,43 @@ class TestAttachments:
         assert att.kind == "client"
         assert att.notebook_id == "n1"
         assert names(log) == ["attachment", "attachment.removed"]
+
+    def test_one_identity_attaches_separately(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        first = notebook.attach(identity="k1", kind="agent", name="Codex")
+        second = notebook.attach(identity="k1", kind="agent", name="Codex")
+
+        assert first.id != second.id
+        assert first.identity == second.identity == "k1"
+        assert names(log) == ["attachment", "attachment"]
+        assert _attachment_ids(notebook) == {first.id, second.id}
+
+    def test_detach_leaves_other_attachments_with_the_identity(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        first = notebook.attach(identity="k1")
+        second = notebook.attach(identity="k1")
+        log.clear()
+
+        notebook.detach(first.id)
+
+        assert names(log) == ["attachment.removed"]
+        assert _attachment_ids(notebook) == {second.id}
+
+    def test_attach_without_an_identity_omits_it_on_the_wire(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        att = notebook.attach()
+
+        assert att.identity is UNSET
+        wire = msgspec.json.decode(msgspec.json.encode(log[0].data))
+        assert "identity" not in wire["attachment"]
+
+
+def _attachment_ids(notebook: Notebook) -> set[str]:
+    return {
+        event.data.attachment.id
+        for event in notebook._snapshot()
+        if isinstance(event.data, AttachmentMessage)
+    }

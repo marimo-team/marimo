@@ -10,6 +10,7 @@ from __future__ import annotations
 from time import monotonic
 from typing import TYPE_CHECKING
 
+import msgspec
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
@@ -249,21 +250,36 @@ class Notebook:
 
     # ---- attachments ---------------------------------------------------
 
-    def attach(self) -> protocol.Attachment:
-        """Record an attached host API client."""
+    def attach(
+        self,
+        *,
+        identity: str | None = None,
+        kind: str = "client",
+        name: str | None = None,
+    ) -> protocol.Attachment:
+        """Attach a client to this notebook.
+
+        Each call creates a separate attachment. `identity` is stored as
+        data. It does not affect the attachment lifetime.
+        """
         self._require_open()
         attachment = protocol.Attachment(
             id=mint(protocol.AttachmentId, "att"),
             notebook_id=self.id,
-            kind="client",
-            name=None,
+            kind=kind,
+            name=name,
             since=utcnow(),
+            identity=msgspec.UNSET if identity is None else identity,
         )
         self._attachments[attachment.id] = attachment
         self._publish(attachment, None)
         return attachment
 
     def detach(self, attachment_id: str) -> None:
+        """Remove the attachment and publish its removal.
+
+        Unknown IDs are ignored.
+        """
         attachment = self._attachments.pop(attachment_id, None)
         if attachment is not None:
             self._remove("attachment", attachment.id, None)
