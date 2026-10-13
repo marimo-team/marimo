@@ -49,6 +49,9 @@ type Action =
 const ACTIONS: Record<keyof AllRequests, Action> = {
   // These will start a connection if not already connected and then wait until the connection is open
   sendComponentValues: "startConnection",
+  // Navigating history must not start a kernel; a kernel started later
+  // reads its params from the URL anyway.
+  sendUpdateQueryParams: "dropRequest",
   sendModelValue: "startConnection",
   sendInstantiate: "startConnectionWithoutKernel",
   sendRun: "startConnection",

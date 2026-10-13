@@ -14,6 +14,7 @@ export const MockRequestClient = {
     return {
       // Edit requests
       sendComponentValues: vi.fn().mockResolvedValue({}),
+      sendUpdateQueryParams: vi.fn().mockResolvedValue({}),
       sendModelValue: vi.fn().mockResolvedValue({}),
       sendRename: vi.fn().mockResolvedValue({}),
       sendRestart: vi.fn().mockResolvedValue({}),

@@ -11,6 +11,7 @@ from marimo._runtime.commands import (
     ExecuteScratchpadCommand,
     ModelCommand,
     ModelUpdateMessage,
+    UpdateQueryParamsCommand,
 )
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._types.ids import WidgetModelId
@@ -41,6 +42,21 @@ async def test_nested_commands_complete_the_run_once(
     ]
     assert {m["run_id"] for m in messages if m["op"] == "cell-op"} == {"outer"}
     assert messages[-1]["op"] == "completed-run"
+
+
+async def test_update_query_params_delegates_and_completes_the_run(
+    mocked_kernel: MockedKernel,
+) -> None:
+    command = UpdateQueryParamsCommand(query_params={"tab": "b"})
+    with patch.object(
+        mocked_kernel.k, "update_query_params", new=AsyncMock()
+    ) as mock_update:
+        await KernelRequestHandlers(
+            mocked_kernel.k
+        )._handle_update_query_params(command)
+    mock_update.assert_awaited_once_with(command)
+    messages = MockStream(mocked_kernel.stream).operations
+    assert [m["op"] for m in messages] == ["completed-run"]
 
 
 async def test_a_failed_command_flushes_before_completing(

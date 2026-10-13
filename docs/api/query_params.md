@@ -7,6 +7,10 @@ can also use `mo.query_params` to set query parameters in order to keep track
 of state in the URL. This is useful for bookmarking or sharing a particular
 state of the notebook while running as an application with `marimo run`.
 
+Setting a query parameter adds an entry to the browser's history. Navigating
+back or forward restores the earlier URL, and the cells that read
+`mo.query_params()` re-run with the restored parameters.
+
 ::: marimo.query_params
 
 ## Pydantic Models for Query Parameters

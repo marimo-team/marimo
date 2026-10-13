@@ -114,6 +114,18 @@ class TestExecutionRoutes_EditMode:
 
     @staticmethod
     @with_session(SESSION_ID)
+    def test_update_query_params(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/update_query_params",
+            headers=HEADERS,
+            json={"queryParams": {"tab": "b", "ids": ["1", "2"]}},
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert "success" in response.json()
+
+    @staticmethod
+    @with_session(SESSION_ID)
     def test_instantiate(client: TestClient) -> None:
         response = client.post(
             "/api/kernel/instantiate",
@@ -627,6 +639,19 @@ class TestExecutionRoutes_RunMode:
                 "objectIds": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
             },
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert "success" in response.json()
+
+    @staticmethod
+    @with_read_session(SESSION_ID)
+    def test_update_query_params(client: TestClient) -> None:
+        # Viewers of a `marimo run` app navigate with back/forward too.
+        response = client.post(
+            "/api/kernel/update_query_params",
+            headers=HEADERS,
+            json={"queryParams": {"tab": "b"}},
         )
         assert response.status_code == 200, response.text
         assert response.headers["content-type"] == "application/json"

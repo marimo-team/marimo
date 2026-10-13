@@ -18,6 +18,7 @@ import {
 } from "./cells/cells";
 import type { AppConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
+import { useSyncQueryParamsOnNavigation } from "./kernel/useSyncQueryParamsOnNavigation";
 import { getSessionId } from "./kernel/session";
 import { connectionAtom } from "./network/connection";
 import { useRequestClient } from "./network/requests";
@@ -50,6 +51,7 @@ export const RunApp: React.FC<AppProps> = ({ appConfig, hideHeader }) => {
       RuntimeState.INSTANCE.stop();
     };
   }, []);
+  useSyncQueryParamsOnNavigation();
 
   const { connection, reconnect } = useMarimoKernelConnection({
     autoInstantiate: true,

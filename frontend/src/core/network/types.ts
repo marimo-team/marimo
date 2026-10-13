@@ -128,6 +128,7 @@ export type StdinRequest = schemas["StdinRequest"];
 export type SuccessResponse = schemas["SuccessResponse"];
 export type UpdateUIElementValuesRequest =
   schemas["UpdateUIElementValuesRequest"];
+export type UpdateQueryParamsRequest = schemas["UpdateQueryParamsRequest"];
 export type UsageResponse =
   paths["/api/usage"]["get"]["responses"]["200"]["content"]["application/json"];
 export type EnvironmentInfo =
@@ -155,6 +156,7 @@ export type StorageDownloadRequest = schemas["StorageDownloadRequest"];
  */
 export interface RunRequests {
   sendComponentValues: (request: UpdateUIElementValuesRequest) => Promise<null>;
+  sendUpdateQueryParams: (request: UpdateQueryParamsRequest) => Promise<null>;
   sendModelValue: (request: ModelRequest) => Promise<null>;
   sendInstantiate: (request: InstantiateNotebookRequest) => Promise<null>;
   sendFunctionRequest: (request: InvokeFunctionRequest) => Promise<null>;

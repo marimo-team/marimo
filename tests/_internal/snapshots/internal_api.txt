@@ -33,6 +33,7 @@ commands
   StopKernelCommand
   SyncGraphCommand
   UpdateCellConfigCommand
+  UpdateQueryParamsCommand
   UpdateUIElementCommand
   UpdateUserConfigCommand
   ValidateSQLCommand

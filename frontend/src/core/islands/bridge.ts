@@ -271,6 +271,16 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  public sendUpdateQueryParams: RunRequests["sendUpdateQueryParams"] = async (
+    request,
+  ): Promise<null> => {
+    await this.putControlRequest({
+      type: "update-query-params",
+      ...request,
+    });
+    return null;
+  };
+
   public sendInstantiate: RunRequests["sendInstantiate"] =
     async (): Promise<null> => {
       return null;

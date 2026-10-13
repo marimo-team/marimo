@@ -39,6 +39,12 @@ def test_required_capability_classifies_commands() -> None:
         required_capability(commands.UpdateUIElementCommand)
         is Capability.INTERACT
     )
+    # Browser back/forward rewrites the shared query-params state, like a
+    # UI element value: interact-tier, never edit.
+    assert (
+        required_capability(commands.UpdateQueryParamsCommand)
+        is Capability.INTERACT
+    )
     # InvokeFunctionCommand smuggles arbitrary user code (chat/lazy/panel),
     # so it is interact-tier, not read-tier.
     assert (
@@ -100,11 +106,13 @@ def test_viewer_can_only_read() -> None:
     # Viewers cannot invoke functions (could run user code / touch the fs).
     assert consumer_can(VIEWER, commands.InvokeFunctionCommand) is False
     assert consumer_can(VIEWER, commands.UpdateUIElementCommand) is False
+    assert consumer_can(VIEWER, commands.UpdateQueryParamsCommand) is False
     assert consumer_can(VIEWER, commands.ExecuteCellsCommand) is False
 
 
 def test_interactor_can_interact_not_edit() -> None:
     assert consumer_can(INTERACTOR, commands.UpdateUIElementCommand) is True
+    assert consumer_can(INTERACTOR, commands.UpdateQueryParamsCommand) is True
     assert consumer_can(INTERACTOR, commands.InvokeFunctionCommand) is True
     assert consumer_can(INTERACTOR, commands.ExecuteCellsCommand) is False
 

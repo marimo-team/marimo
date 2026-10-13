@@ -113,6 +113,7 @@ from marimo._runtime.commands import (
     OutOfBandCommand,
     SetBreakpointsCommand,
     UpdateCellConfigCommand,
+    UpdateQueryParamsCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
 )
@@ -1945,6 +1946,37 @@ class Kernel:
     @kernel_tracer.start_as_current_span("set_user_config")
     def set_user_config(self, request: UpdateUserConfigCommand) -> None:
         self._update_runtime_from_user_config(request.config)
+
+    @kernel_tracer.start_as_current_span("update_query_params")
+    async def update_query_params(
+        self, request: UpdateQueryParamsCommand
+    ) -> None:
+        """Adopt the query params of a URL the browser restored.
+
+        Re-runs the cells that read `mo.query_params()` (or marks them stale
+        in lazy mode), like a value update does for cells that read a UI
+        element. The frontend is not notified: the URL is already correct.
+        """
+        # Same keys the session strips when the kernel starts.
+        params = {
+            key: value
+            for key, value in request.query_params.items()
+            if key not in QueryParams.IGNORED_KEYS
+        }
+        if params == self.query_params.to_dict():
+            # A hash-only navigation also fires popstate.
+            return
+        self.query_params._replace_all(params)
+
+        # No cell called a setter, so there is no setter cell to exclude;
+        # the sentinel never matches a real cell id.
+        referring_cells = self._find_cells_for_state(
+            self.query_params, setter_cell_id=CellId_t("__external__")
+        )
+        if self.reactive_execution_mode == "autorun":
+            await self._run_cells(referring_cells)
+        else:
+            self.graph.set_stale(referring_cells)
 
     @kernel_tracer.start_as_current_span("set_ui_element_value")
     async def set_ui_element_value(
