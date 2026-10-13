@@ -223,11 +223,23 @@ class SessionBridge(SessionEventListener):
         return None if backend is None else backend.session
 
     def _attach_document(self, notebook_id: protocol.NotebookId) -> None:
-        """Carry host edits made before the session existed into the editor."""
+        """Reconcile the document with a session that just attached.
+
+        Host edits made before the session existed are carried into the
+        editor, even when the file changed meanwhile. Without any, the
+        session has the file as it is now, so its contents replace the
+        host's earlier read and are the saved revision.
+        """
         session = self._session_of(notebook_id)
         notebook = self.host.peek_notebook(notebook_id)
-        if session is not None and notebook is not None:
-            documents.apply_to_session(session, notebook.document)
+        if session is None or notebook is None:
+            return
+        document = notebook.document
+        if document._record.saved_etag != document._record.etag:
+            documents.apply_to_session(session, document)
+            return
+        cells, app_config = documents.from_session(session)
+        notebook.replace(cells, app_config, saved=True)
 
     def _mirror(self, notebook_id: protocol.NotebookId) -> None:
         """Bring the document up to date with the session's after it changed."""
