@@ -703,7 +703,7 @@ describe("useCellNavigationProps", () => {
       });
 
       expect(mockCopyCell).not.toHaveBeenCalled();
-      expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+      expect(mockEvent.stopPropagation).not.toHaveBeenCalled();
     });
   });
 
@@ -714,7 +714,7 @@ describe("useCellNavigationProps", () => {
       );
 
       const mockEvent = Mocks.keyboardEvent({
-        key: "x",
+        key: "F24",
         target: document.createElement("div"),
       });
 
@@ -722,7 +722,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+      expect(mockEvent.stopPropagation).not.toHaveBeenCalled();
     });
   });
 
@@ -1749,7 +1749,7 @@ describe("useCellEditorNavigationProps", () => {
       });
 
       expect(focusCell).toHaveBeenCalledWith(mockCellId);
-      expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+      expect(mockEvent.stopPropagation).not.toHaveBeenCalled();
     });
 
     it("should clear text selection when Escape is pressed with selection", () => {
@@ -1901,7 +1901,7 @@ describe("useCellEditorNavigationProps", () => {
       });
 
       expect(focusCell).not.toHaveBeenCalled();
-      expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+      expect(mockEvent.stopPropagation).not.toHaveBeenCalled();
     });
   });
 
@@ -1932,7 +1932,7 @@ describe("useCellEditorNavigationProps", () => {
         });
 
         expect(focusCell).toHaveBeenCalledWith(mockCellId);
-        expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+        expect(mockEvent.stopPropagation).not.toHaveBeenCalled();
       });
     });
 
@@ -1954,7 +1954,7 @@ describe("useCellEditorNavigationProps", () => {
         });
 
         expect(focusCell).toHaveBeenCalledWith(mockCellId);
-        expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+        expect(mockEvent.stopPropagation).not.toHaveBeenCalled();
       });
     });
 
@@ -1979,7 +1979,7 @@ describe("useCellEditorNavigationProps", () => {
         });
 
         expect(focusCell).toHaveBeenCalledWith(mockCellId);
-        expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+        expect(mockEvent.stopPropagation).not.toHaveBeenCalled();
       });
     });
   });

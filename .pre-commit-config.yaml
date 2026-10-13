@@ -71,3 +71,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^tests/.*\.py$
+      - id: core-imports
+        name: Check core imports
+        entry: bash -c 'if command -v uv >/dev/null 2>&1; then uv run python scripts/check_core_imports.py; else python scripts/check_core_imports.py; fi'
+        language: system
+        pass_filenames: false
+        files: ^marimo/_core/.*\.py$
