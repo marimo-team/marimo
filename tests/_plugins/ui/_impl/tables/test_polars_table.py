@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import csv
 import datetime
 import decimal
+import io
 import json
 import math
 import unittest
@@ -1093,3 +1095,43 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         data = self.get_complex_data()
         json_str = data.to_json_str(strict_json=True)
         snapshot("polars.download.json", json_str)
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("integer_keys", [False, True])
+def test_map_csv_preserves_keys_and_order(
+    lazy: bool, integer_keys: bool
+) -> None:
+    import polars as pl
+
+    map_dtype = getattr(pl, "Map", None)
+    if map_dtype is None:
+        pytest.skip("Map dtype requires Polars 2")
+    keys = [2, 1] if integer_keys else ["b", "a"]
+    values = {keys[0]: 'comma,quote"', keys[1]: "unicode λ"}
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "map": pl.Series(
+                [values, {}, None],
+                dtype=map_dtype(
+                    pl.Int64 if integer_keys else pl.String, pl.String
+                ),
+            ),
+        }
+    )
+    original = df.clone()
+    manager = PolarsTableManagerFactory.create()(df.lazy() if lazy else df)
+    rows = list(
+        csv.reader(
+            io.StringIO(manager.to_csv_str(separator=";")), delimiter=";"
+        )
+    )
+    assert rows == [
+        ["id", "map"],
+        ["0", json.dumps(list(values.items()), separators=(",", ":"))],
+        ["1", "[]"],
+        ["2", ""],
+    ]
+    assert df.equals(original)
+    assert manager.schema == original.schema

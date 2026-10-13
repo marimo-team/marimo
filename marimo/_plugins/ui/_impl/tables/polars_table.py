@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import functools
 import io
+import json
 from functools import cached_property
 from typing import Any
 
@@ -83,9 +84,23 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     # Likely CSV format does not support nested data or objects
                     # Try to convert columns to json or strings
                     result = _data
+                    map_dtype = getattr(pl, "Map", None)
                     for column in result.get_columns():
                         dtype = column.dtype
-                        if isinstance(dtype, pl.Struct):
+                        if map_dtype is not None and isinstance(
+                            dtype, map_dtype
+                        ):
+                            # JSON objects would stringify non-string keys.
+                            result = result.with_columns(
+                                column.map_elements(
+                                    lambda value: json.dumps(
+                                        list(value.items()),
+                                        separators=(",", ":"),
+                                    ),
+                                    return_dtype=pl.String,
+                                )
+                            )
+                        elif isinstance(dtype, pl.Struct):
                             result = result.with_columns(
                                 column.struct.json_encode()
                             )
