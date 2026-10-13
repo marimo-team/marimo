@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import functools
 import io
-import json
 from functools import cached_property
 from typing import Any
 
@@ -90,15 +89,24 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         if map_dtype is not None and isinstance(
                             dtype, map_dtype
                         ):
-                            # JSON objects would stringify non-string keys.
+                            if self._contains_binary(dtype):
+                                raise pl.exceptions.ComputeError(
+                                    "Map columns containing binary data cannot be written to CSV"
+                                ) from None
+                            # Entry structs preserve non-string keys and order.
+                            map_namespace = getattr(
+                                pl.col(column.name), "map", None
+                            )
+                            assert map_namespace is not None
+                            entries = (
+                                map_namespace.entries()
+                                .list.eval(pl.element().struct.json_encode())
+                                .list.join(",")
+                            )
                             result = result.with_columns(
-                                column.map_elements(
-                                    lambda value: json.dumps(
-                                        list(value.items()),
-                                        separators=(",", ":"),
-                                    ),
-                                    return_dtype=pl.String,
-                                )
+                                pl.concat_str(
+                                    pl.lit("["), entries, pl.lit("]")
+                                ).alias(column.name)
                             )
                         elif isinstance(dtype, pl.Struct):
                             result = result.with_columns(
@@ -211,6 +219,27 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return sanitize_json_bigint(
                         to_json(result), ensure_ascii=ensure_ascii
                     )
+
+            @staticmethod
+            def _contains_binary(
+                dtype: pl.DataType | pl.datatypes.DataTypeClass,
+            ) -> bool:
+                # Polars' native JSON encoder panics on binary values.
+                if dtype == pl.Binary:
+                    return True
+                if isinstance(dtype, (pl.List, pl.Array)):
+                    return PolarsTableManager._contains_binary(dtype.inner)
+                if isinstance(dtype, pl.Struct):
+                    return any(
+                        PolarsTableManager._contains_binary(field.dtype)
+                        for field in dtype.fields
+                    )
+                map_dtype = getattr(pl, "Map", None)
+                if map_dtype is not None and isinstance(dtype, map_dtype):
+                    return PolarsTableManager._contains_binary(
+                        dtype.key
+                    ) or PolarsTableManager._contains_binary(dtype.value)
+                return False
 
             def _convert_time_to_string(
                 self, result: pl.DataFrame, column: pl.Series
