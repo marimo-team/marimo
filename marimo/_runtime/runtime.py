@@ -1396,17 +1396,20 @@ class Kernel:
         # Always broadcast Variables message after graph mutation to ensure
         # frontend has the latest dependency information
         if not get_context().is_embedded():
+            # Index refs in one pass over the cells; calling
+            # `get_referring_cells` per variable scans every cell for every
+            # variable.
+            referring_cells: dict[Name, set[CellId_t]] = {}
+            for cid, cell_impl in self.graph.cells.items():
+                for ref in cell_impl.refs:
+                    referring_cells.setdefault(ref, set()).add(cid)
             broadcast_notification(
                 VariablesNotification(
                     variables=[
                         VariableDeclarationNotification(
                             name=VariableName(variable),
                             declared_by=list(declared_by),
-                            used_by=list(
-                                self.graph.get_referring_cells(
-                                    variable, language="python"
-                                )
-                            ),
+                            used_by=list(referring_cells.get(variable, ())),
                         )
                         for variable, declared_by in self.graph.definitions.items()
                     ]
@@ -1455,13 +1458,15 @@ class Kernel:
             with patches.patch_main_module_context(self._module):
                 # Snapshot disabled cells that are in an error/cancelled state
                 # BEFORE running, so we can clear them after the run if their
-                # ancestor recovered.
+                # ancestor recovered. The status check comes first because
+                # `is_disabled` walks all ancestors of the cell, and this
+                # runs on every cell run.
                 pre_run_errored_disabled = {
                     cid
                     for cid, cell in self.graph.cells.items()
-                    if self.graph.is_disabled(cid)
-                    and cell.run_result_status
+                    if cell.run_result_status
                     in ("exception", "marimo-error", "cancelled")
+                    and self.graph.is_disabled(cid)
                 }
                 while cell_ids := await self._run_cells_internal(cell_ids):
                     LOGGER.debug("Running state updates ...")

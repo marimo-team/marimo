@@ -39,7 +39,7 @@ from marimo._runtime.commands import (
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
 )
-from marimo._runtime.dataflow import EdgeWithVar
+from marimo._runtime.dataflow import DirectedGraph, EdgeWithVar
 from marimo._runtime.runtime import (
     Kernel,
     launch_kernel,
@@ -3310,6 +3310,43 @@ class TestDisable:
         assert k.globals["x"] == 1
         assert k.globals["y"] == 1
         assert not k.graph.get_stale()
+
+    async def test_run_does_not_scan_unrelated_cells(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Running one cell doesn't do per-cell graph walks on every cell.
+
+        `is_disabled` walks all ancestors of a cell and
+        `get_referring_cells` scans all cells, so calling either once per
+        cell (or variable) on each run is quadratic in notebook size.
+        """
+        k = any_kernel
+        ers = [exec_req.get("x0 = 0")]
+        for i in range(1, 20):
+            ers.append(exec_req.get(f"x{i} = x{i - 1} + 1"))
+        await k.run(ers)
+        assert k.globals["x19"] == 19
+
+        last = exec_req.get_with_id(ers[-1].cell_id, "x19 = x18 + 2")
+        with (
+            patch.object(
+                DirectedGraph,
+                "is_disabled",
+                autospec=True,
+                side_effect=DirectedGraph.is_disabled,
+            ) as is_disabled,
+            patch.object(
+                DirectedGraph,
+                "get_referring_cells",
+                autospec=True,
+                side_effect=DirectedGraph.get_referring_cells,
+            ) as get_referring_cells,
+        ):
+            await k.run([last])
+        assert k.globals["x19"] == 20
+        checked = {call.args[1] for call in is_disabled.call_args_list}
+        assert checked <= {last.cell_id}
+        assert get_referring_cells.call_count < len(ers)
 
 
 class TestAsyncIO:
