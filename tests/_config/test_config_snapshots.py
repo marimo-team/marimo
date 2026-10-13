@@ -17,9 +17,9 @@ from inline_snapshot import snapshot
 from marimo._config import manager as config_module
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._config.manager import (
-    EnvConfigManager,
-    ProjectConfigManager,
-    ScriptConfigManager,
+    EnvConfigReader,
+    PyprojectConfigReader,
+    ScriptConfigReader,
     get_default_config_manager,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -232,9 +232,7 @@ def test_layered_configuration_snapshot(
         "resolved_unmasked": manager.get_config(hide_secrets=False),
         "user_masked": manager.get_user_config(),
         "overrides_unmasked": manager.get_config_overrides(hide_secrets=False),
-        "script_unmasked": ScriptConfigManager(str(notebook)).get_config(
-            hide_secrets=False
-        ),
+        "script_unmasked": ScriptConfigReader(str(notebook)).read(),
     }
     assert normalized(views, config_tree) == snapshot(
         {
@@ -726,9 +724,7 @@ def test_invalid_and_missing_inputs_snapshot(config_tree: Path) -> None:
         pyproject = project / "pyproject.toml"
         if contents is not None:
             pyproject.write_text(contents, encoding="utf-8")
-        cases[name] = ProjectConfigManager(str(project)).get_config(
-            hide_secrets=False
-        )
+        cases[name] = PyprojectConfigReader(str(project)).read()
     for name, contents in [
         ("missing_script", None),
         ("no_metadata", "import marimo\n"),
@@ -736,9 +732,7 @@ def test_invalid_and_missing_inputs_snapshot(config_tree: Path) -> None:
     ]:
         if contents is not None:
             notebook.write_text(contents, encoding="utf-8")
-        cases[name] = ScriptConfigManager(str(notebook)).get_config(
-            hide_secrets=False
-        )
+        cases[name] = ScriptConfigReader(str(notebook)).read()
     assert cases == snapshot(
         {
             "missing": {},
@@ -766,7 +760,7 @@ def test_environment_snapshot(
         monkeypatch.setenv(
             "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", instantiate
         )
-        cases[transport] = EnvConfigManager().get_config(hide_secrets=False)
+        cases[transport] = EnvConfigReader().read()
     assert cases == snapshot(
         {
             "sse": {
@@ -810,9 +804,7 @@ def test_trust_origins_snapshot(config_tree: Path) -> None:
     project_file.write_text(
         settings.replace("[", "[tool.marimo."), encoding="utf-8"
     )
-    cases["pyproject"] = ProjectConfigManager(str(project_file)).get_config(
-        hide_secrets=False
-    )
+    cases["pyproject"] = PyprojectConfigReader(str(project_file)).read()
     assert cases == snapshot(
         {
             "home": {
@@ -1080,7 +1072,7 @@ def test_dotenv_workspace_session_snapshot(config_tree: Path) -> None:
             (project / "pyproject.toml").write_text("", encoding="utf-8")
         manager = get_default_config_manager(current_path=str(project))
         session = manager.with_partial(
-            ScriptConfigManager(str(script) if script is not None else None)
+            ScriptConfigReader(str(script) if script is not None else None)
         )
         cases[name] = {
             "workspace": manager.get_config(hide_secrets=False)["runtime"].get(
