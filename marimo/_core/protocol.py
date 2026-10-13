@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 # AUTO-GENERATED FILE — DO NOT EDIT.
-# Generated from host-protocol/openapi.yaml in marimo-team/pair.
-# Regenerate with `cargo xtask generate-host-protocol`.
+# Generated from protocols/host/openapi.yaml.
+# Regenerate with `make host-protocol-codegen`.
 # ruff: noqa: TC003 - msgspec resolves annotations at runtime
 # ruff: noqa: RUF036 - the generator orders unions; the wire shape is the same
 

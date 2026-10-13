@@ -1,0 +1,6 @@
+{
+  "type": "tag:marimo.io,2026:host/unsupported-operation",
+  "title": "Unsupported operation",
+  "status": 501,
+  "detail": "This host does not offer runtime.run."
+}
