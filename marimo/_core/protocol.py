@@ -549,20 +549,32 @@ class Attachment(Struct, frozen=True):
     kind: Annotated[
         str,
         Meta(
-            description="What kind of thing is attached, such as `browser`, `editor`, or `agent`. Clients accept kinds they do not recognize."
+            description="What kind of thing is attached, supplied by `Marimo-Attachment-Kind`, such as `browser`, `editor`, or `agent`. Defaults to `client` when the header is omitted. Clients accept kinds they do not recognize."
         ),
     ]
     name: (
         Annotated[
             str,
             Meta(
-                description="A label to show people, such as the browser or editor's name. Null when there is none."
+                description="A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty."
             ),
         ]
         | None
     )
     notebook_id: NotebookId
     since: Annotated[datetime, Meta(description="When it attached.")]
+    identity: (
+        Annotated[
+            str,
+            Meta(
+                description="The opaque client identity supplied by `Marimo-Attachment-Identity`.\nOmitted when none was supplied. Consumers can group attachments\nwith the same identity within a host. It does not identify an\nindividual connection or change its lifetime.\n",
+                max_length=128,
+                min_length=1,
+                pattern="^[!-~]+$",
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
 
 
 class AttachmentMessage(Struct, frozen=True):

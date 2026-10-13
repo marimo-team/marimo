@@ -97,9 +97,19 @@ choosing how it is stored and which operations each client can use. Several
 clients can share a notebook while only some are permitted to edit or save it.
 
 An **attachment** represents a client's connection to a notebook. It belongs to
-the notebook and remains connected across runtime restarts. Stopping a runtime
-ends its active work and loses its Python state, while the document and retained
-results remain available to clients.
+the notebook and remains connected across runtime restarts. Each opening of a
+notebook's event stream MUST create a separate attachment, removed when that
+connection closes, including when reconnecting with `Last-Event-ID`.
+
+When opening a stream, clients MAY supply `Marimo-Attachment-Identity`,
+`Marimo-Attachment-Kind`, and `Marimo-Attachment-Name`. Hosts expose these as
+`identity`, `kind`, and `name` on the attachment, as defined in the OpenAPI
+schema. Consumers can use a shared identity to group attachments from the same
+client across streams and reconnects. Each attachment still has its own id and
+lifetime; identity does not merge connections or keep an attachment alive.
+
+Stopping a runtime ends its active work and loses its Python state, while the
+document and retained results remain available to clients.
 
 ### Runs and results
 

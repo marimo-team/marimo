@@ -190,8 +190,13 @@ paths:
 
         Opening this stream attaches the client to the notebook. An
         attachment appears on both streams while the connection is open
-        and is removed when it closes. The snapshot includes every run
-        that is not yet completed, with its executions and items, plus
+        and is removed when it closes. Every opening, including a reconnect,
+        creates a separate attachment. The optional
+        `Marimo-Attachment-Identity` header supplies its `identity` so
+        consumers can group connections from the same client. A shared
+        identity does not merge attachments or extend their lifetimes.
+        The snapshot includes every run that is not yet completed, with
+        its executions and items, plus
         any completed results the host retains. Result retention is
         independent of replay history. Removed objects are absent from
         snapshots; a resumable stream carries their removal events.
@@ -209,6 +214,9 @@ paths:
         - $ref: '#/components/parameters/Types'
         - $ref: '#/components/parameters/RunFilter'
         - $ref: '#/components/parameters/LastEventId'
+        - $ref: '#/components/parameters/AttachmentIdentity'
+        - $ref: '#/components/parameters/AttachmentKind'
+        - $ref: '#/components/parameters/AttachmentName'
       responses:
         '200':
           description: The notebook, then changes, as server-sent events.
@@ -562,6 +570,46 @@ components:
         own loopback interface, and clients never follow redirects, so the
         token never leaves the machine.
   parameters:
+    AttachmentIdentity:
+      name: Marimo-Attachment-Identity
+      in: header
+      required: false
+      description: |
+        An opaque client identity, copied to the attachment's `identity`.
+        Clients can reuse it across streams and reconnects so consumers
+        can group their attachments within a host. It is descriptive data,
+        not an authentication credential or an idempotency key. Every
+        stream still creates its own attachment. Invalid values receive
+        a 400 `invalid-request` response.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[!-~]+$'
+    AttachmentKind:
+      name: Marimo-Attachment-Kind
+      in: header
+      required: false
+      description: |
+        What kind of client is attached, such as `browser`, `editor`, or
+        `agent`. Copied to the attachment's `kind`; omitted means `client`.
+        Hosts accept kinds they do not recognize. Values must contain one
+        or more lowercase ASCII letters, digits, or hyphens; invalid values
+        receive a 400 `invalid-request` response.
+      schema:
+        type: string
+        pattern: '^[a-z0-9-]+$'
+        default: client
+    AttachmentName:
+      name: Marimo-Attachment-Name
+      in: header
+      required: false
+      description: |
+        A human-readable label copied to the attachment's `name`, such as
+        `Notebook CLI`. Omitted or empty means the attachment's name is
+        null. The value must be at most 256 bytes when encoded as UTF-8;
+        longer values receive a 400 `invalid-request` response.
+      schema: { type: string }
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -856,17 +904,28 @@ components:
         An attachment is a consumer connected to a notebook, such as a
         browser tab, an editor, or an agent. Opening the notebook's stream
         creates one. It is removed when that connection closes, and not
-        when the notebook's runtime stops or restarts.
+        when the notebook's runtime stops or restarts. Each stream has its
+        own attachment, even when several share a client identity.
       required: [id, notebook_id, kind, name, since]
       properties:
         id: { $ref: '#/components/schemas/AttachmentId' }
         notebook_id: { $ref: '#/components/schemas/NotebookId' }
+        identity:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^[!-~]+$'
+          description: |
+            The opaque client identity supplied by `Marimo-Attachment-Identity`.
+            Omitted when none was supplied. Consumers can group attachments
+            with the same identity within a host. It does not identify an
+            individual connection or change its lifetime.
         kind:
           type: string
-          description: What kind of thing is attached, such as `browser`, `editor`, or `agent`. Clients accept kinds they do not recognize.
+          description: What kind of thing is attached, supplied by `Marimo-Attachment-Kind`, such as `browser`, `editor`, or `agent`. Defaults to `client` when the header is omitted. Clients accept kinds they do not recognize.
         name:
           type: [string, 'null']
-          description: A label to show people, such as the browser or editor's name. Null when there is none.
+          description: A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.
         since:
           type: string
           format: date-time
