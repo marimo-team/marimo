@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlsplit
 
+import msgspec
 import pytest
 
 from marimo._core import backend as be, protocol
@@ -292,6 +293,132 @@ async def test_a_notebook_stream_attaches_the_client(harness: Harness) -> None:
         harness.app, "GET", "/notebooks/nope/events", headers=AUTH
     )
     assert missing.status == 404
+
+
+IDENTIFIED = {
+    **AUTH,
+    api_module.ATTACHMENT_IDENTITY: "k1",
+    api_module.ATTACHMENT_KIND: "agent",
+    api_module.ATTACHMENT_NAME: "Codex",
+}
+
+
+async def attachment_of(
+    harness: Harness, headers: dict[str, str]
+) -> protocol.Attachment:
+    """Open a notebook stream with `headers` and return its attachment."""
+    response, task, disconnect = request(
+        harness.app,
+        "GET",
+        f"/notebooks/{harness.notebook_id}/events",
+        headers=headers,
+        query="types=attachment",
+    )
+    await wait_for(response, until_ready)
+    assert response.names() == ["attachment", "ready"]
+    message = msgspec.convert(
+        response.records[0]["data"], protocol.AttachmentMessage
+    )
+    disconnect()
+    await asyncio.wait_for(task, 5)
+    return message.attachment
+
+
+async def test_attachment_headers_name_the_client(harness: Harness) -> None:
+    attachment = await attachment_of(harness, IDENTIFIED)
+    assert attachment.identity == "k1"
+    assert attachment.kind == "agent"
+    assert attachment.name == "Codex"
+
+
+async def test_an_empty_attachment_name_is_null(harness: Harness) -> None:
+    attachment = await attachment_of(
+        harness, {**AUTH, api_module.ATTACHMENT_NAME: ""}
+    )
+    assert attachment.name is None
+
+
+async def test_a_reconnect_with_one_identity_attaches_fresh(
+    harness: Harness,
+) -> None:
+    path = f"/notebooks/{harness.notebook_id}/events"
+    first, first_task, disconnect_first = request(
+        harness.app, "GET", path, headers=IDENTIFIED, query="types=attachment"
+    )
+    await wait_for(first, until_ready)
+    cursor = first.records[-1]["id"]
+    old = first.records[0]["data"]["attachment"]
+    disconnect_first()
+    await asyncio.wait_for(first_task, 5)
+    assert "attachment" not in [e.name for e in harness.host.events()]
+
+    second, second_task, disconnect_second = request(
+        harness.app,
+        "GET",
+        path,
+        headers={**IDENTIFIED, "Last-Event-ID": cursor},
+        query="types=attachment",
+    )
+    await wait_for(second, until_ready)
+    assert second.names() == ["attachment.removed", "attachment", "ready"]
+    assert second.records[0]["data"]["id"] == old["id"]
+    new = second.records[1]["data"]["attachment"]
+    assert new["identity"] == old["identity"] == "k1"
+    assert new["id"] != old["id"]
+
+    disconnect_second()
+    await asyncio.wait_for(second_task, 5)
+
+
+async def test_custom_events_use_their_own_sse_kind(
+    harness: Harness,
+) -> None:
+    notebook = harness.host.notebook(harness.notebook_id)
+    path = f"/notebooks/{notebook.id}/events"
+    custom, custom_task, disconnect_custom = request(
+        harness.app, "GET", path, headers=AUTH, query="types=custom"
+    )
+    attachments, attach_task, disconnect_attach = request(
+        harness.app, "GET", path, headers=AUTH, query="types=attachment"
+    )
+    await wait_for(custom, until_ready)
+    await wait_for(attachments, until_ready)
+
+    notebook.emit("marimo.test", {"hello": 1})
+    await wait_for(custom, lambda response: "custom" in response.names())
+    frame = next(r for r in custom.records if r.get("event") == "custom")
+    message = msgspec.convert(frame["data"], protocol.CustomMessage)
+    assert message.custom == protocol.Custom(
+        type="marimo.test", data={"hello": 1}
+    )
+    assert "custom" not in attachments.names()
+
+    disconnect_custom()
+    disconnect_attach()
+    await asyncio.gather(custom_task, attach_task)
+
+
+@pytest.mark.parametrize(
+    ("header", "value"),
+    [
+        (api_module.ATTACHMENT_IDENTITY, ""),
+        (api_module.ATTACHMENT_KIND, "Agent"),
+        (api_module.ATTACHMENT_NAME, "n" * 257),
+    ],
+)
+async def test_invalid_attachment_headers_are_rejected(
+    harness: Harness, header: str, value: str
+) -> None:
+    response = await finished(
+        harness.app,
+        "GET",
+        f"/notebooks/{harness.notebook_id}/events",
+        headers={**AUTH, header: value},
+    )
+    assert response.status == 400
+    body = response.json()
+    assert body["type"].endswith("/invalid-request")
+    assert body["detail"] == f"{header} is invalid"
 
 
 async def test_runtime_lifecycle_over_http(harness: Harness) -> None:

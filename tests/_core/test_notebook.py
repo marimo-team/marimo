@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import msgspec
 import pytest
 from dirty_equals import IsDatetime
 from inline_snapshot import snapshot
@@ -14,8 +15,11 @@ from marimo._core.errors import Conflict, NoRuntime, NotFound
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.protocol import (
+    AttachmentMessage,
     Console,
     ConsoleMessage,
+    Custom,
+    CustomMessage,
     DisplayData,
     Error,
     ErrorOutcome,
@@ -950,3 +954,80 @@ class TestAttachments:
         assert att.kind == "client"
         assert att.notebook_id == "n1"
         assert names(log) == ["attachment", "attachment.removed"]
+
+    def test_one_identity_attaches_separately(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        first = notebook.attach(identity="k1", kind="agent", name="Codex")
+        second = notebook.attach(identity="k1", kind="agent", name="Codex")
+
+        assert first.id != second.id
+        assert first.identity == second.identity == "k1"
+        assert names(log) == ["attachment", "attachment"]
+        assert _attachment_ids(notebook) == {first.id, second.id}
+
+    def test_detach_leaves_other_attachments_with_the_identity(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        first = notebook.attach(identity="k1")
+        second = notebook.attach(identity="k1")
+        log.clear()
+
+        notebook.detach(first.id)
+
+        assert names(log) == ["attachment.removed"]
+        assert _attachment_ids(notebook) == {second.id}
+
+    def test_attach_without_an_identity_omits_it_on_the_wire(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        att = notebook.attach()
+
+        assert att.identity is UNSET
+        wire = msgspec.json.decode(msgspec.json.encode(log[0].data))
+        assert "identity" not in wire["attachment"]
+
+
+class TestEmit:
+    def test_emit_publishes_a_custom_event_on_the_notebook_stream(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        custom = notebook.emit("marimo.test", {"hello": 1}, request_id="req-1")
+
+        assert custom == Custom(type="marimo.test", data={"hello": 1})
+        assert names(log) == ["custom"]
+        assert log[0].notebook_id == notebook.id
+        published = log[0].data
+        assert isinstance(published, CustomMessage)
+        assert published.custom == custom
+        assert published.request_id == "req-1"
+        assert published.time is not UNSET
+
+    def test_emit_rejects_data_that_is_not_json(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        with pytest.raises(TypeError):
+            notebook.emit("marimo.test", object())
+        assert "custom" not in names(log)
+
+    def test_emit_rejects_an_empty_type(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        with pytest.raises(ValueError):
+            notebook.emit("", 1)
+        assert "custom" not in names(log)
+
+    def test_emit_on_a_closed_notebook_raises(
+        self, host: Host, notebook: Notebook
+    ) -> None:
+        host.remove_notebook(notebook.id)
+        with pytest.raises(NotFound):
+            notebook.emit("marimo.test", {"hello": 1})
+
+
+def _attachment_ids(notebook: Notebook) -> set[str]:
+    return {
+        event.data.attachment.id
+        for event in notebook._snapshot()
+        if isinstance(event.data, AttachmentMessage)
+    }

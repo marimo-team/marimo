@@ -614,9 +614,11 @@ components:
       description: |
         A human-readable label copied to the attachment's `name`, such as
         `Notebook CLI`. Omitted or empty means the attachment's name is
-        null. The value must be at most 256 bytes when encoded as UTF-8;
-        longer values receive a 400 `invalid-request` response.
-      schema: { type: string }
+        null. The value must be at most 256 characters; longer values
+        receive a 400 `invalid-request` response.
+      schema:
+        type: string
+        maxLength: 256
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -944,9 +946,11 @@ components:
             individual connection or change its lifetime.
         kind:
           type: string
+          pattern: '^[a-z0-9-]+$'
           description: What kind of thing is attached, supplied by `Marimo-Attachment-Kind`, such as `browser`, `editor`, or `agent`. Defaults to `client` when the header is omitted. Clients accept kinds they do not recognize.
         name:
           type: [string, 'null']
+          maxLength: 256
           description: A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.
         since:
           type: string

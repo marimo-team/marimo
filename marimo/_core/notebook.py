@@ -8,8 +8,9 @@ backend updates and publishes events.
 from __future__ import annotations
 
 from time import monotonic
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import msgspec
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
@@ -21,7 +22,7 @@ from marimo._core.stream import Event, kind_of, message, utcnow
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from marimo._core.stream import Stream
+    from marimo._core.stream import Body, Stream
 
 
 class Notebook:
@@ -249,21 +250,43 @@ class Notebook:
 
     # ---- attachments ---------------------------------------------------
 
-    def attach(self) -> protocol.Attachment:
-        """Record an attached host API client."""
+    def attach(
+        self,
+        *,
+        identity: str | None = None,
+        kind: str | None = None,
+        name: str | None = None,
+    ) -> protocol.Attachment:
+        """Attach a client to this notebook.
+
+        Each call creates a separate attachment. `identity` is stored as
+        data. It does not affect the attachment lifetime. An omitted `kind`
+        is `client`. An empty `name` is stored as null.
+
+        Raises:
+            msgspec.ValidationError: If a value breaks the protocol's
+                constraints on the attachment field of the same name.
+        """
         self._require_open()
-        attachment = protocol.Attachment(
-            id=mint(protocol.AttachmentId, "att"),
-            notebook_id=self.id,
-            kind="client",
-            name=None,
-            since=utcnow(),
-        )
+        fields: dict[str, Any] = {
+            "id": mint(protocol.AttachmentId, "att"),
+            "notebook_id": self.id,
+            "kind": kind or "client",
+            "name": name or None,
+            "since": utcnow(),
+        }
+        if identity is not None:
+            fields["identity"] = identity
+        attachment = msgspec.convert(fields, protocol.Attachment)
         self._attachments[attachment.id] = attachment
         self._publish(attachment, None)
         return attachment
 
     def detach(self, attachment_id: str) -> None:
+        """Remove the attachment and publish its removal.
+
+        Unknown IDs are ignored.
+        """
         attachment = self._attachments.pop(attachment_id, None)
         if attachment is not None:
             self._remove("attachment", attachment.id, None)
@@ -338,6 +361,32 @@ class Notebook:
             started_at=utcnow(),
         )
 
+    def emit(
+        self,
+        type: str,  # noqa: A002
+        data: Any,
+        *,
+        request_id: str | None = None,
+    ) -> protocol.Custom:
+        """Publish a custom event on the notebook stream.
+
+        A custom event is a notebook occurrence with a producer-defined
+        payload.
+
+        Raises:
+            TypeError: If `data` is not a JSON value.
+            ValueError: If `type` is empty.
+        """
+        self._require_open()
+        if not type:
+            raise ValueError("type must be a non-empty string")
+        # Fail here, in the producer, instead of inside every subscriber's
+        # stream when the event is framed.
+        msgspec.json.encode(data)
+        custom = protocol.Custom(type=type, data=data)
+        self._publish(custom, request_id)
+        return custom
+
     # ---- stream --------------------------------------------------------
 
     def _snapshot(self) -> list[Event]:
@@ -372,11 +421,7 @@ class Notebook:
             runtime, self._runtime = self._runtime, None
             self._remove("runtime", runtime.id, request_id)
 
-    def _publish(
-        self,
-        body: protocol.Runtime | protocol.Attachment,
-        request_id: str | None,
-    ) -> None:
+    def _publish(self, body: Body, request_id: str | None) -> None:
         self._stream.publish(
             body,
             notebook_id=self.id,

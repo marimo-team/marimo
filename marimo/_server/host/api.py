@@ -45,6 +45,17 @@ _Body = TypeVar("_Body", bound=msgspec.Struct)
 PROBLEM_TYPE_PREFIX = "tag:marimo.io,2026:host/"
 """Prefix for host protocol problem types."""
 
+ATTACHMENT_IDENTITY = "Marimo-Attachment-Identity"
+ATTACHMENT_KIND = "Marimo-Attachment-Kind"
+ATTACHMENT_NAME = "Marimo-Attachment-Name"
+
+_ATTACHMENT_HEADERS = {
+    "identity": ATTACHMENT_IDENTITY,
+    "kind": ATTACHMENT_KIND,
+    "name": ATTACHMENT_NAME,
+}
+"""Attachment fields and the request headers that supply them."""
+
 PING = b": ping\n\n"
 PING_SECONDS = 15.0
 
@@ -355,7 +366,14 @@ async def _notebook_events(request: Request) -> Response:
     run_id = request.query_params.get("run_id")
     if run_id == "":
         return problem(400, "invalid-request", "run_id must not be empty")
-    attachment = notebook.attach()
+    try:
+        attachment = notebook.attach(
+            identity=request.headers.get(ATTACHMENT_IDENTITY),
+            kind=request.headers.get(ATTACHMENT_KIND),
+            name=request.headers.get(ATTACHMENT_NAME),
+        )
+    except msgspec.ValidationError as e:
+        return problem(400, "invalid-request", _attachment_problem(e))
     return _stream(
         context,
         cursor,
@@ -380,6 +398,15 @@ def _types(request: Request) -> set[str] | None:
     if not asked:
         return None
     return {kind for kind in asked.split(",") if kind}
+
+
+def _attachment_problem(error: msgspec.ValidationError) -> str:
+    """Name the request header behind a rejected attachment field."""
+    detail = str(error)
+    for field, header in _ATTACHMENT_HEADERS.items():
+        if detail.endswith(f"`$.{field}`"):
+            return f"{header} is invalid"
+    return "attachment headers are invalid"
 
 
 def _stream(

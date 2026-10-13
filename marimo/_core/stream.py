@@ -35,8 +35,10 @@ NOTEBOOK_KINDS = frozenset(
         "execution",
         "console",
         "display",
+        "custom",
     }
 )
+
 
 Body: TypeAlias = (
     protocol.Host
@@ -48,6 +50,7 @@ Body: TypeAlias = (
     | protocol.Execution
     | protocol.Console
     | protocol.Display
+    | protocol.Custom
 )
 
 _WRAPPERS: dict[str, type[msgspec.Struct]] = {
@@ -60,6 +63,7 @@ _WRAPPERS: dict[str, type[msgspec.Struct]] = {
     "execution": protocol.ExecutionMessage,
     "console": protocol.ConsoleMessage,
     "display": protocol.DisplayMessage,
+    "custom": protocol.CustomMessage,
 }
 
 
