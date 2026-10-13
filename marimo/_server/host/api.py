@@ -71,8 +71,28 @@ _TITLES = {
 }
 
 
-def problem(status: int, kind: str, detail: str | None = None) -> Response:
-    """Return a protocol error as an HTTP problem response."""
+_HTTP_KINDS = {
+    400: "invalid-request",
+    404: "not-found",
+    405: "method-not-allowed",
+    409: "conflict",
+}
+
+
+def problem(
+    status: int, kind: str | None = None, detail: str | None = None
+) -> Response:
+    """Return a protocol error as an HTTP problem response.
+
+    Without a kind, the status picks one. A status this protocol does
+    not name is a server bug, so it becomes a 500 rather than a problem
+    of an unknown kind.
+    """
+    kind = _HTTP_KINDS.get(status) if kind is None else kind
+
+    if kind is None:
+        LOGGER.error("The host API raised an unmapped status %s", status)
+        status, kind, detail = 500, "internal", "The host failed"
     body = protocol.Problem(
         type=PROBLEM_TYPE_PREFIX + kind,
         title=_TITLES[kind],
@@ -113,6 +133,8 @@ def build_app() -> Router:
             ),
         ],
         default=_not_found,
+        # Clients never follow redirects, so a trailing slash is a miss.
+        redirect_slashes=False,
     )
 
 
@@ -316,12 +338,7 @@ async def _execute_mutation(endpoint: _Endpoint, request: Request) -> Response:
     except msgspec.DecodeError as e:
         return problem(400, "invalid-request", str(e))
     except HTTPException as e:
-        kind = {
-            400: "invalid-request",
-            404: "not-found",
-            409: "conflict",
-        }[e.status_code]
-        return problem(e.status_code, kind, e.detail)
+        return problem(e.status_code, detail=e.detail)
 
 
 def _reply(status: int, body: msgspec.Struct | None = None) -> Response:
@@ -388,9 +405,13 @@ def _cursor(request: Request) -> int | Response | None:
     raw = request.headers.get("Last-Event-ID")
     if raw is None:
         return None
-    if not raw.isdigit():
+    # Header text is latin-1, where superscripts count as digits.
+    if not (raw.isascii() and raw.isdigit()):
         return problem(400, "invalid-request", "Last-Event-ID must be an id")
-    return int(raw)
+    try:
+        return int(raw)
+    except ValueError:
+        return problem(400, "invalid-request", "Last-Event-ID is too long")
 
 
 def _types(request: Request) -> set[str] | None:
@@ -471,6 +492,8 @@ def _frame(event: Event) -> bytes:
 
 
 def _inside_project(path: str) -> Path:
+    if "\x00" in path:
+        raise HTTPException(400, "path must not contain NUL")
     relative = Path(path)
     if relative.is_absolute() or ".." in relative.parts:
         raise HTTPException(400, "path must stay in the project")

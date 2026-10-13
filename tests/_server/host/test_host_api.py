@@ -181,10 +181,15 @@ def _declared_routes() -> dict[str, set[str]]:
 
 _DECLARED = _declared_routes()
 _METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+_UNKNOWN = [
+    "/nothing",
+    "/notebooks/nb-x/nothing",
+    "/events/",
+    "/notebooks/",
+    "/notebooks/nb-x/runtime/runs/run-x/",
+]
 _SWEEP = [
-    (path, method)
-    for path in [*_DECLARED, "/nothing", "/notebooks/nb-x/nothing"]
-    for method in _METHODS
+    (path, method) for path in [*_DECLARED, *_UNKNOWN] for method in _METHODS
 ]
 
 
@@ -209,8 +214,11 @@ async def test_every_method_on_every_route_is_a_response_not_a_500(
         ("127.attacker.example:1234", 403),
         ("127.1.2.3:1234", 202),
         ("localhost:1234", 202),
+        ("LOCALHOST:1234", 202),
         ("[::1]:1234", 202),
         ("[::ffff:127.0.0.1]:1234", 202),
+        ("[::1]junk:1234", 403),
+        ("127.0.0.1:" + "1" * 5000, 403),
     ],
 )
 async def test_only_loopback_names_are_admitted(
@@ -225,6 +233,87 @@ async def test_only_loopback_names_are_admitted(
         host=host,
     )
     assert response.status == status
+
+
+@pytest.mark.parametrize(
+    "port",
+    ["\xb2", "1234\xb2", "\xb9\xb2\xb3"],
+)
+def test_latin1_superscripts_are_not_a_port(port: str) -> None:
+    from marimo._server.host.middleware import _host_header_ok
+
+    assert port.isdigit()
+    assert _host_header_ok(f"127.0.0.1:{port}", PORT) is False
+
+
+@pytest.mark.parametrize(
+    ("authorization", "status"),
+    [
+        ("Bearer \xe9", 401),
+        ("Bearer", 401),
+        ("Bearer ", 401),
+        ("Basic record-token", 401),
+        ("bearer  record-token ", 202),
+    ],
+)
+async def test_malformed_bearers_are_401_problems(
+    harness: Harness, authorization: str, status: int
+) -> None:
+    response = await finished(
+        harness.app,
+        "PUT",
+        f"/notebooks/{harness.notebook_id}/runtime",
+        headers={"Authorization": authorization, "Idempotency-Key": "start"},
+        body=b"{}",
+    )
+    assert response.status == status
+    if status != 202:
+        assert response.headers["content-type"] == "application/problem+json"
+
+
+@pytest.mark.parametrize("cursor", ["x", "-1", "1" * 5000, "1 "])
+async def test_a_malformed_cursor_is_a_400_problem(
+    harness: Harness, cursor: str
+) -> None:
+    response = await finished(
+        harness.app,
+        "GET",
+        "/events",
+        headers={**AUTH, "Last-Event-ID": cursor},
+    )
+    assert response.status == 400
+    assert response.json()["type"].endswith("/invalid-request")
+
+
+async def test_a_nul_byte_in_a_path_is_a_400_problem(harness: Harness) -> None:
+    response = await finished(
+        harness.app,
+        "POST",
+        "/notebooks",
+        headers=key("nul"),
+        body=json.dumps(
+            {
+                "project_id": harness.bridge.index.project_id,
+                "path": "a\u0000b.py",
+            }
+        ).encode(),
+    )
+    assert response.status == 400
+    assert response.json()["type"].endswith("/invalid-request")
+
+
+async def test_a_failure_inside_a_stream_does_not_restart_the_response(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(_event: object) -> bytes:
+        raise RuntimeError("frame failed")
+
+    monkeypatch.setattr(api_module, "_frame", broken)
+    response, task, _ = request(harness.app, "GET", "/events", headers=AUTH)
+    with pytest.raises(RuntimeError, match="frame failed"):
+        await asyncio.wait_for(task, 5)
+    assert response.status == 200
+    assert response.body == b""
 
 
 async def test_the_catalog_stream_sends_a_snapshot_then_changes(

@@ -8,6 +8,7 @@ server's port. The bearer token comes from the host discovery record.
 from __future__ import annotations
 
 import hmac
+import re
 from ipaddress import IPv6Address, ip_address
 from typing import TYPE_CHECKING
 
@@ -24,9 +25,11 @@ if TYPE_CHECKING:
 
     from starlette.responses import Response
     from starlette.routing import BaseRoute
-    from starlette.types import ASGIApp, Receive, Scope, Send
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 LOGGER = _loggers.marimo_logger()
+
+_PORT = re.compile(r"[0-9]{1,5}")
 
 
 class HostApiMiddleware:
@@ -66,14 +69,27 @@ class HostApiMiddleware:
             )
         else:
             scope = {**scope, "root_path": self.prefix}
+            started = False
+
+            async def guarded(message: Message) -> None:
+                nonlocal started
+                if message["type"] == "http.response.start":
+                    started = True
+                await send(message)
+
             try:
-                await self.host_app(scope, receive, send)
+                await self.host_app(scope, receive, guarded)
             except HTTPException as exc:
+                if started:
+                    raise
                 # The bare router has no exception middleware, so a known
                 # path with an unsupported method surfaces here as a 405.
                 response = _router_problem(exc, scope, self.host_app.routes)
                 await response(scope, receive, send)
             except Exception:
+                if started:
+                    # The server logs the failure once it ends the stream.
+                    raise
                 LOGGER.exception("The host API failed on %s", scope["path"])
                 response = problem(500, "internal", "The host failed")
                 await response(scope, receive, send)
@@ -87,12 +103,7 @@ class HostApiMiddleware:
 def _router_problem(
     exc: HTTPException, scope: Scope, routes: Sequence[BaseRoute]
 ) -> Response:
-    kind = {404: "not-found", 405: "method-not-allowed"}.get(
-        exc.status_code, "internal"
-    )
-    if exc.status_code >= 500:
-        LOGGER.error("The host API failed with %s", exc)
-    response = problem(exc.status_code, kind, exc.detail)
+    response = problem(exc.status_code, detail=exc.detail)
     if exc.status_code == 405:
         # The router names only the first route that matched the path, but
         # a path can be declared once per method.
@@ -116,7 +127,7 @@ def _methods_declared_for(
 
 
 def _is_loopback(host: str) -> bool:
-    if host == "localhost":
+    if host.lower() == "localhost":
         return True
     try:
         address = ip_address(host)
@@ -134,14 +145,16 @@ def _host_header_ok(header: str | None, port: int) -> bool:
     if header.startswith("["):
         name, _, after = header.partition("]")
         name = name[1:]
-        given = after[1:] if after.startswith(":") else ""
+        if after and not after.startswith(":"):
+            return False
+        given = after[1:]
     else:
         name, _, given = header.partition(":")
     if not _is_loopback(name):
         return False
     if given == "":
         return port == 80
-    return given.isdigit() and int(given) == port
+    return _PORT.fullmatch(given) is not None and int(given) == port
 
 
 def _bearer_matches(authorization: str | None, token: str) -> bool:
@@ -150,4 +163,7 @@ def _bearer_matches(authorization: str | None, token: str) -> bool:
     scheme, _, credentials = authorization.partition(" ")
     if scheme.lower() != "bearer":
         return False
-    return hmac.compare_digest(credentials.strip(), token)
+    # Header text is latin-1, and compare_digest rejects non-ASCII str.
+    return hmac.compare_digest(
+        credentials.strip().encode("latin-1"), token.encode()
+    )
