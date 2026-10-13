@@ -198,7 +198,6 @@ def test_custom_event_replay_preserves_envelope_and_cursor() -> None:
 def test_custom_payload_preserves_any_json_value(data: Any) -> None:
     wire = {
         "custom": {
-            "notebook_id": "n1",
             "type": "example.progress",
             "data": data,
         },
@@ -215,7 +214,7 @@ def test_custom_payload_is_required_even_when_null_is_allowed() -> None:
         msgspec.ValidationError, match="missing required field `data`"
     ):
         msgspec.json.decode(
-            '{"notebook_id":"n1","type":"example.progress"}',
+            '{"type":"example.progress"}',
             type=protocol.Custom,
         )
 
