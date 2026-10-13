@@ -35,6 +35,8 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
+    from marimo._ast.type_inference import TypeInferenceMode
+    from marimo._config.manager import MarimoConfigManager
     from marimo._server.models.models import (
         CopyNotebookRequest,
         SaveNotebookRequest,
@@ -72,6 +74,9 @@ class AppFileManager:
         # Configuration defaults
         self._defaults = defaults or AppDefaults()
 
+        # User configuration for save-time options. Defaults apply when None.
+        self.config_reader: MarimoConfigManager | None = None
+
         # Load the app
         self.app = self._load_app(self.path)
 
@@ -92,6 +97,14 @@ class AppFileManager:
         self._save_lock = self.writer.lock
         # Foreground writes supersede queued autosaves.
         self._autosave_generation = 0
+
+    @property
+    def infer_types(self) -> TypeInferenceMode:
+        """Backend that types saved signatures, or `"off"`."""
+        if self.config_reader is None:
+            return "off"
+        formatting = self.config_reader.get_config().get("formatting", {})
+        return formatting.get("infer_types", "off")
 
     @property
     def filename(self) -> str | None:
@@ -226,6 +239,7 @@ class AppFileManager:
                 notebook=notebook,
                 persist=persist,
                 previous_path=previous_path,
+                infer_types=self.infer_types,
             )
             # If this is a new unnamed notebook, update the filename
             if self._is_unnamed():
@@ -561,7 +575,9 @@ class AppFileManager:
         """
         from marimo._convert.converters import MarimoConvert
 
-        return MarimoConvert.from_ir(self.app.to_ir()).to_py()
+        return MarimoConvert.from_ir(self.app.to_ir()).to_py(
+            infer_types=self.infer_types
+        )
 
     def _is_unnamed(self) -> bool:
         """Check if notebook is unnamed.

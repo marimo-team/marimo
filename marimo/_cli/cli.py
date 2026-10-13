@@ -1570,7 +1570,7 @@ def check(
         # If no files are provided, we lint the current directory
         files = ("**/*.py", "**/*.md", "**/*.qmd")
 
-    from marimo._lint import resolve_lint_config
+    from marimo._lint import resolve_infer_types, resolve_lint_config
 
     lint_config = resolve_lint_config(select_rules, ignore_rules)
 
@@ -1584,6 +1584,7 @@ def check(
         ignore_scripts=ignore_scripts,
         formatter=formatter,
         lint_config=lint_config,
+        infer_types=resolve_infer_types(),
     )
 
     # Get counts from linter (fix happens automatically during streaming)

@@ -229,9 +229,14 @@ class FormattingConfig(TypedDict):
     **Keys.**
 
     - `line_length`: max line length
+    - `infer_types`: `"off"` or `"jedi"`. With `"jedi"`, marimo infers
+      types for cell parameters when it writes a notebook file. Only types
+      that need no quoting are written. Those are builtins, setup cell
+      definitions and imports, and top-level functions and classes.
     """
 
     line_length: int
+    infer_types: Literal["off", "jedi"]
 
 
 @dataclass

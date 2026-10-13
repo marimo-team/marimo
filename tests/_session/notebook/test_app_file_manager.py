@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+from marimo._ast.type_inference import Inferred
 from marimo._session.notebook import (
     AppFileManager,
     load_notebook,
@@ -213,6 +214,119 @@ def test_manifest_and_cell_saves_preserve_each_other(
     assert [cell.code for cell in saved.app.cell_manager.cell_data()] == [
         "x = 2"
     ]
+
+
+_NOTEBOOK_WITH_PARAMETER = """
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    x = 1
+    return (x,)
+
+
+@app.cell
+def _(x):
+    print(x)
+    return
+"""
+
+
+class _ConfigReader:
+    """Stand-in for MarimoConfigReader exposing only the formatting section."""
+
+    def __init__(self, infer_types: str) -> None:
+        self.infer_types = infer_types
+
+    def get_config(self, *, hide_secrets: bool = True) -> dict:
+        del hide_secrets
+        return {"formatting": {"infer_types": self.infer_types}}
+
+
+class _FakeBackend:
+    """A backend that types `x` as `int` and records where it was asked."""
+
+    def __init__(self) -> None:
+        self.search_paths: list[Path | None] = []
+
+    def infer_definitions(
+        self, source: str, names: set[str], search_path: Path | None
+    ) -> dict[str, list[Inferred]]:
+        del source, names
+        self.search_paths.append(search_path)
+        return {"x": [Inferred("builtins.int", "instance", "int")]}
+
+    def resolve(
+        self, source: str, expressions: list[str], search_path: Path | None
+    ) -> list[Inferred | None]:
+        del source, search_path
+        return [None] * len(expressions)
+
+
+def _save_request(fm: AppFileManager, nb: Path):  # type: ignore[no-untyped-def]
+    from marimo._server.models.models import SaveNotebookRequest
+
+    cell_manager = fm.app.cell_manager
+    return SaveNotebookRequest(
+        cell_ids=list(cell_manager.cell_ids()),
+        codes=list(cell_manager.codes()),
+        names=list(cell_manager.names()),
+        configs=list(cell_manager.configs()),
+        filename=str(nb),
+    )
+
+
+def test_infer_types_defaults_off_without_config(tmp_path: Path) -> None:
+    fm = load_notebook(_write_notebook(tmp_path / "nb.py"))
+    assert fm.config_reader is None
+    assert fm.infer_types == "off"
+
+
+def test_infer_types_follows_live_config(tmp_path: Path) -> None:
+    fm = load_notebook(_write_notebook(tmp_path / "nb.py"))
+    reader = _ConfigReader(infer_types="off")
+    fm.config_reader = reader  # type: ignore[assignment]
+    assert fm.infer_types == "off"
+    # Changed in the settings UI after the session started.
+    reader.infer_types = "jedi"
+    assert fm.infer_types == "jedi"
+
+
+def test_save_writes_inferred_types_to_disk_when_enabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    nb = tmp_path / "nb.py"
+    nb.write_text(_NOTEBOOK_WITH_PARAMETER)
+    fm = load_notebook(nb)
+    fm.config_reader = _ConfigReader(infer_types="jedi")  # type: ignore[assignment]
+    backend = _FakeBackend()
+    monkeypatch.setattr(
+        "marimo._ast.type_inference.JediBackend", lambda: backend
+    )
+
+    fm.save(_save_request(fm, nb))
+
+    assert "def _(x: int):" in nb.read_text()
+    # The notebook's directory is where sibling modules are resolved.
+    assert backend.search_paths == [tmp_path]
+
+
+def test_to_code_skips_type_inference_when_disabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    nb = tmp_path / "nb.py"
+    nb.write_text(_NOTEBOOK_WITH_PARAMETER)
+    fm = load_notebook(nb)
+    fm.config_reader = _ConfigReader(infer_types="off")  # type: ignore[assignment]
+
+    def explode() -> None:
+        raise AssertionError("the type inference backend must not run")
+
+    monkeypatch.setattr("marimo._ast.type_inference.JediBackend", explode)
+    assert "def _(x):" in fm.to_code()
 
 
 def test_on_persisted_reports_the_cells_and_config_written(

@@ -23,6 +23,7 @@ from marimo._utils.generated_with import (
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
 
+    from marimo._ast.type_inference import TypeInferenceMode
     from marimo._config.config import LintConfig
     from marimo._lint.rules.base import LintRule
 
@@ -73,6 +74,7 @@ class Linter:
         ignore_scripts: bool = False,
         formatter: str = "full",
         lint_config: LintConfig | None = None,
+        infer_types: TypeInferenceMode = "off",
     ):
         if rules is not None:
             self.rule_engine = RuleEngine(rules, early_stopping)
@@ -85,6 +87,9 @@ class Linter:
         self.unsafe_fixes = unsafe_fixes
         self.ignore_scripts = ignore_scripts
         self.formatter = formatter
+        # Regenerated files must match what the editor saves, so the same
+        # type-inference setting applies here.
+        self.infer_types = infer_types
         self.files: list[FileStatus] = []
         self._lint_config = lint_config
         self._early_stopping = early_stopping
@@ -281,7 +286,10 @@ class Linter:
 
     @staticmethod
     def _generate_file_contents_from_notebook(
-        notebook: NotebookSerialization, filename: str
+        notebook: NotebookSerialization,
+        filename: str,
+        *,
+        infer_types: TypeInferenceMode = "off",
     ) -> str:
         """Generate file contents from notebook serialization."""
         converter = MarimoConvert.from_ir(notebook)
@@ -290,10 +298,12 @@ class Linter:
             if filename.endswith((".md", ".qmd")):
                 return converter.to_markdown()
             else:
-                return converter.to_py()
+                return converter.to_py(infer_types=infer_types)
 
     @staticmethod
-    def _generate_file_contents(file_status: FileStatus) -> str:
+    def _generate_file_contents(
+        file_status: FileStatus, *, infer_types: TypeInferenceMode = "off"
+    ) -> str:
         """Generate file contents from notebook serialization."""
         if file_status.notebook is None:
             raise ValueError(
@@ -301,7 +311,7 @@ class Linter:
             )
 
         return Linter._generate_file_contents_from_notebook(
-            file_status.notebook, file_status.file
+            file_status.notebook, file_status.file, infer_types=infer_types
         )
 
     def run_streaming(
@@ -377,7 +387,7 @@ class Linter:
 
         # Generate file contents from (possibly modified) notebook
         generated_contents = Linter._generate_file_contents_from_notebook(
-            modified_notebook, file_status.file
+            modified_notebook, file_status.file, infer_types=self.infer_types
         )
 
         # Only write if content changed (excluding __generated_with differences)
