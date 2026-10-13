@@ -23,7 +23,7 @@ from marimo._server.host.index import WorkspaceIndex
 from marimo._server.main import create_starlette_app
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace, SingleFileWorkspace
-from tests._core.conftest import ScriptedBackend
+from tests._core.conftest import ScriptedBackend, runtime_id_of
 from tests._server.host.drive import (
     PORT,
     finished,
@@ -82,7 +82,11 @@ class Harness:
             body=b"{}",
         )
         assert response.status == 202, response.body
-        self.host.notebook(self.notebook_id).observe(be.Running("0.25.0"))
+        self.host.notebook(self.notebook_id).observe(
+            be.Running(
+                runtime_id_of(self.host.notebook(self.notebook_id)), "0.25.0"
+            )
+        )
         return self.notebook_id
 
 
@@ -307,21 +311,29 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
     assert restart.status == 409
     assert restart.json()["type"].endswith("/conflict")
 
-    harness.host.notebook(nid).observe(be.Running("0.25.0"))
+    harness.host.notebook(nid).observe(
+        be.Running(runtime_id_of(harness.host.notebook(nid)), "0.25.0")
+    )
     restart = await finished(app, "POST", path + "/restart", headers=key("k4"))
     assert restart.status == 202
     assert restart.json()["status"] == "starting"
     assert restart.json()["id"] != started.json()["id"]
 
-    harness.host.notebook(nid).observe(be.Exited())
-    harness.host.notebook(nid).observe(be.Running("0.25.0"))
+    harness.host.notebook(nid).observe(
+        be.Exited(runtime_id_of(harness.host.notebook(nid)))
+    )
+    harness.host.notebook(nid).observe(
+        be.Running(runtime_id_of(harness.host.notebook(nid)), "0.25.0")
+    )
     stopped = await finished(app, "DELETE", path, headers=key("k5"))
     assert stopped.status == 202
     assert stopped.json()["status"] == "terminating"
     assert stopped.json()["id"] != started.json()["id"]
     assert stopped.json()["id"] == restart.json()["id"]
 
-    harness.host.notebook(nid).observe(be.Exited())
+    harness.host.notebook(nid).observe(
+        be.Exited(runtime_id_of(harness.host.notebook(nid)))
+    )
     gone = await finished(app, "DELETE", path, headers=key("k6"))
     assert gone.status == 409
     assert gone.json()["type"].endswith("/no-runtime")
@@ -339,8 +351,8 @@ async def test_slow_restart_keeps_its_receipt(harness: Harness) -> None:
     # The receipt's 30-second window must not begin during shutdown/startup.
     harness.now = 100
     harness.app.state.host_context.expire()
-    notebook.observe(be.Exited())
-    notebook.observe(be.Running("0.25.0"))
+    notebook.observe(be.Exited(runtime_id_of(notebook)))
+    notebook.observe(be.Running(runtime_id_of(notebook), "0.25.0"))
     calls = list(harness.backend().calls)
 
     retried = await finished(harness.app, "POST", path, headers=key("restart"))
@@ -360,7 +372,7 @@ async def test_slow_restart_keeps_its_receipt(harness: Harness) -> None:
     fresh = await finished(harness.app, "POST", path, headers=key("restart"))
     assert fresh.status == 202
     assert fresh.json()["id"] != accepted.json()["id"]
-    assert harness.backend().calls == [*calls, ("stop",)]
+    assert harness.backend().calls == [*calls, ("stop", accepted.json()["id"])]
 
 
 @pytest.mark.parametrize(
@@ -403,11 +415,12 @@ async def test_lifecycle_receipts_expire_after_terminal_events(
             calls,
         )
         if operation == "restart" and now == 100:
-            notebook.observe(be.Exited())
+            notebook.observe(be.Exited(runtime_id_of(notebook)))
+    rid = runtime_id_of(notebook)
     notebook.observe(
-        be.Exited("failed" if failed else None)
+        be.Exited(rid, "failed" if failed else None)
         if failed or operation == "stop"
-        else be.Running()
+        else be.Running(rid)
     )
     assert harness.host._stream._listeners == listeners
     calls = list(harness.backend().calls)
@@ -446,14 +459,14 @@ async def test_stop_settles_superseded_lifecycle_receipts(
         harness.app, method, pending_path, headers=key("pending")
     )
     if operation == "replacement":
-        notebook.observe(be.Exited())
+        notebook.observe(be.Exited(runtime_id_of(notebook)))
     harness.now = 100
     stops = [
         await finished(harness.app, "DELETE", path, headers=key(request_id))
         for request_id in ("stop-1", "stop-2")
     ]
     harness.now = 200
-    notebook.observe(be.Exited())
+    notebook.observe(be.Exited(runtime_id_of(notebook)))
     assert harness.host._stream._listeners == listeners
     calls = list(harness.backend().calls)
     harness.now = 229
@@ -489,17 +502,17 @@ async def test_synchronous_lifecycle_completion(
         await harness.running()
     notebook = harness.host.notebook(nid)
     if operation == "failed-stop":
-        notebook.observe(be.Exited("failed"))
+        notebook.observe(be.Exited(runtime_id_of(notebook), "failed"))
     backend = harness.backend()
     start, stop = backend.start, backend.stop
 
-    def start_immediately(runtime_id: str) -> None:
-        start(runtime_id)
-        notebook.observe(be.Running())
+    def start_immediately(rid: str) -> None:
+        start(rid)
+        notebook.observe(be.Running(protocol.RuntimeId(rid)))
 
-    def stop_immediately() -> None:
-        stop()
-        notebook.observe(be.Exited())
+    def stop_immediately(rid: str) -> None:
+        stop(rid)
+        notebook.observe(be.Exited(protocol.RuntimeId(rid)))
 
     monkeypatch.setattr(backend, "start", start_immediately)
     monkeypatch.setattr(backend, "stop", stop_immediately)

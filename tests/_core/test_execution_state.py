@@ -11,7 +11,13 @@ from marimo._core.execution_state import RetentionPolicy
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.stream import Event
-from tests._core.conftest import ScriptedBackend, names, project, record
+from tests._core.conftest import (
+    ScriptedBackend,
+    names,
+    project,
+    record,
+    runtime_id_of,
+)
 
 
 class Clock:
@@ -31,7 +37,7 @@ def host_at(clock: Clock, history: int = 1000) -> tuple[Host, Notebook]:
     host.update_project(project())
     notebook = host.add_notebook(record(), ScriptedBackend())
     notebook.adopt()
-    notebook.observe(be.Running())
+    notebook.observe(be.Running(runtime_id_of(notebook)))
     return host, notebook
 
 
@@ -217,7 +223,7 @@ def test_stopping_starts_expiry_for_active_work_without_extending_old_results() 
     active = notebook.run("sleep", request_id="active")
     plan(notebook, active, "active")
     notebook.stop()
-    notebook.observe(be.Exited())
+    notebook.observe(be.Exited(runtime_id_of(notebook)))
     clock.now = 10
     host.expire()
     state = fold(host.events(notebook_id=notebook.id))

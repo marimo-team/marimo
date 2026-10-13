@@ -18,6 +18,7 @@ from tests._core.conftest import (
     names,
     project,
     record,
+    runtime_id_of,
 )
 
 if TYPE_CHECKING:
@@ -30,7 +31,7 @@ def test_catalog_snapshot_and_replay_exclude_runs(host: Host) -> None:
     host.update_project(project())
     notebook = host.add_notebook(record(), ScriptedBackend())
     notebook.start()
-    notebook.observe(be.Running())
+    notebook.observe(be.Running(runtime_id_of(notebook)))
     run = notebook.run("1", request_id="r1")
     cursor = host.events()[-1].id
     assert cursor is not None
@@ -63,7 +64,7 @@ def test_a_notebook_stream_sees_only_its_notebook(host: Host) -> None:
     first = host.add_notebook(record("n1", "a.py"), ScriptedBackend())
     second = host.add_notebook(record("n2", "b.py"), ScriptedBackend())
     first.start()
-    first.observe(be.Running())
+    first.observe(be.Running(runtime_id_of(first)))
     run = first.run("1", request_id="r1")
     first.observe(
         be.Planned(
@@ -137,7 +138,7 @@ def test_subscribe_filters_the_live_stream(host: Host) -> None:
     unsubscribe = host.subscribe(runtimes.append, types={"runtime"})
 
     notebook.start()
-    notebook.observe(be.Running())
+    notebook.observe(be.Running(runtime_id_of(notebook)))
     run = notebook.run("1", request_id="r1")
     unsubscribe()
     host.update_project(project("p2"))
@@ -151,7 +152,7 @@ def test_removing_a_notebook_removes_what_it_owns_first(host: Host) -> None:
     host.update_project(project())
     notebook = host.add_notebook(record(), ScriptedBackend())
     notebook.start()
-    notebook.observe(be.Running())
+    notebook.observe(be.Running(runtime_id_of(notebook)))
     notebook.attach()
     run = notebook.run("1", request_id="r1")
     log: list[Event] = []
@@ -178,7 +179,7 @@ def test_updating_a_notebook_publishes_only_changes(host: Host) -> None:
     backend = ScriptedBackend()
     notebook = host.add_notebook(record(), backend)
     notebook.start()
-    notebook.observe(be.Running())
+    notebook.observe(be.Running(runtime_id_of(notebook)))
     run = notebook.run("1", request_id="run")
     runtime = notebook.runtime
     backend.calls.clear()
@@ -220,8 +221,8 @@ def test_removed_notebook_handles_cannot_be_reused(
     backend: ScriptedBackend,
     log: list[Event],
 ) -> None:
-    notebook.start()
-    notebook.observe(be.Running())
+    runtime, _ = notebook.start()
+    notebook.observe(be.Running(runtime.id))
     run = notebook.run("1", request_id="r1")
     attachment = notebook.attach()
     retained_id = notebook.id
@@ -243,9 +244,9 @@ def test_removed_notebook_handles_cannot_be_reused(
             command()
 
     # Late backend updates and disconnect cleanup cannot revive the notebook.
-    notebook.observe(be.Starting("Late startup"))
-    notebook.observe(be.Running())
-    notebook.observe(be.Exited())
+    notebook.observe(be.Starting(runtime.id, "Late startup"))
+    notebook.observe(be.Running(runtime.id))
+    notebook.observe(be.Exited(runtime.id))
     notebook.detach(attachment.id)
     host.remove_notebook(retained_id)
 

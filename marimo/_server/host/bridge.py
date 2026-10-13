@@ -215,11 +215,11 @@ class SessionBridge(SessionEventListener):
         if backend.session is not None:
             return
         try:
-            self.host.notebook(notebook.id).adopt()
+            runtime = self.host.notebook(notebook.id).adopt()
         except Conflict:
             LOGGER.debug("Not publishing a second session for %s", path)
             return
-        backend.adopt(session)
+        backend.adopt(runtime.id, session)
 
     # Session events
 
