@@ -1121,3 +1121,83 @@ async def test_host_edits_run_before_they_are_saved(
         == "42\n"
     )
     assert "example = 7" in (tmp_path / "notebook.py").read_text()
+
+
+DEPENDENT = (
+    "import marimo\napp = marimo.App()\n"
+    "@app.cell\ndef _():\n    x = 1\n    return (x,)\n"
+    "@app.cell\ndef _(x):\n    print(x + 1)\n    return\n"
+)
+
+
+@pytest.mark.parametrize("notebook_source", [DEPENDENT], indirect=True)
+@pytest.mark.parametrize("edit", ["code", "delete", "disable"])
+async def test_a_run_evaluates_the_document_as_edited(
+    live_host: tuple[Starlette, str, Response], edit: str
+) -> None:
+    app, notebook_id, events = live_host
+    cells = {
+        r["data"]["cell"]["id"]: r["data"]["cell"]
+        for r in events.records
+        if r.get("event") == "cell"
+    }
+    root = next(cell for cell in cells.values() if "x = 1" in cell["code"])
+    dependent = next(cell for cell in cells.values() if cell is not root)
+
+    async def run(key_name: str, cell: dict[str, Any]) -> str:
+        """Run the cell and return the console output of its run."""
+        before = len(events.records)
+        accepted = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/runtime/runs",
+            headers=key(key_name),
+            body=json.dumps({"cells": [{"id": cell["id"]}]}).encode(),
+        )
+        assert accepted.status == 202, accepted.body
+        run_id = accepted.json()["id"]
+        await wait_for(
+            events,
+            lambda response: any(
+                r.get("data", {}).get("run", {}).get("id") == run_id
+                and r["data"]["run"]["status"] == "completed"
+                for r in response.records
+            ),
+        )
+        return "".join(
+            r["data"]["console"]["text"]
+            for r in events.records[before:]
+            if r.get("event") == "console"
+        )
+
+    assert await run("first", dependent) == "2\n"
+
+    # The dependent is edited, deleted, or disabled without being run.
+    if edit == "delete":
+        change: dict[str, Any] = {
+            "kind": "delete_cell",
+            "id": dependent["id"],
+            "base_etag": dependent["etag"],
+        }
+    else:
+        cell = {
+            "id": dependent["id"],
+            "code": "print(x + 100)" if edit == "code" else dependent["code"],
+            "config": {**dependent["config"], "disabled": edit == "disable"},
+        }
+        change = {
+            "kind": "put_cell",
+            "base_etag": dependent["etag"],
+            "cell": cell,
+        }
+    edited = await finished(
+        app,
+        "POST",
+        f"/notebooks/{notebook_id}/edits",
+        headers=key("edit"),
+        body=json.dumps({"changes": [change]}).encode(),
+    )
+    assert edited.status == 200, edited.body
+
+    # Running the root evaluates the dependent as the document has it now.
+    assert await run("second", root) == ("101\n" if edit == "code" else "")

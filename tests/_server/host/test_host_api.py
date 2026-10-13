@@ -1743,7 +1743,7 @@ async def test_edits_during_a_save_remain_unsaved(
 
 async def test_cell_runs_over_http(harness: Harness) -> None:
     stream, disconnect = await opened(harness)
-    first = next(
+    first, second = (
         r["data"]["cell"] for r in stream.records if r.get("event") == "cell"
     )
     disconnect()
@@ -1764,7 +1764,12 @@ async def test_cell_runs_over_http(harness: Harness) -> None:
     )
     assert accepted.status == 202, accepted.body
     run_id = accepted.json()["id"]
-    assert harness.backend().calls[-1] == ("run_cells", run_id, [first["id"]])
+    # The second cell reads the first's definition, so it runs along.
+    assert harness.backend().calls[-1] == (
+        "run_cells",
+        run_id,
+        [first["id"], second["id"]],
+    )
     (await harness.host.notebook(harness.notebook_id)).observe(
         be.Done(protocol.RunId(run_id), "succeeded")
     )

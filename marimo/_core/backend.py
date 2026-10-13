@@ -52,9 +52,12 @@ class Backend(Protocol):
     def run_cells(
         self, run_id: protocol.RunId, cells: Sequence[protocol.Cell]
     ) -> None:
-        """Run cells of the document, and the cells that depend on them.
+        """Run cells of the document with the code given, and their dependents.
 
-        Report each cell's execution with its `cell_id` and no code.
+        Under autorun the cells already include the requested ones'
+        dependents, so a kernel that registers code as it runs evaluates
+        the document's current code for them. Report each cell's
+        execution with its `cell_id` and no code.
         """
 
     def interrupt(self, run_id: protocol.RunId) -> None:

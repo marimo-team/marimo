@@ -17,7 +17,7 @@ from marimo._core import protocol
 from marimo._core.errors import EditConflict, Invalid
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Iterable, Iterator, Sequence
 
 Analyzer = Callable[[Mapping[str, str]], Mapping[str, protocol.Analysis]]
 """Derives every cell's analysis from the cells' code, keyed by id in document order."""
@@ -75,6 +75,33 @@ def document_etag(
     cell_etags: Sequence[protocol.Etag],
 ) -> protocol.Etag:
     return etag("\n".join([order_etag, app_config_etag, *cell_etags]))
+
+
+def dependents(
+    cells: Sequence[protocol.Cell], roots: Iterable[protocol.CellId]
+) -> set[protocol.CellId]:
+    """Ids of cells reading a name a root defines, directly or through others.
+
+    Edges come from the cells' analyses; a cell without one has none.
+    """
+    by_id = {cell.id: cell for cell in cells}
+    readers: dict[str, list[protocol.CellId]] = {}
+    for cell in cells:
+        if cell.analysis is not None:
+            for name in cell.analysis.refs:
+                readers.setdefault(name, []).append(cell.id)
+    found: set[protocol.CellId] = set()
+    pending = list(roots)
+    while pending:
+        root = by_id.get(pending.pop())
+        if root is None or root.analysis is None:
+            continue
+        for name in root.analysis.defs:
+            for reader in readers.get(name, ()):
+                if reader not in found:
+                    found.add(reader)
+                    pending.append(reader)
+    return found
 
 
 def default_config() -> protocol.CellConfig:

@@ -21,7 +21,7 @@ from marimo._core.errors import (
     NoRuntime,
     NotFound,
 )
-from marimo._core.executions import CellExecution
+from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.protocol import (
@@ -53,7 +53,7 @@ from marimo._core.protocol import (
     RuntimeMessage,
     ValueOutcome,
 )
-from marimo._core.stream import Event
+from marimo._core.stream import Event, Stream
 from tests._core.conftest import (
     Clock,
     ScriptedBackend,
@@ -1389,3 +1389,29 @@ def test_a_cells_run_names_the_cells_in_document_order(
         ("run_cells", run.id, ["a", "b"]),
         ("forget", run.id),
     ]
+
+
+@pytest.mark.parametrize("policy", ["autorun", "lazy"])
+def test_a_cells_run_carries_dependents_under_autorun(
+    backend: ScriptedBackend, policy: str
+) -> None:
+    analyses = {
+        "a": Analysis(defs=("x",), refs=(), errors=()),
+        "b": Analysis(defs=("y",), refs=("x",), errors=()),
+        "c": Analysis(defs=(), refs=("y",), errors=()),
+        "d": Analysis(defs=("z",), refs=(), errors=()),
+    }
+    document = Document(
+        NotebookId("n1"),
+        [CellSource(CellId(cell_id), "") for cell_id in "dcba"],
+        {},
+        policy=policy,  # type: ignore[arg-type]
+        analyzer=lambda _: analyses,
+    )
+    notebook = Notebook(document, Executions(), backend, Stream(history=0))
+    running(notebook, backend)
+
+    run = notebook.run(cells=[RequestedCell(id=CellId("a"))], request_id="r1")
+
+    expected = ["c", "b", "a"] if policy == "autorun" else ["a"]
+    assert backend.calls[-1] == ("run_cells", run.id, expected)
