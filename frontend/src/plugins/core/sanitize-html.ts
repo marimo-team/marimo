@@ -4,7 +4,7 @@ import DOMPurify, { type Config } from "dompurify";
 // Keep DOMPurify's default safe URI schemes and explicitly allow supported
 // custom schemes without allowing arbitrary unknown protocols.
 const ALLOWED_URI_REGEXP =
-  /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|zotero):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
+  /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|zotero):|[^a-z]|[-a-z+.]+(?:[^-a-z+.:]|$))/i;
 
 // preserve target=_blank https://github.com/cure53/DOMPurify/issues/317#issuecomment-912474068
 // Guard for non-browser environments (e.g. Node.js in the marimo-lsp extension)
