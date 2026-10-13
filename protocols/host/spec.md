@@ -193,6 +193,28 @@ This version carries event streams over server-sent events (SSE). Other
 transports, such as WebSocket, could carry the same events while preserving
 their ordering, snapshot, and replay guarantees.
 
+### Custom events
+
+A **custom event** describes an occurrence in a notebook without creating or
+updating an object. Hosts MAY send custom events on the notebook stream using
+the `custom` event kind. The protocol defines their envelope; the producer
+defines the meaning and JSON payload of each namespaced `type`, such as
+`marimo.pair.agent-message`. Producers MUST use a namespace they control.
+Clients MUST ignore custom types they do not recognize while retaining the
+stream cursor. Consumers of a type are responsible for validating its payload.
+
+Custom events MUST carry the notebook id and a timestamp, and MAY carry the
+request key that caused them. They participate in the stream's ordering and
+cursor-based replay, with their original ids and timestamps. They MUST NOT
+appear in snapshots, and there is no `custom.removed` event. Once their replay
+history expires, a reset cannot recover them. Features that need recoverable
+state MUST represent that state separately rather than relying on custom
+events alone.
+
+`types=custom` selects custom events, regardless of their namespaced type.
+Custom events do not belong to a run and are excluded when `run_id` is set.
+They do not appear on the catalog stream.
+
 ## Editing and running notebooks
 
 ### Capabilities

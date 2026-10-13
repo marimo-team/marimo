@@ -251,9 +251,10 @@ ObjectType: TypeAlias = Annotated[
         "execution",
         "console",
         "display",
+        "custom",
     ],
     Meta(
-        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document, cell,\nruntime, attachment, run, execution, console, and display.\n"
+        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document, cell,\nruntime, attachment, run, execution, console, display, and custom.\nCustom events describe occurrences rather than object state.\n"
     ),
 ]
 
@@ -665,6 +666,42 @@ class CreateNotebookRequest(Struct, frozen=True):
             str,
             Meta(
                 description="Where to put the file, relative to the project root and written the way the host's operating system writes paths."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class Custom(Struct, frozen=True):
+    data: Annotated[
+        Any,
+        Meta(
+            description="Any JSON value, including null. The producer defines its schema and consumers of the type validate it."
+        ),
+    ]
+    notebook_id: NotebookId
+    type: Annotated[
+        str,
+        Meta(
+            description="A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.",
+            min_length=1,
+        ),
+    ]
+
+
+class CustomMessage(Struct, frozen=True):
+    custom: Custom
+    time: Annotated[
+        datetime,
+        Meta(
+            description="When the host emitted this event. Preserved on replay."
+        ),
+    ]
+    request_id: (
+        Annotated[
+            str,
+            Meta(
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
