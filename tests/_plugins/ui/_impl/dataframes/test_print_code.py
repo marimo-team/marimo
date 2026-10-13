@@ -1035,7 +1035,93 @@ def test_print_code_result_matches_actual_transform_polars(
                 code_result = code_result.sort(sortable_cols)
                 real_result = real_result.sort(sortable_cols)
 
+        if transform.type == TransformType.SORT_COLUMN:
+            # Tie order is unspecified; compare key order before canonicalizing
+            # complete rows by the fixture's unique strings column.
+            pl_testing.assert_series_equal(
+                code_result[transform.column_id],
+                real_result[transform.column_id],
+            )
+            code_result = code_result.sort("strings")
+            real_result = real_result.sort("strings")
+
         pl_testing.assert_frame_equal(code_result, real_result)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
+@pytest.mark.parametrize("ascending", [False, True])
+@pytest.mark.parametrize("na_position", ["first", "last"])
+@pytest.mark.parametrize(
+    "values",
+    [
+        [2, None, 1, 2, None, 1],
+        [
+            datetime.date(2021, 1, 2),
+            None,
+            datetime.date(2021, 1, 1),
+            datetime.date(2021, 1, 2),
+            None,
+            datetime.date(2021, 1, 1),
+        ],
+    ],
+)
+def test_polars_sort_code_matches_runtime_with_ties(
+    ascending: bool,
+    na_position: Literal["first", "last"],
+    values: list[int | datetime.date | None],
+) -> None:
+    import polars as pl
+    import polars.testing as pl_testing
+
+    original = pl.DataFrame(
+        {
+            "key": values,
+            "row_id": list("abcdef"),
+            "lists": [[1], [2], [3], [4], [5], [6]],
+            "dicts": [{"value": value} for value in range(6)],
+        }
+    )
+    transform = SortColumnTransform(
+        type=TransformType.SORT_COLUMN,
+        column_id="key",
+        ascending=ascending,
+        na_position=na_position,
+    )
+    code = python_print_transforms(
+        "df", original.columns, [transform], python_print_polars
+    )
+    loc = {"df": original.clone()}
+    exec(code, globals(), loc)
+    code_result = cast(pl.DataFrame, loc["df_next"])
+    runtime_result = (
+        NarwhalsTransformHandler.handle_sort_column(
+            nw.from_native(original).lazy(), transform
+        )
+        .collect()
+        .to_native()
+    )
+
+    ordered_values = sorted(
+        (value for value in values if value is not None),
+        reverse=not ascending,
+    )
+    expected_values = (
+        [None, None, *ordered_values]
+        if na_position == "first"
+        else [*ordered_values, None, None]
+    )
+    expected_keys = pl.Series(
+        "key", expected_values, dtype=original.schema["key"]
+    )
+    for result in (code_result, runtime_result):
+        pl_testing.assert_series_equal(result["key"], expected_keys)
+        # Canonicalize using a unique scalar key: sorting all columns cannot
+        # compare nested values on every supported Polars version.
+        pl_testing.assert_frame_equal(
+            result.sort("row_id"), original.sort("row_id")
+        )
 
 
 @pytest.mark.skipif(
