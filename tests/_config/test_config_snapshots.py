@@ -154,7 +154,7 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                     "enable_pyflakes": False,
                 }
             },
-            "formatting": {"line_length": 79},
+            "formatting": {"line_length": 79, "infer_types": "off"},
             "completion": {
                 "activate_on_typing": True,
                 "signature_hint_on_typing": False,
@@ -314,7 +314,7 @@ def test_layered_configuration_snapshot(
                     "vimrc": "<root>/home/project/editor.vim",
                     "preset": "default",
                 },
-                "formatting": {"line_length": 130},
+                "formatting": {"infer_types": "off", "line_length": 130},
             },
             "resolved_unmasked": {
                 "language_servers": {
@@ -392,7 +392,7 @@ def test_layered_configuration_snapshot(
                     "vimrc": "<root>/home/project/editor.vim",
                     "preset": "default",
                 },
-                "formatting": {"line_length": 130},
+                "formatting": {"infer_types": "off", "line_length": 130},
             },
             "user_masked": {
                 "package_management": {"manager": "pip"},
@@ -426,7 +426,7 @@ def test_layered_configuration_snapshot(
                     }
                 },
                 "signing": {"private_key_path": "********"},
-                "formatting": {"line_length": 70},
+                "formatting": {"infer_types": "off", "line_length": 70},
                 "completion": {
                     "activate_on_typing": True,
                     "signature_hint_on_typing": False,
@@ -657,6 +657,7 @@ reference_highlighting = true
 theme = "dark"
 
 [formatting]
+infer_types = "off"
 line_length = 79
 
 [keymap]

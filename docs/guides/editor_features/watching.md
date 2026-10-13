@@ -92,7 +92,9 @@ For more details see the [guide on reusable functions and classes](../reusing_fu
 Add type hints to your variables, and marimo will carry over these type hints
 to cells where these variables are used. This, combined with importing modules
 in the setup cell (see below for an example), makes it possible for your editor
-to give completions on the references of your cell.
+to give completions on the references of your cell. To have marimo infer
+these hints for you, see [How does marimo treat type
+annotations?](../../faq.md#faq-annotations).
 
 
 For example:

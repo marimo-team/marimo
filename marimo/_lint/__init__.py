@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from marimo import _loggers
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.linter import FileStatus, Linter
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
@@ -12,7 +13,10 @@ from marimo._utils.files import async_expand_file_patterns
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from marimo._ast.type_inference import TypeInferenceMode
     from marimo._config.config import LintConfig
+
+LOGGER = _loggers.marimo_logger()
 
 
 # Define severity ordering (lower index = higher priority)
@@ -56,6 +60,23 @@ def resolve_lint_config(
     return lint_config if lint_config else None
 
 
+def resolve_infer_types() -> TypeInferenceMode:
+    """Read `formatting.infer_types` from the user's configuration.
+
+    `marimo check --fix` regenerates notebook files. It must use the same
+    setting as the editor, or each rewrites the other's signatures.
+    """
+    import os
+
+    from marimo._config.manager import get_default_config_manager
+
+    config_mgr = get_default_config_manager(current_path=os.getcwd())
+    formatting = config_mgr.get_config(hide_secrets=False).get(
+        "formatting", {}
+    )
+    return formatting.get("infer_types", "off")
+
+
 def run_check(
     file_patterns: tuple[str, ...],
     pipe: Callable[[str], None] | None = None,
@@ -64,6 +85,7 @@ def run_check(
     ignore_scripts: bool = False,
     formatter: str = "full",
     lint_config: LintConfig | None = None,
+    infer_types: TypeInferenceMode = "off",
 ) -> Linter:
     """Run linting checks on files matching patterns (CLI entry point).
 
@@ -78,6 +100,9 @@ def run_check(
         ignore_scripts: Whether to ignore files not recognizable as marimo notebooks
         formatter: Output format for diagnostics ("full" or "json")
         lint_config: Optional lint rule selection config
+        infer_types: Backend that adds inferred type annotations to
+            regenerated files, matching the editor's
+            `formatting.infer_types`
 
     Returns:
         Linter with per-file status and diagnostics
@@ -92,6 +117,7 @@ def run_check(
         ignore_scripts=ignore_scripts,
         formatter=formatter,
         lint_config=lint_config,
+        infer_types=infer_types,
     )
     linter.run_streaming(files_to_check)
     return linter

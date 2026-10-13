@@ -79,6 +79,7 @@ test("default UserConfig - empty", () => {
       "experimental": {},
       "file_browser": {},
       "formatting": {
+        "infer_types": "off",
         "line_length": 79,
       },
       "keymap": {
@@ -155,6 +156,7 @@ test("default UserConfig - one level", () => {
       "experimental": {},
       "file_browser": {},
       "formatting": {
+        "infer_types": "off",
         "line_length": 79,
       },
       "keymap": {
@@ -273,7 +275,7 @@ test("resolvedMarimoConfigAtom overrides correctly and does not mutate the origi
       autosave_delay: 1000,
       format_on_save: false,
     },
-    formatting: { line_length: 79 },
+    formatting: { line_length: 79, infer_types: "off" },
   };
 
   const overrides = {
@@ -299,7 +301,7 @@ test("resolvedMarimoConfigAtom overrides correctly and does not mutate the origi
       autosave_delay: 1000,
       format_on_save: false,
     },
-    formatting: { line_length: 79 },
+    formatting: { line_length: 79, infer_types: "off" },
     display: { theme: "dark" },
   });
 
@@ -314,7 +316,7 @@ test("resolvedMarimoConfigAtom overrides correctly and does not mutate the origi
       autosave_delay: 1000,
       format_on_save: false,
     },
-    formatting: { line_length: 79 },
+    formatting: { line_length: 79, infer_types: "off" },
   });
 });
 

@@ -43,6 +43,8 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
+    from marimo._ast.type_inference import TypeInferenceMode
+    from marimo._config.manager import MarimoConfigReader
     from marimo._messaging.notebook.document import NotebookCell
     from marimo._server.models.models import (
         CopyNotebookRequest,
@@ -80,6 +82,9 @@ class AppFileManager:
         # Configuration defaults
         self._defaults = defaults or AppDefaults()
 
+        # User configuration for save-time options. Defaults apply when None.
+        self.config_reader: MarimoConfigReader | None = None
+
         # Load the app
         self.app = self._load_app(self.path)
 
@@ -92,6 +97,14 @@ class AppFileManager:
         self._save_lock = threading.RLock()
         # Foreground writes supersede queued autosaves.
         self._autosave_generation = 0
+
+    @property
+    def infer_types(self) -> TypeInferenceMode:
+        """Backend that types saved signatures, or `"off"`."""
+        if self.config_reader is None:
+            return "off"
+        formatting = self.config_reader.get_config().get("formatting", {})
+        return formatting.get("infer_types", "off")
 
     @property
     def filename(self) -> str | None:
@@ -258,7 +271,9 @@ class AppFileManager:
                 valid=notebook.valid,
                 filename=str(path),
             )
-            contents = handler.serialize(notebook)
+            contents = handler.serialize(
+                notebook, infer_types=self.infer_types
+            )
 
             if persist:
                 if self.content_matches_last_save(contents):
@@ -587,7 +602,9 @@ class AppFileManager:
         """
         from marimo._convert.converters import MarimoConvert
 
-        return MarimoConvert.from_ir(self.app.to_ir()).to_py()
+        return MarimoConvert.from_ir(self.app.to_ir()).to_py(
+            infer_types=self.infer_types
+        )
 
     def _is_unnamed(self) -> bool:
         """Check if notebook is unnamed.

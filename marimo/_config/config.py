@@ -236,9 +236,14 @@ class FormattingConfig(TypedDict):
     **Keys.**
 
     - `line_length`: max line length
+    - `infer_types`: `"off"` or `"jedi"`. With `"jedi"`, marimo infers
+      types for cell parameters when it writes a notebook file. Only types
+      that need no quoting are written. Those are builtins, setup cell
+      definitions and imports, and top-level functions and classes.
     """
 
     line_length: int
+    infer_types: Literal["off", "jedi"]
 
 
 @dataclass
@@ -797,7 +802,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "reference_highlighting": True,
         "code_lens": True,
     },
-    "formatting": {"line_length": 79},
+    "formatting": {"line_length": 79, "infer_types": "off"},
     "keymap": {"preset": "default", "overrides": {}},
     # dotenv's default value is set at runtime, since it resolves relative to
     # the pyproject.toml or the notebook's directory.
