@@ -401,7 +401,11 @@ class DefaultTableManager(TableManager[JsonTableData]):
             num_rows = self.get_num_rows()
             # Match normalization: absent values sort like explicit None.
             data_dict = {
-                col: list(values) + [None] * (num_rows - len(values))
+                col: (
+                    values
+                    if len(values) == num_rows
+                    else list(values) + [None] * (num_rows - len(values))
+                )
                 for col, values in cast(
                     dict[str, Sequence[Any]], self.data
                 ).items()
