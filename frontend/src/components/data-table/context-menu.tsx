@@ -5,8 +5,9 @@ import { useAtomValue } from "jotai";
 import { CopyIcon, FilterIcon, SquareStack } from "lucide-react";
 import type { RefObject } from "react";
 import useEvent from "react-use-event-hook";
+import type { DataType } from "@/core/kernel/messages";
 import { copyToClipboard } from "@/utils/copy";
-import { parseTimeToDate } from "@/utils/dates";
+import { parseLocalISODate, parseTimeToDate } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
 import {
   ContextMenu,
@@ -20,7 +21,9 @@ import { DATA_CELL_ID } from "./cell-utils";
 import { type FilterType, Filter } from "./filters";
 import { COMPARISON_OPS, TEXT_SCALAR_OPS } from "./filters/operators";
 import { selectedCellsAtom } from "./range-focus/atoms";
-import { getClipboardContent, getRawValue } from "./utils";
+import { detectSentinel, getClipboardContent, getRawValue } from "./utils";
+
+const NULLISH_SENTINEL_TYPES = new Set(["null", "nat", "nan"]);
 
 type Comparison = "eq" | "neq";
 
@@ -33,6 +36,79 @@ const textOp = {
   eq: TEXT_SCALAR_OPS[1],
   neq: TEXT_SCALAR_OPS[2],
 } as const;
+
+export function getContextMenuFilter({
+  type,
+  value,
+  comparison = "eq",
+  dataType,
+  dtype,
+}: {
+  type: FilterType | undefined;
+  value: unknown;
+  comparison?: Comparison;
+  dataType?: DataType;
+  dtype?: string;
+}) {
+  const sentinel = detectSentinel(value, dataType, dtype);
+  if (sentinel && NULLISH_SENTINEL_TYPES.has(sentinel.type)) {
+    return {
+      type,
+      operator: comparison === "eq" ? "is_null" : "is_not_null",
+    };
+  }
+
+  switch (type) {
+    case "number":
+      return Filter.number({
+        operator: symbolOp[comparison],
+        value: value as number,
+      });
+    case "text":
+      return Filter.text({
+        operator: textOp[comparison],
+        text: value as string,
+      });
+    case "date": {
+      const date = parseLocalISODate(value as string);
+      if (!date) {
+        return undefined;
+      }
+      return Filter.date({
+        operator: symbolOp[comparison],
+        value: date,
+      });
+    }
+    case "datetime": {
+      const date = new Date(value as string);
+      if (Number.isNaN(date.getTime())) {
+        return undefined;
+      }
+      return Filter.datetime({
+        operator: symbolOp[comparison],
+        value: date,
+      });
+    }
+    case "time": {
+      const time = parseTimeToDate(value as string);
+      if (!time) {
+        return undefined;
+      }
+      return Filter.time({
+        operator: symbolOp[comparison],
+        value: time,
+      });
+    }
+    case "boolean": {
+      const target = comparison === "eq" ? value : !(value as boolean);
+      return Filter.boolean({
+        operator: target ? "is_true" : "is_false",
+      });
+    }
+    default:
+      return undefined;
+  }
+}
 
 export const DataTableContextMenu = <TData,>({
   contextMenuRef,
@@ -112,56 +188,18 @@ export const CellContextMenu = <TData,>({
 
   const column = cell.column;
   const filterType = column.columnDef.meta?.filterType;
-  const canFilter = column.getCanFilter();
-
-  const getFilter = (
-    type: FilterType | undefined,
-    value: unknown,
-    comparison: Comparison = "eq",
-  ) => {
-    if (value === null) {
-      return {
-        type,
-        operator: comparison === "eq" ? "is_null" : "is_not_null",
-      };
-    }
-
-    switch (type) {
-      case "number":
-        return Filter.number({
-          operator: symbolOp[comparison],
-          value: value as number,
-        });
-      case "text":
-        return Filter.text({
-          operator: textOp[comparison],
-          text: value as string,
-        });
-      case "date":
-      case "datetime":
-        return Filter[type]({
-          operator: symbolOp[comparison],
-          value: new Date(value as string),
-        });
-      case "time": {
-        const time = parseTimeToDate(value as string);
-        return Filter.time({
-          operator: symbolOp[comparison],
-          value: time as Date,
-        });
-      }
-      case "boolean":
-        const target = comparison === "eq" ? value : !(value as boolean);
-        return Filter.boolean({
-          operator: target ? "is_true" : "is_false",
-        });
-      default:
-        return undefined;
-    }
-  };
+  const dataType = column.columnDef.meta?.dataType;
+  const dtype = column.columnDef.meta?.dtype;
+  const canFilter = filterType && column.getCanFilter();
 
   const handleFilterCell = (comparison: Comparison) => {
-    const filter = getFilter(filterType, rawValue, comparison);
+    const filter = getContextMenuFilter({
+      type: filterType,
+      value: rawValue,
+      comparison,
+      dataType,
+      dtype,
+    });
     column.setFilterValue(filter);
   };
 

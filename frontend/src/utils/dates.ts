@@ -184,13 +184,21 @@ export function parseTimeToDate(value: string): Date | undefined {
   const minute = Number.parseInt(mStr, 10);
   const second = sStr ? Number.parseInt(sStr, 10) : 0;
   const ms = msStr ? Number.parseInt(msStr.padEnd(3, "0").slice(0, 3), 10) : 0;
+  if (minute > 59 || second > 59) {
+    return undefined;
+  }
   if (ampm) {
+    if (hour < 1 || hour > 12) {
+      return undefined;
+    }
     const isPm = ampm.toLowerCase() === "pm";
     if (hour === 12) {
       hour = isPm ? 12 : 0;
     } else if (isPm) {
       hour += 12;
     }
+  } else if (hour > 23) {
+    return undefined;
   }
   return new Date(1970, 0, 1, hour, minute, second, ms);
 }
@@ -201,6 +209,35 @@ export function parseTimeToDate(value: string): Date | undefined {
  */
 export function dateToLocalISODateTime(d: Date): string {
   return `${dateToLocalISODate(d)}T${dateToLocalISOTime(d)}`;
+}
+
+/**
+ * Parse a `YYYY-MM-DD` string into a Date anchored at local midnight.
+ *
+ * Unlike `new Date("YYYY-MM-DD")`, which the spec parses as UTC midnight,
+ * this treats the string as a calendar date in the viewer's own timezone.
+ * Returns undefined if the string doesn't match, or encodes a calendar
+ * date that doesn't exist (e.g. month 13, Feb 30), since `Date` would
+ * otherwise silently roll those over into a different date.
+ */
+export function parseLocalISODate(value: string): Date | undefined {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) {
+    return undefined;
+  }
+  const [, yStr, mStr, dStr] = match;
+  const year = Number.parseInt(yStr, 10);
+  const month = Number.parseInt(mStr, 10);
+  const day = Number.parseInt(dStr, 10);
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return undefined;
+  }
+  return date;
 }
 
 export const supportedDateFormats = ["yyyy", "yyyy-MM", "yyyy-MM-dd"] as const;
