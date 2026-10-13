@@ -353,7 +353,7 @@ async def test_empty_browser_output_refreshes_only_a_reused_page(
     ):
         with pytest.raises(ScreenshotError, match="has no rendered output"):
             await session.capture(CellId_t("cell-a"))
-        assert wait.await_count == (2 if reused_page else 1)
+        assert wait.await_count == 1
         if reused_page:
             navigate.assert_awaited_once_with(initial=False)
         else:
@@ -368,12 +368,15 @@ async def test_reused_empty_browser_refreshes_before_rejecting_new_output() -> (
     session._page = AsyncMock()
     target = AsyncMock()
     target.screenshot.return_value = b"png"
+
+    async def wait(*_args: object, **_kwargs: object) -> str:
+        navigate.assert_awaited_once_with(initial=False)
+        return "ready"
+
     with (
         patch.object(session, "_ensure_ready", new_callable=AsyncMock),
         patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
-        patch.object(
-            session, "_wait_for_output", side_effect=["empty", "ready"]
-        ),
+        patch.object(session, "_wait_for_output", side_effect=wait),
         patch.object(session, "_resolve_output_locator", return_value=target),
     ):
         assert await session.capture(CellId_t("cell-a")) == b"png"
@@ -392,7 +395,7 @@ async def test_reused_ready_output_is_refreshed_before_capture(
         patch.object(session, "_ensure_ready", new_callable=AsyncMock),
         patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
         patch.object(
-            session, "_wait_for_output", side_effect=["ready", refreshed_state]
+            session, "_wait_for_output", return_value=refreshed_state
         ),
         patch.object(session, "_resolve_output_locator", return_value=target),
     ):
@@ -409,9 +412,12 @@ async def test_reused_ready_output_is_refreshed_before_capture(
 
 async def test_missing_container_and_empty_output_share_one_refresh() -> None:
     session = _ScreenshotSession("http://localhost:1234")
-    session._page = AsyncMock()
+
+    async def ready() -> None:
+        session._page = AsyncMock()
+
     with (
-        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_ensure_ready", side_effect=ready),
         patch.object(session, "_navigate", new_callable=AsyncMock) as navigate,
         patch.object(
             session, "_wait_for_output", side_effect=[TimeoutError, "empty"]
@@ -424,9 +430,12 @@ async def test_missing_container_and_empty_output_share_one_refresh() -> None:
 
 async def test_rendering_wait_and_screenshot_share_timeout_budget() -> None:
     session = _ScreenshotSession("http://localhost:1234")
-    session._page = AsyncMock()
+
+    async def ready() -> None:
+        session._page = AsyncMock()
+
     with (
-        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_ensure_ready", side_effect=ready),
         patch.object(session, "_wait_for_output", return_value="ready"),
         patch.object(
             session, "_resolve_output_locator", new_callable=AsyncMock
@@ -466,9 +475,12 @@ async def test_refresh_failure_is_actionable(kind: str) -> None:
 
 async def test_pending_probe_preserves_exhausted_budget_error() -> None:
     session = _ScreenshotSession("http://localhost:1234")
-    session._page = AsyncMock()
+
+    async def ready() -> None:
+        session._page = AsyncMock()
+
     with (
-        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_ensure_ready", side_effect=ready),
         patch.object(
             session, "_wait_for_output", return_value="pending"
         ) as wait,
@@ -509,9 +521,12 @@ async def test_known_cell_render_timeout_is_actionable_without_refresh() -> (
     None
 ):
     session = _ScreenshotSession("http://localhost:1234")
-    session._page = AsyncMock()
+
+    async def ready() -> None:
+        session._page = AsyncMock()
+
     with (
-        patch.object(session, "_ensure_ready", new_callable=AsyncMock),
+        patch.object(session, "_ensure_ready", side_effect=ready),
         patch.object(
             session, "_wait_for_output", side_effect=["pending", TimeoutError]
         ),
