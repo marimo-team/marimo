@@ -811,7 +811,7 @@ components:
       description: |
         A notebook occurrence with a producer-defined payload. It is replayed
         while event history is retained, but is never included in snapshots
-        and has no removal event. It does not belong to a run.
+        and does not belong to a run.
       required: [notebook_id, type, data]
       properties:
         notebook_id: { $ref: '#/components/schemas/NotebookId' }

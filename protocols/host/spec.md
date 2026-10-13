@@ -203,13 +203,13 @@ defines the meaning and JSON payload of each namespaced `type`, such as
 Clients MUST ignore custom types they do not recognize while retaining the
 stream cursor. Consumers of a type are responsible for validating its payload.
 
-Custom events MUST carry the notebook id and a timestamp, and MAY carry the
-request key that caused them. They participate in the stream's ordering and
-cursor-based replay, with their original ids and timestamps. They MUST NOT
-appear in snapshots, and there is no `custom.removed` event. Once their replay
-history expires, a reset cannot recover them. Features that need recoverable
-state MUST represent that state separately rather than relying on custom
-events alone.
+Custom events MUST carry the notebook id and a timestamp. When a request
+causes a custom event, the envelope MUST carry that request's key in
+`request_id`; otherwise, the key is omitted. They participate in the stream's
+ordering and cursor-based replay, with their original ids and timestamps.
+They MUST NOT appear in snapshots. Once their replay history expires, a
+reset cannot recover them. Features that need recoverable state MUST
+represent that state separately rather than relying on custom events alone.
 
 `types=custom` selects custom events, regardless of their namespaced type.
 Custom events do not belong to a run and are excluded when `run_id` is set.

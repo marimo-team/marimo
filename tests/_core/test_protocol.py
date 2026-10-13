@@ -181,7 +181,19 @@ def test_custom_event_replay_preserves_envelope_and_cursor() -> None:
 
 
 @pytest.mark.parametrize(
-    "data", [None, True, 1, 1.5, "hello", [1, None], {"nested": [False]}]
+    "data",
+    [
+        None,
+        True,
+        False,
+        0,
+        1,
+        1.0,
+        1.5,
+        "hello",
+        [1, None],
+        {"nested": [False]},
+    ],
 )
 def test_custom_payload_preserves_any_json_value(data: Any) -> None:
     wire = {
@@ -193,7 +205,9 @@ def test_custom_payload_preserves_any_json_value(data: Any) -> None:
         "time": "2026-10-13T20:00:00Z",
     }
     value = msgspec.json.decode(json.dumps(wire), type=protocol.CustomMessage)
-    assert json.loads(msgspec.json.encode(value)) == wire
+    assert canonical_json(
+        json.loads(msgspec.json.encode(value))
+    ) == canonical_json(wire)
 
 
 def test_custom_payload_is_required_even_when_null_is_allowed() -> None:
