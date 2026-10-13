@@ -264,72 +264,55 @@ class _ScreenshotSession:
         await self._ensure_ready()
         assert self._page is not None
         deadline = time.monotonic() + timeout_ms / 1000.0
-        refreshed = False
         container_selector = f"#output-{cell_id}"
+        if reused_page:
+            # Refresh before inspecting state that may lag the current invocation.
+            await self._refresh(deadline)
 
-        while True:
+        # A newly opened page gets one retry if the cell has not attached yet.
+        attempts = 1 if reused_page else 2
+        for attempt in range(attempts):
             remaining = self._remaining_ms(deadline)
-            wait_timeout = (
-                remaining if refreshed else min(_ATTACH_TIMEOUT_MS, remaining)
+            probe_timeout = (
+                min(_ATTACH_TIMEOUT_MS, remaining)
+                if attempt == 0
+                else remaining
             )
             try:
                 state = await self._wait_for_output(
-                    cell_id,
-                    timeout=wait_timeout,
-                    probe=True,
+                    cell_id, timeout=probe_timeout, probe=True
                 )
-                if state == "pending":
-                    remaining = self._remaining_ms(deadline)
-                    try:
-                        state = await self._wait_for_output(
-                            cell_id, timeout=remaining
-                        )
-                    except Exception as err:
-                        raise ScreenshotError(
-                            f"Cell {cell_id!r} has no visible rendered output after waiting.\n"
-                            "Fix: inspect the cell's code and errors, run it if needed, "
-                            "or increase `timeout_ms` if rendering is slow."
-                        ) from err
             except ScreenshotError:
                 raise
             except Exception as err:
-                if refreshed:
-                    available = await self._list_cell_ids()
-                    raise ScreenshotError(
-                        self._format_missing_container_error(
-                            cell_id, available
-                        )
-                    ) from err
-            else:
-                if state == "ready" and (not reused_page or refreshed):
-                    break
-                if state == "empty" and (not reused_page or refreshed):
-                    raise ScreenshotError(
-                        f"Cell {cell_id!r} has no rendered output.\n"
-                        "Fix: inspect `ctx.cells[cell_id].code` and `.errors`, "
-                        "then run the cell (`ctx.run_cell(...)`) with a "
-                        "displayable last expression or `mo.output.append(...)`. "
-                        "Printed text is console output and cannot be captured here."
-                    )
+                if attempt + 1 < attempts:
+                    await self._refresh(deadline)
+                    continue
+                available = await self._list_cell_ids()
+                raise ScreenshotError(
+                    self._format_missing_container_error(cell_id, available)
+                ) from err
+            break
 
-            # A reused kiosk may lag execution in the current invocation.
-            # Refresh even ready output: its marker and DOM may both be stale.
-            refreshed = True
+        if state == "pending":
             remaining = self._remaining_ms(deadline)
             try:
-                await asyncio.wait_for(
-                    self._navigate(initial=False), remaining / 1000.0
-                )
-            except TimeoutError as err:
-                raise ScreenshotError(
-                    "Screenshot timed out while refreshing. Fix: increase `timeout_ms`."
-                ) from err
+                state = await self._wait_for_output(cell_id, timeout=remaining)
             except Exception as err:
                 raise ScreenshotError(
-                    "Screenshot failed while refreshing the notebook. "
-                    "Fix: check the notebook connection and retry; "
-                    "increase `timeout_ms` if navigation is slow."
+                    f"Cell {cell_id!r} has no visible rendered output after waiting.\n"
+                    "Fix: inspect the cell's code and errors, run it if needed, "
+                    "or increase `timeout_ms` if rendering is slow."
                 ) from err
+
+        if state == "empty":
+            raise ScreenshotError(
+                f"Cell {cell_id!r} has no rendered output.\n"
+                "Fix: inspect `ctx.cells[cell_id].code` and `.errors`, "
+                "then run the cell (`ctx.run_cell(...)`) with a "
+                "displayable last expression or `mo.output.append(...)`. "
+                "Printed text is console output and cannot be captured here."
+            )
 
         target = await self._resolve_output_locator(
             container_selector, timeout_ms=self._remaining_ms(deadline)
@@ -344,6 +327,23 @@ class _ScreenshotSession:
             timeout=self._remaining_ms(deadline),
         )
         return image
+
+    async def _refresh(self, deadline: float) -> None:
+        remaining = self._remaining_ms(deadline)
+        try:
+            await asyncio.wait_for(
+                self._navigate(initial=False), remaining / 1000.0
+            )
+        except TimeoutError as err:
+            raise ScreenshotError(
+                "Screenshot timed out while refreshing. Fix: increase `timeout_ms`."
+            ) from err
+        except Exception as err:
+            raise ScreenshotError(
+                "Screenshot failed while refreshing the notebook. "
+                "Fix: check the notebook connection and retry; "
+                "increase `timeout_ms` if navigation is slow."
+            ) from err
 
     @staticmethod
     def _remaining_ms(deadline: float) -> int:
