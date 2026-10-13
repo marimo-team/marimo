@@ -84,16 +84,6 @@ class ExecutionState:
     def run(self, run_id: str) -> protocol.Run | None:
         return self._runs.get(run_id)
 
-    def request_run(self, request_id: str) -> protocol.Run | None:
-        return next(
-            (
-                self._runs[rid]
-                for rid, key in self._run_requests.items()
-                if key == request_id
-            ),
-            None,
-        )
-
     def add_run(self, run: protocol.Run, request_id: str) -> None:
         self._run_requests[run.id] = request_id
         self._set_run(run)

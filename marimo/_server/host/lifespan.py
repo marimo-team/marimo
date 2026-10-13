@@ -42,7 +42,7 @@ async def host(app: Starlette) -> AsyncIterator[None]:
     async def maintain() -> None:
         while True:
             await asyncio.sleep(1)
-            bridge.host.expire()
+            context.expire()
 
     maintenance = asyncio.create_task(maintain(), name="host.retention")
     record = HostRecordFile(url=url, token=token)

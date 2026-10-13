@@ -168,24 +168,21 @@ class Notebook:
     def run(self, code: str, *, request_id: str) -> protocol.Run:
         """Queue scratch code on the runtime.
 
-        The request ID identifies the run. Repeating a request returns
-        the existing run while it is retained.
+        The host assigns the run ID. Request IDs correlate events. The
+        host retains retry receipts separately from execution results.
 
         Raises:
             NoRuntime: If the notebook has no runtime.
             Conflict: If the runtime is not running, or a run is in progress.
         """
         self._require_open()
-        run = self._state.request_run(request_id)
-        if run is not None:
-            return run
         runtime = self._require_runtime()
         if runtime.status != "running":
             raise Conflict(f"the runtime is {runtime.status}.")
         if (active := self._state.active_run) is not None:
             raise Conflict(f"run {active.id} is in progress.")
         run = protocol.Run(
-            id=protocol.RunId(request_id),
+            id=mint(protocol.RunId, "run"),
             notebook_id=self.id,
             caused_by=None,
             status="queued",

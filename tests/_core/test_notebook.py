@@ -172,7 +172,7 @@ class TestStop:
         log: list[Event],
     ) -> None:
         running(notebook, backend)
-        scratch(notebook)
+        run = scratch(notebook)
         notebook.observe(be.Produced(console("o1", "e1", "hi\n")))
         log.clear()
 
@@ -220,11 +220,11 @@ class TestStop:
         log: list[Event],
     ) -> None:
         running(notebook, backend)
-        scratch(notebook)
+        run = scratch(notebook)
         notebook.observe(be.Produced(console("o1", "e1", "x")))
         notebook.observe(be.Concluded(ExecutionId("e1"), value("")))
         notebook.observe(be.Status(ExecutionId("e1"), "completed"))
-        notebook.observe(be.Done(RunId("run-1"), "succeeded"))
+        notebook.observe(be.Done(run.id, "succeeded"))
         log.clear()
 
         notebook.stop(request_id="stop")
@@ -256,7 +256,7 @@ class TestRestart:
         self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
     ) -> None:
         before = running(notebook, backend)
-        scratch(notebook)
+        run = scratch(notebook)
         backend.calls.clear()
         log.clear()
 
@@ -303,7 +303,7 @@ class TestAdoption:
         reports_starting: bool,
     ) -> None:
         before = running(notebook, backend)
-        scratch(notebook)
+        run = scratch(notebook)
         notebook.observe(be.Exited("Kernel exited"))
         backend.calls.clear()
 
@@ -322,8 +322,8 @@ class TestAdoption:
             "ready",
         ]
         assert backend.calls == []
-        notebook.run("1", request_id="after-relaunch")
-        assert backend.calls == [("run", "after-relaunch", "1")]
+        run = notebook.run("1", request_id="after-relaunch")
+        assert backend.calls == [("run", run.id, "1")]
 
     def test_a_kernel_someone_else_started_is_published(
         self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
@@ -344,7 +344,7 @@ class TestAdoption:
         log: list[Event],
     ) -> None:
         running(notebook, backend)
-        scratch(notebook)
+        run = scratch(notebook)
         log.clear()
 
         notebook.observe(be.Exited("killed"))
@@ -458,7 +458,7 @@ class TestRun:
         notebook.observe(be.Done(run.id, "succeeded"))
 
         assert notebook.runtime is not None
-        assert backend.calls == [("run", key, "3 * 3")]
+        assert backend.calls == [("run", run.id, "3 * 3")]
         assert names(log) == [
             "run",
             "execution",
@@ -513,7 +513,7 @@ class TestRun:
                 Run(
                     caused_by=None,
                     completed_at=IsDatetime(),
-                    id=RunId("7c1e9a3f"),
+                    id=run.id,
                     notebook_id=NotebookId("n1"),
                     outcome="succeeded",
                     started_at=IsDatetime(),
@@ -532,7 +532,7 @@ class TestRun:
                             data="working<pre>9</pre>", mimetype="text/html"
                         )
                     ),
-                    run_id=RunId("7c1e9a3f"),
+                    run_id=run.id,
                     runtime_id=notebook.runtime.id,
                     stale=None,
                     started_at=IsDatetime(),
@@ -548,13 +548,22 @@ class TestRun:
             ]
         )
 
-    def test_repeating_the_request_returns_the_same_run(
+    def test_request_keys_do_not_identify_runs(
         self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         running(notebook, backend)
         first = notebook.run("1", request_id="same")
-        assert notebook.run("1", request_id="same") == first
-        assert backend.calls == [("run", "same", "1")]
+        with pytest.raises(Conflict, match=first.id):
+            notebook.run("1", request_id="same")
+        notebook.observe(be.Done(first.id, "succeeded"))
+        second = notebook.run("2", request_id="same")
+        assert second.id != first.id
+        # A completed run with no executions is released at once.
+        assert backend.calls == [
+            ("run", first.id, "1"),
+            ("forget", first.id),
+            ("run", second.id, "2"),
+        ]
 
     def test_one_run_at_a_time(
         self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
@@ -579,7 +588,7 @@ class TestRun:
         self, host: Host, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         running(notebook, backend)
-        scratch(notebook)
+        run = scratch(notebook)
         notebook.observe(be.Produced(console("o1", "e1", "0\n")))
         notebook.observe(be.Produced(console("o1", "e1", "0\n1\n")))
         items = [
@@ -629,7 +638,9 @@ class TestRunCompletion:
         )
         assert isinstance(final, RunMessage)
         assert final.run.caused_by == "e1"
-        assert notebook.run("3 * 3", request_id="run-1").status == "completed"
+        retained = notebook._state.run(original.id)
+        assert retained is not None
+        assert retained.status == "completed"
 
     @pytest.mark.parametrize("outcome", ["failed", "interrupted"])
     def test_can_end_before_any_execution(
@@ -702,13 +713,18 @@ class TestRunCompletion:
         )
         notebook.observe(be.Status(ExecutionId("child"), "completed"))
         # Even an empty execution queue is not an authoritative end to scheduling.
-        current = notebook.run("3 * 3", request_id=run.id)
+        current = notebook._state.run(run.id)
+        assert current is not None
         assert current.status == "running"
         assert current.outcome is None
         with pytest.raises(ValueError, match="successful"):
             notebook.observe(be.Done(run.id, "succeeded"))
         notebook.observe(be.Done(run.id, outcome))
-        final = log[-1].data
+        final = next(
+            event.data
+            for event in reversed(log)
+            if isinstance(event.data, RunMessage)
+        )
         assert isinstance(final, RunMessage)
         assert final.run.outcome == outcome
         assert final.run.status == "completed"
@@ -739,12 +755,12 @@ class TestInterrupt:
         self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         running(notebook, backend)
-        scratch(notebook)
+        run = scratch(notebook)
         backend.calls.clear()
 
-        notebook.interrupt("run-1")
+        notebook.interrupt(run.id)
 
-        assert backend.calls == [("interrupt", "run-1")]
+        assert backend.calls == [("interrupt", run.id)]
 
     def test_refuses_unknown_and_finished_runs(
         self, notebook: Notebook, backend: ScriptedBackend
@@ -752,12 +768,12 @@ class TestInterrupt:
         running(notebook, backend)
         with pytest.raises(NotFound):
             notebook.interrupt("nope")
-        scratch(notebook)
+        run = scratch(notebook)
         notebook.observe(be.Concluded(ExecutionId("e1"), value("9")))
         notebook.observe(be.Status(ExecutionId("e1"), "completed"))
-        notebook.observe(be.Done(RunId("run-1"), "succeeded"))
+        notebook.observe(be.Done(run.id, "succeeded"))
         with pytest.raises(Conflict):
-            notebook.interrupt("run-1")
+            notebook.interrupt(run.id)
 
 
 class TestCellResults:
