@@ -31,6 +31,13 @@ and a runtime stop. Both attachments remain connected after the runtime ends.
 
 ## Standalone objects
 
+`custom-events.sse` shows a `types=custom` notebook stream: an empty snapshot
+ending at `ready`, then a live custom event. `custom-events-replay.sse` resumes
+from that `ready` cursor, replaying the same event before the next `ready`.
+Its type and payload are illustrative, not a standardized agent-message schema.
+If the cursor expires instead, the host sends `reset` and an empty snapshot;
+the custom event cannot be recovered from that snapshot.
+
 `execution-restored.json` represents an earlier evaluation of `c3` restored
 from storage. Its source is `x = 21`, but its original run and runtime are
 unknown. It illustrates a separate restoration scenario, outside the session

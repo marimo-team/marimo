@@ -171,6 +171,54 @@ def test_stream_models(path: Path) -> None:
     assert not snapshot, f"{path.name}: incomplete snapshot"
 
 
+def test_custom_event_replay_preserves_envelope_and_cursor() -> None:
+    live = stream_events(FIXTURES / "custom-events.sse")
+    replay = stream_events(FIXTURES / "custom-events-replay.sse")
+    assert [event["event"] for event in live] == ["ready", "custom"]
+    assert [event["event"] for event in replay] == ["custom", "ready"]
+    assert replay[0] == live[1]
+    assert replay[1]["id"] == live[1]["id"]
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        None,
+        True,
+        False,
+        0,
+        1,
+        1.0,
+        1.5,
+        "hello",
+        [1, None],
+        {"nested": [False]},
+    ],
+)
+def test_custom_payload_preserves_any_json_value(data: Any) -> None:
+    wire = {
+        "custom": {
+            "type": "example.progress",
+            "data": data,
+        },
+        "time": "2026-10-13T20:00:00Z",
+    }
+    value = msgspec.json.decode(json.dumps(wire), type=protocol.CustomMessage)
+    assert canonical_json(
+        json.loads(msgspec.json.encode(value))
+    ) == canonical_json(wire)
+
+
+def test_custom_payload_is_required_even_when_null_is_allowed() -> None:
+    with pytest.raises(
+        msgspec.ValidationError, match="missing required field `data`"
+    ):
+        msgspec.json.decode(
+            '{"type":"example.progress"}',
+            type=protocol.Custom,
+        )
+
+
 def test_catalog_capabilities_and_runtime_stop() -> None:
     catalogs = []
     for name in ("events.sse", "events-reset.sse"):

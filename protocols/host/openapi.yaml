@@ -201,6 +201,13 @@ paths:
         independent of replay history. Removed objects are absent from
         snapshots; a resumable stream carries their removal events.
 
+        The stream may also carry `custom` events: namespaced JSON payloads
+        that describe occurrences rather than object state. These have
+        cursors and timestamps and participate in replay, but never appear
+        in snapshots. A reset cannot recover custom events whose history
+        has expired. `types=custom` selects them. They do not belong to a
+        run and are excluded by `run_id`.
+
         The opening phase is one consistent cut of the notebook, taken
         under the lock that changes to the document take, so reading to
         `ready` and closing is a snapshot, and `types=cell,document` is a
@@ -229,7 +236,7 @@ paths:
                   CellMessage, RuntimeMessage, AttachmentMessage,
                   RunMessage, ExecutionMessage, ConsoleMessage, or
                   DisplayMessage for an event named
-                  after that kind; a RemovedMessage
+                  after that kind; a CustomMessage for `custom`; a RemovedMessage
                   for an event ending in `.removed`; and an empty object
                   for `ready` and `reset`.
                 type: object
@@ -796,8 +803,23 @@ components:
         The kinds a stream carries, and the values `types` accepts. The
         catalog stream carries host, project, notebook, runtime, and
         attachment. A notebook's stream carries notebook, document, cell,
-        runtime, attachment, run, execution, console, and display.
-      enum: [host, project, notebook, document, cell, runtime, attachment, run, execution, console, display]
+        runtime, attachment, run, execution, console, display, and custom.
+        Custom events describe occurrences rather than object state.
+      enum: [host, project, notebook, document, cell, runtime, attachment, run, execution, console, display, custom]
+    Custom:
+      type: object
+      description: |
+        A notebook occurrence with a producer-defined payload. It is replayed
+        while event history is retained, but is never included in snapshots
+        and does not belong to a run. The notebook is identified by the stream.
+      required: [type, data]
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.
+        data:
+          description: Any JSON value, including null. The producer defines its schema and consumers of the type validate it.
     Host:
       type: object
       description: |
@@ -1337,6 +1359,17 @@ components:
           format: date-time
           description: When the host made this change. Present on live and replayed events; omitted on snapshots.
         host: { $ref: '#/components/schemas/Host' }
+    CustomMessage:
+      type: object
+      description: The data of a `custom` event. This envelope is standardized; the custom type and payload are defined by their producer.
+      required: [custom, time]
+      properties:
+        custom: { $ref: '#/components/schemas/Custom' }
+        request_id: *request_id
+        time:
+          type: string
+          format: date-time
+          description: When the host emitted this event. Preserved on replay.
     ProjectMessage:
       type: object
       description: The data of a `project` event. The project as it now is.
