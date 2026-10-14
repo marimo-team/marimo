@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, cast
 
@@ -9,6 +10,18 @@ from marimo._config.config import PartialMarimoConfig
 from marimo._utils.toml import toml_reader
 
 LOGGER = _loggers.marimo_logger()
+
+
+class ConfigReader(ABC):
+    """Read explicitly supplied settings without filling in defaults.
+
+    Sources parse and normalize their own values. Precedence and computed
+    defaults are handled separately by the configuration manager.
+    """
+
+    @abstractmethod
+    def read(self) -> PartialMarimoConfig:
+        """Read a sparse, unmasked configuration from this source."""
 
 
 def read_marimo_config(path: str) -> PartialMarimoConfig:

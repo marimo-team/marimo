@@ -1,0 +1,35 @@
+event: host
+data: {"host":{"operations":["notebook.create","notebook.update","notebook.delete","notebook.open","notebook.edit","notebook.save","runtime.start","runtime.stop","runtime.run","runtime.interrupt"]}}
+
+event: project
+data: {"project":{"id":"p1","name":"forecasting","root":"/Users/me/forecasting","status":"indexed","message":null,"operations":["notebook.create"]}}
+
+event: notebook
+data: {"notebook":{"id":"n1","project_id":"p1","path":"forecasts.py","name":"forecasts","operations":["notebook.update","notebook.delete","notebook.open","notebook.edit","notebook.save","runtime.start","runtime.stop","runtime.run","runtime.interrupt"],"updated_at":"2026-10-01T09:00:00Z"}}
+
+event: runtime
+data: {"runtime":{"id":"r1","notebook_id":"n1","status":"running","message":null,"marimo_version":"0.25.0","started_at":"2026-10-01T09:14:02Z"}}
+
+event: attachment
+data: {"attachment":{"id":"a1","notebook_id":"n1","kind":"browser","name":"Chrome","since":"2026-10-01T09:14:30Z"}}
+
+id: 41
+event: ready
+data: {}
+
+id: 42
+event: attachment
+data: {"attachment":{"id":"a2","notebook_id":"n1","kind":"agent","name":"Notebook CLI","since":"2026-10-01T09:20:03Z"},"time":"2026-10-01T09:20:03Z"}
+
+id: 43
+event: notebook
+data: {"notebook":{"id":"n1","project_id":"p1","path":"forecasts.py","name":"forecasts","operations":["notebook.update","notebook.delete","notebook.open","notebook.edit","notebook.save","runtime.start","runtime.stop","runtime.run","runtime.interrupt"],"updated_at":"2026-10-01T09:21:02Z"},"request_id":"save-9b1c6d2e","time":"2026-10-01T09:21:02Z"}
+
+id: 44
+event: runtime
+data: {"runtime":{"id":"r1","notebook_id":"n1","status":"terminating","message":null,"marimo_version":"0.25.0","started_at":"2026-10-01T09:14:02Z"},"request_id":"stop-n1","time":"2026-10-01T09:35:00Z"}
+
+id: 45
+event: runtime.removed
+data: {"id":"r1","request_id":"stop-n1","time":"2026-10-01T09:35:01Z"}
+

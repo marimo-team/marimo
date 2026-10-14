@@ -23,7 +23,7 @@ from starlette.testclient import TestClient
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from uvicorn import Config, Server
 
-from marimo._config.manager import MarimoConfigManager, UserConfigManager
+from marimo._config.manager import MarimoConfigManager, UserConfigStore
 from marimo._server._pylsp import create_server
 from marimo._server.api.auth import TOKEN_QUERY_PARAM
 from marimo._server.api.middleware import (
@@ -66,7 +66,7 @@ def init_state(
         headless=False,
         quiet=False,
         session_manager=session_manager,
-        config_manager=MarimoConfigManager(UserConfigManager()),
+        config_manager=MarimoConfigManager(UserConfigStore()),
         remote_url=None,
         mcp_server_enabled=False,
         skew_protection=skew_protection,

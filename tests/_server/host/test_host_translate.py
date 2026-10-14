@@ -163,7 +163,7 @@ def test_an_exception_ends_the_run_in_error() -> None:
                         source="marimo",
                         severity="error",
                         range=None,
-                        related=[],
+                        related=(),
                         kind="exception",
                         message="division by zero",
                         name="ZeroDivisionError",

@@ -1,0 +1,19 @@
+{
+  "changes": [
+    {
+      "kind": "put_cell",
+      "base_etag": "5cf78587dcf22d8d",
+      "cell": {
+        "id": "c3",
+        "code": "x = 23",
+        "name": "_",
+        "config": {
+          "column": null,
+          "disabled": false,
+          "hide_code": false,
+          "expand_output": false
+        }
+      }
+    }
+  ]
+}

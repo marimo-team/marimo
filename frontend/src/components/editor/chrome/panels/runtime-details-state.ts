@@ -17,7 +17,7 @@ const disclosureContextAtom = atom((get) => {
   };
 });
 
-export const sandboxDetailsExpandedAtom = atom(
+export const runtimeDetailsExpandedAtom = atom(
   (get) => {
     const context = get(disclosureContextAtom);
     const preference = get(preferenceAtom);

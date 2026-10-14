@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from collections.abc import Callable, Collection
+from collections.abc import Callable, Collection, Iterator
+from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TypeAlias
+from typing import TypeAlias, get_args
 
 import msgspec
 from msgspec import UNSET
@@ -21,21 +22,6 @@ from msgspec import UNSET
 from marimo._core import protocol
 
 LOGGER = logging.getLogger(__name__)
-
-CATALOG_KINDS = frozenset(
-    {"host", "project", "notebook", "runtime", "attachment"}
-)
-NOTEBOOK_KINDS = frozenset(
-    {
-        "notebook",
-        "runtime",
-        "attachment",
-        "run",
-        "execution",
-        "console",
-        "display",
-    }
-)
 
 Body: TypeAlias = (
     protocol.Host
@@ -47,24 +33,32 @@ Body: TypeAlias = (
     | protocol.Execution
     | protocol.Console
     | protocol.Display
+    | protocol.Custom
 )
+"""Every object a stream carries. The wrapper map and the notebook kinds
+derive from it; the catalog kinds are a chosen subset."""
 
-_WRAPPERS: dict[str, type[msgspec.Struct]] = {
-    "host": protocol.HostMessage,
-    "project": protocol.ProjectMessage,
-    "notebook": protocol.NotebookMessage,
-    "runtime": protocol.RuntimeMessage,
-    "attachment": protocol.AttachmentMessage,
-    "run": protocol.RunMessage,
-    "execution": protocol.ExecutionMessage,
-    "console": protocol.ConsoleMessage,
-    "display": protocol.DisplayMessage,
-}
+
+def _kind(body_type: type[msgspec.Struct]) -> str:
+    return body_type.__name__.lower()
 
 
 def kind_of(body: Body) -> str:
     """Return the object's event kind, used by the `types` filter."""
-    return type(body).__name__.lower()
+    return _kind(type(body))
+
+
+_WRAPPERS: dict[str, type[msgspec.Struct]] = {
+    _kind(body_type): getattr(protocol, f"{body_type.__name__}Message")
+    for body_type in get_args(Body)
+}
+
+CATALOG_KINDS = frozenset(
+    {"host", "project", "notebook", "runtime", "attachment"}
+)
+# Host and project describe the whole host, so they never belong to one
+# notebook's stream. Every other kind does.
+NOTEBOOK_KINDS = frozenset(_WRAPPERS) - {"host", "project"}
 
 
 def message(
@@ -206,6 +200,23 @@ class Stream:
 
         return unsubscribe
 
+    @contextmanager
+    def deferred(self) -> Iterator[None]:
+        """Deliver events published in the block once it ends.
+
+        Events still join the history at once, so cursors and replay are
+        unaffected. Nested blocks defer to the outermost one.
+        """
+        if self._dispatching:
+            yield
+            return
+        self._dispatching = True
+        try:
+            yield
+        finally:
+            self._dispatching = False
+            self._drain()
+
     def _append(self, event: Event) -> Event:
         self._last_id += 1
         stamped = Event(
@@ -218,15 +229,18 @@ class Stream:
         self._history.append(stamped)
         self._pending.append((stamped, tuple(self._listeners)))
         if not self._dispatching:
-            self._dispatching = True
-            try:
-                while self._pending:
-                    pending, listeners = self._pending.popleft()
-                    for listener in listeners:
-                        try:
-                            listener(deepcopy(pending))
-                        except Exception:
-                            LOGGER.exception("Error delivering host event")
-            finally:
-                self._dispatching = False
+            self._drain()
         return deepcopy(stamped)
+
+    def _drain(self) -> None:
+        self._dispatching = True
+        try:
+            while self._pending:
+                pending, listeners = self._pending.popleft()
+                for listener in listeners:
+                    try:
+                        listener(deepcopy(pending))
+                    except Exception:
+                        LOGGER.exception("Error delivering host event")
+        finally:
+            self._dispatching = False

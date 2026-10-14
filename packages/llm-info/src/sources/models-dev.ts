@@ -1,12 +1,19 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { z } from "zod";
+import type { AiModel } from "../index.ts";
+import {
+  CostSchema,
+  ModelLimitsSchema,
+  ReasoningOptionSchema,
+} from "../metadata.ts";
 import { Logger } from "../simple_logger.ts";
 
 export const ModelsDevModelSchema = z.object({
   id: z.string(),
   name: z.string(),
   reasoning: z.boolean().optional(),
+  reasoning_options: z.array(ReasoningOptionSchema).optional(),
   tool_call: z.boolean().optional(),
   status: z.string().optional(),
   release_date: z.string().optional(),
@@ -16,19 +23,8 @@ export const ModelsDevModelSchema = z.object({
       output: z.array(z.string()).optional(),
     })
     .optional(),
-  limit: z
-    .object({
-      context: z.number().optional(),
-      output: z.number().optional(),
-    })
-    .optional(),
-  cost: z
-    .object({
-      input: z.number().optional(),
-      output: z.number().optional(),
-    })
-    .partial()
-    .optional(),
+  limit: ModelLimitsSchema.optional(),
+  cost: CostSchema.optional(),
 });
 
 export type ModelsDevModel = z.infer<typeof ModelsDevModelSchema>;
@@ -120,4 +116,18 @@ export async function fetchModelsDev(
   }
   const json = (await response.json()) as unknown;
   return parseModelsDev(json);
+}
+
+/** Derive reasoning controls and token limits supplied by an upstream model. */
+export function deriveModelMetadata(
+  source: ModelsDevModel,
+): Pick<AiModel, "reasoning_options" | "limits"> {
+  const metadata: Pick<AiModel, "reasoning_options" | "limits"> = {};
+  if (source.reasoning && source.reasoning_options !== undefined) {
+    metadata.reasoning_options = source.reasoning_options;
+  }
+  if (source.limit && Object.keys(source.limit).length > 0) {
+    metadata.limits = source.limit;
+  }
+  return metadata;
 }

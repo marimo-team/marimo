@@ -18,6 +18,7 @@ from tests._core.conftest import (
     names,
     project,
     record,
+    runtime_id_of,
 )
 
 if TYPE_CHECKING:
@@ -30,14 +31,14 @@ def test_catalog_snapshot_and_replay_exclude_runs(host: Host) -> None:
     host.update_project(project())
     notebook = host.add_notebook(record(), ScriptedBackend())
     notebook.start()
-    notebook.observe(be.Running())
-    notebook.run("1", request_id="r1")
+    notebook.observe(be.Running(runtime_id_of(notebook)))
+    run = notebook.run("1", request_id="r1")
     cursor = host.events()[-1].id
     assert cursor is not None
 
     notebook.observe(
         be.Planned(
-            protocol.RunId("r1"),
+            run.id,
             (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h", "1"),),
         )
     )
@@ -63,11 +64,11 @@ def test_a_notebook_stream_sees_only_its_notebook(host: Host) -> None:
     first = host.add_notebook(record("n1", "a.py"), ScriptedBackend())
     second = host.add_notebook(record("n2", "b.py"), ScriptedBackend())
     first.start()
-    first.observe(be.Running())
-    first.run("1", request_id="r1")
+    first.observe(be.Running(runtime_id_of(first)))
+    run = first.run("1", request_id="r1")
     first.observe(
         be.Planned(
-            protocol.RunId("r1"),
+            run.id,
             (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h", "1"),),
         )
     )
@@ -137,8 +138,8 @@ def test_subscribe_filters_the_live_stream(host: Host) -> None:
     unsubscribe = host.subscribe(runtimes.append, types={"runtime"})
 
     notebook.start()
-    notebook.observe(be.Running())
-    notebook.run("1", request_id="r1")
+    notebook.observe(be.Running(runtime_id_of(notebook)))
+    run = notebook.run("1", request_id="r1")
     unsubscribe()
     host.update_project(project("p2"))
 
@@ -151,15 +152,16 @@ def test_removing_a_notebook_removes_what_it_owns_first(host: Host) -> None:
     host.update_project(project())
     notebook = host.add_notebook(record(), ScriptedBackend())
     notebook.start()
-    notebook.observe(be.Running())
+    notebook.observe(be.Running(runtime_id_of(notebook)))
     notebook.attach()
-    notebook.run("1", request_id="r1")
+    run = notebook.run("1", request_id="r1")
     log: list[Event] = []
     host.subscribe(log.append, notebook_id="n1")
 
     host.remove_notebook("n1", request_id="req-del")
 
     assert names(log) == [
+        "run",
         "run.removed",
         "attachment.removed",
         "runtime.removed",
@@ -177,8 +179,8 @@ def test_updating_a_notebook_publishes_only_changes(host: Host) -> None:
     backend = ScriptedBackend()
     notebook = host.add_notebook(record(), backend)
     notebook.start()
-    notebook.observe(be.Running())
-    notebook.run("1", request_id="run")
+    notebook.observe(be.Running(runtime_id_of(notebook)))
+    run = notebook.run("1", request_id="run")
     runtime = notebook.runtime
     backend.calls.clear()
     log: list[Event] = []
@@ -193,7 +195,9 @@ def test_updating_a_notebook_publishes_only_changes(host: Host) -> None:
     assert host.notebook("n1") is notebook
     assert notebook.runtime is runtime
     assert backend.calls == []
-    assert notebook.run("1", request_id="run").id == "run"
+    assert host.events(notebook_id="n1", types={"run"})[
+        0
+    ].data == protocol.RunMessage(run=run, request_id="run")
     assert host.events(notebook_id="n1")[0].data == protocol.NotebookMessage(
         notebook=moved
     )
@@ -217,8 +221,8 @@ def test_removed_notebook_handles_cannot_be_reused(
     backend: ScriptedBackend,
     log: list[Event],
 ) -> None:
-    notebook.start()
-    notebook.observe(be.Running())
+    runtime, _ = notebook.start()
+    notebook.observe(be.Running(runtime.id))
     run = notebook.run("1", request_id="r1")
     attachment = notebook.attach()
     retained_id = notebook.id
@@ -228,6 +232,7 @@ def test_removed_notebook_handles_cannot_be_reused(
 
     commands: list[Callable[[], object]] = [
         notebook.start,
+        lambda: notebook.adopt(lambda _: None),
         notebook.stop,
         notebook.restart,
         lambda: notebook.run("1", request_id=run.id),
@@ -239,9 +244,9 @@ def test_removed_notebook_handles_cannot_be_reused(
             command()
 
     # Late backend updates and disconnect cleanup cannot revive the notebook.
-    notebook.observe(be.Starting("Late startup"))
-    notebook.observe(be.Running())
-    notebook.observe(be.Exited())
+    notebook.observe(be.Starting(runtime.id, "Late startup"))
+    notebook.observe(be.Running(runtime.id))
+    notebook.observe(be.Exited(runtime.id))
     notebook.detach(attachment.id)
     host.remove_notebook(retained_id)
 
@@ -262,8 +267,9 @@ def test_catalog_requires_the_project(host: Host) -> None:
 def test_catalog_updates_do_not_share_mutable_records(host: Host) -> None:
     source = project()
     host.update_project(source)
-    source.name = "changed"
-    source.operations.clear()
+    with pytest.raises(AttributeError):
+        source.name = "changed"
+    source = replace(source, name="changed", operations=())
     host.update_project(source)
 
     replay = host.events(0, types={"project"})
@@ -274,20 +280,22 @@ def test_catalog_updates_do_not_share_mutable_records(host: Host) -> None:
     ]
     assert projects == [
         project(),
-        replace(project(), name="changed", operations=[]),
+        replace(project(), name="changed", operations=()),
     ]
 
     original = record()
     host.add_notebook(original, ScriptedBackend())
-    original.name = "caller mutation"
-    original.operations.clear()
+    with pytest.raises(AttributeError):
+        original.name = "caller mutation"
+    original = replace(original, name="caller mutation", operations=())
     view = host.notebooks[original.id]
-    view.name = "reader mutation"
-    view.operations.clear()
+    with pytest.raises(AttributeError):
+        view.name = "reader mutation"
     assert host.notebooks[original.id] == record()
 
     host.update_notebook(original)
-    original.name = "another mutation"
+    with pytest.raises(AttributeError):
+        original.name = "another mutation"
     assert host.notebooks[original.id] == replace(
-        record(), name="caller mutation", operations=[]
+        record(), name="caller mutation", operations=()
     )

@@ -1,0 +1,28 @@
+{%- macro get_type_annotation(_field) -%}
+{%- if _field.annotated -%}
+{{ _field.annotated }}
+{%- elif _field.field -%}
+Annotated[{{ _field.type_hint }}, {{ _field.field }}]
+{%- else -%}
+{{ _field.type_hint }}
+{%- endif -%}
+{%- endmacro -%}
+
+{%- if newtype %}
+if TYPE_CHECKING:
+    {{ class_name }} = NewType("{{ class_name }}", {{ fields[0].type_hint }})
+else:
+    {{ class_name }} = NewType("{{ class_name }}", {{ get_type_annotation(fields[0]) }})
+{%- elif fields %}
+{{ class_name }}: TypeAlias = {{ get_type_annotation(fields[0]) }}{% if comment is defined %}  # {{ comment }}{% endif %}
+{%- if description %}
+{{ description }}
+{%- elif fields[0].docstring %}
+{{ fields[0].docstring }}
+{%- endif %}
+{%- else %}
+{{ class_name }}: TypeAlias = {{ base_class }}{% if comment is defined %}  # {{ comment }}{% endif %}
+{%- if description %}
+{{ description }}
+{%- endif %}
+{%- endif %}

@@ -7,6 +7,7 @@ import atexit
 import os
 import tempfile
 from datetime import datetime, timezone
+from ipaddress import IPv6Address, ip_address
 from uuid import uuid4
 
 import msgspec
@@ -19,9 +20,31 @@ from marimo._utils.xdg import marimo_state_dir
 LOGGER = _loggers.marimo_logger()
 
 
-def host_url(host: str, port: int, base_url: str) -> str:
-    """Build a loopback URL for the host API."""
-    loopback = "[::1]" if host.strip("[]") == "::1" else "127.0.0.1"
+def host_url(host: str, port: int, base_url: str) -> str | None:
+    """Build the loopback URL for the host API.
+
+    Returns None when the server binds an address that loopback cannot
+    reach, because a record would then name a URL nobody can open.
+    """
+    name = host.strip("[]")
+    if name.lower() == "localhost":
+        loopback = "127.0.0.1"
+    else:
+        try:
+            address = ip_address(name)
+        except ValueError:
+            return None
+        if isinstance(address, IPv6Address) and address.ipv4_mapped:
+            # Only Python 3.13 treats a mapped loopback as loopback.
+            address = address.ipv4_mapped
+        if address.is_unspecified:
+            # A wildcard IPv6 bind is v6-only, so its loopback is ::1.
+            loopback = "[::1]" if address.version == 6 else "127.0.0.1"
+        elif address.is_loopback:
+            # A socket bound to one loopback address refuses the others.
+            loopback = f"[{address}]" if address.version == 6 else str(address)
+        else:
+            return None
     return f"http://{loopback}:{port}{base_url}{HOST_API_PATH}"
 
 

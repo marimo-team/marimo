@@ -46,7 +46,7 @@ class GlobalSettings:
     )
     # Hide all external code-sharing affordances (shareable WASM links, molab,
     # HTML sharing) across every notebook session. Enforced by
-    # SecurityConfigManager, which MarimoConfigManager merges after all other
+    # SecurityConfigReader, which MarimoConfigManager merges after all other
     # config sources, so it cannot be re-enabled by any config file or runtime
     # override. Intended for machine-wide enforcement set by infra admins in a
     # devpod or container spec.
