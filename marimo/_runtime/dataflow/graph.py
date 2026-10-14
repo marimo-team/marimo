@@ -101,18 +101,7 @@ class DirectedGraph(GraphTopology):
             LOGGER.debug("Acquired graph lock.")
             assert cell_id not in self.topology.cells
 
-            # Add the cell to topology
-            self.topology.add_node(cell_id, cell)
-
-            # Process definitions and build sibling relationships FIRST
-            # This must happen before computing edges because edge computation
-            # needs to look up definitions
-            for name, variable_data in cell.variable_data.items():
-                self.definition_registry.register_definition(
-                    cell_id, name, variable_data
-                )
-            # Now compute edges (which can now find the definitions)
-            parents, children = edges.compute_edges_for_cell(
+            parents, children = edges.register_cell_dependencies(
                 cell_id, cell, self.topology, self.definition_registry
             )
 
