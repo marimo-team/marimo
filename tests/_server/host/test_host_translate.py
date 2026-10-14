@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import hashlib
-
 import pytest
 from dirty_equals import IsStr
 from inline_snapshot import snapshot
@@ -17,6 +15,7 @@ from marimo._core.backend import (
     Produced,
     Status,
 )
+from marimo._core.document import code_hash
 from marimo._core.protocol import (
     Console,
     DisplayData,
@@ -91,7 +90,7 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                     PlannedExecution(
                         id=ExecutionId("r1-1"),
                         cell_id=None,
-                        code_hash=hashlib.sha256(b"3 * 3").hexdigest(),
+                        code_hash=code_hash("3 * 3"),
                         code="3 * 3",
                         caused_by=None,
                     ),
