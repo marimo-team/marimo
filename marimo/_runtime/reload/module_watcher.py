@@ -113,7 +113,7 @@ def _get_excluded_modules(modules: dict[str, types.ModuleType]) -> set[str]:
             and _is_third_party_module(m)
         )
     }
-    # Always exclude the root package name even when absent from ``modules``.
+    # Always exclude the root package name even when absent from `modules`.
     result.add("marimo")
     _excluded_modules_cache = (cache_key, result)
     return result

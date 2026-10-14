@@ -734,8 +734,8 @@ class AsyncCodeModeContext:
         self._kernel = kernel
         self._document = document
         # Output snapshot is optional — callers that don't pass one
-        # (e.g. the MCP code server) get ``cell.output is None`` and
-        # ``cell.console_outputs == []`` for every cell, same as cells
+        # (e.g. the MCP code server) get `cell.output is None` and
+        # `cell.console_outputs == []` for every cell, same as cells
         # that genuinely produced no output.
         self._outputs: CellOutputs | None = get_current_outputs()
         self._cell_manager = cell_manager
@@ -1558,8 +1558,8 @@ class AsyncCodeModeContext:
             return self.cells[-1].id
 
         if isinstance(target, bool):
-            # Guard before the ``int`` branch — ``bool`` subclasses
-            # ``int`` in Python, and ``ctx.screenshot(True)`` almost
+            # Guard before the `int` branch — `bool` subclasses
+            # `int` in Python, and `ctx.screenshot(True)` almost
             # certainly reflects a caller mistake.
             raise TypeError(
                 "screenshot target cannot be a bool; pass a cell ID, "
