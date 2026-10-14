@@ -40,22 +40,36 @@ jobs:
         with:
           script: |
             const run = context.payload.workflow_run;
-            // Fork workflow runs can have an empty pull_requests array.
-            const pulls = await github.paginate(github.rest.repos.listPullRequestsAssociatedWithCommit, {
-              ...context.repo,
-              commit_sha: run.head_sha,
-            });
-            const pr = pulls.find(pr =>
+            const eventPulls = run.pull_requests ?? [];
+            let pulls;
+            if (eventPulls.length === 1) {
+              const { data: pr } = await github.rest.pulls.get({
+                ...context.repo,
+                pull_number: eventPulls[0].number,
+              });
+              pulls = [pr];
+            } else if (eventPulls.length > 1) {
+              core.notice('Skipping preview: the workflow run is associated with multiple pull requests.');
+              return;
+            } else {
+              // Fork workflow runs can have an empty pull_requests array.
+              pulls = await github.paginate(github.rest.repos.listPullRequestsAssociatedWithCommit, {
+                ...context.repo,
+                commit_sha: run.head_sha,
+              });
+            }
+            const candidates = pulls.filter(pr =>
               pr.state === 'open' &&
               pr.base.repo.full_name === context.payload.repository.full_name &&
               pr.head.repo?.full_name === run.head_repository.full_name &&
               pr.head.ref === run.head_branch &&
               pr.head.sha === run.head_sha
             );
-            if (!pr) {
-              core.notice('Skipping preview for a closed or outdated pull request.');
+            if (candidates.length !== 1) {
+              core.notice('Skipping preview: no unique current pull request matches this workflow run.');
               return;
             }
+            const [pr] = candidates;
             core.setOutput('number', pr.number);
             core.setOutput('sha', pr.head.sha);
             core.setOutput('branch', pr.head.repo.full_name === pr.base.repo.full_name

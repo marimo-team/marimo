@@ -5,6 +5,7 @@ on:
     paths:
       - 'frontend/**'
       - 'packages/**'
+      - 'marimo/_schemas/generated/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
