@@ -16,6 +16,7 @@ from marimo._ast.cell import CellConfig
 from marimo._ast.cell_id import CellIdGenerator
 from marimo._ast.compiler import compile_cell
 from marimo._code_mode._context import AsyncCodeModeContext
+from marimo._code_mode._packages import PackageResult
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notebook.document import (
     NotebookCell,
@@ -841,6 +842,40 @@ class TestPackages:
             async with ctx as nb:
                 assert nb.packages is not None
 
+    async def test_results_lifecycle(self, k: Kernel) -> None:
+        from dataclasses import FrozenInstanceError
+
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+            with patch.object(pm, "install", return_value=True):
+                async with ctx:
+                    ctx.packages.add("pandas>=2")
+                    assert ctx.packages.results == ()
+                results = ctx.packages.results
+                assert results == (
+                    PackageResult("pandas>=2", "add", "success"),
+                )
+                with pytest.raises(FrozenInstanceError):
+                    results[0].outcome = "failed"
+                async with ctx:
+                    assert ctx.packages.results == ()
+                assert ctx.packages.results == ()
+                assert results == (
+                    PackageResult("pandas>=2", "add", "success"),
+                )
+
+    async def test_results_without_manager(self, k: Kernel) -> None:
+        with _ctx(k) as ctx:
+            with patch.object(k.packages_callbacks, "package_manager", None):
+                async with ctx:
+                    ctx.packages.add("missing")
+                    ctx.packages.remove("old")
+            assert ctx.packages.results == (
+                PackageResult("missing", "add", "failed"),
+                PackageResult("old", "remove", "failed"),
+            )
+
     async def test_add_single(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
             pm = k.packages_callbacks.package_manager
@@ -1116,6 +1151,7 @@ class TestPackages:
                     pass
 
             assert mock_install.call_count == 0
+            assert ctx.packages.results == ()
 
     async def test_noop_packages(self, k: Kernel) -> None:
         """No package ops means nothing happens."""
@@ -1227,6 +1263,13 @@ async def test_package_summary_reports_unsuccessful_outcomes(
         ):
             async with ctx as nb:
                 getattr(nb.packages, operation)("boltons")
+        assert ctx.packages.results == (
+            PackageResult(
+                "boltons",
+                operation,
+                "restart-required" if restart_required else "failed",
+            ),
+        )
         output = capsys.readouterr().out
         assert (
             "changes saved for boltons; restart the kernel"

@@ -50,24 +50,45 @@ PackageOutcome = Literal["success", "failed", "restart-required"]
 
 @dataclass(frozen=True, slots=True)
 class PackageResult:
-    op: PackageOp
+    """Outcome of a requested package operation, not verified environment state.
+
+    `success` means the manager reported success. `failed` does not imply
+    rollback or that the requirement is absent. `restart-required` means
+    dependency changes were saved but need a kernel restart.
+    """
+
+    requirement: str
+    action: Literal["add", "remove"]
     outcome: PackageOutcome
 
     @classmethod
     def succeeded(cls, op: PackageOp) -> PackageResult:
-        return cls(op, "success")
+        return cls(
+            op.package,
+            "add" if isinstance(op, _AddPackage) else "remove",
+            "success",
+        )
 
     @classmethod
     def failed(cls, op: PackageOp) -> PackageResult:
-        return cls(op, "failed")
+        return cls(
+            op.package,
+            "add" if isinstance(op, _AddPackage) else "remove",
+            "failed",
+        )
 
     @classmethod
     def restart_required(cls, op: PackageOp) -> PackageResult:
-        return cls(op, "restart-required")
+        return cls(
+            op.package,
+            "add" if isinstance(op, _AddPackage) else "remove",
+            "restart-required",
+        )
 
 
 # `Packages.list` shadows the builtin in method annotations.
 PackageResultList = list[PackageResult]
+PackageResults = tuple[PackageResult, ...]
 
 
 def _flatten_packages(
@@ -104,11 +125,31 @@ class Packages:
     called before any :meth:`add` or :meth:`remove` in the same batch.
     """
 
-    __slots__ = ("_ctx", "_ops")
+    __slots__ = ("_ctx", "_ops", "_results")
 
     def __init__(self, ctx: AsyncCodeModeContext) -> None:
         self._ctx = ctx
         self._ops: list[PackageOp] = []
+        self._results: PackageResults = ()
+
+    @property
+    def results(self) -> PackageResults:
+        """Immutable outcomes in request order after context exit.
+
+        Empty until package operations have completed, and cleared on the
+        next context entry. A body exception discards queued operations and
+        leaves no results. Outcomes describe manager responses, not import
+        availability or independently verified installed state.
+
+        Examples:
+            ```python
+            async with cm.get_context() as ctx:
+                ctx.packages.add("polars")
+            for result in ctx.packages.results:
+                print(result.requirement, result.action, result.outcome)
+            ```
+        """
+        return self._results
 
     def add(self, *packages: str | list[str] | tuple[str, ...]) -> None:
         """Queue packages for installation on context exit.
@@ -176,6 +217,7 @@ class Packages:
 
     def _reset(self) -> None:
         self._ops = []
+        self._results = ()
 
     async def _flush(self) -> PackageResultList:
         """Execute queued ops in order and retain their actual outcomes."""
