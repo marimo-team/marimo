@@ -88,6 +88,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '500': { $ref: '#/components/responses/Internal' }
   /notebooks:
     post:
@@ -120,6 +121,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
@@ -151,6 +153,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
@@ -170,6 +173,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
@@ -260,6 +264,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '500': { $ref: '#/components/responses/Internal' }
   /notebooks/{notebook_id}/edits:
     post:
@@ -310,6 +315,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
@@ -353,6 +359,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
@@ -380,6 +387,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
@@ -424,6 +432,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
@@ -451,6 +460,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
@@ -480,6 +490,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
@@ -532,6 +543,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
@@ -561,6 +573,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
@@ -693,6 +706,15 @@ components:
           schema: { $ref: '#/components/schemas/Problem' }
     NotFound:
       description: There is no such object or route.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    MethodNotAllowed:
+      description: The route exists but not for this method. `Allow` lists the methods it accepts.
+      headers:
+        Allow:
+          schema: { type: string }
+          description: The methods this route accepts, comma separated.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
@@ -1488,11 +1510,11 @@ components:
             What kind of problem this is, as a URI. The kinds this
             protocol defines all start with `tag:marimo.io,2026:host/` and
             end with one of `invalid-request` (400), `unauthorized` (401),
-            `forbidden` (403), `not-found` (404), `not-acceptable` (406),
-            `conflict` (409), `no-runtime` (409), `decision-required`
-            (409), `internal` (500), or `unsupported-operation` (501). A
-            client that sees a kind it does not recognize falls back to
-            `status`.
+            `forbidden` (403), `not-found` (404), `method-not-allowed`
+            (405), `not-acceptable` (406), `conflict` (409), `no-runtime`
+            (409), `decision-required` (409), `internal` (500), or
+            `unsupported-operation` (501). A client that sees a kind it
+            does not recognize falls back to `status`.
           example: tag:marimo.io,2026:host/not-found
         title:
           type: string
