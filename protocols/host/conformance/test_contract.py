@@ -27,8 +27,10 @@ MODELS = {
     "cell.json": "Cell",
     "diagnostic.json": "Error",
     "edit.json": "EditRequest",
+    "edit-conflict-request.json": "EditRequest",
     "edit-response.json": "EditResponse",
     "execution-restored.json": "Execution",
+    "run-cells-request.json": "RunRequest",
 }
 
 
