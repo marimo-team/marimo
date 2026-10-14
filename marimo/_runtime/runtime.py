@@ -169,6 +169,7 @@ from marimo._sql.sql_quoting import (
 from marimo._tracer import attach_trace_context, kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._types.lifespan import Lifespan
+from marimo._utils.asyncio_utils import run_coroutine_blocking
 from marimo._utils.lifespans import Lifespans
 from marimo._utils.paths import normalize_path
 from marimo._utils.platform import is_pyodide
@@ -669,6 +670,9 @@ class Kernel:
         )
         if lifespan.has_lifespans():
             self._lifespan = lifespan(None)
+        # A kernel can be torn down without ever being instantiated, and
+        # exiting a lifespan that was never entered raises.
+        self._lifespan_entered = False
 
     @property
     def stream(self) -> Stream:
@@ -713,9 +717,10 @@ class Kernel:
         # manually clear kernel memory.
         self._module.__dict__.clear()
 
-        # Teardown lifespans
-        if self._lifespan is not None:
-            asyncio.run(self._lifespan.__aexit__(None, None, None))
+        # Teardown lifespans. NB. teardown can run inside an event loop,
+        # where `asyncio.run` raises.
+        if self._lifespan is not None and self._lifespan_entered:
+            run_coroutine_blocking(self._lifespan.__aexit__(None, None, None))
 
     def lazy(self) -> bool:
         return self.reactive_execution_mode == "lazy"
@@ -2314,8 +2319,11 @@ class Kernel:
         During instantiation, UIElements can check for an initial value
         with `get_initial_value`
         """
-        if self._lifespan is not None:
+        # A lifespan can only be entered once, but a kernel can be asked to
+        # instantiate again.
+        if self._lifespan is not None and not self._lifespan_entered:
             await self._lifespan.__aenter__()
+            self._lifespan_entered = True
 
         self.load_dotenv()
 
