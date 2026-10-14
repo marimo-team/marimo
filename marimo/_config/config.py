@@ -1,4 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
+# Same-name aliases explicitly re-export types for strict type checking.
+# ruff: noqa: PLC0414
 from __future__ import annotations
 
 import sys
