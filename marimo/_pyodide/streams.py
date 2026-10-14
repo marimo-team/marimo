@@ -5,6 +5,8 @@ import asyncio
 import sys
 from typing import TYPE_CHECKING
 
+import msgspec
+
 from marimo import _loggers
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.mimetypes import ConsoleMimeType
@@ -114,7 +116,11 @@ class PyodideStderr(Stderr):
         return False
 
     def _write_with_mimetype(
-        self, data: str, mimetype: ConsoleMimeType
+        self,
+        data: str,
+        mimetype: ConsoleMimeType,
+        *,
+        code: str | None = None,
     ) -> int:
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
@@ -132,7 +138,11 @@ class PyodideStderr(Stderr):
         broadcast_notification(
             CellNotification(
                 cell_id=self.stream.cell_id,
-                console=CellOutput.stderr(data, mimetype),
+                console=CellOutput.stderr(
+                    data,
+                    mimetype,
+                    code=code if code is not None else msgspec.UNSET,
+                ),
             ),
             self.stream,
         )

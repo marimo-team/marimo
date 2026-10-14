@@ -401,6 +401,9 @@ async def test_host_run_carries_screenshot_metadata(
         "extra": {"enabled": True},
     }
     assert command.request.headers == {}
+    assert command.request.url["path"] == ""
+    assert command.request.base_url["path"] == ""
+    assert "HTTPRequest(path=''" in repr(command.request)
     manager.next_session.broadcast(CompletedRunNotification(run_id=run_id))
     assert b._run is not None
     assert b._run.task is not None
