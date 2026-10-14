@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 import pytest
@@ -24,7 +25,9 @@ from tests._server.host.conftest import FakeManager, FakeSession
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import Any
 
+    from marimo._core.document import CellSource
     from marimo._session.consumer import SessionConsumer
 
 
@@ -115,6 +118,63 @@ async def test_sessions_present_and_created_are_adopted(
     await manager.event_bus.emit_session_created(unknown)  # type: ignore[arg-type]
     assert unknown.consumers == []
     bridge.close()
+
+
+async def test_delete_during_adoption_preserves_the_file_and_session(
+    manager: FakeManager,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    session = FakeSession(str(path))
+    started, release, deleting = (
+        asyncio.Event(),
+        asyncio.Event(),
+        asyncio.Event(),
+    )
+    load = bridge._load
+
+    async def paused_load(
+        file: Path,
+    ) -> tuple[list[CellSource], dict[str, Any]] | None:
+        started.set()
+        await release.wait()
+        return await load(file)
+
+    async def delete() -> None:
+        deleting.set()
+        await bridge.delete(record.id, request_id="delete")
+
+    monkeypatch.setattr(bridge, "_load", paused_load)
+    adoption = asyncio.create_task(
+        manager.event_bus.emit_session_created(session)  # type: ignore[arg-type]
+    )
+    await asyncio.wait_for(started.wait(), 5)
+    deletion = asyncio.create_task(delete())
+    try:
+        # Queue deletion on the file lock before initialization finishes.
+        await asyncio.wait_for(deleting.wait(), 5)
+        release.set()
+        with pytest.raises(Conflict, match="runtime"):
+            await asyncio.wait_for(deletion, 5)
+        await asyncio.wait_for(adoption, 5)
+
+        notebook = await bridge.host.notebook(record.id)
+        assert notebook.runtime is not None
+        assert notebook.runtime.status == "running"
+        assert path.read_text() == NOTEBOOK
+        assert bridge._backends[record.id].session is session
+        assert not session.closed
+    finally:
+        release.set()
+        await asyncio.gather(adoption, deletion, return_exceptions=True)
+        bridge.close()
 
 
 async def test_a_subscriber_can_stop_an_adopted_session(
