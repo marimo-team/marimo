@@ -37,6 +37,10 @@ class FakeSession:
         self.document.cell_ids = []
         self.document.cells = []
         self.session_view = MagicMock()
+        self.config_manager = MagicMock()
+        self.config_manager.get_config.return_value = {
+            "runtime": {"on_cell_change": "autorun"}
+        }
 
     def connect_consumer(
         self, consumer: SessionConsumer, *, main: bool

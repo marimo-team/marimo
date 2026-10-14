@@ -7,6 +7,7 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
+from marimo._config.manager import ScriptConfigReader
 from marimo._core import protocol
 from marimo._core.document import CellSource, Document
 from marimo._core.errors import Conflict, NotFound
@@ -103,7 +104,7 @@ class SessionBridge(SessionEventListener):
                 record.id,
                 cells,
                 app_config,
-                policy=self._policy(),
+                policy=self._policy(file, session),
                 analyzer=Analyzer(),
                 saved=session is None,
             )
@@ -133,10 +134,19 @@ class SessionBridge(SessionEventListener):
         )
         return _from_file_manager(AppFileManager(path, defaults=defaults))
 
-    def _policy(self) -> Policy:
-        if self._config_manager is None:
+    def _policy(self, file: Path | None, session: Session | None) -> Policy:
+        config_manager = (
+            session.config_manager
+            if session is not None
+            else self._config_manager
+        )
+        if config_manager is None:
             return "autorun"
-        policy = self._config_manager.get_config()["runtime"]["on_cell_change"]
+        if session is None:
+            config_manager = config_manager.with_partial(
+                ScriptConfigReader(None if file is None else str(file))
+            )
+        policy = config_manager.get_config()["runtime"]["on_cell_change"]
         return "lazy" if policy == "lazy" else "autorun"
 
     def _project_path(self, path: Path) -> Path:

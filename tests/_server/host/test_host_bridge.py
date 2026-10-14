@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._config.manager import MarimoConfigManager
 from marimo._core import protocol
 from marimo._core.errors import Conflict
 from marimo._core.stream import Event
@@ -27,7 +28,8 @@ if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any
 
-    from marimo._core.document import CellSource
+    from marimo._config.manager import UserConfigStore
+    from marimo._core.document import CellSource, Policy
     from marimo._session.consumer import SessionConsumer
 
 
@@ -49,6 +51,78 @@ def _():
     x = 1
     return (x,)
 """
+
+
+@pytest.mark.parametrize(
+    ("server_policy", "script_policy", "expected"),
+    [
+        ("autorun", None, "autorun"),
+        ("lazy", None, "lazy"),
+        ("autorun", "lazy", "lazy"),
+        ("lazy", "autorun", "autorun"),
+    ],
+)
+async def test_initial_policy_inherits_server_config_with_script_overrides(
+    manager: FakeManager,
+    tmp_path: Path,
+    user_config_manager: UserConfigStore,
+    server_policy: Policy,
+    script_policy: Policy | None,
+    expected: Policy,
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    header = (
+        "# /// script\n"
+        "# [tool.marimo.runtime]\n"
+        f'# on_cell_change = "{script_policy}"\n'
+        "# ///\n"
+        if script_policy is not None
+        else ""
+    )
+    path.write_text(header + NOTEBOOK)
+    config = MarimoConfigManager(user_config_manager).with_overrides(
+        {"runtime": {"on_cell_change": server_policy}}
+    )
+    bridge = SessionBridge(manager, config)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+
+    notebook = await bridge.host.notebook(record.id)
+
+    assert notebook.document.document.policy == expected
+    assert notebook.runtime is None
+    assert manager.starts == []
+    bridge.close()
+
+
+async def test_initial_policy_uses_the_adopted_sessions_effective_config(
+    manager: FakeManager,
+    tmp_path: Path,
+    user_config_manager: UserConfigStore,
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    config = MarimoConfigManager(user_config_manager).with_overrides(
+        {"runtime": {"on_cell_change": "autorun"}}
+    )
+    session = FakeSession(str(path))
+    session.config_manager = config.with_overrides(
+        {"runtime": {"on_cell_change": "lazy"}}
+    )
+    manager.sessions["browser"] = session
+    bridge = SessionBridge(manager, config)  # type: ignore[arg-type]
+
+    await bridge.open()
+
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    notebook = await bridge.host.notebook(record.id)
+    assert notebook.document.document.policy == "lazy"
+    assert notebook.runtime is not None
+    bridge.close()
 
 
 async def test_an_adopted_document_is_saved_as_far_as_the_file_goes(
