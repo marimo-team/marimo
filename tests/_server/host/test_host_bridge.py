@@ -36,6 +36,58 @@ def prepare(manager: FakeManager, root: Path, *names: str) -> None:
     manager.workspace = FixedFilesWorkspace(files, directory=str(root))
 
 
+NOTEBOOK = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+@app.cell
+def _():
+    x = 1
+    return (x,)
+"""
+
+
+async def test_an_adopted_document_is_saved_as_far_as_the_file_goes(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._messaging.notebook import SetCode, Transaction
+    from marimo._session.notebook import AppFileManager
+
+    prepare(manager, tmp_path, "saved.py", "edited.py")
+    sessions = {}
+    for name in ("saved.py", "edited.py"):
+        path = tmp_path / name
+        path.write_text(NOTEBOOK)
+        session = FakeSession(str(path))
+        session.document = AppFileManager(str(path)).app.cell_manager.document
+        session.app_file_manager.app.config.asdict_difference.return_value = {}
+        sessions[name] = manager.sessions[name] = session
+    edited = sessions["edited.py"].document
+    edited.apply(
+        Transaction(
+            changes=(SetCode(edited.cell_ids[0], "x = 2"),), source="frontend"
+        )
+    )
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+
+    documents = {}
+    for name in ("saved.py", "edited.py"):
+        record = bridge.index.notebook_for(str(tmp_path / name))
+        assert record is not None
+        document = (await bridge.host.notebook(record.id)).document
+        assert document is not None
+        documents[name] = document.document
+
+    # A session showing the file as it is on disk is saved.
+    assert documents["saved.py"].saved_etag == documents["saved.py"].etag
+    # One with an edit the file lacks is not, and names the file's revision.
+    assert documents["edited.py"].saved_etag != documents["edited.py"].etag
+    assert documents["edited.py"].saved_etag == documents["saved.py"].etag
+    bridge.close()
+
+
 async def test_sessions_present_and_created_are_adopted(
     manager: FakeManager, tmp_path: Path
 ) -> None:

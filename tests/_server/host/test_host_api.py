@@ -99,7 +99,9 @@ def harness(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Harness:
-    (tmp_path / "forecasts.py").write_text("import marimo\n")
+    (tmp_path / "forecasts.py").write_text(
+        "import marimo\napp = marimo.App()\n"
+    )
     workspace = FixedFilesWorkspace(
         [MarimoFile(name="forecasts.py", path=str(tmp_path / "forecasts.py"))],
         directory=str(tmp_path),
@@ -471,13 +473,25 @@ async def test_a_notebook_stream_attaches_the_client(harness: Harness) -> None:
         harness.app, "GET", f"/notebooks/{notebook.id}/events", headers=AUTH
     )
     await wait_for(response, until_ready)
-    assert response.names() == ["notebook", "attachment", "ready"]
-    assert response.records[1]["data"]["attachment"]["kind"] == "client"
+    # An empty notebook loads with marimo's one default cell.
+    assert response.names() == [
+        "notebook",
+        "cell",
+        "document",
+        "attachment",
+        "ready",
+    ]
+    assert response.records[2]["data"]["document"]["order"] == [
+        response.records[1]["data"]["cell"]["id"]
+    ]
+    assert response.records[3]["data"]["attachment"]["kind"] == "client"
 
     disconnect()
     await asyncio.wait_for(task, 5)
     assert [e.name for e in harness.host.events(notebook_id=notebook.id)] == [
         "notebook",
+        "cell",
+        "document",
         "ready",
     ]
 
@@ -1388,3 +1402,121 @@ async def test_symlink_escape_has_no_filesystem_side_effects(
     assert [n.path for n in harness.host.notebooks.values()] == [
         "forecasts.py"
     ]
+
+
+NOTEBOOK = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App(width="full")
+
+
+@app.cell
+def _():
+    x = 21
+    return (x,)
+
+
+@app.cell(hide_code=True)
+def _(x):
+    y = x * 2
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+
+
+async def test_the_notebook_stream_carries_cells_then_the_document(
+    harness: Harness,
+) -> None:
+    (harness.root / "forecasts.py").write_text(NOTEBOOK)
+    response, _, disconnect = request(
+        harness.app,
+        "GET",
+        f"/notebooks/{harness.notebook_id}/events",
+        headers=AUTH,
+    )
+    await wait_for(response, until_ready)
+    disconnect()
+
+    assert response.names() == [
+        "notebook",
+        "cell",
+        "cell",
+        "document",
+        "attachment",
+        "ready",
+    ]
+    first, second = (r["data"]["cell"] for r in response.records[1:3])
+    document = response.records[3]["data"]["document"]
+    assert first["code"] == "x = 21"
+    assert first["analysis"] == {"defs": ["x"], "refs": [], "errors": []}
+    assert second["code"] == "y = x * 2"
+    assert second["config"]["hide_code"] is True
+    assert second["analysis"]["refs"] == ["x"]
+    assert document["order"] == [first["id"], second["id"]]
+    assert document["app_config"] == {"width": "full"}
+    assert document["policy"] == "autorun"
+    assert document["saved_etag"] == document["etag"]
+    assert all(
+        c["notebook_id"] == harness.notebook_id for c in (first, second)
+    )
+
+    # A filtered stream is a snapshot of the document alone, and a second
+    # connection reuses the loaded document.
+    response, _, disconnect = request(
+        harness.app,
+        "GET",
+        f"/notebooks/{harness.notebook_id}/events",
+        headers=AUTH,
+        query="types=cell,document",
+    )
+    await wait_for(response, until_ready)
+    disconnect()
+    assert response.names() == ["cell", "cell", "document", "ready"]
+    assert response.records[2]["data"]["document"] == document
+
+
+async def test_an_unreadable_notebook_stays_in_the_catalog_and_can_retry(
+    harness: Harness,
+) -> None:
+    file = harness.root / "forecasts.py"
+    file.write_text("print('not a notebook')\n")
+    notebook_id = harness.notebook_id
+
+    response = await finished(
+        harness.app,
+        "GET",
+        f"/notebooks/{notebook_id}/events",
+        headers=AUTH,
+    )
+    assert response.status == 409
+    assert harness.host.peek_notebook(notebook_id) is None
+    assert notebook_id in harness.host.notebooks
+    assert harness.backends == {}
+
+    file.write_text(NOTEBOOK)
+    notebook = await harness.host.notebook(notebook_id)
+    assert [cell.code for cell in notebook.document.cells] == [
+        "x = 21",
+        "y = x * 2",
+    ]
+
+
+async def test_deleting_an_unreadable_notebook_does_not_initialize_it(
+    harness: Harness,
+) -> None:
+    file = harness.root / "forecasts.py"
+    file.write_text("print('not a notebook')\n")
+    notebook_id = harness.notebook_id
+    response = await finished(
+        harness.app,
+        "DELETE",
+        f"/notebooks/{notebook_id}",
+        headers=key("delete-unreadable"),
+    )
+    assert response.status == 204
+    assert notebook_id not in harness.host.notebooks
+    assert not file.exists()
+    assert harness.backends == {}

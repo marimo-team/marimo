@@ -32,6 +32,7 @@ class FakeSession:
         self.exit_info: Any = None
         self.app_file_manager = MagicMock()
         self.app_file_manager.path = path
+        self.app_file_manager.app.config.asdict_difference.return_value = {}
         self.document = MagicMock()
         self.document.cell_ids = []
         self.document.cells = []

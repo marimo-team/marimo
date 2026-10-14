@@ -160,6 +160,19 @@ class Executions:
         """Stop tracking a released run."""
         del self._runs[run_id]
 
+    def remove_cell(self, cell_id: protocol.CellId) -> list[Change]:
+        """Remove a deleted cell's result.
+
+        An active execution stays until its run completes.
+        """
+        execution_id = self._cells.get(cell_id)
+        if execution_id is None:
+            return []
+        if self._results[execution_id].execution.status == "completed":
+            return self._retire_execution(execution_id)
+        self._cells.pop(cell_id)
+        return []
+
     def observe(
         self, msg: be.Message, runtime: protocol.Runtime | None
     ) -> list[Change]:
@@ -374,21 +387,26 @@ class Executions:
         result = self._results.get(execution.id)
         if result is None:
             self._results[execution.id] = _Result(execution)
+            if execution.cell_id is not None:
+                self._cells[execution.cell_id] = execution.id
         else:
             result.execution = execution
-        if execution.cell_id is not None:
-            self._cells[execution.cell_id] = execution.id
         if execution.run_id is not None:
             if (tracked := self._runs.get(execution.run_id)) is not None:
                 tracked.executions.add(execution.id)
         return execution
 
-    def _finish_run(self, tracked: _Run) -> list[Released]:
+    def _finish_run(self, tracked: _Run) -> list[Change]:
         """Release completed work that no cell retains."""
+        changes: list[Change] = []
         for execution_id in list(tracked.executions):
-            if self._results[execution_id].execution.cell_id is None:
+            execution = self._results[execution_id].execution
+            if execution.cell_id is None:
                 self._forget_result(execution_id)
-        return self._prune_run(tracked)
+            elif self._cells.get(execution.cell_id) != execution_id:
+                changes.extend(self._remove_execution(execution_id))
+        changes.extend(self._prune_run(tracked))
+        return changes
 
     def _prune_run(self, tracked: _Run) -> list[Released]:
         if tracked.run.status != "completed" or tracked.executions:
@@ -436,7 +454,10 @@ class Executions:
 
     def _forget_result(self, execution_id: protocol.ExecutionId) -> None:
         result = self._results.pop(execution_id)
-        if result.execution.cell_id is not None:
+        if (
+            result.execution.cell_id is not None
+            and self._cells.get(result.execution.cell_id) == execution_id
+        ):
             del self._cells[result.execution.cell_id]
         if result.execution.run_id is not None:
             if (

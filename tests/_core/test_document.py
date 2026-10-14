@@ -17,6 +17,10 @@ from marimo._core.document import (
     document_etag,
     order_etag,
 )
+from marimo._core.host import Host
+from marimo._core.notebook import Notebook
+from marimo._core.stream import Event
+from tests._core.conftest import make_notebook, names, project, record
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -204,3 +208,58 @@ class TestAnalysis:
     def test_is_null_without_an_analyzer(self) -> None:
         document = Document(NOTEBOOK, fixture_cells(), {})
         assert all(cell.analysis is None for cell in document.cells)
+
+
+class TestNotebook:
+    async def test_initialization_publishes_cells_then_the_document(
+        self, host: Host, log: list[Event]
+    ) -> None:
+        host.update_project(project())
+        host.add_notebook(
+            record(),
+            lambda record, sink: make_notebook(
+                record,
+                sink,
+                document=Document(
+                    NOTEBOOK, fixture_cells(), {"width": "full"}
+                ),
+            ),
+        )
+        log.clear()
+        await host.notebook(NOTEBOOK)
+
+        assert names(log) == ["cell", "cell", "cell", "document"]
+        snapshot = host.events(notebook_id="n1")
+        assert names(snapshot) == [
+            "notebook",
+            "cell",
+            "cell",
+            "cell",
+            "document",
+            "ready",
+        ]
+        assert names(host.events(notebook_id="n1", types={"document"})) == [
+            "document",
+            "ready",
+        ]
+        # The catalog does not carry the document.
+        assert "cell" not in names(host.events())
+
+    def test_replace_publishes_what_changed(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        notebook.replace(fixture_cells(), {})
+        log.clear()
+
+        notebook.replace(
+            [
+                CellSource("c1", "import marimo as mo"),
+                CellSource("c3", "x = 22"),
+            ],
+            {},
+            request_id="edit-1",
+        )
+
+        assert names(log) == ["cell", "cell.removed", "document"]
+        assert all(e.data.request_id == "edit-1" for e in log)  # type: ignore[union-attr]
+        assert log[1].data.id == "k7f2"  # type: ignore[union-attr]

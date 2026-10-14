@@ -11,6 +11,7 @@ from msgspec import UNSET
 from msgspec.structs import replace
 
 from marimo._core import backend as be
+from marimo._core.document import CellSource
 from marimo._core.errors import Conflict, NoRuntime, NotFound
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -215,6 +216,7 @@ class TestStop:
         assert isinstance(interrupted.execution.outcome, InterruptedOutcome)
         assert names(host.events(notebook_id=notebook.id)) == [
             "notebook",
+            "document",
             "run",
             "execution",
             "console",
@@ -261,6 +263,7 @@ class TestStop:
         assert request_ids(log) == ["stop", "stop"]
         assert names(host.events(notebook_id=notebook.id)) == [
             "notebook",
+            "document",
             "run",
             "execution",
             "console",
@@ -401,6 +404,7 @@ class TestAdoption:
         assert notebook.runtime.marimo_version == "0.26.0"
         assert names(host.events(notebook_id=notebook.id)) == [
             "notebook",
+            "document",
             "runtime",
             "run",
             "execution",
@@ -1117,3 +1121,52 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
         for event, state in zip(live, snapshots, strict=True)
         if event.name.endswith(".removed")
     )
+
+
+async def test_source_edits_keep_live_results_until_the_cell_is_deleted() -> (
+    None
+):
+    host, notebook = await host_at(Clock())
+    notebook.replace([CellSource("c1", "42")], {})
+    run = notebook.run("42", request_id="run")
+    execution = plan(notebook, run, "result", "c1")
+    notebook.observe(
+        be.Produced(Console(execution, ItemId("out"), "stdout", 0, "hello"))
+    )
+    finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    retained = notebook.executions._records()
+
+    notebook.replace([CellSource("c1", "43")], {})
+    assert notebook.executions._records() == retained
+
+    live: list[Event] = []
+    host.subscribe(live.append, notebook_id=notebook.id)
+    notebook.replace([], {})
+    assert notebook.document.cells == []
+    assert fold(host.events(notebook_id=notebook.id)) == {}
+    assert names(live) == [
+        "console.removed",
+        "execution.removed",
+        "run.removed",
+        "cell.removed",
+        "document",
+    ]
+
+
+async def test_deleting_an_active_cell_releases_its_result_when_the_run_ends() -> (
+    None
+):
+    host, notebook = await host_at(Clock())
+    notebook.replace([CellSource("c1", "42")], {})
+    run = notebook.run("42", request_id="run")
+    execution = plan(notebook, run, "result", "c1")
+    notebook.replace([], {})
+    notebook.observe(
+        be.Produced(Console(execution, ItemId("out"), "stdout", 0, "hello"))
+    )
+    finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    assert notebook.document.cells == []
+    assert fold(notebook._snapshot()) == {}
+    assert fold(host.events(notebook_id=notebook.id)) == {}

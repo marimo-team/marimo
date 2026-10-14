@@ -389,6 +389,8 @@ async def _notebook_events(request: Request) -> Response:
         notebook = await _notebook(request)
     except NotFound as e:
         return problem(404, "not-found", str(e))
+    except Conflict as e:
+        return problem(409, "conflict", str(e))
     cursor = _cursor(request)
     if isinstance(cursor, Response):
         return cursor

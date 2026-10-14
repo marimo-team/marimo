@@ -147,6 +147,7 @@ async def test_a_notebook_stream_sees_only_its_notebook(host: Host) -> None:
     events = host.events(notebook_id="n1")
     assert names(events) == [
         "notebook",
+        "document",
         "runtime",
         "run",
         "execution",
@@ -158,6 +159,7 @@ async def test_a_notebook_stream_sees_only_its_notebook(host: Host) -> None:
     live = host.events(0, notebook_id="n1")
     assert names(live) == [
         "notebook",
+        "document",
         "runtime",
         "runtime",
         "run",
@@ -655,7 +657,7 @@ async def test_repeated_expiration_releases_runs_and_request_correlations() -> (
         host.expire()
         assert fold(host.events(notebook_id=notebook.id)) == {}
     assert (
-        len({call[1] for call in notebook._backend.calls if call[0] == "run"})
+        len({call[1] for call in notebook.backend.calls if call[0] == "run"})
         == 100
     )
 
@@ -742,10 +744,10 @@ async def test_completed_scratch_runs_belong_to_the_host() -> None:
         ("execution", execution),
         ("console", "out"),
     }
-    assert notebook._backend.calls.count(("forget", run.id)) == 1
+    assert notebook.backend.calls.count(("forget", run.id)) == 1
     with pytest.raises(NotFound):
         notebook.interrupt(run.id)
     clock.now = 10
     host.expire()
     assert fold(host.events(notebook_id=notebook.id)) == {}
-    assert notebook._backend.calls.count(("forget", run.id)) == 1
+    assert notebook.backend.calls.count(("forget", run.id)) == 1
