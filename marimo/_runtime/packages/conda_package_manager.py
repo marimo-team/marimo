@@ -26,7 +26,11 @@ class PixiPackageManager(CondaPackageManager):
     name = "pixi"
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: str | None = None
+        self,
+        package: str | list[str],
+        *,
+        upgrade: bool,
+        group: str | None = None,
     ) -> list[str]:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
@@ -36,7 +40,9 @@ class PixiPackageManager(CondaPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self, package: str | list[str], group: str | None = None
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(

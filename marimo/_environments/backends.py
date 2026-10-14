@@ -295,7 +295,7 @@ class UvBackendAdapter(_ReportingBackendAdapter):
     def add(
         self,
         target: MaterializedScript,
-        package: str,
+        package: str | list[str],
         *,
         upgrade: bool,
         on_output: LogCallback | None,
@@ -307,7 +307,7 @@ class UvBackendAdapter(_ReportingBackendAdapter):
             "--script",
             target.path,
             *(["--upgrade"] if upgrade else []),
-            package,
+            *([package] if isinstance(package, str) else package),
         ]
 
         def report(argv: Sequence[str]) -> None:
@@ -332,13 +332,18 @@ class UvBackendAdapter(_ReportingBackendAdapter):
     def remove(
         self,
         target: MaterializedScript,
-        package: str,
+        package: str | list[str],
         *,
         on_output: LogCallback | None,
     ) -> None:
         from marimo._environments.uv import script_command_env, uv, uv_stream
 
-        command = ["remove", "--script", target.path, package]
+        command = [
+            "remove",
+            "--script",
+            target.path,
+            *([package] if isinstance(package, str) else package),
+        ]
 
         def report(argv: Sequence[str]) -> None:
             self._report("remove", argv)
@@ -509,7 +514,7 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
     def add(
         self,
         target: MaterializedScript,
-        package: str,
+        package: str | list[str],
         *,
         upgrade: bool,
         on_output: LogCallback | None,
@@ -530,7 +535,7 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
     def remove(
         self,
         target: MaterializedScript,
-        package: str,
+        package: str | list[str],
         *,
         on_output: LogCallback | None,
     ) -> None:

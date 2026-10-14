@@ -39,7 +39,8 @@ class FakeBackend:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.sync_targets: list[str] = []
-        self.add_requests: list[str] = []
+        self.add_requests: list[str | list[str]] = []
+        self.remove_requests: list[str | list[str]] = []
         self.versions: dict[str, str] = {"obstore": "0.8.2"}
 
     def ensure_available(self) -> None:
@@ -51,13 +52,17 @@ class FakeBackend:
     def add(
         self,
         target: MaterializedScript,
-        package: str,
+        package: str | list[str],
         *,
         upgrade: bool,
         on_output: LogCallback | None,
     ) -> None:
         del upgrade, on_output
         self.add_requests.append(package)
+        for requirement in [package] if isinstance(package, str) else package:
+            self._add_one(target, requirement)
+
+    def _add_one(self, target: MaterializedScript, package: str) -> None:
         path = Path(target.path)
         content = path.read_text()
         project = script_metadata.loads(content)
@@ -84,11 +89,18 @@ class FakeBackend:
     def remove(
         self,
         target: MaterializedScript,
-        package: str,
+        package: str | list[str],
         *,
         on_output: LogCallback | None,
     ) -> None:
         del on_output
+        self.remove_requests.append(package)
+        names = {
+            _requirement_name(requirement)
+            for requirement in (
+                [package] if isinstance(package, str) else package
+            )
+        }
         path = Path(target.path)
         content = path.read_text()
         project = script_metadata.loads(content)
@@ -96,7 +108,7 @@ class FakeBackend:
         project["dependencies"] = [
             dependency
             for dependency in project.get("dependencies", [])
-            if _requirement_name(str(dependency)) != _requirement_name(package)
+            if _requirement_name(str(dependency)) not in names
         ]
         path.write_text(
             script_metadata.replace_block(
@@ -256,10 +268,10 @@ def test_restart_required_keeps_successful_manifest_changes(
         adapter, "sync", side_effect=SandboxRestartRequired("restart")
     ):
         with pytest.raises(SandboxRestartRequired):
-            sandbox.add("obstore")
+            sandbox.add(["obstore", "other>=1"])
 
     assert script_metadata.loads(notebook.read_text()) == {
-        "dependencies": ["obstore==0.8.2"]
+        "dependencies": ["obstore==0.8.2", "other>=1"]
     }
 
 
@@ -747,3 +759,45 @@ def test_pixi_launch_does_not_require_uv(
     assert plan.argv[1:5] == ("exec", "--spec", pixi.UV_OVERLAY_SPEC, "uv")
     assert plan.env["CONDA_PREFIX"] == str(root)
     assert plan.env["CONDA_DEFAULT_ENV"] == root.name
+
+
+def test_batch_add_pins_together_and_syncs_once(tmp_path: Path) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("# /// script\n# dependencies = []\n# ///\n")
+    adapter = FakeBackend(tmp_path / "environment")
+    adapter.versions = {"obstore": "0.8.2", "other": "1.0"}
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+
+    sandbox.add(["obstore", "other"])
+
+    assert adapter.add_requests == [
+        ["obstore", "other"],
+        ["obstore==0.8.2", "other==1.0"],
+    ]
+    assert script_metadata.loads(notebook.read_text()) == {
+        "dependencies": ["obstore==0.8.2", "other==1.0"]
+    }
+    assert len(adapter.sync_targets) == 1
+
+    sandbox.remove(["obstore", "other"])
+    assert adapter.remove_requests == [["obstore", "other"]]
+    assert script_metadata.loads(notebook.read_text()) == {"dependencies": []}
+    assert len(adapter.sync_targets) == 2
+
+
+def test_batch_remove_checks_runtime_dependency_before_edit(
+    tmp_path: Path,
+) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text('# /// script\n# dependencies = ["obstore"]\n# ///\n')
+    adapter = FakeBackend(tmp_path / "environment")
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+    with pytest.raises(
+        script_metadata.ScriptMetadataError, match="cannot be removed"
+    ):
+        sandbox.remove(["obstore", "marimo"])
+    assert adapter.remove_requests == []
+    assert adapter.sync_targets == []
+    assert script_metadata.loads(notebook.read_text()) == {
+        "dependencies": ["obstore"]
+    }
