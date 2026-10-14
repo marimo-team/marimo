@@ -174,9 +174,19 @@ class SessionBackend(SessionConsumer):
             cells, outputs = snapshot_for_scratchpad(session)
             request = None
             if self._request_metadata is not None:
+                # Host runs have no HTTP origin. Give the URL fields the same
+                # keys a real request has so notebook code can read them.
+                empty_url: dict[str, Encodable] = {
+                    "path": "",
+                    "port": None,
+                    "scheme": "",
+                    "netloc": "",
+                    "query": "",
+                    "hostname": None,
+                }
                 request = HTTPRequest(
-                    url={},
-                    base_url={},
+                    url=dict(empty_url),
+                    base_url=dict(empty_url),
                     headers={},
                     query_params={},
                     path_params={},

@@ -8,7 +8,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { createStore, Provider } from "jotai";
+import { createStore, Provider, useAtomValue } from "jotai";
 import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
@@ -304,22 +304,27 @@ describe("SendErrorReportButton", () => {
         data: ERRORS,
         code: CODE,
       };
-      const { store } = renderButton({
-        content: <OutputRenderer cellId={CELL_ID} message={output} />,
-      });
-      store.set(
-        notebookAtom,
-        MockNotebook.notebookState({
-          cellData: { [CELL_ID]: { code: CODE, lastCodeRun: CODE } },
-          cellRuntime: { [CELL_ID]: { output } },
-        }),
-      );
+      // Render from the store so reducer changes reach the button.
+      const StoreOutput = () => {
+        const message = useAtomValue(notebookAtom).cellRuntime[CELL_ID]?.output;
+        return message ? (
+          <OutputRenderer cellId={CELL_ID} message={message} />
+        ) : null;
+      };
+      const { store } = renderButton({ content: <StoreOutput /> });
       const actions = exportedForTesting.createActions((action) => {
         store.set(notebookAtom, (state) =>
           exportedForTesting.reducer(state, action),
         );
       });
       act(() => {
+        store.set(
+          notebookAtom,
+          MockNotebook.notebookState({
+            cellData: { [CELL_ID]: { code: CODE, lastCodeRun: CODE } },
+            cellRuntime: { [CELL_ID]: { output } },
+          }),
+        );
         actions.updateCellCode({
           cellId: CELL_ID,
           code: "print('edited')",

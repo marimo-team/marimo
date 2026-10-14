@@ -117,8 +117,8 @@ export const MarimoErrorOutput = ({
   const showConsoleHint =
     useAtomValue(resolvedMarimoConfigAtom).display.cell_output === "above";
   // The editor shows tracebacks in the console area, so the inline copy is
-  // for published apps, which have no console.
-  const showInlineTraceback = useAtomValue(viewStateAtom).mode === "read";
+  // for views without a console: published apps and present mode.
+  const showInlineTraceback = useAtomValue(viewStateAtom).mode !== "edit";
 
   let titleContents: string | null =
     "This cell wasn't run because it has errors";

@@ -56,12 +56,16 @@ class CellOutput(msgspec.Struct):
 
     @staticmethod
     def stderr(
-        data: str, mimetype: ConsoleMimeType = "text/plain"
+        data: str,
+        mimetype: ConsoleMimeType = "text/plain",
+        *,
+        code: str | msgspec.UnsetType = msgspec.UNSET,
     ) -> CellOutput:
         return CellOutput(
             channel=CellChannel.STDERR,
             mimetype=mimetype,
             data=data,
+            code=code,
         )
 
     @staticmethod

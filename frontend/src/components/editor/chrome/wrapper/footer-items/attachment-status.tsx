@@ -54,7 +54,7 @@ function AttachmentStatusItem({ attachments }: { attachments: Attachment[] }) {
           <button type="button">
             <span className="flex items-center gap-1.5">
               <BotIcon className="w-4 h-4" />
-              <span>{label}</span>
+              <span className="max-w-48 truncate">{label}</span>
             </span>
           </button>
         </FooterItem>

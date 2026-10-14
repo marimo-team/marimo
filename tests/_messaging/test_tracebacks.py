@@ -53,6 +53,16 @@ class TestTracebacks:
             # Second argument should be the mimetype
             _, kwargs = mock_stderr._write_with_mimetype.call_args
             assert kwargs["mimetype"] == "application/vnd.marimo+traceback"
+            assert kwargs["code"] is None
+
+    def test_write_traceback_to_stderr_keeps_code(self) -> None:
+        mock_stderr = MagicMock(spec=Stderr)
+
+        with patch("sys.stderr", mock_stderr):
+            write_traceback("ValueError: invalid value", code="raise x")
+
+            _, kwargs = mock_stderr._write_with_mimetype.call_args
+            assert kwargs["code"] == "raise x"
 
     def test_write_traceback_to_regular_stderr(self) -> None:
         # Test writing traceback to regular stderr (not Stderr)

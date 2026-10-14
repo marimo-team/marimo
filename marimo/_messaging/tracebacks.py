@@ -56,6 +56,7 @@ def write_traceback(traceback: str, *, code: str | None = None) -> None:
         sys.stderr._write_with_mimetype(
             _highlight_traceback(traceback),
             mimetype="application/vnd.marimo+traceback",
+            code=code,
         )
     else:
         # When stderr is not redirected (e.g., run mode with redirect_console_to_browser=False),
