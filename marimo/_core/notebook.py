@@ -12,37 +12,32 @@ from marimo._core import backend as be, protocol
 from marimo._core.errors import Conflict, NoRuntime, NotFound
 from marimo._core.executions import Executions, Released, Removed
 from marimo._core.ids import mint
-from marimo._core.stream import (
-    Event,
-    Kind,
-    Listener,
-    Stream,
-    kind_of,
-    message,
-    utcnow,
-)
+from marimo._core.stream import Event, Kind, kind_of, message, utcnow
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from marimo._core.executions import Change
-    from marimo._core.stream import Body
+    from marimo._core.stream import Body, Sink
 
 
 class Notebook:
     """A notebook with execution results, a runtime, and client attachments.
 
     Commands call the backend. Backend reports update state and reach
-    subscribers through notebook events. Change execution state through
-    the notebook so each change reaches subscribers.
+    the sink as notebook events. Change execution state through the
+    notebook so each change reaches the sink.
     """
 
     def __init__(
-        self, notebook_id: protocol.NotebookId, backend: be.Backend
+        self,
+        notebook_id: protocol.NotebookId,
+        backend: be.Backend,
+        sink: Sink,
     ) -> None:
         self._id = notebook_id
         self._backend = backend
-        self._stream = Stream(history=0)
+        self._sink = sink
         self._closed = False
         self._runtime: protocol.Runtime | None = None
         self._attachments: dict[str, protocol.Attachment] = {}
@@ -50,10 +45,6 @@ class Notebook:
         self._replacement: protocol.Runtime | None = None
         # Correlate runtime events with the pending start, stop, or restart.
         self._runtime_request: str | None = None
-
-    def subscribe(self, listener: Listener) -> Callable[[], None]:
-        """Subscribe to future notebook events."""
-        return self._stream.subscribe(listener)
 
     @property
     def executions(self) -> Executions:
@@ -78,7 +69,7 @@ class Notebook:
         self, *, request_id: str | None = None
     ) -> tuple[protocol.Runtime, bool]:
         """Return the runtime and whether this call started it."""
-        with self._stream.deferred():
+        with self._sink.deferred():
             self._require_open()
             if self._runtime is not None:
                 return self._runtime, False
@@ -94,7 +85,7 @@ class Notebook:
         The runtime stays until the backend reports its exit. A failed runtime
         is removed immediately.
         """
-        with self._stream.deferred():
+        with self._sink.deferred():
             self._require_open()
             runtime = self._require_runtime()
             self._runtime_request = request_id
@@ -114,7 +105,7 @@ class Notebook:
 
         The replacement starts after the old runtime exits.
         """
-        with self._stream.deferred():
+        with self._sink.deferred():
             self._require_open()
             runtime = self._require_runtime()
             if runtime.status != "running":
@@ -138,7 +129,7 @@ class Notebook:
 
         Calls `attach` with a new runtime ID before delivering events.
         """
-        with self._stream.deferred():
+        with self._sink.deferred():
             self._require_open()
             if self._runtime is not None:
                 if self._runtime.status != "failed":
@@ -175,7 +166,7 @@ class Notebook:
 
     def run(self, code: str, *, request_id: str) -> protocol.Run:
         """Queue scratch code on a running, idle runtime."""
-        with self._stream.deferred():
+        with self._sink.deferred():
             self._require_open()
             runtime = self._require_runtime()
             if runtime.status != "running":
@@ -282,7 +273,7 @@ class Notebook:
         if runtime.status == "terminating" and self._replacement is not None:
             replacement, self._replacement = self._replacement, None
             request_id = self._runtime_request
-            with self._stream.deferred():
+            with self._sink.deferred():
                 self._end_runtime()
                 self._runtime_request = request_id
                 self._set_runtime(replacement)
@@ -370,7 +361,7 @@ class Notebook:
             self._remove("runtime", runtime.id, request_id)
 
     def _publish(self, body: Body, request_id: str | None) -> None:
-        self._stream.publish(
+        self._sink.publish(
             body,
             notebook_id=self.id,
             request_id=request_id,
@@ -382,7 +373,7 @@ class Notebook:
         object_id: str,
         request_id: str | None,
     ) -> None:
-        self._stream.remove(
+        self._sink.remove(
             kind,
             object_id,
             notebook_id=self.id,
@@ -392,7 +383,7 @@ class Notebook:
     def _apply(self, changes: Sequence[Change]) -> None:
         """Publish changes and release completed runs."""
         executions = self.executions
-        with self._stream.deferred():
+        with self._sink.deferred():
             for change in changes:
                 if isinstance(change, Released):
                     executions.release(change.run_id)
@@ -401,7 +392,7 @@ class Notebook:
                 run_id = executions.run_id_of(change)
                 request_id = executions.request_id(run_id)
                 if isinstance(change, Removed):
-                    self._stream.remove(
+                    self._sink.remove(
                         change.kind,
                         change.id,
                         notebook_id=self.id,
@@ -409,7 +400,7 @@ class Notebook:
                         request_id=request_id,
                     )
                 else:
-                    self._stream.publish(
+                    self._sink.publish(
                         change,
                         notebook_id=self.id,
                         run_id=run_id,

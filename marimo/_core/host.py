@@ -14,19 +14,38 @@ from marimo._core.backend import Backend
 from marimo._core.errors import NotFound
 from marimo._core.notebook import Notebook
 from marimo._core.run_log import RetentionPolicy, RunLog
-from marimo._core.stream import Event, Listener, Stream, message
+from marimo._core.stream import Event, Listener, Sink, Stream, message
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Sequence
+    from contextlib import AbstractContextManager
 
 
 @dataclass
 class _Entry:
-    """A notebook, the run history kept for it, and its subscription."""
+    """A notebook and the run history kept for it."""
 
     notebook: Notebook
     log: RunLog
-    unsubscribe: Callable[[], None]
+
+
+class _NotebookSink(Sink):
+    """A notebook's sink: the run log sees each event, then the stream."""
+
+    def __init__(self, stream: Stream, log: RunLog) -> None:
+        self._stream = stream
+        self._log = log
+
+    def deferred(self) -> AbstractContextManager[None]:
+        return self._stream.deferred()
+
+    def _append(self, event: Event) -> Event:
+        with self._stream.deferred():
+            removals = self._log.observe(event)
+            recorded = self._stream.append(event)
+            for removed in removals:
+                self._stream.append(removed)
+        return recorded
 
 
 class _NotebookRecords(Mapping[str, protocol.Notebook]):
@@ -102,21 +121,12 @@ class Host:
             raise ValueError(
                 f"project {record.project_id} is not in the catalog"
             )
-        notebook = Notebook(record.id, backend)
         log = RunLog(lambda: self.clock())
-
-        def publish(event: Event) -> None:
-            removals = log.observe(event)
-            self._stream.append(event)
-            for removal in removals:
-                self._stream.append(removal)
-
-        self._records[record.id] = deepcopy(record)
-        self._entries[record.id] = _Entry(
-            notebook,
-            log,
-            notebook._stream.subscribe(publish, downstream=self._stream),
+        notebook = Notebook(
+            record.id, backend, _NotebookSink(self._stream, log)
         )
+        self._records[record.id] = deepcopy(record)
+        self._entries[record.id] = _Entry(notebook, log)
         self._stream.publish(
             record, notebook_id=record.id, request_id=request_id
         )
@@ -147,21 +157,16 @@ class Host:
         if entry is None:
             return
         record = self._records.pop(notebook_id)
-        entry.notebook._dispose(request_id=request_id)
-
-        def finish() -> None:
-            with self._stream.deferred():
-                for event in entry.log.clear():
-                    self._stream.append(event)
-            entry.unsubscribe()
+        with self._stream.deferred():
+            entry.notebook._dispose(request_id=request_id)
+            for event in entry.log.clear():
+                self._stream.append(event)
             self._stream.remove(
                 "notebook",
                 record.id,
                 notebook_id=record.id,
                 request_id=request_id,
             )
-
-        entry.notebook._stream.after_delivery(finish)
 
     def notebook(self, notebook_id: str) -> Notebook:
         """Return a notebook or raise `NotFound`."""

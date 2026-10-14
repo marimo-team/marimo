@@ -8,9 +8,10 @@ stream from the last event id received on that stream.
 from __future__ import annotations
 
 import logging
+from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Callable, Collection, Iterator
-from contextlib import ExitStack, contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -159,26 +160,12 @@ class Event:
 Listener = Callable[[Event], None]
 
 
-class Stream:
-    """An ordered event log with bounded history and live subscriptions.
+class Sink(ABC):
+    """Where a producer publishes its events.
 
-    Callers serialize access on one thread. Published objects and returned
-    events are copied so readers cannot mutate the log or each other's data.
+    A `Stream` is a sink. A host can give a notebook one that observes
+    each event before the stream records it.
     """
-
-    def __init__(self, *, history: int = 1000) -> None:
-        self._last_id = 0
-        self._history: deque[Event] = deque(maxlen=history)
-        self._listeners: list[Listener] = []
-        self._downstream: list[Stream] = []
-        self._pending: deque[
-            tuple[Event, tuple[Listener, ...]] | Callable[[], None]
-        ] = deque()
-        self._dispatching = False
-
-    @property
-    def last_id(self) -> int:
-        return self._last_id
 
     def publish(
         self,
@@ -189,10 +176,9 @@ class Stream:
         run_id: protocol.RunId | None = None,
     ) -> Event:
         """Publish a new or updated object."""
-        kind = kind_of(body)
         data = message(body, request_id=request_id, time=utcnow())
         return self._append(
-            Event(kind, data, notebook_id=notebook_id, run_id=run_id)
+            Event(kind_of(body), data, notebook_id=notebook_id, run_id=run_id)
         )
 
     def remove(
@@ -215,6 +201,33 @@ class Stream:
             )
         )
 
+    @abstractmethod
+    def deferred(self) -> AbstractContextManager[None]:
+        """Deliver events published in the block once it ends."""
+
+    @abstractmethod
+    def _append(self, event: Event) -> Event:
+        """Record an event and return it as recorded."""
+
+
+class Stream(Sink):
+    """An ordered event log with bounded history and live subscriptions.
+
+    Callers serialize access on one thread. Published objects and returned
+    events are copied so readers cannot mutate the log or each other's data.
+    """
+
+    def __init__(self, *, history: int = 1000) -> None:
+        self._last_id = 0
+        self._history: deque[Event] = deque(maxlen=history)
+        self._listeners: list[Listener] = []
+        self._pending: deque[tuple[Event, tuple[Listener, ...]]] = deque()
+        self._dispatching = False
+
+    @property
+    def last_id(self) -> int:
+        return self._last_id
+
     def since(self, cursor: int) -> list[Event] | None:
         """Return events after `cursor`, or `None` for a stale or future cursor."""
         if cursor == self._last_id:
@@ -229,24 +242,17 @@ class Stream:
             [e for e in self._history if e.id is not None and e.id > cursor]
         )
 
-    def subscribe(
-        self, listener: Listener, *, downstream: Stream | None = None
-    ) -> Callable[[], None]:
+    def subscribe(self, listener: Listener) -> Callable[[], None]:
         """Subscribe to future events and return an unsubscribe function.
 
         Subscriber exceptions are logged. Events published during delivery
-        follow the event being delivered. A downstream stream delivers
-        forwarded events after this stream drains.
+        follow the event being delivered.
         """
         self._listeners.append(listener)
-        if downstream is not None:
-            self._downstream.append(downstream)
 
         def unsubscribe() -> None:
             if listener in self._listeners:
                 self._listeners.remove(listener)
-                if downstream is not None:
-                    self._downstream.remove(downstream)
 
         return unsubscribe
 
@@ -286,29 +292,15 @@ class Stream:
             self._drain()
         return deepcopy(stamped)
 
-    def after_delivery(self, callback: Callable[[], None]) -> None:
-        """Call after queued events reach their listeners."""
-        if self._dispatching:
-            self._pending.append(callback)
-        else:
-            callback()
-
     def _drain(self) -> None:
-        with ExitStack() as delivery:
-            for stream in self._downstream:
-                delivery.enter_context(stream.deferred())
-            self._dispatching = True
-            try:
-                while self._pending:
-                    item = self._pending.popleft()
-                    if callable(item):
-                        item()
-                        continue
-                    pending, listeners = item
-                    for listener in listeners:
-                        try:
-                            listener(deepcopy(pending))
-                        except Exception:
-                            LOGGER.exception("Error delivering host event")
-            finally:
-                self._dispatching = False
+        self._dispatching = True
+        try:
+            while self._pending:
+                pending, listeners = self._pending.popleft()
+                for listener in listeners:
+                    try:
+                        listener(deepcopy(pending))
+                    except Exception:
+                        LOGGER.exception("Error delivering host event")
+        finally:
+            self._dispatching = False

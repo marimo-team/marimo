@@ -33,9 +33,8 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.parametrize("trigger", ["runtime", "run"])
-@pytest.mark.parametrize("source", ["host", "notebook"])
 def test_a_subscriber_can_remove_a_notebook_after_its_children(
-    host: Host, notebook: Notebook, trigger: str, source: str
+    host: Host, notebook: Notebook, trigger: str
 ) -> None:
     if trigger == "run":
         notebook.start()
@@ -47,17 +46,7 @@ def test_a_subscriber_can_remove_a_notebook_after_its_children(
         if event.name == trigger:
             host.remove_notebook(notebook.id)
 
-    if source == "host":
-        host.subscribe(remove, notebook_id=notebook.id)
-    else:
-        host.subscribe(events.append, notebook_id=notebook.id)
-        notebook.subscribe(
-            lambda event: (
-                host.remove_notebook(notebook.id)
-                if event.name == trigger
-                else None
-            )
-        )
+    host.subscribe(remove, notebook_id=notebook.id)
     if trigger == "run":
         notebook.run("1", request_id="request")
         assert names(events) == [
