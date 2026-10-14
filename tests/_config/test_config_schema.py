@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 import types
 from dataclasses import fields
 from typing import (
@@ -27,6 +28,11 @@ from marimo._config.schema import Config, value_or
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 
 SCHEMA_CLASSES = [
@@ -79,6 +85,8 @@ def test_schema_fields_have_descriptions(cls: type[Config]) -> None:
 def _normalize_type(annotation: Any) -> Any:
     origin = get_origin(annotation)
     args = get_args(annotation)
+    if origin is NotRequired:
+        return _normalize_type(args[0])
     if origin in (Union, types.UnionType):
         present = [
             _normalize_type(arg) for arg in args if arg is not UnsetType
@@ -103,6 +111,7 @@ def test_schema_preserves_existing_field_types(cls: type[Config]) -> None:
             "MCPServerConfig": legacy_config.MCPServerStdioConfig
             | legacy_config.MCPServerStreamableHttpConfig
         },
+        include_extras=True,
     )
     schema_hints = get_type_hints(cls)
     for name, annotation in legacy_hints.items():
