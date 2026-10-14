@@ -5,9 +5,10 @@ from __future__ import annotations
 
 import pytest
 
-from marimo._core import protocol
+from marimo._core import backend as be, protocol
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
+from marimo._core.run_log import RetentionPolicy
 from marimo._core.stream import Event
 
 OPERATIONS = ["notebook.create", "runtime.start", "runtime.run"]
@@ -95,3 +96,68 @@ def names(events: list[Event]) -> list[str]:
 
 def request_ids(events: list[Event]) -> list[object]:
     return [getattr(e.data, "request_id", None) for e in events]
+
+
+class Clock:
+    now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def host_at(clock: Clock, history: int = 1000) -> tuple[Host, Notebook]:
+    host = Host(
+        operations=[],
+        history=history,
+        clock=clock,
+        retention=RetentionPolicy(ephemeral_seconds=10),
+    )
+    host.update_project(project())
+    notebook = host.add_notebook(record(), ScriptedBackend())
+    notebook.adopt(lambda _: None)
+    notebook.observe(be.Running(runtime_id_of(notebook)))
+    return host, notebook
+
+
+def plan(
+    notebook: Notebook, run: protocol.Run, eid: str, cell: str | None = None
+) -> protocol.ExecutionId:
+    execution = protocol.ExecutionId(eid)
+    notebook.observe(
+        be.Planned(
+            run.id,
+            (
+                be.PlannedExecution(
+                    execution, cell, "hash", "code" if cell is None else None
+                ),
+            ),
+        )
+    )
+    notebook.observe(be.Status(execution, "running"))
+    return execution
+
+
+def finish(notebook: Notebook, execution: protocol.ExecutionId) -> None:
+    notebook.observe(
+        be.Concluded(
+            execution,
+            protocol.ValueOutcome(
+                protocol.DisplayData(mimetype="text/plain", data="value")
+            ),
+        )
+    )
+    notebook.observe(be.Status(execution, "completed"))
+
+
+def fold(events: list[Event], initial: dict | None = None) -> dict:
+    state = dict(initial or {})
+    for event in events:
+        if event.name == "reset":
+            state.clear()
+        elif event.kind in {"run", "execution", "console", "display"}:
+            if event.name.endswith(".removed"):
+                state.pop((event.kind, event.data.id), None)
+            else:
+                body = getattr(event.data, event.kind)
+                state[event.kind, body.id] = body
+    return state

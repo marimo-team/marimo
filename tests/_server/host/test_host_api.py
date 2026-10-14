@@ -15,9 +15,9 @@ import pytest
 from starlette.routing import Route
 
 from marimo._core import backend as be, protocol
-from marimo._core.execution_state import RetentionPolicy
 from marimo._core.host import Host
 from marimo._core.protocol import ProjectMessage
+from marimo._core.run_log import RetentionPolicy
 from marimo._server.host import api as api_module
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext

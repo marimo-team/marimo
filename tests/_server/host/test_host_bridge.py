@@ -219,7 +219,8 @@ async def test_removed_runs_release_backend_translation_state(
     session.broadcast(
         CompletedRunNotification(run_id="run", outcome="succeeded")
     )
-    assert set(backend._translators) == {"run"}
+    retained = {"run"} if cell_id != SCRATCH_CELL_ID else set()
+    assert set(backend._translators) == retained
     now = 60
     bridge.host.expire()
     # Cell results are retained, so their translation state stays too.
