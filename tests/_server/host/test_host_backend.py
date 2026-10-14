@@ -7,6 +7,11 @@ import asyncio
 
 import pytest
 
+from marimo._code_mode.screenshot_meta import (
+    SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
+    SCREENSHOT_SERVER_URL_KEY,
+)
 from marimo._core import backend as be, protocol
 from marimo._messaging.notification import (
     CellNotification,
@@ -17,6 +22,7 @@ from marimo._messaging.notification import (
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.backend import SessionBackend
+from marimo._server.scratchpad import scratchpad_request_metadata
 from marimo._session.types import KernelExitInfo, KernelState
 from marimo._version import __version__
 from tests._server.host.conftest import (
@@ -360,3 +366,38 @@ async def test_submission_failure_is_an_error(
             related=(),
         )
     )
+
+
+async def test_host_run_carries_screenshot_metadata(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = SessionBackend(
+        protocol.NotebookId("n1"),
+        lambda: "/ws/forecasts.py",
+        manager,  # type: ignore[arg-type]
+        observed,
+        request_metadata=lambda session: {
+            **scratchpad_request_metadata(
+                session,
+                server_url="http://127.0.0.1:2718/base",
+                auth_token="editor-token",
+            ),
+            "extra": {"enabled": True},
+        },
+    )
+    b.adopt(RT1, manager.next_session)
+    run_id = protocol.RunId("run-screenshot")
+    b.run(run_id, "ctx.screenshot()")
+    await manager.next_session.submitted.wait()
+    command = manager.next_session.commands[-1]
+    assert command.request.meta == {
+        SCREENSHOT_SERVER_URL_KEY: "http://127.0.0.1:2718/base",
+        SCREENSHOT_AUTH_TOKEN_KEY: "editor-token",
+        SCREENSHOT_FILE_KEY: "/ws/forecasts.py",
+        "extra": {"enabled": True},
+    }
+    assert command.request.headers == {}
+    manager.next_session.broadcast(CompletedRunNotification(run_id=run_id))
+    assert b._run is not None
+    assert b._run.task is not None
+    await b._run.task

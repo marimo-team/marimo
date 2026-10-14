@@ -11,7 +11,10 @@ import pytest
 
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import get_default_config_manager
+from marimo._core.host import Host
 from marimo._messaging.notification import (
+    AttachmentsNotification,
+    CellNotification,
     EnvironmentOperation,
     EnvironmentOperationNotification,
     EnvironmentState,
@@ -37,8 +40,9 @@ from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
 from marimo._session.session import SessionImpl
 from marimo._session.state.session_view import SessionView
-from marimo._types.ids import ConsumerId, SessionId
+from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from marimo._utils.distributor import QueueDistributor
+from tests._core.conftest import ScriptedBackend, project, record
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -112,6 +116,45 @@ def test_notification_is_retained_before_consumer_receives_it(
     )
 
     assert observed == [_state("Downloading\n")]
+
+
+def test_attachment_change_follows_cell_op_and_updates_live_state_before_delivery(
+    session_and_consumer: tuple[SessionImpl, Mock],
+) -> None:
+    session, consumer = session_and_consumer
+    host = Host(operations=[])
+    host.update_project(project())
+    notebook = host.add_notebook(record(), ScriptedBackend())
+    observed = []
+
+    def receive(_message: KernelMessage) -> None:
+        observed.append(
+            (
+                session.get_current_state().notifications,
+                notebook.attachments,
+            )
+        )
+
+    consumer.notify.side_effect = receive
+    cell_op = CellNotification(
+        cell_id=CellId_t("cell-1"), status="running", timestamp=1.0
+    )
+    host.subscribe(
+        lambda _event: session.notify(
+            AttachmentsNotification(attachments=notebook.attachments),
+            from_consumer_id=None,
+        ),
+        types={"attachment"},
+    )
+    session.notify(cell_op, from_consumer_id=None)
+    agent = notebook.attach(kind="agent", name="Claude Code")
+    attached = AttachmentsNotification(attachments=[agent])
+
+    assert [
+        deserialize_kernel_message(call.args[0])
+        for call in consumer.notify.call_args_list
+    ] == [cell_op, attached]
+    assert observed == [([cell_op], []), ([cell_op], [agent])]
 
 
 async def test_queued_kernel_messages_update_and_deliver_on_session_loop(

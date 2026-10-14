@@ -316,8 +316,8 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
     with client.websocket_connect(_create_ws_url("123")) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({}))
-        for _ in range(2):
-            assert websocket.receive_json()["op"] == "environment-state"
+        for op in ("attachments", "environment-state", "environment-state"):
+            assert websocket.receive_json()["op"] == op
 
         session = get_session(client, SessionId("123"))
         assert session
@@ -395,6 +395,10 @@ def test_environment_restored_after_disconnect(
     with client:
         with client.websocket_connect(_create_ws_url("123")) as websocket:
             assert_kernel_ready_response(websocket.receive_json())
+            assert websocket.receive_json() == {
+                "op": "attachments",
+                "data": {"op": "attachments", "attachments": []},
+            }
             for source in ("kernel", "server"):
                 assert websocket.receive_json() == {
                     "op": "environment-state",
@@ -467,6 +471,10 @@ def test_environment_restored_after_disconnect(
                 assert websocket.receive_json()["op"] == "banner"
             else:
                 assert websocket.receive_json()["op"] == "alert"
+            assert websocket.receive_json() == {
+                "op": "attachments",
+                "data": {"op": "attachments", "attachments": []},
+            }
             assert websocket.receive_json() == json.loads(
                 format_wire_message(
                     expected.name, serialize_kernel_message(expected)

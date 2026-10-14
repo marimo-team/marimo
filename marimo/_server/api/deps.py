@@ -11,6 +11,7 @@ from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._types.ids import SessionId, StableSessionId
+from marimo._utils.env import pair_preview_enabled
 from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
@@ -20,6 +21,8 @@ if TYPE_CHECKING:
     from starlette.websockets import WebSocket
     from uvicorn import Server
 
+    from marimo._core.notebook import Notebook
+    from marimo._server.host.context import HostContext
     from marimo._session import Session
 
 LOGGER = loggers.marimo_logger()
@@ -47,6 +50,28 @@ class AppStateBase:
     @property
     def session_manager(self) -> SessionManager:
         return self.state.session_manager
+
+    @property
+    def host_context(self) -> HostContext | None:
+        return getattr(self.state, "host_context", None)
+
+    def notebook_for_session(self, session: Session) -> Notebook | None:
+        """Return the host notebook for an edit session, if available."""
+        context = self.host_context
+        return (
+            None
+            if context is None
+            else context.bridge.notebook_for_session(session)
+        )
+
+    def session_for_notebook(self, notebook_id: str) -> Session | None:
+        """Return the current session for a host notebook, if available."""
+        context = self.host_context
+        return (
+            None
+            if context is None
+            else context.bridge.session_for_notebook(notebook_id)
+        )
 
     @property
     def mode(self) -> SessionMode:
@@ -187,13 +212,26 @@ class AppState(AppStateBase):
                 ),
             )
 
+        return self.session_by_stable_id(stable_session_id)
+
+    def require_pair_preview(self) -> None:
+        """Reject Pair routes when the preview is disabled."""
+        if not pair_preview_enabled():
+            raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
+
+    def session_by_stable_id(self, stable_id: str) -> Session:
+        """Resolve a notebook's stable session ID.
+
+        Args:
+            stable_id (str): Stable session ID from the route.
+        """
         session = self.session_manager.get_session_by_stable_id(
-            StableSessionId(stable_session_id)
+            StableSessionId(stable_id)
         )
         if session is None:
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
-                detail=f"Invalid stable session id: {stable_session_id}",
+                detail=f"Invalid stable session id: {stable_id}",
             )
         return session
 
