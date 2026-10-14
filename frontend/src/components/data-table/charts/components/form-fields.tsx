@@ -358,6 +358,7 @@ export const SliderField = ({
   className,
 }: SliderFieldProps) => {
   const form = useFormContext();
+  const labelId = React.useId();
 
   return (
     <FormField
@@ -378,10 +379,11 @@ export const SliderField = ({
           <FormItem
             className={cn("flex flex-row items-center gap-2 w-1/2", className)}
           >
-            <FormLabel>{label}</FormLabel>
+            <FormLabel id={labelId}>{label}</FormLabel>
             <FormControl>
               <Slider
                 {...field}
+                aria-labelledby={labelId}
                 id={fieldName}
                 className="relative flex items-center select-none"
                 value={[numericValue]}
