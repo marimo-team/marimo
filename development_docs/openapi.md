@@ -4,7 +4,7 @@ The frontend of marimo communicates with the backend through an OpenAPI specific
 
 The host protocol has a separate, schema-first contract in
 [`protocols/host/openapi.yaml`](/protocols/host/openapi.yaml). Its ownership,
-and generation commands are documented in
+generation commands, and portable conformance checks are documented in
 [`protocols/host/README.md`](/protocols/host/README.md).
 
 ## Printing the OpenAPI schema
