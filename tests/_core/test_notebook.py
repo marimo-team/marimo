@@ -1028,11 +1028,11 @@ def _attachment_ids(notebook: Notebook) -> set[str]:
 
 
 @pytest.mark.parametrize("cleanup", ["expire", "replace", "clear"])
-def test_outputs_follow_their_execution_through_updates_and_removal(
+async def test_outputs_follow_their_execution_through_updates_and_removal(
     cleanup: str,
 ) -> None:
     clock = Clock()
-    host, notebook = host_at(clock)
+    host, notebook = await host_at(clock)
     run = notebook.run("code", request_id="request")
     first = plan(notebook, run, "first", "a" if cleanup != "expire" else None)
     second = plan(

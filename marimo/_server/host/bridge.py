@@ -10,6 +10,7 @@ from marimo import _loggers
 from marimo._core import protocol
 from marimo._core.errors import Conflict, NotFound
 from marimo._core.host import Host
+from marimo._core.notebook import Notebook
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.host import OPERATIONS
 from marimo._server.host.backend import SessionBackend
@@ -21,13 +22,14 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from marimo._core.backend import Message
-    from marimo._core.stream import Event
+    from marimo._core.stream import Event, Sink
     from marimo._server.session_manager import SessionManager
     from marimo._session.session import Session
 
 LOGGER = _loggers.marimo_logger()
 
 
+# TODO: Remove once sessions consume host-owned notebooks.
 class SessionBridge(SessionEventListener):
     """Connect a host's notebook catalog to a session manager."""
 
@@ -37,18 +39,18 @@ class SessionBridge(SessionEventListener):
         self.host = Host(operations=OPERATIONS)
         self._backends: dict[protocol.NotebookId, SessionBackend] = {}
         self.index = WorkspaceIndex(
-            self.host, manager.workspace, self._make_backend
+            self.host, manager.workspace, self._initialize_notebook
         )
         self._unsubscribe = self.host.subscribe(
             self._forget_backend, types={"notebook"}
         )
 
-    def open(self) -> None:
+    async def open(self) -> None:
         """Index notebooks, adopt sessions, and subscribe to session events."""
         self.index.refresh()
-        for session in list(self._manager.sessions.values()):
-            self._adopt(session)
         self._manager.event_bus.subscribe(self)
+        for session in list(self._manager.sessions.values()):
+            await self._adopt(session)
 
     def close(self) -> None:
         self._manager.event_bus.unsubscribe(self)
@@ -58,6 +60,12 @@ class SessionBridge(SessionEventListener):
         """Refresh the catalog without observing a half-finished file move."""
         async with self._files_lock:
             await self.index.refresh_async()
+
+    def _initialize_notebook(
+        self, record: protocol.Notebook, sink: Sink
+    ) -> Notebook:
+        """Construct a notebook with its backend."""
+        return Notebook(record.id, self._make_backend(record.id), sink)
 
     def _project_path(self, path: Path) -> Path:
         root = self.index.root
@@ -107,7 +115,7 @@ class SessionBridge(SessionEventListener):
     ) -> protocol.Notebook:
         """Update a notebook's file and label, preserving its runtime."""
         async with self._files_lock:
-            self.host.notebook(notebook_id)
+            self.host.peek_notebook(notebook_id)
             if target is not None:
                 await self._move(notebook_id, target, request_id=request_id)
             if name is not None:
@@ -119,8 +127,8 @@ class SessionBridge(SessionEventListener):
     ) -> None:
         """Remove a notebook without a runtime and its backing file."""
         async with self._files_lock:
-            notebook = self.host.notebook(notebook_id)
-            if notebook.runtime is not None:
+            notebook = self.host.peek_notebook(notebook_id)
+            if notebook is not None and notebook.runtime is not None:
                 raise Conflict("The notebook has a runtime")
             file = self.index.file_of(notebook_id)
             if file is not None:
@@ -184,11 +192,12 @@ class SessionBridge(SessionEventListener):
 
         def observe(message: Message) -> None:
             try:
-                notebook = self.host.notebook(notebook_id)
+                notebook = self.host.peek_notebook(notebook_id)
             except NotFound:
                 # Sessions can report shutdown after their catalog removal.
                 return
-            notebook.observe(message)
+            if notebook is not None:
+                notebook.observe(message)
 
         backend = SessionBackend(
             notebook_id,
@@ -203,7 +212,7 @@ class SessionBridge(SessionEventListener):
         if event.name == "notebook.removed" and event.notebook_id is not None:
             self._backends.pop(event.notebook_id, None)
 
-    def _adopt(self, session: Session) -> None:
+    async def _adopt(self, session: Session) -> None:
         path = session.app_file_manager.path
         notebook = self.index.notebook_for(path)
         if notebook is None and path is not None:
@@ -211,13 +220,12 @@ class SessionBridge(SessionEventListener):
         if notebook is None:
             LOGGER.debug("Not publishing session for %s", path)
             return
+        loaded = await self.host.notebook(notebook.id)
         backend = self._backends[notebook.id]
         if backend.session is not None:
             return
         try:
-            self.host.notebook(notebook.id).adopt(
-                lambda runtime_id: backend.adopt(runtime_id, session)
-            )
+            loaded.adopt(lambda runtime_id: backend.adopt(runtime_id, session))
         except Conflict:
             LOGGER.debug("Not publishing a second session for %s", path)
             return
@@ -225,7 +233,7 @@ class SessionBridge(SessionEventListener):
     # Session events
 
     async def on_session_created(self, session: Session) -> None:
-        self._adopt(session)
+        await self._adopt(session)
 
     async def on_session_notebook_renamed(
         self, session: Session, old_path: str | None
@@ -236,6 +244,6 @@ class SessionBridge(SessionEventListener):
             return
         if notebook is None:
             # Add notebooks to the catalog when first saved.
-            self._adopt(session)
+            await self._adopt(session)
             return
         self.index.moved(notebook.id, path)

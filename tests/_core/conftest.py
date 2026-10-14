@@ -9,7 +9,7 @@ from marimo._core import backend as be, protocol
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.run_log import RetentionPolicy
-from marimo._core.stream import Event
+from marimo._core.stream import Event, Sink
 
 OPERATIONS = ["notebook.create", "runtime.start", "runtime.run"]
 
@@ -66,6 +66,26 @@ def record(
     )
 
 
+def make_notebook(
+    record: protocol.Notebook,
+    sink: Sink,
+    backend: ScriptedBackend | None = None,
+) -> Notebook:
+    return Notebook(record.id, backend or ScriptedBackend(), sink)
+
+
+async def add_notebook(
+    host: Host,
+    record: protocol.Notebook,
+    backend: ScriptedBackend,
+) -> Notebook:
+    host.add_notebook(
+        record,
+        lambda current, sink: make_notebook(current, sink, backend),
+    )
+    return await host.notebook(record.id)
+
+
 @pytest.fixture
 def host() -> Host:
     return Host(operations=OPERATIONS)
@@ -77,9 +97,9 @@ def backend() -> ScriptedBackend:
 
 
 @pytest.fixture
-def notebook(host: Host, backend: ScriptedBackend) -> Notebook:
+async def notebook(host: Host, backend: ScriptedBackend) -> Notebook:
     host.update_project(project())
-    return host.add_notebook(record(), backend)
+    return await add_notebook(host, record(), backend)
 
 
 @pytest.fixture
@@ -105,7 +125,7 @@ class Clock:
         return self.now
 
 
-def host_at(clock: Clock, history: int = 1000) -> tuple[Host, Notebook]:
+async def host_at(clock: Clock, history: int = 1000) -> tuple[Host, Notebook]:
     host = Host(
         operations=[],
         history=history,
@@ -113,7 +133,7 @@ def host_at(clock: Clock, history: int = 1000) -> tuple[Host, Notebook]:
         retention=RetentionPolicy(ephemeral_seconds=10),
     )
     host.update_project(project())
-    notebook = host.add_notebook(record(), ScriptedBackend())
+    notebook = await add_notebook(host, record(), ScriptedBackend())
     notebook.adopt(lambda _: None)
     notebook.observe(be.Running(runtime_id_of(notebook)))
     return host, notebook

@@ -63,7 +63,7 @@ async def live_host(
     app = create_starlette_app(base_url="", enable_auth=True)
     get_starlette_server_state_init(session_manager=manager).apply(app.state)
     bridge = SessionBridge(manager)
-    bridge.open()
+    await bridge.open()
     app.state.host_context = HostContext(
         bridge=bridge, token="execution-test", port=PORT
     )
@@ -100,7 +100,7 @@ async def test_move_preserves_the_running_notebook(
 ) -> None:
     app, notebook_id, events = live_host
     host = app.state.host_context.bridge.host
-    runtime = host.notebook(notebook_id).runtime
+    runtime = (await host.notebook(notebook_id)).runtime
     source, target = tmp_path / "notebook.py", tmp_path / "moved.py"
     session = next(iter(app.state.session_manager.sessions.values()))
     cells = list(session.app_file_manager.app.cell_manager.codes())
@@ -120,7 +120,7 @@ async def test_move_preserves_the_running_notebook(
     assert not source.exists()
     assert list(AppFileManager(str(target)).app.cell_manager.codes()) == cells
     assert session.app_file_manager.path == str(target)
-    assert host.notebook(notebook_id).runtime == runtime
+    assert (await host.notebook(notebook_id)).runtime == runtime
 
     accepted = await finished(
         app,

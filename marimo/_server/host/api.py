@@ -155,8 +155,10 @@ def _context(request: Request) -> HostContext:
     return context  # type: ignore[no-any-return]
 
 
-def _notebook(request: Request) -> Notebook:
-    return _context(request).bridge.host.notebook(request.path_params["id"])
+async def _notebook(request: Request) -> Notebook:
+    return await _context(request).bridge.host.notebook(
+        request.path_params["id"]
+    )
 
 
 def _record(request: Request) -> protocol.Notebook:
@@ -366,7 +368,7 @@ async def _decode(request: Request, kind: type[_Body]) -> _Body:
 async def _events(request: Request) -> Response:
     """Stream catalog snapshots and updates.
 
-    `Last-Event-ID` resumes from a cursor; `types` filters event kinds.
+    `Last-Event-ID` resumes from a cursor. `types` filters event kinds.
     """
     context = _context(request)
     cursor = _cursor(request)
@@ -384,7 +386,7 @@ async def _notebook_events(request: Request) -> Response:
     """Stream notebook events, attaching the client until disconnect."""
     context = _context(request)
     try:
-        notebook = _notebook(request)
+        notebook = await _notebook(request)
     except NotFound as e:
         return problem(404, "not-found", str(e))
     cursor = _cursor(request)
@@ -571,10 +573,10 @@ async def _update_notebook(request: Request) -> Response:
 
 @_mutation("notebook.delete")
 async def _delete_notebook(request: Request) -> Response:
-    """Delete the notebook and file; return 409 while a runtime exists."""
+    """Delete the notebook and its file if it has no runtime."""
     context = _context(request)
     key = request.headers["Idempotency-Key"]
-    await context.bridge.delete(_notebook(request).id, request_id=key)
+    await context.bridge.delete(_record(request).id, request_id=key)
     return _reply(204, None)
 
 
@@ -612,9 +614,9 @@ def _open_quietly(browser: str, url: str) -> None:
 
 @_mutation("runtime.start")
 async def _start_runtime(request: Request) -> Response:
-    """Start a runtime: 202 if created, 200 if already present."""
+    """Start a runtime and return 202, or 200 if it already exists."""
     key = request.headers["Idempotency-Key"]
-    notebook = _notebook(request)
+    notebook = await _notebook(request)
     await _decode(request, protocol.StartRuntimeRequest)
     runtime, created = notebook.start(request_id=key)
     return _reply(202 if created else 200, runtime)
@@ -624,7 +626,7 @@ async def _start_runtime(request: Request) -> Response:
 async def _stop_runtime(request: Request) -> Response:
     """Request shutdown and return 202 with the runtime marked terminating."""
     key = request.headers["Idempotency-Key"]
-    notebook = _notebook(request)
+    notebook = await _notebook(request)
     runtime = notebook.stop(request_id=key)
     return _reply(202, runtime)
 
@@ -633,7 +635,7 @@ async def _stop_runtime(request: Request) -> Response:
 async def _restart_runtime(request: Request) -> Response:
     """Return 202 with the replacement runtime in its starting state."""
     key = request.headers["Idempotency-Key"]
-    notebook = _notebook(request)
+    notebook = await _notebook(request)
     runtime = notebook.restart(request_id=key)
     return _reply(202, runtime)
 
@@ -643,9 +645,9 @@ async def _restart_runtime(request: Request) -> Response:
 
 @_mutation("runtime.run")
 async def _run(request: Request) -> Response:
-    """Queue a run and return 202; stream results through notebook events."""
+    """Queue a run and return 202. Results arrive through notebook events."""
     key = request.headers["Idempotency-Key"]
-    notebook = _notebook(request)
+    notebook = await _notebook(request)
     body = await _decode(request, protocol.RunRequest)
     if body.code is msgspec.UNSET or body.cells is not msgspec.UNSET:
         return problem(
@@ -657,8 +659,8 @@ async def _run(request: Request) -> Response:
 
 @_mutation("runtime.run")
 async def _interrupt(request: Request) -> Response:
-    """Request a run interruption: 202 if active, 409 if completed."""
-    notebook = _notebook(request)
+    """Interrupt an active run and return 202, or 409 if it has completed."""
+    notebook = await _notebook(request)
     run_id = request.path_params["run_id"]
     try:
         interrupted = notebook.interrupt(run_id)

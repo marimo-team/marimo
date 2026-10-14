@@ -1,20 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Kernel commands and updates for the host API.
-
-```python
-notebook = host.add_notebook(record, backend)
-runtime, _ = notebook.start()  # Calls backend.start(runtime.id).
-
-# The backend reports on that runtime through Notebook.observe.
-notebook.observe(Starting(runtime.id, "Launching kernel"))
-notebook.observe(Running(runtime.id))
-```
-
-marimo currently manages sessions and kernels outside the core model.
-A backend lets the host API run as a sidecar, reporting activity from
-both API commands and existing clients. The adapter may become
-unnecessary if marimo adopts the core model directly.
-"""
+"""Kernel commands and execution reports."""
 
 from __future__ import annotations
 
@@ -134,7 +119,7 @@ class Produced:
 
 @dataclass(frozen=True)
 class Concluded:
-    """An execution's current outcome; final once the execution is completed."""
+    """An execution outcome, final when the execution completes."""
 
     execution_id: protocol.ExecutionId
     outcome: protocol.Outcome

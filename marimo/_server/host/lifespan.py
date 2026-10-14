@@ -32,7 +32,7 @@ async def host(app: Starlette) -> AsyncIterator[None]:
         return
 
     bridge = SessionBridge(state.session_manager)
-    bridge.open()
+    await bridge.open()
     token = secrets.token_urlsafe(32)
     server = state.server.config
     url = host_url(server.host, server.port, state.base_url)

@@ -44,11 +44,11 @@ async def test_sessions_present_and_created_are_adopted(
     manager.sessions["browser-1"] = existing
     bridge = SessionBridge(manager)  # type: ignore[arg-type]
 
-    bridge.open()
+    await bridge.open()
 
     a = bridge.index.notebook_for(str(tmp_path / "a.py"))
     assert a is not None
-    runtime = bridge.host.notebook(a.id).runtime
+    runtime = (await bridge.host.notebook(a.id)).runtime
     assert runtime is not None
     assert runtime.status == "running"
     assert existing.consumers[0][1] is False
@@ -57,7 +57,7 @@ async def test_sessions_present_and_created_are_adopted(
     await manager.event_bus.emit_session_created(created)  # type: ignore[arg-type]
     b = bridge.index.notebook_for(str(tmp_path / "b.py"))
     assert b is not None
-    assert bridge.host.notebook(b.id).runtime is not None
+    assert (await bridge.host.notebook(b.id)).runtime is not None
 
     unknown = FakeSession(str(tmp_path.parent / "elsewhere.py"))
     await manager.event_bus.emit_session_created(unknown)  # type: ignore[arg-type]
@@ -70,10 +70,10 @@ async def test_a_subscriber_can_stop_an_adopted_session(
 ) -> None:
     prepare(manager, tmp_path, "a.py")
     bridge = SessionBridge(manager)  # type: ignore[arg-type]
-    bridge.open()
+    await bridge.open()
     record = bridge.index.notebook_for(str(tmp_path / "a.py"))
     assert record is not None
-    notebook = bridge.host.notebook(record.id)
+    notebook = await bridge.host.notebook(record.id)
     session = FakeSession(str(tmp_path / "a.py"))
     manager.sessions["browser"] = session
 
@@ -105,10 +105,10 @@ async def test_failed_adoption_detaches_without_closing_the_session(
 ) -> None:
     prepare(manager, tmp_path, "a.py")
     bridge = SessionBridge(manager)  # type: ignore[arg-type]
-    bridge.open()
+    await bridge.open()
     record = bridge.index.notebook_for(str(tmp_path / "a.py"))
     assert record is not None
-    notebook = bridge.host.notebook(record.id)
+    notebook = await bridge.host.notebook(record.id)
     session = FakeSession(str(tmp_path / "a.py"))
     connect = session.connect_consumer
 
@@ -148,7 +148,7 @@ async def test_a_rename_keeps_the_notebook_id(
 ) -> None:
     prepare(manager, tmp_path, "a.py")
     bridge = SessionBridge(manager)  # type: ignore[arg-type]
-    bridge.open()
+    await bridge.open()
     notebook = bridge.index.notebook_for(str(tmp_path / "a.py"))
     assert notebook is not None
     (tmp_path / "a.py").rename(tmp_path / "renamed.py")
@@ -172,10 +172,10 @@ async def test_session_updates_after_catalog_removal_are_ignored(
     session = FakeSession(str(tmp_path / "a.py"))
     manager.sessions["browser"] = session
     bridge = SessionBridge(manager)  # type: ignore[arg-type]
-    bridge.open()
+    await bridge.open()
     record = bridge.index.notebook_for(str(tmp_path / "a.py"))
     assert record is not None
-    notebook = bridge.host.notebook(record.id)
+    notebook = await bridge.host.notebook(record.id)
     bridge.index.forget(record.id)
     cursor = bridge.host.events()[-1].id
     assert cursor is not None
@@ -202,7 +202,7 @@ async def test_removed_runs_release_backend_translation_state(
     bridge = SessionBridge(manager)  # type: ignore[arg-type]
     now = 0.0
     bridge.host.clock = lambda: now
-    bridge.open()
+    await bridge.open()
     record = bridge.index.notebook_for(str(tmp_path / "a.py"))
     assert record is not None
     backend = bridge._backends[record.id]
@@ -242,10 +242,10 @@ async def test_failed_session_move_preserves_the_notebook(
     session = FakeSession(str(source))
     manager.sessions["browser"] = session
     bridge = SessionBridge(manager)  # type: ignore[arg-type]
-    bridge.open()
+    await bridge.open()
     notebook = bridge.index.notebook_for(str(source))
     assert notebook is not None
-    runtime = bridge.host.notebook(notebook.id).runtime
+    runtime = (await bridge.host.notebook(notebook.id)).runtime
 
     async def rename(_session_id: str, _path: str) -> tuple[bool, str | None]:
         return False, "The notebook is busy"
@@ -256,5 +256,5 @@ async def test_failed_session_move_preserves_the_notebook(
     assert source.exists()
     assert not target.exists()
     assert bridge.host.notebooks[notebook.id].path == "a.py"
-    assert bridge.host.notebook(notebook.id).runtime is runtime
+    assert (await bridge.host.notebook(notebook.id)).runtime is runtime
     bridge.close()
