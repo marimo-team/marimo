@@ -463,6 +463,11 @@ class Notebook:
 
     # ---- attachments ---------------------------------------------------
 
+    @property
+    def attachments(self) -> list[protocol.Attachment]:
+        """Return the current attachments in creation order."""
+        return list(self._attachments.values())
+
     def attach(
         self,
         *,

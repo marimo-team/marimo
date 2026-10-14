@@ -20,10 +20,11 @@ from marimo._core.errors import (
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
+from marimo._messaging.notification import AttachmentsNotification
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.host import OPERATIONS, document as documents
 from marimo._server.host.analysis import HostAnalyzer
-from marimo._server.host.backend import SessionBackend
+from marimo._server.host.backend import RequestMetadata, SessionBackend
 from marimo._server.host.events import notification_event
 from marimo._server.host.index import WorkspaceIndex
 from marimo._session.events import SessionEventListener
@@ -93,9 +94,12 @@ class SessionBridge(SessionEventListener):
         self,
         manager: SessionManager,
         config_manager: MarimoConfigManager | None = None,
+        *,
+        request_metadata: RequestMetadata | None = None,
     ) -> None:
         self._manager = manager
         self._config_manager = config_manager
+        self._request_metadata = request_metadata
         self._files_lock = asyncio.Lock()
         self._saving: set[protocol.NotebookId] = set()
         # TODO(MO-8005): The writer owns this baseline once there is one
@@ -113,7 +117,7 @@ class SessionBridge(SessionEventListener):
             self.host, manager.workspace, self._initialize_notebook
         )
         self._unsubscribe = self.host.subscribe(
-            self._forget_backend, types={"notebook"}
+            self._on_host_event, types={"notebook", "attachment"}
         )
 
     async def open(self) -> None:
@@ -126,6 +130,19 @@ class SessionBridge(SessionEventListener):
     def close(self) -> None:
         self._manager.event_bus.unsubscribe(self)
         self._unsubscribe()
+
+    def session_for_notebook(self, notebook_id: str) -> Session | None:
+        """Return the current session for a host notebook."""
+        backend = self._backends.get(protocol.NotebookId(notebook_id))
+        return None if backend is None else backend.session
+
+    def notebook_for_session(self, session: Session) -> Notebook | None:
+        """Return the host notebook that owns this session's runtime."""
+        for notebook_id, backend in self._backends.items():
+            if backend.session is session:
+                # Adoption loads the notebook before it attaches a session.
+                return self.host.peek_notebook(notebook_id)
+        return None
 
     async def refresh(self) -> None:
         """Refresh the catalog without observing a half-finished file move."""
@@ -654,11 +671,12 @@ class SessionBridge(SessionEventListener):
             session_detached=lambda session: self._detach_document(
                 notebook_id, session
             ),
+            request_metadata=self._request_metadata,
         )
         self._backends[notebook_id] = backend
         return backend
 
-    def _forget_backend(self, event: RoutedEvent) -> None:
+    def _on_host_event(self, event: RoutedEvent) -> None:
         if (
             isinstance(event.event, protocol.NotebookRemovedEvent)
             and event.notebook_id is not None
@@ -667,6 +685,20 @@ class SessionBridge(SessionEventListener):
             self._file_texts.pop(event.notebook_id, None)
             self._rebaselining.pop(event.notebook_id, None)
             self._mirrored.pop(event.notebook_id, None)
+        elif (
+            isinstance(
+                event.event,
+                (protocol.AttachmentEvent, protocol.AttachmentRemovedEvent),
+            )
+            and event.notebook_id is not None
+        ):
+            session = self.session_for_notebook(event.notebook_id)
+            notebook = self.host.peek_notebook(event.notebook_id)
+            if session is not None and notebook is not None:
+                session.notify(
+                    AttachmentsNotification(attachments=notebook.attachments),
+                    from_consumer_id=None,
+                )
 
     async def _adopt(self, session: Session) -> None:
         path = session.app_file_manager.path

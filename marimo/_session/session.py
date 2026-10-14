@@ -247,6 +247,7 @@ class SessionImpl(Session):
         self._stable_id = mint(StableSessionId, "sess")
         self.app_file_manager = app_file_manager
         self.room = Room()
+
         self._kernel_manager = kernel_manager
         self.ttl_seconds = (
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS

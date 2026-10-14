@@ -85,6 +85,7 @@ def test_sessions_stable_id_survives_reconnect(
         assert session is not None
         expected = {
             "session_id": session.stable_id,
+            "notebook_id": None,
             "filename": session.app_file_manager.filename,
             "path": session.app_file_manager.path,
         }

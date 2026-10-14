@@ -149,6 +149,15 @@ def test_snapshot_is_private_and_precedes_updates_during_accept(
                 ) as second:
                     assert socket_snapshot(second)[:-1] == initial
                     live = second.receive_json()
+                    attachment_update = first.receive_json()
+                    assert (
+                        attachment_update["data"]["marimo"]["op"]
+                        == "attachments"
+                    )
+                    assert (
+                        len(attachment_update["data"]["marimo"]["attachments"])
+                        == 2
+                    )
                     assert first.receive_json() == live
                     assert live == {
                         "id": live["id"],
@@ -276,7 +285,12 @@ def test_reconnect_replays_original_events_then_continues_live(
                 url += f"&cursor={cursor}"
             with client.websocket_connect(url, headers=headers) as socket:
                 replay = socket_snapshot(socket)
-                assert replay[:-1] == [missed]
+                assert replay[0] == missed
+                assert [
+                    event["data"]["marimo"]["op"] for event in replay[1:-1]
+                ] == ["attachments", "attachments"]
+                assert replay[1]["data"]["marimo"]["attachments"] == []
+                assert len(replay[2]["data"]["marimo"]["attachments"]) == 1
                 client.portal.call(
                     session.notify, CompletedRunNotification(run_id="live")
                 )

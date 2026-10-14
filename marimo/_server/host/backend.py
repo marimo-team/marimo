@@ -19,7 +19,7 @@ from marimo._messaging.notification import (
     StartupProgressNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
-from marimo._runtime.commands import ExecuteScratchpadCommand
+from marimo._runtime.commands import ExecuteScratchpadCommand, HTTPRequest
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.events import notification_event
 from marimo._server.host.translate import RunTranslator
@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from marimo._server.session_manager import SessionManager
     from marimo._session.events import SessionEventBus
     from marimo._session.session import Session
+    from marimo._types.encodable import Encodable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -47,6 +48,7 @@ _PHASES = {
 }
 
 Observe = Callable[[be.Message], None]
+RequestMetadata = Callable[["Session"], dict[str, "Encodable"]]
 
 
 @dataclass
@@ -84,6 +86,8 @@ class SessionBackend(SessionConsumer):
         document_changed: Callable[[], None] | None = None,
         session_attached: Callable[[], None] | None = None,
         session_detached: Callable[[Session], None] | None = None,
+        *,
+        request_metadata: RequestMetadata | None = None,
     ) -> None:
         self._notebook_id = notebook_id
         self._file = file
@@ -97,6 +101,7 @@ class SessionBackend(SessionConsumer):
         """Called with the session attached, before the runtime is reported."""
         self._session_detached = session_detached
         """Called with the session that detached, before its exit is reported."""
+        self._request_metadata = request_metadata
         self._kernel: _Kernel | None = None
         self._run: _Run | None = None
         self._translators: dict[str, RunTranslator] = {}
@@ -182,12 +187,24 @@ class SessionBackend(SessionConsumer):
                 http_request=None,
             )
             cells, outputs = snapshot_for_scratchpad(session)
+            request = None
+            if self._request_metadata is not None:
+                request = HTTPRequest(
+                    url={},
+                    base_url={},
+                    headers={},
+                    query_params={},
+                    path_params={},
+                    cookies={},
+                    user=None,
+                    meta=self._request_metadata(session),
+                )
             run.submitted = True
             self._translators[run.translator.run_id] = run.translator
             session.put_control_request(
                 ExecuteScratchpadCommand(
                     code=code,
-                    request=None,
+                    request=request,
                     notebook_cells=cells,
                     cell_outputs=outputs,
                     run_id=run.translator.run_id,

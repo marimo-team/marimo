@@ -17,6 +17,7 @@ import msgspec
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
+from marimo._core.protocol import Attachment
 from marimo._data._external_storage.models import (
     StorageEntry,
     StorageNamespace,
@@ -101,6 +102,17 @@ class ExecutionNotification(Notification, tag="execution"):
     phase: Literal["planned", "running", "completed"]
     code: str | None = None
     caused_by: str | None = None
+
+
+class AttachmentsNotification(Notification, tag="attachments"):
+    """Replace the current list of attachments on this Session.
+
+    Args:
+        attachments (list[Attachment]): Full list of live attachments.
+    """
+
+    name: ClassVar[str] = "attachments"
+    attachments: list[Attachment]
 
 
 class CellNotification(Notification, tag="cell-op"):
@@ -1162,4 +1174,5 @@ NotificationMessage = (
     | NotebookDocumentTransactionNotification
     # Consumer
     | ConsumerCapabilitiesNotification
+    | AttachmentsNotification
 )

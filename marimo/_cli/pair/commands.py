@@ -29,7 +29,7 @@ from marimo._cli.pair.client import (
 )
 from marimo._cli.pair.prompts import render_prompt
 from marimo._server.ai.skills import utils as skills_utils
-from marimo._utils.env import is_env_true
+from marimo._utils.env import pair_preview_enabled
 
 SKILL_NAME = "marimo-pair"
 SKILL_FILE = "SKILL.md"
@@ -652,7 +652,7 @@ def prompt(
         # With an auth token
         claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude --with-token)"
     """
-    preview = is_env_true("MARIMO_PAIR_NEXT")
+    preview = pair_preview_enabled()
     if not preview:
         selected_agents = {
             "claude": claude,

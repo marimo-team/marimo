@@ -98,6 +98,7 @@ async def status(request: Request) -> JSONResponse:
 
 class SessionInfo(TypedDict):
     session_id: StableSessionId
+    notebook_id: str | None
     filename: str | None
     path: str | None
 
@@ -112,6 +113,12 @@ async def list_sessions(request: Request) -> JSONResponse:
     sessions = {
         session_id: SessionInfo(
             session_id=session.stable_id,
+            notebook_id=(
+                notebook.id
+                if (notebook := state.notebook_for_session(session))
+                is not None
+                else None
+            ),
             filename=session.app_file_manager.filename,
             path=session.app_file_manager.path,
         )

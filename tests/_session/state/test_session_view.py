@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Literal
 from unittest.mock import patch
 
@@ -8,6 +9,7 @@ import msgspec
 import pytest
 
 from marimo._ast.cell import RuntimeStateType
+from marimo._core.protocol import Attachment, NotebookId
 from marimo._data.models import (
     Database,
     DataSourceConnection,
@@ -19,6 +21,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import UnknownError
 from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.notification import (
+    AttachmentsNotification,
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
@@ -83,6 +86,54 @@ updated_output = CellOutput(
 
 initial_status: RuntimeStateType = "running"
 updated_status: RuntimeStateType = "running"
+
+
+def test_attachment_replay_starts_without_a_notification(
+    session_view: SessionView,
+) -> None:
+    assert not any(
+        isinstance(notification, AttachmentsNotification)
+        for notification in session_view.snapshot_notifications()
+    )
+
+
+@pytest.mark.parametrize("clear", [False, True])
+def test_attachment_changes_are_not_retained_for_replay(
+    session_view: SessionView, *, clear: bool
+) -> None:
+    agent = Attachment(
+        id="a1",
+        kind="agent",
+        name="Claude Code",
+        since=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        notebook_id=NotebookId("nb-test"),
+    )
+    other = Attachment(
+        id="a2",
+        kind="agent",
+        name="Codex",
+        since=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        notebook_id=NotebookId("nb-test"),
+    )
+    client = Attachment(
+        id="c1",
+        kind="client",
+        name=None,
+        since=datetime(2026, 1, 3, tzinfo=timezone.utc),
+        notebook_id=NotebookId("nb-test"),
+    )
+    session_view.add_raw_notification(
+        serialize_kernel_message(
+            AttachmentsNotification(attachments=[agent, other, client])
+        )
+    )
+    latest = AttachmentsNotification(attachments=[] if clear else [other])
+    session_view.add_raw_notification(serialize_kernel_message(latest))
+
+    assert not any(
+        isinstance(notification, AttachmentsNotification)
+        for notification in session_view.snapshot_notifications()
+    )
 
 
 def test_session_view_cell_notification(session_view: SessionView) -> None:
