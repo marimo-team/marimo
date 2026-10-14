@@ -100,11 +100,11 @@ describe("copied KaTeX stylesheet", () => {
       "counter-reset": "katexEqnNo mmlEqnNo",
     });
     expect(declarations(".katex .angl")["border-right"]).toBe("0.049em solid");
-    expect(
-      root.nodes.filter(
-        (node) => node.type === "atrule" && node.name === "font-face",
-      ),
-    ).toEqual([]);
+    const fontFaces: postcss.AtRule[] = [];
+    root.walkAtRules("font-face", (rule) => {
+      fontFaces.push(rule);
+    });
+    expect(fontFaces).toEqual([]);
   });
 
   it.each(["root", "media"])(
