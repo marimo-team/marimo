@@ -98,6 +98,39 @@ def test_readers_cannot_change_other_readers_or_replay() -> None:
     assert reread[0].data.project == project()
 
 
+@pytest.mark.parametrize("external", [False, True])
+def test_mutable_payloads_are_isolated_from_callers_and_listeners(
+    external: bool,
+) -> None:
+    stream = Stream()
+    payload = protocol.Custom(type="example", data={"values": [1]})
+    delivered: list[Event] = []
+
+    def mutate(event: Event) -> None:
+        assert isinstance(event.data, protocol.CustomMessage)
+        event.data.custom.data["values"].append(2)
+
+    stream.subscribe(mutate)
+    stream.subscribe(delivered.append)
+    if external:
+        event = Event(
+            "custom",
+            protocol.CustomMessage(custom=payload, time=msgspec.UNSET),
+        )
+        published = stream.append(event)
+    else:
+        published = stream.publish(payload)
+    payload.data["values"].append(3)
+    assert isinstance(published.data, protocol.CustomMessage)
+    published.data.custom.data["values"].append(4)
+    replay = stream.since(0)
+    assert replay is not None
+    assert [event.data.custom.data for event in [*delivered, *replay]] == [
+        {"values": [1]},
+        {"values": [1]},
+    ]
+
+
 def test_deferred_events_join_history_before_delivery() -> None:
     stream = Stream()
     delivered: list[Event] = []

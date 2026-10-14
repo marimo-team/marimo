@@ -235,9 +235,11 @@ async def test_background_output_after_a_scratch_run_is_dropped(
 import threading
 import marimo as mo
 builtins._host_test_gate = threading.Event()
+builtins._host_test_printed = threading.Event()
 def worker():
     builtins._host_test_gate.wait(5)
     print("late output")
+    builtins._host_test_printed.set()
 mo.Thread(target=worker).start()
 """
     first = await finished(
@@ -263,7 +265,7 @@ mo.Thread(target=worker).start()
         headers=key("second"),
         body=json.dumps(
             {
-                "code": "import builtins\nimport time\nbuiltins._host_test_gate.set()\ntime.sleep(0.2)\ndel builtins._host_test_gate"
+                "code": "import builtins\nbuiltins._host_test_gate.set()\nassert builtins._host_test_printed.wait(5)\ndel builtins._host_test_gate, builtins._host_test_printed"
             }
         ).encode(),
     )
@@ -275,6 +277,15 @@ mo.Thread(target=worker).start()
             and r["data"]["run"]["status"] == "completed"
             for r in response.records
         ),
+    )
+    assert (
+        next(
+            r["data"]["run"]["outcome"]
+            for r in reversed(events.records)
+            if r.get("data", {}).get("run", {}).get("id")
+            == second.json()["id"]
+        )
+        == "succeeded"
     )
     console = [
         r["data"]["console"]

@@ -32,6 +32,79 @@ if TYPE_CHECKING:
     from marimo._core.notebook import Notebook
 
 
+@pytest.mark.parametrize("trigger", ["runtime", "run"])
+@pytest.mark.parametrize("source", ["host", "notebook"])
+def test_a_subscriber_can_remove_a_notebook_after_its_children(
+    host: Host, notebook: Notebook, trigger: str, source: str
+) -> None:
+    if trigger == "run":
+        notebook.start()
+        notebook.observe(be.Running(runtime_id_of(notebook)))
+    events: list[Event] = []
+
+    def remove(event: Event) -> None:
+        events.append(event)
+        if event.name == trigger:
+            host.remove_notebook(notebook.id)
+
+    if source == "host":
+        host.subscribe(remove, notebook_id=notebook.id)
+    else:
+        host.subscribe(events.append, notebook_id=notebook.id)
+        notebook.subscribe(
+            lambda event: (
+                host.remove_notebook(notebook.id)
+                if event.name == trigger
+                else None
+            )
+        )
+    if trigger == "run":
+        notebook.run("1", request_id="request")
+        assert names(events) == [
+            "run",
+            "run",
+            "runtime.removed",
+            "run.removed",
+            "notebook.removed",
+        ]
+    else:
+        notebook.start()
+        assert names(events) == [
+            "runtime",
+            "runtime.removed",
+            "notebook.removed",
+        ]
+    assert notebook.id not in host.notebooks
+
+
+def test_replacing_a_cell_result_updates_history_before_delivery(
+    host: Host, notebook: Notebook
+) -> None:
+    notebook.start()
+    notebook.observe(be.Running(runtime_id_of(notebook)))
+    run = notebook.run("1", request_id="first")
+    execution = plan(notebook, run, "old", cell="a")
+    notebook.observe(
+        be.Produced(
+            protocol.Console(
+                execution, protocol.ItemId("out"), "stdout", 0, "old output"
+            )
+        )
+    )
+    finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    snapshots = []
+
+    def read_snapshot(event: Event) -> None:
+        if event.name == "console.removed":
+            snapshots.append(set(fold(host.events(notebook_id=notebook.id))))
+
+    host.subscribe(read_snapshot, notebook_id=notebook.id)
+    replacement = notebook.run("2", request_id="second")
+    plan(notebook, replacement, "new", cell="a")
+    assert snapshots == [{("run", replacement.id), ("execution", "new")}]
+
+
 def test_catalog_snapshot_and_replay_exclude_runs(host: Host) -> None:
     host.update_project(project())
     notebook = host.add_notebook(record(), ScriptedBackend())
@@ -167,9 +240,9 @@ def test_removing_a_notebook_removes_what_it_owns_first(host: Host) -> None:
 
     assert names(log) == [
         "run",
-        "run.removed",
         "attachment.removed",
         "runtime.removed",
+        "run.removed",
         "notebook.removed",
     ]
     assert getattr(log[-1].data, "request_id", None) == "req-del"

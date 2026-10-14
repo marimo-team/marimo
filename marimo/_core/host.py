@@ -113,7 +113,9 @@ class Host:
 
         self._records[record.id] = deepcopy(record)
         self._entries[record.id] = _Entry(
-            notebook, log, notebook.subscribe(publish)
+            notebook,
+            log,
+            notebook._stream.subscribe(publish, downstream=self._stream),
         )
         self._stream.publish(
             record, notebook_id=record.id, request_id=request_id
@@ -146,16 +148,20 @@ class Host:
             return
         record = self._records.pop(notebook_id)
         entry.notebook._dispose(request_id=request_id)
-        with self._stream.deferred():
-            for event in entry.log.clear():
-                self._stream.append(event)
-        entry.unsubscribe()
-        self._stream.remove(
-            "notebook",
-            record.id,
-            notebook_id=record.id,
-            request_id=request_id,
-        )
+
+        def finish() -> None:
+            with self._stream.deferred():
+                for event in entry.log.clear():
+                    self._stream.append(event)
+            entry.unsubscribe()
+            self._stream.remove(
+                "notebook",
+                record.id,
+                notebook_id=record.id,
+                request_id=request_id,
+            )
+
+        entry.notebook._stream.after_delivery(finish)
 
     def notebook(self, notebook_id: str) -> Notebook:
         """Return a notebook or raise `NotFound`."""
@@ -163,6 +169,13 @@ class Host:
         if entry is None:
             raise NotFound(f"no notebook {notebook_id}")
         return entry.notebook
+
+    def run(self, notebook_id: str, run_id: str) -> protocol.Run | None:
+        """Return a run the host still retains, if any."""
+        entry = self._entries.get(notebook_id)
+        if entry is None:
+            raise NotFound(f"no notebook {notebook_id}")
+        return entry.log.run(run_id)
 
     def _snapshot(
         self, notebook_id: protocol.NotebookId | None = None

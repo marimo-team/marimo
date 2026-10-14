@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from collections import deque
 from collections.abc import Callable, Collection, Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -170,7 +170,10 @@ class Stream:
         self._last_id = 0
         self._history: deque[Event] = deque(maxlen=history)
         self._listeners: list[Listener] = []
-        self._pending: deque[tuple[Event, tuple[Listener, ...]]] = deque()
+        self._downstream: list[Stream] = []
+        self._pending: deque[
+            tuple[Event, tuple[Listener, ...]] | Callable[[], None]
+        ] = deque()
         self._dispatching = False
 
     @property
@@ -188,7 +191,7 @@ class Stream:
         """Publish a new or updated object."""
         kind = kind_of(body)
         data = message(body, request_id=request_id, time=utcnow())
-        return self.append(
+        return self._append(
             Event(kind, data, notebook_id=notebook_id, run_id=run_id)
         )
 
@@ -202,7 +205,7 @@ class Stream:
         run_id: protocol.RunId | None = None,
     ) -> Event:
         """Publish an object's removal."""
-        return self.append(
+        return self._append(
             removal(
                 kind,
                 object_id,
@@ -226,17 +229,24 @@ class Stream:
             [e for e in self._history if e.id is not None and e.id > cursor]
         )
 
-    def subscribe(self, listener: Listener) -> Callable[[], None]:
+    def subscribe(
+        self, listener: Listener, *, downstream: Stream | None = None
+    ) -> Callable[[], None]:
         """Subscribe to future events and return an unsubscribe function.
 
         Subscriber exceptions are logged. Events published during delivery
-        follow the event being delivered.
+        follow the event being delivered. A downstream stream delivers
+        forwarded events after this stream drains.
         """
         self._listeners.append(listener)
+        if downstream is not None:
+            self._downstream.append(downstream)
 
         def unsubscribe() -> None:
             if listener in self._listeners:
                 self._listeners.remove(listener)
+                if downstream is not None:
+                    self._downstream.remove(downstream)
 
         return unsubscribe
 
@@ -259,10 +269,13 @@ class Stream:
 
     def append(self, event: Event) -> Event:
         """Record an emitted event with a cursor belonging to this log."""
+        return self._append(deepcopy(event))
+
+    def _append(self, event: Event) -> Event:
         self._last_id += 1
         stamped = Event(
             event.name,
-            deepcopy(event.data),
+            event.data,
             self._last_id,
             event.notebook_id,
             event.run_id,
@@ -273,15 +286,29 @@ class Stream:
             self._drain()
         return deepcopy(stamped)
 
+    def after_delivery(self, callback: Callable[[], None]) -> None:
+        """Call after queued events reach their listeners."""
+        if self._dispatching:
+            self._pending.append(callback)
+        else:
+            callback()
+
     def _drain(self) -> None:
-        self._dispatching = True
-        try:
-            while self._pending:
-                pending, listeners = self._pending.popleft()
-                for listener in listeners:
-                    try:
-                        listener(deepcopy(pending))
-                    except Exception:
-                        LOGGER.exception("Error delivering host event")
-        finally:
-            self._dispatching = False
+        with ExitStack() as delivery:
+            for stream in self._downstream:
+                delivery.enter_context(stream.deferred())
+            self._dispatching = True
+            try:
+                while self._pending:
+                    item = self._pending.popleft()
+                    if callable(item):
+                        item()
+                        continue
+                    pending, listeners = item
+                    for listener in listeners:
+                        try:
+                            listener(deepcopy(pending))
+                        except Exception:
+                            LOGGER.exception("Error delivering host event")
+            finally:
+                self._dispatching = False

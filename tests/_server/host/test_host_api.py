@@ -913,6 +913,41 @@ async def test_run_filter_over_http(harness: Harness) -> None:
     assert invalid.status == 400
 
 
+async def test_interrupting_an_unstarted_run_after_shutdown(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    nid = await harness.running()
+    runs = f"/notebooks/{nid}/runtime/runs"
+    accepted = await finished(
+        harness.app, "POST", runs, headers=key("queued"), body=b'{"code":"1"}'
+    )
+    assert accepted.status == 202
+    run_id = accepted.json()["id"]
+    notebook = harness.host.notebook(nid)
+    runtime_id = runtime_id_of(notebook)
+    notebook.stop()
+    notebook.observe(be.Exited(runtime_id))
+
+    def snapshot_unavailable(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("run lookup must not build a snapshot")
+
+    monkeypatch.setattr(harness.host, "events", snapshot_unavailable)
+    completed = await finished(
+        harness.app, "DELETE", f"{runs}/{run_id}", headers=key("completed")
+    )
+    assert completed.status == 409
+    unknown = await finished(
+        harness.app, "DELETE", f"{runs}/unknown", headers=key("unknown")
+    )
+    assert unknown.status == 404
+    harness.now = 61
+    harness.host.expire()
+    expired = await finished(
+        harness.app, "DELETE", f"{runs}/{run_id}", headers=key("expired")
+    )
+    assert expired.status == 404
+
+
 async def test_scratch_runs_over_http(harness: Harness) -> None:
     app, nid = harness.app, harness.notebook_id
     runs = f"/notebooks/{nid}/runtime/runs"

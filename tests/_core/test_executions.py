@@ -233,7 +233,7 @@ def test_planning_does_not_scan_unrelated_cells(
     assert sum(isinstance(c, protocol.Execution) for c in changes) == 1000
 
 
-def test_current_returns_detached_completed_cell_results() -> None:
+def test_current_result_keeps_its_outputs_as_the_execution_changes() -> None:
     executions = Executions()
     cell_id = protocol.CellId("a")
     assert executions.current(cell_id) is None
@@ -244,18 +244,24 @@ def test_current_returns_detached_completed_cell_results() -> None:
         id=protocol.ItemId("d1"),
         seq=0,
         mimetype="application/json",
-        data={"values": [1]},
+        data='{"values":[1]}',
     )
     executions.observe(be.Produced(output), RUNTIME)
     assert executions.current(cell_id) is None
     complete(executions, "e1")
     result = executions.current(cell_id)
     assert result is not None
-    assert result.execution.status == "completed"
     assert result.outputs == (output,)
-    copied = result.outputs[0]
-    assert isinstance(copied, protocol.Display)
-    copied.data["values"].append(2)
+
+    updated = protocol.Display(
+        execution_id=output.execution_id,
+        id=output.id,
+        seq=output.seq,
+        mimetype=output.mimetype,
+        data='{"values":[1,2]}',
+    )
+    executions.observe(be.Produced(updated), RUNTIME)
     current = executions.current(cell_id)
     assert current is not None
-    assert current.outputs == (output,)
+    assert current.outputs == (updated,)
+    assert result.outputs[0].data == '{"values":[1]}'

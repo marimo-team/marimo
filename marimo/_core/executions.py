@@ -16,7 +16,10 @@ from marimo._core.stream import utcnow
 
 @dataclass(frozen=True)
 class CellExecution:
-    """A completed cell execution with its console and display outputs."""
+    """A completed cell execution with its console and display outputs.
+
+    Its source may be older than the cell's current source.
+    """
 
     execution: protocol.Execution
     outputs: tuple[protocol.Console | protocol.Display, ...] = ()
@@ -55,7 +58,10 @@ class Removed:
 
 @dataclass(frozen=True)
 class Released:
-    """A run to release after applying its preceding changes."""
+    """A run to release after applying its preceding changes.
+
+    Releasing emits no event. Earlier changes still use the run's request ID.
+    """
 
     run_id: protocol.RunId
 

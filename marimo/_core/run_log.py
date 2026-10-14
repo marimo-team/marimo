@@ -42,13 +42,18 @@ class _Run:
     live: set[str] = field(default_factory=set)
     scratch: dict[str, _Scratch] = field(default_factory=dict)
     completed_at: float | None = None
+    had_executions: bool = False
 
 
 class RunLog:
     """Run history for one notebook.
 
     Completed scratch results expire under the retention policy. A run
-    remains while any visible execution refers to it.
+    remains while any visible execution refers to it. Runs that end before
+    executing are retained for the same period as scratch results.
+
+    A notebook releases completed scratch work without a removal event.
+    The log keeps it until retention ends and publishes its removals.
     """
 
     def __init__(self, clock: Callable[[], float]) -> None:
@@ -56,7 +61,7 @@ class RunLog:
         self._runs: dict[str, _Run] = {}
 
     def observe(self, event: Event) -> list[Event]:
-        """Record an event and return any resulting removals."""
+        """Record an event and return removals to publish after it."""
         match event:
             case Event(
                 data=protocol.RunMessage(run=run, request_id=request_id)
@@ -73,6 +78,7 @@ class RunLog:
                 return self._close(run.id)
             case Event(data=protocol.ExecutionMessage(execution=execution)):
                 if (entry := self._entry(event)) is not None:
+                    entry.had_executions = True
                     entry.live.add(execution.id)
                     if execution.cell_id is None:
                         scratch = entry.scratch.get(execution.id)
@@ -94,6 +100,14 @@ class RunLog:
                     return self._close(event.run_id)
         return []
 
+    def run(self, run_id: str) -> protocol.Run | None:
+        """Return a retained run without reading its executions or outputs."""
+        entry = self._runs.get(run_id)
+        if entry is None:
+            return None
+        assert isinstance(entry.event.data, protocol.RunMessage)
+        return entry.event.data.run
+
     def snapshot(self) -> list[Event]:
         """Return the runs and scratch the log holds, parents first."""
         events = [
@@ -114,7 +128,7 @@ class RunLog:
         events: list[Event] = []
         for run_id, entry in list(self._runs.items()):
             if (
-                entry.scratch
+                (entry.scratch or not entry.had_executions)
                 and entry.completed_at is not None
                 and now >= entry.completed_at + policy.ephemeral_seconds
             ):
@@ -156,11 +170,15 @@ class RunLog:
             events.append(self._removal(entry, "execution", execution_id))
             entry.live.discard(execution_id)
         entry.scratch.clear()
-        return [*events, *self._close(run_id)]
+        return [*events, *self._close(run_id, retain_empty=False)]
 
-    def _close(self, run_id: str) -> list[Event]:
+    def _close(self, run_id: str, *, retain_empty: bool = True) -> list[Event]:
         entry = self._runs[run_id]
-        if entry.completed_at is None or entry.live:
+        if (
+            entry.completed_at is None
+            or entry.live
+            or (retain_empty and not entry.had_executions)
+        ):
             return []
         del self._runs[run_id]
         return [self._removal(entry, "run", run_id)]

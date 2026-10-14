@@ -33,7 +33,8 @@ class Notebook:
     """A notebook with execution results, a runtime, and client attachments.
 
     Commands call the backend. Backend reports update state and reach
-    subscribers through notebook events.
+    subscribers through notebook events. Change execution state through
+    the notebook so each change reaches subscribers.
     """
 
     def __init__(
@@ -128,6 +129,8 @@ class Notebook:
             self._backend.stop(runtime.id)
             return replacement
 
+    # TODO: Remove once sessions start their runtime through `start`.
+    # Browser sessions create kernels outside the notebook.
     def adopt(
         self, attach: Callable[[protocol.RuntimeId], None]
     ) -> protocol.Runtime:
@@ -353,7 +356,10 @@ class Notebook:
         return events
 
     def _dispose(self, *, request_id: str | None = None) -> None:
-        """Close the notebook and remove its state, children first."""
+        """Close the notebook and remove its state, children first.
+
+        The host publishes `notebook.removed` after disposing of this state.
+        """
         self._closed = True
         self._apply(self.executions.interrupt())
         self._apply(self.executions.clear())

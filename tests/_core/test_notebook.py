@@ -692,7 +692,7 @@ class TestRunCompletion:
         log.clear()
         notebook.observe(be.Scheduled(RunId("later"), ExecutionId("e1")))
         notebook.observe(be.Done(RunId("later"), "succeeded"))
-        assert request_ids(log) == [UNSET, UNSET, UNSET]
+        assert request_ids(log) == [UNSET, UNSET]
         assert all(event.run_id == "later" for event in log)
         final = next(
             event.data
