@@ -7,7 +7,6 @@ import os
 import re
 import shlex
 import sys
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -26,10 +25,8 @@ from marimo._cli.pair.client import (
     StaleNotebookError,
     display_url,
     execute as execute_code,
-    iter_sse,
     list_sessions,
     load_token,
-    open_events,
     registry_urls,
     resolve_host,
     resolve_notebook,
@@ -267,7 +264,6 @@ class _DocsCommand(ColoredCommand):
       Notebook agent messages arrive here as messages from marimo.
       Oversized agent messages include a complete JSON file on this machine.
       Files remain after detach. Cleanup removes owned files older than 24 hours.
-      Use pair events --url <URL> --notebook <NOTEBOOK> for a live tail.
       Use pair detach --notebook <NOTEBOOK> to stop the inbox.
 
     \b
@@ -969,44 +965,8 @@ def detach(notebook_id: str) -> None:
         raise click.ClickException(str(error)) from error
 
 
-@click.command(
-    cls=ColoredCommand,
-    help="Attach as an agent and print live agent messages until interrupted.",
-)
-@click.option("--url", required=True, help="Server URL.")
-@click.option(
-    "--notebook",
-    "notebook_id",
-    required=True,
-    help="Host notebook ID from notebook list.",
-)
-def events(url: str, notebook_id: str) -> None:
-    try:
-        _require_messages()
-        host = resolve_host(url)
-        response = open_events(
-            url=host.url,
-            notebook=notebook_id,
-            token=host.token,
-            identity=str(uuid.uuid4()),
-            name="pair events",
-        )
-        try:
-            for event in iter_sse(response):
-                click.echo(f"{event.name}: {event.data}")
-        finally:
-            response.close()
-    except StaleNotebookError:
-        return
-    except (PairError, OSError) as error:
-        raise click.ClickException(str(error)) from error
-    except KeyboardInterrupt:
-        return
-
-
 pair.add_command(connect)
 pair.add_command(detach)
-pair.add_command(events)
 pair.add_command(execute)
 pair.add_command(docs)
 pair.add_command(notebook)

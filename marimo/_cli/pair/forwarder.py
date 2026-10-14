@@ -293,7 +293,7 @@ def run_forwarder(
                         )
                     reconnect_delay = 0.1
                 elif event.name == "attachment.removed":
-                    if json.loads(event.data)["removed"]["id"] == attachment:
+                    if json.loads(event.data)["id"] == attachment:
                         flush()
                         return
                 elif event.name == "custom":

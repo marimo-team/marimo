@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import http.client
-import io
 import json
 import os
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -92,7 +92,7 @@ def install_stream(
             if event is None:
                 event = SSEEvent(
                     "attachment.removed",
-                    json.dumps({"removed": {"id": "att-one"}}),
+                    json.dumps({"id": "att-one"}),
                 )
             if stopped.is_set():
                 return
@@ -180,12 +180,10 @@ def test_reconnect_backoff_caps_and_resets_after_attachment(
     config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     dropped = PairConnectionError("wording can change")
-    install_stream(
-        monkeypatch,
-        [[attached(), dropped]]
-        + [[dropped] for _ in range(8)]
-        + [[attached(), dropped], [attached(), None]],
-    )
+    scripts: list[list[SSEEvent | Exception | None]] = [[attached(), dropped]]
+    scripts.extend([[dropped] for _ in range(8)])
+    scripts.extend([[attached(), dropped], [attached(), None]])
+    install_stream(monkeypatch, scripts)
     wait = Mock(return_value=True)
     monkeypatch.setattr(forwarder, "_wait_reconnect", wait)
     ready = Mock()
@@ -221,7 +219,7 @@ def test_reconnect_wait_stops_when_harness_exits(
 ) -> None:
     adapter = Adapter()
     monkeypatch.setattr(
-        forwarder.time, "sleep", lambda _: setattr(adapter, "living", False)
+        time, "sleep", lambda _: setattr(adapter, "living", False)
     )
     assert not forwarder._wait_reconnect(adapter, config.target, 5)
 
@@ -373,26 +371,13 @@ def test_connect_and_detach_lifecycle(
     assert stop.call_count == 2
 
 
-def test_events_and_flag_off(
+def test_connect_flag_off(
     isolated_cli: ConnectionStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     assert (
         isolated_cli.load(connection_identity("s_one", "codex", "thread"))
         is None
     )
-    response = io.BytesIO(
-        b'event: attachment\ndata: {"id":"one"}\n\nevent: custom\ndata: null\n\n'
-    )
-    open_events = Mock(return_value=response)
-    monkeypatch.setattr(commands, "open_events", open_events)
-    result = CliRunner().invoke(
-        cli_main,
-        ["pair", *["events", "--url", "http://server", "--notebook", "s_one"]],
-    )
-    assert result.exit_code == 0, result.output
-    assert result.output == 'attachment: {"id":"one"}\ncustom: null\n'
-    assert response.closed
-    assert open_events.call_args.kwargs["name"] == "pair events"
     monkeypatch.delenv("MARIMO_PAIR_NEXT")
     result = CliRunner().invoke(
         cli_main,
@@ -454,7 +439,7 @@ def test_reconnect_uses_processed_cursor_and_ignores_old_removal(
     config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     cursors: list[str | None] = []
-    scripts = [
+    scripts: list[list[SSEEvent | Exception | None]] = [
         [
             attached(),
             SSEEvent("ready", "{}", "10"),
@@ -475,7 +460,7 @@ def test_reconnect_uses_processed_cursor_and_ignores_old_removal(
         [
             SSEEvent(
                 "attachment.removed",
-                json.dumps({"removed": {"id": "att-one"}}),
+                json.dumps({"id": "att-one"}),
                 "12",
             ),
             SSEEvent(
@@ -510,7 +495,7 @@ def test_reconnect_uses_processed_cursor_and_ignores_old_removal(
             SSEEvent("ready", "{}", "15"),
             SSEEvent(
                 "attachment.removed",
-                json.dumps({"removed": {"id": "att-two"}}),
+                json.dumps({"id": "att-two"}),
                 "16",
             ),
         ],
