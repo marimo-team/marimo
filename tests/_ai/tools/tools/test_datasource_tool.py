@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 
 import pytest
@@ -13,10 +14,15 @@ from marimo._ai._tools.tools.datasource import (
     TableDetails,
 )
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
+from marimo._config.config import DEFAULT_CONFIG
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._messaging.notification import DataSourceConnectionsNotification
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
-from tests._ai.tools.test_utils import MockSession, MockSessionView
+from tests._ai.tools.test_utils import (
+    MockConfigManager,
+    MockSession,
+    MockSessionView,
+)
 
 
 @dataclass
@@ -658,3 +664,49 @@ def test_form_sample_query_internal_duckdb_with_defaults(
     )
 
     assert query == 'df = mo.sql(f"""SELECT * FROM mytable LIMIT 100""")'
+
+
+def test_form_sample_query_lower_keyword_case(tool: GetDatabaseTables):
+    """Test forming a sample query with lowercase keywords."""
+
+    query = tool._form_sample_query(
+        database="mydb",
+        schema="myschema",
+        table="mytable",
+        default_database=False,
+        default_schema=False,
+        engine=INTERNAL_DUCKDB_ENGINE,
+        keyword_case="lower",
+    )
+
+    assert (
+        query
+        == 'df = mo.sql(f"""select * from mydb.myschema.mytable limit 100""")'
+    )
+
+
+def test_get_tables_lower_keyword_case(
+    tool: GetDatabaseTables, sample_session: MockSession
+):
+    """Test that handle() respects a lowercase sql_keyword_case config."""
+    config = deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["sql_keyword_case"] = "lower"
+    sample_session.config_manager = MockConfigManager(config=config)
+
+    def mock_get_session(_session_id):
+        return sample_session
+
+    tool.context.get_session = mock_get_session
+
+    args = GetDatabaseTablesArgs(
+        session_id="test_session",
+        query=None,
+    )
+
+    result = tool.handle(args)
+
+    assert len(result.tables) == 1
+    assert result.tables[0].sample_query == (
+        'df = mo.sql(f"""select * from test_db.public.users limit 100""", '
+        "engine=postgres_conn)"
+    )
