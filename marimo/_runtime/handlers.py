@@ -20,7 +20,9 @@ if TYPE_CHECKING:
     from marimo._runtime.runtime import Kernel
 
 
-def construct_interrupt_handler() -> SigintHandler:
+def construct_interrupt_handler(
+    *, scratchpad_interrupt: Callable[[], bool | None] | None = None
+) -> SigintHandler:
     def interrupt_handler(signum: int, frame: Any) -> None:
         """Interrupt the running cell.
 
@@ -31,6 +33,10 @@ def construct_interrupt_handler() -> SigintHandler:
         """
         del signum
         del frame
+
+        targeted = scratchpad_interrupt() if scratchpad_interrupt else None
+        if targeted is False:
+            return
 
         # Resolve the *currently installed* context, not one captured at
         # install time — embedded apps swap in their own child context.
@@ -48,6 +54,10 @@ def construct_interrupt_handler() -> SigintHandler:
         sched = ctx.active_scheduler
         exec_ctx = ctx.execution_context
         if sched is None and exec_ctx is None:
+            if targeted:
+                # Cancellation can land after dispatch starts but before the
+                # scratchpad has installed its scheduler. Abort setup too.
+                raise MarimoInterrupt
             return
 
         # DuckDB connections are sometimes left in an inconsistent state
