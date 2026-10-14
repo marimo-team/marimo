@@ -3,15 +3,17 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
+
 import pytest
 
 from marimo._core import backend as be, protocol
-from marimo._core.document import Document
-from marimo._core.executions import Executions
+from marimo._core.document import Analyzer, Document, code_hash
+from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
-from marimo._core.notebook import Notebook
+from marimo._core.notebook import CellSnapshot, Notebook, NotebookSnapshot
 from marimo._core.run_log import RetentionPolicy
-from marimo._core.stream import Event, Sink
+from marimo._core.stream import Event, Sink, Stream
 
 OPERATIONS = ["notebook.create", "runtime.start", "runtime.run"]
 
@@ -80,6 +82,62 @@ def make_notebook(
         Executions(),
         backend or ScriptedBackend(),
         sink,
+    )
+
+
+def snapshot_of(
+    document: Document,
+    executions: dict[str, CellExecution] | None = None,
+) -> NotebookSnapshot:
+    """A snapshot of the document with executions retained by cell id."""
+    return NotebookSnapshot(
+        document.document,
+        tuple(
+            CellSnapshot(cell, (executions or {}).get(cell.id))
+            for cell in document.cells
+        ),
+    )
+
+
+def capture(notebook: Notebook) -> NotebookSnapshot:
+    """The snapshot a host would prepare from the notebook's state."""
+    return deepcopy(
+        NotebookSnapshot(
+            notebook.document.document,
+            tuple(
+                CellSnapshot(cell, notebook.executions.current(cell.id))
+                for cell in notebook.document.cells
+            ),
+        )
+    )
+
+
+def restore(
+    snapshot: NotebookSnapshot,
+    backend: ScriptedBackend | None = None,
+    *,
+    analyzer: Analyzer | None = None,
+    sink: Sink | None = None,
+) -> Notebook:
+    """Build a notebook from a snapshot, one core at a time."""
+    document = Document.from_records(
+        snapshot.document,
+        [entry.cell for entry in snapshot.cells],
+        analyzer=analyzer,
+    )
+    executions = Executions.restore(
+        {
+            entry.cell.id: entry.execution
+            for entry in snapshot.cells
+            if entry.execution is not None
+        },
+        cells=document.cells,
+    )
+    return Notebook(
+        document,
+        executions,
+        backend or ScriptedBackend(),
+        sink if sink is not None else Stream(history=0),
     )
 
 
@@ -194,3 +252,38 @@ def fold(events: list[Event], initial: dict | None = None) -> dict:
                 body = getattr(event.data, event.kind)
                 state[event.kind, body.id] = body
     return state
+
+
+def retained_execution(
+    cell_id: str | None = "c1", run_id: str | None = None
+) -> CellExecution:
+    """A completed execution with one console item, as a store retains it."""
+    execution_id = protocol.ExecutionId("restored")
+    return CellExecution(
+        protocol.Execution(
+            id=execution_id,
+            run_id=None if run_id is None else protocol.RunId(run_id),
+            runtime_id=None,
+            caused_by=None,
+            cell_id=None if cell_id is None else protocol.CellId(cell_id),
+            code="42" if cell_id is None else None,
+            code_hash=code_hash("42"),
+            bindings=(),
+            status="completed",
+            outcome=protocol.ValueOutcome(
+                protocol.DisplayData(mimetype="text/plain", data="42")
+            ),
+            stale=False if cell_id is not None else None,
+            started_at=None,
+            completed_at=None,
+        ),
+        (
+            protocol.Console(
+                execution_id,
+                protocol.ItemId("restored-output"),
+                "stdout",
+                0,
+                "hello",
+            ),
+        ),
+    )

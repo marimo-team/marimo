@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from msgspec.structs import replace
 
 from marimo._core import protocol
 from marimo._core.document import (
@@ -208,6 +209,65 @@ class TestAnalysis:
     def test_is_null_without_an_analyzer(self) -> None:
         document = Document(NOTEBOOK, fixture_cells(), {})
         assert all(cell.analysis is None for cell in document.cells)
+
+
+class TestFromRecords:
+    def test_preserves_imported_analysis_and_saved_revision(self) -> None:
+        source = Document(
+            NOTEBOOK,
+            fixture_cells(),
+            {"width": "full"},
+            policy="lazy",
+            analyzer=lambda codes: {
+                cell_id: protocol.Analysis(defs=(), refs=(), errors=())
+                for cell_id in codes
+            },
+        )
+        # The saved revision precedes the current one; both survive.
+        source.replace([CellSource("c1", "import marimo")], {"width": "full"})
+        restored = Document.from_records(source.document, source.cells)
+        assert restored.document == source.document
+        assert restored.cells == source.cells
+        assert restored.cells[0].analysis is not None
+
+    @pytest.mark.parametrize(
+        "invalid", ["order", "notebook-id", "cell-etag", "document-etag"]
+    )
+    def test_rejects_inconsistent_records(self, invalid: str) -> None:
+        source = Document(NOTEBOOK, fixture_cells(), {})
+        document, cells = source.document, source.cells
+        if invalid == "order":
+            document = replace(document, order=())
+        elif invalid == "notebook-id":
+            cells[0] = replace(
+                cells[0], notebook_id=protocol.NotebookId("other")
+            )
+        elif invalid == "cell-etag":
+            cells[0] = replace(cells[0], code="different source")
+        else:
+            document = replace(document, app_config={"width": "full"})
+        with pytest.raises(ValueError):
+            Document.from_records(document, cells)
+
+    def test_analyzer_is_injected_for_restoration_and_later_edits(
+        self,
+    ) -> None:
+        observed: list[dict[str, str]] = []
+
+        def analyze(codes: Mapping[str, str]) -> dict[str, protocol.Analysis]:
+            observed.append(dict(codes))
+            return {
+                cell_id: protocol.Analysis(defs=(), refs=(), errors=())
+                for cell_id in codes
+            }
+
+        source = Document(NOTEBOOK, [CellSource("c1", "42")], {})
+        document = Document.from_records(
+            source.document, source.cells, analyzer=analyze
+        )
+        document.replace([CellSource("c1", "43")], {})
+        assert observed == [{"c1": "42"}, {"c1": "43"}]
+        assert document.cells[0].analysis is not None
 
 
 class TestNotebook:

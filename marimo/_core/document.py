@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable, Mapping
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -126,6 +127,63 @@ class Document:
         self.replace(cells, app_config)
         if saved:
             self.mark_saved()
+
+    @classmethod
+    def from_records(
+        cls,
+        document: protocol.Document,
+        cells: Sequence[protocol.Cell],
+        *,
+        analyzer: Analyzer | None = None,
+    ) -> Document:
+        """Restore a document from its protocol records.
+
+        Cell identities, order, and revisions must agree. Analysis is kept
+        unless an analyzer is supplied.
+        """
+        document, cells = deepcopy((document, cells))
+        by_id = {cell.id: cell for cell in cells}
+        if len(by_id) != len(cells) or (
+            len(set(document.order)) != len(document.order)
+            or set(document.order) != set(by_id)
+        ):
+            raise ValueError(
+                "document order must contain every cell exactly once"
+            )
+        if any(cell.notebook_id != document.id for cell in cells):
+            raise ValueError("cells must belong to the document")
+        restored = cls(
+            document.id,
+            [
+                CellSource(cell.id, cell.code, cell.name, cell.config)
+                for cell in (by_id[cell_id] for cell_id in document.order)
+            ],
+            document.app_config,
+            policy=document.policy,
+            analyzer=analyzer,
+            saved=False,
+        )
+        for cell in restored.cells:
+            original = by_id[cell.id]
+            if (
+                cell.etag != original.etag
+                or cell.code_hash != original.code_hash
+            ):
+                raise ValueError("cell revisions must match their content")
+            if analyzer is None:
+                restored._cells[cell.id] = replace(
+                    cell, analysis=original.analysis
+                )
+        current = restored.document
+        if (
+            current.etag != document.etag
+            or current.order_etag != document.order_etag
+            or current.app_config_etag != document.app_config_etag
+        ):
+            raise ValueError("document revisions must match its content")
+        if document.saved_etag is not None:
+            restored.mark_saved(document.saved_etag)
+        return restored
 
     @property
     def document(self) -> protocol.Document:

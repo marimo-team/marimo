@@ -5,13 +5,16 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
 from marimo._core.errors import NoRuntime
 from marimo._core.stream import utcnow
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 
 @dataclass(frozen=True)
@@ -83,6 +86,57 @@ class Executions:
         self._runs: dict[protocol.RunId, _Run] = {}
         self._results: dict[protocol.ExecutionId, _Result] = {}
         self._cells: dict[protocol.CellId, protocol.ExecutionId] = {}
+
+    @classmethod
+    def restore(
+        cls,
+        executions: Mapping[protocol.CellId, CellExecution],
+        *,
+        cells: Iterable[protocol.Cell],
+    ) -> Executions:
+        """Restore completed executions for cells in the document.
+
+        Execution and output IDs must be unique. Each output must belong
+        to its containing execution.
+        """
+        known = {cell.id for cell in cells}
+        restored = cls()
+        output_ids: set[protocol.ItemId] = set()
+        for cell_id, retained in deepcopy(dict(executions)).items():
+            execution = retained.execution
+            if execution.cell_id != cell_id:
+                raise ValueError(
+                    "results must belong to their containing cell"
+                )
+            if cell_id not in known:
+                raise ValueError(
+                    f"result for cell {cell_id} not in the document"
+                )
+            outputs = sorted(retained.outputs, key=lambda item: item.seq)
+            if execution.status != "completed":
+                raise ValueError(
+                    "initial results must be completed executions"
+                )
+            if execution.outcome is None:
+                raise ValueError("initial results must have an outcome")
+            if execution.id in restored._results:
+                raise ValueError("initial execution ids must be unique")
+            if any(item.execution_id != execution.id for item in outputs):
+                raise ValueError(
+                    "result outputs must belong to their execution"
+                )
+            if len({item.id for item in outputs}) != len(outputs):
+                raise ValueError("result output ids must be unique")
+            if output_ids.intersection(item.id for item in outputs):
+                raise ValueError(
+                    "result output ids must be unique across cells"
+                )
+            output_ids.update(item.id for item in outputs)
+            restored._results[execution.id] = _Result(
+                execution, {item.id: item for item in outputs}
+            )
+            restored._cells[cell_id] = execution.id
+        return restored
 
     # ---- reads ---------------------------------------------------------
 
