@@ -1034,6 +1034,7 @@ class dropdown(UIElement[list[str], Any]):
         value (str, optional): Default option name. Defaults to None.
         allow_select_none (bool, optional): Whether to include special option ("--")
             for a None value; when None, defaults to True when value is None.
+            If False and value is None, the first option is used as the value.
             Defaults to None.
         searchable (bool, optional): Whether to enable search functionality.
             Defaults to False.
@@ -1081,15 +1082,17 @@ class dropdown(UIElement[list[str], Any]):
                 "is reserved by marimo; please use another name."
             )
 
-        self.options = options
-        initial_value = [value] if value is not None else []
         if allow_select_none is None:
             allow_select_none = value is None
         elif not allow_select_none and value is None:
-            raise ValueError(
-                "when `allow_select_none` is False, a non-None default value "
-                "must be provided."
-            )
+            if not options:
+                raise ValueError(
+                    "when `allow_select_none` is False, `options` must not be empty."
+                )
+            value = next(iter(options))
+
+        self.options = options
+        initial_value = [value] if value is not None else []
 
         super().__init__(
             component_name=dropdown._name,
