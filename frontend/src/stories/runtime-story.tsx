@@ -1,11 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { createStore, Provider, useAtomValue } from "jotai";
+import type { Meta } from "@storybook/react-vite";
+import { createStore, Provider, useAtomValue, useStore } from "jotai";
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import PackagesPanel from "@/components/editor/chrome/panels/packages-panel";
 import { PanelSectionProvider } from "@/components/editor/chrome/panels/panel-context";
-import { SandboxToggle } from "@/components/editor/chrome/panels/sandbox-toggle";
+import { RuntimeStatusToggle } from "@/components/editor/chrome/panels/runtime-status-toggle";
 import { SandboxController } from "@/components/editor/chrome/panels/sandbox-controller";
 import { chromeAtom } from "@/components/editor/chrome/state";
 import { Cell } from "@/components/editor/notebook-cell";
@@ -74,13 +75,15 @@ interface Props {
     | "synced"
     | "restart-required";
   existingCells: boolean;
-  backend: "uv" | "pixi";
+  backend: "uv" | "pixi" | null;
   saveResult: "success" | "failure" | "stale";
   theme: "light" | "dark";
   interactive: boolean;
+  manual: boolean;
+  detailsOpen: boolean;
 }
 
-function SandboxPreview({
+function RuntimePreview({
   props,
   appConfig,
   reconnect,
@@ -103,7 +106,7 @@ function SandboxPreview({
         <aside className="flex flex-col w-[300px] shrink-0 border-r h-[520px]">
           <div className="flex items-center justify-between px-3 py-2 border-b text-sm">
             Packages
-            <SandboxToggle section="sidebar" />
+            <RuntimeStatusToggle section="sidebar" />
           </div>
           <PanelSectionProvider value="sidebar">
             <PackagesPanel />
@@ -134,6 +137,89 @@ function SandboxPreview({
   );
 }
 
+function LifecycleControls({ backend }: { backend: Props["backend"] }) {
+  const store = useStore();
+  const [position, setPosition] = useState(0);
+  const phases = backend
+    ? (["preparing", "starting", "failed", "retrying", "ready"] as const)
+    : (["starting", "failed", "retrying", "ready"] as const);
+  const next = phases[(position + 1) % phases.length];
+  const labels = {
+    preparing: "Restart walkthrough",
+    starting: "Start kernel",
+    failed: "Simulate kernel failure",
+    retrying: "Retry kernel",
+    ready: "Kernel connected",
+  };
+  const advance = () => {
+    setPosition((position + 1) % phases.length);
+    store.set(
+      kernelStartupErrorAtom,
+      next === "failed" ? "The kernel process exited before connecting." : null,
+    );
+    const getNextConnectionStatus = (): ConnectionStatus => {
+      if (next === "ready") {
+        return { state: WebSocketState.OPEN };
+      }
+      if (next === "failed") {
+        return {
+          state: WebSocketState.CLOSED,
+          code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+          phase: "starting-kernel",
+          reason: "Kernel failed to start",
+        };
+      }
+      return {
+        state: WebSocketState.CONNECTING,
+        phase:
+          next === "preparing" ? "preparing-environment" : "starting-kernel",
+      };
+    };
+    store.set(connectionAtom, getNextConnectionStatus());
+    const getLogs = () => {
+      if (next === "failed") {
+        return "Kernel process exited\n";
+      }
+      if (next === "ready") {
+        return "Kernel connected\n";
+      }
+      return "Launching kernel process\n";
+    };
+    store.set(startupProgressAtom, {
+      phase: next === "preparing" ? "preparing-environment" : "starting-kernel",
+      logs: getLogs(),
+      log_mode: "replace",
+    });
+    store.set(alertAtom, (value) => ({
+      ...value,
+      environments: {
+        ...value.environments,
+        kernel: {
+          ...value.environments.kernel,
+          operations: value.environments.kernel.operations.map((operation) => ({
+            ...operation,
+            status:
+              next === "preparing"
+                ? { kind: "running" }
+                : { kind: "succeeded" },
+          })),
+        },
+      },
+    }));
+  };
+  return (
+    <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground">
+      <Button variant="outline" size="xs" onClick={advance}>
+        {labels[next]}
+      </Button>
+      <span>
+        Story controls — advance the actual app through startup, failure, retry,
+        and completion.
+      </span>
+    </div>
+  );
+}
+
 function OpenManifest() {
   const actions = useAtomValue(sandboxActionsAtom);
   const opened = useRef(false);
@@ -146,7 +232,7 @@ function OpenManifest() {
   return null;
 }
 
-function SandboxStory(props: Props) {
+export function RuntimeStory(props: Props) {
   const [store] = useState(() => {
     const state = createStore();
     let currentManifest =
@@ -166,18 +252,26 @@ function SandboxStory(props: Props) {
     });
     state.set(chromeAtom, {
       selectedPanel: "packages",
-      isSidebarOpen: props.surface !== "notebook",
+      isSidebarOpen: props.surface !== "notebook" || props.detailsOpen,
       isDeveloperPanelOpen: false,
       selectedDeveloperPanelTab: "errors",
     });
-    const getConnectionStatus = (): ConnectionStatus => {
+    const getConnectionPhase = ():
+      | "preparing-environment"
+      | "starting-kernel"
+      | undefined => {
+      if (!props.backend) {
+        return undefined;
+      }
+      return props.phase === "preparing"
+        ? "preparing-environment"
+        : "starting-kernel";
+    };
+    const getInitialConnectionStatus = (): ConnectionStatus => {
       if (props.phase === "preparing" || props.phase === "starting") {
         return {
           state: WebSocketState.CONNECTING,
-          phase:
-            props.phase === "preparing"
-              ? "preparing-environment"
-              : "starting-kernel",
+          phase: getConnectionPhase(),
         };
       }
       if (props.phase === "failed") {
@@ -185,16 +279,22 @@ function SandboxStory(props: Props) {
           state: WebSocketState.CLOSED,
           code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
           reason: "Kernel startup failed",
-          phase: "preparing-environment",
+          phase: props.backend ? "preparing-environment" : undefined,
         };
       }
       return { state: WebSocketState.OPEN };
     };
-    state.set(connectionAtom, getConnectionStatus());
-    state.set(
-      kernelStartupErrorAtom,
-      props.phase === "failed" ? resolutionError : null,
-    );
+    state.set(connectionAtom, getInitialConnectionStatus());
+    const getStartupError = () => {
+      if (props.phase === "failed") {
+        if (props.backend) {
+          return resolutionError;
+        }
+        return "Python kernel exited before connecting.\nModuleNotFoundError: No module named 'ipykernel'";
+      }
+      return null;
+    };
+    state.set(kernelStartupErrorAtom, getStartupError());
     let syncStatus: EnvironmentOperation["status"] | null;
     if (props.phase === "syncing") {
       syncStatus = { kind: "running" };
@@ -226,48 +326,56 @@ function SandboxStory(props: Props) {
         ...value.environments,
         kernel: {
           restart_required: props.phase === "restart-required",
-          operations: [
-            {
-              operation_id: "story-preparation",
-              action: "prepare",
-              source: "kernel",
-              status: getPreparationStatus(),
-              packages: {},
-              logs: {
-                environment:
-                  props.phase === "failed"
-                    ? resolutionError
-                    : preparationOutput,
-              },
-            },
-            ...(syncStatus
-              ? [
-                  {
-                    operation_id: "story-sync",
-                    action: "sync" as const,
-                    source: "kernel" as const,
-                    status: syncStatus,
-                    packages: {},
-                    logs: {
-                      environment:
-                        "Reading notebook manifest\nResolving dependencies\nChecking Python version\n",
-                    },
+          operations: props.backend
+            ? [
+                {
+                  operation_id: "story-preparation",
+                  action: "prepare",
+                  source: "kernel",
+                  status: getPreparationStatus(),
+                  packages: {},
+                  logs: {
+                    environment:
+                      props.phase === "failed"
+                        ? resolutionError
+                        : preparationOutput,
                   },
-                ]
-              : []),
-          ],
+                },
+                ...(syncStatus
+                  ? [
+                      {
+                        operation_id: "story-sync",
+                        action: "sync" as const,
+                        source: "kernel" as const,
+                        status: syncStatus,
+                        packages: {},
+                        logs: {
+                          environment:
+                            "Reading notebook manifest\nResolving dependencies\nChecking Python version\n",
+                        },
+                      },
+                    ]
+                  : []),
+              ]
+            : [],
         },
       },
     }));
+    const preparingEnvironment =
+      props.backend &&
+      (props.phase === "preparing" || props.phase === "failed");
+    const getLogs2 = () => {
+      if (preparingEnvironment) {
+        return "";
+      }
+      if (props.backend) {
+        return "Launching kernel process\nWaiting for kernel connection\n";
+      }
+      return "Launching kernel process\nConnecting to Python runtime\nWaiting for kernel connection\n";
+    };
     state.set(startupProgressAtom, {
-      phase:
-        props.phase !== "preparing" && props.phase !== "failed"
-          ? "starting-kernel"
-          : "preparing-environment",
-      logs:
-        props.phase !== "preparing" && props.phase !== "failed"
-          ? "Launching kernel process\nUsing /home/user/.cache/uv/environments-v2/bike-trips-a274bddc/bin/python\nWaiting for kernel connection\n"
-          : "",
+      phase: preparingEnvironment ? "preparing-environment" : "starting-kernel",
+      logs: getLogs2(),
       log_mode: "replace",
     });
     if (props.existingCells) {
@@ -288,8 +396,16 @@ function SandboxStory(props: Props) {
         manifest: currentManifest,
         filename: "bike_trips.py",
       }),
+      getPackageList: async () => ({
+        packages: [
+          { name: "marimo", version: "0.24.2" },
+          { name: "polars", version: "1.34.0" },
+        ],
+      }),
       getDependencyTree: async () => ({
-        context: { kind: "sandbox", backend: props.backend },
+        context: props.backend
+          ? { kind: "sandbox", backend: props.backend }
+          : { kind: "package-manager", name: "pip" },
         tree: {
           name: "<root>",
           version: null,
@@ -382,11 +498,39 @@ function SandboxStory(props: Props) {
     ];
     return () => timers.forEach(clearTimeout);
   }, [props.interactive, store]);
+  const getSurfaceDescription = () => {
+    if (props.surface === "packages") {
+      return "Packages sidebar.";
+    }
+    if (props.surface === "manifest") {
+      return "Sandbox manifest editor.";
+    }
+    if (props.existingCells) {
+      return "Notebook with existing cells: inline status opens Packages for stages and logs.";
+    }
+    return "Empty notebook: startup stages appear in the notebook until the kernel connects.";
+  };
   return (
     <Provider store={store}>
       <SandboxController onReconnect={reconnect} />
       {props.surface === "manifest" && <OpenManifest />}
-      <SandboxPreview
+      <header className="mb-4 max-w-2xl space-y-1">
+        <h1 className="text-base font-medium">
+          {props.backend
+            ? `${props.backend} sandbox environment`
+            : "Existing Python environment"}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {props.backend
+            ? "marimo prepares this notebook’s isolated environment, then starts its kernel. The button keeps the sandbox name while its status dot and details change."
+            : "Python is already available, so only the kernel needs to connect. The button stays labeled Runtime; there is no sandbox preparation stage."}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {getSurfaceDescription()}
+        </p>
+      </header>
+      {props.manual && <LifecycleControls backend={props.backend} />}
+      <RuntimePreview
         props={props}
         appConfig={appConfig}
         reconnect={reconnect}
@@ -395,9 +539,8 @@ function SandboxStory(props: Props) {
   );
 }
 
-const meta = {
-  title: "Sandbox/States",
-  component: SandboxStory,
+export const runtimeStoryMeta = {
+  component: RuntimeStory,
   parameters: { layout: "centered" },
   args: {
     surface: "notebook",
@@ -407,94 +550,14 @@ const meta = {
     saveResult: "success",
     theme: "light",
     interactive: false,
+    manual: false,
+    detailsOpen: false,
   },
   render: (args, context) => (
-    <SandboxStory
+    <RuntimeStory
       key={JSON.stringify([args, context.globals.theme])}
       {...args}
       theme={context.globals.theme === "dark" ? "dark" : "light"}
     />
   ),
-} satisfies Meta<typeof SandboxStory>;
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-export const ExistingNotebookPreparing: Story = {
-  name: "Startup notice / preparing",
-};
-export const EmptyNotebookPreparing: Story = {
-  name: "Empty notebook / preparing",
-  args: { existingCells: false },
-};
-export const StartingKernel: Story = {
-  name: "Startup notice / starting kernel",
-  args: { phase: "starting" },
-};
-export const StartupTransition: Story = {
-  name: "Startup / completion transition",
-  args: { interactive: true, backend: "pixi" },
-};
-export const EmptyStartupTransition: Story = {
-  name: "Empty notebook / completion transition",
-  args: { interactive: true, existingCells: false, backend: "pixi" },
-};
-export const ExistingNotebookFailed: Story = {
-  name: "Startup notice / failed",
-  args: { phase: "failed" },
-};
-export const EmptyNotebookFailed: Story = {
-  name: "Empty notebook / failed",
-  args: { phase: "failed", existingCells: false },
-};
-export const PackagesPreparing: Story = {
-  name: "Setup details / preparing",
-  args: { surface: "packages" },
-};
-export const PackagesStarting: Story = {
-  name: "Setup details / starting kernel",
-  args: { surface: "packages", phase: "starting" },
-};
-export const PackagesStartupTransition: Story = {
-  name: "Setup details / live output",
-  args: { surface: "packages", interactive: true },
-};
-export const PackagesFailed: Story = {
-  name: "Setup details / failed",
-  args: { surface: "packages", phase: "failed" },
-};
-export const PackagesReady: Story = {
-  name: "Status row / ready",
-  args: { surface: "packages", phase: "ready" },
-};
-export const PackagesSyncing: Story = {
-  name: "Status row / syncing",
-  args: { surface: "packages", phase: "syncing" },
-};
-export const PackagesSyncFailed: Story = {
-  name: "Setup details / sync failed",
-  args: { surface: "packages", phase: "sync-failed" },
-};
-export const PackagesSynced: Story = {
-  name: "Setup details / sync completed",
-  args: { surface: "packages", phase: "synced" },
-};
-export const PackagesRestartRequired: Story = {
-  name: "Setup details / restart required",
-  args: { surface: "packages", phase: "restart-required" },
-};
-export const PixiPackagesReady: Story = {
-  name: "Status row / pixi",
-  args: { surface: "packages", phase: "ready", backend: "pixi" },
-};
-export const ManifestEditor: Story = {
-  name: "Manifest / edit",
-  args: { surface: "manifest", phase: "failed" },
-};
-export const ManifestSyncFails: Story = {
-  name: "Manifest / failed save",
-  args: { surface: "manifest", phase: "failed", saveResult: "failure" },
-};
-export const ManifestChangedOnDisk: Story = {
-  name: "Manifest / changed on disk",
-  args: { surface: "manifest", phase: "failed", saveResult: "stale" },
-};
+} satisfies Meta<typeof RuntimeStory>;

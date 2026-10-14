@@ -43,6 +43,13 @@ class FakeSession:
         self.consumers.append((consumer, main))
         consumer.on_attach(self, self.event_bus)  # type: ignore[arg-type]
 
+    def disconnect_consumer(self, consumer: SessionConsumer) -> None:
+        for entry in self.consumers:
+            if entry[0] is consumer:
+                self.consumers.remove(entry)
+                consumer.on_detach()
+                return
+
     def instantiate(self, request: Any, *, http_request: Any) -> None:
         del request, http_request
 

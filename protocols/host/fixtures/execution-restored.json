@@ -1,0 +1,24 @@
+{
+  "id": "e-restored",
+  "run_id": null,
+  "runtime_id": null,
+  "caused_by": null,
+  "cell_id": "c3",
+  "code": null,
+  "code_hash": "0f71456db2ea83f4",
+  "bindings": [
+    {
+      "name": "x",
+      "type": "int",
+      "preview": "21"
+    }
+  ],
+  "status": "completed",
+  "outcome": {
+    "kind": "value",
+    "display": null
+  },
+  "stale": false,
+  "started_at": "2026-09-30T09:20:01Z",
+  "completed_at": "2026-09-30T09:20:02Z"
+}

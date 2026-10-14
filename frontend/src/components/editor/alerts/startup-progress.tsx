@@ -1,41 +1,44 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { useAtomValue } from "jotai";
-import { AlertCircleIcon, CheckIcon, CircleIcon } from "lucide-react";
-import { Spinner } from "@/components/icons/spinner";
+import {
+  ProgressStages,
+  ProgressStatusIcon,
+  type ProgressStage,
+  type ProgressState,
+} from "@/components/ui/progress-stages";
 import { preparationAtom } from "@/core/packages/sandbox-state";
 import { startupProgressAtom } from "@/core/network/connection";
 import type { DisplayConnectionNotice } from "@/core/network/useConnectionNotice";
-import { cn } from "@/utils/cn";
-import { StartupOutput, type StartupOutputState } from "./startup-output";
+import { StartupOutput } from "./startup-output";
 
 const STEPS = [
   {
     phase: "preparing-environment",
     titles: {
-      complete: "Environment prepared",
+      succeeded: "Environment prepared",
       failed: "Environment setup failed",
-      pending: "Preparing environment",
+      running: "Preparing environment",
       waiting: "Prepare environment",
     },
     descriptions: {
-      complete: "Python and dependencies are available.",
+      succeeded: "Python and dependencies are available.",
       failed: "Setup could not finish.",
-      pending: "Set up Python and dependencies.",
+      running: "Set up Python and dependencies.",
       waiting: "Set up Python and dependencies.",
     },
   },
   {
     phase: "starting-kernel",
     titles: {
-      complete: "Kernel started",
+      succeeded: "Kernel started",
       failed: "Kernel failed to start",
-      pending: "Starting kernel",
+      running: "Starting kernel",
       waiting: "Start kernel",
     },
     descriptions: {
-      complete: "The notebook is ready to run.",
+      succeeded: "The notebook is ready to run.",
       failed: "The kernel could not connect.",
-      pending: "Connecting to this notebook.",
+      running: "Connecting to this notebook.",
       waiting: "After the environment is ready.",
     },
   },
@@ -46,44 +49,29 @@ interface StartupProgressProps {
   surface: "notebook" | "sidebar";
 }
 
-function StartupStepOutput({
-  phase,
-  state,
-}: {
-  phase: (typeof STEPS)[number]["phase"];
-  state: StartupOutputState;
-}) {
-  const preparation = useAtomValue(preparationAtom);
-  const progress = useAtomValue(startupProgressAtom);
-  const preparing = phase === "preparing-environment";
-  let logs;
-  if (preparing) {
-    logs = preparation?.logs.environment ?? "";
-  } else if (progress?.phase === phase) {
-    logs = progress.logs;
-  } else {
-    logs = "";
-  }
-
+export function hasStartupStages(notice: DisplayConnectionNotice): boolean {
   return (
-    <StartupOutput
-      key={preparation?.operation_id}
-      logs={logs}
-      state={state}
-      label={
-        preparing ? "environment preparation output" : "kernel startup output"
-      }
-    />
+    notice.kind === "startup" &&
+    (!notice.sandbox ||
+      notice.ready ||
+      notice.phase === "preparing-environment" ||
+      notice.phase === "starting-kernel")
   );
 }
 
 function StartupSummary({ notice }: { notice: DisplayConnectionNotice }) {
-  const getSummaryDescription = (): string => {
+  const getSummaryDescription = () => {
     if (notice.ready) {
-      return "Your environment and kernel are ready.";
+      if (notice.sandbox) {
+        return "Your environment and kernel are ready.";
+      }
+      return "Your kernel is ready.";
     }
     if (notice.pending) {
-      return "Preparing Python and dependencies for this notebook.";
+      if (notice.sandbox) {
+        return "Preparing Python and dependencies for this notebook.";
+      }
+      return "Connecting to this notebook’s Python kernel.";
     }
     return "Review the setup details below to continue.";
   };
@@ -107,120 +95,69 @@ export function ConnectionStatusIcon({
 }: {
   notice: DisplayConnectionNotice;
 }) {
-  if (notice.ready) {
-    return (
-      <CheckIcon
-        className="size-4 shrink-0 text-(--grass-11)"
-        aria-hidden={true}
-      />
-    );
-  }
-  if (notice.pending) {
-    return (
-      <Spinner
-        className="size-4 shrink-0 motion-reduce:animate-none"
-        aria-hidden={true}
-      />
-    );
-  }
-  return (
-    <AlertCircleIcon
-      className="size-4 shrink-0 text-(--red-11)"
-      aria-hidden={true}
-    />
-  );
+  const getState = () => {
+    if (notice.ready) {
+      return "succeeded";
+    }
+    if (notice.pending) {
+      return "running";
+    }
+    return "failed";
+  };
+  return <ProgressStatusIcon state={getState()} />;
 }
 
 export function StartupProgress({ notice, surface }: StartupProgressProps) {
+  const preparation = useAtomValue(preparationAtom);
+  const progress = useAtomValue(startupProgressAtom);
+  const activePhase = notice.sandbox ? notice.phase : "starting-kernel";
+  const stages: ProgressStage[] = STEPS.filter(
+    (step) => notice.sandbox || step.phase === "starting-kernel",
+  ).map(({ phase, titles, descriptions }) => {
+    const preparing = phase === "preparing-environment";
+    let state: ProgressState;
+    if (notice.ready || (preparing && activePhase === "starting-kernel")) {
+      state = "succeeded";
+    } else if (activePhase === phase) {
+      state = notice.pending ? "running" : "failed";
+    } else {
+      state = "waiting";
+    }
+    let logs;
+    if (preparing) {
+      logs = preparation?.logs.environment ?? "";
+    } else if (progress?.phase === phase) {
+      logs = progress.logs;
+    } else {
+      logs = "";
+    }
+    return {
+      id: phase,
+      state,
+      title: titles[state],
+      description: descriptions[state],
+      details: surface === "sidebar" && (
+        <StartupOutput
+          key={preparation?.operation_id}
+          logs={logs}
+          state={state === "waiting" ? "succeeded" : state}
+          label={
+            preparing
+              ? "environment preparation output"
+              : "kernel startup output"
+          }
+        />
+      ),
+    };
+  });
   return (
     <>
       {surface === "notebook" && <StartupSummary notice={notice} />}
-      <ol
-        className={cn("space-y-6", surface === "notebook" && "mt-8")}
-        aria-label="Notebook startup stages"
-      >
-        {STEPS.map(({ phase, titles, descriptions }, index) => {
-          const complete =
-            notice.ready || (index === 0 && notice.phase === "starting-kernel");
-          const active = !notice.ready && notice.phase === phase;
-          const failed = active && !notice.pending;
-          let state: "complete" | "failed" | "pending" | "waiting";
-          if (complete) {
-            state = "complete";
-          } else if (failed) {
-            state = "failed";
-          } else if (active) {
-            state = "pending";
-          } else {
-            state = "waiting";
-          }
-          const renderStepIcon = () => {
-            if (complete) {
-              return <CheckIcon className="size-4" aria-hidden={true} />;
-            }
-            if (active) {
-              return <ConnectionStatusIcon notice={notice} />;
-            }
-            return (
-              <CircleIcon
-                className="size-4 text-muted-foreground/50"
-                aria-hidden={true}
-              />
-            );
-          };
-          const getTitleColor = (): string => {
-            if (failed) {
-              return "text-(--red-11)";
-            }
-            if (complete || active) {
-              return "text-foreground";
-            }
-            return "text-muted-foreground";
-          };
-          const getOutputState = (): "failed" | "running" | "succeeded" => {
-            if (failed) {
-              return "failed";
-            }
-            if (active) {
-              return "running";
-            }
-            return "succeeded";
-          };
-          return (
-            <li
-              key={phase}
-              aria-current={active ? "step" : undefined}
-              className="relative flex items-start gap-3"
-            >
-              {index === 0 && (
-                <span
-                  aria-hidden={true}
-                  className="absolute left-2 top-6 -bottom-4 border-l border-border"
-                />
-              )}
-              <span
-                className={cn(
-                  "mt-0.5",
-                  complete ? "text-(--grass-11)" : "text-muted-foreground",
-                )}
-              >
-                {renderStepIcon()}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className={cn("text-sm", getTitleColor())}>
-                  {titles[state]}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {descriptions[state]}
-                </p>
-                {surface === "sidebar" && (
-                  <StartupStepOutput phase={phase} state={getOutputState()} />
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+      <ProgressStages
+        stages={stages}
+        label="Notebook startup stages"
+        className={surface === "notebook" ? "mt-8" : undefined}
+      />
     </>
   );
 }

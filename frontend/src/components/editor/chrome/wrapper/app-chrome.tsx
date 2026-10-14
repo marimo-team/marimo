@@ -34,7 +34,7 @@ import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { raf2 } from "../../navigation/focus-utils";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
 import { PanelSectionProvider } from "../panels/panel-context";
-import { SandboxToggle } from "../panels/sandbox-toggle";
+import { RuntimeStatusToggle } from "../panels/runtime-status-toggle";
 import { useTheme } from "@/theme/useTheme";
 import {
   LazyAgentPanel,
@@ -400,7 +400,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           <div className="p-3 border-b flex justify-between items-center">
             {renderPanelHeader()}
             {selectedPanel === "packages" && (
-              <SandboxToggle section="sidebar" />
+              <RuntimeStatusToggle section="sidebar" />
             )}
             <Button
               data-testid="close-helper-pane"
@@ -558,7 +558,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           <LspStatus />
           <div className="flex-1" />
           {selectedDeveloperPanelTab === "packages" && (
-            <SandboxToggle section="developer-panel" />
+            <RuntimeStatusToggle section="developer-panel" />
           )}
           <Button
             size="xs"

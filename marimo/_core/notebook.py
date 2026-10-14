@@ -8,8 +8,9 @@ backend updates and publishes events.
 from __future__ import annotations
 
 from time import monotonic
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import msgspec
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
@@ -21,7 +22,7 @@ from marimo._core.stream import Event, kind_of, message, utcnow
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from marimo._core.stream import Stream
+    from marimo._core.stream import Body, Stream
 
 
 class Notebook:
@@ -60,8 +61,8 @@ class Notebook:
             forget=backend.forget,
         )
         self._replacement: protocol.Runtime | None = None
-        # Associate runtime events with the pending start, stop, or restart.
-        self._lifecycle_request: str | None = None
+        # Correlate runtime events with the pending start, stop, or restart.
+        self._runtime_request: str | None = None
 
     def expire(self) -> None:
         """Apply the host's result retention policy."""
@@ -95,7 +96,7 @@ class Notebook:
             if self._runtime is not None:
                 return self._runtime, False
             runtime = self._new_runtime("starting", None, None)
-            self._lifecycle_request = request_id
+            self._runtime_request = request_id
             self._set_runtime(runtime)
             self._backend.start(runtime.id)
             return runtime, True
@@ -113,7 +114,7 @@ class Notebook:
         with self._stream.deferred():
             self._require_open()
             runtime = self._require_runtime()
-            self._lifecycle_request = request_id
+            self._runtime_request = request_id
             self._replacement = None
             if runtime.status == "terminating":
                 return runtime
@@ -122,7 +123,7 @@ class Notebook:
             if runtime.status == "failed":
                 self._end_runtime()
             else:
-                self._backend.stop()
+                self._backend.stop(runtime.id)
             return terminating
 
     def restart(self, *, request_id: str | None = None) -> protocol.Runtime:
@@ -142,13 +143,42 @@ class Notebook:
                 raise Conflict(
                     f"the runtime is {runtime.status}; only a running one restarts"
                 )
-            self._lifecycle_request = request_id
+            self._runtime_request = request_id
             replacement = self._new_runtime("starting", None, None)
             self._replacement = replacement
             terminating = replace(runtime, status="terminating")
             self._set_runtime(terminating)
-            self._backend.stop()
+            self._backend.stop(runtime.id)
             return replacement
+
+    # TODO: Remove once sessions start their runtime through `start`.
+    # marimo still creates kernels for browser tabs behind the notebook's
+    # back, so the host learns about them afterwards.
+    def adopt(
+        self, attach: Callable[[protocol.RuntimeId], None]
+    ) -> protocol.Runtime:
+        """Track a kernel started outside the host API.
+
+        Returns a starting runtime. Calls `attach` with its ID before
+        delivering events to subscribers. The callback binds the backend
+        synchronously and reports status, including attachment failures,
+        through `observe`.
+
+        Raises:
+            Conflict: If the notebook has a runtime that has not failed.
+        """
+        with self._stream.deferred():
+            self._require_open()
+            if self._runtime is not None:
+                if self._runtime.status != "failed":
+                    raise Conflict(
+                        f"the notebook has a {self._runtime.status} runtime"
+                    )
+                self._end_runtime()
+            runtime = self._new_runtime("starting", None, None)
+            self._set_runtime(runtime)
+            attach(runtime.id)
+            return runtime
 
     def _require_runtime(self) -> protocol.Runtime:
         if self._runtime is None:
@@ -159,16 +189,16 @@ class Notebook:
 
     def _set_runtime(self, runtime: protocol.Runtime) -> None:
         self._runtime = runtime
-        self._publish(runtime, self._lifecycle_request)
+        self._publish(runtime, self._runtime_request)
         if runtime.status in ("running", "failed"):
-            self._lifecycle_request = None
+            self._runtime_request = None
 
     def _end_runtime(self) -> None:
         assert self._runtime is not None
         self._state.interrupt()
         runtime, self._runtime = self._runtime, None
-        self._remove("runtime", runtime.id, self._lifecycle_request)
-        self._lifecycle_request = None
+        self._remove("runtime", runtime.id, self._runtime_request)
+        self._runtime_request = None
 
     # ---- runs ----------------------------------------------------------
 
@@ -220,21 +250,43 @@ class Notebook:
 
     # ---- attachments ---------------------------------------------------
 
-    def attach(self) -> protocol.Attachment:
-        """Record an attached host API client."""
+    def attach(
+        self,
+        *,
+        identity: str | None = None,
+        kind: str | None = None,
+        name: str | None = None,
+    ) -> protocol.Attachment:
+        """Attach a client to this notebook.
+
+        Each call creates a separate attachment. `identity` is stored as
+        data. It does not affect the attachment lifetime. An omitted `kind`
+        is `client`. An empty `name` is stored as null.
+
+        Raises:
+            msgspec.ValidationError: If a value breaks the protocol's
+                constraints on the attachment field of the same name.
+        """
         self._require_open()
-        attachment = protocol.Attachment(
-            id=mint(protocol.AttachmentId, "att"),
-            notebook_id=self.id,
-            kind="client",
-            name=None,
-            since=utcnow(),
-        )
+        fields: dict[str, Any] = {
+            "id": mint(protocol.AttachmentId, "att"),
+            "notebook_id": self.id,
+            "kind": kind or "client",
+            "name": name or None,
+            "since": utcnow(),
+        }
+        if identity is not None:
+            fields["identity"] = identity
+        attachment = msgspec.convert(fields, protocol.Attachment)
         self._attachments[attachment.id] = attachment
         self._publish(attachment, None)
         return attachment
 
     def detach(self, attachment_id: str) -> None:
+        """Remove the attachment and publish its removal.
+
+        Unknown IDs are ignored.
+        """
         attachment = self._attachments.pop(attachment_id, None)
         if attachment is not None:
             self._remove("attachment", attachment.id, None)
@@ -246,50 +298,43 @@ class Notebook:
         if self._closed:
             return
         match msg:
-            case be.Starting(message=text):
-                self._observe_starting(text)
-            case be.Running(marimo_version=version):
-                self._observe_running(version)
-            case be.Exited(reason=reason):
-                self._observe_exited(reason)
+            case be.Starting() | be.Running() | be.Exited():
+                runtime = self._runtime
+                if runtime is None or msg.runtime_id != runtime.id:
+                    return  # A kernel this notebook no longer tracks.
+                self._observe_runtime(runtime, msg)
             case _:
                 self._state.observe(msg, self._runtime)
 
-    def _observe_starting(self, text: str | None) -> None:
-        if self._runtime is None:
-            # Track kernels started outside the host API.
-            self._set_runtime(self._new_runtime("starting", text, None))
-        elif self._runtime.status == "failed":
-            self._replace_runtime(text)
-        elif self._runtime.status == "starting":
-            self._set_runtime(replace(self._runtime, message=text))
+    def _observe_runtime(
+        self, runtime: protocol.Runtime, report: be.RuntimeReport
+    ) -> None:
+        match report:
+            case be.Starting(message=text):
+                if runtime.status == "starting":
+                    self._set_runtime(replace(runtime, message=text))
+            case be.Running(marimo_version=version):
+                if runtime.status in ("starting", "running"):
+                    self._set_runtime(
+                        replace(
+                            runtime,
+                            status="running",
+                            message=None,
+                            marimo_version=version,
+                        )
+                    )
+            case be.Exited(reason=reason):
+                self._observe_exited(runtime, reason)
 
-    def _observe_running(self, version: str | None) -> None:
-        if self._runtime is None:
-            self._set_runtime(self._new_runtime("running", None, version))
-            return
-        if self._runtime.status == "failed":
-            self._replace_runtime()
-        if self._runtime.status in ("starting", "running"):
-            self._set_runtime(
-                replace(
-                    self._runtime,
-                    status="running",
-                    message=None,
-                    marimo_version=version,
-                )
-            )
-
-    def _observe_exited(self, reason: str | None) -> None:
-        runtime = self._runtime
-        if runtime is None:
-            return
+    def _observe_exited(
+        self, runtime: protocol.Runtime, reason: str | None
+    ) -> None:
         if runtime.status == "terminating" and self._replacement is not None:
             replacement, self._replacement = self._replacement, None
-            request_id = self._lifecycle_request
+            request_id = self._runtime_request
             with self._stream.deferred():
                 self._end_runtime()
-                self._lifecycle_request = request_id
+                self._runtime_request = request_id
                 self._set_runtime(replacement)
                 self._backend.start(replacement.id)
         elif runtime.status == "terminating":
@@ -300,12 +345,6 @@ class Notebook:
             self._set_runtime(
                 replace(runtime, status="failed", message=reason)
             )
-
-    def _replace_runtime(self, text: str | None = None) -> None:
-        request_id = self._lifecycle_request
-        self._end_runtime()
-        self._lifecycle_request = request_id
-        self._set_runtime(self._new_runtime("starting", text, None))
 
     def _new_runtime(
         self,
@@ -321,6 +360,32 @@ class Notebook:
             marimo_version=version,
             started_at=utcnow(),
         )
+
+    def emit(
+        self,
+        type: str,  # noqa: A002
+        data: Any,
+        *,
+        request_id: str | None = None,
+    ) -> protocol.Custom:
+        """Publish a custom event on the notebook stream.
+
+        A custom event is a notebook occurrence with a producer-defined
+        payload.
+
+        Raises:
+            TypeError: If `data` is not a JSON value.
+            ValueError: If `type` is empty.
+        """
+        self._require_open()
+        if not type:
+            raise ValueError("type must be a non-empty string")
+        # Fail here, in the producer, instead of inside every subscriber's
+        # stream when the event is framed.
+        msgspec.json.encode(data)
+        custom = protocol.Custom(type=type, data=data)
+        self._publish(custom, request_id)
+        return custom
 
     # ---- stream --------------------------------------------------------
 
@@ -356,11 +421,7 @@ class Notebook:
             runtime, self._runtime = self._runtime, None
             self._remove("runtime", runtime.id, request_id)
 
-    def _publish(
-        self,
-        body: protocol.Runtime | protocol.Attachment,
-        request_id: str | None,
-    ) -> None:
+    def _publish(self, body: Body, request_id: str | None) -> None:
         self._stream.publish(
             body,
             notebook_id=self.id,

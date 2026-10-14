@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 # AUTO-GENERATED FILE — DO NOT EDIT.
-# Generated from host-protocol/openapi.yaml in marimo-team/pair.
-# Regenerate with `cargo xtask generate-host-protocol`.
+# Generated from protocols/host/openapi.yaml.
+# Regenerate with `make host-protocol-codegen`.
 # ruff: noqa: TC003 - msgspec resolves annotations at runtime
 # ruff: noqa: RUF036 - the generator orders unions; the wire shape is the same
 
@@ -111,6 +111,41 @@ class CellInput(Struct, frozen=True):
         ]
         | UnsetType
     ) = "_"
+
+
+class Custom(Struct, frozen=True):
+    data: Annotated[
+        Any,
+        Meta(
+            description="Any JSON value, including null. The producer defines its schema and consumers of the type validate it."
+        ),
+    ]
+    type: Annotated[
+        str,
+        Meta(
+            description="A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.",
+            min_length=1,
+        ),
+    ]
+
+
+class CustomMessage(Struct, frozen=True):
+    custom: Custom
+    time: Annotated[
+        datetime,
+        Meta(
+            description="When the host emitted this event. Preserved on replay."
+        ),
+    ]
+    request_id: (
+        Annotated[
+            str,
+            Meta(
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
 
 
 class DecisionOption(Struct, frozen=True):
@@ -251,9 +286,10 @@ ObjectType: TypeAlias = Annotated[
         "execution",
         "console",
         "display",
+        "custom",
     ],
     Meta(
-        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document, cell,\nruntime, attachment, run, execution, console, and display.\n"
+        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document, cell,\nruntime, attachment, run, execution, console, display, and custom.\nCustom events describe occurrences rather than object state.\n"
     ),
 ]
 
@@ -549,20 +585,34 @@ class Attachment(Struct, frozen=True):
     kind: Annotated[
         str,
         Meta(
-            description="What kind of thing is attached, such as `browser`, `editor`, or `agent`. Clients accept kinds they do not recognize."
+            description="What kind of thing is attached, supplied by `Marimo-Attachment-Kind`, such as `browser`, `editor`, or `agent`. Defaults to `client` when the header is omitted. Clients accept kinds they do not recognize.",
+            pattern="^[a-z0-9-]+$",
         ),
     ]
     name: (
         Annotated[
             str,
             Meta(
-                description="A label to show people, such as the browser or editor's name. Null when there is none."
+                description="A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.",
+                max_length=256,
             ),
         ]
         | None
     )
     notebook_id: NotebookId
     since: Annotated[datetime, Meta(description="When it attached.")]
+    identity: (
+        Annotated[
+            str,
+            Meta(
+                description="The opaque client identity supplied by `Marimo-Attachment-Identity`.\nOmitted when none was supplied. Consumers can group attachments\nwith the same identity within a host. It does not identify an\nindividual connection or change its lifetime.\n",
+                max_length=128,
+                min_length=1,
+                pattern="^[!-~]+$",
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
 
 
 class AttachmentMessage(Struct, frozen=True):
@@ -1368,7 +1418,7 @@ class Problem(Struct, frozen=True):
     type: Annotated[
         str,
         Meta(
-            description="What kind of problem this is, as a URI. The kinds this\nprotocol defines all start with `tag:marimo.io,2026:host/` and\nend with one of `invalid-request` (400), `unauthorized` (401),\n`forbidden` (403), `not-found` (404), `not-acceptable` (406),\n`conflict` (409), `no-runtime` (409), `decision-required`\n(409), `internal` (500), or `unsupported-operation` (501). A\nclient that sees a kind it does not recognize falls back to\n`status`.\n"
+            description="What kind of problem this is, as a URI. The kinds this\nprotocol defines all start with `tag:marimo.io,2026:host/` and\nend with one of `invalid-request` (400), `unauthorized` (401),\n`forbidden` (403), `not-found` (404), `method-not-allowed`\n(405), `not-acceptable` (406), `conflict` (409), `no-runtime`\n(409), `decision-required` (409), `internal` (500), or\n`unsupported-operation` (501). A client that sees a kind it\ndoes not recognize falls back to `status`.\n"
         ),
     ]
     decisions: (

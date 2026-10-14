@@ -45,17 +45,22 @@ async def host(app: Starlette) -> AsyncIterator[None]:
             context.expire()
 
     maintenance = asyncio.create_task(maintain(), name="host.retention")
-    record = HostRecordFile(url=url, token=token)
-    try:
-        record.write()
-    except Exception as e:
-        LOGGER.warning("Could not write the host record: %s", e)
+    record = None
+    if url is None:
+        LOGGER.warning("No host record: loopback cannot reach %s", server.host)
+    else:
+        record = HostRecordFile(url=url, token=token)
+        try:
+            record.write()
+        except Exception as e:
+            LOGGER.warning("Could not write the host record: %s", e)
     try:
         yield
     finally:
         maintenance.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await maintenance
-        record.remove()
+        if record is not None:
+            record.remove()
         bridge.close()
         app.state.host_context = None

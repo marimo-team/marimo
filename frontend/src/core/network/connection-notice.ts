@@ -104,7 +104,7 @@ export const connectionNoticeAtom = atom<ConnectionNotice | null>((get) => {
     const startupFailed =
       connection.code === WebSocketClosedReason.KERNEL_STARTUP_ERROR;
     const environmentFailed =
-      startupFailed && connection.phase === "preparing-environment";
+      sandbox && startupFailed && connection.phase === "preparing-environment";
     const getFailureTitle = () => {
       if (environmentFailed) {
         return "Sandbox setup failed";

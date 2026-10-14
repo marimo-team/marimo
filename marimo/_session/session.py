@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
+from marimo._config.manager import MarimoConfigManager, ScriptConfigReader
 from marimo._core.ids import mint
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
@@ -115,7 +115,7 @@ class SessionImpl(Session):
         # its masked get_config() would turn runtime.dotenv into [] and that
         # empty list would then win the merge the kernel reads unmasked.
         config_manager = config_manager.with_partial(
-            ScriptConfigManager(app_file_manager.path)
+            ScriptConfigReader(app_file_manager.path)
         )
         config = config_manager.get_config(hide_secrets=False)
         configured_venv = config.get("venv", {}).get("path")
