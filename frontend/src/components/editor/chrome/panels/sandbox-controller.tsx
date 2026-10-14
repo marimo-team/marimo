@@ -14,7 +14,7 @@ import { useSandboxController } from "@/core/packages/useSandboxController";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useTheme } from "@/theme/useTheme";
 import { Paths } from "@/utils/paths";
-import { SandboxErrorOutput } from "./sandbox-panel";
+import { ConnectionErrorOutput } from "../../alerts/connection-details";
 
 export function SandboxController({
   onReconnect,
@@ -64,7 +64,7 @@ export function SandboxController({
         ) : (
           !error && <Spinner />
         )}
-        {diagnostic && <SandboxErrorOutput error={diagnostic} />}
+        {diagnostic && <ConnectionErrorOutput error={diagnostic} />}
         {conflict && (
           <Button variant="text" size="sm" onClick={loadManifest}>
             Discard draft and reload manifest

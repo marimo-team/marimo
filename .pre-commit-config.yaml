@@ -25,7 +25,7 @@ repos:
         exclude: ^marimo/_tutorials/.*\.md
 
   - repo: https://github.com/crate-ci/typos
-    rev: v1.50.3
+    rev: v1.51.1
     hooks:
       - id: typos
         pass_filenames: false
@@ -39,7 +39,7 @@ repos:
         types: [python]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.10
+    rev: v0.17.0
     hooks:
       # Run the linter
       - id: ruff-check
@@ -71,3 +71,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^tests/.*\.py$
+      - id: core-imports
+        name: Check core imports
+        entry: bash -c 'if command -v uv >/dev/null 2>&1; then uv run python scripts/check_core_imports.py; else python scripts/check_core_imports.py; fi'
+        language: system
+        pass_filenames: false
+        files: ^marimo/_core/.*\.py$

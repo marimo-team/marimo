@@ -12,12 +12,33 @@ if TYPE_CHECKING:
     from marimo._ast.sql_visitor import SQLRef
     from marimo._ast.visitor import Name
     from marimo._runtime.dataflow.definitions import DefinitionRegistry
-    from marimo._runtime.dataflow.topology import GraphTopology
+    from marimo._runtime.dataflow.topology import (
+        GraphTopology,
+        MutableGraphTopology,
+    )
     from marimo._types.ids import CellId_t
 
 from marimo._ast.sql_visitor import SQLTypes
 
 LOGGER = _loggers.marimo_logger()
+
+
+def register_cell_dependencies(
+    cell_id: CellId_t,
+    cell: CellImpl,
+    topology: MutableGraphTopology,
+    definitions: DefinitionRegistry,
+) -> tuple[set[CellId_t], set[CellId_t]]:
+    """Add a compiled cell to the dependency indexes and resolve its edges.
+
+    The caller applies the returned parent/child edges. Cell runtime state
+    is never modified.
+    """
+    topology.add_node(cell_id, cell)
+    # Definitions must be indexed before resolving references to this cell.
+    for name, variable_data in cell.variable_data.items():
+        definitions.register_definition(cell_id, name, variable_data)
+    return compute_edges_for_cell(cell_id, cell, topology, definitions)
 
 
 def get_referring_cells(

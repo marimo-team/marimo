@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.context import RUN_ID_CTX, execution_id_for
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._types.ids import CellId_t
 
@@ -28,6 +29,12 @@ class ConsoleMsg:
     cell_id: CellId_t
     data: str
     mimetype: ConsoleMimeType
+    run_id: str | None = field(default_factory=lambda: RUN_ID_CTX.get(None))
+    execution_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.execution_id is None:
+            self.execution_id = execution_id_for(self.cell_id)
 
 
 @dataclass
@@ -43,6 +50,8 @@ def _write_console_output(
     cell_id: CellId_t,
     data: str,
     mimetype: ConsoleMimeType,
+    run_id: str | None = None,
+    execution_id: str | None = None,
 ) -> None:
     from marimo._messaging.notification import CellNotification
     from marimo._messaging.notification_utils import broadcast_notification
@@ -50,6 +59,8 @@ def _write_console_output(
     broadcast_notification(
         CellNotification(
             cell_id=cell_id,
+            run_id=run_id,
+            execution_id=execution_id,
             console=CellOutput(
                 channel=stream_type,
                 mimetype=mimetype,
@@ -61,7 +72,12 @@ def _write_console_output(
 
 
 def _can_merge_outputs(first: ConsoleMsg, second: ConsoleMsg) -> bool:
-    return first.stream == second.stream and first.mimetype == second.mimetype
+    return (
+        first.stream == second.stream
+        and first.mimetype == second.mimetype
+        and first.run_id == second.run_id
+        and first.execution_id == second.execution_id
+    )
 
 
 def _add_output_to_buffer(
@@ -90,6 +106,8 @@ def _flush_outputs(
                 cell_id,
                 output.data,
                 output.mimetype,
+                output.run_id,
+                output.execution_id,
             )
     outputs_buffered_per_cell.clear()
 

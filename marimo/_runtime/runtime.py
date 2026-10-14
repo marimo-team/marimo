@@ -40,6 +40,7 @@ from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import (
+    RUN_ID_CTX,
     run_id_context,
 )
 from marimo._messaging.errors import (
@@ -126,6 +127,7 @@ from marimo._runtime.context.kernel_context import (
 )
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._runtime.execution import ExecutionAttempt
 from marimo._runtime.input_override import getpass_override
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._runtime.packages.module_registry import ModuleRegistry
@@ -1247,8 +1249,16 @@ class Kernel:
 
         # Register and delete cells
         for er in execution_requests:
+            # Edit-only batches must also retire source that a later run
+            # could otherwise replay from the pending initialization cache.
+            pending = self._uninstantiated_execution_requests.pop(
+                er.cell_id, None
+            )
             old_children, error = self._maybe_register_cell(
-                er.cell_id, er.code, stale=er.cell_id in cells_starting_stale
+                er.cell_id,
+                er.code,
+                stale=er.cell_id in cells_starting_stale
+                or pending is not None,
             )
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
@@ -1257,7 +1267,9 @@ class Kernel:
                 syntax_errors[er.cell_id] = error
 
         for dr in deletion_requests:
+            self._uninstantiated_execution_requests.pop(dr.cell_id, None)
             if dr.cell_id not in cells_before_mutation:
+                self.cell_metadata.pop(dr.cell_id, None)
                 continue
             cells_that_were_children_of_mutated_cells |= self._delete_cell(
                 dr.cell_id
@@ -1363,6 +1375,7 @@ class Kernel:
             self._invalidate_cell_state(cid, exclude_defs=keep_alive_defs)
 
         self.errors = all_errors
+        submitted_code = {er.cell_id: er.code for er in execution_requests}
         for cid in self.errors:
             cell = self.graph.cells.get(cid, None)
             if (
@@ -1381,11 +1394,14 @@ class Kernel:
                 # On syntax errors, we don't have a cell object.
                 CellNotificationUtils.broadcast_stale(cell_id=cid, stale=False)
 
-            CellNotificationUtils.broadcast_error(
-                data=self.errors[cid],
-                clear_console=True,
-                cell_id=cid,
+            execution = ExecutionAttempt.plan(
+                cid, submitted_code.get(cid, cell.code if cell else "")
             )
+            with execution.activate():
+                CellNotificationUtils.broadcast_error(
+                    data=self.errors[cid], clear_console=True, cell_id=cid
+                )
+            execution.finish()
 
         # Always broadcast Variables message after graph mutation to ensure
         # frontend has the latest dependency information
@@ -1440,7 +1456,7 @@ class Kernel:
     async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
 
-        with run_id_context():
+        with run_id_context(RUN_ID_CTX.get(None)):
             # This patch is an attempt to mitigate problems caused by the fact
             # that in run mode, kernels run in threads and share the same
             # sys.modules. Races can still happen, but this should help in most
@@ -1678,6 +1694,69 @@ class Kernel:
         self.mutate_graph(execution_requests, deletion_requests)
         await self.run(execution_requests)
 
+    def prepare_execution_requests(
+        self,
+        execution_requests: Sequence[ExecuteCellCommand],
+        *,
+        run_cell_ids: set[CellId_t] | None = None,
+        deletion_requests: Sequence[DeleteCellCommand] = (),
+    ) -> list[ExecuteCellCommand]:
+        """Include pending ancestors before graph mutation, without executing.
+
+        Mutation batches may register cells without running them. Only the
+        requested run targets contribute implicit ancestors; edits and
+        deletions override pending source. Pending requests are consumed by
+        `mutate_graph`, once their replacement is applied.
+        """
+        requests = list(execution_requests)
+        if (
+            not requests
+            or not self._uninstantiated_execution_requests
+            or (run_cell_ids is not None and not run_cell_ids)
+        ):
+            return requests
+
+        requested_ids = {request.cell_id for request in requests}
+        deleted_ids = {request.cell_id for request in deletion_requests}
+        pending = {
+            cid: request
+            for cid, request in self._uninstantiated_execution_requests.items()
+            if cid not in requested_ids and cid not in deleted_ids
+        }
+        if not pending:
+            return requests
+        # Registered but unrun cells can bridge a run target to pending
+        # ancestors. Reuse compiled cells for read-only dependency analysis;
+        # replacements and deletions supersede old source.
+        cells = {
+            cid: cell
+            for cid, cell in self.graph.cells.items()
+            if cid not in requested_ids and cid not in deleted_ids
+        }
+        # SQL edge resolution is order-sensitive. Analyze the same
+        # request-before-ancestor order that mutate_graph will receive.
+        source_requests = {
+            request.cell_id: request
+            for request in [*requests, *pending.values()]
+        }
+        for request in source_requests.values():
+            if request.cell_id in cells:
+                continue
+            cell = self.graph.cells.get(request.cell_id)
+            if cell is None or cell.code != request.code:
+                try:
+                    cell = compile_cell(request.code, cell_id=request.cell_id)
+                except Exception:  # noqa: S112
+                    # Graph mutation reports compilation failures.
+                    continue
+            cells[request.cell_id] = cell
+        roots = requested_ids if run_cell_ids is None else run_cell_ids
+        ancestors = dataflow.get_ancestors_from_cells(cells, roots)
+        requests.extend(
+            request for cid, request in pending.items() if cid in ancestors
+        )
+        return requests
+
     @kernel_tracer.start_as_current_span("run")
     async def run(
         self, execution_requests: Sequence[ExecuteCellCommand]
@@ -1696,63 +1775,11 @@ class Kernel:
         async def _run_with_uninstantiated_requests(
             execution_requests: Sequence[ExecuteCellCommand],
         ) -> None:
-            if not self._uninstantiated_execution_requests:
-                await self._run_cells(
-                    self.mutate_graph(execution_requests, deletion_requests=[])
-                )
-                return
-
-            execution_requests_cell_ids = {
-                er.cell_id for er in execution_requests
-            }
-            graph = dataflow.DirectedGraph()
-            # cells in execution_requests that should be initially marked as
-            # stale:
-            cells_starting_stale: set[CellId_t] = set()
-            for cid, er in list(
-                self._uninstantiated_execution_requests.items()
-            ):
-                if cid in execution_requests_cell_ids:
-                    # Running a previously uninstantiated cell; just remove
-                    # it from our cache of uninstantiated execution requests.
-                    cells_starting_stale.add(cid)
-                    del self._uninstantiated_execution_requests[cid]
-                    continue
-
-                try:
-                    cell = compile_cell(er.code, cell_id=er.cell_id)
-                except Exception:  # noqa: S112
-                    # The cell was not parsable.
-                    continue
-                graph.register_cell(cell_id=cid, cell=cell)
-
-            # Collect uninstantiated ancestors
-            ancestors: set[CellId_t] = set()
-            for er in execution_requests:
-                try:
-                    cell = compile_cell(er.code, cell_id=er.cell_id)
-                # Unparsable requests cannot contribute graph ancestors.
-                except Exception:  # noqa: S112
-                    continue
-                graph.register_cell(cell_id=er.cell_id, cell=cell)
-                ancestors |= graph.ancestors(er.cell_id)
-
-            # We run all uninstantiated ancestors of the requested cells
-            previously_uninstantiated_requests: list[ExecuteCellCommand] = []
-            for ancestor_cid in ancestors:
-                if ancestor_cid in self._uninstantiated_execution_requests:
-                    previously_uninstantiated_requests.append(
-                        self._uninstantiated_execution_requests[ancestor_cid]
-                    )
-                    cells_starting_stale.add(ancestor_cid)
-                    del self._uninstantiated_execution_requests[ancestor_cid]
-
+            requests = self.prepare_execution_requests(execution_requests)
             await self._run_cells(
                 self.mutate_graph(
-                    list(execution_requests)
-                    + previously_uninstantiated_requests,
+                    requests,
                     deletion_requests=[],
-                    cells_starting_stale=cells_starting_stale,
                 )
             )
 
@@ -1812,6 +1839,16 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("run_scratchpad")
     async def run_scratchpad(self, code: str) -> None:
+        execution = ExecutionAttempt.plan(SCRATCH_CELL_ID, code)
+        with execution.activate():
+            try:
+                await self._run_scratchpad(code, execution)
+            finally:
+                execution.finish()
+
+    async def _run_scratchpad(
+        self, code: str, execution: ExecutionAttempt
+    ) -> None:
         roots = {SCRATCH_CELL_ID}
 
         # If cannot compile, don't run
@@ -1864,6 +1901,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=scratchpad_hooks,
+            executions={SCRATCH_CELL_ID: execution},
             user_config=self.user_config,
         )
 

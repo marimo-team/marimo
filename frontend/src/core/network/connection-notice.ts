@@ -92,7 +92,7 @@ export const connectionNoticeAtom = atom<ConnectionNotice | null>((get) => {
     const startupFailed =
       connection.code === WebSocketClosedReason.KERNEL_STARTUP_ERROR;
     const environmentFailed =
-      startupFailed && connection.phase === "preparing-environment";
+      sandbox && startupFailed && connection.phase === "preparing-environment";
     return {
       kind: startupFailed ? "startup" : "connection",
       phase: connection.phase,

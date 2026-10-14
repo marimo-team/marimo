@@ -1,0 +1,47 @@
+{
+  "type": "tag:marimo.io,2026:host/conflict",
+  "title": "Conflict",
+  "status": 409,
+  "detail": "Cell c3 has changed since it was read.",
+  "edit": {
+    "change": 0,
+    "cell": {
+      "id": "c3",
+      "notebook_id": "n1",
+      "code": "x = 22",
+      "name": "_",
+      "config": {
+        "column": null,
+        "disabled": false,
+        "hide_code": false,
+        "expand_output": false
+      },
+      "etag": "dde89bbcc1863211",
+      "code_hash": "43e1a529dbae470b",
+      "analysis": {
+        "defs": [
+          "x"
+        ],
+        "refs": [],
+        "errors": []
+      }
+    },
+    "document": {
+      "id": "n1",
+      "order": [
+        "c1",
+        "c2",
+        "c3"
+      ],
+      "app_config": {
+        "width": "full",
+        "app_title": "Forecasts"
+      },
+      "policy": "autorun",
+      "etag": "82eabd9627d6bdf4",
+      "saved_etag": "0129d119bfb96bf9",
+      "order_etag": "389ebf709589e5d6",
+      "app_config_etag": "1d79ec53fdad1a23"
+    }
+  }
+}

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from marimo._config.manager import (
     MarimoConfigManager,
-    UserConfigManager,
+    UserConfigStore,
     get_default_config_manager,
 )
 from marimo._server.config import StarletteServerStateInit
@@ -45,7 +45,7 @@ def get_starlette_server_state_init(
         headless=False,
         quiet=False,
         session_manager=session_manager or get_mock_session_manager(),
-        config_manager=MarimoConfigManager(UserConfigManager()),
+        config_manager=MarimoConfigManager(UserConfigStore()),
         remote_url=None,
         mcp_server_enabled=False,
         skew_protection=False,

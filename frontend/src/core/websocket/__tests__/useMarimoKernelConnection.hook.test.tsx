@@ -322,14 +322,6 @@ describe("connection notice", () => {
     );
     act(() => vi.advanceTimersByTime(35_000));
     expect(screen.getByText("Elapsed 35s")).toBeInTheDocument();
-    act(() =>
-      store.set(
-        notebookAtom,
-        MockNotebook.notebookState({
-          cellData: { [cellId("test")]: { code: "answer = 42" } },
-        }),
-      ),
-    );
     send({
       op: "startup-progress",
       phase: "starting-kernel",
@@ -338,6 +330,18 @@ describe("connection notice", () => {
     });
     expect(screen.getByRole("status")).toHaveTextContent("Starting kernel");
     expect(screen.getByText("Elapsed 35s")).toBeInTheDocument();
+    act(() =>
+      store.set(
+        notebookAtom,
+        MockNotebook.notebookState({
+          cellData: { [cellId("test")]: { code: "answer = 42" } },
+        }),
+      ),
+    );
+    expect(
+      screen.getByRole("button", { name: "Starting kernel… Open Packages" }),
+    ).toBeVisible();
+    expect(screen.queryByText(/Elapsed/)).not.toBeInTheDocument();
     send({ op: "reconnected" });
     expect(
       screen.queryByRole("region", { name: "Notebook startup" }),
@@ -429,12 +433,9 @@ describe("connection notice", () => {
     ).not.toBeInTheDocument();
   });
 
-  it.each([
-    ["preparing-environment", "Sandbox setup failed"],
-    ["starting-kernel", "Kernel failed to start"],
-  ] as const)(
+  it.each(["preparing-environment", "starting-kernel"] as const)(
     "keeps a %s failure available until the user retries",
-    async (phase, title) => {
+    async (phase) => {
       const { store, transport, options, send } = renderNotice();
       send({ op: "startup-progress", phase, logs: "", log_mode: "replace" });
       const error = "A full diagnostic\nwith <stderr> details";
@@ -445,9 +446,13 @@ describe("connection notice", () => {
           new CloseEvent("close", { reason: "MARIMO_KERNEL_STARTUP_ERROR" }),
         ),
       );
-      expect(screen.getByRole("status")).toHaveTextContent(title);
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Kernel failed to start",
+      );
       act(() => vi.advanceTimersByTime(30_000));
-      expect(screen.getByRole("status")).toHaveTextContent(title);
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Kernel failed to start",
+      );
       expect(screen.getByLabelText("Error details")).toHaveTextContent(error, {
         normalizeWhitespace: false,
       });

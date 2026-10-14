@@ -11,11 +11,16 @@ SECRET_PLACEHOLDER = "********"
 # TODO: mypy doesn't like using @overload here
 
 
-def mask_secrets_partial(config: PartialMarimoConfig) -> PartialMarimoConfig:
-    return cast(PartialMarimoConfig, mask_secrets(cast(MarimoConfig, config)))
+def redact_secrets_partial(config: PartialMarimoConfig) -> PartialMarimoConfig:
+    """Return a sparse configuration copy with sensitive values redacted."""
+    return cast(
+        PartialMarimoConfig, redact_secrets(cast(MarimoConfig, config))
+    )
 
 
-def mask_secrets(config: MarimoConfig) -> MarimoConfig:
+def redact_secrets(config: MarimoConfig) -> MarimoConfig:
+    """Return a configuration copy with sensitive values redacted."""
+
     def deep_remove_from_path(
         path: list[str], obj: dict[str, Any] | Any
     ) -> None:

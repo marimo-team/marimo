@@ -7,7 +7,6 @@ import {
   HelpCircleIcon,
 } from "lucide-react";
 import React from "react";
-import { useConnectionNotice } from "@/core/network/useConnectionNotice";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { Spinner } from "@/components/icons/spinner";
 import { SearchInput } from "@/components/ui/input";
@@ -26,7 +25,7 @@ import type {
   DependencyTreeNode,
   DependencyTreeResponse,
 } from "@/core/network/types";
-import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
+import { sandboxSyncAtom } from "@/core/packages/sandbox-state";
 import { stripPackageManagerPrefix } from "@/core/packages/package-input-utils";
 import { usePackageAction } from "@/core/packages/usePackageAction";
 import { usePackageDependencies } from "@/core/packages/usePackageDependencies";
@@ -36,7 +35,7 @@ import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
-import { SandboxDetails } from "./sandbox-panel";
+import { RuntimeDetails } from "./runtime-panel";
 import { PanelEmptyState } from "./empty-state";
 import { PACKAGES_INPUT_ID, packagesToInstallAtom } from "./packages-utils";
 
@@ -69,33 +68,13 @@ const PackageActionButton: React.FC<{
 };
 
 const PackagesPanel: React.FC = () => {
-  const sandbox = useAtomValue(sandboxAtom);
   const connected = useAtomValue(isConnectedAtom);
-  const notice = useConnectionNotice(0);
-  if (sandbox?.backend) {
-    return (
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        <SandboxDetails />
-        {connected && <PackageContents />}
-      </div>
-    );
-  }
-  if (notice) {
-    return (
-      <div className="p-4 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
-          {notice.pending && <Spinner className="size-3" />}
-          {notice.title}
-        </div>
-        {notice.error && (
-          <pre className="mt-3 text-xs whitespace-pre-wrap break-words max-h-52 overflow-auto">
-            {notice.error}
-          </pre>
-        )}
-      </div>
-    );
-  }
-  return <PackageContents />;
+  return (
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      <RuntimeDetails />
+      {connected && <PackageContents />}
+    </div>
+  );
 };
 
 const PackageContents: React.FC = () => {

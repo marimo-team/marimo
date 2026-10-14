@@ -1,0 +1,18 @@
+event: attachment
+data: {"attachment":{"id":"a1","notebook_id":"n1","identity":"agent-123","kind":"agent","name":"Notebook CLI","since":"2026-10-01T09:20:00Z"}}
+
+event: attachment
+data: {"attachment":{"id":"a2","notebook_id":"n1","identity":"agent-123","kind":"agent","name":"Notebook CLI","since":"2026-10-01T09:20:01Z"}}
+
+id: 100
+event: ready
+data: {}
+
+id: 101
+event: attachment.removed
+data: {"id":"a1","time":"2026-10-01T09:20:02Z"}
+
+id: 102
+event: attachment
+data: {"attachment":{"id":"a3","notebook_id":"n1","identity":"agent-123","kind":"agent","name":"Notebook CLI","since":"2026-10-01T09:20:03Z"},"time":"2026-10-01T09:20:03Z"}
+

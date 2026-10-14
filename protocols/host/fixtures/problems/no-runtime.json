@@ -1,0 +1,6 @@
+{
+  "type": "tag:marimo.io,2026:host/no-runtime",
+  "title": "No runtime",
+  "status": 409,
+  "detail": "forecasts.py has no runtime; start one first."
+}

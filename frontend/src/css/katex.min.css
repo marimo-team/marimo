@@ -1,5 +1,5 @@
 /*
- * Adapted from https://cdn.jsdelivr.net/npm/katex@0.18.5/dist/katex.min.css
+ * Adapted from https://cdn.jsdelivr.net/npm/katex@0.18.7/dist/katex.min.css
  *
  * KaTeX's class names change between versions (0.18 prefixed most of its
  * internal classes with `katex-`), so this file must be regenerated whenever
@@ -1129,6 +1129,11 @@
 
 .katex .anglpad {
   padding: 0 0.03889em;
+}
+
+.katex .reflectbox {
+  display: inline-block;
+  transform: scaleX(-1);
 }
 
 .katex .eqn-num::before {
