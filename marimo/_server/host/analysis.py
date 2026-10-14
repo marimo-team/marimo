@@ -1,5 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Cell definitions, references, and syntax errors."""
+"""Cell definitions, references, and syntax errors.
+
+The kernel reports errors involving multiple cells, such as cycles
+and multiple definitions.
+"""
 
 from __future__ import annotations
 

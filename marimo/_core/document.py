@@ -46,7 +46,7 @@ def cell_etag(
 
 
 def order_etag(order: Sequence[str]) -> protocol.Etag:
-    return etag("\n".join(order))
+    return etag(json.dumps(order, separators=(",", ":"), ensure_ascii=False))
 
 
 def app_config_etag(app_config: Mapping[str, Any]) -> protocol.Etag:
@@ -139,7 +139,7 @@ class Document:
         """Restore a document from its protocol records.
 
         Cell identities, order, and revisions must agree. Analysis is kept
-        unless an analyzer is supplied.
+        unless an analyzer is supplied. The saved revision is preserved.
         """
         document, cells = deepcopy((document, cells))
         by_id = {cell.id: cell for cell in cells}

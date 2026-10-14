@@ -1368,7 +1368,7 @@ components:
           description: Identifies the document as last written to the host's store, computed the same way over that state. Equal to `etag` when every accepted change has been persisted. Null when nothing has been persisted, which is the case for a scratch copy.
         order_etag:
           $ref: '#/components/schemas/Etag'
-          description: Identifies the order alone. Its text is the cell ids in order. Editing a cell does not change it.
+          description: Identifies the order alone. Its text is the cell IDs in order as a JSON array, with no whitespace and strings carrying only the escapes JSON requires. Editing a cell does not change it.
         app_config_etag:
           $ref: '#/components/schemas/Etag'
           description: Identifies the app config alone. Its text is the app config as canonical JSON, with keys sorted by code point, no whitespace, and strings carrying only the escapes JSON requires.

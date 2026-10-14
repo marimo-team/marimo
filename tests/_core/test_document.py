@@ -69,6 +69,19 @@ def defs_only(codes: Mapping[str, str]) -> dict[str, protocol.Analysis]:
 
 
 class TestEtags:
+    def test_reordering_cell_ids_with_newlines_changes_the_revision(
+        self,
+    ) -> None:
+        cells = [CellSource("a", "x = 1"), CellSource("a\na", "x = 1")]
+        document = Document(NOTEBOOK, cells, {})
+        before = document.document
+
+        document.replace(list(reversed(cells)), {})
+
+        assert document.document.order_etag != before.order_etag
+        assert document.document.etag != before.etag
+        assert document.document.saved_etag == before.etag
+
     def test_match_the_values_pinned_in_the_fixtures(self) -> None:
         document = Document(NOTEBOOK, fixture_cells(), {"width": "full"})
 
@@ -82,10 +95,10 @@ class TestEtags:
             "f199b5f48ae0aabb",
         )
         assert c1.etag == "48d6363150d6281c"
-        assert document.document.order_etag == "b205774f616b44e3"
+        assert document.document.order_etag == "b9c412c2d7d63161"
         assert document.document.app_config_etag == "283513048dfeb45b"
-        assert document.document.etag == "0129d119bfb96bf9"
-        assert document.document.saved_etag == "0129d119bfb96bf9"
+        assert document.document.etag == "e59d9c2af02f5814"
+        assert document.document.saved_etag == "e59d9c2af02f5814"
 
     def test_are_derived_from_their_parts(self) -> None:
         hashed = code_hash("x = 21")

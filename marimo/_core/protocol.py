@@ -798,7 +798,7 @@ class Document(Struct, frozen=True):
     order_etag: Annotated[
         Etag,
         Meta(
-            description="Identifies the order alone. Its text is the cell ids in order. Editing a cell does not change it."
+            description="Identifies the order alone. Its text is the cell IDs in order as a JSON array, with no whitespace and strings carrying only the escapes JSON requires. Editing a cell does not change it."
         ),
     ]
     policy: Annotated[
