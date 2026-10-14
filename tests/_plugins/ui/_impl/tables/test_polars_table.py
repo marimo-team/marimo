@@ -1100,8 +1100,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("integer_keys", [False, True])
+@pytest.mark.parametrize("column_name", ["map", "*", "^map$"])
 def test_map_csv_preserves_keys_and_order(
-    lazy: bool, integer_keys: bool
+    lazy: bool, integer_keys: bool, column_name: str
 ) -> None:
     import polars as pl
 
@@ -1113,7 +1114,7 @@ def test_map_csv_preserves_keys_and_order(
     df = pl.DataFrame(
         {
             "id": [0, 1, 2],
-            "map": pl.Series(
+            column_name: pl.Series(
                 [values, {}, None],
                 dtype=map_dtype(
                     pl.Int64 if integer_keys else pl.String, pl.String
@@ -1129,7 +1130,7 @@ def test_map_csv_preserves_keys_and_order(
         )
     )
     assert rows == [
-        ["id", "map"],
+        ["id", column_name],
         [
             "0",
             json.dumps(

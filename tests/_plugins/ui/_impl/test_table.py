@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from asyncio import CancelledError
 from datetime import date, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -3706,7 +3707,8 @@ def test_column_widths_non_positive():
 
 
 @pytest.mark.parametrize(
-    "error", [KeyboardInterrupt(), SystemExit(), GeneratorExit()]
+    "error",
+    [KeyboardInterrupt(), SystemExit(), GeneratorExit(), CancelledError()],
 )
 def test_download_preserves_control_flow(error: BaseException) -> None:
     table = ui.table({"a": [1]})
@@ -3718,7 +3720,8 @@ def test_download_preserves_control_flow(error: BaseException) -> None:
 
 
 @pytest.mark.parametrize(
-    "error", [KeyboardInterrupt(), SystemExit(), GeneratorExit()]
+    "error",
+    [KeyboardInterrupt(), SystemExit(), GeneratorExit(), CancelledError()],
 )
 def test_chart_csv_preserves_control_flow(error: BaseException) -> None:
     table = ui.table({"a": [1]})

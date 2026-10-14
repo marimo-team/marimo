@@ -210,7 +210,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 # Map is a Polars 2 feature absent from older typing stubs.
                 # Entry structs preserve non-string keys and order.
                 entries = (
-                    pl.col(column.name)
+                    pl.lit(column)
                     .map.entries()  # type: ignore[attr-defined]
                     .list.eval(pl.element().struct.json_encode())
                     .list.join(",")

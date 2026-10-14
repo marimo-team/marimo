@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+from asyncio import CancelledError
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -1197,7 +1198,13 @@ class table(
                 )
             except BaseException as error:
                 if isinstance(
-                    error, (KeyboardInterrupt, SystemExit, GeneratorExit)
+                    error,
+                    (
+                        KeyboardInterrupt,
+                        SystemExit,
+                        GeneratorExit,
+                        CancelledError,
+                    ),
                 ):
                     raise
                 LOGGER.exception("Table download failed")
@@ -1465,7 +1472,8 @@ class table(
             LOGGER.debug("CSV export failed, falling back to JSON.")
         except BaseException as error:
             if isinstance(
-                error, (KeyboardInterrupt, SystemExit, GeneratorExit)
+                error,
+                (KeyboardInterrupt, SystemExit, GeneratorExit, CancelledError),
             ):
                 raise
             LOGGER.exception("Unexpected error exporting CSV")
