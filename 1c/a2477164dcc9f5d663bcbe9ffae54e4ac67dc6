@@ -1,0 +1,31 @@
+frontend/src/core/mounts/state.ts
+  s_e40ffaa58ef57d::t_c3892cb0eb4515 1-33
+marimo/_runtime/plugin/_mount.py
+  s_e40ffaa58ef57d::t_111f4727d3c14f 40,42,50-51,53,60-61,64-71
+  s_e40ffaa58ef57d::t_221d634b30ce26 26-37,41,43-48,52,59,63,74
+tests/_runtime/test_plugin.py
+  s_e40ffaa58ef57d::t_7fa56efa50d49f 1-44,47-49,54-76,78-86,88-99,101-113,115-126,169-171,173
+frontend/src/components/editor/notebook-mounts.tsx
+  s_e40ffaa58ef57d::t_788653342f9da4 1-9,12-28
+frontend/src/core/mounts/__tests__/state.test.ts
+  s_e40ffaa58ef57d::t_2f7c73acb13e5a 1-45
+marimo/_messaging/notification.py
+  s_e40ffaa58ef57d::t_742a21bf3511a6 328-345
+  s_e40ffaa58ef57d::t_b6002a8c667f39 1117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1ca2477164dcc9f5d663bcbe9ffae54e4ac67dc6",
+  "prompts": {},
+  "sessions": {
+    "s_e40ffaa58ef57d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "13a6fc9b-5414-4368-a6d3-076fc370c7ca",
+        "model": "unknown"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
