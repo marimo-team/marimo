@@ -3706,46 +3706,69 @@ def test_column_widths_non_positive():
 
 
 @pytest.mark.parametrize(
-    "error",
-    [
-        BaseException("upstream panic"),
-        KeyboardInterrupt(),
-        SystemExit(),
-        GeneratorExit(),
-    ],
+    "error", [KeyboardInterrupt(), SystemExit(), GeneratorExit()]
 )
-def test_download_contains_export_panic(error: BaseException) -> None:
+def test_download_preserves_control_flow(error: BaseException) -> None:
     table = ui.table({"a": [1]})
     with patch(
         "marimo._plugins.ui._impl.table.download_as", side_effect=error
     ):
-        if isinstance(error, (KeyboardInterrupt, SystemExit, GeneratorExit)):
-            with pytest.raises(type(error)):
-                table._download_as(DownloadAsArgs(format="csv"))
-        else:
-            assert table._download_as(
-                DownloadAsArgs(format="csv")
-            ) == DownloadAsResponse(error="upstream panic")
+        with pytest.raises(type(error)):
+            table._download_as(DownloadAsArgs(format="csv"))
 
 
 @pytest.mark.parametrize(
-    "error",
-    [
-        BaseException("upstream panic"),
-        KeyboardInterrupt(),
-        SystemExit(),
-        GeneratorExit(),
-    ],
+    "error", [KeyboardInterrupt(), SystemExit(), GeneratorExit()]
 )
-def test_chart_csv_contains_export_panic(error: BaseException) -> None:
+def test_chart_csv_preserves_control_flow(error: BaseException) -> None:
     table = ui.table({"a": [1]})
     manager = table._searched_manager
     with (
         patch.object(DependencyManager.pyarrow, "has", return_value=False),
         patch.object(type(manager), "to_csv", side_effect=error),
     ):
-        if isinstance(error, (KeyboardInterrupt, SystemExit, GeneratorExit)):
-            with pytest.raises(type(error)):
-                table._to_chart_data_url(manager)
-        else:
-            assert table._to_chart_data_url(manager)[1] == "json"
+        with pytest.raises(type(error)):
+            table._to_chart_data_url(manager)
+
+
+@pytest.mark.requires("polars")
+@pytest.mark.parametrize("lazy", [False, True])
+def test_binary_map_export_failure_is_contained(lazy: bool) -> None:
+    import polars as pl
+
+    from marimo._plugins.ui._impl.tables.polars_table import (
+        PolarsTableManagerFactory,
+    )
+
+    map_dtype = getattr(pl, "Map", None)
+    if map_dtype is None:
+        pytest.skip("Map dtype requires Polars 2")
+    source = pl.DataFrame(
+        {
+            "map": pl.Series(
+                [{1: b"abc"}, {}, None], dtype=map_dtype(pl.Int64, pl.Binary)
+            )
+        }
+    )
+    data = source.lazy() if lazy else source
+    manager = PolarsTableManagerFactory.create()(data)
+    with pytest.raises(pl.exceptions.PanicException) as original:
+        manager.to_csv_str()
+
+    table = ui.table(data)
+    with patch(
+        "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+    ) as publish:
+        response = table._download_as(DownloadAsArgs(format="csv"))
+    assert response == DownloadAsResponse(error=str(original.value))
+    publish.assert_not_called()
+
+    with patch.object(DependencyManager.pyarrow, "has", return_value=False):
+        url, data_format = table._to_chart_data_url(manager)
+    assert data_format == "json"
+    assert json.loads(from_data_uri(url)[1]) == [
+        {"map": {"1": "abc"}},
+        {"map": {}},
+        {"map": None},
+    ]
+    assert manager.collect().equals(source)
