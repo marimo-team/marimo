@@ -44,12 +44,14 @@
 - 🖐️ **交互性**：[绑定滑块、表格、图表等UI元素](https://docs.marimo.io/guides/interactivity.html)到Python代码——无需回调函数
 - 🐍 **支持Git版本控制**：笔记本以`.py`文件格式存储
 - 🛢️ **为数据设计**：使用[SQL](https://docs.marimo.io/guides/working_with_data/sql.html)查询数据框和数据库，过滤和搜索[数据框](https://docs.marimo.io/guides/working_with_data/dataframes.html)
+- 🤖 **AI原生**：[与AI agent结对](https://marimo.io/pair)（如Claude Code），或使用编辑器的[内置AI功能](https://docs.marimo.io/guides/editor_features/ai_completion.html)
 - 🔬 **可复现**：[无隐藏状态](https://docs.marimo.io/guides/reactivity.html#no-hidden-state)，确定性执行，[内置包管理](https://docs.marimo.io/guides/editor_features/package_management.html)
 - 🏃 **可执行**：[作为Python脚本执行](https://docs.marimo.io/guides/scripts.html)，通过命令行参数进行配置
 - 🛜 **可分享**：[部署为交互式Web应用](https://docs.marimo.io/guides/apps.html)或[幻灯片](https://docs.marimo.io/guides/apps.html#slides-layout)，[通过WASM在浏览器中运行](https://docs.marimo.io/guides/wasm.html)
 - 🧩 **可复用：** 可从一个笔记本[导入函数和类](https://docs.marimo.io/guides/reusing_functions/)到另一个笔记本
 - 🧪 **便于测试：** 可在笔记本上运行 [pytest](https://docs.marimo.io/guides/testing/)
 - ⌨️ **现代编辑器**：[GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot)、[AI助手](https://docs.marimo.io/guides/editor_features/ai_completion.html#using-ollama)、vim快捷键、变量浏览器和[更多功能](https://docs.marimo.io/guides/editor_features/index.html)
+- 🧑‍💻 **使用你喜爱的编辑器**：在 [VS Code 或 Cursor](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo) 或 [PyCharm](https://plugins.jetbrains.com/plugin/32416-marimo) 中运行，或在 neovim、Zed [或任何其他文本编辑器](https://docs.marimo.io/guides/editor_features/watching/)中编辑
 
 ```python
 pip install marimo && marimo tutorial intro
@@ -92,7 +94,7 @@ Marimo 确保了您的代码、输出和程序的状态始的一致性，解决�
 
 **内置包管理**。marimo内置支持所有主要的包管理器，允许您[在导入时安装包](https://docs.marimo.io/guides/editor_features/package_management.html)。marimo甚至可以[序列化包依赖](https://docs.marimo.io/guides/package_management/inlining_dependencies/)到笔记本文件中，并在隔离的venv沙箱中自动安装它们。
 
-**功能齐全**。marimo集成了GitHub Copilot、AI助手、Ruff代码格式化、HTML导出、快速代码补全、[VS Code扩展](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)、交互式数据框查看器和[更多](https://docs.marimo.io/guides/editor_features/index.html)便捷功能。
+**功能齐全**。marimo集成了GitHub Copilot、AI助手、Ruff代码格式化、HTML导出、快速代码补全、[VS Code扩展](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)、[PyCharm扩展](https://plugins.jetbrains.com/plugin/32416-marimo)、交互式数据框查看器和[更多](https://docs.marimo.io/guides/editor_features/index.html)便捷功能。
 
 ## 快速起步
 
