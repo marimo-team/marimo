@@ -28,3 +28,10 @@ describe("Slider", () => {
     expect(onValueChange).toHaveBeenCalledWith([2 * step]);
   });
 });
+
+it("forwards a direct accessible name to the thumb", () => {
+  const { getByRole } = render(
+    <Slider aria-label="Opacity" value={[50]} valueMap={(v) => v} />,
+  );
+  expect(getByRole("slider")).toHaveAccessibleName("Opacity");
+});

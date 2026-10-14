@@ -152,6 +152,7 @@ const SliderComponent = ({
   disabled,
 }: SliderProps): JSX.Element => {
   const id = useId();
+  const labelId = useId();
   const { locale } = useLocale();
 
   // Hold internal value
@@ -225,6 +226,7 @@ const SliderComponent = ({
     <Labeled
       label={label}
       controlId={id}
+      labelId={labelId}
       align={orientation === "horizontal" ? "left" : "top"}
       fullWidth={fullWidth}
       className={cn(fullWidth && "my-1 w-full")}
@@ -238,6 +240,8 @@ const SliderComponent = ({
       >
         <Slider
           id={id}
+          aria-labelledby={label ? labelId : undefined}
+          aria-label={label ? undefined : "Slider"}
           className={cn(
             "relative flex items-center select-none",
             !fullWidth && "data-[orientation=horizontal]:w-36 ",
