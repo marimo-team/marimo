@@ -283,20 +283,6 @@ To open Storybook, run the following:
 cd frontend && pnpm storybook
 ```
 
-Frontend pull requests also build a static Storybook preview. When publishing is
-configured, a bot comment on the pull request links to the preview and updates
-with each build. This includes pull requests from forks.
-
-To enable publishing, maintainers must create a [Chromatic project](https://www.chromatic.com/docs/quickstart/)
-linked to this repository and add its project token as the `CHROMATIC_PROJECT_TOKEN`
-GitHub Actions repository secret. Without the secret, CI still builds Storybook
-and uploads a `storybook-preview` artifact, but skips publishing.
-
-The publishing workflow must be merged into the default branch before it can
-run. It publishes the static artifact from a separate read-only build workflow;
-PR code never runs with the project token. Publishing finishes once the preview
-is uploaded and does not wait for visual test results.
-
 ## Hot reloading / development mode
 
 You can develop on marimo with hot reloading on the frontend and/or development
