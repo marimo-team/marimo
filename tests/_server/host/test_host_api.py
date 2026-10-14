@@ -359,8 +359,10 @@ async def test_a_failure_inside_a_stream_does_not_restart_the_response(
 
     monkeypatch.setattr(api_module, "_frame", broken)
     response, task, _ = request(harness.app, "GET", "/events", headers=AUTH)
-    with pytest.raises(RuntimeError, match="frame failed"):
+    # Older Starlette raises the body's error inside an ExceptionGroup.
+    with pytest.raises(Exception) as caught:
         await asyncio.wait_for(task, 5)
+    assert "frame failed" in repr(caught.value)
     assert response.status == 200
     assert response.body == b""
 
