@@ -11,7 +11,8 @@
  *   and keep math upright in blockquotes.
  * - Right-align display equation tags.
  * - Reset equation counters on each display block as well as body.
- * - Merge the two upstream .katex svg rules to satisfy stylelint.
+ * - Preserve duplicate SVG rules in their upstream order and scope, with a
+ *   targeted stylelint exemption so their cascade remains intact.
  * Formatting and syntax normalization use oxfmt and stylelint; adjacent exact
  * duplicate declarations left by vendor-prefix normalization are removed.
  */
@@ -1002,6 +1003,13 @@
   height: inherit;
   position: absolute;
   width: 100%;
+}
+
+.katex svg path {
+  stroke: none;
+}
+/* stylelint-disable no-duplicate-selectors -- Preserve the upstream SVG cascade. */
+.katex svg {
   fill-rule: nonzero;
   fill-opacity: 1;
   stroke-width: 1;
@@ -1012,11 +1020,7 @@
   stroke-dashoffset: 0;
   stroke-opacity: 1;
 }
-
-.katex svg path {
-  stroke: none;
-}
-
+/* stylelint-enable no-duplicate-selectors */
 .katex img {
   border-style: none;
   max-height: none;

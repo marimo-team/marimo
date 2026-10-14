@@ -107,6 +107,57 @@ describe("copied KaTeX stylesheet", () => {
     ).toEqual([]);
   });
 
+  it.each(["root", "media"])(
+    "preserves SVG rule order and %s scope when upstream adds a competing rule",
+    async (scope) => {
+      const root = postcss.parse(upstream);
+      const svgRules: postcss.Rule[] = [];
+      root.walkRules(".katex svg", (rule) => {
+        svgRules.push(rule);
+      });
+      const secondSvg = svgRules[1];
+      secondSvg.before(postcss.parse(".katex :is(svg) { stroke-width: 3; }"));
+      if (scope === "media") {
+        const media = postcss.atRule({ name: "media", params: "print" });
+        secondSvg.before(media);
+        media.append(secondSvg);
+      }
+
+      const svgCascade = (css: string) => {
+        const rules: {
+          selector: string;
+          scope: string;
+          strokeWidth: string | undefined;
+        }[] = [];
+        postcss.parse(css).walkRules((rule) => {
+          if (
+            rule.selector !== ".katex svg" &&
+            rule.selector !== ".katex :is(svg)"
+          ) {
+            return;
+          }
+          let strokeWidth: string | undefined;
+          rule.walkDecls("stroke-width", (decl) => {
+            strokeWidth = decl.value;
+          });
+          const parent = rule.parent;
+          rules.push({
+            selector: rule.selector,
+            scope:
+              parent?.type === "atrule"
+                ? `${parent.name} ${parent.params}`
+                : "root",
+            strokeWidth,
+          });
+        });
+        return rules;
+      };
+      const regenerated = await generateKatexCss(root.toString());
+      expect(svgCascade(regenerated)).toEqual(svgCascade(root.toString()));
+      await checkKatexCss(root.toString(), regenerated);
+    },
+  );
+
   it("requires review when an overridden upstream declaration changes", async () => {
     await expect(
       generateKatexCss(upstream.replace("line-height:1.2", "line-height:1.3")),

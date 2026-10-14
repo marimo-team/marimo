@@ -32,7 +32,8 @@ const header = `/*
  *   and keep math upright in blockquotes.
  * - Right-align display equation tags.
  * - Reset equation counters on each display block as well as body.
- * - Merge the two upstream .katex svg rules to satisfy stylelint.
+ * - Preserve duplicate SVG rules in their upstream order and scope, with a
+ *   targeted stylelint exemption so their cascade remains intact.
  * Formatting and syntax normalization use oxfmt and stylelint; adjacent exact
  * duplicate declarations left by vendor-prefix normalization are removed.
  */
@@ -133,16 +134,26 @@ export async function generateKatexCss(upstream: string): Promise<string> {
   );
   counters.selector = "body, .katex-display";
 
-  const svgRules: Rule[] = [];
+  const svgScopes = new Set<NonNullable<Rule["parent"]>>();
   root.walkRules(".katex svg", (rule) => {
-    svgRules.push(rule);
+    const parent = rule.parent;
+    if (!parent) {
+      return;
+    }
+    if (svgScopes.has(parent)) {
+      // Moving declarations across intervening rules or scopes can change the
+      // cascade. Exempt only this duplicate rule instead of merging it.
+      rule.before(
+        postcss.comment({
+          text: "stylelint-disable no-duplicate-selectors -- Preserve the upstream SVG cascade.",
+        }),
+      );
+      rule.after(
+        postcss.comment({ text: "stylelint-enable no-duplicate-selectors" }),
+      );
+    }
+    svgScopes.add(parent);
   });
-  // These rules only contain declarations and have no intervening SVG rule
-  // with competing properties, so merging preserves the cascade.
-  if (svgRules.length === 2) {
-    svgRules[0].append(...svgRules[1].nodes);
-    svgRules[1].remove();
-  }
 
   const formatted = await formatCss(header + root.toString());
   const linted = await stylelint.lint({
