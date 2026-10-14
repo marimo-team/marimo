@@ -83,18 +83,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     # Likely CSV format does not support nested data or objects
                     # Try to convert columns to json or strings
                     result = _data
-                    map_dtype = getattr(pl, "Map", None)
                     for column in result.get_columns():
                         dtype = column.dtype
-                        if map_dtype is not None and isinstance(
-                            dtype, map_dtype
-                        ):
-                            # CSV cannot represent Maps directly; encode their
-                            # entries as JSON while preserving key types and order.
-                            result = result.with_columns(
-                                self._map_to_csv_string(column)
-                            )
-                        elif isinstance(dtype, pl.Struct):
+                        if isinstance(dtype, pl.Struct):
                             result = result.with_columns(
                                 column.struct.json_encode()
                             )
@@ -205,19 +196,6 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return sanitize_json_bigint(
                         to_json(result), ensure_ascii=ensure_ascii
                     )
-
-            def _map_to_csv_string(self, column: pl.Series) -> pl.Expr:
-                # Map is a Polars 2 feature absent from older typing stubs.
-                # Entry structs preserve non-string keys and order.
-                entries = (
-                    pl.lit(column)
-                    .map.entries()  # type: ignore[attr-defined]
-                    .list.eval(pl.element().struct.json_encode())
-                    .list.join(",")
-                )
-                return pl.concat_str(pl.lit("["), entries, pl.lit("]")).alias(
-                    column.name
-                )
 
             def _convert_time_to_string(
                 self, result: pl.DataFrame, column: pl.Series
