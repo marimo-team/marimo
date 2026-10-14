@@ -209,6 +209,14 @@ async def test_audio_width() -> None:
     )
 
 
+async def test_audio_narrow_width() -> None:
+    result = audio("https://example.com/test.wav", width=150)
+    assert (
+        result.text
+        == "<audio src='https://example.com/test.wav' controls style='width: 150px'></audio>"
+    )
+
+
 async def test_audio_style() -> None:
     result = audio(
         "https://example.com/test.wav",

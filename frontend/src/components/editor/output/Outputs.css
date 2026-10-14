@@ -29,7 +29,6 @@
 .media audio {
   width: 100%;
   max-width: 100%;
-  min-width: 280px;
   transform: translateZ(0);
 }
 
