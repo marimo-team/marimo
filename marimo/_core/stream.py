@@ -10,11 +10,11 @@ from __future__ import annotations
 import logging
 from collections import deque
 from collections.abc import Callable, Collection, Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TypeAlias, get_args
+from typing import Literal, TypeAlias, get_args
 
 import msgspec
 from msgspec import UNSET
@@ -39,21 +39,39 @@ Body: TypeAlias = (
 derive from it; the catalog kinds are a chosen subset."""
 
 
-def _kind(body_type: type[msgspec.Struct]) -> str:
-    return body_type.__name__.lower()
+Kind: TypeAlias = Literal[
+    "host",
+    "project",
+    "notebook",
+    "runtime",
+    "attachment",
+    "run",
+    "execution",
+    "console",
+    "display",
+    "custom",
+]
+"""The kinds of object a stream carries, one per `Body` type."""
+
+_KIND_BY_NAME: dict[str, Kind] = {kind: kind for kind in get_args(Kind)}
+assert set(_KIND_BY_NAME) == {
+    body_type.__name__.lower() for body_type in get_args(Body)
+}
 
 
-def kind_of(body: Body) -> str:
+def kind_of(body: Body) -> Kind:
     """Return the object's event kind, used by the `types` filter."""
-    return _kind(type(body))
+    return _KIND_BY_NAME[type(body).__name__.lower()]
 
 
-_WRAPPERS: dict[str, type[msgspec.Struct]] = {
-    _kind(body_type): getattr(protocol, f"{body_type.__name__}Message")
+_WRAPPERS: dict[Kind, type[msgspec.Struct]] = {
+    _KIND_BY_NAME[body_type.__name__.lower()]: getattr(
+        protocol, f"{body_type.__name__}Message"
+    )
     for body_type in get_args(Body)
 }
 
-CATALOG_KINDS = frozenset(
+CATALOG_KINDS: frozenset[Kind] = frozenset(
     {"host", "project", "notebook", "runtime", "attachment"}
 )
 # Host and project describe the whole host, so they never belong to one
@@ -69,8 +87,9 @@ def message(
 ) -> msgspec.Struct:
     """Wrap an object in its protocol message."""
     kind = kind_of(body)
+    fields: dict[str, Body] = {kind: deepcopy(body)}
     return _WRAPPERS[kind](
-        **{kind: deepcopy(body)},
+        **fields,
         request_id=UNSET if request_id is None else request_id,
         time=UNSET if time is None else time,
     )
@@ -80,11 +99,30 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def removal(
+    kind: Kind,
+    object_id: str,
+    *,
+    notebook_id: protocol.NotebookId | None = None,
+    request_id: str | None = None,
+    run_id: protocol.RunId | None = None,
+) -> Event:
+    """Return an event announcing an object's removal."""
+    data = protocol.RemovedMessage(
+        id=object_id,
+        request_id=UNSET if request_id is None else request_id,
+        time=utcnow(),
+    )
+    return Event(
+        f"{kind}.removed", data, notebook_id=notebook_id, run_id=run_id
+    )
+
+
 @dataclass(frozen=True)
 class Event:
     """An event with an optional replay cursor and notebook scope.
 
-    Snapshot events have no `id`; `ready` and `reset` have no `data`.
+    Snapshot events have no `id`. Control events have no `data`.
     """
 
     name: str
@@ -94,9 +132,12 @@ class Event:
     run_id: protocol.RunId | None = None
 
     @property
-    def kind(self) -> str:
-        """The object kind without the `.removed` suffix."""
-        return self.name.partition(".")[0]
+    def kind(self) -> Kind | None:
+        """The object kind without the `.removed` suffix.
+
+        `ready` and `reset` carry no object and have no kind.
+        """
+        return _KIND_BY_NAME.get(self.name.partition(".")[0])
 
     def visible_in(self, notebook_id: str | None) -> bool:
         """Whether the event belongs in the catalog or notebook stream."""
@@ -129,7 +170,10 @@ class Stream:
         self._last_id = 0
         self._history: deque[Event] = deque(maxlen=history)
         self._listeners: list[Listener] = []
-        self._pending: deque[tuple[Event, tuple[Listener, ...]]] = deque()
+        self._downstream: list[Stream] = []
+        self._pending: deque[
+            tuple[Event, tuple[Listener, ...]] | Callable[[], None]
+        ] = deque()
         self._dispatching = False
 
     @property
@@ -153,7 +197,7 @@ class Stream:
 
     def remove(
         self,
-        kind: str,
+        kind: Kind,
         object_id: str,
         *,
         notebook_id: protocol.NotebookId | None = None,
@@ -161,14 +205,13 @@ class Stream:
         run_id: protocol.RunId | None = None,
     ) -> Event:
         """Publish an object's removal."""
-        data = protocol.RemovedMessage(
-            id=object_id,
-            request_id=UNSET if request_id is None else request_id,
-            time=utcnow(),
-        )
         return self._append(
-            Event(
-                f"{kind}.removed", data, notebook_id=notebook_id, run_id=run_id
+            removal(
+                kind,
+                object_id,
+                notebook_id=notebook_id,
+                request_id=request_id,
+                run_id=run_id,
             )
         )
 
@@ -186,17 +229,24 @@ class Stream:
             [e for e in self._history if e.id is not None and e.id > cursor]
         )
 
-    def subscribe(self, listener: Listener) -> Callable[[], None]:
-        """Deliver future events in order; return an unsubscribe function.
+    def subscribe(
+        self, listener: Listener, *, downstream: Stream | None = None
+    ) -> Callable[[], None]:
+        """Subscribe to future events and return an unsubscribe function.
 
-        Subscriber exceptions are logged without interrupting publication.
-        Events published by a subscriber follow the event being delivered.
+        Subscriber exceptions are logged. Events published during delivery
+        follow the event being delivered. A downstream stream delivers
+        forwarded events after this stream drains.
         """
         self._listeners.append(listener)
+        if downstream is not None:
+            self._downstream.append(downstream)
 
         def unsubscribe() -> None:
             if listener in self._listeners:
                 self._listeners.remove(listener)
+                if downstream is not None:
+                    self._downstream.remove(downstream)
 
         return unsubscribe
 
@@ -217,6 +267,10 @@ class Stream:
             self._dispatching = False
             self._drain()
 
+    def append(self, event: Event) -> Event:
+        """Record an emitted event with a cursor belonging to this log."""
+        return self._append(deepcopy(event))
+
     def _append(self, event: Event) -> Event:
         self._last_id += 1
         stamped = Event(
@@ -232,15 +286,29 @@ class Stream:
             self._drain()
         return deepcopy(stamped)
 
+    def after_delivery(self, callback: Callable[[], None]) -> None:
+        """Call after queued events reach their listeners."""
+        if self._dispatching:
+            self._pending.append(callback)
+        else:
+            callback()
+
     def _drain(self) -> None:
-        self._dispatching = True
-        try:
-            while self._pending:
-                pending, listeners = self._pending.popleft()
-                for listener in listeners:
-                    try:
-                        listener(deepcopy(pending))
-                    except Exception:
-                        LOGGER.exception("Error delivering host event")
-        finally:
-            self._dispatching = False
+        with ExitStack() as delivery:
+            for stream in self._downstream:
+                delivery.enter_context(stream.deferred())
+            self._dispatching = True
+            try:
+                while self._pending:
+                    item = self._pending.popleft()
+                    if callable(item):
+                        item()
+                        continue
+                    pending, listeners = item
+                    for listener in listeners:
+                        try:
+                            listener(deepcopy(pending))
+                        except Exception:
+                            LOGGER.exception("Error delivering host event")
+            finally:
+                self._dispatching = False

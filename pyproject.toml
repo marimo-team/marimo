@@ -528,6 +528,11 @@ exclude = [
 ]
 warn_unused_ignores = false
 
+[[tool.mypy.overrides]]
+# Core matches on typed events; a misspelled kind must not match nothing.
+module = ["marimo._core.*"]
+warn_unreachable = true
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q -v --ignore tests/_cli/fixtures --ignore tests/_ast/codegen_data --ignore tests/_ast/app_data"

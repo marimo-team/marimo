@@ -221,18 +221,25 @@ async def test_scratch_outcomes_from_the_kernel(
         assert outcome["error"]["message"]
 
 
-async def test_background_output_stays_with_its_execution(
+async def test_background_output_after_a_scratch_run_is_dropped(
     live_host: tuple[Starlette, str, Response],
 ) -> None:
+    """A completed scratch run is history; the backend forgets it.
+
+    Output its code produces later, from a background thread, has no
+    current execution to join and never reaches clients.
+    """
     app, notebook_id, events = live_host
     path = f"/notebooks/{notebook_id}/runtime/runs"
     code = """import builtins
 import threading
 import marimo as mo
 builtins._host_test_gate = threading.Event()
+builtins._host_test_printed = threading.Event()
 def worker():
     builtins._host_test_gate.wait(5)
     print("late output")
+    builtins._host_test_printed.set()
 mo.Thread(target=worker).start()
 """
     first = await finished(
@@ -258,7 +265,7 @@ mo.Thread(target=worker).start()
         headers=key("second"),
         body=json.dumps(
             {
-                "code": "import builtins\nimport time\nbuiltins._host_test_gate.set()\ntime.sleep(0.2)\ndel builtins._host_test_gate"
+                "code": "import builtins\nbuiltins._host_test_gate.set()\nassert builtins._host_test_printed.wait(5)\ndel builtins._host_test_gate, builtins._host_test_printed"
             }
         ).encode(),
     )
@@ -271,21 +278,21 @@ mo.Thread(target=worker).start()
             for r in response.records
         ),
     )
+    assert (
+        next(
+            r["data"]["run"]["outcome"]
+            for r in reversed(events.records)
+            if r.get("data", {}).get("run", {}).get("id")
+            == second.json()["id"]
+        )
+        == "succeeded"
+    )
     console = [
         r["data"]["console"]
         for r in events.records
         if r.get("event") == "console"
     ]
-    assert any("late output" in item["text"] for item in console)
-    first_execution = next(
-        record["data"]["execution"]
-        for record in events.records
-        if record.get("event") == "execution"
-        and record["data"]["execution"]["run_id"] == first.json()["id"]
-    )
-    assert {item["execution_id"] for item in console} == {
-        first_execution["id"]
-    }
+    assert not any("late output" in item["text"] for item in console)
 
 
 async def test_queued_cancellation_never_executes_the_code(

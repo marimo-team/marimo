@@ -659,5 +659,13 @@ async def _run(request: Request) -> Response:
 async def _interrupt(request: Request) -> Response:
     """Request a run interruption: 202 if active, 409 if completed."""
     notebook = _notebook(request)
-    interrupted = notebook.interrupt(request.path_params["run_id"])
+    run_id = request.path_params["run_id"]
+    try:
+        interrupted = notebook.interrupt(run_id)
+    except NotFound:
+        # A completed scratch run is host history, not notebook state.
+        run = _context(request).bridge.host.run(notebook.id, run_id)
+        if run is not None and run.status == "completed":
+            raise Conflict(f"run {run_id} has already ended.") from None
+        raise
     return _reply(202, interrupted)

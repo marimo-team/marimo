@@ -14,8 +14,13 @@ from marimo._core.errors import NotFound
 from marimo._core.host import Host
 from marimo._core.stream import Event
 from tests._core.conftest import (
+    Clock,
     ScriptedBackend,
+    finish,
+    fold,
+    host_at,
     names,
+    plan,
     project,
     record,
     runtime_id_of,
@@ -25,6 +30,79 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from marimo._core.notebook import Notebook
+
+
+@pytest.mark.parametrize("trigger", ["runtime", "run"])
+@pytest.mark.parametrize("source", ["host", "notebook"])
+def test_a_subscriber_can_remove_a_notebook_after_its_children(
+    host: Host, notebook: Notebook, trigger: str, source: str
+) -> None:
+    if trigger == "run":
+        notebook.start()
+        notebook.observe(be.Running(runtime_id_of(notebook)))
+    events: list[Event] = []
+
+    def remove(event: Event) -> None:
+        events.append(event)
+        if event.name == trigger:
+            host.remove_notebook(notebook.id)
+
+    if source == "host":
+        host.subscribe(remove, notebook_id=notebook.id)
+    else:
+        host.subscribe(events.append, notebook_id=notebook.id)
+        notebook.subscribe(
+            lambda event: (
+                host.remove_notebook(notebook.id)
+                if event.name == trigger
+                else None
+            )
+        )
+    if trigger == "run":
+        notebook.run("1", request_id="request")
+        assert names(events) == [
+            "run",
+            "run",
+            "runtime.removed",
+            "run.removed",
+            "notebook.removed",
+        ]
+    else:
+        notebook.start()
+        assert names(events) == [
+            "runtime",
+            "runtime.removed",
+            "notebook.removed",
+        ]
+    assert notebook.id not in host.notebooks
+
+
+def test_replacing_a_cell_result_updates_history_before_delivery(
+    host: Host, notebook: Notebook
+) -> None:
+    notebook.start()
+    notebook.observe(be.Running(runtime_id_of(notebook)))
+    run = notebook.run("1", request_id="first")
+    execution = plan(notebook, run, "old", cell="a")
+    notebook.observe(
+        be.Produced(
+            protocol.Console(
+                execution, protocol.ItemId("out"), "stdout", 0, "old output"
+            )
+        )
+    )
+    finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    snapshots = []
+
+    def read_snapshot(event: Event) -> None:
+        if event.name == "console.removed":
+            snapshots.append(set(fold(host.events(notebook_id=notebook.id))))
+
+    host.subscribe(read_snapshot, notebook_id=notebook.id)
+    replacement = notebook.run("2", request_id="second")
+    plan(notebook, replacement, "new", cell="a")
+    assert snapshots == [{("run", replacement.id), ("execution", "new")}]
 
 
 def test_catalog_snapshot_and_replay_exclude_runs(host: Host) -> None:
@@ -162,9 +240,9 @@ def test_removing_a_notebook_removes_what_it_owns_first(host: Host) -> None:
 
     assert names(log) == [
         "run",
-        "run.removed",
         "attachment.removed",
         "runtime.removed",
+        "run.removed",
         "notebook.removed",
     ]
     assert getattr(log[-1].data, "request_id", None) == "req-del"
@@ -299,3 +377,266 @@ def test_catalog_updates_do_not_share_mutable_records(host: Host) -> None:
     assert host.notebooks[original.id] == replace(
         record(), name="caller mutation", operations=()
     )
+
+
+@pytest.mark.parametrize("history", [2, 1000])
+def test_expiration_converges_for_live_replay_and_snapshot(
+    history: int,
+) -> None:
+    clock = Clock()
+    host, notebook = host_at(clock, history)
+    run = notebook.run("code", request_id="request")
+    execution = plan(notebook, run, "e")
+    item = protocol.Console(
+        protocol.ExecutionId("e"),
+        protocol.ItemId("console"),
+        "stdout",
+        0,
+        "output",
+    )
+    notebook.observe(be.Produced(item))
+    notebook.observe(
+        be.Produced(
+            protocol.Display(
+                execution_id=execution,
+                id=protocol.ItemId("display"),
+                seq=1,
+                mimetype="text/html",
+                data="value",
+            )
+        )
+    )
+    finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    snapshot = host.events(notebook_id=notebook.id, run_id=run.id)
+    initial = fold(snapshot)
+    assert {kind for kind, _ in initial} == {
+        "run",
+        "execution",
+        "console",
+        "display",
+    }
+    live: list[Event] = []
+    host.subscribe(live.append, notebook_id=notebook.id, run_id=run.id)
+    clock.now = 9
+    host.expire()
+    assert live == []
+    clock.now = 10
+    host.expire()
+    assert names(live) == [
+        "console.removed",
+        "display.removed",
+        "execution.removed",
+        "run.removed",
+    ]
+    assert all(event.data.request_id == "request" for event in live)
+    replay = host.events(
+        snapshot[-1].id, notebook_id=notebook.id, run_id=run.id
+    )
+    assert (replay[0].name == "reset") == (history == 2)
+    assert (
+        fold(live, initial)
+        == fold(replay, initial)
+        == fold(host.events(notebook_id=notebook.id, run_id=run.id))
+        == {}
+    )
+    live.clear()
+    notebook.observe(be.Produced(item))
+    notebook.observe(be.Status(execution, "running"))
+    notebook.observe(be.Done(run.id, "succeeded"))
+    assert live == []
+
+
+def test_cell_results_outlive_ephemeral_members_and_old_runs_are_removed() -> (
+    None
+):
+    clock = Clock()
+    host, notebook = host_at(clock)
+    run = notebook.run("code", request_id="first")
+    ephemeral = plan(notebook, run, "scratch")
+    cell = plan(notebook, run, "cell", "a")
+    finish(notebook, ephemeral)
+    clock.now = 100
+    host.expire()
+    assert ("execution", ephemeral) in fold(
+        host.events(notebook_id=notebook.id)
+    )
+    finish(notebook, cell)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    clock.now = 110
+    host.expire()
+    state = fold(host.events(notebook_id=notebook.id))
+    assert set(state) == {("run", run.id), ("execution", cell)}
+    replacement = notebook.run("code", request_id="second")
+    current = plan(notebook, replacement, "current", "a")
+    finish(notebook, current)
+    notebook.observe(be.Done(replacement.id, "succeeded"))
+    clock.now = 1000
+    state = fold(host.events(notebook_id=notebook.id))
+    assert set(state) == {("run", replacement.id), ("execution", current)}
+
+
+def test_run_survives_until_its_last_cell_execution_is_replaced() -> None:
+    host, notebook = host_at(Clock())
+    original = notebook.run("code", request_id="original")
+    first = plan(notebook, original, "first", "a")
+    second = plan(notebook, original, "second", "b")
+    finish(notebook, first)
+    finish(notebook, second)
+    notebook.observe(be.Done(original.id, "succeeded"))
+    live: list[Event] = []
+    host.subscribe(live.append, notebook_id=notebook.id, run_id=original.id)
+
+    replacement = notebook.run("code", request_id="replacement")
+    current_a = plan(notebook, replacement, "current-a", "a")
+    assert set(fold(host.events(notebook_id=notebook.id))) == {
+        ("run", original.id),
+        ("run", replacement.id),
+        ("execution", second),
+        ("execution", current_a),
+    }
+    assert names(live) == ["execution.removed"]
+
+    current_b = plan(notebook, replacement, "current-b", "b")
+    assert set(fold(host.events(notebook_id=notebook.id))) == {
+        ("run", replacement.id),
+        ("execution", current_a),
+        ("execution", current_b),
+    }
+    assert names(live) == [
+        "execution.removed",
+        "execution.removed",
+        "run.removed",
+    ]
+
+
+def test_stopping_starts_expiry_for_active_work_without_extending_old_results() -> (
+    None
+):
+    clock = Clock()
+    host, notebook = host_at(clock)
+    done = notebook.run("code", request_id="done")
+    execution = plan(notebook, done, "done")
+    finish(notebook, execution)
+    notebook.observe(be.Done(done.id, "succeeded"))
+    clock.now = 5
+    active = notebook.run("sleep", request_id="active")
+    plan(notebook, active, "active")
+    notebook.stop()
+    notebook.observe(be.Exited(runtime_id_of(notebook)))
+    clock.now = 10
+    host.expire()
+    state = fold(host.events(notebook_id=notebook.id))
+    assert set(state) == {("run", active.id), ("execution", "active")}
+    assert state["run", active.id].outcome == "interrupted"
+    clock.now = 15
+    host.expire()
+    assert fold(host.events(notebook_id=notebook.id)) == {}
+
+
+def test_repeated_expiration_releases_runs_and_request_correlations() -> None:
+    clock = Clock()
+    host, notebook = host_at(clock, history=2)
+    for index in range(100):
+        run = notebook.run("code", request_id=f"request-{index}")
+        execution = plan(notebook, run, str(index))
+        finish(notebook, execution)
+        notebook.observe(be.Done(run.id, "succeeded"))
+        clock.now += 10
+        host.expire()
+        assert fold(host.events(notebook_id=notebook.id)) == {}
+    assert (
+        len({call[1] for call in notebook._backend.calls if call[0] == "run"})
+        == 100
+    )
+
+
+def test_removal_listeners_can_read_snapshots() -> None:
+    clock = Clock()
+    host, notebook = host_at(clock)
+    run = notebook.run("code", request_id="request")
+    execution = plan(notebook, run, "execution")
+    notebook.observe(
+        be.Produced(
+            protocol.Console(
+                execution, protocol.ItemId("console"), "stdout", 0, "x"
+            )
+        )
+    )
+    finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    snapshots: list[dict] = []
+    host.subscribe(
+        lambda _: snapshots.append(fold(host.events(notebook_id=notebook.id))),
+        notebook_id=notebook.id,
+    )
+    clock.now = 10
+    host.expire()
+    assert [set(state) for state in snapshots] == [set(), set(), set()]
+
+
+def test_expiration_does_not_scan_unrelated_outputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = Clock()
+    host, notebook = host_at(clock, history=2)
+    run = notebook.run("code", request_id="request")
+    for index in range(1000):
+        execution = plan(notebook, run, str(index))
+        notebook.observe(
+            be.Produced(
+                protocol.Console(
+                    execution, protocol.ItemId(str(index)), "stdout", 0, "x"
+                )
+            )
+        )
+        finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    visits = 0
+    getattribute = protocol.Console.__getattribute__
+
+    def counted(item: protocol.Console, name: str) -> object:
+        nonlocal visits
+        if name == "execution_id":
+            visits += 1
+        return getattribute(item, name)
+
+    monkeypatch.setattr(protocol.Console, "__getattribute__", counted)
+    clock.now = 10
+    host.expire()
+    assert visits <= 1000
+    assert fold(host.events(notebook_id=notebook.id)) == {}
+
+
+def test_completed_scratch_runs_belong_to_the_host() -> None:
+    clock = Clock()
+    host, notebook = host_at(clock)
+    run = notebook.run("code", request_id="request")
+    execution = plan(notebook, run, "scratch")
+    notebook.observe(
+        be.Produced(
+            protocol.Console(
+                execution, protocol.ItemId("out"), "stdout", 0, "x"
+            )
+        )
+    )
+    assert ("execution", execution) in fold(notebook._snapshot())
+    live: list[Event] = []
+    host.subscribe(live.append, notebook_id=notebook.id)
+    finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    # The notebook lets go without a word; the host still shows the run.
+    assert fold(notebook._snapshot()) == {}
+    assert names(live) == ["execution", "execution", "run"]
+    assert set(fold(host.events(notebook_id=notebook.id))) == {
+        ("run", run.id),
+        ("execution", execution),
+        ("console", "out"),
+    }
+    assert notebook._backend.calls.count(("forget", run.id)) == 1
+    with pytest.raises(NotFound):
+        notebook.interrupt(run.id)
+    clock.now = 10
+    host.expire()
+    assert fold(host.events(notebook_id=notebook.id)) == {}
+    assert notebook._backend.calls.count(("forget", run.id)) == 1
