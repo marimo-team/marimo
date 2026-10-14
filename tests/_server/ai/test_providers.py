@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import json
 import os
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -894,6 +895,107 @@ async def test_completion_thinking_override(thinking: bool | None) -> None:
         "thinking": True if thinking is None else thinking,
         "openai_reasoning_summary": "auto",
     }
+
+
+@pytest.mark.requires("pydantic_ai", "openai")
+@pytest.mark.parametrize(
+    ("provider_name", "thinking", "chat_template_kwargs"),
+    [
+        ("wandb", False, {"enable_thinking": False}),
+        ("wandb", None, None),
+        ("wandb", True, None),
+        ("custom", False, None),
+    ],
+)
+async def test_completion_thinking_request_payload(
+    provider_name: str,
+    thinking: bool | None,
+    chat_template_kwargs: dict[str, bool] | None,
+) -> None:
+    import httpx
+    from openai import AsyncOpenAI
+
+    payloads: list[dict[str, object]] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        payloads.append(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "id": "response",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "Qwen/Qwen3.5-35B-A3B",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "print(1)",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+            },
+        )
+
+    config = AnyProviderConfig(
+        api_key="test-key", base_url="https://api.inference.wandb.ai/v1"
+    )
+    async with (
+        httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client,
+        AsyncOpenAI(
+            api_key=config.api_key,
+            base_url=config.base_url,
+            http_client=client,
+        ) as openai_client,
+    ):
+        with patch.object(
+            OpenAIClientMixin, "get_openai_client", return_value=openai_client
+        ):
+            provider = get_completion_provider(
+                config, f"{provider_name}/Qwen/Qwen3.5-35B-A3B"
+            )
+        result = await provider.completion(
+            messages=[],
+            system_prompt="Complete the code.",
+            max_tokens=1024,
+            additional_tools=[],
+            enable_capabilities=False,
+            thinking=thinking,
+            span_info=SpanInfo(
+                endpoint="inline_completion",
+                model=f"{provider_name}/Qwen/Qwen3.5-35B-A3B",
+            ),
+        )
+
+        # Chat and structured Generate use agent settings without the override.
+        agent = provider.create_agent(
+            name="chat",
+            max_tokens=1024,
+            system_prompt="Complete the code.",
+            enable_capabilities=False,
+        )
+        await agent.run()
+        structured_agent = provider._create_structured_completion_agent(
+            name="completion",
+            max_tokens=1024,
+            system_prompt="Complete the code.",
+            output_type=CellCompletion,
+        )
+        assert structured_agent.model_settings == {"max_tokens": 1024}
+
+    assert result == "print(1)"
+    expected_payload: dict[str, object] = {
+        "model": "Qwen/Qwen3.5-35B-A3B",
+        "messages": [{"role": "system", "content": "Complete the code."}],
+        "max_completion_tokens": 1024,
+        "stream": False,
+    }
+    completion_payload = expected_payload.copy()
+    if chat_template_kwargs is not None:
+        completion_payload["chat_template_kwargs"] = chat_template_kwargs
+    assert payloads == [completion_payload, expected_payload]
 
 
 @pytest.mark.requires("pydantic_ai")

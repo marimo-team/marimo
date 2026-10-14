@@ -429,12 +429,16 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             result = await agent.run(
                 user_prompt=None,
                 message_history=VercelAIAdapter.load_messages(messages),
-                model_settings={"thinking": thinking}
-                if thinking is not None
-                else None,
+                model_settings=self._completion_model_settings(thinking),
             )
 
         return str(result.output)
+
+    def _completion_model_settings(
+        self, thinking: ThinkingLevel | None
+    ) -> ModelSettings | None:
+        """Request overrides for non-streaming completions."""
+        return {"thinking": thinking} if thinking is not None else None
 
     async def stream_completion_harness(
         self,
@@ -1113,6 +1117,21 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         if self._is_openai_compatible():
             return None
         return super()._default_thinking(model)
+
+    @override
+    def _completion_model_settings(
+        self, thinking: ThinkingLevel | None
+    ) -> ModelSettings | None:
+        settings = super()._completion_model_settings(thinking)
+        if thinking is False and self._provider_name == "wandb":
+            # W&B's Qwen chat template does not honor reasoning_effort.
+            return {
+                "thinking": False,
+                "extra_body": {
+                    "chat_template_kwargs": {"enable_thinking": False}
+                },
+            }
+        return settings
 
 
 class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
