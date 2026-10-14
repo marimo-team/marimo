@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connectionAtom } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import {
   fetchDataSourceDiscovery,
   invalidateDataSourceDiscovery,
@@ -30,7 +30,7 @@ describe("fetchDataSourceDiscovery", () => {
   beforeEach(() => {
     // Discovery waits for the session's websocket connection to be open
     // before requesting, so it doesn't race a still-connecting session.
-    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
   });
 
   afterEach(() => {

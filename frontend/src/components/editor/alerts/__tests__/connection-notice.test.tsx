@@ -11,7 +11,7 @@ import { AppConfigSchema } from "@/core/config/config-schema";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
 import { connectionAtom } from "@/core/network/connection";
 import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
-import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
+import { WebSocketClosedReason, ConnectionState } from "@/core/websocket/types";
 import { chromeAtom } from "../../chrome/state";
 import { runtimeDetailsExpandedAtom } from "../../chrome/panels/runtime-details-state";
 import { ConnectionNotice } from "../connection-notice";
@@ -31,7 +31,7 @@ function mount({
     filename: "notebook.py",
   });
   store.set(connectionAtom, {
-    state: WebSocketState.CONNECTING,
+    state: ConnectionState.CONNECTING,
     phase: "preparing-environment",
   });
   if (existingCells) {
@@ -64,13 +64,13 @@ it("shows both stages in an empty notebook, checks them off, then dismisses Read
   expect(steps.getByText("Start kernel")).toBeInTheDocument();
   act(() =>
     store.set(connectionAtom, {
-      state: WebSocketState.CONNECTING,
+      state: ConnectionState.CONNECTING,
       phase: "starting-kernel",
     }),
   );
   expect(steps.getByText("Environment prepared")).toBeInTheDocument();
   expect(steps.getByText("Starting kernel")).toBeInTheDocument();
-  act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
   expect(
     screen.getByRole("heading", { name: "Your notebook is ready" }),
   ).toBeInTheDocument();
@@ -89,7 +89,7 @@ it("uses the shared kernel stage for an ordinary connection and dismisses it whe
   const store = mount();
   act(() => {
     store.set(sandboxAtom, null);
-    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
   });
   act(() => vi.advanceTimersByTime(500));
   const stages = within(
@@ -99,20 +99,20 @@ it("uses the shared kernel stage for an ordinary connection and dismisses it whe
   );
   expect(stages.getAllByRole("listitem")).toHaveLength(1);
   expect(stages.getByText("Starting kernel")).toBeVisible();
-  act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
   expect(screen.queryByRole("region", { name: "Notebook startup" })).toBeNull();
 });
 
 it("shows connection status until a sandbox reports its startup phase", () => {
   const store = mount();
-  act(() => store.set(connectionAtom, { state: WebSocketState.CONNECTING }));
+  act(() => store.set(connectionAtom, { state: ConnectionState.CONNECTING }));
   act(() => vi.advanceTimersByTime(500));
   expect(screen.getByRole("heading", { name: "Connecting…" })).toBeVisible();
   expect(screen.queryByRole("list")).not.toBeInTheDocument();
 
   act(() =>
     store.set(connectionAtom, {
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
       reason: "Kernel startup failed",
     }),
@@ -124,7 +124,7 @@ it("shows connection status until a sandbox reports its startup phase", () => {
 
   act(() =>
     store.set(connectionAtom, {
-      state: WebSocketState.CONNECTING,
+      state: ConnectionState.CONNECTING,
       phase: "preparing-environment",
     }),
   );
@@ -158,7 +158,7 @@ it("shows ordinary environment preparation failures in the kernel stage", () => 
       "Configured Python environment is missing",
     );
     store.set(connectionAtom, {
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       phase: "preparing-environment",
       code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
       reason: "Kernel startup failed",
@@ -208,7 +208,7 @@ it("opens Packages from the minimal inline status when cells exist", () => {
     isSidebarOpen: true,
     selectedPanel: "packages",
   });
-  act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
   expect(screen.getByRole("status")).toHaveTextContent(/^Ready$/);
 });
 
@@ -217,7 +217,7 @@ it("uses an inline notice for an existing ordinary notebook, opens collapsed det
   const store = mount({ existingCells: true, onRetry });
   act(() => {
     store.set(sandboxAtom, null);
-    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
     store.set(runtimeDetailsExpandedAtom, false);
   });
   act(() => vi.advanceTimersByTime(500));
@@ -232,7 +232,7 @@ it("uses an inline notice for an existing ordinary notebook, opens collapsed det
   expect(store.get(runtimeDetailsExpandedAtom)).toBe(true);
   act(() =>
     store.set(connectionAtom, {
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
       reason: "Kernel startup failed",
     }),
@@ -244,7 +244,7 @@ it("uses an inline notice for an existing ordinary notebook, opens collapsed det
   ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   expect(onRetry).toHaveBeenCalledOnce();
-  act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
   expect(screen.queryByRole("region", { name: "Notebook startup" })).toBeNull();
   expect(statusRow).not.toBeInTheDocument();
 });
@@ -264,7 +264,7 @@ it.each([
         store.set(sandboxAtom, null);
       }
       store.set(connectionAtom, {
-        state: WebSocketState.CONNECTING,
+        state: ConnectionState.CONNECTING,
         phase: "starting-kernel",
       });
     });
@@ -276,7 +276,7 @@ it.each([
     act(() => {
       store.set(kernelStartupErrorAtom, "Could not import the runtime");
       store.set(connectionAtom, {
-        state: WebSocketState.CLOSED,
+        state: ConnectionState.CLOSED,
         phase: "starting-kernel",
         code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
         reason: "Kernel startup failed",
@@ -301,7 +301,7 @@ it.each([
 it("does not flash Ready for a startup that finished before the notice appeared", () => {
   const store = mount({ existingCells: true });
   act(() => vi.advanceTimersByTime(200));
-  act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
   expect(screen.queryByRole("status")).not.toBeInTheDocument();
   act(() => vi.advanceTimersByTime(2000));
   expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -310,11 +310,11 @@ it("does not flash Ready for a startup that finished before the notice appeared"
 it("replaces Ready with a new attempt and never dismisses a failure", () => {
   const store = mount();
   act(() => vi.advanceTimersByTime(500));
-  act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
   act(() => vi.advanceTimersByTime(1000));
   act(() =>
     store.set(connectionAtom, {
-      state: WebSocketState.CONNECTING,
+      state: ConnectionState.CONNECTING,
       phase: "starting-kernel",
     }),
   );
@@ -322,7 +322,7 @@ it("replaces Ready with a new attempt and never dismisses a failure", () => {
   expect(screen.getByText("Starting kernel")).toBeInTheDocument();
   act(() =>
     store.set(connectionAtom, {
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
       phase: "starting-kernel",
       reason: "Kernel startup failed",
@@ -337,7 +337,7 @@ it("replaces Ready with a new attempt and never dismisses a failure", () => {
 it("shows a sync as a single operation, without pretending to restart the kernel", () => {
   const store = mount({ existingCells: true });
   act(() => {
-    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
     store.set(sandboxSyncAtom, { kind: "running" });
   });
   act(() => vi.advanceTimersByTime(500));
@@ -369,7 +369,7 @@ it("restores syncing in the existing status and stays quiet for a completed snap
       },
     }));
   act(() => {
-    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
     restore({ kind: "succeeded" });
   });
   act(() => vi.advanceTimersByTime(2000));

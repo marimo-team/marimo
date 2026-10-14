@@ -7,7 +7,7 @@ import { PyodideLoader } from "@/core/wasm/PyodideLoader";
 import {
   type ConnectionStatus,
   WebSocketClosedReason,
-  WebSocketState,
+  ConnectionState,
 } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { DynamicFavicon } from "./dynamic-favicon";
@@ -47,7 +47,7 @@ export const AppContainer: React.FC<PropsWithChildren<Props>> = ({
             data-connection-state={connectionState}
             className={cn(
               "mathjax_ignore",
-              connection.state === WebSocketState.CLOSED &&
+              connection.state === ConnectionState.CLOSED &&
                 connection.code !==
                   WebSocketClosedReason.KERNEL_STARTUP_ERROR &&
                 "disconnected",
