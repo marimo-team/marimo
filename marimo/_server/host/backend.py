@@ -79,6 +79,7 @@ class SessionBackend(SessionConsumer):
         observe: Observe,
         document_changed: Callable[[], None] | None = None,
         session_attached: Callable[[], None] | None = None,
+        session_detached: Callable[[Session], None] | None = None,
     ) -> None:
         self._notebook_id = notebook_id
         self._file = file
@@ -89,6 +90,8 @@ class SessionBackend(SessionConsumer):
         """Called after the session's document changes, from any writer."""
         self._session_attached = session_attached
         """Called with the session attached, before the runtime is reported."""
+        self._session_detached = session_detached
+        """Called with the session that detached, before its exit is reported."""
         self._kernel: _Kernel | None = None
         self._run: _Run | None = None
         self._translators: dict[str, RunTranslator] = {}
@@ -275,6 +278,8 @@ class SessionBackend(SessionConsumer):
         if kernel is None or kernel.session is None:
             return
         session = kernel.session
+        if self._session_detached is not None:
+            self._session_detached(session)
         reason = None
         if session.kernel_state() is KernelState.STOPPED:
             info = session.kernel_exit_info()

@@ -864,6 +864,8 @@ async def test_save_with_a_session_writes_through_the_editors_file_manager(
     (cell,) = document
     # The editor wrote once, so its manager remembers what is on disk.
     session.app_file_manager.save_from_cells(list(session.document.cells))
+    events: list[Event] = []
+    bridge.host.subscribe(events.append, notebook_id=record.id)
 
     edited = await bridge.edit(
         record.id, [replace_code(cell, "x = 2")], request_id="edit-1"
@@ -876,4 +878,54 @@ async def test_save_with_a_session_writes_through_the_editors_file_manager(
     # The editor's record of the last write is the host's write, so its
     # watcher ignores it and its next write of other content proceeds.
     assert session.app_file_manager.content_matches_last_save(text)
+    # The write is published once, under the request that asked for it,
+    # not again when the editor's manager reports it.
+    published = [
+        e
+        for e in events
+        if e.name == "document"
+        and e.data.document.saved_etag == saved.document.etag  # type: ignore[union-attr]
+    ]
+    assert [e.data.request_id for e in published] == ["save-1"]  # type: ignore[union-attr]
+    bridge.close()
+
+
+async def test_the_editor_saving_marks_the_host_document_saved(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._ast.cell import CellConfig
+    from marimo._core.document import revision
+    from marimo._messaging.notebook import NotebookCell
+    from marimo._server.host.document import from_file_manager
+    from marimo._session.notebook import AppFileManager
+    from marimo._types.ids import CellId_t
+
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    document = (await bridge.host.notebook(record.id)).document
+    session = FakeSession(str(path))
+    session.app_file_manager = AppFileManager(str(path))
+    session.document = session.app_file_manager.app.cell_manager.document
+    manager.sessions["browser-1"] = session
+    await manager.event_bus.emit_session_created(session)  # type: ignore[arg-type]
+    (cell,) = session.document.cells
+    before = document._record.etag
+
+    # The editor writes new content the host has not mirrored yet.
+    session.app_file_manager.save_from_cells(
+        [NotebookCell(CellId_t(cell.id), "x = 2", cell.name, CellConfig())]
+    )
+
+    written = revision(*from_file_manager(session.app_file_manager))
+    assert document._record.saved_etag == written
+    assert document._record.etag == before != written
+
+    # Once the session goes away, its writes are no longer the host's.
+    manager.close_session("browser-1")
+    assert session.app_file_manager.on_persisted is None
     bridge.close()

@@ -39,6 +39,13 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+def _running_loop() -> asyncio.AbstractEventLoop | None:
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+
+
 # NB: The host keeps a separate document to avoid migrating the frontend yet.
 # Editor changes are mirrored into it; host edits become session transactions.
 # TODO(MO-7927): Remove this adapter when Session consumes the host Notebook.
@@ -53,6 +60,7 @@ class SessionBridge(SessionEventListener):
         self._manager = manager
         self._config_manager = config_manager
         self._files_lock = asyncio.Lock()
+        self._saving: set[protocol.NotebookId] = set()
         self._adopting: dict[protocol.NotebookId, Session] = {}
         self.host = Host(operations=OPERATIONS)
         self._backends: dict[protocol.NotebookId, SessionBackend] = {}
@@ -194,12 +202,15 @@ class SessionBridge(SessionEventListener):
             else:
                 cells = copy.deepcopy(session.document.cells)
                 manager = session.app_file_manager
+            self._saving.add(notebook.id)
             try:
                 etag = await asyncio.to_thread(
                     self._write, str(file), cells, manager
                 )
             except Exception as e:
                 raise Conflict(f"The notebook cannot be saved: {e}") from e
+            finally:
+                self._saving.discard(notebook.id)
             document = notebook.mark_saved(etag, request_id=request_id)
             return protocol.EditResponse(document=document, cells={})
 
@@ -265,12 +276,60 @@ class SessionBridge(SessionEventListener):
         notebook = self.host.peek_notebook(notebook_id)
         if session is None or notebook is None:
             return
+        self._follow_saves(notebook_id, session)
         document = notebook.document
         if document._record.saved_etag != document._record.etag:
             documents.apply_to_session(session, document)
             return
         cells, app_config = documents.from_session(session)
         notebook.replace(cells, app_config, saved=True)
+
+    # TODO(MO-7927): Following the editor's writes ends when the notebook
+    # owns persistence and the editor saves through it.
+    def _follow_saves(
+        self, notebook_id: protocol.NotebookId, session: Session
+    ) -> None:
+        """Record the editor's writes as the saved revision.
+
+        The file manager reports each write on the writing thread with
+        the cells and app config it wrote. The revision is computed
+        from those, not from the live document, which may have moved
+        on. The editor's save endpoint writes on the event loop and
+        autosave on a worker, so the record is made directly in the
+        first case and handed to the loop in the second.
+        """
+        loop = asyncio.get_running_loop()
+
+        def persisted(
+            cells: Sequence[NotebookCell], app_config: dict[str, Any]
+        ) -> None:
+            etag = revision(documents.sources(cells), app_config)
+            if _running_loop() is loop:
+                self._saved(notebook_id, etag)
+            else:
+                loop.call_soon_threadsafe(self._saved, notebook_id, etag)
+
+        session.app_file_manager.on_persisted = persisted
+
+    def _detach_document(
+        self, notebook_id: protocol.NotebookId, session: Session
+    ) -> None:
+        del notebook_id
+        session.app_file_manager.on_persisted = None
+
+    def _saved(
+        self, notebook_id: protocol.NotebookId, etag: protocol.Etag
+    ) -> None:
+        """Record a write the editor made. A write the host asked for
+        is recorded by `save`, under its request."""
+        if notebook_id in self._saving:
+            return
+        try:
+            notebook = self.host.peek_notebook(notebook_id)
+        except NotFound:
+            return
+        if notebook is not None:
+            notebook.mark_saved(etag)
 
     def _mirror(self, notebook_id: protocol.NotebookId) -> None:
         """Bring the document up to date with the session's after it changed."""
@@ -440,6 +499,9 @@ class SessionBridge(SessionEventListener):
             observe,
             document_changed=lambda: self._mirror(notebook_id),
             session_attached=lambda: self._attach_document(notebook_id),
+            session_detached=lambda session: self._detach_document(
+                notebook_id, session
+            ),
         )
         self._backends[notebook_id] = backend
         return backend
