@@ -416,6 +416,27 @@ class TestNotebook:
         assert all(e.data.request_id == "edit-1" for e in log)  # type: ignore[union-attr]
         assert log[1].data.id == "k7f2"  # type: ignore[union-attr]
 
+    def test_edit_publishes_as_one_unit_with_the_request_key(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        notebook.replace(fixture_cells(), {})
+        log.clear()
+        k7f2 = notebook.document.cell("k7f2")
+        assert k7f2 is not None
+
+        response = notebook.edit(
+            [
+                put("c2", "print('hi')", None, after="c1"),
+                delete("k7f2", k7f2.etag),
+            ],
+            request_id="edit-1",
+        )
+
+        assert names(log) == ["cell", "cell.removed", "document"]
+        assert request_ids(log) == ["edit-1"] * 3
+        assert response.document == log[-1].data.document  # type: ignore[union-attr]
+        assert set(response.cells) == {"c2", "k7f2"}
+
 
 def cell_analyses(
     document: Document,
@@ -503,6 +524,34 @@ class TestAnalysis:
         assert request_ids(log) == ["edit-2"]
         assert notebook.analysis is not None
         assert notebook.analysis.document_etag == latest.document.etag
+
+    async def test_an_edit_is_analyzed_under_its_request_key(
+        self, host: Host, log: list[Event]
+    ) -> None:
+        host.update_project(project())
+        analyzer = ScriptedAnalyzer()
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        notebook = await add_notebook(
+            host,
+            record(),
+            ScriptedBackend(),
+            document=document,
+            analyzer=analyzer,
+        )
+        _, result = await analyzer.next_request()
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
+
+        log.clear()
+        notebook.edit([put("c9", "z = 1", None)], request_id="edit-1")
+        snapshot, result = await analyzer.next_request()
+        assert snapshot == document.snapshot()
+        assert [c.id for c in snapshot.cells] == ["c1", "c3", "k7f2", "c9"]
+
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
+        assert names(log) == ["cell", "document", "analysis"]
+        assert request_ids(log) == ["edit-1"] * 3
 
     async def test_the_previous_analysis_stays_until_the_next_arrives(
         self, host: Host
