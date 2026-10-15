@@ -7,7 +7,7 @@ import asyncio
 import json
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlsplit
 
 import msgspec
@@ -29,6 +29,7 @@ from marimo._server.workspace import FixedFilesWorkspace, SingleFileWorkspace
 from tests._core.conftest import ScriptedBackend, make_notebook, runtime_id_of
 from tests._server.host.drive import (
     PORT,
+    Response,
     finished,
     request,
     until_ready,
@@ -40,6 +41,8 @@ from tests._server.mocks import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from starlette.applications import Starlette
 
 TOKEN = "record-token"
@@ -1541,3 +1544,122 @@ async def test_deleting_an_unreadable_notebook_does_not_initialize_it(
     assert notebook_id not in harness.host.notebooks
     assert not file.exists()
     assert harness.backends == {}
+
+
+def edit_body(*changes: dict[str, object]) -> bytes:
+    return json.dumps({"changes": list(changes)}).encode()
+
+
+async def opened(harness: Harness) -> tuple[Response, Callable[[], None]]:
+    """Open the notebook's stream past `ready`, returning it and its closer."""
+    (harness.root / "forecasts.py").write_text(NOTEBOOK)
+    response, _, disconnect = request(
+        harness.app,
+        "GET",
+        f"/notebooks/{harness.notebook_id}/events",
+        headers=AUTH,
+    )
+    await wait_for(response, until_ready)
+    return response, disconnect
+
+
+def first_record(stream: Response, event: str) -> dict[str, Any]:
+    return next(r["data"] for r in stream.records if r.get("event") == event)
+
+
+async def test_an_edit_reaches_the_stream_as_one_unit(
+    harness: Harness,
+) -> None:
+    stream, disconnect = await opened(harness)
+    document = first_record(stream, "document")["document"]
+    first_id = document["order"][0]
+    # The first revision's analysis arrives off the event loop.
+    await wait_for(stream, lambda r: "analysis" in r.names())
+    seen = len(stream.records)
+
+    edited = await finished(
+        harness.app,
+        "POST",
+        f"/notebooks/{harness.notebook_id}/edits",
+        headers=key("edit-1"),
+        body=edit_body(
+            {
+                "kind": "put_cell",
+                "base_etag": None,
+                "after": first_id,
+                "cell": {"id": "fresh", "code": "z = 3"},
+            }
+        ),
+    )
+    assert edited.status == 200, edited.body
+    response = edited.json()
+    assert set(response["cells"]) == {"fresh"}
+    assert response["document"]["order"][1] == "fresh"
+    assert response["document"]["saved_etag"] == document["etag"]
+    assert response["document"]["etag"] != document["etag"]
+
+    await wait_for(stream, lambda r: r.names().count("analysis") >= 2)
+    after = [r for r in stream.records[seen:] if "event" in r]
+    assert [r["event"] for r in after] == ["cell", "document", "analysis"]
+    assert all(r["data"]["request_id"] == "edit-1" for r in after)
+    assert (
+        after[0]["data"]["cell"]["etag"] == response["cells"]["fresh"]["etag"]
+    )
+    assert after[1]["data"]["document"] == response["document"]
+    analysis = after[2]["data"]["analysis"]
+    assert analysis["document_etag"] == response["document"]["etag"]
+    assert analysis["cells"]["fresh"]["defs"] == ["z"]
+    assert "z = 3" not in (harness.root / "forecasts.py").read_text()
+    disconnect()
+
+
+async def test_a_stale_etag_is_a_conflict_that_changes_nothing(
+    harness: Harness,
+) -> None:
+    stream, disconnect = await opened(harness)
+    disconnect()
+    cell = first_record(stream, "cell")["cell"]
+    document = first_record(stream, "document")["document"]
+
+    refused = await finished(
+        harness.app,
+        "POST",
+        f"/notebooks/{harness.notebook_id}/edits",
+        headers=key("edit-stale"),
+        body=edit_body(
+            {
+                "kind": "put_cell",
+                "base_etag": None,
+                "cell": {"id": "new", "code": "1"},
+            },
+            {
+                "kind": "put_cell",
+                "base_etag": "0000000000000000",
+                "cell": {"id": cell["id"], "code": "x = 99"},
+            },
+        ),
+    )
+    assert refused.status == 409
+    problem = refused.json()
+    assert problem["type"].endswith("/conflict")
+    assert problem["edit"]["change"] == 1
+    assert problem["edit"]["cell"]["etag"] == cell["etag"]
+    assert problem["edit"]["document"]["etag"] == document["etag"]
+
+    invalid = await finished(
+        harness.app,
+        "POST",
+        f"/notebooks/{harness.notebook_id}/edits",
+        headers=key("edit-invalid"),
+        body=edit_body(
+            {"kind": "set_order", "base_etag": "*", "order": [cell["id"]]},
+        ),
+    )
+    assert invalid.status == 400
+    assert invalid.json()["type"].endswith("/invalid-request")
+
+    again, disconnect = await opened(harness)
+    disconnect()
+    assert (
+        first_record(again, "document")["document"]["etag"] == document["etag"]
+    )
