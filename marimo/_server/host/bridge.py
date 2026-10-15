@@ -4,13 +4,14 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._config.manager import ScriptConfigReader
 from marimo._core import protocol
 from marimo._core.document import CellSource, Document, revision
-from marimo._core.errors import Conflict, NotFound
+from marimo._core.errors import Conflict, EditConflict, NotFound
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -30,7 +31,9 @@ if TYPE_CHECKING:
     from marimo._core.backend import Message
     from marimo._core.document import Policy
     from marimo._core.stream import Event, Sink
+    from marimo._messaging.notebook import NotebookCell
     from marimo._server.session_manager import SessionManager
+    from marimo._session.notebook import AppFileManager
     from marimo._session.session import Session
 
 LOGGER = _loggers.marimo_logger()
@@ -38,7 +41,7 @@ LOGGER = _loggers.marimo_logger()
 
 # NB: The host keeps a separate document to avoid migrating the frontend yet.
 # Editor changes are mirrored into it; host edits become session transactions.
-# Remove this adapter when MO-8002 unifies document ownership after host saving.
+# TODO(MO-7927): Remove this adapter when Session consumes the host Notebook.
 class SessionBridge(SessionEventListener):
     """Connect a host's notebook catalog to a session manager."""
 
@@ -130,6 +133,9 @@ class SessionBridge(SessionEventListener):
             return None
 
     def _read(self, path: str) -> tuple[list[CellSource], dict[str, Any]]:
+        return documents.from_file_manager(self._file_manager(path))
+
+    def _file_manager(self, path: str) -> AppFileManager:
         from marimo._server.app_defaults import AppDefaults
         from marimo._session.notebook import AppFileManager
 
@@ -138,8 +144,82 @@ class SessionBridge(SessionEventListener):
             if self._config_manager is None
             else AppDefaults.from_config_manager(self._config_manager)
         )
-        return documents.from_file_manager(
-            AppFileManager(path, defaults=defaults)
+        return AppFileManager(path, defaults=defaults)
+
+    async def save(
+        self,
+        notebook_id: str,
+        *,
+        if_match: Sequence[str] | None,
+        request_id: str,
+    ) -> protocol.EditResponse:
+        """Write the document to its file and record the revision written.
+
+        With a session attached, the session's own file manager writes
+        the session's cells, which the document mirrors. Its record of
+        the last write then stays true, so its watcher does not take the
+        host's write for someone else's and its next write is not
+        skipped as unchanged. Without a session, a file manager of the
+        host's own writes the document's cells. Either way the file
+        keeps its header and app config, and the saved revision is
+        computed from the cells and config that were written rather
+        than taken from the document, which may have moved on.
+
+        Raises:
+            Conflict: If the notebook has no file or the write fails.
+            EditConflict: If `if_match` does not name the document's etag.
+        """
+        notebook = await self.host.notebook(notebook_id)
+        async with self._files_lock:
+            if self.host.peek_notebook(notebook_id) is not notebook:
+                raise NotFound(f"no notebook {notebook_id}")
+            file = self.index.file_of(notebook.id)
+            if file is None:
+                raise Conflict("The notebook has no file to save to")
+            # Check and snapshot only after waiting for the file lock.
+            snapshot = notebook.document.snapshot()
+            if if_match is not None and snapshot.document.etag not in if_match:
+                raise EditConflict(
+                    "The document has changed since it was read",
+                    change=0,
+                    cell=None,
+                    document=snapshot.document,
+                )
+            session = self._session_of(notebook.id)
+            # TODO(MO-8005): One writer per notebook file, owned by the
+            # notebook, replaces the choice of manager here.
+            if session is None:
+                cells = [documents.to_notebook_cell(c) for c in snapshot.cells]
+                manager = None
+            else:
+                cells = copy.deepcopy(session.document.cells)
+                manager = session.app_file_manager
+            try:
+                etag = await asyncio.to_thread(
+                    self._write, str(file), cells, manager
+                )
+            except Exception as e:
+                raise Conflict(f"The notebook cannot be saved: {e}") from e
+            document = notebook.mark_saved(etag, request_id=request_id)
+            return protocol.EditResponse(document=document, cells={})
+
+    def _write(
+        self,
+        path: str,
+        cells: Sequence[NotebookCell],
+        manager: AppFileManager | None,
+    ) -> protocol.Etag:
+        """Write `cells` to the file and return the revision written.
+
+        The revision covers the cells as passed and the app config the
+        manager wrote, not the manager's live cells, which another
+        thread may change while the file is written.
+        """
+        if manager is None:
+            manager = self._file_manager(path)
+        manager.save_from_cells(cells)
+        return revision(
+            documents.sources(cells), manager.app.config.asdict_difference()
         )
 
     async def edit(

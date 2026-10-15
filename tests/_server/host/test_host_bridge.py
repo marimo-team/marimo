@@ -4,13 +4,14 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from typing import TYPE_CHECKING
 
 import pytest
 
 from marimo._config.manager import MarimoConfigManager
 from marimo._core import protocol
-from marimo._core.errors import Conflict
+from marimo._core.errors import Conflict, EditConflict
 from marimo._core.stream import Event
 from marimo._messaging.notification import (
     CompletedRunNotification,
@@ -741,4 +742,138 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
     assert session.commands[1:] == [
         EditCellsCommand(codes={"new": "z = 2"}, configs={}, delete_ids=[])
     ]
+    bridge.close()
+
+
+def replace_code(cell: protocol.Cell, code: str) -> protocol.PutCell:
+    return protocol.PutCell(
+        base_etag=cell.etag, cell=protocol.CellInput(id=cell.id, code=code)
+    )
+
+
+async def test_save_writes_the_cells_and_keeps_the_app_config(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(
+        NOTEBOOK.replace("marimo.App()", 'marimo.App(width="full")')
+    )
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    document = (await bridge.host.notebook(record.id)).document
+    (cell,) = document
+    events: list[Event] = []
+    bridge.host.subscribe(events.append, notebook_id=record.id)
+
+    edited = await bridge.edit(
+        record.id, [replace_code(cell, "x = 2")], request_id="edit-1"
+    )
+    assert edited.document.saved_etag != edited.document.etag
+
+    with pytest.raises(EditConflict) as stale:
+        await bridge.save(record.id, if_match=["stale"], request_id="save-0")
+    assert stale.value.change == 0
+    assert "x = 2" not in path.read_text()
+
+    saved = await bridge.save(
+        record.id, if_match=[edited.document.etag], request_id="save-1"
+    )
+
+    assert (
+        saved.document.saved_etag
+        == saved.document.etag
+        == edited.document.etag
+    )
+    assert saved.cells == {}
+    text = path.read_text()
+    assert "x = 2" in text
+    assert 'width="full"' in text
+    assert names(events)[-1] == "document"
+    assert events[-1].data.request_id == "save-1"  # type: ignore[union-attr]
+    bridge.close()
+
+
+async def test_saving_keeps_an_edit_made_while_the_file_is_written(
+    manager: FakeManager, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._session.notebook import AppFileManager
+
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    document = (await bridge.host.notebook(record.id)).document
+    (cell,) = document
+    written = document._record.etag
+
+    started = asyncio.Event()
+    release = threading.Event()
+    loop = asyncio.get_running_loop()
+    original = AppFileManager.save_from_cells
+
+    def save(self: AppFileManager, cells: Any, **kwargs: Any) -> str:
+        loop.call_soon_threadsafe(started.set)
+        assert release.wait(5)
+        return original(self, cells, **kwargs)
+
+    monkeypatch.setattr(AppFileManager, "save_from_cells", save)
+    saving = asyncio.ensure_future(
+        bridge.save(record.id, if_match=None, request_id="save-1")
+    )
+    try:
+        await asyncio.wait_for(started.wait(), 5)
+        edited = await bridge.edit(
+            record.id, [replace_code(cell, "x = 2")], request_id="edit-1"
+        )
+    finally:
+        release.set()
+    saved = await asyncio.wait_for(saving, 5)
+
+    # The file has the snapshot; the host keeps the edit, unsaved.
+    assert saved.document.etag == edited.document.etag
+    assert saved.document.saved_etag == written
+    assert document._record.saved_etag != document._record.etag
+    assert "x = 1" in path.read_text()
+    assert "x = 2" not in path.read_text()
+    bridge.close()
+
+
+async def test_save_with_a_session_writes_through_the_editors_file_manager(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._session.notebook import AppFileManager
+
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    session = FakeSession(str(path))
+    session.app_file_manager = AppFileManager(str(path))
+    session.document = session.app_file_manager.app.cell_manager.document
+    manager.sessions["browser-1"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    document = (await bridge.host.notebook(record.id)).document
+    (cell,) = document
+    # The editor wrote once, so its manager remembers what is on disk.
+    session.app_file_manager.save_from_cells(list(session.document.cells))
+
+    edited = await bridge.edit(
+        record.id, [replace_code(cell, "x = 2")], request_id="edit-1"
+    )
+    saved = await bridge.save(record.id, if_match=None, request_id="save-1")
+
+    assert saved.document.saved_etag == edited.document.etag
+    text = path.read_text()
+    assert "x = 2" in text
+    # The editor's record of the last write is the host's write, so its
+    # watcher ignores it and its next write of other content proceeds.
+    assert session.app_file_manager.content_matches_last_save(text)
     bridge.close()

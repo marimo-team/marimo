@@ -27,6 +27,7 @@ from marimo._messaging.notebook import (
     CreateCell,
     DeleteCell,
     DocumentChange,
+    NotebookCell,
     ReorderCells,
     SetCode,
     SetConfig,
@@ -40,17 +41,26 @@ from marimo._runtime.commands import EditCellsCommand
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from marimo._core.document import Document
     from marimo._session.notebook import AppFileManager
     from marimo._session.session import Session
 
 
 def from_session(session: Session) -> tuple[list[CellSource], dict[str, Any]]:
-    cells = [
+    return (
+        sources(session.document.cells),
+        session.app_file_manager.app.config.asdict_difference(),
+    )
+
+
+def sources(cells: Iterable[NotebookCell]) -> list[CellSource]:
+    """The document sources for the editor's cells."""
+    return [
         CellSource(cell.id, cell.code, cell.name, _config(cell.config))
-        for cell in session.document.cells
+        for cell in cells
     ]
-    return cells, session.app_file_manager.app.config.asdict_difference()
 
 
 def from_file_manager(
@@ -78,6 +88,15 @@ def _cell_config(config: protocol.CellConfig) -> CellConfig:
         disabled=config.disabled,
         hide_code=config.hide_code,
         expand_output=config.expand_output,
+    )
+
+
+def to_notebook_cell(cell: protocol.Cell) -> NotebookCell:
+    return NotebookCell(
+        id=CellId_t(cell.id),
+        code=cell.code,
+        name=cell.name,
+        config=_cell_config(cell.config),
     )
 
 
