@@ -464,6 +464,8 @@ async def initialize_cascade(app: Starlette, events: Response) -> None:
             r.get("data", {}).get("run", {}).get("status") == "completed"
             for r in response.records
         ),
+        # Initial widget imports and construction can be slow on CI.
+        timeout=15,
     )
     runs = [
         r["data"]["run"] for r in events.records if r.get("event") == "run"
