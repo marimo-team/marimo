@@ -97,4 +97,24 @@ describe("chat history storage", () => {
     });
     expect(toast).not.toHaveBeenCalled();
   });
+
+  it("removes saved history when only an empty chat remains and writes fail", () => {
+    const store = loadStore();
+    const emptyChat = { ...chat, messages: [] };
+    const state = {
+      chats: new Map([[chatId, emptyChat]]),
+      activeChatId: chatId,
+    };
+    fillStorage();
+
+    store.set(chatStateAtom, state);
+
+    expect(window.localStorage.getItem(KEY)).toBeNull();
+    expect(store.get(chatStateAtom)).toEqual(state);
+    expect(loadStore().get(chatStateAtom)).toEqual({
+      chats: new Map(),
+      activeChatId: null,
+    });
+    expect(toast).not.toHaveBeenCalled();
+  });
 });

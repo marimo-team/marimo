@@ -109,7 +109,7 @@ export const chatStateAtom = atomWithStorage<ChatState>(
     setItem: (key, value) => {
       try {
         // Removing the key frees space even when no further writes can fit.
-        if (value.chats.size === 0) {
+        if (removeEmptyChats(value.chats).size === 0) {
           chatStorage.removeItem(key);
         } else {
           chatStorage.setItem(key, value);

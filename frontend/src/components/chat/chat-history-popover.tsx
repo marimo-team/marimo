@@ -7,7 +7,7 @@ import {
   SearchIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useLocale } from "react-aria";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
@@ -44,6 +44,7 @@ export const ChatHistoryPopover: React.FC<ChatHistoryPopoverProps> = ({
   const chatState = useAtomValue(chatStateAtom);
   const { locale } = useLocale();
   const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const { openConfirm, closeModal } = useImperativeModal();
 
@@ -99,6 +100,7 @@ export const ChatHistoryPopover: React.FC<ChatHistoryPopoverProps> = ({
       <PopoverContent className="w-[480px] p-0" align="start" side="right">
         <div className="pt-3 px-3 w-full">
           <Input
+            ref={searchInputRef}
             placeholder="Search chat history..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -159,7 +161,10 @@ export const ChatHistoryPopover: React.FC<ChatHistoryPopoverProps> = ({
                           className="text-muted-foreground/90 hover:text-destructive transition-colors ml-px"
                           aria-label={`Delete chat: ${chat.title}`}
                           disabled={isLoading && chat.id === activeChatId}
-                          onClick={() => onDeleteChats(chat.id)}
+                          onClick={() => {
+                            searchInputRef.current?.focus();
+                            onDeleteChats(chat.id);
+                          }}
                         >
                           <Trash2Icon className="h-3.5 w-3.5" />
                         </Button>

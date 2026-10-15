@@ -87,6 +87,30 @@ describe("chat history management", () => {
     expect(onDeleteChats).toHaveBeenCalledExactlyOnceWith(null);
   });
 
+  it("keeps focus in history after deleting the focused chat", () => {
+    const { store, onDeleteChats } = setup();
+    onDeleteChats.mockImplementation(() => {
+      store.set(chatStateAtom, (prev) => {
+        const chats = new Map(prev.chats);
+        chats.delete(olderId);
+        return { ...prev, chats };
+      });
+    });
+    const searchInput = screen.getByPlaceholderText("Search chat history...");
+    fireEvent.change(searchInput, { target: { value: "older" } });
+    const deleteButton = screen.getByRole("button", {
+      name: "Delete chat: older conversation",
+    });
+    act(() => deleteButton.focus());
+    expect(deleteButton).toHaveFocus();
+
+    fireEvent.click(deleteButton);
+
+    expect(deleteButton).not.toBeInTheDocument();
+    expect(searchInput).toHaveFocus();
+    expect(screen.getByText("No chats found")).toBeVisible();
+  });
+
   it("prevents deleting a streaming chat while allowing cleanup of other chats", () => {
     setup(true);
     expect(
