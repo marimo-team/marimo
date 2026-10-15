@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import msgspec
@@ -19,29 +18,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
     from marimo._core.document import CellSource, Changed, Document
-    from marimo._core.executions import CellExecution, Change
+    from marimo._core.executions import Change
     from marimo._core.stream import Body, Sink
-
-
-@dataclass(frozen=True)
-class CellSnapshot:
-    """A cell and its retained execution, if any."""
-
-    cell: protocol.Cell
-    execution: CellExecution | None = None
-
-
-@dataclass(frozen=True)
-class NotebookSnapshot:
-    """A document and its cells with their completed executions.
-
-    Cells are in document order. Runtimes, attachments, and active work
-    are excluded. Restore with `Document.from_records` and
-    `Executions.restore` before constructing a notebook.
-    """
-
-    document: protocol.Document
-    cells: tuple[CellSnapshot, ...]
 
 
 class Notebook:

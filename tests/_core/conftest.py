@@ -3,17 +3,15 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
-
 import pytest
 
 from marimo._core import backend as be, protocol
-from marimo._core.document import Analyzer, Document, code_hash
+from marimo._core.document import Document, code_hash
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
-from marimo._core.notebook import CellSnapshot, Notebook, NotebookSnapshot
+from marimo._core.notebook import Notebook
 from marimo._core.run_log import RetentionPolicy
-from marimo._core.stream import Event, Sink, Stream
+from marimo._core.stream import Event, Sink
 
 OPERATIONS = ["notebook.create", "runtime.start", "runtime.run"]
 
@@ -82,62 +80,6 @@ def make_notebook(
         Executions(),
         backend or ScriptedBackend(),
         sink,
-    )
-
-
-def snapshot_of(
-    document: Document,
-    executions: dict[str, CellExecution] | None = None,
-) -> NotebookSnapshot:
-    """A snapshot of the document with executions retained by cell id."""
-    return NotebookSnapshot(
-        document._record,
-        tuple(
-            CellSnapshot(cell, (executions or {}).get(cell.id))
-            for cell in document
-        ),
-    )
-
-
-def capture(notebook: Notebook) -> NotebookSnapshot:
-    """The snapshot a host would prepare from the notebook's state."""
-    return deepcopy(
-        NotebookSnapshot(
-            notebook.document._record,
-            tuple(
-                CellSnapshot(cell, notebook.executions.current(cell.id))
-                for cell in notebook.document
-            ),
-        )
-    )
-
-
-def restore(
-    snapshot: NotebookSnapshot,
-    backend: ScriptedBackend | None = None,
-    *,
-    analyzer: Analyzer | None = None,
-    sink: Sink | None = None,
-) -> Notebook:
-    """Build a notebook from a snapshot, one core at a time."""
-    document = Document.from_records(
-        snapshot.document,
-        [entry.cell for entry in snapshot.cells],
-        analyzer=analyzer,
-    )
-    executions = Executions.restore(
-        {
-            entry.cell.id: entry.execution
-            for entry in snapshot.cells
-            if entry.execution is not None
-        },
-        cells=document,
-    )
-    return Notebook(
-        document,
-        executions,
-        backend or ScriptedBackend(),
-        sink if sink is not None else Stream(history=0),
     )
 
 
