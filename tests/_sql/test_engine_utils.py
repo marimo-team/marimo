@@ -293,32 +293,55 @@ class TestAutoOutputFormat:
         assert result == pandas_result
         assert_only_one_called(mock_functions, "to_pandas")
 
+    @pytest.mark.parametrize(
+        "has_polars",
+        [
+            False,
+            pytest.param(
+                True,
+                marks=pytest.mark.skipif(
+                    not DependencyManager.polars.has(),
+                    reason="Polars is not installed",
+                ),
+            ),
+        ],
+    )
     @patch("marimo._sql.utils.DependencyManager")
-    @patch("marimo._sql.utils.LOGGER")
-    def test_without_polars_with_pandas_failure(
+    def test_pandas_failure_propagates(
         self,
-        mock_logger: Mock,
         mock_dependency_manager: Mock,
         mock_functions: MockFnDict,
+        has_polars: bool,
     ) -> None:
-        """Test auto output format when polars is not available and pandas fails."""
-        mock_dependency_manager.polars.has.return_value = False
+        """Auto output preserves the final error, including after Polars fallback."""
+        mock_dependency_manager.polars.has.return_value = has_polars
         mock_dependency_manager.pandas.has.return_value = True
+        if has_polars:
+            import polars as pl
 
-        pandas_error = Exception("pandas error")
+            mock_functions[
+                "to_polars"
+            ].side_effect = pl.exceptions.ComputeError(
+                "polars conversion failed"
+            )
+
+        pandas_error = ValueError("pandas conversion failed")
         mock_functions["to_pandas"].side_effect = pandas_error
 
-        result = convert_to_output(
-            sql_output_format="auto",
-            to_polars=mock_functions["to_polars"],
-            to_pandas=mock_functions["to_pandas"],
-        )
+        with pytest.raises(ValueError) as exc_info:
+            convert_to_output(
+                sql_output_format="auto",
+                to_polars=mock_functions["to_polars"],
+                to_pandas=mock_functions["to_pandas"],
+            )
 
-        assert result is None
-        assert_only_one_called(mock_functions, "to_pandas")
-        mock_logger.warning.assert_called_once_with(
-            "Failed to convert dataframe", exc_info=pandas_error
-        )
+        assert exc_info.value is pandas_error
+        if has_polars:
+            assert_multiple_called_once(
+                mock_functions, ["to_polars", "to_pandas"]
+            )
+        else:
+            assert_only_one_called(mock_functions, "to_pandas")
 
     @patch("marimo._sql.utils.DependencyManager")
     def test_without_polars_without_pandas(
