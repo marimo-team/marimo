@@ -41,6 +41,7 @@ from marimo._runtime.commands import (
 )
 from marimo._runtime.context import safe_get_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
+from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.redirect_streams import stdin_context
 from marimo._types.ids import UIElementId
 
@@ -188,14 +189,26 @@ class KernelRequestHandlers:
             if request.notebook_cells is not None
             else None
         )
-        with (
-            self._run_context(request.run_id),
-            stdin_context(request.allow_stdin),
-            notebook_document_context(doc),
-            notebook_outputs_context(request.cell_outputs),
-            http_request_context(request.request),
-        ):
-            await self._kernel.run_scratchpad(request.code)
+        try:
+            with self._run_context(request.run_id):
+                try:
+                    if not self._kernel.scratchpad_executions.start(
+                        request.run_id
+                    ):
+                        return
+                    with (
+                        stdin_context(request.allow_stdin),
+                        notebook_document_context(doc),
+                        notebook_outputs_context(request.cell_outputs),
+                        http_request_context(request.request),
+                    ):
+                        await self._kernel.run_scratchpad(request.code)
+                finally:
+                    self._kernel.scratchpad_executions.finish(request.run_id)
+        except MarimoInterrupt:
+            # Setup can be interrupted before the scratch runner catches it.
+            # The run context has already flushed output and sent completion.
+            return
 
     async def _handle_execute_stale(
         self, request: ExecuteStaleCellsCommand
