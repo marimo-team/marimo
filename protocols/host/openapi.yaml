@@ -1341,12 +1341,12 @@ components:
         objects: the cell order, app config, and host execution policy.
         The policy is retained for v1 compatibility and comes from the
         runtime configuration, not the notebook's app config. One per notebook,
-        identified by the notebook's id, and removed with it. The order and the app
+        and removed with it. The order and the app
         config carry their own etags, so an edit to one does not conflict
         with an edit to the other, or with edits to cells.
-      required: [id, order, app_config, policy, etag, saved_etag, order_etag, app_config_etag]
+      required: [notebook_id, order, app_config, policy, etag, saved_etag, order_etag, app_config_etag]
       properties:
-        id:
+        notebook_id:
           $ref: '#/components/schemas/NotebookId'
           description: The notebook this document belongs to.
         order:

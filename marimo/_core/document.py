@@ -150,10 +150,10 @@ class Document:
             raise ValueError(
                 "document order must contain every cell exactly once"
             )
-        if any(cell.notebook_id != document.id for cell in cells):
+        if any(cell.notebook_id != document.notebook_id for cell in cells):
             raise ValueError("cells must belong to the document")
         restored = cls(
-            document.id,
+            document.notebook_id,
             [
                 CellSource(cell.id, cell.code, cell.name, cell.config)
                 for cell in (by_id[cell_id] for cell_id in document.order)
@@ -267,7 +267,7 @@ class Document:
         order = order_etag(self._order)
         app_config = app_config_etag(self._app_config)
         document = protocol.Document(
-            id=self._id,
+            notebook_id=self._id,
             order=tuple(protocol.CellId(c) for c in self._order),
             app_config=dict(self._app_config),
             policy=self._policy,
