@@ -436,6 +436,25 @@ class TestNotebook:
         ]
         assert log[-1].data.document == changed.document  # type: ignore[union-attr]
 
+    def test_mark_saved_records_the_revision_that_was_written(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        notebook.replace(fixture_cells(), {})
+        written = notebook.document._record.etag
+        notebook.replace([CellSource("c1", "x = 22")], {})
+        log.clear()
+
+        document = notebook.mark_saved(written, request_id="save-1")
+
+        assert document.saved_etag == written
+        assert document.etag != written
+        assert names(log) == ["document"]
+        assert request_ids(log) == ["save-1"]
+        assert log[0].data.document == document  # type: ignore[union-attr]
+        # Marking the same revision again publishes nothing.
+        assert notebook.mark_saved(written) == document
+        assert names(log) == ["document"]
+
     def test_edit_publishes_as_one_unit_with_the_request_key(
         self, notebook: Notebook, log: list[Event]
     ) -> None:
