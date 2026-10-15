@@ -23,6 +23,7 @@ from marimo._session.events import SessionEventListener
 from marimo._session.notebook.storage import rename_no_replace
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
 
     from marimo._config.manager import MarimoConfigManager
@@ -139,6 +140,33 @@ class SessionBridge(SessionEventListener):
         )
         return documents.from_file_manager(
             AppFileManager(path, defaults=defaults)
+        )
+
+    async def edit(
+        self,
+        notebook_id: str,
+        changes: Sequence[protocol.Change],
+        *,
+        request_id: str,
+    ) -> protocol.EditResponse:
+        """Apply an edit to the document, and to the session when there is one.
+
+        The file is not written. The session mirrors the edit back with
+        its own app config, so the response carries the document as it
+        stands after that, which is the one the client reads next.
+
+        Raises:
+            EditConflict: If a precondition is stale.
+            Invalid: If a change could not apply to any state.
+        """
+        notebook = await self.host.notebook(notebook_id)
+        response = notebook.edit(changes, request_id=request_id)
+        session = self._session_of(notebook.id)
+        if session is None:
+            return response
+        documents.apply_to_session(session, notebook.document)
+        return protocol.EditResponse(
+            cells=response.cells, document=notebook.document._record
         )
 
     def _session_of(self, notebook_id: protocol.NotebookId) -> Session | None:

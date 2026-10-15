@@ -498,3 +498,93 @@ async def test_editor_transactions_reach_the_host_document(
     assert document._record.app_config == {"width": "full"}
     assert names(events)[-2:] == ["cell", "document"]
     bridge.close()
+
+
+async def test_host_edits_reach_the_session_as_one_transaction(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._ast.cell import CellConfig
+    from marimo._messaging.notebook import NotebookCell, NotebookDocument
+    from marimo._messaging.notification import (
+        NotebookDocumentTransactionNotification,
+    )
+    from marimo._types.ids import CellId_t
+
+    prepare(manager, tmp_path, "a.py")
+    session = FakeSession(str(tmp_path / "a.py"))
+    session.document = NotebookDocument(
+        [NotebookCell(CellId_t("Hbol"), "x = 1", "_", CellConfig())]
+    )
+    manager.sessions["browser-1"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(tmp_path / "a.py"))
+    assert record is not None
+    document = (await bridge.host.notebook(record.id)).document
+    events: list[Event] = []
+    bridge.host.subscribe(events.append, notebook_id=record.id)
+
+    response = await bridge.edit(
+        record.id,
+        [
+            protocol.PutCell(
+                base_etag=None,
+                cell=protocol.CellInput(
+                    id=protocol.CellId("new"), code="y = x"
+                ),
+            )
+        ],
+        request_id="edit-1",
+    )
+
+    assert set(response.cells) == {"new"}
+    assert session.document.cell_ids == ["Hbol", "new"]
+    (notification,) = session.notifications
+    assert isinstance(notification, NotebookDocumentTransactionNotification)
+    assert notification.transaction.source == "host"
+    # The backend saw its own edit come back and mirrored nothing new.
+    assert names(events) == ["cell", "document"]
+    assert document._record.etag == response.document.etag
+    assert "y = x" not in (tmp_path / "a.py").read_text()
+    bridge.close()
+
+
+async def test_edit_response_includes_app_config_mirrored_from_the_session(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._session.notebook import AppFileManager
+
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    session = FakeSession(str(path))
+    session.document = AppFileManager(str(path)).app.cell_manager.document
+    manager.sessions["browser-1"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    try:
+        record = bridge.index.notebook_for(str(path))
+        assert record is not None
+        notebook = await bridge.host.notebook(record.id)
+        session.app_file_manager.app.config.asdict_difference.return_value = {
+            "width": "full"
+        }
+
+        response = await bridge.edit(
+            record.id,
+            [
+                protocol.PutCell(
+                    base_etag=None,
+                    cell=protocol.CellInput(
+                        id=protocol.CellId("new"), code="y = 2"
+                    ),
+                )
+            ],
+            request_id="edit-1",
+        )
+
+        current = notebook.document.snapshot().document
+        assert current.app_config == {"width": "full"}
+        assert response.document == current
+    finally:
+        bridge.close()

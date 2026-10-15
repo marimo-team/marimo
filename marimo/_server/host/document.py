@@ -20,11 +20,26 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from marimo._ast.cell import CellConfig
 from marimo._core import protocol
 from marimo._core.document import CellSource
+from marimo._messaging.notebook import (
+    CreateCell,
+    DeleteCell,
+    DocumentChange,
+    ReorderCells,
+    SetCode,
+    SetConfig,
+    SetName,
+    Transaction,
+)
+from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
+)
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from marimo._ast.cell import CellConfig
+    from marimo._core.document import Document
     from marimo._session.notebook import AppFileManager
     from marimo._session.session import Session
 
@@ -53,4 +68,70 @@ def _config(config: CellConfig) -> protocol.CellConfig:
         disabled=config.disabled,
         hide_code=config.hide_code,
         expand_output=config.expand_output,
+    )
+
+
+def _cell_config(config: protocol.CellConfig) -> CellConfig:
+    return CellConfig(
+        column=config.column,
+        disabled=config.disabled,
+        hide_code=config.hide_code,
+        expand_output=config.expand_output,
+    )
+
+
+def apply_to_session(session: Session, document: Document) -> None:
+    """Apply the document's cells and order to the session as one transaction.
+
+    The session tells its consumers, so the frontend sees the edit and
+    the host backend mirrors it back as a no-op. The app config is the
+    session's own and is left alone.
+    """
+    current = session.document
+    changes: list[DocumentChange] = []
+    previous: CellId_t | None = None
+    for cell in document:
+        cell_id = CellId_t(cell.id)
+        existing = current.get(cell_id)
+        if existing is None:
+            changes.append(
+                CreateCell(
+                    cell_id=cell_id,
+                    code=cell.code,
+                    name=cell.name,
+                    config=_cell_config(cell.config),
+                    after=previous,
+                )
+            )
+        else:
+            if existing.code != cell.code:
+                changes.append(SetCode(cell_id=cell_id, code=cell.code))
+            if existing.name != cell.name:
+                changes.append(SetName(cell_id=cell_id, name=cell.name))
+            if _config(existing.config) != cell.config:
+                changes.append(
+                    SetConfig(
+                        cell_id=cell_id,
+                        column=cell.config.column,
+                        disabled=cell.config.disabled,
+                        hide_code=cell.config.hide_code,
+                        expand_output=cell.config.expand_output,
+                    )
+                )
+        previous = cell_id
+    wanted = {CellId_t(cell.id) for cell in document}
+    changes.extend(
+        DeleteCell(cell_id=cell_id)
+        for cell_id in current.cell_ids
+        if cell_id not in wanted
+    )
+    order = [CellId_t(c) for c in document.order]
+    if current.cell_ids != order:
+        changes.append(ReorderCells(cell_ids=tuple(order)))
+    if not changes:
+        return
+    applied = current.apply(Transaction(changes=tuple(changes), source="host"))
+    session.notify(
+        NotebookDocumentTransactionNotification(transaction=applied),
+        from_consumer_id=None,
     )

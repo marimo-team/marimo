@@ -6230,6 +6230,7 @@ components:
           - code-mode
           - file-watch
           - frontend
+          - host
           - kernel
         version:
           anyOf:

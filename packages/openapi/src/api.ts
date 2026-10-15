@@ -7612,6 +7612,7 @@ export interface components {
         | "code-mode"
         | "file-watch"
         | "frontend"
+        | "host"
         | "kernel";
       /** @default null */
       version?: number | null;
