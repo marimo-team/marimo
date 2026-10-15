@@ -15,7 +15,7 @@ from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._runtime.commands import RenameNotebookCommand
-from marimo._server.host import OPERATIONS
+from marimo._server.host import OPERATIONS, document as documents
 from marimo._server.host.analysis import HostAnalyzer
 from marimo._server.host.backend import SessionBackend
 from marimo._server.host.index import WorkspaceIndex
@@ -25,19 +25,19 @@ from marimo._session.notebook.storage import rename_no_replace
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from marimo._ast.cell import CellConfig
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
     from marimo._core.document import Policy
     from marimo._core.stream import Event, Sink
     from marimo._server.session_manager import SessionManager
-    from marimo._session.notebook import AppFileManager
     from marimo._session.session import Session
 
 LOGGER = _loggers.marimo_logger()
 
 
-# TODO: Remove once sessions consume host-owned notebooks.
+# NB: The host keeps a separate document to avoid migrating the frontend yet.
+# Editor changes are mirrored into it; host edits become session transactions.
+# Remove this adapter when MO-8002 unifies document ownership after host saving.
 class SessionBridge(SessionEventListener):
     """Connect a host's notebook catalog to a session manager."""
 
@@ -95,7 +95,7 @@ class SessionBridge(SessionEventListener):
                         session = candidate
                         break
             if session is not None:
-                cells, app_config = _from_session(session)
+                cells, app_config = documents.from_session(session)
             else:
                 if loaded is None:
                     raise Conflict("The notebook document could not be loaded")
@@ -137,7 +137,25 @@ class SessionBridge(SessionEventListener):
             if self._config_manager is None
             else AppDefaults.from_config_manager(self._config_manager)
         )
-        return _from_file_manager(AppFileManager(path, defaults=defaults))
+        return documents.from_file_manager(
+            AppFileManager(path, defaults=defaults)
+        )
+
+    def _session_of(self, notebook_id: protocol.NotebookId) -> Session | None:
+        backend = self._backends.get(notebook_id)
+        return None if backend is None else backend.session
+
+    def _mirror(self, notebook_id: protocol.NotebookId) -> None:
+        """Bring the document up to date with the session's after it changed."""
+        session = self._session_of(notebook_id)
+        try:
+            notebook = self.host.peek_notebook(notebook_id)
+        except NotFound:
+            return
+        if session is None or notebook is None:
+            return
+        cells, app_config = documents.from_session(session)
+        notebook.replace(cells, app_config)
 
     def _policy(self, file: Path | None, session: Session | None) -> Policy:
         config_manager = (
@@ -293,6 +311,7 @@ class SessionBridge(SessionEventListener):
             file,
             self._manager,
             observe,
+            document_changed=lambda: self._mirror(notebook_id),
         )
         self._backends[notebook_id] = backend
         return backend
@@ -341,30 +360,3 @@ class SessionBridge(SessionEventListener):
             await self._adopt(session)
             return
         self.index.moved(notebook.id, path)
-
-
-def _from_session(session: Session) -> tuple[list[CellSource], dict[str, Any]]:
-    cells = [
-        CellSource(cell.id, cell.code, cell.name, _config(cell.config))
-        for cell in session.document.cells
-    ]
-    return cells, session.app_file_manager.app.config.asdict_difference()
-
-
-def _from_file_manager(
-    manager: AppFileManager,
-) -> tuple[list[CellSource], dict[str, Any]]:
-    cells = [
-        CellSource(data.cell_id, data.code, data.name, _config(data.config))
-        for data in manager.app.cell_manager.cell_data()
-    ]
-    return cells, manager.app.config.asdict_difference()
-
-
-def _config(config: CellConfig) -> protocol.CellConfig:
-    return protocol.CellConfig(
-        column=config.column,
-        disabled=config.disabled,
-        hide_code=config.hide_code,
-        expand_output=config.expand_output,
-    )

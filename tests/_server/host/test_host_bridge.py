@@ -444,3 +444,57 @@ async def test_failed_session_move_preserves_the_notebook(
     assert bridge.host.notebooks[notebook.id].path == "a.py"
     assert (await bridge.host.notebook(notebook.id)).runtime is runtime
     bridge.close()
+
+
+async def test_editor_transactions_reach_the_host_document(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._ast.cell import CellConfig
+    from marimo._messaging.notebook import (
+        NotebookCell,
+        NotebookDocument,
+        SetCode,
+        Transaction,
+    )
+    from marimo._messaging.notification import (
+        NotebookDocumentTransactionNotification,
+    )
+    from marimo._types.ids import CellId_t
+
+    prepare(manager, tmp_path, "a.py")
+    session = FakeSession(str(tmp_path / "a.py"))
+    session.document = NotebookDocument(
+        [NotebookCell(CellId_t("Hbol"), "x = 1", "_", CellConfig())]
+    )
+    manager.sessions["browser-1"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(tmp_path / "a.py"))
+    assert record is not None
+    events: list[Event] = []
+    bridge.host.subscribe(events.append, notebook_id=record.id)
+
+    # The document comes from the session, ids included.
+    document = (await bridge.host.notebook(record.id)).document
+    assert document.order == ["Hbol"]
+
+    # A frontend edit reaches the host document, and the app config as
+    # the session reports it comes along.
+    applied = session.document.apply(
+        Transaction(
+            changes=(SetCode(CellId_t("Hbol"), "x = 2"),), source="frontend"
+        )
+    )
+    session.app_file_manager.app.config.asdict_difference.return_value = {
+        "width": "full"
+    }
+    session.broadcast(
+        NotebookDocumentTransactionNotification(transaction=applied)
+    )
+
+    cell = document.cell("Hbol")
+    assert cell is not None
+    assert cell.code == "x = 2"
+    assert document._record.app_config == {"width": "full"}
+    assert names(events)[-2:] == ["cell", "document"]
+    bridge.close()
