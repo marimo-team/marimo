@@ -330,7 +330,10 @@ class IPCKernelManagerImpl(KernelManager):
             "prepare", {}, "kernel", self._notify
         ) as operation:
             venv_config = _get_venv_config(self.config_manager)
-            if self._sandbox and venv_config.get("path"):
+            # NB. With MARIMO_SANDBOX_AUTO the manifest picks the environment
+            # per notebook, so a configured venv is honored even here.
+            ignore_venv = self._sandbox and not GLOBAL_SETTINGS.SANDBOX_AUTO
+            if ignore_venv and venv_config.get("path"):
                 echo(
                     "Warning: ignoring [tool.marimo.venv] in sandbox mode. "
                     "Use --no-sandbox to edit with the configured environment.",
@@ -339,7 +342,7 @@ class IPCKernelManagerImpl(KernelManager):
             try:
                 configured_python = (
                     None
-                    if self._sandbox
+                    if ignore_venv
                     else get_configured_venv_python(
                         venv_config, base_path=self.app_metadata.filename
                     )
@@ -420,10 +423,10 @@ class IPCKernelManagerImpl(KernelManager):
                 from marimo._environments.errors import EnvironmentManagerError
                 from marimo._environments.sandbox import NotebookSandbox
 
-                backend = backends.current_backend()
+                filename = self.app_metadata.filename
+                backend = backends.backend_for(filename)
                 kernel_args_list = ["-m", "marimo._ipc.launch_kernel"]
                 overlay = runtime_overlay()
-                filename = self.app_metadata.filename
                 sandbox = NotebookSandbox(filename, backend)
                 try:
                     plan = await sandbox.launch_async(
