@@ -9,7 +9,10 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
+from msgspec import UNSET
+
 from marimo._core import protocol
+from marimo._core.errors import EditConflict, Invalid
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping, Sequence
@@ -125,10 +128,20 @@ class Changed:
         return bool(self.cells or self.removed or self.document)
 
 
+@dataclass(frozen=True)
+class Applied:
+    """An edit's effects and the etags of the cells it touched."""
+
+    changed: Changed
+    cells: dict[str, protocol.CellEtags | None]
+    """By id, for each cell the edit put, and `None` for each it deleted."""
+
+
 class Document:
     """A notebook document with content-derived revisions.
 
-    Cell source uses newline line endings.
+    Cell source uses newline line endings. Edits change cells and their
+    order. The app config comes from the store or the editor.
     """
 
     def __init__(
@@ -249,6 +262,91 @@ class Document:
         self._app_config = dict(app_config)
         return Changed(changed, removed, self._refresh())
 
+    def apply(self, changes: Sequence[protocol.Change]) -> Applied:
+        """Apply `changes` in order as one unit, or none of them.
+
+        Every precondition is compared with the document as it was when
+        the request arrived, so one request can create a cell and then
+        place it with the order etag the client read.
+
+        Raises:
+            EditConflict: If a precondition names a state the document no
+                longer has. Nothing is applied.
+            Invalid: If a change could not apply to any state.
+        """
+        staged: dict[str, CellSource] = {
+            cell.id: CellSource(cell.id, cell.code, cell.name, cell.config)
+            for cell in self
+        }
+        order = list(self._order)
+        touched: dict[str, bool] = {}
+        before = self._record
+
+        def matches(base: str, cell_id: str) -> bool:
+            if base == "*":
+                return True
+            current = self._cells.get(cell_id)
+            return current is not None and base == current.etag
+
+        def stale(index: int, cell_id: str | None) -> EditConflict:
+            return EditConflict(
+                f"change {index} names a state the document no longer has",
+                change=index,
+                cell=None if cell_id is None else self._cells.get(cell_id),
+                document=before,
+            )
+
+        for index, change in enumerate(changes):
+            if isinstance(change, protocol.PutCell):
+                source = _source(change.cell)
+                cell_id = source.id
+                if change.base_etag is None:
+                    # A cell deleted earlier in the batch still existed
+                    # when the client read, so creating it is a conflict.
+                    if cell_id in self._cells or cell_id in staged:
+                        raise stale(index, cell_id)
+                    order.insert(_slot(order, change, index), cell_id)
+                elif cell_id not in staged or not matches(
+                    change.base_etag, cell_id
+                ):
+                    raise stale(index, cell_id)
+                staged[cell_id] = source
+                touched[cell_id] = True
+            elif isinstance(change, protocol.DeleteCell):
+                if change.id not in staged or not matches(
+                    change.base_etag, change.id
+                ):
+                    raise stale(index, change.id)
+                del staged[change.id]
+                order.remove(change.id)
+                touched[change.id] = False
+            elif isinstance(change, protocol.SetOrder):
+                if change.base_etag not in ("*", before.order_etag):
+                    raise stale(index, None)
+                if sorted(change.order) != sorted(order) or len(
+                    set(change.order)
+                ) != len(change.order):
+                    raise Invalid(
+                        f"change {index} must name every cell exactly once"
+                    )
+                order = [*change.order]
+            else:
+                raise Invalid(f"change {index} has an unknown kind")
+
+        changed = self.replace(
+            [staged[cell_id] for cell_id in order], self._app_config
+        )
+        cells: dict[str, protocol.CellEtags | None] = {}
+        for cell_id, put in touched.items():
+            if put:
+                cell = self._cells[cell_id]
+                cells[cell_id] = protocol.CellEtags(
+                    etag=cell.etag, code_hash=cell.code_hash
+                )
+            else:
+                cells[cell_id] = None
+        return Applied(changed, cells)
+
     def mark_saved(
         self, etag: protocol.Etag | None = None
     ) -> protocol.Document | None:
@@ -295,3 +393,39 @@ class Document:
             return None
         self._document = document
         return document
+
+
+def _source(cell: protocol.CellInput) -> CellSource:
+    name = "_" if cell.name is UNSET else cell.name
+    config = cell.config
+    if config is UNSET:
+        return CellSource(cell.id, cell.code, name)
+    return CellSource(
+        cell.id,
+        cell.code,
+        name,
+        protocol.CellConfig(
+            column=None if config.column is UNSET else config.column,
+            disabled=False if config.disabled is UNSET else config.disabled,
+            hide_code=False if config.hide_code is UNSET else config.hide_code,
+            expand_output=False
+            if config.expand_output is UNSET
+            else config.expand_output,
+        ),
+    )
+
+
+def _slot(order: list[str], change: protocol.PutCell, index: int) -> int:
+    """Where a created cell goes: after or before an anchor, or at the end."""
+    after = None if change.after is UNSET else change.after
+    before = None if change.before is UNSET else change.before
+    if after is not None and before is not None:
+        raise Invalid(f"change {index} names both after and before")
+    anchor = after if after is not None else before
+    if anchor is None:
+        return len(order)
+    if anchor not in order:
+        raise Invalid(
+            f"change {index} places a cell by {anchor}, which does not exist"
+        )
+    return order.index(anchor) + (1 if after is not None else 0)
