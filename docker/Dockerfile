@@ -42,15 +42,18 @@ CMD ["sh", "-c", "exec marimo edit --no-token -p $PORT --host $HOST"]
 
 # -data entry point
 FROM base AS data
-USER appuser
+USER root
 RUN uv pip install --no-cache-dir \
     altair \
     marimo[recommended,lsp] \
     numpy \
     pandas
+USER appuser
 CMD ["sh", "-c", "exec marimo edit --no-token -p $PORT --host $HOST"]
 
 # -sql entry point, extends -data
 FROM data AS sql
+USER root
 RUN uv pip install --no-cache-dir marimo[sql]
+USER appuser
 CMD ["sh", "-c", "exec marimo edit --no-token -p $PORT --host $HOST"]
