@@ -3,30 +3,39 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import asyncio
+import inspect
+from collections.abc import Awaitable, Callable, Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from time import monotonic
 from typing import TYPE_CHECKING
 
 from marimo._core import protocol
-from marimo._core.backend import Backend
 from marimo._core.errors import NotFound
 from marimo._core.notebook import Notebook
 from marimo._core.run_log import RetentionPolicy, RunLog
 from marimo._core.stream import Event, Listener, Sink, Stream, message
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterator, Sequence
+    from collections.abc import Collection, Iterator, Sequence
     from contextlib import AbstractContextManager
 
 
-@dataclass
-class _Entry:
-    """A notebook and the run history kept for it."""
+NotebookInitializer = Callable[
+    [protocol.Notebook, Sink], Notebook | Awaitable[Notebook]
+]
 
-    notebook: Notebook
+
+@dataclass
+class _NotebookEntry:
+    """A catalog entry, its run history, and the notebook once loaded."""
+
+    initialize: NotebookInitializer
     log: RunLog
+    notebook: Notebook | None = None
+    task: asyncio.Task[Notebook] | None = None
+    sink: _NotebookSink | None = None
 
 
 class _NotebookSink(Sink):
@@ -35,11 +44,15 @@ class _NotebookSink(Sink):
     def __init__(self, stream: Stream, log: RunLog) -> None:
         self._stream = stream
         self._log = log
+        # Publish initial state only after the host accepts the notebook.
+        self.active = False
 
     def deferred(self) -> AbstractContextManager[None]:
         return self._stream.deferred()
 
     def _append(self, event: Event) -> Event:
+        if not self.active:
+            return event
         with self._stream.deferred():
             removals = self._log.observe(event)
             recorded = self._stream.append(event)
@@ -87,7 +100,7 @@ class Host:
         # Lookups accept wire strings; stored objects carry branded IDs.
         self._projects: dict[str, protocol.Project] = {}
         self._records: dict[str, protocol.Notebook] = {}
-        self._entries: dict[str, _Entry] = {}
+        self._entries: dict[str, _NotebookEntry] = {}
 
     @property
     def notebooks(self) -> Mapping[str, protocol.Notebook]:
@@ -110,27 +123,24 @@ class Host:
     def add_notebook(
         self,
         record: protocol.Notebook,
-        backend: Backend,
+        initialize: NotebookInitializer,
         *,
         request_id: str | None = None,
-    ) -> Notebook:
-        """Register a notebook and its backend."""
+    ) -> None:
+        """Register a notebook with its initializer."""
         if record.id in self._records:
             raise ValueError(f"notebook {record.id} is already in the catalog")
         if record.project_id not in self._projects:
             raise ValueError(
                 f"project {record.project_id} is not in the catalog"
             )
-        log = RunLog(lambda: self.clock())
-        notebook = Notebook(
-            record.id, backend, _NotebookSink(self._stream, log)
-        )
         self._records[record.id] = deepcopy(record)
-        self._entries[record.id] = _Entry(notebook, log)
+        self._entries[record.id] = _NotebookEntry(
+            initialize, RunLog(lambda: self.clock())
+        )
         self._stream.publish(
             record, notebook_id=record.id, request_id=request_id
         )
-        return notebook
 
     def update_notebook(
         self, record: protocol.Notebook, *, request_id: str | None = None
@@ -153,14 +163,20 @@ class Host:
         self, notebook_id: str, *, request_id: str | None = None
     ) -> None:
         """Remove a notebook, its runtime, attachments, and runs."""
-        entry = self._entries.pop(notebook_id, None)
-        if entry is None:
+        record = self._records.pop(notebook_id, None)
+        if record is None:
             return
-        record = self._records.pop(notebook_id)
+        entry = self._entries.pop(notebook_id)
+        if entry.task is not None:
+            entry.task.cancel()
+
         with self._stream.deferred():
-            entry.notebook._dispose(request_id=request_id)
+            if entry.notebook is not None:
+                entry.notebook._dispose(request_id=request_id)
             for event in entry.log.clear():
                 self._stream.append(event)
+            if entry.sink is not None:
+                entry.sink.active = False
             self._stream.remove(
                 "notebook",
                 record.id,
@@ -168,12 +184,70 @@ class Host:
                 request_id=request_id,
             )
 
-    def notebook(self, notebook_id: str) -> Notebook:
-        """Return a notebook or raise `NotFound`."""
+    async def notebook(self, notebook_id: str) -> Notebook:
+        """Load a notebook on first access.
+
+        Concurrent callers share initialization. Failed loads can be retried.
+        Cancelling a caller leaves shared loading intact.
+        """
+        entry = self._entries.get(notebook_id)
+        if entry is None:
+            raise NotFound(f"no notebook {notebook_id}")
+        if entry.notebook is not None:
+            return entry.notebook
+        if entry.task is None:
+            entry.task = asyncio.create_task(
+                self._initialize(notebook_id, entry)
+            )
+        try:
+            return await asyncio.shield(entry.task)
+        except asyncio.CancelledError:
+            if self._entries.get(notebook_id) is not entry:
+                raise NotFound(f"no notebook {notebook_id}") from None
+            raise
+
+    def peek_notebook(self, notebook_id: str) -> Notebook | None:
+        """Return the notebook if loaded without initializing it."""
         entry = self._entries.get(notebook_id)
         if entry is None:
             raise NotFound(f"no notebook {notebook_id}")
         return entry.notebook
+
+    async def _initialize(
+        self, notebook_id: str, entry: _NotebookEntry
+    ) -> Notebook:
+        try:
+            sink = _NotebookSink(self._stream, entry.log)
+            result = entry.initialize(
+                deepcopy(self._records[notebook_id]), sink
+            )
+            notebook = await result if inspect.isawaitable(result) else result
+            if self._entries.get(notebook_id) is not entry:
+                raise NotFound(f"no notebook {notebook_id}")
+            if notebook.id != notebook_id:
+                raise ValueError(
+                    "initialized notebook must match its catalog id"
+                )
+            entry.notebook = notebook
+
+            entry.sink = sink
+            sink.active = True
+            # The initial state joins the stream the way later changes do,
+            # so the run history sees every run from its first event.
+            with self._stream.deferred():
+                for event in notebook._snapshot():
+                    assert event.kind is not None
+                    body = getattr(event.data, event.kind)
+                    sink.publish(
+                        body,
+                        notebook_id=notebook.id,
+                        run_id=event.run_id,
+                    )
+            if self._entries.get(notebook_id) is not entry:
+                raise NotFound(f"no notebook {notebook_id}")
+            return notebook
+        finally:
+            entry.task = None
 
     def run(self, notebook_id: str, run_id: str) -> protocol.Run | None:
         """Return a run the host still retains, if any."""
@@ -200,6 +274,8 @@ class Host:
                 Event("notebook", message(record), notebook_id=record.id)
             )
             entry = self._entries[record.id]
+            if entry.notebook is None:
+                continue
             seen: set[tuple[str, str]] = set()
             for event in [
                 *entry.notebook._snapshot(),
@@ -224,7 +300,11 @@ class Host:
         A cursor requests the events after it. An unavailable cursor returns
         `reset` and a snapshot.
         """
-        scope = None if notebook_id is None else self.notebook(notebook_id).id
+        scope = None
+        if notebook_id is not None:
+            if notebook_id not in self._records:
+                raise NotFound(f"no notebook {notebook_id}")
+            scope = self._records[notebook_id].id
         ready = Event("ready", id=self._stream.last_id)
         if cursor is None:
             events = self._snapshot(scope)

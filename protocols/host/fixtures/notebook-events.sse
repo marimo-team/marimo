@@ -11,7 +11,7 @@ event: cell
 data: {"cell":{"id":"k7f2","notebook_id":"n1","code":"y = x * 2","name":"_","config":{"column":null,"disabled":false,"hide_code":true,"expand_output":false},"etag":"f199b5f48ae0aabb","code_hash":"db2b9ee97e1ecf4c","analysis":{"defs":["y"],"refs":["x"],"errors":[]}}}
 
 event: document
-data: {"document":{"id":"n1","order":["c1","c3","k7f2"],"app_config":{"width":"full"},"policy":"autorun","etag":"0129d119bfb96bf9","saved_etag":"0129d119bfb96bf9","order_etag":"b205774f616b44e3","app_config_etag":"283513048dfeb45b"}}
+data: {"document":{"id":"n1","order":["c1","c3","k7f2"],"app_config":{"width":"full"},"policy":"autorun","etag":"e59d9c2af02f5814","saved_etag":"e59d9c2af02f5814","order_etag":"b9c412c2d7d63161","app_config_etag":"283513048dfeb45b"}}
 
 event: runtime
 data: {"runtime":{"id":"r1","notebook_id":"n1","status":"running","message":null,"marimo_version":"0.25.0","started_at":"2026-10-01T09:14:02Z"}}

@@ -212,7 +212,11 @@ def document_state(
             for key in ("column", "disabled", "hide_code", "expand_output")
         )
         assert cell["etag"] == etag("\n".join(parts))
-    assert document["order_etag"] == etag("\n".join(document["order"]))
+    assert document["order_etag"] == etag(
+        json.dumps(
+            document["order"], separators=(",", ":"), ensure_ascii=False
+        )
+    )
     canonical = json.dumps(
         document["app_config"],
         sort_keys=True,

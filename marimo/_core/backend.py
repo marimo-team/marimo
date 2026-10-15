@@ -2,7 +2,7 @@
 """Kernel commands and updates for the host API.
 
 ```python
-notebook = host.add_notebook(record, backend)
+notebook = Notebook(document, Executions(), backend, sink)
 runtime, _ = notebook.start()  # Calls backend.start(runtime.id).
 
 # The backend reports on that runtime through Notebook.observe.
@@ -134,7 +134,7 @@ class Produced:
 
 @dataclass(frozen=True)
 class Concluded:
-    """An execution's current outcome; final once the execution is completed."""
+    """An execution outcome, final when the execution completes."""
 
     execution_id: protocol.ExecutionId
     outcome: protocol.Outcome

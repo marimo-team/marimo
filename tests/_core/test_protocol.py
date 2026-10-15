@@ -99,7 +99,7 @@ def assert_content_hashes(value: Any) -> None:
             assert value["etag"] == content_hash("\n".join(parts))
         if "order_etag" in value:
             assert value["order_etag"] == content_hash(
-                "\n".join(value["order"])
+                canonical_json(value["order"])
             )
             assert value["app_config_etag"] == content_hash(
                 canonical_json(value["app_config"])

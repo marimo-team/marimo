@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
+
 import msgspec
 import pytest
 from dirty_equals import IsDatetime
@@ -11,11 +13,15 @@ from msgspec import UNSET
 from msgspec.structs import replace
 
 from marimo._core import backend as be
+from marimo._core.document import CellSource, Document
 from marimo._core.errors import Conflict, NoRuntime, NotFound
+from marimo._core.executions import CellExecution
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.protocol import (
+    Analysis,
     AttachmentMessage,
+    CellId,
     Console,
     ConsoleMessage,
     Custom,
@@ -43,13 +49,19 @@ from marimo._core.stream import Event
 from tests._core.conftest import (
     Clock,
     ScriptedBackend,
+    capture,
     finish,
     fold,
     host_at,
     names,
     plan,
+    project,
+    record,
     request_ids,
+    restore,
+    retained_execution,
     runtime_id_of,
+    snapshot_of,
 )
 
 
@@ -215,6 +227,7 @@ class TestStop:
         assert isinstance(interrupted.execution.outcome, InterruptedOutcome)
         assert names(host.events(notebook_id=notebook.id)) == [
             "notebook",
+            "document",
             "run",
             "execution",
             "console",
@@ -261,6 +274,7 @@ class TestStop:
         assert request_ids(log) == ["stop", "stop"]
         assert names(host.events(notebook_id=notebook.id)) == [
             "notebook",
+            "document",
             "run",
             "execution",
             "console",
@@ -401,6 +415,7 @@ class TestAdoption:
         assert notebook.runtime.marimo_version == "0.26.0"
         assert names(host.events(notebook_id=notebook.id)) == [
             "notebook",
+            "document",
             "runtime",
             "run",
             "execution",
@@ -1028,11 +1043,11 @@ def _attachment_ids(notebook: Notebook) -> set[str]:
 
 
 @pytest.mark.parametrize("cleanup", ["expire", "replace", "clear"])
-def test_outputs_follow_their_execution_through_updates_and_removal(
+async def test_outputs_follow_their_execution_through_updates_and_removal(
     cleanup: str,
 ) -> None:
     clock = Clock()
-    host, notebook = host_at(clock)
+    host, notebook = await host_at(clock)
     run = notebook.run("code", request_id="request")
     first = plan(notebook, run, "first", "a" if cleanup != "expire" else None)
     second = plan(
@@ -1117,3 +1132,201 @@ def test_outputs_follow_their_execution_through_updates_and_removal(
         for event, state in zip(live, snapshots, strict=True)
         if event.name.endswith(".removed")
     )
+
+
+@pytest.mark.parametrize("run_id", [None, "previous-run"])
+async def test_initial_results_are_published_and_replaced_by_live_execution(
+    run_id: str | None,
+) -> None:
+    retained = retained_execution(run_id=run_id)
+    snapshot = snapshot_of(
+        Document(record().id, [CellSource("c1", "42")], {}),
+        {"c1": retained},
+    )
+    host = Host(operations=[])
+    host.update_project(project())
+    host.add_notebook(record(), lambda _, sink: restore(snapshot, sink=sink))
+    live: list[Event] = []
+    host.subscribe(live.append, notebook_id=record().id)
+    notebook = await host.notebook(record().id)
+    assert notebook.runtime is None
+    expected = {
+        ("execution", retained.execution.id): retained.execution,
+        ("console", retained.outputs[0].id): retained.outputs[0],
+    }
+    assert fold(live) == fold(host.events(notebook_id=notebook.id)) == expected
+    assert names(live) == ["cell", "document", "execution", "console"]
+
+    notebook.start()
+    notebook.observe(be.Running(runtime_id_of(notebook)))
+    run = notebook.run("42", request_id="run")
+    execution_id = plan(notebook, run, "new", cell="c1")
+    state = fold(host.events(notebook_id=notebook.id))
+    assert set(state) == {("run", run.id), ("execution", execution_id)}
+    assert fold(live) == state
+
+
+async def test_current_cell_results_can_seed_another_notebook() -> None:
+    _, notebook = await host_at(Clock())
+    notebook.replace([CellSource("c1", "code")], {})
+    run = notebook.run("code", request_id="request")
+    execution = plan(notebook, run, "cell", "c1")
+    notebook.observe(
+        be.Produced(Console(execution, ItemId("out"), "stdout", 0, "x"))
+    )
+    finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    snapshot = capture(notebook)
+    restored = restore(snapshot)
+    assert capture(restored) == snapshot
+    assert fold(restored._snapshot()) == {
+        key: value
+        for key, value in fold(notebook._snapshot()).items()
+        if key[0] != "run"
+    }
+
+
+@pytest.mark.parametrize("saved", [False, True])
+def test_snapshot_round_trip_preserves_revisions_outputs_and_analysis(
+    saved: bool,
+) -> None:
+    document = Document(
+        record().id,
+        [CellSource("c1", "42")],
+        {"width": "full"},
+        policy="lazy",
+        saved=saved,
+        analyzer=lambda _: {"c1": Analysis(defs=(), refs=(), errors=())},
+    )
+    # The output belongs to the previous source, and the saved revision can
+    # precede the current one. Neither is rewritten during restoration.
+    document.replace([CellSource("c1", "43")], {"width": "full"})
+    seed = retained_execution(run_id="historical-run")
+    retained = CellExecution(
+        seed.execution,
+        (
+            *seed.outputs,
+            Display(
+                execution_id=seed.execution.id,
+                id=ItemId("display"),
+                seq=1,
+                mimetype="application/json",
+                data='{"values": [1, 2]}',
+            ),
+            replace(seed.outputs[0], id=ItemId("last"), seq=2),
+        ),
+    )
+    snapshot = snapshot_of(document, {"c1": retained})
+    original = deepcopy(snapshot)
+    backend = ScriptedBackend()
+    notebook = restore(snapshot, backend)
+    assert capture(notebook) == original
+    assert capture(restore(capture(notebook), backend)) == original
+    assert backend.calls == []
+    outputs = [
+        e for e in notebook._snapshot() if e.kind in ("console", "display")
+    ]
+    assert [getattr(e.data, e.kind).seq for e in outputs] == [0, 1, 2]
+    # Restoration copies its input, and capture returns detached data.
+    snapshot.document.app_config["width"] = "medium"
+    capture(notebook).document.app_config["width"] = "columns"
+    assert capture(notebook) == original
+
+
+async def test_edits_preserve_results_and_deletion_removes_them() -> None:
+    retained = retained_execution()
+    snapshot = snapshot_of(
+        Document(record().id, [CellSource("c1", "42")], {}),
+        {"c1": retained},
+    )
+    host = Host(operations=[])
+    host.update_project(project())
+    host.add_notebook(record(), lambda _, sink: restore(snapshot, sink=sink))
+    notebook = await host.notebook(record().id)
+    notebook.replace([CellSource("c1", "43")], {})
+    assert notebook.executions.current(CellId("c1")) == retained
+    assert (
+        next(iter(notebook.document)).code_hash != retained.execution.code_hash
+    )
+    live: list[Event] = []
+    host.subscribe(live.append, notebook_id=notebook.id)
+    notebook.replace([], {})
+    assert capture(notebook).cells == ()
+    assert fold(host.events(notebook_id=notebook.id)) == {}
+    assert names(live) == [
+        "console.removed",
+        "execution.removed",
+        "cell.removed",
+        "document",
+    ]
+
+
+async def test_snapshot_excludes_live_work_and_cleans_up_deleted_active_cells() -> (
+    None
+):
+    _, notebook = await host_at(Clock())
+    notebook.replace([CellSource("c1", "code")], {})
+    notebook.attach()
+    run = notebook.run("code", request_id="request")
+    execution = plan(notebook, run, "active", "c1")
+    notebook.observe(
+        be.Produced(Console(execution, ItemId("out"), "stdout", 0, "x"))
+    )
+    snapshot = capture(notebook)
+    assert snapshot.cells[0].execution is None
+    restored = restore(snapshot)
+    assert names(restored._snapshot()) == ["cell", "document"]
+    notebook.replace([], {})
+    finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    assert capture(notebook).cells == ()
+    assert fold(notebook._snapshot()) == {}
+
+
+async def test_source_edits_keep_live_results_until_the_cell_is_deleted() -> (
+    None
+):
+    host, notebook = await host_at(Clock())
+    notebook.replace([CellSource("c1", "42")], {})
+    run = notebook.run("42", request_id="run")
+    execution = plan(notebook, run, "result", "c1")
+    notebook.observe(
+        be.Produced(Console(execution, ItemId("out"), "stdout", 0, "hello"))
+    )
+    finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    retained = notebook.executions._records()
+
+    notebook.replace([CellSource("c1", "43")], {})
+    assert notebook.executions._records() == retained
+
+    live: list[Event] = []
+    host.subscribe(live.append, notebook_id=notebook.id)
+    notebook.replace([], {})
+    assert list(notebook.document) == []
+    assert fold(host.events(notebook_id=notebook.id)) == {}
+    assert names(live) == [
+        "console.removed",
+        "execution.removed",
+        "run.removed",
+        "cell.removed",
+        "document",
+    ]
+
+
+async def test_deleting_an_active_cell_releases_its_result_when_the_run_ends() -> (
+    None
+):
+    host, notebook = await host_at(Clock())
+    notebook.replace([CellSource("c1", "42")], {})
+    run = notebook.run("42", request_id="run")
+    execution = plan(notebook, run, "result", "c1")
+    notebook.replace([], {})
+    notebook.observe(
+        be.Produced(Console(execution, ItemId("out"), "stdout", 0, "hello"))
+    )
+    finish(notebook, execution)
+    notebook.observe(be.Done(run.id, "succeeded"))
+    assert list(notebook.document) == []
+    assert fold(notebook._snapshot()) == {}
+    assert fold(host.events(notebook_id=notebook.id)) == {}

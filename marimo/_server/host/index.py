@@ -7,7 +7,6 @@ Notebook IDs persist across rescans and recorded file moves.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -20,14 +19,11 @@ from marimo._server.host import OPERATIONS
 from marimo._server.workspace import flatten_files
 
 if TYPE_CHECKING:
-    from marimo._core.backend import Backend
-    from marimo._core.host import Host
+    from marimo._core.host import Host, NotebookInitializer
     from marimo._server.models.files import FileInfo
     from marimo._server.workspace import NotebookWorkspace
 
 _TRUNCATED = "The scan stopped at its depth, file count, or time limit"
-
-MakeBackend = Callable[[protocol.NotebookId], "Backend"]
 
 
 class WorkspaceIndex:
@@ -37,11 +33,11 @@ class WorkspaceIndex:
         self,
         host: Host,
         workspace: NotebookWorkspace,
-        make_backend: MakeBackend,
+        initialize: NotebookInitializer,
     ) -> None:
         self._host = host
+        self._initialize = initialize
         self._workspace = workspace
-        self._make_backend = make_backend
         self._root = _root_of(workspace)
         self.project_id = mint(protocol.ProjectId, "proj")
         self._ids: dict[Path, protocol.NotebookId] = {}
@@ -96,7 +92,8 @@ class WorkspaceIndex:
                 continue
             if notebook.id in seen or self._exists(notebook):
                 continue
-            if self._host.notebook(notebook.id).runtime is not None:
+            loaded = self._host.peek_notebook(notebook.id)
+            if loaded is not None and loaded.runtime is not None:
                 self._host.update_notebook(
                     replace(notebook, path=None, updated_at=None)
                 )
@@ -215,8 +212,9 @@ class WorkspaceIndex:
         if notebook_id in self._host.notebooks:
             self._host.update_notebook(record, request_id=request_id)
         else:
-            backend = self._make_backend(notebook_id)
-            self._host.add_notebook(record, backend, request_id=request_id)
+            self._host.add_notebook(
+                record, self._initialize, request_id=request_id
+            )
         return record
 
     def _exists(self, notebook: protocol.Notebook) -> bool:

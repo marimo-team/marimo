@@ -3,13 +3,17 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
+
 import pytest
 
 from marimo._core import backend as be, protocol
+from marimo._core.document import Analyzer, Document, code_hash
+from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
-from marimo._core.notebook import Notebook
+from marimo._core.notebook import CellSnapshot, Notebook, NotebookSnapshot
 from marimo._core.run_log import RetentionPolicy
-from marimo._core.stream import Event
+from marimo._core.stream import Event, Sink, Stream
 
 OPERATIONS = ["notebook.create", "runtime.start", "runtime.run"]
 
@@ -66,6 +70,93 @@ def record(
     )
 
 
+def make_notebook(
+    record: protocol.Notebook,
+    sink: Sink,
+    backend: ScriptedBackend | None = None,
+    *,
+    document: Document | None = None,
+) -> Notebook:
+    return Notebook(
+        document or Document(record.id, [], {}),
+        Executions(),
+        backend or ScriptedBackend(),
+        sink,
+    )
+
+
+def snapshot_of(
+    document: Document,
+    executions: dict[str, CellExecution] | None = None,
+) -> NotebookSnapshot:
+    """A snapshot of the document with executions retained by cell id."""
+    return NotebookSnapshot(
+        document._record,
+        tuple(
+            CellSnapshot(cell, (executions or {}).get(cell.id))
+            for cell in document
+        ),
+    )
+
+
+def capture(notebook: Notebook) -> NotebookSnapshot:
+    """The snapshot a host would prepare from the notebook's state."""
+    return deepcopy(
+        NotebookSnapshot(
+            notebook.document._record,
+            tuple(
+                CellSnapshot(cell, notebook.executions.current(cell.id))
+                for cell in notebook.document
+            ),
+        )
+    )
+
+
+def restore(
+    snapshot: NotebookSnapshot,
+    backend: ScriptedBackend | None = None,
+    *,
+    analyzer: Analyzer | None = None,
+    sink: Sink | None = None,
+) -> Notebook:
+    """Build a notebook from a snapshot, one core at a time."""
+    document = Document.from_records(
+        snapshot.document,
+        [entry.cell for entry in snapshot.cells],
+        analyzer=analyzer,
+    )
+    executions = Executions.restore(
+        {
+            entry.cell.id: entry.execution
+            for entry in snapshot.cells
+            if entry.execution is not None
+        },
+        cells=document,
+    )
+    return Notebook(
+        document,
+        executions,
+        backend or ScriptedBackend(),
+        sink if sink is not None else Stream(history=0),
+    )
+
+
+async def add_notebook(
+    host: Host,
+    record: protocol.Notebook,
+    backend: ScriptedBackend,
+    *,
+    document: Document | None = None,
+) -> Notebook:
+    host.add_notebook(
+        record,
+        lambda current, sink: make_notebook(
+            current, sink, backend, document=document
+        ),
+    )
+    return await host.notebook(record.id)
+
+
 @pytest.fixture
 def host() -> Host:
     return Host(operations=OPERATIONS)
@@ -77,9 +168,9 @@ def backend() -> ScriptedBackend:
 
 
 @pytest.fixture
-def notebook(host: Host, backend: ScriptedBackend) -> Notebook:
+async def notebook(host: Host, backend: ScriptedBackend) -> Notebook:
     host.update_project(project())
-    return host.add_notebook(record(), backend)
+    return await add_notebook(host, record(), backend)
 
 
 @pytest.fixture
@@ -105,7 +196,7 @@ class Clock:
         return self.now
 
 
-def host_at(clock: Clock, history: int = 1000) -> tuple[Host, Notebook]:
+async def host_at(clock: Clock, history: int = 1000) -> tuple[Host, Notebook]:
     host = Host(
         operations=[],
         history=history,
@@ -113,7 +204,7 @@ def host_at(clock: Clock, history: int = 1000) -> tuple[Host, Notebook]:
         retention=RetentionPolicy(ephemeral_seconds=10),
     )
     host.update_project(project())
-    notebook = host.add_notebook(record(), ScriptedBackend())
+    notebook = await add_notebook(host, record(), ScriptedBackend())
     notebook.adopt(lambda _: None)
     notebook.observe(be.Running(runtime_id_of(notebook)))
     return host, notebook
@@ -161,3 +252,38 @@ def fold(events: list[Event], initial: dict | None = None) -> dict:
                 body = getattr(event.data, event.kind)
                 state[event.kind, body.id] = body
     return state
+
+
+def retained_execution(
+    cell_id: str | None = "c1", run_id: str | None = None
+) -> CellExecution:
+    """A completed execution with one console item, as a store retains it."""
+    execution_id = protocol.ExecutionId("restored")
+    return CellExecution(
+        protocol.Execution(
+            id=execution_id,
+            run_id=None if run_id is None else protocol.RunId(run_id),
+            runtime_id=None,
+            caused_by=None,
+            cell_id=None if cell_id is None else protocol.CellId(cell_id),
+            code="42" if cell_id is None else None,
+            code_hash=code_hash("42"),
+            bindings=(),
+            status="completed",
+            outcome=protocol.ValueOutcome(
+                protocol.DisplayData(mimetype="text/plain", data="42")
+            ),
+            stale=False if cell_id is not None else None,
+            started_at=None,
+            completed_at=None,
+        ),
+        (
+            protocol.Console(
+                execution_id,
+                protocol.ItemId("restored-output"),
+                "stdout",
+                0,
+                "hello",
+            ),
+        ),
+    )

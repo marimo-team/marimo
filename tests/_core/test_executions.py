@@ -4,11 +4,20 @@
 from __future__ import annotations
 
 import pytest
+from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
+from marimo._core.document import CellSource, Document
 from marimo._core.errors import NoRuntime
-from marimo._core.executions import Change, Executions, Released, Removed
+from marimo._core.executions import (
+    CellExecution,
+    Change,
+    Executions,
+    Released,
+    Removed,
+)
 from marimo._core.stream import kind_of, utcnow
+from tests._core.conftest import retained_execution
 
 NOTEBOOK = protocol.NotebookId("n1")
 RUNTIME = protocol.Runtime(
@@ -231,6 +240,92 @@ def test_planning_does_not_scan_unrelated_cells(
     )
     assert visits <= 3000
     assert sum(isinstance(c, protocol.Execution) for c in changes) == 1000
+
+
+def test_removing_a_cell_drops_its_result_or_disowns_active_work() -> None:
+    executions = Executions()
+    executions.begin(run("r1"), "request")
+    executions.observe(planned("r1", ("e1", "a"), ("e2", "b")), RUNTIME)
+    complete(executions, "e1")
+    executions.observe(
+        be.Status(protocol.ExecutionId("e2"), "running"), RUNTIME
+    )
+    assert describe(executions.remove_cell(protocol.CellId("a"))) == [
+        "execution.removed e1"
+    ]
+    # Active work stays tracked, but no longer belongs to a cell.
+    assert executions.remove_cell(protocol.CellId("b")) == []
+    assert executions.remove_cell(protocol.CellId("never")) == []
+    assert executions.current(protocol.CellId("b")) is None
+    complete(executions, "e2")
+    done = executions.observe(
+        be.Done(protocol.RunId("r1"), "succeeded"), RUNTIME
+    )
+    assert describe(done) == ["run r1", "execution.removed e2", "released r1"]
+
+
+def test_restored_executions_are_current_until_replaced() -> None:
+    document = Document(NOTEBOOK, [CellSource("c1", "42")], {})
+    retained = retained_execution(run_id="old-run")
+    executions = Executions.restore(
+        {protocol.CellId("c1"): retained}, cells=document
+    )
+    assert executions.current(protocol.CellId("c1")) == retained
+    assert describe(executions._records()) == [
+        "execution restored",
+        "console restored-output",
+    ]
+    executions.begin(run("r1"), "request")
+    changes = executions.observe(planned("r1", ("e1", "c1")), RUNTIME)
+    assert describe(changes) == [
+        "console.removed restored-output",
+        "execution.removed restored",
+        "execution e1",
+    ]
+    assert executions.current(protocol.CellId("c1")) is None
+
+
+@pytest.mark.parametrize(
+    ("invalid", "message"),
+    [
+        ("scratch", "containing cell"),
+        ("other-cell", "containing cell"),
+        ("missing-cell", "not in the document"),
+        ("unfinished", "completed"),
+        ("no-outcome", "outcome"),
+        ("output-owner", "belong to their execution"),
+        ("duplicate-output", "unique"),
+    ],
+)
+def test_restore_rejects_inconsistent_executions(
+    invalid: str, message: str
+) -> None:
+    document = Document(NOTEBOOK, [CellSource("c1", "42")], {})
+    retained = retained_execution()
+    execution, outputs = retained.execution, retained.outputs
+    key = protocol.CellId("c1")
+    if invalid == "scratch":
+        retained = retained_execution(cell_id=None, run_id="previous-run")
+    elif invalid == "other-cell":
+        retained = CellExecution(
+            replace(execution, cell_id=protocol.CellId("c2")), outputs
+        )
+    elif invalid == "missing-cell":
+        key = protocol.CellId("missing")
+        retained = CellExecution(replace(execution, cell_id=key), outputs)
+    elif invalid == "unfinished":
+        retained = CellExecution(replace(execution, status="running"), outputs)
+    elif invalid == "no-outcome":
+        retained = CellExecution(replace(execution, outcome=None), outputs)
+    elif invalid == "output-owner":
+        retained = CellExecution(
+            execution,
+            (replace(outputs[0], execution_id=protocol.ExecutionId("other")),),
+        )
+    else:
+        retained = CellExecution(execution, outputs * 2)
+    with pytest.raises(ValueError, match=message):
+        Executions.restore({key: retained}, cells=document)
 
 
 def test_current_result_keeps_its_outputs_as_the_execution_changes() -> None:
