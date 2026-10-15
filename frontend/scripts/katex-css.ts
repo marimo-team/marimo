@@ -149,6 +149,7 @@ export async function generateKatexCss(upstream: string): Promise<string> {
   );
   if (
     counterDeclarations.length !== 1 ||
+    counterDeclarations[0].type !== "decl" ||
     counterDeclarations[0].value !== "katexEqnNo mmlEqnNo"
   ) {
     throw new Error(
