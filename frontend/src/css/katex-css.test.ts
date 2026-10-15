@@ -223,9 +223,74 @@ describe("copied KaTeX stylesheet", () => {
     },
   );
 
-  it("requires review when an overridden upstream declaration changes", async () => {
-    await expect(
-      generateKatexCss(upstream.replace("line-height:1.2", "line-height:1.3")),
-    ).rejects.toThrow("review overrides");
+  it.each([
+    {
+      selector: ".katex",
+      property: "line-height",
+      values: ["1.3"],
+      expected: "inherit",
+    },
+    {
+      selector: ".katex",
+      property: "line-height",
+      values: [],
+      expected: "inherit",
+    },
+    {
+      selector: ".katex-display > .katex > .katex-html > .katex-tag",
+      property: "text-align",
+      values: ["right"],
+      expected: "right",
+    },
+    {
+      selector: ".katex-display > .katex > .katex-html > .katex-tag",
+      property: "text-align",
+      values: ["left"],
+      expected: "right",
+    },
+    {
+      selector: ".katex-display > .katex > .katex-html > .katex-tag",
+      property: "text-align",
+      values: ["left", "right"],
+      expected: "right",
+    },
+  ])(
+    "sets the $selector $property override for upstream values $values",
+    async ({ selector, property, values, expected }) => {
+      const source = postcss.parse(upstream);
+      source.walkRules((rule) => {
+        if (
+          rule.selector.replace(/\s+/g, "") !== selector.replace(/\s+/g, "")
+        ) {
+          return;
+        }
+        rule.walkDecls(property, (declaration) => {
+          declaration.remove();
+        });
+        for (const value of values) {
+          rule.append(postcss.decl({ prop: property, value }));
+        }
+      });
+      const result = postcss.parse(await generateKatexCss(source.toString()));
+      const actual: string[] = [];
+      result.walkRules(selector, (rule) => {
+        rule.walkDecls(property, (declaration) => {
+          actual.push(declaration.value);
+        });
+      });
+      expect(actual).toEqual([expected]);
+    },
+  );
+
+  it("requires review when upstream equation counters change", async () => {
+    const root = postcss.parse(upstream);
+    root.walkRules("body", (rule) => {
+      rule.walkDecls("counter-reset", (declaration) => {
+        declaration.value = "anotherCounter";
+      });
+    });
+    await expect(generateKatexCss(root.toString())).rejects.toThrow(
+      "review overrides",
+    );
   });
 });

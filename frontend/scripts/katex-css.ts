@@ -124,44 +124,37 @@ export async function generateKatexCss(upstream: string): Promise<string> {
     postcss.decl({ prop: "font-style", value: "normal" }),
   );
 
-  function replaceValue(
-    rule: Rule,
-    property: string,
-    expected: string,
-    value: string,
-  ) {
-    const declarations = rule.nodes.filter(
+  function setOverride(rule: Rule, property: string, value: string): void {
+    const [first, ...duplicates] = rule.nodes.filter(
       (node) => node.type === "decl" && node.prop === property,
     );
-    const declaration = declarations[0];
-    if (
-      declarations.length !== 1 ||
-      declaration.type !== "decl" ||
-      declaration.value !== expected
-    ) {
-      throw new Error(
-        `Upstream ${rule.selector} ${property} changed; review overrides in frontend/scripts/katex-css.ts.`,
-      );
+    const declaration = postcss.decl({ prop: property, value });
+    if (first) {
+      first.replaceWith(declaration);
+    } else {
+      rule.append(declaration);
     }
-    declaration.value = value;
+    for (const duplicate of duplicates) {
+      duplicate.remove();
+    }
   }
-  replaceValue(math, "line-height", "1.2", "inherit");
+
+  setOverride(math, "line-height", "inherit");
   const tag = findRule(".katex-display > .katex > .katex-html > .katex-tag");
+  setOverride(tag, "text-align", "right");
+
+  const counters = findRule("body");
+  const counterDeclarations = counters.nodes.filter(
+    (node) => node.type === "decl" && node.prop === "counter-reset",
+  );
   if (
-    tag.nodes.some((node) => node.type === "decl" && node.prop === "text-align")
+    counterDeclarations.length !== 1 ||
+    counterDeclarations[0].value !== "katexEqnNo mmlEqnNo"
   ) {
     throw new Error(
-      "Upstream equation tag alignment changed; review the marimo override.",
+      "Upstream equation counters changed; review overrides in frontend/scripts/katex-css.ts.",
     );
   }
-  tag.append(postcss.decl({ prop: "text-align", value: "right" }));
-  const counters = findRule("body");
-  replaceValue(
-    counters,
-    "counter-reset",
-    "katexEqnNo mmlEqnNo",
-    "katexEqnNo mmlEqnNo",
-  );
   counters.selector = "body, .katex-display";
 
   const svgScopes = new Set<NonNullable<Rule["parent"]>>();
