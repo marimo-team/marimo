@@ -234,7 +234,7 @@ const NULLISH_SENTINEL_TYPES: ReadonlySet<CellValueSentinel["type"]> =
   new Set<NullishSentinelType>(["null", "nat"]);
 
 /**
- * True when the cell value represents a missing value (null, NaT, NaN)
+ * True when the cell value represents a missing value (null, NaT)
  * rather than a real value that happens to look special.
  */
 export function isNullishSentinel(

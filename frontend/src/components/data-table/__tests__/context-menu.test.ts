@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { getContextMenuFilter } from "../context-menu";
+import { buildCellFilter } from "../context-menu";
 
-describe("getContextMenuFilter", () => {
+describe("buildCellFilter", () => {
   // Use a non-UTC, non-DST-ambiguous offset so date-only parsing bugs
   // (UTC vs. local midnight) can't hide behind a host machine that
   // happens to run in UTC.
@@ -17,7 +17,7 @@ describe("getContextMenuFilter", () => {
   });
 
   it("builds an equality filter for a normal date value", () => {
-    const filter = getContextMenuFilter({
+    const filter = buildCellFilter({
       type: "date",
       value: "2024-01-15",
       comparison: "eq",
@@ -34,7 +34,7 @@ describe("getContextMenuFilter", () => {
   });
 
   it("returns undefined for an empty-string date value in a non-temporal-looking context", () => {
-    const filter = getContextMenuFilter({
+    const filter = buildCellFilter({
       type: "date",
       value: "",
       comparison: "eq",
@@ -45,7 +45,7 @@ describe("getContextMenuFilter", () => {
   });
 
   it("returns undefined for an unparsable date value instead of an Invalid Date filter", () => {
-    const filter = getContextMenuFilter({
+    const filter = buildCellFilter({
       type: "date",
       value: "not-a-date",
       comparison: "eq",
@@ -56,7 +56,7 @@ describe("getContextMenuFilter", () => {
   });
 
   it("builds an equality filter for a normal datetime value", () => {
-    const filter = getContextMenuFilter({
+    const filter = buildCellFilter({
       type: "datetime",
       value: "2024-01-15 08:30:00",
       comparison: "eq",
@@ -71,7 +71,7 @@ describe("getContextMenuFilter", () => {
   });
 
   it("returns undefined for an unparsable datetime value", () => {
-    const filter = getContextMenuFilter({
+    const filter = buildCellFilter({
       type: "datetime",
       value: "not-a-datetime",
       comparison: "eq",
@@ -82,7 +82,7 @@ describe("getContextMenuFilter", () => {
   });
 
   it("builds an equality filter for a normal time value", () => {
-    const filter = getContextMenuFilter({
+    const filter = buildCellFilter({
       type: "time",
       value: "08:30:00",
       comparison: "eq",
@@ -96,7 +96,7 @@ describe("getContextMenuFilter", () => {
   });
 
   it("returns undefined instead of an unparsable time value", () => {
-    const filter = getContextMenuFilter({
+    const filter = buildCellFilter({
       type: "time",
       value: "25:00:00",
       comparison: "eq",
@@ -106,7 +106,7 @@ describe("getContextMenuFilter", () => {
   });
 
   it("maps a NaT date value to is_null instead of an invalid Date filter", () => {
-    const filter = getContextMenuFilter({
+    const filter = buildCellFilter({
       type: "date",
       value: "NaT",
       comparison: "eq",
@@ -117,7 +117,7 @@ describe("getContextMenuFilter", () => {
   });
 
   it("maps a NaT datetime value to is_not_null for the neq comparison", () => {
-    const filter = getContextMenuFilter({
+    const filter = buildCellFilter({
       type: "datetime",
       value: "NaT",
       comparison: "neq",
@@ -128,7 +128,7 @@ describe("getContextMenuFilter", () => {
   });
 
   it("does not treat the string 'NaT' in a non-temporal column as a sentinel", () => {
-    const filter = getContextMenuFilter({
+    const filter = buildCellFilter({
       type: "text",
       value: "NaT",
       comparison: "eq",
@@ -138,7 +138,7 @@ describe("getContextMenuFilter", () => {
   });
 
   it("maps an actual null value to is_null", () => {
-    const filter = getContextMenuFilter({
+    const filter = buildCellFilter({
       type: "number",
       value: null,
       comparison: "eq",
@@ -147,18 +147,25 @@ describe("getContextMenuFilter", () => {
     expect(filter).toEqual({ type: "number", operator: "is_null" });
   });
 
-  it("maps a NaN number value to is_null rather than a literal NaN filter", () => {
-    const filter = getContextMenuFilter({
+  it("builds a literal (always-false) equality filter for a NaN number value", () => {
+    // NaN is a real float value, not a missing-value marker like null/NaT,
+    // and the backend's is_null() (narwhals/polars semantics) doesn't match
+    // it, so it falls through to a normal (if unsatisfiable) == filter.
+    const filter = buildCellFilter({
       type: "number",
       value: Number.NaN,
       comparison: "eq",
       dataType: "number",
     });
-    expect(filter).toEqual({ type: "number", operator: "is_null" });
+    expect(filter).toEqual({
+      type: "number",
+      operator: "==",
+      value: Number.NaN,
+    });
   });
 
   it("builds a literal equality filter for a normal number value", () => {
-    const filter = getContextMenuFilter({
+    const filter = buildCellFilter({
       type: "number",
       value: 42,
       comparison: "eq",

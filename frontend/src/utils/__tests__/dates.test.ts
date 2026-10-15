@@ -5,6 +5,7 @@ import {
   getDateFormat,
   getShortTimeZone,
   parseLocalISODate,
+  parseLocalISODateTime,
   parseTimeToDate,
   prettyDate,
   timeAgo,
@@ -225,6 +226,21 @@ describe("dates", () => {
       expect(parseTimeToDate("0:30 am")).toBeUndefined();
       expect(parseTimeToDate("13:30 pm")).toBeUndefined();
     });
+
+    it("parses milliseconds", () => {
+      expect(parseTimeToDate("14:30:05.123")).toEqual(
+        new Date(1970, 0, 1, 14, 30, 5, 123),
+      );
+    });
+
+    it("pads a short millisecond fraction and truncates a long one", () => {
+      expect(parseTimeToDate("14:30:05.5")).toEqual(
+        new Date(1970, 0, 1, 14, 30, 5, 500),
+      );
+      expect(parseTimeToDate("14:30:05.123456")).toEqual(
+        new Date(1970, 0, 1, 14, 30, 5, 123),
+      );
+    });
   });
 
   describe("parseLocalISODate", () => {
@@ -241,6 +257,53 @@ describe("dates", () => {
     it("returns undefined for a calendar date that doesn't exist", () => {
       expect(parseLocalISODate("2024-02-30")).toBeUndefined();
       expect(parseLocalISODate("2024-13-01")).toBeUndefined();
+    });
+  });
+
+  describe("parseLocalISODateTime", () => {
+    it("parses a 'T'-separated datetime into local wall-clock time", () => {
+      expect(parseLocalISODateTime("2024-01-15T08:30:00")).toEqual(
+        new Date(2024, 0, 15, 8, 30, 0),
+      );
+    });
+
+    it("parses a space-separated datetime", () => {
+      expect(parseLocalISODateTime("2024-01-15 08:30:00")).toEqual(
+        new Date(2024, 0, 15, 8, 30, 0),
+      );
+    });
+
+    it("defaults seconds to 0 when omitted", () => {
+      expect(parseLocalISODateTime("2024-01-15T08:30")).toEqual(
+        new Date(2024, 0, 15, 8, 30, 0),
+      );
+    });
+
+    it("ignores a trailing Z instead of shifting to UTC", () => {
+      expect(parseLocalISODateTime("2024-01-15T08:30:00Z")).toEqual(
+        new Date(2024, 0, 15, 8, 30, 0),
+      );
+    });
+
+    it("ignores a trailing UTC offset instead of shifting the time", () => {
+      expect(parseLocalISODateTime("2024-01-15T08:30:00+05:00")).toEqual(
+        new Date(2024, 0, 15, 8, 30, 0),
+      );
+      expect(parseLocalISODateTime("2024-01-15T08:30:00-0500")).toEqual(
+        new Date(2024, 0, 15, 8, 30, 0),
+      );
+    });
+
+    it("ignores sub-second precision", () => {
+      expect(parseLocalISODateTime("2024-01-15T08:30:00.123")).toEqual(
+        new Date(2024, 0, 15, 8, 30, 0),
+      );
+    });
+
+    it("returns undefined for a date-only or unparsable string", () => {
+      expect(parseLocalISODateTime("2024-01-15")).toBeUndefined();
+      expect(parseLocalISODateTime("not-a-datetime")).toBeUndefined();
+      expect(parseLocalISODateTime("")).toBeUndefined();
     });
   });
 

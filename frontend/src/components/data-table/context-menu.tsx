@@ -194,32 +194,25 @@ export const CellContextMenu = <TData,>({
   const dtype = column.columnDef.meta?.dtype;
 
   const canFilter = Boolean(filterType && column.getCanFilter());
-  const equalValueFilter = canFilter
-    ? buildCellFilter({
-        type: filterType as FilterType,
-        value: rawValue,
-        comparison: "eq",
-        dataType,
-        dtype,
-      })
-    : undefined;
-  const canFilterByValue = equalValueFilter !== undefined;
+  const buildFilter = (comparison: Comparison) =>
+    canFilter
+      ? buildCellFilter({
+          type: filterType as FilterType,
+          value: rawValue,
+          comparison,
+          dataType,
+          dtype,
+        })
+      : undefined;
+  const eqFilter = buildFilter("eq");
+  const canFilterByValue = eqFilter !== undefined;
 
   const handleFilterCellByValue = (comparison: Comparison) => {
     if (!filterType) {
       return;
     }
 
-    const filter =
-      comparison === "eq"
-        ? equalValueFilter
-        : buildCellFilter({
-            type: filterType,
-            value: rawValue,
-            comparison,
-            dataType,
-            dtype,
-          });
+    const filter = comparison === "eq" ? eqFilter : buildFilter("neq");
 
     if (!filter) {
       return;
