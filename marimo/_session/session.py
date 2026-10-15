@@ -246,6 +246,8 @@ class SessionImpl(Session):
         self.initialization_id = initialization_id
         self._stable_id = mint(StableSessionId, "sess")
         self.app_file_manager = app_file_manager
+        # NB. Read live at save time, so later settings edits apply too.
+        self.app_file_manager.config_reader = config_manager
         self.room = Room()
         self._kernel_manager = kernel_manager
         self.ttl_seconds = (

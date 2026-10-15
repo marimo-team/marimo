@@ -36,6 +36,8 @@ from marimo._version import __version__
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from marimo._ast.type_inference import TypeInferenceMode
+
 from typing import TypeAlias
 
 Cls: TypeAlias = type
@@ -506,7 +508,12 @@ def generate_app_constructor(config: _AppConfig | None) -> str:
     return format_tuple_elements("app = marimo.App(...)", kwargs)
 
 
-def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
+def generate_filecontents_from_ir(
+    ir: NotebookSerializationV1,
+    *,
+    infer_types: TypeInferenceMode = "off",
+    line_length: int = 79,
+) -> str:
     # Markdown frontmatter may contain non-config metadata (e.g., author,
     # description). Suppress warnings for unrecognized keys from markdown.
     silent = (
@@ -524,12 +531,18 @@ def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
         else cell.name
         for cell in ir.cells
     ]
+    filename = (
+        ir.filename if ir.filename and ir.filename != "<marimo>" else None
+    )
     return generate_filecontents(
         codes=[cell.code for cell in ir.cells],
         names=names,
         cell_configs=[CellConfig.from_dict(cell.options) for cell in ir.cells],
         config=_AppConfig.from_untrusted_dict(ir.app.options, silent=silent),
         header_comments=header_comments,
+        filename=filename,
+        infer_types=infer_types,
+        line_length=line_length,
     )
 
 
@@ -569,8 +582,19 @@ def generate_filecontents(
     cell_configs: list[CellConfig],
     config: _AppConfig | None = None,
     header_comments: str | None = None,
+    *,
+    filename: str | None = None,
+    infer_types: TypeInferenceMode = "off",
+    line_length: int = 79,
 ) -> str:
-    """Translates a sequences of codes (cells) to a Python file"""
+    """Translates a sequences of codes (cells) to a Python file
+
+    `infer_types` names the backend that annotates unannotated cell
+    parameters with inferred types, or is `"off"`. An inferred annotation
+    that does not fit on one parameter line within `line_length` is
+    dropped. `filename` is the notebook's path. The backend uses it to
+    resolve sibling modules.
+    """
 
     # Normalize internal cell names. Empty names would emit `def ():`
     # (invalid Python) and fall back to the unparsable-cell path;
@@ -584,6 +608,18 @@ def generate_filecontents(
     if setup_cell:
         toplevel_defs = set(setup_cell.defs)
     extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
+    if infer_types != "off":
+        from marimo._ast.type_inference import infer_annotations
+
+        extraction.add_default_annotations(
+            infer_annotations(
+                extraction,
+                setup_cell,
+                filename=filename,
+                mode=infer_types,
+                line_length=line_length,
+            )
+        )
     cell_blocks = [
         safe_serialize_cell(extraction, status) for status in extraction
     ]

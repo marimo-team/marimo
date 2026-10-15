@@ -481,6 +481,24 @@ x: "A" = ...
 
 For Python 3.12+, marimo additionally implements annotation scoping.
 
+With `formatting.infer_types` set to `"jedi"`, marimo infers the types of the
+variables a cell reads and writes them into the cell's signature on save.
+
+Nuances:
+
+- marimo writes only types that need no quotes: builtins, setup-cell and
+  top-level names, and classes reached through a setup-cell import, such as
+  `pd.DataFrame`.
+- Library classes lose their generic parameters. jedi confirms each spelling.
+- A tuple longer than three elements is written as `tuple[int | str, ...]`.
+- A type that says little is dropped: `object`, `Any`, and a union with more
+  than three members.
+- An annotation that does not fit on its parameter line within
+  `formatting.line_length` is dropped.
+- marimo writes jedi's answer unchanged. A wrong answer makes a wrong
+  annotation. Your own annotations win.
+- Names jedi cannot infer stay unannotated.
+
 <a name="faq-dotenv"></a>
 
 ### How do I use dotenv?

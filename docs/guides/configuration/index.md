@@ -43,7 +43,7 @@ You can customize the following settings:
 - [Package management](../package_management/installing_packages.md)
 - Server settings
 - [VIM keybindings](../editor_features/overview.md#vim-keybindings)
-- Formatting settings
+- Formatting settings, including [inferred type annotations](../../faq.md#faq-annotations)
 - [AI assistance](../editor_features/ai_completion.md)
 - [Snippets](snippets.md)
 - Experimental features

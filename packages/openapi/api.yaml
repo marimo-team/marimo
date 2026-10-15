@@ -2717,11 +2717,19 @@ components:
       type: object
     FormattingConfig:
       description: "Configuration for code formatting.\n\n    **Keys.**\n\n    - `line_length`:\
-        \ max line length"
+        \ max line length\n    - `infer_types`: `\"off\"` or `\"jedi\"`. With `\"\
+        jedi\"`, marimo infers\n      types for cell parameters when it writes a notebook\
+        \ file. Only types\n      that need no quoting are written. Those are builtins,\
+        \ setup cell\n      definitions and imports, and top-level functions and classes."
       properties:
+        infer_types:
+          enum:
+          - jedi
+          - 'off'
         line_length:
           type: integer
       required:
+      - infer_types
       - line_length
       title: FormattingConfig
       type: object
