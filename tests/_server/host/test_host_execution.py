@@ -4,12 +4,12 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._core.document import code_hash
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
 from marimo._server.main import create_starlette_app
@@ -63,7 +63,7 @@ async def live_host(
     app = create_starlette_app(base_url="", enable_auth=True)
     get_starlette_server_state_init(session_manager=manager).apply(app.state)
     bridge = SessionBridge(manager)
-    bridge.open()
+    await bridge.open()
     app.state.host_context = HostContext(
         bridge=bridge, token="execution-test", port=PORT
     )
@@ -100,7 +100,7 @@ async def test_move_preserves_the_running_notebook(
 ) -> None:
     app, notebook_id, events = live_host
     host = app.state.host_context.bridge.host
-    runtime = host.notebook(notebook_id).runtime
+    runtime = (await host.notebook(notebook_id)).runtime
     source, target = tmp_path / "notebook.py", tmp_path / "moved.py"
     session = next(iter(app.state.session_manager.sessions.values()))
     cells = list(session.app_file_manager.app.cell_manager.codes())
@@ -120,7 +120,7 @@ async def test_move_preserves_the_running_notebook(
     assert not source.exists()
     assert list(AppFileManager(str(target)).app.cell_manager.codes()) == cells
     assert session.app_file_manager.path == str(target)
-    assert host.notebook(notebook_id).runtime == runtime
+    assert (await host.notebook(notebook_id)).runtime == runtime
 
     accepted = await finished(
         app,
@@ -221,18 +221,25 @@ async def test_scratch_outcomes_from_the_kernel(
         assert outcome["error"]["message"]
 
 
-async def test_background_output_stays_with_its_execution(
+async def test_background_output_after_a_scratch_run_is_dropped(
     live_host: tuple[Starlette, str, Response],
 ) -> None:
+    """A completed scratch run is history; the backend forgets it.
+
+    Output its code produces later, from a background thread, has no
+    current execution to join and never reaches clients.
+    """
     app, notebook_id, events = live_host
     path = f"/notebooks/{notebook_id}/runtime/runs"
     code = """import builtins
 import threading
 import marimo as mo
 builtins._host_test_gate = threading.Event()
+builtins._host_test_printed = threading.Event()
 def worker():
     builtins._host_test_gate.wait(5)
     print("late output")
+    builtins._host_test_printed.set()
 mo.Thread(target=worker).start()
 """
     first = await finished(
@@ -258,7 +265,7 @@ mo.Thread(target=worker).start()
         headers=key("second"),
         body=json.dumps(
             {
-                "code": "import builtins\nimport time\nbuiltins._host_test_gate.set()\ntime.sleep(0.2)\ndel builtins._host_test_gate"
+                "code": "import builtins\nbuiltins._host_test_gate.set()\nassert builtins._host_test_printed.wait(5)\ndel builtins._host_test_gate, builtins._host_test_printed"
             }
         ).encode(),
     )
@@ -271,21 +278,21 @@ mo.Thread(target=worker).start()
             for r in response.records
         ),
     )
+    assert (
+        next(
+            r["data"]["run"]["outcome"]
+            for r in reversed(events.records)
+            if r.get("data", {}).get("run", {}).get("id")
+            == second.json()["id"]
+        )
+        == "succeeded"
+    )
     console = [
         r["data"]["console"]
         for r in events.records
         if r.get("event") == "console"
     ]
-    assert any("late output" in item["text"] for item in console)
-    first_execution = next(
-        record["data"]["execution"]
-        for record in events.records
-        if record.get("event") == "execution"
-        and record["data"]["execution"]["run_id"] == first.json()["id"]
-    )
-    assert {item["execution_id"] for item in console} == {
-        first_execution["id"]
-    }
+    assert not any("late output" in item["text"] for item in console)
 
 
 async def test_queued_cancellation_never_executes_the_code(
@@ -457,6 +464,8 @@ async def initialize_cascade(app: Starlette, events: Response) -> None:
             r.get("data", {}).get("run", {}).get("status") == "completed"
             for r in response.records
         ),
+        # Initial widget imports and construction can be slow on CI.
+        timeout=15,
     )
     runs = [
         r["data"]["run"] for r in events.records if r.get("event") == "run"
@@ -702,8 +711,8 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
         and r["data"]["execution"]["status"] == "completed"
     ]
     assert [(e["code_hash"], e["outcome"]["kind"]) for e in executions] == [
-        (hashlib.sha256(b"if !!!").hexdigest(), "error"),
-        (hashlib.sha256(b"x = 42").hexdigest(), "value"),
+        (code_hash("if !!!"), "error"),
+        (code_hash("x = 42"), "value"),
     ]
     assert len({e["id"] for e in executions}) == 2
     runs = [
@@ -821,9 +830,7 @@ async def test_awaited_commands_join_the_enclosing_run(
     assert root["outcome"]["kind"] == "value"
     assert "42" in root["outcome"]["display"]["data"]
     assert child["outcome"]["kind"] == "error"
-    assert (
-        child["code_hash"] == hashlib.sha256(child_code.encode()).hexdigest()
-    )
+    assert child["code_hash"] == code_hash(child_code)
     assert all(e["run_id"] == accepted.json()["id"] for e in executions)
 
 

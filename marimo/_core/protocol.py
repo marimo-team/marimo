@@ -466,7 +466,7 @@ class RunRequest(Struct, frozen=True):
         Annotated[
             tuple[RequestedCell, ...],
             Meta(
-                description="Cells of the document to run, in no particular order. What depends on them runs too, under the document's policy.",
+                description="Cells of the document to run, in no particular order. The runtime's execution configuration determines whether dependent cells run too.",
                 min_length=1,
             ),
         ]
@@ -798,7 +798,7 @@ class Document(Struct, frozen=True):
     order_etag: Annotated[
         Etag,
         Meta(
-            description="Identifies the order alone. Its text is the cell ids in order. Editing a cell does not change it."
+            description="Identifies the order alone. Its text is the cell IDs in order as a JSON array, with no whitespace and strings carrying only the escapes JSON requires. Editing a cell does not change it."
         ),
     ]
     policy: Annotated[

@@ -30,7 +30,7 @@ import { requestClientAtom } from "@/core/network/requests";
 import { createStaticRequests } from "@/core/network/requests-static";
 import { sandboxActionsAtom, sandboxAtom } from "@/core/packages/sandbox-state";
 import { filenameAtom } from "@/core/saving/file-state";
-import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
+import { WebSocketClosedReason, ConnectionState } from "@/core/websocket/types";
 import { HTTPError } from "@/utils/errors";
 
 const manifest = `requires-python = ">=3.13"
@@ -156,16 +156,16 @@ function LifecycleControls({ backend }: { backend: Props["backend"] }) {
     store.set(
       connectionAtom,
       next === "ready"
-        ? { state: WebSocketState.OPEN }
+        ? { state: ConnectionState.OPEN }
         : next === "failed"
           ? {
-              state: WebSocketState.CLOSED,
+              state: ConnectionState.CLOSED,
               code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
               phase: "starting-kernel",
               reason: "Kernel failed to start",
             }
           : {
-              state: WebSocketState.CONNECTING,
+              state: ConnectionState.CONNECTING,
               phase:
                 next === "preparing"
                   ? "preparing-environment"
@@ -252,7 +252,7 @@ export function RuntimeStory(props: Props) {
       connectionAtom,
       props.phase === "preparing" || props.phase === "starting"
         ? {
-            state: WebSocketState.CONNECTING,
+            state: ConnectionState.CONNECTING,
             phase: props.backend
               ? props.phase === "preparing"
                 ? "preparing-environment"
@@ -261,12 +261,12 @@ export function RuntimeStory(props: Props) {
           }
         : props.phase === "failed"
           ? {
-              state: WebSocketState.CLOSED,
+              state: ConnectionState.CLOSED,
               code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
               reason: "Kernel startup failed",
               phase: props.backend ? "preparing-environment" : undefined,
             }
-          : { state: WebSocketState.OPEN },
+          : { state: ConnectionState.OPEN },
     );
     state.set(
       kernelStartupErrorAtom,
@@ -411,7 +411,7 @@ export function RuntimeStory(props: Props) {
             reconnect: false,
           };
         }
-        state.set(connectionAtom, { state: WebSocketState.OPEN });
+        state.set(connectionAtom, { state: ConnectionState.OPEN });
         state.set(kernelStartupErrorAtom, null);
         return {
           success: true,
@@ -425,7 +425,7 @@ export function RuntimeStory(props: Props) {
   });
   const appConfig = AppConfigSchema.parse({ width: "full" });
   const reconnect = async () => {
-    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
   };
   useEffect(() => {
     if (!props.interactive) {
@@ -457,12 +457,12 @@ export function RuntimeStory(props: Props) {
           log_mode: "replace",
         });
         store.set(connectionAtom, {
-          state: WebSocketState.CONNECTING,
+          state: ConnectionState.CONNECTING,
           phase: "starting-kernel",
         });
       }, 3500),
       setTimeout(
-        () => store.set(connectionAtom, { state: WebSocketState.OPEN }),
+        () => store.set(connectionAtom, { state: ConnectionState.OPEN }),
         5500,
       ),
     ];

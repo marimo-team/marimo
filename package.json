@@ -6,7 +6,8 @@
     "build": "turbo build",
     "codegen": "turbo run codegen",
     "lint": "pnpm run -r lint",
-    "dev": "pnpm run --filter @marimo-team/frontend dev"
+    "dev": "pnpm run --filter @marimo-team/frontend dev",
+    "sync-katex-css": "pnpm --dir frontend sync-katex-css"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",

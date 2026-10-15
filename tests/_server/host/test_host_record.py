@@ -21,6 +21,7 @@ from marimo._server.main import create_starlette_app
 from marimo._utils.lifespans import Lifespans
 from tests._core.conftest import (
     ScriptedBackend,
+    add_notebook,
     project,
     record,
     runtime_id_of,
@@ -139,7 +140,7 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         now = 0.0
         host.clock = context.clock = lambda: now
         host.update_project(project())
-        notebook = host.add_notebook(record(), ScriptedBackend())
+        notebook = await add_notebook(host, record(), ScriptedBackend())
         notebook.adopt(lambda _: None)
         notebook.observe(be.Running(runtime_id_of(notebook)))
         headers = {

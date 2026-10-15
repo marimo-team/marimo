@@ -14,7 +14,7 @@ import { requestClientAtom } from "@/core/network/requests";
 import type { EnvironmentInfo } from "@/core/network/types";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import { ErrorBoundary } from "../ErrorBoundary";
 
 vi.mock("@/utils/copy", () => ({
@@ -144,7 +144,7 @@ function resetSharedState() {
   store.set(requestClientAtom, null);
   store.set(notebookAtom, initialNotebookState());
   store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
-  store.set(connectionAtom, { state: WebSocketState.OPEN });
+  store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(filenameAtom, "/project/example.py");
 }
 

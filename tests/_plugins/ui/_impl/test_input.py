@@ -527,6 +527,24 @@ def test_dropdown_duplicate_option_names_raise() -> None:
     assert len(dd.options) == 2
 
 
+def test_dropdown_disallow_select_none_infers_value() -> None:
+    dd = ui.dropdown(options=["1", "2", "3"], allow_select_none=False)
+    assert dd.value == "1"
+
+    dd = ui.dropdown(options={"1": "a", "2": "b"}, allow_select_none=False)
+    assert dd.value == "a"
+
+
+def test_dropdown_disallow_select_none_with_empty_options_raises() -> None:
+    msg = "when `allow_select_none` is False, `options` must not be empty"
+
+    with pytest.raises(ValueError, match=msg):
+        ui.dropdown(options={}, allow_select_none=False)
+
+    with pytest.raises(ValueError, match=msg):
+        ui.dropdown(options=[], allow_select_none=False)
+
+
 def test_multiselect_duplicate_option_names_raise() -> None:
     with pytest.raises(ValueError, match="Duplicate option name"):
         ui.multiselect(options=["a", "a", "b"])

@@ -811,6 +811,15 @@ def test_print_code_contains_is_literal_pandas(value: str) -> None:
         na_position="first",
     )
 )
+@example(
+    transform=PivotTransform(
+        type=TransformType.PIVOT,
+        column_ids=["strings"],
+        index_column_ids=["integers"],
+        value_column_ids=["floats"],
+        aggregation="median",
+    )
+)
 @settings(deadline=None)
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="polars not installed"
@@ -935,10 +944,12 @@ def test_print_code_result_matches_actual_transform_polars(
             )
         )
         # When value_column_ids is empty, all remaining columns become values.
-        # sum/mean aggregations fail on non-numeric columns (strings, booleans)
+        # sum/mean fail on non-numeric columns; median on lists can panic
+        # in Polars' streaming engine.
         if not transform.value_column_ids and transform.aggregation in {
             "sum",
             "mean",
+            "median",
         }:
             assume(False)
         # Polars does not support sum/mean on string or other non-numeric columns

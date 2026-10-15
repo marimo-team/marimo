@@ -31,7 +31,7 @@ import { layoutStateAtom } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
-import { WebSocketState } from "../websocket/types";
+import { ConnectionState } from "../websocket/types";
 import { filenameAtom } from "./file-state";
 import { useFilename, useUpdateFilename } from "./filename";
 import { lastSavedNotebookAtom, needsSaveAtom } from "./state";
@@ -55,7 +55,7 @@ export function enqueueNotebookSave<T>(save: () => Promise<T>): Promise<T> {
 export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
   const filename = useFilename();
   const needsSave = useAtomValue(needsSaveAtom);
-  const closed = useAtomValue(connectionAtom).state === WebSocketState.CLOSED;
+  const closed = useAtomValue(connectionAtom).state === ConnectionState.CLOSED;
   const { saveOrNameNotebook, saveIfNotebookIsPersistent } = useSaveNotebook();
   useAutoSaveNotebook({ onSave: saveIfNotebookIsPersistent, kioskMode });
 
@@ -120,7 +120,7 @@ export function useSaveNotebook() {
       }
 
       // Don't save if we are not connected to a kernel
-      if (connection.state !== WebSocketState.OPEN) {
+      if (connection.state !== ConnectionState.OPEN) {
         openAlert("Failed to save notebook: not connected to a kernel.");
         return;
       }
@@ -168,7 +168,7 @@ export function useSaveNotebook() {
     const connection = store.get(connectionAtom);
     if (
       isNamedPersistentFile(filename) &&
-      connection.state === WebSocketState.OPEN
+      connection.state === ConnectionState.OPEN
     ) {
       saveNotebook(filename, userInitiated);
     }
@@ -191,7 +191,7 @@ export function useSaveNotebook() {
     // Filename does not exist and we are connected to a kernel
     if (
       !isNamedPersistentFile(filename) &&
-      connection.state !== WebSocketState.CLOSED
+      connection.state !== ConnectionState.CLOSED
     ) {
       openModal(<SaveDialog onClose={closeModal} onSave={handleSaveDialog} />);
     }

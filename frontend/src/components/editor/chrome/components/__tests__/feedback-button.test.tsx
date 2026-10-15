@@ -14,7 +14,7 @@ import { requestClientAtom } from "@/core/network/requests";
 import type { EnvironmentInfo } from "@/core/network/types";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import * as copyModule from "@/utils/copy";
 import { FeedbackModal } from "../feedback-button";
 
@@ -53,7 +53,7 @@ describe("FeedbackModal issue reporting", () => {
     localStorage.clear();
     store.set(requestClientAtom, MockRequestClient.create());
     store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
-    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
     store.set(filenameAtom, "/project/example.py");
   });
 
@@ -156,7 +156,7 @@ describe("FeedbackModal issue reporting", () => {
   });
 
   it("disables include code and explains why when disconnected", async () => {
-    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
     store.set(
       requestClientAtom,
       MockRequestClient.create({
@@ -244,7 +244,7 @@ describe("FeedbackModal issue reporting", () => {
       "marimo:issue-report:include-code",
       JSON.stringify(true),
     );
-    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
     store.set(requestClientAtom, null);
     render(<FeedbackModal onClose={vi.fn()} />, { wrapper });
 
