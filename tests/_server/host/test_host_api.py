@@ -1787,3 +1787,100 @@ async def test_edits_during_a_save_remain_unsaved(
         "saved_etag": written,
     }
     assert "new_value" not in (harness.root / "forecasts.py").read_text()
+
+
+async def test_a_file_changed_outside_marimo_needs_a_decision(
+    harness: Harness,
+) -> None:
+    stream, disconnect = await opened(harness)
+    disconnect()
+    cell = first_record(stream, "cell")["cell"]
+    file = harness.root / "forecasts.py"
+    edited = await finished(
+        harness.app,
+        "POST",
+        f"/notebooks/{harness.notebook_id}/edits",
+        headers=key("edit-1"),
+        body=edit_body(
+            {
+                "kind": "put_cell",
+                "base_etag": cell["etag"],
+                "cell": {"id": cell["id"], "code": "x = 99"},
+            }
+        ),
+    )
+    assert edited.status == 200, edited.body
+    file.write_text(file.read_text().replace("x = 21", "x = 22"))
+
+    async def save(name: str, body: bytes) -> Response:
+        return await finished(
+            harness.app,
+            "POST",
+            f"/notebooks/{harness.notebook_id}/save",
+            headers=key(name),
+            body=body,
+        )
+
+    asked = await save("save-1", b"{}")
+    assert asked.status == 409, asked.body
+    problem = asked.json()
+    assert problem["type"].endswith("/decision-required")
+    assert [d["id"] for d in problem["decisions"]] == ["file"]
+    assert [o["id"] for o in problem["decisions"][0]["options"]] == [
+        "overwrite",
+        "reload",
+    ]
+    assert "x = 22" in file.read_text()
+
+    unknown = await save("save-2", b'{"decisions": {"file": "merge"}}')
+    assert unknown.status == 400, unknown.body
+    assert unknown.json()["type"].endswith("/invalid-request")
+
+    reloaded = await save("save-3", b'{"decisions": {"file": "reload"}}')
+    assert reloaded.status == 200, reloaded.body
+    response = reloaded.json()
+    assert response["document"]["saved_etag"] == response["document"]["etag"]
+    assert set(response["cells"]) == {cell["id"]}
+    document = (await harness.host.notebook(harness.notebook_id)).document
+    assert document.cell(cell["id"]).code == "x = 22"  # type: ignore[union-attr]
+    assert "x = 22" in file.read_text()
+
+    # With the document back in step with the file, a plain save proceeds.
+    edited = await finished(
+        harness.app,
+        "POST",
+        f"/notebooks/{harness.notebook_id}/edits",
+        headers=key("edit-2"),
+        body=edit_body(
+            {
+                "kind": "put_cell",
+                "base_etag": "*",
+                "cell": {"id": cell["id"], "code": "x = 100"},
+            }
+        ),
+    )
+    assert edited.status == 200, edited.body
+    file.write_text(file.read_text().replace("x = 22", "x = 23"))
+    overwritten = await save("save-4", b'{"decisions": {"file": "overwrite"}}')
+    assert overwritten.status == 200, overwritten.body
+    assert "x = 100" in file.read_text()
+    assert (await save("save-5", b"{}")).status == 200
+
+    # The host's own writes are not changes, even when the file does not
+    # read back as written: a new cell's id is not stored in the file.
+    for n, base, code in ((6, None, "y = 1\n\n"), (7, "*", "y = 2")):
+        edited = await finished(
+            harness.app,
+            "POST",
+            f"/notebooks/{harness.notebook_id}/edits",
+            headers=key(f"edit-{n}"),
+            body=edit_body(
+                {
+                    "kind": "put_cell",
+                    "base_etag": base,
+                    "cell": {"id": "fresh", "code": code},
+                }
+            ),
+        )
+        assert edited.status == 200, edited.body
+        assert (await save(f"save-{n}", b"{}")).status == 200

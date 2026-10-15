@@ -11,7 +11,7 @@ import pytest
 
 from marimo._config.manager import MarimoConfigManager
 from marimo._core import protocol
-from marimo._core.errors import Conflict, EditConflict
+from marimo._core.errors import Conflict, DecisionRequired, EditConflict
 from marimo._core.stream import Event
 from marimo._messaging.notification import (
     CompletedRunNotification,
@@ -925,7 +925,62 @@ async def test_the_editor_saving_marks_the_host_document_saved(
     assert document._record.saved_etag == written
     assert document._record.etag == before != written
 
-    # Once the session goes away, its writes are no longer the host's.
+    # Once the session goes away, its writes are no longer the host's,
+    # and the file as the editor left it is what the host compares to.
     manager.close_session("browser-1")
     assert session.app_file_manager.on_persisted is None
+    saved = await bridge.save(record.id, if_match=None, request_id="save-1")
+    assert saved.document.saved_etag == saved.document.etag
+    assert "x = 1" in path.read_text()
+    path.write_text(path.read_text().replace("x = 1", "x = 3"))
+    with pytest.raises(DecisionRequired):
+        await bridge.save(record.id, if_match=None, request_id="save-2")
+    bridge.close()
+
+
+async def test_reloading_refuses_to_drop_an_edit_made_while_reading(
+    manager: FakeManager, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    document = (await bridge.host.notebook(record.id)).document
+    (cell,) = document
+    path.write_text(NOTEBOOK.replace("x = 1", "x = 2"))
+
+    started = asyncio.Event()
+    release = threading.Event()
+    loop = asyncio.get_running_loop()
+    original = SessionBridge._read
+
+    def read(self: SessionBridge, file: Path) -> Any:
+        loop.call_soon_threadsafe(started.set)
+        assert release.wait(5)
+        return original(self, file)
+
+    monkeypatch.setattr(SessionBridge, "_read", read)
+    reloading = asyncio.ensure_future(
+        bridge.save(
+            record.id,
+            if_match=None,
+            decisions={"file": "reload"},
+            request_id="save-1",
+        )
+    )
+    try:
+        await asyncio.wait_for(started.wait(), 5)
+        edited = await bridge.edit(
+            record.id, [replace_code(cell, "x = 3")], request_id="edit-1"
+        )
+    finally:
+        release.set()
+
+    with pytest.raises(EditConflict) as conflict:
+        await asyncio.wait_for(reloading, 5)
+    assert conflict.value.document == edited.document
+    assert document.cell(cell.id).code == "x = 3"  # type: ignore[union-attr]
     bridge.close()

@@ -21,6 +21,7 @@ from marimo import _loggers
 from marimo._core import protocol
 from marimo._core.errors import (
     Conflict,
+    DecisionRequired,
     EditConflict,
     Invalid,
     NoRuntime,
@@ -75,6 +76,7 @@ _TITLES = {
     "method-not-allowed": "Method not allowed",
     "conflict": "Conflict",
     "no-runtime": "No runtime",
+    "decision-required": "Decision required",
     "unsupported-operation": "Unsupported operation",
     "internal": "Internal error",
 }
@@ -94,12 +96,14 @@ def problem(
     detail: str | None = None,
     *,
     edit: protocol.EditConflict | None = None,
+    decisions: tuple[protocol.Decision, ...] | None = None,
 ) -> Response:
     """Return a protocol error as an HTTP problem response.
 
     Without a kind, the status picks one. A status this protocol does
     not name is a server bug, so it becomes a 500 rather than a problem
-    of an unknown kind. A conflict over an edit carries `edit`.
+    of an unknown kind. A conflict over an edit carries `edit`, and a
+    request that needs a choice first carries `decisions`.
     """
     kind = _HTTP_KINDS.get(status) if kind is None else kind
 
@@ -112,6 +116,7 @@ def problem(
         status=status,
         detail=msgspec.UNSET if detail is None else detail,
         edit=msgspec.UNSET if edit is None else edit,
+        decisions=msgspec.UNSET if decisions is None else decisions,
     )
     return Response(
         msgspec.json.encode(body),
@@ -358,6 +363,8 @@ async def _execute_mutation(endpoint: _Endpoint, request: Request) -> Response:
         return await endpoint(request)
     except NoRuntime as e:
         return problem(409, "no-runtime", str(e))
+    except DecisionRequired as e:
+        return problem(409, "decision-required", str(e), decisions=e.decisions)
     except EditConflict as e:
         return problem(
             409,
@@ -630,10 +637,11 @@ async def _save_notebook(request: Request) -> Response:
     context = _context(request)
     key = request.headers["Idempotency-Key"]
     notebook = await _notebook(request)
-    await _decode(request, protocol.SaveRequest)
+    body = await _decode(request, protocol.SaveRequest)
     response = await context.bridge.save(
         notebook.id,
         if_match=_if_match(request.headers.get("If-Match")),
+        decisions={} if body.decisions is msgspec.UNSET else body.decisions,
         request_id=key,
     )
     return _reply(200, response)

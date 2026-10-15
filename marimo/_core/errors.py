@@ -48,3 +48,17 @@ class EditConflict(Conflict):
         self.change = change
         self.cell = cell
         self.document = document
+
+
+class DecisionRequired(Conflict):
+    """The command needs a choice from the client before it can proceed.
+
+    Carries the decisions to put to the client, which repeats the
+    request with its answers.
+    """
+
+    def __init__(
+        self, message: str, *, decisions: tuple[protocol.Decision, ...]
+    ) -> None:
+        super().__init__(message)
+        self.decisions = decisions
