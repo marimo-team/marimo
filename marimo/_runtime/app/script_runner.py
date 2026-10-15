@@ -41,6 +41,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.app import InternalApp
     from marimo._runtime.context.types import RuntimeContext
+    from marimo._save.cache import CacheState
 
 
 class AppScriptRunner:
@@ -56,6 +57,15 @@ class AppScriptRunner:
         self.filename = filename
         self._docstring = extract_docstring_from_header(app._app._header)
         self._glbls = glbls if glbls else {}
+        # `glbls` also carries the setup cell's own values; any other name
+        # is a `defs` override.
+        # The setup cell's id carries a prefix when the notebook is imported
+        # from inside another notebook, so it is looked up by its real id.
+        setup_cell = self.app.graph.cells.get(
+            self.app.cell_manager.setup_cell_id
+        )
+        setup_defs = setup_cell.defs if setup_cell is not None else set()
+        self._has_overrides = bool(self._glbls.keys() - setup_defs)
 
         # Setup cell cannot be overridden, and it's possible that some
         # variables are not defined, so ignore it.
@@ -229,6 +239,8 @@ class AppScriptRunner:
                 break
 
         installed_script_context = False
+        cache: CacheState | None = None
+        outer_hash_memo: dict[str, bytes] = {}
         try:
             if not runtime_context_installed():
                 # script context is ephemeral, only installed while the app is
@@ -237,6 +249,13 @@ class AppScriptRunner:
                     app=app, stream=NoopStream(), filename=self.filename
                 )
                 installed_script_context = True
+
+            # Content hashes are memoized by variable name. A run started
+            # from inside a running notebook reuses that notebook's context,
+            # so without a memo of its own it would read the hashes of
+            # another notebook's variables of the same name.
+            cache = get_context().cache
+            outer_hash_memo, cache.hash_memo = cache.hash_memo, {}
 
             # formatters aren't automatically registered when running as a
             # script
@@ -252,7 +271,13 @@ class AppScriptRunner:
             # needs the runtime context, and the notebook's inline
             # [tool.marimo.runtime] table merges by filename.
             runtime_config = get_context().marimo_config.get("runtime", {})
-            if runtime_config.get("cache_cells", False):
+            # A cache key can hash the code of the cells that define a ref
+            # instead of its value, so with overrides a run would restore,
+            # and save, results under the keys of the cells they replace.
+            if (
+                runtime_config.get("cache_cells", False)
+                and not self._has_overrides
+            ):
                 from marimo._runtime.executor.lifecycles.cached import (
                     CachedLifecycle,
                 )
@@ -300,5 +325,7 @@ class AppScriptRunner:
             # the manifest of the entries this run recorded.
             if (context := safe_get_context()) is not None:
                 flush_dirty_manifests(context)
+            if cache is not None:
+                cache.hash_memo = outer_hash_memo
             if installed_script_context:
                 teardown_context()
