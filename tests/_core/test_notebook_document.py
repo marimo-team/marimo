@@ -17,6 +17,7 @@ from marimo._core.document import (
     code_hash,
     document_etag,
     order_etag,
+    revision,
 )
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -123,6 +124,14 @@ class TestEtags:
         assert document_etag(
             order_etag(["a"]), app_config_etag({}), [hashed]
         ) != (document_etag(order_etag(["a"]), app_config_etag({}), []))
+
+    def test_revision_matches_the_document_built_from_the_same_sources(
+        self,
+    ) -> None:
+        cells = [*fixture_cells(), CellSource("crlf", "x = 1\r\ny = 2")]
+        app_config = {"width": "full"}
+        document = Document(NOTEBOOK, cells, app_config)
+        assert revision(cells, app_config) == document._record.etag
 
     def test_normalizes_line_endings_before_hashing(self) -> None:
         document = Document(NOTEBOOK, [CellSource("a", "x = 1\r\ny = 2")], {})
