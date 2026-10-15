@@ -14,10 +14,12 @@ from marimo._save.cache_dirs import (
     NotANotebookError,
     block_dir_name,
     cache_dir_stats,
+    cache_entry_keys,
     clean_cache_dir,
     delete_cache_entries,
     directory_cache_dir,
     entry_bytes,
+    is_marimo_notebook,
     notebook_cache_dir,
     partial_write_name,
     resolve_cache_dirs,
@@ -451,6 +453,37 @@ def test_cache_dir_stats_subtract() -> None:
     assert left - right == CacheDirStats(total_bytes=6, entries=2)
     # A cache holding less than nothing has no meaning to report.
     assert right - left == CacheDirStats()
+
+
+def test_cache_entry_keys_names_what_a_manifest_records(
+    tmp_path: Path,
+) -> None:
+    cache_dir = make_cache_dir(tmp_path)
+    populate_cache_dir(cache_dir)
+    # Neither of these names an entry: one is the blobs an entry reads, the
+    # other is what a killed write left behind.
+    (cache_dir / "train" / partial_write_name("C_77e0.pickle")).write_bytes(
+        b"p"
+    )
+
+    assert cache_entry_keys(cache_dir) == {
+        ("train", "C_ab12"),
+        ("train", "E_9f00"),
+    }
+
+
+def test_cache_entry_keys_of_a_directory_that_does_not_exist(
+    tmp_path: Path,
+) -> None:
+    assert cache_entry_keys(tmp_path / "absent") == set()
+
+
+def test_is_marimo_notebook(tmp_path: Path) -> None:
+    assert is_marimo_notebook(write_notebook(tmp_path / "nb.py"))
+    script = tmp_path / "script.py"
+    script.write_text("print('hello')\n")
+    assert not is_marimo_notebook(script)
+    assert not is_marimo_notebook(tmp_path / "absent.py")
 
 
 def test_entry_bytes(tmp_path: Path) -> None:

@@ -234,6 +234,33 @@ no blocks, it deletes every block. Pass one or more NAME arguments to
 limit either mode to those blocks. Each NAME must match a name you gave
 to `mo.persistent_cache`.
 
+### Delete entries that current code can no longer produce
+
+```bash
+marimo cache prune my_notebook.py --dry-run
+```
+
+Run `marimo cache prune` to delete cache entries that current code can
+no longer produce, based on the manifest. For example, if you edit a
+cell that a cached block depends on, prune treats that block's older
+entries as dead and deletes them. The next run of the notebook records
+fresh entries under the new code.
+
+Prune never deletes an entry recorded under code that still exists.
+Deleting too much costs a recomputation, never a wrong result.
+
+`--dry-run` reports the planned deletions and deletes nothing.
+Remove the flag to delete the entries. Add `--force` (or `-y`) to skip the
+confirmation prompt, for example in an automated script.
+
+```bash
+marimo cache prune my_notebook.py --force
+```
+
+See [Managing the cache
+directory](../api/caching.md#managing-the-cache-directory) for the
+manifest, the path hash, and the guards and caveats behind prune.
+
 ## Lazy-load expensive UIs
 
 Lazily render UI elements that are expensive to compute using
