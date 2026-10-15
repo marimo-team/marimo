@@ -41,6 +41,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.app import InternalApp
     from marimo._runtime.context.types import RuntimeContext
+    from marimo._runtime.executor.lifecycles.cached import CachedLifecycle
     from marimo._save.cache import CacheState
 
 
@@ -85,6 +86,7 @@ class AppScriptRunner:
 
         self._scheduler = SequentialScheduler(cells_to_run, self.app.graph)
         self._evaluator = Evaluator(executor=resolve_executor(), lifecycles=[])
+        self._cache: CachedLifecycle | None = None
 
     # _run_synchronous and _run_asynchronous are deliberate near-twins:
     # the only difference is the await on the cell step. Keeping them
@@ -106,7 +108,9 @@ class AppScriptRunner:
             glbls.update(self._glbls)
 
             outputs: dict[CellId_t, Any] = {}
-            while self._scheduler.pending():
+            while self._scheduler.pending() or self._rerun_stub_definers(
+                glbls
+            ):
                 cid = self._scheduler.pop_cell()
                 if self._scheduler.cancelled(cid):
                     continue
@@ -140,7 +144,9 @@ class AppScriptRunner:
             glbls.update(self._glbls)
 
             outputs: dict[CellId_t, Any] = {}
-            while self._scheduler.pending():
+            while self._scheduler.pending() or self._rerun_stub_definers(
+                glbls
+            ):
                 cid = self._scheduler.pop_cell()
                 if self._scheduler.cancelled(cid):
                     continue
@@ -183,6 +189,20 @@ class AppScriptRunner:
         finally:
             if installed_context:
                 teardown_context()
+
+    def _rerun_stub_definers(self, glbls: dict[str, Any]) -> bool:
+        """Requeue the cells whose definitions restored as stubs.
+
+        In a notebook, the cell that reads a stub reruns its producer; the
+        caller of `App.run` reads the definitions only after the run.
+        """
+        if self._cache is None:
+            return False
+        cells = self._cache.invalidate_stub_definers(glbls)
+        if not cells:
+            return False
+        self._scheduler.requeue_for_rerun(cells)
+        return self._scheduler.pending()
 
     def _handle_run_result(
         self,
@@ -282,14 +302,11 @@ class AppScriptRunner:
                     CachedLifecycle,
                 )
 
-                self._evaluator.lifecycles = [
-                    CachedLifecycle(
-                        self.app.graph,
-                        pin_modules=bool(
-                            runtime_config.get("pin_modules", True)
-                        ),
-                    )
-                ]
+                self._cache = CachedLifecycle(
+                    self.app.graph,
+                    pin_modules=bool(runtime_config.get("pin_modules", True)),
+                )
+                self._evaluator.lifecycles = [self._cache]
 
             post_execute_hooks: list[Callable[[], Any]] = []
             if DependencyManager.matplotlib.has():

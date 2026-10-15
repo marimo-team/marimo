@@ -266,3 +266,57 @@ def test_app_runs_in_one_context_hash_their_own_values(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stderr
     assert "returned y=3,30" in result.stdout
+
+
+UNPICKLABLE_NOTEBOOK_SOURCE = """# /// script
+# [tool.marimo.runtime]
+# cache_cells = true
+# ///
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    increment = lambda value: value + 1
+    print("defined increment")
+    return (increment,)
+"""
+
+UNPICKLABLE_DRIVER_SOURCE = """from notebook import app
+
+_, defs = app.run()
+print(f"returned {defs['increment'](1)}")
+"""
+
+
+def test_app_run_reruns_cells_whose_definitions_did_not_pickle(
+    tmp_path: Path,
+) -> None:
+    """`App.run()` never hands back a cache placeholder.
+
+    A lambda cannot be pickled, so its cache entry holds a placeholder. In
+    a notebook the first cell to read the placeholder reruns its producer;
+    the caller of `App.run()` reads the definitions only after the run, so
+    the script runner reruns the producer itself.
+    """
+    (tmp_path / "notebook.py").write_text(
+        UNPICKLABLE_NOTEBOOK_SOURCE, encoding="utf-8"
+    )
+    driver = tmp_path / "driver.py"
+    driver.write_text(UNPICKLABLE_DRIVER_SOURCE, encoding="utf-8")
+
+    for attempt in ("cold", "warm"):
+        result = subprocess.run(
+            [sys.executable, str(driver)],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+            timeout=120,
+        )
+        assert result.returncode == 0, (attempt, result.stderr)
+        assert "returned 2" in result.stdout, attempt
+        assert "defined increment" in result.stdout, (
+            f"the {attempt} run must execute the cell"
+        )

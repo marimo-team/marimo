@@ -251,6 +251,22 @@ class CachedLifecycle:
             self._loader, attempt.key, cell_id, self._graph, saved=True
         )
 
+    def invalidate_stub_definers(self, glbls: MutableGlobals) -> set[CellId_t]:
+        """Invalidate and return the cells that still define a stub.
+
+        A cell already invalidated is left out, so one that keeps restoring
+        a stub is not rerun forever.
+        """
+        stale = {
+            cell_id
+            for cell_id, cell in self._graph.cells.items()
+            if cell_id not in self._invalidated
+            and self._defines_stub(cell, glbls)
+        }
+        for cell_id in stale:
+            self._invalidate(cell_id)
+        return stale
+
     @staticmethod
     def _defines_stub(cell: CellImpl, glbls: MutableGlobals) -> bool:
         """True if any name the cell defines is still an UnhashableStub."""
