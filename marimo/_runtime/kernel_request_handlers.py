@@ -27,6 +27,7 @@ from marimo._runtime.commands import (
     CreateNotebookCommand,
     DebugCellCommand,
     DeleteCellCommand,
+    EditCellsCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     ExecuteStaleCellsCommand,
@@ -82,6 +83,7 @@ class KernelRequestHandlers:
         router.register(DeleteCellCommand, self._handle_delete_cell)
         router.register(ExecuteCellsCommand, self._handle_execute_multiple)
         router.register(SyncGraphCommand, self._handle_sync_graph)
+        router.register(EditCellsCommand, self._handle_edit_cells)
         router.register(
             ExecuteScratchpadCommand, self._handle_execute_scratchpad
         )
@@ -161,6 +163,10 @@ class KernelRequestHandlers:
     ) -> None:
         with self._run_context():
             await self._kernel.set_cell_config(request)
+
+    async def _handle_edit_cells(self, request: EditCellsCommand) -> None:
+        with self._run_context():
+            await self._kernel.edit_cells(request)
 
     async def _handle_instantiate(
         self, request: CreateNotebookCommand

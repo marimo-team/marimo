@@ -660,3 +660,85 @@ async def test_a_new_session_adopts_unsaved_host_edits(
     assert document._record.saved_etag != document._record.etag
     assert "unsaved" not in (tmp_path / "a.py").read_text()
     bridge.close()
+
+
+async def test_an_edit_reaches_the_kernel_as_one_command(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._runtime.commands import EditCellsCommand
+    from marimo._session.notebook import AppFileManager
+
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(
+        NOTEBOOK + "@app.cell\ndef _(x):\n    y = x\n    return (y,)\n"
+    )
+    session = FakeSession(str(path))
+    session.document = AppFileManager(str(path)).app.cell_manager.document
+    manager.sessions["browser-1"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    first, second = (await bridge.host.notebook(record.id)).document
+
+    await bridge.edit(
+        record.id,
+        [
+            protocol.PutCell(
+                base_etag=first.etag,
+                cell=protocol.CellInput(
+                    id=first.id,
+                    code=first.code,
+                    config=protocol.CellConfigInput(disabled=True),
+                ),
+            ),
+            protocol.DeleteCell(id=second.id, base_etag=second.etag),
+            protocol.PutCell(
+                base_etag=None,
+                cell=protocol.CellInput(
+                    id=protocol.CellId("new"),
+                    code="z = 1",
+                    config=protocol.CellConfigInput(hide_code=True),
+                ),
+            ),
+        ],
+        request_id="edit-1",
+    )
+
+    default = {
+        "column": None,
+        "disabled": False,
+        "hide_code": False,
+        "expand_output": False,
+    }
+    assert session.commands == [
+        EditCellsCommand(
+            codes={"new": "z = 1"},
+            configs={
+                first.id: {**default, "disabled": True},
+                "new": {**default, "hide_code": True},
+            },
+            delete_ids=[second.id],
+        )
+    ]
+
+    # Changed code reaches the kernel without a run.
+    await bridge.edit(
+        record.id,
+        [
+            protocol.PutCell(
+                base_etag="*",
+                cell=protocol.CellInput(
+                    id=protocol.CellId("new"),
+                    code="z = 2",
+                    config=protocol.CellConfigInput(hide_code=True),
+                ),
+            )
+        ],
+        request_id="edit-2",
+    )
+    assert session.commands[1:] == [
+        EditCellsCommand(codes={"new": "z = 2"}, configs={}, delete_ids=[])
+    ]
+    bridge.close()

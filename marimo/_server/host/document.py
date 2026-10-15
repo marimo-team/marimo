@@ -36,6 +36,7 @@ from marimo._messaging.notebook import (
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
 )
+from marimo._runtime.commands import EditCellsCommand
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -84,28 +85,38 @@ def apply_to_session(session: Session, document: Document) -> None:
     """Apply the document's cells and order to the session as one transaction.
 
     The session tells its consumers, so the frontend sees the edit and
-    the host backend mirrors it back as a no-op. The app config is the
-    session's own and is left alone.
+    the host backend mirrors it back as a no-op. The kernel is told of
+    the edit as one command, so nothing runs code the document no longer
+    has: changed code is registered without running, and a cell the edit
+    deletes or disables is gone before any run the deletion causes. The
+    app config is the session's own and is left alone.
     """
     current = session.document
     changes: list[DocumentChange] = []
+    codes: dict[CellId_t, str] = {}
+    configs: dict[CellId_t, dict[str, Any]] = {}
     previous: CellId_t | None = None
     for cell in document:
         cell_id = CellId_t(cell.id)
         existing = current.get(cell_id)
+        config = _cell_config(cell.config)
         if existing is None:
             changes.append(
                 CreateCell(
                     cell_id=cell_id,
                     code=cell.code,
                     name=cell.name,
-                    config=_cell_config(cell.config),
+                    config=config,
                     after=previous,
                 )
             )
+            codes[cell_id] = cell.code
+            if config != CellConfig():
+                configs[cell_id] = config.asdict()
         else:
             if existing.code != cell.code:
                 changes.append(SetCode(cell_id=cell_id, code=cell.code))
+                codes[cell_id] = cell.code
             if existing.name != cell.name:
                 changes.append(SetName(cell_id=cell_id, name=cell.name))
             if _config(existing.config) != cell.config:
@@ -118,13 +129,11 @@ def apply_to_session(session: Session, document: Document) -> None:
                         expand_output=cell.config.expand_output,
                     )
                 )
+                configs[cell_id] = config.asdict()
         previous = cell_id
     wanted = {CellId_t(cell.id) for cell in document}
-    changes.extend(
-        DeleteCell(cell_id=cell_id)
-        for cell_id in current.cell_ids
-        if cell_id not in wanted
-    )
+    deleted = [c for c in current.cell_ids if c not in wanted]
+    changes.extend(DeleteCell(cell_id=cell_id) for cell_id in deleted)
     order = [CellId_t(c) for c in document.order]
     if current.cell_ids != order:
         changes.append(ReorderCells(cell_ids=tuple(order)))
@@ -135,3 +144,8 @@ def apply_to_session(session: Session, document: Document) -> None:
         NotebookDocumentTransactionNotification(transaction=applied),
         from_consumer_id=None,
     )
+    if codes or configs or deleted:
+        session.put_control_request(
+            EditCellsCommand(codes=codes, configs=configs, delete_ids=deleted),
+            from_consumer_id=None,
+        )

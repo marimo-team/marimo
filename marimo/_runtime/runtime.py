@@ -107,6 +107,7 @@ from marimo._runtime.commands import (
     CommandMessage,
     CreateNotebookCommand,
     DeleteCellCommand,
+    EditCellsCommand,
     ExecuteCellCommand,
     ExecuteStaleCellsCommand,
     InvokeFunctionCommand,
@@ -1694,6 +1695,42 @@ class Kernel:
         self.mutate_graph(execution_requests, deletion_requests)
         await self.run(execution_requests)
 
+    @kernel_tracer.start_as_current_span("edit_cells")
+    async def edit_cells(self, request: EditCellsCommand) -> None:
+        """Apply a notebook edit to the graph, then run what follows from it.
+
+        Changed code is registered as stale, not run. The kernel only
+        takes code for cells it has: a cell it has never seen arrives
+        with the run that first carries it, and code pending from an
+        instantiation without a run is replaced in place. Deletions and
+        configs then apply together, and only their consequences run:
+        cells that depended on a deleted cell, and under autorun, stale
+        cells the edit enabled.
+        """
+        edits: list[ExecuteCellCommand] = []
+        for cell_id, code in request.codes.items():
+            command = ExecuteCellCommand(cell_id=cell_id, code=code)
+            if cell_id in self.graph.cells:
+                edits.append(command)
+            elif cell_id in self._uninstantiated_execution_requests:
+                self._uninstantiated_execution_requests[cell_id] = command
+        if edits:
+            self.mutate_graph(
+                edits,
+                deletion_requests=[],
+                cells_starting_stale={edit.cell_id for edit in edits},
+            )
+        deletions = [
+            DeleteCellCommand(cell_id=cell_id)
+            for cell_id in request.delete_ids
+        ]
+        cells_to_run = self.mutate_graph([], deletions) if deletions else set()
+        stale_cells = self._configure_cells(request.configs)
+        if self.reactive_execution_mode == "autorun":
+            cells_to_run |= stale_cells
+        if cells_to_run:
+            await self._run_cells(cells_to_run)
+
     def prepare_execution_requests(
         self,
         execution_requests: Sequence[ExecuteCellCommand],
@@ -1944,9 +1981,16 @@ class Kernel:
 
         Cells that are enabled (via config) but stale are run as a side-effect.
         """
-        # Stale cells that are enabled will need to be run.
+        stale_cells = self._configure_cells(request.configs)
+        if stale_cells and self.reactive_execution_mode == "autorun":
+            await self._run_cells(stale_cells)
+
+    def _configure_cells(
+        self, configs: dict[CellId_t, dict[str, Any]]
+    ) -> set[CellId_t]:
+        """Apply cell configs and return the stale cells they enabled."""
         stale_cells: set[CellId_t] = set()
-        for cell_id, config in request.configs.items():
+        for cell_id, config in configs.items():
             previous = self.cell_metadata.get(cell_id, CellMetadata()).config
             merged = CellConfig.from_dict(previous.asdict())
             merged.configure(config)
@@ -1955,13 +1999,11 @@ class Kernel:
             if cell is None:
                 continue
             cell.configure(config)
-            if not cell.config.disabled:
-                stale_cells |= self.graph.enable_cell(cell_id)
-            elif cell.config.disabled:
+            if cell.config.disabled:
                 self.graph.disable_cell(cell_id)
-
-        if stale_cells and self.reactive_execution_mode == "autorun":
-            await self._run_cells(stale_cells)
+            else:
+                stale_cells |= self.graph.enable_cell(cell_id)
+        return stale_cells
 
     @kernel_tracer.start_as_current_span("set_user_config")
     def set_user_config(self, request: UpdateUserConfigCommand) -> None:
