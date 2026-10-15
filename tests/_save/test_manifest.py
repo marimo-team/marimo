@@ -87,6 +87,28 @@ class TestManifestFormat:
         assert manifest.entries() == {("train", "C_e4f9")}
 
     @staticmethod
+    def test_discard_forgets_entries_wherever_they_were_recorded() -> None:
+        manifest = CacheManifest(
+            nodes={
+                "3f9c": {"train": {"C_ab12", "C_77e0"}, "eval": {"E_0001"}},
+                "8d21": {"train": {"C_ab12"}},
+            }
+        )
+
+        manifest.discard({("train", "C_ab12"), ("eval", "E_0001")})
+
+        # A path hash left listing nothing goes with its last entry.
+        assert manifest.nodes == {"3f9c": {"train": {"C_77e0"}}}
+
+    @staticmethod
+    def test_discard_of_an_entry_no_node_attests() -> None:
+        manifest = CacheManifest(nodes={"3f9c": {"train": {"C_ab12"}}})
+
+        manifest.discard({("eval", "C_ab12")})
+
+        assert manifest.nodes == {"3f9c": {"train": {"C_ab12"}}}
+
+    @staticmethod
     def test_corrupt_manifest_raises() -> None:
         with pytest.raises(CorruptManifestError):
             CacheManifest.from_bytes(b"{not json")
