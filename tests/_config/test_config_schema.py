@@ -24,7 +24,7 @@ from marimo._config.config import (
 )
 from marimo._config.config_schema import MarimoConfig
 from marimo._config.manager import UserConfigStore
-from marimo._config.schema import Config, value_or
+from marimo._config.schema_utils import Config, default_if_unset
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -143,8 +143,10 @@ def test_defaults_are_independent() -> None:
     ("value", "expected"),
     [(UNSET, "fallback"), (None, None), (False, False), (0, 0), ("", "")],
 )
-def test_value_or_preserves_explicit_values(value: Any, expected: Any) -> None:
-    assert value_or(value, "fallback") == expected
+def test_default_if_unset_preserves_explicit_values(
+    value: Any, expected: Any
+) -> None:
+    assert default_if_unset(value, "fallback") == expected
 
 
 def test_nested_conversion_preserves_presence() -> None:

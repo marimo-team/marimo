@@ -16,7 +16,7 @@ from typing import (
 from msgspec import UNSET, UnsetType
 
 from marimo._config.packages import infer_package_manager
-from marimo._config.schema import Config
+from marimo._config.schema_utils import Config
 from marimo._config.types import (
     CacheVerification,
     CopilotMode,
