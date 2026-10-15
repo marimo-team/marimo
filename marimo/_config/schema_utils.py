@@ -7,37 +7,22 @@ import types
 from collections.abc import Mapping
 from dataclasses import MISSING, dataclass, fields
 from typing import (
-    TypeVar,
+    Any,
     Union,
     get_args,
     get_origin,
     get_type_hints,
-    overload,
 )
 
-from msgspec import UNSET, UnsetType
+from msgspec import UNSET
 
 if sys.version_info >= (3, 11):
     from typing import Self
 else:
     from typing_extensions import Self
 
-T = TypeVar("T")
-U = TypeVar("U")
-K = TypeVar("K")
 
-
-@overload
-def default_if_unset(
-    value: T | UnsetType | None, default: None
-) -> T | None: ...
-
-
-@overload
-def default_if_unset(value: T | UnsetType, default: U) -> T | U: ...
-
-
-def default_if_unset(value: object, default: object) -> object:
+def default_if_unset(value: Any, default: Any) -> Any:
     """Use a fallback only for absent values, preserving explicit None."""
     return default if value is UNSET else value
 
@@ -82,33 +67,10 @@ def _convert_config_value(value: object, annotation: object) -> object:
     return value
 
 
-@overload
-def serialize_config_value(value: Config) -> dict[str, object]: ...
-
-
-@overload
-def serialize_config_value(value: Mapping[K, object]) -> dict[K, object]: ...
-
-
-@overload
-def serialize_config_value(value: list[T]) -> list[object]: ...
-
-
-@overload
-def serialize_config_value(value: object) -> object: ...
-
-
-def serialize_config_value(value: object) -> object:
+def serialize_config_value(value: object) -> Any:
     """Serialize configuration, omitting absent fields and retaining nulls."""
     if isinstance(value, Config):
-        return {
-            **serialize_config_value(value._extra_fields),
-            **{
-                item.name: serialize_config_value(getattr(value, item.name))
-                for item in fields(value)
-                if getattr(value, item.name) is not UNSET
-            },
-        }
+        return value.to_dict()
     if isinstance(value, Mapping):
         return {
             key: serialize_config_value(item)
@@ -147,4 +109,11 @@ class Config:
 
     def to_dict(self) -> dict[str, object]:
         """Omit unset fields while retaining fields explicitly set to None."""
-        return serialize_config_value(self)
+        return {
+            **serialize_config_value(self._extra_fields),
+            **{
+                item.name: serialize_config_value(getattr(self, item.name))
+                for item in fields(self)
+                if getattr(self, item.name) is not UNSET
+            },
+        }
