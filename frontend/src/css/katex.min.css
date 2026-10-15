@@ -35,7 +35,7 @@
 }
 
 .katex .katex-version::after {
-  content: "0.18.5";
+  content: "0.18.7";
 }
 
 .katex .katex-mathml {
