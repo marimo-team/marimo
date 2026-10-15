@@ -26,7 +26,7 @@ import { timeAgo } from "@/utils/dates";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { groupChatsByDate } from "./chat-history-utils";
 
-const CHAT_HISTORY_WARNING_THRESHOLD = 100;
+const CHAT_HISTORY_WARNING_THRESHOLD = 50;
 
 interface ChatHistoryPopoverProps {
   activeChatId: ChatId | undefined;

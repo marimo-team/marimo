@@ -100,10 +100,10 @@ describe("chat history management", () => {
     ).toBeEnabled();
   });
 
-  it("warns above 100 chats and clears the warning after cleanup", () => {
+  it("warns above 50 chats and clears the warning after cleanup", () => {
     const { store } = setup();
     const chats = new Map<ChatId, Chat>(
-      Array.from({ length: 101 }, (_, index) => {
+      Array.from({ length: 51 }, (_, index) => {
         const id = `chat-${index}` as ChatId;
         return [id, chat(id)];
       }),
@@ -114,7 +114,7 @@ describe("chat history management", () => {
     );
     expect(warning).toBeVisible();
     expect(warning).toHaveTextContent(
-      "You have over 100 chats. Delete old chats to free up browser storage.",
+      "You have over 50 chats. Delete old chats to free up browser storage.",
     );
 
     act(() =>
