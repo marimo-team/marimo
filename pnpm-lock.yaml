@@ -480,6 +480,9 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@types/css-tree':
+        specifier: ^2.3.11
+        version: 2.3.11
       '@types/dompurify':
         specifier: ^3.2.0
         version: 3.2.0
@@ -513,6 +516,9 @@ importers:
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
+      css-tree:
+        specifier: ^3.1.0
+        version: 3.1.0
       jsdom:
         specifier: ^24.1.3
         version: 24.1.3
@@ -3817,6 +3823,9 @@ packages:
 
   '@types/clone@0.1.30':
     resolution: {integrity: sha512-vcxBr+ybljeSiasmdke1cQ9ICxoEwaBgM1OQ/P5h4MPj/kRyLcDl5L8PrftlbyV1kBbJIs3M3x1A1+rcWd4mEA==}
+
+  '@types/css-tree@2.3.11':
+    resolution: {integrity: sha512-aEokibJOI77uIlqoBOkVbaQGC9zII0A+JH1kcTNKW2CwyYWD8KM6qdo+4c77wD3wZOQfJuNWAr9M4hdk+YhDIg==}
 
   '@types/d3-array@3.2.2':
     resolution: {integrity: sha512-hOLWVbm7uRza0BYXpIIW5pxfrKe0W+D5lrFiAEYR+pb6w3N2SwSMaJbXdUfSEv+dT4MfHBLtn5js0LAWaO6otw==}
@@ -12341,6 +12350,8 @@ snapshots:
       assertion-error: 2.0.1
 
   '@types/clone@0.1.30': {}
+
+  '@types/css-tree@2.3.11': {}
 
   '@types/d3-array@3.2.2': {}
 

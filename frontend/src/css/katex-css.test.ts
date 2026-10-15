@@ -158,6 +158,71 @@ describe("copied KaTeX stylesheet", () => {
     },
   );
 
+  function withFontShorthand(value: string): string {
+    const root = postcss.parse(upstream);
+    root.walkRules(".katex", (rule) => {
+      rule.walkDecls("font", (declaration) => {
+        declaration.value = value;
+      });
+    });
+    return root.toString();
+  }
+
+  it.each([
+    'normal 1.21em "KaTeX_Main","Times New Roman",serif',
+    "1.21em KaTeX_Main , Times New Roman , serif",
+    "italic small-caps 700 125%/1.4 KaTeX_Main, Times New Roman, serif",
+  ])(
+    "accepts equivalent families with overridden size and style: %s",
+    async (value) => {
+      expect(await generateKatexCss(withFontShorthand(value))).toBe(generated);
+    },
+  );
+
+  it.each([
+    ['24px "New Math", monospace', '"New Math", monospace'],
+    [
+      'italic 2em "KaTeX, Alternate", "Other/Font", serif',
+      '"KaTeX, Alternate", "Other/Font", serif',
+    ],
+  ])(
+    "preserves upstream font families from %s",
+    async (value, expectedFamily) => {
+      const css = postcss.parse(
+        await generateKatexCss(withFontShorthand(value)),
+      );
+      const declarations: Record<string, string> = {};
+      css.walkRules(".katex", (rule) => {
+        rule.walkDecls((declaration) => {
+          declarations[declaration.prop] = declaration.value;
+        });
+      });
+      expect(declarations).toMatchObject({
+        "font-family": expectedFamily,
+        "font-size": "110%",
+        "font-style": "normal",
+        "line-height": "inherit",
+      });
+      expect(declarations).not.toHaveProperty("font");
+    },
+  );
+
+  it.each([
+    "inherit",
+    "caption",
+    "var(--math-font)",
+    "12px",
+    "12px serif,,",
+    "KaTeX_Main, serif",
+  ])(
+    "requires review when the font shorthand cannot supply a safe family list: %s",
+    async (value) => {
+      await expect(generateKatexCss(withFontShorthand(value))).rejects.toThrow(
+        "review the font override",
+      );
+    },
+  );
+
   it("requires review when an overridden upstream declaration changes", async () => {
     await expect(
       generateKatexCss(upstream.replace("line-height:1.2", "line-height:1.3")),

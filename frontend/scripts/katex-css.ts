@@ -4,9 +4,18 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { generate, lexer, List, parse, type CssNode } from "css-tree";
 import { format } from "oxfmt";
 import postcss, { type Rule } from "postcss";
 import stylelint from "stylelint";
+
+// The published types omit this lexer helper, which identifies matched
+// shorthand components without reimplementing CSS font grammar.
+declare module "css-tree" {
+  interface LexerMatchResult {
+    isProperty(node: CssNode, property: string): boolean;
+  }
+}
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const stylesheetPath = path.resolve(
@@ -52,6 +61,32 @@ async function formatCss(css: string): Promise<string> {
   return result.code;
 }
 
+function parseFontFamily(shorthand: string): string {
+  try {
+    const value = parse(shorthand, { context: "value" });
+    const match = lexer.matchProperty("font", value);
+    if (match.error || value.type !== "Value") {
+      throw new Error("Invalid font shorthand");
+    }
+    const nodes = value.children.toArray();
+    const familyStart = nodes.findIndex((node) =>
+      match.isProperty(node, "font-family"),
+    );
+    // System fonts, CSS-wide keywords, and unresolved variables cannot supply
+    // a concrete family list to preserve when replacing the shorthand.
+    if (familyStart === -1) {
+      throw new Error("Font shorthand has no explicit family list");
+    }
+    value.children = new List<CssNode>().fromArray(nodes.slice(familyStart));
+    return generate(value);
+  } catch (error) {
+    throw new Error(
+      "Cannot safely parse the upstream KaTeX font shorthand; review the font override in frontend/scripts/katex-css.ts.",
+      { cause: error },
+    );
+  }
+}
+
 export async function generateKatexCss(upstream: string): Promise<string> {
   const root = postcss.parse(await formatCss(upstream));
   root.walkAtRules("font-face", (rule) => {
@@ -75,12 +110,7 @@ export async function generateKatexCss(upstream: string): Promise<string> {
   const font = math.nodes.find(
     (node) => node.type === "decl" && node.prop === "font",
   );
-  if (
-    !font ||
-    font.type !== "decl" ||
-    font.value.replace(/\s+/g, " ").trim() !==
-      "normal 1.21em KaTeX_Main, Times New Roman, serif"
-  ) {
+  if (!font || font.type !== "decl") {
     throw new Error(
       "Upstream KaTeX font shorthand changed; review the font override in frontend/scripts/katex-css.ts.",
     );
@@ -88,7 +118,7 @@ export async function generateKatexCss(upstream: string): Promise<string> {
   font.replaceWith(
     postcss.decl({
       prop: "font-family",
-      value: '"KaTeX_Main", "Times New Roman", serif',
+      value: parseFontFamily(font.value),
     }),
     postcss.decl({ prop: "font-size", value: "110%" }),
     postcss.decl({ prop: "font-style", value: "normal" }),
