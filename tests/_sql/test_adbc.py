@@ -403,6 +403,67 @@ def test_adbc_execute_prefers_arrow_fetch(monkeypatch) -> None:
     assert cursor.did_close is True
 
 
+@pytest.mark.parametrize("output_format", ["auto", "pandas"])
+def test_adbc_execute_commits_before_conversion_failure(
+    monkeypatch: pytest.MonkeyPatch, output_format: str
+) -> None:
+    cursor = FakeAdbcDbApiCursor(
+        description=[("id", None)],
+        arrow_table=cast("pa.Table", object()),
+    )
+    conn = FakeAdbcDbApiConnection(
+        cursor=cursor,
+        objects_pylist=[],
+        table_schema=FakeAdbcTableSchema([]),
+    )
+    engine = AdbcDBAPIEngine(conn)
+    monkeypatch.setattr(engine, "sql_output_format", lambda: output_format)
+    conversion_error = ValueError("dataframe conversion failed")
+
+    def fail_conversion(**_kwargs: Any) -> Any:
+        raise conversion_error
+
+    monkeypatch.setattr(
+        "marimo._sql.engines.adbc.convert_to_output", fail_conversion
+    )
+    with pytest.raises(ValueError) as exc_info:
+        engine.execute("INSERT INTO items VALUES (1) RETURNING id")
+
+    assert exc_info.value is conversion_error
+    assert cursor.did_fetch_arrow is True
+    assert conn.did_commit is True
+    assert cursor.did_close is True
+
+
+@pytest.mark.parametrize("failing_method", ["execute", "fetch_arrow_table"])
+def test_adbc_execute_does_not_commit_failed_query_or_fetch(
+    monkeypatch: pytest.MonkeyPatch, failing_method: str
+) -> None:
+    cursor = FakeAdbcDbApiCursor(
+        description=[("id", None)],
+        arrow_table=cast("pa.Table", object()),
+    )
+    conn = FakeAdbcDbApiConnection(
+        cursor=cursor,
+        objects_pylist=[],
+        table_schema=FakeAdbcTableSchema([]),
+    )
+    query_error = RuntimeError("query or fetch failed")
+
+    def fail(*_args: Any, **_kwargs: Any) -> Any:
+        raise query_error
+
+    monkeypatch.setattr(cursor, failing_method, fail)
+    with pytest.raises(RuntimeError) as exc_info:
+        AdbcDBAPIEngine(conn).execute(
+            "INSERT INTO items VALUES (1) RETURNING id"
+        )
+
+    assert exc_info.value is query_error
+    assert conn.did_commit is False
+    assert cursor.did_close is True
+
+
 def test_adbc_execute_native_returns_arrow_table(monkeypatch) -> None:
     arrow_table = cast("pa.Table", object())
     cursor = FakeAdbcDbApiCursor(
