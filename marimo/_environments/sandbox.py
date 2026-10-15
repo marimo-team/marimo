@@ -124,7 +124,7 @@ class BackendAdapter(Protocol):
     def add(
         self,
         target: MaterializedScript,
-        package: str | list[str],
+        packages: list[str],
         *,
         upgrade: bool,
         on_output: LogCallback | None,
@@ -133,7 +133,7 @@ class BackendAdapter(Protocol):
     def remove(
         self,
         target: MaterializedScript,
-        package: str | list[str],
+        packages: list[str],
         *,
         on_output: LogCallback | None,
     ) -> None: ...
@@ -419,7 +419,7 @@ class NotebookSandbox:
             with script_metadata.materialized_for_edit(self._source) as target:
                 self._adapter.add(
                     target,
-                    requests[0] if len(requests) == 1 else requests,
+                    requests,
                     upgrade=upgrade,
                     on_output=on_output,
                 )
@@ -453,7 +453,7 @@ class NotebookSandbox:
             with script_metadata.materialized_for_edit(self._source) as target:
                 self._adapter.remove(
                     target,
-                    packages[0] if len(packages) == 1 else packages,
+                    packages,
                     on_output=on_output,
                 )
             self._sync(
@@ -501,7 +501,7 @@ class NotebookSandbox:
         with script_metadata.materialized_for_edit(self._source) as target:
             for requirement in requirements:
                 self._adapter.add(
-                    target, requirement, upgrade=False, on_output=None
+                    target, [requirement], upgrade=False, on_output=None
                 )
 
     def packages(
@@ -614,7 +614,7 @@ class NotebookSandbox:
         with script_metadata.materialized_for_edit(self._source) as target:
             self._adapter.add(
                 target,
-                pins[0] if len(pins) == 1 else pins,
+                pins,
                 upgrade=False,
                 on_output=None,
             )

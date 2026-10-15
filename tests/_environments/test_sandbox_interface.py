@@ -39,8 +39,8 @@ class FakeBackend:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.sync_targets: list[str] = []
-        self.add_requests: list[str | list[str]] = []
-        self.remove_requests: list[str | list[str]] = []
+        self.add_requests: list[list[str]] = []
+        self.remove_requests: list[list[str]] = []
         self.versions: dict[str, str] = {"obstore": "0.8.2"}
 
     def ensure_available(self) -> None:
@@ -52,14 +52,14 @@ class FakeBackend:
     def add(
         self,
         target: MaterializedScript,
-        package: str | list[str],
+        packages: list[str],
         *,
         upgrade: bool,
         on_output: LogCallback | None,
     ) -> None:
         del upgrade, on_output
-        self.add_requests.append(package)
-        for requirement in [package] if isinstance(package, str) else package:
+        self.add_requests.append(packages)
+        for requirement in packages:
             self._add_one(target, requirement)
 
     def _add_one(self, target: MaterializedScript, package: str) -> None:
@@ -89,18 +89,13 @@ class FakeBackend:
     def remove(
         self,
         target: MaterializedScript,
-        package: str | list[str],
+        packages: list[str],
         *,
         on_output: LogCallback | None,
     ) -> None:
         del on_output
-        self.remove_requests.append(package)
-        names = {
-            _requirement_name(requirement)
-            for requirement in (
-                [package] if isinstance(package, str) else package
-            )
-        }
+        self.remove_requests.append(packages)
+        names = {_requirement_name(requirement) for requirement in packages}
         path = Path(target.path)
         content = path.read_text()
         project = script_metadata.loads(content)
@@ -191,7 +186,7 @@ def test_add_pins_a_bare_requirement_to_the_resolved_version(
 
     sandbox.add("obstore")
 
-    assert adapter.add_requests == ["obstore", "obstore==0.8.2"]
+    assert adapter.add_requests == [["obstore"], ["obstore==0.8.2"]]
     assert '"obstore==0.8.2"' in notebook.read_text()
     # Only the final, pinned manifest needs synchronization.
     assert len(adapter.sync_targets) == 1
@@ -314,7 +309,7 @@ def test_add_keeps_declared_extras(tmp_path: Path, dependency: str) -> None:
 
     sandbox.add("obstore")
 
-    assert adapter.add_requests == ["obstore", "obstore[async]==0.8.2"]
+    assert adapter.add_requests == [["obstore"], ["obstore[async]==0.8.2"]]
     assert '"obstore[async]==0.8.2"' in notebook.read_text()
 
 
@@ -356,7 +351,7 @@ def test_add_writes_a_constrained_requirement_as_given(
 
     sandbox.add(requirement)
 
-    assert adapter.add_requests == [requirement]
+    assert adapter.add_requests == [[requirement]]
     assert requirement in notebook.read_text()
 
 
@@ -369,7 +364,7 @@ def test_add_never_pins_the_runtime_dependency(tmp_path: Path) -> None:
 
     sandbox.add("marimo")
 
-    assert adapter.add_requests == ["marimo"]
+    assert adapter.add_requests == [["marimo"]]
     assert '"marimo"' in notebook.read_text()
 
 
@@ -381,7 +376,7 @@ def test_add_leaves_an_unresolved_requirement_open(tmp_path: Path) -> None:
 
     sandbox.add("windows-curses")
 
-    assert adapter.add_requests == ["windows-curses"]
+    assert adapter.add_requests == [["windows-curses"]]
     assert '"windows-curses"' in notebook.read_text()
 
 
@@ -395,7 +390,7 @@ def test_upgrade_reopens_an_exact_pin(tmp_path: Path) -> None:
 
     sandbox.add("obstore", upgrade=True)
 
-    assert adapter.add_requests == ["obstore>=0.7.0", "obstore==0.8.2"]
+    assert adapter.add_requests == [["obstore>=0.7.0"], ["obstore==0.8.2"]]
     assert '"obstore==0.8.2"' in notebook.read_text()
 
 
@@ -412,7 +407,7 @@ def test_upgrade_floors_an_unpinned_requirement_at_the_environment(
 
     # The floor drops the local segment, which PEP 440 forbids in
     # ordered comparisons; the pin keeps it.
-    assert adapter.add_requests == ["obstore>=0.7.0", "obstore==0.7.0+cpu"]
+    assert adapter.add_requests == [["obstore>=0.7.0"], ["obstore==0.7.0+cpu"]]
 
 
 def test_upgrade_pin_keeps_declared_extras(tmp_path: Path) -> None:
@@ -426,8 +421,8 @@ def test_upgrade_pin_keeps_declared_extras(tmp_path: Path) -> None:
     sandbox.add("obstore", upgrade=True)
 
     assert adapter.add_requests == [
-        "obstore[async]>=0.7.0",
-        "obstore[async]==0.8.2",
+        ["obstore[async]>=0.7.0"],
+        ["obstore[async]==0.8.2"],
     ]
     assert '"obstore[async]==0.8.2"' in notebook.read_text()
 

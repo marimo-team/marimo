@@ -295,7 +295,7 @@ class UvBackendAdapter(_ReportingBackendAdapter):
     def add(
         self,
         target: MaterializedScript,
-        package: str | list[str],
+        packages: list[str],
         *,
         upgrade: bool,
         on_output: LogCallback | None,
@@ -307,7 +307,7 @@ class UvBackendAdapter(_ReportingBackendAdapter):
             "--script",
             target.path,
             *(["--upgrade"] if upgrade else []),
-            *([package] if isinstance(package, str) else package),
+            *packages,
         ]
 
         def report(argv: Sequence[str]) -> None:
@@ -332,7 +332,7 @@ class UvBackendAdapter(_ReportingBackendAdapter):
     def remove(
         self,
         target: MaterializedScript,
-        package: str | list[str],
+        packages: list[str],
         *,
         on_output: LogCallback | None,
     ) -> None:
@@ -342,7 +342,7 @@ class UvBackendAdapter(_ReportingBackendAdapter):
             "remove",
             "--script",
             target.path,
-            *([package] if isinstance(package, str) else package),
+            *packages,
         ]
 
         def report(argv: Sequence[str]) -> None:
@@ -514,7 +514,7 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
     def add(
         self,
         target: MaterializedScript,
-        package: str | list[str],
+        packages: list[str],
         *,
         upgrade: bool,
         on_output: LogCallback | None,
@@ -523,7 +523,7 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
 
         pixi.add(
             target.path,
-            package,
+            packages,
             cwd=target.directory,
             upgrade=upgrade,
             on_output=on_output,
@@ -535,7 +535,7 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
     def remove(
         self,
         target: MaterializedScript,
-        package: str | list[str],
+        packages: list[str],
         *,
         on_output: LogCallback | None,
     ) -> None:
@@ -543,7 +543,7 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
 
         pixi.remove(
             target.path,
-            package,
+            packages,
             cwd=target.directory,
             on_output=on_output,
             on_command=lambda command: self._report("remove", command),
