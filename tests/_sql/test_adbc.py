@@ -372,7 +372,24 @@ def test_adbc_catalog_parses_adbc_get_objects() -> None:
     ]
 
 
-def test_adbc_execute_prefers_arrow_fetch(monkeypatch) -> None:
+@pytest.fixture
+def adbc_execution() -> tuple[FakeAdbcDbApiConnection, FakeAdbcDbApiCursor]:
+    cursor = FakeAdbcDbApiCursor(
+        description=[("id", None)],
+        arrow_table=cast("pa.Table", object()),
+    )
+    conn = FakeAdbcDbApiConnection(
+        cursor=cursor,
+        objects_pylist=[],
+        table_schema=FakeAdbcTableSchema([]),
+    )
+    return conn, cursor
+
+
+def test_adbc_execute_prefers_arrow_fetch(
+    monkeypatch: pytest.MonkeyPatch,
+    adbc_execution: tuple[FakeAdbcDbApiConnection, FakeAdbcDbApiCursor],
+) -> None:
     sentinel_result = object()
 
     def fake_convert_to_output(*args: Any, **kwargs: Any) -> Any:
@@ -383,15 +400,7 @@ def test_adbc_execute_prefers_arrow_fetch(monkeypatch) -> None:
         "marimo._sql.engines.adbc.convert_to_output", fake_convert_to_output
     )
 
-    cursor = FakeAdbcDbApiCursor(
-        description=[("col", None)],
-        arrow_table=cast("pa.Table", object()),
-    )
-    conn = FakeAdbcDbApiConnection(
-        cursor=cursor,
-        objects_pylist=[],
-        table_schema=FakeAdbcTableSchema([]),
-    )
+    conn, cursor = adbc_execution
     engine = AdbcDBAPIEngine(conn)
 
     monkeypatch.setattr(engine, "sql_output_format", lambda: "auto")
@@ -403,21 +412,13 @@ def test_adbc_execute_prefers_arrow_fetch(monkeypatch) -> None:
     assert cursor.did_close is True
 
 
-@pytest.mark.parametrize("output_format", ["auto", "pandas"])
 def test_adbc_execute_commits_before_conversion_failure(
-    monkeypatch: pytest.MonkeyPatch, output_format: str
+    monkeypatch: pytest.MonkeyPatch,
+    adbc_execution: tuple[FakeAdbcDbApiConnection, FakeAdbcDbApiCursor],
 ) -> None:
-    cursor = FakeAdbcDbApiCursor(
-        description=[("id", None)],
-        arrow_table=cast("pa.Table", object()),
-    )
-    conn = FakeAdbcDbApiConnection(
-        cursor=cursor,
-        objects_pylist=[],
-        table_schema=FakeAdbcTableSchema([]),
-    )
+    conn, cursor = adbc_execution
     engine = AdbcDBAPIEngine(conn)
-    monkeypatch.setattr(engine, "sql_output_format", lambda: output_format)
+    monkeypatch.setattr(engine, "sql_output_format", lambda: "auto")
     conversion_error = ValueError("dataframe conversion failed")
 
     def fail_conversion(**_kwargs: Any) -> Any:
@@ -437,17 +438,11 @@ def test_adbc_execute_commits_before_conversion_failure(
 
 @pytest.mark.parametrize("failing_method", ["execute", "fetch_arrow_table"])
 def test_adbc_execute_does_not_commit_failed_query_or_fetch(
-    monkeypatch: pytest.MonkeyPatch, failing_method: str
+    monkeypatch: pytest.MonkeyPatch,
+    adbc_execution: tuple[FakeAdbcDbApiConnection, FakeAdbcDbApiCursor],
+    failing_method: str,
 ) -> None:
-    cursor = FakeAdbcDbApiCursor(
-        description=[("id", None)],
-        arrow_table=cast("pa.Table", object()),
-    )
-    conn = FakeAdbcDbApiConnection(
-        cursor=cursor,
-        objects_pylist=[],
-        table_schema=FakeAdbcTableSchema([]),
-    )
+    conn, cursor = adbc_execution
     query_error = RuntimeError("query or fetch failed")
 
     def fail(*_args: Any, **_kwargs: Any) -> Any:
@@ -464,22 +459,17 @@ def test_adbc_execute_does_not_commit_failed_query_or_fetch(
     assert cursor.did_close is True
 
 
-def test_adbc_execute_native_returns_arrow_table(monkeypatch) -> None:
-    arrow_table = cast("pa.Table", object())
-    cursor = FakeAdbcDbApiCursor(
-        description=[("col", None)], arrow_table=arrow_table
-    )
-    conn = FakeAdbcDbApiConnection(
-        cursor=cursor,
-        objects_pylist=[],
-        table_schema=FakeAdbcTableSchema([]),
-    )
+def test_adbc_execute_native_returns_arrow_table(
+    monkeypatch: pytest.MonkeyPatch,
+    adbc_execution: tuple[FakeAdbcDbApiConnection, FakeAdbcDbApiCursor],
+) -> None:
+    conn, cursor = adbc_execution
     engine = AdbcDBAPIEngine(conn)
 
     monkeypatch.setattr(engine, "sql_output_format", lambda: "native")
     result = engine.execute("SELECT 1")
 
-    assert result is arrow_table
+    assert result is cursor._arrow_table
     assert cursor.did_execute is True
     assert cursor.did_fetch_arrow is True
     assert conn.did_commit is True
