@@ -91,7 +91,7 @@ async def test_initial_policy_inherits_server_config_with_script_overrides(
 
     notebook = await bridge.host.notebook(record.id)
 
-    assert notebook.document.document.policy == expected
+    assert notebook.document._record.policy == expected
     assert notebook.runtime is None
     assert manager.starts == []
     bridge.close()
@@ -120,7 +120,7 @@ async def test_initial_policy_uses_the_adopted_sessions_effective_config(
     record = bridge.index.notebook_for(str(path))
     assert record is not None
     notebook = await bridge.host.notebook(record.id)
-    assert notebook.document.document.policy == "lazy"
+    assert notebook.document._record.policy == "lazy"
     assert notebook.runtime is not None
     bridge.close()
 
@@ -155,7 +155,7 @@ async def test_an_adopted_document_is_saved_as_far_as_the_file_goes(
         assert record is not None
         document = (await bridge.host.notebook(record.id)).document
         assert document is not None
-        documents[name] = document.document
+        documents[name] = document._record
 
     # A session showing the file as it is on disk is saved.
     assert documents["saved.py"].saved_etag == documents["saved.py"].etag

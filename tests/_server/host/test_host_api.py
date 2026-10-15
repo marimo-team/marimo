@@ -1498,7 +1498,7 @@ async def test_an_unreadable_notebook_stays_in_the_catalog_and_can_retry(
 
     file.write_text(NOTEBOOK)
     notebook = await harness.host.notebook(notebook_id)
-    assert [cell.code for cell in notebook.document.cells] == [
+    assert [cell.code for cell in notebook.document] == [
         "x = 21",
         "y = x * 2",
     ]

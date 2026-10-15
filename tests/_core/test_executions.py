@@ -265,10 +265,10 @@ def test_removing_a_cell_drops_its_result_or_disowns_active_work() -> None:
 
 
 def test_restored_executions_are_current_until_replaced() -> None:
-    cells = Document(NOTEBOOK, [CellSource("c1", "42")], {}).cells
+    document = Document(NOTEBOOK, [CellSource("c1", "42")], {})
     retained = retained_execution(run_id="old-run")
     executions = Executions.restore(
-        {protocol.CellId("c1"): retained}, cells=cells
+        {protocol.CellId("c1"): retained}, cells=document
     )
     assert executions.current(protocol.CellId("c1")) == retained
     assert describe(executions._records()) == [
@@ -300,7 +300,7 @@ def test_restored_executions_are_current_until_replaced() -> None:
 def test_restore_rejects_inconsistent_executions(
     invalid: str, message: str
 ) -> None:
-    cells = Document(NOTEBOOK, [CellSource("c1", "42")], {}).cells
+    document = Document(NOTEBOOK, [CellSource("c1", "42")], {})
     retained = retained_execution()
     execution, outputs = retained.execution, retained.outputs
     key = protocol.CellId("c1")
@@ -325,7 +325,7 @@ def test_restore_rejects_inconsistent_executions(
     else:
         retained = CellExecution(execution, outputs * 2)
     with pytest.raises(ValueError, match=message):
-        Executions.restore({key: retained}, cells=cells)
+        Executions.restore({key: retained}, cells=document)
 
 
 def test_current_result_keeps_its_outputs_as_the_execution_changes() -> None:

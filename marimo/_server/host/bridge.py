@@ -109,7 +109,7 @@ class SessionBridge(SessionEventListener):
                 saved=session is None,
             )
             if session is not None and loaded is not None:
-                document.mark_saved(Document(record.id, *loaded).document.etag)
+                document.mark_saved(Document(record.id, *loaded)._record.etag)
             backend = self._make_backend(record.id)
             return Notebook(document, Executions(), backend, sink)
 

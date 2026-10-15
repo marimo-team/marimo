@@ -15,7 +15,7 @@ from msgspec.structs import replace
 from marimo._core import protocol
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
 Analyzer = Callable[[Mapping[str, str]], Mapping[str, protocol.Analysis]]
 """Derives every cell's analysis from the cells' code, keyed by id in document order."""
@@ -163,7 +163,7 @@ class Document:
             analyzer=analyzer,
             saved=False,
         )
-        for cell in restored.cells:
+        for cell in restored:
             original = by_id[cell.id]
             if (
                 cell.etag != original.etag
@@ -174,7 +174,7 @@ class Document:
                 restored._cells[cell.id] = replace(
                     cell, analysis=original.analysis
                 )
-        current = restored.document
+        current = restored._record
         if (
             current.etag != document.etag
             or current.order_etag != document.order_etag
@@ -186,14 +186,19 @@ class Document:
         return restored
 
     @property
-    def document(self) -> protocol.Document:
+    def notebook_id(self) -> protocol.NotebookId:
+        """The notebook this document belongs to."""
+        return self._id
+
+    @property
+    def _record(self) -> protocol.Document:
         assert self._document is not None
         return self._document
 
-    @property
-    def cells(self) -> list[protocol.Cell]:
-        """The cells in document order."""
-        return [self._cells[cell_id] for cell_id in self._order]
+    def __iter__(self) -> Iterator[protocol.Cell]:
+        """Iterate over cells in document order."""
+        for cell_id in self._order:
+            yield self._cells[cell_id]
 
     @property
     def order(self) -> list[str]:
@@ -236,7 +241,7 @@ class Document:
         self, etag: protocol.Etag | None = None
     ) -> protocol.Document | None:
         """Record the persisted revision, which may precede the current one."""
-        self._saved_etag = self.document.etag if etag is None else etag
+        self._saved_etag = self._record.etag if etag is None else etag
         return self._refresh()
 
     def set_policy(self, policy: Policy) -> protocol.Document | None:

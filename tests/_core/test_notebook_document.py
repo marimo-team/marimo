@@ -74,18 +74,19 @@ class TestEtags:
     ) -> None:
         cells = [CellSource("a", "x = 1"), CellSource("a\na", "x = 1")]
         document = Document(NOTEBOOK, cells, {})
-        before = document.document
+        before = document._record
 
         document.replace(list(reversed(cells)), {})
 
-        assert document.document.order_etag != before.order_etag
-        assert document.document.etag != before.etag
-        assert document.document.saved_etag == before.etag
+        assert [cell.id for cell in document] == ["a\na", "a"]
+        assert document._record.order_etag != before.order_etag
+        assert document._record.etag != before.etag
+        assert document._record.saved_etag == before.etag
 
     def test_match_the_values_pinned_in_the_fixtures(self) -> None:
         document = Document(NOTEBOOK, fixture_cells(), {"width": "full"})
 
-        c1, c3, k7f2 = document.cells
+        c1, c3, k7f2 = document
         assert (c3.code_hash, c3.etag) == (
             "0f71456db2ea83f4",
             "5cf78587dcf22d8d",
@@ -95,10 +96,10 @@ class TestEtags:
             "f199b5f48ae0aabb",
         )
         assert c1.etag == "48d6363150d6281c"
-        assert document.document.order_etag == "b9c412c2d7d63161"
-        assert document.document.app_config_etag == "283513048dfeb45b"
-        assert document.document.etag == "e59d9c2af02f5814"
-        assert document.document.saved_etag == "e59d9c2af02f5814"
+        assert document._record.order_etag == "b9c412c2d7d63161"
+        assert document._record.app_config_etag == "283513048dfeb45b"
+        assert document._record.etag == "e59d9c2af02f5814"
+        assert document._record.saved_etag == "e59d9c2af02f5814"
 
     def test_are_derived_from_their_parts(self) -> None:
         hashed = code_hash("x = 21")
@@ -125,7 +126,7 @@ class TestEtags:
 
     def test_normalizes_line_endings_before_hashing(self) -> None:
         document = Document(NOTEBOOK, [CellSource("a", "x = 1\r\ny = 2")], {})
-        (cell,) = document.cells
+        (cell,) = document
         assert cell.code == "x = 1\ny = 2"
         assert cell.code_hash == code_hash("x = 1\ny = 2")
 
@@ -133,7 +134,7 @@ class TestEtags:
 class TestReplace:
     def test_reports_new_changed_and_removed_cells(self) -> None:
         document = Document(NOTEBOOK, fixture_cells(), {"width": "full"})
-        before = document.document
+        before = document._record
 
         changed = document.replace(
             [
@@ -159,7 +160,7 @@ class TestReplace:
 
     def test_an_app_config_change_moves_only_its_etag(self) -> None:
         document = Document(NOTEBOOK, fixture_cells(), {})
-        before = document.document
+        before = document._record
 
         changed = document.replace(fixture_cells(), {"width": "full"})
 
@@ -178,7 +179,7 @@ class TestReplace:
 
     def test_marks_saved_state_separately(self) -> None:
         document = Document(NOTEBOOK, fixture_cells(), {}, saved=False)
-        assert document.document.saved_etag is None
+        assert document._record.saved_etag is None
 
         document.replace([CellSource("c1", "1")], {})
         saved = document.mark_saved()
@@ -202,7 +203,7 @@ class TestAnalysis:
             {},
             analyzer=defs_only,
         )
-        a, _ = document.cells
+        a, _ = document
         assert a.analysis == protocol.Analysis(defs=["x"], refs=[], errors=[])
 
         changed = document.replace(
@@ -221,7 +222,7 @@ class TestAnalysis:
 
     def test_is_null_without_an_analyzer(self) -> None:
         document = Document(NOTEBOOK, fixture_cells(), {})
-        assert all(cell.analysis is None for cell in document.cells)
+        assert all(cell.analysis is None for cell in document)
 
 
 class TestFromRecords:
@@ -238,17 +239,17 @@ class TestFromRecords:
         )
         # The saved revision precedes the current one; both survive.
         source.replace([CellSource("c1", "import marimo")], {"width": "full"})
-        restored = Document.from_records(source.document, source.cells)
-        assert restored.document == source.document
-        assert restored.cells == source.cells
-        assert restored.cells[0].analysis is not None
+        restored = Document.from_records(source._record, list(source))
+        assert restored._record == source._record
+        assert list(restored) == list(source)
+        assert next(iter(restored)).analysis is not None
 
     @pytest.mark.parametrize(
         "invalid", ["order", "notebook-id", "cell-etag", "document-etag"]
     )
     def test_rejects_inconsistent_records(self, invalid: str) -> None:
         source = Document(NOTEBOOK, fixture_cells(), {})
-        document, cells = source.document, source.cells
+        document, cells = source._record, list(source)
         if invalid == "order":
             document = replace(document, order=())
         elif invalid == "notebook-id":
@@ -276,11 +277,11 @@ class TestFromRecords:
 
         source = Document(NOTEBOOK, [CellSource("c1", "42")], {})
         document = Document.from_records(
-            source.document, source.cells, analyzer=analyze
+            source._record, list(source), analyzer=analyze
         )
         document.replace([CellSource("c1", "43")], {})
         assert observed == [{"c1": "42"}, {"c1": "43"}]
-        assert document.cells[0].analysis is not None
+        assert next(iter(document)).analysis is not None
 
 
 class TestNotebook:

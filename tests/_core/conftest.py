@@ -91,10 +91,10 @@ def snapshot_of(
 ) -> NotebookSnapshot:
     """A snapshot of the document with executions retained by cell id."""
     return NotebookSnapshot(
-        document.document,
+        document._record,
         tuple(
             CellSnapshot(cell, (executions or {}).get(cell.id))
-            for cell in document.cells
+            for cell in document
         ),
     )
 
@@ -103,10 +103,10 @@ def capture(notebook: Notebook) -> NotebookSnapshot:
     """The snapshot a host would prepare from the notebook's state."""
     return deepcopy(
         NotebookSnapshot(
-            notebook.document.document,
+            notebook.document._record,
             tuple(
                 CellSnapshot(cell, notebook.executions.current(cell.id))
-                for cell in notebook.document.cells
+                for cell in notebook.document
             ),
         )
     )
@@ -131,7 +131,7 @@ def restore(
             for entry in snapshot.cells
             if entry.execution is not None
         },
-        cells=document.cells,
+        cells=document,
     )
     return Notebook(
         document,

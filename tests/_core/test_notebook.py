@@ -1245,7 +1245,9 @@ async def test_edits_preserve_results_and_deletion_removes_them() -> None:
     notebook = await host.notebook(record().id)
     notebook.replace([CellSource("c1", "43")], {})
     assert notebook.executions.current(CellId("c1")) == retained
-    assert notebook.document.cells[0].code_hash != retained.execution.code_hash
+    assert (
+        next(iter(notebook.document)).code_hash != retained.execution.code_hash
+    )
     live: list[Event] = []
     host.subscribe(live.append, notebook_id=notebook.id)
     notebook.replace([], {})
@@ -1301,7 +1303,7 @@ async def test_source_edits_keep_live_results_until_the_cell_is_deleted() -> (
     live: list[Event] = []
     host.subscribe(live.append, notebook_id=notebook.id)
     notebook.replace([], {})
-    assert notebook.document.cells == []
+    assert list(notebook.document) == []
     assert fold(host.events(notebook_id=notebook.id)) == {}
     assert names(live) == [
         "console.removed",
@@ -1325,6 +1327,6 @@ async def test_deleting_an_active_cell_releases_its_result_when_the_run_ends() -
     )
     finish(notebook, execution)
     notebook.observe(be.Done(run.id, "succeeded"))
-    assert notebook.document.cells == []
+    assert list(notebook.document) == []
     assert fold(notebook._snapshot()) == {}
     assert fold(host.events(notebook_id=notebook.id)) == {}

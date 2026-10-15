@@ -69,7 +69,7 @@ class Notebook:
 
     @property
     def id(self) -> protocol.NotebookId:
-        return self.document.document.id
+        return self.document.notebook_id
 
     @property
     def runtime(self) -> protocol.Runtime | None:
@@ -376,7 +376,7 @@ class Notebook:
 
     def _snapshot(self) -> list[Event]:
         """Return current state as events in dependency order."""
-        bodies: list[Body] = [*self.document.cells, self.document.document]
+        bodies: list[Body] = [*self.document, self.document._record]
         if self._runtime is not None:
             bodies.append(self._runtime)
         bodies.extend(self._attachments.values())
