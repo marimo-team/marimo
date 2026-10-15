@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""The host's analyzer reports each cell's names, syntax errors, and conflicts."""
+"""The host's analyzer reports names, syntax errors, conflicts, and cycles."""
 
 from __future__ import annotations
 
@@ -66,6 +66,65 @@ def test_a_name_defined_twice_is_an_error_on_each_definer() -> None:
         ("a", span(0, 0, 1), "Defines x"),
         ("b", span(1, 0, 1), "Defines x"),
     ]
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize(
+    ("codes", "dependencies"),
+    [
+        (
+            {
+                "a": "x = z",
+                "b": "y = x",
+                "c": "z = y",
+                "downstream": "result = y",
+            },
+            [
+                ("a", "Depends on c through z"),
+                ("b", "Depends on a through x"),
+                ("c", "Depends on b through y"),
+            ],
+        ),
+        (
+            {"provider": "x = 1", "a": "del x; y = 1", "b": "z = x + y"},
+            [("a", "Depends on b through x"), ("b", "Depends on a through y")],
+        ),
+    ],
+)
+def test_cycles_report_the_dependency_chain_on_every_participant(
+    codes, dependencies, reverse
+):
+    if reverse:
+        codes = dict(reversed(list(codes.items())))
+    analyses = analyze(codes)
+    expected = protocol.Error(
+        kind="cycle-dependencies",
+        message="This cell is in a cycle",
+        source="marimo",
+        severity="error",
+        range=None,
+        name=None,
+        traceback=None,
+        related=tuple(
+            protocol.Related(cell_id=cid, range=None, message=message)
+            for cid, message in dependencies
+        ),
+    )
+    participants = {cid for cid, _ in dependencies}
+    assert {cid: cell.errors for cid, cell in analyses.items()} == {
+        cid: (expected,) if cid in participants else () for cid in codes
+    }
+
+
+def test_cycles_and_multiple_definitions_are_reported_together() -> None:
+    analyses = analyze({"a": "x, z = y, 0", "b": "y, z = x, 0"})
+    assert {
+        cid: {error.kind for error in cell.errors}
+        for cid, cell in analyses.items()
+    } == {
+        "a": {"multiple-definitions", "cycle-dependencies"},
+        "b": {"multiple-definitions", "cycle-dependencies"},
+    }
 
 
 def test_definition_ranges_cover_the_bound_name() -> None:
@@ -154,6 +213,7 @@ def test_an_analyzer_kept_between_edits_matches_a_fresh_one() -> None:
         {"a": "x = 1", "b": "y = x", "c": "z = y"},
         {"a": "x = 1", "b": "y = x\nw = z", "c": "z = y"},
         {"b": "y = x\nw = z", "c": "z = y"},
+        {"b": "y = x\nw = z"},
         {"b": "def (:", "c": "z = y"},
     ]
     for codes in steps:
