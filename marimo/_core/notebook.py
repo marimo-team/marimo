@@ -44,7 +44,6 @@ class NotebookSnapshot:
     cells: tuple[CellSnapshot, ...]
 
 
-@dataclass(eq=False)
 class Notebook:
     """A document, its execution results, and the runtime that produces them.
 
@@ -54,18 +53,33 @@ class Notebook:
     change reaches the sink.
     """
 
-    document: Document
-    executions: Executions
-    backend: be.Backend
-    sink: Sink
-
-    def __post_init__(self) -> None:
+    def __init__(
+        self,
+        document: Document,
+        executions: Executions,
+        backend: be.Backend,
+        sink: Sink,
+    ) -> None:
+        self._document = document
+        self._executions = executions
+        self.backend = backend
+        self.sink = sink
         self._closed = False
         self._runtime: protocol.Runtime | None = None
         self._attachments: dict[str, protocol.Attachment] = {}
         self._replacement: protocol.Runtime | None = None
         # Correlate runtime events with the pending start, stop, or restart.
         self._runtime_request: str | None = None
+
+    @property
+    def document(self) -> Document:
+        """The document owned by this notebook; change it through the notebook."""
+        return self._document
+
+    @property
+    def executions(self) -> Executions:
+        """The execution results owned by this notebook."""
+        return self._executions
 
     @property
     def id(self) -> protocol.NotebookId:
