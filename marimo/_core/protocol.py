@@ -466,7 +466,7 @@ class RunRequest(Struct, frozen=True):
         Annotated[
             tuple[RequestedCell, ...],
             Meta(
-                description="Cells of the document to run, in no particular order. What depends on them runs too, under the document's policy.",
+                description="Cells of the document to run, in no particular order. The runtime's execution configuration determines whether dependent cells run too.",
                 min_length=1,
             ),
         ]

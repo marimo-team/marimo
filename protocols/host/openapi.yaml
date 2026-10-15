@@ -501,9 +501,9 @@ paths:
       description: |
         Runs `code` in a copy of the notebook runtime's namespace, or runs
         `cells` of the document. Scratch code stays out of the graph and
-        its execution carries the submitted code. Cells run in the graph
-        along with their dependents under the document's policy. Each gets
-        an execution with its `cell_id` and no code. The host assigns a run
+        its execution carries the submitted code. The runtime's execution
+        configuration determines whether dependent cells run too. Each cell
+        gets an execution with its `cell_id` and no code. The host assigns a run
         id independent of the request's `Idempotency-Key` and answers `202`
         with the run `queued` or `running`. The rest arrives on the notebook's
         stream with this request's key: executions as they start, console
@@ -1338,9 +1338,10 @@ components:
       type: object
       description: |
         The document as a whole, without its cells, which are their own
-        objects: the cell order, the app config, and the policy, which is
-        what the notebook's file holds. One per notebook, identified by
-        the notebook's id, and removed with it. The order and the app
+        objects: the cell order, app config, and host execution policy.
+        The policy is retained for v1 compatibility and comes from the
+        runtime configuration, not the notebook's app config. One per notebook,
+        identified by the notebook's id, and removed with it. The order and the app
         config carry their own etags, so an edit to one does not conflict
         with an edit to the other, or with edits to cells.
       required: [id, order, app_config, policy, etag, saved_etag, order_etag, app_config_etag]
@@ -1775,7 +1776,7 @@ components:
           type: array
           minItems: 1
           items: { $ref: '#/components/schemas/RequestedCell' }
-          description: Cells of the document to run, in no particular order. What depends on them runs too, under the document's policy.
+          description: Cells of the document to run, in no particular order. The runtime's execution configuration determines whether dependent cells run too.
     RequestedCell:
       type: object
       required: [id]
