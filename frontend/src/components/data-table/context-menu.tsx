@@ -1,14 +1,19 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { DataType } from "@/core/kernel/messages";
+import { assertNever } from "@/utils/assertNever";
+import { copyToClipboard } from "@/utils/copy";
+import {
+  parseLocalISODate,
+  parseLocalISODateTime,
+  parseTimeToDate,
+} from "@/utils/dates";
+import { Logger } from "@/utils/Logger";
 import type { Cell } from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
 import { CopyIcon, FilterIcon, SquareStack } from "lucide-react";
 import type { RefObject } from "react";
 import useEvent from "react-use-event-hook";
-import type { DataType } from "@/core/kernel/messages";
-import { copyToClipboard } from "@/utils/copy";
-import { parseLocalISODate, parseTimeToDate } from "@/utils/dates";
-import { Logger } from "@/utils/Logger";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -19,50 +24,47 @@ import {
 } from "../ui/context-menu";
 import { DATA_CELL_ID } from "./cell-utils";
 import { type FilterType, Filter } from "./filters";
-import { COMPARISON_OPS, TEXT_SCALAR_OPS } from "./filters/operators";
 import { selectedCellsAtom } from "./range-focus/atoms";
-import { detectSentinel, getClipboardContent, getRawValue } from "./utils";
-
-const NULLISH_SENTINEL_TYPES = new Set(["null", "nat", "nan"]);
+import { getClipboardContent, getRawValue, isNullishSentinel } from "./utils";
 
 type Comparison = "eq" | "neq";
 
 const symbolOp = {
-  eq: COMPARISON_OPS[0],
-  neq: COMPARISON_OPS[1],
+  eq: "==",
+  neq: "!=",
 } as const;
 
 const textOp = {
-  eq: TEXT_SCALAR_OPS[1],
-  neq: TEXT_SCALAR_OPS[2],
+  eq: "equals",
+  neq: "does_not_equal",
 } as const;
 
-export function getContextMenuFilter({
+export function buildCellFilter({
   type,
   value,
   comparison = "eq",
   dataType,
   dtype,
 }: {
-  type: FilterType | undefined;
+  type: FilterType;
   value: unknown;
   comparison?: Comparison;
   dataType?: DataType;
   dtype?: string;
 }) {
-  const sentinel = detectSentinel(value, dataType, dtype);
-  if (sentinel && NULLISH_SENTINEL_TYPES.has(sentinel.type)) {
-    return {
-      type,
-      operator: comparison === "eq" ? "is_null" : "is_not_null",
-    };
+  if (isNullishSentinel(value, dataType, dtype)) {
+    return { type, operator: comparison === "eq" ? "is_null" : "is_not_null" };
   }
 
   switch (type) {
     case "number":
+      if (typeof value !== "number") {
+        return undefined;
+      }
+
       return Filter.number({
         operator: symbolOp[comparison],
-        value: value as number,
+        value,
       });
     case "text":
       return Filter.text({
@@ -80,8 +82,8 @@ export function getContextMenuFilter({
       });
     }
     case "datetime": {
-      const date = new Date(value as string);
-      if (Number.isNaN(date.getTime())) {
+      const date = parseLocalISODateTime(value as string);
+      if (!date) {
         return undefined;
       }
       return Filter.datetime({
@@ -106,7 +108,7 @@ export function getContextMenuFilter({
       });
     }
     default:
-      return undefined;
+      assertNever(type);
   }
 }
 
@@ -190,16 +192,39 @@ export const CellContextMenu = <TData,>({
   const filterType = column.columnDef.meta?.filterType;
   const dataType = column.columnDef.meta?.dataType;
   const dtype = column.columnDef.meta?.dtype;
-  const canFilter = filterType && column.getCanFilter();
 
-  const handleFilterCell = (comparison: Comparison) => {
-    const filter = getContextMenuFilter({
-      type: filterType,
-      value: rawValue,
-      comparison,
-      dataType,
-      dtype,
-    });
+  const canFilter = Boolean(filterType && column.getCanFilter());
+  const equalValueFilter = canFilter
+    ? buildCellFilter({
+        type: filterType as FilterType,
+        value: rawValue,
+        comparison: "eq",
+        dataType,
+        dtype,
+      })
+    : undefined;
+  const canFilterByValue = equalValueFilter !== undefined;
+
+  const handleFilterCellByValue = (comparison: Comparison) => {
+    if (!filterType) {
+      return;
+    }
+
+    const filter =
+      comparison === "eq"
+        ? equalValueFilter
+        : buildCellFilter({
+            type: filterType,
+            value: rawValue,
+            comparison,
+            dataType,
+            dtype,
+          });
+
+    if (!filter) {
+      return;
+    }
+
     column.setFilterValue(filter);
   };
 
@@ -215,14 +240,14 @@ export const CellContextMenu = <TData,>({
           Copy selected cells
         </ContextMenuItem>
       )}
-      {canFilter && (
+      {canFilterByValue && (
         <>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => handleFilterCell("eq")}>
+          <ContextMenuItem onClick={() => handleFilterCellByValue("eq")}>
             <FilterIcon className="mo-dropdown-icon h-3 w-3" />
             Filter by this value
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => handleFilterCell("neq")}>
+          <ContextMenuItem onClick={() => handleFilterCellByValue("neq")}>
             <FilterIcon className="mo-dropdown-icon h-3 w-3" />
             Remove rows with this value
           </ContextMenuItem>

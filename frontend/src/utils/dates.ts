@@ -240,6 +240,33 @@ export function parseLocalISODate(value: string): Date | undefined {
   return date;
 }
 
+/**
+ * Parse an ISO-ish `YYYY-MM-DD[T ]HH:MM[:SS[.sss]][Z|+HH:MM]` datetime string
+ * as wall-clock local time, ignoring any trailing `Z` or UTC offset.
+ *
+ * This keeps pasted datetimes consistent with the date/time pickers' local-
+ * time basis: pasting `2024-01-15T08:30:00Z` displays `08:30` instead of
+ * being shifted by the viewer's timezone.
+ */
+export function parseLocalISODateTime(value: string): Date | undefined {
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/.exec(
+      value.trim(),
+    );
+  if (!match) {
+    return undefined;
+  }
+  const [, yStr, moStr, dStr, hStr, miStr, sStr] = match;
+  return new Date(
+    Number.parseInt(yStr, 10),
+    Number.parseInt(moStr, 10) - 1,
+    Number.parseInt(dStr, 10),
+    Number.parseInt(hStr, 10),
+    Number.parseInt(miStr, 10),
+    sStr ? Number.parseInt(sStr, 10) : 0,
+  );
+}
+
 export const supportedDateFormats = ["yyyy", "yyyy-MM", "yyyy-MM-dd"] as const;
 export type DateFormat = (typeof supportedDateFormats)[number];
 
