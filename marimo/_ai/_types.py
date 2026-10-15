@@ -338,7 +338,7 @@ class ChatMessage(msgspec.Struct, dict=True):
                     try:
                         from pydantic import TypeAdapter
 
-                        adapter: TypeAdapter[Any] = TypeAdapter(
+                        adapter: TypeAdapter[object] = TypeAdapter(
                             part_validator_class
                         )
                         validated_parts.append(
