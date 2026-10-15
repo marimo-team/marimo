@@ -78,6 +78,7 @@ class SessionBackend(SessionConsumer):
         manager: SessionManager,
         observe: Observe,
         document_changed: Callable[[], None] | None = None,
+        session_attached: Callable[[], None] | None = None,
     ) -> None:
         self._notebook_id = notebook_id
         self._file = file
@@ -86,6 +87,8 @@ class SessionBackend(SessionConsumer):
         self._observe = observe
         self._document_changed = document_changed
         """Called after the session's document changes, from any writer."""
+        self._session_attached = session_attached
+        """Called with the session attached, before the runtime is reported."""
         self._kernel: _Kernel | None = None
         self._run: _Run | None = None
         self._translators: dict[str, RunTranslator] = {}
@@ -262,6 +265,8 @@ class SessionBackend(SessionConsumer):
         if kernel is None:
             return
         kernel.session = session
+        if self._session_attached is not None:
+            self._session_attached()
         self._observe(be.Running(kernel.runtime_id, __version__))
 
     def on_detach(self) -> None:
