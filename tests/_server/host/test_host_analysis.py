@@ -5,15 +5,30 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from unittest.mock import Mock
 
 import pytest
 
 from marimo._ast.cell import CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._core import protocol
-from marimo._core.analysis import Analyzed
-from marimo._server.host.analysis import CellAnalyzer, HostAnalyzer, analyze
+from marimo._core.document import CellSource, Document, DocumentSnapshot
+from marimo._server.host.analysis import CellAnalyzer, HostAnalyzer
 from marimo._types.ids import CellId_t
+
+
+def snapshot(codes: dict[str, str]) -> DocumentSnapshot:
+    return Document(
+        protocol.NotebookId("n1"),
+        [CellSource(cid, code) for cid, code in codes.items()],
+        {},
+    ).snapshot()
+
+
+def analyze(
+    codes: dict[str, str],
+) -> dict[protocol.CellId, protocol.CellAnalysis]:
+    return CellAnalyzer()(snapshot(codes))
 
 
 def test_refs_are_names_other_cells_define() -> None:
@@ -74,14 +89,14 @@ def test_an_analyzer_kept_between_edits_matches_a_fresh_one() -> None:
         {"b": "def (:", "c": "z = y"},
     ]
     for codes in steps:
-        assert analyzer(codes) == analyze(codes), codes
+        assert analyzer(snapshot(codes)) == analyze(codes), codes
 
 
 def test_analyzer_retries_after_an_unexpected_compiler_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     analyzer = CellAnalyzer()
-    analyzer({"a": "x = 1"})
+    analyzer(snapshot({"a": "x = 1"}))
     codes = {"a": "y = 2", "b": "z = y"}
 
     def fail(*_args: object, **_kwargs: object) -> None:
@@ -90,9 +105,9 @@ def test_analyzer_retries_after_an_unexpected_compiler_failure(
     with monkeypatch.context() as patch:
         patch.setattr("marimo._server.host.analysis.compile_cell", fail)
         with pytest.raises(RuntimeError, match="compiler failed"):
-            analyzer(codes)
+            analyzer(snapshot(codes))
 
-    assert analyzer(codes) == analyze(codes)
+    assert analyzer(snapshot(codes)) == analyze(codes)
 
 
 async def test_host_analyzer_reports_each_revision_off_the_loop(
@@ -101,9 +116,8 @@ async def test_host_analyzer_reports_each_revision_off_the_loop(
     loop = asyncio.get_running_loop()
     started = asyncio.Event()
     release = threading.Event()
-    reported: asyncio.Future[Analyzed] = loop.create_future()
     codes = {"a": "x = 1", "b": "y = x"}
-    expected = Analyzed(protocol.Etag("rev-1"), analyze(codes))
+    expected = analyze(codes)
 
     def blocked_compile(code: str, cell_id: CellId_t) -> CellImpl:
         loop.call_soon_threadsafe(started.set)
@@ -114,8 +128,8 @@ async def test_host_analyzer_reports_each_revision_off_the_loop(
     monkeypatch.setattr(
         "marimo._server.host.analysis.compile_cell", blocked_compile
     )
-    analyzer = HostAnalyzer(reported.set_result)
-    analyzer.analyze(protocol.Etag("rev-1"), codes)
+    analyzer = HostAnalyzer()
+    reported = asyncio.create_task(analyzer.analyze(snapshot(codes)))
     try:
         await asyncio.wait_for(started.wait(), timeout=5)
         # The loop must resume while compilation is still blocked.
@@ -127,20 +141,83 @@ async def test_host_analyzer_reports_each_revision_off_the_loop(
     assert result == expected
 
 
-async def test_host_analyzer_reports_a_failure_without_cells(
+async def test_host_analyzer_raises_unexpected_failures(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    reports: list[Analyzed] = []
-    analyzer = HostAnalyzer(reports.append)
+    analyzer = HostAnalyzer()
 
     def fail(*_: object, **__: object) -> None:
         raise RuntimeError("boom")
 
     monkeypatch.setattr("marimo._server.host.analysis.compile_cell", fail)
-    analyzer.analyze(protocol.Etag("rev-1"), {"a": "x = 1"})
-    for _ in range(100):
-        if reports:
-            break
-        await asyncio.sleep(0.01)
+    with pytest.raises(RuntimeError, match="boom"):
+        await analyzer.analyze(snapshot({"a": "x = 1"}))
 
-    assert reports == [Analyzed(protocol.Etag("rev-1"), None)]
+
+def test_compilation_cache_uses_identity_and_code_hash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    compiler = Mock(wraps=compile_cell)
+    monkeypatch.setattr("marimo._server.host.analysis.compile_cell", compiler)
+    analyzer = CellAnalyzer()
+    document = Document(
+        protocol.NotebookId("n1"),
+        [
+            CellSource("a", "x = 1"),
+            CellSource("b", "y = x"),
+            CellSource("bad", "def (:"),
+        ],
+        {},
+    )
+    analyzer(document.snapshot())
+    assert compiler.call_count == 3
+
+    # Names, configuration, and order are visible without recompiling code.
+    document.replace(
+        [
+            CellSource("b", "y = x", name="renamed"),
+            CellSource("a", "x = 1"),
+            CellSource("bad", "def (:"),
+        ],
+        {"width": "full"},
+    )
+    analyzer(document.snapshot())
+    assert compiler.call_count == 3
+
+    # An unchanged cell loses its reference when its provider changes.
+    document.replace([CellSource("a", "z = 1"), CellSource("b", "y = x")], {})
+    assert analyzer(document.snapshot())[protocol.CellId("b")].refs == ()
+    assert compiler.call_count == 4
+
+    document.replace([CellSource("b", "y = x")], {})
+    analyzer(document.snapshot())
+    document.replace([CellSource("a", "z = 1"), CellSource("c", "y = x")], {})
+    analyzer(document.snapshot())
+    assert compiler.call_count == 6
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize(
+    ("provider", "consumer", "refs"),
+    [
+        ('mo.sql("CREATE TABLE t (id INT)")', "print(t)", ()),
+        (
+            'mo.sql("CREATE TABLE s.t (id INT)")',
+            'mo.sql("SELECT * FROM s.t")',
+            ("s.t",),
+        ),
+        (
+            'mo.sql("CREATE TABLE s.t (id INT)")',
+            'mo.sql("SELECT * FROM other.t")',
+            (),
+        ),
+        ("t = 1", 'mo.sql("SELECT * FROM t")', ("t",)),
+    ],
+)
+def test_references_follow_runtime_language_semantics(
+    provider, consumer, refs, reverse
+):
+    cells = [("provider", provider), ("consumer", consumer)]
+    if reverse:
+        cells.reverse()
+    assert analyze(dict(cells))[protocol.CellId("consumer")].refs == refs

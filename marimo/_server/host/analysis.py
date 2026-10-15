@@ -1,120 +1,92 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Cell definitions, references, and syntax errors.
+"""Cell definitions, references, and syntax errors for the host protocol.
 
-The kernel reports errors involving multiple cells, such as cycles
-and multiple definitions.
+The kernel reports errors involving multiple cells.
 """
 
 from __future__ import annotations
 
 import asyncio
-import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from marimo._ast.cell import CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._core import protocol
-from marimo._core.analysis import Analyzed
+from marimo._runtime.dataflow import DirectedGraph
+from marimo._runtime.dataflow.edges import resolve_cell_references
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from marimo._core.document import DocumentSnapshot
 
-    from marimo._ast.cell import CellImpl
-
-LOGGER = logging.getLogger(__name__)
 SOURCE = "marimo"
 
 
 class HostAnalyzer:
-    """Analyzes each requested revision in a thread and reports the result.
+    """Analyze serialized document snapshots in a worker thread."""
 
-    Compiling cells can take long enough to stall the event loop, so the
-    work runs in a worker. The notebook requests one revision at a time,
-    which keeps the incremental state consistent.
-    """
-
-    def __init__(self, observe: Callable[[Analyzed], None]) -> None:
+    def __init__(self) -> None:
         self._cells = CellAnalyzer()
-        self._observe = observe
-        self._tasks: set[asyncio.Task[None]] = set()
 
-    def analyze(
-        self, document_etag: protocol.Etag, codes: Mapping[str, str]
-    ) -> None:
-        task = asyncio.create_task(self._run(document_etag, dict(codes)))
-        self._tasks.add(task)
-        task.add_done_callback(self._tasks.discard)
+    async def analyze(
+        self, snapshot: DocumentSnapshot
+    ) -> dict[protocol.CellId, protocol.CellAnalysis]:
+        return await asyncio.to_thread(self._cells, snapshot)
 
-    async def _run(
-        self, document_etag: protocol.Etag, codes: dict[str, str]
-    ) -> None:
-        cells: dict[str, protocol.CellAnalysis] | None
-        try:
-            cells = await asyncio.to_thread(self._cells, codes)
-        except Exception:
-            LOGGER.exception("Could not analyze document %s", document_etag)
-            cells = None
-        self._observe(Analyzed(document_etag, cells))
+
+@dataclass(frozen=True)
+class _CachedCell:
+    code_hash: protocol.Etag
+    result: CellImpl | protocol.Error
 
 
 class CellAnalyzer:
-    """Incremental analysis for one document."""
+    """Reuse compilation by cell identity and code hash across snapshots."""
 
     def __init__(self) -> None:
-        self._codes: dict[str, str] = {}
-        self._compiled: dict[str, CellImpl] = {}
-        self._syntax: dict[str, protocol.Error] = {}
+        self._cache: dict[protocol.CellId, _CachedCell] = {}
 
     def __call__(
-        self, codes: Mapping[str, str]
-    ) -> dict[str, protocol.CellAnalysis]:
-        self._update(codes)
-        definers: dict[str, int] = {}
-        for cell in self._compiled.values():
-            for name in cell.defs:
-                definers[name] = definers.get(name, 0) + 1
-        result: dict[str, protocol.CellAnalysis] = {}
-        for cell_id in codes:
-            compiled = self._compiled.get(cell_id)
-            if compiled is None:
-                result[cell_id] = protocol.CellAnalysis(
-                    defs=(), refs=(), errors=(self._syntax[cell_id],)
-                )
-                continue
-            result[cell_id] = protocol.CellAnalysis(
-                defs=tuple(sorted(compiled.defs)),
-                refs=tuple(
-                    sorted(
-                        name
-                        for name in compiled.refs
-                        if definers.get(name, 0) > (name in compiled.defs)
+        self, snapshot: DocumentSnapshot
+    ) -> dict[protocol.CellId, protocol.CellAnalysis]:
+        cache: dict[protocol.CellId, _CachedCell] = {}
+        graph = DirectedGraph()
+        for cell in snapshot.cells:
+            cached = self._cache.get(cell.id)
+            if cached is None or cached.code_hash != cell.code_hash:
+                try:
+                    result: CellImpl | protocol.Error = compile_cell(
+                        cell.code, CellId_t(cell.id)
                     )
-                ),
-                errors=(),
-            )
-        return result
+                except (SyntaxError, ValueError) as error:
+                    result = _syntax_error(cell.code, error)
+                cached = _CachedCell(cell.code_hash, result)
+            cache[cell.id] = cached
+            if isinstance(cached.result, CellImpl):
+                graph.register_cell(CellId_t(cell.id), cached.result)
+        self._cache = cache
 
-    def _update(self, codes: Mapping[str, str]) -> None:
-        """Forget cells that are gone or changed, then compile what is new."""
-        for cell_id in list(self._codes):
-            if codes.get(cell_id) == self._codes[cell_id]:
-                continue
-            del self._codes[cell_id]
-            self._syntax.pop(cell_id, None)
-            self._compiled.pop(cell_id, None)
-        for cell_id, code in codes.items():
-            if cell_id in self._codes:
-                continue
-            try:
-                self._compiled[cell_id] = compile_cell(code, CellId_t(cell_id))
-            except (SyntaxError, ValueError) as error:
-                self._syntax[cell_id] = _syntax_error(code, error)
-            self._codes[cell_id] = code
-
-
-def analyze(codes: Mapping[str, str]) -> dict[str, protocol.CellAnalysis]:
-    """Analyze a document once."""
-    return CellAnalyzer()(codes)
+        analyses: dict[protocol.CellId, protocol.CellAnalysis] = {}
+        for cell in snapshot.cells:
+            compiled = cache[cell.id].result
+            if isinstance(compiled, protocol.Error):
+                analyses[cell.id] = protocol.CellAnalysis(
+                    defs=(), refs=(), errors=(compiled,)
+                )
+            else:
+                refs = resolve_cell_references(
+                    CellId_t(cell.id),
+                    compiled,
+                    graph,
+                    graph.definition_registry,
+                )
+                analyses[cell.id] = protocol.CellAnalysis(
+                    defs=tuple(sorted(compiled.defs)),
+                    refs=tuple(sorted(refs)),
+                    errors=(),
+                )
+        return analyses
 
 
 def _syntax_error(code: str, e: Exception) -> protocol.Error:

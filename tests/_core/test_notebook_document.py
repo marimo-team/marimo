@@ -3,12 +3,13 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from msgspec import UNSET
 from msgspec.structs import replace
 
 from marimo._core import protocol
-from marimo._core.analysis import Analyzed
 from marimo._core.document import (
     CellSource,
     Document,
@@ -19,6 +20,7 @@ from marimo._core.document import (
     order_etag,
     revision,
 )
+from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.stream import Event
@@ -269,7 +271,9 @@ class TestNotebook:
         assert log[1].data.id == "k7f2"  # type: ignore[union-attr]
 
 
-def cell_analyses(document: Document) -> dict[str, protocol.CellAnalysis]:
+def cell_analyses(
+    document: Document,
+) -> dict[protocol.CellId, protocol.CellAnalysis]:
     """A placeholder analysis of every cell in the document."""
     return {
         cell.id: protocol.CellAnalysis(defs=(), refs=(), errors=())
@@ -283,7 +287,7 @@ class TestAnalysis:
     ) -> None:
         host.update_project(project())
         analyzer = ScriptedAnalyzer()
-        document = Document(NOTEBOOK, fixture_cells(), {})
+        document = Document(NOTEBOOK, fixture_cells(), {"width": "full"})
         notebook = await add_notebook(
             host,
             record(),
@@ -291,20 +295,19 @@ class TestAnalysis:
             document=document,
             analyzer=analyzer,
         )
-        etag = document._record.etag
-        assert analyzer.requests == [
-            (etag, {cell.id: cell.code for cell in document})
-        ]
+        snapshot, result = await analyzer.next_request()
+        assert snapshot == document.snapshot()
         assert notebook.analysis is None
 
         log.clear()
-        notebook.observe(Analyzed(etag, cell_analyses(document)))
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
 
         assert names(log) == ["analysis"]
         assert request_ids(log) == [UNSET]
         assert notebook.analysis == protocol.Analysis(
             notebook_id=NOTEBOOK,
-            document_etag=etag,
+            document_etag=snapshot.document.etag,
             cells=cell_analyses(document),
         )
         assert names(host.events(notebook_id="n1")) == [
@@ -330,24 +333,30 @@ class TestAnalysis:
             document=document,
             analyzer=analyzer,
         )
-        first = document._record.etag
+        first, result = await analyzer.next_request()
+        first_analysis = cell_analyses(document)
         notebook.replace([CellSource("c1", "1")], {}, request_id="edit-1")
-        notebook.replace([CellSource("c1", "2")], {}, request_id="edit-2")
+        notebook.replace(
+            [CellSource("c1", "2", name="named", config=HIDDEN)],
+            {"width": "full"},
+            request_id="edit-2",
+        )
         assert len(analyzer.requests) == 1
+        assert first.document.etag != document._record.etag
+        assert first.cells[0].code == "import marimo as mo"
 
-        # The result describes a revision that is gone, so nothing is
-        # published and the current revision is requested instead.
         log.clear()
-        notebook.observe(Analyzed(first, cell_analyses(document)))
-        assert "analysis" not in names(log)
-        latest = document._record.etag
-        assert analyzer.requests[1] == (latest, {"c1": "2"})
+        result.set_result(first_analysis)
+        latest, result = await analyzer.next_request()
+        assert names(log) == []
+        assert latest == document.snapshot()
 
-        notebook.observe(Analyzed(latest, cell_analyses(document)))
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
         assert names(log) == ["analysis"]
         assert request_ids(log) == ["edit-2"]
         assert notebook.analysis is not None
-        assert notebook.analysis.document_etag == latest
+        assert notebook.analysis.document_etag == latest.document.etag
 
     async def test_the_previous_analysis_stays_until_the_next_arrives(
         self, host: Host
@@ -362,14 +371,17 @@ class TestAnalysis:
             document=document,
             analyzer=analyzer,
         )
-        first = document._record.etag
-        notebook.observe(Analyzed(first, cell_analyses(document)))
-
+        first, result = await analyzer.next_request()
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
         notebook.replace([CellSource("c1", "1")], {})
+        _, result = await analyzer.next_request()
 
         assert notebook.analysis is not None
         assert (
-            notebook.analysis.document_etag == first != document._record.etag
+            notebook.analysis.document_etag
+            == first.document.etag
+            != document._record.etag
         )
         assert names(host.events(notebook_id="n1")) == [
             "notebook",
@@ -378,9 +390,12 @@ class TestAnalysis:
             "analysis",
             "ready",
         ]
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
 
+    @pytest.mark.parametrize("edit_while_running", [False, True])
     async def test_a_failed_analysis_leaves_the_notebook_ready_for_the_next(
-        self, host: Host, log: list[Event]
+        self, host: Host, log: list[Event], edit_while_running: bool
     ) -> None:
         host.update_project(project())
         analyzer = ScriptedAnalyzer()
@@ -392,35 +407,70 @@ class TestAnalysis:
             document=document,
             analyzer=analyzer,
         )
+        _, result = await analyzer.next_request()
+        if edit_while_running:
+            notebook.replace([CellSource("c1", "1")], {})
         log.clear()
-        notebook.observe(Analyzed(document._record.etag, None))
+        result.set_exception(RuntimeError("compiler failed"))
+        await asyncio.sleep(0)
         assert names(log) == []
         assert notebook.analysis is None
+        if not edit_while_running:
+            notebook.replace([CellSource("c1", "1")], {})
+        snapshot, result = await analyzer.next_request()
+        assert snapshot == document.snapshot()
+        log.clear()
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
+        assert names(log) == ["analysis"]
 
-        notebook.replace([CellSource("c1", "1")], {})
-        assert len(analyzer.requests) == 2
-
-    async def test_a_result_for_an_unrequested_revision_is_ignored(
+    async def test_removal_discards_a_result_even_if_cancellation_is_suppressed(
         self, host: Host, log: list[Event]
     ) -> None:
-        host.update_project(project())
-        analyzer = ScriptedAnalyzer()
+        started, cancelled = asyncio.Event(), asyncio.Event()
+        result = asyncio.get_running_loop().create_future()
         document = Document(NOTEBOOK, fixture_cells(), {})
-        notebook = await add_notebook(
-            host,
-            record(),
-            ScriptedBackend(),
-            document=document,
-            analyzer=analyzer,
-        )
-        log.clear()
-        notebook.observe(
-            Analyzed(
-                protocol.Etag("0000000000000000"), cell_analyses(document)
-            )
-        )
-        assert names(log) == []
 
-        etag = document._record.etag
-        notebook.observe(Analyzed(etag, cell_analyses(document)))
-        assert names(log) == ["analysis"]
+        class Analyzer:
+            async def analyze(self, _snapshot):
+                started.set()
+                try:
+                    return await asyncio.shield(result)
+                except asyncio.CancelledError:
+                    cancelled.set()
+                    return await result
+
+        host.update_project(project())
+        host.add_notebook(
+            record(),
+            lambda _, sink: Notebook(
+                document,
+                Executions(),
+                ScriptedBackend(),
+                sink,
+                analyzer=Analyzer(),
+            ),
+        )
+        await host.notebook("n1")
+        await asyncio.wait_for(started.wait(), timeout=5)
+        host.remove_notebook("n1")
+        await asyncio.wait_for(cancelled.wait(), timeout=5)
+        log.clear()
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
+        assert names(log) == []
+        assert "n1" not in host.notebooks
+
+
+def test_snapshot_preserves_order_metadata_and_nested_configuration() -> None:
+    document = Document(NOTEBOOK, fixture_cells(), {"nested": {"items": [1]}})
+    snapshot = document.snapshot()
+    assert snapshot.cells == tuple(document)
+    assert snapshot.document == document._record
+    document._record.app_config["nested"]["items"].append(2)
+    document.replace([CellSource("c1", "42", name="renamed")], {})
+    assert snapshot.document.app_config == {"nested": {"items": [1]}}
+    assert snapshot.cells[0].code == "import marimo as mo"
+    assert snapshot.cells[-1].config == HIDDEN
+    snapshot.document.app_config["another"] = True
+    assert document._record.app_config == {}

@@ -103,6 +103,14 @@ def revision(
 
 
 @dataclass(frozen=True)
+class DocumentSnapshot:
+    """A detached document record and its cells in document order."""
+
+    document: protocol.Document
+    cells: tuple[protocol.Cell, ...]
+
+
+@dataclass(frozen=True)
 class Changed:
     """Changed cells, removed cell IDs, and the updated document."""
 
@@ -214,6 +222,10 @@ class Document:
 
     def cell(self, cell_id: str) -> protocol.Cell | None:
         return self._cells.get(cell_id)
+
+    def snapshot(self) -> DocumentSnapshot:
+        """Capture one revision without sharing mutable configuration."""
+        return deepcopy(DocumentSnapshot(self._record, tuple(self)))
 
     def replace(
         self, cells: Sequence[CellSource], app_config: Mapping[str, Any]

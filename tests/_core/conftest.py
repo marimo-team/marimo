@@ -3,20 +3,17 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import asyncio
 
 import pytest
 
 from marimo._core import backend as be, protocol
-from marimo._core.document import Document, code_hash
+from marimo._core.document import Document, DocumentSnapshot, code_hash
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.run_log import RetentionPolicy
 from marimo._core.stream import Event, Sink
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 OPERATIONS = ["notebook.create", "runtime.start", "runtime.run"]
 
@@ -44,13 +41,34 @@ class ScriptedBackend:
 
 
 class ScriptedAnalyzer:
-    """Records analysis requests without answering them."""
+    """Expose snapshots and let tests complete analysis explicitly."""
 
     def __init__(self) -> None:
-        self.requests: list[tuple[str, dict[str, str]]] = []
+        self.requests: list[DocumentSnapshot] = []
+        self.pending: asyncio.Queue[
+            tuple[
+                DocumentSnapshot,
+                asyncio.Future[dict[protocol.CellId, protocol.CellAnalysis]],
+            ]
+        ] = asyncio.Queue()
 
-    def analyze(self, document_etag: str, codes: Mapping[str, str]) -> None:
-        self.requests.append((document_etag, dict(codes)))
+    async def analyze(
+        self, snapshot: DocumentSnapshot
+    ) -> dict[protocol.CellId, protocol.CellAnalysis]:
+        result: asyncio.Future[
+            dict[protocol.CellId, protocol.CellAnalysis]
+        ] = asyncio.get_running_loop().create_future()
+        self.requests.append(snapshot)
+        self.pending.put_nowait((snapshot, result))
+        return await result
+
+    async def next_request(
+        self,
+    ) -> tuple[
+        DocumentSnapshot,
+        asyncio.Future[dict[protocol.CellId, protocol.CellAnalysis]],
+    ]:
+        return await asyncio.wait_for(self.pending.get(), timeout=5)
 
 
 def runtime_id_of(notebook: Notebook) -> protocol.RuntimeId:
