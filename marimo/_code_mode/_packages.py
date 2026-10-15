@@ -49,13 +49,7 @@ PackageOutcome = Literal["success", "failed", "restart-required"]
 
 @dataclass(frozen=True, slots=True)
 class PackageResult:
-    """Outcome of a requested package operation, not verified environment state.
-
-    Adjacent actions share a batch outcome; this is not per-package state.
-    `success` means the manager reported success. `failed` does not imply
-    rollback or that the requirement is absent. `restart-required` means
-    dependency changes were saved but need a kernel restart.
-    """
+    """Manager-reported batch outcome, not verified package state."""
 
     requirement: str
     action: Literal["add", "remove"]
@@ -135,19 +129,14 @@ class Packages:
 
     @property
     def results(self) -> PackageResults:
-        """Immutable package outcomes in request order, available after context exit.
+        """Package outcomes in request order after context exit.
 
         Cleared on context entry. Discarded operations produce no results.
-        Outcomes report manager responses, not verified package or import state.
         """
         return self._results
 
     def add(self, *packages: str | list[str] | tuple[str, ...]) -> None:
         """Queue packages for installation on context exit.
-
-        Adjacent additions share one resolver request. Each queued requirement
-        receives the shared batch outcome; a failed solve does not establish
-        which packages are installed. An intervening removal ends the batch.
 
         Packages are installed with streaming UI notifications and the
         script metadata is updated for sandboxed notebooks. Cells are
@@ -171,8 +160,7 @@ class Packages:
     def remove(self, *packages: str | list[str] | tuple[str, ...]) -> None:
         """Queue packages for removal on context exit.
 
-        Adjacent removals share one manager request. An intervening addition
-        ends the batch. Updates the script metadata for sandboxed notebooks.
+        Updates the script metadata for sandboxed notebooks.
 
         Examples:
             ```python

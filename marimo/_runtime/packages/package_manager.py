@@ -145,11 +145,7 @@ class PackageManager(abc.ABC):
         group: str | None = None,
         log_callback: LogCallback | None = None,
     ) -> bool:
-        """Submit requirements together, preserving each argument verbatim.
-
-        Returns the manager's batch outcome, not independently verified
-        per-package state. Failure does not imply atomicity or rollback.
-        """
+        """Install requirements in one request, preserving argument boundaries."""
         if not packages:
             return True
         self._attempted_packages.update(packages)
@@ -163,7 +159,6 @@ class PackageManager(abc.ABC):
     async def uninstall_many(
         self, packages: list[str], *, group: str | None = None
     ) -> bool:
-        """Submit removals together and return the manager's batch outcome."""
         if not packages:
             return True
         return await self.uninstall(packages, group=group)

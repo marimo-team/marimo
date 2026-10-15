@@ -592,7 +592,6 @@ class NotebookSandbox:
         return [str(dependency) for dependency in dependencies]
 
     def _pin_many(self, requirements: list[_BareRequirement]) -> None:
-        """Record resolved versions together before synchronizing the Manifest."""
         if not requirements:
             return
         with script_metadata.materialized_for_environment(
