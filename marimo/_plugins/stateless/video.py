@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import os
+from pathlib import Path
 
 import marimo._output.data.data as mo_data
 from marimo._output.builder import h
@@ -13,7 +14,7 @@ from marimo._plugins.core.media import io_to_data_url
 
 
 def _get_resolved_src(
-    src: str | bytes | io.BytesIO | io.BufferedReader,
+    src: str | bytes | io.BytesIO | io.BufferedReader | Path,
 ) -> str | None:
     """Determine the correct URL for the given video source.
 
@@ -32,11 +33,18 @@ def _get_resolved_src(
     if isinstance(src, bytes):
         return mo_data.video(src).url
 
+    if isinstance(src, Path):
+        expanded = src.expanduser()
+        if expanded.is_file():
+            ext = expanded.suffix or ".mp4"
+            return mo_data.video(expanded.read_bytes(), ext=ext).url
+        return str(src)
+
     if isinstance(src, str):
-        expanded = os.path.expanduser(src)
-        if os.path.isfile(expanded):
-            with open(expanded, "rb") as f:
-                ext = os.path.splitext(expanded)[1] or ".mp4"
+        expanded_str = os.path.expanduser(src)
+        if os.path.isfile(expanded_str):
+            with open(expanded_str, "rb") as f:
+                ext = os.path.splitext(expanded_str)[1] or ".mp4"
                 return mo_data.video(f.read(), ext=ext).url
 
     return io_to_data_url(src, fallback_mime_type="video/mp4")
@@ -44,7 +52,7 @@ def _get_resolved_src(
 
 @mddoc
 def video(
-    src: str | bytes | io.BytesIO | io.BufferedReader,
+    src: str | bytes | io.BytesIO | io.BufferedReader | Path,
     controls: bool = True,
     muted: bool = False,
     autoplay: bool = False,
