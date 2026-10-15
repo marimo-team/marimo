@@ -638,39 +638,23 @@ async def test_reconnection_cancels_close_handle(client: TestClient) -> None:
             assert session is not None
 
 
+@pytest.mark.parametrize("disconnect_reconnected", [False, True])
+@pytest.mark.parametrize("mode", [SessionMode.RUN, SessionMode.EDIT])
 async def test_ttl_close_does_not_kill_session_owned_by_new_consumer(
     client: TestClient,
+    disconnect_reconnected: bool,
+    mode: SessionMode,
 ) -> None:
-    """Regression: old handler's TTL timer must not kill a session that has
-    been taken over by a new consumer (same session_id).
-
-    Sequence:
-      1. Consumer A connects → session created
-      2. Consumer A disconnects → TTL timer scheduled
-      3. Consumer B connects with same session_id → takes over session
-      4. TTL timer fires → must NOT close the session
-
-    The TTL close callback is captured rather than scheduled on a real timer,
-    then fired by hand only after Consumer B has provably taken over. This
-    exercises the live guard in `_close` deterministically, without racing a
-    wall-clock timer against Consumer B's connect. Firing inline is safe: when
-    a consumer has taken over, `_close` short-circuits at the guard with only
-    synchronous reads and never touches the event loop.
-    """
+    """Old cleanup cannot expire a later connection or its retention window."""
     session_manager = get_session_manager(client)
-    session_manager.mode = SessionMode.RUN
-    session_manager.ttl_seconds = 120  # enable TTL (run mode default)
+    session_manager.mode = mode
+    session_manager.ttl_seconds = 120
 
     captured: list[Callable[[], None]] = []
     real_get_running_loop = asyncio.get_running_loop
 
     class _CaptureCloseLoop:
-        """Event-loop wrapper that diverts only the TTL close callback.
-
-        `_on_disconnect` schedules the session close via `call_later`; capturing
-        that one callback lets the test fire it on demand. Every other loop
-        operation forwards to the real loop untouched.
-        """
+        """Capture only TTL callbacks so expiry order is deterministic."""
 
         def __init__(self, loop: Any) -> None:
             self._loop = loop
@@ -686,10 +670,7 @@ async def test_ttl_close_does_not_kill_session_owned_by_new_consumer(
         def __getattr__(self, name: str) -> Any:
             return getattr(self._loop, name)
 
-    # Step 1: Consumer A connects → session created. Entered manually (not via
-    # `with`) because the disconnect must happen under the patch below; the
-    # try/finally guarantees the session is closed exactly once even if an
-    # assertion fails before the deliberate disconnect.
+    # Disconnect under the patch, but always release the socket on failure.
     ws_a = client.websocket_connect(WS_URL)
     ws_a.__enter__()
     a_disconnected = False
@@ -697,9 +678,6 @@ async def test_ttl_close_does_not_kill_session_owned_by_new_consumer(
         assert_kernel_ready_response(ws_a.receive_json())
         assert session_manager.get_session("123") is not None
 
-        # Step 2: Consumer A disconnects under the patch so its TTL close is
-        # captured instead of scheduled. The patch stays active until the
-        # server loop has processed the disconnect.
         with patch(
             "marimo._server.api.endpoints.ws_endpoint.asyncio.get_running_loop",
             lambda: _CaptureCloseLoop(real_get_running_loop()),
@@ -712,25 +690,56 @@ async def test_ttl_close_does_not_kill_session_owned_by_new_consumer(
                 await asyncio.sleep(0.01)
         assert captured, "Consumer A disconnect did not schedule a TTL close"
 
-        # Step 3: Consumer B takes over the same session
         with client.websocket_connect(WS_URL) as ws_b:
             data = ws_b.receive_json()
             assert data["op"] == "reconnected", (
                 f"Expected reconnected, got {data.get('op')}"
             )
 
-            # Step 4: Fire Consumer A's stale TTL close now that Consumer B is
-            # the active consumer. The guard must see B's OPEN session and skip
-            # the close.
-            for ttl_close in captured:
-                ttl_close()
+            if disconnect_reconnected:
+
+                async def wait_for_disconnect() -> None:
+                    loop = asyncio.get_running_loop()
+                    deadline = loop.time() + 5
+                    while True:
+                        session = session_manager.get_session("123")
+                        assert session is not None
+                        if len(captured) == 2:
+                            assert (
+                                session.connection_state()
+                                == ConnectionState.ORPHANED
+                            )
+                            return
+                        assert loop.time() < deadline
+                        await asyncio.sleep(0.01)
+
+                with patch(
+                    "marimo._server.api.endpoints.ws_endpoint.asyncio.get_running_loop",
+                    lambda: _CaptureCloseLoop(real_get_running_loop()),
+                ):
+                    ws_b.close()
+                    ws_b.portal.call(wait_for_disconnect)
+
+            ws_b.portal.call(captured[0])
 
             session = session_manager.get_session("123")
             assert session is not None, (
                 "Session was killed by old handler's TTL timer "
-                "despite having an active consumer"
+                "after another consumer reconnected"
             )
-            assert session.connection_state() == ConnectionState.OPEN
+            assert session.connection_state() == (
+                ConnectionState.ORPHANED
+                if disconnect_reconnected
+                else ConnectionState.OPEN
+            )
+            if disconnect_reconnected:
+                kernel_tasks = get_kernel_tasks(session_manager)
+                ws_b.portal.call(captured[1])
+                assert session_manager.get_session("123") is None
+                # Expired sessions are absent from the fixture's teardown;
+                # join their kernels before restoring the test's main module.
+                for task in kernel_tasks:
+                    await asyncio.to_thread(task.join)
     finally:
         if not a_disconnected:
             ws_a.__exit__(None, None, None)
