@@ -135,20 +135,10 @@ class Packages:
 
     @property
     def results(self) -> PackageResults:
-        """Immutable outcomes in request order after context exit.
+        """Immutable package outcomes in request order, available after context exit.
 
-        Empty until package operations have completed, and cleared on the
-        next context entry. A body exception discards queued operations and
-        leaves no results. Outcomes describe manager responses, not import
-        availability or independently verified installed state.
-
-        Examples:
-            ```python
-            async with cm.get_context() as ctx:
-                ctx.packages.add("polars")
-            for result in ctx.packages.results:
-                print(result.requirement, result.action, result.outcome)
-            ```
+        Cleared on context entry. Discarded operations produce no results.
+        Outcomes report manager responses, not verified package or import state.
         """
         return self._results
 
