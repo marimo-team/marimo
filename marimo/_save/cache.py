@@ -36,7 +36,10 @@ UNEXPECTED_FAILURE_BOILERPLATE = (
 
 
 if TYPE_CHECKING:
+    import threading
+
     from marimo._ast.visitor import Name
+    from marimo._config.config import CacheLoader
     from marimo._runtime.context.types import RuntimeContext
     from marimo._runtime.state import State
     from marimo._save.hash import HashKey
@@ -97,6 +100,16 @@ class CacheState:
     manifest_dirty: set[Store] = field(default_factory=set)
     # Path hash per cell, cleared with `hash_memo` when a cell re-executes.
     node_memo: dict[CellId_t, str] = field(default_factory=dict)
+    # Lazy-loader writes still running on a background thread, by manifest
+    # key. Session-wide (not per loader instance) because a named block may
+    # be re-created with a new loader over the same store, and a lookup that
+    # follows its own save must wait for that write rather than miss.
+    pending_writes: dict[str, threading.Event] = field(default_factory=dict)
+    # Default `method` for `mo.persistent_cache`, from `cache.loader` in the
+    # effective config. User/env config only: `"pickle"` neither signs nor
+    # verifies, so an untrusted layer selecting it would read the operator's
+    # trusted store unverified.
+    loader: CacheLoader = "lazy"
     # Lazy-store session state; see `loaders/lazy.py:_cache_state`.
     active_lazy_loaders: dict[str, LazyLoader] = field(default_factory=dict)
     poisoned_keys: set[str] = field(default_factory=set)

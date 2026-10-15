@@ -632,16 +632,23 @@ CacheStoreConfig = list[StoreConfig] | StoreConfig
 
 CacheVerification = Literal["off", "on", "strict"]
 
+# The loader `mo.persistent_cache` uses when `method` is not passed: a
+# built-in name, or the name of an installed `marimo.cache.loader` entry
+# point.
+CacheLoader = Literal["pickle", "json", "lazy"] | str
+
 
 class CacheConfig(TypedDict, total=False):
     """Configuration for caching.
 
     `verification` is the signature-checking posture; `store` is the backing
-    store, or a list of stores composed into a `TieredStore`.
+    store, or a list of stores composed into a `TieredStore`; `loader` is the
+    default `method` for `mo.persistent_cache`.
     """
 
     verification: CacheVerification
     store: CacheStoreConfig
+    loader: CacheLoader
 
 
 class SigningConfig(TypedDict, total=False):

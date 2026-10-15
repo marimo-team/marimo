@@ -16,13 +16,16 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 # Verification posture, shared by the config resolver (`signing_policy`) and
-# the loader (`loaders.lazy`). `off`: no signing or verification (legacy
-# opt-out). `on` (default): sign on write, and on read serve only entries that
-# verify against a trusted key — unverifiable entries miss and recompute
-# (fail-safe). `strict`: like `on`, but an unverifiable entry raises
-# (fail-closed).
+# the loader (`loaders.lazy`). `off` (default): no signing or verification.
+# `on`: sign on write, and on read serve only entries that verify against a
+# trusted key — unverifiable entries miss and recompute (fail-safe). `strict`:
+# like `on`, but an unverifiable entry raises (fail-closed).
 VALID_VERIFICATIONS = ("off", "on", "strict")
-DEFAULT_VERIFICATION = "on"
+DEFAULT_VERIFICATION = "off"
+# NB. a misspelled config value falls back to `on`, not to the default: a user
+# who wrote a verification setting meant to verify, and a typo must not turn
+# verification off silently.
+INVALID_VERIFICATION_FALLBACK = "on"
 
 
 class CacheSignatureError(Exception):
@@ -42,11 +45,10 @@ def _sha256hex(data: bytes) -> str:
 def normalize_verification(raw: Any, *, strict: bool = False) -> str:
     """Validate a verification posture.
 
-    With `strict=False` (config files) an unrecognized value warns and degrades
-    to the default rather than breaking the session; with `strict=True` (a
-    caller-supplied kwarg) it raises. The default is fail-safe — unverifiable
-    entries recompute — so the degrade path never widens what gets
-    deserialized.
+    With `strict=False` (config files) an unrecognized value warns and falls
+    back to `on` rather than breaking the session; with `strict=True` (a
+    caller-supplied kwarg) it raises. `on` is fail-safe — unverifiable entries
+    recompute — so the fallback never widens what gets deserialized.
     """
     if isinstance(raw, str) and raw in VALID_VERIFICATIONS:
         return raw
@@ -61,9 +63,9 @@ def normalize_verification(raw: Any, *, strict: bool = False) -> str:
         "Invalid cache verification %r; expected one of %s. Falling back to %r.",
         raw,
         expected,
-        DEFAULT_VERIFICATION,
+        INVALID_VERIFICATION_FALLBACK,
     )
-    return DEFAULT_VERIFICATION
+    return INVALID_VERIFICATION_FALLBACK
 
 
 class CacheSigner:
@@ -467,16 +469,15 @@ def _get_machine_signer(
             return signer
         except Exception:
             logging.getLogger("marimo").warning(
-                "Failed to load cache signing key from %s; "
-                "generating a new one.",
+                "Failed to load cache signing key from %s. "
+                "Restore the key or remove the file to generate a new identity.",
                 key_file,
             )
+            return None
 
-    # Auto-generate and persist atomically (write to temp, rename).
-    # os.replace is atomic on POSIX; if two processes race, the last rename
-    # wins. We then load the key that actually landed on disk (rather than the
-    # one we generated), so a process that lost the race still uses the winning
-    # key this session and can verify caches written by the winner.
+    # Publish a complete key without replacing an identity another process
+    # already uses. Atomic replacement alone lets concurrent first-time
+    # writers adopt different keys before the last replacement wins.
     import tempfile
 
     try:
@@ -485,34 +486,27 @@ def _get_machine_signer(
         fd, tmp = tempfile.mkstemp(
             dir=key_file.parent, prefix=".cache_key_", suffix=".tmp"
         )
-        closed = False
         try:
-            os.write(fd, private_pem.encode())
-            os.close(fd)
-            closed = True
+            with os.fdopen(fd, "w") as file:
+                file.write(private_pem)
             os.chmod(tmp, stat.S_IRUSR | stat.S_IWUSR)
-            os.replace(tmp, str(key_file))
-        except BaseException:
-            if not closed:
-                os.close(fd)
             try:
-                os.unlink(tmp)
-            except OSError:
+                os.link(tmp, key_file)
+            except FileExistsError:
+                # The winner published its complete key before creating the
+                # link, so every caller can now adopt the same identity.
                 pass
-            raise
-        logging.getLogger("marimo").info(
-            "Generated cache signing key: %s", key_file
-        )
-        # Adopt whatever key won the rename (see note above); fall back to the
-        # in-memory key if the file is unreadable for any reason.
-        try:
-            return CacheSigner.from_private_key_pem(key_file.read_text())
-        except Exception:
-            return CacheSigner.from_private_key_pem(private_pem)
+            else:
+                logging.getLogger("marimo").info(
+                    "Generated cache signing key: %s", key_file
+                )
+        finally:
+            os.unlink(tmp)
+        return CacheSigner.from_private_key_pem(key_file.read_text())
     except Exception:
         logging.getLogger("marimo").warning(
             "Could not persist cache signing key to %s; "
-            "cache entries will be unsigned for this session.",
+            "verified cache writes will be skipped for this session.",
             key_file,
         )
         return None

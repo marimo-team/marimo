@@ -370,8 +370,15 @@ components:
     CacheConfig:
       description: "Configuration for caching.\n\n    `verification` is the signature-checking\
         \ posture; `store` is the backing\n    store, or a list of stores composed\
-        \ into a `TieredStore`."
+        \ into a `TieredStore`; `loader` is the\n    default `method` for `mo.persistent_cache`."
       properties:
+        loader:
+          anyOf:
+          - enum:
+            - json
+            - lazy
+            - pickle
+          - type: string
         store:
           anyOf:
           - items:

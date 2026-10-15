@@ -804,6 +804,7 @@ class TestOnRestoreFailure:
         # End-to-end: a manifest referencing a missing blob makes restore
         # raise; load_cache swallows it and invokes _on_restore_failure.
         store, loader, key = self._loader_and_key()
+        loader.verification = "off"  # The fixture contains unsigned data.
         manifest_path = str(loader.build_path(key))
         missing_ref = "h/missing.pickle"
         store._inner.put(manifest_path, self._manifest([missing_ref]))
