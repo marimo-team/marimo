@@ -82,7 +82,9 @@ def indent_text(text: str) -> str:
 
 def _format_arg(arg: Any) -> str:
     if isinstance(arg, str):
-        return f'"{arg}"'.replace("\\", "\\\\")
+        literal = repr(arg)
+        # Prefer double quotes, as ruff does, unless the value contains one.
+        return f'"{literal[1:-1]}"' if '"' not in arg else literal
     elif isinstance(arg, list):
         return f"[{', '.join([_format_arg(item) for item in arg])}]"
     else:
