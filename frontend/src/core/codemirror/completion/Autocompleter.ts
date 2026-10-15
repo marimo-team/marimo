@@ -44,7 +44,7 @@ function constructCompletionInfoNode(
     // Create kbd element for the key symbol
     const kbd = document.createElement("kbd");
     kbd.className =
-      "ml-1 rounded-md bg-muted/40 px-2 text-[0.75rem] font-prose center border border-foreground/20 text-muted-foreground inline whitespace-nowrap";
+      "ml-1 rounded-md bg-muted/40 px-2 text-2xs font-prose center border border-foreground/20 text-muted-foreground inline whitespace-nowrap";
     kbd.textContent = isPlatformMac() ? "⌘" : "Ctrl";
 
     // Add the instruction text

@@ -80,7 +80,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       onMouseDown={(e) => e.preventDefault()}
     >
       <span
-        className="absolute left-0 top-0 h-full w-5 flex items-center justify-end pr-1.5 text-[10px] tabular-nums pointer-events-none select-none text-(--gray-9)"
+        className="absolute left-0 top-0 h-full w-5 flex items-center justify-end pr-1.5 text-10 tabular-nums pointer-events-none select-none text-(--gray-9)"
         aria-hidden="true"
       >
         {props.index}

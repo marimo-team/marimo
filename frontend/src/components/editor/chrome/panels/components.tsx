@@ -77,7 +77,7 @@ const PanelBadge = ({
 }: React.ComponentPropsWithoutRef<typeof Badge>) => (
   <Badge
     variant="secondary"
-    className={cn("py-0 px-1.5 text-[10px]", className)}
+    className={cn("py-0 px-1.5 text-10", className)}
     {...props}
   />
 );
