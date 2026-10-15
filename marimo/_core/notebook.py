@@ -114,8 +114,6 @@ class Notebook:
         self._require_open()
         changed = self.document.replace(cells, app_config)
         self._publish_changed(changed, request_id)
-        if changed.document is not None:
-            self._request_analysis(request_id)
         return changed
 
     def mark_saved(self, *, request_id: str | None = None) -> None:
@@ -128,6 +126,7 @@ class Notebook:
     def _publish_changed(
         self, changed: Changed, request_id: str | None
     ) -> None:
+        """Publish a document change, then analyze the new revision."""
         with self.sink.deferred():
             for cell in changed.cells:
                 self._publish(cell, request_id)
@@ -138,6 +137,8 @@ class Notebook:
                 self._remove("cell", cell_id, request_id)
             if changed.document is not None:
                 self._publish(changed.document, request_id)
+        if changed.document is not None:
+            self._request_analysis(request_id)
 
     # ---- analysis ------------------------------------------------------
 
