@@ -4,12 +4,16 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 
 import pytest
 
+from marimo._ast.cell import CellImpl
+from marimo._ast.compiler import compile_cell
 from marimo._core import protocol
 from marimo._core.analysis import Analyzed
 from marimo._server.host.analysis import CellAnalyzer, HostAnalyzer, analyze
+from marimo._types.ids import CellId_t
 
 
 def test_refs_are_names_other_cells_define() -> None:
@@ -91,18 +95,36 @@ def test_analyzer_retries_after_an_unexpected_compiler_failure(
     assert analyzer(codes) == analyze(codes)
 
 
-async def test_host_analyzer_reports_each_revision_off_the_loop() -> None:
-    reports: list[Analyzed] = []
-    analyzer = HostAnalyzer(reports.append)
+async def test_host_analyzer_reports_each_revision_off_the_loop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    loop = asyncio.get_running_loop()
+    started = asyncio.Event()
+    release = threading.Event()
+    reported: asyncio.Future[Analyzed] = loop.create_future()
     codes = {"a": "x = 1", "b": "y = x"}
+    expected = Analyzed(protocol.Etag("rev-1"), analyze(codes))
 
+    def blocked_compile(code: str, cell_id: CellId_t) -> CellImpl:
+        loop.call_soon_threadsafe(started.set)
+        if not release.wait(timeout=5):
+            raise TimeoutError("the event loop did not release compilation")
+        return compile_cell(code, cell_id)
+
+    monkeypatch.setattr(
+        "marimo._server.host.analysis.compile_cell", blocked_compile
+    )
+    analyzer = HostAnalyzer(reported.set_result)
     analyzer.analyze(protocol.Etag("rev-1"), codes)
-    for _ in range(100):
-        if reports:
-            break
-        await asyncio.sleep(0.01)
+    try:
+        await asyncio.wait_for(started.wait(), timeout=5)
+        # The loop must resume while compilation is still blocked.
+        assert not reported.done()
+    finally:
+        release.set()
+        result = await asyncio.wait_for(reported, timeout=5)
 
-    assert reports == [Analyzed(protocol.Etag("rev-1"), analyze(codes))]
+    assert result == expected
 
 
 async def test_host_analyzer_reports_a_failure_without_cells(

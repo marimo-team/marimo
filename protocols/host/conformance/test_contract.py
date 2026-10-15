@@ -66,6 +66,18 @@ async def test_stream_examples(path):
             frame.message()
 
 
+@pytest.mark.parametrize("message", [{}, {"analysis": {}}])
+async def test_invalid_analysis_messages_are_rejected(message):
+    data = json.dumps(message)
+    with pytest.raises(ValidationError):
+        Frame(event="analysis", data=data).message()
+
+    stream = f"event: analysis\ndata: {data}\n\nevent: ready\ndata: {{}}\n\n"
+    watch = Watch(frames(lines(stream)), timeout=1)
+    with pytest.raises(ValidationError):
+        await watch.ready()
+
+
 async def test_sse_preserves_multiline_data_comments_and_explicit_ids():
     stream = ": ping\r\nid: 7\r\nevent: future\r\ndata: one\r\ndata:  two\r\n\r\nevent: ready\ndata: {}\n\n"
     assert [frame async for frame in frames(lines(stream))] == [
