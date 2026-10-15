@@ -6,6 +6,7 @@ import type { MarimoError, OutputMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import type { RuntimeState } from "../network/types";
 import type { NotebookState } from "./cells";
+import { getDisplayCellIds } from "./display-cell-ids";
 import type { CellId } from "./ids";
 
 export function notebookIsRunning(state: NotebookState) {
@@ -82,7 +83,7 @@ export function getUndoLabel(state: NotebookState): string {
  * Get the status of the descendants of the given cell.
  */
 export function getDescendantsStatus(state: NotebookState, cellId: CellId) {
-  const column = state.cellIds.findWithId(cellId);
+  const column = getDisplayCellIds(state).findWithId(cellId);
   const descendants = column.getDescendants(cellId);
   const stale = descendants.some(
     (id) => state.cellRuntime[id]?.staleInputs || state.cellData[id]?.edited,

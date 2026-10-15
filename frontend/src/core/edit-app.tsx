@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { usePrevious } from "@dnd-kit/utilities";
 import { Tooltip } from "radix-ui";
 
 const TooltipProvider = Tooltip.Provider;
@@ -30,7 +29,6 @@ import { useHotkey } from "../hooks/useHotkey";
 import {
   hasCellsAtom,
   notebookIsRunningAtom,
-  numColumnsAtom,
   useCellActions,
 } from "./cells/cells";
 import type { AppConfig, UserConfig } from "./config/config-schema";
@@ -63,10 +61,12 @@ export const EditApp: React.FC<AppProps> = ({
   appConfig,
   hideControls = false,
 }) => {
-  const { setCells, mergeAllColumns, collapseAllCells, expandAllCells } =
+  const { setCells, setCellLayout, collapseAllCells, expandAllCells } =
     useCellActions();
+  useEffect(() => {
+    setCellLayout(appConfig.width === "columns");
+  }, [appConfig.width, setCellLayout]);
   const viewState = useAtomValue(viewStateAtom);
-  const numColumns = useAtomValue(numColumnsAtom);
   const filename = useFilename();
   const setLastSavedNotebook = useSetAtom(lastSavedNotebookAtom);
   const { sendComponentValues, sendInterrupt } = useRequestClient();
@@ -103,14 +103,6 @@ export const EditApp: React.FC<AppProps> = ({
       Paths.basename(filename ?? "") ||
       "Untitled Notebook";
   }, [appConfig.app_title, filename]);
-
-  // Delete column breakpoints if app width changes from "columns"
-  const previousWidth = usePrevious(appConfig.width);
-  useEffect(() => {
-    if (previousWidth === "columns" && appConfig.width !== "columns") {
-      mergeAllColumns();
-    }
-  }, [appConfig.width, previousWidth, mergeAllColumns, numColumns]);
 
   const runStaleCells = useRunStaleCells();
   const runAllCells = useRunAllCells();

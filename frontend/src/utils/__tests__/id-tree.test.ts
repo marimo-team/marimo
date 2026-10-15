@@ -1025,6 +1025,30 @@ describe("MultiColumn", () => {
       ]);
     });
 
+    it("preserves unaffected column instances when moving a group", () => {
+      const original = multiColumn.getColumns();
+      const moved = multiColumn.moveCellsRelativeTo(
+        ["A1", "A2"],
+        "B2",
+        "after",
+      );
+      expect(moved.atOrThrow(2)).toBe(original[2]);
+      expect(moved.atOrThrow(1).topLevelIds).toEqual(["B1", "B2", "A1", "A2"]);
+    });
+
+    it("expands affected folded columns without changing other sections", () => {
+      const folded = multiColumn.transformAll((column) =>
+        column.collapse(column.first()!, column.last()!),
+      );
+      const untouched = folded.atOrThrow(2);
+      const moved = folded.moveCellsRelativeTo(["A2", "A3"], "B2", "after", {
+        expandAffectedColumns: true,
+      });
+      expect(moved.atOrThrow(0).inOrderIds).toEqual(["A1"]);
+      expect(moved.atOrThrow(1).inOrderIds).toEqual(["B1", "B2", "A2", "A3"]);
+      expect(moved.atOrThrow(2)).toBe(untouched);
+    });
+
     it("throws when node not found", () => {
       expect(() =>
         multiColumn.moveCellsRelativeTo(["Z1"], "A1", "before"),
