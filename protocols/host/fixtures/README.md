@@ -8,7 +8,8 @@ opaque. Gaps represent events outside an excerpt or its filter.
 `notebook-events.sse` opens a stream for notebook `n1` during the scratch run
 shown in `run.sse`. Its snapshot includes the display and console output
 already produced. Both streams end with the same execution and run completion
-events, using the same cursors. `cell.json` is cell `c3` from that snapshot.
+events, using the same cursors. `cell.json` is cell `c3` from that snapshot,
+and `analysis.json` is the analysis of that document.
 
 `run-cells-request.json` requests `c3`, which defines `x`. In `run-cells.sse`,
 the runtime then evaluates `k7f2`, which defines `y` using `x`. The dependent

@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import pytest
 from msgspec.structs import replace
 
@@ -24,9 +22,6 @@ from marimo._core.notebook import Notebook
 from marimo._core.stream import Event
 from tests._core.conftest import make_notebook, names, project, record
 
-if TYPE_CHECKING:
-    from collections.abc import Mapping
-
 NOTEBOOK = protocol.NotebookId("n1")
 HIDDEN = protocol.CellConfig(
     column=None, disabled=False, hide_code=True, expand_output=False
@@ -40,33 +35,6 @@ def fixture_cells() -> list[CellSource]:
         CellSource("c3", "x = 21"),
         CellSource("k7f2", "y = x * 2", config=HIDDEN),
     ]
-
-
-def defs_only(codes: Mapping[str, str]) -> dict[str, protocol.Analysis]:
-    """An analyzer that reports an error on every cell defining `x`."""
-    out = {}
-    definers = [cell_id for cell_id, code in codes.items() if "x =" in code]
-    for cell_id, code in codes.items():
-        errors = []
-        if cell_id in definers and len(definers) > 1:
-            errors.append(
-                protocol.Error(
-                    kind="multiple-definitions",
-                    message="x is defined twice",
-                    source="marimo",
-                    severity="error",
-                    range=None,
-                    name=None,
-                    traceback=None,
-                    related=[],
-                )
-            )
-        out[cell_id] = protocol.Analysis(
-            defs=[code.split(" =")[0]] if " =" in code else [],
-            refs=[],
-            errors=errors,
-        )
-    return out
 
 
 class TestEtags:
@@ -204,54 +172,16 @@ class TestReplace:
         assert behind.saved_etag == saved.etag != behind.etag
 
 
-class TestAnalysis:
-    def test_reruns_over_the_whole_document(self) -> None:
-        document = Document(
-            NOTEBOOK,
-            [CellSource("a", "x = 1"), CellSource("b", "y = 2")],
-            {},
-            analyzer=defs_only,
-        )
-        a, _ = document
-        assert a.analysis == protocol.Analysis(defs=["x"], refs=[], errors=[])
-
-        changed = document.replace(
-            [CellSource("a", "x = 1"), CellSource("b", "x = 2")], {}
-        )
-
-        # Both cells re-emit: b because its code changed, a because its
-        # analysis gained an error while its etag stayed put.
-        assert [cell.id for cell in changed.cells] == ["a", "b"]
-        new_a = changed.cells[0]
-        assert new_a.etag == a.etag
-        assert new_a.analysis is not None
-        assert [e.kind for e in new_a.analysis.errors] == [
-            "multiple-definitions"
-        ]
-
-    def test_is_null_without_an_analyzer(self) -> None:
-        document = Document(NOTEBOOK, fixture_cells(), {})
-        assert all(cell.analysis is None for cell in document)
-
-
 class TestFromRecords:
-    def test_preserves_imported_analysis_and_saved_revision(self) -> None:
+    def test_preserves_the_saved_revision(self) -> None:
         source = Document(
-            NOTEBOOK,
-            fixture_cells(),
-            {"width": "full"},
-            policy="lazy",
-            analyzer=lambda codes: {
-                cell_id: protocol.Analysis(defs=(), refs=(), errors=())
-                for cell_id in codes
-            },
+            NOTEBOOK, fixture_cells(), {"width": "full"}, policy="lazy"
         )
         # The saved revision precedes the current one; both survive.
         source.replace([CellSource("c1", "import marimo")], {"width": "full"})
         restored = Document.from_records(source._record, list(source))
         assert restored._record == source._record
         assert list(restored) == list(source)
-        assert next(iter(restored)).analysis is not None
 
     @pytest.mark.parametrize(
         "invalid", ["order", "notebook-id", "cell-etag", "document-etag"]
@@ -271,26 +201,6 @@ class TestFromRecords:
             document = replace(document, app_config={"width": "full"})
         with pytest.raises(ValueError):
             Document.from_records(document, cells)
-
-    def test_analyzer_is_injected_for_restoration_and_later_edits(
-        self,
-    ) -> None:
-        observed: list[dict[str, str]] = []
-
-        def analyze(codes: Mapping[str, str]) -> dict[str, protocol.Analysis]:
-            observed.append(dict(codes))
-            return {
-                cell_id: protocol.Analysis(defs=(), refs=(), errors=())
-                for cell_id in codes
-            }
-
-        source = Document(NOTEBOOK, [CellSource("c1", "42")], {})
-        document = Document.from_records(
-            source._record, list(source), analyzer=analyze
-        )
-        document.replace([CellSource("c1", "43")], {})
-        assert observed == [{"c1": "42"}, {"c1": "43"}]
-        assert next(iter(document)).analysis is not None
 
 
 class TestNotebook:

@@ -2,13 +2,13 @@ event: notebook
 data: {"notebook":{"id":"n1","project_id":"p1","path":"forecasts.py","name":"forecasts","operations":["notebook.update","notebook.delete","notebook.open","notebook.edit","notebook.save","runtime.start","runtime.stop","runtime.run","runtime.interrupt"],"updated_at":"2026-10-01T09:00:00Z"}}
 
 event: cell
-data: {"cell":{"id":"c1","notebook_id":"n1","code":"import marimo as mo","name":"_","config":{"column":null,"disabled":false,"hide_code":false,"expand_output":false},"etag":"48d6363150d6281c","code_hash":"f649a0b56c5c1966","analysis":{"defs":["mo"],"refs":[],"errors":[]}}}
+data: {"cell":{"id":"c1","notebook_id":"n1","code":"import marimo as mo","name":"_","config":{"column":null,"disabled":false,"hide_code":false,"expand_output":false},"etag":"48d6363150d6281c","code_hash":"f649a0b56c5c1966"}}
 
 event: cell
-data: {"cell":{"id":"c3","notebook_id":"n1","code":"x = 21","name":"_","config":{"column":null,"disabled":false,"hide_code":false,"expand_output":false},"etag":"5cf78587dcf22d8d","code_hash":"0f71456db2ea83f4","analysis":{"defs":["x"],"refs":[],"errors":[]}}}
+data: {"cell":{"id":"c3","notebook_id":"n1","code":"x = 21","name":"_","config":{"column":null,"disabled":false,"hide_code":false,"expand_output":false},"etag":"5cf78587dcf22d8d","code_hash":"0f71456db2ea83f4"}}
 
 event: cell
-data: {"cell":{"id":"k7f2","notebook_id":"n1","code":"y = x * 2","name":"_","config":{"column":null,"disabled":false,"hide_code":true,"expand_output":false},"etag":"f199b5f48ae0aabb","code_hash":"db2b9ee97e1ecf4c","analysis":{"defs":["y"],"refs":["x"],"errors":[]}}}
+data: {"cell":{"id":"k7f2","notebook_id":"n1","code":"y = x * 2","name":"_","config":{"column":null,"disabled":false,"hide_code":true,"expand_output":false},"etag":"f199b5f48ae0aabb","code_hash":"db2b9ee97e1ecf4c"}}
 
 event: document
 data: {"document":{"notebook_id":"n1","order":["c1","c3","k7f2"],"app_config":{"width":"full"},"policy":"autorun","etag":"e59d9c2af02f5814","saved_etag":"e59d9c2af02f5814","order_etag":"b9c412c2d7d63161","app_config_etag":"283513048dfeb45b"}}

@@ -19,7 +19,6 @@ from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.protocol import (
-    Analysis,
     AttachmentMessage,
     CellId,
     Console,
@@ -1200,7 +1199,7 @@ async def test_current_cell_results_can_seed_another_notebook() -> None:
 
 
 @pytest.mark.parametrize("saved", [False, True])
-def test_restoration_preserves_revisions_outputs_and_analysis(
+def test_restoration_preserves_revisions_and_outputs(
     saved: bool,
 ) -> None:
     document = Document(
@@ -1209,9 +1208,6 @@ def test_restoration_preserves_revisions_outputs_and_analysis(
         {"width": "full"},
         policy="lazy",
         saved=saved,
-        analyzer=lambda codes: {
-            cell_id: Analysis(defs=(), refs=(), errors=()) for cell_id in codes
-        },
     )
     # The output belongs to the previous source, and the saved revision can
     # precede the current one. Neither is rewritten during restoration.

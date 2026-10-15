@@ -219,7 +219,8 @@ paths:
         that orders them, in the opening phase and after every change, so
         a client never holds a document whose `order` names a cell it has
         not received. The effects of one change to the document arrive
-        together, with no other event between them.
+        together, with no other event between them. The analysis, when
+        the host has one, follows the document it describes.
       parameters:
         - $ref: '#/components/parameters/NotebookId'
         - $ref: '#/components/parameters/Types'
@@ -237,7 +238,7 @@ paths:
                 description: |
                   One event. `data` holds JSON, and the event name says
                   which shape: a NotebookMessage, DocumentMessage,
-                  CellMessage, RuntimeMessage, AttachmentMessage,
+                  AnalysisMessage, CellMessage, RuntimeMessage, AttachmentMessage,
                   RunMessage, ExecutionMessage, ConsoleMessage, or
                   DisplayMessage for an event named
                   after that kind; a CustomMessage for `custom`; a RemovedMessage
@@ -292,7 +293,9 @@ paths:
         On success the document has changed, and every attachment sees
         the effects on the notebook's stream with this request's key: the
         cells that changed, `cell.removed` for each deleted cell, and then
-        the document, with nothing in between. The response carries the
+        the document, with nothing in between. The analysis of the new
+        revision follows with the same key once the host has it. The
+        response carries the
         new etags, so a client keeps editing without reading again. A
         change that changes nothing keeps its etags and sends no events.
         Whether the result has reached the store shows in the document's
@@ -826,10 +829,11 @@ components:
       description: |
         The kinds a stream carries, and the values `types` accepts. The
         catalog stream carries host, project, notebook, runtime, and
-        attachment. A notebook's stream carries notebook, document, cell,
-        runtime, attachment, run, execution, console, display, and custom.
-        Custom events describe occurrences rather than object state.
-      enum: [host, project, notebook, document, cell, runtime, attachment, run, execution, console, display, custom]
+        attachment. A notebook's stream carries notebook, document,
+        analysis, cell, runtime, attachment, run, execution, console,
+        display, and custom. Custom events describe occurrences rather
+        than object state.
+      enum: [host, project, notebook, document, analysis, cell, runtime, attachment, run, execution, console, display, custom]
     Custom:
       type: object
       description: |
@@ -1286,13 +1290,29 @@ components:
     Analysis:
       type: object
       description: |
+        What a document's cells imply, computed together over one
+        revision of the document so that cross-cell errors agree. One
+        per notebook, and removed with it. It follows the document it
+        describes, and `document_etag` says which revision that is.
+      required: [notebook_id, document_etag, cells]
+      properties:
+        notebook_id:
+          $ref: '#/components/schemas/NotebookId'
+          description: The notebook this analysis belongs to.
+        document_etag:
+          $ref: '#/components/schemas/Etag'
+          description: The document revision this analysis describes. Equal to the document's `etag` while the analysis is current.
+        cells:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/CellAnalysis' }
+          description: Every cell of that revision, by id.
+    CellAnalysis:
+      type: object
+      description: |
         What a cell's text implies: the names it defines and reads, which
         are the edges of the dependency graph, and the errors found in the
         text alone or across the set of cells. A pure function of the
-        code, so two producers compute the same values. Cross-cell errors
-        need the whole set of cells and are reported as soon as the
-        document has them, in the same unit as the change that caused
-        them, without moving the etag of a cell whose code did not change.
+        code, so two producers compute the same values.
       required: [defs, refs, errors]
       properties:
         defs:
@@ -1311,10 +1331,10 @@ components:
       type: object
       description: |
         A unit of code and configuration in the document. A cell event
-        fires when its code, name, config, or analysis changes. Only the
-        first three move its etag. Markdown and SQL cells are code that
-        calls `mo.md` or `mo.sql`; a client chooses the editor to show.
-      required: [id, notebook_id, code, name, config, etag, code_hash, analysis]
+        fires when its code, name, or config changes. Markdown and SQL
+        cells are code that calls `mo.md` or `mo.sql`; a client chooses
+        the editor to show.
+      required: [id, notebook_id, code, name, config, etag, code_hash]
       properties:
         id: { $ref: '#/components/schemas/CellId' }
         notebook_id: { $ref: '#/components/schemas/NotebookId' }
@@ -1331,9 +1351,6 @@ components:
         code_hash:
           $ref: '#/components/schemas/Etag'
           description: Identifies the code alone. Its text is `code`. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code.
-        analysis:
-          oneOf: [{ $ref: '#/components/schemas/Analysis' }, { type: 'null' }]
-          description: Derived from the code by the host. Null when the host has no analyzer.
     Document:
       type: object
       description: |
@@ -1469,6 +1486,14 @@ components:
         request_id: *request_id
         time: *time
         document: { $ref: '#/components/schemas/Document' }
+    AnalysisMessage:
+      type: object
+      description: The data of an `analysis` event. The analysis as it now is.
+      required: [analysis]
+      properties:
+        request_id: *request_id
+        time: *time
+        analysis: { $ref: '#/components/schemas/Analysis' }
     CellMessage:
       type: object
       description: The data of a `cell` event. The cell as it now is.

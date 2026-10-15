@@ -16,7 +16,6 @@ from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.host import OPERATIONS
-from marimo._server.host.analysis import Analyzer
 from marimo._server.host.backend import SessionBackend
 from marimo._server.host.index import WorkspaceIndex
 from marimo._session.events import SessionEventListener
@@ -105,7 +104,6 @@ class SessionBridge(SessionEventListener):
                 cells,
                 app_config,
                 policy=self._policy(file, session),
-                analyzer=Analyzer(),
                 saved=session is None,
             )
             if session is not None and loaded is not None:

@@ -76,13 +76,14 @@ across renames and moves.
 ### Documents and cells
 
 The **document** is the notebook's editable source, organized into **cells**.
-Each cell holds code and the information used to present and execute it. Cells
-also MAY carry static analysis so clients can understand their role in the
+Each cell holds code and the information used to present and execute it. A host
+MAY also publish an **analysis** of the document: each cell's definitions,
+references, and problems, so clients can understand a cell's role in the
 computation and identify problems before execution.
 
 Because cells share a dependency graph, editing one can affect the analysis of
-others. Hosts MUST publish those changes together with the edit, giving clients
-a consistent view of the document.
+others. An analysis therefore covers the whole document and names the revision
+it describes. Hosts publish it after that revision of the document.
 
 ### Runtimes and attachments
 

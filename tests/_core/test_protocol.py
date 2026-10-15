@@ -20,6 +20,7 @@ FIXTURES = (
 MODELS = {
     "record.json": protocol.HostRecord,
     "cell.json": protocol.Cell,
+    "analysis.json": protocol.Analysis,
     "diagnostic.json": protocol.Error,
     "edit.json": protocol.EditRequest,
     "edit-conflict-request.json": protocol.EditRequest,

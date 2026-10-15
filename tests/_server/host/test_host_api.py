@@ -1451,10 +1451,8 @@ async def test_the_notebook_stream_carries_cells_then_the_document(
     first, second = (r["data"]["cell"] for r in response.records[1:3])
     document = response.records[3]["data"]["document"]
     assert first["code"] == "x = 21"
-    assert first["analysis"] == {"defs": ["x"], "refs": [], "errors": []}
     assert second["code"] == "y = x * 2"
     assert second["config"]["hide_code"] is True
-    assert second["analysis"]["refs"] == ["x"]
     assert document["order"] == [first["id"], second["id"]]
     assert document["app_config"] == {"width": "full"}
     assert document["policy"] == "autorun"

@@ -19,7 +19,9 @@ def test_refs_are_names_other_cells_define() -> None:
     )
     assert analyses["a"].defs == ("mo",)
     assert analyses["a"].refs == ("x",)
-    assert analyses["b"] == protocol.Analysis(defs=("x",), refs=(), errors=())
+    assert analyses["b"] == protocol.CellAnalysis(
+        defs=("x",), refs=(), errors=()
+    )
     assert analyses["c"].refs == ("x",)
 
 

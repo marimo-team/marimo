@@ -25,6 +25,7 @@ FIXTURES = ROOT / "fixtures"
 MODELS = {
     "record.json": "HostRecord",
     "cell.json": "Cell",
+    "analysis.json": "Analysis",
     "diagnostic.json": "Error",
     "edit.json": "EditRequest",
     "edit-conflict-request.json": "EditRequest",

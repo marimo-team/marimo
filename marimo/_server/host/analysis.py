@@ -31,21 +31,21 @@ class Analyzer:
 
     def __call__(
         self, codes: Mapping[str, str]
-    ) -> dict[str, protocol.Analysis]:
+    ) -> dict[str, protocol.CellAnalysis]:
         self._update(codes)
         definers: dict[str, int] = {}
         for cell in self._compiled.values():
             for name in cell.defs:
                 definers[name] = definers.get(name, 0) + 1
-        result: dict[str, protocol.Analysis] = {}
+        result: dict[str, protocol.CellAnalysis] = {}
         for cell_id in codes:
             compiled = self._compiled.get(cell_id)
             if compiled is None:
-                result[cell_id] = protocol.Analysis(
+                result[cell_id] = protocol.CellAnalysis(
                     defs=(), refs=(), errors=(self._syntax[cell_id],)
                 )
                 continue
-            result[cell_id] = protocol.Analysis(
+            result[cell_id] = protocol.CellAnalysis(
                 defs=tuple(sorted(compiled.defs)),
                 refs=tuple(
                     sorted(
@@ -76,7 +76,7 @@ class Analyzer:
             self._codes[cell_id] = code
 
 
-def analyze(codes: Mapping[str, str]) -> dict[str, protocol.Analysis]:
+def analyze(codes: Mapping[str, str]) -> dict[str, protocol.CellAnalysis]:
     """Analyze a document once."""
     return Analyzer()(codes)
 
