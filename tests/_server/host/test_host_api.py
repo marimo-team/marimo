@@ -16,6 +16,7 @@ from starlette.routing import Route
 
 from marimo._core import backend as be, protocol
 from marimo._core.host import Host
+from marimo._core.notebook import Notebook
 from marimo._core.protocol import ProjectMessage
 from marimo._core.run_log import RetentionPolicy
 from marimo._server.host import api as api_module
@@ -43,6 +44,16 @@ if TYPE_CHECKING:
 
 TOKEN = "record-token"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
+
+
+async def analyzed(notebook: Notebook) -> protocol.Analysis:
+    """Wait for the notebook's analysis, which runs off the event loop."""
+    deadline = asyncio.get_running_loop().time() + 5
+    while notebook.analysis is None:
+        if asyncio.get_running_loop().time() > deadline:
+            raise TimeoutError("the notebook was not analyzed")
+        await asyncio.sleep(0.01)
+    return notebook.analysis
 
 
 def key(value: str) -> dict[str, str]:
@@ -469,6 +480,7 @@ async def test_types_and_cursors_apply_to_the_stream(harness: Harness) -> None:
 
 async def test_a_notebook_stream_attaches_the_client(harness: Harness) -> None:
     notebook = await harness.host.notebook(harness.notebook_id)
+    await analyzed(notebook)
     response, task, disconnect = request(
         harness.app, "GET", f"/notebooks/{notebook.id}/events", headers=AUTH
     )
@@ -478,13 +490,14 @@ async def test_a_notebook_stream_attaches_the_client(harness: Harness) -> None:
         "notebook",
         "cell",
         "document",
+        "analysis",
         "attachment",
         "ready",
     ]
     assert response.records[2]["data"]["document"]["order"] == [
         response.records[1]["data"]["cell"]["id"]
     ]
-    assert response.records[3]["data"]["attachment"]["kind"] == "client"
+    assert response.records[4]["data"]["attachment"]["kind"] == "client"
 
     disconnect()
     await asyncio.wait_for(task, 5)
@@ -492,6 +505,7 @@ async def test_a_notebook_stream_attaches_the_client(harness: Harness) -> None:
         "notebook",
         "cell",
         "document",
+        "analysis",
         "ready",
     ]
 
@@ -1437,9 +1451,10 @@ async def test_the_notebook_stream_carries_cells_then_the_document(
         f"/notebooks/{harness.notebook_id}/events",
         headers=AUTH,
     )
-    await wait_for(response, until_ready)
+    await wait_for(response, lambda r: "analysis" in r.names())
     disconnect()
 
+    # The document is served as soon as it is read; its analysis follows.
     assert response.names() == [
         "notebook",
         "cell",
@@ -1447,14 +1462,14 @@ async def test_the_notebook_stream_carries_cells_then_the_document(
         "document",
         "attachment",
         "ready",
+        "analysis",
     ]
     first, second = (r["data"]["cell"] for r in response.records[1:3])
     document = response.records[3]["data"]["document"]
+    analysis = response.records[6]["data"]["analysis"]
     assert first["code"] == "x = 21"
-    assert first["analysis"] == {"defs": ["x"], "refs": [], "errors": []}
     assert second["code"] == "y = x * 2"
     assert second["config"]["hide_code"] is True
-    assert second["analysis"]["refs"] == ["x"]
     assert document["order"] == [first["id"], second["id"]]
     assert document["app_config"] == {"width": "full"}
     assert document["policy"] == "autorun"
@@ -1462,6 +1477,12 @@ async def test_the_notebook_stream_carries_cells_then_the_document(
     assert all(
         c["notebook_id"] == harness.notebook_id for c in (first, second)
     )
+    assert analysis["notebook_id"] == harness.notebook_id
+    assert analysis["document_etag"] == document["etag"]
+    assert analysis["cells"] == {
+        first["id"]: {"defs": ["x"], "refs": [], "errors": []},
+        second["id"]: {"defs": ["y"], "refs": ["x"], "errors": []},
+    }
 
     # A filtered stream is a snapshot of the document alone, and a second
     # connection reuses the loaded document.

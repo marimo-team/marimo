@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from marimo._core import backend as be, protocol
-from marimo._core.document import Document, code_hash
+from marimo._core.document import Document, DocumentSnapshot, code_hash
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -36,6 +38,37 @@ class ScriptedBackend:
 
     def forget(self, run_id: str) -> None:
         self.calls.append(("forget", run_id))
+
+
+class ScriptedAnalyzer:
+    """Expose snapshots and let tests complete analysis explicitly."""
+
+    def __init__(self) -> None:
+        self.requests: list[DocumentSnapshot] = []
+        self.pending: asyncio.Queue[
+            tuple[
+                DocumentSnapshot,
+                asyncio.Future[dict[protocol.CellId, protocol.CellAnalysis]],
+            ]
+        ] = asyncio.Queue()
+
+    async def analyze(
+        self, snapshot: DocumentSnapshot
+    ) -> dict[protocol.CellId, protocol.CellAnalysis]:
+        result: asyncio.Future[
+            dict[protocol.CellId, protocol.CellAnalysis]
+        ] = asyncio.get_running_loop().create_future()
+        self.requests.append(snapshot)
+        self.pending.put_nowait((snapshot, result))
+        return await result
+
+    async def next_request(
+        self,
+    ) -> tuple[
+        DocumentSnapshot,
+        asyncio.Future[dict[protocol.CellId, protocol.CellAnalysis]],
+    ]:
+        return await asyncio.wait_for(self.pending.get(), timeout=5)
 
 
 def runtime_id_of(notebook: Notebook) -> protocol.RuntimeId:
@@ -74,12 +107,14 @@ def make_notebook(
     backend: ScriptedBackend | None = None,
     *,
     document: Document | None = None,
+    analyzer: ScriptedAnalyzer | None = None,
 ) -> Notebook:
     return Notebook(
         document or Document(record.id, [], {}),
         Executions(),
         backend or ScriptedBackend(),
         sink,
+        analyzer=analyzer,
     )
 
 
@@ -89,11 +124,12 @@ async def add_notebook(
     backend: ScriptedBackend,
     *,
     document: Document | None = None,
+    analyzer: ScriptedAnalyzer | None = None,
 ) -> Notebook:
     host.add_notebook(
         record,
         lambda current, sink: make_notebook(
-            current, sink, backend, document=document
+            current, sink, backend, document=document, analyzer=analyzer
         ),
     )
     return await host.notebook(record.id)

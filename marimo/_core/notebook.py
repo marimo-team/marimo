@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import TYPE_CHECKING, Any
 
 import msgspec
@@ -17,9 +19,18 @@ from marimo._core.stream import Event, Kind, kind_of, message, utcnow
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
-    from marimo._core.document import CellSource, Changed, Document
+    from marimo._core.analysis import Analyzer
+    from marimo._core.document import (
+        CellSource,
+        Changed,
+        Document,
+        DocumentSnapshot,
+    )
     from marimo._core.executions import Change
     from marimo._core.stream import Body, Sink
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Notebook:
@@ -29,6 +40,10 @@ class Notebook:
     Commands call the backend and publish changes through the sink.
     Change the document and executions through the notebook so each
     change reaches the sink.
+
+    With an analyzer, the notebook requests analysis of each document
+    revision and publishes the result when that revision is still
+    current. The previous analysis stays until then.
     """
 
     def __init__(
@@ -37,17 +52,26 @@ class Notebook:
         executions: Executions,
         backend: be.Backend,
         sink: Sink,
+        *,
+        analyzer: Analyzer | None = None,
     ) -> None:
         self._document = document
         self._executions = executions
         self.backend = backend
         self.sink = sink
+        self._analyzer = analyzer
         self._closed = False
         self._runtime: protocol.Runtime | None = None
         self._attachments: dict[str, protocol.Attachment] = {}
         self._replacement: protocol.Runtime | None = None
         # Correlate runtime events with the pending start, stop, or restart.
         self._runtime_request: str | None = None
+        self._analysis: protocol.Analysis | None = None
+        self._analysis_task: asyncio.Task[None] | None = None
+        # Whether the document changed during analysis, and that request.
+        self._reanalyze = False
+        self._reanalyze_request: str | None = None
+        self._request_analysis(None)
 
     @property
     def document(self) -> Document:
@@ -68,6 +92,11 @@ class Notebook:
         """The current runtime, if any."""
         return self._runtime
 
+    @property
+    def analysis(self) -> protocol.Analysis | None:
+        """The latest analysis, which may describe an earlier revision."""
+        return self._analysis
+
     def _require_open(self) -> None:
         if self._closed:
             raise NotFound(f"no notebook {self.id}")
@@ -85,6 +114,8 @@ class Notebook:
         self._require_open()
         changed = self.document.replace(cells, app_config)
         self._publish_changed(changed, request_id)
+        if changed.document is not None:
+            self._request_analysis(request_id)
         return changed
 
     def mark_saved(self, *, request_id: str | None = None) -> None:
@@ -107,6 +138,49 @@ class Notebook:
                 self._remove("cell", cell_id, request_id)
             if changed.document is not None:
                 self._publish(changed.document, request_id)
+
+    # ---- analysis ------------------------------------------------------
+
+    def _request_analysis(self, request_id: str | None) -> None:
+        """Analyze the current revision, or after the one in progress."""
+        if self._analyzer is None or self._closed:
+            return
+        if self._analysis_task is not None:
+            self._reanalyze, self._reanalyze_request = True, request_id
+            return
+        self._analysis_task = asyncio.create_task(
+            self._analyze(self.document.snapshot(), request_id)
+        )
+
+    async def _analyze(
+        self, snapshot: DocumentSnapshot, request_id: str | None
+    ) -> None:
+        assert self._analyzer is not None
+        try:
+            while not self._closed:
+                etag = snapshot.document.etag
+                try:
+                    cells = await self._analyzer.analyze(snapshot)
+                except Exception:
+                    LOGGER.exception("Could not analyze document %s", etag)
+                else:
+                    if not self._closed and etag == self.document._record.etag:
+                        self._analysis = protocol.Analysis(
+                            notebook_id=self.id,
+                            document_etag=etag,
+                            cells={
+                                cid: analysis
+                                for cid, analysis in cells.items()
+                            },
+                        )
+                        self._publish(self._analysis, request_id)
+                if not self._reanalyze or self._closed:
+                    return
+                request_id = self._reanalyze_request
+                self._reanalyze, self._reanalyze_request = False, None
+                snapshot = self.document.snapshot()
+        finally:
+            self._analysis_task = None
 
     # ---- runtime -------------------------------------------------------
 
@@ -280,7 +354,7 @@ class Notebook:
     # ---- backend updates -----------------------------------------------
 
     def observe(self, msg: be.Message) -> None:
-        """Apply a backend update and publish the resulting state changes."""
+        """Apply a backend report and publish what changed."""
         if self._closed:
             return
         match msg:
@@ -369,6 +443,8 @@ class Notebook:
     def _snapshot(self) -> list[Event]:
         """Return current state as events in dependency order."""
         bodies: list[Body] = [*self.document, self.document._record]
+        if self._analysis is not None:
+            bodies.append(self._analysis)
         if self._runtime is not None:
             bodies.append(self._runtime)
         bodies.extend(self._attachments.values())
@@ -397,6 +473,8 @@ class Notebook:
         The host publishes `notebook.removed` after disposing of this state.
         """
         self._closed = True
+        if self._analysis_task is not None:
+            self._analysis_task.cancel()
         self._apply(self.executions.interrupt())
         self._apply(self.executions.clear())
         for attachment_id in list(self._attachments):

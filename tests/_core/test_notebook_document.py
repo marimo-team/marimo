@@ -3,9 +3,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import asyncio
 
 import pytest
+from msgspec import UNSET
 from msgspec.structs import replace
 
 from marimo._core import protocol
@@ -19,13 +20,20 @@ from marimo._core.document import (
     order_etag,
     revision,
 )
+from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.stream import Event
-from tests._core.conftest import make_notebook, names, project, record
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
+from tests._core.conftest import (
+    ScriptedAnalyzer,
+    ScriptedBackend,
+    add_notebook,
+    make_notebook,
+    names,
+    project,
+    record,
+    request_ids,
+)
 
 NOTEBOOK = protocol.NotebookId("n1")
 HIDDEN = protocol.CellConfig(
@@ -40,33 +48,6 @@ def fixture_cells() -> list[CellSource]:
         CellSource("c3", "x = 21"),
         CellSource("k7f2", "y = x * 2", config=HIDDEN),
     ]
-
-
-def defs_only(codes: Mapping[str, str]) -> dict[str, protocol.Analysis]:
-    """An analyzer that reports an error on every cell defining `x`."""
-    out = {}
-    definers = [cell_id for cell_id, code in codes.items() if "x =" in code]
-    for cell_id, code in codes.items():
-        errors = []
-        if cell_id in definers and len(definers) > 1:
-            errors.append(
-                protocol.Error(
-                    kind="multiple-definitions",
-                    message="x is defined twice",
-                    source="marimo",
-                    severity="error",
-                    range=None,
-                    name=None,
-                    traceback=None,
-                    related=[],
-                )
-            )
-        out[cell_id] = protocol.Analysis(
-            defs=[code.split(" =")[0]] if " =" in code else [],
-            refs=[],
-            errors=errors,
-        )
-    return out
 
 
 class TestEtags:
@@ -204,54 +185,16 @@ class TestReplace:
         assert behind.saved_etag == saved.etag != behind.etag
 
 
-class TestAnalysis:
-    def test_reruns_over_the_whole_document(self) -> None:
-        document = Document(
-            NOTEBOOK,
-            [CellSource("a", "x = 1"), CellSource("b", "y = 2")],
-            {},
-            analyzer=defs_only,
-        )
-        a, _ = document
-        assert a.analysis == protocol.Analysis(defs=["x"], refs=[], errors=[])
-
-        changed = document.replace(
-            [CellSource("a", "x = 1"), CellSource("b", "x = 2")], {}
-        )
-
-        # Both cells re-emit: b because its code changed, a because its
-        # analysis gained an error while its etag stayed put.
-        assert [cell.id for cell in changed.cells] == ["a", "b"]
-        new_a = changed.cells[0]
-        assert new_a.etag == a.etag
-        assert new_a.analysis is not None
-        assert [e.kind for e in new_a.analysis.errors] == [
-            "multiple-definitions"
-        ]
-
-    def test_is_null_without_an_analyzer(self) -> None:
-        document = Document(NOTEBOOK, fixture_cells(), {})
-        assert all(cell.analysis is None for cell in document)
-
-
 class TestFromRecords:
-    def test_preserves_imported_analysis_and_saved_revision(self) -> None:
+    def test_preserves_the_saved_revision(self) -> None:
         source = Document(
-            NOTEBOOK,
-            fixture_cells(),
-            {"width": "full"},
-            policy="lazy",
-            analyzer=lambda codes: {
-                cell_id: protocol.Analysis(defs=(), refs=(), errors=())
-                for cell_id in codes
-            },
+            NOTEBOOK, fixture_cells(), {"width": "full"}, policy="lazy"
         )
         # The saved revision precedes the current one; both survive.
         source.replace([CellSource("c1", "import marimo")], {"width": "full"})
         restored = Document.from_records(source._record, list(source))
         assert restored._record == source._record
         assert list(restored) == list(source)
-        assert next(iter(restored)).analysis is not None
 
     @pytest.mark.parametrize(
         "invalid", ["order", "notebook-id", "cell-etag", "document-etag"]
@@ -271,26 +214,6 @@ class TestFromRecords:
             document = replace(document, app_config={"width": "full"})
         with pytest.raises(ValueError):
             Document.from_records(document, cells)
-
-    def test_analyzer_is_injected_for_restoration_and_later_edits(
-        self,
-    ) -> None:
-        observed: list[dict[str, str]] = []
-
-        def analyze(codes: Mapping[str, str]) -> dict[str, protocol.Analysis]:
-            observed.append(dict(codes))
-            return {
-                cell_id: protocol.Analysis(defs=(), refs=(), errors=())
-                for cell_id in codes
-            }
-
-        source = Document(NOTEBOOK, [CellSource("c1", "42")], {})
-        document = Document.from_records(
-            source._record, list(source), analyzer=analyze
-        )
-        document.replace([CellSource("c1", "43")], {})
-        assert observed == [{"c1": "42"}, {"c1": "43"}]
-        assert next(iter(document)).analysis is not None
 
 
 class TestNotebook:
@@ -346,3 +269,208 @@ class TestNotebook:
         assert names(log) == ["cell", "cell.removed", "document"]
         assert all(e.data.request_id == "edit-1" for e in log)  # type: ignore[union-attr]
         assert log[1].data.id == "k7f2"  # type: ignore[union-attr]
+
+
+def cell_analyses(
+    document: Document,
+) -> dict[protocol.CellId, protocol.CellAnalysis]:
+    """A placeholder analysis of every cell in the document."""
+    return {
+        cell.id: protocol.CellAnalysis(defs=(), refs=(), errors=())
+        for cell in document
+    }
+
+
+class TestAnalysis:
+    async def test_the_initial_revision_is_analyzed_and_published_after_the_document(
+        self, host: Host, log: list[Event]
+    ) -> None:
+        host.update_project(project())
+        analyzer = ScriptedAnalyzer()
+        document = Document(NOTEBOOK, fixture_cells(), {"width": "full"})
+        notebook = await add_notebook(
+            host,
+            record(),
+            ScriptedBackend(),
+            document=document,
+            analyzer=analyzer,
+        )
+        snapshot, result = await analyzer.next_request()
+        assert snapshot == document.snapshot()
+        assert notebook.analysis is None
+
+        log.clear()
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
+
+        assert names(log) == ["analysis"]
+        assert request_ids(log) == [UNSET]
+        assert notebook.analysis == protocol.Analysis(
+            notebook_id=NOTEBOOK,
+            document_etag=snapshot.document.etag,
+            cells=cell_analyses(document),
+        )
+        assert names(host.events(notebook_id="n1")) == [
+            "notebook",
+            "cell",
+            "cell",
+            "cell",
+            "document",
+            "analysis",
+            "ready",
+        ]
+
+    async def test_edits_during_analysis_are_analyzed_once_afterwards(
+        self, host: Host, log: list[Event]
+    ) -> None:
+        host.update_project(project())
+        analyzer = ScriptedAnalyzer()
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        notebook = await add_notebook(
+            host,
+            record(),
+            ScriptedBackend(),
+            document=document,
+            analyzer=analyzer,
+        )
+        first, result = await analyzer.next_request()
+        first_analysis = cell_analyses(document)
+        notebook.replace([CellSource("c1", "1")], {}, request_id="edit-1")
+        notebook.replace(
+            [CellSource("c1", "2", name="named", config=HIDDEN)],
+            {"width": "full"},
+            request_id="edit-2",
+        )
+        assert len(analyzer.requests) == 1
+        assert first.document.etag != document._record.etag
+        assert first.cells[0].code == "import marimo as mo"
+
+        log.clear()
+        result.set_result(first_analysis)
+        latest, result = await analyzer.next_request()
+        assert names(log) == []
+        assert latest == document.snapshot()
+
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
+        assert names(log) == ["analysis"]
+        assert request_ids(log) == ["edit-2"]
+        assert notebook.analysis is not None
+        assert notebook.analysis.document_etag == latest.document.etag
+
+    async def test_the_previous_analysis_stays_until_the_next_arrives(
+        self, host: Host
+    ) -> None:
+        host.update_project(project())
+        analyzer = ScriptedAnalyzer()
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        notebook = await add_notebook(
+            host,
+            record(),
+            ScriptedBackend(),
+            document=document,
+            analyzer=analyzer,
+        )
+        first, result = await analyzer.next_request()
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
+        notebook.replace([CellSource("c1", "1")], {})
+        _, result = await analyzer.next_request()
+
+        assert notebook.analysis is not None
+        assert (
+            notebook.analysis.document_etag
+            == first.document.etag
+            != document._record.etag
+        )
+        assert names(host.events(notebook_id="n1")) == [
+            "notebook",
+            "cell",
+            "document",
+            "analysis",
+            "ready",
+        ]
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
+
+    @pytest.mark.parametrize("edit_while_running", [False, True])
+    async def test_a_failed_analysis_leaves_the_notebook_ready_for_the_next(
+        self, host: Host, log: list[Event], edit_while_running: bool
+    ) -> None:
+        host.update_project(project())
+        analyzer = ScriptedAnalyzer()
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        notebook = await add_notebook(
+            host,
+            record(),
+            ScriptedBackend(),
+            document=document,
+            analyzer=analyzer,
+        )
+        _, result = await analyzer.next_request()
+        if edit_while_running:
+            notebook.replace([CellSource("c1", "1")], {})
+        log.clear()
+        result.set_exception(RuntimeError("compiler failed"))
+        await asyncio.sleep(0)
+        assert names(log) == []
+        assert notebook.analysis is None
+        if not edit_while_running:
+            notebook.replace([CellSource("c1", "1")], {})
+        snapshot, result = await analyzer.next_request()
+        assert snapshot == document.snapshot()
+        log.clear()
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
+        assert names(log) == ["analysis"]
+
+    async def test_removal_discards_a_result_even_if_cancellation_is_suppressed(
+        self, host: Host, log: list[Event]
+    ) -> None:
+        started, cancelled = asyncio.Event(), asyncio.Event()
+        result = asyncio.get_running_loop().create_future()
+        document = Document(NOTEBOOK, fixture_cells(), {})
+
+        class Analyzer:
+            async def analyze(self, _snapshot):
+                started.set()
+                try:
+                    return await asyncio.shield(result)
+                except asyncio.CancelledError:
+                    cancelled.set()
+                    return await result
+
+        host.update_project(project())
+        host.add_notebook(
+            record(),
+            lambda _, sink: Notebook(
+                document,
+                Executions(),
+                ScriptedBackend(),
+                sink,
+                analyzer=Analyzer(),
+            ),
+        )
+        await host.notebook("n1")
+        await asyncio.wait_for(started.wait(), timeout=5)
+        host.remove_notebook("n1")
+        await asyncio.wait_for(cancelled.wait(), timeout=5)
+        log.clear()
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
+        assert names(log) == []
+        assert "n1" not in host.notebooks
+
+
+def test_snapshot_preserves_order_metadata_and_nested_configuration() -> None:
+    document = Document(NOTEBOOK, fixture_cells(), {"nested": {"items": [1]}})
+    snapshot = document.snapshot()
+    assert snapshot.cells == tuple(document)
+    assert snapshot.document == document._record
+    document._record.app_config["nested"]["items"].append(2)
+    document.replace([CellSource("c1", "42", name="renamed")], {})
+    assert snapshot.document.app_config == {"nested": {"items": [1]}}
+    assert snapshot.cells[0].code == "import marimo as mo"
+    assert snapshot.cells[-1].config == HIDDEN
+    snapshot.document.app_config["another"] = True
+    assert document._record.app_config == {}

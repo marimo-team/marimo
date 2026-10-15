@@ -5,20 +5,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable, Mapping
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-from msgspec.structs import replace
-
 from marimo._core import protocol
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
-
-Analyzer = Callable[[Mapping[str, str]], Mapping[str, protocol.Analysis]]
-"""Derives every cell's analysis from the cells' code, keyed by id in document order."""
+    from collections.abc import Iterator, Mapping, Sequence
 
 Policy = Literal["autorun", "lazy"]
 
@@ -109,11 +103,19 @@ def revision(
 
 
 @dataclass(frozen=True)
+class DocumentSnapshot:
+    """A detached document record and its cells in document order."""
+
+    document: protocol.Document
+    cells: tuple[protocol.Cell, ...]
+
+
+@dataclass(frozen=True)
 class Changed:
     """Changed cells, removed cell IDs, and the updated document."""
 
     cells: list[protocol.Cell]
-    """New cells, and cells whose etag or analysis changed."""
+    """New cells, and cells whose etag changed."""
     removed: list[str]
     """Ids of cells that no longer exist."""
     document: protocol.Document | None
@@ -126,7 +128,7 @@ class Changed:
 class Document:
     """A notebook document with content-derived revisions.
 
-    Cell source uses newline line endings. Analysis covers all cells.
+    Cell source uses newline line endings.
     """
 
     def __init__(
@@ -136,11 +138,9 @@ class Document:
         app_config: Mapping[str, Any],
         *,
         policy: Policy = "autorun",
-        analyzer: Analyzer | None = None,
         saved: bool = True,
     ) -> None:
         self._id = notebook_id
-        self._analyzer = analyzer
         self._policy: Policy = policy
         self._cells: dict[str, protocol.Cell] = {}
         self._order: list[str] = []
@@ -156,13 +156,11 @@ class Document:
         cls,
         document: protocol.Document,
         cells: Sequence[protocol.Cell],
-        *,
-        analyzer: Analyzer | None = None,
     ) -> Document:
         """Restore a document from its protocol records.
 
-        Cell identities, order, and revisions must agree. Analysis is kept
-        unless an analyzer is supplied. The saved revision is preserved.
+        Cell identities, order, and revisions must agree. The saved
+        revision is preserved.
         """
         document, cells = deepcopy((document, cells))
         by_id = {cell.id: cell for cell in cells}
@@ -183,7 +181,6 @@ class Document:
             ],
             document.app_config,
             policy=document.policy,
-            analyzer=analyzer,
             saved=False,
         )
         for cell in restored:
@@ -193,10 +190,6 @@ class Document:
                 or cell.code_hash != original.code_hash
             ):
                 raise ValueError("cell revisions must match their content")
-            if analyzer is None:
-                restored._cells[cell.id] = replace(
-                    cell, analysis=original.analysis
-                )
         current = restored._record
         if (
             current.etag != document.etag
@@ -230,6 +223,10 @@ class Document:
     def cell(self, cell_id: str) -> protocol.Cell | None:
         return self._cells.get(cell_id)
 
+    def snapshot(self) -> DocumentSnapshot:
+        """Capture one revision without sharing mutable configuration."""
+        return deepcopy(DocumentSnapshot(self._record, tuple(self)))
+
     def replace(
         self, cells: Sequence[CellSource], app_config: Mapping[str, Any]
     ) -> Changed:
@@ -241,14 +238,6 @@ class Document:
         if len(set(order)) != len(order):
             raise ValueError("cell ids must be unique within the notebook")
         built = {source.id: self._build(source) for source in cells}
-        if self._analyzer is not None:
-            analyses = self._analyzer(
-                {cell_id: built[cell_id].code for cell_id in order}
-            )
-            for cell_id in order:
-                analysis = analyses.get(cell_id)
-                if analysis is not None:
-                    built[cell_id] = replace(built[cell_id], analysis=analysis)
         changed = [
             built[cell_id]
             for cell_id in order
@@ -282,7 +271,6 @@ class Document:
             config=source.config,
             etag=cell_etag(hashed, source.name, source.config),
             code_hash=hashed,
-            analysis=None,
         )
 
     def _refresh(self) -> protocol.Document | None:

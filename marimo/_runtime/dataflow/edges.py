@@ -136,51 +136,18 @@ def _resolve_variable_name(
     return name
 
 
-def compute_edges_for_cell(
+def resolve_cell_references(
     cell_id: CellId_t,
     cell: CellImpl,
     topology: GraphTopology,
     definitions: DefinitionRegistry,
-) -> tuple[set[CellId_t], set[CellId_t]]:
-    """Compute parent and child edges for a cell being registered.
+) -> dict[Name, set[CellId_t]]:
+    """Resolve each reference to its defining cells using language semantics.
 
-    Args:
-        cell_id: The ID this cell is being registered with
-        cell: The cell to compute edges for
-        topology: The graph topology
-        definitions: The definition registry
-
-    Returns:
-        Tuple of (parents, children) where:
-        - parents: cells that this cell depends on
-        - children: cells that depend on this cell
+    Keys retain the reference as written, including SQL qualification.
+    Unresolved names and references to the cell itself are excluded.
     """
-    parents: set[CellId_t] = set()
-    children: set[CellId_t] = set()
-
-    # First, process the variables that this cell defines. Any cell
-    # that refers to a defined variable becomes a child of this cell.
-    for name, variable_data in cell.variable_data.items():
-        # NB. Only the last definition matters.
-        # Technically more nuanced with branching statements, but this is
-        # the best we can do with static analysis.
-        variable = variable_data[-1]
-
-        # a cell can refer to its own defs, but that doesn't add an
-        # edge to the dependency graph
-        referring_cells = get_referring_cells(
-            name,
-            language=variable.language,
-            topology=topology,
-        ) - {cell_id}
-
-        children.update(referring_cells)
-
-    # Next, process the cells references. The cell becomes a child
-    # of cells that define its referenced variables. We also have
-    # special logic for handling references that are deleted by this cell,
-    # since cells that delete variables that were defined elsewhere
-    # are made children of cells that reference that variable.
+    resolved: dict[Name, set[CellId_t]] = {}
     for name in cell.refs:
         # First, for each referenced variable, we add cells that define
         # that variable as parents
@@ -242,8 +209,62 @@ def compute_edges_for_cell(
                         kind=cast(SQLTypes, other_variable_data.kind),
                     ):
                         continue
-            parents.add(other_id)
+            resolved.setdefault(name, set()).add(other_id)
 
+    return resolved
+
+
+def compute_edges_for_cell(
+    cell_id: CellId_t,
+    cell: CellImpl,
+    topology: GraphTopology,
+    definitions: DefinitionRegistry,
+) -> tuple[set[CellId_t], set[CellId_t]]:
+    """Compute parent and child edges for a cell being registered.
+
+    Args:
+        cell_id: The ID this cell is being registered with
+        cell: The cell to compute edges for
+        topology: The graph topology
+        definitions: The definition registry
+
+    Returns:
+        Tuple of (parents, children) where:
+        - parents: cells that this cell depends on
+        - children: cells that depend on this cell
+    """
+    parents: set[CellId_t] = set()
+    children: set[CellId_t] = set()
+
+    # First, process the variables that this cell defines. Any cell
+    # that refers to a defined variable becomes a child of this cell.
+    for name, variable_data in cell.variable_data.items():
+        # NB. Only the last definition matters.
+        # Technically more nuanced with branching statements, but this is
+        # the best we can do with static analysis.
+        variable = variable_data[-1]
+
+        # a cell can refer to its own defs, but that doesn't add an
+        # edge to the dependency graph
+        referring_cells = get_referring_cells(
+            name,
+            language=variable.language,
+            topology=topology,
+        ) - {cell_id}
+
+        children.update(referring_cells)
+
+    for defining_cells in resolve_cell_references(
+        cell_id, cell, topology, definitions
+    ).values():
+        parents.update(defining_cells)
+
+    # Next, process the cells references. The cell becomes a child
+    # of cells that define its referenced variables. We also have
+    # special logic for handling references that are deleted by this cell,
+    # since cells that delete variables that were defined elsewhere
+    # are made children of cells that reference that variable.
+    for name in cell.refs:
         # Next, any cell that deletes this referenced variable is made
         # a child of this cell. In particular, if a cell deletes a
         # variable, it becomes a child of all other cells that

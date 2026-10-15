@@ -17,14 +17,7 @@
         "expand_output": false
       },
       "etag": "dde89bbcc1863211",
-      "code_hash": "43e1a529dbae470b",
-      "analysis": {
-        "defs": [
-          "x"
-        ],
-        "refs": [],
-        "errors": []
-      }
+      "code_hash": "43e1a529dbae470b"
     },
     "document": {
       "notebook_id": "n1",
