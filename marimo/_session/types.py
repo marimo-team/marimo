@@ -139,6 +139,7 @@ class Session(Protocol):
     config_manager: MarimoConfigManager
     session_view: SessionView
     ttl_seconds: int
+    connection_generation: int
     scratchpad_lock: asyncio.Lock
     room: Room
 
