@@ -3,6 +3,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as shortcuts from "@/core/hotkeys/shortcuts";
 import {
+  DEFAULT_RUNTIME_CONFIG,
+  runtimeConfigAtom,
+} from "@/core/runtime/config";
+import { store } from "@/core/state/jotai";
+import {
   type AgentSession,
   type AgentSessionState,
   addSession,
@@ -700,69 +705,51 @@ describe("state utility functions", () => {
   });
 
   describe("getAgentWebSocketUrl", () => {
-    const originalLocation = window.location;
-
     afterEach(() => {
-      // Restore original window.location
-      Object.defineProperty(window, "location", {
-        value: originalLocation,
-        writable: true,
-      });
+      store.set(runtimeConfigAtom, DEFAULT_RUNTIME_CONFIG);
     });
 
-    it("should return ws:// URL with localhost for http protocol", () => {
-      Object.defineProperty(window, "location", {
-        value: {
-          hostname: "localhost",
-          protocol: "http:",
-        },
-        writable: true,
-      });
+    const setRuntimeUrl = (url: string) => {
+      store.set(runtimeConfigAtom, { url, lazy: true });
+    };
+
+    it("should return a ws:// URL for http runtimes", () => {
+      setRuntimeUrl("http://localhost:2718/");
 
       expect(getAgentWebSocketUrl("claude")).toMatchInlineSnapshot(
-        `"ws://localhost:3017/message"`,
+        `"ws://localhost:2718/acp/claude"`,
       );
     });
 
-    it("should return wss:// URL for https protocol", () => {
-      Object.defineProperty(window, "location", {
-        value: {
-          hostname: "example.com",
-          protocol: "https:",
-        },
-        writable: true,
-      });
+    it("should return a wss:// URL for https runtimes", () => {
+      setRuntimeUrl("https://example.com/");
 
       expect(getAgentWebSocketUrl("claude")).toMatchInlineSnapshot(
-        `"wss://example.com:3017/message"`,
+        `"wss://example.com/acp/claude"`,
       );
     });
 
-    it("should work with IP addresses", () => {
-      Object.defineProperty(window, "location", {
-        value: {
-          hostname: "192.168.1.100",
-          protocol: "http:",
-        },
-        writable: true,
-      });
+    it("should work with IP addresses and ports", () => {
+      setRuntimeUrl("http://192.168.1.100:8080/");
 
       expect(getAgentWebSocketUrl("claude")).toMatchInlineSnapshot(
-        `"ws://192.168.1.100:3017/message"`,
+        `"ws://192.168.1.100:8080/acp/claude"`,
       );
     });
 
     it("should work with remote hostnames", () => {
-      Object.defineProperty(window, "location", {
-        value: {
-          hostname: "marimo.example.com",
-          protocol: "https:",
-        },
-        writable: true,
-      });
+      setRuntimeUrl("https://marimo.example.com/");
 
       expect(getAgentWebSocketUrl("gemini")).toMatchInlineSnapshot(
-        `"wss://marimo.example.com:3019/message"`,
+        `"wss://marimo.example.com/acp/gemini"`,
+      );
+    });
+
+    it("should preserve a base path prefix", () => {
+      setRuntimeUrl("https://example.com/notebooks/abc/");
+
+      expect(getAgentWebSocketUrl("codex")).toMatchInlineSnapshot(
+        `"wss://example.com/notebooks/abc/acp/codex"`,
       );
     });
   });
