@@ -27,7 +27,7 @@
       }
     },
     "document": {
-      "id": "n1",
+      "notebook_id": "n1",
       "order": [
         "c1",
         "c2",

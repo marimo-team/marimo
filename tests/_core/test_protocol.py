@@ -51,6 +51,10 @@ def stream_events(path: Path) -> list[dict[str, str]]:
     return events
 
 
+def identity(body: dict[str, Any]) -> str:
+    return body.get("id") or body["notebook_id"]
+
+
 def messages(name: str, kind: str) -> list[dict[str, Any]]:
     return [
         json.loads(event["data"])
@@ -241,7 +245,7 @@ def test_catalog_capabilities_and_runtime_stop() -> None:
                 assert obj["project_id"] in state["project"]
             if kind in {"runtime", "attachment"}:
                 assert obj["notebook_id"] in state["notebook"]
-            state.setdefault(kind, {})[obj["id"]] = obj
+            state.setdefault(kind, {})[identity(obj)] = obj
         assert not state.get("runtime")
         assert set(state["attachment"]) == {"a1", "a2"}
         catalogs.append(
@@ -274,7 +278,7 @@ def test_notebook_snapshot_matches_live_history() -> None:
         kind = event["event"]
         message = json.loads(event["data"])
         message.pop("time")
-        state[(kind, message[kind]["id"])] = message
+        state[(kind, identity(message[kind]))] = message
     seen_cells = set()
     for event in notebook[:ready]:
         kind = event["event"]
@@ -283,7 +287,7 @@ def test_notebook_snapshot_matches_live_history() -> None:
             seen_cells.add(message["cell"]["id"])
         elif kind == "document":
             assert set(message["document"]["order"]) == seen_cells
-        key = (kind, message[kind]["id"])
+        key = (kind, identity(message[kind]))
         if key in state:
             assert state.pop(key) == message
     assert not state

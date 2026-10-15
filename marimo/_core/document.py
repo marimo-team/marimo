@@ -69,6 +69,11 @@ def document_etag(
     return etag("\n".join([order_etag, app_config_etag, *cell_etags]))
 
 
+def normalize_code(code: str) -> str:
+    """Convert line endings to newlines."""
+    return code.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def default_config() -> protocol.CellConfig:
     return protocol.CellConfig(
         column=None, disabled=False, hide_code=False, expand_output=False
@@ -83,6 +88,24 @@ class CellSource:
     code: str
     name: str = "_"
     config: protocol.CellConfig = field(default_factory=default_config)
+
+
+def revision(
+    cells: Sequence[CellSource], app_config: Mapping[str, Any]
+) -> protocol.Etag:
+    """The document etag these sources produce."""
+    return document_etag(
+        order_etag([source.id for source in cells]),
+        app_config_etag(app_config),
+        [
+            cell_etag(
+                code_hash(normalize_code(source.code)),
+                source.name,
+                source.config,
+            )
+            for source in cells
+        ],
+    )
 
 
 @dataclass(frozen=True)
@@ -150,10 +173,10 @@ class Document:
             raise ValueError(
                 "document order must contain every cell exactly once"
             )
-        if any(cell.notebook_id != document.id for cell in cells):
+        if any(cell.notebook_id != document.notebook_id for cell in cells):
             raise ValueError("cells must belong to the document")
         restored = cls(
-            document.id,
+            document.notebook_id,
             [
                 CellSource(cell.id, cell.code, cell.name, cell.config)
                 for cell in (by_id[cell_id] for cell_id in document.order)
@@ -249,7 +272,7 @@ class Document:
         return self._refresh()
 
     def _build(self, source: CellSource) -> protocol.Cell:
-        code = source.code.replace("\r\n", "\n").replace("\r", "\n")
+        code = normalize_code(source.code)
         hashed = code_hash(code)
         return protocol.Cell(
             id=protocol.CellId(source.id),
@@ -267,7 +290,7 @@ class Document:
         order = order_etag(self._order)
         app_config = app_config_etag(self._app_config)
         document = protocol.Document(
-            id=self._id,
+            notebook_id=self._id,
             order=tuple(protocol.CellId(c) for c in self._order),
             app_config=dict(self._app_config),
             policy=self._policy,

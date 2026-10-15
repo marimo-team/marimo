@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from marimo import _loggers
 from marimo._config.manager import ScriptConfigReader
 from marimo._core import protocol
-from marimo._core.document import CellSource, Document
+from marimo._core.document import CellSource, Document, revision
 from marimo._core.errors import Conflict, NotFound
 from marimo._core.executions import Executions
 from marimo._core.host import Host
@@ -109,7 +109,7 @@ class SessionBridge(SessionEventListener):
                 saved=session is None,
             )
             if session is not None and loaded is not None:
-                document.mark_saved(Document(record.id, *loaded)._record.etag)
+                document.mark_saved(revision(*loaded))
             backend = self._make_backend(record.id)
             return Notebook(document, Executions(), backend, sink)
 

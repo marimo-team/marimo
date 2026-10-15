@@ -786,7 +786,7 @@ class Document(Struct, frozen=True):
             description="Identifies the document as currently applied. Its text is `order_etag`, `app_config_etag`, and every cell's `etag` in order, so it changes when any of them does."
         ),
     ]
-    id: Annotated[
+    notebook_id: Annotated[
         NotebookId, Meta(description="The notebook this document belongs to.")
     ]
     order: Annotated[

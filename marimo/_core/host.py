@@ -79,7 +79,8 @@ class _NotebookRecords(Mapping[str, protocol.Notebook]):
 
 def _identity(event: Event) -> tuple[str, str]:
     assert event.kind is not None
-    return event.name, getattr(event.data, event.kind).id
+    body = getattr(event.data, event.kind)
+    return event.name, getattr(body, "id", None) or body.notebook_id
 
 
 class Host:
