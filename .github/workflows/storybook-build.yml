@@ -1,0 +1,45 @@
+name: Build Storybook preview
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'packages/**'
+      - 'marimo/_schemas/generated/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/actions/install/**'
+      - '.github/workflows/storybook-*.yml'
+
+concurrency:
+  group: storybook-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - uses: ./.github/actions/install
+
+      - name: Generate frontend dependencies
+        run: pnpm turbo codegen
+
+      - name: Build Storybook
+        run: pnpm --dir frontend build-storybook --disable-telemetry
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: storybook-preview
+          path: frontend/storybook-static/
+          if-no-files-found: error
+          retention-days: 7
