@@ -32,7 +32,7 @@ describe("copied KaTeX stylesheet", () => {
       if (change === "added") {
         root.append(
           postcss.parse(
-            ".katex .reflectbox { display: inline-block; transform: scaleX(-1); }",
+            ".katex .upstream-drift-probe { display: inline-block; }",
           ),
         );
       } else {

@@ -21,8 +21,8 @@
   },
   "devDependencies": {
     "@marimo-team/tsconfig": "workspace:*",
-    "yaml": "^2.9.0",
+    "yaml": "^2.9.1",
     "vitest": "^4.1.11",
-    "zod": "^4.5.4"
+    "zod": "^4.6.5"
   }
 }

@@ -35,7 +35,7 @@
 }
 
 .katex .katex-version::after {
-  content: "0.18.5";
+  content: "0.18.7";
 }
 
 .katex .katex-mathml {
@@ -1129,6 +1129,11 @@
 
 .katex .anglpad {
   padding: 0 0.03889em;
+}
+
+.katex .reflectbox {
+  display: inline-block;
+  transform: scaleX(-1);
 }
 
 .katex .eqn-num::before {
