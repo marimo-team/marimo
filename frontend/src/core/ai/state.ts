@@ -4,7 +4,9 @@ import type { UIMessage } from "@ai-sdk/react";
 import type { FileUIPart } from "ai";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
+import { toast } from "@/components/ui/use-toast";
 import { uniqueBy } from "@/utils/arrays";
+import { Logger } from "@/utils/Logger";
 import { adaptForLocalStorage, jotaiJsonStorage } from "@/utils/storage/jotai";
 import type { TypedString } from "@/utils/typed";
 import type { CellId } from "../cells/ids";
@@ -85,22 +87,46 @@ function removeEmptyChats(chatState: Map<ChatId, Chat>): Map<ChatId, Chat> {
   return result;
 }
 
+const chatStorage = adaptForLocalStorage({
+  toSerializable: (value: ChatState) => ({
+    chats: [...removeEmptyChats(value.chats).entries()],
+    activeChatId: value.activeChatId,
+  }),
+  fromSerializable: (value) => ({
+    chats: new Map(value.chats),
+    activeChatId: value.activeChatId,
+  }),
+});
+
 export const chatStateAtom = atomWithStorage<ChatState>(
   KEY,
   {
     chats: new Map(),
     activeChatId: null,
   },
-  adaptForLocalStorage({
-    toSerializable: (value: ChatState) => ({
-      chats: [...removeEmptyChats(value.chats).entries()],
-      activeChatId: value.activeChatId,
-    }),
-    fromSerializable: (value) => ({
-      chats: new Map(value.chats),
-      activeChatId: value.activeChatId,
-    }),
-  }),
+  {
+    ...chatStorage,
+    setItem: (key, value) => {
+      try {
+        // Removing the key frees space even when no further writes can fit.
+        if (value.chats.size === 0) {
+          chatStorage.removeItem(key);
+        } else {
+          chatStorage.setItem(key, value);
+        }
+      } catch (error) {
+        Logger.warn("Could not save chat history", error);
+        toast({
+          id: "chat-storage-error",
+          once: true,
+          title: "Chat history couldn't be saved",
+          description:
+            "Try deleting old chats. New messages may be lost when you reload.",
+          variant: "danger",
+        });
+      }
+    },
+  },
 );
 
 export const activeChatAtom = atom(
