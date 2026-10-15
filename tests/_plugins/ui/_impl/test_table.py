@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from asyncio import CancelledError
 from datetime import date, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -27,6 +28,7 @@ from marimo._plugins.ui._impl.table import (
     ColumnSummariesArgs,
     DownloadAsArgs,
     DownloadAsOptions,
+    DownloadAsResponse,
     SearchTableArgs,
     SortArgs,
     TableSearchError,
@@ -1861,7 +1863,7 @@ def test_geometry_text_download_preserves_row_selection() -> None:
 @pytest.mark.requires("pyarrow", "shapely")
 def test_invalid_wkb_does_not_publish_an_artifact() -> None:
     import pyarrow as pa
-    from shapely.errors import GEOSException
+    import shapely
 
     metadata = {b"ARROW:extension:name": b"geoarrow.wkb"}
     field = pa.field("geometry", pa.binary(), metadata=metadata)
@@ -1875,14 +1877,14 @@ def test_invalid_wkb_does_not_publish_an_artifact() -> None:
         schema=pa.schema([field]),
     )
 
-    with (
-        patch(
-            "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
-        ) as publish,
-        pytest.raises(GEOSException),
-    ):
-        ui.table(source)._download_as(DownloadAsArgs(format="json"))
+    with pytest.raises(shapely.errors.GEOSException) as expected:
+        shapely.from_wkb(b"invalid")
+    with patch(
+        "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+    ) as publish:
+        response = ui.table(source)._download_as(DownloadAsArgs(format="json"))
 
+    assert response == DownloadAsResponse(error=str(expected.value))
     publish.assert_not_called()
 
 
@@ -3702,3 +3704,85 @@ def test_column_widths_unknown_column():
 def test_column_widths_non_positive():
     with pytest.raises(ValueError, match="positive integer"):
         ui.table({"a": [1, 2]}, column_widths={"a": 0})
+
+
+@pytest.mark.parametrize(
+    "error",
+    [KeyboardInterrupt(), SystemExit(), GeneratorExit(), CancelledError()],
+)
+def test_download_preserves_control_flow(error: BaseException) -> None:
+    table = ui.table({"a": [1]})
+    with patch(
+        "marimo._plugins.ui._impl.table.download_as", side_effect=error
+    ):
+        with pytest.raises(type(error)):
+            table._download_as(DownloadAsArgs(format="csv"))
+
+
+@pytest.mark.parametrize(
+    "error",
+    [KeyboardInterrupt(), SystemExit(), GeneratorExit(), CancelledError()],
+)
+def test_chart_csv_preserves_control_flow(error: BaseException) -> None:
+    table = ui.table({"a": [1]})
+    manager = table._searched_manager
+    with (
+        patch.object(DependencyManager.pyarrow, "has", return_value=False),
+        patch.object(type(manager), "to_csv", side_effect=error),
+    ):
+        with pytest.raises(type(error)):
+            table._to_chart_data_url(manager)
+
+
+@pytest.mark.requires("polars")
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("container", ["map", "struct"])
+def test_binary_export_failure_is_contained(
+    lazy: bool, container: str
+) -> None:
+    import polars as pl
+
+    from marimo._plugins.ui._impl.tables.polars_table import (
+        PolarsTableManagerFactory,
+    )
+
+    map_dtype = getattr(pl, "Map", None)
+    if container == "map":
+        if map_dtype is None:
+            pytest.skip("Map dtype requires Polars 2")
+        values = [{1: b"abc"}, {}, None]
+        dtype = map_dtype(pl.Int64, pl.Binary)
+        expected_error = pl.exceptions.ComputeError
+        expected_json = [
+            {"value": {"1": "abc"}},
+            {"value": {}},
+            {"value": None},
+        ]
+    else:
+        values = [{"binary": b"abc"}, {"binary": None}, None]
+        dtype = pl.Struct({"binary": pl.Binary})
+        expected_error = pl.exceptions.PanicException
+        expected_json = [
+            {"value": {"binary": "abc"}},
+            {"value": {"binary": None}},
+            {"value": None},
+        ]
+    source = pl.DataFrame({"value": pl.Series(values, dtype=dtype)})
+    data = source.lazy() if lazy else source
+    manager = PolarsTableManagerFactory.create()(data)
+    with pytest.raises(expected_error) as original:
+        manager.to_csv_str()
+
+    table = ui.table(data)
+    with patch(
+        "marimo._plugins.ui._impl.utils.dataframe.mo_data.any_data"
+    ) as publish:
+        response = table._download_as(DownloadAsArgs(format="csv"))
+    assert response == DownloadAsResponse(error=str(original.value))
+    publish.assert_not_called()
+
+    with patch.object(DependencyManager.pyarrow, "has", return_value=False):
+        url, data_format = table._to_chart_data_url(manager)
+    assert data_format == "json"
+    assert json.loads(from_data_uri(url)[1]) == expected_json
+    assert manager.collect().equals(source)
