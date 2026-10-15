@@ -69,11 +69,11 @@ class Analyzer:
         for cell_id, code in codes.items():
             if cell_id in self._codes:
                 continue
-            self._codes[cell_id] = code
             try:
                 self._compiled[cell_id] = compile_cell(code, CellId_t(cell_id))
             except (SyntaxError, ValueError) as error:
                 self._syntax[cell_id] = _syntax_error(code, error)
+            self._codes[cell_id] = code
 
 
 def analyze(codes: Mapping[str, str]) -> dict[str, protocol.Analysis]:

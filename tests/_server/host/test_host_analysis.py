@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from marimo._core import protocol
 from marimo._server.host.analysis import Analyzer, analyze
 
@@ -64,3 +66,21 @@ def test_an_analyzer_kept_between_edits_matches_a_fresh_one() -> None:
     ]
     for codes in steps:
         assert analyzer(codes) == analyze(codes), codes
+
+
+def test_analyzer_retries_after_an_unexpected_compiler_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    analyzer = Analyzer()
+    analyzer({"a": "x = 1"})
+    codes = {"a": "y = 2", "b": "z = y"}
+
+    def fail(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("compiler failed")
+
+    with monkeypatch.context() as patch:
+        patch.setattr("marimo._server.host.analysis.compile_cell", fail)
+        with pytest.raises(RuntimeError, match="compiler failed"):
+            analyzer(codes)
+
+    assert analyzer(codes) == analyze(codes)
