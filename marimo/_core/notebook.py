@@ -9,6 +9,7 @@ import msgspec
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
+from marimo._core.analysis import Analyzed
 from marimo._core.errors import Conflict, NoRuntime, NotFound
 from marimo._core.executions import Executions, Released, Removed
 from marimo._core.ids import mint
@@ -17,6 +18,7 @@ from marimo._core.stream import Event, Kind, kind_of, message, utcnow
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
+    from marimo._core.analysis import Analyzer
     from marimo._core.document import CellSource, Changed, Document
     from marimo._core.executions import Change
     from marimo._core.stream import Body, Sink
@@ -29,6 +31,10 @@ class Notebook:
     Commands call the backend and publish changes through the sink.
     Change the document and executions through the notebook so each
     change reaches the sink.
+
+    With an analyzer, the notebook requests analysis of each document
+    revision and publishes the result when that revision is still
+    current. The previous analysis stays until then.
     """
 
     def __init__(
@@ -37,17 +43,27 @@ class Notebook:
         executions: Executions,
         backend: be.Backend,
         sink: Sink,
+        *,
+        analyzer: Analyzer | None = None,
     ) -> None:
         self._document = document
         self._executions = executions
         self.backend = backend
         self.sink = sink
+        self.analyzer = analyzer
         self._closed = False
         self._runtime: protocol.Runtime | None = None
         self._attachments: dict[str, protocol.Attachment] = {}
         self._replacement: protocol.Runtime | None = None
         # Correlate runtime events with the pending start, stop, or restart.
         self._runtime_request: str | None = None
+        self._analysis: protocol.Analysis | None = None
+        # The revision being analyzed and the request that changed it.
+        self._analyzing: tuple[protocol.Etag, str | None] | None = None
+        # Whether the document changed during analysis, and that request.
+        self._reanalyze = False
+        self._reanalyze_request: str | None = None
+        self._request_analysis(None)
 
     @property
     def document(self) -> Document:
@@ -68,6 +84,11 @@ class Notebook:
         """The current runtime, if any."""
         return self._runtime
 
+    @property
+    def analysis(self) -> protocol.Analysis | None:
+        """The latest analysis, which may describe an earlier revision."""
+        return self._analysis
+
     def _require_open(self) -> None:
         if self._closed:
             raise NotFound(f"no notebook {self.id}")
@@ -85,6 +106,8 @@ class Notebook:
         self._require_open()
         changed = self.document.replace(cells, app_config)
         self._publish_changed(changed, request_id)
+        if changed.document is not None:
+            self._request_analysis(request_id)
         return changed
 
     def mark_saved(self, *, request_id: str | None = None) -> None:
@@ -107,6 +130,41 @@ class Notebook:
                 self._remove("cell", cell_id, request_id)
             if changed.document is not None:
                 self._publish(changed.document, request_id)
+
+    # ---- analysis ------------------------------------------------------
+
+    def _request_analysis(self, request_id: str | None) -> None:
+        """Analyze the current revision, or after the one in progress."""
+        if self.analyzer is None:
+            return
+        if self._analyzing is not None:
+            self._reanalyze, self._reanalyze_request = True, request_id
+            return
+        document = self.document._record
+        self._analyzing = (document.etag, request_id)
+        self.analyzer.analyze(
+            document.etag, {cell.id: cell.code for cell in self.document}
+        )
+
+    def _observe_analyzed(self, report: Analyzed) -> None:
+        if (
+            self._analyzing is None
+            or report.document_etag != self._analyzing[0]
+        ):
+            return  # A revision the notebook did not ask for.
+        etag, request_id = self._analyzing
+        self._analyzing = None
+        if report.cells is not None and etag == self.document._record.etag:
+            self._analysis = protocol.Analysis(
+                notebook_id=self.id,
+                document_etag=etag,
+                cells=dict(report.cells),
+            )
+            self._publish(self._analysis, request_id)
+        if self._reanalyze:
+            self._reanalyze, pending = False, self._reanalyze_request
+            self._reanalyze_request = None
+            self._request_analysis(pending)
 
     # ---- runtime -------------------------------------------------------
 
@@ -279,11 +337,13 @@ class Notebook:
 
     # ---- backend updates -----------------------------------------------
 
-    def observe(self, msg: be.Message) -> None:
-        """Apply a backend update and publish the resulting state changes."""
+    def observe(self, msg: be.Message | Analyzed) -> None:
+        """Apply a backend or analyzer report and publish what changed."""
         if self._closed:
             return
         match msg:
+            case Analyzed():
+                self._observe_analyzed(msg)
             case be.Starting() | be.Running() | be.Exited():
                 runtime = self._runtime
                 if runtime is None or msg.runtime_id != runtime.id:
@@ -369,6 +429,8 @@ class Notebook:
     def _snapshot(self) -> list[Event]:
         """Return current state as events in dependency order."""
         bodies: list[Body] = [*self.document, self.document._record]
+        if self._analysis is not None:
+            bodies.append(self._analysis)
         if self._runtime is not None:
             bodies.append(self._runtime)
         bodies.extend(self._attachments.values())

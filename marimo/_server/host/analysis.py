@@ -7,21 +7,57 @@ and multiple definitions.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import TYPE_CHECKING
 
 from marimo._ast.compiler import compile_cell
 from marimo._core import protocol
+from marimo._core.analysis import Analyzed
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
     from marimo._ast.cell import CellImpl
 
+LOGGER = logging.getLogger(__name__)
 SOURCE = "marimo"
 
 
-class Analyzer:
+class HostAnalyzer:
+    """Analyzes each requested revision in a thread and reports the result.
+
+    Compiling cells can take long enough to stall the event loop, so the
+    work runs in a worker. The notebook requests one revision at a time,
+    which keeps the incremental state consistent.
+    """
+
+    def __init__(self, observe: Callable[[Analyzed], None]) -> None:
+        self._cells = CellAnalyzer()
+        self._observe = observe
+        self._tasks: set[asyncio.Task[None]] = set()
+
+    def analyze(
+        self, document_etag: protocol.Etag, codes: Mapping[str, str]
+    ) -> None:
+        task = asyncio.create_task(self._run(document_etag, dict(codes)))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
+    async def _run(
+        self, document_etag: protocol.Etag, codes: dict[str, str]
+    ) -> None:
+        cells: dict[str, protocol.CellAnalysis] | None
+        try:
+            cells = await asyncio.to_thread(self._cells, codes)
+        except Exception:
+            LOGGER.exception("Could not analyze document %s", document_etag)
+            cells = None
+        self._observe(Analyzed(document_etag, cells))
+
+
+class CellAnalyzer:
     """Incremental analysis for one document."""
 
     def __init__(self) -> None:
@@ -78,7 +114,7 @@ class Analyzer:
 
 def analyze(codes: Mapping[str, str]) -> dict[str, protocol.CellAnalysis]:
     """Analyze a document once."""
-    return Analyzer()(codes)
+    return CellAnalyzer()(codes)
 
 
 def _syntax_error(code: str, e: Exception) -> protocol.Error:

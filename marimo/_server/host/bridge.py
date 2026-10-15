@@ -16,6 +16,7 @@ from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.host import OPERATIONS
+from marimo._server.host.analysis import HostAnalyzer
 from marimo._server.host.backend import SessionBackend
 from marimo._server.host.index import WorkspaceIndex
 from marimo._session.events import SessionEventListener
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.cell import CellConfig
     from marimo._config.manager import MarimoConfigManager
+    from marimo._core.analysis import Analyzed
     from marimo._core.backend import Message
     from marimo._core.document import Policy
     from marimo._core.stream import Event, Sink
@@ -109,7 +111,21 @@ class SessionBridge(SessionEventListener):
             if session is not None and loaded is not None:
                 document.mark_saved(revision(*loaded))
             backend = self._make_backend(record.id)
-            return Notebook(document, Executions(), backend, sink)
+            # Analysis reports arrive on the loop after the notebook exists.
+            notebook: Notebook | None = None
+
+            def analyzed(report: Analyzed) -> None:
+                if notebook is not None:
+                    notebook.observe(report)
+
+            notebook = Notebook(
+                document,
+                Executions(),
+                backend,
+                sink,
+                analyzer=HostAnalyzer(analyzed),
+            )
+            return notebook
 
     async def _load(
         self, file: Path

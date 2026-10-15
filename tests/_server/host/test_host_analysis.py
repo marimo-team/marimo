@@ -3,10 +3,13 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from marimo._core import protocol
-from marimo._server.host.analysis import Analyzer, analyze
+from marimo._core.analysis import Analyzed
+from marimo._server.host.analysis import CellAnalyzer, HostAnalyzer, analyze
 
 
 def test_refs_are_names_other_cells_define() -> None:
@@ -57,7 +60,7 @@ def test_positions_count_utf16_code_units() -> None:
 
 
 def test_an_analyzer_kept_between_edits_matches_a_fresh_one() -> None:
-    analyzer = Analyzer()
+    analyzer = CellAnalyzer()
     steps = [
         {"a": "x = 1", "b": "y = x"},
         {"a": "x = 1", "b": "y = x", "c": "x = 2"},
@@ -73,7 +76,7 @@ def test_an_analyzer_kept_between_edits_matches_a_fresh_one() -> None:
 def test_analyzer_retries_after_an_unexpected_compiler_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    analyzer = Analyzer()
+    analyzer = CellAnalyzer()
     analyzer({"a": "x = 1"})
     codes = {"a": "y = 2", "b": "z = y"}
 
@@ -86,3 +89,36 @@ def test_analyzer_retries_after_an_unexpected_compiler_failure(
             analyzer(codes)
 
     assert analyzer(codes) == analyze(codes)
+
+
+async def test_host_analyzer_reports_each_revision_off_the_loop() -> None:
+    reports: list[Analyzed] = []
+    analyzer = HostAnalyzer(reports.append)
+    codes = {"a": "x = 1", "b": "y = x"}
+
+    analyzer.analyze(protocol.Etag("rev-1"), codes)
+    for _ in range(100):
+        if reports:
+            break
+        await asyncio.sleep(0.01)
+
+    assert reports == [Analyzed(protocol.Etag("rev-1"), analyze(codes))]
+
+
+async def test_host_analyzer_reports_a_failure_without_cells(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reports: list[Analyzed] = []
+    analyzer = HostAnalyzer(reports.append)
+
+    def fail(*_: object, **__: object) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("marimo._server.host.analysis.compile_cell", fail)
+    analyzer.analyze(protocol.Etag("rev-1"), {"a": "x = 1"})
+    for _ in range(100):
+        if reports:
+            break
+        await asyncio.sleep(0.01)
+
+    assert reports == [Analyzed(protocol.Etag("rev-1"), None)]

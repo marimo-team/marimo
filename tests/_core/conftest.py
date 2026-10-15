@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from marimo._core import backend as be, protocol
@@ -12,6 +14,9 @@ from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.run_log import RetentionPolicy
 from marimo._core.stream import Event, Sink
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 OPERATIONS = ["notebook.create", "runtime.start", "runtime.run"]
 
@@ -36,6 +41,16 @@ class ScriptedBackend:
 
     def forget(self, run_id: str) -> None:
         self.calls.append(("forget", run_id))
+
+
+class ScriptedAnalyzer:
+    """Records analysis requests without answering them."""
+
+    def __init__(self) -> None:
+        self.requests: list[tuple[str, dict[str, str]]] = []
+
+    def analyze(self, document_etag: str, codes: Mapping[str, str]) -> None:
+        self.requests.append((document_etag, dict(codes)))
 
 
 def runtime_id_of(notebook: Notebook) -> protocol.RuntimeId:
@@ -74,12 +89,14 @@ def make_notebook(
     backend: ScriptedBackend | None = None,
     *,
     document: Document | None = None,
+    analyzer: ScriptedAnalyzer | None = None,
 ) -> Notebook:
     return Notebook(
         document or Document(record.id, [], {}),
         Executions(),
         backend or ScriptedBackend(),
         sink,
+        analyzer=analyzer,
     )
 
 
@@ -89,11 +106,12 @@ async def add_notebook(
     backend: ScriptedBackend,
     *,
     document: Document | None = None,
+    analyzer: ScriptedAnalyzer | None = None,
 ) -> Notebook:
     host.add_notebook(
         record,
         lambda current, sink: make_notebook(
-            current, sink, backend, document=document
+            current, sink, backend, document=document, analyzer=analyzer
         ),
     )
     return await host.notebook(record.id)

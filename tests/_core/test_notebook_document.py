@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import pytest
+from msgspec import UNSET
 from msgspec.structs import replace
 
 from marimo._core import protocol
+from marimo._core.analysis import Analyzed
 from marimo._core.document import (
     CellSource,
     Document,
@@ -20,7 +22,16 @@ from marimo._core.document import (
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.stream import Event
-from tests._core.conftest import make_notebook, names, project, record
+from tests._core.conftest import (
+    ScriptedAnalyzer,
+    ScriptedBackend,
+    add_notebook,
+    make_notebook,
+    names,
+    project,
+    record,
+    request_ids,
+)
 
 NOTEBOOK = protocol.NotebookId("n1")
 HIDDEN = protocol.CellConfig(
@@ -256,3 +267,160 @@ class TestNotebook:
         assert names(log) == ["cell", "cell.removed", "document"]
         assert all(e.data.request_id == "edit-1" for e in log)  # type: ignore[union-attr]
         assert log[1].data.id == "k7f2"  # type: ignore[union-attr]
+
+
+def cell_analyses(document: Document) -> dict[str, protocol.CellAnalysis]:
+    """A placeholder analysis of every cell in the document."""
+    return {
+        cell.id: protocol.CellAnalysis(defs=(), refs=(), errors=())
+        for cell in document
+    }
+
+
+class TestAnalysis:
+    async def test_the_initial_revision_is_analyzed_and_published_after_the_document(
+        self, host: Host, log: list[Event]
+    ) -> None:
+        host.update_project(project())
+        analyzer = ScriptedAnalyzer()
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        notebook = await add_notebook(
+            host,
+            record(),
+            ScriptedBackend(),
+            document=document,
+            analyzer=analyzer,
+        )
+        etag = document._record.etag
+        assert analyzer.requests == [
+            (etag, {cell.id: cell.code for cell in document})
+        ]
+        assert notebook.analysis is None
+
+        log.clear()
+        notebook.observe(Analyzed(etag, cell_analyses(document)))
+
+        assert names(log) == ["analysis"]
+        assert request_ids(log) == [UNSET]
+        assert notebook.analysis == protocol.Analysis(
+            notebook_id=NOTEBOOK,
+            document_etag=etag,
+            cells=cell_analyses(document),
+        )
+        assert names(host.events(notebook_id="n1")) == [
+            "notebook",
+            "cell",
+            "cell",
+            "cell",
+            "document",
+            "analysis",
+            "ready",
+        ]
+
+    async def test_edits_during_analysis_are_analyzed_once_afterwards(
+        self, host: Host, log: list[Event]
+    ) -> None:
+        host.update_project(project())
+        analyzer = ScriptedAnalyzer()
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        notebook = await add_notebook(
+            host,
+            record(),
+            ScriptedBackend(),
+            document=document,
+            analyzer=analyzer,
+        )
+        first = document._record.etag
+        notebook.replace([CellSource("c1", "1")], {}, request_id="edit-1")
+        notebook.replace([CellSource("c1", "2")], {}, request_id="edit-2")
+        assert len(analyzer.requests) == 1
+
+        # The result describes a revision that is gone, so nothing is
+        # published and the current revision is requested instead.
+        log.clear()
+        notebook.observe(Analyzed(first, cell_analyses(document)))
+        assert "analysis" not in names(log)
+        latest = document._record.etag
+        assert analyzer.requests[1] == (latest, {"c1": "2"})
+
+        notebook.observe(Analyzed(latest, cell_analyses(document)))
+        assert names(log) == ["analysis"]
+        assert request_ids(log) == ["edit-2"]
+        assert notebook.analysis is not None
+        assert notebook.analysis.document_etag == latest
+
+    async def test_the_previous_analysis_stays_until_the_next_arrives(
+        self, host: Host
+    ) -> None:
+        host.update_project(project())
+        analyzer = ScriptedAnalyzer()
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        notebook = await add_notebook(
+            host,
+            record(),
+            ScriptedBackend(),
+            document=document,
+            analyzer=analyzer,
+        )
+        first = document._record.etag
+        notebook.observe(Analyzed(first, cell_analyses(document)))
+
+        notebook.replace([CellSource("c1", "1")], {})
+
+        assert notebook.analysis is not None
+        assert (
+            notebook.analysis.document_etag == first != document._record.etag
+        )
+        assert names(host.events(notebook_id="n1")) == [
+            "notebook",
+            "cell",
+            "document",
+            "analysis",
+            "ready",
+        ]
+
+    async def test_a_failed_analysis_leaves_the_notebook_ready_for_the_next(
+        self, host: Host, log: list[Event]
+    ) -> None:
+        host.update_project(project())
+        analyzer = ScriptedAnalyzer()
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        notebook = await add_notebook(
+            host,
+            record(),
+            ScriptedBackend(),
+            document=document,
+            analyzer=analyzer,
+        )
+        log.clear()
+        notebook.observe(Analyzed(document._record.etag, None))
+        assert names(log) == []
+        assert notebook.analysis is None
+
+        notebook.replace([CellSource("c1", "1")], {})
+        assert len(analyzer.requests) == 2
+
+    async def test_a_result_for_an_unrequested_revision_is_ignored(
+        self, host: Host, log: list[Event]
+    ) -> None:
+        host.update_project(project())
+        analyzer = ScriptedAnalyzer()
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        notebook = await add_notebook(
+            host,
+            record(),
+            ScriptedBackend(),
+            document=document,
+            analyzer=analyzer,
+        )
+        log.clear()
+        notebook.observe(
+            Analyzed(
+                protocol.Etag("0000000000000000"), cell_analyses(document)
+            )
+        )
+        assert names(log) == []
+
+        etag = document._record.etag
+        notebook.observe(Analyzed(etag, cell_analyses(document)))
+        assert names(log) == ["analysis"]
