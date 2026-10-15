@@ -12,6 +12,7 @@ from marimo._runtime.context.types import (
     get_context,
     initialize_context,
     runtime_context_installed,
+    safe_get_context,
     teardown_context,
 )
 from marimo._runtime.control_flow import MarimoStopError
@@ -290,9 +291,14 @@ class AppScriptRunner:
             raise e.__cause__ from None  # type: ignore
         finally:
             from marimo._save.loaders import flush_active_caches
+            from marimo._save.manifest import flush_dirty_manifests
 
             # NB. joins background blob writes; without this, cache entries
             # can drop at interpreter exit.
             flush_active_caches()
+            # A script has no kernel run to finish, so nothing else writes
+            # the manifest of the entries this run recorded.
+            if (context := safe_get_context()) is not None:
+                flush_dirty_manifests(context)
             if installed_script_context:
                 teardown_context()

@@ -5,6 +5,8 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING
 
+from marimo._save.manifest import CacheManifest, is_manifest_name
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -72,6 +74,32 @@ def test_script_run_populates_and_restores_cell_cache(tmp_path: Path) -> None:
     assert "computed value" not in second.stdout, (
         "cached cell body ran again instead of restoring"
     )
+
+
+def test_script_run_records_its_cache_entries_in_a_manifest(
+    tmp_path: Path,
+) -> None:
+    """A script run writes the manifest that `marimo cache` commands read."""
+    nb_path = tmp_path / "notebook.py"
+    nb_path.write_text(NOTEBOOK_SOURCE, encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(nb_path)],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stderr
+
+    cache_dir = tmp_path / "__marimo__" / "cache"
+    (manifest_path,) = [
+        path for path in cache_dir.iterdir() if is_manifest_name(path.name)
+    ]
+    manifest = CacheManifest.from_bytes(manifest_path.read_bytes())
+    entries = manifest.entries()
+    assert len(entries) == 2, "one entry per cell"
+    assert {block for block, _ in entries} == {"cell_cache"}
 
 
 def test_script_run_without_cache_cells_stays_cold(tmp_path: Path) -> None:
