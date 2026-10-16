@@ -123,6 +123,7 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "default_table_max_columns": 50,
                 "reference_highlighting": True,
                 "code_lens": True,
+                "datetime_in_local_timezone": False,
             },
             "runtime": {
                 "dotenv": ["<root>/home/project/.env"],
@@ -296,6 +297,7 @@ def test_layered_configuration_snapshot(
                     "code_editor_font_size": 14,
                     "default_table_max_columns": 50,
                     "reference_highlighting": True,
+                    "datetime_in_local_timezone": False,
                     "default_table_page_size": 10,
                     "cell_output": "below",
                 },
@@ -374,6 +376,7 @@ def test_layered_configuration_snapshot(
                     "code_editor_font_size": 14,
                     "default_table_max_columns": 50,
                     "reference_highlighting": True,
+                    "datetime_in_local_timezone": False,
                     "default_table_page_size": 10,
                     "cell_output": "below",
                 },
@@ -403,6 +406,7 @@ def test_layered_configuration_snapshot(
                     "default_table_max_columns": 50,
                     "reference_highlighting": True,
                     "default_table_page_size": 10,
+                    "datetime_in_local_timezone": False,
                     "cell_output": "below",
                 },
                 "ai": {
@@ -648,6 +652,7 @@ cell_output = "below"
 code_editor_font_size = 14
 code_lens = true
 dataframes = "rich"
+datetime_in_local_timezone = false
 default_table_max_columns = 50
 default_table_page_size = 10
 default_width = "medium"
@@ -1254,6 +1259,7 @@ def test_merge_semantics_snapshot() -> None:
                     "default_width": "full",
                     "reference_highlighting": True,
                     "default_table_page_size": 10,
+                    "datetime_in_local_timezone": False,
                     "theme": "light",
                 },
             },
@@ -1272,6 +1278,7 @@ def test_merge_semantics_snapshot() -> None:
                     "default_width": "full",
                     "reference_highlighting": True,
                     "default_table_page_size": 10,
+                    "datetime_in_local_timezone": False,
                     "theme": "light",
                 },
             },
