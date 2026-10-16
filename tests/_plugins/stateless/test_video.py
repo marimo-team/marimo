@@ -30,7 +30,7 @@ async def test_video_nonexistent_path_passthrough() -> None:
 async def test_video_pathlib_nonexistent_passthrough() -> None:
     src = Path("public/__marimo_test_does_not_exist__.mp4")
     result = video(src)
-    assert f"src='{src}'" in result.text
+    assert f"src='{src.as_posix()}'" in result.text
     assert "data:" not in result.text
 
 
@@ -168,6 +168,7 @@ async def test_video_pathlib_home_expansion(
     sample = fake_home / "sample.mp4"
     sample.write_bytes(b"fake video bytes")
     monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("USERPROFILE", str(fake_home))
     await k.run(
         [
             exec_req.get(
@@ -188,15 +189,19 @@ async def test_video_pathlib_home_expansion(
 
 
 async def test_video_pathlib_real_media(
-    k: Kernel, exec_req: ExecReqProvider
+    k: Kernel, exec_req: ExecReqProvider, tmp_path: Path
 ) -> None:
+    real_video = tmp_path / "real_video.mp4"
+    real_video.write_bytes(
+        b"\x00\x00\x00\x1cftypisom\x00\x00\x02\x00isomiso2mp41\x00\x00\x00\x08free"
+    )
     await k.run(
         [
             exec_req.get(
-                """
+                f"""
                 from pathlib import Path
                 import marimo as mo
-                video = mo.video(Path("docs/_static/readme.mp4"))
+                video = mo.video(Path(r"{real_video.as_posix()}"))
                 """
             ),
         ]

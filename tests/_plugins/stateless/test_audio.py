@@ -30,7 +30,7 @@ async def test_audio_url() -> None:
 async def test_audio_pathlib_nonexistent_passthrough() -> None:
     src = Path("public/__marimo_test_does_not_exist__.wav")
     result = audio(src)
-    assert f"src='{src}'" in result.text
+    assert f"src='{src.as_posix()}'" in result.text
     assert "data:" not in result.text
 
 
@@ -122,6 +122,7 @@ async def test_audio_pathlib_home_expansion(
     sample = fake_home / "sample.wav"
     sample.write_bytes(b"hello")
     monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("USERPROFILE", str(fake_home))
     await k.run(
         [
             exec_req.get(
@@ -154,7 +155,7 @@ async def test_audio_pathlib_real_media(
                 f"""
                 from pathlib import Path
                 import marimo as mo
-                audio = mo.audio(Path(r"{real_wav}"))
+                audio = mo.audio(Path(r"{real_wav.as_posix()}"))
                 """
             ),
         ]

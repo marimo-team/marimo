@@ -79,7 +79,7 @@ def get_resolved_src(
         if expanded.is_file():
             ext = expanded.suffix or ".wav"
             return mo_data.audio(expanded.read_bytes(), ext=ext).url
-        return str(src)
+        return src.as_posix()
 
     if isinstance(src, str) and os.path.isfile(os.path.expanduser(src)):
         src = os.path.expanduser(src)

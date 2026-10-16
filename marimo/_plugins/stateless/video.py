@@ -38,7 +38,7 @@ def _get_resolved_src(
         if expanded.is_file():
             ext = expanded.suffix or ".mp4"
             return mo_data.video(expanded.read_bytes(), ext=ext).url
-        return str(src)
+        return src.as_posix()
 
     if isinstance(src, str):
         expanded_str = os.path.expanduser(src)
