@@ -134,7 +134,7 @@ def test_add_reports_command_separately_from_backend_output(
 
     pixi.add(
         str(notebook),
-        "polars",
+        ["polars"],
         cwd=str(tmp_path),
         on_output=output.append,
         on_command=lambda command: commands.append(tuple(command)),
@@ -172,7 +172,7 @@ def test_upgrade_verb_depends_on_the_requirement_shape(
 
     pixi.add(
         str(notebook),
-        package,
+        [package],
         cwd=str(tmp_path),
         upgrade=True,
         on_command=lambda command: commands.append(tuple(command)),
@@ -193,7 +193,7 @@ def test_low_level_add_is_silent_without_a_reporter(
     notebook = tmp_path / "nb.py"
     notebook.write_text("# /// script\n# dependencies = []\n# ///\n")
 
-    pixi.add(str(notebook), "polars", cwd=str(tmp_path))
+    pixi.add(str(notebook), ["polars"], cwd=str(tmp_path))
 
     assert capsys.readouterr().err == ""
 
@@ -243,7 +243,7 @@ def test_pixi_adapter_reports_without_polluting_progress(
 
     PixiBackendAdapter(recorder).add(
         MaterializedScript(path=str(notebook), directory=str(tmp_path)),
-        "polars",
+        ["polars"],
         upgrade=False,
         on_output=output.append,
     )
