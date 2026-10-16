@@ -151,12 +151,72 @@ Notebook
     └── Cell execution · another dependent cell
 ```
 
-Results include an execution's outcome, **console** output, and **display**
-items. They can remain available after the runtime stops or be restored from
-storage. Clients use the available provenance and staleness information to
-distinguish saved results from results of the current computation. Hosts choose
+Results include an execution's outcome, **console** output, **display**
+items, and the **variables** a cell's execution bound. They can remain
+available after the runtime stops or be restored from storage. Hosts choose
 how long to retain results and SHOULD keep ephemeral results briefly after
 completion to allow reconnection.
+
+A **variable** is a name in the notebook's namespace whose value varies over
+time. A cell's execution **binds** variables as it ends, each with a
+**revision** of its value. An **update** advances a revision without binding
+again, as when a state setter runs or a client sets a value. A revision names
+the execution whose evaluation produced the value and counts the updates
+since. Clients compare revisions for equality.
+
+    Variable  { id, execution_id, name, revision, type, preview }
+    Revision  { execution, update }
+
+Hosts MUST publish a cell execution's variables before its `completed` status,
+and MUST remove a cell's previous execution and its items before publishing
+the next one. A cell has one latest execution on the stream.
+
+An execution **depends on** the variables it used, each at the revision the
+runtime holds its result valid against. A name that no retained cell
+execution had bound is recorded as null.
+
+    Execution { ..., depends_on: Record<Name, Revision | null> }
+
+A completed cell execution is **current** when:
+
+- its `code_hash` equals the cell's,
+- each variable it depends on still holds the recorded revision,
+- each name it depends on that was unbound is still unbound,
+- the execution that bound each of those variables is current.
+
+A client finds a variable by the recorded revision's `execution` and the name.
+If none exists, that execution was replaced or removed. If its `update` is
+higher, the value was updated. If that execution's `code_hash` differs from
+its cell's, the cell was edited. The first that applies is why the result is
+**outdated**. A cell with no execution has no result to compare. Scratch
+executions have no cell and are not compared.
+
+For example, cell `k7f2` reads `x`, which cell `c3` binds:
+
+    Cell c3     code_hash 0f71…   Execution e12   code_hash 0f71…   depends_on {}
+    Variable x  revision {e12, 0}  bound by e12
+    Cell k7f2   code_hash db2b…   Execution e13   code_hash db2b…   depends_on {x: {e12, 0}}
+
+Both executions are current. An update that advances `x` to `{e12, 1}` makes
+`e13` outdated because a value it depends on was updated. Editing `c3` makes
+`e12` outdated because its code changed, and `e13` because the execution that
+bound `x` is. Running `c3` again removes `e12` and binds `x` under a new
+execution, so `e13` is outdated because the execution it depends on was
+replaced.
+
+The runtime stamps `depends_on` as the execution ends, from its own namespace
+and rules:
+
+- a value the execution itself updated is recorded at the revision it set,
+- a name bound only by a result from an earlier runtime is recorded as
+  unbound,
+- a value carried forward unchanged, such as an import, keeps its revision,
+  so a revision's `execution` can be earlier than the variable's
+  `execution_id`.
+
+Updates are published before any execution that depends on them. The host
+removes the runtime when its process ends, so a result is **live** when its
+`runtime_id` is the notebook's runtime.
 
 ## Connecting to the host API
 
@@ -264,9 +324,11 @@ formatting, MUST reach clients through the document stream as well.
 
 Clients can request document cells or submit scratch code. Cells execute under
 the runtime's execution configuration, which determines how dependent cells
-are scheduled. Scratch code runs against a copy of the runtime namespace
-outside the document's dependency graph. A client can ask the host to verify
-that a cell's code still matches what it read before executing it.
+are scheduled. A dependent the configuration leaves out keeps its execution,
+which is outdated once a new execution replaces the one it depends on. Scratch
+code runs against a copy of the runtime namespace outside the document's
+dependency graph. A client can ask the host to verify that a cell's code still
+matches what it read before executing it.
 
 An accepted execution request starts a run whose progress and results arrive on
 the notebook stream for all attached clients. Clients that need to observe the

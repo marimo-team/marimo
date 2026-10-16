@@ -599,7 +599,7 @@ class TestRun:
                     code="3 * 3",
                     code_hash="9f",
                     completed_at=IsDatetime(),
-                    bindings=(),
+                    depends_on={},
                     id=ExecutionId("e7"),
                     outcome=ValueOutcome(
                         display=DisplayData(
@@ -608,7 +608,6 @@ class TestRun:
                     ),
                     run_id=run.id,
                     runtime_id=notebook.runtime.id,
-                    stale=None,
                     started_at=IsDatetime(),
                     status="completed",
                 ),

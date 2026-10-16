@@ -4,7 +4,7 @@ data: {"run":{"id":"run-failed","notebook_id":"n1","status":"running","started_a
 
 id: 121
 event: execution
-data: {"execution":{"id":"e8","run_id":"run-failed","cell_id":null,"code_hash":"a32ab03f8d972266","status":"running","outcome":null,"stale":null,"started_at":"2026-10-01T09:21:10Z","completed_at":null,"runtime_id":"r1","caused_by":null,"code":"import sys\nprint(\"dividing\", file=sys.stderr)\n1 / 0","bindings":[]},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:10Z"}
+data: {"execution":{"id":"e8","run_id":"run-failed","cell_id":null,"code_hash":"a32ab03f8d972266","depends_on":{},"status":"running","outcome":null,"started_at":"2026-10-01T09:21:10Z","completed_at":null,"runtime_id":"r1","caused_by":null,"code":"import sys\nprint(\"dividing\", file=sys.stderr)\n1 / 0"},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:10Z"}
 
 id: 122
 event: console
@@ -12,7 +12,7 @@ data: {"console":{"id":"o4","execution_id":"e8","seq":0,"name":"stderr","text":"
 
 id: 123
 event: execution
-data: {"execution":{"id":"e8","run_id":"run-failed","cell_id":null,"code_hash":"a32ab03f8d972266","status":"completed","outcome":{"kind":"error","error":{"kind":"exception","message":"division by zero","name":"ZeroDivisionError","traceback":{"mimetype":"text/plain","data":"Traceback (most recent call last):\n  File \"<scratch>\", line 3, in <module>\nZeroDivisionError: division by zero\n"},"source":"marimo","severity":"error","range":null,"related":[]}},"stale":null,"started_at":"2026-10-01T09:21:10Z","completed_at":"2026-10-01T09:21:11Z","runtime_id":"r1","caused_by":null,"code":"import sys\nprint(\"dividing\", file=sys.stderr)\n1 / 0","bindings":[]},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:11Z"}
+data: {"execution":{"id":"e8","run_id":"run-failed","cell_id":null,"code_hash":"a32ab03f8d972266","depends_on":{},"status":"completed","outcome":{"kind":"error","error":{"kind":"exception","message":"division by zero","name":"ZeroDivisionError","traceback":{"mimetype":"text/plain","data":"Traceback (most recent call last):\n  File \"<scratch>\", line 3, in <module>\nZeroDivisionError: division by zero\n"},"source":"marimo","severity":"error","range":null,"related":[]}},"started_at":"2026-10-01T09:21:10Z","completed_at":"2026-10-01T09:21:11Z","runtime_id":"r1","caused_by":null,"code":"import sys\nprint(\"dividing\", file=sys.stderr)\n1 / 0"},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:11Z"}
 
 id: 124
 event: run

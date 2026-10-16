@@ -26,7 +26,7 @@ event: run
 data: {"run":{"id":"run-scratch","notebook_id":"n1","status":"running","started_at":"2026-10-01T09:20:01Z","completed_at":null,"caused_by":null,"outcome":null},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b"}
 
 event: execution
-data: {"execution":{"id":"e7","run_id":"run-scratch","cell_id":null,"code_hash":"cebd60abaf00acdc","status":"running","outcome":{"kind":"value","display":{"mimetype":"text/html","data":"<span class=\"markdown\">working…</span>"}},"stale":null,"started_at":"2026-10-01T09:20:01Z","completed_at":null,"runtime_id":"r1","caused_by":null,"code":"import marimo as mo\nmo.output.append(mo.md(\"working…\"))\nprint(1 + 1)\n3 * 3","bindings":[]},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b"}
+data: {"execution":{"id":"e7","run_id":"run-scratch","cell_id":null,"code_hash":"cebd60abaf00acdc","depends_on":{},"status":"running","outcome":{"kind":"value","display":{"mimetype":"text/html","data":"<span class=\"markdown\">working…</span>"}},"started_at":"2026-10-01T09:20:01Z","completed_at":null,"runtime_id":"r1","caused_by":null,"code":"import marimo as mo\nmo.output.append(mo.md(\"working…\"))\nprint(1 + 1)\n3 * 3"},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b"}
 
 event: console
 data: {"console":{"id":"o3","execution_id":"e7","seq":0,"name":"stdout","text":"2\n"},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b"}
@@ -42,7 +42,7 @@ data: {}
 
 id: 96
 event: execution
-data: {"execution":{"id":"e7","run_id":"run-scratch","cell_id":null,"code_hash":"cebd60abaf00acdc","status":"completed","outcome":{"kind":"value","display":{"mimetype":"text/html","data":"<span class=\"markdown\">working…</span><pre>9</pre>"}},"stale":null,"started_at":"2026-10-01T09:20:01Z","completed_at":"2026-10-01T09:20:04Z","runtime_id":"r1","caused_by":null,"code":"import marimo as mo\nmo.output.append(mo.md(\"working…\"))\nprint(1 + 1)\n3 * 3","bindings":[]},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:04Z"}
+data: {"execution":{"id":"e7","run_id":"run-scratch","cell_id":null,"code_hash":"cebd60abaf00acdc","depends_on":{},"status":"completed","outcome":{"kind":"value","display":{"mimetype":"text/html","data":"<span class=\"markdown\">working…</span><pre>9</pre>"}},"started_at":"2026-10-01T09:20:01Z","completed_at":"2026-10-01T09:20:04Z","runtime_id":"r1","caused_by":null,"code":"import marimo as mo\nmo.output.append(mo.md(\"working…\"))\nprint(1 + 1)\n3 * 3"},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:04Z"}
 
 id: 97
 event: run

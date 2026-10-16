@@ -246,12 +246,11 @@ def retained_execution(
             cell_id=None if cell_id is None else protocol.CellId(cell_id),
             code="42" if cell_id is None else None,
             code_hash=code_hash("42"),
-            bindings=(),
+            depends_on={},
             status="completed",
             outcome=protocol.ValueOutcome(
                 protocol.DisplayData(mimetype="text/plain", data="42")
             ),
-            stale=False if cell_id is not None else None,
             started_at=None,
             completed_at=None,
         ),
