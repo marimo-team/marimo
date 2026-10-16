@@ -135,3 +135,22 @@ export function extractTimezone(dtype: string | undefined): string | undefined {
   const match = /^datetime(?:64)?\[[^,]+,([^,]+)]$/.exec(dtype);
   return match?.[1]?.trim();
 }
+
+/**
+ * The timezone a datetime cell should be rendered in.
+ *
+ * Timezone-aware values (e.g. a SQL `timestamptz` column, whose dtype is
+ * `datetime64[ns, UTC]`) render in the timezone encoded in the dtype by
+ * default. When the user opts into local display, they render in the
+ * browser's local timezone instead; naive datetimes are unaffected.
+ */
+export function resolveDisplayTimezone(
+  dtype: string | undefined,
+  datetimeInLocalTimezone: boolean,
+): string | undefined {
+  const timezone = extractTimezone(dtype);
+  if (datetimeInLocalTimezone && timezone) {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }
+  return timezone;
+}

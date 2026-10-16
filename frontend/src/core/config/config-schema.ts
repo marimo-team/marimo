@@ -155,6 +155,7 @@ export const UserConfigSchema = z
         locale: z.string().nullable().optional(),
         reference_highlighting: z.boolean().prefault(true),
         code_lens: z.boolean().prefault(true),
+        datetime_in_local_timezone: z.boolean().prefault(false),
       })
       .prefault({}),
     package_management: z

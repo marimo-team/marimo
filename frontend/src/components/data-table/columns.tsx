@@ -7,9 +7,10 @@ const PopoverClose = PopoverPrimitive.Close;
 
 import type { Column, ColumnDef } from "@tanstack/react-table";
 import { formatDate, isValid } from "date-fns";
+import { useAtomValue } from "jotai";
 import { useRef } from "react";
 import { useLocale, useNumberFormatter } from "react-aria";
-import { WithLocale } from "@/core/i18n/with-locale";
+import { userConfigAtom } from "@/core/config/config";
 import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
@@ -35,10 +36,10 @@ import type { FilterType } from "./filters";
 import { getMimeValues, MimeCell } from "./mime-cell";
 import {
   type DataTableSelection,
-  extractTimezone,
   type FieldTypesWithExternalType,
   INDEX_COLUMN_NAME,
   isNumericType,
+  resolveDisplayTimezone,
 } from "./types";
 import { SentinelCell, WhitespaceMarkers } from "./sentinel-cell";
 import { detectSentinel, splitLeadingTrailingWhitespace } from "./utils";
@@ -585,15 +586,17 @@ function renderDate({
   dtype,
   format,
   locale,
+  datetimeInLocalTimezone,
 }: {
   value: Date;
   dataType?: DataType;
   dtype?: string;
   format?: DateFormat | null;
   locale: string;
+  datetimeInLocalTimezone?: boolean;
 }): React.ReactNode {
   const type = dataType === "date" ? "date" : "datetime";
-  const timezone = extractTimezone(dtype);
+  const timezone = resolveDisplayTimezone(dtype, !!datetimeInLocalTimezone);
 
   const exactValue = format
     ? formatDate(value, format)
@@ -605,6 +608,35 @@ function renderDate({
     </DatePopover>
   );
 }
+
+const DateCell = ({
+  value,
+  dataType,
+  dtype,
+  format,
+}: {
+  value: Date;
+  dataType?: DataType;
+  dtype?: string;
+  format?: DateFormat | null;
+}) => {
+  const { locale } = useLocale();
+  const config = useAtomValue(userConfigAtom);
+  const datetimeInLocalTimezone =
+    config.display.datetime_in_local_timezone === true;
+  return (
+    <>
+      {renderDate({
+        value,
+        dataType,
+        dtype,
+        format,
+        locale,
+        datetimeInLocalTimezone,
+      })}
+    </>
+  );
+};
 
 export function renderCellValue<TData, TValue>({
   column,
@@ -651,11 +683,12 @@ export function renderCellValue<TData, TValue>({
       const date = new Date(value);
       const format = getDateFormat(value);
       return (
-        <WithLocale>
-          {(locale) =>
-            renderDate({ value: date, dataType, dtype, format, locale })
-          }
-        </WithLocale>
+        <DateCell
+          value={date}
+          dataType={dataType}
+          dtype={dtype}
+          format={format}
+        />
       );
     } catch (error) {
       Logger.error("Error parsing datetime, fallback to string", error);
@@ -672,11 +705,7 @@ export function renderCellValue<TData, TValue>({
     }
 
     // e.g. 2010-10-07 17:15:00
-    return (
-      <WithLocale>
-        {(locale) => renderDate({ value, dataType, dtype, locale })}
-      </WithLocale>
-    );
+    return <DateCell value={value} dataType={dataType} dtype={dtype} />;
   }
 
   if (typeof value === "string") {
