@@ -29,6 +29,33 @@ We support only a few CSS variables as part of the "public API" for theming. The
 --marimo-heading-font
 ```
 
+Code cell syntax highlighting can be customized with:
+
+```css
+--marimo-cm-foreground
+--marimo-cm-comment
+--marimo-cm-keyword
+--marimo-cm-string
+--marimo-cm-number
+--marimo-cm-atom
+--marimo-cm-operator
+--marimo-cm-function
+--marimo-cm-property
+--marimo-cm-class-name
+--marimo-cm-type-name
+--marimo-cm-tag-name
+--marimo-cm-attribute-name
+```
+
+Use `light-dark()` to set separate light and dark colors:
+
+```css
+:root {
+  --marimo-cm-keyword: light-dark(#d73a49, #ff79c6);
+  --marimo-cm-string: light-dark(#032f62, #f1fa8c);
+}
+```
+
 !!! warning "Other CSS Variables"
 
     We cannot guarantee that other CSS variables or classnames will be stable across versions.
