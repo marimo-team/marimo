@@ -271,6 +271,14 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  public sendUpdateQueryParams: RunRequests["sendUpdateQueryParams"] =
+    async (): Promise<null> => {
+      // Island sessions start with no query params (see worker/controller),
+      // so the host page's URL is never mirrored into the kernel.
+      Logger.debug("Query params are not synced in islands");
+      return null;
+    };
+
   public sendInstantiate: RunRequests["sendInstantiate"] =
     async (): Promise<null> => {
       return null;

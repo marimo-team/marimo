@@ -5,6 +5,7 @@ from typing import Any
 
 import msgspec
 
+from marimo._runtime.commands import SerializedQueryParams
 from marimo._types.ids import CellId_t, UIElementId
 
 
@@ -17,6 +18,10 @@ class UpdateUIElementValuesRequest(msgspec.Struct, rename="camel"):
         assert len(self.object_ids) == len(self.values), (
             "Mismatched object_ids and values"
         )
+
+
+class UpdateQueryParamsRequest(msgspec.Struct, rename="camel"):
+    query_params: SerializedQueryParams
 
 
 class InstantiateNotebookRequest(UpdateUIElementValuesRequest):

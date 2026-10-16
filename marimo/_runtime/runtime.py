@@ -114,6 +114,7 @@ from marimo._runtime.commands import (
     OutOfBandCommand,
     SetBreakpointsCommand,
     UpdateCellConfigCommand,
+    UpdateQueryParamsCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
 )
@@ -2008,6 +2009,42 @@ class Kernel:
     @kernel_tracer.start_as_current_span("set_user_config")
     def set_user_config(self, request: UpdateUserConfigCommand) -> None:
         self._update_runtime_from_user_config(request.config)
+
+    @kernel_tracer.start_as_current_span("update_query_params")
+    async def update_query_params(
+        self, request: UpdateQueryParamsCommand
+    ) -> None:
+        """Adopt the query params of a URL the browser restored.
+
+        The cells that bind `mo.query_params()` to a variable have a new
+        output, so they and everything downstream re-run (or are marked
+        stale in lazy mode), exactly as if those cells were run by hand.
+        That also covers readers that go through helper functions or
+        closures defined next to the binding. The frontend is not notified:
+        the URL is already correct.
+        """
+        # Same keys the session strips when the kernel starts.
+        params = {
+            key: value
+            for key, value in request.query_params.items()
+            if key not in QueryParams.IGNORED_KEYS
+        }
+        if params == self.query_params.to_dict():
+            # A hash-only navigation also fires popstate.
+            return
+        self.query_params._replace_all(params)
+
+        # Only public bindings survive in globals: a private `_params` is
+        # dropped after its cell runs, so it cannot be tracked, like an
+        # inline `mo.query_params().get(...)`.
+        binding_cells: set[CellId_t] = set()
+        for name, value in self.globals.items():
+            if value is self.query_params:
+                binding_cells |= self.graph.get_defining_cells(name)
+        if self.reactive_execution_mode == "autorun":
+            await self._run_cells(binding_cells)
+        else:
+            self.graph.set_stale(binding_cells)
 
     @kernel_tracer.start_as_current_span("set_ui_element_value")
     async def set_ui_element_value(

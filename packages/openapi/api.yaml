@@ -3283,6 +3283,7 @@ components:
           - $ref: '#/components/schemas/UpdateCellConfigCommand'
           - $ref: '#/components/schemas/InstallPackagesCommand'
           - $ref: '#/components/schemas/UpdateUIElementCommand'
+          - $ref: '#/components/schemas/UpdateQueryParamsCommand'
           - $ref: '#/components/schemas/ModelCommand'
           - $ref: '#/components/schemas/InvokeFunctionCommand'
           - $ref: '#/components/schemas/UpdateUserConfigCommand'
@@ -3330,6 +3331,7 @@ components:
               storage-list-entries: '#/components/schemas/StorageListEntriesCommand'
               sync-graph: '#/components/schemas/SyncGraphCommand'
               update-cell-config: '#/components/schemas/UpdateCellConfigCommand'
+              update-query-params: '#/components/schemas/UpdateQueryParamsCommand'
               update-ui-element: '#/components/schemas/UpdateUIElementCommand'
               update-user-config: '#/components/schemas/UpdateUserConfigCommand'
               validate-sql: '#/components/schemas/ValidateSQLCommand'
@@ -6421,6 +6423,51 @@ components:
       - previous
       title: UpdateManifestRequest
       type: object
+    UpdateQueryParamsCommand:
+      description: "Adopt the query parameters of the browser's current URL.\n\n \
+        \   Sent when the browser restores a URL the kernel did not set itself, such\
+        \ as\n    on back/forward navigation. The kernel replaces its `mo.query_params()`\n\
+        \    with these values and re-executes the cells that read them. The URL is\n\
+        \    already correct, so the kernel does not echo the change back.\n\n   \
+        \ Attributes:\n        query_params: Every query parameter of the restored\
+        \ URL. A key that\n            appears once maps to a string; a repeated key\
+        \ maps to a list.\n        request: HTTP request context if available."
+      properties:
+        queryParams:
+          additionalProperties:
+            anyOf:
+            - type: string
+            - items:
+                type: string
+              type: array
+          type: object
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        type:
+          enum:
+          - update-query-params
+      required:
+      - type
+      - queryParams
+      title: UpdateQueryParamsCommand
+      type: object
+    UpdateQueryParamsRequest:
+      properties:
+        queryParams:
+          additionalProperties:
+            anyOf:
+            - type: string
+            - items:
+                type: string
+              type: array
+          type: object
+      required:
+      - queryParams
+      title: UpdateQueryParamsRequest
+      type: object
     UpdateUIElementCommand:
       description: "Update UI element values.\n\n    Triggered when users interact\
         \ with UI elements (sliders, inputs, dropdowns, etc.).\n    Updates element\
@@ -8105,6 +8152,26 @@ paths:
                     type: string
                 type: object
           description: Successfully closed existing sessions
+  /api/kernel/update_query_params:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateQueryParamsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Adopt the query params of a URL the browser restored
   /api/lsp/health:
     get:
       responses:

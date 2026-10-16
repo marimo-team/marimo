@@ -35,6 +35,7 @@ import {
 } from "./cells/cells";
 import type { AppConfig, UserConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
+import { useSyncQueryParamsOnNavigation } from "./kernel/useSyncQueryParamsOnNavigation";
 import { getSessionId } from "./kernel/session";
 import { useTogglePresenting } from "./layout/useTogglePresenting";
 import { viewStateAtom } from "./mode";
@@ -82,6 +83,7 @@ export const EditApp: React.FC<AppProps> = ({
       RuntimeState.INSTANCE.stop();
     };
   }, []);
+  useSyncQueryParamsOnNavigation();
 
   const { connection, reconnect } = useMarimoKernelConnection({
     autoInstantiate: userConfig.runtime.auto_instantiate,

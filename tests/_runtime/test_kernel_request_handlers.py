@@ -7,10 +7,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from marimo._runtime.commands import (
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
+    HTTPRequest,
     ModelCommand,
     ModelUpdateMessage,
+    UpdateQueryParamsCommand,
 )
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._types.ids import WidgetModelId
@@ -41,6 +44,63 @@ async def test_nested_commands_complete_the_run_once(
     ]
     assert {m["run_id"] for m in messages if m["op"] == "cell-op"} == {"outer"}
     assert messages[-1]["op"] == "completed-run"
+
+
+async def test_update_query_params_delegates_and_completes_the_run(
+    mocked_kernel: MockedKernel,
+) -> None:
+    command = UpdateQueryParamsCommand(query_params={"tab": "b"})
+    with patch.object(
+        mocked_kernel.k, "update_query_params", new=AsyncMock()
+    ) as mock_update:
+        await KernelRequestHandlers(
+            mocked_kernel.k
+        )._handle_update_query_params(command)
+    mock_update.assert_awaited_once_with(command)
+    messages = MockStream(mocked_kernel.stream).operations
+    assert [m["op"] for m in messages] == ["completed-run"]
+
+
+async def test_update_query_params_exposes_the_http_request_to_cells(
+    mocked_kernel: MockedKernel,
+) -> None:
+    k = mocked_kernel.k
+    await k.run(
+        [
+            ExecuteCellCommand(cell_id="0", code="import marimo as mo"),
+            ExecuteCellCommand(cell_id="1", code="params = mo.query_params()"),
+            ExecuteCellCommand(
+                cell_id="2",
+                code=(
+                    "tab = params.get('tab')\n"
+                    "request = mo.app_meta().request\n"
+                    "user = request.user['username'] if request else None"
+                ),
+            ),
+        ]
+    )
+    assert k.globals["user"] is None
+
+    http_request = HTTPRequest(
+        url={},
+        base_url={},
+        headers={},
+        query_params={},
+        path_params={},
+        cookies={},
+        meta={},
+        user={"username": "ada"},
+    )
+    await KernelRequestHandlers(k)._handle_update_query_params(
+        UpdateQueryParamsCommand(
+            query_params={"tab": "b"}, request=http_request
+        )
+    )
+
+    # Same as a UI element update: cells re-run by this command see the
+    # request that triggered it (auth-gated apps read request.user).
+    assert k.globals["tab"] == "b"
+    assert k.globals["user"] == "ada"
 
 
 async def test_a_failed_command_flushes_before_completing(

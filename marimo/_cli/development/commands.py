@@ -471,6 +471,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.UpdateCellConfigRequest,
         models.NotebookDocumentTransactionRequest,
         models.FocusCellRequest,
+        session_requests.UpdateQueryParamsRequest,
         session_requests.UpdateUIElementValuesRequest,
         models.UpdateUIElementRequest,
         models.UpdateUserConfigRequest,

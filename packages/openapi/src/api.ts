@@ -2949,6 +2949,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/update_query_params": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["UpdateQueryParamsRequest"];
+        };
+      };
+      responses: {
+        /** @description Adopt the query params of a URL the browser restored */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/lsp/health": {
     parameters: {
       query?: never;
@@ -5821,6 +5862,7 @@ export interface components {
         | components["schemas"]["UpdateCellConfigCommand"]
         | components["schemas"]["InstallPackagesCommand"]
         | components["schemas"]["UpdateUIElementCommand"]
+        | components["schemas"]["UpdateQueryParamsCommand"]
         | components["schemas"]["ModelCommand"]
         | components["schemas"]["InvokeFunctionCommand"]
         | components["schemas"]["UpdateUserConfigCommand"]
@@ -7748,6 +7790,35 @@ export interface components {
       /** @default null */
       fileKey?: string | null;
       previous: string;
+    };
+    /**
+     * UpdateQueryParamsCommand
+     * @description Adopt the query parameters of the browser's current URL.
+     *
+     *         Sent when the browser restores a URL the kernel did not set itself, such as
+     *         on back/forward navigation. The kernel replaces its `mo.query_params()`
+     *         with these values and re-executes the cells that read them. The URL is
+     *         already correct, so the kernel does not echo the change back.
+     *
+     *         Attributes:
+     *             query_params: Every query parameter of the restored URL. A key that
+     *                 appears once maps to a string; a repeated key maps to a list.
+     *             request: HTTP request context if available.
+     */
+    UpdateQueryParamsCommand: {
+      queryParams: {
+        [key: string]: string | string[];
+      };
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      /** @enum {unknown} */
+      type: "update-query-params";
+    };
+    /** UpdateQueryParamsRequest */
+    UpdateQueryParamsRequest: {
+      queryParams: {
+        [key: string]: string | string[];
+      };
     };
     /**
      * UpdateUIElementCommand

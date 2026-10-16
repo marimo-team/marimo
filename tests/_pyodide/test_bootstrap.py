@@ -78,6 +78,27 @@ async def test_create_session_with_default_config(
     assert session.mode == SessionMode.EDIT
 
 
+async def test_create_session_strips_session_and_token_params(
+    mock_message_callback: Callable[[str], None],
+    mock_app_file: Path,
+) -> None:
+    session, _ = create_session(
+        filename=str(mock_app_file),
+        query_params={
+            "tab": "a",
+            "session_id": "s-1",
+            "access_token": "secret",
+            "refresh_token": "secret",
+        },
+        message_callback=mock_message_callback,
+        user_config=DEFAULT_CONFIG,
+    )
+
+    # Same keys the server strips, so a later sync from the browser URL
+    # compares against the same set.
+    assert session.app_metadata.query_params == {"tab": "a"}
+
+
 async def test_create_session_with_script_config(
     mock_message_callback: Callable[[str], None],
     mock_app_file_with_script_config: Path,

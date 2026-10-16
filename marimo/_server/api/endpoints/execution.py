@@ -14,7 +14,11 @@ from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
-from marimo._runtime.commands import HTTPRequest, UpdateUIElementCommand
+from marimo._runtime.commands import (
+    HTTPRequest,
+    UpdateQueryParamsCommand,
+    UpdateUIElementCommand,
+)
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     FILE_QUERY_PARAM_KEY,
@@ -47,6 +51,7 @@ from marimo._session.consumer_policy import (
 )
 from marimo._session.requests import (
     InstantiateNotebookRequest,
+    UpdateQueryParamsRequest,
     UpdateUIElementValuesRequest,
 )
 from marimo._session.types import KernelState
@@ -96,6 +101,47 @@ async def set_ui_element_values(
         object_ids=body.object_ids,
         values=body.values,
         token=str(uuid4()),
+        request=HTTPRequest.from_request(request),
+    )
+    enforce_consumer_capability(app_state, command)
+    app_state.require_current_session().put_control_request(
+        command,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
+
+    return SuccessResponse()
+
+
+@router.post("/update_query_params")
+@requires("read")
+async def update_query_params(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/UpdateQueryParamsRequest"
+    responses:
+        200:
+            description: Adopt the query params of a URL the browser restored
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=UpdateQueryParamsRequest)
+    command = UpdateQueryParamsCommand(
+        query_params=body.query_params,
         request=HTTPRequest.from_request(request),
     )
     enforce_consumer_capability(app_state, command)
