@@ -183,6 +183,40 @@ describe("notebookStateFromSession", () => {
       });
     });
 
+    it("restores matching code from the session", () => {
+      const code = "raise ValueError('cached failure')";
+      const session = createSession([
+        createSessionCell(
+          "cell-1",
+          [
+            {
+              type: "error",
+              ename: "ValueError",
+              evalue: "cached failure",
+              traceback: ["Traceback\n", "ValueError: cached failure"],
+              code,
+            },
+          ],
+          [
+            {
+              type: "stream",
+              name: "stderr",
+              text: "<pre>ValueError: cached failure</pre>",
+              mimetype: "application/vnd.marimo+traceback",
+              code,
+            },
+          ],
+        ),
+      ]);
+      const state = notebookStateFromSession(session, null);
+      invariant(state, "state is null");
+      expect(state.cellRuntime[CELL_1].output).toMatchObject({
+        code,
+        data: [{ type: "unknown", msg: "cached failure" }],
+      });
+      expect(state.cellRuntime[CELL_1].consoleOutputs[0].code).toBe(code);
+    });
+
     it("handles data output in session cell", () => {
       const dataOutput = {
         type: "data" as const,

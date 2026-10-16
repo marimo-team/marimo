@@ -3984,6 +3984,36 @@ export interface components {
     AnthropicConfig: {
       api_key?: string;
     };
+    /** Attachment */
+    Attachment: {
+      /** @description Identifies an attachment. Unique within the host. */
+      id: string;
+      /** @description The opaque client identity supplied by `Marimo-Attachment-Identity`.
+       *     Omitted when none was supplied. Consumers can group attachments
+       *     with the same identity within a host. It does not identify an
+       *     individual connection or change its lifetime.
+       *      */
+      identity?: string;
+      /** @description What kind of thing is attached, supplied by `Marimo-Attachment-Kind`, such as `browser`, `editor`, or `agent`. Defaults to `client` when the header is omitted. Clients accept kinds they do not recognize. */
+      kind: string;
+      name: string | null;
+      /** @description Identifies a notebook. Unique within the host and unchanged while the notebook exists. */
+      notebook_id: string;
+      /** @description When it attached. */
+      since: string;
+    };
+    /**
+     * AttachmentsNotification
+     * @description Replace the current list of attachments on this Session.
+     *
+     *         Args:
+     *             attachments (list[Attachment]): Full list of live attachments.
+     */
+    AttachmentsNotification: {
+      attachments: components["schemas"]["Attachment"][];
+      /** @enum {unknown} */
+      op: "attachments";
+    };
     /** AutoExportAsIPYNBRequest */
     AutoExportAsIPYNBRequest: {
       download: boolean;
@@ -4166,6 +4196,7 @@ export interface components {
     /** CellOutput */
     CellOutput: {
       channel: components["schemas"]["CellChannel"];
+      code?: string;
       data:
         | string
         | (
@@ -5876,7 +5907,8 @@ export interface components {
         | components["schemas"]["FocusCellNotification"]
         | components["schemas"]["ActiveLineNotification"]
         | components["schemas"]["NotebookDocumentTransactionNotification"]
-        | components["schemas"]["ConsumerCapabilitiesNotification"];
+        | components["schemas"]["ConsumerCapabilitiesNotification"]
+        | components["schemas"]["AttachmentsNotification"];
     };
     /**
      * LanguageServersConfig

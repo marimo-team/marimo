@@ -5,14 +5,17 @@ import asyncio
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import msgspec
 import pytest
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 from marimo._config.config import ExperimentalConfig
 from marimo._config.manager import MarimoConfigManager
+from marimo._core.host import Host
 from marimo._messaging.notification import (
+    CellNotification,
     EnvironmentOperationNotification,
     KernelReadyNotification,
     OperationSucceeded,
@@ -25,10 +28,17 @@ from marimo._server.api.endpoints.ws.ws_connection_validator import (
 from marimo._server.api.endpoints.ws.ws_session_connector import ConnectionType
 from marimo._server.api.endpoints.ws_endpoint import WebSocketHandler
 from marimo._server.codes import WebSocketCodes
+from marimo._server.host.context import HostContext
 from marimo._server.session_manager import SessionManager
 from marimo._session.model import ConnectionState, SessionMode
-from marimo._types.ids import SessionId
+from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.parse_dataclass import parse_raw
+from tests._core.conftest import (
+    ScriptedBackend,
+    add_notebook,
+    project,
+    record,
+)
 from tests._server.api.endpoints.ws_helpers import (
     HEADERS,
     assert_kernel_ready_response,
@@ -192,6 +202,58 @@ def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({"resumed": True}))
         assert manager.sessions[SessionId("456")].stable_id == stable_id
+
+
+@pytest.mark.parametrize("attachment_state", ["attached", "detached", "empty"])
+@pytest.mark.parametrize("url", [WS_URL, OTHER_WS_URL])
+async def test_reconnect_restores_current_attachments(
+    client: TestClient, attachment_state: str, url: str
+) -> None:
+    manager = get_session_manager(client)
+    with client.websocket_connect(WS_URL) as websocket:
+        assert_kernel_ready_response(websocket.receive_json())
+    session = manager.sessions[SessionId("123")]
+    host = Host(operations=[])
+    host.update_project(project())
+    notebook = await add_notebook(host, record(), ScriptedBackend())
+    bridge = Mock()
+    bridge.notebook_for_session.return_value = notebook
+    client.app.state.host_context = HostContext(bridge, "host-token", 2718)
+    attachment = None
+    if attachment_state != "empty":
+        attachment = notebook.attach(
+            kind="agent", identity="agent-1", name="Test Agent"
+        )
+        if attachment_state == "detached":
+            notebook.detach(attachment.id)
+    session.session_view.add_notification(
+        StartupProgressNotification(
+            phase="starting-kernel", logs="Done\n", log_mode="replace"
+        )
+    )
+    session.session_view.add_notification(
+        CellNotification(cell_id=CellId_t("replay-marker"), status="idle")
+    )
+
+    last_op = "startup-progress" if url == WS_URL else "cell-op"
+    with client.websocket_connect(url) as websocket:
+        messages = [websocket.receive_json()]
+        while messages[-1]["op"] != last_op:
+            messages.append(websocket.receive_json())
+        snapshots = [m for m in messages if m["op"] == "attachments"]
+        assert snapshots == [
+            {
+                "op": "attachments",
+                "data": {
+                    "op": "attachments",
+                    "attachments": (
+                        [msgspec.json.decode(msgspec.json.encode(attachment))]
+                        if attachment_state == "attached"
+                        else []
+                    ),
+                },
+            }
+        ]
 
 
 def test_completed_startup_is_restored_on_reconnect_and_refresh(
@@ -450,8 +512,12 @@ async def test_connects_to_existing_session_with_same_file(
         with client.websocket_connect(ws_1) as websocket1:
             data = websocket1.receive_json()
             assert_parse_ready_response(data)
-            for _ in range(2):
-                assert websocket1.receive_json()["op"] == "environment-state"
+            for op in (
+                "attachments",
+                "environment-state",
+                "environment-state",
+            ):
+                assert websocket1.receive_json()["op"] == op
 
             # Instantiate the session
             client.post(
@@ -475,10 +541,12 @@ async def test_connects_to_existing_session_with_same_file(
                 # which the room membership is observable.
                 data2 = websocket2.receive_json()
                 assert_parse_ready_response(data2)
-                for _ in range(2):
-                    assert (
-                        websocket2.receive_json()["op"] == "environment-state"
-                    )
+                for op in (
+                    "attachments",
+                    "environment-state",
+                    "environment-state",
+                ):
+                    assert websocket2.receive_json()["op"] == op
 
                 assert data2["data"]["resumed"] is True
 

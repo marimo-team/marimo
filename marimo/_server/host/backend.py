@@ -18,7 +18,7 @@ from marimo._messaging.notification import (
     StartupProgressNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
-from marimo._runtime.commands import ExecuteScratchpadCommand
+from marimo._runtime.commands import ExecuteScratchpadCommand, HTTPRequest
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.translate import RunTranslator
 from marimo._server.scratchpad import snapshot_for_scratchpad
@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from marimo._server.session_manager import SessionManager
     from marimo._session.events import SessionEventBus
     from marimo._session.session import Session
+    from marimo._types.encodable import Encodable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -43,6 +44,7 @@ _PHASES = {
 }
 
 Observe = Callable[[be.Message], None]
+RequestMetadata = Callable[["Session"], dict[str, "Encodable"]]
 
 
 @dataclass
@@ -76,12 +78,15 @@ class SessionBackend(SessionConsumer):
         file: Callable[[], str | None],
         manager: SessionManager,
         observe: Observe,
+        *,
+        request_metadata: RequestMetadata | None = None,
     ) -> None:
         self._notebook_id = notebook_id
         self._file = file
         """Resolve the notebook's current path after file moves."""
         self._manager = manager
         self._observe = observe
+        self._request_metadata = request_metadata
         self._kernel: _Kernel | None = None
         self._run: _Run | None = None
         self._translators: dict[str, RunTranslator] = {}
@@ -167,12 +172,34 @@ class SessionBackend(SessionConsumer):
                 http_request=None,
             )
             cells, outputs = snapshot_for_scratchpad(session)
+            request = None
+            if self._request_metadata is not None:
+                # Host runs have no HTTP origin. Give the URL fields the same
+                # keys a real request has so notebook code can read them.
+                empty_url: dict[str, Encodable] = {
+                    "path": "",
+                    "port": None,
+                    "scheme": "",
+                    "netloc": "",
+                    "query": "",
+                    "hostname": None,
+                }
+                request = HTTPRequest(
+                    url=dict(empty_url),
+                    base_url=dict(empty_url),
+                    headers={},
+                    query_params={},
+                    path_params={},
+                    cookies={},
+                    user=None,
+                    meta=self._request_metadata(session),
+                )
             run.submitted = True
             self._translators[run.translator.run_id] = run.translator
             session.put_control_request(
                 ExecuteScratchpadCommand(
                     code=code,
-                    request=None,
+                    request=request,
                     notebook_cells=cells,
                     cell_outputs=outputs,
                     run_id=run.translator.run_id,
