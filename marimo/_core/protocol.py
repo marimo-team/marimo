@@ -901,7 +901,7 @@ class Document(Struct, frozen=True):
     policy: Annotated[
         Literal["autorun", "lazy"],
         Meta(
-            description="When dependents of an evaluated cell run. `autorun` runs them on every change; `lazy` marks them stale and runs them when asked. Set by the host."
+            description="When dependents of an evaluated cell run. `autorun` runs them on every change; `lazy` leaves them for a later run. Set by the host."
         ),
     ]
     saved_etag: (
@@ -1439,15 +1439,6 @@ class Execution(Struct, frozen=True):
             RuntimeId,
             Meta(
                 description="The runtime that produced this execution. Live when it equals the current runtime's id. Null when the producer is unknown."
-            ),
-        ]
-        | None
-    )
-    stale: (
-        Annotated[
-            bool,
-            Meta(
-                description="Whether an input changed since this result was produced. Null for scratch code, which has no inputs in the graph."
             ),
         ]
         | None

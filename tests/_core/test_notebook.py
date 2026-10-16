@@ -608,7 +608,6 @@ class TestRun:
                     ),
                     run_id=run.id,
                     runtime_id=notebook.runtime.id,
-                    stale=None,
                     started_at=IsDatetime(),
                     status="completed",
                 ),

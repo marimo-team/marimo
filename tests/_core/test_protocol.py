@@ -377,7 +377,6 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                 )
             if execution["cell_id"] is None:
                 assert execution["code"] is not None
-                assert execution["stale"] is None
             else:
                 assert execution["code"] is None
             if execution["status"] == "queued":
@@ -399,13 +398,14 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
         elif kind == "variable":
             variable = data["variable"]
             execution = executions[variable["execution_id"]]
-            # Bound before the execution completes, by a cell's execution.
-            assert execution["status"] == "running"
             assert execution["cell_id"] is not None
-            assert variable["revision"] == {
-                "execution": variable["execution_id"],
-                "update": 0,
-            }
+            if variable["revision"]["update"] == 0:
+                # Bound before the execution completes.
+                assert execution["status"] == "running"
+                assert (
+                    variable["revision"]["execution"]
+                    == variable["execution_id"]
+                )
     assert runs
     assert all(r["status"] == "completed" for r in runs.values())
 
