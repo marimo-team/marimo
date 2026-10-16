@@ -395,6 +395,68 @@ describe("Plotly camera persistence", () => {
     );
   });
 
+  it("keeps a 3D camera when only a 2D trace changes", async () => {
+    const withCartesian = (type: Plotly.PlotType) => {
+      const data = figure();
+      data.data = [
+        { type: "surface", z: [[1]] },
+        { type, x: [1], y: [1] },
+      ];
+      return data;
+    };
+    const chart = mountChart(withCartesian("scatter"));
+    await waitFor(() => expect(plotProps).toBeDefined());
+    moveCamera();
+    act(() => chart.resetValue());
+    chart.update(withCartesian("bar"));
+    await waitFor(() =>
+      expect(plotProps?.layout.scene?.camera).toEqual(movedCamera),
+    );
+  });
+
+  it.each(["layout", "scene"])(
+    "restores the camera with a boolean %s uirevision",
+    async (level) => {
+      const data = figure(undefined);
+      const target = level === "layout" ? data.layout : data.layout.scene;
+      if (!target) {
+        throw new Error("Missing scene layout");
+      }
+      // @types/plotly.js omits boolean revisions, which Plotly accepts.
+      Reflect.set(target, "uirevision", true);
+      const chart = mountChart(data);
+      await waitFor(() => expect(plotProps).toBeDefined());
+      moveCamera();
+      chart.unmount();
+      mountChart(data, chart.getValue());
+      await waitFor(() =>
+        expect(plotProps?.layout.scene?.camera).toEqual(movedCamera),
+      );
+    },
+  );
+
+  it("drops a persisted camera after the revision changes and changes back without a reset", async () => {
+    const chart = mountChart(figure("a"));
+    await waitFor(() => expect(plotProps).toBeDefined());
+    moveCamera();
+    chart.update(figure("b"));
+    await waitFor(() => expect(chart.getValue()?.cameras).toEqual({}));
+    chart.update(figure("a"));
+    expect(plotProps?.layout.scene?.camera).toEqual(initialCamera);
+
+    const event: Plotly.PlotRelayoutEvent & Record<string, unknown> = {
+      "scene.camera.eye.x": 4,
+    };
+    act(() => plotProps?.onRelayout?.(event));
+    chart.unmount();
+    mountChart(figure("a"), chart.getValue());
+    await waitFor(() =>
+      expect(plotProps?.layout.scene?.camera).toEqual({
+        eye: { x: 4, y: 1, z: 1 },
+      }),
+    );
+  });
+
   it("reset restores the configured camera and clears its persisted state", async () => {
     const chart = mountChart(figure());
     await waitFor(() => expect(plotProps).toBeDefined());

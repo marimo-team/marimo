@@ -9,7 +9,7 @@ import type { Figure } from "./Plot";
 import "./plotly.css";
 import "./mapbox.css";
 import { set } from "lodash-es";
-import { type JSX, lazy, memo, useMemo } from "react";
+import { type JSX, lazy, memo, useEffect, useMemo } from "react";
 import useEvent from "react-use-event-hook";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useScript } from "@/hooks/useScript";
@@ -27,7 +27,11 @@ import {
   shouldHandleClickSelection,
 } from "./selection";
 import { usePlotlyLayout } from "./usePlotlyLayout";
-import { captureCameraState, type PlotlyCameraState } from "./camera-state";
+import {
+  captureCameraState,
+  type PlotlyCameraState,
+  pruneCameraState,
+} from "./camera-state";
 
 interface Data {
   figure: Figure;
@@ -104,6 +108,21 @@ export const PlotlyComponent = memo(
         cameraState: value?.cameras,
         isScriptLoaded,
       });
+
+    // A stale camera left in the value would come back on the next capture or
+    // remount, even after the figure returns to the revision it was saved at.
+    const pruneStaleCameras = useEvent((figure: Figure) => {
+      if (pruneCameraState(figure, value?.cameras) === value?.cameras) {
+        return;
+      }
+      setValue((prev) => {
+        const cameras = pruneCameraState(figure, prev?.cameras);
+        return cameras === prev?.cameras ? prev : { ...prev, cameras };
+      });
+    });
+    useEffect(() => {
+      pruneStaleCameras(originalFigure);
+    }, [originalFigure, pruneStaleCameras]);
 
     const handleResetWithClear = useEvent(() => {
       handleReset();

@@ -7,10 +7,11 @@ import { z } from "zod";
 import type { Figure } from "./Plot";
 
 type SceneKey = Extract<keyof Plotly.Layout, "scene" | `scene${number}`>;
+type Revision = string | number | boolean;
 
 interface CameraState {
   camera: Partial<Plotly.Camera>;
-  revision: string | number;
+  revision: Revision;
   initialCamera: Partial<Plotly.Camera> | undefined;
   traceTypes: string[];
 }
@@ -29,23 +30,38 @@ function isSceneKey(key: string): key is SceneKey {
   return /^scene(?:[2-9]\d*|1\d+)?$/.test(key);
 }
 
+// Plotly's gl3d trace types; every other trace lives outside 3D scenes.
+const SCENE_TRACE_TYPES = new Set<string>([
+  "cone",
+  "isosurface",
+  "mesh3d",
+  "scatter3d",
+  "streamtube",
+  "surface",
+  "volume",
+]);
+
 function traceTypes(figure: Figure, scene: SceneKey): string[] {
-  return figure.data
-    .filter(
-      (trace) =>
-        ("scene" in trace ? (trace.scene ?? "scene") : "scene") === scene,
-    )
-    .map((trace) => trace.type ?? "scatter");
+  return figure.data.flatMap((trace) => {
+    const type = trace.type ?? "scatter";
+    const destination = "scene" in trace ? (trace.scene ?? "scene") : "scene";
+    return SCENE_TRACE_TYPES.has(type) && destination === scene ? [type] : [];
+  });
 }
 
-function cameraRevision(layout: Partial<Plotly.Layout>, scene: SceneKey) {
+function cameraRevision(
+  layout: Partial<Plotly.Layout>,
+  scene: SceneKey,
+): Revision | undefined {
   const sceneLayout = layout[scene];
   // Scene uirevision is supported by Plotly but missing from @types/plotly.js.
   const revision =
     sceneLayout && "uirevision" in sceneLayout
       ? (sceneLayout.uirevision ?? layout.uirevision)
       : layout.uirevision;
-  return typeof revision === "string" || typeof revision === "number"
+  return typeof revision === "string" ||
+    typeof revision === "number" ||
+    typeof revision === "boolean"
     ? revision
     : undefined;
 }
@@ -86,9 +102,8 @@ export function pruneCameraState(
 export function captureCameraState(
   figure: Figure,
   event: Plotly.PlotRelayoutEvent,
-  previousCameras: PlotlyCameraState = {},
+  previous: PlotlyCameraState = {},
 ): PlotlyCameraState | undefined {
-  const previous = pruneCameraState(figure, previousCameras) ?? {};
   const updates: PlotlyCameraState = {};
   const restoredLayout = restoreCameraLayout(figure, previous);
   for (const [key, value] of Object.entries(event)) {
