@@ -21,6 +21,7 @@ from marimo import _loggers
 from marimo._core import protocol
 from marimo._core.errors import (
     Conflict,
+    DecisionRequired,
     EditConflict,
     Invalid,
     NoRuntime,
@@ -75,6 +76,7 @@ _TITLES = {
     "method-not-allowed": "Method not allowed",
     "conflict": "Conflict",
     "no-runtime": "No runtime",
+    "decision-required": "Decision required",
     "unsupported-operation": "Unsupported operation",
     "internal": "Internal error",
 }
@@ -94,12 +96,14 @@ def problem(
     detail: str | None = None,
     *,
     edit: protocol.EditConflict | None = None,
+    decisions: tuple[protocol.Decision, ...] | None = None,
 ) -> Response:
     """Return a protocol error as an HTTP problem response.
 
     Without a kind, the status picks one. A status this protocol does
     not name is a server bug, so it becomes a 500 rather than a problem
-    of an unknown kind. A conflict over an edit carries `edit`.
+    of an unknown kind. A conflict over an edit carries `edit`, and a
+    request that needs a choice first carries `decisions`.
     """
     kind = _HTTP_KINDS.get(status) if kind is None else kind
 
@@ -112,6 +116,7 @@ def problem(
         status=status,
         detail=msgspec.UNSET if detail is None else detail,
         edit=msgspec.UNSET if edit is None else edit,
+        decisions=msgspec.UNSET if decisions is None else decisions,
     )
     return Response(
         msgspec.json.encode(body),
@@ -129,6 +134,7 @@ def build_app() -> Router:
         Route("/notebooks/{id}", _delete_notebook, methods=["DELETE"]),
         Route("/notebooks/{id}/events", _notebook_events, methods=["GET"]),
         Route("/notebooks/{id}/edits", _edit_notebook, methods=["POST"]),
+        Route("/notebooks/{id}/save", _save_notebook, methods=["POST"]),
         Route("/notebooks/{id}/open", _open_notebook, methods=["POST"]),
         Route("/notebooks/{id}/runtime", _start_runtime, methods=["PUT"]),
         Route("/notebooks/{id}/runtime", _stop_runtime, methods=["DELETE"]),
@@ -201,7 +207,12 @@ def _mutation(operation: str) -> Callable[[_Endpoint], _Endpoint]:
                     400, "invalid-request", "Idempotency-Key is required"
                 )
             digest = hashlib.sha256(await request.body()).hexdigest()
-            fingerprint = f"{request.method} {request.url.path} {digest}"
+            # A precondition is part of the request, so a retry that
+            # names another revision is another request.
+            if_match = request.headers.get("If-Match", "")
+            fingerprint = (
+                f"{request.method} {request.url.path} {digest} {if_match}"
+            )
             remembered = context.remembered(key)
             if remembered is not None:
                 if remembered.fingerprint != fingerprint:
@@ -352,6 +363,8 @@ async def _execute_mutation(endpoint: _Endpoint, request: Request) -> Response:
         return await endpoint(request)
     except NoRuntime as e:
         return problem(409, "no-runtime", str(e))
+    except DecisionRequired as e:
+        return problem(409, "decision-required", str(e), decisions=e.decisions)
     except EditConflict as e:
         return problem(
             409,
@@ -616,6 +629,39 @@ async def _edit_notebook(request: Request) -> Response:
         notebook.id, body.changes, request_id=key
     )
     return _reply(200, response)
+
+
+@_mutation("notebook.save")
+async def _save_notebook(request: Request) -> Response:
+    """Write the document to its file; 409 with `edit` when `If-Match` is stale."""
+    context = _context(request)
+    key = request.headers["Idempotency-Key"]
+    notebook = await _notebook(request)
+    body = await _decode(request, protocol.SaveRequest)
+    response = await context.bridge.save(
+        notebook.id,
+        if_match=_if_match(request.headers.get("If-Match")),
+        decisions={} if body.decisions is msgspec.UNSET else body.decisions,
+        request_id=key,
+    )
+    return _reply(200, response)
+
+
+def _if_match(header: str | None) -> tuple[str, ...] | None:
+    """The etags an `If-Match` header accepts, or `None` when it accepts any.
+
+    The header is `*` or a comma-separated list of entity tags, each
+    optionally quoted. `If-Match` compares strongly (RFC 9110, 13.1.1),
+    so a tag marked weak with `W/` never matches and is left out.
+    """
+    if header is None or header.strip() == "*":
+        return None
+    tags = []
+    for part in header.split(","):
+        tag = part.strip()
+        if tag and not tag.startswith("W/"):
+            tags.append(tag.strip('"'))
+    return tuple(tags)
 
 
 @_mutation("notebook.open")

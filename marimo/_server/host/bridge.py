@@ -4,13 +4,21 @@
 from __future__ import annotations
 
 import asyncio
+import copy
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._config.manager import ScriptConfigReader
 from marimo._core import protocol
 from marimo._core.document import CellSource, Document, revision
-from marimo._core.errors import Conflict, NotFound
+from marimo._core.errors import (
+    Conflict,
+    DecisionRequired,
+    EditConflict,
+    Invalid,
+    NotFound,
+)
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -21,24 +29,78 @@ from marimo._server.host.backend import SessionBackend
 from marimo._server.host.index import WorkspaceIndex
 from marimo._session.events import SessionEventListener
 from marimo._session.notebook.storage import rename_no_replace
+from marimo._utils.generated_with import (
+    contents_differ_excluding_generated_with,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
     from pathlib import Path
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
-    from marimo._core.document import Policy
+    from marimo._core.document import Changed, Policy
     from marimo._core.stream import Event, Sink
+    from marimo._messaging.notebook import NotebookCell
     from marimo._server.session_manager import SessionManager
+    from marimo._session.notebook import AppFileManager
     from marimo._session.session import Session
 
 LOGGER = _loggers.marimo_logger()
 
+_FILE_CHANGED = protocol.Decision(
+    id="file",
+    prompt="The notebook file changed outside marimo. Overwrite it with the document, or reload the document from it?",
+    options=(
+        protocol.DecisionOption(id="overwrite", label="Overwrite the file"),
+        protocol.DecisionOption(id="reload", label="Reload from the file"),
+    ),
+)
+
+
+@dataclass(frozen=True)
+class _FileContents:
+    """A notebook file as read: its text and the document it parses to."""
+
+    text: str
+    cells: list[CellSource]
+    app_config: dict[str, Any]
+
+
+def _read_text(file: Path) -> str:
+    return file.read_text(encoding="utf-8")
+
+
+def _texts_differ(text: str, baseline: str) -> bool:
+    """Whether two notebook texts differ, as the editor's watcher judges it."""
+    if text.strip() == baseline.strip():
+        return False
+    return contents_differ_excluding_generated_with(text, baseline)
+
+
+def _etags(
+    changed: Changed, document: protocol.Document
+) -> protocol.EditResponse:
+    """An edit response for a replacement, with etags for what changed."""
+    cells: dict[str, protocol.CellEtags | None] = {
+        cell.id: protocol.CellEtags(etag=cell.etag, code_hash=cell.code_hash)
+        for cell in changed.cells
+    }
+    for cell_id in changed.removed:
+        cells[cell_id] = None
+    return protocol.EditResponse(document=document, cells=cells)
+
+
+def _running_loop() -> asyncio.AbstractEventLoop | None:
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+
 
 # NB: The host keeps a separate document to avoid migrating the frontend yet.
 # Editor changes are mirrored into it; host edits become session transactions.
-# Remove this adapter when MO-8002 unifies document ownership after host saving.
+# TODO(MO-7927): Remove this adapter when Session consumes the host Notebook.
 class SessionBridge(SessionEventListener):
     """Connect a host's notebook catalog to a session manager."""
 
@@ -50,6 +112,12 @@ class SessionBridge(SessionEventListener):
         self._manager = manager
         self._config_manager = config_manager
         self._files_lock = asyncio.Lock()
+        self._saving: set[protocol.NotebookId] = set()
+        # TODO(MO-8005): The writer owns this baseline once there is one
+        # per notebook file; the host keeps it only while it owns the file.
+        self._file_texts: dict[protocol.NotebookId, str] = {}
+        """Each file's text as the host last read or wrote it, without a session."""
+        self._rebaselining: dict[protocol.NotebookId, asyncio.Task[None]] = {}
         self._adopting: dict[protocol.NotebookId, Session] = {}
         self.host = Host(operations=OPERATIONS)
         self._backends: dict[protocol.NotebookId, SessionBackend] = {}
@@ -100,7 +168,8 @@ class SessionBridge(SessionEventListener):
             else:
                 if loaded is None:
                     raise Conflict("The notebook document could not be loaded")
-                cells, app_config = loaded
+                cells, app_config = loaded.cells, loaded.app_config
+                self._file_texts[record.id] = loaded.text
             document = Document(
                 record.id,
                 cells,
@@ -109,7 +178,7 @@ class SessionBridge(SessionEventListener):
                 saved=session is None,
             )
             if session is not None and loaded is not None:
-                document.mark_saved(revision(*loaded))
+                document.mark_saved(revision(loaded.cells, loaded.app_config))
             backend = self._make_backend(record.id)
             return Notebook(
                 document,
@@ -119,17 +188,24 @@ class SessionBridge(SessionEventListener):
                 analyzer=HostAnalyzer(),
             )
 
-    async def _load(
-        self, file: Path
-    ) -> tuple[list[CellSource], dict[str, Any]] | None:
+    async def _load(self, file: Path) -> _FileContents | None:
         """Read a notebook file, or return `None` if it cannot be loaded."""
         try:
-            return await asyncio.to_thread(self._read, str(file))
+            return await asyncio.to_thread(self._read, file)
         except Exception as e:
             LOGGER.warning("Could not load %s: %s", file, e)
             return None
 
-    def _read(self, path: str) -> tuple[list[CellSource], dict[str, Any]]:
+    def _read(self, file: Path) -> _FileContents:
+        # The text is read first, so that a change landing between the
+        # two reads makes the next save ask rather than overwrite.
+        text = _read_text(file)
+        cells, app_config = documents.from_file_manager(
+            self._file_manager(str(file))
+        )
+        return _FileContents(text, cells, app_config)
+
+    def _file_manager(self, path: str) -> AppFileManager:
         from marimo._server.app_defaults import AppDefaults
         from marimo._session.notebook import AppFileManager
 
@@ -138,9 +214,166 @@ class SessionBridge(SessionEventListener):
             if self._config_manager is None
             else AppDefaults.from_config_manager(self._config_manager)
         )
-        return documents.from_file_manager(
-            AppFileManager(path, defaults=defaults)
+        return AppFileManager(path, defaults=defaults)
+
+    async def save(
+        self,
+        notebook_id: str,
+        *,
+        if_match: Sequence[str] | None,
+        decisions: Mapping[str, str] | None = None,
+        request_id: str,
+    ) -> protocol.EditResponse:
+        """Write the document to its file and record the revision written.
+
+        With a session attached, the session's own file manager writes
+        the session's cells, which the document mirrors. Its record of
+        the last write then stays true, so its watcher does not take the
+        host's write for someone else's and its next write is not
+        skipped as unchanged. Without a session, a file manager of the
+        host's own writes the document's cells. Either way the file
+        keeps its header and app config, and the saved revision is
+        computed from the cells and config that were written rather
+        than taken from the document, which may have moved on.
+
+        Without a session, the host owns the file and keeps its text as
+        last read or written. A file whose text differs from that is
+        not overwritten until the client decides to, or asks to reload
+        the document from it instead. With a session, the editor owns
+        the file and watches it itself.
+
+        Raises:
+            Conflict: If the notebook has no file or the write fails.
+            EditConflict: If `if_match` does not name the document's etag,
+                or the document changed while the file was being read
+                for a reload.
+            DecisionRequired: If the file changed and `decisions` has no
+                answer for it.
+            Invalid: If `decisions` has an answer this host does not offer.
+        """
+        notebook = await self.host.notebook(notebook_id)
+        async with self._files_lock:
+            if self.host.peek_notebook(notebook_id) is not notebook:
+                raise NotFound(f"no notebook {notebook_id}")
+            file = self.index.file_of(notebook.id)
+            if file is None:
+                raise Conflict("The notebook has no file to save to")
+            # Check and snapshot only after waiting for the file lock.
+            snapshot = notebook.document.snapshot()
+            if if_match is not None and snapshot.document.etag not in if_match:
+                raise EditConflict(
+                    "The document has changed since it was read",
+                    change=0,
+                    cell=None,
+                    document=snapshot.document,
+                )
+            session = self._session_of(notebook.id)
+            if session is None and await self._file_changed(notebook.id, file):
+                answer = (decisions or {}).get(_FILE_CHANGED.id)
+                if answer is None:
+                    raise DecisionRequired(
+                        "The file changed outside marimo",
+                        decisions=(_FILE_CHANGED,),
+                    )
+                if answer == "reload":
+                    return await self._reload(
+                        notebook, file, snapshot.document, request_id
+                    )
+                if answer != "overwrite":
+                    raise Invalid(
+                        f"{answer!r} is not an option for {_FILE_CHANGED.id}"
+                    )
+            # TODO(MO-8005): Move persistence to the notebook, with sessions
+            # consuming its events. Until then, save_from_cells on an attached
+            # session can replace a concurrent edit with this older snapshot.
+            # The notebook's writer must persist snapshots without mutating
+            # the live document; cover attached-session edits during a save.
+            if session is None:
+                cells = [documents.to_notebook_cell(c) for c in snapshot.cells]
+                manager = None
+            else:
+                cells = copy.deepcopy(session.document.cells)
+                manager = session.app_file_manager
+            self._saving.add(notebook.id)
+            try:
+                etag, text = await asyncio.to_thread(
+                    self._write, str(file), cells, manager
+                )
+            except Exception as e:
+                raise Conflict(f"The notebook cannot be saved: {e}") from e
+            finally:
+                self._saving.discard(notebook.id)
+            if session is None:
+                self._file_texts[notebook.id] = text
+            document = notebook.mark_saved(etag, request_id=request_id)
+            return protocol.EditResponse(document=document, cells={})
+
+    def _write(
+        self,
+        path: str,
+        cells: Sequence[NotebookCell],
+        manager: AppFileManager | None,
+    ) -> tuple[protocol.Etag, str]:
+        """Write `cells` to the file; return the revision and text written.
+
+        The revision covers the cells as passed and the app config the
+        manager wrote, not the manager's live cells, which another
+        thread may change while the file is written.
+        """
+        if manager is None:
+            manager = self._file_manager(path)
+        text = manager.save_from_cells(cells)
+        etag = revision(
+            documents.sources(cells), manager.app.config.asdict_difference()
         )
+        return etag, text
+
+    async def _file_changed(
+        self, notebook_id: protocol.NotebookId, file: Path
+    ) -> bool:
+        """Whether the file's text differs from what the host last read or wrote.
+
+        Without a baseline, require a decision. A failed read cannot
+        establish that overwriting the file is safe, so refuse the save.
+        """
+        pending = self._rebaselining.get(notebook_id)
+        if pending is not None:
+            await pending
+            self._rebaselining.pop(notebook_id, None)
+        baseline = self._file_texts.get(notebook_id)
+        if baseline is None:
+            return True
+        try:
+            text = await asyncio.to_thread(_read_text, file)
+        except (OSError, UnicodeError) as e:
+            raise Conflict("The notebook file could not be read") from e
+        return _texts_differ(text, baseline)
+
+    async def _reload(
+        self,
+        notebook: Notebook,
+        file: Path,
+        before: protocol.Document,
+        request_id: str,
+    ) -> protocol.EditResponse:
+        """Replace the document with the file's contents as the saved revision."""
+        loaded = await self._load(file)
+        if loaded is None:
+            raise Conflict("The notebook file could not be loaded")
+        # An edit may have landed while the file was read. Replacing the
+        # document now would lose it.
+        if notebook.document._record.etag != before.etag:
+            raise EditConflict(
+                "The document changed while the file was being read",
+                change=0,
+                cell=None,
+                document=notebook.document._record,
+            )
+        self._file_texts[notebook.id] = loaded.text
+        changed = notebook.replace(
+            loaded.cells, loaded.app_config, saved=True, request_id=request_id
+        )
+        return _etags(changed, notebook.document._record)
 
     async def edit(
         self,
@@ -185,12 +418,94 @@ class SessionBridge(SessionEventListener):
         notebook = self.host.peek_notebook(notebook_id)
         if session is None or notebook is None:
             return
+        # The editor owns the file now; a baseline being read for the
+        # host is no longer wanted.
+        self._rebaselining.pop(notebook_id, None)
+        self._follow_saves(notebook_id, session)
         document = notebook.document
         if document._record.saved_etag != document._record.etag:
             documents.apply_to_session(session, document)
             return
         cells, app_config = documents.from_session(session)
         notebook.replace(cells, app_config, saved=True)
+
+    # TODO(MO-7927): Following the editor's writes ends when the notebook
+    # owns persistence and the editor saves through it.
+    def _follow_saves(
+        self, notebook_id: protocol.NotebookId, session: Session
+    ) -> None:
+        """Record the editor's writes as the saved revision.
+
+        The file manager reports each write on the writing thread with
+        the cells and app config it wrote. The revision is computed
+        from those, not from the live document, which may have moved
+        on. The editor's save endpoint writes on the event loop and
+        autosave on a worker, so the record is made directly in the
+        first case and handed to the loop in the second.
+        """
+        loop = asyncio.get_running_loop()
+
+        def persisted(
+            cells: Sequence[NotebookCell], app_config: dict[str, Any]
+        ) -> None:
+            etag = revision(documents.sources(cells), app_config)
+            if _running_loop() is loop:
+                self._saved(notebook_id, etag)
+            else:
+                loop.call_soon_threadsafe(self._saved, notebook_id, etag)
+
+        session.app_file_manager.on_persisted = persisted
+
+    def _detach_document(
+        self, notebook_id: protocol.NotebookId, session: Session
+    ) -> None:
+        """Stop following the editor's writes; the host owns the file again.
+
+        Its baseline for external changes is the file as the editor
+        left it, read off the event loop before the next save compares.
+        """
+        session.app_file_manager.on_persisted = None
+        self._rebaselining[notebook_id] = (
+            asyncio.get_running_loop().create_task(
+                self._rebaseline(notebook_id)
+            )
+        )
+
+    async def _rebaseline(self, notebook_id: protocol.NotebookId) -> None:
+        file = self.index.file_of(notebook_id)
+        try:
+            text = (
+                None
+                if file is None
+                else await asyncio.to_thread(_read_text, file)
+            )
+        except OSError:
+            text = None
+        # A session that attached meanwhile owns the file again and has
+        # dropped this task from the pending ones.
+        if self._rebaselining.get(notebook_id) is not asyncio.current_task():
+            return
+        if text is None:
+            self._file_texts.pop(notebook_id, None)
+        else:
+            self._file_texts[notebook_id] = text
+
+    def _saved(
+        self, notebook_id: protocol.NotebookId, etag: protocol.Etag
+    ) -> None:
+        """Record a write the editor made.
+
+        A write the host asked for is recorded by `save`, under its
+        request, so it is not recorded here as well.
+        """
+        if notebook_id in self._saving:
+            return
+        try:
+            notebook = self.host.peek_notebook(notebook_id)
+        except NotFound:
+            return
+        if notebook is not None:
+            notebook.mark_saved(etag)
 
     def _mirror(self, notebook_id: protocol.NotebookId) -> None:
         """Bring the document up to date with the session's after it changed."""
@@ -360,6 +675,9 @@ class SessionBridge(SessionEventListener):
             observe,
             document_changed=lambda: self._mirror(notebook_id),
             session_attached=lambda: self._attach_document(notebook_id),
+            session_detached=lambda session: self._detach_document(
+                notebook_id, session
+            ),
         )
         self._backends[notebook_id] = backend
         return backend
@@ -367,6 +685,8 @@ class SessionBridge(SessionEventListener):
     def _forget_backend(self, event: Event) -> None:
         if event.name == "notebook.removed" and event.notebook_id is not None:
             self._backends.pop(event.notebook_id, None)
+            self._file_texts.pop(event.notebook_id, None)
+            self._rebaselining.pop(event.notebook_id, None)
 
     async def _adopt(self, session: Session) -> None:
         path = session.app_file_manager.path

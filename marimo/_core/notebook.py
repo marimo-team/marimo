@@ -135,12 +135,19 @@ class Notebook:
             document=self.document._record, cells=applied.cells
         )
 
-    def mark_saved(self, *, request_id: str | None = None) -> None:
-        """Mark the current document revision as saved."""
+    def mark_saved(
+        self, etag: protocol.Etag, *, request_id: str | None = None
+    ) -> protocol.Document:
+        """Record `etag` as the persisted revision and return the document.
+
+        The revision may precede the current one, when the document
+        changed while it was being written.
+        """
         self._require_open()
-        document = self.document.mark_saved()
-        if document is not None:
-            self._publish(document, request_id)
+        published = self.document.mark_saved(etag)
+        if published is not None:
+            self._publish(published, request_id)
+        return self.document._record
 
     def _publish_changed(
         self, changed: Changed, request_id: str | None
