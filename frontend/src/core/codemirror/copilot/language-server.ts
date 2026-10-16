@@ -301,13 +301,15 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     };
   }
 
-  private applyPendingChange(): DidChangeTextDocumentParams | undefined {
+  private applyPendingChange(
+    assembledText?: string,
+  ): DidChangeTextDocumentParams | undefined {
     const pending = this.pendingChange;
     if (!pending) {
       return;
     }
     this.pendingChange = undefined;
-    const text = getCodes(pending.contentChanges[0].text);
+    const text = assembledText ?? getCodes(pending.contentChanges[0].text);
     this.lastOpenedDocument = {
       textDocument: {
         ...pending.textDocument,
@@ -324,10 +326,16 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   public async flushDocumentChanges(currentCode?: string): Promise<string> {
     // Another cell may have changed since the focused editor last typed.
     // The focused cell must be last in the shared document for cursor mapping.
+    const assembledText =
+      currentCode !== undefined && this.lastOpenedDocument
+        ? getCodes(currentCode)
+        : undefined;
     if (
       currentCode !== undefined &&
       this.lastOpenedDocument &&
-      this.pendingChange?.contentChanges[0].text !== currentCode
+      (this.pendingChange
+        ? this.pendingChange.contentChanges[0].text !== currentCode
+        : assembledText !== this.lastOpenedDocument.textDocument.text)
     ) {
       this.pendingChange = {
         textDocument: VersionedTextDocumentIdentifier.create(
@@ -338,7 +346,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
       };
     }
     const pending = this.pendingChange;
-    const change = this.applyPendingChange();
+    const change = this.applyPendingChange(assembledText);
     if (change) {
       try {
         await super.textDocumentDidChange(change);

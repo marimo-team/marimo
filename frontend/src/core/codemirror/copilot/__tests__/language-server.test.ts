@@ -8,6 +8,7 @@ import type {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InlineCompletionParams } from "vscode-languageserver-protocol";
 import { store } from "@/core/state/jotai";
+import * as notebookCodes from "../getCodes";
 import { CopilotLanguageServerClient } from "../language-server";
 import { copilotStatusState, githubCopilotLoadingVersion } from "../state";
 
@@ -606,6 +607,116 @@ describe("Copilot completion requests", () => {
     expect(notifications(transport, "textDocument/didChange")).toHaveLength(1);
   });
 
+  it.each(["x", ""])(
+    "does not upload an unchanged focused cell %j again",
+    async (text) => {
+      const assemble = vi.spyOn(notebookCodes, "getCodes");
+      await change(text);
+      expect(await client.flushDocumentChanges(text)).toBe(text);
+      expect(await client.flushDocumentChanges(text)).toBe(text);
+      expect(await client.flushDocumentChanges(text)).toBe(text);
+      expect(assemble).toHaveBeenCalledTimes(3);
+      expect(notifications(transport, "textDocument/didChange")).toEqual([
+        {
+          jsonrpc: "2.0",
+          method: "textDocument/didChange",
+          params: {
+            textDocument: { uri: params.textDocument.uri, version: 2 },
+            contentChanges: [{ text }],
+          },
+        },
+      ]);
+
+      await change("next");
+      await client.flushDocumentChanges("next");
+      expect(
+        notifications(transport, "textDocument/didChange")[1].params,
+      ).toEqual({
+        textDocument: { uri: params.textDocument.uri, version: 3 },
+        contentChanges: [{ text: "next" }],
+      });
+    },
+  );
+
+  it("does not upload a document that already matches didOpen", async () => {
+    expect(await client.flushDocumentChanges("x")).toBe("x");
+    expect(notifications(transport, "textDocument/didChange")).toEqual([]);
+  });
+
+  it("compares the assembled notebook and uploads changes in another cell", async () => {
+    let otherCell = "import math";
+    const assemble = vi
+      .spyOn(notebookCodes, "getCodes")
+      .mockImplementation((code) => `${otherCell}\n${code}`);
+    await change("x");
+    expect(await client.flushDocumentChanges("x")).toBe("import math\nx");
+    expect(await client.flushDocumentChanges("x")).toBe("import math\nx");
+    otherCell = "import random";
+    expect(await client.flushDocumentChanges("x")).toBe("import random\nx");
+    expect(await client.flushDocumentChanges("x")).toBe("import random\nx");
+    expect(assemble).toHaveBeenCalledTimes(4);
+    expect(notifications(transport, "textDocument/didChange")).toEqual([
+      {
+        jsonrpc: "2.0",
+        method: "textDocument/didChange",
+        params: {
+          textDocument: { uri: params.textDocument.uri, version: 2 },
+          contentChanges: [{ text: "import math\nx" }],
+        },
+      },
+      {
+        jsonrpc: "2.0",
+        method: "textDocument/didChange",
+        params: {
+          textDocument: { uri: params.textDocument.uri, version: 3 },
+          contentChanges: [{ text: "import random\nx" }],
+        },
+      },
+    ]);
+  });
+
+  it("assembles once with the focused cell last when another cell has a pending edit", async () => {
+    const assemble = vi
+      .spyOn(notebookCodes, "getCodes")
+      .mockImplementation((code) => `other\n${code}`);
+    await change("other");
+    expect(await client.flushDocumentChanges("x")).toBe("other\nx");
+    expect(assemble).toHaveBeenCalledExactlyOnceWith("x");
+    expect(notifications(transport, "textDocument/didChange")).toEqual([
+      {
+        jsonrpc: "2.0",
+        method: "textDocument/didChange",
+        params: {
+          textDocument: { uri: params.textDocument.uri, version: 3 },
+          contentChanges: [{ text: "other\nx" }],
+        },
+      },
+    ]);
+  });
+
+  it("retries a failed upload even when its text matches the last attempted document", async () => {
+    const assemble = vi.spyOn(notebookCodes, "getCodes");
+    transport.send.mockImplementationOnce(() => {
+      throw new Error("socket closed");
+    });
+    await expect(client.flushDocumentChanges("latest")).rejects.toThrow(
+      "socket closed",
+    );
+    expect(await client.flushDocumentChanges("latest")).toBe("latest");
+    expect(await client.flushDocumentChanges("latest")).toBe("latest");
+    expect(assemble).toHaveBeenCalledTimes(3);
+    expect(notifications(transport, "textDocument/didChange")).toEqual([
+      {
+        jsonrpc: "2.0",
+        method: "textDocument/didChange",
+        params: {
+          textDocument: { uri: params.textDocument.uri, version: 2 },
+          contentChanges: [{ text: "latest" }],
+        },
+      },
+    ]);
+  });
+
   it("cancels a rapid request instead of giving the next caller its promise", async () => {
     const first = client.getCompletion(params);
     await tick();
@@ -885,8 +996,10 @@ describe("Copilot completion requests", () => {
       void change("new");
       throw new Error("send failed");
     });
-    await expect(client.flushDocumentChanges()).rejects.toThrow("send failed");
-    expect(await client.flushDocumentChanges()).toBe("new");
+    await expect(client.flushDocumentChanges("old")).rejects.toThrow(
+      "send failed",
+    );
+    expect(await client.flushDocumentChanges("new")).toBe("new");
     expect(notifications(transport, "textDocument/didChange")).toEqual([
       {
         jsonrpc: "2.0",

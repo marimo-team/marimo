@@ -202,6 +202,56 @@ describe("Copilot editor integration", () => {
     );
   });
 
+  it("never uploads a superseded snapshot when typing restarts the debounce", async () => {
+    const flush = vi.spyOn(client, "flushDocumentChanges");
+    type("n");
+    await vi.advanceTimersByTimeAsync(149);
+    type("t");
+    await vi.advanceTimersByTimeAsync(149);
+    expect(flush).not.toHaveBeenCalled();
+    expect(getCodes).not.toHaveBeenCalled();
+    expect(sent).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(flush.mock.calls.filter(([code]) => code !== undefined)).toEqual([
+      ["print"],
+    ]);
+    expect(getCodes).toHaveBeenCalledExactlyOnceWith("print");
+    expect(
+      sent.filter(
+        (message) =>
+          "method" in message && message.method === "textDocument/didChange",
+      ),
+    ).toEqual([
+      {
+        jsonrpc: "2.0",
+        method: "textDocument/didChange",
+        params: {
+          textDocument: { uri: "file:///__marimo_copilot__.py", version: 2 },
+          contentChanges: [{ text: "import math\n\nprint" }],
+        },
+      },
+    ]);
+    expect(requests()).toHaveLength(1);
+    respond("(latest)");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(view.dom.querySelector(".cm-inline-suggestion")).toHaveTextContent(
+      "(latest)",
+    );
+  });
+
+  it("does not flush a cancelled callback after moving away and back before its deadline", async () => {
+    const flush = vi.spyOn(client, "flushDocumentChanges");
+    type("n");
+    await vi.advanceTimersByTimeAsync(149);
+    view.dispatch({ selection: { anchor: 0 } });
+    view.dispatch({ selection: { anchor: 4 } });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(flush).not.toHaveBeenCalled();
+    expect(getCodes).not.toHaveBeenCalled();
+    expect(sent).toEqual([]);
+    expect(view.dom.querySelector(".cm-inline-suggestion")).toBeNull();
+  });
+
   it("cancels on cursor movement and never shows an old reply", async () => {
     type("n");
     await vi.advanceTimersByTimeAsync(150);
