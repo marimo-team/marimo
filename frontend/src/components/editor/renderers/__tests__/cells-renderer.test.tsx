@@ -15,7 +15,10 @@ function renderWithStore(
   {
     kiosk = false,
     layout = "vertical",
-  }: { kiosk?: boolean; layout?: LayoutType } = {},
+  }: {
+    kiosk?: boolean;
+    layout?: LayoutType;
+  } = {},
 ) {
   const store = createStore();
   store.set(requestClientAtom, MockRequestClient.create());
