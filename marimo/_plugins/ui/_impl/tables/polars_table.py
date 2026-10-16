@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import functools
 import io
+import re
 from functools import cached_property
 from typing import Any
 
@@ -253,27 +254,70 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 return isinstance(value, (pl.DataFrame, pl.LazyFrame))
 
             def search(self, query: str) -> PolarsTableManager:
+                if not query:
+                    return self
+
                 query = query.lower()
 
-                expressions: list[pl.Expr] = []
-                for column, dtype in self.schema.items():
-                    if dtype == pl.String:
-                        expressions.append(
-                            pl.col(column).str.contains(f"(?i){query}")
-                        )
-                    elif dtype == pl.List(pl.Utf8):
-                        expressions.append(pl.col(column).list.contains(query))
-                    elif (
-                        dtype.is_numeric()
-                        or dtype.is_temporal()
-                        or dtype == pl.Boolean
-                    ):
-                        expressions.append(
-                            pl.col(column)
-                            .cast(pl.String)
-                            .str.contains(f"(?i){query}")
-                        )
+                def _get_expressions(pattern: str) -> list[pl.Expr]:
+                    expressions: list[pl.Expr] = []
+                    for column, dtype in self.schema.items():
+                        if dtype == pl.String:
+                            expressions.append(
+                                pl.col(column).str.contains(pattern)
+                            )
+                        elif dtype == pl.List(pl.Utf8):
+                            expressions.append(
+                                pl.col(column).list.contains(query)
+                            )
+                        elif (
+                            dtype.is_numeric()
+                            or dtype.is_temporal()
+                            or dtype == pl.Boolean
+                        ):
+                            expressions.append(
+                                pl.col(column)
+                                .cast(pl.String)
+                                .str.contains(pattern)
+                            )
+                    return expressions
 
+                pattern = f"(?i){query}"
+                escaped_pattern = f"(?i){re.escape(query)}"
+                if pattern == escaped_pattern:
+                    expressions = _get_expressions(pattern)
+                    if not expressions:
+                        return self
+                    filtered = self._original_data.filter(
+                        pl.any_horizontal(expressions)
+                    )
+                    return PolarsTableManager(filtered)
+
+                is_valid_regex = False
+                try:
+                    re.compile(pattern)
+                    is_valid_regex = not bool(re.search(r"\+\+", query))
+                except re.error:
+                    pass
+
+                if is_valid_regex:
+                    try:
+                        expressions = _get_expressions(pattern)
+                        if expressions:
+                            filtered = self._original_data.filter(
+                                pl.any_horizontal(expressions)
+                            )
+                            has_matches = (
+                                not filtered.head(1).collect().is_empty()
+                                if isinstance(filtered, pl.LazyFrame)
+                                else not filtered.is_empty()
+                            )
+                            if has_matches:
+                                return PolarsTableManager(filtered)
+                    except Exception:
+                        pass
+
+                expressions = _get_expressions(escaped_pattern)
                 if not expressions:
                     return self
 

@@ -2223,6 +2223,31 @@ def test_search_clamp_max_columns_in_search():
     assert len(result_data[0].keys()) == 30
 
 
+def test_search_special_characters_no_crash():
+    data = {"tech": ["c++", "c#", "python", "java", "a*b", "1+1"]}
+    table = ui.table(data)
+
+    res_cpp = table._search(
+        SearchTableArgs(page_size=10, page_number=0, query="c++")
+    )
+    assert res_cpp.total_rows == 1
+
+    res_bracket = table._search(
+        SearchTableArgs(page_size=10, page_number=0, query="[")
+    )
+    assert res_bracket.total_rows == 0
+
+    res_plus = table._search(
+        SearchTableArgs(page_size=10, page_number=0, query="+")
+    )
+    assert res_plus.total_rows == 2
+
+    res_expr = table._search(
+        SearchTableArgs(page_size=10, page_number=0, query="1+1")
+    )
+    assert res_expr.total_rows == 1
+
+
 def test_column_clamping_with_exact_max_columns():
     data = {f"col{i}": [1, 2, 3] for i in range(50)}
     table = ui.table(data, max_columns=50)
