@@ -444,3 +444,301 @@ async def test_failed_session_move_preserves_the_notebook(
     assert bridge.host.notebooks[notebook.id].path == "a.py"
     assert (await bridge.host.notebook(notebook.id)).runtime is runtime
     bridge.close()
+
+
+async def test_editor_transactions_reach_the_host_document(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._ast.cell import CellConfig
+    from marimo._messaging.notebook import (
+        NotebookCell,
+        NotebookDocument,
+        SetCode,
+        Transaction,
+    )
+    from marimo._messaging.notification import (
+        NotebookDocumentTransactionNotification,
+    )
+    from marimo._types.ids import CellId_t
+
+    prepare(manager, tmp_path, "a.py")
+    session = FakeSession(str(tmp_path / "a.py"))
+    session.document = NotebookDocument(
+        [NotebookCell(CellId_t("Hbol"), "x = 1", "_", CellConfig())]
+    )
+    manager.sessions["browser-1"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(tmp_path / "a.py"))
+    assert record is not None
+    events: list[Event] = []
+    bridge.host.subscribe(events.append, notebook_id=record.id)
+
+    # The document comes from the session, ids included.
+    document = (await bridge.host.notebook(record.id)).document
+    assert document.order == ["Hbol"]
+
+    # A frontend edit reaches the host document, and the app config as
+    # the session reports it comes along.
+    applied = session.document.apply(
+        Transaction(
+            changes=(SetCode(CellId_t("Hbol"), "x = 2"),), source="frontend"
+        )
+    )
+    session.app_file_manager.app.config.asdict_difference.return_value = {
+        "width": "full"
+    }
+    session.broadcast(
+        NotebookDocumentTransactionNotification(transaction=applied)
+    )
+
+    cell = document.cell("Hbol")
+    assert cell is not None
+    assert cell.code == "x = 2"
+    assert document._record.app_config == {"width": "full"}
+    assert names(events)[-2:] == ["cell", "document"]
+    bridge.close()
+
+
+async def test_host_edits_reach_the_session_as_one_transaction(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._ast.cell import CellConfig
+    from marimo._messaging.notebook import NotebookCell, NotebookDocument
+    from marimo._messaging.notification import (
+        NotebookDocumentTransactionNotification,
+    )
+    from marimo._types.ids import CellId_t
+
+    prepare(manager, tmp_path, "a.py")
+    session = FakeSession(str(tmp_path / "a.py"))
+    session.document = NotebookDocument(
+        [NotebookCell(CellId_t("Hbol"), "x = 1", "_", CellConfig())]
+    )
+    manager.sessions["browser-1"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(tmp_path / "a.py"))
+    assert record is not None
+    document = (await bridge.host.notebook(record.id)).document
+    events: list[Event] = []
+    bridge.host.subscribe(events.append, notebook_id=record.id)
+
+    response = await bridge.edit(
+        record.id,
+        [
+            protocol.PutCell(
+                base_etag=None,
+                cell=protocol.CellInput(
+                    id=protocol.CellId("new"), code="y = x"
+                ),
+            )
+        ],
+        request_id="edit-1",
+    )
+
+    assert set(response.cells) == {"new"}
+    assert session.document.cell_ids == ["Hbol", "new"]
+    (notification,) = session.notifications
+    assert isinstance(notification, NotebookDocumentTransactionNotification)
+    assert notification.transaction.source == "host"
+    # The backend saw its own edit come back and mirrored nothing new.
+    assert names(events) == ["cell", "document"]
+    assert document._record.etag == response.document.etag
+    assert "y = x" not in (tmp_path / "a.py").read_text()
+    bridge.close()
+
+
+async def test_edit_response_includes_app_config_mirrored_from_the_session(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._session.notebook import AppFileManager
+
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    session = FakeSession(str(path))
+    session.document = AppFileManager(str(path)).app.cell_manager.document
+    manager.sessions["browser-1"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    try:
+        record = bridge.index.notebook_for(str(path))
+        assert record is not None
+        notebook = await bridge.host.notebook(record.id)
+        session.app_file_manager.app.config.asdict_difference.return_value = {
+            "width": "full"
+        }
+
+        response = await bridge.edit(
+            record.id,
+            [
+                protocol.PutCell(
+                    base_etag=None,
+                    cell=protocol.CellInput(
+                        id=protocol.CellId("new"), code="y = 2"
+                    ),
+                )
+            ],
+            request_id="edit-1",
+        )
+
+        current = notebook.document.snapshot().document
+        assert current.app_config == {"width": "full"}
+        assert response.document == current
+    finally:
+        bridge.close()
+
+
+async def test_a_new_session_replaces_a_read_without_host_edits(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._session.notebook import AppFileManager
+
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    document = (await bridge.host.notebook(record.id)).document
+    events: list[Event] = []
+    bridge.host.subscribe(events.append, notebook_id=record.id)
+
+    # The file changes after the host read it, then a session opens it.
+    path.write_text(NOTEBOOK.replace("x = 1", "x = 2"))
+    session = FakeSession(str(path))
+    session.document = AppFileManager(str(path)).app.cell_manager.document
+    await manager.event_bus.emit_session_created(session)  # type: ignore[arg-type]
+
+    assert [cell.code for cell in document] == ["x = 2"]
+    assert document._record.saved_etag == document._record.etag
+    assert names(events)[-3:] == ["cell", "document", "runtime"]
+    assert session.notifications == []
+    bridge.close()
+
+
+async def test_a_new_session_adopts_unsaved_host_edits(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._ast.cell import CellConfig
+    from marimo._messaging.notebook import NotebookCell, NotebookDocument
+    from marimo._types.ids import CellId_t
+
+    def editor_cell(cell: protocol.Cell) -> NotebookCell:
+        return NotebookCell(
+            CellId_t(cell.id), cell.code, cell.name, CellConfig()
+        )
+
+    prepare(manager, tmp_path, "a.py")
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(tmp_path / "a.py"))
+    assert record is not None
+    document = (await bridge.host.notebook(record.id)).document
+    session = FakeSession(str(tmp_path / "a.py"))
+    session.document = NotebookDocument(editor_cell(c) for c in document)
+    await bridge.edit(
+        record.id,
+        [
+            protocol.PutCell(
+                base_etag=None,
+                cell=protocol.CellInput(
+                    id=protocol.CellId("new"), code="unsaved = 42"
+                ),
+            )
+        ],
+        request_id="edit-before-session",
+    )
+
+    await manager.event_bus.emit_session_created(session)  # type: ignore[arg-type]
+
+    assert [(c.id, c.code) for c in session.document.cells] == [
+        (c.id, c.code) for c in document
+    ]
+    assert document._record.saved_etag != document._record.etag
+    assert "unsaved" not in (tmp_path / "a.py").read_text()
+    bridge.close()
+
+
+async def test_an_edit_reaches_the_kernel_as_one_command(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._runtime.commands import EditCellsCommand
+    from marimo._session.notebook import AppFileManager
+
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(
+        NOTEBOOK + "@app.cell\ndef _(x):\n    y = x\n    return (y,)\n"
+    )
+    session = FakeSession(str(path))
+    session.document = AppFileManager(str(path)).app.cell_manager.document
+    manager.sessions["browser-1"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    first, second = (await bridge.host.notebook(record.id)).document
+
+    await bridge.edit(
+        record.id,
+        [
+            protocol.PutCell(
+                base_etag=first.etag,
+                cell=protocol.CellInput(
+                    id=first.id,
+                    code=first.code,
+                    config=protocol.CellConfigInput(disabled=True),
+                ),
+            ),
+            protocol.DeleteCell(id=second.id, base_etag=second.etag),
+            protocol.PutCell(
+                base_etag=None,
+                cell=protocol.CellInput(
+                    id=protocol.CellId("new"),
+                    code="z = 1",
+                    config=protocol.CellConfigInput(hide_code=True),
+                ),
+            ),
+        ],
+        request_id="edit-1",
+    )
+
+    default = {
+        "column": None,
+        "disabled": False,
+        "hide_code": False,
+        "expand_output": False,
+    }
+    assert session.commands == [
+        EditCellsCommand(
+            codes={"new": "z = 1"},
+            configs={
+                first.id: {**default, "disabled": True},
+                "new": {**default, "hide_code": True},
+            },
+            delete_ids=[second.id],
+        )
+    ]
+
+    # Changed code reaches the kernel without a run.
+    await bridge.edit(
+        record.id,
+        [
+            protocol.PutCell(
+                base_etag="*",
+                cell=protocol.CellInput(
+                    id=protocol.CellId("new"),
+                    code="z = 2",
+                    config=protocol.CellConfigInput(hide_code=True),
+                ),
+            )
+        ],
+        request_id="edit-2",
+    )
+    assert session.commands[1:] == [
+        EditCellsCommand(codes={"new": "z = 2"}, configs={}, delete_ids=[])
+    ]
+    bridge.close()

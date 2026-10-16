@@ -100,7 +100,7 @@ DocumentChange = (
 # ------------------------------------------------------------------
 
 TransactionSource = Literal[
-    "frontend", "kernel", "code-mode", "file-watch", "cell-manager"
+    "frontend", "kernel", "code-mode", "file-watch", "cell-manager", "host"
 ]
 
 

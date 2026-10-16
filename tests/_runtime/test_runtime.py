@@ -35,6 +35,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.commands import (
     CreateNotebookCommand,
     DeleteCellCommand,
+    EditCellsCommand,
     ExecuteCellCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
@@ -2191,6 +2192,49 @@ except NameError:
         assert "b" not in k.globals
         assert "c" in k.globals
         assert "d" not in k.globals
+
+    async def test_edit_cells_registers_code_without_running(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+
+        await k.edit_cells(
+            EditCellsCommand(
+                codes={"0": "x = 2", "1": "y = 3"}, configs={}, delete_ids=[]
+            )
+        )
+
+        cell = k.graph.cells["0"]
+        assert cell.code == "x = 2"
+        assert cell.stale
+        assert "y" not in k.globals
+        # A cell the kernel has never seen arrives with its first run.
+        assert "1" not in k.graph.cells
+
+    async def test_edit_cells_replaces_pending_code(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreateNotebookCommand(
+                execution_requests=(
+                    ExecuteCellCommand(cell_id="0", code="x = 0"),
+                ),
+                cell_ids=("0",),
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+
+        await k.edit_cells(
+            EditCellsCommand(codes={"0": "x = 5"}, configs={}, delete_ids=[])
+        )
+
+        assert k._uninstantiated_execution_requests["0"].code == "x = 5"
+        assert not k.graph.cells
 
     async def test_sync_graph_uninstantiated_request_cleanup(
         self, any_kernel: Kernel
