@@ -925,15 +925,7 @@ def test_script_config_manager_sanitizes_auto_instantiate(
 
     manager = ScriptConfigReader(str(notebook_path))
     with caplog.at_level("WARNING"):
-        from marimo import _loggers
-
-        logger = _loggers.marimo_logger()
-        old_propagate = logger.propagate
-        try:
-            logger.propagate = True
-            config = manager.read()
-        finally:
-            logger.propagate = old_propagate
+        config = manager.read()
 
     assert "auto_instantiate" not in config.get("runtime", {})
     assert config.get("runtime") == {"auto_reload": "lazy"}
