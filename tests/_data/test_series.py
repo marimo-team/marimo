@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any
 
@@ -10,6 +11,7 @@ from marimo._data.series import (
     get_date_series_info,
     get_datetime_series_info,
     get_number_series_info,
+    get_series_name,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from tests._data.mocks import NON_EAGER_LIBS, create_dataframes, create_series
@@ -169,3 +171,130 @@ def is_pyarrow_type(response: Any) -> bool:
         return isinstance(response, pa.Table)
     except ImportError:
         return False
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": []},
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_empty_number_series(df: Any) -> None:
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Cannot get series info: series is empty or contains only null values."
+        ),
+    ):
+        get_number_series_info(df["A"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [None, None]},
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_all_null_number_series(df: Any) -> None:
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Cannot get series info: series is empty or contains only null values."
+        ),
+    ):
+        get_number_series_info(df["A"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": []},
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_empty_date_series(df: Any) -> None:
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Cannot get series info: series is empty or contains only null values."
+        ),
+    ):
+        get_date_series_info(df["A"])
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Cannot get series info: series is empty or contains only null values."
+        ),
+    ):
+        get_datetime_series_info(df["A"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [None, None]},
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_all_null_date_series(df: Any) -> None:
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Cannot get series info: series is empty or contains only null values."
+        ),
+    ):
+        get_date_series_info(df["A"])
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Cannot get series info: series is empty or contains only null values."
+        ),
+    ):
+        get_datetime_series_info(df["A"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": []},
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_empty_categorical_series(df: Any) -> None:
+    response = get_category_series_info(df["A"])
+    assert response.categories == []
+    assert response.label == "A" or is_pyarrow_type(df)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [None, None]},
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_all_null_categorical_series(df: Any) -> None:
+    response = get_category_series_info(df["A"])
+    assert response.categories == []
+    assert response.label == "A" or is_pyarrow_type(df)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"my_col": [1, 2, 3]},
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_get_series_name(df: Any) -> None:
+    name = get_series_name(df["my_col"])
+    assert name == "my_col" or is_pyarrow_type(df)

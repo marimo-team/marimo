@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import re
 from typing import cast
 
 import pytest
@@ -216,6 +217,66 @@ def test_date_range_from_dataframe() -> None:
     )
     assert date_range_ui.start == datetime.date(2024, 1, 1)
     assert date_range_ui.stop == datetime.date(2024, 1, 31)
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_dates_from_empty_dataframe() -> None:
+    import pandas as pd
+
+    df_empty = pd.DataFrame({"A": []}, dtype="datetime64[ns]")
+
+    # Explicit start and stop work on empty series
+    d = ui.date.from_series(
+        df_empty["A"],
+        start="2024-01-01",
+        stop="2024-01-31",
+    )
+    assert d.start == datetime.date(2024, 1, 1)
+    assert d.stop == datetime.date(2024, 1, 31)
+    assert d._args.label == "A"
+
+    dt_ui = ui.datetime.from_series(
+        df_empty["A"],
+        start="2024-01-01T00:00:00",
+        stop="2024-01-31T00:00:00",
+    )
+    assert dt_ui.start == datetime.datetime(2024, 1, 1, 0, 0)
+    assert dt_ui.stop == datetime.datetime(2024, 1, 31, 0, 0)
+    assert dt_ui._args.label == "A"
+
+    dr = ui.date_range.from_series(
+        df_empty["A"],
+        start="2024-01-01",
+        stop="2024-01-31",
+    )
+    assert dr.start == datetime.date(2024, 1, 1)
+    assert dr.stop == datetime.date(2024, 1, 31)
+    assert dr._args.label == "A"
+
+    # When bounds omitted, ValueError is raised
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Cannot get series info: series is empty or contains only null values."
+        ),
+    ):
+        ui.date.from_series(df_empty["A"])
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Cannot get series info: series is empty or contains only null values."
+        ),
+    ):
+        ui.datetime.from_series(df_empty["A"])
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Cannot get series info: series is empty or contains only null values."
+        ),
+    ):
+        ui.date_range.from_series(df_empty["A"])
 
 
 def test_datetime_precision_default() -> None:

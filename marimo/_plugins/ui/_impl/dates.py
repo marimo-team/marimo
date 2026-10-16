@@ -15,6 +15,7 @@ from marimo._data.series import (
     DataFrameSeries,
     get_date_series_info,
     get_datetime_series_info,
+    get_series_name,
 )
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -146,6 +147,12 @@ class date(UIElement[str, dt.date]):
         Returns:
             date: A date picker initialized with the series' min and max dates as bounds.
         """
+        if "start" in kwargs and "stop" in kwargs:
+            label = kwargs.pop("label", None)
+            if label is None:
+                label = get_series_name(series)
+            return date(label=label, **kwargs)
+
         info = get_date_series_info(series)
         start = kwargs.pop("start", info.min)
         stop = kwargs.pop("stop", info.max)
@@ -298,6 +305,12 @@ class datetime(UIElement[str | None, dt.datetime | None]):
         Returns:
             datetime: A datetime picker initialized with the series' min and max datetimes as bounds.
         """
+        if "start" in kwargs and "stop" in kwargs:
+            label = kwargs.pop("label", None)
+            if label is None:
+                label = get_series_name(series)
+            return datetime(label=label, **kwargs)
+
         info = get_datetime_series_info(series)
         start = kwargs.pop("start", info.min)
         stop = kwargs.pop("stop", info.max)
@@ -457,6 +470,12 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
         Returns:
             date_range: A date range picker initialized with the series' min and max dates as bounds.
         """
+        if "start" in kwargs and "stop" in kwargs:
+            label = kwargs.pop("label", None)
+            if label is None:
+                label = get_series_name(series)
+            return date_range(label=label, **kwargs)
+
         info = get_date_series_info(series)
         start = kwargs.pop("start", info.min)
         stop = kwargs.pop("stop", info.max)
