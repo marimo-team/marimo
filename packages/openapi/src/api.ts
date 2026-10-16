@@ -4858,6 +4858,9 @@ export interface components {
      *         - `code_lens`: if `True`, show inline icons in cell editors linking
      *           datasources, storage buckets, and caches to their panels
      *         - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
+     *         - `datetime_in_local_timezone`: if `True`, render timezone-aware datetimes
+     *           (such as SQL `timestamptz` columns) in the browser's local timezone
+     *           instead of the timezone encoded in the data
      */
     DisplayConfig: {
       /** @enum {unknown} */
@@ -4867,6 +4870,7 @@ export interface components {
       custom_css?: string[];
       /** @enum {unknown} */
       dataframes: "plain" | "rich";
+      datetime_in_local_timezone?: boolean;
       default_table_max_columns: number;
       default_table_page_size: number;
       /** @enum {unknown} */
