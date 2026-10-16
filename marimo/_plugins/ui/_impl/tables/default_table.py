@@ -398,9 +398,18 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
         if isinstance(self.data, dict) and self.is_column_oriented:
             # Column-oriented: sort indices, then reorder all columns
-            data_dict = cast(dict[str, list[Any]], self.data)
-            first_column = next(iter(data_dict.values()))
-            num_rows = len(first_column)
+            num_rows = self.get_num_rows()
+            # Match normalization: absent values sort like explicit None.
+            data_dict = {
+                col: (
+                    values
+                    if len(values) == num_rows
+                    else list(values) + [None] * (num_rows - len(values))
+                )
+                for col, values in cast(
+                    dict[str, Sequence[Any]], self.data
+                ).items()
+            }
             indices = list(range(num_rows))
 
             # Apply sorts in reverse order for stable multi-column sorting
