@@ -14,11 +14,12 @@ info:
     event stream to learn what it has, and calls the operations the host
     lists. There are two streams: `/events` carries the catalog, and
     `/notebooks/{notebook_id}/events` carries one notebook: its cells and
-    document, its runtime, and the runs of code against it. Clients ignore
-    fields, operation names, event
-    names, and problem types they do not recognize. A change that would
-    break an existing client requires a new record version and a new base
-    path.
+    document, its runtime, and the runs of code against it. Every object
+    names its parent, even where the stream's scope already implies it,
+    so an object reads the same wherever it appears. Clients ignore
+    fields, operation names, event names, and problem types they do not
+    recognize. A change that would break an existing client requires a
+    new record version and a new base path.
 security:
   - hostToken: []
 paths:

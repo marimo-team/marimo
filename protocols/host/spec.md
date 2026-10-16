@@ -73,6 +73,14 @@ can expose a fork as a new notebook before deciding whether or where to persist
 it. A host MUST preserve a notebook's identity while serving it, including
 across renames and moves.
 
+Every object names its parent. A notebook names its project. A document,
+analysis, cell, runtime, attachment, and run name their notebook. An execution
+names its run, and console, display, and variable items name their execution.
+The field is present even where a stream's scope already implies it, so an
+object reads the same wherever it appears, in a stream, a response, or a store
+holding many notebooks, and a host relaying another host's stream has one field
+to rewrite.
+
 ### Documents and cells
 
 The **document** is the notebook's editable source, organized into **cells**.
