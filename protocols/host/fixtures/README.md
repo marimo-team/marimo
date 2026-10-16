@@ -13,8 +13,9 @@ and `analysis.json` is the analysis of that document.
 
 `run-cells-request.json` requests `c3`, which defines `x`. In `run-cells.sse`,
 the runtime then evaluates `k7f2`, which defines `y` using `x`. The dependent
-execution identifies the first execution as its cause. Both cells end with
-bindings and no displayed value because their code consists of assignments.
+execution identifies the first execution as its cause. Each cell publishes
+the variable it bound before it completes, and neither displays a value,
+because their code consists of assignments.
 
 `edit.json` edits that document. `edit-response.json` contains the accepted
 state, and `edits.sse` shows the cell and document events followed by a save.

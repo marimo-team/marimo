@@ -378,15 +378,12 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
             if execution["cell_id"] is None:
                 assert execution["code"] is not None
                 assert execution["stale"] is None
-                assert execution["bindings"] == []
             else:
                 assert execution["code"] is None
             if execution["status"] == "queued":
                 assert execution["outcome"] is None
                 assert execution["started_at"] is None
-            if execution["status"] != "completed":
-                assert execution["bindings"] == []
-            else:
+            if execution["status"] == "completed":
                 assert execution["outcome"] is not None
             assert (execution["completed_at"] is not None) == (
                 execution["status"] == "completed"
@@ -394,6 +391,16 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
             executions[execution["id"]] = execution
         elif kind in {"console", "display"}:
             assert data[kind]["execution_id"] in executions
+        elif kind == "variable":
+            variable = data["variable"]
+            execution = executions[variable["execution_id"]]
+            # Bound before the execution completes, by a cell's execution.
+            assert execution["status"] == "running"
+            assert execution["cell_id"] is not None
+            assert variable["revision"] == {
+                "execution": variable["execution_id"],
+                "update": 0,
+            }
     assert runs
     assert all(r["status"] == "completed" for r in runs.values())
 
@@ -422,12 +429,28 @@ def test_cell_run_request_and_results() -> None:
             execution["code_hash"] == cells[execution["cell_id"]]["code_hash"]
         )
         assert execution["outcome"] == {"kind": "value", "display": None}
-    assert executions["e12"]["bindings"] == [
-        {"name": "x", "type": "int", "preview": "21"}
-    ]
-    assert executions["e13"]["bindings"] == [
-        {"name": "y", "type": "int", "preview": "42"}
-    ]
+    variables = {
+        m["variable"]["name"]: m["variable"]
+        for m in messages("run-cells.sse", "variable")
+    }
+    assert variables == {
+        "x": {
+            "id": "e12-x",
+            "execution_id": "e12",
+            "name": "x",
+            "revision": {"execution": "e12", "update": 0},
+            "type": "int",
+            "preview": "21",
+        },
+        "y": {
+            "id": "e13-y",
+            "execution_id": "e13",
+            "name": "y",
+            "revision": {"execution": "e13", "update": 0},
+            "type": "int",
+            "preview": "42",
+        },
+    }
     assert not messages("run-cells.sse", "console")
 
 
@@ -516,9 +539,6 @@ def test_restored_result_matches_source() -> None:
     assert restored["code_hash"] == content_hash(source["code"])
     assert restored["run_id"] is None
     assert restored["runtime_id"] is None
-    assert restored["bindings"] == [
-        {"name": "x", "type": "int", "preview": "21"}
-    ]
 
 
 @pytest.mark.parametrize(

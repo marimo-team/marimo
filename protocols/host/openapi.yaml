@@ -239,8 +239,8 @@ paths:
                   One event. `data` holds JSON, and the event name says
                   which shape: a NotebookMessage, DocumentMessage,
                   AnalysisMessage, CellMessage, RuntimeMessage, AttachmentMessage,
-                  RunMessage, ExecutionMessage, ConsoleMessage, or
-                  DisplayMessage for an event named
+                  RunMessage, ExecutionMessage, ConsoleMessage,
+                  DisplayMessage, or VariableMessage for an event named
                   after that kind; a CustomMessage for `custom`; a RemovedMessage
                   for an event ending in `.removed`; and an empty object
                   for `ready` and `reset`.
@@ -510,7 +510,8 @@ paths:
         id independent of the request's `Idempotency-Key` and answers `202`
         with the run `queued` or `running`. The rest arrives on the notebook's
         stream with this request's key: executions as they start, console
-        and display items, and a final execution whose `outcome` is
+        and display items, the variables each cell execution bound, and a
+        final execution whose `outcome` is
         `value`, `error`, or `interrupted`, and a final `run` whose
         status is `completed`. A client that wants to see all of it opens
         the notebook's stream before sending the request.
@@ -769,7 +770,7 @@ components:
     ItemId:
       type: string
       minLength: 1
-      description: Identifies a console or display item. Unique within the host; sending an item again with the same id replaces it.
+      description: Identifies a console, display, or variable item. Unique within the host; sending an item again with the same id replaces it.
     CellId:
       type: string
       minLength: 1
@@ -831,9 +832,9 @@ components:
         catalog stream carries host, project, notebook, runtime, and
         attachment. A notebook's stream carries notebook, document,
         analysis, cell, runtime, attachment, run, execution, console,
-        display, and custom. Custom events describe occurrences rather
-        than object state.
-      enum: [host, project, notebook, document, analysis, cell, runtime, attachment, run, execution, console, display, custom]
+        display, variable, and custom. Custom events describe occurrences
+        rather than object state.
+      enum: [host, project, notebook, document, analysis, cell, runtime, attachment, run, execution, console, display, variable, custom]
     Custom:
       type: object
       description: |
@@ -1048,6 +1049,49 @@ components:
         data:
           type: string
           description: The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve.
+    Variable:
+      type: object
+      description: |
+        A name a cell's execution bound in the notebook's namespace, with
+        the revision of its value. The execution binds it as it ends, and
+        the item is removed with the execution. An update, as when a
+        state setter runs or a client sets a value, advances the revision
+        without binding again, and the producer sends the item again with
+        the same id. Hosts publish a cell execution's variables before its
+        `completed` status, and remove a cell's previous execution and
+        its items before publishing the next one. A scratch execution's
+        names live only while it runs, so it publishes no variables.
+      required: [id, execution_id, name, revision, type, preview]
+      properties:
+        id: { $ref: '#/components/schemas/ItemId' }
+        execution_id:
+          $ref: '#/components/schemas/ExecutionId'
+          description: The execution that bound the name.
+        name:
+          type: string
+          description: The name in the namespace.
+        revision: { $ref: '#/components/schemas/Revision' }
+        type:
+          type: [string, 'null']
+          description: The runtime's label for the value's type. A host may leave it null.
+        preview:
+          type: [string, 'null']
+          description: A short rendering of the value. A host may leave it null.
+    Revision:
+      type: object
+      description: |
+        A variable's value at a point in time. Two revisions are equal
+        when `execution` and `update` are equal. Clients compare
+        revisions for equality.
+      required: [execution, update]
+      properties:
+        execution:
+          $ref: '#/components/schemas/ExecutionId'
+          description: The execution whose evaluation produced the value. Usually the variable's `execution_id`, and earlier when the runtime carried the value forward.
+        update:
+          type: integer
+          minimum: 0
+          description: How many times the value has been updated since it was produced. Zero at binding.
     Position:
       type: object
       description: A position within code, using LSP coordinates.
@@ -1159,18 +1203,6 @@ components:
         kind:
           type: string
           enum: [interrupted]
-    Binding:
-      type: object
-      description: A name an execution binds in the namespace.
-      required: [name, type, preview]
-      properties:
-        name: { type: string }
-        type:
-          type: [string, 'null']
-          description: The runtime's label for the value's type. A host may leave it null.
-        preview:
-          type: [string, 'null']
-          description: A short rendering of the value. A host may leave it null.
     Execution:
       type: object
       description: |
@@ -1179,7 +1211,7 @@ components:
         one outcome. Side effects belong to the execution whose context
         produced them; items can arrive after the execution is completed
         while it remains retained.
-      required: [id, run_id, runtime_id, caused_by, cell_id, code, code_hash, bindings, status, outcome, stale, started_at, completed_at]
+      required: [id, run_id, runtime_id, caused_by, cell_id, code, code_hash, status, outcome, stale, started_at, completed_at]
       properties:
         id: { $ref: '#/components/schemas/ExecutionId' }
         run_id:
@@ -1200,10 +1232,6 @@ components:
         code_hash:
           $ref: '#/components/schemas/Etag'
           description: The `code_hash` of the code that was evaluated, computed as a cell's is.
-        bindings:
-          type: array
-          items: { $ref: '#/components/schemas/Binding' }
-          description: Names bound in the namespace, with a type and preview, stamped when the execution ends. Empty while running and for scratch code, whose bindings die with the execution.
         status: { $ref: '#/components/schemas/Lifecycle' }
         outcome:
           oneOf: [{ $ref: '#/components/schemas/Outcome' }, { type: 'null' }]
@@ -1478,6 +1506,14 @@ components:
         request_id: *request_id
         time: *time
         display: { $ref: '#/components/schemas/Display' }
+    VariableMessage:
+      type: object
+      description: The data of a `variable` event. The item as it now is.
+      required: [variable]
+      properties:
+        request_id: *request_id
+        time: *time
+        variable: { $ref: '#/components/schemas/Variable' }
     DocumentMessage:
       type: object
       description: The data of a `document` event. The document as it now is.
@@ -1507,8 +1543,8 @@ components:
       description: |
         The data of a `project.removed`, `notebook.removed`,
         `cell.removed`, `runtime.removed`, `attachment.removed`,
-        `run.removed`, `execution.removed`, `console.removed`, or
-        `display.removed` event. The client deletes the object with this
+        `run.removed`, `execution.removed`, `console.removed`,
+        `display.removed`, or `variable.removed` event. The client deletes the object with this
         id; the event name says which kind it is. Removing a notebook
         removes its document and cells with it, without events of their
         own; the document never has one.

@@ -54,7 +54,7 @@ class _Result:
 class Removed:
     """A current record that a transition removed."""
 
-    kind: Literal["execution", "console", "display"]
+    kind: Literal["execution", "console", "display", "variable"]
     id: str
     run_id: protocol.RunId | None
 
@@ -390,7 +390,6 @@ class Executions:
                         else None,
                         code=entry.code,
                         code_hash=entry.code_hash,
-                        bindings=(),
                         status="queued",
                         outcome=None,
                         stale=None,

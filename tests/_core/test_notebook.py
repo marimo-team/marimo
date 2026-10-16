@@ -599,7 +599,6 @@ class TestRun:
                     code="3 * 3",
                     code_hash="9f",
                     completed_at=IsDatetime(),
-                    bindings=(),
                     id=ExecutionId("e7"),
                     outcome=ValueOutcome(
                         display=DisplayData(

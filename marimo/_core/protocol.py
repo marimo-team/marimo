@@ -27,28 +27,6 @@ else:
     )
 
 
-class Binding(Struct, frozen=True):
-    name: str
-    preview: (
-        Annotated[
-            str,
-            Meta(
-                description="A short rendering of the value. A host may leave it null."
-            ),
-        ]
-        | None
-    )
-    type: (
-        Annotated[
-            str,
-            Meta(
-                description="The runtime's label for the value's type. A host may leave it null."
-            ),
-        ]
-        | None
-    )
-
-
 class CellConfig(Struct, frozen=True):
     column: (
         Annotated[
@@ -243,7 +221,7 @@ else:
         Annotated[
             str,
             Meta(
-                description="Identifies a console or display item. Unique within the host; sending an item again with the same id replaces it.",
+                description="Identifies a console, display, or variable item. Unique within the host; sending an item again with the same id replaces it.",
                 min_length=1,
             ),
         ],
@@ -287,10 +265,11 @@ ObjectType: TypeAlias = Annotated[
         "execution",
         "console",
         "display",
+        "variable",
         "custom",
     ],
     Meta(
-        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\nanalysis, cell, runtime, attachment, run, execution, console,\ndisplay, and custom. Custom events describe occurrences rather\nthan object state.\n"
+        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\nanalysis, cell, runtime, attachment, run, execution, console,\ndisplay, variable, and custom. Custom events describe occurrences\nrather than object state.\n"
     ),
 ]
 
@@ -439,6 +418,22 @@ class RequestedCell(Struct, frozen=True):
     ) = UNSET
 
 
+class Revision(Struct, frozen=True):
+    execution: Annotated[
+        ExecutionId,
+        Meta(
+            description="The execution whose evaluation produced the value. Usually the variable's `execution_id`, and earlier when the runtime carried the value forward."
+        ),
+    ]
+    update: Annotated[
+        int,
+        Meta(
+            description="How many times the value has been updated since it was produced. Zero at binding.",
+            ge=0,
+        ),
+    ]
+
+
 if TYPE_CHECKING:
     RunId = NewType("RunId", str)
 else:
@@ -579,6 +574,55 @@ class ValueOutcome(Struct, frozen=True, tag_field="kind", tag="value"):
         ]
         | None
     )
+
+
+class Variable(Struct, frozen=True):
+    execution_id: Annotated[
+        ExecutionId, Meta(description="The execution that bound the name.")
+    ]
+    id: ItemId
+    name: Annotated[str, Meta(description="The name in the namespace.")]
+    preview: (
+        Annotated[
+            str,
+            Meta(
+                description="A short rendering of the value. A host may leave it null."
+            ),
+        ]
+        | None
+    )
+    revision: Revision
+    type: (
+        Annotated[
+            str,
+            Meta(
+                description="The runtime's label for the value's type. A host may leave it null."
+            ),
+        ]
+        | None
+    )
+
+
+class VariableMessage(Struct, frozen=True):
+    variable: Variable
+    request_id: (
+        Annotated[
+            str,
+            Meta(
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    time: (
+        Annotated[
+            datetime,
+            Meta(
+                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
 
 
 class Attachment(Struct, frozen=True):
@@ -1323,12 +1367,6 @@ class CellAnalysis(Struct, frozen=True):
 
 
 class Execution(Struct, frozen=True):
-    bindings: Annotated[
-        tuple[Binding, ...],
-        Meta(
-            description="Names bound in the namespace, with a type and preview, stamped when the execution ends. Empty while running and for scratch code, whose bindings die with the execution."
-        ),
-    ]
     caused_by: (
         Annotated[
             ExecutionId,

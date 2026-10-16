@@ -151,12 +151,27 @@ Notebook
     └── Cell execution · another dependent cell
 ```
 
-Results include an execution's outcome, **console** output, and **display**
-items. They can remain available after the runtime stops or be restored from
-storage. Clients use the available provenance and staleness information to
-distinguish saved results from results of the current computation. Hosts choose
+Results include an execution's outcome, **console** output, **display**
+items, and the **variables** a cell's execution bound. They can remain
+available after the runtime stops or be restored from storage. Clients use the
+available provenance and staleness information to distinguish saved results
+from results of the current computation. Hosts choose
 how long to retain results and SHOULD keep ephemeral results briefly after
 completion to allow reconnection.
+
+A **variable** is a name in the notebook's namespace whose value varies over
+time. A cell's execution **binds** variables as it ends, each with a
+**revision** of its value. An **update** advances a revision without binding
+again, as when a state setter runs or a client sets a value. A revision names
+the execution whose evaluation produced the value and counts the updates
+since. Clients compare revisions for equality.
+
+    Variable  { id, execution_id, name, revision, type, preview }
+    Revision  { execution, update }
+
+Hosts MUST publish a cell execution's variables before its `completed` status,
+and MUST remove a cell's previous execution and its items before publishing
+the next one. A cell has one latest execution on the stream.
 
 ## Connecting to the host API
 
