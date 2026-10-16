@@ -154,7 +154,7 @@ test = [
     "httpx~=0.28.0",
     "urllib3~=2.5.0",
     # Pytest and plugins
-    "pytest~=9.0.2",
+    "pytest~=9.1.1",
     "pytest-timeout~=2.4.0",
     "pytest-codecov~=0.7.0",
     "pytest-rerunfailures~=16.1",
