@@ -902,6 +902,209 @@ def test_sqlalchemy_engine_get_cursor_metadata(
         assert metadata["sql_statement_type"] == "Query / Unknown"
 
 
+@pytest.mark.requires("sqlalchemy", "polars")
+@pytest.mark.parametrize("output_format", ["polars", "lazy-polars", "auto"])
+@pytest.mark.parametrize(
+    "values",
+    [
+        [None] * 100 + [0.5],
+        [None] * 1000 + ["late", None],
+        [1] * 100 + ["late"],
+        [1] * 100 + [1e100],
+    ],
+    ids=[
+        "late-float",
+        "late-string-after-nulls",
+        "late-string-after-ints",
+        "integer-overflow",
+    ],
+)
+def test_sqlalchemy_schema_inference_fallback(
+    empty_sqlite_engine: sa.Engine,
+    output_format: str,
+    values: list[float | str | None],
+) -> None:
+    import polars as pl
+    import sqlalchemy as sa
+    from polars.testing import assert_frame_equal
+
+    with empty_sqlite_engine.begin() as connection:
+        connection.execute(sa.text("CREATE TABLE source (value)"))
+        connection.execute(sa.text("CREATE TABLE destination (value)"))
+        connection.execute(
+            sa.text("INSERT INTO source VALUES (:value)"),
+            [{"value": value} for value in values],
+        )
+        rows = connection.execute(
+            sa.text("SELECT value FROM source ORDER BY rowid")
+        ).fetchall()
+
+    with pytest.raises(
+        pl.exceptions.ComputeError, match="infer_schema_length"
+    ):
+        pl.DataFrame(rows)
+    expected = pl.DataFrame(rows, infer_schema_length=None)
+    engine = SQLAlchemyEngine(empty_sqlite_engine)
+    executed = mock.Mock()
+    sa.event.listen(empty_sqlite_engine, "before_cursor_execute", executed)
+    try:
+        with mock.patch.object(
+            engine, "sql_output_format", return_value=output_format
+        ):
+            result = engine.execute(
+                "INSERT INTO destination SELECT value FROM source ORDER BY rowid "
+                "RETURNING value"
+            )
+        executed.assert_called_once()
+    finally:
+        sa.event.remove(empty_sqlite_engine, "before_cursor_execute", executed)
+
+    if output_format == "lazy-polars":
+        assert isinstance(result, pl.LazyFrame)
+        result = result.collect()
+    assert_frame_equal(result, expected)
+    with empty_sqlite_engine.connect() as connection:
+        assert connection.execute(
+            sa.text("SELECT COUNT(*) FROM destination")
+        ).scalar_one() == len(values)
+
+
+@pytest.mark.requires("sqlalchemy", "polars")
+@pytest.mark.parametrize(
+    "query",
+    [
+        "SELECT 1 AS value",
+        "SELECT NULL AS value",
+        "SELECT 1 AS value WHERE 0",
+    ],
+    ids=["valid", "all-null", "empty"],
+)
+def test_sqlalchemy_schema_inference_fast_path(
+    empty_sqlite_engine: sa.Engine, query: str
+) -> None:
+    import polars as pl
+    import sqlalchemy as sa
+    from polars.testing import assert_frame_equal
+
+    with empty_sqlite_engine.connect() as connection:
+        expected = pl.DataFrame(connection.execute(sa.text(query)).fetchall())
+
+    engine = SQLAlchemyEngine(empty_sqlite_engine)
+    with (
+        mock.patch.object(engine, "sql_output_format", return_value="polars"),
+        mock.patch.object(pl, "DataFrame", wraps=pl.DataFrame) as constructor,
+    ):
+        result = engine.execute(query)
+        constructor.assert_called_once()
+        assert constructor.call_args.kwargs == {}
+    assert_frame_equal(result, expected)
+
+
+@pytest.mark.requires("sqlalchemy", "polars")
+@pytest.mark.parametrize(
+    "error_type", ["ComputeError", "SchemaError", "ValueError"]
+)
+def test_sqlalchemy_schema_inference_unrelated_error(
+    empty_sqlite_engine: sa.Engine, error_type: str
+) -> None:
+    import polars as pl
+
+    error = (
+        ValueError("unrelated error")
+        if error_type == "ValueError"
+        else getattr(pl.exceptions, error_type)("unrelated error")
+    )
+    engine = SQLAlchemyEngine(empty_sqlite_engine)
+    with (
+        mock.patch.object(engine, "sql_output_format", return_value="polars"),
+        mock.patch.object(pl, "DataFrame", side_effect=error) as constructor,
+        pytest.raises(type(error)) as exc_info,
+    ):
+        engine.execute("SELECT 1 AS value")
+    assert exc_info.value is error
+    constructor.assert_called_once()
+
+
+@pytest.mark.requires("sqlalchemy", "polars", "pandas")
+@pytest.mark.parametrize("output_format", ["polars", "lazy-polars", "auto"])
+@pytest.mark.parametrize(
+    "message",
+    ["cannot construct a common type", "increase infer_schema_length"],
+)
+def test_sqlalchemy_schema_inference_retry_failure(
+    empty_sqlite_engine: sa.Engine, output_format: str, message: str
+) -> None:
+    import pandas as pd
+    import polars as pl
+    from pandas.testing import assert_frame_equal
+
+    error = pl.exceptions.ComputeError(message)
+    engine = SQLAlchemyEngine(empty_sqlite_engine)
+    with (
+        mock.patch.object(
+            engine, "sql_output_format", return_value=output_format
+        ),
+        mock.patch.object(
+            pl,
+            "DataFrame",
+            side_effect=[
+                pl.exceptions.ComputeError(
+                    "consider increasing `infer_schema_length`"
+                ),
+                error,
+            ],
+        ) as constructor,
+    ):
+        if output_format == "auto":
+            result = engine.execute("SELECT 1 AS value")
+            assert_frame_equal(result, pd.DataFrame({"value": [1]}))
+        else:
+            with pytest.raises(pl.exceptions.ComputeError) as exc_info:
+                engine.execute("SELECT 1 AS value")
+            assert exc_info.value is error
+
+    assert constructor.call_count == 2
+    assert constructor.call_args.kwargs == {"infer_schema_length": None}
+    assert (
+        constructor.call_args_list[0].args[0] is constructor.call_args.args[0]
+    )
+
+
+@pytest.mark.requires("sqlalchemy", "polars", "pandas")
+@pytest.mark.parametrize("output_format", ["polars", "lazy-polars", "auto"])
+def test_sqlalchemy_schema_inference_incompatible_types(
+    empty_sqlite_engine: sa.Engine, output_format: str
+) -> None:
+    import pandas as pd
+    import polars as pl
+    from pandas.testing import assert_frame_equal
+
+    query = """
+        WITH RECURSIVE numbers(n) AS (
+            SELECT 0 UNION ALL SELECT n + 1 FROM numbers WHERE n < 100
+        )
+        SELECT CASE WHEN n < 100 THEN 1 ELSE X'FF' END AS value
+        FROM numbers ORDER BY n
+    """
+    engine = SQLAlchemyEngine(empty_sqlite_engine)
+    with mock.patch.object(
+        engine, "sql_output_format", return_value=output_format
+    ):
+        if output_format == "auto":
+            result = engine.execute(query)
+            assert_frame_equal(
+                result, pd.DataFrame({"value": [1] * 100 + [b"\xff"]})
+            )
+        else:
+            with pytest.raises(
+                pl.exceptions.ComputeError, match="infer_schema_length"
+            ) as exc_info:
+                engine.execute(query)
+            assert isinstance(
+                exc_info.value.__cause__, pl.exceptions.SchemaError
+            )
+
+
 # ------------------------
 # Decoracotors
 # ------------------------
