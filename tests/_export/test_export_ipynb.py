@@ -57,7 +57,7 @@ def test_topological_export_preserves_invalid_cells() -> None:
     valid_cell = next(iter(internal_app.cell_manager.cell_data()))
     invalid_cell_id = CellId_t("invalid-cell")
     _ = internal_app.graph
-    internal_app.with_data(
+    internal_app.apply_data(
         cell_ids=[invalid_cell_id, valid_cell.cell_id],
         codes=["x =", valid_cell.code],
         names=["_", valid_cell.name],

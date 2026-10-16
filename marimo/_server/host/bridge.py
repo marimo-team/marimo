@@ -316,10 +316,8 @@ class SessionBridge(SessionEventListener):
                         f"{answer!r} is not an option for {_FILE_CHANGED.id}"
                     )
             # TODO(MO-8005): Move persistence to the notebook, with sessions
-            # consuming its events. Until then, save_from_cells on an attached
-            # session can replace a concurrent edit with this older snapshot.
-            # The notebook's writer must persist snapshots without mutating
-            # the live document; cover attached-session edits during a save.
+            # consuming its events. Until then the session's file manager
+            # writes the session's cells, which the host document mirrors.
             if session is None:
                 cells = [documents.to_notebook_cell(c) for c in revision]
                 manager = None

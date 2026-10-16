@@ -740,14 +740,24 @@ async def test_save_writes_the_cells_and_keeps_the_app_config(
     bridge.close()
 
 
+@pytest.mark.parametrize("attached", [False, True])
 async def test_saving_keeps_an_edit_made_while_the_file_is_written(
-    manager: FakeManager, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    manager: FakeManager,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    attached: bool,
 ) -> None:
     from marimo._session.notebook import AppFileManager
 
     prepare(manager, tmp_path, "a.py")
     path = tmp_path / "a.py"
     path.write_text(NOTEBOOK)
+    session = None
+    if attached:
+        session = FakeSession(str(path))
+        session.app_file_manager = AppFileManager(str(path))
+        session.document = session.app_file_manager.app.cell_manager.document
+        manager.sessions["browser-1"] = session
     bridge = SessionBridge(manager)  # type: ignore[arg-type]
     await bridge.open()
     record = bridge.index.notebook_for(str(path))
@@ -776,6 +786,7 @@ async def test_saving_keeps_an_edit_made_while_the_file_is_written(
         edited = await bridge.edit(
             record.id, [replace_code(cell, "x = 2")], request_id="edit-1"
         )
+        version = session.document.version if session is not None else None
     finally:
         release.set()
     saved = await asyncio.wait_for(saving, 5)
@@ -786,6 +797,9 @@ async def test_saving_keeps_an_edit_made_while_the_file_is_written(
     assert notebook.saved_etag != notebook.document.etag
     assert "x = 1" in path.read_text()
     assert "x = 2" not in path.read_text()
+    if session is not None:
+        assert [c.code for c in session.document.cells] == ["x = 2"]
+        assert session.document.version == version
     bridge.close()
 
 
@@ -842,7 +856,7 @@ async def test_the_editor_saving_marks_the_host_document_saved(
     from marimo._ast.cell import CellConfig
     from marimo._core.document import Document
     from marimo._messaging.notebook import NotebookCell
-    from marimo._server.host.document import from_file_manager
+    from marimo._server.host.document import sources
     from marimo._session.notebook import AppFileManager
     from marimo._types.ids import CellId_t
 
@@ -864,11 +878,12 @@ async def test_the_editor_saving_marks_the_host_document_saved(
     before = notebook.document.etag
 
     # The editor writes new content the host has not mirrored yet.
-    session.app_file_manager.save_from_cells(
-        [NotebookCell(CellId_t(cell.id), "x = 2", cell.name, CellConfig())]
-    )
+    cells = [NotebookCell(CellId_t(cell.id), "x = 2", cell.name, CellConfig())]
+    session.app_file_manager.save_from_cells(cells)
 
-    written = Document(*from_file_manager(session.app_file_manager)).etag
+    written = Document(
+        sources(cells), session.app_file_manager.app.config.asdict_difference()
+    ).etag
     assert notebook.saved_etag == written
     assert notebook.document.etag == before != written
 

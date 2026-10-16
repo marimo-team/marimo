@@ -310,6 +310,58 @@ def test_save_from_cells_persists_cells(
     assert "def first" in contents
 
 
+def test_save_from_cells_leaves_the_document_alone(
+    app_file_manager: AppFileManager,
+) -> None:
+    """The cells are written as given and nothing in memory changes.
+
+    An autosave runs on a worker thread with a copy of the cells. An
+    edit that lands meanwhile must not be replaced by the older copy.
+    """
+    from marimo._messaging.notebook.document import NotebookCell
+
+    document = app_file_manager.app.cell_manager.document
+    (cell,) = document.cells
+    version = document.version
+
+    app_file_manager.save_from_cells(
+        [NotebookCell(cell.id, "z = 99", cell.name, CellConfig())]
+    )
+
+    assert document.get_cell(cell.id).code == cell.code
+    assert document.version == version
+    assert app_file_manager.filename is not None
+    with open(app_file_manager.filename, encoding="utf-8") as f:
+        assert "z = 99" in f.read()
+
+
+@pytest.mark.parametrize("recreate", [False, True])
+def test_save_from_cells_preserves_the_header(
+    tmp_path: Path, recreate: bool
+) -> None:
+    path = tmp_path / "notebook.py"
+    header = '# /// script\n# dependencies = ["requests"]\n# ///\n'
+    path.write_text(
+        header
+        + "\nimport marimo\napp = marimo.App()\n"
+        + "\n@app.cell\ndef _():\n    x = 1\n    return (x,)\n"
+    )
+    manager = AppFileManager(str(path))
+    cells = list(manager.app.cell_manager.document.cells)
+    if recreate:
+        path.unlink()
+    else:
+        # A package install can update the header after the app was loaded.
+        updated = header.replace("requests", "httpx")
+        path.write_text(path.read_text().replace(header, updated))
+        header = updated
+
+    manager.save_from_cells(cells)
+
+    assert path.read_text().startswith(header)
+    assert "x = 1" in path.read_text()
+
+
 def test_save_from_cells_empty_name_normalizes(
     app_file_manager: AppFileManager,
 ) -> None:
@@ -1144,8 +1196,8 @@ if __name__ == "__main__":
 
     manager = AppFileManager(filename=str(temp_file))
 
-    # Should return False when _last_saved_content is None
-    assert manager._last_saved_content is None
+    # Should return False when nothing has been written yet
+    assert manager.writer.last_content is None
     assert manager.file_content_matches_last_save() is False
 
 
