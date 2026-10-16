@@ -460,6 +460,11 @@ const DEFAULT_HOT_KEY = {
       windows: "Shift-Escape",
     },
   },
+  "command.enterCommandMode": {
+    name: "Enter command mode",
+    group: "Command",
+    key: "Escape",
+  },
   "command.createCellBefore": {
     name: "Create a cell before current cell",
     group: "Command",
@@ -596,9 +601,11 @@ export class OverridingHotkeyProvider extends HotkeyProvider {
   public override getHotkey(action: HotkeyAction): ResolvedHotkey {
     const base = super.getHotkey(action);
     const override = this.overrides[action];
+    // An explicit empty string disables the hotkey; only `undefined` (no
+    // override recorded) falls back to the default binding.
     return {
       name: base.name,
-      key: override ? normalizeKeyString(override) : base.key,
+      key: override === undefined ? base.key : normalizeKeyString(override),
       additionalKeywords: base.additionalKeywords,
     };
   }
