@@ -37,6 +37,7 @@ Body: TypeAlias = (
     | protocol.Execution
     | protocol.Console
     | protocol.Display
+    | protocol.Variable
     | protocol.Custom
 )
 """Every object a stream carries. The wrapper map and the notebook kinds
@@ -56,6 +57,7 @@ Kind: TypeAlias = Literal[
     "execution",
     "console",
     "display",
+    "variable",
     "custom",
 ]
 """The kinds of object a stream carries, one per `Body` type."""

@@ -246,7 +246,6 @@ def retained_execution(
             cell_id=None if cell_id is None else protocol.CellId(cell_id),
             code="42" if cell_id is None else None,
             code_hash=code_hash("42"),
-            bindings=(),
             status="completed",
             outcome=protocol.ValueOutcome(
                 protocol.DisplayData(mimetype="text/plain", data="42")

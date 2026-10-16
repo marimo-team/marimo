@@ -151,12 +151,22 @@ Notebook
     └── Cell execution · another dependent cell
 ```
 
-Results include an execution's outcome, **console** output, and **display**
-items. They can remain available after the runtime stops or be restored from
-storage. Clients use the available provenance and staleness information to
-distinguish saved results from results of the current computation. Hosts choose
-how long to retain results and SHOULD keep ephemeral results briefly after
-completion to allow reconnection.
+Results include an execution's outcome, **console** output, **display**
+items, and the **variables** a cell's execution bound. They can remain
+available after the runtime stops or be restored from storage. Clients use the
+available provenance and staleness information to distinguish saved results
+from results of the current computation. Hosts choose how long to retain
+results and SHOULD keep ephemeral results briefly after completion to allow
+reconnection.
+
+A **variable** is a name in the notebook's namespace whose value varies over
+time. A cell's execution **binds** variables when it completes, and each
+carries a **revision** of its value. An **update** advances a revision without
+binding again, as when a state setter runs or a client sets a value. A
+scratch execution's names live only while it runs, so it publishes no
+variables. At most one current execution binds a given name. Hosts MUST
+publish a cell execution's variables before its `completed` status, so a
+client that has seen the execution complete has seen what it bound.
 
 ## Connecting to the host API
 
