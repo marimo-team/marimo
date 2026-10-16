@@ -8,11 +8,11 @@ data: {"run":{"id":"run-scratch","notebook_id":"n1","status":"running","started_
 
 id: 92
 event: execution
-data: {"execution":{"id":"e7","run_id":"run-scratch","cell_id":null,"code_hash":"cebd60abaf00acdc","inputs":{},"status":"running","outcome":null,"stale":null,"started_at":"2026-10-01T09:20:01Z","completed_at":null,"runtime_id":"r1","caused_by":null,"code":"import marimo as mo\nmo.output.append(mo.md(\"working…\"))\nprint(1 + 1)\n3 * 3"},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:01Z"}
+data: {"execution":{"id":"e7","run_id":"run-scratch","cell_id":null,"code_hash":"cebd60abaf00acdc","inputs":{},"status":"running","outcome":null,"started_at":"2026-10-01T09:20:01Z","completed_at":null,"runtime_id":"r1","caused_by":null,"code":"import marimo as mo\nmo.output.append(mo.md(\"working…\"))\nprint(1 + 1)\n3 * 3"},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:01Z"}
 
 id: 93
 event: execution
-data: {"execution":{"id":"e7","run_id":"run-scratch","cell_id":null,"code_hash":"cebd60abaf00acdc","inputs":{},"status":"running","outcome":{"kind":"value","display":{"mimetype":"text/html","data":"<span class=\"markdown\">working…</span>"}},"stale":null,"started_at":"2026-10-01T09:20:01Z","completed_at":null,"runtime_id":"r1","caused_by":null,"code":"import marimo as mo\nmo.output.append(mo.md(\"working…\"))\nprint(1 + 1)\n3 * 3"},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:01Z"}
+data: {"execution":{"id":"e7","run_id":"run-scratch","cell_id":null,"code_hash":"cebd60abaf00acdc","inputs":{},"status":"running","outcome":{"kind":"value","display":{"mimetype":"text/html","data":"<span class=\"markdown\">working…</span>"}},"started_at":"2026-10-01T09:20:01Z","completed_at":null,"runtime_id":"r1","caused_by":null,"code":"import marimo as mo\nmo.output.append(mo.md(\"working…\"))\nprint(1 + 1)\n3 * 3"},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:01Z"}
 
 id: 94
 event: console
@@ -26,7 +26,7 @@ data: {"attachment":{"id":"a2","notebook_id":"n1","kind":"agent","name":"Noteboo
 
 id: 96
 event: execution
-data: {"execution":{"id":"e7","run_id":"run-scratch","cell_id":null,"code_hash":"cebd60abaf00acdc","inputs":{},"status":"completed","outcome":{"kind":"value","display":{"mimetype":"text/html","data":"<span class=\"markdown\">working…</span><pre>9</pre>"}},"stale":null,"started_at":"2026-10-01T09:20:01Z","completed_at":"2026-10-01T09:20:04Z","runtime_id":"r1","caused_by":null,"code":"import marimo as mo\nmo.output.append(mo.md(\"working…\"))\nprint(1 + 1)\n3 * 3"},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:04Z"}
+data: {"execution":{"id":"e7","run_id":"run-scratch","cell_id":null,"code_hash":"cebd60abaf00acdc","inputs":{},"status":"completed","outcome":{"kind":"value","display":{"mimetype":"text/html","data":"<span class=\"markdown\">working…</span><pre>9</pre>"}},"started_at":"2026-10-01T09:20:01Z","completed_at":"2026-10-01T09:20:04Z","runtime_id":"r1","caused_by":null,"code":"import marimo as mo\nmo.output.append(mo.md(\"working…\"))\nprint(1 + 1)\n3 * 3"},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:04Z"}
 
 id: 97
 event: run

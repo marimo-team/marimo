@@ -377,7 +377,6 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                 )
             if execution["cell_id"] is None:
                 assert execution["code"] is not None
-                assert execution["stale"] is None
             else:
                 assert execution["code"] is None
             if execution["status"] == "queued":

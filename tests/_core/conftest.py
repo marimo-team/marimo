@@ -251,7 +251,6 @@ def retained_execution(
             outcome=protocol.ValueOutcome(
                 protocol.DisplayData(mimetype="text/plain", data="42")
             ),
-            stale=False if cell_id is not None else None,
             started_at=None,
             completed_at=None,
         ),

@@ -153,11 +153,9 @@ Notebook
 
 Results include an execution's outcome, **console** output, **display**
 items, and the **variables** a cell's execution bound. They can remain
-available after the runtime stops or be restored from storage. Clients use the
-available provenance and staleness information to distinguish saved results
-from results of the current computation. Hosts choose how long to retain
-results and SHOULD keep ephemeral results briefly after completion to allow
-reconnection.
+available after the runtime stops or be restored from storage. Hosts choose
+how long to retain results and SHOULD keep ephemeral results briefly after
+completion to allow reconnection.
 
 A **variable** is a name in the notebook's namespace whose value varies over
 time. A cell's execution **binds** variables when it completes, and each
@@ -170,8 +168,43 @@ client that has seen the execution complete has seen what it bound.
 
 An execution's **inputs** are the variables it read, by name, at the revision
 each held when it started. A name that no current execution had bound is
-recorded without a revision. Together with the variables, inputs let a client
-compare what a result was computed from with what the notebook now holds.
+recorded without a revision.
+
+A client derives whether a result is current using these records. A cell
+execution is **current** when:
+
+- its `code_hash` equals the cell's,
+- each variable it read still holds the revision it recorded,
+- each name it read that was unbound is still unbound,
+- the execution that bound each variable it read is itself current.
+
+A cell with no execution has never been evaluated. Any other result is
+**outdated**, and the comparison that failed says why, whether the cell's code
+changed, a value it read was updated, or a result upstream changed.
+
+For example, cell `k7f2` reads `x`, which cell `c3` binds:
+
+```text
+Cell c3     code_hash 0f71…   Execution e12   code_hash 0f71…   inputs {}
+Variable x  revision {e12, 0}  bound by e12
+Cell k7f2   code_hash db2b…   Execution e13   code_hash db2b…   inputs {x: {e12, 0}}
+```
+
+Both executions are current. If an update advances `x` to revision `{e12, 1}`,
+`e13` is outdated because it read an earlier revision. If `c3` is edited, its
+code hash no longer matches `e12`, so `e12` is outdated, and `e13` is outdated
+because the execution that bound `x` is. If `c3` runs again, a new execution
+replaces `e12` and binds `x` at a new revision, with the same effect on `e13`.
+
+Deriving this from the records keeps the answer available wherever they are. A
+host serving retained results after its runtime has stopped can still give it,
+two clients reading the same stream agree on it, and a client that acts on it,
+such as one that runs every outdated cell, computes the set from what it
+already holds.
+
+Separately, a result is **live** when its `runtime_id` is the current
+runtime's. A result from an earlier runtime can be current while no runtime
+holds its values.
 
 ## Connecting to the host API
 
@@ -279,8 +312,10 @@ formatting, MUST reach clients through the document stream as well.
 
 Clients can request document cells or submit scratch code. Cells execute under
 the runtime's execution configuration, which determines how dependent cells
-are scheduled. Scratch code runs against a copy of the runtime namespace
-outside the document's dependency graph. A client can ask the host to verify
+are scheduled. A dependent the configuration leaves out keeps its execution,
+which is outdated once its parent's new execution lands. Scratch code runs
+against a copy of the runtime namespace outside the document's dependency
+graph. A client can ask the host to verify
 that a cell's code still matches what it read before executing it.
 
 An accepted execution request starts a run whose progress and results arrive on

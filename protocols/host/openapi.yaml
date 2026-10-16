@@ -1216,7 +1216,7 @@ components:
         one outcome. Side effects belong to the execution whose context
         produced them; items can arrive after the execution is completed
         while it remains retained.
-      required: [id, run_id, runtime_id, caused_by, cell_id, code, code_hash, inputs, status, outcome, stale, started_at, completed_at]
+      required: [id, run_id, runtime_id, caused_by, cell_id, code, code_hash, inputs, status, outcome, started_at, completed_at]
       properties:
         id: { $ref: '#/components/schemas/ExecutionId' }
         run_id:
@@ -1246,9 +1246,6 @@ components:
         outcome:
           oneOf: [{ $ref: '#/components/schemas/Outcome' }, { type: 'null' }]
           description: How the execution ended. Null while queued; while running, a value carries the display so far; final once completed.
-        stale:
-          type: [boolean, 'null']
-          description: Whether an input changed since this result was produced. Null for scratch code, which has no inputs in the graph.
         started_at:
           type: [string, 'null']
           format: date-time
@@ -1415,7 +1412,7 @@ components:
         policy:
           type: string
           enum: [autorun, lazy]
-          description: When dependents of an evaluated cell run. `autorun` runs them on every change; `lazy` marks them stale and runs them when asked. Set by the host.
+          description: When dependents of an evaluated cell run. `autorun` runs them on every change; `lazy` leaves them for a later run. Set by the host.
         etag:
           $ref: '#/components/schemas/Etag'
           description: Identifies the document as currently applied. Its text is `order_etag`, `app_config_etag`, and every cell's `etag` in order, so it changes when any of them does.

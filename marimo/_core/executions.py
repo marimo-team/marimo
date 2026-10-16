@@ -393,7 +393,6 @@ class Executions:
                         inputs={},
                         status="queued",
                         outcome=None,
-                        stale=None,
                         started_at=None,
                         completed_at=None,
                     )
