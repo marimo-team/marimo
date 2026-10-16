@@ -4877,6 +4877,36 @@ export interface components {
       theme: "dark" | "light" | "system";
     };
     /**
+     * EditCellsCommand
+     * @description Apply one edit of the notebook's cells to the kernel.
+     *
+     *         TODO(MO-8002): Replace this temporary command with synchronization of
+     *         a versioned notebook document replica in the kernel. Replica updates
+     *         must be applied before any execution trigger.
+     *
+     *         Sent when the notebook changes without a run, as a host edit does.
+     *         Changed code is registered without running, so no later run uses
+     *         code the notebook no longer has. Deletions and configs take effect
+     *         together, before any cell runs because of them, so a cell the edit
+     *         deletes or disables does not run when a cell it depended on goes.
+     *
+     *         Attributes:
+     *             codes: New code for each cell the edit created or changed.
+     *             configs: New config for each cell the edit created or reconfigured.
+     *             delete_ids: Cells the edit removed.
+     */
+    EditCellsCommand: {
+      codes: {
+        [key: string]: string;
+      };
+      configs: {
+        [key: string]: Record<string, any>;
+      };
+      deleteIds: string[];
+      /** @enum {unknown} */
+      type: "edit-cells";
+    };
+    /**
      * EnvironmentOperation
      * @description Current progress and logs for one execution of environment work.
      */
@@ -5787,6 +5817,7 @@ export interface components {
         | components["schemas"]["SetBreakpointsCommand"]
         | components["schemas"]["DeleteCellCommand"]
         | components["schemas"]["SyncGraphCommand"]
+        | components["schemas"]["EditCellsCommand"]
         | components["schemas"]["UpdateCellConfigCommand"]
         | components["schemas"]["InstallPackagesCommand"]
         | components["schemas"]["UpdateUIElementCommand"]

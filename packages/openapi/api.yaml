@@ -1741,6 +1741,41 @@ components:
       - theme
       title: DisplayConfig
       type: object
+    EditCellsCommand:
+      description: "Apply one edit of the notebook's cells to the kernel.\n\n    TODO(MO-8002):\
+        \ Replace this temporary command with synchronization of\n    a versioned\
+        \ notebook document replica in the kernel. Replica updates\n    must be applied\
+        \ before any execution trigger.\n\n    Sent when the notebook changes without\
+        \ a run, as a host edit does.\n    Changed code is registered without running,\
+        \ so no later run uses\n    code the notebook no longer has. Deletions and\
+        \ configs take effect\n    together, before any cell runs because of them,\
+        \ so a cell the edit\n    deletes or disables does not run when a cell it\
+        \ depended on goes.\n\n    Attributes:\n        codes: New code for each cell\
+        \ the edit created or changed.\n        configs: New config for each cell\
+        \ the edit created or reconfigured.\n        delete_ids: Cells the edit removed."
+      properties:
+        codes:
+          additionalProperties:
+            type: string
+          type: object
+        configs:
+          additionalProperties:
+            type: object
+          type: object
+        deleteIds:
+          items:
+            type: string
+          type: array
+        type:
+          enum:
+          - edit-cells
+      required:
+      - type
+      - codes
+      - configs
+      - deleteIds
+      title: EditCellsCommand
+      type: object
     EnvironmentOperation:
       description: Current progress and logs for one execution of environment work.
       properties:
@@ -3244,6 +3279,7 @@ components:
           - $ref: '#/components/schemas/SetBreakpointsCommand'
           - $ref: '#/components/schemas/DeleteCellCommand'
           - $ref: '#/components/schemas/SyncGraphCommand'
+          - $ref: '#/components/schemas/EditCellsCommand'
           - $ref: '#/components/schemas/UpdateCellConfigCommand'
           - $ref: '#/components/schemas/InstallPackagesCommand'
           - $ref: '#/components/schemas/UpdateUIElementCommand'
@@ -3272,6 +3308,7 @@ components:
               debug-cell: '#/components/schemas/DebugCellCommand'
               delete-cell: '#/components/schemas/DeleteCellCommand'
               discover-data-sources: '#/components/schemas/DiscoverDataSourcesCommand'
+              edit-cells: '#/components/schemas/EditCellsCommand'
               execute-cells: '#/components/schemas/ExecuteCellsCommand'
               execute-scratchpad: '#/components/schemas/ExecuteScratchpadCommand'
               execute-stale-cells: '#/components/schemas/ExecuteStaleCellsCommand'
