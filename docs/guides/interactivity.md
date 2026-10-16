@@ -44,7 +44,7 @@ assigned to a global variable.**
 
 ## Displaying UI elements
 
-Display UI elements in the output area above a cell by including them in the
+Display UI elements in the output area below a cell by including them in the
 last expression, just like any other object. You can also embed elements
 in [markdown][marimo.md] using Python f-strings, like so:
 
