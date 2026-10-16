@@ -1010,6 +1010,33 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <OverriddenFormField
+                control={form.control}
+                name="display.datetime_in_local_timezone"
+                render={({ field, override }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Show datetimes in local timezone</FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="datetime-in-local-timezone-checkbox"
+                          checked={override.value}
+                          disabled={override.isOverridden}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden override={override} />
+                    </FormItem>
+
+                    <FormDescription>
+                      Render timezone-aware datetimes (such as SQL timestamptz
+                      columns) in your browser's local timezone instead of the
+                      timezone encoded in the data.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
             <SettingGroup title="Outputs">
               <OverriddenFormField
