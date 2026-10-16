@@ -1410,6 +1410,12 @@ class Execution(Struct, frozen=True):
         | None
     )
     id: ExecutionId
+    inputs: Annotated[
+        dict[str, Revision | None],
+        Meta(
+            description="The variables the code read, by name, at the revision each held when the execution started. Null for a name no current execution had bound at the time. Keyed by the names the code reads from the namespace, so a scratch execution has inputs too. Empty while queued, stamped when the execution starts, and final from then on."
+        ),
+    ]
     outcome: (
         Annotated[
             Outcome,

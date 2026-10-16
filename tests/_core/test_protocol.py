@@ -383,6 +383,11 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
             if execution["status"] == "queued":
                 assert execution["outcome"] is None
                 assert execution["started_at"] is None
+                assert execution["inputs"] == {}
+            elif previous is not None and previous["status"] != "queued":
+                assert execution["inputs"] == previous["inputs"]
+            for revision in execution["inputs"].values():
+                assert revision is None or revision["update"] >= 0
             if execution["status"] == "completed":
                 assert execution["outcome"] is not None
             assert (execution["completed_at"] is not None) == (
@@ -424,6 +429,10 @@ def test_cell_run_request_and_results() -> None:
     assert cells["k7f2"]["code"] == "y = x * 2"
     assert executions["e12"]["caused_by"] is None
     assert executions["e13"]["caused_by"] == "e12"
+    assert executions["e12"]["inputs"] == {}
+    assert executions["e13"]["inputs"] == {
+        "x": {"execution": "e12", "update": 0}
+    }
     for execution in executions.values():
         assert (
             execution["code_hash"] == cells[execution["cell_id"]]["code_hash"]

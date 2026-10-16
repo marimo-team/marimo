@@ -168,6 +168,11 @@ variables. At most one current execution binds a given name. Hosts MUST
 publish a cell execution's variables before its `completed` status, so a
 client that has seen the execution complete has seen what it bound.
 
+An execution's **inputs** are the variables it read, by name, at the revision
+each held when it started. A name that no current execution had bound is
+recorded without a revision. Together with the variables, inputs let a client
+compare what a result was computed from with what the notebook now holds.
+
 ## Connecting to the host API
 
 Clients connect using the host API's base URL and bearer token, whether
