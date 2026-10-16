@@ -938,6 +938,70 @@ async def test_the_editor_saving_marks_the_host_document_saved(
     bridge.close()
 
 
+@pytest.mark.parametrize("error", [OSError, UnicodeError])
+async def test_save_refuses_to_overwrite_when_the_file_cannot_be_read(
+    manager: FakeManager,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    error: type[Exception],
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    notebook = await bridge.host.notebook(record.id)
+    before = notebook.document.snapshot()
+    external = NOTEBOOK.replace("x = 1", "x = 2")
+    path.write_text(external)
+
+    def unreadable(_file: Path) -> str:
+        raise error("The change check failed, but the file is writable")
+
+    monkeypatch.setattr("marimo._server.host.bridge._read_text", unreadable)
+    try:
+        with pytest.raises(Conflict, match="could not be read"):
+            await bridge.save(record.id, if_match=None, request_id="save-1")
+        assert path.read_text() == external
+        assert notebook.document.snapshot() == before
+    finally:
+        bridge.close()
+
+
+async def test_save_without_a_file_baseline_requires_a_decision(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    await bridge.host.notebook(record.id)
+    bridge._file_texts.pop(record.id)
+    external = NOTEBOOK.replace("x = 1", "x = 2")
+    path.write_text(external)
+    try:
+        with pytest.raises(DecisionRequired):
+            await bridge.save(record.id, if_match=None, request_id="save-1")
+        assert path.read_text() == external
+
+        reloaded = await bridge.save(
+            record.id,
+            if_match=None,
+            decisions={"file": "reload"},
+            request_id="save-2",
+        )
+        assert reloaded.document.saved_etag == reloaded.document.etag
+        assert path.read_text() == external
+        assert bridge._file_texts[record.id] == external
+    finally:
+        bridge.close()
+
+
 async def test_reloading_refuses_to_drop_an_edit_made_while_reading(
     manager: FakeManager, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

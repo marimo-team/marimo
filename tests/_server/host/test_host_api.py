@@ -1720,10 +1720,10 @@ async def test_save_writes_the_file_and_reports_the_saved_revision(
         lambda r: any(
             x.get("event") == "document"
             and x["data"]["document"]["saved_etag"] == etag
+            and x["data"]["request_id"] == "save-1"
             for x in r.records
         ),
     )
-    assert stream.records[-1]["data"]["request_id"] == "save-1"
 
     # A retry under the same key with another precondition is another request.
     again = await finished(

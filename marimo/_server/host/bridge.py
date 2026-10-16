@@ -283,8 +283,11 @@ class SessionBridge(SessionEventListener):
                     raise Invalid(
                         f"{answer!r} is not an option for {_FILE_CHANGED.id}"
                     )
-            # TODO(MO-8005): One writer per notebook file, owned by the
-            # notebook, replaces the choice of manager here.
+            # TODO(MO-8005): Move persistence to the notebook, with sessions
+            # consuming its events. Until then, save_from_cells on an attached
+            # session can replace a concurrent edit with this older snapshot.
+            # The notebook's writer must persist snapshots without mutating
+            # the live document; cover attached-session edits during a save.
             if session is None:
                 cells = [documents.to_notebook_cell(c) for c in snapshot.cells]
                 manager = None
@@ -330,9 +333,8 @@ class SessionBridge(SessionEventListener):
     ) -> bool:
         """Whether the file's text differs from what the host last read or wrote.
 
-        Without a baseline there is nothing to compare, and a file that
-        cannot be read will fail to be written too, so neither counts
-        as a change.
+        Without a baseline, require a decision. A failed read cannot
+        establish that overwriting the file is safe, so refuse the save.
         """
         pending = self._rebaselining.get(notebook_id)
         if pending is not None:
@@ -340,11 +342,11 @@ class SessionBridge(SessionEventListener):
             self._rebaselining.pop(notebook_id, None)
         baseline = self._file_texts.get(notebook_id)
         if baseline is None:
-            return False
+            return True
         try:
             text = await asyncio.to_thread(_read_text, file)
-        except OSError:
-            return False
+        except (OSError, UnicodeError) as e:
+            raise Conflict("The notebook file could not be read") from e
         return _texts_differ(text, baseline)
 
     async def _reload(

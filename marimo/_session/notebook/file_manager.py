@@ -510,8 +510,9 @@ class AppFileManager:
             return contents
 
     def _persisted(self, cells: Sequence[NotebookCell]) -> None:
-        if self.on_persisted is not None:
-            self.on_persisted(cells, self.app.config.asdict_difference())
+        callback = self.on_persisted
+        if callback is not None:
+            callback(cells, self.app.config.asdict_difference())
 
     def capture_autosave_target(self) -> tuple[Path | None, int]:
         with self._save_lock:
