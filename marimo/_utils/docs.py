@@ -278,6 +278,25 @@ class MarimoConverter:
         return False
 
 
+class MarkdownConverter:
+    # Let structured docstring converters handle RST, NumPy, and Google
+    # sections before preserving otherwise unrecognized Markdown verbatim.
+    priority = 0
+
+    def can_convert(self, docstring: str) -> bool:
+        return (
+            re.search(
+                r"(?<![\\`])(`+)(?!`)(.+?)(?<!`)\1(?!`)",
+                docstring,
+                flags=re.DOTALL,
+            )
+            is not None
+        )
+
+    def convert(self, docstring: str) -> str:
+        return docstring
+
+
 def _process_code_block_content(description: str) -> str:
     """
     Process a description that may contain code blocks and convert them to HTML.

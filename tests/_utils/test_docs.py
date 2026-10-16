@@ -1,12 +1,94 @@
+from unittest.mock import patch
+
+import pytest
 from inline_snapshot import snapshot as inline_snapshot
 
 from marimo._utils.docs import (
+    MarkdownConverter,
     _process_code_block_content,
     google_docstring_to_markdown,
 )
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
+
+
+@pytest.mark.parametrize("with_args", [False, True])
+@pytest.mark.parametrize(
+    "docstring",
+    [
+        """Add exclamation marks after text.
+
+Note: `shout_factor` supports all natural numbers.
+If a `shout_factor` is a negative number, that number of
+exclamation marks will be removed from the input text.
+
+For example: `shout('hi!!!', shout_factor=-1)` will return `'hi!!'`.""",
+        r"Use `a_b`, `[a_b]`, `*a_b*`, and `C:\some_path`.",
+        "Code:\n\n```python\nshout_factor = 1\n```",
+        "Use ``a`b_c`` to include a backtick.",
+    ],
+)
+def test_pylsp_docstring_code_spans(docstring: str, with_args: bool) -> None:
+    utils = pytest.importorskip("pylsp._utils")
+    if with_args:
+        docstring += (
+            "\n\nArgs:\n    shout_factor: Number of exclamation marks."
+        )
+
+    assert utils.format_docstring(docstring, "markdown") == {
+        "kind": "markdown",
+        "value": (
+            google_docstring_to_markdown(docstring) if with_args else docstring
+        ),
+    }
+
+
+@pytest.mark.parametrize(
+    "docstring",
+    [
+        "Use `shout_factor`.\n\n:param shout_factor: Number of exclamation marks.",
+        (
+            "Use `shout_factor`.\n\nParameters\n----------\n"
+            "shout_factor : int\n    Number of exclamation marks."
+        ),
+        "Use :class:`My_Class`.",
+        "Use `shout_factor`.\n\n>>> shout_factor = 1\n>>> shout_factor\n1",
+        "Use shout_factor.",
+        "Use `shout_factor.",
+        r"Use \`shout_factor\`.",
+        "Plain text.",
+        "",
+    ],
+)
+def test_pylsp_preserves_other_docstring_formats(
+    docstring: str,
+) -> None:
+    utils = pytest.importorskip("pylsp._utils")
+    # Compare with the installed upstream version's behavior before our fallback.
+    with patch.object(MarkdownConverter, "can_convert", return_value=False):
+        expected = utils.format_docstring(docstring, "markdown")
+    assert utils.format_docstring(docstring, "markdown") == expected
+
+
+@pytest.mark.parametrize(
+    ("docstring", "expected"),
+    [
+        ("", False),
+        ("Use `shout_factor`.", True),
+        ("Use ``shout_factor``.", True),
+        ("Use ``a`b_c``.", True),
+        ("Code:\n```python\nshout_factor = 1\n```", True),
+        ("Use shout_factor.", False),
+        ("Use `shout_factor.", False),
+        ("Use `shout_factor``.", False),
+        (r"Use \`shout_factor\`.", False),
+    ],
+)
+def test_markdown_converter_can_convert(
+    docstring: str, expected: bool
+) -> None:
+    assert MarkdownConverter().can_convert(docstring) is expected
 
 
 def test_google_docstring_to_markdown_summary():
