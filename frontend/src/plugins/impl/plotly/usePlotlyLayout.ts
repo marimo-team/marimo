@@ -7,7 +7,11 @@ import { useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Objects } from "@/utils/objects";
 import type { Figure } from "./Plot";
-import { type PlotlyCameraState, restoreCameraLayout } from "./camera-state";
+import {
+  type PlotlyCameraState,
+  pruneCameraState,
+  restoreCameraLayout,
+} from "./camera-state";
 
 /**
  * Keys that are preserved across figure updates when set by user interaction.
@@ -182,6 +186,7 @@ export function usePlotlyLayout({
     const prevFig = prevFigureRef.current;
     prevFigureRef.current = nextFigure;
     setFigure(nextFigure);
+    setCameras((prev) => pruneCameraState(nextFigure, prev));
     // Start with the new figure's layout, then only preserve user-interaction
     // values (dragmode, xaxis, yaxis) from the previous layout.
     // We don't want to preserve other properties like `shapes` from the previous

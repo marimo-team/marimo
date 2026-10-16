@@ -328,6 +328,73 @@ describe("Plotly camera persistence", () => {
     });
   });
 
+  it("does not restore a camera after the revision changes and changes back", async () => {
+    const chart = mountChart(figure("a"));
+    await waitFor(() => expect(plotProps).toBeDefined());
+    moveCamera();
+    act(() => chart.resetValue());
+    chart.update(figure("b"));
+    await waitFor(() =>
+      expect(plotProps?.layout.scene?.camera).toEqual(initialCamera),
+    );
+    chart.update(figure("a"));
+    expect(plotProps?.layout.scene?.camera).toEqual(initialCamera);
+
+    const event: Plotly.PlotRelayoutEvent & Record<string, unknown> = {
+      "scene.camera.eye.x": 4,
+    };
+    act(() => plotProps?.onRelayout?.(event));
+    chart.unmount();
+    mountChart(figure("a"), chart.getValue());
+    await waitFor(() =>
+      expect(plotProps?.layout.scene?.camera).toEqual({
+        eye: { x: 4, y: 1, z: 1 },
+      }),
+    );
+  });
+
+  it("does not persist cameras from an earlier revision with a new capture", async () => {
+    const withScene2 = (revision: string) => {
+      const data = figure(revision);
+      data.layout.scene2 = { camera: initialCamera };
+      return data;
+    };
+    const chart = mountChart(withScene2("a"));
+    await waitFor(() => expect(plotProps).toBeDefined());
+    moveCamera("scene2");
+    chart.update(withScene2("b"));
+    moveCamera();
+    chart.update(withScene2("a"));
+    await waitFor(() =>
+      expect(plotProps?.layout.scene2?.camera).toEqual(initialCamera),
+    );
+    expect(chart.getValue()?.cameras?.scene2).toBeUndefined();
+  });
+
+  it("keeps a scene's camera when only another scene's traces change", async () => {
+    const sceneTraces = (scene2Type: Plotly.PlotType): Figure["data"] => {
+      const scene2: Plotly.Data & { scene: string } = {
+        type: scene2Type,
+        scene: "scene2",
+      };
+      return [{ type: "surface", z: [[1]] }, scene2];
+    };
+    const data = figure();
+    data.layout.scene2 = { camera: initialCamera };
+    data.data = sceneTraces("scatter3d");
+    const chart = mountChart(data);
+    await waitFor(() => expect(plotProps).toBeDefined());
+    moveCamera();
+    act(() => chart.resetValue());
+    const next = figure();
+    next.layout.scene2 = { camera: initialCamera };
+    next.data = sceneTraces("surface");
+    chart.update(next);
+    await waitFor(() =>
+      expect(plotProps?.layout.scene?.camera).toEqual(movedCamera),
+    );
+  });
+
   it("reset restores the configured camera and clears its persisted state", async () => {
     const chart = mountChart(figure());
     await waitFor(() => expect(plotProps).toBeDefined());

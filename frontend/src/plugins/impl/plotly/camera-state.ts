@@ -29,11 +29,13 @@ function isSceneKey(key: string): key is SceneKey {
   return /^scene(?:[2-9]\d*|1\d+)?$/.test(key);
 }
 
-function traceTypes(figure: Figure): string[] {
-  return figure.data.map(
-    (trace) =>
-      `${trace.type ?? "scatter"}:${"scene" in trace ? (trace.scene ?? "scene") : "scene"}`,
-  );
+function traceTypes(figure: Figure, scene: SceneKey): string[] {
+  return figure.data
+    .filter(
+      (trace) =>
+        ("scene" in trace ? (trace.scene ?? "scene") : "scene") === scene,
+    )
+    .map((trace) => trace.type ?? "scatter");
 }
 
 function cameraRevision(layout: Partial<Plotly.Layout>, scene: SceneKey) {
@@ -48,11 +50,45 @@ function cameraRevision(layout: Partial<Plotly.Layout>, scene: SceneKey) {
     : undefined;
 }
 
+function isCompatible(figure: Figure, scene: SceneKey, state: CameraState) {
+  const revision = cameraRevision(figure.layout, scene);
+  return (
+    Boolean(revision) &&
+    revision === state.revision &&
+    isEqual(figure.layout[scene]?.camera, state.initialCamera) &&
+    isEqual(traceTypes(figure, scene), state.traceTypes)
+  );
+}
+
+/**
+ * Drops saved cameras that no longer match the figure. Plotly compares
+ * uirevision with the preceding update only, so a camera saved at revision A
+ * must not come back after the figure goes A -> B -> A.
+ */
+export function pruneCameraState(
+  figure: Figure,
+  cameras: PlotlyCameraState | undefined,
+): PlotlyCameraState | undefined {
+  if (!cameras) {
+    return cameras;
+  }
+  const compatible: PlotlyCameraState = {};
+  for (const [key, state] of Object.entries(cameras)) {
+    if (isSceneKey(key) && state && isCompatible(figure, key, state)) {
+      compatible[key] = state;
+    }
+  }
+  return Object.keys(compatible).length === Object.keys(cameras).length
+    ? cameras
+    : compatible;
+}
+
 export function captureCameraState(
   figure: Figure,
   event: Plotly.PlotRelayoutEvent,
-  previous: PlotlyCameraState = {},
+  previousCameras: PlotlyCameraState = {},
 ): PlotlyCameraState | undefined {
+  const previous = pruneCameraState(figure, previousCameras) ?? {};
   const updates: PlotlyCameraState = {};
   const restoredLayout = restoreCameraLayout(figure, previous);
   for (const [key, value] of Object.entries(event)) {
@@ -83,7 +119,7 @@ export function captureCameraState(
       camera: structuredClone(camera.data),
       revision,
       initialCamera: structuredClone(figure.layout[scene]?.camera),
-      traceTypes: traceTypes(figure),
+      traceTypes: traceTypes(figure, scene),
     };
   }
   return Object.keys(updates).length > 0
@@ -97,19 +133,9 @@ export function restoreCameraLayout(
 ): Partial<Plotly.Layout> {
   const layout: Partial<Plotly.Layout> = {};
   for (const [key, state] of Object.entries(cameras)) {
-    if (!isSceneKey(key) || !state) {
-      continue;
-    }
-    const scene = figure.layout[key];
-    const revision = cameraRevision(figure.layout, key);
-    if (
-      revision &&
-      revision === state.revision &&
-      isEqual(scene?.camera, state.initialCamera) &&
-      isEqual(traceTypes(figure), state.traceTypes)
-    ) {
+    if (isSceneKey(key) && state && isCompatible(figure, key, state)) {
       layout[key] = {
-        ...structuredClone(scene),
+        ...structuredClone(figure.layout[key]),
         camera: structuredClone(state.camera),
       };
     }
