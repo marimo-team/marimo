@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from marimo._cli.pair.client import PairError, PairInputError
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
@@ -14,27 +15,34 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
-class CodexAdapter:
+class CodexHarness:
+    """Discover Codex conversations and check shared-daemon support."""
+
     kind = "codex"
-    # Leave room for the executable and options within Windows command limits.
-    inbox_bytes = 8 * 1024
 
     @staticmethod
     def executable() -> str:
         # Batch shims can interpret handoff text as shell syntax on Windows.
         return "codex.exe" if is_windows() else "codex"
 
-    def detect(self, env: Mapping[str, str]) -> DeliveryTarget | None:
+    def detect(
+        self,
+        env: Mapping[str, str],
+        *,
+        process: ProcessHandle | None = None,
+    ) -> DeliveryTarget | None:
         import psutil
 
         address = self.identity(env)
         if not address:
             return None
+        if process is not None:
+            return DeliveryTarget(self.kind, address, "Codex", process=process)
         owner = None
         try:
-            for process in psutil.Process().parents():
-                if Path(process.name()).stem.lower().startswith("codex"):
-                    arguments = process.cmdline()
+            for ancestor in psutil.Process().parents():
+                if Path(ancestor.name()).stem.lower().startswith("codex"):
+                    arguments = ancestor.cmdline()
                     if "--no-daemon" in arguments or any(
                         argument.endswith("stdio://") for argument in arguments
                     ):
@@ -42,7 +50,7 @@ class CodexAdapter:
                             "This Codex session does not use the shared daemon. "
                             "Run connect inside a native Codex daemon session."
                         )
-                    owner = ProcessHandle.capture(process.pid)
+                    owner = ProcessHandle.capture(ancestor.pid)
                     break
         except psutil.Error as error:
             raise PairInputError(
@@ -89,14 +97,27 @@ class CodexAdapter:
                 "Run codex app-server daemon start, then reconnect."
             )
 
-    def send(self, target: DeliveryTarget, text: str) -> None:
+    def open_inbox(self, target: DeliveryTarget) -> CodexInbox:
+        return CodexInbox(target, self.executable())
+
+
+@dataclass(frozen=True)
+class CodexInbox:
+    """Queue messages for one Codex conversation while its owner is alive."""
+
+    target: DeliveryTarget
+    executable: str
+    # Leave room for the executable and options within Windows command limits.
+    inbox_bytes: ClassVar[int] = 8 * 1024
+
+    def send(self, text: str) -> None:
         try:
             result = subprocess.run(
                 [
-                    self.executable(),
+                    self.executable,
                     "queue",
                     "--thread",
-                    target.address,
+                    self.target.address,
                     "--message",
                     text,
                 ],
@@ -114,5 +135,5 @@ class CodexAdapter:
                 "uses the shared daemon and supports codex queue."
             )
 
-    def alive(self, target: DeliveryTarget) -> bool:
-        return target.process is not None and target.process.alive()
+    def alive(self) -> bool:
+        return self.target.process is not None and self.target.process.alive()

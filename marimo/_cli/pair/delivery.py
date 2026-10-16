@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
@@ -10,6 +10,8 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class ProcessHandle:
+    """A process identified by both PID and start time to detect PID reuse."""
+
     pid: int
     started: float
 
@@ -57,22 +59,43 @@ class ProcessHandle:
 
 @dataclass(frozen=True)
 class DeliveryTarget:
+    """An inbox address and the process that controls its connection lifetime.
+
+    Credentials stay in memory and are excluded from diagnostic representations.
+    """
+
     kind: str
     address: str
     label: str
     process: ProcessHandle | None = None
+    auth_token: str | None = field(default=None, repr=False)
 
 
-class HarnessAdapter(Protocol):
+class Harness(Protocol):
+    """Discover a harness destination, check support, and bind its inbox."""
+
     kind: str
-    inbox_bytes: int
 
     def identity(self, env: Mapping[str, str]) -> str | None: ...
 
-    def detect(self, env: Mapping[str, str]) -> DeliveryTarget | None: ...
+    def detect(
+        self,
+        env: Mapping[str, str],
+        *,
+        process: ProcessHandle | None = None,
+    ) -> DeliveryTarget | None: ...
 
     def check(self) -> None: ...
 
-    def send(self, target: DeliveryTarget, text: str) -> None: ...
+    def open_inbox(self, target: DeliveryTarget) -> Inbox: ...
 
-    def alive(self, target: DeliveryTarget) -> bool: ...
+
+class Inbox(Protocol):
+    """Delivery and lifetime checks for one already-selected conversation."""
+
+    @property
+    def inbox_bytes(self) -> int: ...
+
+    def send(self, text: str) -> None: ...
+
+    def alive(self) -> bool: ...

@@ -15,6 +15,11 @@ _MAX_AGE = 24 * 60 * 60
 
 
 class AgentMessageFiles:
+    """Preserve oversized inbox payloads in private JSON files.
+
+    Files outlive the connection so agents can read them after detach.
+    """
+
     def __init__(self) -> None:
         self.directory: Path | None = None
 

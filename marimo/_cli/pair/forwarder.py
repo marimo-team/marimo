@@ -29,14 +29,14 @@ from marimo._cli.pair.client import (
 )
 from marimo._cli.pair.connection import Connection, ConnectionStore
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
-from marimo._cli.pair.harnesses import adapter_for
+from marimo._cli.pair.harnesses import harness_for
 from marimo._messaging.messages import AGENT_MESSAGE_TYPE
 from marimo._utils.subprocess import kill_subprocess
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from marimo._cli.pair.delivery import HarnessAdapter
+    from marimo._cli.pair.delivery import Inbox
 
 _LOGGER = logging.getLogger(__name__)
 _LIVENESS_SECONDS = 15.0
@@ -46,6 +46,8 @@ _RECONNECT_MAX_SECONDS = 5.0
 
 @dataclass(frozen=True)
 class ForwarderConfig:
+    """One notebook subscription and its destination inbox, including credentials."""
+
     url: str
     notebook: str
     identity: str
@@ -54,6 +56,8 @@ class ForwarderConfig:
 
 
 class _Bootstrap(msgspec.Struct):
+    """Private stdin payload for starting a forwarder and locating its record."""
+
     config: ForwarderConfig
     root: str
 
@@ -189,11 +193,9 @@ def _read_stream(
         put(None)
 
 
-def _wait_reconnect(
-    adapter: HarnessAdapter, target: DeliveryTarget, delay: float
-) -> bool:
+def _wait_reconnect(inbox: Inbox, delay: float) -> bool:
     deadline = time.monotonic() + delay
-    while adapter.alive(target):
+    while inbox.alive():
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             return True
@@ -203,7 +205,7 @@ def _wait_reconnect(
 
 def run_forwarder(
     config: ForwarderConfig,
-    adapter: HarnessAdapter,
+    inbox: Inbox,
     *,
     ready: Callable[[], None],
 ) -> None:
@@ -220,10 +222,10 @@ def run_forwarder(
     def flush() -> None:
         nonlocal pending
         if pending:
-            adapter.send(config.target, pending)
+            inbox.send(pending)
             pending = ""
 
-    while adapter.alive(config.target):
+    while inbox.alive():
         attachment = None
         incoming: queue.Queue[SSEEvent | Exception | None] = queue.Queue(
             maxsize=64
@@ -241,7 +243,7 @@ def run_forwarder(
             while True:
                 now = time.monotonic()
                 if now >= check_at:
-                    if not adapter.alive(config.target):
+                    if not inbox.alive():
                         return
                     check_at = now + _LIVENESS_SECONDS
                 if pending and now >= flush_at:
@@ -309,13 +311,13 @@ def run_forwarder(
                     message = inbox_message(
                         payload["data"],
                         notebook=config.notebook,
-                        budget=adapter.inbox_bytes,
+                        budget=inbox.inbox_bytes,
                         files=files,
                     )
                     combined = (
                         f"{pending}\n\n{message}" if pending else message
                     )
-                    if len(combined.encode("utf-8")) > adapter.inbox_bytes:
+                    if len(combined.encode("utf-8")) > inbox.inbox_bytes:
                         flush()
                         combined = message
                     if not pending:
@@ -329,7 +331,7 @@ def run_forwarder(
                 response.close()
             reader.join(timeout=1)
         if reconnect:
-            if not _wait_reconnect(adapter, config.target, reconnect_delay):
+            if not _wait_reconnect(inbox, reconnect_delay):
                 return
             reconnect_delay = min(reconnect_delay * 2, _RECONNECT_MAX_SECONDS)
 
@@ -360,7 +362,8 @@ def main() -> None:
             sys.stdout.write("attached\n")
             sys.stdout.flush()
 
-        run_forwarder(config, adapter_for(config.target.kind), ready=ready)
+        inbox = harness_for(config.target.kind).open_inbox(config.target)
+        run_forwarder(config, inbox, ready=ready)
     except (PairError, OSError, ValueError, KeyError, TypeError) as error:
         try:
             sys.stdout.write("failed\n")

@@ -21,7 +21,6 @@ from marimo._cli.pair.client import iter_sse, open_events, resolve_host
 from marimo._cli.pair.connection import ConnectionStore, connection_identity
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
 from marimo._cli.pair.forwarder import ForwarderConfig
-from marimo._cli.pair.harnesses.codex import CodexAdapter
 from tests._cli._pair_server import pair_test_server
 
 
@@ -70,16 +69,6 @@ def test_detached_delivery_replacement_and_files(
     store = ConnectionStore(tmp_path / "state" / "connections-v1")
     monkeypatch.setattr(commands, "ConnectionStore", lambda: store)
     owner = ProcessHandle.capture(os.getpid())
-    monkeypatch.setattr(
-        commands,
-        "detect_target",
-        lambda env, _harness: (
-            CodexAdapter(),
-            DeliveryTarget(
-                "codex", env["CODEX_SESSION_ID"], "Codex", process=owner
-            ),
-        ),
-    )
     runner = CliRunner()
     records = []
     with pair_test_server(tmp_path) as server:
@@ -89,17 +78,28 @@ def test_detached_delivery_replacement_and_files(
             "--notebook",
             server.notebook_id,
         ]
+        connection_arguments = [
+            *arguments,
+            "--harness",
+            "codex",
+            "--pid",
+            str(owner.pid),
+        ]
         try:
             for thread in ("first", "second"):
                 monkeypatch.setenv("CODEX_SESSION_ID", thread)
                 result = runner.invoke(
-                    cli_main, ["pair", "connect", *arguments]
+                    cli_main, ["pair", "connect", *connection_arguments]
                 )
                 assert result.exit_code == 0, result.output
                 record = store.load(
                     connection_identity(server.notebook_id, "codex", thread)
                 )
                 assert record is not None
+                assert (record.harness_pid, record.harness_start) == (
+                    owner.pid,
+                    owner.started,
+                )
                 assert record.forwarder.alive()
                 records.append(record)
 
@@ -146,7 +146,9 @@ def test_detached_delivery_replacement_and_files(
             assert references[0] != references[1]
 
             previous = records[-1]
-            result = runner.invoke(cli_main, ["pair", "connect", *arguments])
+            result = runner.invoke(
+                cli_main, ["pair", "connect", *connection_arguments]
+            )
             assert result.exit_code == 0, result.output
             replacement = store.load(previous.identity)
             assert replacement is not None

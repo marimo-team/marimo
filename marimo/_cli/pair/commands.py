@@ -259,8 +259,11 @@ class _DocsCommand(ColoredCommand):
     \b
     Agent messages (preview):
       Enable MARIMO_PAIR_NEXT=1 on the CLI and server.
-      Inside Codex, run marimo pair connect --url <URL> --notebook <NOTEBOOK>.
+      Inside Codex or Claude Code, run:
+        marimo pair connect --url <URL> --notebook <NOTEBOOK>.
       Codex must use its shared daemon and support codex queue.
+      Claude Code requires its native inbox on macOS or Linux.
+      Inbound message settings still apply; messages can be held or refused.
       Notebook agent messages arrive here as messages from marimo.
       Oversized agent messages include a complete JSON file on this machine.
       Files remain after detach. Cleanup removes owned files older than 24 hours.
@@ -900,7 +903,7 @@ def _require_messages() -> None:
     cls=ColoredCommand,
     help=(
         "Connect this harness inbox to a live notebook.\n\n"
-        "Currently supported harnesses: Codex.\n\n"
+        "Currently supported harnesses: Codex and Claude Code (macOS/Linux).\n\n"
         "For other harnesses, use pair execute to work with the notebook."
     ),
 )
@@ -912,13 +915,25 @@ def _require_messages() -> None:
     help="Host notebook ID from notebook list.",
 )
 @click.option(
-    "--harness", type=click.Choice(["codex"]), help="Select the inbox harness."
+    "--harness",
+    type=click.Choice(["codex", "claude"]),
+    help="Select the inbox harness.",
 )
-def connect(url: str, notebook_id: str, harness: str | None) -> None:
+@click.option(
+    "--pid",
+    type=click.IntRange(min=1),
+    help=(
+        "Process to track for connection lifetime. Defaults to the current harness. "
+        "Its start time is captured automatically."
+    ),
+)
+def connect(
+    url: str, notebook_id: str, harness: str | None, pid: int | None
+) -> None:
     try:
         _require_messages()
-        adapter, target = detect_target(os.environ, harness)
-        adapter.check()
+        selected_harness, target = detect_target(os.environ, harness, pid)
+        selected_harness.check()
         host = resolve_host(url)
         identity = connection_identity(
             notebook_id, target.kind, target.address

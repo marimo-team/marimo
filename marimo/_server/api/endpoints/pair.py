@@ -43,6 +43,8 @@ async def messages(request: Request) -> Response:
 
 
 class DetachRequest(msgspec.Struct):
+    """Select a host attachment to remove without stopping its notebook runtime."""
+
     attachment_id: str
 
 

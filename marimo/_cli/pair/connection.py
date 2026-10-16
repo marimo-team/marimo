@@ -38,6 +38,11 @@ def connection_identity(
 
 
 class Connection(msgspec.Struct, frozen=True):
+    """Persisted ownership of a notebook-to-conversation forwarder.
+
+    Process start times protect against PID reuse; credentials are not stored.
+    """
+
     version: Literal[1]
     identity: str
     notebook: str
@@ -54,6 +59,8 @@ class Connection(msgspec.Struct, frozen=True):
 
 
 class ConnectionStore:
+    """Local connection records with atomic writes and per-identity locks."""
+
     def __init__(self, root: Path | None = None) -> None:
         self.root = root or marimo_state_dir() / "pair" / "connections-v1"
 

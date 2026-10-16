@@ -106,8 +106,11 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
 
   Agent messages (preview):
     Enable MARIMO_PAIR_NEXT=1 on the CLI and server.
-    Inside Codex, run marimo pair connect --url <URL> --notebook <NOTEBOOK>.
+    Inside Codex or Claude Code, run:
+      marimo pair connect --url <URL> --notebook <NOTEBOOK>.
     Codex must use its shared daemon and support codex queue.
+    Claude Code requires its native inbox on macOS or Linux.
+    Inbound message settings still apply; messages can be held or refused.
     Notebook agent messages arrive here as messages from marimo.
     Oversized agent messages include a complete JSON file on this machine.
     Files remain after detach. Cleanup removes owned files older than 24 hours.

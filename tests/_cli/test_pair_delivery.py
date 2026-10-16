@@ -20,7 +20,7 @@ from marimo._cli.pair.connection import (
 )
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
 from marimo._cli.pair.harnesses import detect_target
-from marimo._cli.pair.harnesses.codex import CodexAdapter
+from marimo._cli.pair.harnesses.codex import CodexHarness
 
 
 @pytest.fixture
@@ -49,7 +49,7 @@ def test_codex_detect(
     parent.name.return_value = "codex"
     parent.cmdline.return_value = ["codex"]
     monkeypatch.setattr(psutil.Process, "parents", lambda _: [parent])
-    assert CodexAdapter().detect(env) == (
+    assert CodexHarness().detect(env) == (
         None
         if address is None
         else DeliveryTarget("codex", address, "Codex", process=owner)
@@ -73,7 +73,7 @@ def test_codex_refuses_embedded_process(
     parent.cmdline.return_value = args
     monkeypatch.setattr(psutil.Process, "parents", lambda _: [parent])
     with pytest.raises(PairInputError, match="shared daemon"):
-        CodexAdapter().detect({"CODEX_SESSION_ID": "root"})
+        CodexHarness().detect({"CODEX_SESSION_ID": "root"})
 
 
 def test_no_inbox_and_no_owner(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -84,6 +84,48 @@ def test_no_inbox_and_no_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(psutil.Process, "parents", lambda _: [])
     with pytest.raises(PairInputError, match="native Codex session"):
         detect_target({"CODEX_THREAD_ID": "thread"}, None)
+
+
+def test_explicit_pid_keeps_recipient_and_skips_ancestor_detection(
+    monkeypatch: pytest.MonkeyPatch, owner: ProcessHandle
+) -> None:
+    import psutil
+
+    monkeypatch.setattr(
+        psutil.Process,
+        "parents",
+        Mock(side_effect=AssertionError("Explicit PID must bypass discovery")),
+    )
+    _, target = detect_target(
+        {"CODEX_THREAD_ID": "thread"}, "codex", pid=owner.pid
+    )
+    assert target == DeliveryTarget("codex", "thread", "Codex", owner)
+
+
+@pytest.mark.parametrize("pid", [0, -1])
+def test_explicit_pid_must_be_positive(pid: int) -> None:
+    with pytest.raises(PairInputError, match="positive process ID"):
+        detect_target({"CODEX_THREAD_ID": "thread"}, "codex", pid=pid)
+
+
+def test_explicit_pid_must_be_running(
+    monkeypatch: pytest.MonkeyPatch, owner: ProcessHandle
+) -> None:
+    monkeypatch.setattr(ProcessHandle, "alive", lambda _: False)
+    with pytest.raises(PairInputError, match="not running"):
+        detect_target({"CODEX_THREAD_ID": "thread"}, "codex", pid=owner.pid)
+
+
+def test_explicit_pid_inspection_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import psutil
+
+    monkeypatch.setattr(
+        ProcessHandle, "capture", Mock(side_effect=psutil.NoSuchProcess(123))
+    )
+    with pytest.raises(PairInputError, match="Could not inspect"):
+        detect_target({"CODEX_THREAD_ID": "thread"}, "codex", pid=123)
 
 
 @pytest.mark.parametrize(
@@ -100,10 +142,10 @@ def test_daemon_probe(
     )
     monkeypatch.setattr(subprocess, "run", run)
     if ok:
-        CodexAdapter().check()
+        CodexHarness().check()
     else:
         with pytest.raises(PairInputError, match="daemon is not running"):
-            CodexAdapter().check()
+            CodexHarness().check()
     assert run.call_args_list[0].args[0] == [
         "codex",
         "app-server",
@@ -124,14 +166,16 @@ def test_malformed_daemon_probe(
         Mock(return_value=subprocess.CompletedProcess([], 0, stdout)),
     )
     with pytest.raises(PairInputError):
-        CodexAdapter().check()
+        CodexHarness().check()
 
 
 def test_codex_send_preserves_message(monkeypatch: pytest.MonkeyPatch) -> None:
     run = Mock(return_value=subprocess.CompletedProcess([], 0, b"queued"))
     monkeypatch.setattr(subprocess, "run", run)
     message = 'line 1\n"quotes"; $(must not execute)'
-    CodexAdapter().send(DeliveryTarget("codex", "thread", "Codex"), message)
+    CodexHarness().open_inbox(DeliveryTarget("codex", "thread", "Codex")).send(
+        message
+    )
     assert run.call_args.args[0] == [
         "codex",
         "queue",
@@ -151,9 +195,9 @@ def test_codex_send_failure_does_not_leak(
 ) -> None:
     monkeypatch.setattr(subprocess, "run", Mock(side_effect=failure))
     with pytest.raises(PairError, match="Could not deliver") as error:
-        CodexAdapter().send(
-            DeliveryTarget("codex", "thread", "Codex"), "message"
-        )
+        CodexHarness().open_inbox(
+            DeliveryTarget("codex", "thread", "Codex")
+        ).send("message")
     assert "secret" not in str(error.value)
 
 
@@ -163,7 +207,11 @@ def test_process_identity_guards_pid_reuse(owner: ProcessHandle) -> None:
     assert not reused.alive()
     reused.stop()
     assert owner.alive()
-    assert not CodexAdapter().alive(DeliveryTarget("codex", "thread", "Codex"))
+    assert (
+        not CodexHarness()
+        .open_inbox(DeliveryTarget("codex", "thread", "Codex"))
+        .alive()
+    )
 
 
 def test_process_stop() -> None:
@@ -348,7 +396,9 @@ def test_windows_uses_native_executable(
     monkeypatch.setattr(subprocess, "run", run)
     monkeypatch.setattr(sys, "platform", "win32")
     text = 'unicode 😀 & | "quotes" %PATH%'
-    CodexAdapter().send(DeliveryTarget("codex", "thread", "Codex"), text)
+    CodexHarness().open_inbox(DeliveryTarget("codex", "thread", "Codex")).send(
+        text
+    )
     assert run.call_args.args[0] == [
         "codex.exe",
         "queue",
@@ -368,7 +418,7 @@ def test_missing_queue_support(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setattr(subprocess, "run", run)
     with pytest.raises(PairInputError, match="queue support"):
-        CodexAdapter().check()
+        CodexHarness().check()
 
 
 def test_windows_reference_budget(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -415,7 +465,9 @@ def test_registry_nested_refusal_and_explicit_selection(
     codex.detect.return_value = DeliveryTarget("codex", "thread", "Codex")
     other = Mock(kind="other")
     other.detect.return_value = DeliveryTarget("other", "inbox", "Other")
-    monkeypatch.setattr(harnesses, "adapters", lambda: [codex, other])
+    monkeypatch.setattr(
+        harnesses, "registered_harnesses", lambda: [codex, other]
+    )
     with pytest.raises(PairInputError, match="Nested harnesses"):
         detect_target({}, None)
     assert detect_target({}, "codex") == (codex, codex.detect.return_value)
@@ -430,7 +482,9 @@ def test_identity_uses_registered_adapters_and_refuses_ambiguity(
     other = Mock(kind="other")
     codex.identity.return_value = None
     other.identity.return_value = "other-thread"
-    monkeypatch.setattr(harnesses, "adapters", lambda: [codex, other])
+    monkeypatch.setattr(
+        harnesses, "registered_harnesses", lambda: [codex, other]
+    )
     assert harnesses.environment_identity({}) == ("other", "other-thread")
     codex.identity.return_value = "codex-thread"
     with pytest.raises(PairInputError, match="Nested harnesses"):

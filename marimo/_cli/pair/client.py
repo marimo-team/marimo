@@ -50,12 +50,16 @@ class RunConflictError(PairError):
 
 
 class NoNotebookError(PairError):
+    """No notebook was found at the requested server URL."""
+
     def __init__(self, message: str, *, url: str) -> None:
         super().__init__(message)
         self.url = url
 
 
 class AmbiguousNotebookError(PairError):
+    """Discovery found several notebooks and requires an explicit selection."""
+
     def __init__(
         self, message: str, *, url: str, candidates: tuple[str, ...]
     ) -> None:
@@ -74,6 +78,8 @@ class NotebookUnsupportedError(PairError):
 
 @dataclass(frozen=True)
 class SSEEvent:
+    """A parsed server-sent event with an optional stream resume cursor."""
+
     name: str
     data: str
     id: str | None = None
@@ -81,6 +87,8 @@ class SSEEvent:
 
 @dataclass(frozen=True)
 class ExecutionResult:
+    """Captured output and final outcome of a notebook host run."""
+
     success: bool
     output: dict[str, str] | None
     stdout: str
@@ -455,6 +463,8 @@ def execute(
 
 @dataclass(frozen=True)
 class EventStream:
+    """An HTTP response whose socket can be closed to unblock its reader."""
+
     response: HTTPResponse
     socket: socket.socket
 
@@ -506,6 +516,8 @@ def open_events(
 
 @dataclass(frozen=True)
 class HostEndpoint:
+    """Host API address and bearer token from a validated live host record."""
+
     url: str
     token: str = field(repr=False)
 

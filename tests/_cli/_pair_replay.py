@@ -16,33 +16,23 @@ import msgspec
 
 from marimo._cli.pair import forwarder
 from marimo._cli.pair.client import EventStream, open_events
-from marimo._cli.pair.delivery import DeliveryTarget
 from marimo._cli.pair.forwarder import ForwarderConfig
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from marimo._cli.pair.delivery import ProcessHandle
 
 
-class RecordingAdapter:
-    kind = "test"
+class RecordingInbox:
     inbox_bytes = 8192
 
-    def __init__(self, directory: Path) -> None:
+    def __init__(self, directory: Path, owner: ProcessHandle | None) -> None:
         self.directory = directory
+        self.owner = owner
 
-    def identity(self, _env: Mapping[str, str]) -> None:
-        return None
+    def alive(self) -> bool:
+        return self.owner is not None and self.owner.alive()
 
-    def detect(self, _env: Mapping[str, str]) -> None:
-        return None
-
-    def check(self) -> None:
-        pass
-
-    def alive(self, target: DeliveryTarget) -> bool:
-        return target.process is not None and target.process.alive()
-
-    def send(self, _target: DeliveryTarget, text: str) -> None:
+    def send(self, text: str) -> None:
         with (self.directory / "inbox.jsonl").open("a") as output:
             output.write(json.dumps({"message": text}) + "\n")
 
@@ -90,7 +80,7 @@ def main() -> None:
     with patch.object(forwarder, "open_events", side_effect=controlled_events):
         forwarder.run_forwarder(
             config,
-            RecordingAdapter(directory),
+            RecordingInbox(directory, config.target.process),
             ready=lambda: print("attached", flush=True),
         )
 

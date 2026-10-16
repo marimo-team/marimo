@@ -34,27 +34,17 @@ if TYPE_CHECKING:
     import queue
 
 
-class Adapter:
-    kind = "codex"
+class RecordingInbox:
     inbox_bytes = 512
 
     def __init__(self) -> None:
         self.messages: list[str] = []
         self.living = True
 
-    def identity(self, _env: object) -> None:
-        return None
-
-    def check(self) -> None:
-        pass
-
-    def detect(self, _env: object) -> None:
-        return None
-
-    def alive(self, _target: DeliveryTarget) -> bool:
+    def alive(self) -> bool:
         return self.living
 
-    def send(self, _target: DeliveryTarget, text: str) -> None:
+    def send(self, text: str) -> None:
         self.messages.append(text)
 
 
@@ -137,17 +127,17 @@ def test_coalescing_bounds_final_messages(
             ]
         ],
     )
-    adapter = Adapter()
+    inbox = RecordingInbox()
     ready = Mock()
-    run_forwarder(config, adapter, ready=ready)
+    run_forwarder(config, inbox, ready=ready)
     ready.assert_called_once()
-    assert len(adapter.messages) == 3
-    assert "one" in adapter.messages[0]
-    assert "two" in adapter.messages[0]
-    for message in adapter.messages:
-        assert len(message.encode("utf-8")) <= adapter.inbox_bytes
+    assert len(inbox.messages) == 3
+    assert "one" in inbox.messages[0]
+    assert "two" in inbox.messages[0]
+    for message in inbox.messages:
+        assert len(message.encode("utf-8")) <= inbox.inbox_bytes
     path = Path(
-        adapter.messages[1].rsplit("Complete JSON agent message: ", 1)[1][:-1]
+        inbox.messages[1].rsplit("Complete JSON agent message: ", 1)[1][:-1]
     )
     assert json.loads(path.read_text(encoding="utf-8")) == "😀" * 1000
 
@@ -166,14 +156,14 @@ def test_reconnect_preserves_identity(
             [attached(), SSEEvent("heartbeat", ""), agent_message(None), None],
         ],
     )
-    adapter = Adapter()
+    inbox = RecordingInbox()
     ready = Mock()
-    run_forwarder(config, adapter, ready=ready)
+    run_forwarder(config, inbox, ready=ready)
     assert calls.call_args_list == [((config,),), ((config,),)]
     ready.assert_called_once()
-    assert len(adapter.messages) == 2
-    assert adapter.messages[0].endswith("first")
-    assert adapter.messages[1].endswith("null")
+    assert len(inbox.messages) == 2
+    assert inbox.messages[0].endswith("first")
+    assert inbox.messages[1].endswith("null")
 
 
 def test_reconnect_backoff_caps_and_resets_after_attachment(
@@ -187,8 +177,8 @@ def test_reconnect_backoff_caps_and_resets_after_attachment(
     wait = Mock(return_value=True)
     monkeypatch.setattr(forwarder, "_wait_reconnect", wait)
     ready = Mock()
-    run_forwarder(config, Adapter(), ready=ready)
-    assert [call.args[2] for call in wait.call_args_list] == [
+    run_forwarder(config, RecordingInbox(), ready=ready)
+    assert [call.args[1] for call in wait.call_args_list] == [
         0.1,
         0.2,
         0.4,
@@ -210,18 +200,18 @@ def test_authentication_failure_after_attachment_does_not_reconnect(
         monkeypatch, [[attached(), PairError("Authentication failed.")]]
     )
     with pytest.raises(PairError, match="could not continue"):
-        run_forwarder(config, Adapter(), ready=Mock())
+        run_forwarder(config, RecordingInbox(), ready=Mock())
     calls.assert_called_once()
 
 
 def test_reconnect_wait_stops_when_harness_exits(
-    config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    adapter = Adapter()
+    inbox = RecordingInbox()
     monkeypatch.setattr(
-        time, "sleep", lambda _: setattr(adapter, "living", False)
+        time, "sleep", lambda _: setattr(inbox, "living", False)
     )
-    assert not forwarder._wait_reconnect(adapter, config.target, 5)
+    assert not forwarder._wait_reconnect(inbox, 5)
 
 
 @pytest.mark.parametrize(
@@ -240,7 +230,7 @@ def test_startup_failure(
     install_stream(monkeypatch, [[first]])
     ready = Mock()
     with pytest.raises(PairError):
-        run_forwarder(config, Adapter(), ready=ready)
+        run_forwarder(config, RecordingInbox(), ready=ready)
     ready.assert_not_called()
 
 
@@ -254,25 +244,25 @@ def test_stale_notebook_exit(
             [StaleNotebookError("Invalid stable session id")],
         ],
     )
-    run_forwarder(config, Adapter(), ready=Mock())
+    run_forwarder(config, RecordingInbox(), ready=Mock())
 
 
 def test_send_failure_does_not_retry_delivery(
     config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     install_stream(monkeypatch, [[attached(), agent_message("once"), None]])
-    adapter = Adapter()
+    inbox = RecordingInbox()
     send = Mock(side_effect=PairError("rejected"))
-    monkeypatch.setattr(adapter, "send", send)
+    monkeypatch.setattr(inbox, "send", send)
     with pytest.raises(PairError, match="rejected"):
-        run_forwarder(config, adapter, ready=Mock())
+        run_forwarder(config, inbox, ready=Mock())
     send.assert_called_once()
 
 
 def test_dead_harness_closes_reader(
     config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    adapter = Adapter()
+    inbox = RecordingInbox()
     closed = threading.Event()
 
     def read(
@@ -288,9 +278,7 @@ def test_dead_harness_closes_reader(
 
     monkeypatch.setattr(forwarder, "_read_stream", read)
     monkeypatch.setattr(forwarder, "_LIVENESS_SECONDS", 0.01)
-    run_forwarder(
-        config, adapter, ready=lambda: setattr(adapter, "living", False)
-    )
+    run_forwarder(config, inbox, ready=lambda: setattr(inbox, "living", False))
     assert closed.is_set()
 
 
@@ -298,9 +286,9 @@ def test_dead_harness_never_connects(
     config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls = install_stream(monkeypatch, [])
-    adapter = Adapter()
-    adapter.living = False
-    run_forwarder(config, adapter, ready=Mock())
+    inbox = RecordingInbox()
+    inbox.living = False
+    run_forwarder(config, inbox, ready=Mock())
     calls.assert_not_called()
 
 
@@ -336,11 +324,11 @@ def test_connect_and_detach_lifecycle(
 ) -> None:
     owner = ProcessHandle.capture(os.getpid())
     target = DeliveryTarget("codex", "thread", "Codex", process=owner)
-    adapter = Adapter()
+    harness = Mock()
     check = Mock()
-    monkeypatch.setattr(adapter, "check", check)
+    monkeypatch.setattr(harness, "check", check)
     monkeypatch.setattr(
-        commands, "detect_target", lambda *_: (adapter, target)
+        commands, "detect_target", lambda *_: (harness, target)
     )
     start = Mock(return_value=record(owner))
     stop = Mock()
@@ -513,11 +501,11 @@ def test_reconnect_uses_processed_cursor_and_ignores_old_removal(
             incoming.put(event)
 
     monkeypatch.setattr(forwarder, "_read_stream", read)
-    adapter = Adapter()
+    inbox = RecordingInbox()
     ready = Mock()
-    run_forwarder(config, adapter, ready=ready)
+    run_forwarder(config, inbox, ready=ready)
     assert cursors == [None, "11"]
-    assert [message.rsplit("\n", 1)[1] for message in adapter.messages] == [
+    assert [message.rsplit("\n", 1)[1] for message in inbox.messages] == [
         "first",
         "replayed",
     ]
@@ -539,8 +527,8 @@ def test_reset_replaces_attachment_without_second_ready(
             ]
         ],
     )
-    adapter = Adapter()
+    inbox = RecordingInbox()
     ready = Mock()
-    run_forwarder(config, adapter, ready=ready)
+    run_forwarder(config, inbox, ready=ready)
     ready.assert_called_once()
-    assert adapter.messages[0].endswith('{"opaque": [1, null]}')
+    assert inbox.messages[0].endswith('{"opaque": [1, null]}')
