@@ -213,6 +213,9 @@ class DisplayConfig(TypedDict):
     - `code_lens`: if `True`, show inline icons in cell editors linking
       datasources, storage buckets, and caches to their panels
     - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
+    - `datetime_in_local_timezone`: if `True`, render timezone-aware datetimes
+      (such as SQL `timestamptz` columns) in the browser's local timezone
+      instead of the timezone encoded in the data
     """
 
     theme: Theme
@@ -226,6 +229,7 @@ class DisplayConfig(TypedDict):
     reference_highlighting: NotRequired[bool]
     code_lens: NotRequired[bool]
     locale: NotRequired[str | None]
+    datetime_in_local_timezone: NotRequired[bool]
 
 
 @mddoc
@@ -796,6 +800,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "default_table_max_columns": 50,
         "reference_highlighting": True,
         "code_lens": True,
+        "datetime_in_local_timezone": False,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
