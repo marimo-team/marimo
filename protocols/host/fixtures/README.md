@@ -13,7 +13,8 @@ and `analysis.json` is the analysis of that document.
 
 `run-cells-request.json` requests `c3`, which defines `x`. In `run-cells.sse`,
 the runtime then evaluates `k7f2`, which defines `y` using `x`. The dependent
-execution identifies the first execution as its cause. Each cell publishes
+execution identifies the first execution as its cause and depends on the
+revision of `x` it used. Each cell publishes
 the variable it bound before it completes, and neither displays a value,
 because their code consists of assignments.
 

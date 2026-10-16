@@ -4,7 +4,7 @@ data: {"run":{"id":"run-interrupted","notebook_id":"n1","status":"running","star
 
 id: 131
 event: execution
-data: {"execution":{"id":"e9","run_id":"run-interrupted","cell_id":null,"code_hash":"6579899a00aac8fe","status":"running","outcome":null,"stale":null,"started_at":"2026-10-01T09:22:00Z","completed_at":null,"runtime_id":"r1","caused_by":null,"code":"import itertools, time\nfor i in itertools.count():\n    print(i)\n    time.sleep(1)"},"request_id":"9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d","time":"2026-10-01T09:22:00Z"}
+data: {"execution":{"id":"e9","run_id":"run-interrupted","cell_id":null,"code_hash":"6579899a00aac8fe","depends_on":{},"status":"running","outcome":null,"stale":null,"started_at":"2026-10-01T09:22:00Z","completed_at":null,"runtime_id":"r1","caused_by":null,"code":"import itertools, time\nfor i in itertools.count():\n    print(i)\n    time.sleep(1)"},"request_id":"9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d","time":"2026-10-01T09:22:00Z"}
 
 id: 132
 event: console
@@ -12,7 +12,7 @@ data: {"console":{"id":"o5","execution_id":"e9","seq":0,"name":"stdout","text":"
 
 id: 133
 event: execution
-data: {"execution":{"id":"e9","run_id":"run-interrupted","cell_id":null,"code_hash":"6579899a00aac8fe","status":"completed","outcome":{"kind":"interrupted"},"stale":null,"started_at":"2026-10-01T09:22:00Z","completed_at":"2026-10-01T09:22:03Z","runtime_id":"r1","caused_by":null,"code":"import itertools, time\nfor i in itertools.count():\n    print(i)\n    time.sleep(1)"},"request_id":"9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d","time":"2026-10-01T09:22:03Z"}
+data: {"execution":{"id":"e9","run_id":"run-interrupted","cell_id":null,"code_hash":"6579899a00aac8fe","depends_on":{},"status":"completed","outcome":{"kind":"interrupted"},"stale":null,"started_at":"2026-10-01T09:22:00Z","completed_at":"2026-10-01T09:22:03Z","runtime_id":"r1","caused_by":null,"code":"import itertools, time\nfor i in itertools.count():\n    print(i)\n    time.sleep(1)"},"request_id":"9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d","time":"2026-10-01T09:22:03Z"}
 
 id: 134
 event: run

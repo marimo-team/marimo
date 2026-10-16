@@ -390,6 +390,7 @@ class Executions:
                         else None,
                         code=entry.code,
                         code_hash=entry.code_hash,
+                        depends_on={},
                         status="queued",
                         outcome=None,
                         stale=None,

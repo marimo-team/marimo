@@ -1211,7 +1211,7 @@ components:
         one outcome. Side effects belong to the execution whose context
         produced them; items can arrive after the execution is completed
         while it remains retained.
-      required: [id, run_id, runtime_id, caused_by, cell_id, code, code_hash, status, outcome, stale, started_at, completed_at]
+      required: [id, run_id, runtime_id, caused_by, cell_id, code, code_hash, depends_on, status, outcome, stale, started_at, completed_at]
       properties:
         id: { $ref: '#/components/schemas/ExecutionId' }
         run_id:
@@ -1232,6 +1232,11 @@ components:
         code_hash:
           $ref: '#/components/schemas/Etag'
           description: The `code_hash` of the code that was evaluated, computed as a cell's is.
+        depends_on:
+          type: object
+          additionalProperties:
+            oneOf: [{ $ref: '#/components/schemas/Revision' }, { type: 'null' }]
+          description: The variables the execution used, by name, each at the revision the runtime holds its result valid against. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on.
         status: { $ref: '#/components/schemas/Lifecycle' }
         outcome:
           oneOf: [{ $ref: '#/components/schemas/Outcome' }, { type: 'null' }]

@@ -1409,6 +1409,12 @@ class Execution(Struct, frozen=True):
         ]
         | None
     )
+    depends_on: Annotated[
+        dict[str, Revision | None],
+        Meta(
+            description="The variables the execution used, by name, each at the revision the runtime holds its result valid against. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on."
+        ),
+    ]
     id: ExecutionId
     outcome: (
         Annotated[
