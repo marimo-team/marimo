@@ -48,6 +48,25 @@ def _looks_like_streaming_error(e: Exception) -> bool:
     )
 
 
+def _start_stream(
+    chunks: Generator[str, None, None],
+) -> Generator[str, None, None]:
+    """Run a stream up to its first chunk and return it, unconsumed.
+
+    A generator sends its request only when it is first iterated, which would
+    be after the caller returned it. Starting it here raises a streaming error
+    inside the caller's try block, where the non-streaming fallback lives.
+    """
+    first = next(chunks, None)
+
+    def resume() -> Generator[str, None, None]:
+        if first is not None:
+            yield first
+        yield from chunks
+
+    return resume()
+
+
 class simple(ChatModel):
     """
     Convenience class for wrapping a ChatModel or callable to
@@ -307,12 +326,20 @@ class anthropic(ChatModel):
         try:
             # Note: client.messages.stream() doesn't take a 'stream' parameter
             # It's already a streaming method
-            return self._stream_response(client, params)
+            return _start_stream(self._stream_response(client, params))
         except Exception as e:
             # Fall back to non-streaming mode if streaming fails
             if _looks_like_streaming_error(e):
                 response = client.messages.create(**params)
-                return response.content[0].text
+                # The first block can be a thinking block, which has no text
+                return next(
+                    (
+                        block.text
+                        for block in response.content
+                        if block.type == "text"
+                    ),
+                    "",
+                )
             raise
 
 
@@ -409,8 +436,10 @@ class google(ChatModel):
 
         # Try streaming first, fall back to non-streaming on error
         try:
-            return self._stream_response(
-                client, google_messages, generation_config
+            return _start_stream(
+                self._stream_response(
+                    client, google_messages, generation_config
+                )
             )
         except Exception as e:
             # Fall back to non-streaming mode if streaming fails
@@ -519,7 +548,9 @@ class groq(ChatModel):
 
         # Try streaming first, fall back to non-streaming on error
         try:
-            return self._stream_response(client, groq_messages, config)
+            return _start_stream(
+                self._stream_response(client, groq_messages, config)
+            )
         except Exception as e:
             # Fall back to non-streaming mode if streaming fails
             if _looks_like_streaming_error(e):
@@ -645,16 +676,22 @@ class bedrock(ChatModel):
 
         try:
             try:
-                return self._stream_response(client, params)
+                return _start_stream(self._stream_response(client, params))
             except Exception as stream_error:
                 if _looks_like_streaming_error(stream_error):
                     response = client.converse(**params)
                     output = response.get("output", {})
                     message = output.get("message", {})
                     content = message.get("content", [])
-                    if content and "text" in content[0]:
-                        return content[0]["text"]
-                    return ""
+                    # The first block can be reasoning, which has no text
+                    return next(
+                        (
+                            block["text"]
+                            for block in content
+                            if "text" in block
+                        ),
+                        "",
+                    )
                 raise
         except Exception as e:
             error_msg = str(e)

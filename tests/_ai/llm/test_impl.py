@@ -1750,3 +1750,106 @@ def test_pydantic_ai_require() -> None:
     mock_agent = MagicMock()
     with pytest.raises(ModuleNotFoundError):
         pydantic_ai(mock_agent)
+
+
+class TestStreamingFallback:
+    """A model that rejects streaming gets a non-streaming request instead.
+
+    The streaming request is made lazily inside a generator, so these tests
+    fake the SDKs and check the fallback end to end, without them installed.
+    """
+
+    STREAMING_ERROR = "This model does not support streaming"
+    messages = [ChatMessage(role="user", content="Test prompt")]  # noqa: RUF012
+
+    def _streaming_error(self, *_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError(self.STREAMING_ERROR)
+
+    def test_anthropic(self) -> None:
+        client = MagicMock()
+        client.messages.stream.side_effect = self._streaming_error
+        client.messages.create.return_value = MagicMock(
+            content=[
+                MagicMock(type="thinking", spec=["type", "thinking"]),
+                MagicMock(type="text", text="Fallback response"),
+            ]
+        )
+        fake_sdk = MagicMock(Anthropic=MagicMock(return_value=client))
+
+        with (
+            patch.dict("sys.modules", {"anthropic": fake_sdk}),
+            patch.object(DependencyManager.anthropic, "require"),
+        ):
+            model = anthropic("claude-x", api_key="test-key")
+            result = model(self.messages, ChatModelConfig())
+
+        assert result == "Fallback response"
+        client.messages.create.assert_called_once()
+
+    def test_google(self) -> None:
+        client = MagicMock()
+        client.models.generate_content_stream.side_effect = (
+            self._streaming_error
+        )
+        client.models.generate_content.return_value = MagicMock(
+            text="Fallback response"
+        )
+        genai = MagicMock(Client=MagicMock(return_value=client))
+        fake_sdk = MagicMock(genai=genai)
+
+        with (
+            patch.dict(
+                "sys.modules", {"google": fake_sdk, "google.genai": genai}
+            ),
+            patch.object(DependencyManager.google_ai, "require"),
+        ):
+            model = google("gemini-x", api_key="test-key")
+            result = model(self.messages, ChatModelConfig())
+
+        assert result == "Fallback response"
+        client.models.generate_content.assert_called_once()
+
+    def test_groq(self) -> None:
+        client = MagicMock()
+
+        def create(**kwargs: Any) -> Any:
+            if kwargs.get("stream"):
+                self._streaming_error()
+            message = MagicMock(content="Fallback response")
+            return MagicMock(choices=[MagicMock(message=message)])
+
+        client.chat.completions.create.side_effect = create
+        fake_sdk = MagicMock(Groq=MagicMock(return_value=client))
+
+        with (
+            patch.dict("sys.modules", {"groq": fake_sdk}),
+            patch.object(DependencyManager.groq, "require"),
+        ):
+            model = groq("llama-x", api_key="test-key")
+            result = model(self.messages, ChatModelConfig())
+
+        assert result == "Fallback response"
+        assert (
+            client.chat.completions.create.call_args.kwargs["stream"] is False
+        )
+
+    def test_bedrock(self) -> None:
+        client = MagicMock()
+        client.converse_stream.side_effect = self._streaming_error
+        client.converse.return_value = {
+            "output": {
+                "message": {
+                    "content": [
+                        {"reasoningContent": {"reasoningText": {"text": "…"}}},
+                        {"text": "Fallback response"},
+                    ]
+                }
+            }
+        }
+
+        model = bedrock("bedrock/anthropic.claude-x")
+        with patch.object(model, "_create_client", return_value=client):
+            result = model(self.messages, ChatModelConfig())
+
+        assert result == "Fallback response"
+        client.converse.assert_called_once()
