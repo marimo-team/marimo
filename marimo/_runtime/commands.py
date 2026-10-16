@@ -394,6 +394,8 @@ class ExecuteScratchpadCommand(Command):
             `ScratchCellListener` can filter for *its* completion and
             ignore `CompletedRun` events from unrelated commands on the
             same session.
+        allow_stdin: Whether code may request interactive input. When false,
+            input reads receive EOF for the duration of this command.
     """
 
     code: str
@@ -404,6 +406,7 @@ class ExecuteScratchpadCommand(Command):
     # Output snapshot — set by the execution endpoint from session.session_view.
     cell_outputs: CellOutputs | None = None
     run_id: str | None = None
+    allow_stdin: bool = True
 
 
 class RenameNotebookCommand(Command):

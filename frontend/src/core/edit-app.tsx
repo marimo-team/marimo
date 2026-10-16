@@ -197,7 +197,11 @@ export const EditApp: React.FC<AppProps> = ({
           )}
         </div>
 
-        <ConnectionNotice appConfig={appConfig} onRetry={reconnect} />
+        <ConnectionNotice
+          appConfig={appConfig}
+          onRetry={reconnect}
+          canOpenPackages={!hideControls}
+        />
 
         {/* Don't render until we have a single cell. NotStartedConnectionAlert
             still covers the "no remote runtime started" prompt. */}

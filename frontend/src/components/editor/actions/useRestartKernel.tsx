@@ -5,7 +5,7 @@ import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
 import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import { reloadSafe } from "@/utils/reload-safe";
 
 export function useRestartKernel() {
@@ -22,7 +22,7 @@ export function useRestartKernel() {
       confirmAction: (
         <AlertDialogDestructiveAction
           onClick={async () => {
-            setConnection({ state: WebSocketState.CLOSING });
+            setConnection({ state: ConnectionState.CLOSING });
             await sendRestart();
             reloadSafe();
           }}

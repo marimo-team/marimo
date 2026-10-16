@@ -107,7 +107,7 @@ recommended = [
     "marimo-lens>=0.2.3",                        # Inspect and select notebook outputs
     "cryptography>=42.0.0",                      # Ed25519 signing of persistent cache manifests
     "altair>=5.4.0",                             # Plotting in datasource viewer
-    "pydantic-ai-slim[openai]>=1.107.0,<3.0.0",  # AI features
+    "pydantic-ai-slim[openai]>=2.34.0,<3.0.0",  # AI features
     "ruff",                                      # Formatting
     "nbformat>=5.7.0",                           # Export as IPYNB
 ]
@@ -146,7 +146,7 @@ dev = [
     # For linting
     "ruff>=0.16.6",
     # For AI
-    "pydantic-ai-slim[openai]>=1.107.0,<3.0.0",
+    "pydantic-ai-slim[openai]>=2.34.0,<3.0.0",
 ]
 
 test = [
@@ -210,7 +210,7 @@ test-optional = [
     "anywidget~=0.9.21",
     "ipython~=8.12.3",
     # testing gen ai
-    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.107.0,<3.0.0",
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=2.34.0,<3.0.0",
     # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
     "cachetools>=5.0.0",
     "boto3>=1.38.46",
@@ -252,7 +252,7 @@ typecheck = [
     "obstore>=0.8.2",
     "huggingface_hub>=1.24.0",
     "fsspec>=2026.2.0",
-    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.107.0,<3.0.0",
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=2.34.0,<3.0.0",
     "loro>=1.5.0",
     "boto3-stubs>=1.38.46",
     "pandas-stubs>=1.5.3.230321",
@@ -330,7 +330,7 @@ wheel-exclude = ["marimo/_smoke_tests/**"]
 
 [tool.ruff]
 line-length = 79
-include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py"]
+include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py", "protocols/**/*.py"]
 exclude = [
     "build",
     "docs",
@@ -343,6 +343,7 @@ exclude = [
     "marimo/_test_utils/codegen_data",
     "marimo/_tutorials",
     "scripts",
+    "protocols/**/.venv",
     "tests/_ast/app_data",
     "tests/_ast/cell_data",
     "tests/_ast/codegen_data",
@@ -459,6 +460,8 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 "**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "dagger/*" = ["TID252"]
+"protocols/host/generate.py" = ["T201"]
+"protocols/host/conformance/test_*.py" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "marimo/_runtime/patches.py" = ["T100"]
 # Prefer multi-line "\n".join([...]) expected strings in codegen tests.
 "tests/_ast/test_codegen.py" = ["FLY002"]
@@ -525,6 +528,11 @@ exclude = [
 ]
 warn_unused_ignores = false
 
+[[tool.mypy.overrides]]
+# Core matches on typed events; a misspelled kind must not match nothing.
+module = ["marimo._core.*"]
+warn_unreachable = true
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q -v --ignore tests/_cli/fixtures --ignore tests/_ast/codegen_data --ignore tests/_ast/app_data"
@@ -541,6 +549,9 @@ markers = [
     "requires(dep1, dep2, ...): requires one or more dependencies to be installed",
     "network: requires internet access to package indexes (deselect with '-m \"not network\"')",
 ]
+
+[tool.inline-snapshot]
+format-command = 'ruff format --stdin-filename "{filename}"'
 
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]

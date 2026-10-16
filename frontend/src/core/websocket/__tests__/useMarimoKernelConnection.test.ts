@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Logger } from "@/utils/Logger";
-import { WebSocketClosedReason, WebSocketState } from "../types";
+import { WebSocketClosedReason, ConnectionState } from "../types";
 import { classifyCloseEvent } from "../useMarimoKernelConnection";
 
 function classify(reason: string | undefined) {
@@ -14,7 +14,7 @@ describe("classifyCloseEvent", () => {
     it("retries on empty/undefined reason", () => {
       const decision = classify(undefined);
       expect(decision.kind).toBe("retry");
-      expect(decision.status).toEqual({ state: WebSocketState.CONNECTING });
+      expect(decision.status).toEqual({ state: ConnectionState.CONNECTING });
     });
 
     it("treats unknown reason strings as transient and logs a warning", () => {
@@ -44,7 +44,7 @@ describe("classifyCloseEvent", () => {
       const decision = classify(reason);
       expect(decision.kind).toBe("terminal");
       expect(decision.status).toMatchObject({
-        state: WebSocketState.CLOSED,
+        state: ConnectionState.CLOSED,
         code: WebSocketClosedReason.KERNEL_DISCONNECTED,
       });
       expect(decision).toMatchObject({
@@ -57,7 +57,7 @@ describe("classifyCloseEvent", () => {
       const decision = classify("MARIMO_KERNEL_STARTUP_ERROR");
       expect(decision.kind).toBe("terminal");
       expect(decision.status).toMatchObject({
-        state: WebSocketState.CLOSED,
+        state: ConnectionState.CLOSED,
         code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
       });
       expect(decision).toMatchObject({
@@ -72,7 +72,7 @@ describe("classifyCloseEvent", () => {
       const decision = classify("MARIMO_TRANSPORT_EXHAUSTED");
       expect(decision.kind).toBe("gave-up");
       expect(decision.status).toEqual({
-        state: WebSocketState.CLOSED,
+        state: ConnectionState.CLOSED,
         code: WebSocketClosedReason.KERNEL_DISCONNECTED,
         reason: "kernel not found",
       });

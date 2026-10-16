@@ -88,7 +88,7 @@ class AppFileManager:
 
         # Serializes concurrent writers. Reentrant so public entry points
         # can wrap the full "mutate app + _save_file" sequence while
-        # ``_save_file`` re-acquires for any direct caller.
+        # `_save_file` re-acquires for any direct caller.
         self._save_lock = threading.RLock()
         # Foreground writes supersede queued autosaves.
         self._autosave_generation = 0
@@ -122,7 +122,7 @@ class AppFileManager:
         """
         manager = AppFileManager(None)
         # Snapshot to an absolute path at assignment time so a later
-        # ``chdir`` cannot change which file ``self.path`` resolves to.
+        # `chdir` cannot change which file `self.path` resolves to.
         manager.filename = (
             os.path.abspath(str(filename)) if filename is not None else None
         )

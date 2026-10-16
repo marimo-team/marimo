@@ -12,7 +12,7 @@ from starlette.authentication import SimpleUser
 from starlette.datastructures import Headers, QueryParams
 from starlette.requests import HTTPConnection
 
-from marimo._config.manager import MarimoConfigManager, UserConfigManager
+from marimo._config.manager import MarimoConfigManager, UserConfigStore
 from marimo._server.api.auth import (
     CookieSession,
     CustomAuthenticationMiddleware,
@@ -109,7 +109,7 @@ def app() -> Starlette:
         headless=False,
         quiet=False,
         session_manager=get_mock_session_manager(),
-        config_manager=MarimoConfigManager(UserConfigManager()),
+        config_manager=MarimoConfigManager(UserConfigStore()),
         remote_url=None,
         mcp_server_enabled=False,
         skew_protection=False,

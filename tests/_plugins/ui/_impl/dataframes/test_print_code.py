@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Literal, cast
 
 import narwhals.stable.v2 as nw
 import pytest
-from hypothesis import assume, given, settings, strategies as st
+from hypothesis import assume, example, given, settings, strategies as st
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
@@ -803,6 +803,23 @@ def test_print_code_contains_is_literal_pandas(value: str) -> None:
         df_size=3,
     )
 )
+@example(
+    transform=SortColumnTransform(
+        type=TransformType.SORT_COLUMN,
+        column_id="dates",
+        ascending=False,
+        na_position="first",
+    )
+)
+@example(
+    transform=PivotTransform(
+        type=TransformType.PIVOT,
+        column_ids=["strings"],
+        index_column_ids=["integers"],
+        value_column_ids=["floats"],
+        aggregation="median",
+    )
+)
 @settings(deadline=None)
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="polars not installed"
@@ -927,10 +944,12 @@ def test_print_code_result_matches_actual_transform_polars(
             )
         )
         # When value_column_ids is empty, all remaining columns become values.
-        # sum/mean aggregations fail on non-numeric columns (strings, booleans)
+        # sum/mean fail on non-numeric columns; median on lists can panic
+        # in Polars' streaming engine.
         if not transform.value_column_ids and transform.aggregation in {
             "sum",
             "mean",
+            "median",
         }:
             assume(False)
         # Polars does not support sum/mean on string or other non-numeric columns
@@ -1035,6 +1054,16 @@ def test_print_code_result_matches_actual_transform_polars(
                 code_result = code_result.sort(sortable_cols)
                 real_result = real_result.sort(sortable_cols)
 
+        if transform.type == TransformType.SORT_COLUMN:
+            # Ties may differ between eager and lazy sorts. Check key order
+            # before comparing rows using the fixture's unique string column.
+            pl_testing.assert_series_equal(
+                code_result[transform.column_id],
+                real_result[transform.column_id],
+            )
+            code_result = code_result.sort("strings")
+            real_result = real_result.sort("strings")
+
         pl_testing.assert_frame_equal(code_result, real_result)
 
 
@@ -1124,6 +1153,66 @@ def test_polars_temporal_conversion_code_matches_runtime(
     pl_testing.assert_frame_equal(
         original, pl.DataFrame({column: values, "id": range(len(values))})
     )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("multiple_columns", [False, True])
+@pytest.mark.parametrize("empty_frame", [False, True])
+def test_polars_explode_code_preserves_empty_and_null_rows(
+    lazy: bool, multiple_columns: bool, empty_frame: bool
+) -> None:
+    import polars as pl
+    import polars.testing as pl_testing
+
+    column = 'list "values"'
+    original = pl.DataFrame(
+        {
+            column: [[1, 2], [], None],
+            "other": [[3, 4], [], None],
+            "id": [0, 1, 2],
+        }
+    )
+    columns = [column, "other"] if multiple_columns else [column]
+    expected = pl.DataFrame(
+        {
+            column: [1, 2, None, None],
+            "other": (
+                [3, 4, None, None]
+                if multiple_columns
+                else [[3, 4], [3, 4], [], None]
+            ),
+            "id": [0, 0, 1, 2],
+        }
+    )
+    if empty_frame:
+        original = original.head(0)
+        expected = expected.head(0)
+    source = original.lazy() if lazy else original
+    transform = ExplodeColumnsTransform(
+        type=TransformType.EXPLODE_COLUMNS, column_ids=columns
+    )
+    runtime = (
+        NarwhalsTransformHandler.handle_explode_columns(
+            nw.from_native(source).lazy(), transform
+        )
+        .collect()
+        .to_native()
+    )
+    namespace = {"pl": pl, "df": source}
+    exec(
+        python_print_transforms(
+            "df", original.columns, [transform], python_print_polars
+        ),
+        namespace,
+    )
+    generated = namespace["df_next"]
+    if lazy:
+        generated = generated.collect()
+    pl_testing.assert_frame_equal(runtime, expected)
+    pl_testing.assert_frame_equal(generated, expected)
 
 
 @pytest.mark.skipif(

@@ -179,6 +179,24 @@ describe("ConsoleOutput pdb history", () => {
     expect(nextInput).toHaveValue("");
   });
 
+  it("submits the visible input when its change has not reached React state", () => {
+    const onSubmitDebugger = vi.fn();
+    renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={[stdinPrompt("Name: ")]}
+        onSubmitDebugger={onSubmitDebugger}
+      />,
+    );
+
+    const input = screen.getByTestId<HTMLInputElement>("console-input");
+    // Browser autofill or input events can precede the controlled-state update.
+    input.value = "marimo";
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onSubmitDebugger).toHaveBeenCalledWith("marimo", 0);
+  });
+
   it("should submit an empty string when Enter is pressed with no input", () => {
     // Many CLIs prompt "Press Enter to continue" and expect "" back.
     const onSubmitDebugger = vi.fn();
