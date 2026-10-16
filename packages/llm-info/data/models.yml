@@ -1,5 +1,20 @@
 anthropic:
 
+  - name: Claude Haiku 5.5
+    model: claude-haiku-5-5
+    description: "Small, fast model for high-volume, cost-sensitive work such as summarization, subagents, and browser use"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
+
   - name: Claude Sonnet 5.5
     model: claude-sonnet-5-5
     description: "Sonnet-class reasoning model for everyday coding, bug fixes, and document creation"
@@ -117,7 +132,7 @@ anthropic:
 
   - name: Claude Haiku 4.5
     model: claude-haiku-4-5
-    description: "Anthropic's fastest and most efficient model, delivering near-frontier intelligence at a fraction of the cost and latency of larger Claude models"
+    description: "Fast and efficient Claude model, delivering near-frontier intelligence at a fraction of the cost and latency of larger Claude models"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -285,6 +300,63 @@ openai:
     limits: {context: 1050000, output: 128000}
 
 google:
+  - name: Gemini 4 Argon
+    model: gemini-4-argon
+    description: "Reasoning model for complex software engineering, mathematical and scientific problem solving, and autonomous multi-step agents"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-13
+    cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high]
+    limits: {context: 1048576, output: 32768}
+
+  - name: Claude Haiku 5.5
+    model: claude-haiku-5-5@default
+    description: "Small, fast model for high-volume, cost-sensitive work such as summarization, subagents, and browser use, available through Vertex AI only"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
+
+  - name: Nano Banana 2.1
+    model: gemini-nano-banana-2.1
+    description: "Flash-tier image generation and editing model for product recontextualization and visual creation"
+    roles: [chat, edit]
+    capabilities: [thinking]
+    input_types: [text, image]
+    output_types: [text, image]
+    release_date: 2026-10-06
+    cost: {input: 1.5, output: 30}
+    reasoning_options:
+      - type: effort
+        values: [minimal, medium, high]
+    limits: {context: 131072, output: 32768}
+
+  - name: Grok 4.7
+    model: xai/grok-4.7
+    description: "Model for coding, agentic tasks, and knowledge work, available through Vertex AI only"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-21
+    cost: {input: 2, output: 6}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high]
+    limits: {context: 524288, output: 500000}
+
   - name: Claude Sonnet 5.5
     model: claude-sonnet-5-5@default
     description: "Sonnet-class reasoning model for everyday coding, bug fixes, and document creation, available through Vertex AI only"
@@ -322,7 +394,9 @@ google:
     output_types: [text]
     release_date: 2026-08-12
     cost: {input: 2, output: 6}
-    reasoning_options: []
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high]
     limits: {context: 524288, output: 500000}
 
   - name: Gemini 3.8 Flash
@@ -477,6 +551,21 @@ google:
     limits: {context: 1000000, output: 128000}
 
 bedrock:
+  - name: Claude Haiku 5.5 (Global)
+    model: global.anthropic.claude-haiku-5-5
+    description: "Small, fast model for high-volume, cost-sensitive work such as summarization, subagents, and browser use"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
+
   - name: GPT-6.1 Sol (Global)
     model: global.openai.gpt-6.1-sol
     description: "Reasoning model for agentic coding, computer use, and document-heavy professional work"
@@ -776,6 +865,21 @@ bedrock:
     limits: {context: 1000000, output: 128000}
 
 azure:
+  - name: Claude Haiku 5.5
+    model: claude-haiku-5-5
+    description: "Small, fast model for high-volume, cost-sensitive work such as summarization, subagents, and browser use"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
+
   - name: GPT-6.1 Sol
     model: gpt-6.1-sol
     description: "Reasoning model for agentic coding, computer use, and document-heavy professional work"
@@ -908,6 +1012,7 @@ azure:
       - type: effort
         values: [low, medium, high, xhigh]
     limits: {context: 200000, output: 128000}
+    cost: {input: 2, output: 6}
 
   - name: Claude Opus 5
     model: claude-opus-5
@@ -1100,6 +1205,34 @@ azure:
     limits: {context: 1000000, output: 384000}
 
 ollama:
+  - name: Muse Spark Open
+    model: muse-spark-open
+    description: "Open-weight model optimized for agentic coding, reliable tool calling, and codebase understanding"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-15
+    cost: {input: 1.25, output: 4.25}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh]
+    limits: {context: 1048576, output: 131072}
+
+  - name: Mistral Large 4
+    model: mistral-large-4
+    description: "Multimodal model from Mistral AI for reasoning, coding, and agentic workloads"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-06
+    cost: {input: 1.36, output: 4.18}
+    reasoning_options:
+      - type: effort
+        values: [none, high]
+    limits: {context: 1048576, output: 262144}
+
   - name: DeepSeek V4.1 Flash
     model: deepseek-v4.1-flash
     description: "Sparse Mixture-of-Experts model from DeepSeek built on a Causal Encoder-Decoder architecture"
@@ -1313,6 +1446,19 @@ ollama:
     cost: {input: 0.6, output: 3.6}
 
 wandb:
+  - name: Nemotron 3.5 Super VL
+    model: nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B
+    description: "Open multimodal Mixture-of-Experts model with 12B active parameters out of 120B for reasoning, coding, tool use, and document understanding"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-15
+    cost: {input: 0.15, output: 0.75}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 1048576, output: 1048576}
+
   - name: DeepSeek V4.1 Flash
     model: deepseek-ai/DeepSeek-V4.1-Flash
     description: "Sparse Mixture-of-Experts model from DeepSeek built on a Causal Encoder-Decoder architecture"
@@ -1321,7 +1467,7 @@ wandb:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-09-10
-    cost: {input: 0.2, output: 0.65}
+    cost: {input: 0.15, output: 0.65}
     reasoning_options:
       - type: toggle
     limits: {context: 1048576, output: 1048576}
@@ -1449,7 +1595,7 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2026-06-16
-    cost: {input: 0.76, output: 2.42}
+    cost: {input: 0.62, output: 2.42}
     reasoning_options:
       - type: toggle
     limits: {context: 1048576, output: 1048576}
@@ -1513,6 +1659,35 @@ wandb:
     limits: {context: 131072, output: 131072}
 
 opencode-go:
+  - name: Gemini 4 Argon Contributor
+    model: gemini-4-argon-contributor
+    description: "Contributor tier of Gemini 4 Argon for reasoning, coding, and agents, with prompts and completions eligible for model training"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-13
+    cost: {input: 4, output: 20}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high]
+    limits: {context: 1048576, output: 65536}
+
+  - name: Claude Haiku 5.5
+    model: claude-haiku-5-5
+    description: "Small, fast model for high-volume, cost-sensitive work such as summarization, subagents, and browser use"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
+
   - name: LongCat 2.5 Preview Free
     model: longcat-2.5-preview-free
     description: "Multimodal reasoning model from Meituan for coding and agentic workflows, with a one-million-token context window"
