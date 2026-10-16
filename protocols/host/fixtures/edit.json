@@ -35,14 +35,6 @@
       "kind": "delete_cell",
       "id": "k7f2",
       "base_etag": "f199b5f48ae0aabb"
-    },
-    {
-      "kind": "set_app_config",
-      "base_etag": "283513048dfeb45b",
-      "app_config": {
-        "width": "full",
-        "app_title": "Forecasts"
-      }
     }
   ]
 }

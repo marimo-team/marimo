@@ -493,14 +493,12 @@ def test_edit_request_response_and_events() -> None:
             touched[cell["id"]] = {
                 key: updated[key] for key in ("etag", "code_hash")
             }
-        elif change["kind"] == "delete_cell":
+        else:
+            assert change["kind"] == "delete_cell"
             assert change["base_etag"] == cells.pop(change["id"])["etag"]
             order.remove(change["id"])
             touched[change["id"]] = None
-        else:
-            assert change["kind"] == "set_app_config"
-            assert change["base_etag"] == before["app_config_etag"]
-            assert change["app_config"] == response["document"]["app_config"]
+    assert response["document"]["app_config"] == before["app_config"]
     assert response["document"]["order"] == order
     assert response["cells"] == touched
     assert_document_hash(response["document"], cells)

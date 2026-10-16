@@ -114,9 +114,23 @@ class Notebook:
         self._require_open()
         changed = self.document.replace(cells, app_config)
         self._publish_changed(changed, request_id)
-        if changed.document is not None:
-            self._request_analysis(request_id)
         return changed
+
+    def edit(
+        self, changes: Sequence[protocol.Change], *, request_id: str
+    ) -> protocol.EditResponse:
+        """Apply an edit as one unit and publish its effects.
+
+        Raises:
+            EditConflict: If a precondition is stale. Nothing is applied.
+            Invalid: If a change could not apply to any state.
+        """
+        self._require_open()
+        applied = self.document.apply(changes)
+        self._publish_changed(applied.changed, request_id)
+        return protocol.EditResponse(
+            document=self.document._record, cells=applied.cells
+        )
 
     def mark_saved(self, *, request_id: str | None = None) -> None:
         """Mark the current document revision as saved."""
@@ -128,6 +142,7 @@ class Notebook:
     def _publish_changed(
         self, changed: Changed, request_id: str | None
     ) -> None:
+        """Publish a document change, then analyze the new revision."""
         with self.sink.deferred():
             for cell in changed.cells:
                 self._publish(cell, request_id)
@@ -138,6 +153,8 @@ class Notebook:
                 self._remove("cell", cell_id, request_id)
             if changed.document is not None:
                 self._publish(changed.document, request_id)
+        if changed.document is not None:
+            self._request_analysis(request_id)
 
     # ---- analysis ------------------------------------------------------
 

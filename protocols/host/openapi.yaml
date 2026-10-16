@@ -277,12 +277,12 @@ paths:
         had when the client read it, so two writers never silently
         overwrite each other. Every etag is compared with the document as
         it was when the request arrived, so one request can create a cell
-        and then place it with the order etag the client read. Cells, the
-        order, and the app config each have their own etag, so writers
-        touching different parts never conflict. An etag of `*` skips the
-        check. A `put_cell` with a null etag creates the cell, after or
-        before an existing cell or at the end; placement has no
-        precondition, so two clients inserting at once both succeed.
+        and then place it with the order etag the client read. Cells and
+        the order each have their own etag, so writers touching different
+        parts never conflict. An etag of `*` skips the check. A `put_cell`
+        with a null etag creates the cell, after or before an existing cell
+        or at the end; placement has no precondition, so two clients
+        inserting at once both succeed.
 
         If any precondition is stale, nothing is applied and the host
         answers `conflict` with `edit` naming the first stale change and
@@ -1403,7 +1403,7 @@ components:
         app_config:
           type: object
           additionalProperties: true
-          description: Notebook-level settings, the keyword arguments to `marimo.App` such as `width` and `title`.
+          description: Notebook-level settings, the keyword arguments to `marimo.App` such as `width` and `app_title`. Informational for now; no change sets it over this protocol.
         policy:
           type: string
           enum: [autorun, lazy]
@@ -1752,35 +1752,18 @@ components:
           type: array
           items: { $ref: '#/components/schemas/CellId' }
           description: Every cell id exactly once, in the new order, counting cells this edit creates and leaving out cells it deletes.
-    SetAppConfig:
-      type: object
-      description: Replaces the app config.
-      required: [kind, base_etag, app_config]
-      properties:
-        kind:
-          type: string
-          enum: [set_app_config]
-        base_etag:
-          type: string
-          description: The document's `app_config_etag` as last read, or `*`.
-        app_config:
-          type: object
-          additionalProperties: true
-          description: The new app config, whole.
     Change:
       description: One change to the document, tagged on `kind`.
       oneOf:
         - $ref: '#/components/schemas/PutCell'
         - $ref: '#/components/schemas/DeleteCell'
         - $ref: '#/components/schemas/SetOrder'
-        - $ref: '#/components/schemas/SetAppConfig'
       discriminator:
         propertyName: kind
         mapping:
           put_cell: '#/components/schemas/PutCell'
           delete_cell: '#/components/schemas/DeleteCell'
           set_order: '#/components/schemas/SetOrder'
-          set_app_config: '#/components/schemas/SetAppConfig'
     EditRequest:
       type: object
       required: [changes]
@@ -1818,7 +1801,7 @@ components:
           description: The index of the stale change in the request's `changes`, or of the stale cell in a run's `cells`. `0` for a save with a stale `If-Match`.
         cell:
           oneOf: [{ $ref: '#/components/schemas/Cell' }, { type: 'null' }]
-          description: The cell the change named, as it now is. Null when the document does not have it, or when the change named the order or the app config.
+          description: The cell the change named, as it now is. Null when the document does not have it, or when the change named the order.
         document: { $ref: '#/components/schemas/Document' }
     SaveRequest:
       type: object

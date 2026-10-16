@@ -20,6 +20,7 @@ from marimo._core.document import (
     order_etag,
     revision,
 )
+from marimo._core.errors import EditConflict, Invalid
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -48,6 +49,34 @@ def fixture_cells() -> list[CellSource]:
         CellSource("c3", "x = 21"),
         CellSource("k7f2", "y = x * 2", config=HIDDEN),
     ]
+
+
+def put(
+    cell_id: str,
+    code: str,
+    base_etag: str | None,
+    *,
+    after: str | None = None,
+    before: str | None = None,
+) -> protocol.PutCell:
+    return protocol.PutCell(
+        base_etag=base_etag,
+        cell=protocol.CellInput(id=protocol.CellId(cell_id), code=code),
+        after=UNSET if after is None else protocol.CellId(after),
+        before=UNSET if before is None else protocol.CellId(before),
+    )
+
+
+def delete(cell_id: str, base_etag: str) -> protocol.DeleteCell:
+    return protocol.DeleteCell(
+        id=protocol.CellId(cell_id), base_etag=base_etag
+    )
+
+
+def set_order(base_etag: str, *cell_ids: str) -> protocol.SetOrder:
+    return protocol.SetOrder(
+        base_etag=base_etag, order=tuple(protocol.CellId(c) for c in cell_ids)
+    )
 
 
 class TestEtags:
@@ -185,6 +214,123 @@ class TestReplace:
         assert behind.saved_etag == saved.etag != behind.etag
 
 
+class TestApply:
+    def test_creates_replaces_deletes_and_reorders_as_one_unit(self) -> None:
+        document = Document(NOTEBOOK, fixture_cells(), {"width": "full"})
+        before = document._record
+        c3 = document.cell("c3")
+        k7f2 = document.cell("k7f2")
+        assert c3 is not None
+        assert k7f2 is not None
+
+        applied = document.apply(
+            [
+                put("c2", "print('hi')", None, after="c1"),
+                put("c3", "x = 22", c3.etag),
+                delete("k7f2", k7f2.etag),
+                set_order(before.order_etag, "c3", "c2", "c1"),
+            ]
+        )
+
+        assert document.order == ["c3", "c2", "c1"]
+        assert [c.id for c in applied.changed.cells] == ["c3", "c2"]
+        assert applied.changed.removed == ["k7f2"]
+        assert applied.changed.document is not None
+        assert applied.changed.document.app_config == {"width": "full"}
+        assert set(applied.cells) == {"c2", "c3", "k7f2"}
+        assert applied.cells["k7f2"] is None
+        new_c3 = document.cell("c3")
+        assert new_c3 is not None
+        assert applied.cells["c3"] == protocol.CellEtags(
+            etag=new_c3.etag, code_hash=new_c3.code_hash
+        )
+        assert new_c3.etag != c3.etag
+
+    def test_a_stale_etag_applies_nothing_and_names_the_change(self) -> None:
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        before = document._record
+
+        with pytest.raises(EditConflict) as raised:
+            document.apply(
+                [
+                    put("new", "z = 1", None),
+                    put("c3", "x = 22", "0000000000000000"),
+                ]
+            )
+
+        assert raised.value.change == 1
+        assert raised.value.cell == document.cell("c3")
+        assert raised.value.document == before
+        assert document._record == before
+        assert document.cell("new") is None
+
+    def test_creating_an_existing_cell_or_replacing_a_missing_one_conflicts(
+        self,
+    ) -> None:
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        c3 = document.cell("c3")
+        assert c3 is not None
+
+        with pytest.raises(EditConflict) as raised:
+            document.apply([put("c3", "x = 1", None)])
+        assert raised.value.cell == c3
+
+        with pytest.raises(EditConflict) as raised:
+            document.apply([put("nope", "x = 1", "*")])
+        assert raised.value.cell is None
+
+        # The cell existed when the client read, even if the same batch
+        # deletes it first.
+        with pytest.raises(EditConflict) as raised:
+            document.apply([delete("c3", c3.etag), put("c3", "x = 1", None)])
+        assert raised.value.change == 1
+        assert document.cell("c3") == c3
+
+    def test_star_skips_the_check(self) -> None:
+        document = Document(NOTEBOOK, fixture_cells(), {})
+
+        document.apply(
+            [put("c3", "x = 23", "*"), set_order("*", "k7f2", "c3", "c1")]
+        )
+
+        assert document.order == ["k7f2", "c3", "c1"]
+
+    def test_placement_has_no_precondition(self) -> None:
+        document = Document(NOTEBOOK, fixture_cells(), {})
+
+        document.apply([put("a", "1", None, before="c1")])
+        document.apply([put("b", "2", None, after="c1")])
+        document.apply([put("c", "3", None)])
+
+        assert document.order == ["a", "c1", "b", "c3", "k7f2", "c"]
+
+    def test_malformed_changes_are_invalid(self) -> None:
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        before = document._record
+
+        with pytest.raises(Invalid):
+            document.apply([set_order("*", "c1", "c3")])
+        with pytest.raises(Invalid):
+            document.apply([set_order("*", "c1", "c3", "c3")])
+        with pytest.raises(Invalid):
+            document.apply([put("a", "1", None, after="nope")])
+        with pytest.raises(Invalid):
+            document.apply([put("a", "1", None, after="c1", before="c3")])
+        assert document._record == before
+
+    def test_an_edit_that_changes_nothing_reports_nothing(self) -> None:
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        c3 = document.cell("c3")
+        assert c3 is not None
+
+        applied = document.apply([put("c3", "x = 21", c3.etag)])
+
+        assert not applied.changed
+        assert applied.cells["c3"] == protocol.CellEtags(
+            etag=c3.etag, code_hash=c3.code_hash
+        )
+
+
 class TestFromRecords:
     def test_preserves_the_saved_revision(self) -> None:
         source = Document(
@@ -269,6 +415,27 @@ class TestNotebook:
         assert names(log) == ["cell", "cell.removed", "document"]
         assert all(e.data.request_id == "edit-1" for e in log)  # type: ignore[union-attr]
         assert log[1].data.id == "k7f2"  # type: ignore[union-attr]
+
+    def test_edit_publishes_as_one_unit_with_the_request_key(
+        self, notebook: Notebook, log: list[Event]
+    ) -> None:
+        notebook.replace(fixture_cells(), {})
+        log.clear()
+        k7f2 = notebook.document.cell("k7f2")
+        assert k7f2 is not None
+
+        response = notebook.edit(
+            [
+                put("c2", "print('hi')", None, after="c1"),
+                delete("k7f2", k7f2.etag),
+            ],
+            request_id="edit-1",
+        )
+
+        assert names(log) == ["cell", "cell.removed", "document"]
+        assert request_ids(log) == ["edit-1"] * 3
+        assert response.document == log[-1].data.document  # type: ignore[union-attr]
+        assert set(response.cells) == {"c2", "k7f2"}
 
 
 def cell_analyses(
@@ -357,6 +524,34 @@ class TestAnalysis:
         assert request_ids(log) == ["edit-2"]
         assert notebook.analysis is not None
         assert notebook.analysis.document_etag == latest.document.etag
+
+    async def test_an_edit_is_analyzed_under_its_request_key(
+        self, host: Host, log: list[Event]
+    ) -> None:
+        host.update_project(project())
+        analyzer = ScriptedAnalyzer()
+        document = Document(NOTEBOOK, fixture_cells(), {})
+        notebook = await add_notebook(
+            host,
+            record(),
+            ScriptedBackend(),
+            document=document,
+            analyzer=analyzer,
+        )
+        _, result = await analyzer.next_request()
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
+
+        log.clear()
+        notebook.edit([put("c9", "z = 1", None)], request_id="edit-1")
+        snapshot, result = await analyzer.next_request()
+        assert snapshot == document.snapshot()
+        assert [c.id for c in snapshot.cells] == ["c1", "c3", "k7f2", "c9"]
+
+        result.set_result(cell_analyses(document))
+        await asyncio.sleep(0)
+        assert names(log) == ["cell", "document", "analysis"]
+        assert request_ids(log) == ["edit-1"] * 3
 
     async def test_the_previous_analysis_stays_until_the_next_arrives(
         self, host: Host

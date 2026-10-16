@@ -7,14 +7,13 @@
       "c3"
     ],
     "app_config": {
-      "width": "full",
-      "app_title": "Forecasts"
+      "width": "full"
     },
     "policy": "autorun",
-    "etag": "949c0dd20bc77042",
+    "etag": "f01a47d5aa0cad55",
     "saved_etag": "e59d9c2af02f5814",
     "order_etag": "162e15055422ed71",
-    "app_config_etag": "1d79ec53fdad1a23"
+    "app_config_etag": "283513048dfeb45b"
   },
   "cells": {
     "c2": {

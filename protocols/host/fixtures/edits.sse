@@ -12,9 +12,9 @@ data: {"id":"k7f2","request_id":"9b1c6d2e-0f3a-4b5c-8d7e-1f2a3b4c5d6e","time":"2
 
 id: 113
 event: document
-data: {"document":{"notebook_id":"n1","order":["c1","c2","c3"],"app_config":{"width":"full","app_title":"Forecasts"},"policy":"autorun","etag":"949c0dd20bc77042","saved_etag":"e59d9c2af02f5814","order_etag":"162e15055422ed71","app_config_etag":"1d79ec53fdad1a23"},"request_id":"9b1c6d2e-0f3a-4b5c-8d7e-1f2a3b4c5d6e","time":"2026-10-01T09:21:00Z"}
+data: {"document":{"notebook_id":"n1","order":["c1","c2","c3"],"app_config":{"width":"full"},"policy":"autorun","etag":"f01a47d5aa0cad55","saved_etag":"e59d9c2af02f5814","order_etag":"162e15055422ed71","app_config_etag":"283513048dfeb45b"},"request_id":"9b1c6d2e-0f3a-4b5c-8d7e-1f2a3b4c5d6e","time":"2026-10-01T09:21:00Z"}
 
 id: 114
 event: document
-data: {"document":{"notebook_id":"n1","order":["c1","c2","c3"],"app_config":{"width":"full","app_title":"Forecasts"},"policy":"autorun","etag":"949c0dd20bc77042","saved_etag":"949c0dd20bc77042","order_etag":"162e15055422ed71","app_config_etag":"1d79ec53fdad1a23"},"request_id":"save-9b1c6d2e","time":"2026-10-01T09:21:02Z"}
+data: {"document":{"notebook_id":"n1","order":["c1","c2","c3"],"app_config":{"width":"full"},"policy":"autorun","etag":"f01a47d5aa0cad55","saved_etag":"f01a47d5aa0cad55","order_etag":"162e15055422ed71","app_config_etag":"283513048dfeb45b"},"request_id":"save-9b1c6d2e","time":"2026-10-01T09:21:02Z"}
 
