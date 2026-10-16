@@ -228,6 +228,24 @@ export function detectSentinel(
   return null;
 }
 
+type NullishSentinelType = Extract<CellValueSentinel["type"], "null" | "nat">;
+
+const NULLISH_SENTINEL_TYPES: ReadonlySet<CellValueSentinel["type"]> =
+  new Set<NullishSentinelType>(["null", "nat"]);
+
+/**
+ * True when the cell value represents a missing value (null, NaT)
+ * rather than a real value that happens to look special.
+ */
+export function isNullishSentinel(
+  value: unknown,
+  dataType: DataType | undefined,
+  dtype?: string,
+): boolean {
+  const sentinel = detectSentinel(value, dataType, dtype);
+  return sentinel !== null && NULLISH_SENTINEL_TYPES.has(sentinel.type);
+}
+
 /**
  * Stringify an unknown value. Converts objects to JSON strings.
  * @param opts.value - The value to stringify.
