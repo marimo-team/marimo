@@ -852,6 +852,37 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         result = manager.search("^[ab]")
         assert result.get_num_rows() == 2
 
+    def test_search_special_characters_no_crash(self) -> None:
+        import polars as pl
+
+        df = pl.DataFrame(
+            {
+                "tech": ["c++", "c#", "python", "java", "a*b", "1+1"],
+                "status": [
+                    "[active]",
+                    "ok",
+                    "error (404)",
+                    "pending",
+                    "done",
+                    "test",
+                ],
+            }
+        )
+        manager = self.factory.create()(df)
+
+        assert manager.search("").get_num_rows() == 6
+        assert manager.search("c++").get_num_rows() == 1
+        assert manager.search("[").get_num_rows() == 1
+        assert manager.search("*").get_num_rows() == 1
+        assert manager.search("+").get_num_rows() == 2
+        assert manager.search("(").get_num_rows() == 1
+        assert manager.search("?").get_num_rows() == 0
+        assert manager.search("\\").get_num_rows() == 0
+        assert manager.search("1+1").get_num_rows() == 1
+        assert manager.search("a*b").get_num_rows() == 1
+        assert manager.search("error (404)").get_num_rows() == 1
+        assert manager.search("[active]").get_num_rows() >= 1
+
     def test_search_wide_dataframe(self) -> None:
         """Regression test: search must not crash on wide tables (GitHub #8449)."""
         import polars as pl

@@ -1406,6 +1406,44 @@ def test_search_with_regex(df: Any) -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
+        {
+            "tech": ["c++", "c#", "python", "java", "a*b", "1+1"],
+            "status": [
+                "[active]",
+                "ok",
+                "error (404)",
+                "pending",
+                "done",
+                "test",
+            ],
+        },
+        exclude=["ibis"],
+    ),
+)
+def test_search_special_characters_no_crash(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+
+    # Empty query returns original table
+    assert manager.search("").get_num_rows() == 6
+
+    # Special characters that previously triggered regex parse errors or engine panics
+    assert manager.search("c++").get_num_rows() == 1
+    assert manager.search("[").get_num_rows() == 1
+    assert manager.search("*").get_num_rows() == 1
+    assert manager.search("+").get_num_rows() == 2
+    assert manager.search("(").get_num_rows() == 1
+    assert manager.search("?").get_num_rows() == 0
+    assert manager.search("\\").get_num_rows() == 0
+    assert manager.search("1+1").get_num_rows() == 1
+    assert manager.search("a*b").get_num_rows() == 1
+    assert manager.search("error (404)").get_num_rows() == 1
+    assert manager.search("[active]").get_num_rows() >= 1
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
         {f"col_{i}": ["a", "b", "c"] for i in range(1, 500)}
         | {"col_0": ["target", "b", "c"]},
         exclude=["ibis", "duckdb"],

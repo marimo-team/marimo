@@ -6,7 +6,9 @@ import functools
 import io
 import json
 import math
+import re
 import uuid
+import warnings
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -454,41 +456,84 @@ class NarwhalsTableManager(
                 return self.with_new_data(self.data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
+        if not query:
+            return self
+
         query = query.lower()
 
-        expressions: list[Any] = []
-        for column, dtype in self.nw_schema.items():
-            if column == INDEX_COLUMN_NAME:
-                continue
-            if column in self._geometry_columns:
-                continue
-            if is_narwhals_string_type(dtype):
-                # Cast to string as pandas may fail for certain values
-                expressions.append(
-                    nw.col(column).cast(nw.String).str.contains(f"(?i){query}")
-                )
-            elif dtype == nw.List(nw.String):
-                # TODO: Narwhals doesn't support list.contains
-                # expressions.append(
-                #     nw.col(column).list.contains(query)
-                # )
-                pass
-            elif (
-                dtype.is_numeric()
-                or is_narwhals_temporal_type(dtype)
-                or dtype == nw.Boolean
-            ):
-                expressions.append(
-                    nw.col(column).cast(nw.String).str.contains(f"(?i){query}")
-                )
+        def _get_expressions(pattern: str) -> list[Any]:
+            expressions: list[Any] = []
+            for column, dtype in self.nw_schema.items():
+                if column == INDEX_COLUMN_NAME:
+                    continue
+                if column in self._geometry_columns:
+                    continue
+                if is_narwhals_string_type(dtype):
+                    # Cast to string as pandas may fail for certain values
+                    expressions.append(
+                        nw.col(column).cast(nw.String).str.contains(pattern)
+                    )
+                elif dtype == nw.List(nw.String):
+                    # TODO: Narwhals doesn't support list.contains
+                    # expressions.append(
+                    #     nw.col(column).list.contains(query)
+                    # )
+                    pass
+                elif (
+                    dtype.is_numeric()
+                    or is_narwhals_temporal_type(dtype)
+                    or dtype == nw.Boolean
+                ):
+                    expressions.append(
+                        nw.col(column).cast(nw.String).str.contains(pattern)
+                    )
+            return expressions
 
+        pattern = f"(?i){query}"
+        escaped_pattern = f"(?i){re.escape(query)}"
+        if pattern == escaped_pattern:
+            expressions = _get_expressions(pattern)
+            if not expressions:
+                return self.with_new_data(self.data.filter(nw.lit(False)))
+            filtered = self.data.filter(
+                nw.any_horizontal(expressions, ignore_nulls=False)
+            )
+            return self.with_new_data(filtered)
+
+        is_valid_regex = False
+        try:
+            re.compile(pattern)
+            is_valid_regex = not bool(re.search(r"\+\+", query))
+        except re.error:
+            pass
+
+        if is_valid_regex:
+            try:
+                expressions = _get_expressions(pattern)
+                if expressions:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", UserWarning)
+                        filtered = self.data.filter(
+                            nw.any_horizontal(expressions, ignore_nulls=False)
+                        )
+                        has_matches = (
+                            not filtered.head(1).collect().is_empty()
+                            if isinstance(filtered, nw.LazyFrame)
+                            else not filtered.is_empty()
+                        )
+                    if has_matches:
+                        return self.with_new_data(filtered)
+            except Exception:
+                pass
+
+        expressions = _get_expressions(escaped_pattern)
         if not expressions:
-            return NarwhalsTableManager(self.data.filter(nw.lit(False)))
+            return self.with_new_data(self.data.filter(nw.lit(False)))
 
         filtered = self.data.filter(
             nw.any_horizontal(expressions, ignore_nulls=False)
         )
-        return NarwhalsTableManager(filtered)
+        return self.with_new_data(filtered)
 
     def get_stats(self, column: str) -> ColumnStats:
         stats = self._get_stats_internal(column)
