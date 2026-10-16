@@ -52,8 +52,10 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+# A file may start with a UTF-8 BOM, which Python skips when it runs the script:
+# accept it before the opening marker so the block is found and replaced with it.
 REGEX = (
-    r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)\r?$\n"
+    r"(?m)^\ufeff?# /// (?P<type>[a-zA-Z0-9-]+)\r?$\n"
     r"(?P<content>(^#(?! ///\r?$)(| .*)\r?$\n)+)^# ///(?=\r?$)"
 )
 
