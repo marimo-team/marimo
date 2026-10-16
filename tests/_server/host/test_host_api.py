@@ -1445,32 +1445,40 @@ if __name__ == "__main__":
 """
 
 
+@pytest.mark.parametrize("preanalyzed", [False, True])
 async def test_the_notebook_stream_carries_cells_then_the_document(
     harness: Harness,
+    preanalyzed: bool,
 ) -> None:
     (harness.root / "forecasts.py").write_text(NOTEBOOK)
+    if preanalyzed:
+        await analyzed(await harness.host.notebook(harness.notebook_id))
     response, _, disconnect = request(
         harness.app,
         "GET",
         f"/notebooks/{harness.notebook_id}/events",
         headers=AUTH,
     )
-    await wait_for(response, lambda r: "analysis" in r.names())
+    await wait_for(
+        response, lambda r: until_ready(r) and "analysis" in r.names()
+    )
     disconnect()
 
-    # The document is served as soon as it is read; its analysis follows.
-    assert response.names() == [
+    # Analysis follows the document, but can finish before or after ready.
+    names = response.names()
+    assert [name for name in names if name != "analysis"] == [
         "notebook",
         "cell",
         "cell",
         "document",
         "attachment",
         "ready",
-        "analysis",
     ]
+    assert names.count("analysis") == 1
+    assert names.index("analysis") > names.index("document")
     first, second = (r["data"]["cell"] for r in response.records[1:3])
     document = response.records[3]["data"]["document"]
-    analysis = response.records[6]["data"]["analysis"]
+    analysis = response.records[names.index("analysis")]["data"]["analysis"]
     assert first["code"] == "x = 21"
     assert second["code"] == "y = x * 2"
     assert second["config"]["hide_code"] is True
