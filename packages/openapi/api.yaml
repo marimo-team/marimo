@@ -1691,7 +1691,10 @@ components:
         \ if `True`, highlight reactive variable references\n    - `code_lens`: if\
         \ `True`, show inline icons in cell editors linking\n      datasources, storage\
         \ buckets, and caches to their panels\n    - `locale`: locale for date formatting\
-        \ and internationalization (e.g., \"en-US\", \"en-GB\", \"de-DE\")"
+        \ and internationalization (e.g., \"en-US\", \"en-GB\", \"de-DE\")\n    -\
+        \ `datetime_in_local_timezone`: if `True`, render timezone-aware datetimes\n\
+        \      (such as SQL `timestamptz` columns) in the browser's local timezone\n\
+        \      instead of the timezone encoded in the data"
       properties:
         cell_output:
           enum:
@@ -1709,6 +1712,8 @@ components:
           enum:
           - plain
           - rich
+        datetime_in_local_timezone:
+          type: boolean
         default_table_max_columns:
           type: integer
         default_table_page_size:
