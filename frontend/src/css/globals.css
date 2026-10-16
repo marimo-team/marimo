@@ -201,6 +201,11 @@
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+
+  audio {
+    max-width: 100%;
+    transform: translateZ(0);
+  }
 }
 
 @theme {
