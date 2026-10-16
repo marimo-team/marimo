@@ -188,6 +188,7 @@ class Exporter:
             layout=request.layout,
             model_notifications=model_notifications,
             asset_url=request.options.asset_url,
+            include_tab_variant_script=request.include_tab_variant_script,
         )
 
         download_filename = get_download_filename(filename, "html")
