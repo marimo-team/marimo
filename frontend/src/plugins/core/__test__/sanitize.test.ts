@@ -68,6 +68,14 @@ describe("sanitizeHtml", () => {
     );
   });
 
+  test("preserves supported custom URI schemes in anchors", () => {
+    const html =
+      '<a href="zotero://open-pdf/library/items/IDT2EG5W?page=1">PDF</a>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<a href="zotero://open-pdf/library/items/IDT2EG5W?page=1" target="_self">PDF</a>"`,
+    );
+  });
+
   test("adds target=_self to anchor without target", () => {
     const html = '<a href="https://example.com">Link</a>';
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(
