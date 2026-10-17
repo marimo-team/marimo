@@ -134,6 +134,16 @@ def sql(
         if is_sql_parse_error(e):
             # NB. raising _from_ creates a noisier stack trace, but preserves
             # the original exception context for debugging.
+            if isinstance(e, MarimoSQLException):
+                # Preserve structured error details (hint, sql_line, sql_col)
+                # reported by the engine instead of resetting them to None.
+                raise MarimoSQLException(
+                    message=str(e),
+                    sql_statement=e.sql_statement or query,
+                    sql_line=e.sql_line,
+                    sql_col=e.sql_col,
+                    hint=e.hint,
+                ) from e
             raise MarimoSQLException(
                 message=str(e),
                 sql_statement=query,
