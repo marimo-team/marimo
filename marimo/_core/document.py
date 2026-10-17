@@ -7,7 +7,7 @@ import hashlib
 import json
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 from msgspec import UNSET
 
@@ -16,8 +16,6 @@ from marimo._core.errors import EditConflict, Invalid
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping, Sequence
-
-Policy = Literal["autorun", "lazy"]
 
 
 def etag(text: str) -> protocol.Etag:
@@ -150,11 +148,9 @@ class Document:
         cells: Sequence[CellSource],
         app_config: Mapping[str, Any],
         *,
-        policy: Policy = "autorun",
         saved: bool = True,
     ) -> None:
         self._id = notebook_id
-        self._policy: Policy = policy
         self._cells: dict[str, protocol.Cell] = {}
         self._order: list[str] = []
         self._app_config: dict[str, Any] = {}
@@ -193,7 +189,6 @@ class Document:
                 for cell in (by_id[cell_id] for cell_id in document.order)
             ],
             document.app_config,
-            policy=document.policy,
             saved=False,
         )
         for cell in restored:
@@ -354,10 +349,6 @@ class Document:
         self._saved_etag = self._record.etag if etag is None else etag
         return self._refresh()
 
-    def set_policy(self, policy: Policy) -> protocol.Document | None:
-        self._policy = policy
-        return self._refresh()
-
     def _build(self, source: CellSource) -> protocol.Cell:
         code = normalize_code(source.code)
         hashed = code_hash(code)
@@ -379,7 +370,6 @@ class Document:
             notebook_id=self._id,
             order=tuple(protocol.CellId(c) for c in self._order),
             app_config=dict(self._app_config),
-            policy=self._policy,
             etag=document_etag(
                 order,
                 app_config,

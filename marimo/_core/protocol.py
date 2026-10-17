@@ -884,12 +884,6 @@ class Document(Struct, frozen=True):
             description="Identifies the order alone. Its text is the cell IDs in order as a JSON array, with no whitespace and strings carrying only the escapes JSON requires. Editing a cell does not change it."
         ),
     ]
-    policy: Annotated[
-        Literal["autorun", "lazy"],
-        Meta(
-            description="When dependents of an evaluated cell run. `autorun` runs them on every change; `lazy` leaves them for a later run. Set by the host."
-        ),
-    ]
     saved_etag: (
         Annotated[
             Etag,

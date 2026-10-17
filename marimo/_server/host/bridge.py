@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
-from marimo._config.manager import ScriptConfigReader
 from marimo._core import protocol
 from marimo._core.document import CellSource, Document, revision
 from marimo._core.errors import (
@@ -39,7 +38,7 @@ if TYPE_CHECKING:
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
-    from marimo._core.document import Changed, Policy
+    from marimo._core.document import Changed
     from marimo._core.stream import Event, Sink
     from marimo._messaging.notebook import NotebookCell
     from marimo._server.session_manager import SessionManager
@@ -174,7 +173,6 @@ class SessionBridge(SessionEventListener):
                 record.id,
                 cells,
                 app_config,
-                policy=self._policy(file, session),
                 saved=session is None,
             )
             if session is not None and loaded is not None:
@@ -518,21 +516,6 @@ class SessionBridge(SessionEventListener):
             return
         cells, app_config = documents.from_session(session)
         notebook.replace(cells, app_config)
-
-    def _policy(self, file: Path | None, session: Session | None) -> Policy:
-        config_manager = (
-            session.config_manager
-            if session is not None
-            else self._config_manager
-        )
-        if config_manager is None:
-            return "autorun"
-        if session is None:
-            config_manager = config_manager.with_partial(
-                ScriptConfigReader(None if file is None else str(file))
-            )
-        policy = config_manager.get_config()["runtime"]["on_cell_change"]
-        return "lazy" if policy == "lazy" else "autorun"
 
     def _project_path(self, path: Path) -> Path:
         root = self.index.root

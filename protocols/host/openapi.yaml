@@ -1385,13 +1385,11 @@ components:
       type: object
       description: |
         The document as a whole, without its cells, which are their own
-        objects: the cell order, app config, and host execution policy.
-        The policy is retained for v1 compatibility and comes from the
-        runtime configuration, not the notebook's app config. One per notebook,
+        objects: the cell order and app config. One per notebook,
         and removed with it. The order and the app
         config carry their own etags, so an edit to one does not conflict
         with an edit to the other, or with edits to cells.
-      required: [notebook_id, order, app_config, policy, etag, saved_etag, order_etag, app_config_etag]
+      required: [notebook_id, order, app_config, etag, saved_etag, order_etag, app_config_etag]
       properties:
         notebook_id:
           $ref: '#/components/schemas/NotebookId'
@@ -1404,10 +1402,6 @@ components:
           type: object
           additionalProperties: true
           description: Notebook-level settings, the keyword arguments to `marimo.App` such as `width` and `app_title`. Informational for now; no change sets it over this protocol.
-        policy:
-          type: string
-          enum: [autorun, lazy]
-          description: When dependents of an evaluated cell run. `autorun` runs them on every change; `lazy` leaves them for a later run. Set by the host.
         etag:
           $ref: '#/components/schemas/Etag'
           description: Identifies the document as currently applied. Its text is `order_etag`, `app_config_etag`, and every cell's `etag` in order, so it changes when any of them does.
