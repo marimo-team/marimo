@@ -173,6 +173,21 @@ class TestEtags:
 
 
 class TestValue:
+    def test_config_is_detached_from_inputs_and_published_records(
+        self,
+    ) -> None:
+        config = {"auto_download": ["html"]}
+        document = Document(fixture_cells(), config)
+        notebook = hosted(document)
+        before, _ = records(notebook)
+
+        config["auto_download"].append("markdown")
+        published, _ = records(notebook)
+        published.app_config["auto_download"].clear()
+
+        assert document.app_config == {"auto_download": ["html"]}
+        assert records(notebook)[0] == before
+
     def test_documents_with_the_same_content_are_equal(self) -> None:
         assert Document(fixture_cells(), {"a": 1}) == Document(
             fixture_cells(), {"a": 1}

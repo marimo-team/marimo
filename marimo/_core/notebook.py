@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 import msgspec
@@ -122,7 +123,7 @@ class Notebook:
         return protocol.Document(
             notebook_id=self._id,
             order=tuple(cell.id for cell in document),
-            app_config=dict(document.app_config),
+            app_config=deepcopy(dict(document.app_config)),
             etag=document.etag,
             saved_etag=self._saved_etag,
             order_etag=document.order_etag,

@@ -12,7 +12,6 @@ import hashlib
 import json
 from copy import deepcopy
 from dataclasses import dataclass, field
-from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from msgspec import UNSET
@@ -166,7 +165,7 @@ class Document:
             held[cell.id] = cell
         plain = deepcopy(dict(app_config))
         self._cells = held
-        self._app_config: Mapping[str, Any] = MappingProxyType(plain)
+        self._app_config: Mapping[str, Any] = plain
         self._order_etag = order_etag(list(held))
         self._app_config_etag = app_config_etag(plain)
         self._etag = document_etag(
@@ -241,7 +240,7 @@ class Document:
 
     @property
     def app_config(self) -> Mapping[str, Any]:
-        """The app config, read-only."""
+        """The app config. Treat this mapping and nested values as read-only."""
         return self._app_config
 
     def __eq__(self, other: object) -> bool:

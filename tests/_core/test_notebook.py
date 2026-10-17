@@ -1192,14 +1192,18 @@ async def test_current_cell_results_can_seed_another_notebook() -> None:
     retained = notebook.executions.current(CellId("c1"))
     assert retained is not None
     restored = Notebook(
-        notebook.id,
+        NotebookId("restored"),
         document,
         Executions.restore({CellId("c1"): retained}, cells=document),
         ScriptedBackend(),
         Stream(history=0),
         saved_etag=notebook.saved_etag,
     )
-    assert published(restored) == published(notebook)
+    source_record, source_cells = published(notebook)
+    assert published(restored) == (
+        replace(source_record, notebook_id=restored.id),
+        [replace(cell, notebook_id=restored.id) for cell in source_cells],
+    )
     assert list(restored.document) == list(notebook.document)
     assert restored.executions.current(CellId("c1")) == retained
     assert fold(restored._snapshot()) == {
