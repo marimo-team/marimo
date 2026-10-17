@@ -1,14 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { UIMessage } from "@ai-sdk/react";
-import { useChat } from "@ai-sdk/react";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import {
-  type ChatAddToolApproveResponseFunction,
-  type FileUIPart,
-  safeValidateUIMessages,
-  type TextUIPart,
+import type {
+  ChatAddToolApproveResponseFunction,
+  FileUIPart,
+  TextUIPart,
 } from "ai";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import {
@@ -21,31 +19,22 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
 import { LoadingEllipsis } from "@/components/icons/loading-ellipsis";
-import { replaceMessagesInChat } from "@/core/ai/chat-utils";
+import { deleteChats } from "@/core/ai/chat-session";
 import { useAIConfigActions } from "@/core/ai/config";
-import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
 import { AiModelId } from "@/core/ai/ids/ids";
-import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import {
   activeChatAtom,
   addChatAndOpenTab,
   type Chat,
   type ChatId,
-  chatOptionsAtom,
   chatStateAtom,
   pendingAiPromptAtom,
 } from "@/core/ai/state";
-import type { ToolNotebookContext } from "@/core/ai/tools/base";
-import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
-import { useCellActions } from "@/core/cells/actions";
 import { aiAtom, aiModelConfiguredAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
-import { useRequestClient } from "@/core/network/requests";
-import { useRuntimeManager } from "@/core/runtime/config";
 import { isWasm } from "@/core/wasm/utils";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
-import { Logger } from "@/utils/Logger";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
 import {
@@ -58,7 +47,6 @@ import {
   isContextAttachment,
   resolveChatContext,
 } from "../editor/ai/completion-utils";
-import { StreamingChunkTransport } from "../editor/ai/transport/chat-transport";
 import { PanelHeaderActions } from "../editor/chrome/panels/panel-header";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
@@ -72,35 +60,22 @@ import {
   FileAttachmentPill,
   SendButton,
 } from "./chat-components";
-import {
-  describeChatAbortReason,
-  getAbortReasonFromChunk,
-  resolveChatAbortReason,
-} from "./chat-abort";
 import { renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
 import { CapabilitiesPopover } from "./capabilities-popover";
 import { NotebookAccessSelector } from "./notebook-access-selector";
 import { ChatTabs } from "./chat-tabs";
 import {
-  type ChatMessagePart,
   convertToFileUIPart,
   generateChatTitle,
-  handleToolCall,
-  hasPendingToolCalls,
-  hasUnresolvedToolCalls,
   isLastMessageReasoning,
   PROVIDERS_THAT_SUPPORT_ATTACHMENTS,
   type QueuedUserMessage,
-  shouldFlushQueue,
   useFileState,
-  useMessageQueue,
 } from "./chat-utils";
-import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 import ScrollToBottomButton from "./acp/scroll-to-bottom-button";
-import { useChatControllerId } from "./use-chat-controller-id";
-import { useChatGeneration } from "./use-chat-generation";
+import { useChatSession } from "./use-chat-session";
 
 // Default mode for the AI
 const DEFAULT_MODE = "ask";
@@ -468,39 +443,12 @@ const ChatPanelBody = () => {
   const [newThreadInput, setNewThreadInput] = useState("");
   const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
   const { files, addFiles, clearFiles, removeFile } = useFileState();
-  const {
-    messages: queuedMessages,
-    enqueue: enqueueUserMessage,
-    flushNext: flushNextQueuedMessage,
-    clear: clearQueuedMessages,
-    hasQueuedRef,
-  } = useMessageQueue();
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const lastAbortReasonRef = useRef<string | null>(null);
-  const [abortNotice, setAbortNotice] = useState<string | null>(null);
-  const clearAbortState = useEvent(() => {
-    lastAbortReasonRef.current = null;
-    setAbortNotice(null);
-  });
-  const runtimeManager = useRuntimeManager();
-  const { invokeAiTool } = useRequestClient();
-
-  const activeChatId = activeChat?.id;
-  const { chatControllerId, renewDraftChatId } =
-    useChatControllerId(activeChatId);
   const store = useStore();
-
-  const { addStagedCell } = useStagedAICellsActions();
-  const { createCell } = useCellActions();
-  const toolContext: ToolNotebookContext = {
-    addStagedCell,
-    createCell,
-    store,
-  };
-
+  const activeChatId = activeChat?.id;
   const {
     messages,
     sendMessage,
@@ -508,138 +456,14 @@ const ChatPanelBody = () => {
     status,
     regenerate,
     stop,
-    addToolOutput,
     addToolApprovalResponse,
     id: chatId,
-  } = useChat({
-    id: chatControllerId,
-    throttle: AI_SDK_UI_THROTTLE_MS,
-    sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
-    messages: activeChat?.messages || [], // initial messages
-    transport: new StreamingChunkTransport(
-      {
-        api: runtimeManager.getAiURL("chat").toString(),
-        headers: () => runtimeManager.headers(),
-        prepareSendMessagesRequest: async (options) => {
-          // Canary: flag outgoing messages that don't match the AI SDK's own
-          // schema. The server-side sanitizer in `_pydantic_ai_utils.py` corrects these before validation;
-          // this log surfaces drift early without affecting the request.
-          const validation = await safeValidateUIMessages({
-            messages: options.messages,
-          });
-          if (!validation.success) {
-            Logger.debug(
-              "Outgoing chat messages failed AI SDK schema validation",
-              validation.error,
-            );
-          }
-
-          const completionBody = {
-            uiMessages: options.messages,
-            includeOtherCode: getCodes(""),
-            options: store.get(chatOptionsAtom),
-          };
-
-          // Call this here to ensure the value is not stale
-          const chatMode = store.get(aiAtom)?.mode || DEFAULT_MODE;
-          const tools = FRONTEND_TOOL_REGISTRY.getToolSchemas(chatMode);
-
-          return {
-            api: runtimeManager.getAiURL("chat").toString(),
-            body: {
-              tools,
-              ...options,
-              ...completionBody,
-            },
-          };
-        },
-      },
-      (chunk) => {
-        const abortReason = getAbortReasonFromChunk(chunk);
-        if (abortReason !== undefined) {
-          lastAbortReasonRef.current = abortReason;
-        }
-      },
-    ),
-    onFinish: ({ messages, isError, isAbort, finishReason }) => {
-      setChatState((prev) => {
-        return replaceMessagesInChat({
-          chatState: prev,
-          chatId: prev.activeChatId,
-          messages: messages,
-        });
-      });
-
-      if (isAbort) {
-        const reason = resolveChatAbortReason({
-          isAbort: true,
-          streamReason: lastAbortReasonRef.current,
-        });
-        clearAbortState();
-        if (reason != null) {
-          const description = describeChatAbortReason(reason);
-          Logger.debug("Chat stream aborted", { reason, finishReason });
-          setAbortNotice(description);
-        }
-      } else {
-        clearAbortState();
-      }
-
-      tryFlushQueuedMessages(messages, { isError, isAbort });
-    },
-    onToolCall: async ({ toolCall }) => {
-      await handleToolCall({
-        invokeAiTool,
-        addToolOutput,
-        toolCall: {
-          toolName: toolCall.toolName,
-          toolCallId: toolCall.toolCallId,
-          input: toolCall.input as Record<string, never>,
-        },
-        toolContext,
-      });
-    },
-    onError: (error) => {
-      Logger.error("An error occurred:", error);
-    },
-  });
-
-  const sendUserMessage = useEvent((parts: ChatMessagePart[]) => {
-    clearAbortState();
-    sendMessage({ role: "user", parts });
-  });
-
-  const tryFlushQueuedMessages = useEvent(
-    (
-      chatMessages: typeof messages,
-      opts: { isError: boolean; isAbort: boolean },
-    ) => {
-      if (!hasQueuedRef.current) {
-        return;
-      }
-      if (
-        shouldFlushQueue({
-          isError: opts.isError,
-          isAbort: opts.isAbort,
-          hasPendingToolCalls: hasPendingToolCalls(chatMessages),
-          hasUnresolvedToolCalls: hasUnresolvedToolCalls(chatMessages),
-        })
-      ) {
-        flushNextQueuedMessage(sendUserMessage);
-      }
-    },
-  );
-
-  const isLoading = useChatGeneration(status);
-  // useEvent reads the latest loading state, even when called after an await
-  // (e.g. resolving @-context) that outlives the original render's closure.
-  const submitOrQueue = useEvent((parts: ChatMessagePart[]) => {
-    if (isLoading || hasQueuedRef.current) {
-      enqueueUserMessage(parts);
-    } else {
-      sendUserMessage(parts);
-    }
-  });
+    renewDraftChatId,
+    queuedMessages,
+    submitOrQueue,
+    abortNotice,
+  } = useChatSession(activeChat);
+  const isLoading = status === "submitted" || status === "streaming";
 
   const handleScroll = useEvent(() => {
     const container = scrollContainerRef.current;
@@ -674,9 +498,7 @@ const ChatPanelBody = () => {
   // Pin to the bottom while the user is already there.
   useEffect(() => {
     setIsScrolledToBottom(true);
-    clearQueuedMessages();
-    clearAbortState();
-  }, [activeChatId, clearQueuedMessages, clearAbortState]);
+  }, [activeChatId]);
 
   useEffect(() => {
     if (!isScrolledToBottom) {
@@ -688,22 +510,10 @@ const ChatPanelBody = () => {
     return () => cancelAnimationFrame(frame);
   }, [messages, queuedMessages, isLoading, isScrolledToBottom, scrollToBottom]);
 
-  // Retry when tool parts resolve after the stream ends (e.g. assistant text
-  // trails a still-running tool call, so `onFinish` alone cannot flush).
-  useEffect(() => {
-    if (isLoading) {
-      return;
-    }
-    tryFlushQueuedMessages(messages, {
-      isError: error != null,
-      isAbort: false,
-    });
-  }, [messages, isLoading, error, tryFlushQueuedMessages]);
-
   const startNewChatState = useEvent((initialMessage: string) => {
     const now = Date.now();
     const newChat: Chat = {
-      id: chatId as ChatId,
+      id: chatId,
       title: generateChatTitle(initialMessage),
       messages: [],
       createdAt: now,
@@ -712,6 +522,7 @@ const ChatPanelBody = () => {
 
     // Create new chat, open it as a tab, and set as active
     setChatState((prev) => addChatAndOpenTab(prev, newChat));
+    renewDraftChatId();
   });
 
   const createNewThread = useEvent(
@@ -744,30 +555,16 @@ const ChatPanelBody = () => {
     setActiveChat(null);
     setInput("");
     setNewThreadInput("");
-    clearQueuedMessages();
     clearFiles();
   });
 
   const handleDeleteChats = useEvent((id: ChatId | null) => {
-    if (id === null || id === activeChatId) {
+    if (
+      deleteChats({ store, chatId: id }) &&
+      (id === null || id === activeChatId)
+    ) {
       handleNewChat();
     }
-    setChatState((prev) => {
-      const chats = new Map(prev.chats);
-      if (id === null) {
-        chats.clear();
-      } else {
-        chats.delete(id);
-      }
-      return {
-        chats,
-        activeChatId:
-          prev.activeChatId && chats.has(prev.activeChatId)
-            ? prev.activeChatId
-            : null,
-        openChatIds: prev.openChatIds.filter((chatId) => chats.has(chatId)),
-      };
-    });
   });
 
   const handleMessageEdit = useEvent(
@@ -820,7 +617,6 @@ const ChatPanelBody = () => {
   );
 
   const handleReload = () => {
-    clearAbortState();
     regenerate();
   };
 

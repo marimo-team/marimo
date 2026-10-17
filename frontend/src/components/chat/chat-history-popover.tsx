@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip } from "@/components/ui/tooltip";
+import { runningChatIdsAtom } from "@/core/ai/chat-session";
 import { type ChatId, chatStateAtom } from "@/core/ai/state";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
@@ -42,6 +43,7 @@ export const ChatHistoryPopover: React.FC<ChatHistoryPopoverProps> = ({
   isLoading,
 }) => {
   const chatState = useAtomValue(chatStateAtom);
+  const runningChatIds = useAtomValue(runningChatIdsAtom);
   const { locale } = useLocale();
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -155,7 +157,8 @@ export const ChatHistoryPopover: React.FC<ChatHistoryPopoverProps> = ({
                       </button>
                       <Tooltip
                         content={
-                          isLoading && chat.id === activeChatId
+                          runningChatIds.has(chat.id) ||
+                          (isLoading && chat.id === activeChatId)
                             ? "Stop the response before deleting this chat"
                             : "Delete chat"
                         }
@@ -165,7 +168,10 @@ export const ChatHistoryPopover: React.FC<ChatHistoryPopoverProps> = ({
                           size="icon"
                           className="text-muted-foreground/90 hover:text-destructive transition-colors ml-px"
                           aria-label={`Delete chat: ${chat.title}`}
-                          disabled={isLoading && chat.id === activeChatId}
+                          disabled={
+                            runningChatIds.has(chat.id) ||
+                            (isLoading && chat.id === activeChatId)
+                          }
                           onClick={() => {
                             searchInputRef.current?.focus();
                             onDeleteChats(chat.id);
@@ -198,7 +204,7 @@ export const ChatHistoryPopover: React.FC<ChatHistoryPopoverProps> = ({
             <Button
               variant="linkDestructive"
               size="xs"
-              disabled={isLoading}
+              disabled={isLoading || runningChatIds.size > 0}
               onClick={confirmDeleteAllChats}
             >
               Delete all chats

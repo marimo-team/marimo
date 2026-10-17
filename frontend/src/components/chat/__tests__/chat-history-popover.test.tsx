@@ -5,6 +5,7 @@ import { createStore, Provider } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ModalProvider } from "@/components/modal/ImperativeModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { runningChatIdsAtom } from "@/core/ai/chat-session";
 import { type Chat, type ChatId, chatStateAtom } from "@/core/ai/state";
 import { ChatHistoryPopover } from "../chat-history-popover";
 
@@ -122,6 +123,28 @@ describe("chat history management", () => {
     ).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Delete chat: older conversation" }),
+    ).toBeEnabled();
+  });
+
+  it("prevents deleting a background chat while it streams", () => {
+    const { store } = setup();
+    act(() => store.set(runningChatIdsAtom, new Set([olderId])));
+    expect(
+      screen.getByRole("button", { name: "Delete chat: older conversation" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Delete all chats" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Delete chat: active conversation" }),
+    ).toBeEnabled();
+
+    act(() => store.set(runningChatIdsAtom, new Set<ChatId>()));
+    expect(
+      screen.getByRole("button", { name: "Delete chat: older conversation" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Delete all chats" }),
     ).toBeEnabled();
   });
 

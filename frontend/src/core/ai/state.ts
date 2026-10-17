@@ -37,7 +37,10 @@ export interface PendingAiPrompt {
 
 export const pendingAiPromptAtom = atom<PendingAiPrompt | null>(null);
 
-export const chatGenerationInProgressAtom = atom(false);
+export const runningChatIdsAtom = atom<ReadonlySet<ChatId>>(new Set<ChatId>());
+export const chatGenerationInProgressAtom = atom(
+  (get) => get(runningChatIdsAtom).size > 0,
+);
 
 const CHAT_OPTIONS_KEY = "marimo:ai:chatOptions";
 export const chatOptionsAtom = atomWithStorage<Required<ChatOptions>>(
@@ -103,7 +106,7 @@ function sanitizeOpenChatIds(
   chats: Map<ChatId, Chat>,
   openChatIds: ChatId[],
 ): ChatId[] {
-  return openChatIds.filter((id) => chats.has(id));
+  return [...new Set(openChatIds)].filter((id) => chats.has(id));
 }
 
 /**
@@ -182,13 +185,17 @@ const chatStorage = adaptForLocalStorage({
   },
   fromSerializable: (value: SerializableChatState) => {
     const chats = new Map(value.chats);
+    const activeChatId =
+      value.activeChatId && chats.has(value.activeChatId)
+        ? value.activeChatId
+        : null;
     const openChatIds = sanitizeOpenChatIds(
       chats,
-      value.openChatIds ?? (value.activeChatId ? [value.activeChatId] : []),
+      value.openChatIds ?? (activeChatId ? [activeChatId] : []),
     );
     return {
       chats,
-      activeChatId: value.activeChatId,
+      activeChatId,
       openChatIds,
     };
   },
