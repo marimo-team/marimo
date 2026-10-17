@@ -10,11 +10,10 @@ from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._core import protocol
-from marimo._core.document import CellSource, Document, revision
+from marimo._core.document import Document, DocumentCell
 from marimo._core.errors import (
     Conflict,
     DecisionRequired,
-    EditConflict,
     Invalid,
     NotFound,
 )
@@ -38,7 +37,6 @@ if TYPE_CHECKING:
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
-    from marimo._core.document import Changed
     from marimo._core.stream import Event, Sink
     from marimo._messaging.notebook import NotebookCell
     from marimo._server.session_manager import SessionManager
@@ -62,7 +60,7 @@ class _FileContents:
     """A notebook file as read: its text and the document it parses to."""
 
     text: str
-    cells: list[CellSource]
+    cells: list[DocumentCell]
     app_config: dict[str, Any]
 
 
@@ -75,19 +73,6 @@ def _texts_differ(text: str, baseline: str) -> bool:
     if text.strip() == baseline.strip():
         return False
     return contents_differ_excluding_generated_with(text, baseline)
-
-
-def _etags(
-    changed: Changed, document: protocol.Document
-) -> protocol.EditResponse:
-    """An edit response for a replacement, with etags for what changed."""
-    cells: dict[str, protocol.CellEtags | None] = {
-        cell.id: protocol.CellEtags(etag=cell.etag, code_hash=cell.code_hash)
-        for cell in changed.cells
-    }
-    for cell_id in changed.removed:
-        cells[cell_id] = None
-    return protocol.EditResponse(document=document, cells=cells)
 
 
 def _running_loop() -> asyncio.AbstractEventLoop | None:
@@ -118,6 +103,9 @@ class SessionBridge(SessionEventListener):
         """Each file's text as the host last read or wrote it, without a session."""
         self._rebaselining: dict[protocol.NotebookId, asyncio.Task[None]] = {}
         self._adopting: dict[protocol.NotebookId, Session] = {}
+        # TODO(MO-8005): The response to the session's latest mirror of its
+        # app config, for the edit that caused it. Ends with the mirror.
+        self._mirrored: dict[protocol.NotebookId, protocol.EditResponse] = {}
         self.host = Host(operations=OPERATIONS)
         self._backends: dict[protocol.NotebookId, SessionBackend] = {}
         self.index = WorkspaceIndex(
@@ -169,20 +157,20 @@ class SessionBridge(SessionEventListener):
                     raise Conflict("The notebook document could not be loaded")
                 cells, app_config = loaded.cells, loaded.app_config
                 self._file_texts[record.id] = loaded.text
-            document = Document(
-                record.id,
-                cells,
-                app_config,
-                saved=session is None,
-            )
+            document = Document(cells, app_config)
+            # Without a session the file is what was read. With one, the
+            # editor's document may have moved on from the file.
+            saved_etag = document.etag if session is None else None
             if session is not None and loaded is not None:
-                document.mark_saved(revision(loaded.cells, loaded.app_config))
+                saved_etag = Document(loaded.cells, loaded.app_config).etag
             backend = self._make_backend(record.id)
             return Notebook(
+                record.id,
                 document,
                 Executions(),
                 backend,
                 sink,
+                saved_etag=saved_etag,
                 analyzer=HostAnalyzer(),
             )
 
@@ -257,14 +245,9 @@ class SessionBridge(SessionEventListener):
             if file is None:
                 raise Conflict("The notebook has no file to save to")
             # Check and snapshot only after waiting for the file lock.
-            snapshot = notebook.document.snapshot()
-            if if_match is not None and snapshot.document.etag not in if_match:
-                raise EditConflict(
-                    "The document has changed since it was read",
-                    change=0,
-                    cell=None,
-                    document=snapshot.document,
-                )
+            if if_match is not None:
+                notebook.require_revision(if_match)
+            revision = notebook.document
             session = self._session_of(notebook.id)
             if session is None and await self._file_changed(notebook.id, file):
                 answer = (decisions or {}).get(_FILE_CHANGED.id)
@@ -275,7 +258,7 @@ class SessionBridge(SessionEventListener):
                     )
                 if answer == "reload":
                     return await self._reload(
-                        notebook, file, snapshot.document, request_id
+                        notebook, file, revision.etag, request_id
                     )
                 if answer != "overwrite":
                     raise Invalid(
@@ -287,7 +270,7 @@ class SessionBridge(SessionEventListener):
             # The notebook's writer must persist snapshots without mutating
             # the live document; cover attached-session edits during a save.
             if session is None:
-                cells = [documents.to_notebook_cell(c) for c in snapshot.cells]
+                cells = [documents.to_notebook_cell(c) for c in revision]
                 manager = None
             else:
                 cells = copy.deepcopy(session.document.cells)
@@ -321,9 +304,9 @@ class SessionBridge(SessionEventListener):
         if manager is None:
             manager = self._file_manager(path)
         text = manager.save_from_cells(cells)
-        etag = revision(
+        etag = Document(
             documents.sources(cells), manager.app.config.asdict_difference()
-        )
+        ).etag
         return etag, text
 
     async def _file_changed(
@@ -351,7 +334,7 @@ class SessionBridge(SessionEventListener):
         self,
         notebook: Notebook,
         file: Path,
-        before: protocol.Document,
+        before: protocol.Etag,
         request_id: str,
     ) -> protocol.EditResponse:
         """Replace the document with the file's contents as the saved revision."""
@@ -360,18 +343,11 @@ class SessionBridge(SessionEventListener):
             raise Conflict("The notebook file could not be loaded")
         # An edit may have landed while the file was read. Replacing the
         # document now would lose it.
-        if notebook.document._record.etag != before.etag:
-            raise EditConflict(
-                "The document changed while the file was being read",
-                change=0,
-                cell=None,
-                document=notebook.document._record,
-            )
+        notebook.require_revision([before])
         self._file_texts[notebook.id] = loaded.text
-        changed = notebook.replace(
+        return notebook.replace(
             loaded.cells, loaded.app_config, saved=True, request_id=request_id
         )
-        return _etags(changed, notebook.document._record)
 
     async def edit(
         self,
@@ -395,9 +371,13 @@ class SessionBridge(SessionEventListener):
         session = self._session_of(notebook.id)
         if session is None:
             return response
+        self._mirrored.pop(notebook.id, None)
         documents.apply_to_session(session, notebook.document)
+        mirrored = self._mirrored.pop(notebook.id, None)
+        if mirrored is None:
+            return response
         return protocol.EditResponse(
-            cells=response.cells, document=notebook.document._record
+            cells=response.cells, document=mirrored.document
         )
 
     def _session_of(self, notebook_id: protocol.NotebookId) -> Session | None:
@@ -420,9 +400,8 @@ class SessionBridge(SessionEventListener):
         # host is no longer wanted.
         self._rebaselining.pop(notebook_id, None)
         self._follow_saves(notebook_id, session)
-        document = notebook.document
-        if document._record.saved_etag != document._record.etag:
-            documents.apply_to_session(session, document)
+        if notebook.saved_etag != notebook.document.etag:
+            documents.apply_to_session(session, notebook.document)
             return
         cells, app_config = documents.from_session(session)
         notebook.replace(cells, app_config, saved=True)
@@ -446,7 +425,7 @@ class SessionBridge(SessionEventListener):
         def persisted(
             cells: Sequence[NotebookCell], app_config: dict[str, Any]
         ) -> None:
-            etag = revision(documents.sources(cells), app_config)
+            etag = Document(documents.sources(cells), app_config).etag
             if _running_loop() is loop:
                 self._saved(notebook_id, etag)
             else:
@@ -515,7 +494,7 @@ class SessionBridge(SessionEventListener):
         if session is None or notebook is None:
             return
         cells, app_config = documents.from_session(session)
-        notebook.replace(cells, app_config)
+        self._mirrored[notebook_id] = notebook.replace(cells, app_config)
 
     def _project_path(self, path: Path) -> Path:
         root = self.index.root
@@ -670,6 +649,7 @@ class SessionBridge(SessionEventListener):
             self._backends.pop(event.notebook_id, None)
             self._file_texts.pop(event.notebook_id, None)
             self._rebaselining.pop(event.notebook_id, None)
+            self._mirrored.pop(event.notebook_id, None)
 
     async def _adopt(self, session: Session) -> None:
         path = session.app_file_manager.path
