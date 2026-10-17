@@ -13,6 +13,8 @@ from urllib.parse import parse_qs, urlsplit
 import msgspec
 import pytest
 from starlette.routing import Route
+from starlette.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from marimo._core import backend as be, protocol
 from marimo._core.host import Host
@@ -21,7 +23,7 @@ from marimo._core.protocol import ProjectMessage
 from marimo._core.run_log import RetentionPolicy
 from marimo._core.stream import Event
 from marimo._messaging.notification import CompletedRunNotification
-from marimo._server.host import api as api_module
+from marimo._server.host import HOST_API_PATH, api as api_module
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
 from marimo._server.host.events import MarimoMessage
@@ -32,12 +34,16 @@ from marimo._server.workspace import FixedFilesWorkspace, SingleFileWorkspace
 from marimo._session.notebook import AppFileManager
 from tests._core.conftest import ScriptedBackend, make_notebook, runtime_id_of
 from tests._server.host.drive import (
+    AUTHORITY,
+    LOOPBACK,
     PORT,
     Response,
     finished,
     request,
+    socket_snapshot,
     until_ready,
     wait_for,
+    with_client_address,
 )
 from tests._server.mocks import (
     get_mock_session_manager,
@@ -205,7 +211,8 @@ async def test_a_wrong_method_on_a_known_route_is_a_405_problem(
 def _declared_routes() -> dict[str, set[str]]:
     methods: dict[str, set[str]] = {}
     for route in api_module.build_app().routes:
-        assert isinstance(route, Route)
+        if not isinstance(route, Route):
+            continue
         path = route.path.replace("{id}", "nb-x").replace("{run_id}", "run-x")
         methods.setdefault(path, set()).update(route.methods or set())
     return methods
@@ -390,6 +397,7 @@ async def test_a_failure_inside_a_stream_does_not_restart_the_response(
         raise RuntimeError("frame failed")
 
     monkeypatch.setattr(api_module, "_frame", broken)
+    listeners = len(harness.host._stream._listeners)
     response, task, _ = request(harness.app, "GET", "/events", headers=AUTH)
     # Older Starlette raises the body's error inside an ExceptionGroup.
     with pytest.raises(Exception) as caught:
@@ -397,6 +405,39 @@ async def test_a_failure_inside_a_stream_does_not_restart_the_response(
     assert "frame failed" in repr(caught.value)
     assert response.status == 200
     assert response.body == b""
+    assert len(harness.host._stream._listeners) == listeners
+
+
+async def test_sse_heartbeats_do_not_end_the_subscription(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(api_module, "PING_SECONDS", 0.01)
+    notebook = await harness.host.notebook(harness.notebook_id)
+    response, task, disconnect = request(
+        harness.app,
+        "GET",
+        f"/notebooks/{notebook.id}/events",
+        headers=AUTH,
+        query="types=custom",
+    )
+    try:
+        await wait_for(
+            response,
+            lambda r: (
+                sum(record.get("comment") == "ping" for record in r.records)
+                >= 2
+            ),
+        )
+        notebook.emit("test.after-heartbeat", {"value": 42})
+        await wait_for(response, lambda r: "custom" in r.names())
+        assert [
+            record["data"]["custom"]
+            for record in response.records
+            if record.get("event") == "custom"
+        ] == [{"type": "test.after-heartbeat", "data": {"value": 42}}]
+    finally:
+        disconnect()
+        await asyncio.wait_for(task, 5)
 
 
 async def test_the_catalog_stream_sends_a_snapshot_then_changes(
@@ -1938,3 +1979,215 @@ async def test_marimo_notifications_use_their_own_sse_kind(
     finally:
         disconnect()
         await asyncio.wait_for(task, 5)
+
+
+@pytest.mark.parametrize(
+    "query", ["", "?types=marimo", "?types=marimo&run_id=r1"]
+)
+def test_websocket_delivers_live_events(harness: Harness, query: str) -> None:
+    with TestClient(
+        with_client_address(harness.app), base_url=f"http://{AUTHORITY}"
+    ) as client:
+        assert client.portal is not None
+        notebook = client.portal.call(
+            harness.host.notebook, harness.notebook_id
+        )
+        client.portal.call(analyzed, notebook)
+        payload = MarimoMessage(CompletedRunNotification(run_id="r1"))
+        event = Event("marimo", payload, notebook_id=notebook.id, run_id="r1")
+        client.portal.call(notebook.sink.append, event)
+        path = f"{HOST_API_PATH}/notebooks/{notebook.id}/events/ws{query}"
+        with client.websocket_connect(
+            f"ws://{AUTHORITY}{path}", headers=dict(AUTH)
+        ) as websocket:
+            initial = socket_snapshot(websocket)
+            assert all("id" not in event for event in initial[:-1])
+            client.portal.call(
+                notebook.sink.append,
+                Event("marimo", payload, notebook_id="nb_other", run_id="r1"),
+            )
+            if "run_id" in query:
+                client.portal.call(
+                    notebook.sink.append,
+                    Event(
+                        "marimo", payload, notebook_id=notebook.id, run_id="r2"
+                    ),
+                )
+            first = client.portal.call(notebook.sink.append, event)
+            client.portal.call(
+                notebook.emit, "test.message", {"text": "hello"}
+            )
+            second = client.portal.call(notebook.sink.append, event)
+            expected = {
+                "event": "marimo",
+                "data": {
+                    "marimo": {
+                        "op": "completed-run",
+                        "run_id": "r1",
+                        "outcome": "succeeded",
+                        "error": None,
+                    }
+                },
+            }
+            assert websocket.receive_json() == {
+                "id": str(first.id),
+                **expected,
+            }
+            if not query:
+                custom = websocket.receive_json()
+                assert custom["event"] == "custom"
+                assert custom["data"]["custom"] == {
+                    "type": "test.message",
+                    "data": {"text": "hello"},
+                }
+            assert websocket.receive_json() == {
+                "id": str(second.id),
+                **expected,
+            }
+
+
+@pytest.mark.parametrize("send_message", [False, True])
+def test_websocket_disconnect_detaches_the_client(
+    harness: Harness,
+    send_message: bool,
+) -> None:
+    with TestClient(
+        with_client_address(harness.app), base_url=f"http://{AUTHORITY}"
+    ) as client:
+        assert client.portal is not None
+        notebook = client.portal.call(
+            harness.host.notebook, harness.notebook_id
+        )
+        client.portal.call(analyzed, notebook)
+        removed = asyncio.Event()
+        events: list[Event] = []
+
+        def observe(event: Event) -> None:
+            if event.notebook_id == notebook.id and event.kind == "attachment":
+                events.append(event)
+                if event.name == "attachment.removed":
+                    removed.set()
+
+        unsubscribe = client.portal.call(harness.host.subscribe, observe)
+        try:
+            path = f"{HOST_API_PATH}/notebooks/{notebook.id}/events/ws"
+            with client.websocket_connect(
+                f"ws://{AUTHORITY}{path}", headers=dict(AUTH)
+            ) as websocket:
+                socket_snapshot(websocket)
+                if send_message:
+                    websocket.send_json({"command": "run"})
+                    with pytest.raises(WebSocketDisconnect) as exc:
+                        websocket.receive_json()
+                    assert exc.value.code == 1003
+                else:
+                    websocket.close()
+                client.portal.call(asyncio.wait_for, removed.wait(), 5)
+            assert [event.name for event in events] == [
+                "attachment",
+                "attachment.removed",
+            ]
+            assert isinstance(events[0].data, protocol.AttachmentMessage)
+            assert isinstance(events[1].data, protocol.RemovedMessage)
+            assert events[1].data.id == events[0].data.attachment.id
+            assert harness.backend().calls == []
+        finally:
+            client.portal.call(unsubscribe)
+
+
+@pytest.mark.parametrize(
+    ("headers", "address", "authority"),
+    [
+        ({}, LOOPBACK, AUTHORITY),
+        ({"Authorization": "Bearer wrong"}, LOOPBACK, AUTHORITY),
+        (AUTH, ("192.0.2.1", 50000), AUTHORITY),
+        (AUTH, LOOPBACK, "example.com:1234"),
+    ],
+)
+def test_websocket_requires_host_authentication(
+    harness: Harness,
+    headers: dict[str, str],
+    address: tuple[str, int],
+    authority: str,
+) -> None:
+    client = TestClient(
+        with_client_address(harness.app, address),
+        base_url=f"http://{authority}",
+    )
+    path = f"{HOST_API_PATH}/notebooks/{harness.notebook_id}/events/ws"
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with client.websocket_connect(
+            f"ws://{authority}{path}", headers=dict(headers)
+        ):
+            pytest.fail("Unauthenticated socket was accepted")
+    assert exc.value.code == 1008
+    assert harness.backends == {}
+
+
+@pytest.mark.parametrize(
+    ("query", "headers", "reason"),
+    [
+        ("?types=bogus", AUTH, "Invalid event types"),
+        ("?run_id=", AUTH, "run_id must not be empty"),
+        ("?cursor=bad", AUTH, "Invalid event cursor"),
+        ("?cursor=", AUTH, "Invalid event cursor"),
+        ("", {**AUTH, "Last-Event-ID": "-1"}, "Invalid event cursor"),
+        ("?cursor=1", {**AUTH, "Last-Event-ID": "2"}, "Invalid event cursor"),
+        (
+            "",
+            {**AUTH, "Marimo-Attachment-Identity": ""},
+            "Marimo-Attachment-Identity is invalid",
+        ),
+    ],
+)
+def test_websocket_rejects_invalid_subscriptions(
+    harness: Harness, query: str, headers: dict[str, str], reason: str
+) -> None:
+    client = TestClient(
+        with_client_address(harness.app), base_url=f"http://{AUTHORITY}"
+    )
+    path = f"{HOST_API_PATH}/notebooks/{harness.notebook_id}/events/ws{query}"
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with client.websocket_connect(
+            f"ws://{AUTHORITY}{path}", headers=dict(headers)
+        ):
+            pytest.fail("Invalid subscription was accepted")
+    assert (exc.value.code, exc.value.reason) == (1008, reason)
+
+
+@pytest.mark.parametrize("path", ["/notebooks/missing/events/ws", "/missing"])
+def test_websocket_rejects_unknown_notebooks_and_routes(
+    harness: Harness, path: str
+) -> None:
+    client = TestClient(
+        with_client_address(harness.app), base_url=f"http://{AUTHORITY}"
+    )
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with client.websocket_connect(
+            f"ws://{AUTHORITY}{HOST_API_PATH}{path}", headers=dict(AUTH)
+        ):
+            pytest.fail("Unknown resource was accepted")
+    assert exc.value.code == 1008
+
+
+def test_websocket_snapshot_failure_releases_subscription(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(*_args: Any, **_kwargs: Any) -> list[Event]:
+        raise RuntimeError("snapshot failed")
+
+    with TestClient(with_client_address(harness.app)) as client:
+        assert client.portal is not None
+        notebook = client.portal.call(
+            harness.host.notebook, harness.notebook_id
+        )
+        client.portal.call(analyzed, notebook)
+        listeners = len(harness.host._stream._listeners)
+        monkeypatch.setattr(harness.host, "events", broken)
+        url = f"ws://{AUTHORITY}{HOST_API_PATH}/notebooks/{notebook.id}/events/ws"
+        with pytest.raises(WebSocketDisconnect) as caught:
+            with client.websocket_connect(url, headers=dict(AUTH)):
+                pytest.fail("Snapshot failure accepted a connection")
+        assert caught.value.code == 1008
+        assert notebook._attachments == {}
+        assert len(harness.host._stream._listeners) == listeners

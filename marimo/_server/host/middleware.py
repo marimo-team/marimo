@@ -13,8 +13,9 @@ from ipaddress import IPv6Address, ip_address
 from typing import TYPE_CHECKING
 
 from starlette.exceptions import HTTPException
-from starlette.requests import Request
+from starlette.requests import HTTPConnection
 from starlette.routing import Match, Route
+from starlette.websockets import WebSocket
 
 from marimo import _loggers
 from marimo._server.host import HOST_API_PATH
@@ -43,11 +44,14 @@ class HostApiMiddleware:
     async def __call__(
         self, scope: Scope, receive: Receive, send: Send
     ) -> None:
-        if scope["type"] != "http" or not self._is_host_path(scope["path"]):
+        if scope["type"] not in (
+            "http",
+            "websocket",
+        ) or not self._is_host_path(scope["path"]):
             await self.app(scope, receive, send)
             return
 
-        request = Request(scope)
+        request = HTTPConnection(scope)
         client = scope.get("client")
         context = getattr(request.app.state, "host_context", None)
         if context is None:
@@ -74,7 +78,11 @@ class HostApiMiddleware:
 
             async def guarded(message: Message) -> None:
                 nonlocal started
-                if message["type"] == "http.response.start":
+                if message["type"] in (
+                    "http.response.start",
+                    "websocket.accept",
+                    "websocket.close",
+                ):
                     started = True
                 await send(message)
 
@@ -86,19 +94,31 @@ class HostApiMiddleware:
                 # The bare router has no exception middleware, so a known
                 # path with an unsupported method surfaces here as a 405.
                 response = _router_problem(exc, scope, self.host_app.routes)
-                await response(scope, receive, send)
+                await _respond(response, scope, receive, send)
             except Exception:
                 if started:
                     # The server logs the failure once it ends the stream.
                     raise
                 LOGGER.exception("The host API failed on %s", scope["path"])
                 response = problem(500, "internal", "The host failed")
-                await response(scope, receive, send)
+                await _respond(response, scope, receive, send)
             return
-        await response(scope, receive, send)
+        await _respond(response, scope, receive, send)
 
     def _is_host_path(self, path: str) -> bool:
         return path == self.prefix or path.startswith(self.prefix + "/")
+
+
+async def _respond(
+    response: Response, scope: Scope, receive: Receive, send: Send
+) -> None:
+    if scope["type"] == "websocket":
+        await WebSocket(scope, receive, send).close(
+            code=1008,
+            reason=f"Host API request rejected ({response.status_code})",
+        )
+    else:
+        await response(scope, receive, send)
 
 
 def _router_problem(
