@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { act, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
 import { initialModeAtom } from "@/core/mode";
@@ -473,5 +473,99 @@ describe("NumberPlugin", () => {
       '[data-testid="marimo-plugin-number-input"]',
     );
     expect(numberField?.classList.contains("w-full")).toBe(true);
+  });
+
+  describe("does not snap values to step (#9106)", () => {
+    const renderNumber = (
+      value: number,
+      data: Pick<z.infer<NumberPlugin["validator"]>, "start" | "stop" | "step">,
+    ) => {
+      const plugin = new NumberPlugin();
+      const setValue = vi.fn();
+      const { getByRole } = render(
+        plugin.render({
+          host: document.createElement("div"),
+          value,
+          setValue,
+          data: {
+            ...data,
+            label: null,
+            debounce: false,
+            fullWidth: false,
+          },
+          functions: {},
+        }),
+      );
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      const input = getByRole("textbox", {
+        name: "Number input",
+      }) as HTMLInputElement;
+      return { input, setValue };
+    };
+
+    const typeAndCommit = (input: HTMLInputElement, text: string) => {
+      act(() => {
+        input.focus();
+      });
+      fireEvent.change(input, { target: { value: text } });
+      act(() => {
+        input.blur();
+      });
+    };
+
+    it.each([
+      { value: 2.23, start: 1.255_57, step: 0.001 },
+      { value: 2.233_45, start: 1, step: 0.001 },
+    ])(
+      "displays $value as-is with start=$start and step=$step",
+      ({ value, start, step }) => {
+        const { input } = renderNumber(value, { start, stop: 20, step });
+        expect(input.value).toBe(String(value));
+      },
+    );
+
+    it.each([
+      { typed: "2.3377", start: 1, step: 0.01 },
+      { typed: "2.23111", start: 1.222, step: 0.01 },
+    ])(
+      "keeps typed value $typed with start=$start and step=$step",
+      ({ typed, start, step }) => {
+        const { input, setValue } = renderNumber(2.233_45, {
+          start,
+          stop: 20,
+          step,
+        });
+        typeAndCommit(input, typed);
+        expect(setValue).toHaveBeenLastCalledWith(Number(typed));
+        expect(input.getAttribute("aria-invalid")).not.toBe("true");
+        expect(input.validity.valid).toBe(true);
+      },
+    );
+
+    it("clamps typed values to start and stop", () => {
+      const { input, setValue } = renderNumber(5, {
+        start: 2,
+        stop: 10,
+        step: 1,
+      });
+      typeAndCommit(input, "25");
+      expect(setValue).toHaveBeenLastCalledWith(10);
+      typeAndCommit(input, "1");
+      expect(setValue).toHaveBeenLastCalledWith(2);
+    });
+
+    it("still increments and decrements by step", () => {
+      const { input, setValue } = renderNumber(5, {
+        start: 0,
+        stop: 10,
+        step: 0.5,
+      });
+      fireEvent.keyDown(input, { key: "ArrowUp" });
+      expect(setValue).toHaveBeenLastCalledWith(5.5);
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      expect(setValue).toHaveBeenLastCalledWith(4.5);
+    });
   });
 });
