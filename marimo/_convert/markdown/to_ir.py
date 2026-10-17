@@ -53,7 +53,7 @@ from marimo._schemas.serialization import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Mapping, Sequence
 
 LOGGER = _loggers.marimo_logger()
 
@@ -125,11 +125,17 @@ def formatted_code_block(
     return flavor.render_code_cell(CodeCellBlock(code, language, attributes))
 
 
-def app_config_from_root(root: Element) -> dict[str, Any]:
+def app_config_from_root(
+    root: Element, metadata: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
     """
     Extract app config from the root element.
 
     This may contains unknown keys.
+
+    Element attributes are necessarily strings, so any frontmatter value that
+    isn't (a list of `auto_download` targets, for example) is passed in
+    through `metadata` and re-attached here.
     """
 
     # Extract meta data from root attributes.
@@ -143,6 +149,9 @@ def app_config_from_root(root: Element) -> dict[str, Any]:
     }
     # Try to pass on other attributes as is
     config.update({k: v for k, v in root.items() if k not in config_keys})
+    for key, value in (metadata or {}).items():
+        if not isinstance(value, str):
+            config[config_keys.get(key, key)] = value
     # Remove values particular to markdown saves.
     config.pop("marimo-version", None)
 
@@ -199,13 +208,15 @@ class SafeWrap(Generic[T]):
         return self.inner
 
 
-def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
+def _tree_to_ir(
+    root: Element, metadata: Mapping[str, Any] | None = None
+) -> SafeWrap[NotebookSerializationV1]:
     from marimo._ast.app_config import _AppConfig
     from marimo._ast.parse import NON_MARIMO_MARKDOWN_VIOLATION
     from marimo._environments.script_metadata import wrap_block
     from marimo._utils import yaml
 
-    app_config = app_config_from_root(root)
+    app_config = app_config_from_root(root, metadata)
     config_only = _AppConfig.sanitize(app_config)
 
     sources: list[str] = []
@@ -325,6 +336,10 @@ class MarimoMdParser(IdentityParser):
             *args, output_format=cast(Any, output_format), **kwargs
         )
         self.meta = {}
+        # Markdown resolves `self.serializer` from `output_formats` during
+        # `__init__`, so rebind it here: element attributes can only hold
+        # strings, and the typed frontmatter has to come along separately.
+        self.serializer = lambda root: _tree_to_ir(root, self.meta)
         import_context = MarkdownImportContext()
         # Build here opposed to the parent class since there is intermediate
         # logic after the parser is built, and it is more clear here what is
