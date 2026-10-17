@@ -7,6 +7,7 @@ from marimo._cli.pair.client import PairInputError
 from marimo._cli.pair.delivery import ProcessHandle
 from marimo._cli.pair.harnesses.claude import ClaudeHarness
 from marimo._cli.pair.harnesses.codex import CodexHarness
+from marimo._cli.pair.harnesses.opencode import OpenCodeHarness
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 
 
 def registered_harnesses() -> list[Harness]:
-    return [CodexHarness(), ClaudeHarness()]
+    return [CodexHarness(), ClaudeHarness(), OpenCodeHarness()]
 
 
 def environment_identity(env: Mapping[str, str]) -> tuple[str, str | None]:
@@ -70,6 +71,6 @@ def detect_target(
         )
     if not found:
         raise PairInputError(
-            "No supported inbox detected. Run connect inside Codex or Claude Code."
+            "No supported inbox detected. Run connect inside Codex, Claude Code, or OpenCode."
         )
     return found[0]

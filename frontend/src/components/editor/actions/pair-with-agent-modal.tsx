@@ -138,7 +138,11 @@ export const PairWithAgentModal: React.FC<{
                   <CommandBlock command={SKILL_INSTALL} />
                 </Step>
               )}
-              <Step index={commandStep} title="Run in your terminal">
+              <Step
+                index={commandStep}
+                title="Run in your terminal"
+                hint={tab === "opencode" ? "Requires OpenCode 2.x." : undefined}
+              >
                 <CommandBlock
                   command={getTerminalCommand(
                     tab,

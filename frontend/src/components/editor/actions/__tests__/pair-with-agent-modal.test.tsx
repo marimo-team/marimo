@@ -98,6 +98,9 @@ describe("PairWithAgentModal", () => {
       expect(panel).not.toHaveTextContent("--file");
       expect(panel).not.toHaveTextContent("File:");
       expect(panel).not.toHaveTextContent("notebook.py");
+      expect(panel.textContent?.includes("Requires OpenCode 2.x")).toBe(
+        tab === "OpenCode",
+      );
       expect(panel).toHaveTextContent(
         tab === "Prompt" ? "1. Copy this prompt" : "1. Run in your terminal",
       );

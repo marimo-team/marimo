@@ -259,10 +259,11 @@ class _DocsCommand(ColoredCommand):
     \b
     Agent messages (preview):
       Enable MARIMO_PAIR_NEXT=1 on the CLI and server.
-      Inside Codex or Claude Code, run:
+      Inside Codex, Claude Code, or OpenCode, run:
         marimo pair connect --url <URL> --notebook <NOTEBOOK>.
       Codex must use its shared daemon and support codex queue.
       Claude Code requires its native inbox on macOS or Linux.
+      OpenCode 2.x requires its registered local service.
       Inbound message settings still apply; messages can be held or refused.
       Notebook agent messages arrive here as messages from marimo.
       Oversized agent messages include a complete JSON file on this machine.
@@ -903,7 +904,8 @@ def _require_messages() -> None:
     cls=ColoredCommand,
     help=(
         "Connect this harness inbox to a live notebook.\n\n"
-        "Currently supported harnesses: Codex and Claude Code (macOS/Linux).\n\n"
+        "Supported harnesses: Codex, Claude Code, and OpenCode (macOS/Linux).\n\n"
+        "OpenCode 2.x requires its registered local service.\n\n"
         "For other harnesses, use pair execute to work with the notebook."
     ),
 )
@@ -916,7 +918,7 @@ def _require_messages() -> None:
 )
 @click.option(
     "--harness",
-    type=click.Choice(["codex", "claude"]),
+    type=click.Choice(["codex", "claude", "opencode"]),
     help="Select the inbox harness.",
 )
 @click.option(
