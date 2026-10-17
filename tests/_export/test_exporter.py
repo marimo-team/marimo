@@ -269,7 +269,7 @@ async def test_run_notebook_with_stop() -> None:
     assert did_error is False
     cell_notifications = [
         op
-        for op in session_view.notifications
+        for op in session_view.snapshot_notifications()
         if isinstance(op, CellNotification)
     ]
     snapshot(
@@ -354,7 +354,7 @@ async def test_run_notebook_with_stack_trace() -> None:
     assert did_error is True
     cell_notifications = [
         op
-        for op in session_view.notifications
+        for op in session_view.snapshot_notifications()
         if isinstance(op, CellNotification)
     ]
 
@@ -401,7 +401,7 @@ async def test_run_notebook_with_console_output(
 
     cell_notifications = [
         op
-        for op in session_view.notifications
+        for op in session_view.snapshot_notifications()
         if isinstance(op, CellNotification)
     ]
     snapshot(
@@ -632,7 +632,7 @@ def test_export_as_html_omits_getpass_response(
     )
 
     assert secret not in html
-    assert secret not in encode_json_str(session_view.notifications)
+    assert secret not in encode_json_str(session_view.snapshot_notifications())
     assert parse_mount_config(html)["session"]["cells"][0]["console"] == [
         {
             "type": "stream",
