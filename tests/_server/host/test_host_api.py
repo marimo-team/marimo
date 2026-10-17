@@ -19,9 +19,12 @@ from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.protocol import ProjectMessage
 from marimo._core.run_log import RetentionPolicy
+from marimo._core.stream import Event
+from marimo._messaging.notification import CompletedRunNotification
 from marimo._server.host import api as api_module
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
+from marimo._server.host.events import MarimoMessage
 from marimo._server.host.index import WorkspaceIndex
 from marimo._server.main import create_starlette_app
 from marimo._server.models.home import MarimoFile
@@ -45,6 +48,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from starlette.applications import Starlette
+
+    from marimo._core.stream import Sink
 
 TOKEN = "record-token"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
@@ -129,7 +134,8 @@ def harness(
     bridge.host.retention = getattr(request, "param", RetentionPolicy())
     harness = Harness(app, bridge, tmp_path)
 
-    def make(notebook_id: str) -> ScriptedBackend:
+    def make(notebook_id: str, sink: Sink) -> ScriptedBackend:
+        del sink
         backend = ScriptedBackend()
         harness.backends[notebook_id] = backend
         return backend
@@ -1894,3 +1900,41 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
         )
         assert edited.status == 200, edited.body
         assert (await save(f"save-{n}", b"{}")).status == 200
+
+
+@pytest.mark.parametrize("query", ["", "types=marimo"])
+async def test_marimo_notifications_use_their_own_sse_kind(
+    harness: Harness, query: str
+) -> None:
+    notebook = await harness.host.notebook(harness.notebook_id)
+    response, task, disconnect = request(
+        harness.app,
+        "GET",
+        f"/notebooks/{notebook.id}/events",
+        headers=AUTH,
+        query=query,
+    )
+    try:
+        await wait_for(response, until_ready)
+        payload = MarimoMessage(CompletedRunNotification(run_id="r1"))
+        published = notebook.sink.append(
+            Event("marimo", payload, notebook_id=notebook.id)
+        )
+        await wait_for(response, lambda r: "marimo" in r.names())
+        assert [r for r in response.records if r.get("event") == "marimo"] == [
+            {
+                "id": str(published.id),
+                "event": "marimo",
+                "data": {
+                    "marimo": {
+                        "op": "completed-run",
+                        "run_id": "r1",
+                        "outcome": "succeeded",
+                        "error": None,
+                    }
+                },
+            }
+        ]
+    finally:
+        disconnect()
+        await asyncio.wait_for(task, 5)

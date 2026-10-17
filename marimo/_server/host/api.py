@@ -65,7 +65,9 @@ _ATTACHMENT_HEADERS = {
 PING = b": ping\n\n"
 PING_SECONDS = 15.0
 
-OBJECT_TYPES = frozenset(get_args(get_args(protocol.ObjectType)[0]))
+OBJECT_TYPES = frozenset(get_args(get_args(protocol.ObjectType)[0])) | {
+    "marimo"
+}
 """Values the `types` stream filter accepts."""
 
 _TITLES = {

@@ -163,7 +163,7 @@ class SessionBridge(SessionEventListener):
             saved_etag = document.etag if session is None else None
             if session is not None and loaded is not None:
                 saved_etag = Document(loaded.cells, loaded.app_config).etag
-            backend = self._make_backend(record.id)
+            backend = self._make_backend(record.id, sink)
             return Notebook(
                 record.id,
                 document,
@@ -615,7 +615,7 @@ class SessionBridge(SessionEventListener):
         self.index.moved(notebook_id, str(target), request_id=request_id)
 
     def _make_backend(
-        self, notebook_id: protocol.NotebookId
+        self, notebook_id: protocol.NotebookId, sink: Sink
     ) -> SessionBackend:
         def file() -> str | None:
             path = self.index.file_of(notebook_id)
@@ -635,6 +635,7 @@ class SessionBridge(SessionEventListener):
             file,
             self._manager,
             observe,
+            sink,
             document_changed=lambda: self._mirror(notebook_id),
             session_attached=lambda: self._attach_document(notebook_id),
             session_detached=lambda session: self._detach_document(
