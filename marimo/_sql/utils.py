@@ -296,11 +296,7 @@ def convert_to_output(
             DependencyManager.pandas.require("to convert this data")
 
     if DependencyManager.pandas.has():
-        try:
-            return to_pandas()
-        except Exception as e:
-            LOGGER.warning("Failed to convert dataframe", exc_info=e)
-            return None
+        return to_pandas()
 
     raise_df_import_error("polars[pyarrow]")
 
