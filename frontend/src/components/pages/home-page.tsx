@@ -611,8 +611,10 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
   );
 };
 
-const CreateNewNotebook: React.FC = () => {
-  const url = newNotebookURL();
+export const CreateNewNotebook: React.FC = () => {
+  // Reusing a `__new__` key reattaches to an old session; rotate it per open
+  const [url, setUrl] = useState(newNotebookURL);
+  const rotateUrl = () => setUrl(newNotebookURL());
   return (
     <a
       className="relative rounded-lg p-6 group
@@ -622,6 +624,9 @@ const CreateNewNotebook: React.FC = () => {
       href={url}
       target="_blank"
       rel="noreferrer"
+      onClick={rotateUrl}
+      onAuxClick={rotateUrl}
+      onContextMenu={rotateUrl}
     >
       <h2 className="text-lg font-semibold">Create a new notebook</h2>
       <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300">

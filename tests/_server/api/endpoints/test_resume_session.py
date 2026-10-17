@@ -170,6 +170,60 @@ def test_refresh_resumes_directory_workspace_session(
         session_manager.close_session(SessionId("dir2"))
 
 
+def test_untitled_notebooks_with_distinct_keys_get_separate_sessions(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Regression for #11089: each new notebook carries its own `__new__` key.
+
+    Distinct keys must never share a session, while reusing a key resumes
+    that notebook, which is why the launch page must not hand out one key
+    for several new notebooks.
+    """
+    workspace = DirectoryWorkspace(str(tmp_path), include_markdown=False)
+    session_manager = get_session_manager(client)
+
+    def ws_url(session_id: str, key: str) -> str:
+        return (
+            f"/ws?session_id={session_id}&file={key}&access_token=fake-token"
+        )
+
+    with workspace_scope(client, workspace):
+        # Two new notebooks, each closed again so it is left orphaned
+        for session_id, key in (
+            ("new1", "__new__s_aaaaaa"),
+            ("new2", "__new__s_bbbbbb"),
+        ):
+            with client.websocket_connect(
+                ws_url(session_id, key)
+            ) as websocket:
+                data = websocket.receive_json()
+                assert data["op"] == "kernel-ready"
+                assert data["data"]["resumed"] is False
+
+        first = get_session(client, SessionId("new1"))
+        second = get_session(client, SessionId("new2"))
+        assert first is not None
+        assert second is not None
+        assert first is not second
+        assert first.initialization_id == "__new__s_aaaaaa"
+        assert second.initialization_id == "__new__s_bbbbbb"
+
+        # Reconnecting with the first key resumes that notebook
+        with client.websocket_connect(
+            ws_url("new3", "__new__s_aaaaaa")
+        ) as websocket:
+            data = websocket.receive_json()
+            assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
+            data = websocket.receive_json()
+            assert data["op"] == "kernel-ready"
+            assert data["data"]["resumed"] is True
+
+        assert get_session(client, SessionId("new3")) is first
+        assert len(session_manager.sessions) == 2
+        session_manager.close_session(SessionId("new2"))
+        session_manager.close_session(SessionId("new3"))
+
+
 def test_save_session(client: TestClient) -> None:
     filename = (
         get_session_manager(client)
