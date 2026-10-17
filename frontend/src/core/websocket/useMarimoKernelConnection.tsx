@@ -8,6 +8,7 @@ import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import { applyTransactionChanges } from "@/core/cells/document-changes";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
+import { parseNotebookEvent } from "@/core/host/events";
 import type {
   NotificationMessageData,
   NotificationPayload,
@@ -21,10 +22,7 @@ import {
 } from "@/plugins/impl/anywidget/registry";
 import { logNever } from "@/utils/assertNever";
 import { prettyError } from "@/utils/errors";
-import {
-  type JsonString,
-  safeExtractSetUIElementMessageBuffers,
-} from "@/utils/json/base64";
+import { safeExtractSetUIElementMessageBuffers } from "@/utils/json/base64";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
@@ -246,8 +244,12 @@ export function useMarimoKernelConnection(opts: {
     filterFromVariables: filterStorageFromVariables,
   } = useStorageActions();
 
-  const handleMessage = (e: MessageEvent<JsonString<NotificationPayload>>) => {
-    const msg = jsonParseWithSpecialChar(e.data);
+  const handleMessage = (e: MessageEvent<string>) => {
+    const event = parseNotebookEvent(jsonParseWithSpecialChar(e.data));
+    if (event.event !== "marimo") {
+      return;
+    }
+    const msg: NotificationPayload = { data: event.data.marimo };
     switch (msg.data.op) {
       case "reload":
         reloadSafe();

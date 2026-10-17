@@ -41,6 +41,7 @@ vi.mock("@/core/runtime/config", async () => {
 });
 
 import { MockNotebook } from "@/__mocks__/notebook";
+import { Logger } from "@/utils/Logger";
 import { cellId } from "@/__tests__/branded";
 import { alertAtom, getPackageAlert } from "@/core/alerts/state";
 import { notebookAtom } from "@/core/cells/cells";
@@ -184,8 +185,10 @@ describe("useMarimoKernelConnection.reconnect()", () => {
 });
 
 describe("useMarimoKernelConnection messages", () => {
-  it("records completion of the initial run", () => {
-    const store = createStore();
+  let store: ReturnType<typeof createStore>;
+
+  beforeEach(() => {
+    store = createStore();
     vi.mocked(useConnectionTransport).mockClear();
     vi.mocked(useConnectionTransport).mockReturnValue(
       makeTransport(WebSocket.OPEN),
@@ -194,20 +197,69 @@ describe("useMarimoKernelConnection messages", () => {
       makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
     );
     renderConnectionHook(store);
+  });
 
-    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)?.[0];
-    expect(store.get(initialRunCompletedAtom)).toBe(false);
+  function receive(payload: unknown) {
+    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
     act(() => {
-      options?.onMessage(
-        new MessageEvent("message", {
-          data: JSON.stringify({
-            op: "completed-run",
-            data: { op: "completed-run", run_id: null },
-          }),
-        }),
+      options.onMessage(
+        new MessageEvent("message", { data: JSON.stringify(payload) }),
       );
     });
-    expect(store.get(initialRunCompletedAtom)).toBe(true);
+  }
+
+  it.each(["session", "host"])(
+    "records completion of the initial run from the %s stream",
+    (stream) => {
+      const notification = {
+        op: "completed-run",
+        run_id: null,
+        outcome: "succeeded",
+        error: null,
+      } satisfies NotificationPayload["data"];
+      expect(store.get(initialRunCompletedAtom)).toBe(false);
+      receive(
+        stream === "host"
+          ? { id: "42", event: "marimo", data: { marimo: notification } }
+          : { op: notification.op, data: notification },
+      );
+      expect(store.get(initialRunCompletedAtom)).toBe(true);
+    },
+  );
+
+  it("ignores other host events before handling the next notification", () => {
+    const errors = vi.spyOn(Logger, "error").mockImplementation(() => {});
+    try {
+      receive({ id: "1", event: "ready", data: {} });
+      receive({
+        id: "2",
+        event: "run",
+        data: { run: { id: "r1", status: "completed" } },
+      });
+      receive({
+        id: "3",
+        event: "future-event",
+        data: { marimo: { op: "completed-run", run_id: "r1" } },
+      });
+      receive({ id: "4", event: "another-event", data: null });
+      expect(store.get(initialRunCompletedAtom)).toBe(false);
+      receive({
+        id: "5",
+        event: "marimo",
+        data: {
+          marimo: {
+            op: "completed-run",
+            run_id: "r1",
+            outcome: "succeeded",
+            error: null,
+          },
+        },
+      });
+      expect(store.get(initialRunCompletedAtom)).toBe(true);
+      expect(errors).not.toHaveBeenCalled();
+    } finally {
+      errors.mockRestore();
+    }
   });
 });
 
