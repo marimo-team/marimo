@@ -12,8 +12,8 @@ from inline_snapshot import snapshot
 from msgspec import UNSET
 from msgspec.structs import replace
 
-from marimo._core import backend as be
-from marimo._core.document import CellSource, Document
+from marimo._core import backend as be, protocol
+from marimo._core.document import Document, DocumentCell
 from marimo._core.errors import Conflict, NoRuntime, NotFound
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
@@ -59,6 +59,16 @@ from tests._core.conftest import (
     retained_execution,
     runtime_id_of,
 )
+
+
+def published(
+    notebook: Notebook,
+) -> tuple[protocol.Document, list[protocol.Cell]]:
+    """The document and cell records the notebook publishes."""
+    events = notebook._snapshot()
+    (document,) = [e.data.document for e in events if e.kind == "document"]  # type: ignore[union-attr]
+    cells = [e.data.cell for e in events if e.kind == "cell"]  # type: ignore[union-attr]
+    return document, cells
 
 
 def running(notebook: Notebook, backend: ScriptedBackend) -> Runtime:
@@ -1134,16 +1144,18 @@ async def test_initial_results_are_published_and_replaced_by_live_execution(
     run_id: str | None,
 ) -> None:
     retained = retained_execution(run_id=run_id)
-    document = Document(record().id, [CellSource(CellId("c1"), "42")], {})
+    document = Document([DocumentCell(CellId("c1"), "42")], {})
     host = Host(operations=[])
     host.update_project(project())
     host.add_notebook(
         record(),
         lambda _, sink: Notebook(
+            record().id,
             document,
             Executions.restore({CellId("c1"): retained}, cells=document),
             ScriptedBackend(),
             sink,
+            saved_etag=document.etag,
         ),
     )
     live: list[Event] = []
@@ -1168,7 +1180,7 @@ async def test_initial_results_are_published_and_replaced_by_live_execution(
 
 async def test_current_cell_results_can_seed_another_notebook() -> None:
     _, notebook = await host_at(Clock())
-    notebook.replace([CellSource(CellId("c1"), "code")], {})
+    notebook.replace([DocumentCell(CellId("c1"), "code")], {})
     run = notebook.run("code", request_id="request")
     execution = plan(notebook, run, "cell", "c1")
     notebook.observe(
@@ -1176,18 +1188,22 @@ async def test_current_cell_results_can_seed_another_notebook() -> None:
     )
     finish(notebook, execution)
     notebook.observe(be.Done(run.id, "succeeded"))
-    document = Document.from_records(
-        notebook.document._record, list(notebook.document)
-    )
+    document = Document.restore(*published(notebook))
     retained = notebook.executions.current(CellId("c1"))
     assert retained is not None
     restored = Notebook(
+        NotebookId("restored"),
         document,
         Executions.restore({CellId("c1"): retained}, cells=document),
         ScriptedBackend(),
         Stream(history=0),
+        saved_etag=notebook.saved_etag,
     )
-    assert restored.document._record == notebook.document._record
+    source_record, source_cells = published(notebook)
+    assert published(restored) == (
+        replace(source_record, notebook_id=restored.id),
+        [replace(cell, notebook_id=restored.id) for cell in source_cells],
+    )
     assert list(restored.document) == list(notebook.document)
     assert restored.executions.current(CellId("c1")) == retained
     assert fold(restored._snapshot()) == {
@@ -1202,15 +1218,14 @@ def test_restoration_preserves_revisions_and_outputs(
     saved: bool,
 ) -> None:
     document = Document(
-        record().id,
-        [CellSource(CellId("c2"), "pass"), CellSource(CellId("c1"), "42")],
+        [DocumentCell(CellId("c2"), "pass"), DocumentCell(CellId("c1"), "42")],
         {"width": "full"},
-        saved=saved,
     )
+    saved_etag = document.etag if saved else None
     # The output belongs to the previous source, and the saved revision can
     # precede the current one. Neither is rewritten during restoration.
-    document.replace(
-        [CellSource(CellId("c2"), "pass"), CellSource(CellId("c1"), "43")],
+    document, _ = document.replace(
+        [DocumentCell(CellId("c2"), "pass"), DocumentCell(CellId("c1"), "43")],
         {"width": "full"},
     )
     seed = retained_execution(run_id="historical-run")
@@ -1228,16 +1243,26 @@ def test_restoration_preserves_revisions_and_outputs(
             replace(seed.outputs[0], id=ItemId("last"), seq=2),
         ),
     )
-    document_record, cells = deepcopy((document._record, list(document)))
-    restored = Document.from_records(document_record, cells[::-1])
+    original = Notebook(
+        record().id,
+        document,
+        Executions(),
+        ScriptedBackend(),
+        Stream(history=0),
+        saved_etag=saved_etag,
+    )
+    document_record, cells = deepcopy(published(original))
+    restored = Document.restore(document_record, cells[::-1])
     backend = ScriptedBackend()
     notebook = Notebook(
+        document_record.notebook_id,
         restored,
         Executions.restore({CellId("c1"): retained}, cells=restored),
         backend,
         Stream(history=0),
+        saved_etag=document_record.saved_etag,
     )
-    assert notebook.document._record == document._record
+    assert published(notebook) == published(original)
     assert list(notebook.document) == list(document)
     assert notebook.executions.current(CellId("c1")) == retained
     assert backend.calls == []
@@ -1247,25 +1272,27 @@ def test_restoration_preserves_revisions_and_outputs(
     assert [getattr(e.data, e.kind).seq for e in outputs] == [0, 1, 2]
     # Restoration copies the supplied records.
     document_record.app_config["width"] = "medium"
-    assert notebook.document._record == document._record
+    assert published(notebook) == published(original)
 
 
 async def test_edits_preserve_results_and_deletion_removes_them() -> None:
     retained = retained_execution()
-    document = Document(record().id, [CellSource(CellId("c1"), "42")], {})
+    document = Document([DocumentCell(CellId("c1"), "42")], {})
     host = Host(operations=[])
     host.update_project(project())
     host.add_notebook(
         record(),
         lambda _, sink: Notebook(
+            record().id,
             document,
             Executions.restore({CellId("c1"): retained}, cells=document),
             ScriptedBackend(),
             sink,
+            saved_etag=document.etag,
         ),
     )
     notebook = await host.notebook(record().id)
-    notebook.replace([CellSource(CellId("c1"), "43")], {})
+    notebook.replace([DocumentCell(CellId("c1"), "43")], {})
     assert notebook.executions.current(CellId("c1")) == retained
     assert (
         next(iter(notebook.document)).code_hash != retained.execution.code_hash
@@ -1288,7 +1315,7 @@ async def test_restoration_excludes_live_work_and_cleans_up_deleted_active_cells
     None
 ):
     _, notebook = await host_at(Clock())
-    notebook.replace([CellSource(CellId("c1"), "code")], {})
+    notebook.replace([DocumentCell(CellId("c1"), "code")], {})
     notebook.attach()
     run = notebook.run("code", request_id="request")
     execution = plan(notebook, run, "active", "c1")
@@ -1296,9 +1323,7 @@ async def test_restoration_excludes_live_work_and_cleans_up_deleted_active_cells
         be.Produced(Console(execution, ItemId("out"), "stdout", 0, "x"))
     )
     assert notebook.executions.current(CellId("c1")) is None
-    document = Document.from_records(
-        notebook.document._record, list(notebook.document)
-    )
+    document = Document.restore(*published(notebook))
     executions = Executions.restore(
         {
             cell.id: result
@@ -1308,7 +1333,12 @@ async def test_restoration_excludes_live_work_and_cleans_up_deleted_active_cells
         cells=document,
     )
     restored = Notebook(
-        document, executions, ScriptedBackend(), Stream(history=0)
+        notebook.id,
+        document,
+        executions,
+        ScriptedBackend(),
+        Stream(history=0),
+        saved_etag=notebook.saved_etag,
     )
     assert names(restored._snapshot()) == ["cell", "document"]
     notebook.replace([], {})
@@ -1322,7 +1352,7 @@ async def test_source_edits_keep_live_results_until_the_cell_is_deleted() -> (
     None
 ):
     host, notebook = await host_at(Clock())
-    notebook.replace([CellSource("c1", "42")], {})
+    notebook.replace([DocumentCell("c1", "42")], {})
     run = notebook.run("42", request_id="run")
     execution = plan(notebook, run, "result", "c1")
     notebook.observe(
@@ -1332,7 +1362,7 @@ async def test_source_edits_keep_live_results_until_the_cell_is_deleted() -> (
     notebook.observe(be.Done(run.id, "succeeded"))
     retained = notebook.executions._records()
 
-    notebook.replace([CellSource("c1", "43")], {})
+    notebook.replace([DocumentCell("c1", "43")], {})
     assert notebook.executions._records() == retained
 
     live: list[Event] = []
@@ -1353,7 +1383,7 @@ async def test_deleting_an_active_cell_releases_its_result_when_the_run_ends() -
     None
 ):
     host, notebook = await host_at(Clock())
-    notebook.replace([CellSource("c1", "42")], {})
+    notebook.replace([DocumentCell("c1", "42")], {})
     run = notebook.run("42", request_id="run")
     execution = plan(notebook, run, "result", "c1")
     notebook.replace([], {})

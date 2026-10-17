@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from marimo._ast.cell import CellConfig
 from marimo._core import protocol
-from marimo._core.document import CellSource
+from marimo._core.document import DocumentCell
 from marimo._messaging.notebook import (
     CreateCell,
     DeleteCell,
@@ -48,26 +48,38 @@ if TYPE_CHECKING:
     from marimo._session.session import Session
 
 
-def from_session(session: Session) -> tuple[list[CellSource], dict[str, Any]]:
+def from_session(
+    session: Session,
+) -> tuple[list[DocumentCell], dict[str, Any]]:
     return (
         sources(session.document.cells),
         session.app_file_manager.app.config.asdict_difference(),
     )
 
 
-def sources(cells: Iterable[NotebookCell]) -> list[CellSource]:
+def sources(cells: Iterable[NotebookCell]) -> list[DocumentCell]:
     """The document sources for the editor's cells."""
     return [
-        CellSource(cell.id, cell.code, cell.name, _config(cell.config))
+        DocumentCell(
+            protocol.CellId(cell.id),
+            cell.code,
+            cell.name,
+            _config(cell.config),
+        )
         for cell in cells
     ]
 
 
 def from_file_manager(
     manager: AppFileManager,
-) -> tuple[list[CellSource], dict[str, Any]]:
+) -> tuple[list[DocumentCell], dict[str, Any]]:
     cells = [
-        CellSource(data.cell_id, data.code, data.name, _config(data.config))
+        DocumentCell(
+            protocol.CellId(data.cell_id),
+            data.code,
+            data.name,
+            _config(data.config),
+        )
         for data in manager.app.cell_manager.cell_data()
     ]
     return cells, manager.app.config.asdict_difference()
@@ -91,7 +103,7 @@ def _cell_config(config: protocol.CellConfig) -> CellConfig:
     )
 
 
-def to_notebook_cell(cell: protocol.Cell) -> NotebookCell:
+def to_notebook_cell(cell: DocumentCell) -> NotebookCell:
     return NotebookCell(
         id=CellId_t(cell.id),
         code=cell.code,
@@ -153,7 +165,7 @@ def apply_to_session(session: Session, document: Document) -> None:
     wanted = {CellId_t(cell.id) for cell in document}
     deleted = [c for c in current.cell_ids if c not in wanted]
     changes.extend(DeleteCell(cell_id=cell_id) for cell_id in deleted)
-    order = [CellId_t(c) for c in document.order]
+    order = [CellId_t(c.id) for c in document]
     if current.cell_ids != order:
         changes.append(ReorderCells(cell_ids=tuple(order)))
     if not changes:

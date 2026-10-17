@@ -16,6 +16,8 @@ from marimo._core.stream import utcnow
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
+    from marimo._core.document import DocumentCell
+
 
 @dataclass(frozen=True)
 class CellExecution:
@@ -92,7 +94,7 @@ class Executions:
         cls,
         executions: Mapping[protocol.CellId, CellExecution],
         *,
-        cells: Iterable[protocol.Cell],
+        cells: Iterable[DocumentCell],
     ) -> Executions:
         """Restore completed executions for cells in the document.
 

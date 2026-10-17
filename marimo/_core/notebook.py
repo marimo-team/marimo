@@ -5,14 +5,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 import msgspec
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
-from marimo._core.document import Changed
-from marimo._core.errors import Conflict, NoRuntime, NotFound
+from marimo._core.document import Stale
+from marimo._core.errors import Conflict, EditConflict, NoRuntime, NotFound
 from marimo._core.executions import Executions, Released, Removed
 from marimo._core.ids import mint
 from marimo._core.stream import Event, Kind, kind_of, message, utcnow
@@ -21,7 +22,11 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
     from marimo._core.analysis import Analyzer
-    from marimo._core.document import CellSource, Document, DocumentSnapshot
+    from marimo._core.document import (
+        Changed,
+        Document,
+        DocumentCell,
+    )
     from marimo._core.executions import Change
     from marimo._core.stream import Body, Sink
 
@@ -32,10 +37,11 @@ LOGGER = logging.getLogger(__name__)
 class Notebook:
     """A document, its execution results, and the runtime that produces them.
 
-    The document and cell results remain when the runtime stops.
-    Commands call the backend and publish changes through the sink.
-    Change the document and executions through the notebook so each
-    change reaches the sink.
+    The notebook gives the document its identity and its saved revision,
+    and publishes the records clients read. The document
+    and cell results remain when the runtime stops. Commands call the
+    backend and publish changes through the sink. Change the document
+    and executions through the notebook so each change reaches the sink.
 
     With an analyzer, the notebook requests analysis of each document
     revision and publishes the result when that revision is still
@@ -44,14 +50,21 @@ class Notebook:
 
     def __init__(
         self,
+        notebook_id: protocol.NotebookId,
         document: Document,
         executions: Executions,
         backend: be.Backend,
         sink: Sink,
         *,
+        saved_etag: protocol.Etag | None = None,
         analyzer: Analyzer | None = None,
     ) -> None:
+        self._id = notebook_id
         self._document = document
+        self._saved_etag = saved_etag
+        # The document record as last published, so a change that leaves
+        # it the same publishes nothing.
+        self._published: protocol.Document | None = self._document_record
         self._executions = executions
         self.backend = backend
         self.sink = sink
@@ -71,7 +84,7 @@ class Notebook:
 
     @property
     def document(self) -> Document:
-        """The document owned by this notebook; change it through the notebook."""
+        """The current revision. The notebook's commands produce the next."""
         return self._document
 
     @property
@@ -81,7 +94,41 @@ class Notebook:
 
     @property
     def id(self) -> protocol.NotebookId:
-        return self.document.notebook_id
+        return self._id
+
+    @property
+    def saved_etag(self) -> protocol.Etag | None:
+        """The document revision the store holds, if known."""
+        return self._saved_etag
+
+    def require_revision(self, etags: Sequence[str]) -> None:
+        """Check that the document is at one of `etags`.
+
+        Raises:
+            EditConflict: If it is not, carrying the document as it is.
+        """
+        self._require_open()
+        if self.document.etag not in etags:
+            raise EditConflict(
+                "The document has changed since it was read",
+                change=0,
+                cell=None,
+                document=self._document_record,
+            )
+
+    @property
+    def _document_record(self) -> protocol.Document:
+        """The document as clients read it, built from its current state."""
+        document = self._document
+        return protocol.Document(
+            notebook_id=self._id,
+            order=tuple(cell.id for cell in document),
+            app_config=deepcopy(dict(document.app_config)),
+            etag=document.etag,
+            saved_etag=self._saved_etag,
+            order_etag=document.order_etag,
+            app_config_etag=document.app_config_etag,
+        )
 
     @property
     def runtime(self) -> protocol.Runtime | None:
@@ -101,23 +148,34 @@ class Notebook:
 
     def replace(
         self,
-        cells: Sequence[CellSource],
+        cells: Sequence[DocumentCell],
         app_config: Mapping[str, object],
         *,
         saved: bool = False,
         request_id: str | None = None,
-    ) -> Changed:
+    ) -> protocol.EditResponse:
         """Replace the document and publish its changes.
 
         With `saved`, the new contents are also the persisted revision.
+        The response carries etags for the cells that changed, and
+        `None` for each cell that was removed.
         """
         self._require_open()
-        document = self.document
-        changed = document.replace(cells, app_config)
-        if saved and (published := document.mark_saved()) is not None:
-            changed = Changed(changed.cells, changed.removed, published)
+        self._document, changed = self._document.replace(cells, app_config)
+        if saved:
+            self._saved_etag = self._document.etag
         self._publish_changed(changed, request_id)
-        return changed
+        etags: dict[str, protocol.CellEtags | None] = {
+            cell.id: protocol.CellEtags(
+                etag=cell.etag, code_hash=cell.code_hash
+            )
+            for cell in changed.cells
+        }
+        for cell_id in changed.removed:
+            etags[cell_id] = None
+        return protocol.EditResponse(
+            document=self._document_record, cells=etags
+        )
 
     def edit(
         self, changes: Sequence[protocol.Change], *, request_id: str
@@ -129,10 +187,25 @@ class Notebook:
             Invalid: If a change could not apply to any state.
         """
         self._require_open()
-        applied = self.document.apply(changes)
+        result = self._document.apply(changes)
+        if isinstance(result, Stale):
+            cell = (
+                None
+                if result.cell_id is None
+                else self._document.cell(result.cell_id)
+            )
+            raise EditConflict(
+                f"change {result.change} names a state the document no "
+                "longer has",
+                change=result.change,
+                cell=None if cell is None else self._cell_record(cell),
+                document=self._document_record,
+            )
+        self._document, applied = result
         self._publish_changed(applied.changed, request_id)
         return protocol.EditResponse(
-            document=self.document._record, cells=applied.cells
+            document=self._document_record,
+            cells=dict(applied.cells.items()),
         )
 
     def mark_saved(
@@ -144,10 +217,30 @@ class Notebook:
         changed while it was being written.
         """
         self._require_open()
-        published = self.document.mark_saved(etag)
+        self._saved_etag = etag
+        published = self._refresh()
         if published is not None:
             self._publish(published, request_id)
-        return self.document._record
+        return self._document_record
+
+    def _cell_record(self, cell: DocumentCell) -> protocol.Cell:
+        return protocol.Cell(
+            id=cell.id,
+            notebook_id=self._id,
+            code=cell.code,
+            name=cell.name,
+            config=cell.config,
+            etag=cell.etag,
+            code_hash=cell.code_hash,
+        )
+
+    def _refresh(self) -> protocol.Document | None:
+        """Return the document record when it differs from the last published."""
+        record = self._document_record
+        if record == self._published:
+            return None
+        self._published = record
+        return record
 
     def _publish_changed(
         self, changed: Changed, request_id: str | None
@@ -155,15 +248,16 @@ class Notebook:
         """Publish a document change, then analyze the new revision."""
         with self.sink.deferred():
             for cell in changed.cells:
-                self._publish(cell, request_id)
+                self._publish(self._cell_record(cell), request_id)
             for cell_id in changed.removed:
                 self._apply(
                     self.executions.remove_cell(protocol.CellId(cell_id))
                 )
                 self._remove("cell", cell_id, request_id)
-            if changed.document is not None:
-                self._publish(changed.document, request_id)
-        if changed.document is not None:
+            record = self._refresh()
+            if record is not None:
+                self._publish(record, request_id)
+        if changed.etag is not None:
             self._request_analysis(request_id)
 
     # ---- analysis ------------------------------------------------------
@@ -176,22 +270,22 @@ class Notebook:
             self._reanalyze, self._reanalyze_request = True, request_id
             return
         self._analysis_task = asyncio.create_task(
-            self._analyze(self.document.snapshot(), request_id)
+            self._analyze(self._document, request_id)
         )
 
     async def _analyze(
-        self, snapshot: DocumentSnapshot, request_id: str | None
+        self, document: Document, request_id: str | None
     ) -> None:
         assert self._analyzer is not None
         try:
             while not self._closed:
-                etag = snapshot.document.etag
+                etag = document.etag
                 try:
-                    cells = await self._analyzer.analyze(snapshot)
+                    cells = await self._analyzer.analyze(document)
                 except Exception:
                     LOGGER.exception("Could not analyze document %s", etag)
                 else:
-                    if not self._closed and etag == self.document._record.etag:
+                    if not self._closed and etag == self._document.etag:
                         self._analysis = protocol.Analysis(
                             notebook_id=self.id,
                             document_etag=etag,
@@ -205,7 +299,7 @@ class Notebook:
                     return
                 request_id = self._reanalyze_request
                 self._reanalyze, self._reanalyze_request = False, None
-                snapshot = self.document.snapshot()
+                document = self._document
         finally:
             self._analysis_task = None
 
@@ -469,7 +563,10 @@ class Notebook:
 
     def _snapshot(self) -> list[Event]:
         """Return current state as events in dependency order."""
-        bodies: list[Body] = [*self.document, self.document._record]
+        bodies: list[Body] = [
+            *(self._cell_record(cell) for cell in self.document),
+            self._document_record,
+        ]
         if self._analysis is not None:
             bodies.append(self._analysis)
         if self._runtime is not None:
