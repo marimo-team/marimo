@@ -18,7 +18,7 @@ from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
 from marimo._messaging.notification import NotificationMessage
-from marimo._runtime.commands import CommandMessage
+from marimo._runtime.commands import WasmCommand
 
 if TYPE_CHECKING:
     import psutil
@@ -412,7 +412,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         commands.DiscoverDataSourcesCommand,
         commands.ExecuteCellsCommand,
         commands.ExecuteScratchpadCommand,
-        commands.ExecuteStaleCellsCommand,
         commands.ExecuteCellCommand,
         commands.GetCacheInfoCommand,
         commands.HTTPRequest,
@@ -425,8 +424,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         commands.ModelMessage,
         commands.PreviewDatasetColumnCommand,
         commands.PreviewSQLTableCommand,
-        commands.RenameNotebookCommand,
-        commands.StopKernelCommand,
         commands.UpdateCellConfigCommand,
         commands.UpdateUserConfigCommand,
         commands.ModelCommand,
@@ -481,7 +478,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     # Hack to get the unions to be included in the schema
     class KnownUnions(msgspec.Struct):
         notification: NotificationMessage
-        command: CommandMessage
+        command: WasmCommand
         error: MarimoError
         data_type: DataType
 

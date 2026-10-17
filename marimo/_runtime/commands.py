@@ -243,6 +243,8 @@ class SetBreakpointsCommand(Command):
         return f"SetBreakpointsCommand(count={count})"
 
 
+# TODO(MO-8007): Goes with ExecuteCellsCommand and CreateNotebookCommand, which
+# are the only commands built from it.
 class ExecuteCellCommand(Command):
     """Execute a single cell.
 
@@ -269,6 +271,8 @@ class ExecuteCellCommand(Command):
         )
 
 
+# TODO(MO-8007): Gone. The host computes the stale set from its model and runs
+# it.
 class ExecuteStaleCellsCommand(Command):
     """Execute all stale cells.
 
@@ -282,6 +286,7 @@ class ExecuteStaleCellsCommand(Command):
     request: HTTPRequest | None = None
 
 
+# TODO(MO-8007): Becomes a run with roots. Code comes from the revision.
 class ExecuteCellsCommand(Command):
     """Execute multiple cells in a batch.
 
@@ -330,6 +335,7 @@ class ExecuteCellsCommand(Command):
         )
 
 
+# TODO(MO-8007): Becomes the reconcile step of a run.
 class SyncGraphCommand(Command):
     """Synchronize the kernel graph with file manager state.
 
@@ -370,12 +376,9 @@ class SyncGraphCommand(Command):
         ]
 
 
+# TODO(MO-8007): Becomes a run with no roots. The revision carries the edit.
 class EditCellsCommand(Command):
     """Apply one edit of the notebook's cells to the kernel.
-
-    TODO(MO-8002): Replace this temporary command with synchronization of
-    a versioned notebook document replica in the kernel. Replica updates
-    must be applied before any execution trigger.
 
     Sent when the notebook changes without a run, as a host edit does.
     Changed code is registered without running, so no later run uses
@@ -394,6 +397,8 @@ class EditCellsCommand(Command):
     delete_ids: list[CellId_t]
 
 
+# TODO(MO-8007): Becomes a run whose root is the scratch cell, against a
+# revision.
 class ExecuteScratchpadCommand(Command):
     """Execute code in the scratchpad.
 
@@ -433,6 +438,7 @@ class ExecuteScratchpadCommand(Command):
     allow_stdin: bool = True
 
 
+# TODO(MO-8007): Moves with the notebook entry.
 class RenameNotebookCommand(Command):
     """Rename or move the notebook file.
 
@@ -555,6 +561,7 @@ class AppMetadata(msgspec.Struct, rename="camel"):
     docstring: str | None = None
 
 
+# TODO(MO-8007): Gone. Reconciling the graph to the revision handles it.
 class UpdateCellConfigCommand(Command):
     """Update cell configuration.
 
@@ -585,6 +592,8 @@ class UpdateUserConfigCommand(Command):
         return "UpdateUserConfigCommand(config=...)"
 
 
+# TODO(MO-8007): Becomes a run with every cell as a root, or none for a lazy
+# start.
 class CreateNotebookCommand(Command):
     """Instantiate and initialize a notebook.
 
@@ -605,6 +614,7 @@ class CreateNotebookCommand(Command):
     request: HTTPRequest | None = None
 
 
+# TODO(MO-8007): Gone. Reconciling the graph to the revision handles it.
 class DeleteCellCommand(Command):
     """Delete a cell from the notebook.
 
@@ -618,6 +628,7 @@ class DeleteCellCommand(Command):
     cell_id: CellId_t
 
 
+# TODO(MO-8007): Becomes Backend.stop.
 class StopKernelCommand(Command):
     """Stop kernel execution.
 
@@ -969,30 +980,15 @@ class GetCacheInfoCommand(Command):
     """
 
 
-CommandMessage = (
-    # Notebook operations
-    CreateNotebookCommand
-    | RenameNotebookCommand
-    | CodeCompletionCommand
-    # Cell execution and management
-    | ExecuteCellsCommand
+WasmCommand = (
+    ExecuteCellsCommand
     | ExecuteScratchpadCommand
-    | ExecuteStaleCellsCommand
-    | DebugCellCommand
-    | SetBreakpointsCommand
     | DeleteCellCommand
-    | SyncGraphCommand
-    | EditCellsCommand
     | UpdateCellConfigCommand
-    # Package management
-    | InstallPackagesCommand
-    # UI element and widget model operations
     | UpdateUIElementCommand
     | ModelCommand
     | InvokeFunctionCommand
-    # User/configuration operations
-    | UpdateUserConfigCommand
-    # Data SQL operations
+    | InstallPackagesCommand
     | PreviewDatasetColumnCommand
     | PreviewSQLTableCommand
     | ListSQLTablesCommand
@@ -1000,17 +996,46 @@ CommandMessage = (
     | ValidateSQLCommand
     | ListDataSourceConnectionCommand
     | DiscoverDataSourcesCommand
-    # Storage operations
+    | ListSecretKeysCommand
+)
+"""Commands the browser builds itself when it hosts the kernel in WASM.
+
+Over HTTP these arrive as request models and the handler builds the
+command. In WASM there is no handler, so the bridge adds the tag. This
+is the only command union the client schema exports, and the frontend
+typecheck fails when a bridge builds a command that is not here.
+"""
+
+# TODO(MO-8007): Collapse this group into one run command plus start and
+# stop. A run carries the document revision, so create, sync, edit, and
+# stale runs are all one command with different roots. Rename moves with
+# the notebook entry.
+NotebookCommand = (
+    CreateNotebookCommand
+    | SyncGraphCommand
+    | EditCellsCommand
+    | ExecuteStaleCellsCommand
+    | RenameNotebookCommand
+    | StopKernelCommand
+)
+"""Commands whose subject is the whole notebook, issued by its owner.
+
+Only the server builds these, from the document it holds. They are the
+kernel side of the core `Backend` interface.
+"""
+CommandMessage = (
+    WasmCommand
+    | NotebookCommand
+    # Requests the server converts to commands
+    | CodeCompletionCommand
+    | DebugCellCommand
+    | SetBreakpointsCommand
+    | UpdateUserConfigCommand
     | StorageListEntriesCommand
     | StorageDownloadCommand
-    # Secrets management
-    | ListSecretKeysCommand
     | RefreshSecretsCommand
-    # Cache management
     | ClearCacheCommand
     | GetCacheInfoCommand
-    # Kernel operations
-    | StopKernelCommand
 )
 """Union of all command messages.
 
