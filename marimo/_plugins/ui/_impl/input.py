@@ -20,6 +20,7 @@ from marimo._data.series import (
     DataFrameSeries,
     get_category_series_info,
     get_number_series_info,
+    get_series_name,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
@@ -131,6 +132,12 @@ class number(UIElement[Numeric | None, Numeric | None]):
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> number:
         """Create a number picker from a dataframe series."""
+        if "start" in kwargs and "stop" in kwargs:
+            label = kwargs.pop("label", None)
+            if label is None:
+                label = get_series_name(series)
+            return number(label=label, **kwargs)
+
         info = get_number_series_info(series)
         start = kwargs.pop("start", info.min)
         stop = kwargs.pop("stop", info.max)
@@ -350,6 +357,12 @@ class slider(UIElement[Numeric, Numeric]):
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> slider:
         """Create a slider from a dataframe series."""
+        if ("start" in kwargs and "stop" in kwargs) or ("steps" in kwargs):
+            label = kwargs.pop("label", None)
+            if label is None:
+                label = get_series_name(series)
+            return slider(label=label, **kwargs)
+
         info = get_number_series_info(series)
         start = kwargs.pop("start", info.min)
         stop = kwargs.pop("stop", info.max)
@@ -552,6 +565,12 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
         """Create a range slider from a dataframe series."""
+        if ("start" in kwargs and "stop" in kwargs) or ("steps" in kwargs):
+            label = kwargs.pop("label", None)
+            if label is None:
+                label = get_series_name(series)
+            return range_slider(label=label, **kwargs)
+
         info = get_number_series_info(series)
         start = kwargs.pop("start", info.min)
         stop = kwargs.pop("stop", info.max)
@@ -700,6 +719,12 @@ class radio(UIElement[str | None, Any]):
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> radio:
         """Create a radio group from a dataframe series."""
+        if "options" in kwargs:
+            label = kwargs.pop("label", None)
+            if label is None:
+                label = get_series_name(series)
+            return radio(label=label, **kwargs)
+
         info = get_category_series_info(series)
         options = kwargs.pop("options", info.categories)
         label = kwargs.pop("label", info.label)
@@ -1111,6 +1136,12 @@ class dropdown(UIElement[list[str], Any]):
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> dropdown:
         """Create a dropdown from a dataframe series."""
+        if "options" in kwargs:
+            label = kwargs.pop("label", None)
+            if label is None:
+                label = get_series_name(series)
+            return dropdown(label=label, **kwargs)
+
         info = get_category_series_info(series)
         options = kwargs.pop("options", info.categories)
         label = kwargs.pop("label", info.label)
@@ -1227,6 +1258,12 @@ class multiselect(UIElement[list[str], list[object]]):
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> multiselect:
         """Create a multiselect from a dataframe series."""
+        if "options" in kwargs:
+            label = kwargs.pop("label", None)
+            if label is None:
+                label = get_series_name(series)
+            return multiselect(label=label, **kwargs)
+
         info = get_category_series_info(series)
         options = kwargs.pop("options", info.categories)
         label = kwargs.pop("label", info.label)

@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -85,6 +86,25 @@ def test_number_from_dataframe() -> None:
     assert number.value == 1
     assert number.step == 0.1
     assert number._args.label == "Custom label"
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_number_from_empty_dataframe() -> None:
+    import pandas as pd
+
+    df_empty = pd.DataFrame({"A": []}, dtype=float)
+    num = ui.number.from_series(df_empty["A"], start=0, stop=10)
+    assert num.start == 0
+    assert num.stop == 10
+    assert num._args.label == "A"
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Cannot get series info: series is empty or contains only null values."
+        ),
+    ):
+        ui.number.from_series(df_empty["A"])
 
 
 def test_slider_init() -> None:
@@ -180,6 +200,29 @@ def test_slider_from_dataframe() -> None:
     assert slider.value == 1
     assert slider.step == 0.1
     assert slider._args.label == "Custom label"
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_slider_from_empty_dataframe() -> None:
+    import pandas as pd
+
+    df_empty = pd.DataFrame({"A": []}, dtype=float)
+    s = ui.slider.from_series(df_empty["A"], start=0, stop=10)
+    assert s.start == 0
+    assert s.stop == 10
+    assert s._args.label == "A"
+
+    s_steps = ui.slider.from_series(df_empty["A"], steps=[1, 2, 5])
+    assert s_steps.steps == [1, 2, 5]
+    assert s_steps._args.label == "A"
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Cannot get series info: series is empty or contains only null values."
+        ),
+    ):
+        ui.slider.from_series(df_empty["A"])
 
 
 def test_range_slider_init() -> None:
@@ -280,6 +323,29 @@ def test_range_slider_from_dataframe() -> None:
     assert slider.value == [1, 3]
     assert slider.step == 0.1
     assert slider._args.label == "Custom label"
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_range_slider_from_empty_dataframe() -> None:
+    import pandas as pd
+
+    df_empty = pd.DataFrame({"A": []}, dtype=float)
+    s = ui.range_slider.from_series(df_empty["A"], start=0, stop=10)
+    assert s.start == 0
+    assert s.stop == 10
+    assert s._args.label == "A"
+
+    s_steps = ui.range_slider.from_series(df_empty["A"], steps=[1, 2, 5])
+    assert s_steps.steps == [1, 2, 5]
+    assert s_steps._args.label == "A"
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Cannot get series info: series is empty or contains only null values."
+        ),
+    ):
+        ui.range_slider.from_series(df_empty["A"])
 
 
 def test_text() -> None:
@@ -404,6 +470,24 @@ def test_radio_from_dataframe() -> None:
         "c": "c",
     }
     assert radio.value == "b"
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_categorical_from_empty_dataframe_with_options() -> None:
+    import pandas as pd
+
+    df_empty = pd.DataFrame({"A": []}, dtype=str)
+    r = ui.radio.from_series(df_empty["A"], options=["x", "y"])
+    assert list(r.options.keys()) == ["x", "y"]
+    assert r._args.label == "A"
+
+    dd = ui.dropdown.from_series(df_empty["A"], options=["x", "y"])
+    assert list(dd.options.keys()) == ["x", "y"]
+    assert dd._args.label == "A"
+
+    ms = ui.multiselect.from_series(df_empty["A"], options=["x", "y"])
+    assert list(ms.options.keys()) == ["x", "y"]
+    assert ms._args.label == "A"
 
 
 def test_radio_invalid_value() -> None:
