@@ -16,9 +16,11 @@ from marimo._messaging.notification import (
     CompletedRunNotification,
     ExecutionNotification,
     StartupProgressNotification,
+    VariablesNotification,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.bridge import SessionBridge
+from marimo._server.host.events import MarimoMessage
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace
 from tests._core.conftest import names
@@ -450,7 +452,6 @@ async def test_host_edits_reach_the_session_as_one_transaction(
     record = bridge.index.notebook_for(str(tmp_path / "a.py"))
     assert record is not None
     notebook = await bridge.host.notebook(record.id)
-    document = notebook.document
     events: list[Event] = []
     bridge.host.subscribe(events.append, notebook_id=record.id)
 
@@ -472,8 +473,14 @@ async def test_host_edits_reach_the_session_as_one_transaction(
     (notification,) = session.notifications
     assert isinstance(notification, NotebookDocumentTransactionNotification)
     assert notification.transaction.source == "host"
-    # The backend saw its own edit come back and mirrored nothing new.
-    assert names(events) == ["cell", "document"]
+    # The session echoes the edit without publishing the document twice.
+    assert names([e for e in events if e.name != "marimo"]) == [
+        "cell",
+        "document",
+    ]
+    assert [e.data for e in events if e.name == "marimo"] == [
+        MarimoMessage(notification)
+    ]
     assert notebook.document.etag == response.document.etag
     assert "y = x" not in (tmp_path / "a.py").read_text()
     bridge.close()
@@ -982,4 +989,49 @@ async def test_reloading_refuses_to_drop_an_edit_made_while_reading(
         await asyncio.wait_for(reloading, 5)
     assert conflict.value.document == edited.document
     assert notebook.document.cell(cell.id).code == "x = 3"  # type: ignore[union-attr]
+    bridge.close()
+
+
+async def test_session_notifications_join_the_notebook_stream_once(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path, "a.py", "b.py")
+    session = FakeSession(str(tmp_path / "a.py"))
+    manager.sessions["browser"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    a = bridge.index.notebook_for(str(tmp_path / "a.py"))
+    b = bridge.index.notebook_for(str(tmp_path / "b.py"))
+    assert a is not None
+    assert b is not None
+
+    first: list[Event] = []
+    second: list[Event] = []
+    catalog: list[Event] = []
+    other: list[Event] = []
+    filtered: list[Event] = []
+    bridge.host.subscribe(first.append, notebook_id=a.id)
+    bridge.host.subscribe(second.append, notebook_id=a.id)
+    bridge.host.subscribe(catalog.append)
+    bridge.host.subscribe(other.append, notebook_id=b.id)
+    bridge.host.subscribe(filtered.append, notebook_id=a.id, types={"marimo"})
+
+    variables = VariablesNotification(variables=[])
+    planned = ExecutionNotification(
+        run_id="run-1",
+        execution_id="execution-1",
+        cell_id="cell-1",
+        phase="planned",
+        code="x = 1",
+    )
+    session.broadcast(variables)
+    session.broadcast(planned)
+
+    assert first == second
+    assert catalog == other == []
+    assert filtered == [e for e in first if e.name == "marimo"]
+    assert [(e.run_id, e.data) for e in filtered] == [
+        (None, MarimoMessage(variables)),
+        (protocol.RunId("run-1"), MarimoMessage(planned)),
+    ]
     bridge.close()
