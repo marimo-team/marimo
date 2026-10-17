@@ -111,6 +111,33 @@ def test_save_user_config_denied_capability_does_not_write(
     save_config.assert_not_called()
 
 
+def test_save_user_config_keeps_unreadable_config_file(
+    client: TestClient,
+) -> None:
+    """A user config that fails to parse is reported, not overwritten."""
+    from pathlib import Path
+
+    from starlette.testclient import TestClient
+
+    config_manager = get_user_config_manager(client)
+    config_path = Path(config_manager.user_config_mgr.get_config_path())
+    contents = '[keymap]\npreset = "vim"\n\n[display\n'
+    config_path.write_text(contents)
+
+    # Return the error response the browser gets instead of raising
+    response = TestClient(client.app, raise_server_exceptions=False).post(
+        "/api/kernel/save_user_config",
+        headers=HEADERS,
+        json={"config": {"display": {"theme": "dark"}}},
+    )
+
+    assert response.status_code == 500, response.text
+    assert response.json()["detail"].startswith(
+        f"Could not read the user config at {config_path}, so it was not saved."
+    )
+    assert config_path.read_text() == contents
+
+
 def test_save_user_config_starts_lsp_when_ty_enabled(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

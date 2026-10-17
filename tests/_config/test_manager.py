@@ -236,6 +236,104 @@ def test_user_config_keeps_populated_dotenv(tmp_path: Path) -> None:
     assert config["runtime"]["dotenv"] == [dotenv.as_posix()]
 
 
+_USER_CONFIG = """\
+[keymap]
+preset = "vim"
+
+[ai]
+rules = "Prefer polars over pandas."
+"""
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        # A hand edit that repeats a key already in the table
+        '[display]\ntheme = "light"\ntheme = "dark"\n',
+        # An unclosed table header
+        "[display\n",
+    ],
+    ids=["duplicate_key", "unclosed_table"],
+)
+def test_save_config_keeps_unreadable_user_config(
+    tmp_path: Path, broken: str
+) -> None:
+    """A user config that fails to parse is reported, not overwritten.
+
+    Reading falls back to an empty config so marimo still starts; saving
+    on top of that fallback used to replace every setting in the file.
+    """
+    config_path = tmp_path / "marimo.toml"
+    contents = _USER_CONFIG + "\n" + broken
+    config_path.write_text(contents)
+    manager = UserConfigStore()
+    manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
+
+    with pytest.raises(ValueError) as exc_info:
+        MarimoConfigManager(manager).save_config(
+            cast(
+                PartialMarimoConfig, {"display": {"code_editor_font_size": 16}}
+            )
+        )
+
+    message = str(exc_info.value)
+    assert message.startswith(
+        f"Could not read the user config at {config_path}, so it was not saved."
+    )
+    assert "Fix or move the file and try again: " in message
+    # The parser's own error is kept, both in the message and as the cause
+    assert exc_info.value.__cause__ is not None
+    assert str(exc_info.value.__cause__) in message
+    assert config_path.read_text() == contents
+
+
+def test_unreadable_user_config_still_loads_defaults(tmp_path: Path) -> None:
+    """Reading a broken user config keeps falling back to the defaults."""
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text(_USER_CONFIG + '\n[display\ntheme = "dark"\n')
+    manager = UserConfigStore()
+    manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
+
+    config = MarimoConfigManager(manager).get_config(hide_secrets=False)
+
+    assert config["keymap"]["preset"] == "default"
+
+
+def test_save_config_merges_into_readable_user_config(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text(_USER_CONFIG)
+    manager = UserConfigStore()
+    manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
+
+    manager.save_config(
+        cast(PartialMarimoConfig, {"display": {"code_editor_font_size": 16}})
+    )
+
+    contents = config_path.read_text()
+    assert 'preset = "vim"' in contents
+    assert "Prefer polars over pandas." in contents
+    assert "code_editor_font_size = 16" in contents
+
+
+@pytest.mark.parametrize("existing", [None, ""], ids=["missing", "empty"])
+def test_save_config_writes_missing_or_empty_user_config(
+    tmp_path: Path, existing: str | None
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    if existing is not None:
+        config_path.write_text(existing)
+    manager = UserConfigStore()
+    manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
+
+    manager.save_config(
+        cast(PartialMarimoConfig, {"display": {"code_editor_font_size": 16}})
+    )
+
+    assert "code_editor_font_size = 16" in config_path.read_text()
+
+
 def test_drop_none_values_strips_nested_none() -> None:
     from marimo._config.manager import _drop_none_values
 

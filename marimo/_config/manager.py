@@ -515,6 +515,18 @@ class UserConfigStore(ConfigReader):
 
         config_path = self.get_config_path()
         LOGGER.info("Saving user configuration to %s", config_path)
+        # Reading falls back to an empty config when the file cannot be
+        # parsed, so marimo still starts. Saving on top of that fallback
+        # would replace every setting in the file, so stop here instead.
+        try:
+            read_marimo_config(config_path)
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            raise ValueError(
+                f"Could not read the user config at {config_path}, so it "
+                f"was not saved. Fix or move the file and try again: {e}"
+            ) from e
         # Remove the secret placeholders from the incoming config
         config = remove_secret_placeholders(config)
         # Merge the current config with the new config
