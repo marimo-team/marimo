@@ -130,7 +130,8 @@ def test_add_storage_namespaces(session_view: SessionView) -> None:
 
     # Check namespaces appear in notifications
     assert (
-        session_view.external_storage_namespaces in session_view.notifications
+        session_view.external_storage_namespaces
+        in session_view.snapshot_notifications()
     )
 
 
@@ -212,7 +213,7 @@ def test_storage_namespaces_empty_not_in_notifications(
     assert session_view.external_storage_namespaces.namespaces == []
     storage_ops = [
         op
-        for op in session_view.notifications
+        for op in session_view.snapshot_notifications()
         if isinstance(op, StorageNamespacesNotification)
     ]
     assert len(storage_ops) == 0
@@ -238,7 +239,7 @@ def test_storage_namespaces_in_notifications(
     )
     storage_ops = [
         op
-        for op in session_view.notifications
+        for op in session_view.snapshot_notifications()
         if isinstance(op, StorageNamespacesNotification)
     ]
     assert storage_ops == snapshot(
