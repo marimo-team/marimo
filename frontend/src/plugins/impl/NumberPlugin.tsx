@@ -71,7 +71,11 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
 
   const handleChange = (newValue: number) => {
     const n = withoutNaN(newValue);
-    onChange(n == null ? null : clampToRange(n));
+    const next = n == null ? null : clampToRange(n);
+    // e.g. typing past `stop` while already at `stop`
+    if (next !== value) {
+      onChange(next);
+    }
   };
 
   return (
