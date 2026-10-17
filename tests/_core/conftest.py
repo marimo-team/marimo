@@ -8,7 +8,7 @@ import asyncio
 import pytest
 
 from marimo._core import backend as be, protocol
-from marimo._core.document import Document, DocumentSnapshot, code_hash
+from marimo._core.document import Document, code_hash
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -44,16 +44,16 @@ class ScriptedAnalyzer:
     """Expose snapshots and let tests complete analysis explicitly."""
 
     def __init__(self) -> None:
-        self.requests: list[DocumentSnapshot] = []
+        self.requests: list[Document] = []
         self.pending: asyncio.Queue[
             tuple[
-                DocumentSnapshot,
+                Document,
                 asyncio.Future[dict[protocol.CellId, protocol.CellAnalysis]],
             ]
         ] = asyncio.Queue()
 
     async def analyze(
-        self, snapshot: DocumentSnapshot
+        self, snapshot: Document
     ) -> dict[protocol.CellId, protocol.CellAnalysis]:
         result: asyncio.Future[
             dict[protocol.CellId, protocol.CellAnalysis]
@@ -65,7 +65,7 @@ class ScriptedAnalyzer:
     async def next_request(
         self,
     ) -> tuple[
-        DocumentSnapshot,
+        Document,
         asyncio.Future[dict[protocol.CellId, protocol.CellAnalysis]],
     ]:
         return await asyncio.wait_for(self.pending.get(), timeout=5)
@@ -109,11 +109,14 @@ def make_notebook(
     document: Document | None = None,
     analyzer: ScriptedAnalyzer | None = None,
 ) -> Notebook:
+    document = document if document is not None else Document([], {})
     return Notebook(
-        document or Document(record.id, [], {}),
+        record.id,
+        document,
         Executions(),
         backend or ScriptedBackend(),
         sink,
+        saved_etag=document.etag,
         analyzer=analyzer,
     )
 

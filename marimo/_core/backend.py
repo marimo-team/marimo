@@ -2,7 +2,7 @@
 """Kernel commands and updates for the host API.
 
 ```python
-notebook = Notebook(document, Executions(), backend, sink)
+notebook = Notebook(notebook_id, document, Executions(), backend, sink)
 runtime, _ = notebook.start()  # Calls backend.start(runtime.id).
 
 # The backend reports on that runtime through Notebook.observe.

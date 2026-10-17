@@ -1749,8 +1749,9 @@ async def test_save_writes_the_file_and_reports_the_saved_revision(
 async def test_edits_during_a_save_remain_unsaved(
     harness: Harness, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    document = (await harness.host.notebook(harness.notebook_id)).document
-    written = document._record.etag
+    notebook = await harness.host.notebook(harness.notebook_id)
+    document = notebook.document
+    written = document.etag
     started = asyncio.Event()
     release = threading.Event()
     loop = asyncio.get_running_loop()

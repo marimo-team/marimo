@@ -12,17 +12,16 @@ import pytest
 from marimo._ast.cell import CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._core import protocol
-from marimo._core.document import CellSource, Document, DocumentSnapshot
+from marimo._core.document import Document, DocumentCell
 from marimo._server.host.analysis import CellAnalyzer, HostAnalyzer
 from marimo._types.ids import CellId_t
 
 
-def snapshot(codes: dict[str, str]) -> DocumentSnapshot:
+def snapshot(codes: dict[str, str]) -> Document:
     return Document(
-        protocol.NotebookId("n1"),
-        [CellSource(cid, code) for cid, code in codes.items()],
+        [DocumentCell(cid, code) for cid, code in codes.items()],
         {},
-    ).snapshot()
+    )
 
 
 def analyze(
@@ -161,38 +160,41 @@ def test_compilation_cache_uses_identity_and_code_hash(
     monkeypatch.setattr("marimo._server.host.analysis.compile_cell", compiler)
     analyzer = CellAnalyzer()
     document = Document(
-        protocol.NotebookId("n1"),
         [
-            CellSource("a", "x = 1"),
-            CellSource("b", "y = x"),
-            CellSource("bad", "def (:"),
+            DocumentCell("a", "x = 1"),
+            DocumentCell("b", "y = x"),
+            DocumentCell("bad", "def (:"),
         ],
         {},
     )
-    analyzer(document.snapshot())
+    analyzer(document)
     assert compiler.call_count == 3
 
     # Names, configuration, and order are visible without recompiling code.
-    document.replace(
+    document, _ = document.replace(
         [
-            CellSource("b", "y = x", name="renamed"),
-            CellSource("a", "x = 1"),
-            CellSource("bad", "def (:"),
+            DocumentCell("b", "y = x", name="renamed"),
+            DocumentCell("a", "x = 1"),
+            DocumentCell("bad", "def (:"),
         ],
         {"width": "full"},
     )
-    analyzer(document.snapshot())
+    analyzer(document)
     assert compiler.call_count == 3
 
     # An unchanged cell loses its reference when its provider changes.
-    document.replace([CellSource("a", "z = 1"), CellSource("b", "y = x")], {})
-    assert analyzer(document.snapshot())[protocol.CellId("b")].refs == ()
+    document, _ = document.replace(
+        [DocumentCell("a", "z = 1"), DocumentCell("b", "y = x")], {}
+    )
+    assert analyzer(document)[protocol.CellId("b")].refs == ()
     assert compiler.call_count == 4
 
-    document.replace([CellSource("b", "y = x")], {})
-    analyzer(document.snapshot())
-    document.replace([CellSource("a", "z = 1"), CellSource("c", "y = x")], {})
-    analyzer(document.snapshot())
+    document, _ = document.replace([DocumentCell("b", "y = x")], {})
+    analyzer(document)
+    document, _ = document.replace(
+        [DocumentCell("a", "z = 1"), DocumentCell("c", "y = x")], {}
+    )
+    analyzer(document)
     assert compiler.call_count == 6
 
 

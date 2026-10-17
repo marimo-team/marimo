@@ -7,7 +7,7 @@ import pytest
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
-from marimo._core.document import CellSource, Document
+from marimo._core.document import Document, DocumentCell
 from marimo._core.errors import NoRuntime
 from marimo._core.executions import (
     CellExecution,
@@ -265,7 +265,7 @@ def test_removing_a_cell_drops_its_result_or_disowns_active_work() -> None:
 
 
 def test_restored_executions_are_current_until_replaced() -> None:
-    document = Document(NOTEBOOK, [CellSource("c1", "42")], {})
+    document = Document([DocumentCell("c1", "42")], {})
     retained = retained_execution(run_id="old-run")
     executions = Executions.restore(
         {protocol.CellId("c1"): retained}, cells=document
@@ -300,7 +300,7 @@ def test_restored_executions_are_current_until_replaced() -> None:
 def test_restore_rejects_inconsistent_executions(
     invalid: str, message: str
 ) -> None:
-    document = Document(NOTEBOOK, [CellSource("c1", "42")], {})
+    document = Document([DocumentCell("c1", "42")], {})
     retained = retained_execution()
     execution, outputs = retained.execution, retained.outputs
     key = protocol.CellId("c1")

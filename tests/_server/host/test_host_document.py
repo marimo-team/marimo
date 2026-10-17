@@ -7,7 +7,7 @@ import pytest
 
 from marimo._ast.cell import CellConfig
 from marimo._core import protocol
-from marimo._core.document import CellSource, Document
+from marimo._core.document import Document, DocumentCell
 from marimo._messaging.notebook import (
     NotebookCell,
     NotebookDocument,
@@ -28,7 +28,7 @@ def test_deleting_all_cells_broadcasts_the_final_order() -> None:
     session.document = NotebookDocument(
         [NotebookCell(CellId_t("a"), "x = 1", "_", CellConfig())]
     )
-    document = Document(protocol.NotebookId("nb"), [], {})
+    document = Document([], {})
 
     apply_to_session(session, document)  # type: ignore[arg-type]
 
@@ -46,9 +46,7 @@ async def test_enabling_an_edited_cell_does_not_run_old_code() -> None:
     session.document = NotebookDocument(
         [NotebookCell(cell_id, old_code, "_", CellConfig(disabled=True))]
     )
-    document = Document(
-        protocol.NotebookId("nb"), [CellSource(cell_id, new_code)], {}
-    )
+    document = Document([DocumentCell(cell_id, new_code)], {})
 
     with mocked_kernel_session(
         configs={cell_id: CellConfig(disabled=True)}
@@ -84,7 +82,7 @@ async def test_deleted_or_disabled_cells_do_not_run_during_an_edit(
         []
         if delete_dependent
         else [
-            CellSource(
+            DocumentCell(
                 second,
                 code,
                 config=protocol.CellConfig(
@@ -96,7 +94,7 @@ async def test_deleted_or_disabled_cells_do_not_run_during_an_edit(
             )
         ]
     )
-    document = Document(protocol.NotebookId("nb"), cells, {})
+    document = Document(cells, {})
 
     with mocked_kernel_session() as runtime:
         await runtime.kernel.run(

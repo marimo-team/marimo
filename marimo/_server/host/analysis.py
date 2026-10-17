@@ -18,21 +18,21 @@ from marimo._runtime.dataflow.edges import resolve_cell_references
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from marimo._core.document import DocumentSnapshot
+    from marimo._core.document import Document
 
 SOURCE = "marimo"
 
 
 class HostAnalyzer:
-    """Analyze serialized document snapshots in a worker thread."""
+    """Analyze document revisions in a worker thread."""
 
     def __init__(self) -> None:
         self._cells = CellAnalyzer()
 
     async def analyze(
-        self, snapshot: DocumentSnapshot
+        self, document: Document
     ) -> dict[protocol.CellId, protocol.CellAnalysis]:
-        return await asyncio.to_thread(self._cells, snapshot)
+        return await asyncio.to_thread(self._cells, document)
 
 
 @dataclass(frozen=True)
@@ -42,17 +42,17 @@ class _CachedCell:
 
 
 class CellAnalyzer:
-    """Reuse compilation by cell identity and code hash across snapshots."""
+    """Reuse compilation by cell identity and code hash across revisions."""
 
     def __init__(self) -> None:
         self._cache: dict[protocol.CellId, _CachedCell] = {}
 
     def __call__(
-        self, snapshot: DocumentSnapshot
+        self, document: Document
     ) -> dict[protocol.CellId, protocol.CellAnalysis]:
         cache: dict[protocol.CellId, _CachedCell] = {}
         graph = DirectedGraph()
-        for cell in snapshot.cells:
+        for cell in document:
             cached = self._cache.get(cell.id)
             if cached is None or cached.code_hash != cell.code_hash:
                 try:
@@ -68,7 +68,7 @@ class CellAnalyzer:
         self._cache = cache
 
         analyses: dict[protocol.CellId, protocol.CellAnalysis] = {}
-        for cell in snapshot.cells:
+        for cell in document:
             compiled = cache[cell.id].result
             if isinstance(compiled, protocol.Error):
                 analyses[cell.id] = protocol.CellAnalysis(
