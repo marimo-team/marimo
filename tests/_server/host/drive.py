@@ -16,12 +16,39 @@ if TYPE_CHECKING:
     from collections.abc import Callable, MutableMapping
 
     from starlette.applications import Starlette
+    from starlette.testclient import WebSocketTestSession
+    from starlette.types import ASGIApp, Receive, Scope, Send
 
 PORT = 1234
 """Server port used to validate the request's Host header."""
 
 AUTHORITY = f"127.0.0.1:{PORT}"
 LOOPBACK = ("127.0.0.1", 50000)
+
+
+def with_client_address(
+    app: ASGIApp, address: tuple[str, int] = LOOPBACK
+) -> ASGIApp:
+    """Set the peer address without requiring Starlette's newer `client` option."""
+
+    async def wrapped(scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] in ("http", "websocket"):
+            scope = {**scope, "client": address}
+        await app(scope, receive, send)
+
+    return wrapped
+
+
+def socket_snapshot(websocket: WebSocketTestSession) -> list[dict[str, Any]]:
+    """Read the opening snapshot or replay, including its ready boundary."""
+    events = []
+    while True:
+        event = websocket.receive_json()
+        events.append(event)
+        if event["event"] == "ready":
+            assert event["data"] == {}
+            assert isinstance(event["id"], str)
+            return events
 
 
 class Response:

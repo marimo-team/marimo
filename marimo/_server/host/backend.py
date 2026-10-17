@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._core import backend as be, protocol
-from marimo._core.stream import Event
 from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,
@@ -22,7 +21,7 @@ from marimo._messaging.notification import (
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.commands import ExecuteScratchpadCommand
 from marimo._runtime.scratch import SCRATCH_CELL_ID
-from marimo._server.host.events import MarimoEvent
+from marimo._server.host.events import notification_event
 from marimo._server.host.translate import RunTranslator
 from marimo._server.scratchpad import snapshot_for_scratchpad
 from marimo._session.consumer import SessionConsumer
@@ -298,18 +297,8 @@ class SessionBackend(SessionConsumer):
 
     def notify(self, notification: KernelMessage) -> None:
         message = deserialize_kernel_message(notification)
-        run_id = getattr(message, "run_id", None)
         with self._sink.deferred():
-            self._sink.append(
-                Event(
-                    "marimo",
-                    MarimoEvent(marimo=message),
-                    notebook_id=self._notebook_id,
-                    run_id=protocol.RunId(run_id)
-                    if run_id is not None
-                    else None,
-                )
-            )
+            self._sink.append(notification_event(self._notebook_id, message))
             self._handle_notification(message)
 
     def _handle_notification(self, message: NotificationMessage) -> None:
