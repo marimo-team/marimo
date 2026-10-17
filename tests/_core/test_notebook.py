@@ -1205,7 +1205,6 @@ def test_restoration_preserves_revisions_and_outputs(
         record().id,
         [CellSource(CellId("c2"), "pass"), CellSource(CellId("c1"), "42")],
         {"width": "full"},
-        policy="lazy",
         saved=saved,
     )
     # The output belongs to the previous source, and the saved revision can

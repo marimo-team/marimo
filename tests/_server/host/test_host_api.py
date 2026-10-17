@@ -1476,7 +1476,7 @@ async def test_the_notebook_stream_carries_cells_then_the_document(
     assert second["config"]["hide_code"] is True
     assert document["order"] == [first["id"], second["id"]]
     assert document["app_config"] == {"width": "full"}
-    assert document["policy"] == "autorun"
+    assert "policy" not in document
     assert document["saved_etag"] == document["etag"]
     assert all(
         c["notebook_id"] == harness.notebook_id for c in (first, second)

@@ -333,9 +333,7 @@ class TestApply:
 
 class TestFromRecords:
     def test_preserves_the_saved_revision(self) -> None:
-        source = Document(
-            NOTEBOOK, fixture_cells(), {"width": "full"}, policy="lazy"
-        )
+        source = Document(NOTEBOOK, fixture_cells(), {"width": "full"})
         # The saved revision precedes the current one; both survive.
         source.replace([CellSource("c1", "import marimo")], {"width": "full"})
         restored = Document.from_records(source._record, list(source))
