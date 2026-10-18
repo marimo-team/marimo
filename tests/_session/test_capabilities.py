@@ -115,8 +115,10 @@ def test_editor_can_do_everything() -> None:
     assert consumer_can(EDITOR, commands.InvokeFunctionCommand) is True
 
 
-def test_wasm_and_notebook_commands_are_disjoint() -> None:
-    wasm = set(typing.get_args(commands.WasmCommand))
+def test_client_and_notebook_commands_are_disjoint() -> None:
+    client = set(typing.get_args(commands.ClientCommand))
     notebook = set(typing.get_args(commands.NotebookCommand))
 
-    assert not (wasm & notebook), sorted(c.__name__ for c in wasm & notebook)
+    assert not (client & notebook), sorted(
+        c.__name__ for c in client & notebook
+    )

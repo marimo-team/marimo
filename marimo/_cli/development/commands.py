@@ -18,7 +18,7 @@ from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
 from marimo._messaging.notification import NotificationMessage
-from marimo._runtime.commands import WasmCommand
+from marimo._runtime.commands import ClientCommand
 
 if TYPE_CHECKING:
     import psutil
@@ -452,8 +452,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
     # Hack to get the unions included in the schema.
     class KnownUnions(msgspec.Struct):
         notification: NotificationMessage
-        # Commands are exported only through WasmCommand and its dependencies.
-        command: WasmCommand
+        # Commands are exported only through ClientCommand and its dependencies.
+        command: ClientCommand
         error: MarimoError
         data_type: DataType
 

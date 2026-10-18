@@ -11,7 +11,7 @@ from marimo._cli.development.commands import _generate_server_api_schema
 from marimo._runtime import commands
 
 
-def test_openapi_exports_only_wasm_commands() -> None:
+def test_openapi_exports_only_client_commands() -> None:
     schemas = _generate_server_api_schema()["components"]["schemas"]
     command_names = {
         model.__name__
@@ -20,11 +20,11 @@ def test_openapi_exports_only_wasm_commands() -> None:
     }
 
     assert command_names & schemas.keys() == {
-        command.__name__ for command in get_args(commands.WasmCommand)
+        command.__name__ for command in get_args(commands.ClientCommand)
     }
 
 
-def test_openapi_preserves_brands_in_wasm_commands() -> None:
+def test_openapi_preserves_brands_in_client_commands() -> None:
     schemas = _generate_server_api_schema()["components"]["schemas"]
 
     assert schemas["ExecuteCellsCommand"]["properties"]["cellIds"] == {

@@ -243,8 +243,7 @@ class SetBreakpointsCommand(Command):
         return f"SetBreakpointsCommand(count={count})"
 
 
-# TODO(MO-8007): Goes with ExecuteCellsCommand, CreateNotebookCommand, and
-# SyncGraphCommand, which are the commands built from it.
+# TODO(MO-8007): Remove when run commands use document revisions.
 class ExecuteCellCommand(Command):
     """Execute a single cell.
 
@@ -271,8 +270,7 @@ class ExecuteCellCommand(Command):
         )
 
 
-# TODO(MO-8007): Gone. The host computes the stale set from its model and runs
-# it.
+# TODO(MO-8007): Have the host compute and run stale cells.
 class ExecuteStaleCellsCommand(Command):
     """Execute all stale cells.
 
@@ -286,7 +284,7 @@ class ExecuteStaleCellsCommand(Command):
     request: HTTPRequest | None = None
 
 
-# TODO(MO-8007): Becomes a run with roots. Code comes from the revision.
+# TODO(MO-8007): Run roots against a document revision.
 class ExecuteCellsCommand(Command):
     """Execute multiple cells in a batch.
 
@@ -335,7 +333,7 @@ class ExecuteCellsCommand(Command):
         )
 
 
-# TODO(MO-8007): Becomes the reconcile step of a run.
+# TODO(MO-8007): Reconcile the graph as part of a run.
 class SyncGraphCommand(Command):
     """Synchronize the kernel graph with file manager state.
 
@@ -376,7 +374,7 @@ class SyncGraphCommand(Command):
         ]
 
 
-# TODO(MO-8007): Becomes a run with no roots. The revision carries the edit.
+# TODO(MO-8007): Apply the edited revision with a rootless run.
 class EditCellsCommand(Command):
     """Apply one edit of the notebook's cells to the kernel.
 
@@ -397,8 +395,7 @@ class EditCellsCommand(Command):
     delete_ids: list[CellId_t]
 
 
-# TODO(MO-8007): Becomes a run whose root is the scratch cell, against a
-# revision.
+# TODO(MO-8007): Run the scratch cell against a document revision.
 class ExecuteScratchpadCommand(Command):
     """Execute code in the scratchpad.
 
@@ -438,7 +435,7 @@ class ExecuteScratchpadCommand(Command):
     allow_stdin: bool = True
 
 
-# TODO(MO-8007): Moves with the notebook entry.
+# TODO(MO-8007): Move renaming to the notebook entry.
 class RenameNotebookCommand(Command):
     """Rename or move the notebook file.
 
@@ -561,7 +558,7 @@ class AppMetadata(msgspec.Struct, rename="camel"):
     docstring: str | None = None
 
 
-# TODO(MO-8007): Gone. Reconciling the graph to the revision handles it.
+# TODO(MO-8007): Replace with graph reconciliation against the revision.
 class UpdateCellConfigCommand(Command):
     """Update cell configuration.
 
@@ -592,8 +589,7 @@ class UpdateUserConfigCommand(Command):
         return "UpdateUserConfigCommand(config=...)"
 
 
-# TODO(MO-8007): Becomes a run with every cell as a root, or none for a lazy
-# start.
+# TODO(MO-8007): Run all cells, or no roots for a lazy start.
 class CreateNotebookCommand(Command):
     """Instantiate and initialize a notebook.
 
@@ -614,7 +610,7 @@ class CreateNotebookCommand(Command):
     request: HTTPRequest | None = None
 
 
-# TODO(MO-8007): Gone. Reconciling the graph to the revision handles it.
+# TODO(MO-8007): Replace with graph reconciliation against the revision.
 class DeleteCellCommand(Command):
     """Delete a cell from the notebook.
 
@@ -628,7 +624,7 @@ class DeleteCellCommand(Command):
     cell_id: CellId_t
 
 
-# TODO(MO-8007): Becomes Backend.stop.
+# TODO(MO-8007): Replace with Backend.stop.
 class StopKernelCommand(Command):
     """Stop kernel execution.
 
@@ -980,7 +976,7 @@ class GetCacheInfoCommand(Command):
     """
 
 
-WasmCommand = (
+ClientCommand = (
     ExecuteCellsCommand
     | ExecuteScratchpadCommand
     | DeleteCellCommand
@@ -998,18 +994,9 @@ WasmCommand = (
     | DiscoverDataSourcesCommand
     | ListSecretKeysCommand
 )
-"""Commands the browser builds itself when it hosts the kernel in WASM.
+"""Kernel commands the frontend can construct and submit directly."""
 
-Over HTTP these arrive as request models and the handler builds the
-command. In WASM there is no handler, so the bridge adds the tag. This
-is the only command union the client schema exports, and the frontend
-typecheck fails when a bridge builds a command that is not here.
-"""
-
-# TODO(MO-8007): Collapse this group into one run command plus start and
-# stop. A run carries the document revision, so create, sync, edit, and
-# stale runs are all one command with different roots. Rename moves with
-# the notebook entry.
+# TODO(MO-8007): Consolidate into revision-based run, start, and stop.
 NotebookCommand = (
     CreateNotebookCommand
     | SyncGraphCommand
@@ -1024,7 +1011,7 @@ Only the server builds these, from the document it holds. They are the
 kernel side of the core `Backend` interface.
 """
 CommandMessage = (
-    WasmCommand
+    ClientCommand
     | NotebookCommand
     # Requests the server converts to commands
     | CodeCompletionCommand
