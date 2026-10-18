@@ -15,10 +15,23 @@ marimo development openapi
 
 ## Writing a new OpenAPI schema
 
-To modify the schema, add the type under `_generate_server_api_schema` in [`commands.py`](/marimo/_cli/development/commands.py) and run
+The frontend contract is declared in
+[`schema.py`](/marimo/_cli/development/schema.py). Add request/response models
+or standalone frontend types to `roots`. Types referenced by those roots are
+included automatically.
+
+Use `named_exports` to give a union or literal type a schema name. The generator
+exports `ClientCommand`, `NotificationMessage`, `MarimoError`, and `DataType`
+this way. Add client commands to `ClientCommand`, rather than exporting
+individual commands as additional roots.
+
+`KnownUnions` remains for existing downstream consumers. New consumers should
+use the named schemas directly, such as `schemas["ClientCommand"]`.
+
+Regenerate the schema and TypeScript together with Python 3.12:
 
 ```bash
-marimo development openapi > packages/openapi/api.yaml
+make fe-codegen
 ```
 
 ## Validating an OpenAPI schema

@@ -4283,6 +4283,23 @@ export interface components {
     };
     /** ClearCacheRequest */
     ClearCacheRequest: Record<string, any>;
+    ClientCommand:
+      | components["schemas"]["ExecuteCellsCommand"]
+      | components["schemas"]["ExecuteScratchpadCommand"]
+      | components["schemas"]["DeleteCellCommand"]
+      | components["schemas"]["UpdateCellConfigCommand"]
+      | components["schemas"]["UpdateUIElementCommand"]
+      | components["schemas"]["ModelCommand"]
+      | components["schemas"]["InvokeFunctionCommand"]
+      | components["schemas"]["InstallPackagesCommand"]
+      | components["schemas"]["PreviewDatasetColumnCommand"]
+      | components["schemas"]["PreviewSQLTableCommand"]
+      | components["schemas"]["ListSQLTablesCommand"]
+      | components["schemas"]["ListSQLSchemasCommand"]
+      | components["schemas"]["ValidateSQLCommand"]
+      | components["schemas"]["ListDataSourceConnectionCommand"]
+      | components["schemas"]["DiscoverDataSourcesCommand"]
+      | components["schemas"]["ListSecretKeysCommand"];
     /** CodeCompletionRequest */
     CodeCompletionRequest: {
       cellId: components["schemas"]["CellId"];
@@ -4593,6 +4610,17 @@ export interface components {
         | "time"
         | "unknown";
     };
+    /** @enum {unknown} */
+    DataType:
+      | "boolean"
+      | "date"
+      | "datetime"
+      | "geometry"
+      | "integer"
+      | "number"
+      | "string"
+      | "time"
+      | "unknown";
     /**
      * Database
      * @description Represents a collection of schemas.
@@ -5658,93 +5686,10 @@ export interface components {
     };
     /** KnownUnions */
     KnownUnions: {
-      command:
-        | components["schemas"]["ExecuteCellsCommand"]
-        | components["schemas"]["ExecuteScratchpadCommand"]
-        | components["schemas"]["DeleteCellCommand"]
-        | components["schemas"]["UpdateCellConfigCommand"]
-        | components["schemas"]["UpdateUIElementCommand"]
-        | components["schemas"]["ModelCommand"]
-        | components["schemas"]["InvokeFunctionCommand"]
-        | components["schemas"]["InstallPackagesCommand"]
-        | components["schemas"]["PreviewDatasetColumnCommand"]
-        | components["schemas"]["PreviewSQLTableCommand"]
-        | components["schemas"]["ListSQLTablesCommand"]
-        | components["schemas"]["ListSQLSchemasCommand"]
-        | components["schemas"]["ValidateSQLCommand"]
-        | components["schemas"]["ListDataSourceConnectionCommand"]
-        | components["schemas"]["DiscoverDataSourcesCommand"]
-        | components["schemas"]["ListSecretKeysCommand"];
-      /** @enum {unknown} */
-      data_type:
-        | "boolean"
-        | "date"
-        | "datetime"
-        | "geometry"
-        | "integer"
-        | "number"
-        | "string"
-        | "time"
-        | "unknown";
-      error:
-        | components["schemas"]["SetupRootError"]
-        | components["schemas"]["CycleError"]
-        | components["schemas"]["MultipleDefinitionError"]
-        | components["schemas"]["ImportStarError"]
-        | components["schemas"]["MarimoAncestorStoppedError"]
-        | components["schemas"]["MarimoAncestorPreventedError"]
-        | components["schemas"]["MarimoExceptionRaisedError"]
-        | components["schemas"]["MarimoStrictExecutionError"]
-        | components["schemas"]["MarimoInterruptionError"]
-        | components["schemas"]["MarimoSyntaxError"]
-        | components["schemas"]["MarimoInternalError"]
-        | components["schemas"]["MarimoSQLError"]
-        | components["schemas"]["UnknownError"];
-      notification:
-        | components["schemas"]["CellNotification"]
-        | components["schemas"]["ExecutionNotification"]
-        | components["schemas"]["FunctionCallResultNotification"]
-        | components["schemas"]["UIElementMessageNotification"]
-        | components["schemas"]["ModelLifecycleNotification"]
-        | components["schemas"]["RemoveUIElementsNotification"]
-        | components["schemas"]["ReloadNotification"]
-        | components["schemas"]["ReconnectedNotification"]
-        | components["schemas"]["InterruptedNotification"]
-        | components["schemas"]["CompletedRunNotification"]
-        | components["schemas"]["KernelReadyNotification"]
-        | components["schemas"]["CompletionResultNotification"]
-        | components["schemas"]["AlertNotification"]
-        | components["schemas"]["BannerNotification"]
-        | components["schemas"]["MissingPackageAlertNotification"]
-        | components["schemas"]["EnvironmentOperationNotification"]
-        | components["schemas"]["EnvironmentStateNotification"]
-        | components["schemas"]["StartupLogsNotification"]
-        | components["schemas"]["StartupProgressNotification"]
-        | components["schemas"]["KernelStartupErrorNotification"]
-        | components["schemas"]["VariablesNotification"]
-        | components["schemas"]["VariableValuesNotification"]
-        | components["schemas"]["QueryParamsSetNotification"]
-        | components["schemas"]["QueryParamsAppendNotification"]
-        | components["schemas"]["QueryParamsDeleteNotification"]
-        | components["schemas"]["QueryParamsClearNotification"]
-        | components["schemas"]["DatasetsNotification"]
-        | components["schemas"]["DataColumnPreviewNotification"]
-        | components["schemas"]["SQLTablePreviewNotification"]
-        | components["schemas"]["SQLTableListPreviewNotification"]
-        | components["schemas"]["SQLSchemaListPreviewNotification"]
-        | components["schemas"]["DataSourceConnectionsNotification"]
-        | components["schemas"]["DataSourceDiscoveryResultNotification"]
-        | components["schemas"]["ValidateSQLResultNotification"]
-        | components["schemas"]["StorageNamespacesNotification"]
-        | components["schemas"]["StorageEntriesNotification"]
-        | components["schemas"]["StorageDownloadReadyNotification"]
-        | components["schemas"]["SecretKeysResultNotification"]
-        | components["schemas"]["CacheClearedNotification"]
-        | components["schemas"]["CacheInfoNotification"]
-        | components["schemas"]["FocusCellNotification"]
-        | components["schemas"]["ActiveLineNotification"]
-        | components["schemas"]["NotebookDocumentTransactionNotification"]
-        | components["schemas"]["ConsumerCapabilitiesNotification"];
+      command: components["schemas"]["ClientCommand"];
+      data_type: components["schemas"]["DataType"];
+      error: components["schemas"]["MarimoError"];
+      notification: components["schemas"]["NotificationMessage"];
     };
     /**
      * LanguageServersConfig
@@ -6024,6 +5969,20 @@ export interface components {
       snippets?: components["schemas"]["SnippetsConfig"];
       venv?: components["schemas"]["VenvConfig"];
     };
+    MarimoError:
+      | components["schemas"]["SetupRootError"]
+      | components["schemas"]["CycleError"]
+      | components["schemas"]["MultipleDefinitionError"]
+      | components["schemas"]["ImportStarError"]
+      | components["schemas"]["MarimoAncestorStoppedError"]
+      | components["schemas"]["MarimoAncestorPreventedError"]
+      | components["schemas"]["MarimoExceptionRaisedError"]
+      | components["schemas"]["MarimoStrictExecutionError"]
+      | components["schemas"]["MarimoInterruptionError"]
+      | components["schemas"]["MarimoSyntaxError"]
+      | components["schemas"]["MarimoInternalError"]
+      | components["schemas"]["MarimoSQLError"]
+      | components["schemas"]["UnknownError"];
     /** MarimoExceptionRaisedError */
     MarimoExceptionRaisedError: {
       exception_type: string;
@@ -6324,6 +6283,51 @@ export interface components {
         | components["schemas"]["SetConfig"]
       )[];
     };
+    NotificationMessage:
+      | components["schemas"]["CellNotification"]
+      | components["schemas"]["ExecutionNotification"]
+      | components["schemas"]["FunctionCallResultNotification"]
+      | components["schemas"]["UIElementMessageNotification"]
+      | components["schemas"]["ModelLifecycleNotification"]
+      | components["schemas"]["RemoveUIElementsNotification"]
+      | components["schemas"]["ReloadNotification"]
+      | components["schemas"]["ReconnectedNotification"]
+      | components["schemas"]["InterruptedNotification"]
+      | components["schemas"]["CompletedRunNotification"]
+      | components["schemas"]["KernelReadyNotification"]
+      | components["schemas"]["CompletionResultNotification"]
+      | components["schemas"]["AlertNotification"]
+      | components["schemas"]["BannerNotification"]
+      | components["schemas"]["MissingPackageAlertNotification"]
+      | components["schemas"]["EnvironmentOperationNotification"]
+      | components["schemas"]["EnvironmentStateNotification"]
+      | components["schemas"]["StartupLogsNotification"]
+      | components["schemas"]["StartupProgressNotification"]
+      | components["schemas"]["KernelStartupErrorNotification"]
+      | components["schemas"]["VariablesNotification"]
+      | components["schemas"]["VariableValuesNotification"]
+      | components["schemas"]["QueryParamsSetNotification"]
+      | components["schemas"]["QueryParamsAppendNotification"]
+      | components["schemas"]["QueryParamsDeleteNotification"]
+      | components["schemas"]["QueryParamsClearNotification"]
+      | components["schemas"]["DatasetsNotification"]
+      | components["schemas"]["DataColumnPreviewNotification"]
+      | components["schemas"]["SQLTablePreviewNotification"]
+      | components["schemas"]["SQLTableListPreviewNotification"]
+      | components["schemas"]["SQLSchemaListPreviewNotification"]
+      | components["schemas"]["DataSourceConnectionsNotification"]
+      | components["schemas"]["DataSourceDiscoveryResultNotification"]
+      | components["schemas"]["ValidateSQLResultNotification"]
+      | components["schemas"]["StorageNamespacesNotification"]
+      | components["schemas"]["StorageEntriesNotification"]
+      | components["schemas"]["StorageDownloadReadyNotification"]
+      | components["schemas"]["SecretKeysResultNotification"]
+      | components["schemas"]["CacheClearedNotification"]
+      | components["schemas"]["CacheInfoNotification"]
+      | components["schemas"]["FocusCellNotification"]
+      | components["schemas"]["ActiveLineNotification"]
+      | components["schemas"]["NotebookDocumentTransactionNotification"]
+      | components["schemas"]["ConsumerCapabilitiesNotification"];
     /**
      * OpenAiConfig
      * @description Configuration options for OpenAI or OpenAI-compatible services.

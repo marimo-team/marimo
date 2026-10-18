@@ -7,12 +7,12 @@ from typing import Any, get_args
 
 import yaml
 
-from marimo._cli.development.commands import _generate_server_api_schema
+from marimo._cli.development.schema import generate_server_api_schema
 from marimo._runtime import commands
 
 
 def test_openapi_exports_only_client_commands() -> None:
-    schemas = _generate_server_api_schema()["components"]["schemas"]
+    schemas = generate_server_api_schema()["components"]["schemas"]
     command_names = {
         model.__name__
         for model in vars(commands).values()
@@ -25,7 +25,7 @@ def test_openapi_exports_only_client_commands() -> None:
 
 
 def test_openapi_preserves_brands_in_client_commands() -> None:
-    schemas = _generate_server_api_schema()["components"]["schemas"]
+    schemas = generate_server_api_schema()["components"]["schemas"]
 
     assert schemas["ExecuteCellsCommand"]["properties"]["cellIds"] == {
         "type": "array",
@@ -34,6 +34,22 @@ def test_openapi_preserves_brands_in_client_commands() -> None:
     assert schemas["UpdateUIElementCommand"]["properties"]["objectIds"] == {
         "type": "array",
         "items": {"$ref": "#/components/schemas/UIElementId"},
+    }
+
+
+def test_openapi_known_unions_reference_named_exports() -> None:
+    schemas = generate_server_api_schema()["components"]["schemas"]
+
+    assert schemas["KnownUnions"] == {
+        "title": "KnownUnions",
+        "type": "object",
+        "properties": {
+            "notification": {"$ref": "#/components/schemas/NotificationMessage"},
+            "command": {"$ref": "#/components/schemas/ClientCommand"},
+            "error": {"$ref": "#/components/schemas/MarimoError"},
+            "data_type": {"$ref": "#/components/schemas/DataType"},
+        },
+        "required": ["notification", "command", "error", "data_type"],
     }
 
 
