@@ -516,6 +516,25 @@ class UpdateUIElementCommand(Command):
         return list(zip(self.object_ids, self.values, strict=False))
 
 
+class UpdateQueryParamsCommand(Command):
+    """Adopt the query parameters of the browser's current URL.
+
+    Sent when the browser restores a URL the kernel did not set itself, such as
+    on back/forward navigation. The kernel replaces its `mo.query_params()`
+    with these values and re-executes the cells that read them. The URL is
+    already correct, so the kernel does not echo the change back.
+
+    Attributes:
+        query_params: Every query parameter of the restored URL. A key that
+            appears once maps to a string; a repeated key maps to a list.
+        request: HTTP request context if available.
+    """
+
+    query_params: SerializedQueryParams
+    # Incoming request, e.g. from Starlette or FastAPI
+    request: HTTPRequest | None = None
+
+
 class InvokeFunctionCommand(Command):
     """Invoke a function from a UI element.
 
@@ -982,6 +1001,7 @@ ClientCommand = (
     | DeleteCellCommand
     | UpdateCellConfigCommand
     | UpdateUIElementCommand
+    | UpdateQueryParamsCommand
     | ModelCommand
     | InvokeFunctionCommand
     | InstallPackagesCommand

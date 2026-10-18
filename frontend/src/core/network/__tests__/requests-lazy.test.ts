@@ -191,6 +191,32 @@ describe("createLazyRequests", () => {
     expect(mockInit).toHaveBeenCalledTimes(1);
   });
 
+  it("drops query param sync while disconnected, delegates once connected", async () => {
+    const { connectionAtom } = await import("../connection");
+    const { store } = await import("../../state/jotai");
+    const { WebSocketState } = await import("../../websocket/types");
+    mockDelegate.sendUpdateQueryParams = vi
+      .fn()
+      .mockResolvedValue(null) as RunRequests["sendUpdateQueryParams"];
+    const lazyRequests = createLazyRequests(
+      mockDelegate,
+      mockGetRuntimeManager,
+    );
+
+    store.set(connectionAtom, { state: WebSocketState.NOT_STARTED });
+    await lazyRequests.sendUpdateQueryParams({ queryParams: { tab: "b" } });
+    expect(mockDelegate.sendUpdateQueryParams).not.toHaveBeenCalled();
+    // Navigating history must never start a kernel.
+    expect(mockInit).not.toHaveBeenCalled();
+
+    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    await lazyRequests.sendUpdateQueryParams({ queryParams: { tab: "b" } });
+    expect(mockDelegate.sendUpdateQueryParams).toHaveBeenCalledWith({
+      queryParams: { tab: "b" },
+    });
+    expect(mockInit).not.toHaveBeenCalled();
+  });
+
   it("should wait for connection before calling delegate method", async () => {
     const { waitForConnectionOpen } = await import("../connection");
     const lazyRequests = createLazyRequests(

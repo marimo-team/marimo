@@ -17,6 +17,7 @@ export function createErrorToastingRequests(
 ): EditRequests & RunRequests {
   const MESSAGES: Record<RequestKey, string> = {
     sendComponentValues: "Failed update value",
+    sendUpdateQueryParams: "Failed to sync query params from the URL",
     sendModelValue: "Failed to update model value",
     sendInstantiate: "Failed to instantiate",
     sendFunctionRequest: "Failed to send function request",

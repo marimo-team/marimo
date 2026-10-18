@@ -26,6 +26,7 @@ from marimo._runtime.commands import (
     SerializedQueryParams,
     UpdateUIElementCommand,
 )
+from marimo._runtime.params import QueryParams
 from marimo._runtime.patches import extract_docstring_from_header
 from marimo._server.app_defaults import AppDefaults
 from marimo._server.models.models import SaveNotebookRequest
@@ -149,7 +150,13 @@ def create_session(
         SessionMode.EDIT,
         write_kernel_message,
         AppMetadata(
-            query_params=query_params,
+            # Same keys the server strips (ws_session_connector); a later
+            # sync from the browser URL strips them too.
+            query_params={
+                key: value
+                for key, value in query_params.items()
+                if key not in QueryParams.IGNORED_KEYS
+            },
             filename=filename,
             cli_args={},
             argv=[],

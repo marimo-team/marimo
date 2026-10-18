@@ -32,6 +32,7 @@ class Capability(Enum):
 _INTERACT_COMMANDS: frozenset[type] = frozenset(
     {
         commands.UpdateUIElementCommand,
+        commands.UpdateQueryParamsCommand,
         commands.ModelCommand,
         commands.InvokeFunctionCommand,
     }

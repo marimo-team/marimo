@@ -188,6 +188,17 @@ class QueryParams(State[SerializedQueryParams]):
     def to_dict(self) -> dict[str, str | list[str]]:
         return self._params
 
+    def _replace_all(self, params: SerializedQueryParams) -> None:
+        """Replace every parameter without notifying the frontend.
+
+        For URLs the browser restored itself (back/forward navigation): the
+        frontend already shows these values, and echoing them back would push
+        a duplicate history entry. The caller is responsible for re-running
+        the cells that read the params.
+        """
+        self._params.clear()
+        self._params.update(params)
+
 
 @mddoc
 class CLIArgs:

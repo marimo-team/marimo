@@ -201,6 +201,18 @@ class TestQueryParams(unittest.TestCase):
         assert len(self.mock_stream.messages) == 1
         assert self.mock_stream.operations[0] == {"op": "query-params-clear"}
 
+    def test_replace_all_does_not_notify_frontend(self) -> None:
+        before = self.params.to_dict()
+        self.params._replace_all({"key3": "value4", "key4": ["a", "b"]})
+
+        assert self.params.to_dict() == {"key3": "value4", "key4": ["a", "b"]}
+        # The backing dict is replaced in place: anything holding a reference
+        # to to_dict() sees the new contents.
+        assert self.params.to_dict() is before
+        # The browser URL already holds these values; echoing them back would
+        # push a duplicate history entry.
+        assert self.mock_stream.messages == []
+
 
 class TestCLIArgs(unittest.TestCase):
     def setUp(self):

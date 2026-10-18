@@ -47,6 +47,7 @@ from marimo._runtime.commands import (
     StopKernelCommand,
     SyncGraphCommand,
     UpdateCellConfigCommand,
+    UpdateQueryParamsCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
     ValidateSQLCommand,
@@ -711,6 +712,14 @@ async def test_pyodide_session_put_input(
         # Cache management
         ('{"type": "clear-cache"}', ClearCacheCommand),
         ('{"type": "get-cache-info"}', GetCacheInfoCommand),
+        (
+            '{"type": "update-query-params", "queryParams": {"tab": "a", "ids": ["1", "2"]}}',
+            UpdateQueryParamsCommand,
+        ),
+        (
+            '{"type": "update-query-params", "queryParams": {}}',
+            UpdateQueryParamsCommand,
+        ),
         # Kernel operations
         ('{"type": "stop-kernel"}', StopKernelCommand),
     ],
