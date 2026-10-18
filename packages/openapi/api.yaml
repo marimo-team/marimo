@@ -717,44 +717,10 @@ components:
       - uiMessages
       title: ChatRequest
       type: object
-    ClearCacheCommand:
-      description: "Clear all cached data.\n\n    Clears all cache contexts, freeing\
-        \ memory and disk space.\n    Affects all cells using the @cache decorator."
-      properties:
-        type:
-          enum:
-          - clear-cache
-      required:
-      - type
-      title: ClearCacheCommand
-      type: object
     ClearCacheRequest:
       properties: {}
       required: []
       title: ClearCacheRequest
-      type: object
-    CodeCompletionCommand:
-      description: "Request code completion suggestions.\n\n    Sent when the user\
-        \ requests autocomplete. Provides code context up to\n    the cursor position\
-        \ for the language server.\n\n    Attributes:\n        id: Unique identifier\
-        \ for this request.\n        document: Source code up to the cursor position.\n\
-        \        cell_id: Cell where completion is requested."
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-        document:
-          type: string
-        id:
-          $ref: '#/components/schemas/RequestId'
-        type:
-          enum:
-          - code-completion
-      required:
-      - type
-      - id
-      - document
-      - cellId
-      title: CodeCompletionCommand
       type: object
     CodeCompletionRequest:
       properties:
@@ -1186,7 +1152,7 @@ components:
           enum:
           - data-source-discovery-result
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         sources:
           items:
             $ref: '#/components/schemas/DetectedDataSource'
@@ -1381,26 +1347,6 @@ components:
             - auto
       required: []
       title: DatasourcesConfig
-      type: object
-    DebugCellCommand:
-      description: "Enter debugger mode for a cell.\n\n    Starts the Python debugger\
-        \ (pdb) for the specified cell.\n\n    Attributes:\n        cell_id: Cell\
-        \ to debug.\n        request: HTTP request context if available."
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-        type:
-          enum:
-          - debug-cell
-      required:
-      - type
-      - cellId
-      title: DebugCellCommand
       type: object
     DebugCellRequest:
       properties:
@@ -1885,33 +1831,6 @@ components:
       - hash
       title: EsmSpec
       type: object
-    ExecuteCellCommand:
-      description: "Execute a single cell.\n\n    Executes a cell with the provided\
-        \ code. Dependent cells may be\n    re-executed based on the reactive execution\
-        \ mode.\n\n    Attributes:\n        cell_id: Cell to execute.\n        code:\
-        \ Python code to execute.\n        request: HTTP request context if available.\n\
-        \        timestamp: Unix timestamp when command was created."
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-        code:
-          type: string
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-        timestamp:
-          type: number
-        type:
-          enum:
-          - execute-cell
-      required:
-      - type
-      - cellId
-      - code
-      title: ExecuteCellCommand
-      type: object
     ExecuteCellsCommand:
       description: "Execute multiple cells in a batch.\n\n    Executes multiple cells\
         \ with their corresponding code. The kernel manages\n    dependency tracking\
@@ -2066,7 +1985,7 @@ components:
           - type: 'null'
           default: null
         cell_id:
-          type: string
+          $ref: '#/components/schemas/CellId'
         code:
           anyOf:
           - type: string
@@ -2699,17 +2618,6 @@ components:
       - status
       - found
       title: FunctionCallResultNotification
-      type: object
-    GetCacheInfoCommand:
-      description: "Retrieve cache statistics.\n\n    Collects cache usage info across\
-        \ all contexts (hit/miss rates, time saved, disk usage)."
-      properties:
-        type:
-          enum:
-          - get-cache-info
-      required:
-      - type
-      title: GetCacheInfoCommand
       type: object
     GetCacheInfoRequest:
       properties: {}
@@ -4097,7 +4005,7 @@ components:
               update: '#/components/schemas/ModelUpdate'
             propertyName: method
         model_id:
-          type: string
+          $ref: '#/components/schemas/WidgetModelId'
         op:
           enum:
           - model-lifecycle
@@ -5678,7 +5586,7 @@ components:
           enum:
           - storage-download-ready
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         url:
           anyOf:
           - type: string
@@ -5745,7 +5653,7 @@ components:
           - type: 'null'
           default: null
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - op
       - request_id
@@ -6204,21 +6112,6 @@ components:
       - values
       title: UpdateUIElementValuesRequest
       type: object
-    UpdateUserConfigCommand:
-      description: "Update user configuration.\n\n    Updates global marimo configuration\
-        \ (runtime settings, display options, editor preferences).\n\n    Attributes:\n\
-        \        config: Complete user configuration."
-      properties:
-        config:
-          $ref: '#/components/schemas/MarimoConfig'
-        type:
-          enum:
-          - update-user-config
-      required:
-      - type
-      - config
-      title: UpdateUserConfigCommand
-      type: object
     UpdateUserConfigRequest:
       properties:
         config:
@@ -6306,7 +6199,7 @@ components:
           - type: 'null'
           default: null
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         validate_result:
           anyOf:
           - $ref: '#/components/schemas/SqlCatalogCheckResult'

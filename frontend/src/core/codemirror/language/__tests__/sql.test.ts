@@ -8,6 +8,7 @@ import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { requestId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
 import type {
   CompletionConfig,
@@ -1106,7 +1107,7 @@ describe("CustomSqlParser", () => {
     const request = vi.spyOn(ValidateSQL, "request").mockResolvedValue({
       error: null,
       parse_result: { success: false, errors: [error] },
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       validate_result: null,
     });
     const state = EditorState.create({
@@ -1150,7 +1151,7 @@ describe("CustomSqlParser", () => {
     vi.spyOn(ValidateSQL, "request").mockResolvedValue({
       error: null,
       parse_result: { success: false, errors: [error] },
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       validate_result: null,
     });
     const state = EditorState.create({
@@ -1194,7 +1195,7 @@ describe("CustomSqlParser", () => {
     const request = vi.spyOn(ValidateSQL, "request").mockResolvedValue({
       error: null,
       parse_result: { success: false, errors: [error] },
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       validate_result: null,
     });
     const state = createNamedConnectionState({

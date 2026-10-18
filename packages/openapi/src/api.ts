@@ -4281,38 +4281,8 @@ export interface components {
       /** @default null */
       variables?: (string | components["schemas"]["VariableContext"])[] | null;
     };
-    /**
-     * ClearCacheCommand
-     * @description Clear all cached data.
-     *
-     *         Clears all cache contexts, freeing memory and disk space.
-     *         Affects all cells using the @cache decorator.
-     */
-    ClearCacheCommand: {
-      /** @enum {unknown} */
-      type: "clear-cache";
-    };
     /** ClearCacheRequest */
     ClearCacheRequest: Record<string, any>;
-    /**
-     * CodeCompletionCommand
-     * @description Request code completion suggestions.
-     *
-     *         Sent when the user requests autocomplete. Provides code context up to
-     *         the cursor position for the language server.
-     *
-     *         Attributes:
-     *             id: Unique identifier for this request.
-     *             document: Source code up to the cursor position.
-     *             cell_id: Cell where completion is requested.
-     */
-    CodeCompletionCommand: {
-      cellId: components["schemas"]["CellId"];
-      document: string;
-      id: components["schemas"]["RequestId"];
-      /** @enum {unknown} */
-      type: "code-completion";
-    };
     /** CodeCompletionRequest */
     CodeCompletionRequest: {
       cellId: components["schemas"]["CellId"];
@@ -4556,7 +4526,7 @@ export interface components {
     DataSourceDiscoveryResultNotification: {
       /** @enum {unknown} */
       op: "data-source-discovery-result";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       sources: components["schemas"]["DetectedDataSource"][];
     };
     /**
@@ -4673,23 +4643,6 @@ export interface components {
       auto_discover_columns?: boolean | "auto";
       auto_discover_schemas?: boolean | "auto";
       auto_discover_tables?: boolean | "auto";
-    };
-    /**
-     * DebugCellCommand
-     * @description Enter debugger mode for a cell.
-     *
-     *         Starts the Python debugger (pdb) for the specified cell.
-     *
-     *         Attributes:
-     *             cell_id: Cell to debug.
-     *             request: HTTP request context if available.
-     */
-    DebugCellCommand: {
-      cellId: components["schemas"]["CellId"];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      /** @enum {unknown} */
-      type: "debug-cell";
     };
     /** DebugCellRequest */
     DebugCellRequest: {
@@ -4964,28 +4917,6 @@ export interface components {
       url: string;
     };
     /**
-     * ExecuteCellCommand
-     * @description Execute a single cell.
-     *
-     *         Executes a cell with the provided code. Dependent cells may be
-     *         re-executed based on the reactive execution mode.
-     *
-     *         Attributes:
-     *             cell_id: Cell to execute.
-     *             code: Python code to execute.
-     *             request: HTTP request context if available.
-     *             timestamp: Unix timestamp when command was created.
-     */
-    ExecuteCellCommand: {
-      cellId: components["schemas"]["CellId"];
-      code: string;
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      timestamp?: number;
-      /** @enum {unknown} */
-      type: "execute-cell";
-    };
-    /**
      * ExecuteCellsCommand
      * @description Execute multiple cells in a batch.
      *
@@ -5083,7 +5014,7 @@ export interface components {
     ExecutionNotification: {
       /** @default null */
       caused_by?: string | null;
-      cell_id: string;
+      cell_id: components["schemas"]["CellId"];
       /** @default null */
       code?: string | null;
       execution_id: string;
@@ -5416,16 +5347,6 @@ export interface components {
       op: "function-call-result";
       return_value: unknown;
       status: components["schemas"]["HumanReadableStatus"];
-    };
-    /**
-     * GetCacheInfoCommand
-     * @description Retrieve cache statistics.
-     *
-     *         Collects cache usage info across all contexts (hit/miss rates, time saved, disk usage).
-     */
-    GetCacheInfoCommand: {
-      /** @enum {unknown} */
-      type: "get-cache-info";
     };
     /** GetCacheInfoRequest */
     GetCacheInfoRequest: Record<string, any>;
@@ -6270,7 +6191,7 @@ export interface components {
         | components["schemas"]["ModelUpdate"]
         | components["schemas"]["ModelCustom"]
         | components["schemas"]["ModelClose"];
-      model_id: string;
+      model_id: components["schemas"]["WidgetModelId"];
       /** @enum {unknown} */
       op: "model-lifecycle";
     };
@@ -7256,7 +7177,7 @@ export interface components {
       filename?: string | null;
       /** @enum {unknown} */
       op: "storage-download-ready";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       /** @default null */
       url?: string | null;
     };
@@ -7294,7 +7215,7 @@ export interface components {
       prefix?: string | null;
       /** @default null */
       query?: string | null;
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
     };
     /**
      * StorageEntry
@@ -7573,20 +7494,6 @@ export interface components {
       objectIds: components["schemas"]["UIElementId"][];
       values: unknown[];
     };
-    /**
-     * UpdateUserConfigCommand
-     * @description Update user configuration.
-     *
-     *         Updates global marimo configuration (runtime settings, display options, editor preferences).
-     *
-     *         Attributes:
-     *             config: Complete user configuration.
-     */
-    UpdateUserConfigCommand: {
-      config: components["schemas"]["MarimoConfig"];
-      /** @enum {unknown} */
-      type: "update-user-config";
-    };
     /** UpdateUserConfigRequest */
     UpdateUserConfigRequest: {
       config: components["schemas"]["MarimoConfig"];
@@ -7643,7 +7550,7 @@ export interface components {
       op: "validate-sql-result";
       /** @default null */
       parse_result?: components["schemas"]["SqlParseResult"] | null;
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       /** @default null */
       validate_result?: components["schemas"]["SqlCatalogCheckResult"] | null;
     };

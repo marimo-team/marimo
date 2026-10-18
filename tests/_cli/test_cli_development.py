@@ -3,9 +3,38 @@ from __future__ import annotations
 
 import json
 import subprocess
-from typing import Any
+from typing import Any, get_args
 
 import yaml
+
+from marimo._cli.development.commands import _generate_server_api_schema
+from marimo._runtime import commands
+
+
+def test_openapi_exports_only_wasm_commands() -> None:
+    schemas = _generate_server_api_schema()["components"]["schemas"]
+    command_names = {
+        model.__name__
+        for model in vars(commands).values()
+        if isinstance(model, type) and issubclass(model, commands.Command)
+    }
+
+    assert command_names & schemas.keys() == {
+        command.__name__ for command in get_args(commands.WasmCommand)
+    }
+
+
+def test_openapi_preserves_brands_in_wasm_commands() -> None:
+    schemas = _generate_server_api_schema()["components"]["schemas"]
+
+    assert schemas["ExecuteCellsCommand"]["properties"]["cellIds"] == {
+        "type": "array",
+        "items": {"$ref": "#/components/schemas/CellId"},
+    }
+    assert schemas["UpdateUIElementCommand"]["properties"]["objectIds"] == {
+        "type": "array",
+        "items": {"$ref": "#/components/schemas/UIElementId"},
+    }
 
 
 def _normalize_union_order(schema: Any) -> Any:
