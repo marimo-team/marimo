@@ -3,7 +3,7 @@ from __future__ import annotations
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.secrets import (
     SECRET_PLACEHOLDER,
-    mask_secrets,
+    redact_secrets,
     remove_secret_placeholders,
 )
 
@@ -38,7 +38,7 @@ def test_mask_secrets() -> None:
         == "bedrock_secret_access_key"
     )
 
-    new_config = mask_secrets(config)
+    new_config = redact_secrets(config)
     assert new_config["ai"]["open_ai"]["api_key"] == SECRET_PLACEHOLDER
     assert new_config["ai"]["anthropic"]["api_key"] == SECRET_PLACEHOLDER
     assert new_config["ai"]["google"]["api_key"] == SECRET_PLACEHOLDER
@@ -72,7 +72,7 @@ def test_mask_secrets_list() -> None:
         ai={"open_ai": [{"api_key": "super_secret"}]},
     )
     assert config["ai"]["open_ai"][0]["api_key"] == "super_secret"
-    new_config = mask_secrets(config)
+    new_config = redact_secrets(config)
     assert new_config["ai"]["open_ai"][0]["api_key"] == SECRET_PLACEHOLDER
 
     # Ensure the original config is not modified
@@ -93,7 +93,7 @@ def test_mask_secrets_empty() -> None:
     )
     assert config["ai"]["open_ai"]["model"] == "davinci"
 
-    new_config = mask_secrets(config)
+    new_config = redact_secrets(config)
     assert new_config["ai"]["open_ai"]["model"] == "davinci"
     # Not added until the key is present
     assert "api_key" not in new_config["ai"]["open_ai"]
@@ -108,7 +108,7 @@ def test_mask_secrets_empty() -> None:
     config["ai"]["google"]["api_key"] = ""
     config["ai"]["anthropic"]["api_key"] = ""
     config["ai"]["openrouter"]["api_key"] = ""
-    new_config = mask_secrets(config)
+    new_config = redact_secrets(config)
     assert new_config["ai"]["open_ai"]["api_key"] == ""
     assert new_config["ai"]["google"]["api_key"] == ""
     assert new_config["ai"]["anthropic"]["api_key"] == ""
@@ -121,9 +121,9 @@ def test_mask_secrets_empty() -> None:
 
 
 def test_mask_secrets_non_dict_values() -> None:
-    """mask_secrets must not crash when a secret path hits a non-dict value.
+    """redact_secrets must not crash when a secret path hits a non-dict value.
 
-    A malformed/partial config can place a non-dict where mask_secrets expects
+    A malformed/partial config can place a non-dict where redact_secrets expects
     to recurse into a dict. `bedrock=None` previously raised TypeError and
     `custom_providers="oops"` raised AttributeError; valid providers must still
     be masked.
@@ -135,7 +135,7 @@ def test_mask_secrets_non_dict_values() -> None:
             "custom_providers": "oops",
         },
     )
-    new_config = mask_secrets(config)
+    new_config = redact_secrets(config)
     assert new_config["ai"]["open_ai"]["api_key"] == SECRET_PLACEHOLDER
     assert new_config["ai"]["bedrock"] is None
     assert new_config["ai"]["custom_providers"] == "oops"
@@ -198,7 +198,7 @@ def test_mask_secrets_custom_providers() -> None:
     )
 
     # Mask secrets
-    new_config = mask_secrets(config)
+    new_config = redact_secrets(config)
 
     # Verify api_keys are masked
     assert (
@@ -282,7 +282,7 @@ def test_mask_secrets_signing_private_key_path() -> None:
             "trusted_signers": {"SHA256:abc": "alice"},
         },
     )
-    masked = mask_secrets(config)
+    masked = redact_secrets(config)
     assert masked["signing"]["private_key_path"] == SECRET_PLACEHOLDER
     # trusted_signers are public fingerprints — not masked.
     assert masked["signing"]["trusted_signers"] == {"SHA256:abc": "alice"}

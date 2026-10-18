@@ -25,7 +25,7 @@ import { requestClientAtom } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { isWasm } from "@/core/wasm/utils";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import {
   DEFAULT_EXPORT_OPTIONS,
   exportOptionsAtom,
@@ -111,7 +111,7 @@ describe("NotebookMenuDropdown", () => {
     store.set(requestClientAtom, MockRequestClient.create());
     store.set(filenameAtom, "/project/notebook.py");
     store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
-    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
     store.set(kioskModeAtom, false);
     store.set(layoutStateAtom, {
       selectedLayout: "vertical",

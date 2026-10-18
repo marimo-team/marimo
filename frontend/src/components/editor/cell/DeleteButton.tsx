@@ -6,7 +6,7 @@ import {
   getConnectionTooltip,
   isAppInteractionDisabled,
 } from "@/core/websocket/connection-utils";
-import type { WebSocketState } from "@/core/websocket/types";
+import type { ConnectionState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { Button } from "../../ui/button";
@@ -14,7 +14,7 @@ import { Tooltip } from "../../ui/tooltip";
 
 export const DeleteButton = (props: {
   status: RuntimeState;
-  connectionState: WebSocketState;
+  connectionState: ConnectionState;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }): JSX.Element => {
   const { status, connectionState, onClick } = props;

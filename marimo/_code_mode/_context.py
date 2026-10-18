@@ -734,8 +734,8 @@ class AsyncCodeModeContext:
         self._kernel = kernel
         self._document = document
         # Output snapshot is optional — callers that don't pass one
-        # (e.g. the MCP code server) get ``cell.output is None`` and
-        # ``cell.console_outputs == []`` for every cell, same as cells
+        # (e.g. the MCP code server) get `cell.output is None` and
+        # `cell.console_outputs == []` for every cell, same as cells
         # that genuinely produced no output.
         self._outputs: CellOutputs | None = get_current_outputs()
         self._cell_manager = cell_manager
@@ -1558,8 +1558,8 @@ class AsyncCodeModeContext:
             return self.cells[-1].id
 
         if isinstance(target, bool):
-            # Guard before the ``int`` branch — ``bool`` subclasses
-            # ``int`` in Python, and ``ctx.screenshot(True)`` almost
+            # Guard before the `int` branch — `bool` subclasses
+            # `int` in Python, and `ctx.screenshot(True)` almost
             # certainly reflects a caller mistake.
             raise TypeError(
                 "screenshot target cannot be a bool; pass a cell ID, "
@@ -1781,12 +1781,11 @@ class AsyncCodeModeContext:
             if e.code is not None
         ]
         requested_ids = {request.cell_id for request in execution_requests}
-        # Requested cells may exist only in the document. Register them in
-        # the same mutation so dependency sorting sees the whole run batch.
+        # Include every run target so preparation can discover pending
+        # ancestors using the complete batch's source.
         for entry in plan:
             if (
                 entry.cell_id in _run_set
-                and entry.cell_id not in self.graph.cells
                 and entry.cell_id not in requested_ids
             ):
                 execution_requests.append(
@@ -1795,15 +1794,21 @@ class AsyncCodeModeContext:
                         code=existing_code[entry.cell_id],
                     )
                 )
-                resolved_configs.setdefault(
-                    entry.cell_id,
-                    self._document.get_cell(entry.cell_id).config,
-                )
         deletion_requests = [
             DeleteCellCommand(cell_id=cid)
             for cid in existing_id_set - plan_ids
-            if cid in self.graph.cells
         ]
+        execution_requests = self._kernel.prepare_execution_requests(
+            execution_requests,
+            run_cell_ids=_run_set,
+            deletion_requests=deletion_requests,
+        )
+        for request in execution_requests:
+            if request.cell_id in existing_id_set:
+                resolved_configs.setdefault(
+                    request.cell_id,
+                    self._current_config(request.cell_id),
+                )
         cells_to_run = self._kernel.mutate_graph(
             execution_requests, deletion_requests
         )

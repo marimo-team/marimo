@@ -143,7 +143,24 @@ async def wait_for(
     while not condition(response):
         remaining = deadline - asyncio.get_running_loop().time()
         if remaining <= 0:
-            raise TimeoutError(f"gave up waiting; saw {response.names()}")
+            lifecycles = [
+                {
+                    "event": record["event"],
+                    **{
+                        key: value
+                        for key, value in record["data"][
+                            record["event"]
+                        ].items()
+                        if key in {"id", "run_id", "cell_id", "status"}
+                    },
+                }
+                for record in response.records
+                if record.get("event") in {"run", "execution"}
+            ]
+            raise TimeoutError(
+                f"gave up waiting after {timeout}s; saw {response.names()}; "
+                f"lifecycle events: {lifecycles}"
+            )
         response.changed.clear()
         try:
             await asyncio.wait_for(response.changed.wait(), remaining)

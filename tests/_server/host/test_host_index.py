@@ -16,7 +16,12 @@ from marimo._core.stream import Event
 from marimo._server.host.index import WorkspaceIndex
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace
-from tests._core.conftest import ScriptedBackend, names
+from tests._core.conftest import (
+    ScriptedBackend,
+    make_notebook,
+    names,
+    runtime_id_of,
+)
 
 
 def workspace(root: Path, *names: str) -> FixedFilesWorkspace:
@@ -37,7 +42,7 @@ def test_refresh_publishes_the_project_and_its_notebooks(
     index = WorkspaceIndex(
         host,
         workspace(tmp_path, "a.py", "sub/b.py"),
-        lambda _: ScriptedBackend(),
+        make_notebook,
     )
     index.refresh()
 
@@ -61,9 +66,7 @@ def test_refresh_publishes_the_project_and_its_notebooks(
 
 def test_ids_survive_a_rescan_and_a_move(tmp_path: Path) -> None:
     host = Host(operations=[])
-    index = WorkspaceIndex(
-        host, workspace(tmp_path, "a.py"), lambda _: ScriptedBackend()
-    )
+    index = WorkspaceIndex(host, workspace(tmp_path, "a.py"), make_notebook)
     index.refresh()
     (notebook,) = host.notebooks.values()
     log: list[Event] = []
@@ -84,10 +87,10 @@ def test_ids_survive_a_rescan_and_a_move(tmp_path: Path) -> None:
     assert index.file_of(notebook.id) == tmp_path / "b.py"
 
 
-def test_a_deleted_file_leaves_the_catalog(tmp_path: Path) -> None:
+async def test_a_deleted_file_leaves_the_catalog(tmp_path: Path) -> None:
     host = Host(operations=[])
     ws = workspace(tmp_path, "a.py", "b.py")
-    index = WorkspaceIndex(host, ws, lambda _: ScriptedBackend())
+    index = WorkspaceIndex(host, ws, make_notebook)
     index.refresh()
     removed = index.notebook_for(str(tmp_path / "b.py"))
     assert removed is not None
@@ -99,7 +102,7 @@ def test_a_deleted_file_leaves_the_catalog(tmp_path: Path) -> None:
 
     assert [n.path for n in host.notebooks.values()] == ["a.py"]
     with pytest.raises(NotFound):
-        host.notebook(removed.id)
+        (await host.notebook(removed.id))
 
     (tmp_path / "b.py").write_text("import marimo\n")
     recreated = index.ensure(str(tmp_path / "b.py"))
@@ -110,9 +113,7 @@ def test_a_deleted_file_leaves_the_catalog(tmp_path: Path) -> None:
 
 def test_ensure_admits_a_file_the_listing_missed(tmp_path: Path) -> None:
     host = Host(operations=[])
-    index = WorkspaceIndex(
-        host, workspace(tmp_path, "a.py"), lambda _: ScriptedBackend()
-    )
+    index = WorkspaceIndex(host, workspace(tmp_path, "a.py"), make_notebook)
     index.refresh()
     (tmp_path / "c.py").write_text("")
 
@@ -127,16 +128,20 @@ def test_ensure_admits_a_file_the_listing_missed(tmp_path: Path) -> None:
     assert admitted.id in host.notebooks
 
 
-def test_deleted_file_keeps_its_runtime_until_stopped(tmp_path: Path) -> None:
+async def test_deleted_file_keeps_its_runtime_until_stopped(
+    tmp_path: Path,
+) -> None:
     host = Host(operations=[])
     ws = workspace(tmp_path, "a.py")
     backend = ScriptedBackend()
-    index = WorkspaceIndex(host, ws, lambda _: backend)
+    index = WorkspaceIndex(
+        host, ws, lambda record, sink: make_notebook(record, sink, backend)
+    )
     index.refresh()
     (record,) = host.notebooks.values()
-    notebook = host.notebook(record.id)
+    notebook = await host.notebook(record.id)
     notebook.start()
-    notebook.observe(be.Running())
+    notebook.observe(be.Running(runtime_id_of(notebook)))
     runtime = notebook.runtime
     backend.calls.clear()
     (tmp_path / "a.py").unlink()
@@ -152,8 +157,9 @@ def test_deleted_file_keeps_its_runtime_until_stopped(tmp_path: Path) -> None:
     assert backend.calls == []
 
     notebook.stop()
-    notebook.observe(be.Exited())
+    notebook.observe(be.Exited(runtime_id_of(notebook)))
     index.refresh()
 
     assert dict(host.notebooks) == {}
-    assert backend.calls == [("stop",)]
+    assert runtime is not None
+    assert backend.calls == [("stop", runtime.id)]

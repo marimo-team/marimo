@@ -79,7 +79,7 @@ def _(alt, us_population, us_states):
             .project(type="albersUsa")
         )
 
-        # create a bar chart with the same conditional ``opacity`` encoding.
+        # create a bar chart with the same conditional `opacity` encoding.
         bars = (
             alt.Chart(
                 us_population.nlargest(15, "population"),

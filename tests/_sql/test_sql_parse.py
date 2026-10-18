@@ -458,6 +458,10 @@ id FRM users"""
             "SELECT {a}, {b}, {c}, {d}, {e};\nSELECT {value} FRM users",
             "SELECT 'é😀', {a},\n{id} FRM users",
             "SELECT {a}, {b}, {c}, {d}, {e} FRM users, {other}",
+            "SELECT {a\n} FRM users",
+            "SELECT {a\n+ b} FRM users",
+            "SELECT {a\n}, {b} FRM users",
+            "SELECT {a\n+ 😀} FRM users",
         ],
     )
     def test_bracket_positions_after_replacements(self, query: str):

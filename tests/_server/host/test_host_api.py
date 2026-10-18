@@ -10,12 +10,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlsplit
 
+import msgspec
 import pytest
+from starlette.routing import Route
 
 from marimo._core import backend as be, protocol
-from marimo._core.execution_state import RetentionPolicy
 from marimo._core.host import Host
+from marimo._core.notebook import Notebook
 from marimo._core.protocol import ProjectMessage
+from marimo._core.run_log import RetentionPolicy
 from marimo._server.host import api as api_module
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
@@ -23,7 +26,7 @@ from marimo._server.host.index import WorkspaceIndex
 from marimo._server.main import create_starlette_app
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace, SingleFileWorkspace
-from tests._core.conftest import ScriptedBackend
+from tests._core.conftest import ScriptedBackend, make_notebook, runtime_id_of
 from tests._server.host.drive import (
     PORT,
     finished,
@@ -41,6 +44,16 @@ if TYPE_CHECKING:
 
 TOKEN = "record-token"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
+
+
+async def analyzed(notebook: Notebook) -> protocol.Analysis:
+    """Wait for the notebook's analysis, which runs off the event loop."""
+    deadline = asyncio.get_running_loop().time() + 5
+    while notebook.analysis is None:
+        if asyncio.get_running_loop().time() > deadline:
+            raise TimeoutError("the notebook was not analyzed")
+        await asyncio.sleep(0.01)
+    return notebook.analysis
 
 
 def key(value: str) -> dict[str, str]:
@@ -82,13 +95,24 @@ class Harness:
             body=b"{}",
         )
         assert response.status == 202, response.body
-        self.host.notebook(self.notebook_id).observe(be.Running("0.25.0"))
+        (await self.host.notebook(self.notebook_id)).observe(
+            be.Running(
+                runtime_id_of(await self.host.notebook(self.notebook_id)),
+                "0.25.0",
+            )
+        )
         return self.notebook_id
 
 
 @pytest.fixture
-def harness(tmp_path: Path, request: pytest.FixtureRequest) -> Harness:
-    (tmp_path / "forecasts.py").write_text("import marimo\n")
+def harness(
+    tmp_path: Path,
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Harness:
+    (tmp_path / "forecasts.py").write_text(
+        "import marimo\napp = marimo.App()\n"
+    )
     workspace = FixedFilesWorkspace(
         [MarimoFile(name="forecasts.py", path=str(tmp_path / "forecasts.py"))],
         directory=str(tmp_path),
@@ -105,7 +129,10 @@ def harness(tmp_path: Path, request: pytest.FixtureRequest) -> Harness:
         harness.backends[notebook_id] = backend
         return backend
 
-    bridge.index = WorkspaceIndex(bridge.host, workspace, make)
+    monkeypatch.setattr(bridge, "_make_backend", make)
+    bridge.index = WorkspaceIndex(
+        bridge.host, workspace, bridge._initialize_notebook
+    )
     bridge.index.refresh()
     app.state.host_context = HostContext(
         bridge=bridge,
@@ -154,14 +181,67 @@ async def test_unknown_routes_are_problems(harness: Harness) -> None:
     assert response.headers["content-type"] == "application/problem+json"
 
 
+async def test_a_wrong_method_on_a_known_route_is_a_405_problem(
+    harness: Harness,
+) -> None:
+    response = await finished(harness.app, "GET", "/notebooks", headers=AUTH)
+    assert response.status == 405
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json()["type"].endswith("/method-not-allowed")
+    assert "POST" in response.headers["allow"]
+
+
+def _declared_routes() -> dict[str, set[str]]:
+    methods: dict[str, set[str]] = {}
+    for route in api_module.build_app().routes:
+        assert isinstance(route, Route)
+        path = route.path.replace("{id}", "nb-x").replace("{run_id}", "run-x")
+        methods.setdefault(path, set()).update(route.methods or set())
+    return methods
+
+
+_DECLARED = _declared_routes()
+_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+_UNKNOWN = [
+    "/nothing",
+    "/notebooks/nb-x/nothing",
+    "/events/",
+    "/notebooks/",
+    "/notebooks/nb-x/runtime/runs/run-x/",
+]
+_SWEEP = [
+    (path, method) for path in [*_DECLARED, *_UNKNOWN] for method in _METHODS
+]
+
+
+@pytest.mark.parametrize(("path", "method"), _SWEEP)
+async def test_every_method_on_every_route_is_a_response_not_a_500(
+    harness: Harness, path: str, method: str
+) -> None:
+    response, _, disconnect = request(harness.app, method, path, headers=AUTH)
+    await wait_for(response, lambda r: r.status != 0)
+    disconnect()
+    assert response.status != 500
+    if not 200 <= response.status < 300:
+        assert response.headers["content-type"] == "application/problem+json"
+    if response.status == 405:
+        allowed = {m.strip() for m in response.headers["allow"].split(",")}
+        assert allowed == _DECLARED[path]
+
+
 @pytest.mark.parametrize(
     ("host", "status"),
     [
         ("127.attacker.example:1234", 403),
         ("127.1.2.3:1234", 202),
         ("localhost:1234", 202),
+        ("LOCALHOST:1234", 202),
         ("[::1]:1234", 202),
         ("[::ffff:127.0.0.1]:1234", 202),
+        ("[::1]junk:1234", 403),
+        ("[::1", 403),
+        ("[::1:1234", 403),
+        ("127.0.0.1:" + "1" * 5000, 403),
     ],
 )
 async def test_only_loopback_names_are_admitted(
@@ -178,6 +258,136 @@ async def test_only_loopback_names_are_admitted(
     assert response.status == status
 
 
+@pytest.mark.parametrize(
+    "port",
+    ["\xb2", "1234\xb2", "\xb9\xb2\xb3"],
+)
+def test_latin1_superscripts_are_not_a_port(port: str) -> None:
+    from marimo._server.host.middleware import _host_header_ok
+
+    assert port.isdigit()
+    assert _host_header_ok(f"127.0.0.1:{port}", PORT) is False
+
+
+@pytest.mark.parametrize(
+    ("authorization", "status"),
+    [
+        ("Bearer \xe9", 401),
+        ("Bearer", 401),
+        ("Bearer ", 401),
+        ("Basic record-token", 401),
+        ("bearer  record-token ", 202),
+    ],
+)
+async def test_malformed_bearers_are_401_problems(
+    harness: Harness, authorization: str, status: int
+) -> None:
+    response = await finished(
+        harness.app,
+        "PUT",
+        f"/notebooks/{harness.notebook_id}/runtime",
+        headers={"Authorization": authorization, "Idempotency-Key": "start"},
+        body=b"{}",
+    )
+    assert response.status == status
+    if status != 202:
+        assert response.headers["content-type"] == "application/problem+json"
+
+
+@pytest.mark.parametrize("cursor", ["x", "-1", "1" * 5000, "1 "])
+async def test_a_malformed_cursor_is_a_400_problem(
+    harness: Harness, cursor: str
+) -> None:
+    response = await finished(
+        harness.app,
+        "GET",
+        "/events",
+        headers={**AUTH, "Last-Event-ID": cursor},
+    )
+    assert response.status == 400
+    assert response.json()["type"].endswith("/invalid-request")
+
+
+async def test_a_nul_byte_in_a_path_is_a_400_problem(harness: Harness) -> None:
+    response = await finished(
+        harness.app,
+        "POST",
+        "/notebooks",
+        headers=key("nul"),
+        body=json.dumps(
+            {
+                "project_id": harness.bridge.index.project_id,
+                "path": "a\u0000b.py",
+            }
+        ).encode(),
+    )
+    assert response.status == 400
+    assert response.json()["type"].endswith("/invalid-request")
+
+
+async def test_a_401_names_the_bearer_scheme(harness: Harness) -> None:
+    response = await finished(harness.app, "GET", "/events")
+    assert response.status == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
+@pytest.mark.parametrize("path", ["/events", "/notebooks/{id}/events"])
+@pytest.mark.parametrize("types", ["bogus", "notebook,bogus", "Notebook"])
+async def test_an_unknown_type_filter_is_a_400_problem(
+    harness: Harness, path: str, types: str
+) -> None:
+    response = await finished(
+        harness.app,
+        "GET",
+        path.replace("{id}", harness.notebook_id),
+        headers=AUTH,
+        query=f"types={types}",
+    )
+    assert response.status == 400
+    assert "bogus" in response.json()["detail"] or types == "Notebook"
+
+
+async def test_an_empty_update_is_a_400_problem(harness: Harness) -> None:
+    response = await finished(
+        harness.app,
+        "PATCH",
+        f"/notebooks/{harness.notebook_id}",
+        headers=key("empty"),
+        body=b"{}",
+    )
+    assert response.status == 400
+    assert response.json()["type"].endswith("/invalid-request")
+
+
+async def test_head_on_a_stream_is_a_405_and_attaches_nothing(
+    harness: Harness,
+) -> None:
+    notebook = await harness.host.notebook(harness.notebook_id)
+    before = len(notebook._attachments)
+    response = await finished(
+        harness.app, "HEAD", f"/notebooks/{notebook.id}/events", headers=AUTH
+    )
+    assert response.status == 405
+    assert response.headers["allow"] == "GET"
+    assert len(notebook._attachments) == before
+
+
+async def test_a_failure_inside_a_stream_does_not_restart_the_response(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(_event: object) -> bytes:
+        raise RuntimeError("frame failed")
+
+    monkeypatch.setattr(api_module, "_frame", broken)
+    response, task, _ = request(harness.app, "GET", "/events", headers=AUTH)
+    # Older Starlette raises the body's error inside an ExceptionGroup.
+    with pytest.raises(Exception) as caught:
+        await asyncio.wait_for(task, 5)
+    assert "frame failed" in repr(caught.value)
+    assert response.status == 200
+    assert response.body == b""
+
+
 async def test_the_catalog_stream_sends_a_snapshot_then_changes(
     harness: Harness,
 ) -> None:
@@ -189,7 +399,7 @@ async def test_the_catalog_stream_sends_a_snapshot_then_changes(
     assert "id" not in response.records[0]
     cursor = int(response.records[-1]["id"])
 
-    notebook = harness.host.notebook(harness.notebook_id)
+    notebook = await harness.host.notebook(harness.notebook_id)
     notebook.start()
     await wait_for(response, lambda r: r.names()[-1] == "runtime")
     live = response.records[-1]
@@ -251,7 +461,7 @@ async def test_types_and_cursors_apply_to_the_stream(harness: Harness) -> None:
     cursor = first.records[-1]["id"]
     disconnect()
 
-    harness.host.notebook(harness.notebook_id).start()
+    (await harness.host.notebook(harness.notebook_id)).start()
     resumed, _, disconnect = request(
         harness.app,
         "GET",
@@ -269,18 +479,33 @@ async def test_types_and_cursors_apply_to_the_stream(harness: Harness) -> None:
 
 
 async def test_a_notebook_stream_attaches_the_client(harness: Harness) -> None:
-    notebook = harness.host.notebook(harness.notebook_id)
+    notebook = await harness.host.notebook(harness.notebook_id)
+    await analyzed(notebook)
     response, task, disconnect = request(
         harness.app, "GET", f"/notebooks/{notebook.id}/events", headers=AUTH
     )
     await wait_for(response, until_ready)
-    assert response.names() == ["notebook", "attachment", "ready"]
-    assert response.records[1]["data"]["attachment"]["kind"] == "client"
+    # An empty notebook loads with marimo's one default cell.
+    assert response.names() == [
+        "notebook",
+        "cell",
+        "document",
+        "analysis",
+        "attachment",
+        "ready",
+    ]
+    assert response.records[2]["data"]["document"]["order"] == [
+        response.records[1]["data"]["cell"]["id"]
+    ]
+    assert response.records[4]["data"]["attachment"]["kind"] == "client"
 
     disconnect()
     await asyncio.wait_for(task, 5)
     assert [e.name for e in harness.host.events(notebook_id=notebook.id)] == [
         "notebook",
+        "cell",
+        "document",
+        "analysis",
         "ready",
     ]
 
@@ -288,6 +513,132 @@ async def test_a_notebook_stream_attaches_the_client(harness: Harness) -> None:
         harness.app, "GET", "/notebooks/nope/events", headers=AUTH
     )
     assert missing.status == 404
+
+
+IDENTIFIED = {
+    **AUTH,
+    api_module.ATTACHMENT_IDENTITY: "k1",
+    api_module.ATTACHMENT_KIND: "agent",
+    api_module.ATTACHMENT_NAME: "Codex",
+}
+
+
+async def attachment_of(
+    harness: Harness, headers: dict[str, str]
+) -> protocol.Attachment:
+    """Open a notebook stream with `headers` and return its attachment."""
+    response, task, disconnect = request(
+        harness.app,
+        "GET",
+        f"/notebooks/{harness.notebook_id}/events",
+        headers=headers,
+        query="types=attachment",
+    )
+    await wait_for(response, until_ready)
+    assert response.names() == ["attachment", "ready"]
+    message = msgspec.convert(
+        response.records[0]["data"], protocol.AttachmentMessage
+    )
+    disconnect()
+    await asyncio.wait_for(task, 5)
+    return message.attachment
+
+
+async def test_attachment_headers_name_the_client(harness: Harness) -> None:
+    attachment = await attachment_of(harness, IDENTIFIED)
+    assert attachment.identity == "k1"
+    assert attachment.kind == "agent"
+    assert attachment.name == "Codex"
+
+
+async def test_an_empty_attachment_name_is_null(harness: Harness) -> None:
+    attachment = await attachment_of(
+        harness, {**AUTH, api_module.ATTACHMENT_NAME: ""}
+    )
+    assert attachment.name is None
+
+
+async def test_a_reconnect_with_one_identity_attaches_fresh(
+    harness: Harness,
+) -> None:
+    path = f"/notebooks/{harness.notebook_id}/events"
+    first, first_task, disconnect_first = request(
+        harness.app, "GET", path, headers=IDENTIFIED, query="types=attachment"
+    )
+    await wait_for(first, until_ready)
+    cursor = first.records[-1]["id"]
+    old = first.records[0]["data"]["attachment"]
+    disconnect_first()
+    await asyncio.wait_for(first_task, 5)
+    assert "attachment" not in [e.name for e in harness.host.events()]
+
+    second, second_task, disconnect_second = request(
+        harness.app,
+        "GET",
+        path,
+        headers={**IDENTIFIED, "Last-Event-ID": cursor},
+        query="types=attachment",
+    )
+    await wait_for(second, until_ready)
+    assert second.names() == ["attachment.removed", "attachment", "ready"]
+    assert second.records[0]["data"]["id"] == old["id"]
+    new = second.records[1]["data"]["attachment"]
+    assert new["identity"] == old["identity"] == "k1"
+    assert new["id"] != old["id"]
+
+    disconnect_second()
+    await asyncio.wait_for(second_task, 5)
+
+
+async def test_custom_events_use_their_own_sse_kind(
+    harness: Harness,
+) -> None:
+    notebook = await harness.host.notebook(harness.notebook_id)
+    path = f"/notebooks/{notebook.id}/events"
+    custom, custom_task, disconnect_custom = request(
+        harness.app, "GET", path, headers=AUTH, query="types=custom"
+    )
+    attachments, attach_task, disconnect_attach = request(
+        harness.app, "GET", path, headers=AUTH, query="types=attachment"
+    )
+    await wait_for(custom, until_ready)
+    await wait_for(attachments, until_ready)
+
+    notebook.emit("marimo.test", {"hello": 1})
+    await wait_for(custom, lambda response: "custom" in response.names())
+    frame = next(r for r in custom.records if r.get("event") == "custom")
+    message = msgspec.convert(frame["data"], protocol.CustomMessage)
+    assert message.custom == protocol.Custom(
+        type="marimo.test", data={"hello": 1}
+    )
+    assert "custom" not in attachments.names()
+
+    disconnect_custom()
+    disconnect_attach()
+    await asyncio.gather(custom_task, attach_task)
+
+
+@pytest.mark.parametrize(
+    ("header", "value"),
+    [
+        (api_module.ATTACHMENT_IDENTITY, ""),
+        (api_module.ATTACHMENT_KIND, "Agent"),
+        (api_module.ATTACHMENT_NAME, "n" * 257),
+    ],
+)
+async def test_invalid_attachment_headers_are_rejected(
+    harness: Harness, header: str, value: str
+) -> None:
+    response = await finished(
+        harness.app,
+        "GET",
+        f"/notebooks/{harness.notebook_id}/events",
+        headers={**AUTH, header: value},
+    )
+    assert response.status == 400
+    body = response.json()
+    assert body["type"].endswith("/invalid-request")
+    assert body["detail"] == f"{header} is invalid"
 
 
 async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
@@ -307,21 +658,29 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
     assert restart.status == 409
     assert restart.json()["type"].endswith("/conflict")
 
-    harness.host.notebook(nid).observe(be.Running("0.25.0"))
+    (await harness.host.notebook(nid)).observe(
+        be.Running(runtime_id_of(await harness.host.notebook(nid)), "0.25.0")
+    )
     restart = await finished(app, "POST", path + "/restart", headers=key("k4"))
     assert restart.status == 202
     assert restart.json()["status"] == "starting"
     assert restart.json()["id"] != started.json()["id"]
 
-    harness.host.notebook(nid).observe(be.Exited())
-    harness.host.notebook(nid).observe(be.Running("0.25.0"))
+    (await harness.host.notebook(nid)).observe(
+        be.Exited(runtime_id_of(await harness.host.notebook(nid)))
+    )
+    (await harness.host.notebook(nid)).observe(
+        be.Running(runtime_id_of(await harness.host.notebook(nid)), "0.25.0")
+    )
     stopped = await finished(app, "DELETE", path, headers=key("k5"))
     assert stopped.status == 202
     assert stopped.json()["status"] == "terminating"
     assert stopped.json()["id"] != started.json()["id"]
     assert stopped.json()["id"] == restart.json()["id"]
 
-    harness.host.notebook(nid).observe(be.Exited())
+    (await harness.host.notebook(nid)).observe(
+        be.Exited(runtime_id_of(await harness.host.notebook(nid)))
+    )
     gone = await finished(app, "DELETE", path, headers=key("k6"))
     assert gone.status == 409
     assert gone.json()["type"].endswith("/no-runtime")
@@ -329,7 +688,7 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
 
 async def test_slow_restart_keeps_its_receipt(harness: Harness) -> None:
     nid = await harness.running()
-    notebook = harness.host.notebook(nid)
+    notebook = await harness.host.notebook(nid)
     path = f"/notebooks/{nid}/runtime/restart"
     accepted = await finished(
         harness.app, "POST", path, headers=key("restart")
@@ -339,8 +698,8 @@ async def test_slow_restart_keeps_its_receipt(harness: Harness) -> None:
     # The receipt's 30-second window must not begin during shutdown/startup.
     harness.now = 100
     harness.app.state.host_context.expire()
-    notebook.observe(be.Exited())
-    notebook.observe(be.Running("0.25.0"))
+    notebook.observe(be.Exited(runtime_id_of(notebook)))
+    notebook.observe(be.Running(runtime_id_of(notebook), "0.25.0"))
     calls = list(harness.backend().calls)
 
     retried = await finished(harness.app, "POST", path, headers=key("restart"))
@@ -360,7 +719,7 @@ async def test_slow_restart_keeps_its_receipt(harness: Harness) -> None:
     fresh = await finished(harness.app, "POST", path, headers=key("restart"))
     assert fresh.status == 202
     assert fresh.json()["id"] != accepted.json()["id"]
-    assert harness.backend().calls == [*calls, ("stop",)]
+    assert harness.backend().calls == [*calls, ("stop", accepted.json()["id"])]
 
 
 @pytest.mark.parametrize(
@@ -379,7 +738,7 @@ async def test_lifecycle_receipts_expire_after_terminal_events(
     nid = harness.notebook_id
     if operation != "start":
         await harness.running()
-    notebook = harness.host.notebook(nid)
+    notebook = await harness.host.notebook(nid)
     context = harness.app.state.host_context
     listeners = list(harness.host._stream._listeners)
     method = {"start": "PUT", "stop": "DELETE", "restart": "POST"}[operation]
@@ -403,11 +762,12 @@ async def test_lifecycle_receipts_expire_after_terminal_events(
             calls,
         )
         if operation == "restart" and now == 100:
-            notebook.observe(be.Exited())
+            notebook.observe(be.Exited(runtime_id_of(notebook)))
+    rid = runtime_id_of(notebook)
     notebook.observe(
-        be.Exited("failed" if failed else None)
+        be.Exited(rid, "failed" if failed else None)
         if failed or operation == "stop"
-        else be.Running()
+        else be.Running(rid)
     )
     assert harness.host._stream._listeners == listeners
     calls = list(harness.backend().calls)
@@ -434,7 +794,7 @@ async def test_stop_settles_superseded_lifecycle_receipts(
     nid = harness.notebook_id
     if operation != "start":
         await harness.running()
-    notebook = harness.host.notebook(nid)
+    notebook = await harness.host.notebook(nid)
     context = harness.app.state.host_context
     listeners = list(harness.host._stream._listeners)
     path = f"/notebooks/{nid}/runtime"
@@ -446,14 +806,14 @@ async def test_stop_settles_superseded_lifecycle_receipts(
         harness.app, method, pending_path, headers=key("pending")
     )
     if operation == "replacement":
-        notebook.observe(be.Exited())
+        notebook.observe(be.Exited(runtime_id_of(notebook)))
     harness.now = 100
     stops = [
         await finished(harness.app, "DELETE", path, headers=key(request_id))
         for request_id in ("stop-1", "stop-2")
     ]
     harness.now = 200
-    notebook.observe(be.Exited())
+    notebook.observe(be.Exited(runtime_id_of(notebook)))
     assert harness.host._stream._listeners == listeners
     calls = list(harness.backend().calls)
     harness.now = 229
@@ -487,19 +847,19 @@ async def test_synchronous_lifecycle_completion(
     nid = harness.notebook_id
     if operation != "start":
         await harness.running()
-    notebook = harness.host.notebook(nid)
+    notebook = await harness.host.notebook(nid)
     if operation == "failed-stop":
-        notebook.observe(be.Exited("failed"))
+        notebook.observe(be.Exited(runtime_id_of(notebook), "failed"))
     backend = harness.backend()
     start, stop = backend.start, backend.stop
 
-    def start_immediately(runtime_id: str) -> None:
-        start(runtime_id)
-        notebook.observe(be.Running())
+    def start_immediately(rid: str) -> None:
+        start(rid)
+        notebook.observe(be.Running(protocol.RuntimeId(rid)))
 
-    def stop_immediately() -> None:
-        stop()
-        notebook.observe(be.Exited())
+    def stop_immediately(rid: str) -> None:
+        stop(rid)
+        notebook.observe(be.Exited(protocol.RuntimeId(rid)))
 
     monkeypatch.setattr(backend, "start", start_immediately)
     monkeypatch.setattr(backend, "stop", stop_immediately)
@@ -551,7 +911,7 @@ async def test_noop_and_rejected_lifecycle_requests_release_their_listeners(
 
 async def test_run_filter_over_http(harness: Harness) -> None:
     nid = await harness.running()
-    notebook = harness.host.notebook(nid)
+    notebook = await harness.host.notebook(nid)
     first = notebook.run("1", request_id="first")
     notebook.observe(
         be.Planned(
@@ -589,6 +949,41 @@ async def test_run_filter_over_http(harness: Harness) -> None:
     assert invalid.status == 400
 
 
+async def test_interrupting_an_unstarted_run_after_shutdown(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    nid = await harness.running()
+    runs = f"/notebooks/{nid}/runtime/runs"
+    accepted = await finished(
+        harness.app, "POST", runs, headers=key("queued"), body=b'{"code":"1"}'
+    )
+    assert accepted.status == 202
+    run_id = accepted.json()["id"]
+    notebook = await harness.host.notebook(nid)
+    runtime_id = runtime_id_of(notebook)
+    notebook.stop()
+    notebook.observe(be.Exited(runtime_id))
+
+    def snapshot_unavailable(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("run lookup must not build a snapshot")
+
+    monkeypatch.setattr(harness.host, "events", snapshot_unavailable)
+    completed = await finished(
+        harness.app, "DELETE", f"{runs}/{run_id}", headers=key("completed")
+    )
+    assert completed.status == 409
+    unknown = await finished(
+        harness.app, "DELETE", f"{runs}/unknown", headers=key("unknown")
+    )
+    assert unknown.status == 404
+    harness.now = 61
+    harness.host.expire()
+    expired = await finished(
+        harness.app, "DELETE", f"{runs}/{run_id}", headers=key("expired")
+    )
+    assert expired.status == 404
+
+
 async def test_scratch_runs_over_http(harness: Harness) -> None:
     app, nid = harness.app, harness.notebook_id
     runs = f"/notebooks/{nid}/runtime/runs"
@@ -609,7 +1004,7 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     assert repeated.status == 202
     assert repeated.body == accepted.body
     assert harness.backend().calls.count(("run", run_id, "3 * 3")) == 1
-    notebook = harness.host.notebook(nid)
+    notebook = await harness.host.notebook(nid)
     notebook.observe(
         be.Planned(run_id, (be.PlannedExecution("e1", None, "hash", "3 * 3"),))
     )
@@ -666,7 +1061,7 @@ async def test_request_receipts_expire_independently_of_results(
     harness: Harness, cell_id: str | None
 ) -> None:
     nid = await harness.running()
-    notebook = harness.host.notebook(nid)
+    notebook = await harness.host.notebook(nid)
     path = f"/notebooks/{nid}/runtime/runs"
     body = b'{"code":"42"}'
     accepted = await finished(
@@ -931,7 +1326,7 @@ async def test_open_selects_the_notebook_outside_the_working_directory(
 async def test_operations_the_host_does_not_offer_are_501(
     harness: Harness,
 ) -> None:
-    notebook = harness.host.notebook(harness.notebook_id)
+    notebook = await harness.host.notebook(harness.notebook_id)
     host = Host(operations=[])
     [project] = [
         e.data.project
@@ -939,7 +1334,7 @@ async def test_operations_the_host_does_not_offer_are_501(
         if isinstance(e.data, ProjectMessage)
     ]
     host.update_project(project)
-    host.add_notebook(harness.host.notebooks[notebook.id], harness.backend())
+    host.add_notebook(harness.host.notebooks[notebook.id], make_notebook)
     harness.bridge.host = host
     response = await finished(
         harness.app,
@@ -1021,3 +1416,128 @@ async def test_symlink_escape_has_no_filesystem_side_effects(
     assert [n.path for n in harness.host.notebooks.values()] == [
         "forecasts.py"
     ]
+
+
+NOTEBOOK = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App(width="full")
+
+
+@app.cell
+def _():
+    x = 21
+    return (x,)
+
+
+@app.cell(hide_code=True)
+def _(x):
+    y = x * 2
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+
+
+async def test_the_notebook_stream_carries_cells_then_the_document(
+    harness: Harness,
+) -> None:
+    (harness.root / "forecasts.py").write_text(NOTEBOOK)
+    response, _, disconnect = request(
+        harness.app,
+        "GET",
+        f"/notebooks/{harness.notebook_id}/events",
+        headers=AUTH,
+    )
+    await wait_for(response, lambda r: "analysis" in r.names())
+    disconnect()
+
+    # The document is served as soon as it is read; its analysis follows.
+    assert response.names() == [
+        "notebook",
+        "cell",
+        "cell",
+        "document",
+        "attachment",
+        "ready",
+        "analysis",
+    ]
+    first, second = (r["data"]["cell"] for r in response.records[1:3])
+    document = response.records[3]["data"]["document"]
+    analysis = response.records[6]["data"]["analysis"]
+    assert first["code"] == "x = 21"
+    assert second["code"] == "y = x * 2"
+    assert second["config"]["hide_code"] is True
+    assert document["order"] == [first["id"], second["id"]]
+    assert document["app_config"] == {"width": "full"}
+    assert document["policy"] == "autorun"
+    assert document["saved_etag"] == document["etag"]
+    assert all(
+        c["notebook_id"] == harness.notebook_id for c in (first, second)
+    )
+    assert analysis["notebook_id"] == harness.notebook_id
+    assert analysis["document_etag"] == document["etag"]
+    assert analysis["cells"] == {
+        first["id"]: {"defs": ["x"], "refs": [], "errors": []},
+        second["id"]: {"defs": ["y"], "refs": ["x"], "errors": []},
+    }
+
+    # A filtered stream is a snapshot of the document alone, and a second
+    # connection reuses the loaded document.
+    response, _, disconnect = request(
+        harness.app,
+        "GET",
+        f"/notebooks/{harness.notebook_id}/events",
+        headers=AUTH,
+        query="types=cell,document",
+    )
+    await wait_for(response, until_ready)
+    disconnect()
+    assert response.names() == ["cell", "cell", "document", "ready"]
+    assert response.records[2]["data"]["document"] == document
+
+
+async def test_an_unreadable_notebook_stays_in_the_catalog_and_can_retry(
+    harness: Harness,
+) -> None:
+    file = harness.root / "forecasts.py"
+    file.write_text("print('not a notebook')\n")
+    notebook_id = harness.notebook_id
+
+    response = await finished(
+        harness.app,
+        "GET",
+        f"/notebooks/{notebook_id}/events",
+        headers=AUTH,
+    )
+    assert response.status == 409
+    assert harness.host.peek_notebook(notebook_id) is None
+    assert notebook_id in harness.host.notebooks
+    assert harness.backends == {}
+
+    file.write_text(NOTEBOOK)
+    notebook = await harness.host.notebook(notebook_id)
+    assert [cell.code for cell in notebook.document] == [
+        "x = 21",
+        "y = x * 2",
+    ]
+
+
+async def test_deleting_an_unreadable_notebook_does_not_initialize_it(
+    harness: Harness,
+) -> None:
+    file = harness.root / "forecasts.py"
+    file.write_text("print('not a notebook')\n")
+    notebook_id = harness.notebook_id
+    response = await finished(
+        harness.app,
+        "DELETE",
+        f"/notebooks/{notebook_id}",
+        headers=key("delete-unreadable"),
+    )
+    assert response.status == 204
+    assert notebook_id not in harness.host.notebooks
+    assert not file.exists()
+    assert harness.backends == {}

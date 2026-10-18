@@ -2,7 +2,7 @@
 import { useEffect, useRef } from "react";
 import type { UserConfig } from "../config/config-schema";
 import type { CellConfig } from "../network/types";
-import { type ConnectionStatus, WebSocketState } from "../websocket/types";
+import { type ConnectionStatus, ConnectionState } from "../websocket/types";
 
 export function useAutoSave(opts: {
   codes: string[];
@@ -43,7 +43,7 @@ export function useAutoSave(opts: {
         clearTimeout(autosaveTimeoutId.current);
       }
 
-      if (needsSave && connStatus.state === WebSocketState.OPEN) {
+      if (needsSave && connStatus.state === ConnectionState.OPEN) {
         autosaveTimeoutId.current = setTimeout(onSave, config.autosave_delay);
       }
     }

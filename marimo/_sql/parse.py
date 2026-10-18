@@ -151,16 +151,18 @@ def _parse_sql_duckdb(
     line_prefix = subquery[last_newline_idx + 1 :]
     column_number = len(line_prefix.encode("utf-16-le")) // 2
 
-    # Bracket indices refer to the original SQL, but the error position refers
-    # to SQL with added quotes. Compare both in the latter coordinate system.
+    # Count quotes separately: a multiline placeholder can put only its closing
+    # quote on the error line.
     error_line_start = last_newline_idx + 1
     cumulative_offset = 0
     preceding_offset = 0
     for idx, offset in idx_to_offset_dict.items():
         sanitized_idx = idx + preceding_offset
+        closing_quote_idx = query.index("}", sanitized_idx) + 1
         preceding_offset += offset
-        if error_line_start <= sanitized_idx < position:
-            cumulative_offset += offset
+        for quote_idx in (sanitized_idx, closing_quote_idx):
+            if error_line_start <= quote_idx < position:
+                cumulative_offset += 1
     column_number -= cumulative_offset
 
     sql_parse_result = SqlParseResult(

@@ -46,6 +46,15 @@ Observe = Callable[[be.Message], None]
 
 
 @dataclass
+class _Kernel:
+    """The session backing one runtime, once it exists."""
+
+    runtime_id: protocol.RuntimeId
+    session: Session | None = None
+    stop_requested: bool = False
+
+
+@dataclass
 class _Run:
     session: Session
     translator: RunTranslator
@@ -73,24 +82,28 @@ class SessionBackend(SessionConsumer):
         """Resolve the notebook's current path after file moves."""
         self._manager = manager
         self._observe = observe
-        self.session: Session | None = None
-        self._stop_requested = False
+        self._kernel: _Kernel | None = None
         self._run: _Run | None = None
         self._translators: dict[str, RunTranslator] = {}
+
+    @property
+    def session(self) -> Session | None:
+        """The session backing the current runtime, once attached."""
+        return None if self._kernel is None else self._kernel.session
 
     # Backend commands
 
     def start(self, runtime_id: protocol.RuntimeId) -> None:
-        self._stop_requested = False
+        kernel = self._kernel = _Kernel(runtime_id)
         asyncio.get_running_loop().create_task(
-            self._start(SessionId(f"host-{runtime_id}")),
+            self._start(kernel, SessionId(f"host-{runtime_id}")),
             name=f"host.start.{runtime_id}",
         )
 
-    async def _start(self, session_id: SessionId) -> None:
+    async def _start(self, kernel: _Kernel, session_id: SessionId) -> None:
         file = self._file()
         if file is None:
-            self._observe(be.Exited("The notebook has no file to run"))
+            self._fail(kernel, "The notebook has no file to run")
             return
         try:
             await self._manager.create_session(
@@ -105,16 +118,24 @@ class SessionBackend(SessionConsumer):
             LOGGER.warning(
                 "Kernel for %s failed to start", file, exc_info=True
             )
-            self._observe(be.Exited(str(e) or type(e).__name__))
+            self._fail(kernel, str(e) or type(e).__name__)
             return
         # Apply a stop requested during startup.
-        if self._stop_requested:
-            self.stop()
+        if kernel.stop_requested:
+            self.stop(kernel.runtime_id)
 
-    def stop(self) -> None:
-        session = self.session
+    def _fail(self, kernel: _Kernel, reason: str) -> None:
+        if self._kernel is kernel:
+            self._kernel = None
+        self._observe(be.Exited(kernel.runtime_id, reason))
+
+    def stop(self, runtime_id: protocol.RuntimeId) -> None:
+        kernel = self._kernel
+        if kernel is None or kernel.runtime_id != runtime_id:
+            return
+        session = kernel.session
         if session is None:
-            self._stop_requested = True
+            kernel.stop_requested = True
             return
         for session_id, candidate in self._manager.sessions.items():
             if candidate is session:
@@ -207,11 +228,20 @@ class SessionBackend(SessionConsumer):
 
     # Existing sessions
 
-    def adopt(self, session: Session) -> None:
-        """Observe an existing session."""
+    def adopt(self, runtime_id: protocol.RuntimeId, session: Session) -> None:
+        """Observe an existing session as the given runtime."""
         if self.session is not None:
             return
-        session.connect_consumer(self, main=False)
+        kernel = self._kernel = _Kernel(runtime_id)
+        try:
+            session.connect_consumer(self, main=False)
+        except Exception as e:
+            LOGGER.warning("Failed to adopt session", exc_info=True)
+            # Detachment must not report a second exit or close the session
+            # that another client owns.
+            self._kernel = None
+            session.disconnect_consumer(self)
+            self._fail(kernel, str(e) or type(e).__name__)
 
     # Session consumer
 
@@ -224,14 +254,18 @@ class SessionBackend(SessionConsumer):
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
-        self.session = session
-        self._observe(be.Running(__version__))
+        kernel = self._kernel
+        if kernel is None:
+            return
+        kernel.session = session
+        self._observe(be.Running(kernel.runtime_id, __version__))
 
     def on_detach(self) -> None:
         """Report session closure and release any waiting run."""
-        session, self.session = self.session, None
-        if session is None:
+        kernel, self._kernel = self._kernel, None
+        if kernel is None or kernel.session is None:
             return
+        session = kernel.session
         reason = None
         if session.kernel_state() is KernelState.STOPPED:
             info = session.kernel_exit_info()
@@ -240,14 +274,14 @@ class SessionBackend(SessionConsumer):
         if run is not None and run.task is not None:
             run.task.cancel()
         self._translators.clear()
-        self._observe(be.Exited(reason))
+        self._observe(be.Exited(kernel.runtime_id, reason))
 
     def notify(self, notification: KernelMessage) -> None:
         message = deserialize_kernel_message(notification)
         if isinstance(message, StartupProgressNotification):
-            self._observe(
-                be.Starting(_PHASES.get(message.phase, message.phase))
-            )
+            if (kernel := self._kernel) is not None:
+                phase = _PHASES.get(message.phase, message.phase)
+                self._observe(be.Starting(kernel.runtime_id, phase))
             return
         if not isinstance(
             message,
