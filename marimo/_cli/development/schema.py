@@ -21,7 +21,7 @@ def _generate_schema_components(
         types, ref_template="#/components/schemas/{name}"
     )
     _enrich_branded_types(components, types)
-    for name, schema in zip(named_exports, schemas[len(roots) :]):
+    for name, schema in zip(named_exports, schemas[len(roots) :], strict=True):
         if name in components:
             if schema == {"$ref": f"#/components/schemas/{name}"}:
                 continue

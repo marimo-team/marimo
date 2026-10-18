@@ -40,6 +40,12 @@ def test_openapi_preserves_brands_in_client_commands() -> None:
 def test_openapi_known_unions_reference_named_exports() -> None:
     schemas = generate_server_api_schema()["components"]["schemas"]
 
+    assert {
+        "NotificationMessage",
+        "ClientCommand",
+        "MarimoError",
+        "DataType",
+    } <= schemas.keys()
     assert schemas["KnownUnions"] == {
         "title": "KnownUnions",
         "deprecated": True,

@@ -25,17 +25,17 @@ class Write(msgspec.Struct, tag="write"):
 def test_named_union_preserves_discriminator_and_transitive_brands() -> None:
     schemas = _generate_schema_components([], {"Action": Read | Write})
 
-    assert schemas["Action"] == {
-        "anyOf": [
-            {"$ref": "#/components/schemas/Read"},
-            {"$ref": "#/components/schemas/Write"},
-        ],
-        "discriminator": {
-            "propertyName": "type",
-            "mapping": {
-                "read": "#/components/schemas/Read",
-                "write": "#/components/schemas/Write",
-            },
+    assert sorted(
+        schemas["Action"]["anyOf"], key=lambda schema: schema["$ref"]
+    ) == [
+        {"$ref": "#/components/schemas/Read"},
+        {"$ref": "#/components/schemas/Write"},
+    ]
+    assert schemas["Action"]["discriminator"] == {
+        "propertyName": "type",
+        "mapping": {
+            "read": "#/components/schemas/Read",
+            "write": "#/components/schemas/Write",
         },
     }
     assert schemas["Payload"] == {
@@ -43,6 +43,19 @@ def test_named_union_preserves_discriminator_and_transitive_brands() -> None:
         "type": "object",
         "properties": {"cellId": {"$ref": "#/components/schemas/CellId"}},
         "required": ["cellId"],
+    }
+    assert schemas["CellId"] == {"type": "string", "format": "cell-id"}
+
+
+def test_brands_in_dependencies_reachable_only_through_lists() -> None:
+    schemas = _generate_schema_components([], {"Write": Write})
+
+    assert schemas["Write"]["properties"]["payloads"] == {
+        "type": "array",
+        "items": {"$ref": "#/components/schemas/Payload"},
+    }
+    assert schemas["Payload"]["properties"]["cellId"] == {
+        "$ref": "#/components/schemas/CellId"
     }
     assert schemas["CellId"] == {"type": "string", "format": "cell-id"}
 
