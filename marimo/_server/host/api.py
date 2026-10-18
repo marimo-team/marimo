@@ -31,10 +31,17 @@ from marimo._core.errors import (
     NotFound,
 )
 from marimo._server.api.auth import TOKEN_QUERY_PARAM, validate_auth
-from marimo._server.api.deps import AppStateBase
+from marimo._server.api.deps import AppState, AppStateBase
+from marimo._server.api.endpoints.ws.ws_connection_validator import (
+    ConnectionRejection,
+    parse_connection_params,
+)
+from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._server.api.utils import format_url_host, open_url_in_browser
 from marimo._server.host import HOST_API_PATH
 from marimo._server.host.context import CachedMutation
+from marimo._server.host.events import serialize_event
+from marimo._server.host.websocket import EditorEventSocket
 from marimo._server.sse import SSE_HEADERS
 from marimo._server.tokens import AuthToken
 
@@ -483,7 +490,54 @@ async def _editor_events_ws(websocket: WebSocket) -> None:
             code=1008, reason="Editor authentication required"
         )
         return
-    await _notebook_events_ws(websocket)
+    if "session_id" not in websocket.query_params:
+        await _notebook_events_ws(websocket)
+        return
+
+    cursor = _cursor(websocket)
+    if isinstance(cursor, Response):
+        await websocket.close(code=1008, reason="Invalid event cursor")
+        return
+    types = _types(websocket)
+    if isinstance(types, Response):
+        await websocket.close(code=1008, reason="Invalid event types")
+        return
+    app_state = AppState(websocket)
+    params = parse_connection_params(app_state)
+    if isinstance(params, ConnectionRejection):
+        await websocket.close(params.code, params.reason)
+        return
+    bridge = _context(websocket).bridge
+    try:
+        notebook = await _notebook(websocket)
+    except (NotFound, Conflict) as exc:
+        await websocket.close(code=1008, reason=str(exc))
+        return
+    manager = app_state.session_manager
+    app = manager.app_manager(params.file_key)
+    record = bridge.index.notebook_for(app.path)
+    existing = manager.get_session(params.session_id)
+    if (
+        record is None
+        or record.id != notebook.id
+        or (
+            existing is not None and existing.app_file_manager.path != app.path
+        )
+    ):
+        await websocket.close(
+            code=1008, reason="Session notebook does not match"
+        )
+        return
+    await EditorEventSocket(
+        websocket,
+        notebook=notebook,
+        bridge=bridge,
+        manager=manager,
+        params=params,
+        doc_manager=DOC_MANAGER,
+        types=types,
+        cursor=cursor,
+    ).start()
 
 
 async def _notebook_events_ws(websocket: WebSocket) -> None:
@@ -521,20 +575,12 @@ async def _notebook_events_ws(websocket: WebSocket) -> None:
     ) -> None:
         try:
             for event in subscription.initial:
-                await send_event(event)
+                await websocket.send_text(serialize_event(event))
             while True:
-                await send_event(await subscription.next())
+                event = await subscription.next()
+                await websocket.send_text(serialize_event(event))
         except WebSocketDisconnect:
             cancel_scope.cancel()
-
-    async def send_event(event: Event) -> None:
-        frame: dict[str, object] = {
-            "event": event.name,
-            "data": {} if event.data is None else event.data,
-        }
-        if event.id is not None:
-            frame["id"] = str(event.id)
-        await websocket.send_text(msgspec.json.encode(frame).decode())
 
     message = None
     try:
