@@ -15,6 +15,8 @@ class GlobalSettings:
     YES: bool = False
     CHECK_STATUS_UPDATE: bool = False
     TRACING: bool = is_env_true("MARIMO_TRACING")
+    # Temporary opt-in while the host protocol is experimental.
+    ENABLE_HOST: bool = is_env_true("MARIMO_ENABLE_HOST")
     PROFILE_DIR: str | None = None
     LOG_LEVEL: int = logging.WARNING
     MANAGE_SCRIPT_METADATA: bool = is_env_true("MARIMO_MANAGE_SCRIPT_METADATA")
