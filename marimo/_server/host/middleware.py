@@ -1,8 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Local access and bearer-token authentication for the host API.
 
-Requests must come from loopback and address a loopback name on the
-server's port. The bearer token comes from the host discovery record.
+Host bearer requests must come from loopback and address a loopback name
+on the server's port. The bearer token comes from the host discovery record.
+The notebook event socket also accepts the editor's authentication.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from starlette.websockets import WebSocket
 
 from marimo import _loggers
 from marimo._server.host import HOST_API_PATH
-from marimo._server.host.api import build_app, problem
+from marimo._server.host.api import build_app, editor_events_route, problem
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -40,6 +41,7 @@ class HostApiMiddleware:
         self.app = app
         self.prefix = base_url + HOST_API_PATH
         self.host_app = build_app()
+        self.editor_socket = editor_events_route(base_url)
 
     async def __call__(
         self, scope: Scope, receive: Receive, send: Send
@@ -56,6 +58,14 @@ class HostApiMiddleware:
         context = getattr(request.app.state, "host_context", None)
         if context is None:
             response = problem(404, "not-found", "This server is not a host")
+        elif self.editor_socket.matches(scope)[
+            0
+        ] is Match.FULL and not _bearer_matches(
+            request.headers.get("Authorization"), context.token
+        ):
+            # Let the editor middleware load the cookie before authenticating.
+            await self.app(scope, receive, send)
+            return
         elif client is None or not _is_loopback(client[0]):
             response = problem(
                 403, "forbidden", "The host API answers only this machine"
