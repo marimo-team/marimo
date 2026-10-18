@@ -49,7 +49,9 @@ def test_openapi_known_unions_reference_named_exports() -> None:
         ),
         "type": "object",
         "properties": {
-            "notification": {"$ref": "#/components/schemas/NotificationMessage"},
+            "notification": {
+                "$ref": "#/components/schemas/NotificationMessage"
+            },
             "command": {"$ref": "#/components/schemas/ClientCommand"},
             "error": {"$ref": "#/components/schemas/MarimoError"},
             "data_type": {"$ref": "#/components/schemas/DataType"},
