@@ -1,6 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 export interface RuntimeConfig {
+  /** The host notebook whose event socket serves this editor. */
+  readonly notebookId?: string;
   /**
    * The URL of the runtime server.
    */
