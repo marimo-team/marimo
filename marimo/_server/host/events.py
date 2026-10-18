@@ -30,3 +30,14 @@ def notification_event(
         notebook_id=notebook_id,
         run_id=protocol.RunId(run_id) if run_id is not None else None,
     )
+
+
+def serialize_event(event: Event) -> str:
+    """Encode one host event as a WebSocket frame."""
+    frame: dict[str, object] = {
+        "event": event.name,
+        "data": {} if event.data is None else event.data,
+    }
+    if event.id is not None:
+        frame["id"] = str(event.id)
+    return msgspec.json.encode(frame).decode()
