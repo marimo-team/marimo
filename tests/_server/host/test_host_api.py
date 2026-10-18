@@ -2104,7 +2104,7 @@ def test_websocket_disconnect_detaches_the_client(
         (AUTH, LOOPBACK, "example.com:1234"),
     ],
 )
-def test_websocket_requires_host_authentication(
+def test_websocket_rejects_invalid_authentication(
     harness: Harness,
     headers: dict[str, str],
     address: tuple[str, int],
@@ -2122,6 +2122,117 @@ def test_websocket_requires_host_authentication(
             pytest.fail("Unauthenticated socket was accepted")
     assert exc.value.code == 1008
     assert harness.backends == {}
+
+
+@pytest.mark.parametrize("base_url", ["", "/app"])
+@pytest.mark.parametrize("credential", ["cookie", "query"])
+@pytest.mark.parametrize(
+    ("authority", "address", "rejected_status"),
+    [
+        (AUTHORITY, LOOPBACK, 401),
+        ("notebooks.example:1234", ("192.0.2.1", 50000), 403),
+    ],
+)
+def test_editor_authentication_is_limited_to_the_event_socket(
+    harness: Harness,
+    base_url: str,
+    credential: str,
+    authority: str,
+    address: tuple[str, int],
+    rejected_status: int,
+) -> None:
+    app = create_starlette_app(base_url=base_url, enable_auth=True)
+    manager = harness.app.state.session_manager
+    get_starlette_server_state_init(
+        session_manager=manager, base_url=base_url
+    ).apply(app.state)
+    app.state.host_context = harness.app.state.host_context
+    with TestClient(
+        with_client_address(app, address), base_url=f"http://{authority}"
+    ) as client:
+        query = ""
+        if credential == "cookie":
+            response = client.post(
+                f"{base_url}/auth/login",
+                data={"password": str(manager.auth_token)},
+                follow_redirects=False,
+            )
+            assert response.status_code == 302
+            assert client.cookies
+        else:
+            query = f"?access_token={manager.auth_token}"
+        assert client.portal is not None
+        notebook = client.portal.call(
+            harness.host.notebook, harness.notebook_id
+        )
+        path = f"{base_url}{HOST_API_PATH}/notebooks/{notebook.id}"
+        separator = "&" if query else "?"
+        with client.websocket_connect(
+            f"ws://{authority}{path}/events/ws{query}{separator}types=marimo"
+        ) as websocket:
+            socket_snapshot(websocket)
+            payload = MarimoMessage(CompletedRunNotification(run_id="r1"))
+            published = client.portal.call(
+                notebook.sink.append,
+                Event("marimo", payload, notebook_id=notebook.id),
+            )
+            assert websocket.receive_json() == {
+                "id": str(published.id),
+                "event": "marimo",
+                "data": {
+                    "marimo": {
+                        "op": "completed-run",
+                        "run_id": "r1",
+                        "outcome": "succeeded",
+                        "error": None,
+                    }
+                },
+            }
+        assert harness.backend().calls == []
+        for endpoint in (path, f"{path}/events"):
+            assert (
+                client.get(f"{endpoint}{query}").status_code == rejected_status
+            )
+        with pytest.raises(WebSocketDisconnect) as exc:
+            with client.websocket_connect(
+                f"ws://{authority}{base_url}{HOST_API_PATH}/events/ws{query}"
+            ):
+                pytest.fail("Editor credentials authorized another socket")
+        assert exc.value.code == 1008
+
+
+@pytest.mark.parametrize("token", ["wrong", TOKEN])
+def test_event_socket_query_requires_the_editor_token(
+    harness: Harness, token: str
+) -> None:
+    client = TestClient(with_client_address(harness.app))
+    path = f"{HOST_API_PATH}/notebooks/{harness.notebook_id}/events/ws"
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with client.websocket_connect(
+            f"ws://{AUTHORITY}{path}?access_token={token}"
+        ):
+            pytest.fail("Invalid editor token was accepted")
+    assert exc.value.code == 1008
+    assert harness.backends == {}
+
+
+def test_event_socket_respects_disabled_editor_authentication(
+    harness: Harness,
+) -> None:
+    app = create_starlette_app(base_url="", enable_auth=False)
+    get_starlette_server_state_init(
+        session_manager=harness.app.state.session_manager
+    ).apply(app.state)
+    app.state.enable_auth = False
+    app.state.host_context = harness.app.state.host_context
+    with TestClient(
+        with_client_address(app), base_url=f"http://{AUTHORITY}"
+    ) as client:
+        path = f"{HOST_API_PATH}/notebooks/{harness.notebook_id}"
+        with client.websocket_connect(f"ws://{AUTHORITY}{path}/events/ws"):
+            pass
+        assert client.get(path).status_code == 401
+        assert harness.backend().calls == []
 
 
 @pytest.mark.parametrize(

@@ -30,9 +30,10 @@ from marimo._core.errors import (
     NoRuntime,
     NotFound,
 )
-from marimo._server.api.auth import TOKEN_QUERY_PARAM
+from marimo._server.api.auth import TOKEN_QUERY_PARAM, validate_auth
 from marimo._server.api.deps import AppStateBase
 from marimo._server.api.utils import format_url_host, open_url_in_browser
+from marimo._server.host import HOST_API_PATH
 from marimo._server.host.context import CachedMutation
 from marimo._server.sse import SSE_HEADERS
 from marimo._server.tokens import AuthToken
@@ -465,6 +466,24 @@ async def _notebook_events(request: Request) -> Response:
         run_id=run_id,
         on_close=lambda: notebook.detach(attachment.id),
     )
+
+
+def editor_events_route(base_url: str = "") -> WebSocketRoute:
+    """Expose the notebook event socket through editor authentication."""
+    return WebSocketRoute(
+        f"{base_url}{HOST_API_PATH}/notebooks/{{id}}/events/ws",
+        _editor_events_ws,
+    )
+
+
+async def _editor_events_ws(websocket: WebSocket) -> None:
+    state = AppStateBase.from_app(websocket.app)
+    if state.enable_auth and not validate_auth(websocket):
+        await websocket.close(
+            code=1008, reason="Editor authentication required"
+        )
+        return
+    await _notebook_events_ws(websocket)
 
 
 async def _notebook_events_ws(websocket: WebSocket) -> None:
