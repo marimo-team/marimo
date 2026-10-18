@@ -150,15 +150,36 @@ function updateLanguageAdapterAndCode({
       metadata = { ...nextLanguage.defaultMetadata };
     }
   } else {
-    const [codeOut, cursorDiff1] = currentLanguage.transformOut(code, metadata);
-    const [newCode, cursorDiff2, metadataOut] =
-      nextLanguage.transformIn(codeOut);
-    // Update the cursor position
-    cursor += cursorDiff1;
-    cursor -= cursorDiff2;
-    cursor = clamp(cursor, 0, newCode.length);
-    finalCode = newCode;
-    metadata = metadataOut as LanguageMetadata;
+    const sourceLanguage =
+      currentLanguage.type === "python"
+        ? languageAdapterFromCode(code)
+        : currentLanguage;
+    if (
+      nextLanguage.type !== "python" &&
+      sourceLanguage.type !== "python" &&
+      sourceLanguage.type !== nextLanguage.type
+    ) {
+      // Convert the cell body, even if its Python wrapper is currently visible.
+      finalCode = code;
+      if (currentLanguage.type === "python") {
+        const [innerCode, offset] = sourceLanguage.transformIn(code);
+        finalCode = innerCode;
+        cursor -= offset;
+      }
+      metadata = { ...nextLanguage.defaultMetadata };
+    } else {
+      const [codeOut, cursorDiff1] = currentLanguage.transformOut(
+        code,
+        metadata,
+      );
+      const [newCode, cursorDiff2, metadataOut] =
+        nextLanguage.transformIn(codeOut);
+      cursor += cursorDiff1;
+      cursor -= cursorDiff2;
+      finalCode = newCode;
+      metadata = metadataOut as LanguageMetadata;
+    }
+    cursor = clamp(cursor, 0, finalCode.length);
   }
 
   // Update the state

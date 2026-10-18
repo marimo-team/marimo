@@ -14,8 +14,10 @@ import {
   languageAdapterState,
   switchLanguage,
 } from "../extension";
+import { LanguageAdapters } from "../LanguageAdapters";
 import { exportedForTesting as sqlValidationErrorsForTesting } from "../languages/sql/banner-validation-errors";
 import { languageMetadataField } from "../metadata";
+import { getEditorCodeAsPython } from "../utils";
 
 let view: EditorView | null = null;
 
@@ -174,26 +176,138 @@ describe("switchLanguage", () => {
 
     // Switch to sql
     switchLanguage(mockEditor, { language: "sql", keepCodeAsIs: false });
-    expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
-      "mo.md(r"""
-      print('Hello')
-      print('Goodbye')
-      """)"
-    `);
+    expect(mockEditor.state.doc.toString()).toBe(
+      "print('Hello')\nprint('Goodbye')",
+    );
 
     // Switch back to python
     switchLanguage(mockEditor, { language: "python", keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
       "_df = mo.sql(
           f"""
-          mo.md(r\\"""
           print('Hello')
           print('Goodbye')
-          \\""")
           """
       )"
     `);
   });
+
+  it.each([
+    ["markdown", "sql"],
+    ["sql", "markdown"],
+  ] as const)(
+    "converts %s to %s without wrapping or reinterpreting the content",
+    (from, to) => {
+      // Wrapper-like text is content when already in a non-Python editor.
+      const code =
+        to === "sql"
+          ? '\n  _df = mo.sql("SELECT 1")\n'
+          : '\n  mo.md("hello")\n';
+      const editor = createEditorView(createState(code, { anchor: 8 }));
+      switchLanguage(editor, { language: from, keepCodeAsIs: true });
+
+      for (const language of [to, from, to]) {
+        switchLanguage(editor, { language });
+        expect(editor.state.doc.toString()).toBe(code);
+        expect(editor.state.selection.main.head).toBe(8);
+        expect(editor.state.field(languageAdapterState).type).toBe(language);
+        expect(editor.state.field(languageMetadataField)).toEqual(
+          LanguageAdapters[language].defaultMetadata,
+        );
+        expect(getEditorCodeAsPython(editor)).toBe(
+          LanguageAdapters[language].transformOut(
+            code,
+            LanguageAdapters[language].defaultMetadata,
+          )[0],
+        );
+      }
+    },
+  );
+
+  it("does not accumulate wrappers when cycling through Python, Markdown, and SQL", () => {
+    const code = "def greet():\n    print('Hello')\ngreet()";
+    const editor = createEditorView(createState(code));
+
+    for (const language of ["markdown", "sql", "markdown", "sql"] as const) {
+      switchLanguage(editor, { language });
+      expect(editor.state.doc.toString()).toBe(code);
+
+      switchLanguage(editor, { language: "python" });
+      expect(editor.state.doc.toString()).toBe(
+        LanguageAdapters[language].transformOut(
+          code,
+          LanguageAdapters[language].defaultMetadata,
+        )[0],
+      );
+    }
+  });
+
+  it.each([
+    {
+      code: 'mo.md(r"""SELECT 1""")',
+      language: "sql",
+      content: "SELECT 1",
+    },
+    {
+      code: '# Query\nresult = mo.sql("SELECT 1", engine=engine, output=False)',
+      language: "markdown",
+      content: "SELECT 1",
+    },
+    {
+      code: `mo.md("""_df = mo.sql('SELECT 1')""")`,
+      language: "sql",
+      content: "_df = mo.sql('SELECT 1')",
+    },
+    {
+      code: `_df = mo.sql("""mo.md('hello')""")`,
+      language: "markdown",
+      content: "mo.md('hello')",
+    },
+  ] as const)(
+    "converts $code to $language by removing only the outer wrapper",
+    ({ code, language, content }) => {
+      const editor = createEditorView(
+        createState(code, { anchor: code.indexOf(content) + 2 }),
+      );
+
+      switchLanguage(editor, { language });
+
+      expect(editor.state.doc.toString()).toBe(content);
+      expect(editor.state.selection.main.head).toBe(2);
+      expect(editor.state.field(languageMetadataField)).toEqual(
+        LanguageAdapters[language].defaultMetadata,
+      );
+    },
+  );
+
+  it("preserves SQL settings when viewing the same cell as Python and SQL", () => {
+    const code =
+      '# Query\nresult = mo.sql("SELECT 1", engine=engine, output=False)';
+    const editor = createEditorView(createState(code));
+    switchLanguage(editor, { language: "sql" });
+    const metadata = editor.state.field(languageMetadataField);
+    const pythonCode = getEditorCodeAsPython(editor);
+
+    switchLanguage(editor, { language: "python" });
+    expect(editor.state.doc.toString()).toBe(pythonCode);
+    switchLanguage(editor, { language: "sql" });
+
+    expect(editor.state.doc.toString()).toBe("SELECT 1");
+    expect(editor.state.field(languageMetadataField)).toEqual(metadata);
+    expect(getEditorCodeAsPython(editor)).toBe(pythonCode);
+  });
+
+  it.each(["markdown", "sql"] as const)(
+    "preserves Python statements around wrappers when converting to %s",
+    (language) => {
+      const code = 'x = 1\nmo.md("hello")\n_df = mo.sql("SELECT 1")';
+      const editor = createEditorView(createState(code));
+
+      switchLanguage(editor, { language });
+
+      expect(editor.state.doc.toString()).toBe(code);
+    },
+  );
 
   it("sets default metadata when switching from Python to SQL with keepCodeAsIs false", () => {
     const state = createState("SELECT * FROM df");
