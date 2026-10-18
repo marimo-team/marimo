@@ -13,6 +13,7 @@ import sys
 import threading
 import time
 import traceback
+from _thread import interrupt_main
 from copy import copy
 from multiprocessing import connection
 from pathlib import Path
@@ -103,6 +104,7 @@ from marimo._runtime.callbacks import (
 from marimo._runtime.commands import (
     AppMetadata,
     BatchableCommand,
+    CancelScratchpadCommand,
     CodeCompletionCommand,
     CommandMessage,
     CreateNotebookCommand,
@@ -112,6 +114,7 @@ from marimo._runtime.commands import (
     ExecuteStaleCellsCommand,
     InvokeFunctionCommand,
     OutOfBandCommand,
+    ScheduleScratchpadCommand,
     SetBreakpointsCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
@@ -144,7 +147,11 @@ from marimo._runtime.runner.hooks import (
     NotebookCellHooks,
     Priority,
 )
-from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._runtime.scratch import (
+    SCRATCH_CELL_ID,
+    ScratchpadExecutions,
+    ScratchpadState,
+)
 from marimo._runtime.state import State
 from marimo._runtime.win32_interrupt_handler import (
     Win32InterruptHandler,
@@ -583,6 +590,7 @@ class Kernel:
         self._globals_lock = threading.RLock()
         self._state_lock = threading.RLock()
         self._out_of_band_worker_started = False
+        self.scratchpad_executions = ScratchpadExecutions()
 
         self.debugger = debugger_override
         if self.debugger is not None:
@@ -793,6 +801,20 @@ class Kernel:
             self.set_breakpoints(command)
         elif isinstance(command, CodeCompletionCommand):
             self.code_completion(command, docstrings_limit=docstrings_limit)
+        elif isinstance(command, ScheduleScratchpadCommand):
+            run_id = command.execution.run_id
+            assert run_id is not None
+            self.scratchpad_executions.schedule(run_id)
+            self.enqueue_control_request(command.execution)
+        elif isinstance(command, CancelScratchpadCommand):
+            state = self.scratchpad_executions.cancel(command.run_id)
+            if state is ScratchpadState.RUNNING:
+                if sys.platform == "win32" or is_pyodide():
+                    interrupt_main()
+                else:
+                    # Notebook code can leave unrelated subprocesses running.
+                    # Run-scoped cancellation must not signal the whole group.
+                    os.kill(os.getpid(), signal.SIGINT)
         else:
             # Exhaustiveness guard: a new OutOfBandCommand member without a
             # branch here would otherwise be silently dropped by the worker.
@@ -2711,7 +2733,12 @@ def _install_subprocess_handlers(
 
     register_formatters()
 
-    signal.signal(signal.SIGINT, handlers.construct_interrupt_handler())
+    signal.signal(
+        signal.SIGINT,
+        handlers.construct_interrupt_handler(
+            scratchpad_interrupt=kernel.scratchpad_executions.consume_interrupt
+        ),
+    )
 
     if sys.platform == "win32":
         if interrupt_queue is not None:

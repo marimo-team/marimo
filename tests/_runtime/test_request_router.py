@@ -17,9 +17,8 @@ from marimo._runtime.callbacks import (
 )
 from marimo._runtime.commands import (
     ClearCacheCommand,
-    CodeCompletionCommand,
     CommandMessage,
-    SetBreakpointsCommand,
+    OutOfBandCommand,
     StopKernelCommand,
 )
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
@@ -40,12 +39,8 @@ ALL_CALLBACKS: list[type] = [
     PackagesCallbacks,
 ]
 
-# Commands that are part of the CommandMessage dispatch surface but are
-# intentionally not handled by the kernel's RequestRouter. These are delivered
-# on the off-main-loop completion queue and processed by
-# start_out_of_band_worker: CodeCompletionCommand (autocomplete) and
-# SetBreakpointsCommand (live-debugger breakpoints, so they apply mid-run).
-NOT_ROUTED: set[type] = {CodeCompletionCommand, SetBreakpointsCommand}
+# Out-of-band commands have their own dispatcher, not a RequestRouter handler.
+NOT_ROUTED: set[type] = set(typing.get_args(OutOfBandCommand))
 
 
 def _all_command_classes() -> set[type]:
