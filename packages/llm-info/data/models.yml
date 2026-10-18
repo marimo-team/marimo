@@ -329,20 +329,6 @@ google:
         values: [low, medium, high, xhigh, max]
     limits: {context: 1000000, output: 128000}
 
-  - name: Nano Banana 2.1
-    model: gemini-nano-banana-2.1
-    description: "Flash-tier image generation and editing model for product recontextualization and visual creation"
-    roles: [chat, edit]
-    capabilities: [thinking]
-    input_types: [text, image]
-    output_types: [text, image]
-    release_date: 2026-10-06
-    cost: {input: 1.5, output: 30}
-    reasoning_options:
-      - type: effort
-        values: [minimal, medium, high]
-    limits: {context: 131072, output: 32768}
-
   - name: Grok 4.7
     model: xai/grok-4.7
     description: "Model for coding, agentic tasks, and knowledge work, available through Vertex AI only"
@@ -478,34 +464,6 @@ google:
     reasoning_options:
       - type: toggle
     limits: {context: 262144, output: 32768}
-
-  - name: Nano Banana 2 Lite
-    model: gemini-3.1-flash-lite-image
-    description: "Google's fastest, most cost-efficient Gemini image model for high-velocity text-to-image generation and visual exploration"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text, image]
-    release_date: 2026-06-30
-    cost: {input: 0.25, output: 30}
-    reasoning_options:
-      - type: effort
-        values: [minimal, high]
-    limits: {context: 65536, output: 4096}
-
-  - name: Nano Banana 2
-    model: gemini-3.1-flash-image
-    description: "Google's image generation and editing model, delivering Pro-level visual quality at Flash speed"
-    roles: [chat, edit]
-    capabilities: [thinking]
-    input_types: [text, image, pdf]
-    output_types: [text, image]
-    release_date: 2026-05-28
-    cost: {input: 0.5, output: 60}
-    reasoning_options:
-      - type: effort
-        values: [minimal, high]
-    limits: {context: 131072, output: 32768}
 
   - name: Claude Opus 5
     model: claude-opus-5@default
@@ -949,28 +907,6 @@ azure:
       - type: effort
         values: [none, low, medium, high, xhigh, max]
     limits: {context: 1050000, output: 128000}
-
-  - name: GPT Image 2.5 Flare
-    model: gpt-image-2.5-flare
-    description: "Small image generation and editing model optimized for speed and high-quality everyday use"
-    roles: [chat, edit]
-    capabilities: []
-    input_types: [text, image]
-    output_types: [image]
-    release_date: 2026-09-08
-    cost: {input: 5, output: 30}
-    limits: {context: 0, output: 0}
-
-  - name: GPT Image 2.5 Sunburst
-    model: gpt-image-2.5-sunburst
-    description: "Image generation and editing model optimized for quality, precise editing, and subject preservation"
-    roles: [chat, edit]
-    capabilities: []
-    input_types: [text, image]
-    output_types: [image]
-    release_date: 2026-09-08
-    cost: {input: 5, output: 30}
-    limits: {context: 0, output: 0}
 
   - name: GPT-6 Astra
     model: gpt-6-astra
