@@ -5684,7 +5684,11 @@ export interface components {
       preset: "default" | "vim";
       vimrc?: string | null;
     };
-    /** KnownUnions */
+    /**
+     * KnownUnions
+     * @deprecated
+     * @description Use the named NotificationMessage, ClientCommand, MarimoError, and DataType schemas directly.
+     */
     KnownUnions: {
       command: components["schemas"]["ClientCommand"];
       data_type: components["schemas"]["DataType"];

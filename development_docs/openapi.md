@@ -25,8 +25,9 @@ exports `ClientCommand`, `NotificationMessage`, `MarimoError`, and `DataType`
 this way. Add client commands to `ClientCommand`, rather than exporting
 individual commands as additional roots.
 
-`KnownUnions` remains for existing downstream consumers. New consumers should
-use the named schemas directly, such as `schemas["ClientCommand"]`.
+`KnownUnions` is deprecated but remains for existing downstream consumers.
+New consumers should use the named schemas directly, such as
+`schemas["ClientCommand"]`.
 
 Regenerate the schema and TypeScript together with Python 3.12:
 

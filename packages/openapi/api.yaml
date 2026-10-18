@@ -3133,6 +3133,9 @@ components:
       title: KeymapConfig
       type: object
     KnownUnions:
+      deprecated: true
+      description: Use the named NotificationMessage, ClientCommand, MarimoError,
+        and DataType schemas directly.
       properties:
         command:
           $ref: '#/components/schemas/ClientCommand'

@@ -413,6 +413,11 @@ def generate_server_api_schema() -> dict[str, Any]:
     }
     component_schemas["KnownUnions"] = {
         "title": "KnownUnions",
+        "deprecated": True,
+        "description": (
+            "Use the named NotificationMessage, ClientCommand, MarimoError, "
+            "and DataType schemas directly."
+        ),
         "type": "object",
         "properties": {
             field: {"$ref": f"#/components/schemas/{name}"}

@@ -42,6 +42,11 @@ def test_openapi_known_unions_reference_named_exports() -> None:
 
     assert schemas["KnownUnions"] == {
         "title": "KnownUnions",
+        "deprecated": True,
+        "description": (
+            "Use the named NotificationMessage, ClientCommand, MarimoError, "
+            "and DataType schemas directly."
+        ),
         "type": "object",
         "properties": {
             "notification": {"$ref": "#/components/schemas/NotificationMessage"},
