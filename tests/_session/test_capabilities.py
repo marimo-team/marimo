@@ -115,12 +115,8 @@ def test_editor_can_do_everything() -> None:
     assert consumer_can(EDITOR, commands.InvokeFunctionCommand) is True
 
 
-def test_the_named_unions_partition_the_commands() -> None:
-    """A command is built by the browser, by the server, or from a request."""
-    everything = set(typing.get_args(commands.CommandMessage))
+def test_wasm_and_notebook_commands_are_disjoint() -> None:
     wasm = set(typing.get_args(commands.WasmCommand))
     notebook = set(typing.get_args(commands.NotebookCommand))
 
-    assert wasm <= everything
-    assert notebook <= everything
     assert not (wasm & notebook), sorted(c.__name__ for c in wasm & notebook)

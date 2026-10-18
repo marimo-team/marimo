@@ -449,9 +449,10 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.ValidateSQLRequest,
     ]
 
-    # Commands are exported only through WasmCommand and its dependencies.
+    # Hack to get the unions included in the schema.
     class KnownUnions(msgspec.Struct):
         notification: NotificationMessage
+        # Commands are exported only through WasmCommand and its dependencies.
         command: WasmCommand
         error: MarimoError
         data_type: DataType

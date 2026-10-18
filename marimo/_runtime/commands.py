@@ -243,8 +243,8 @@ class SetBreakpointsCommand(Command):
         return f"SetBreakpointsCommand(count={count})"
 
 
-# TODO(MO-8007): Goes with ExecuteCellsCommand and CreateNotebookCommand, which
-# are the only commands built from it.
+# TODO(MO-8007): Goes with ExecuteCellsCommand, CreateNotebookCommand, and
+# SyncGraphCommand, which are the commands built from it.
 class ExecuteCellCommand(Command):
     """Execute a single cell.
 
