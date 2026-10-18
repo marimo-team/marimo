@@ -7,7 +7,7 @@ import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 import { generateUUID } from "@/utils/uuid";
 import { initialNotebookState, notebookAtom } from "../cells/cells";
-import type { CommandMessage } from "../kernel/messages";
+import type { ClientCommand } from "../kernel/messages";
 import type { EditRequests, RunRequests } from "../network/types";
 import { store as defaultStore } from "../state/jotai";
 import { getMarimoExportContext } from "../static/export-context";
@@ -392,7 +392,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   // The kernel uses msgspec to parse control requests, which requires a 'type'
   // field for discriminated union deserialization.
   private async putControlRequest(
-    operation: CommandMessage,
+    operation: ClientCommand,
     session?: AppSession,
   ): Promise<void> {
     session ??= await this.getActiveSession();

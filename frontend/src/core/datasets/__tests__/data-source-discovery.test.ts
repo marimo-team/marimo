@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { requestId } from "@/__tests__/branded";
+import type { DataSourceDiscoveryResult } from "@/core/kernel/messages";
 import { connectionAtom } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
 import { ConnectionState } from "@/core/websocket/types";
@@ -41,7 +43,7 @@ describe("fetchDataSourceDiscovery", () => {
   it("shares a single in-flight request across concurrent callers", async () => {
     const request = vi
       .spyOn(DiscoverDataSources, "request")
-      .mockResolvedValue({ request_id: "request-id", sources: [] });
+      .mockResolvedValue({ request_id: requestId("request-id"), sources: [] });
 
     await Promise.all([
       fetchDataSourceDiscovery(),
@@ -55,7 +57,7 @@ describe("fetchDataSourceDiscovery", () => {
   it("re-runs discovery after the cache is invalidated", async () => {
     const request = vi
       .spyOn(DiscoverDataSources, "request")
-      .mockResolvedValue({ request_id: "request-id", sources: [] });
+      .mockResolvedValue({ request_id: requestId("request-id"), sources: [] });
 
     await fetchDataSourceDiscovery();
     invalidateDataSourceDiscovery();
@@ -68,7 +70,10 @@ describe("fetchDataSourceDiscovery", () => {
     const request = vi
       .spyOn(DiscoverDataSources, "request")
       .mockRejectedValueOnce(new Error("boom"))
-      .mockResolvedValueOnce({ request_id: "request-id", sources: [] });
+      .mockResolvedValueOnce({
+        request_id: requestId("request-id"),
+        sources: [],
+      });
 
     await expect(fetchDataSourceDiscovery()).rejects.toThrow("boom");
     await expect(fetchDataSourceDiscovery()).resolves.toEqual([]);
@@ -77,16 +82,18 @@ describe("fetchDataSourceDiscovery", () => {
 
   it("does not clear a newer cache entry when an invalidated request fails", async () => {
     let rejectFirstRequest: ((error: Error) => void) | undefined;
-    const firstRequest = new Promise<{
-      request_id: string;
-      sources: DetectedDataSource[];
-    }>((_resolve, reject) => {
-      rejectFirstRequest = reject;
-    });
+    const firstRequest = new Promise<DataSourceDiscoveryResult>(
+      (_resolve, reject) => {
+        rejectFirstRequest = reject;
+      },
+    );
     const request = vi
       .spyOn(DiscoverDataSources, "request")
       .mockReturnValueOnce(firstRequest)
-      .mockResolvedValueOnce({ request_id: "request-id", sources: [] });
+      .mockResolvedValueOnce({
+        request_id: requestId("request-id"),
+        sources: [],
+      });
 
     const staleResult = fetchDataSourceDiscovery().catch((error) => error);
     await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
@@ -116,7 +123,7 @@ describe("fetchDataSourceDiscovery", () => {
       }),
     ];
     vi.spyOn(DiscoverDataSources, "request").mockResolvedValue({
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       sources,
     });
 

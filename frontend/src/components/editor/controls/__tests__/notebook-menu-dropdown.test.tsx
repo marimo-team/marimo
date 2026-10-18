@@ -10,6 +10,7 @@ import {
 import { Provider } from "jotai";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { requestId } from "@/__tests__/branded";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { ModalProvider } from "@/components/modal/ImperativeModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -129,7 +130,7 @@ describe("NotebookMenuDropdown", () => {
     }));
     invalidateDataSourceDiscovery();
     vi.spyOn(DiscoverDataSources, "request").mockResolvedValue({
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       sources: [],
     });
   });
@@ -142,7 +143,7 @@ describe("NotebookMenuDropdown", () => {
 
   it("shows detected databases in the add connection submenu", async () => {
     vi.mocked(DiscoverDataSources.request).mockResolvedValue({
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       sources: [POSTGRES_SOURCE],
     });
 
@@ -172,7 +173,7 @@ describe("NotebookMenuDropdown", () => {
 
   it("shows detected storage in the add remote storage submenu", async () => {
     vi.mocked(DiscoverDataSources.request).mockResolvedValue({
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       sources: [S3_SOURCE],
     });
 

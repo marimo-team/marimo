@@ -3,7 +3,7 @@ import type { PyodideInterface } from "pyodide";
 import type { WasmRuntimeConfig } from "../runtime-config";
 import type { UserConfig } from "@/core/config/config-schema";
 import type {
-  CommandMessage,
+  ClientCommand,
   NotificationPayload,
 } from "@/core/kernel/messages";
 import type { JsonString } from "@/utils/json/base64";
@@ -74,7 +74,7 @@ export interface WasmController {
 }
 
 export interface RawBridge {
-  put_control_request(operation: CommandMessage): Promise<string>;
+  put_control_request(operation: ClientCommand): Promise<string>;
   put_input(input: string): Promise<string>;
   code_complete(request: CodeCompletionRequest): Promise<string>;
   read_code(): Promise<{ contents: string }>;
