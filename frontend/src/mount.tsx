@@ -274,6 +274,8 @@ const mountOptionsSchema = z.object({
       .transform((val) => val as api.Notebook["NotebookV1"]),
   ]),
 
+  notebookId: z.string().optional(),
+
   /**
    * Runtime configs
    */
@@ -284,6 +286,7 @@ const mountOptionsSchema = z.object({
         // Lazy by default, but can be overridden by the runtime config
         lazy: z.boolean().default(true),
         authToken: z.string().nullish(),
+        notebookId: z.string().optional(),
       }),
     )
     .nullish()
@@ -364,6 +367,7 @@ function initStore(options: unknown) {
   } else {
     store.set(runtimeConfigAtom, {
       ...DEFAULT_RUNTIME_CONFIG,
+      notebookId: parsedOptions.data.notebookId,
       lazy: false,
       serverToken: parsedOptions.data.serverToken,
     });

@@ -9,6 +9,8 @@ import { isStaticNotebook } from "../static/static-state";
 import { isWasm } from "../wasm/utils";
 import type { RuntimeConfig } from "./types";
 
+const HOST_EVENT_TYPES = ["marimo"];
+
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
   private config: RuntimeConfig;
@@ -154,7 +156,16 @@ export class RuntimeManager {
    * The WebSocket URL of the runtime.
    */
   public getWsURL(sessionId: SessionId): URL {
-    return this.formatWsURL("/ws", this.getSessionSearchParams(sessionId));
+    const searchParams = this.getSessionSearchParams(sessionId);
+    const notebookId = this.config.notebookId;
+    const path = notebookId
+      ? `/api/marimo/v1/notebooks/${encodeURIComponent(notebookId)}/events/ws`
+      : "/ws";
+    const url = this.formatWsURL(path, searchParams);
+    if (notebookId) {
+      url.searchParams.set("types", HOST_EVENT_TYPES.join(","));
+    }
+    return url;
   }
 
   /**

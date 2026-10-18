@@ -51,6 +51,55 @@ describe("RuntimeManager", () => {
   });
 
   describe("getWsURL", () => {
+    it("uses host notebook events with the existing session and auth parameters", () => {
+      const original = window.location.href;
+      window.history.replaceState({}, "", "/?types=run");
+      try {
+        const runtime = new RuntimeManager({
+          ...mockConfig,
+          url: "https://example.com/nested?file=notebook.py",
+          notebookId: "nb_123",
+        });
+        const url = runtime.getWsURL("session-123" as SessionId);
+        expect({
+          endpoint: `${url.origin}${url.pathname}`,
+          params: Object.fromEntries(url.searchParams),
+        }).toEqual({
+          endpoint:
+            "wss://example.com/nested/api/marimo/v1/notebooks/nb_123/events/ws",
+          params: {
+            file: "notebook.py",
+            types: "marimo",
+            session_id: "session-123",
+            access_token: "test-token",
+          },
+        });
+      } finally {
+        window.history.replaceState({}, "", original);
+      }
+    });
+
+    it.each(["", "?connection=host"])(
+      "keeps the existing socket without a host notebook for query '%s'",
+      (query) => {
+        const original = window.location.href;
+        window.history.replaceState({}, "", `/${query}`);
+        try {
+          const runtime = new RuntimeManager(mockConfig);
+          const url = runtime.getWsURL("session-123" as SessionId);
+          expect({
+            path: url.pathname,
+            types: url.searchParams.get("types"),
+          }).toEqual({
+            path: "/ws",
+            types: null,
+          });
+        } finally {
+          window.history.replaceState({}, "", original);
+        }
+      },
+    );
+
     it("should return WebSocket URL with session ID for https", () => {
       const runtime = new RuntimeManager(mockConfig);
       const sessionId = "1234" as SessionId;
