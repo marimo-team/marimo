@@ -9,7 +9,7 @@ import types
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
-from marimo._ast.pytest import MARIMO_TEST_STUB_NAME
+from marimo._ast.pytest import MARIMO_TEST_STUB_NAME, is_fixture
 from marimo._ast.variables import demangle_locals_in_text
 from marimo._cli.print import bold, green
 from marimo._dependencies.dependencies import DependencyManager
@@ -112,18 +112,6 @@ def _rewrite_longrepr(longrepr: Any) -> None:
         reprcrash.message = demangle_locals_in_text(reprcrash.message)
 
 
-def _is_fixture(obj: Any) -> bool:
-    """Whether `obj` is a pytest fixture.
-
-    pytest <9 tags the function with `_pytestfixturefunction`; pytest >=9 wraps
-    it in a `FixtureFunctionDefinition`. Duck-typed on the class name to avoid a
-    private import that doesn't exist across both.
-    """
-    return hasattr(obj, "_pytestfixturefunction") or (
-        type(obj).__name__ == "FixtureFunctionDefinition"
-    )
-
-
 def _global_scope_defs() -> set[str]:
     """Names visible to every cell: the setup cell and top-level
     (`@app.function` / `@app.class_definition`) definitions.
@@ -211,7 +199,7 @@ class ReplaceStubPlugin:
         return {
             name: value
             for name, value in self.lcls.items()
-            if name in scope or not _is_fixture(value)
+            if name in scope or not is_fixture(value)
         }
 
     def pytest_pycollect_makemodule(
