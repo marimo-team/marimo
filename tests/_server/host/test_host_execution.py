@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from tests._server.host.drive import Response
 
 AUTH = {"Authorization": "Bearer execution-test"}
+pytestmark = pytest.mark.usefixtures("enable_host")
 
 
 def key(value: str) -> dict[str, str]:

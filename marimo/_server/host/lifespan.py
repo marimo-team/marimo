@@ -9,6 +9,7 @@ import secrets
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.api.deps import AppStateBase
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
@@ -27,7 +28,7 @@ LOGGER = _loggers.marimo_logger()
 async def host(app: Starlette) -> AsyncIterator[None]:
     """Initialize the host API and discovery record in edit mode."""
     state = AppStateBase.from_app(app)
-    if state.mode is not SessionMode.EDIT:
+    if not GLOBAL_SETTINGS.ENABLE_HOST or state.mode is not SessionMode.EDIT:
         yield
         return
 

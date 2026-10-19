@@ -48,6 +48,7 @@ if TYPE_CHECKING:
 
 TOKEN = "record-token"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
+pytestmark = pytest.mark.usefixtures("enable_host")
 
 
 async def analyzed(notebook: Notebook) -> protocol.Analysis:

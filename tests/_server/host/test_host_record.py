@@ -13,11 +13,13 @@ import msgspec
 import pytest
 import uvicorn
 
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._core import backend as be, protocol
 from marimo._server.host import HOST_API_PATH, record as record_module
 from marimo._server.host.lifespan import host as host_lifespan
 from marimo._server.host.record import host_url
 from marimo._server.main import create_starlette_app
+from marimo._session.model import SessionMode
 from marimo._utils.lifespans import Lifespans
 from tests._core.conftest import (
     ScriptedBackend,
@@ -27,10 +29,15 @@ from tests._core.conftest import (
     runtime_id_of,
 )
 from tests._server.host.drive import finished
-from tests._server.mocks import get_starlette_server_state_init
+from tests._server.mocks import (
+    get_mock_session_manager,
+    get_starlette_server_state_init,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+pytestmark = pytest.mark.usefixtures("enable_host")
 
 
 @pytest.mark.parametrize(
@@ -77,6 +84,32 @@ async def test_an_unreachable_bind_writes_no_record(
     async with app.router.lifespan_context(app):
         assert list((tmp_path / "hosts-v1").glob("*.json")) == []
         assert app.state.host_context is not None
+
+
+@pytest.mark.parametrize(
+    ("enabled", "mode"), [(False, SessionMode.EDIT), (True, SessionMode.RUN)]
+)
+async def test_inactive_host_writes_no_record_and_serves_no_api(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    enabled: bool,
+    mode: SessionMode,
+) -> None:
+    monkeypatch.setattr(GLOBAL_SETTINGS, "ENABLE_HOST", enabled)
+    monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
+    app = create_starlette_app(
+        base_url="", enable_auth=False, lifespan=Lifespans([host_lifespan])
+    )
+    get_starlette_server_state_init(
+        session_manager=get_mock_session_manager(mode=mode)
+    ).apply(app.state)
+    app.state.server = uvicorn.Server(
+        uvicorn.Config(app, host="127.0.0.1", port=1234)
+    )
+
+    async with app.router.lifespan_context(app):
+        assert not (tmp_path / "hosts-v1").exists()
+        assert (await finished(app, "GET", "/notebooks")).status == 404
 
 
 @pytest.mark.parametrize("external_port", [1234, 8443])
