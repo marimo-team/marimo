@@ -1,7 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { BotIcon } from "lucide-react";
+import {
+  BotIcon,
+  CheckIcon,
+  Loader2Icon,
+  UnplugIcon,
+  XIcon,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -128,9 +134,16 @@ export function AttachmentStatus() {
 
 function AttachmentStatusItem({ attachment }: { attachment: Attachment }) {
   const stableSessionId = useAtomValue(stableSessionIdAtom);
+  const [confirming, setConfirming] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const disconnectButton = useRef<HTMLButtonElement>(null);
   const timeAgo = useTimeAgo();
   const label = attachmentLabel(attachment);
+  const disconnectLabel = disconnecting
+    ? `Disconnecting ${label}`
+    : confirming
+      ? `Confirm disconnect ${label}`
+      : `Disconnect ${label}`;
 
   const disconnect = async () => {
     if (disconnecting || !stableSessionId) {
@@ -146,6 +159,7 @@ function AttachmentStatusItem({ attachment }: { attachment: Attachment }) {
       agentToast({ variant: "danger", title: `Could not disconnect ${label}` });
     } finally {
       setDisconnecting(false);
+      setConfirming(false);
     }
   };
 
@@ -163,15 +177,46 @@ function AttachmentStatusItem({ attachment }: { attachment: Attachment }) {
           {attachment.id}
         </p>
       </div>
-      <Button
-        size="xs"
-        variant="outlineDestructive"
-        disabled={disconnecting || !stableSessionId}
-        onClick={disconnect}
-        aria-label={`Disconnect ${label}`}
-      >
-        {disconnecting ? "Disconnecting…" : "Disconnect"}
-      </Button>
+      <div className="flex shrink-0 items-center gap-1">
+        {confirming && (
+          <span className="text-xs text-muted-foreground">
+            {disconnecting ? "Disconnecting…" : "Disconnect?"}
+          </span>
+        )}
+        <Button
+          ref={disconnectButton}
+          size="icon"
+          variant="outlineDestructive"
+          disabled={disconnecting || !stableSessionId}
+          onClick={confirming ? disconnect : () => setConfirming(true)}
+          aria-label={disconnectLabel}
+          title={disconnectLabel}
+          aria-busy={disconnecting}
+        >
+          {disconnecting ? (
+            <Loader2Icon className="size-3.5 animate-spin" aria-hidden={true} />
+          ) : confirming ? (
+            <CheckIcon className="size-3.5" aria-hidden={true} />
+          ) : (
+            <UnplugIcon className="size-3.5" aria-hidden={true} />
+          )}
+        </Button>
+        {confirming && (
+          <Button
+            size="icon"
+            variant="outline"
+            disabled={disconnecting}
+            onClick={() => {
+              setConfirming(false);
+              disconnectButton.current?.focus();
+            }}
+            aria-label={`Cancel disconnect ${label}`}
+            title={`Cancel disconnect ${label}`}
+          >
+            <XIcon className="size-3.5" aria-hidden={true} />
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

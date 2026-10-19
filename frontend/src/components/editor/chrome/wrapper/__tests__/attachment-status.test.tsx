@@ -223,6 +223,10 @@ describe("AttachmentStatus", () => {
       { ...AGENT, id: "a2", name: "Codex" },
     ]);
     fireEvent.click(screen.getByRole("button", { name: "Disconnect Pi" }));
+    expect(API.post).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Confirm disconnect Pi" }),
+    );
     await waitFor(() =>
       expect(API.post).toHaveBeenCalledWith(
         "/pair/notebooks/stable%2Ftest/attachments/detach",
@@ -245,7 +249,13 @@ describe("AttachmentStatus", () => {
     renderStatus();
     const button = screen.getByRole("button", { name: "Disconnect Pi" });
     fireEvent.click(button);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Confirm disconnect Pi" }),
+    );
     expect(button).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Cancel disconnect Pi" }),
+    ).toBeDisabled();
     fireEvent.click(button);
     expect(API.post).toHaveBeenCalledOnce();
     await act(async () => deferred.resolve(""));
@@ -255,6 +265,9 @@ describe("AttachmentStatus", () => {
     vi.mocked(API.post).mockRejectedValue(new Error("offline"));
     renderStatus();
     fireEvent.click(screen.getByRole("button", { name: "Disconnect Pi" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Confirm disconnect Pi" }),
+    );
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith({
         variant: "danger",
@@ -264,6 +277,23 @@ describe("AttachmentStatus", () => {
     );
     expect(screen.getByLabelText("Pi connected")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Disconnect Pi" })).toBeEnabled();
+  });
+
+  it("cancels confirmation without disconnecting and restores focus", () => {
+    renderStatus();
+    fireEvent.click(screen.getByRole("button", { name: "Disconnect Pi" }));
+    expect(screen.getByText("Disconnect?")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Confirm disconnect Pi" }),
+    ).toBeEnabled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Cancel disconnect Pi" }),
+    );
+    expect(API.post).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Disconnect Pi" })).toHaveFocus();
+    expect(
+      screen.queryByRole("button", { name: "Confirm disconnect Pi" }),
+    ).not.toBeInTheDocument();
   });
 
   it("disables disconnect without a stable session ID", () => {
