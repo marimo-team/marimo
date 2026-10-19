@@ -148,9 +148,16 @@ class date(UIElement[str, dt.date]):
         Returns:
             date: A date picker initialized with the series' min and max dates as bounds.
         """
+        start = kwargs.pop("start", None)
+        stop = kwargs.pop("stop", None)
         info = get_date_series_info(series)
-        start = kwargs.pop("start", info.min)
-        stop = kwargs.pop("stop", info.max)
+        start = info.min if start is None else start
+        stop = info.max if stop is None else stop
+        if start is None or stop is None:
+            raise ValueError(
+                "Cannot infer both start and stop from an empty or all-null series; "
+                "provide explicit bounds."
+            )
         label = kwargs.pop("label", info.label)
         return date(start=start, stop=stop, label=label, **kwargs)
 
@@ -300,9 +307,16 @@ class datetime(UIElement[str | None, dt.datetime | None]):
         Returns:
             datetime: A datetime picker initialized with the series' min and max datetimes as bounds.
         """
+        start = kwargs.pop("start", None)
+        stop = kwargs.pop("stop", None)
         info = get_datetime_series_info(series)
-        start = kwargs.pop("start", info.min)
-        stop = kwargs.pop("stop", info.max)
+        start = info.min if start is None else start
+        stop = info.max if stop is None else stop
+        if start is None or stop is None:
+            raise ValueError(
+                "Cannot infer both start and stop from an empty or all-null series; "
+                "provide explicit bounds."
+            )
         label = kwargs.pop("label", info.label)
         return datetime(start=start, stop=stop, label=label, **kwargs)
 
@@ -461,9 +475,16 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
         Returns:
             date_range: A date range picker initialized with the series' min and max dates as bounds.
         """
+        start = kwargs.pop("start", None)
+        stop = kwargs.pop("stop", None)
         info = get_date_series_info(series)
-        start = kwargs.pop("start", info.min)
-        stop = kwargs.pop("stop", info.max)
+        start = info.min if start is None else start
+        stop = info.max if stop is None else stop
+        if start is None or stop is None:
+            raise ValueError(
+                "Cannot infer both start and stop from an empty or all-null series; "
+                "provide explicit bounds."
+            )
         label = kwargs.pop("label", info.label)
         return date_range(start=start, stop=stop, label=label, **kwargs)
 
