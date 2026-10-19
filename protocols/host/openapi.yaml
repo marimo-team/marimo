@@ -1422,6 +1422,279 @@ components:
           type: integer
           minimum: 1
           description: Counts changes to the cells, the order, or the app config. A save does not advance it. Comparable only within one notebook while it is in the catalog.
+    Event:
+      description: |
+        A record, removal, or control message from a host stream.
+        The data is decoded JSON. Snapshot records and reset events omit
+        the cursor; ready and live events carry it. Unknown event names
+        belong to later versions or host extensions.
+      oneOf:
+        - $ref: '#/components/schemas/HostEvent'
+        - $ref: '#/components/schemas/ProjectEvent'
+        - $ref: '#/components/schemas/NotebookEvent'
+        - $ref: '#/components/schemas/DocumentEvent'
+        - $ref: '#/components/schemas/AnalysisEvent'
+        - $ref: '#/components/schemas/CellEvent'
+        - $ref: '#/components/schemas/RuntimeEvent'
+        - $ref: '#/components/schemas/AttachmentEvent'
+        - $ref: '#/components/schemas/RunEvent'
+        - $ref: '#/components/schemas/ExecutionEvent'
+        - $ref: '#/components/schemas/ConsoleEvent'
+        - $ref: '#/components/schemas/DisplayEvent'
+        - $ref: '#/components/schemas/VariableEvent'
+        - $ref: '#/components/schemas/CustomEvent'
+        - $ref: '#/components/schemas/ProjectRemovedEvent'
+        - $ref: '#/components/schemas/NotebookRemovedEvent'
+        - $ref: '#/components/schemas/CellRemovedEvent'
+        - $ref: '#/components/schemas/RuntimeRemovedEvent'
+        - $ref: '#/components/schemas/AttachmentRemovedEvent'
+        - $ref: '#/components/schemas/RunRemovedEvent'
+        - $ref: '#/components/schemas/ExecutionRemovedEvent'
+        - $ref: '#/components/schemas/ConsoleRemovedEvent'
+        - $ref: '#/components/schemas/DisplayRemovedEvent'
+        - $ref: '#/components/schemas/VariableRemovedEvent'
+        - $ref: '#/components/schemas/ResetEvent'
+        - $ref: '#/components/schemas/ReadyEvent'
+      discriminator:
+        propertyName: event
+        mapping:
+          host: '#/components/schemas/HostEvent'
+          project: '#/components/schemas/ProjectEvent'
+          notebook: '#/components/schemas/NotebookEvent'
+          document: '#/components/schemas/DocumentEvent'
+          analysis: '#/components/schemas/AnalysisEvent'
+          cell: '#/components/schemas/CellEvent'
+          runtime: '#/components/schemas/RuntimeEvent'
+          attachment: '#/components/schemas/AttachmentEvent'
+          run: '#/components/schemas/RunEvent'
+          execution: '#/components/schemas/ExecutionEvent'
+          console: '#/components/schemas/ConsoleEvent'
+          display: '#/components/schemas/DisplayEvent'
+          variable: '#/components/schemas/VariableEvent'
+          custom: '#/components/schemas/CustomEvent'
+          project.removed: '#/components/schemas/ProjectRemovedEvent'
+          notebook.removed: '#/components/schemas/NotebookRemovedEvent'
+          cell.removed: '#/components/schemas/CellRemovedEvent'
+          runtime.removed: '#/components/schemas/RuntimeRemovedEvent'
+          attachment.removed: '#/components/schemas/AttachmentRemovedEvent'
+          run.removed: '#/components/schemas/RunRemovedEvent'
+          execution.removed: '#/components/schemas/ExecutionRemovedEvent'
+          console.removed: '#/components/schemas/ConsoleRemovedEvent'
+          display.removed: '#/components/schemas/DisplayRemovedEvent'
+          variable.removed: '#/components/schemas/VariableRemovedEvent'
+          reset: '#/components/schemas/ResetEvent'
+          ready: '#/components/schemas/ReadyEvent'
+    HostEvent:
+      type: object
+      description: A `host` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [host] }
+        id: &event_cursor
+          type: string
+          minLength: 1
+          description: The resume cursor. Omitted on snapshot and reset events.
+        data: { $ref: '#/components/schemas/HostMessage' }
+    ProjectEvent:
+      type: object
+      description: A `project` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [project] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/ProjectMessage' }
+    NotebookEvent:
+      type: object
+      description: A `notebook` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [notebook] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/NotebookMessage' }
+    DocumentEvent:
+      type: object
+      description: A `document` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [document] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/DocumentMessage' }
+    AnalysisEvent:
+      type: object
+      description: A `analysis` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [analysis] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/AnalysisMessage' }
+    CellEvent:
+      type: object
+      description: A `cell` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [cell] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/CellMessage' }
+    RuntimeEvent:
+      type: object
+      description: A `runtime` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [runtime] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/RuntimeMessage' }
+    AttachmentEvent:
+      type: object
+      description: A `attachment` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [attachment] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/AttachmentMessage' }
+    RunEvent:
+      type: object
+      description: A `run` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [run] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/RunMessage' }
+    ExecutionEvent:
+      type: object
+      description: A `execution` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [execution] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/ExecutionMessage' }
+    ConsoleEvent:
+      type: object
+      description: A `console` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [console] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/ConsoleMessage' }
+    DisplayEvent:
+      type: object
+      description: A `display` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [display] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/DisplayMessage' }
+    VariableEvent:
+      type: object
+      description: A `variable` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [variable] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/VariableMessage' }
+    CustomEvent:
+      type: object
+      description: A `custom` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [custom] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/CustomMessage' }
+    ProjectRemovedEvent:
+      type: object
+      description: A `project.removed` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [project.removed] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/RemovedMessage' }
+    NotebookRemovedEvent:
+      type: object
+      description: A `notebook.removed` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [notebook.removed] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/RemovedMessage' }
+    CellRemovedEvent:
+      type: object
+      description: A `cell.removed` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [cell.removed] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/RemovedMessage' }
+    RuntimeRemovedEvent:
+      type: object
+      description: A `runtime.removed` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [runtime.removed] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/RemovedMessage' }
+    AttachmentRemovedEvent:
+      type: object
+      description: A `attachment.removed` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [attachment.removed] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/RemovedMessage' }
+    RunRemovedEvent:
+      type: object
+      description: A `run.removed` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [run.removed] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/RemovedMessage' }
+    ExecutionRemovedEvent:
+      type: object
+      description: A `execution.removed` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [execution.removed] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/RemovedMessage' }
+    ConsoleRemovedEvent:
+      type: object
+      description: A `console.removed` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [console.removed] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/RemovedMessage' }
+    DisplayRemovedEvent:
+      type: object
+      description: A `display.removed` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [display.removed] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/RemovedMessage' }
+    VariableRemovedEvent:
+      type: object
+      description: A `variable.removed` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [variable.removed] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/RemovedMessage' }
+    ResetEvent:
+      type: object
+      description: A `reset` event from a host stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [reset] }
+        id: *event_cursor
+        data: { type: object, additionalProperties: false }
+    ReadyEvent:
+      type: object
+      description: A `ready` event from a host stream.
+      required: [event, data, id]
+      properties:
+        event: { type: string, enum: [ready] }
+        id: *event_cursor
+        data: { type: object, additionalProperties: false }
     HostMessage:
       type: object
       description: The data of a `host` event. The host object, plus which request caused the event and when.
