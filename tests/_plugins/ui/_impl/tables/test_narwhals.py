@@ -1439,6 +1439,11 @@ def test_search_special_characters_no_crash(df: Any) -> None:
     assert manager.search("error (404)").get_num_rows() == 1
     assert manager.search("[active]").get_num_rows() >= 1
 
+    # Valid regexes should still be evaluated as regexes
+    assert manager.search(r"\++").get_num_rows() == 2
+    assert manager.search("[++]").get_num_rows() == 2
+    assert manager.search(r"c\+\+").get_num_rows() == 1
+
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(

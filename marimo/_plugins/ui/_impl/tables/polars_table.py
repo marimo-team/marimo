@@ -18,7 +18,10 @@ from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
 )
-from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
+from marimo._plugins.ui._impl.tables.narwhals_table import (
+    NarwhalsTableManager,
+    _has_unescaped_plus_plus,
+)
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
     TableManager,
@@ -293,14 +296,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     )
                     return PolarsTableManager(filtered)
 
-                is_valid_regex = False
-                try:
-                    re.compile(pattern)
-                    is_valid_regex = not bool(re.search(r"\+\+", query))
-                except re.error:
-                    pass
-
-                if is_valid_regex:
+                if not _has_unescaped_plus_plus(query):
                     try:
                         expressions = _get_expressions(pattern)
                         if expressions:

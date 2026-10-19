@@ -1885,6 +1885,11 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.search("error (404)").get_num_rows() == 1
         assert manager.search("[active]").get_num_rows() >= 1
 
+        # Valid regexes should still be evaluated as regexes
+        assert manager.search(r"\++").get_num_rows() == 2
+        assert manager.search("[++]").get_num_rows() == 2
+        assert manager.search(r"c\+\+").get_num_rows() == 1
+
     def test_sort_values_with_nulls(self) -> None:
         df = pd.DataFrame({"A": [3, 1, None, 2]})
         manager = self.factory.create()(df)

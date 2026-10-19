@@ -883,6 +883,19 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert manager.search("error (404)").get_num_rows() == 1
         assert manager.search("[active]").get_num_rows() >= 1
 
+        # Valid regexes should be evaluated as regexes
+        assert manager.search(r"\++").get_num_rows() == 2
+        assert manager.search("[++]").get_num_rows() == 2
+        assert manager.search(r"c\+\+").get_num_rows() == 1
+        assert manager.search("(?<lang>python)").get_num_rows() == 1
+
+        # Test on lazy dataframe
+        lazy_manager = self.factory.create()(df.lazy())
+        assert lazy_manager.search("c++").get_num_rows() == 1
+        assert lazy_manager.search(r"\++").get_num_rows() == 2
+        assert lazy_manager.search("[++]").get_num_rows() == 2
+        assert lazy_manager.search("(?<lang>python)").get_num_rows() == 1
+
     def test_search_wide_dataframe(self) -> None:
         """Regression test: search must not crash on wide tables (GitHub #8449)."""
         import polars as pl

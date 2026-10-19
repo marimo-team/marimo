@@ -109,6 +109,35 @@ def _snapshot_duckdb_relation(relation: Any) -> tuple[Any, int]:
     return snapshot, table.num_rows
 
 
+def _has_unescaped_plus_plus(query: str) -> bool:
+    r"""Check if the query contains unescaped '++' outside of character classes.
+
+    Distinguishes literal 'c++' or possessive quantifiers from escaped pluses
+    (like `\++`) and character classes (like `[++]`).
+    """
+    in_char_class = False
+    i = 0
+    n = len(query)
+    while i < n:
+        char = query[i]
+        if char == "\\":
+            i += 2
+            continue
+        if char == "[" and not in_char_class:
+            in_char_class = True
+            i += 1
+            continue
+        if char == "]" and in_char_class:
+            in_char_class = False
+            i += 1
+            continue
+        if not in_char_class and char == "+":
+            if i + 1 < n and query[i + 1] == "+":
+                return True
+        i += 1
+    return False
+
+
 class NarwhalsTableManager(
     TableManager[nw.DataFrame[IntoDataFrameT] | nw.LazyFrame[IntoLazyFrameT]]
 ):
@@ -500,14 +529,7 @@ class NarwhalsTableManager(
             )
             return self.with_new_data(filtered)
 
-        is_valid_regex = False
-        try:
-            re.compile(pattern)
-            is_valid_regex = not bool(re.search(r"\+\+", query))
-        except re.error:
-            pass
-
-        if is_valid_regex:
+        if not _has_unescaped_plus_plus(query):
             try:
                 expressions = _get_expressions(pattern)
                 if expressions:
