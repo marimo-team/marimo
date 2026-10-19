@@ -284,6 +284,46 @@ describe("toDocumentChanges", () => {
     });
   });
 
+  it("syncs column assignments when vertical keyboard movement crosses a saved boundary", () => {
+    setup("a", "b", "c");
+    const [a, b, c] = state.cellIds.inOrderIds;
+    state = dispatch(state, {
+      type: "addColumnBreakpoint",
+      payload: { cellId: c },
+    });
+    state = dispatch(state, { type: "setCellLayout", payload: false });
+    const { changes } = resolve(state, {
+      type: "moveCell",
+      payload: { cellId: b, before: false },
+    });
+    expect(changes).toEqual([
+      {
+        type: "set-config",
+        cellId: b,
+        column: 1,
+        disabled: false,
+        expandOutput: false,
+        hideCode: false,
+      },
+      { type: "reorder-cells", cellIds: [a, c, b] },
+    ]);
+  });
+
+  it("uses a single move update within an unchanged saved column", () => {
+    setup("a", "b", "c");
+    const [a, b, c] = state.cellIds.inOrderIds;
+    state = dispatch(state, {
+      type: "addColumnBreakpoint",
+      payload: { cellId: c },
+    });
+    state = dispatch(state, { type: "setCellLayout", payload: false });
+    const { changes } = resolve(state, {
+      type: "moveCell",
+      payload: { cellId: a, before: false },
+    });
+    expect(changes).toEqual([{ type: "move-cell", cellId: a, after: b }]);
+  });
+
   describe("column structure actions", () => {
     it("dropOverNewColumn emits set-config + reorder-cells", () => {
       setup("a", "b");
