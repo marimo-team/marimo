@@ -649,11 +649,13 @@ export function renderCellValue<TData, TValue>({
 
       const displayValue = String(column.applyColumnFormatting(value));
       return (
-        <WithLocale>
-          {(locale) =>
-            renderDate({ value: date, dataType, dtype, displayValue, locale })
-          }
-        </WithLocale>
+        <div onClick={selectCell} className={cellStyles}>
+          <WithLocale>
+            {(locale) =>
+              renderDate({ value: date, dataType, dtype, displayValue, locale })
+            }
+          </WithLocale>
+        </div>
       );
     } catch (error) {
       Logger.error("Error parsing datetime, fallback to string", error);
@@ -674,11 +676,13 @@ export function renderCellValue<TData, TValue>({
       ? String(column.applyColumnFormatting(value))
       : undefined;
     return (
-      <WithLocale>
-        {(locale) =>
-          renderDate({ value, dataType, dtype, displayValue, locale })
-        }
-      </WithLocale>
+      <div onClick={selectCell} className={cellStyles}>
+        <WithLocale>
+          {(locale) =>
+            renderDate({ value, dataType, dtype, displayValue, locale })
+          }
+        </WithLocale>
+      </div>
     );
   }
 

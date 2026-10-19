@@ -50,6 +50,36 @@ describe("applyFormat", () => {
         }),
       ).toBe("10/1/23, 12:00:00 PM UTC");
     });
+
+    it("should treat naive datetime strings as UTC", () => {
+      const naive = "2023-10-01 23:30:00";
+      expect(
+        applyFormat(naive, { locale, format: "Date", dataType: "datetime" }),
+      ).toBe("10/1/23");
+      expect(
+        applyFormat(naive, {
+          locale,
+          format: "Datetime",
+          dataType: "datetime",
+        }),
+      ).toBe("10/1/23, 11:30:00 PM UTC");
+      expect(
+        applyFormat(naive, { locale, format: "Time", dataType: "datetime" }),
+      ).toBe("11:30:00 PM UTC");
+      expect(
+        applyFormat("2023-10-01T23:30:00.250", {
+          locale,
+          format: "Time",
+          dataType: "datetime",
+        }),
+      ).toBe("11:30:00 PM UTC");
+    });
+
+    it("should keep the calendar date for date-only strings", () => {
+      expect(
+        applyFormat("2023-10-01", { locale, format: "Date", dataType: "date" }),
+      ).toBe("10/1/23");
+    });
   });
 
   describe("number formatting", () => {

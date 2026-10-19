@@ -1276,12 +1276,13 @@ describe("renderCellValue with datetime values", () => {
       applyColumnFormatting: () => "FORMATTED",
     } as unknown as Column<unknown>;
 
+    const selectCell = vi.fn();
     const result = renderCellValue({
       column: mockColumn,
       renderValue: () => "2024-06-14 12:34:20",
       getValue: () => "2024-06-14 12:34:20",
-      selectCell: undefined,
-      cellStyles: "",
+      selectCell,
+      cellStyles: "cell-styles",
     });
     const { container } = render(
       <I18nProvider locale="en-US">
@@ -1290,6 +1291,11 @@ describe("renderCellValue with datetime values", () => {
     );
     expect(container.textContent).toContain("FORMATTED");
     expect(container.textContent).not.toContain("2024-06-14 12:34:20");
+
+    const wrapper = container.querySelector(".cell-styles");
+    expect(wrapper).not.toBeNull();
+    wrapper?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(selectCell).toHaveBeenCalledTimes(1);
   });
 
   it("should render the column format for Date instances", () => {
