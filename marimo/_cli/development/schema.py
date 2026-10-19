@@ -142,9 +142,7 @@ def _enrich_branded_types(
                 pass
 
     def _visit_annotation(ty: Any) -> None:
-        if isinstance(ty, type):
-            _visit_type(ty)
-            return
+        _visit_type(ty)
         for arg in typing.get_args(ty):
             if arg is not Ellipsis and arg is not type(None):
                 _visit_annotation(arg)
