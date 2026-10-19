@@ -157,6 +157,7 @@ def test_stream_models(path: Path) -> None:
     for event in events:
         kind = event["event"]
         data = json.loads(event["data"])
+        round_trip(protocol.Event, json.dumps({**event, "data": data}))
         if kind in ("ready", "reset"):
             assert data == {}
             assert ("id" in event) == (kind == "ready")
@@ -167,12 +168,6 @@ def test_stream_models(path: Path) -> None:
         if "id" in event:
             assert event["id"] not in cursors
             cursors.add(event["id"])
-        model = (
-            protocol.RemovedMessage
-            if kind.endswith(".removed")
-            else getattr(protocol, f"{kind.title()}Message")
-        )
-        round_trip(model, event["data"])
     assert not snapshot, f"{path.name}: incomplete snapshot"
 
 
