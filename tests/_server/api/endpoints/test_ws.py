@@ -236,6 +236,12 @@ async def test_reconnect_restores_current_attachments(
     )
 
     last_op = "startup-progress" if url == WS_URL else "cell-op"
+    expected_attachments = []
+    if attachment_state == "attached":
+        assert attachment is not None
+        expected_attachments = [
+            msgspec.json.decode(msgspec.json.encode(attachment))
+        ]
     with client.websocket_connect(url) as websocket:
         messages = [websocket.receive_json()]
         while messages[-1]["op"] != last_op:
@@ -246,11 +252,7 @@ async def test_reconnect_restores_current_attachments(
                 "op": "attachments",
                 "data": {
                     "op": "attachments",
-                    "attachments": (
-                        [msgspec.json.decode(msgspec.json.encode(attachment))]
-                        if attachment_state == "attached"
-                        else []
-                    ),
+                    "attachments": expected_attachments,
                 },
             }
         ]

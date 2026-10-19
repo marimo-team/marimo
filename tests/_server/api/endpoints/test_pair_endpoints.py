@@ -9,6 +9,7 @@ import pytest
 
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import get_default_config_manager
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._core import protocol
 from marimo._messaging.messages import AGENT_MESSAGE_TYPE
 from marimo._server.host.bridge import SessionBridge
@@ -22,7 +23,6 @@ from marimo._session.notebook import AppFileManager
 from marimo._session.session import SessionImpl
 from marimo._session.state.session_view import SessionView
 from marimo._types.ids import ConsumerId, SessionId
-from marimo._utils.env import PAIR_PREVIEW_ENV
 from marimo._utils.marimo_path import MarimoPath
 from tests._server.mocks import get_session_manager, token_header
 
@@ -36,8 +36,8 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(autouse=True)
-def preview(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(PAIR_PREVIEW_ENV, "1")
+def enable_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(GLOBAL_SETTINGS, "ENABLE_HOST", True)
 
 
 @pytest.fixture
@@ -202,14 +202,14 @@ def test_invalid_message_json(
 
 
 @pytest.mark.parametrize("operation", ["messages", "attachments/detach"])
-def test_preview_gate(
+def test_host_gate(
     client: TestClient,
     target: tuple[SessionImpl, Notebook],
     monkeypatch: pytest.MonkeyPatch,
     operation: str,
 ) -> None:
     session, _ = target
-    monkeypatch.delenv(PAIR_PREVIEW_ENV)
+    monkeypatch.setattr(GLOBAL_SETTINGS, "ENABLE_HOST", False)
     assert (
         client.post(
             path(session, operation),

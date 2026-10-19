@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING, Any, cast
 from marimo import _loggers as loggers
 from marimo._cli.tips import CliTip
 from marimo._config.manager import MarimoConfigManager, ScriptConfigReader
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.config import StarletteServerState
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._types.ids import SessionId, StableSessionId
-from marimo._utils.env import pair_preview_enabled
 from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
@@ -62,15 +62,6 @@ class AppStateBase:
             None
             if context is None
             else context.bridge.notebook_for_session(session)
-        )
-
-    def session_for_notebook(self, notebook_id: str) -> Session | None:
-        """Return the current session for a host notebook, if available."""
-        context = self.host_context
-        return (
-            None
-            if context is None
-            else context.bridge.session_for_notebook(notebook_id)
         )
 
     @property
@@ -214,9 +205,9 @@ class AppState(AppStateBase):
 
         return self.session_by_stable_id(stable_session_id)
 
-    def require_pair_preview(self) -> None:
-        """Reject Pair routes when the preview is disabled."""
-        if not pair_preview_enabled():
+    def require_host(self) -> None:
+        """Reject agent-aware routes when host support is disabled."""
+        if not GLOBAL_SETTINGS.ENABLE_HOST:
             raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
 
     def session_by_stable_id(self, stable_id: str) -> Session:

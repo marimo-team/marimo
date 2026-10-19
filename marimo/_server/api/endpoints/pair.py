@@ -23,7 +23,7 @@ pair_router = APIRouter()
 async def messages(request: Request) -> Response:
     """Send any JSON content to all agents attached to the notebook."""
     state = AppState(request)
-    state.require_pair_preview()
+    state.require_host()
     session = state.session_by_stable_id(request.path_params["id"])
     try:
         payload = msgspec.json.decode(await request.body())
@@ -43,6 +43,8 @@ async def messages(request: Request) -> Response:
 
 
 class DetachRequest(msgspec.Struct):
+    """Select a host attachment to remove without stopping its notebook runtime."""
+
     attachment_id: str
 
 
@@ -53,7 +55,7 @@ class DetachRequest(msgspec.Struct):
 async def detach(request: Request) -> Response:
     """Disconnect one attachment without stopping its notebook runtime."""
     state = AppState(request)
-    state.require_pair_preview()
+    state.require_host()
     session = state.session_by_stable_id(request.path_params["id"])
     try:
         body = msgspec.json.decode(await request.body(), type=DetachRequest)

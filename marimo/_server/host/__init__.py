@@ -17,3 +17,7 @@ OPERATIONS = [
     "runtime.run",
 ]
 """Supported operations advertised in the `host` object."""
+
+ATTACHMENT_IDENTITY = "Marimo-Attachment-Identity"
+ATTACHMENT_KIND = "Marimo-Attachment-Kind"
+ATTACHMENT_NAME = "Marimo-Attachment-Name"

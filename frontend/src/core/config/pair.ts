@@ -3,16 +3,18 @@
 import { atom } from "jotai";
 import { z } from "zod";
 
-export const pairPreviewSchema = z.object({
+export const pairConfigSchema = z.object({
   command: z.string(),
+  hostEnabled: z.boolean().default(false),
   templates: z.object({
     prompt: z.string(),
+    notebook: z.string(),
     session: z.string(),
     token_file: z.string(),
     token: z.string(),
   }),
 });
 
-export type PairPreviewConfig = z.infer<typeof pairPreviewSchema>;
+export type PairConfig = z.infer<typeof pairConfigSchema>;
 
-export const pairPreviewAtom = atom<PairPreviewConfig | undefined>(undefined);
+export const pairConfigAtom = atom<PairConfig | undefined>(undefined);
