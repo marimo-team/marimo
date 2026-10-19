@@ -6,11 +6,14 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+import msgspec
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notification import (
     AlertNotification,
+    CellNotification,
     StartupProgressNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
@@ -145,6 +148,9 @@ def test_reconnect_keeps_state_and_refresh_replays_it(
         assert (
             receive_notification(websocket, "alert")["title"] == "Reconnected"
         )
+        cell = receive_notification(websocket, "cell-op")
+        assert cell["cell_id"] == cell_id
+        assert "retained output" in str(cell["console"])
     with client.websocket_connect(
         f"{socket_url(editor_host, 's2')}&types=marimo"
     ) as websocket:
@@ -154,6 +160,93 @@ def test_reconnect_keeps_state_and_refresh_replays_it(
         cell = receive_notification(websocket, "cell-op")
         assert cell["cell_id"] == cell_id
         assert "retained output" in str(cell["console"])
+
+
+@pytest.mark.parametrize("replay", ["snapshot", "cursor", "reset"])
+def test_reconnect_recovers_offline_notifications(
+    client: TestClient, editor_host: SessionBridge, replay: str
+) -> None:
+    url = f"{socket_url(editor_host)}&types=marimo"
+    with client.websocket_connect(url) as socket:
+        cursor = socket_snapshot(socket)[-1]["id"]
+        ready = receive_notification(socket, "kernel-ready")
+    session = get_session_manager(client).get_session(SessionId("s1"))
+    assert session is not None
+    assert client.portal is not None
+    update = CellNotification(
+        cell_id=ready["cell_ids"][0],
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="offline output",
+            timestamp=1.0,
+        ),
+        console=[
+            CellOutput(
+                channel=CellChannel.STDOUT,
+                mimetype="text/plain",
+                data="offline console",
+                timestamp=1.0,
+            )
+        ],
+        timestamp=1.0,
+    )
+    client.portal.call(session.notify, update, None)
+    client.portal.call(
+        session.notify,
+        AlertNotification(title="excluded", description=""),
+        ConsumerId("s1"),
+    )
+    if replay == "cursor":
+        url += f"&cursor={cursor}"
+    elif replay == "reset":
+        url += "&cursor=999999999"
+    with client.websocket_connect(url) as socket:
+        opening = socket_snapshot(socket)
+        assert [event["event"] for event in opening] == (
+            ["reset", "ready"] if replay == "reset" else ["ready"]
+        )
+        receive_notification(socket, "reconnected")
+        client.portal.call(
+            session.notify,
+            AlertNotification(title="marker", description=""),
+            None,
+        )
+        notifications = []
+        while True:
+            event = socket.receive_json()
+            notification = event["data"]["marimo"]
+            if (
+                notification["op"] == "alert"
+                and notification["title"] == "marker"
+            ):
+                break
+            notifications.append(notification)
+        assert [n for n in notifications if n["op"] == "cell-op"] == [
+            msgspec.json.decode(serialize_kernel_message(update))
+        ]
+        assert not any(n["op"] == "kernel-ready" for n in notifications)
+        assert not any(
+            n["op"] == "alert" and n["title"] == "excluded"
+            for n in notifications
+        )
+
+
+@pytest.mark.parametrize("run_id", ["", "wanted"])
+def test_run_filter_is_rejected_before_starting_an_editor_session(
+    client: TestClient, editor_host: SessionBridge, run_id: str
+) -> None:
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with client.websocket_connect(
+            f"{socket_url(editor_host)}&run_id={run_id}"
+        ):
+            pytest.fail("Editor run filter was accepted")
+    assert (exc.value.code, exc.value.reason) == (
+        1008,
+        "Editor sessions do not support run_id filtering",
+    )
+    assert not get_session_manager(client).sessions
 
 
 def test_second_tab_gets_private_startup_and_excluded_messages_do_not_echo(

@@ -48,6 +48,9 @@ class _Close:
 class EditorEventSocket(SessionHandler):
     """Merge host events with the session's private notification delivery."""
 
+    # Shared-log replay omits native notifications to preserve recipients.
+    _replay_notebook_on_reconnect = True
+
     def __init__(
         self,
         websocket: WebSocket,

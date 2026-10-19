@@ -490,8 +490,17 @@ async def _editor_events_ws(websocket: WebSocket) -> None:
             code=1008, reason="Editor authentication required"
         )
         return
+    # TODO: Move editor lifecycle and recipient routing to host attachments so
+    # event subscriptions no longer need the legacy session_id.
     if "session_id" not in websocket.query_params:
         await _notebook_events_ws(websocket)
+        return
+
+    if "run_id" in websocket.query_params:
+        await websocket.close(
+            code=1008,
+            reason="Editor sessions do not support run_id filtering",
+        )
         return
 
     cursor = _cursor(websocket)

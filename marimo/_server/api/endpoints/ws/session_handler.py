@@ -75,6 +75,8 @@ class SessionHandler(SessionConsumer, abc.ABC):
     `message_queue`.
     """
 
+    _replay_notebook_on_reconnect = False
+
     def __init__(
         self,
         *,
@@ -311,7 +313,9 @@ class SessionHandler(SessionConsumer, abc.ABC):
                     description="You have reconnected to an existing session.",
                 )
             )
-            self._replay_previous_session(session, include_notebook=False)
+            self._replay_previous_session(
+                session, include_notebook=self._replay_notebook_on_reconnect
+            )
             return
 
         self._write_kernel_ready_from_session_view(session, self.params.kiosk)
