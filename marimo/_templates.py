@@ -92,6 +92,89 @@ def _static_state_block(
     )
 
 
+# Toggles pre-rendered `mo.ui.tabs` output variants in static HTML exports.
+# Cells whose outputs depend on a tab's value embed one hidden div per tab
+# value (see `marimo/_export/_tab_variants.py`); this script shows the div
+# matching the currently selected tab. It listens for the `marimo-value-input`
+# event that UI elements dispatch on change, so it keeps working with the
+# frontend's own tab component without a kernel.
+_TAB_VARIANT_SCRIPT = """
+    <script data-marimo="true">
+        (function () {
+            "use strict";
+            // Selected tab index of every mo.ui.tabs element, by object id.
+            var selectedByObjectId = {};
+            function readInitialValues() {
+                var tabs = document.querySelectorAll("marimo-tabs");
+                for (var i = 0; i < tabs.length; i++) {
+                    var host = tabs[i].closest("marimo-ui-element");
+                    if (!host) continue;
+                    var objectId = host.getAttribute("object-id");
+                    if (!objectId) continue;
+                    try {
+                        selectedByObjectId[objectId] = String(
+                            JSON.parse(
+                                tabs[i].getAttribute("data-initial-value")
+                            )
+                        );
+                    } catch (e) {
+                        selectedByObjectId[objectId] = "0";
+                    }
+                }
+            }
+            function currentComboKey() {
+                return Object.keys(selectedByObjectId)
+                    .sort()
+                    .map(function (key) {
+                        return key + ":" + selectedByObjectId[key];
+                    })
+                    .join(";");
+            }
+            function applyVariants() {
+                var key = currentComboKey();
+                var wrappers = document.querySelectorAll(
+                    "[data-marimo-tab-variants]"
+                );
+                for (var i = 0; i < wrappers.length; i++) {
+                    var variants = wrappers[i].querySelectorAll(
+                        ":scope > [data-tab-combo]"
+                    );
+                    for (var j = 0; j < variants.length; j++) {
+                        variants[j].hidden =
+                            variants[j].getAttribute("data-tab-combo") !== key;
+                    }
+                }
+            }
+            document.addEventListener("marimo-value-input", function (event) {
+                var detail = event.detail || {};
+                var element = detail.element;
+                if (
+                    !element ||
+                    element.tagName.toLowerCase() !== "marimo-tabs"
+                ) {
+                    return;
+                }
+                var host = element.closest("marimo-ui-element");
+                if (!host) return;
+                var objectId = host.getAttribute("object-id");
+                if (!(objectId in selectedByObjectId)) return;
+                selectedByObjectId[objectId] = String(detail.value);
+                applyVariants();
+            });
+            function init() {
+                readInitialValues();
+                applyVariants();
+            }
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+"""
+
+
 def _get_mount_config(
     *,
     filename: str | None,
@@ -434,6 +517,7 @@ def static_notebook_template(
     model_notifications: list[ModelLifecycleNotification] | None = None,
     asset_url: str | None = None,
     layout: LayoutConfig | None = None,
+    include_tab_variant_script: bool = False,
 ) -> str:
     if asset_url is None:
         asset_url = get_default_asset_url()
@@ -479,6 +563,8 @@ def static_notebook_template(
         ],
     )
     static_block += _export_context_block(notebook_code=code)
+    if include_tab_variant_script:
+        static_block += _TAB_VARIANT_SCRIPT
 
     # Add HTML head file contents if specified
     if app_config.html_head_file:
