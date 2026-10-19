@@ -23,7 +23,7 @@ class CommLifecycleItem(CellLifecycleItem):
     def __init__(self, comm: MarimoComm) -> None:
         self._comm = comm
 
-    def create(self, context: RuntimeContext) -> None:
+    def create(self, context: RuntimeContext | None) -> None:
         del context
 
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:

@@ -25,8 +25,10 @@ class CellLifecycleRegistry:
     def add(self, item: CellLifecycleItem) -> None:
         """Add a lifecycle item for the currently running cell.
 
-        Calls the item's create method upon adding. No-op if no cell
-        is running.
+        Calls the item's create method upon adding. If no cell is running,
+        the item is created with `context=None` and left unregistered, since
+        no cell lifecycle can dispose it. This matches what callers get when
+        no runtime context is installed at all.
         """
         from marimo._runtime.context import get_context
 
@@ -34,6 +36,7 @@ class CellLifecycleRegistry:
 
         cell_id = ctx.cell_id
         if cell_id is None:
+            item.create(context=None)
             return
 
         item.create(ctx)

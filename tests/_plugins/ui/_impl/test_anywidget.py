@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import gc
 import weakref
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -20,6 +21,7 @@ from marimo._runtime.commands import (
     ModelUpdateMessage,
     UpdateUIElementCommand,
 )
+from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
 from marimo._types.ids import WidgetModelId
 from marimo._utils.code import hash_code
@@ -424,6 +426,26 @@ x = as_marimo_element.count
         assert isinstance(comm2, MarimoComm)
         assert comm2.esm_spec is not None
         assert comm2.esm_spec.hash == hash_code(JSWidget2._esm)
+
+    @staticmethod
+    def test_widget_constructed_off_cell_in_worker_thread(
+        k: Kernel,  # noqa: ARG004
+    ) -> None:
+        # A worker thread that restored the kernel's runtime context while no
+        # cell is running must still be able to build a widget (#11308). No
+        # cell lifecycle can own the ESM virtual file, so it is a data URL.
+        ctx = get_context()
+        assert ctx.cell_id is None
+
+        def build_widget_off_cell() -> CounterWidget:
+            with ctx.install():
+                return CounterWidget()
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            widget = pool.submit(build_widget_off_cell).result(timeout=10)
+
+        assert widget.comm.esm_spec is not None
+        assert widget.comm.esm_spec.url.startswith("data:")
 
     @staticmethod
     def test_state_merging() -> None:

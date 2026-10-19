@@ -10,11 +10,14 @@ if TYPE_CHECKING:
 
 class CellLifecycleItem(abc.ABC):
     @abc.abstractmethod
-    def create(self, context: RuntimeContext) -> None:
+    def create(self, context: RuntimeContext | None) -> None:
         """Create this item
 
         This method is executed at the beginning of a cell's lifecycle.
         Use it to run side-effects or create state.
+
+        `context` is `None` when the item is created outside of a cell
+        lifecycle, in which case `dispose` is never called.
         """
         ...
 

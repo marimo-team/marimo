@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 
+import marimo._output.data.data as mo_data
 from marimo._runtime.commands import DeleteCellCommand
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
@@ -314,6 +315,22 @@ async def test_virtual_file_empty_buffer(
     )
     # Empty buffers should not be added to the registry
     assert len(get_context().virtual_file_registry.registry) == 0
+
+
+def test_any_data_with_context_but_no_cell_uses_data_url(
+    run_mode_kernel: MockedKernel,  # noqa: ARG001
+) -> None:
+    # A runtime context is installed but no cell is running, as on a worker
+    # thread that restored the kernel's context (#11308). Nothing can own the
+    # item's disposal, so it falls back to a data URL like the no-context case.
+    ctx = get_context()
+    assert ctx.cell_id is None
+
+    vfile = mo_data.any_data(b"export default {}", ext="js")
+
+    assert vfile.filename.endswith(".js")
+    assert vfile.url.startswith("data:")
+    assert len(ctx.virtual_file_registry.registry) == 0
 
 
 def test_virtual_file_registry_shared_inmemory_storage(

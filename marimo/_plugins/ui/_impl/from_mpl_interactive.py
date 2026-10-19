@@ -479,7 +479,7 @@ class _MplCleanupHandle(CellLifecycleItem):
         self._original_dpi = original_dpi
         self._original_size_inches = original_size_inches
 
-    def create(self, context: RuntimeContext) -> None:
+    def create(self, context: RuntimeContext | None) -> None:
         del context
 
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
