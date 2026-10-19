@@ -9,6 +9,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.anywidget.init import WIDGET_COMM_MANAGER
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._plugins.ui._impl.from_anywidget import (
     WeakCache,
@@ -16,6 +17,7 @@ from marimo._plugins.ui._impl.from_anywidget import (
     from_anywidget,
     get_anywidget_state,
 )
+from marimo._runtime.cell_lifecycle_registry import NoOwningCellError
 from marimo._runtime.commands import (
     ModelCommand,
     ModelUpdateMessage,
@@ -428,24 +430,30 @@ x = as_marimo_element.count
         assert comm2.esm_spec.hash == hash_code(JSWidget2._esm)
 
     @staticmethod
-    def test_widget_constructed_off_cell_in_worker_thread(
+    def test_widget_constructed_off_cell_raises_and_leaves_no_comm(
         k: Kernel,  # noqa: ARG004
     ) -> None:
-        # A worker thread that restored the kernel's runtime context while no
-        # cell is running must still be able to build a widget (#11308). No
-        # cell lifecycle can own the ESM virtual file, so it is a data URL.
+        # A plain thread that restored the kernel's runtime context while no
+        # cell is running (#11308) cannot build a widget: no cell could close
+        # its comm. The error points at mo.Thread, and a comm opened before
+        # the check is closed again so the comm manager is left as it was.
         ctx = get_context()
         assert ctx.cell_id is None
+        comms_before = set(WIDGET_COMM_MANAGER.comms)
 
-        def build_widget_off_cell() -> CounterWidget:
+        def build_off_cell(widget_class: type) -> object:
             with ctx.install():
-                return CounterWidget()
+                return widget_class()
 
         with ThreadPoolExecutor(max_workers=1) as pool:
-            widget = pool.submit(build_widget_off_cell).result(timeout=10)
+            # Inline ESM: refused before any comm is opened.
+            with pytest.raises(NoOwningCellError, match=r"mo\.Thread"):
+                pool.submit(build_off_cell, CounterWidget).result(timeout=10)
+            # No ESM: the comm opens first and must be closed on refusal.
+            with pytest.raises(NoOwningCellError, match=r"mo\.Thread"):
+                pool.submit(build_off_cell, Widget).result(timeout=10)
 
-        assert widget.comm.esm_spec is not None
-        assert widget.comm.esm_spec.url.startswith("data:")
+        assert set(WIDGET_COMM_MANAGER.comms) == comms_before
 
     @staticmethod
     def test_state_merging() -> None:

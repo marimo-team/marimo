@@ -4,7 +4,10 @@ from __future__ import annotations
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
+import pytest
+
 import marimo._output.data.data as mo_data
+from marimo._runtime.cell_lifecycle_registry import NoOwningCellError
 from marimo._runtime.commands import DeleteCellCommand
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
@@ -318,20 +321,20 @@ async def test_virtual_file_empty_buffer(
     assert len(get_context().virtual_file_registry.registry) == 0
 
 
-def test_any_data_with_context_but_no_cell_uses_data_url(
+def test_any_data_with_context_but_no_cell_raises(
     run_mode_kernel: MockedKernel,  # noqa: ARG001
 ) -> None:
-    # A runtime context is installed but no cell is running, as on a worker
-    # thread that restored the kernel's context (#11308). Nothing can own the
-    # item's disposal, so it falls back to a data URL like the no-context case.
+    # A runtime context is installed but no cell is running, as on a plain
+    # thread that restored the kernel's context (#11308). Nothing could ever
+    # dispose the file, so marimo refuses to create it rather than leak it.
     ctx = get_context()
     assert ctx.cell_id is None
 
-    vfile = mo_data.any_data(b"export default {}", ext="js")
+    with pytest.raises(NoOwningCellError, match=r"mo\.Thread"):
+        mo_data.any_data(b"export default {}", ext="js")
 
-    assert vfile.filename.endswith(".js")
-    assert vfile.url.startswith("data:")
-    assert len(ctx.virtual_file_registry.registry) == 0
+    assert not ctx.virtual_file_registry.registry
+    assert not ctx.cell_lifecycle_registry.registry
 
 
 async def test_vfile_from_task_is_owned_by_spawning_cell(
@@ -406,11 +409,11 @@ async def test_vfile_from_thread_with_copied_context_is_owned_by_spawning_cell(
     assert vfile.filename not in ctx.virtual_file_registry.registry
 
 
-async def test_vfile_from_task_of_deleted_cell_uses_data_url(
+async def test_vfile_from_task_of_deleted_cell_raises(
     execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    # Once the spawning cell is deleted nothing can dispose the item, so it
-    # falls back to a data URL instead of registering under a dead cell.
+    # Once the spawning cell is deleted nothing can dispose the item, so the
+    # task gets an error instead of a file registered under a dead cell.
     k = execution_kernel
     await k.run(
         [
@@ -437,9 +440,9 @@ async def test_vfile_from_task_of_deleted_cell_uses_data_url(
     gate, task = k.globals["gate"], k.globals["task"]
     await k.delete_cell(DeleteCellCommand(cell_id=spawn.cell_id))
     gate.set()
-    vfile = await task
+    with pytest.raises(NoOwningCellError, match="deleted"):
+        await task
 
-    assert vfile.url.startswith("data:")
     assert spawn.cell_id not in ctx.cell_lifecycle_registry.registry
     assert not ctx.virtual_file_registry.registry
 

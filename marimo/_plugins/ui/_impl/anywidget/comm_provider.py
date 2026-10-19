@@ -17,6 +17,7 @@ from marimo._plugins.ui._impl.anywidget.init import (
     CommLifecycleItem,
 )
 from marimo._plugins.ui._impl.comm import MarimoComm
+from marimo._runtime.cell_lifecycle_registry import NoOwningCellError
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._types.ids import WidgetModelId
 
@@ -106,9 +107,14 @@ def install_anywidget_comm_provider() -> None:
         # the cell is re-run or deleted.
         try:
             ctx = get_context()
-            ctx.cell_lifecycle_registry.add(CommLifecycleItem(c))
         except ContextNotInitializedError:
-            pass
+            return c
+        try:
+            ctx.cell_lifecycle_registry.add(CommLifecycleItem(c))
+        except NoOwningCellError:
+            # The comm is already open and would otherwise never be closed.
+            c.close()
+            raise
         return c
 
     _PATCHED_CREATE_COMM = _marimo_create_comm

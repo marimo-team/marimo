@@ -21,6 +21,7 @@ from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._plugins.ui._impl.anywidget.init import WIDGET_COMM_MANAGER
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
+from marimo._runtime.cell_lifecycle_registry import NoOwningCellError
 from marimo._runtime.context import RuntimeContext
 from marimo._runtime.virtual_file.virtual_file import VirtualFile
 from marimo._types.ids import WidgetModelId
@@ -363,16 +364,21 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
 
         try:
             ctx = get_context()
-            ctx.cell_lifecycle_registry.add(
-                _MplCleanupHandle(
-                    comm=self._comm,
-                    figure=self._figure,
-                    figure_manager=self._figure_manager,
-                    sync_ws=self._sync_ws,
-                )
-            )
         except ContextNotInitializedError:
-            pass
+            return
+        cleanup = _MplCleanupHandle(
+            comm=self._comm,
+            figure=self._figure,
+            figure_manager=self._figure_manager,
+            sync_ws=self._sync_ws,
+        )
+        try:
+            ctx.cell_lifecycle_registry.add(cleanup)
+        except NoOwningCellError:
+            # The comm and figure manager already exist and would otherwise
+            # never be torn down.
+            cleanup.dispose(context=ctx, deletion=True)
+            raise
 
     def _handle_comm_msg(self, msg: dict[str, Any]) -> None:
         """Handle messages from frontend → backend.
@@ -479,7 +485,7 @@ class _MplCleanupHandle(CellLifecycleItem):
         self._original_dpi = original_dpi
         self._original_size_inches = original_size_inches
 
-    def create(self, context: RuntimeContext | None) -> None:
+    def create(self, context: RuntimeContext) -> None:
         del context
 
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:

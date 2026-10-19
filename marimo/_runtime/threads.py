@@ -87,7 +87,7 @@ class Thread(threading.Thread):
             return
 
         class ThreadLifecycle(CellLifecycleItem):
-            def create(self, context: RuntimeContext | None) -> None:
+            def create(self, context: RuntimeContext) -> None:
                 del context
 
             def dispose(self, context: RuntimeContext, deletion: bool) -> bool:

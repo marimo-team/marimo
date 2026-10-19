@@ -3,8 +3,13 @@ from __future__ import annotations
 
 import dataclasses
 
+from marimo._messaging.context import EXECUTION_CTX
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._types.ids import CellId_t
+
+
+class NoOwningCellError(RuntimeError):
+    """No cell can own a lifecycle item, so marimo refuses to create it."""
 
 
 @dataclasses.dataclass
@@ -23,29 +28,32 @@ class CellLifecycleRegistry:
         self.registry[cell_id].add(item)
 
     def add(self, item: CellLifecycleItem) -> None:
-        """Add a lifecycle item for the currently running cell.
+        """Create `item` and register it with the cell that owns it.
 
-        Calls the item's create method upon adding. When no cell is running
-        on this thread, the owner is the cell whose evaluation spawned the
-        current flow of control (an `asyncio` task, or a thread run under a
-        copy of that cell's `contextvars` context); the item is then disposed
-        when that cell re-runs or is deleted. If there is no such cell, or it
-        no longer exists, the item is created with `context=None` and left
-        unregistered, as when no runtime context is installed at all.
+        The owner is the running cell, or else the cell whose evaluation
+        spawned the current task or thread. Raises `NoOwningCellError` when
+        there is neither.
         """
-        from marimo._messaging.context import EXECUTION_CTX
         from marimo._runtime.context import get_context
 
         ctx = get_context()
 
         cell_id = ctx.cell_id
         if cell_id is None and (execution := EXECUTION_CTX.get()) is not None:
-            spawning_cell = CellId_t(execution.cell_id)
-            if spawning_cell in ctx.graph.cells:
-                cell_id = spawning_cell
+            # Tasks and copied contexts keep the tag after the cell body
+            # ends, so the spawning cell may have been deleted since.
+            if CellId_t(execution.cell_id) not in ctx.graph.cells:
+                raise NoOwningCellError(
+                    "The cell that started this background work was "
+                    "deleted, so marimo cannot clean up after it."
+                )
+            cell_id = CellId_t(execution.cell_id)
         if cell_id is None:
-            item.create(context=None)
-            return
+            raise NoOwningCellError(
+                "No cell is running on this thread, so marimo cannot clean "
+                "up this object when a cell re-runs. Start background work "
+                "with mo.Thread from a cell instead of a plain thread."
+            )
 
         item.create(ctx)
         return self.inject(cell_id, item)
