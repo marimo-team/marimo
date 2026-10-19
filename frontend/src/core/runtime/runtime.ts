@@ -157,12 +157,14 @@ export class RuntimeManager {
    */
   public getWsURL(sessionId: SessionId): URL {
     const searchParams = this.getSessionSearchParams(sessionId);
+    // TODO(MO-8039): Rediscover hosts and resolve notebooks on reconnect.
     const notebookId = this.config.notebookId;
     const path = notebookId
       ? `/api/marimo/v1/notebooks/${encodeURIComponent(notebookId)}/events/ws`
       : "/ws";
     const url = this.formatWsURL(path, searchParams);
     if (notebookId) {
+      // TODO(MO-8034): Separate host options from notebook query params.
       url.searchParams.set("types", HOST_EVENT_TYPES.join(","));
     }
     return url;

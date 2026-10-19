@@ -16,7 +16,7 @@ export const NOTEBOOK_EVENT_TYPES = [
   "document",
   "cell",
   "marimo",
-] as const;
+] as const satisfies readonly (Protocol.ObjectType | "marimo")[];
 
 const envelope = z.object({
   event: z.string().min(1),
