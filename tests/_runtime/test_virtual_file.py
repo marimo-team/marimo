@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import marimo._output.data.data as mo_data
 from marimo._runtime.commands import DeleteCellCommand
@@ -331,6 +332,116 @@ def test_any_data_with_context_but_no_cell_uses_data_url(
     assert vfile.filename.endswith(".js")
     assert vfile.url.startswith("data:")
     assert len(ctx.virtual_file_registry.registry) == 0
+
+
+async def test_vfile_from_task_is_owned_by_spawning_cell(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    # A task spawned by a cell runs on after the cell body has finished, so
+    # no cell is running when it mints a file. The file belongs to the
+    # spawning cell and is disposed when that cell re-runs.
+    k = execution_kernel
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import asyncio
+                from marimo._output.data import data as mo_data
+                """
+            ),
+            spawn := exec_req.get(
+                """
+                gate = asyncio.Event()
+
+                async def build(gate):
+                    await gate.wait()
+                    return mo_data.any_data(b"hello world", ext="txt")
+
+                task = asyncio.create_task(build(gate))
+                """
+            ),
+        ]
+    )
+    ctx = get_context()
+    assert ctx.cell_id is None
+    k.globals["gate"].set()
+    vfile = await k.globals["task"]
+
+    assert vfile.url.startswith("./@file/")
+    assert vfile.filename in ctx.virtual_file_registry.registry
+
+    await k.run([spawn])
+    assert vfile.filename not in ctx.virtual_file_registry.registry
+    k.globals["task"].cancel()
+
+
+async def test_vfile_from_thread_with_copied_context_is_owned_by_spawning_cell(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    # A plain thread that restores the kernel context (the pattern in
+    # #11308) owns nothing by itself. Running under a `contextvars` copy
+    # taken in the cell makes that cell the owner, so deleting the cell
+    # disposes what the thread created.
+    k = execution_kernel
+    await k.run(
+        [
+            exec_req.get("import contextvars"),
+            spawn := exec_req.get("snapshot = contextvars.copy_context()"),
+        ]
+    )
+    ctx = get_context()
+    snapshot = k.globals["snapshot"]
+
+    def build_off_cell() -> VirtualFile:
+        with ctx.install():
+            return snapshot.run(mo_data.any_data, b"hello world", "txt")
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        vfile = pool.submit(build_off_cell).result(timeout=10)
+
+    assert vfile.url.startswith("./@file/")
+    assert vfile.filename in ctx.virtual_file_registry.registry
+
+    await k.delete_cell(DeleteCellCommand(cell_id=spawn.cell_id))
+    assert vfile.filename not in ctx.virtual_file_registry.registry
+
+
+async def test_vfile_from_task_of_deleted_cell_uses_data_url(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    # Once the spawning cell is deleted nothing can dispose the item, so it
+    # falls back to a data URL instead of registering under a dead cell.
+    k = execution_kernel
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import asyncio
+                from marimo._output.data import data as mo_data
+                """
+            ),
+            spawn := exec_req.get(
+                """
+                gate = asyncio.Event()
+
+                async def build(gate):
+                    await gate.wait()
+                    return mo_data.any_data(b"hello world", ext="txt")
+
+                task = asyncio.create_task(build(gate))
+                """
+            ),
+        ]
+    )
+    ctx = get_context()
+    gate, task = k.globals["gate"], k.globals["task"]
+    await k.delete_cell(DeleteCellCommand(cell_id=spawn.cell_id))
+    gate.set()
+    vfile = await task
+
+    assert vfile.url.startswith("data:")
+    assert spawn.cell_id not in ctx.cell_lifecycle_registry.registry
+    assert not ctx.virtual_file_registry.registry
 
 
 def test_virtual_file_registry_shared_inmemory_storage(
