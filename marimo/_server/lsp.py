@@ -721,7 +721,12 @@ class TyServer(BaseLspServer):
             ty_command = f"ty:{find_ty_bin()}"
         except ImportError:
             # Tools installed with `uv tool install` are only on PATH.
-            ty_command = f"ty:{shutil.which('ty') or 'ty'}"
+            ty_bin = shutil.which("ty")
+            if ty_bin is None:
+                raise FileNotFoundError(
+                    "ty executable not found on PATH"
+                ) from None
+            ty_command = f"ty:{ty_bin}"
 
         return [
             "node",

@@ -703,6 +703,18 @@ async def test_ty_server_availability(
         assert start.await_count == int(installed or on_path)
 
 
+def test_ty_server_missing_binary() -> None:
+    server = TyServer(port=8000)
+    with (
+        mock.patch.dict("sys.modules", {"ty": None, "ty.__main__": None}),
+        mock.patch("shutil.which", return_value=None),
+        pytest.raises(
+            FileNotFoundError, match="ty executable not found on PATH"
+        ),
+    ):
+        server.get_command()
+
+
 async def test_ty_server_starts_with_binary_on_path(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
