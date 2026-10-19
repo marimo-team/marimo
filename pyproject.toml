@@ -530,10 +530,6 @@ exclude = [
 warn_unused_ignores = false
 
 [[tool.mypy.overrides]]
-module = ["marimo._utils.memoize", "marimo._utils.timer"]
-disallow_any_explicit = true
-
-[[tool.mypy.overrides]]
 # Core matches on typed events; a misspelled kind must not match nothing.
 module = ["marimo._core.*"]
 warn_unreachable = true
