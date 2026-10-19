@@ -17,7 +17,8 @@
         "expand_output": false
       },
       "etag": "dde89bbcc1863211",
-      "code_hash": "43e1a529dbae470b"
+      "code_hash": "43e1a529dbae470b",
+      "version": 2
     },
     "document": {
       "notebook_id": "n1",
@@ -32,7 +33,8 @@
       "etag": "f01a47d5aa0cad55",
       "saved_etag": "e59d9c2af02f5814",
       "order_etag": "162e15055422ed71",
-      "app_config_etag": "283513048dfeb45b"
+      "app_config_etag": "283513048dfeb45b",
+      "version": 2
     }
   }
 }

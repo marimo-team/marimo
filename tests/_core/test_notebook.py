@@ -1200,9 +1200,13 @@ async def test_current_cell_results_can_seed_another_notebook() -> None:
         saved_etag=notebook.saved_etag,
     )
     source_record, source_cells = published(notebook)
+    # A new notebook starts its own version history.
     assert published(restored) == (
-        replace(source_record, notebook_id=restored.id),
-        [replace(cell, notebook_id=restored.id) for cell in source_cells],
+        replace(source_record, notebook_id=restored.id, version=1),
+        [
+            replace(cell, notebook_id=restored.id, version=1)
+            for cell in source_cells
+        ],
     )
     assert list(restored.document) == list(notebook.document)
     assert restored.executions.current(CellId("c1")) == retained

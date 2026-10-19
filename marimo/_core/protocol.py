@@ -696,11 +696,13 @@ class Cell(Struct, frozen=True):
         ),
     ]
     notebook_id: NotebookId
-
-
-class CellEtags(Struct, frozen=True):
-    code_hash: Etag
-    etag: Etag
+    version: Annotated[
+        int,
+        Meta(
+            description="The document version at which the cell was created or last changed.",
+            ge=1,
+        ),
+    ]
 
 
 class CellMessage(Struct, frozen=True):
@@ -723,6 +725,14 @@ class CellMessage(Struct, frozen=True):
         ]
         | UnsetType
     ) = UNSET
+
+
+class CellVersion(Struct, frozen=True):
+    code_hash: Etag
+    etag: Etag
+    version: Annotated[
+        int, Meta(description="The cell's version after the edit.", ge=1)
+    ]
 
 
 Change: TypeAlias = Annotated[
@@ -893,6 +903,13 @@ class Document(Struct, frozen=True):
         ]
         | None
     )
+    version: Annotated[
+        int,
+        Meta(
+            description="Counts changes to the cells, the order, or the app config. A save does not advance it. Comparable only within one notebook while it is in the catalog.",
+            ge=1,
+        ),
+    ]
 
 
 class DocumentMessage(Struct, frozen=True):
@@ -946,9 +963,9 @@ class EditRequest(Struct, frozen=True):
 
 class EditResponse(Struct, frozen=True):
     cells: Annotated[
-        dict[str, CellEtags | None],
+        dict[str, CellVersion | None],
         Meta(
-            description="The etags of each cell the request created or changed, by id, and null for each cell it deleted."
+            description="The version of each cell the request created or changed, by id, and null for each cell it deleted."
         ),
     ]
     document: Document

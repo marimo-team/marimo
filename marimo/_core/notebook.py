@@ -62,6 +62,11 @@ class Notebook:
         self._id = notebook_id
         self._document = document
         self._saved_etag = saved_etag
+        # Versions order the records clients read. The document's advances
+        # with each change to its content; a cell's is the document version
+        # at which it was created or last changed.
+        self._version = 1
+        self._cell_versions = {cell.id: 1 for cell in document}
         # The document record as last published, so a change that leaves
         # it the same publishes nothing.
         self._published: protocol.Document | None = self._document_record
@@ -128,6 +133,7 @@ class Notebook:
             saved_etag=self._saved_etag,
             order_etag=document.order_etag,
             app_config_etag=document.app_config_etag,
+            version=self._version,
         )
 
     @property
@@ -157,25 +163,23 @@ class Notebook:
         """Replace the document and publish its changes.
 
         With `saved`, the new contents are also the persisted revision.
-        The response carries etags for the cells that changed, and
+        The response carries the version of each cell that changed, and
         `None` for each cell that was removed.
         """
         self._require_open()
         self._document, changed = self._document.replace(cells, app_config)
         if saved:
             self._saved_etag = self._document.etag
-        self._publish_changed(changed, request_id)
-        etags: dict[str, protocol.CellEtags | None] = {
-            cell.id: protocol.CellEtags(
-                etag=cell.etag, code_hash=cell.code_hash
+        with self.sink.deferred():
+            self._publish_changed(changed, request_id)
+            versions: dict[str, protocol.CellVersion | None] = {
+                cell.id: self._cell_version(cell) for cell in changed.cells
+            }
+            for cell_id in changed.removed:
+                versions[cell_id] = None
+            return protocol.EditResponse(
+                document=self._document_record, cells=versions
             )
-            for cell in changed.cells
-        }
-        for cell_id in changed.removed:
-            etags[cell_id] = None
-        return protocol.EditResponse(
-            document=self._document_record, cells=etags
-        )
 
     def edit(
         self, changes: Sequence[protocol.Change], *, request_id: str
@@ -202,11 +206,15 @@ class Notebook:
                 document=self._document_record,
             )
         self._document, applied = result
-        self._publish_changed(applied.changed, request_id)
-        return protocol.EditResponse(
-            document=self._document_record,
-            cells=dict(applied.cells.items()),
-        )
+        with self.sink.deferred():
+            self._publish_changed(applied.changed, request_id)
+            return protocol.EditResponse(
+                document=self._document_record,
+                cells={
+                    cell_id: None if cell is None else self._cell_version(cell)
+                    for cell_id, cell in applied.cells.items()
+                },
+            )
 
     def mark_saved(
         self, etag: protocol.Etag, *, request_id: str | None = None
@@ -232,6 +240,14 @@ class Notebook:
             config=cell.config,
             etag=cell.etag,
             code_hash=cell.code_hash,
+            version=self._cell_versions[cell.id],
+        )
+
+    def _cell_version(self, cell: DocumentCell) -> protocol.CellVersion:
+        return protocol.CellVersion(
+            etag=cell.etag,
+            code_hash=cell.code_hash,
+            version=self._cell_versions[cell.id],
         )
 
     def _refresh(self) -> protocol.Document | None:
@@ -246,6 +262,12 @@ class Notebook:
         self, changed: Changed, request_id: str | None
     ) -> None:
         """Publish a document change, then analyze the new revision."""
+        if changed:
+            self._version += 1
+            for cell in changed.cells:
+                self._cell_versions[cell.id] = self._version
+            for cell_id in changed.removed:
+                self._cell_versions.pop(cell_id, None)
         with self.sink.deferred():
             for cell in changed.cells:
                 self._publish(self._cell_record(cell), request_id)

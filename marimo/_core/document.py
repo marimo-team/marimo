@@ -124,11 +124,11 @@ class Changed:
 
 @dataclass(frozen=True)
 class Applied:
-    """An edit's effects and the etags of the cells it touched."""
+    """An edit's effects and the cells it touched."""
 
     changed: Changed
-    cells: dict[protocol.CellId, protocol.CellEtags | None]
-    """By id, for each cell the edit put, and `None` for each it deleted."""
+    cells: dict[protocol.CellId, DocumentCell | None]
+    """By id, each cell as the edit put it, and `None` for each it deleted."""
 
 
 @dataclass(frozen=True)
@@ -331,15 +331,10 @@ class Document:
         document, changed = self.replace(
             [staged[cell_id] for cell_id in order], self._app_config
         )
-        cells: dict[protocol.CellId, protocol.CellEtags | None] = {}
-        for cell_id, put in touched.items():
-            if put:
-                cell = document._cells[cell_id]
-                cells[cell_id] = protocol.CellEtags(
-                    etag=cell.etag, code_hash=cell.code_hash
-                )
-            else:
-                cells[cell_id] = None
+        cells = {
+            cell_id: document._cells[cell_id] if put else None
+            for cell_id, put in touched.items()
+        }
         return document, Applied(changed, cells)
 
 

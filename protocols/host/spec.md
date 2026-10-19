@@ -76,14 +76,19 @@ across renames and moves.
 ### Documents and cells
 
 The **document** is the notebook's editable source, organized into **cells**.
-Each cell holds code and the information used to present and execute it. A host
-MAY also publish an **analysis** of the document: each cell's definitions,
-references, and problems, so clients can understand a cell's role in the
-computation and identify problems before execution.
+Each cell holds code and the information used to present and execute it. The
+document and each cell carry an **etag**, derived from their content, and a
+**version**. The document's version counts its changes. A cell's version is
+the document version at which the cell was created or last changed, so of two
+records of a cell, the higher version is the newer. Versions are comparable
+only within one notebook.
 
-Because cells share a dependency graph, editing one can affect the analysis of
-others. An analysis therefore covers the whole document and names the revision
-it describes. Hosts publish it after that revision of the document.
+A host MAY also publish an **analysis** of the document: each cell's
+definitions, references, and problems, so clients can understand a cell's role
+in the computation and identify problems before execution. Because cells share
+a dependency graph, editing one can affect the analysis of others. An analysis
+therefore covers the whole document and names the revision it describes. Hosts
+publish it after that revision of the document.
 
 ### Runtimes and attachments
 
@@ -314,6 +319,9 @@ Preconditions use **etags**, identifiers derived from content. They let clients
 edit different parts of a document independently while detecting competing
 changes to the same part. For example, two clients can update different cells,
 but an edit based on an older version of the same cell produces a conflict.
+An accepted edit answers with the document and the version of each cell it
+touched. The client already has the content it sent, and the versions let it
+recognize the edit when its events arrive on the stream.
 
 Accepting an edit and saving it are separate actions. The host reports whether
 the current document has reached storage, whether it saves automatically or

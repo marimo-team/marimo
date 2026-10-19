@@ -491,7 +491,7 @@ def test_edit_request_response_and_events() -> None:
             assert all(updated[key] == value for key, value in cell.items())
             cells[cell["id"]] = updated
             touched[cell["id"]] = {
-                key: updated[key] for key in ("etag", "code_hash")
+                key: updated[key] for key in ("etag", "code_hash", "version")
             }
         else:
             assert change["kind"] == "delete_cell"

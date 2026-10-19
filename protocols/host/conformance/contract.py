@@ -229,4 +229,7 @@ def document_state(
     parts = [document["order_etag"], document["app_config_etag"]]
     parts.extend(cells[cell_id]["etag"] for cell_id in document["order"])
     assert document["etag"] == etag("\n".join(parts))
+    assert document["version"] >= 1
+    for cell in cells.values():
+        assert 1 <= cell["version"] <= document["version"]
     return document, cells
