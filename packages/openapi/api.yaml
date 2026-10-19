@@ -722,6 +722,43 @@ components:
       required: []
       title: ClearCacheRequest
       type: object
+    ClientCommand:
+      anyOf:
+      - $ref: '#/components/schemas/ExecuteCellsCommand'
+      - $ref: '#/components/schemas/ExecuteScratchpadCommand'
+      - $ref: '#/components/schemas/DeleteCellCommand'
+      - $ref: '#/components/schemas/UpdateCellConfigCommand'
+      - $ref: '#/components/schemas/UpdateUIElementCommand'
+      - $ref: '#/components/schemas/ModelCommand'
+      - $ref: '#/components/schemas/InvokeFunctionCommand'
+      - $ref: '#/components/schemas/InstallPackagesCommand'
+      - $ref: '#/components/schemas/PreviewDatasetColumnCommand'
+      - $ref: '#/components/schemas/PreviewSQLTableCommand'
+      - $ref: '#/components/schemas/ListSQLTablesCommand'
+      - $ref: '#/components/schemas/ListSQLSchemasCommand'
+      - $ref: '#/components/schemas/ValidateSQLCommand'
+      - $ref: '#/components/schemas/ListDataSourceConnectionCommand'
+      - $ref: '#/components/schemas/DiscoverDataSourcesCommand'
+      - $ref: '#/components/schemas/ListSecretKeysCommand'
+      discriminator:
+        mapping:
+          delete-cell: '#/components/schemas/DeleteCellCommand'
+          discover-data-sources: '#/components/schemas/DiscoverDataSourcesCommand'
+          execute-cells: '#/components/schemas/ExecuteCellsCommand'
+          execute-scratchpad: '#/components/schemas/ExecuteScratchpadCommand'
+          install-packages: '#/components/schemas/InstallPackagesCommand'
+          invoke-function: '#/components/schemas/InvokeFunctionCommand'
+          list-data-source-connection: '#/components/schemas/ListDataSourceConnectionCommand'
+          list-secret-keys: '#/components/schemas/ListSecretKeysCommand'
+          list-sql-schemas: '#/components/schemas/ListSQLSchemasCommand'
+          list-sql-tables: '#/components/schemas/ListSQLTablesCommand'
+          model: '#/components/schemas/ModelCommand'
+          preview-dataset-column: '#/components/schemas/PreviewDatasetColumnCommand'
+          preview-sql-table: '#/components/schemas/PreviewSQLTableCommand'
+          update-cell-config: '#/components/schemas/UpdateCellConfigCommand'
+          update-ui-element: '#/components/schemas/UpdateUIElementCommand'
+          validate-sql: '#/components/schemas/ValidateSQLCommand'
+        propertyName: type
     CodeCompletionRequest:
       properties:
         cellId:
@@ -1267,6 +1304,17 @@ components:
       - sample_values
       title: DataTableColumn
       type: object
+    DataType:
+      enum:
+      - boolean
+      - date
+      - datetime
+      - geometry
+      - integer
+      - number
+      - string
+      - time
+      - unknown
     Database:
       description: "Represents a collection of schemas.\n\nAttributes:\n    name (str):\
         \ The name of the database\n    dialect (str): The dialect of the database\n\
@@ -3085,179 +3133,18 @@ components:
       title: KeymapConfig
       type: object
     KnownUnions:
+      deprecated: true
+      description: Use the named NotificationMessage, ClientCommand, MarimoError,
+        and DataType schemas directly.
       properties:
         command:
-          anyOf:
-          - $ref: '#/components/schemas/ExecuteCellsCommand'
-          - $ref: '#/components/schemas/ExecuteScratchpadCommand'
-          - $ref: '#/components/schemas/DeleteCellCommand'
-          - $ref: '#/components/schemas/UpdateCellConfigCommand'
-          - $ref: '#/components/schemas/UpdateUIElementCommand'
-          - $ref: '#/components/schemas/ModelCommand'
-          - $ref: '#/components/schemas/InvokeFunctionCommand'
-          - $ref: '#/components/schemas/InstallPackagesCommand'
-          - $ref: '#/components/schemas/PreviewDatasetColumnCommand'
-          - $ref: '#/components/schemas/PreviewSQLTableCommand'
-          - $ref: '#/components/schemas/ListSQLTablesCommand'
-          - $ref: '#/components/schemas/ListSQLSchemasCommand'
-          - $ref: '#/components/schemas/ValidateSQLCommand'
-          - $ref: '#/components/schemas/ListDataSourceConnectionCommand'
-          - $ref: '#/components/schemas/DiscoverDataSourcesCommand'
-          - $ref: '#/components/schemas/ListSecretKeysCommand'
-          discriminator:
-            mapping:
-              delete-cell: '#/components/schemas/DeleteCellCommand'
-              discover-data-sources: '#/components/schemas/DiscoverDataSourcesCommand'
-              execute-cells: '#/components/schemas/ExecuteCellsCommand'
-              execute-scratchpad: '#/components/schemas/ExecuteScratchpadCommand'
-              install-packages: '#/components/schemas/InstallPackagesCommand'
-              invoke-function: '#/components/schemas/InvokeFunctionCommand'
-              list-data-source-connection: '#/components/schemas/ListDataSourceConnectionCommand'
-              list-secret-keys: '#/components/schemas/ListSecretKeysCommand'
-              list-sql-schemas: '#/components/schemas/ListSQLSchemasCommand'
-              list-sql-tables: '#/components/schemas/ListSQLTablesCommand'
-              model: '#/components/schemas/ModelCommand'
-              preview-dataset-column: '#/components/schemas/PreviewDatasetColumnCommand'
-              preview-sql-table: '#/components/schemas/PreviewSQLTableCommand'
-              update-cell-config: '#/components/schemas/UpdateCellConfigCommand'
-              update-ui-element: '#/components/schemas/UpdateUIElementCommand'
-              validate-sql: '#/components/schemas/ValidateSQLCommand'
-            propertyName: type
+          $ref: '#/components/schemas/ClientCommand'
         data_type:
-          enum:
-          - boolean
-          - date
-          - datetime
-          - geometry
-          - integer
-          - number
-          - string
-          - time
-          - unknown
+          $ref: '#/components/schemas/DataType'
         error:
-          anyOf:
-          - $ref: '#/components/schemas/SetupRootError'
-          - $ref: '#/components/schemas/CycleError'
-          - $ref: '#/components/schemas/MultipleDefinitionError'
-          - $ref: '#/components/schemas/ImportStarError'
-          - $ref: '#/components/schemas/MarimoAncestorStoppedError'
-          - $ref: '#/components/schemas/MarimoAncestorPreventedError'
-          - $ref: '#/components/schemas/MarimoExceptionRaisedError'
-          - $ref: '#/components/schemas/MarimoStrictExecutionError'
-          - $ref: '#/components/schemas/MarimoInterruptionError'
-          - $ref: '#/components/schemas/MarimoSyntaxError'
-          - $ref: '#/components/schemas/MarimoInternalError'
-          - $ref: '#/components/schemas/MarimoSQLError'
-          - $ref: '#/components/schemas/UnknownError'
-          discriminator:
-            mapping:
-              ancestor-prevented: '#/components/schemas/MarimoAncestorPreventedError'
-              ancestor-stopped: '#/components/schemas/MarimoAncestorStoppedError'
-              cycle: '#/components/schemas/CycleError'
-              exception: '#/components/schemas/MarimoExceptionRaisedError'
-              import-star: '#/components/schemas/ImportStarError'
-              internal: '#/components/schemas/MarimoInternalError'
-              interruption: '#/components/schemas/MarimoInterruptionError'
-              multiple-defs: '#/components/schemas/MultipleDefinitionError'
-              setup-refs: '#/components/schemas/SetupRootError'
-              sql-error: '#/components/schemas/MarimoSQLError'
-              strict-exception: '#/components/schemas/MarimoStrictExecutionError'
-              syntax: '#/components/schemas/MarimoSyntaxError'
-              unknown: '#/components/schemas/UnknownError'
-            propertyName: type
+          $ref: '#/components/schemas/MarimoError'
         notification:
-          anyOf:
-          - $ref: '#/components/schemas/CellNotification'
-          - $ref: '#/components/schemas/ExecutionNotification'
-          - $ref: '#/components/schemas/FunctionCallResultNotification'
-          - $ref: '#/components/schemas/UIElementMessageNotification'
-          - $ref: '#/components/schemas/ModelLifecycleNotification'
-          - $ref: '#/components/schemas/RemoveUIElementsNotification'
-          - $ref: '#/components/schemas/ReloadNotification'
-          - $ref: '#/components/schemas/ReconnectedNotification'
-          - $ref: '#/components/schemas/InterruptedNotification'
-          - $ref: '#/components/schemas/CompletedRunNotification'
-          - $ref: '#/components/schemas/KernelReadyNotification'
-          - $ref: '#/components/schemas/CompletionResultNotification'
-          - $ref: '#/components/schemas/AlertNotification'
-          - $ref: '#/components/schemas/BannerNotification'
-          - $ref: '#/components/schemas/MissingPackageAlertNotification'
-          - $ref: '#/components/schemas/EnvironmentOperationNotification'
-          - $ref: '#/components/schemas/EnvironmentStateNotification'
-          - $ref: '#/components/schemas/StartupLogsNotification'
-          - $ref: '#/components/schemas/StartupProgressNotification'
-          - $ref: '#/components/schemas/KernelStartupErrorNotification'
-          - $ref: '#/components/schemas/VariablesNotification'
-          - $ref: '#/components/schemas/VariableValuesNotification'
-          - $ref: '#/components/schemas/QueryParamsSetNotification'
-          - $ref: '#/components/schemas/QueryParamsAppendNotification'
-          - $ref: '#/components/schemas/QueryParamsDeleteNotification'
-          - $ref: '#/components/schemas/QueryParamsClearNotification'
-          - $ref: '#/components/schemas/DatasetsNotification'
-          - $ref: '#/components/schemas/DataColumnPreviewNotification'
-          - $ref: '#/components/schemas/SQLTablePreviewNotification'
-          - $ref: '#/components/schemas/SQLTableListPreviewNotification'
-          - $ref: '#/components/schemas/SQLSchemaListPreviewNotification'
-          - $ref: '#/components/schemas/DataSourceConnectionsNotification'
-          - $ref: '#/components/schemas/DataSourceDiscoveryResultNotification'
-          - $ref: '#/components/schemas/ValidateSQLResultNotification'
-          - $ref: '#/components/schemas/StorageNamespacesNotification'
-          - $ref: '#/components/schemas/StorageEntriesNotification'
-          - $ref: '#/components/schemas/StorageDownloadReadyNotification'
-          - $ref: '#/components/schemas/SecretKeysResultNotification'
-          - $ref: '#/components/schemas/CacheClearedNotification'
-          - $ref: '#/components/schemas/CacheInfoNotification'
-          - $ref: '#/components/schemas/FocusCellNotification'
-          - $ref: '#/components/schemas/ActiveLineNotification'
-          - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
-          - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
-          discriminator:
-            mapping:
-              active-line: '#/components/schemas/ActiveLineNotification'
-              alert: '#/components/schemas/AlertNotification'
-              banner: '#/components/schemas/BannerNotification'
-              cache-cleared: '#/components/schemas/CacheClearedNotification'
-              cache-info: '#/components/schemas/CacheInfoNotification'
-              cell-op: '#/components/schemas/CellNotification'
-              completed-run: '#/components/schemas/CompletedRunNotification'
-              completion-result: '#/components/schemas/CompletionResultNotification'
-              consumer-capabilities: '#/components/schemas/ConsumerCapabilitiesNotification'
-              data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
-              data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
-              data-source-discovery-result: '#/components/schemas/DataSourceDiscoveryResultNotification'
-              datasets: '#/components/schemas/DatasetsNotification'
-              environment-operation: '#/components/schemas/EnvironmentOperationNotification'
-              environment-state: '#/components/schemas/EnvironmentStateNotification'
-              execution: '#/components/schemas/ExecutionNotification'
-              focus-cell: '#/components/schemas/FocusCellNotification'
-              function-call-result: '#/components/schemas/FunctionCallResultNotification'
-              interrupted: '#/components/schemas/InterruptedNotification'
-              kernel-ready: '#/components/schemas/KernelReadyNotification'
-              kernel-startup-error: '#/components/schemas/KernelStartupErrorNotification'
-              missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
-              model-lifecycle: '#/components/schemas/ModelLifecycleNotification'
-              notebook-document-transaction: '#/components/schemas/NotebookDocumentTransactionNotification'
-              query-params-append: '#/components/schemas/QueryParamsAppendNotification'
-              query-params-clear: '#/components/schemas/QueryParamsClearNotification'
-              query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
-              query-params-set: '#/components/schemas/QueryParamsSetNotification'
-              reconnected: '#/components/schemas/ReconnectedNotification'
-              reload: '#/components/schemas/ReloadNotification'
-              remove-ui-elements: '#/components/schemas/RemoveUIElementsNotification'
-              secret-keys-result: '#/components/schemas/SecretKeysResultNotification'
-              send-ui-element-message: '#/components/schemas/UIElementMessageNotification'
-              sql-schema-list-preview: '#/components/schemas/SQLSchemaListPreviewNotification'
-              sql-table-list-preview: '#/components/schemas/SQLTableListPreviewNotification'
-              sql-table-preview: '#/components/schemas/SQLTablePreviewNotification'
-              startup-logs: '#/components/schemas/StartupLogsNotification'
-              startup-progress: '#/components/schemas/StartupProgressNotification'
-              storage-download-ready: '#/components/schemas/StorageDownloadReadyNotification'
-              storage-entries: '#/components/schemas/StorageEntriesNotification'
-              storage-namespaces: '#/components/schemas/StorageNamespacesNotification'
-              validate-sql-result: '#/components/schemas/ValidateSQLResultNotification'
-              variable-values: '#/components/schemas/VariableValuesNotification'
-              variables: '#/components/schemas/VariablesNotification'
-            propertyName: op
+          $ref: '#/components/schemas/NotificationMessage'
       required:
       - notification
       - command
@@ -3726,6 +3613,37 @@ components:
       - server
       title: MarimoConfig
       type: object
+    MarimoError:
+      anyOf:
+      - $ref: '#/components/schemas/SetupRootError'
+      - $ref: '#/components/schemas/CycleError'
+      - $ref: '#/components/schemas/MultipleDefinitionError'
+      - $ref: '#/components/schemas/ImportStarError'
+      - $ref: '#/components/schemas/MarimoAncestorStoppedError'
+      - $ref: '#/components/schemas/MarimoAncestorPreventedError'
+      - $ref: '#/components/schemas/MarimoExceptionRaisedError'
+      - $ref: '#/components/schemas/MarimoStrictExecutionError'
+      - $ref: '#/components/schemas/MarimoInterruptionError'
+      - $ref: '#/components/schemas/MarimoSyntaxError'
+      - $ref: '#/components/schemas/MarimoInternalError'
+      - $ref: '#/components/schemas/MarimoSQLError'
+      - $ref: '#/components/schemas/UnknownError'
+      discriminator:
+        mapping:
+          ancestor-prevented: '#/components/schemas/MarimoAncestorPreventedError'
+          ancestor-stopped: '#/components/schemas/MarimoAncestorStoppedError'
+          cycle: '#/components/schemas/CycleError'
+          exception: '#/components/schemas/MarimoExceptionRaisedError'
+          import-star: '#/components/schemas/ImportStarError'
+          internal: '#/components/schemas/MarimoInternalError'
+          interruption: '#/components/schemas/MarimoInterruptionError'
+          multiple-defs: '#/components/schemas/MultipleDefinitionError'
+          setup-refs: '#/components/schemas/SetupRootError'
+          sql-error: '#/components/schemas/MarimoSQLError'
+          strict-exception: '#/components/schemas/MarimoStrictExecutionError'
+          syntax: '#/components/schemas/MarimoSyntaxError'
+          unknown: '#/components/schemas/UnknownError'
+        propertyName: type
     MarimoExceptionRaisedError:
       properties:
         exception_type:
@@ -4247,6 +4165,99 @@ components:
       - changes
       title: NotebookDocumentTransactionRequest
       type: object
+    NotificationMessage:
+      anyOf:
+      - $ref: '#/components/schemas/CellNotification'
+      - $ref: '#/components/schemas/ExecutionNotification'
+      - $ref: '#/components/schemas/FunctionCallResultNotification'
+      - $ref: '#/components/schemas/UIElementMessageNotification'
+      - $ref: '#/components/schemas/ModelLifecycleNotification'
+      - $ref: '#/components/schemas/RemoveUIElementsNotification'
+      - $ref: '#/components/schemas/ReloadNotification'
+      - $ref: '#/components/schemas/ReconnectedNotification'
+      - $ref: '#/components/schemas/InterruptedNotification'
+      - $ref: '#/components/schemas/CompletedRunNotification'
+      - $ref: '#/components/schemas/KernelReadyNotification'
+      - $ref: '#/components/schemas/CompletionResultNotification'
+      - $ref: '#/components/schemas/AlertNotification'
+      - $ref: '#/components/schemas/BannerNotification'
+      - $ref: '#/components/schemas/MissingPackageAlertNotification'
+      - $ref: '#/components/schemas/EnvironmentOperationNotification'
+      - $ref: '#/components/schemas/EnvironmentStateNotification'
+      - $ref: '#/components/schemas/StartupLogsNotification'
+      - $ref: '#/components/schemas/StartupProgressNotification'
+      - $ref: '#/components/schemas/KernelStartupErrorNotification'
+      - $ref: '#/components/schemas/VariablesNotification'
+      - $ref: '#/components/schemas/VariableValuesNotification'
+      - $ref: '#/components/schemas/QueryParamsSetNotification'
+      - $ref: '#/components/schemas/QueryParamsAppendNotification'
+      - $ref: '#/components/schemas/QueryParamsDeleteNotification'
+      - $ref: '#/components/schemas/QueryParamsClearNotification'
+      - $ref: '#/components/schemas/DatasetsNotification'
+      - $ref: '#/components/schemas/DataColumnPreviewNotification'
+      - $ref: '#/components/schemas/SQLTablePreviewNotification'
+      - $ref: '#/components/schemas/SQLTableListPreviewNotification'
+      - $ref: '#/components/schemas/SQLSchemaListPreviewNotification'
+      - $ref: '#/components/schemas/DataSourceConnectionsNotification'
+      - $ref: '#/components/schemas/DataSourceDiscoveryResultNotification'
+      - $ref: '#/components/schemas/ValidateSQLResultNotification'
+      - $ref: '#/components/schemas/StorageNamespacesNotification'
+      - $ref: '#/components/schemas/StorageEntriesNotification'
+      - $ref: '#/components/schemas/StorageDownloadReadyNotification'
+      - $ref: '#/components/schemas/SecretKeysResultNotification'
+      - $ref: '#/components/schemas/CacheClearedNotification'
+      - $ref: '#/components/schemas/CacheInfoNotification'
+      - $ref: '#/components/schemas/FocusCellNotification'
+      - $ref: '#/components/schemas/ActiveLineNotification'
+      - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
+      - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
+      discriminator:
+        mapping:
+          active-line: '#/components/schemas/ActiveLineNotification'
+          alert: '#/components/schemas/AlertNotification'
+          banner: '#/components/schemas/BannerNotification'
+          cache-cleared: '#/components/schemas/CacheClearedNotification'
+          cache-info: '#/components/schemas/CacheInfoNotification'
+          cell-op: '#/components/schemas/CellNotification'
+          completed-run: '#/components/schemas/CompletedRunNotification'
+          completion-result: '#/components/schemas/CompletionResultNotification'
+          consumer-capabilities: '#/components/schemas/ConsumerCapabilitiesNotification'
+          data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
+          data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
+          data-source-discovery-result: '#/components/schemas/DataSourceDiscoveryResultNotification'
+          datasets: '#/components/schemas/DatasetsNotification'
+          environment-operation: '#/components/schemas/EnvironmentOperationNotification'
+          environment-state: '#/components/schemas/EnvironmentStateNotification'
+          execution: '#/components/schemas/ExecutionNotification'
+          focus-cell: '#/components/schemas/FocusCellNotification'
+          function-call-result: '#/components/schemas/FunctionCallResultNotification'
+          interrupted: '#/components/schemas/InterruptedNotification'
+          kernel-ready: '#/components/schemas/KernelReadyNotification'
+          kernel-startup-error: '#/components/schemas/KernelStartupErrorNotification'
+          missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
+          model-lifecycle: '#/components/schemas/ModelLifecycleNotification'
+          notebook-document-transaction: '#/components/schemas/NotebookDocumentTransactionNotification'
+          query-params-append: '#/components/schemas/QueryParamsAppendNotification'
+          query-params-clear: '#/components/schemas/QueryParamsClearNotification'
+          query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
+          query-params-set: '#/components/schemas/QueryParamsSetNotification'
+          reconnected: '#/components/schemas/ReconnectedNotification'
+          reload: '#/components/schemas/ReloadNotification'
+          remove-ui-elements: '#/components/schemas/RemoveUIElementsNotification'
+          secret-keys-result: '#/components/schemas/SecretKeysResultNotification'
+          send-ui-element-message: '#/components/schemas/UIElementMessageNotification'
+          sql-schema-list-preview: '#/components/schemas/SQLSchemaListPreviewNotification'
+          sql-table-list-preview: '#/components/schemas/SQLTableListPreviewNotification'
+          sql-table-preview: '#/components/schemas/SQLTablePreviewNotification'
+          startup-logs: '#/components/schemas/StartupLogsNotification'
+          startup-progress: '#/components/schemas/StartupProgressNotification'
+          storage-download-ready: '#/components/schemas/StorageDownloadReadyNotification'
+          storage-entries: '#/components/schemas/StorageEntriesNotification'
+          storage-namespaces: '#/components/schemas/StorageNamespacesNotification'
+          validate-sql-result: '#/components/schemas/ValidateSQLResultNotification'
+          variable-values: '#/components/schemas/VariableValuesNotification'
+          variables: '#/components/schemas/VariablesNotification'
+        propertyName: op
     OpenAiConfig:
       description: "Configuration options for OpenAI or OpenAI-compatible services.\n\
         \n    **Keys.**\n\n    - `api_key`: the OpenAI API key or an `env:` reference\n\

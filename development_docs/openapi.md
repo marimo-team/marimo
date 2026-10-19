@@ -15,10 +15,13 @@ marimo development openapi
 
 ## Writing a new OpenAPI schema
 
-To modify the schema, add the type under `_generate_server_api_schema` in [`commands.py`](/marimo/_cli/development/commands.py) and run
+To expose a frontend type, add it to `roots` in
+[`schema.py`](/marimo/_cli/development/schema.py), or use `named_exports` to
+give a union or literal an exported name. Its dependencies are included
+automatically when you regenerate the schema and TypeScript with Python 3.12:
 
 ```bash
-marimo development openapi > packages/openapi/api.yaml
+make fe-codegen
 ```
 
 ## Validating an OpenAPI schema
