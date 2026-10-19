@@ -28,7 +28,7 @@ def test_thread_constructed_off_cell_raises(
     k: Kernel,  # noqa: ARG001
 ) -> None:
     # A plain thread that restored the kernel's context has no cell that
-    # could tell a mo.Thread to exit, so constructing one there is refused.
+    # can tell a mo.Thread to exit, so constructing one there is refused.
     ctx = get_context()
     assert ctx.cell_id is None
 

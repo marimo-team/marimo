@@ -112,7 +112,7 @@ def install_anywidget_comm_provider() -> None:
         try:
             ctx.cell_lifecycle_registry.add(CommLifecycleItem(c))
         except NoOwningCellError:
-            # The comm is already open and would otherwise never be closed.
+            # The comm is already open and nothing else closes it.
             c.close()
             raise
         return c

@@ -325,8 +325,8 @@ def test_any_data_with_context_but_no_cell_raises(
     run_mode_kernel: MockedKernel,  # noqa: ARG001
 ) -> None:
     # A runtime context is installed but no cell is running, as on a plain
-    # thread that restored the kernel's context (#11308). Nothing could ever
-    # dispose the file, so marimo refuses to create it rather than leak it.
+    # thread that restored the kernel's context (#11308). Nothing can dispose
+    # the file, so marimo refuses to create it rather than leak it.
     ctx = get_context()
     assert ctx.cell_id is None
 
@@ -340,9 +340,9 @@ def test_any_data_with_context_but_no_cell_raises(
 async def test_vfile_from_task_is_owned_by_spawning_cell(
     execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    # A task spawned by a cell runs on after the cell body has finished, so
-    # no cell is running when it mints a file. The file belongs to the
-    # spawning cell and is disposed when that cell re-runs.
+    # A cell spawns a task that keeps running after the cell body returns, so
+    # no cell runs when the task creates a file. The cell owns the file and
+    # disposes of it when the cell re-runs.
     k = execution_kernel
     await k.run(
         [
@@ -381,10 +381,9 @@ async def test_vfile_from_task_is_owned_by_spawning_cell(
 async def test_vfile_from_thread_with_copied_context_is_owned_by_spawning_cell(
     execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    # A plain thread that restores the kernel context (the pattern in
-    # #11308) owns nothing by itself. Running under a `contextvars` copy
-    # taken in the cell makes that cell the owner, so deleting the cell
-    # disposes what the thread created.
+    # A plain thread that restores the kernel context (#11308) owns nothing
+    # by itself. A cell owns anything the thread creates under a `contextvars`
+    # copy taken in that cell, and deleting the cell disposes it.
     k = execution_kernel
     await k.run(
         [
@@ -412,7 +411,7 @@ async def test_vfile_from_thread_with_copied_context_is_owned_by_spawning_cell(
 async def test_vfile_from_task_of_deleted_cell_raises(
     execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    # Once the spawning cell is deleted nothing can dispose the item, so the
+    # Once the spawning cell is deleted, nothing can dispose the item, so the
     # task gets an error instead of a file registered under a dead cell.
     k = execution_kernel
     await k.run(

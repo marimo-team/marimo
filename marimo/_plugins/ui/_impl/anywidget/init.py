@@ -71,8 +71,8 @@ def init_marimo_widget(w: ipywidgets.Widget) -> None:
     try:
         ctx.cell_lifecycle_registry.add(CommLifecycleItem(w.comm))
     except NoOwningCellError:
-        # The widget already opened its comm. Closing the widget also drops
-        # it from ipywidgets' instance registry, so nothing stays behind.
+        # The comm is already open. Closing the whole widget also drops it
+        # from ipywidgets' instance registry.
         w.close()
         raise
 

@@ -375,8 +375,8 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
         try:
             ctx.cell_lifecycle_registry.add(cleanup)
         except NoOwningCellError:
-            # The comm and figure manager already exist and would otherwise
-            # never be torn down.
+            # The comm and figure manager already exist and nothing else
+            # tears them down.
             cleanup.dispose(context=ctx, deletion=True)
             raise
 

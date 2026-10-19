@@ -40,14 +40,14 @@ class CellLifecycleRegistry:
 
         cell_id = ctx.cell_id
         if cell_id is None and (execution := EXECUTION_CTX.get()) is not None:
-            # Tasks and copied contexts keep the tag after the cell body
-            # ends, so the spawning cell may have been deleted since.
-            if CellId_t(execution.cell_id) not in ctx.graph.cells:
+            cell_id = CellId_t(execution.cell_id)
+            # The tag outlives the cell body, so the spawning cell can
+            # already be deleted.
+            if cell_id not in ctx.graph.cells:
                 raise NoOwningCellError(
                     "The cell that started this background work was "
                     "deleted, so marimo cannot clean up after it."
                 )
-            cell_id = CellId_t(execution.cell_id)
         if cell_id is None:
             raise NoOwningCellError(
                 "No cell is running on this thread, so marimo cannot clean "
