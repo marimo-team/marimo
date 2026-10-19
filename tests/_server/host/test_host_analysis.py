@@ -13,6 +13,7 @@ from marimo._ast.cell import CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._core import protocol
 from marimo._core.document import Document, DocumentCell
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.host.analysis import CellAnalyzer, HostAnalyzer
 from marimo._types.ids import CellId_t
 
@@ -198,6 +199,9 @@ def test_compilation_cache_uses_identity_and_code_hash(
     assert compiler.call_count == 6
 
 
+@pytest.mark.skipif(
+    not DependencyManager.duckdb.has(), reason="Requires duckdb"
+)
 @pytest.mark.parametrize("reverse", [False, True])
 @pytest.mark.parametrize(
     ("provider", "consumer", "refs"),
