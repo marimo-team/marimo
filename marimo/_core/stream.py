@@ -222,7 +222,11 @@ class Sink(ABC):
 
     @abstractmethod
     def _append(self, event: Event) -> Event:
-        """Record an event and return it as recorded."""
+        """Record an owned event and return an isolated copy as recorded.
+
+        The event must already be isolated from the caller. Forward it to
+        another sink's `_append` without copying it again.
+        """
 
 
 class Stream(Sink):
