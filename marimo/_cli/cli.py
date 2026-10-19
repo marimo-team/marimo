@@ -146,6 +146,15 @@ token_password_message = (
     "Use a specific token for authentication. "
     "This enables session-based authentication. "
     "A random token will be generated if not set. "
+    "The URL printed at startup includes the token, however it was "
+    "supplied; pass -q before the subcommand to keep it out of logs."
+)
+
+token_password_file_message = (
+    "Path to file containing token password, or '-' for stdin. "
+    "Mutually exclusive with --token-password. "
+    "The URL printed at startup includes the token, however it was "
+    "supplied; pass -q before the subcommand to keep it out of logs."
 )
 
 sandbox_message = (
@@ -327,7 +336,7 @@ class _OptionalValueOption(click.Option):
     "--token-password-file",
     default=None,
     type=str,
-    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+    help=token_password_file_message,
 )
 @click.option(
     "--base-url",
@@ -704,7 +713,7 @@ new_help_msg = "\n".join(
     "--token-password-file",
     default=None,
     type=str,
-    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+    help=token_password_file_message,
 )
 @click.option(
     "--base-url",
@@ -1023,7 +1032,7 @@ Example:
     "--token-password-file",
     default=None,
     type=str,
-    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+    help=token_password_file_message,
 )
 @click.option(
     "--include-code",
@@ -1375,7 +1384,7 @@ Recommended sequence:
     "--token-password-file",
     default=None,
     type=str,
-    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+    help=token_password_file_message,
 )
 @click.option(
     "--skew-protection/--no-skew-protection",
