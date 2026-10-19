@@ -300,6 +300,20 @@ openai:
     limits: {context: 1050000, output: 128000}
 
 google:
+  - name: Nano Banana 2.1
+    model: gemini-nano-banana-2.1
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking]
+    input_types: [text, image]
+    output_types: [text, image]
+    release_date: 2026-10-06
+    cost: {input: 1.5, output: 30}
+    reasoning_options:
+      - type: effort
+        values: [minimal, medium, high]
+    limits: {context: 131072, output: 32768}
+
   - name: Gemini 4 Argon
     model: gemini-4-argon
     description: "Reasoning model for complex software engineering, mathematical and scientific problem solving, and autonomous multi-step agents"
@@ -509,6 +523,66 @@ google:
     limits: {context: 1000000, output: 128000}
 
 bedrock:
+  - name: Claude Haiku 5.5
+    model: anthropic.claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
+
+  - name: Claude Haiku 5.5 (AU)
+    model: au.anthropic.claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.11, output: 0.55}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
+
+  - name: Claude Haiku 5.5 (EU)
+    model: eu.anthropic.claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.11, output: 0.55}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
+
+  - name: Claude Haiku 5.5 (JP)
+    model: jp.anthropic.claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.11, output: 0.55}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
+
   - name: Claude Haiku 5.5 (Global)
     model: global.anthropic.claude-haiku-5-5
     description: "Small, fast model for high-volume, cost-sensitive work such as summarization, subagents, and browser use"
@@ -1141,6 +1215,21 @@ azure:
     limits: {context: 1000000, output: 384000}
 
 ollama:
+  - name: DeepSeek V4.1 Flash 1017
+    model: deepseek-v4.1-flash:1017
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-17
+    cost: {input: 0.15, output: 0.6}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, high, max]
+    limits: {context: 1048576, output: 384000}
+
   - name: Muse Spark Open
     model: muse-spark-open
     description: "Open-weight model optimized for agentic coding, reliable tool calling, and codebase understanding"
@@ -1382,6 +1471,20 @@ ollama:
     cost: {input: 0.6, output: 3.6}
 
 wandb:
+  - name: Beam 1.0
+    model: reflection/Beam-1.0-501B-A23B
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-10-16
+    cost: {input: 1, output: 3}
+    reasoning_options:
+      - type: effort
+        values: [minimal, low, medium, high, xhigh, max]
+    limits: {context: 1048576, output: 1048576}
+
   - name: Nemotron 3.5 Super VL
     model: nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B
     description: "Open multimodal Mixture-of-Experts model with 12B active parameters out of 120B for reasoning, coding, tool use, and document understanding"
@@ -1390,7 +1493,7 @@ wandb:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-10-15
-    cost: {input: 0.15, output: 0.75}
+    cost: {input: 0.15, output: 0.5}
     reasoning_options:
       - type: toggle
     limits: {context: 1048576, output: 1048576}
@@ -1595,6 +1698,34 @@ wandb:
     limits: {context: 131072, output: 131072}
 
 opencode-go:
+  - name: Beam Free
+    model: beam-free
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-10-05
+    cost: {input: 0, output: 0}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1048576, output: 131072}
+
+  - name: Space Bunny
+    model: space-bunny
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-23
+    cost: {input: 0.15, output: 0.6}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1048576, output: 524288}
+
   - name: Gemini 4 Argon Contributor
     model: gemini-4-argon-contributor
     description: "Contributor tier of Gemini 4 Argon for reasoning, coding, and agents, with prompts and completions eligible for model training"
