@@ -1268,6 +1268,70 @@ describe("renderCellValue with datetime values", () => {
       }).not.toThrow();
     });
   });
+
+  it("should render the column format for datetime strings", () => {
+    const mockColumn = {
+      ...createMockColumn(),
+      getColumnFormatting: () => "Date",
+      applyColumnFormatting: () => "FORMATTED",
+    } as unknown as Column<unknown>;
+
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => "2024-06-14 12:34:20",
+      getValue: () => "2024-06-14 12:34:20",
+      selectCell: undefined,
+      cellStyles: "",
+    });
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <TooltipProvider>{result}</TooltipProvider>
+      </I18nProvider>,
+    );
+    expect(container.textContent).toContain("FORMATTED");
+    expect(container.textContent).not.toContain("2024-06-14 12:34:20");
+  });
+
+  it("should render the column format for Date instances", () => {
+    const mockColumn = {
+      ...createMockColumn(),
+      getColumnFormatting: () => "Date",
+      applyColumnFormatting: () => "FORMATTED",
+    } as unknown as Column<unknown>;
+    const value = new Date("2024-06-14T12:34:20Z");
+
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => value,
+      getValue: () => value,
+      selectCell: undefined,
+      cellStyles: "",
+    });
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <TooltipProvider>{result}</TooltipProvider>
+      </I18nProvider>,
+    );
+    expect(container.textContent).toContain("FORMATTED");
+  });
+
+  it("should keep the raw string when no column format is set", () => {
+    const mockColumn = createMockColumn();
+
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => "2024-06-14",
+      getValue: () => "2024-06-14",
+      selectCell: undefined,
+      cellStyles: "",
+    });
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <TooltipProvider>{result}</TooltipProvider>
+      </I18nProvider>,
+    );
+    expect(container.textContent).toContain("2024-06-14");
+  });
 });
 
 test("column_widths sets fixed size and meta.width", () => {
