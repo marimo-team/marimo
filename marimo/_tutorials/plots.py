@@ -3,8 +3,8 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #     "marimo",
-#     "matplotlib==3.10.9",
-#     "numpy==2.2.4",
+#     "matplotlib",
+#     "numpy",
 # ]
 # ///
 
