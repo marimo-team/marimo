@@ -31,6 +31,7 @@ from marimo._server.api.endpoints.sql import router as sql_router
 from marimo._server.api.endpoints.storage import router as storage_router
 from marimo._server.api.endpoints.terminal import router as terminal_router
 from marimo._server.api.endpoints.ws_endpoint import router as ws_router
+from marimo._server.host.api import editor_events_route
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:
@@ -83,6 +84,8 @@ def build_routes(base_url: str = "") -> list[BaseRoute]:
         packages_router, prefix="/api/packages", name="packages"
     )
     app_router.include_router(lsp_router, prefix="/api/lsp", name="lsp")
+    # Register before the catch-all mount shared by health, ws, and assets.
+    app_router.routes.append(editor_events_route(base_url))
     app_router.include_router(health_router, name="health")
     app_router.include_router(ws_router, name="ws")
     app_router.include_router(assets_router, name="assets")

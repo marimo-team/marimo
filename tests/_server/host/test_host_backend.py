@@ -8,6 +8,7 @@ import asyncio
 import pytest
 
 from marimo._core import backend as be, protocol
+from marimo._core.stream import Stream
 from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,
@@ -34,6 +35,7 @@ def backend(manager: FakeManager, observed: Observed) -> SessionBackend:
         lambda: "/ws/forecasts.py",
         manager,  # type: ignore[arg-type]
         observed,
+        Stream(),
     )
 
 
@@ -88,6 +90,7 @@ async def test_a_notebook_without_a_file_cannot_start(
         lambda: None,
         manager,  # type: ignore[arg-type]
         observed,
+        Stream(),
     ).start(RT1)
     await observed.wait_for(be.Exited)
     assert observed.messages == [

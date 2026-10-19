@@ -24,6 +24,7 @@ from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.host import OPERATIONS, document as documents
 from marimo._server.host.analysis import HostAnalyzer
 from marimo._server.host.backend import SessionBackend
+from marimo._server.host.events import notification_event
 from marimo._server.host.index import WorkspaceIndex
 from marimo._session.events import SessionEventListener
 from marimo._session.notebook.storage import rename_no_replace
@@ -163,7 +164,7 @@ class SessionBridge(SessionEventListener):
             saved_etag = document.etag if session is None else None
             if session is not None and loaded is not None:
                 saved_etag = Document(loaded.cells, loaded.app_config).etag
-            backend = self._make_backend(record.id)
+            backend = self._make_backend(record.id, sink)
             return Notebook(
                 record.id,
                 document,
@@ -379,6 +380,18 @@ class SessionBridge(SessionEventListener):
         return protocol.EditResponse(
             cells=response.cells, document=mirrored.document
         )
+
+    def session_snapshot(
+        self, notebook_id: protocol.NotebookId
+    ) -> list[Event]:
+        """Return retained marimo events for one client without publishing them."""
+        session = self._session_of(notebook_id)
+        if session is None:
+            return []
+        return [
+            notification_event(notebook_id, notification)
+            for notification in session.session_view.snapshot_notifications()
+        ]
 
     def _session_of(self, notebook_id: protocol.NotebookId) -> Session | None:
         backend = self._backends.get(notebook_id)
@@ -615,7 +628,7 @@ class SessionBridge(SessionEventListener):
         self.index.moved(notebook_id, str(target), request_id=request_id)
 
     def _make_backend(
-        self, notebook_id: protocol.NotebookId
+        self, notebook_id: protocol.NotebookId, sink: Sink
     ) -> SessionBackend:
         def file() -> str | None:
             path = self.index.file_of(notebook_id)
@@ -635,6 +648,7 @@ class SessionBridge(SessionEventListener):
             file,
             self._manager,
             observe,
+            sink,
             document_changed=lambda: self._mirror(notebook_id),
             session_attached=lambda: self._attach_document(notebook_id),
             session_detached=lambda session: self._detach_document(
