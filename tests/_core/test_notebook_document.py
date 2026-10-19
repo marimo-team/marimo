@@ -280,9 +280,7 @@ class TestApply:
         assert applied.cells["k7f2"] is None
         new_c3 = document.cell("c3")
         assert new_c3 is not None
-        assert applied.cells["c3"] == protocol.CellEtags(
-            etag=new_c3.etag, code_hash=new_c3.code_hash
-        )
+        assert applied.cells["c3"] == new_c3
         assert new_c3.etag != c3.etag
 
     def test_a_stale_etag_applies_nothing_and_names_the_change(self) -> None:
@@ -356,9 +354,7 @@ class TestApply:
         document, applied = result
         assert document == before
         assert not applied.changed
-        assert applied.cells["c3"] == protocol.CellEtags(
-            etag=c3.etag, code_hash=c3.code_hash
-        )
+        assert applied.cells["c3"] == c3
 
 
 class TestFromRecords:
@@ -442,6 +438,44 @@ class TestNotebookRecords:
         )
         behind = other.mark_saved(saved.etag)
         assert behind.saved_etag == saved.etag != behind.etag
+
+    def test_versions_order_changes_and_stamp_the_cells_they_touch(
+        self,
+    ) -> None:
+        notebook = hosted(Document(fixture_cells(), {}))
+        record, cells = records(notebook)
+        assert record.version == 1
+        assert [c.version for c in cells] == [1, 1, 1]
+        (_, c3, k7f2) = cells
+
+        response = notebook.edit(
+            [put("c3", "x = 22", c3.etag), delete("k7f2", k7f2.etag)],
+            request_id="e",
+        )
+
+        # Changed cells take the new document version; others keep theirs.
+        assert response.document.version == 2
+        assert response.cells["k7f2"] is None
+        assert response.cells["c3"].version == 2  # type: ignore[union-attr]
+        record, cells = records(notebook)
+        assert record.version == 2
+        assert [(c.id, c.version) for c in cells] == [("c1", 1), ("c3", 2)]
+
+        # Saving moves `saved_etag` only; a no-op edit changes nothing.
+        assert notebook.mark_saved(record.etag).version == 2
+        same = notebook.edit(
+            [put("c1", "import marimo as mo", cells[0].etag)], request_id="n"
+        )
+        assert same.document.version == 2
+        assert same.cells["c1"] == protocol.CellVersion(
+            etag=cells[0].etag, code_hash=cells[0].code_hash, version=1
+        )
+
+        # A reload changes content like any edit.
+        notebook.replace([cell("c1", "1")], {})
+        record, cells = records(notebook)
+        assert record.version == 3
+        assert [(c.id, c.version) for c in cells] == [("c1", 3)]
 
     def test_a_stale_edit_names_the_cell_and_document_as_they_are(
         self,

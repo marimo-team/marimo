@@ -1,10 +1,10 @@
 id: 110
 event: cell
-data: {"cell":{"id":"c2","notebook_id":"n1","code":"print('hi')","name":"_","config":{"column":null,"disabled":false,"hide_code":false,"expand_output":false},"etag":"ce27bab48d697cfc","code_hash":"c2d0a5e0790d97a0"},"request_id":"9b1c6d2e-0f3a-4b5c-8d7e-1f2a3b4c5d6e","time":"2026-10-01T09:21:00Z"}
+data: {"cell":{"id":"c2","notebook_id":"n1","code":"print('hi')","name":"_","config":{"column":null,"disabled":false,"hide_code":false,"expand_output":false},"etag":"ce27bab48d697cfc","code_hash":"c2d0a5e0790d97a0","version":2},"request_id":"9b1c6d2e-0f3a-4b5c-8d7e-1f2a3b4c5d6e","time":"2026-10-01T09:21:00Z"}
 
 id: 111
 event: cell
-data: {"cell":{"id":"c3","notebook_id":"n1","code":"x = 22","name":"_","config":{"column":null,"disabled":false,"hide_code":false,"expand_output":false},"etag":"dde89bbcc1863211","code_hash":"43e1a529dbae470b"},"request_id":"9b1c6d2e-0f3a-4b5c-8d7e-1f2a3b4c5d6e","time":"2026-10-01T09:21:00Z"}
+data: {"cell":{"id":"c3","notebook_id":"n1","code":"x = 22","name":"_","config":{"column":null,"disabled":false,"hide_code":false,"expand_output":false},"etag":"dde89bbcc1863211","code_hash":"43e1a529dbae470b","version":2},"request_id":"9b1c6d2e-0f3a-4b5c-8d7e-1f2a3b4c5d6e","time":"2026-10-01T09:21:00Z"}
 
 id: 112
 event: cell.removed
@@ -12,9 +12,9 @@ data: {"id":"k7f2","request_id":"9b1c6d2e-0f3a-4b5c-8d7e-1f2a3b4c5d6e","time":"2
 
 id: 113
 event: document
-data: {"document":{"notebook_id":"n1","order":["c1","c2","c3"],"app_config":{"width":"full"},"etag":"f01a47d5aa0cad55","saved_etag":"e59d9c2af02f5814","order_etag":"162e15055422ed71","app_config_etag":"283513048dfeb45b"},"request_id":"9b1c6d2e-0f3a-4b5c-8d7e-1f2a3b4c5d6e","time":"2026-10-01T09:21:00Z"}
+data: {"document":{"notebook_id":"n1","order":["c1","c2","c3"],"app_config":{"width":"full"},"etag":"f01a47d5aa0cad55","saved_etag":"e59d9c2af02f5814","order_etag":"162e15055422ed71","app_config_etag":"283513048dfeb45b","version":2},"request_id":"9b1c6d2e-0f3a-4b5c-8d7e-1f2a3b4c5d6e","time":"2026-10-01T09:21:00Z"}
 
 id: 114
 event: document
-data: {"document":{"notebook_id":"n1","order":["c1","c2","c3"],"app_config":{"width":"full"},"etag":"f01a47d5aa0cad55","saved_etag":"f01a47d5aa0cad55","order_etag":"162e15055422ed71","app_config_etag":"283513048dfeb45b"},"request_id":"save-9b1c6d2e","time":"2026-10-01T09:21:02Z"}
+data: {"document":{"notebook_id":"n1","order":["c1","c2","c3"],"app_config":{"width":"full"},"etag":"f01a47d5aa0cad55","saved_etag":"f01a47d5aa0cad55","order_etag":"162e15055422ed71","app_config_etag":"283513048dfeb45b","version":2},"request_id":"save-9b1c6d2e","time":"2026-10-01T09:21:02Z"}
 

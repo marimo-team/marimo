@@ -1364,7 +1364,7 @@ components:
         fires when its code, name, or config changes. Markdown and SQL
         cells are code that calls `mo.md` or `mo.sql`; a client chooses
         the editor to show.
-      required: [id, notebook_id, code, name, config, etag, code_hash]
+      required: [id, notebook_id, code, name, config, etag, code_hash, version]
       properties:
         id: { $ref: '#/components/schemas/CellId' }
         notebook_id: { $ref: '#/components/schemas/NotebookId' }
@@ -1381,6 +1381,10 @@ components:
         code_hash:
           $ref: '#/components/schemas/Etag'
           description: Identifies the code alone. Its text is `code`. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code.
+        version:
+          type: integer
+          minimum: 1
+          description: The document version at which the cell was created or last changed.
     Document:
       type: object
       description: |
@@ -1389,7 +1393,7 @@ components:
         and removed with it. The order and the app
         config carry their own etags, so an edit to one does not conflict
         with an edit to the other, or with edits to cells.
-      required: [notebook_id, order, app_config, etag, saved_etag, order_etag, app_config_etag]
+      required: [notebook_id, order, app_config, etag, saved_etag, order_etag, app_config_etag, version]
       properties:
         notebook_id:
           $ref: '#/components/schemas/NotebookId'
@@ -1414,6 +1418,10 @@ components:
         app_config_etag:
           $ref: '#/components/schemas/Etag'
           description: Identifies the app config alone. Its text is the app config as canonical JSON, with keys sorted by code point, no whitespace, and strings carrying only the escapes JSON requires.
+        version:
+          type: integer
+          minimum: 1
+          description: Counts changes to the cells, the order, or the app config. A save does not advance it. Comparable only within one notebook while it is in the catalog.
     HostMessage:
       type: object
       description: The data of a `host` event. The host object, plus which request caused the event and when.
@@ -1766,13 +1774,17 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Change' }
           description: The changes, applied in order as one unit.
-    CellEtags:
+    CellVersion:
       type: object
-      description: The identifiers of a cell after an edit.
-      required: [etag, code_hash]
+      description: A cell's etags and version after an edit.
+      required: [etag, code_hash, version]
       properties:
         etag: { $ref: '#/components/schemas/Etag' }
         code_hash: { $ref: '#/components/schemas/Etag' }
+        version:
+          type: integer
+          minimum: 1
+          description: The cell's version after the edit.
     EditResponse:
       type: object
       description: The document after an edit or a save, and the cells it touched.
@@ -1782,8 +1794,8 @@ components:
         cells:
           type: object
           additionalProperties:
-            oneOf: [{ $ref: '#/components/schemas/CellEtags' }, { type: 'null' }]
-          description: The etags of each cell the request created or changed, by id, and null for each cell it deleted.
+            oneOf: [{ $ref: '#/components/schemas/CellVersion' }, { type: 'null' }]
+          description: The version of each cell the request created or changed, by id, and null for each cell it deleted.
     EditConflict:
       type: object
       description: The first stale change of an edit or run, and the state the host holds.
