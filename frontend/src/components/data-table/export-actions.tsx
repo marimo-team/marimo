@@ -299,17 +299,17 @@ function geographicBlocker(
   if (metadata.formats[format]?.available === false) {
     return "format-unavailable";
   }
-  if (metadata.geometry_columns.length === 0) {
-    return format === "geojson" ? "geometry-required" : null;
-  }
-  if (geometryColumn === null) {
-    return "choose-geometry";
-  }
   const selected = metadata.geometry_columns.find(
     (column) => column.name === geometryColumn,
   );
-  if (!selected) {
+  if (geometryColumn !== null && !selected) {
     return "obsolete-geometry";
+  }
+  if (metadata.geometry_columns.length === 0) {
+    return format === "geojson" ? "geometry-required" : null;
+  }
+  if (!selected) {
+    return "choose-geometry";
   }
   if (format === "geojson" && !selected.crs) {
     return "missing-crs";
@@ -363,8 +363,9 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   if (exportContext.source !== metadataSource) {
     setExportContext({ source: metadataSource });
   }
+  const mounted = React.useRef(false);
   const isCurrentContext = useEvent(
-    (context: ExportContext) => context === exportContext,
+    (context: ExportContext) => mounted.current && context === exportContext,
   );
   const metadataRequest = useAsyncData(async () => {
     if (!exportDialogOpen || !getExportMetadata) {
@@ -406,6 +407,13 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const dialogRef = React.useRef<HTMLDivElement>(null);
   const latestActionId = React.useRef(0);
+  React.useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      latestActionId.current += 1;
+    };
+  }, []);
   React.useEffect(() => {
     latestActionId.current += 1;
     setFailure(null);

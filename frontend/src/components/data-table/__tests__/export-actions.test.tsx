@@ -54,6 +54,7 @@ function renderExportActions(
   props: Partial<ExportActionProps> = {},
   sizeLimit: { limitBytes: number; unavailableMessage: string } | null = null,
   mode: AppMode = "edit",
+  strictMode = false,
 ) {
   const store = createStore();
   store.set(downloadSizeLimitAtom, sizeLimit);
@@ -66,7 +67,7 @@ function renderExportActions(
       </TooltipProvider>
     </Provider>
   );
-  const result = render(view(props));
+  const result = render(view(props), { reactStrictMode: strictMode });
   return {
     ...result,
     rerenderExportActions: (nextProps: Partial<ExportActionProps>) =>
@@ -530,7 +531,7 @@ describe("ExportActions dialog", () => {
     expect(downloadByURL).not.toHaveBeenCalled();
   });
 
-  async function startGeoParquetInstall() {
+  async function startGeoParquetInstall(strictMode = false) {
     const getExportMetadata = vi.fn().mockResolvedValue(geometryMetadata);
     downloadAs.mockResolvedValueOnce({
       url: "",
@@ -538,10 +539,12 @@ describe("ExportActions dialog", () => {
       error: "GeoParquet export requires pyarrow.",
       missing_packages: ["pyarrow"],
     });
-    const { rerenderExportActions } = renderExportActions({
-      getExportMetadata,
-      metadataSource: "first",
-    });
+    const { rerenderExportActions, unmount } = renderExportActions(
+      { getExportMetadata, metadataSource: "first" },
+      null,
+      "edit",
+      strictMode,
+    );
     const dialog = await openDialog();
     fireEvent.click(
       await screen.findByRole("button", { name: "Download GeoParquet" }),
@@ -549,8 +552,99 @@ describe("ExportActions dialog", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Install pyarrow" }),
     );
-    return { dialog, getExportMetadata, rerenderExportActions };
+    return { dialog, getExportMetadata, rerenderExportActions, unmount };
   }
+
+  it("does not retry with a geometry choice after the final geometry disappears", async () => {
+    const { getExportMetadata } = await startGeoParquetInstall();
+    getExportMetadata.mockResolvedValue({
+      geometry_columns: [],
+      primary_geometry_column: null,
+      default_geometry_column: null,
+      formats: {},
+    });
+
+    await act(async () => mocks.handleInstallPackages.mock.calls[0][1]());
+
+    expect(downloadAs).toHaveBeenCalledTimes(1);
+    expect(downloadByURL).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText(
+        "The selected geometry is no longer available. Choose another geometry to export.",
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Download Parquet" }));
+    await waitFor(() => expect(downloadByURL).toHaveBeenCalledTimes(1));
+    expect(downloadAs).toHaveBeenLastCalledWith({ format: "parquet" });
+  });
+
+  it("does not export when installation finishes after the widget unmounts", async () => {
+    const { getExportMetadata, unmount } = await startGeoParquetInstall();
+    unmount();
+
+    await act(async () => mocks.handleInstallPackages.mock.calls[0][1]());
+
+    expect(getExportMetadata).toHaveBeenCalledTimes(1);
+    expect(downloadAs).toHaveBeenCalledTimes(1);
+    expect(downloadByURL).not.toHaveBeenCalled();
+  });
+
+  it("does not export when post-install metadata resolves after unmount", async () => {
+    const { getExportMetadata, unmount } = await startGeoParquetInstall();
+    let resolveCheck: (value: ExportMetadata) => void = () => undefined;
+    getExportMetadata.mockImplementationOnce(
+      () =>
+        new Promise<ExportMetadata>((resolve) => {
+          resolveCheck = resolve;
+        }),
+    );
+    await act(async () => mocks.handleInstallPackages.mock.calls[0][1]());
+    expect(getExportMetadata).toHaveBeenCalledTimes(2);
+    unmount();
+
+    await act(async () => resolveCheck(geometryMetadata));
+
+    expect(downloadAs).toHaveBeenCalledTimes(1);
+    expect(downloadByURL).not.toHaveBeenCalled();
+  });
+
+  it("does not deliver a retried export that resolves after unmount", async () => {
+    const { unmount } = await startGeoParquetInstall();
+    let resolveDownload: (value: {
+      url: string;
+      filename: string;
+    }) => void = () => undefined;
+    downloadAs.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveDownload = resolve;
+        }),
+    );
+    await act(async () => mocks.handleInstallPackages.mock.calls[0][1]());
+    expect(downloadAs).toHaveBeenCalledTimes(2);
+    unmount();
+
+    await act(async () =>
+      resolveDownload({
+        url: "https://example.test/export",
+        filename: "table",
+      }),
+    );
+
+    expect(downloadByURL).not.toHaveBeenCalled();
+  });
+
+  it("retries after installation under StrictMode effect replay", async () => {
+    await startGeoParquetInstall(true);
+
+    await act(async () => mocks.handleInstallPackages.mock.calls[0][1]());
+
+    await waitFor(() => expect(downloadByURL).toHaveBeenCalledTimes(1));
+    expect(downloadAs).toHaveBeenLastCalledWith({
+      format: "parquet",
+      geometry_column: "location",
+    });
+  });
 
   it("does not export when installation finishes after the dialog closes", async () => {
     const { dialog, getExportMetadata } = await startGeoParquetInstall();
