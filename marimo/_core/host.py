@@ -11,15 +11,23 @@ from dataclasses import dataclass
 from time import monotonic
 from typing import TYPE_CHECKING
 
-from marimo._core import protocol
+from marimo._core import protocol, protocol_events
 from marimo._core.errors import NotFound
 from marimo._core.notebook import Notebook
 from marimo._core.run_log import RetentionPolicy, RunLog
-from marimo._core.stream import Event, Listener, Sink, Stream, message
+from marimo._core.stream import (
+    Listener,
+    RoutedEvent,
+    Sink,
+    Stream,
+    snapshot_event,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterator, Sequence
     from contextlib import AbstractContextManager
+
+    from marimo._core.protocol_events import Body
 
 
 NotebookInitializer = Callable[
@@ -50,7 +58,7 @@ class _NotebookSink(Sink):
     def deferred(self) -> AbstractContextManager[None]:
         return self._stream.deferred()
 
-    def _append(self, event: Event) -> Event:
+    def _append(self, event: RoutedEvent) -> RoutedEvent:
         if not self.active:
             return event
         with self._stream.deferred():
@@ -77,10 +85,13 @@ class _NotebookRecords(Mapping[str, protocol.Notebook]):
         return len(self._records)
 
 
-def _identity(event: Event) -> tuple[str, str]:
-    assert event.kind is not None
-    body = getattr(event.data, event.kind)
-    return event.name, getattr(body, "id", None) or body.notebook_id
+def _identity(event: RoutedEvent) -> tuple[type[Body], str]:
+    assert isinstance(event.event, protocol_events.RecordEvent)
+    body = protocol_events.body(event.event)
+    assert not isinstance(body, (protocol.Host, protocol.Custom))
+    if isinstance(body, (protocol.Document, protocol.Analysis)):
+        return type(body), body.notebook_id
+    return type(body), body.id
 
 
 class Host:
@@ -179,7 +190,7 @@ class Host:
             if entry.sink is not None:
                 entry.sink.active = False
             self._stream.remove(
-                "notebook",
+                protocol.Notebook,
                 record.id,
                 notebook_id=record.id,
                 request_id=request_id,
@@ -236,13 +247,11 @@ class Host:
             # The initial state joins the stream the way later changes do,
             # so the run history sees every run from its first event.
             with self._stream.deferred():
-                for event in notebook._snapshot():
-                    assert event.kind is not None
-                    body = getattr(event.data, event.kind)
+                for body, run_id in notebook._records():
                     sink.publish(
                         body,
                         notebook_id=notebook.id,
-                        run_id=event.run_id,
+                        run_id=run_id,
                     )
             if self._entries.get(notebook_id) is not entry:
                 raise NotFound(f"no notebook {notebook_id}")
@@ -259,25 +268,21 @@ class Host:
 
     def _snapshot(
         self, notebook_id: protocol.NotebookId | None = None
-    ) -> list[Event]:
+    ) -> list[RoutedEvent]:
         """Return catalog or notebook state with retained run history."""
         if notebook_id is not None:
             records = [self._records[notebook_id]]
-            events: list[Event] = []
+            events: list[RoutedEvent] = []
         else:
             records = list(self._records.values())
-            events = [Event("host", message(self._host))]
-            events.extend(
-                Event("project", message(p)) for p in self._projects.values()
-            )
+            events = [snapshot_event(self._host)]
+            events.extend(snapshot_event(p) for p in self._projects.values())
         for record in records:
-            events.append(
-                Event("notebook", message(record), notebook_id=record.id)
-            )
+            events.append(snapshot_event(record, notebook_id=record.id))
             entry = self._entries[record.id]
             if entry.notebook is None:
                 continue
-            seen: set[tuple[str, str]] = set()
+            seen: set[tuple[type[Body], str]] = set()
             for event in [
                 *entry.notebook._snapshot(),
                 *entry.log.snapshot(),
@@ -295,7 +300,7 @@ class Host:
         notebook_id: str | None = None,
         types: Collection[str] | None = None,
         run_id: str | None = None,
-    ) -> list[Event]:
+    ) -> list[RoutedEvent]:
         """Return a snapshot or replay followed by `ready`.
 
         A cursor requests the events after it. An unavailable cursor returns
@@ -306,13 +311,18 @@ class Host:
             if notebook_id not in self._records:
                 raise NotFound(f"no notebook {notebook_id}")
             scope = self._records[notebook_id].id
-        ready = Event("ready", id=self._stream.last_id)
+        ready = RoutedEvent(
+            protocol.ReadyEvent(data={}, id=str(self._stream.last_id))
+        )
         if cursor is None:
             events = self._snapshot(scope)
         else:
             missed = self._stream.since(cursor)
             if missed is None:
-                events = [Event("reset"), *self._snapshot(scope)]
+                events = [
+                    RoutedEvent(protocol.ResetEvent(data={})),
+                    *self._snapshot(scope),
+                ]
             else:
                 events = [e for e in missed if e.visible_in(notebook_id)]
         return [e for e in [*events, ready] if e.wanted(types, run_id)]
@@ -334,7 +344,7 @@ class Host:
     ) -> Callable[[], None]:
         """Subscribe to matching events and return an unsubscribe function."""
 
-        def filtered(event: Event) -> None:
+        def filtered(event: RoutedEvent) -> None:
             if event.visible_in(notebook_id) and event.wanted(types, run_id):
                 listener(event)
 

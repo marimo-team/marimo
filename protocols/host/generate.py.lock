@@ -17,6 +17,7 @@ marimo-lens = false
 [manifest]
 requirements = [
     { name = "datamodel-code-generator", specifier = "==0.72.0" },
+    { name = "jinja2", specifier = "==3.1.6" },
     { name = "msgspec", extras = ["yaml"], specifier = "==0.22.0" },
     { name = "ruff", specifier = "==0.16.4" },
 ]

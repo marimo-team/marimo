@@ -13,94 +13,32 @@ from collections import deque
 from collections.abc import Callable, Collection, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
-from typing import Literal, TypeAlias, get_args
 
 import msgspec
 from msgspec import UNSET
 
-from marimo._core import protocol
+from marimo._core import protocol, protocol_events
 
 LOGGER = logging.getLogger(__name__)
 
-Body: TypeAlias = (
-    protocol.Host
-    | protocol.Project
-    | protocol.Notebook
-    | protocol.Document
-    | protocol.Analysis
-    | protocol.Cell
-    | protocol.Runtime
-    | protocol.Attachment
-    | protocol.Run
-    | protocol.Execution
-    | protocol.Console
-    | protocol.Display
-    | protocol.Variable
-    | protocol.Custom
-)
-"""Every object a stream carries. The wrapper map and the notebook kinds
-derive from it; the catalog kinds are a chosen subset."""
 
-
-Kind: TypeAlias = Literal[
-    "host",
-    "project",
-    "notebook",
-    "document",
-    "analysis",
-    "cell",
-    "runtime",
-    "attachment",
-    "run",
-    "execution",
-    "console",
-    "display",
-    "variable",
-    "custom",
-]
-"""The kinds of object a stream carries, one per `Body` type."""
-
-_KIND_BY_NAME: dict[str, Kind] = {kind: kind for kind in get_args(Kind)}
-assert set(_KIND_BY_NAME) == {
-    body_type.__name__.lower() for body_type in get_args(Body)
-}
-
-
-def kind_of(body: Body) -> Kind:
-    """Return the object's event kind, used by the `types` filter."""
-    return _KIND_BY_NAME[type(body).__name__.lower()]
-
-
-_WRAPPERS: dict[Kind, type[msgspec.Struct]] = {
-    _KIND_BY_NAME[body_type.__name__.lower()]: getattr(
-        protocol, f"{body_type.__name__}Message"
-    )
-    for body_type in get_args(Body)
-}
-
-CATALOG_KINDS: frozenset[Kind] = frozenset(
-    {"host", "project", "notebook", "runtime", "attachment"}
-)
-# Host and project describe the whole host, so they never belong to one
-# notebook's stream. Every other kind does.
-NOTEBOOK_KINDS = frozenset(_WRAPPERS) - {"host", "project"}
-
-
-def message(
-    body: Body,
+def snapshot_event(
+    body: protocol_events.SnapshotBody,
     *,
+    notebook_id: protocol.NotebookId | None = None,
+    run_id: protocol.RunId | None = None,
     request_id: str | None = None,
-    time: datetime | None = None,
-) -> msgspec.Struct:
-    """Wrap an object in its protocol message."""
-    kind = kind_of(body)
-    fields: dict[str, Body] = {kind: deepcopy(body)}
-    return _WRAPPERS[kind](
-        **fields,
-        request_id=UNSET if request_id is None else request_id,
-        time=UNSET if time is None else time,
+) -> RoutedEvent:
+    """Copy current state into an event without an emission time or cursor."""
+    return RoutedEvent(
+        protocol_events.record(
+            deepcopy(body),
+            request_id=UNSET if request_id is None else request_id,
+        ),
+        notebook_id=notebook_id,
+        run_id=run_id,
     )
 
 
@@ -109,66 +47,100 @@ def utcnow() -> datetime:
 
 
 def removal(
-    kind: Kind,
+    record_type: type[protocol_events.RemovableBody],
     object_id: str,
     *,
     notebook_id: protocol.NotebookId | None = None,
     request_id: str | None = None,
     run_id: protocol.RunId | None = None,
-) -> Event:
+) -> RoutedEvent:
     """Return an event announcing an object's removal."""
-    data = protocol.RemovedMessage(
-        id=object_id,
-        request_id=UNSET if request_id is None else request_id,
-        time=utcnow(),
+    return RoutedEvent(
+        protocol_events.removed(
+            record_type,
+            object_id,
+            request_id=UNSET if request_id is None else request_id,
+            time=utcnow(),
+        ),
+        notebook_id=notebook_id,
+        run_id=run_id,
     )
-    return Event(
-        f"{kind}.removed", data, notebook_id=notebook_id, run_id=run_id
-    )
+
+
+class ExtensionEvent(msgspec.Struct, frozen=True, tag_field="event"):
+    """Base envelope for host extensions outside the public protocol.
+
+    Subclasses declare their event tag and payload type.
+    """
+
+    data: msgspec.Struct
+    id: str | msgspec.UnsetType = UNSET
+
+
+def event_name(event: protocol.Event | ExtensionEvent) -> str:
+    """Read the wire tag for transport framing and client type filters."""
+    tag = event.__struct_config__.tag
+    assert isinstance(tag, str)
+    return tag
 
 
 @dataclass(frozen=True)
-class Event:
-    """An event with an optional replay cursor and notebook scope.
+class RoutedEvent:
+    """A typed wire event with internal notebook and run routing."""
 
-    Snapshot events have no `id`. Control events have no `data`.
-    """
-
-    name: str
-    data: msgspec.Struct | None = None
-    id: int | None = None
+    event: protocol.Event | ExtensionEvent
     notebook_id: protocol.NotebookId | None = None
     run_id: protocol.RunId | None = None
 
     @property
-    def kind(self) -> Kind | None:
-        """The object kind without the `.removed` suffix.
-
-        `ready` and `reset` carry no object and have no kind.
-        """
-        return _KIND_BY_NAME.get(self.name.partition(".")[0])
+    def id(self) -> int | None:
+        """The stream's integer cursor, absent on snapshots and resets."""
+        return None if self.event.id is UNSET else int(self.event.id)
 
     def visible_in(self, notebook_id: str | None) -> bool:
         """Whether the event belongs in the catalog or notebook stream."""
+        if isinstance(self.event, (protocol.ReadyEvent, protocol.ResetEvent)):
+            return False
         if notebook_id is None:
-            return self.kind in CATALOG_KINDS
-        return self.notebook_id == notebook_id and (
-            self.kind in NOTEBOOK_KINDS
-            or (self.kind is None and self.name not in ("ready", "reset"))
+            return isinstance(
+                self.event,
+                (
+                    protocol.HostEvent,
+                    protocol.ProjectEvent,
+                    protocol.ProjectRemovedEvent,
+                    protocol.NotebookEvent,
+                    protocol.NotebookRemovedEvent,
+                    protocol.RuntimeEvent,
+                    protocol.RuntimeRemovedEvent,
+                    protocol.AttachmentEvent,
+                    protocol.AttachmentRemovedEvent,
+                ),
+            )
+        return self.notebook_id == notebook_id and not isinstance(
+            self.event,
+            (
+                protocol.HostEvent,
+                protocol.ProjectEvent,
+                protocol.ProjectRemovedEvent,
+            ),
         )
 
     def wanted(
         self, types: Collection[str] | None, run_id: str | None = None
     ) -> bool:
         """Apply kind and run filters, always including `ready` and `reset`."""
-        if self.name in ("ready", "reset"):
+        if isinstance(self.event, (protocol.ReadyEvent, protocol.ResetEvent)):
             return True
-        return (types is None or (self.kind or self.name) in types) and (
-            run_id is None or self.run_id == run_id
-        )
+        if types is not None:
+            kind = event_name(self.event)
+            if isinstance(self.event, protocol_events.RemovalEvent):
+                kind = kind.removesuffix(".removed")
+            if kind not in types:
+                return False
+        return run_id is None or self.run_id == run_id
 
 
-Listener = Callable[[Event], None]
+Listener = Callable[[RoutedEvent], None]
 
 
 class Sink(ABC):
@@ -178,37 +150,44 @@ class Sink(ABC):
     each event before the stream records it.
     """
 
-    def append(self, event: Event) -> Event:
+    def append(self, event: RoutedEvent) -> RoutedEvent:
         """Record an event without requiring a public protocol type."""
         return self._append(deepcopy(event))
 
     def publish(
         self,
-        body: Body,
+        body: protocol_events.Body,
         *,
         notebook_id: protocol.NotebookId | None = None,
         request_id: str | None = None,
         run_id: protocol.RunId | None = None,
-    ) -> Event:
+    ) -> RoutedEvent:
         """Publish a new or updated object."""
-        data = message(body, request_id=request_id, time=utcnow())
         return self._append(
-            Event(kind_of(body), data, notebook_id=notebook_id, run_id=run_id)
+            RoutedEvent(
+                protocol_events.record(
+                    deepcopy(body),
+                    request_id=UNSET if request_id is None else request_id,
+                    time=utcnow(),
+                ),
+                notebook_id=notebook_id,
+                run_id=run_id,
+            )
         )
 
     def remove(
         self,
-        kind: Kind,
+        record_type: type[protocol_events.RemovableBody],
         object_id: str,
         *,
         notebook_id: protocol.NotebookId | None = None,
         request_id: str | None = None,
         run_id: protocol.RunId | None = None,
-    ) -> Event:
+    ) -> RoutedEvent:
         """Publish an object's removal."""
         return self._append(
             removal(
-                kind,
+                record_type,
                 object_id,
                 notebook_id=notebook_id,
                 request_id=request_id,
@@ -221,7 +200,7 @@ class Sink(ABC):
         """Deliver events published in the block once it ends."""
 
     @abstractmethod
-    def _append(self, event: Event) -> Event:
+    def _append(self, event: RoutedEvent) -> RoutedEvent:
         """Record an owned event and return an isolated copy as recorded.
 
         The event must already be isolated from the caller. Forward it to
@@ -238,16 +217,18 @@ class Stream(Sink):
 
     def __init__(self, *, history: int = 1000) -> None:
         self._last_id = 0
-        self._history: deque[Event] = deque(maxlen=history)
+        self._history: deque[RoutedEvent] = deque(maxlen=history)
         self._listeners: list[Listener] = []
-        self._pending: deque[tuple[Event, tuple[Listener, ...]]] = deque()
+        self._pending: deque[tuple[RoutedEvent, tuple[Listener, ...]]] = (
+            deque()
+        )
         self._dispatching = False
 
     @property
     def last_id(self) -> int:
         return self._last_id
 
-    def since(self, cursor: int) -> list[Event] | None:
+    def since(self, cursor: int) -> list[RoutedEvent] | None:
         """Return events after `cursor`, or `None` for a stale or future cursor."""
         if cursor == self._last_id:
             return []
@@ -292,14 +273,11 @@ class Stream(Sink):
             self._dispatching = False
             self._drain()
 
-    def _append(self, event: Event) -> Event:
+    def _append(self, event: RoutedEvent) -> RoutedEvent:
         self._last_id += 1
-        stamped = Event(
-            event.name,
-            event.data,
-            self._last_id,
-            event.notebook_id,
-            event.run_id,
+        stamped = replace(
+            event,
+            event=msgspec.structs.replace(event.event, id=str(self._last_id)),
         )
         self._history.append(stamped)
         self._pending.append((stamped, tuple(self._listeners)))

@@ -12,7 +12,7 @@ from marimo._core import backend as be
 from marimo._core.errors import NotFound
 from marimo._core.host import Host
 from marimo._core.protocol import ProjectMessage
-from marimo._core.stream import Event
+from marimo._core.stream import RoutedEvent
 from marimo._server.host.index import WorkspaceIndex
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace
@@ -54,9 +54,9 @@ def test_refresh_publishes_the_project_and_its_notebooks(
         "ready",
     ]
     [project] = [
-        e.data.project
+        e.event.data.project
         for e in host.events()
-        if isinstance(e.data, ProjectMessage)
+        if isinstance(e.event.data, ProjectMessage)
     ]
     assert project.root == str(tmp_path)
     assert project.status == "indexed"
@@ -69,7 +69,7 @@ def test_ids_survive_a_rescan_and_a_move(tmp_path: Path) -> None:
     index = WorkspaceIndex(host, workspace(tmp_path, "a.py"), make_notebook)
     index.refresh()
     (notebook,) = host.notebooks.values()
-    log: list[Event] = []
+    log: list[RoutedEvent] = []
     host.subscribe(log.append)
 
     index.refresh()

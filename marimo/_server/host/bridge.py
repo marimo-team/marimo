@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
-    from marimo._core.stream import Event, Sink
+    from marimo._core.stream import RoutedEvent, Sink
     from marimo._messaging.notebook import NotebookCell
     from marimo._server.session_manager import SessionManager
     from marimo._session.notebook import AppFileManager
@@ -383,7 +383,7 @@ class SessionBridge(SessionEventListener):
 
     def session_snapshot(
         self, notebook_id: protocol.NotebookId
-    ) -> list[Event]:
+    ) -> list[RoutedEvent]:
         """Return retained marimo events for one client without publishing them."""
         session = self._session_of(notebook_id)
         if session is None:
@@ -658,8 +658,11 @@ class SessionBridge(SessionEventListener):
         self._backends[notebook_id] = backend
         return backend
 
-    def _forget_backend(self, event: Event) -> None:
-        if event.name == "notebook.removed" and event.notebook_id is not None:
+    def _forget_backend(self, event: RoutedEvent) -> None:
+        if (
+            isinstance(event.event, protocol.NotebookRemovedEvent)
+            and event.notebook_id is not None
+        ):
             self._backends.pop(event.notebook_id, None)
             self._file_texts.pop(event.notebook_id, None)
             self._rebaselining.pop(event.notebook_id, None)
