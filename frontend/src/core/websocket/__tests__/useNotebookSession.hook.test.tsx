@@ -48,6 +48,7 @@ import { notebookAtom } from "@/core/cells/cells";
 import { AppConfigSchema } from "@/core/config/config-schema";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
+import type { RunEvent } from "@/core/host/protocol";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { initialRunCompletedAtom } from "../../kernel/state";
@@ -277,8 +278,18 @@ describe("useNotebookSession messages", () => {
       receive({
         id: "2",
         event: "run",
-        data: { run: { id: "r1", status: "completed" } },
-      });
+        data: {
+          run: {
+            id: "r1",
+            notebook_id: "n1",
+            caused_by: null,
+            status: "completed",
+            outcome: "succeeded",
+            started_at: "2026-10-19T12:00:00Z",
+            completed_at: "2026-10-19T12:00:01Z",
+          },
+        },
+      } satisfies RunEvent);
       receive({
         id: "3",
         event: "future-event",
