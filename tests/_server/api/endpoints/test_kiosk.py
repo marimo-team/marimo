@@ -47,6 +47,10 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                 ),
             )
 
+            attachments = other_websocket.receive_json()
+            assert attachments["op"] == "attachments"
+            assert attachments["data"]["attachments"] == []
+
             for _ in range(2):
                 assert (
                     other_websocket.receive_json()["op"] == "environment-state"

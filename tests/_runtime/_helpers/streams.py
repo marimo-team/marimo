@@ -99,9 +99,13 @@ class MockStderr(ThreadSafeStderr):
         self.messages: list[str] = []
 
     def _write_with_mimetype(
-        self, data: str, mimetype: ConsoleMimeType
+        self,
+        data: str,
+        mimetype: ConsoleMimeType,
+        *,
+        code: str | None = None,
     ) -> int:
-        del mimetype
+        del mimetype, code
         self.messages.append(data)
         return len(data)
 

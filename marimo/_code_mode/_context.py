@@ -1823,7 +1823,10 @@ class AsyncCodeModeContext:
         for cell_id, cfg in resolved_configs.items():
             if cell_id in self.graph.cells:
                 self.graph.cells[cell_id].configure(cfg.asdict())
-            self._kernel.cell_metadata[cell_id] = CellMetadata(config=cfg)
+            metadata = self._kernel.cell_metadata.setdefault(
+                cell_id, CellMetadata()
+            )
+            metadata.config = cfg
 
         # Build document transaction ops from the plan and broadcast
         # a single NotebookDocumentTransactionNotification.

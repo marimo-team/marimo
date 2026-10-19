@@ -223,6 +223,9 @@ function createCellRuntimeFromSession(
         timestamp: DEFAULT_TIMESTAMP,
       };
     }
+    if (runtimeState.output && primaryOutput.code !== undefined) {
+      runtimeState.output.code = primaryOutput.code;
+    }
   }
 
   const consoleOutputs = sessionCell.console || [];
@@ -238,6 +241,9 @@ function createCellRuntimeFromSession(
           data: consoleOutput.data,
           mimetype: consoleOutput.mimetype,
           timestamp: DEFAULT_TIMESTAMP,
+          ...(consoleOutput.code === undefined
+            ? {}
+            : { code: consoleOutput.code }),
         };
       }
       // Handle StreamOutput (type: "stream")
@@ -246,6 +252,9 @@ function createCellRuntimeFromSession(
         data: consoleOutput.text,
         mimetype: consoleOutput.mimetype ?? "text/plain",
         timestamp: DEFAULT_TIMESTAMP,
+        ...(consoleOutput.code === undefined
+          ? {}
+          : { code: consoleOutput.code }),
       };
     }),
   };
