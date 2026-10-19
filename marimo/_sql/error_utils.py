@@ -237,10 +237,8 @@ def create_sql_error_from_exception(
     if hasattr(cell, "sqls") and cell.sqls:
         sql_statement = str(cell.sqls[0])
 
-    # Check if this is a MarimoSQLException carrying structured metadata.
-    # Forward the structured fields whenever any of them is present: engines
-    # may report position (sql_line/sql_col) without a hint, and dropping the
-    # coordinates would hide where the error is (issue #10987).
+    # Check if this is a MarimoSQLException carrying structured metadata, and
+    # reraise accordingly to preserve information.
     if isinstance(exception, MarimoSQLException) and (
         exception.hint is not None
         or exception.sql_statement
