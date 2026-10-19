@@ -3,15 +3,13 @@
 import type { NotebookEvent } from "./events";
 import type * as Protocol from "./protocol";
 import type {
-  EventOf,
   HandlerContext,
   Resource,
-  ResourceEventName,
-  StreamPhase,
+  ResourceEvent,
 } from "./resources/resource";
 
 /** A resource for each entry of a state map under the same name. */
-export type Resources<States> = {
+type Resources<States> = {
   readonly [Name in keyof States]: Resource<States[Name]>;
 };
 
@@ -21,8 +19,8 @@ export type Resources<States> = {
  * Holds the phase, the notebook identity, the resume cursor, and the state
  * of each resource.
  */
-export interface StreamState<States> {
-  readonly phase: StreamPhase;
+interface StreamState<States> {
+  readonly phase: HandlerContext["phase"];
   /**
    * The notebook the stream describes.
    *
@@ -40,7 +38,7 @@ export interface StreamState<States> {
 }
 
 /** A reducer over the events of one notebook stream. */
-export interface Stream<States> {
+interface Stream<States> {
   readonly initial: StreamState<States>;
   /**
    * Apply one event.
@@ -71,7 +69,7 @@ const UNCURSORED = new Set<NotebookEvent["event"]>([
  * Undefined for objects that do not name one.
  */
 function notebookIdOf(
-  event: EventOf<ResourceEventName>,
+  event: ResourceEvent,
 ): Protocol.NotebookIdOutput | undefined {
   switch (event.event) {
     case "document":
@@ -127,7 +125,7 @@ export function createStream<States extends object>(
 
   function fanOut(
     state: StreamState<States>,
-    event: EventOf<ResourceEventName>,
+    event: ResourceEvent,
   ): StreamState<States> {
     const context: HandlerContext = { phase: state.phase };
     let next = state.resources;
