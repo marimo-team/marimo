@@ -497,6 +497,53 @@ class TestNotebookRecords:
 
 
 class TestNotebook:
+    @pytest.mark.parametrize("method", ["edit", "replace"])
+    @pytest.mark.parametrize("remove", [False, True])
+    def test_response_preserves_revision_before_subscriber_changes(
+        self,
+        host: Host,
+        notebook: Notebook,
+        log: list[Event],
+        method: str,
+        remove: bool,
+    ) -> None:
+        notebook.replace([cell("c1", "0")], {})
+        log.clear()
+
+        def change_again(event: Event) -> None:
+            if (
+                isinstance(event.data, protocol.CellMessage)
+                and event.data.request_id == "first"
+            ):
+                change = delete("c1", "*") if remove else put("c1", "2", "*")
+                notebook.edit([change], request_id="second")
+
+        host.subscribe(change_again, notebook_id=notebook.id)
+        if method == "edit":
+            response = notebook.edit([put("c1", "1", "*")], request_id="first")
+        else:
+            response = notebook.replace(
+                [cell("c1", "1")], {}, request_id="first"
+            )
+
+        first_cell, first_document = log[:2]
+        assert isinstance(first_cell.data, protocol.CellMessage)
+        assert isinstance(first_document.data, protocol.DocumentMessage)
+        published = first_cell.data.cell
+        assert response == protocol.EditResponse(
+            document=first_document.data.document,
+            cells={
+                "c1": protocol.CellVersion(
+                    etag=published.etag,
+                    code_hash=published.code_hash,
+                    version=published.version,
+                )
+            },
+        )
+        assert notebook.document.cell("c1") == (
+            None if remove else cell("c1", "2")
+        )
+
     async def test_initialization_publishes_cells_then_the_document(
         self, host: Host, log: list[Event]
     ) -> None:

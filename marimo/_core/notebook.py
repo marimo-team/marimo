@@ -170,15 +170,16 @@ class Notebook:
         self._document, changed = self._document.replace(cells, app_config)
         if saved:
             self._saved_etag = self._document.etag
-        self._publish_changed(changed, request_id)
-        versions: dict[str, protocol.CellVersion | None] = {
-            cell.id: self._cell_version(cell) for cell in changed.cells
-        }
-        for cell_id in changed.removed:
-            versions[cell_id] = None
-        return protocol.EditResponse(
-            document=self._document_record, cells=versions
-        )
+        with self.sink.deferred():
+            self._publish_changed(changed, request_id)
+            versions: dict[str, protocol.CellVersion | None] = {
+                cell.id: self._cell_version(cell) for cell in changed.cells
+            }
+            for cell_id in changed.removed:
+                versions[cell_id] = None
+            return protocol.EditResponse(
+                document=self._document_record, cells=versions
+            )
 
     def edit(
         self, changes: Sequence[protocol.Change], *, request_id: str
@@ -205,14 +206,15 @@ class Notebook:
                 document=self._document_record,
             )
         self._document, applied = result
-        self._publish_changed(applied.changed, request_id)
-        return protocol.EditResponse(
-            document=self._document_record,
-            cells={
-                cell_id: None if cell is None else self._cell_version(cell)
-                for cell_id, cell in applied.cells.items()
-            },
-        )
+        with self.sink.deferred():
+            self._publish_changed(applied.changed, request_id)
+            return protocol.EditResponse(
+                document=self._document_record,
+                cells={
+                    cell_id: None if cell is None else self._cell_version(cell)
+                    for cell_id, cell in applied.cells.items()
+                },
+            )
 
     def mark_saved(
         self, etag: protocol.Etag, *, request_id: str | None = None
