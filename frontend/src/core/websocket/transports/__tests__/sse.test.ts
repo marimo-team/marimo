@@ -109,7 +109,7 @@ describe("SseTransport", () => {
     await vi.waitFor(() => expect(opens).toHaveLength(1));
 
     // Stop retrying when the consumer treats the close as terminal,
-    // mirroring useMarimoKernelConnection's terminal path.
+    // mirroring useNotebookSession's terminal path.
     transport.addEventListener("close", () => transport.close());
     push('event: close\ndata: {"code": 1000, "reason": "MARIMO_SHUTDOWN"}\n\n');
     await vi.waitFor(() => expect(closes).toHaveLength(1));
@@ -146,7 +146,7 @@ describe("SseTransport", () => {
     fetchMock
       .mockResolvedValueOnce(sseResponse(first.stream))
       .mockResolvedValueOnce(sseResponse(second.stream));
-    // Mirror useMarimoKernelConnection's retry path: reconnect()
+    // Mirror useNotebookSession's retry path: reconnect()
     // synchronously from inside the close handler.
     transport.addEventListener("close", () => transport.reconnect());
 
