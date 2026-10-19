@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import signal
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 from unittest import mock
 
@@ -32,7 +33,6 @@ from marimo._utils.platform import is_windows
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
 
 @pytest.fixture
@@ -740,7 +740,10 @@ async def test_ty_server_starts_with_binary_on_path(
             assert await server.start() is None
             mock_popen.assert_called_once()
             command = mock_popen.call_args.args[0]
-            assert command[command.index("--lsp") + 1] == f"ty:{binary}"
+            lsp_command = command[command.index("--lsp") + 1]
+            server_type, _, executable = lsp_command.partition(":")
+            assert server_type == "ty"
+            assert Path(executable) == binary
         finally:
             server.stop()
 
