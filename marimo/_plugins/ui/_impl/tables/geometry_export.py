@@ -175,6 +175,49 @@ def _missing_package_message(
     return f"This {source_label} table needs {package} to export {label}."
 
 
+def _geographic_prerequisite_error(
+    manager: NarwhalsTableManager[Any, Any],
+    format_name: Literal["parquet", "geojson"],
+) -> GeometryExportError | None:
+    """Check current packages for a supported geographic export source."""
+    label = "GeoParquet" if format_name == "parquet" else "GeoJSON"
+    if (
+        manager.data.implementation.is_duckdb()
+        and not DependencyManager.pyarrow.has()
+    ):
+        return GeometryExportError(
+            "missing_packages",
+            _missing_package_message(manager, "pyarrow"),
+            missing_packages=["pyarrow"],
+        )
+    if not DependencyManager.geopandas.has():
+        return GeometryExportError(
+            "missing_packages",
+            _missing_package_message(manager, "geopandas", label),
+            missing_packages=["geopandas"],
+        )
+    if format_name == "parquet":
+        if not DependencyManager.geopandas.has_at_version(
+            min_version=_MIN_GEOPANDAS_GEOPARQUET_VERSION, quiet=True
+        ):
+            return GeometryExportError(
+                "unsupported_version", _GEOPANDAS_UPGRADE_MESSAGE
+            )
+        if not DependencyManager.pyarrow.has():
+            return GeometryExportError(
+                "missing_packages",
+                _missing_package_message(manager, "pyarrow", "GeoParquet"),
+                missing_packages=["pyarrow"],
+            )
+    elif not DependencyManager.shapely.has_at_version(
+        min_version=_MIN_SHAPELY_GEOJSON_VERSION, quiet=True
+    ):
+        return GeometryExportError(
+            "unsupported_version", _SHAPELY_UPGRADE_MESSAGE
+        )
+    return None
+
+
 def _describe_export_source(manager: TableManager[Any]) -> _ExportSource:
     """Keep parsed source declarations separate from the metadata response."""
     if not isinstance(manager, NarwhalsTableManager):
@@ -188,7 +231,6 @@ def _describe_export_source(manager: TableManager[Any]) -> _ExportSource:
     primary: str | None = None
     columns: list[GeometryExportColumn] = []
     source_reason: str | None = None
-    source_missing_packages: list[str] = []
     schema: pa.Schema | None = None
     declarations: dict[str, ArrowGeometryDeclaration] = {}
     first_rejection: GeometryExportError | None = None
@@ -206,16 +248,13 @@ def _describe_export_source(manager: TableManager[Any]) -> _ExportSource:
                     crs=crs.to_string() if crs is not None else None,
                 )
             )
-        is_supported_source = DependencyManager.geopandas.has()
+        is_supported_source = True
     elif (
         source.implementation.is_pyarrow() or source.implementation.is_duckdb()
     ):
         if source.implementation.is_duckdb():
             if DependencyManager.pyarrow.has():
                 schema = _duckdb_geometry_schema(manager)
-            else:
-                source_reason = _missing_package_message(manager, "pyarrow")
-                source_missing_packages = ["pyarrow"]
         else:
             schema = source.to_native().schema
         for name, info in info_by_name.items():
@@ -247,7 +286,7 @@ def _describe_export_source(manager: TableManager[Any]) -> _ExportSource:
             if source_reason is None and rejection is not None:
                 source_reason = rejection[1]
                 first_rejection = GeometryExportError(*rejection, column=name)
-        is_supported_source = DependencyManager.geopandas.has()
+        is_supported_source = True
     else:
         columns = [
             GeometryExportColumn(name=name, encoding=info.encoding, crs=None)
@@ -256,61 +295,29 @@ def _describe_export_source(manager: TableManager[Any]) -> _ExportSource:
         is_supported_source = False
 
     formats: dict[str, ExportFormatEligibility] = {}
-    if not is_supported_source:
-        for format_name, label in (
-            ("parquet", "GeoParquet"),
-            ("geojson", "GeoJSON"),
-        ):
-            if (
-                source.implementation.is_pandas()
-                or source.implementation.is_pyarrow()
-                or source.implementation.is_duckdb()
-            ):
-                reason = _missing_package_message(manager, "geopandas", label)
-                missing_packages = ["geopandas"]
-            else:
-                reason = (
-                    f"{label} export is not supported for this table type."
-                )
-                missing_packages = []
-            formats[format_name] = ExportFormatEligibility(
-                available=False,
-                reason=reason,
-                missing_packages=missing_packages,
-            )
-    else:
-        if DependencyManager.shapely.has_at_version(
-            min_version=_MIN_SHAPELY_GEOJSON_VERSION, quiet=True
-        ):
-            formats["geojson"] = ExportFormatEligibility(available=True)
-        else:
-            formats["geojson"] = ExportFormatEligibility(
-                available=False, reason=_SHAPELY_UPGRADE_MESSAGE
-            )
-        if not DependencyManager.geopandas.has_at_version(
-            min_version=_MIN_GEOPANDAS_GEOPARQUET_VERSION, quiet=True
-        ):
-            formats["parquet"] = ExportFormatEligibility(
-                available=False,
-                reason=_GEOPANDAS_UPGRADE_MESSAGE,
-            )
-        elif not DependencyManager.pyarrow.has():
-            formats["parquet"] = ExportFormatEligibility(
-                available=False,
-                reason=_missing_package_message(
-                    manager, "pyarrow", "GeoParquet"
-                ),
-                missing_packages=["pyarrow"],
+    for format_name in ("parquet", "geojson"):
+        failure: GeometryExportError | None
+        if not is_supported_source:
+            label = "GeoParquet" if format_name == "parquet" else "GeoJSON"
+            failure = GeometryExportError(
+                "unsupported_representation",
+                f"{label} export is not supported for this table type.",
             )
         else:
-            formats["parquet"] = ExportFormatEligibility(available=True)
+            failure = _geographic_prerequisite_error(manager, format_name)
+        formats[format_name] = ExportFormatEligibility(
+            available=failure is None,
+            reason=str(failure) if failure is not None else None,
+            missing_packages=(failure.missing_packages or [])
+            if failure is not None
+            else [],
+        )
 
     if source_reason is not None:
         formats = {
             name: ExportFormatEligibility(
                 available=False,
                 reason=source_reason,
-                missing_packages=source_missing_packages,
             )
             for name in ("parquet", "geojson")
         }
@@ -610,40 +617,9 @@ def _prepare_geographic_export(
             "geometry_required",
             f"Choose a {'primary ' if format_name == 'parquet' else ''}geometry column for {label} export.",
         )
-    if (
-        manager.data.implementation.is_duckdb()
-        and not DependencyManager.pyarrow.has()
-    ):
-        raise GeometryExportError(
-            "missing_packages",
-            _missing_package_message(manager, "pyarrow"),
-            missing_packages=["pyarrow"],
-        )
-    if not DependencyManager.geopandas.has():
-        raise GeometryExportError(
-            "missing_packages",
-            _missing_package_message(manager, "geopandas", label),
-            missing_packages=["geopandas"],
-        )
-    if format_name == "parquet":
-        if not DependencyManager.geopandas.has_at_version(
-            min_version=_MIN_GEOPANDAS_GEOPARQUET_VERSION, quiet=True
-        ):
-            raise GeometryExportError(
-                "unsupported_version", _GEOPANDAS_UPGRADE_MESSAGE
-            )
-        if not DependencyManager.pyarrow.has():
-            raise GeometryExportError(
-                "missing_packages",
-                _missing_package_message(manager, "pyarrow", "GeoParquet"),
-                missing_packages=["pyarrow"],
-            )
-    elif not DependencyManager.shapely.has_at_version(
-        min_version=_MIN_SHAPELY_GEOJSON_VERSION, quiet=True
-    ):
-        raise GeometryExportError(
-            "unsupported_version", _SHAPELY_UPGRADE_MESSAGE
-        )
+    failure = _geographic_prerequisite_error(manager, format_name)
+    if failure is not None:
+        raise failure
     if source.rejection is not None:
         raise source.rejection
     if (
