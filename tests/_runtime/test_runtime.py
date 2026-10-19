@@ -4254,6 +4254,17 @@ class TestErrorHandling:
         )
         assert error_op.output.code == code
 
+        newer_code = "raise ValueError('newer failure')"
+        await mocked_kernel.k.run(
+            [ExecuteCellCommand(cell_id=request.cell_id, code=newer_code)]
+        )
+        latest_error = _filter_to_error_ops(
+            mocked_kernel.stream.cell_notifications
+        )[-1]
+        assert latest_error.output is not None
+        assert latest_error.output.code == newer_code
+        assert error_op.output.code == code
+
     async def test_cancelled_descendant_captures_own_code(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
     ) -> None:

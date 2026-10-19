@@ -268,3 +268,35 @@ class TestIsCodeModeRequest:
             assert is_code_mode_request() is False
         finally:
             HTTP_REQUEST_CTX.reset(token)
+
+
+@pytest.mark.parametrize("redirected", [True, False])
+def test_run_mode_tracebacks_omit_full_source(redirected: bool) -> None:
+    import msgspec
+
+    stderr = MagicMock(spec=Stderr) if redirected else MagicMock()
+    context = MagicMock(cell_id="cell")
+    with (
+        patch("sys.stderr", stderr),
+        patch("marimo._messaging.tracebacks.get_mode", return_value="run"),
+        patch(
+            "marimo._messaging.tracebacks._show_tracebacks_enabled",
+            return_value=True,
+        ),
+        patch(
+            "marimo._messaging.tracebacks.safe_get_context",
+            return_value=context,
+        ),
+        patch(
+            "marimo._messaging.tracebacks.is_code_mode_request",
+            return_value=False,
+        ),
+        patch(
+            "marimo._messaging.tracebacks.broadcast_notification"
+        ) as broadcast,
+    ):
+        write_traceback("ValueError: bad", code="private_source_sentinel = 42")
+    if redirected:
+        assert stderr._write_with_mimetype.call_args.kwargs["code"] is None
+    else:
+        assert broadcast.call_args.args[0].console.code is msgspec.UNSET

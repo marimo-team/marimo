@@ -654,6 +654,10 @@ components:
           - video/mpeg
         timestamp:
           type: number
+        traceback_format:
+          enum:
+          - html
+          - text
       required:
       - channel
       - mimetype

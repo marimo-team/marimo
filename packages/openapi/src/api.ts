@@ -4242,6 +4242,8 @@ export interface components {
         | "video/mp4"
         | "video/mpeg";
       timestamp?: number;
+      /** @enum {unknown} */
+      traceback_format?: "html" | "text";
     };
     /**
      * CellOutputs

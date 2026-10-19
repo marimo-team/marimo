@@ -127,6 +127,11 @@ components:
           enum:
           - media
           type: string
+        traceback_format:
+          enum:
+          - text
+          - html
+          type: string
         type:
           enum:
           - streamMedia
@@ -175,6 +180,11 @@ components:
           - stderr
           type: string
         text:
+          type: string
+        traceback_format:
+          enum:
+          - text
+          - html
           type: string
         type:
           enum:

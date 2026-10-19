@@ -76,6 +76,8 @@ export interface components {
       /** @enum {string} */
       name: "media";
       /** @enum {string} */
+      traceback_format?: "text" | "html";
+      /** @enum {string} */
       type: "streamMedia";
     };
     StreamOutput: {
@@ -110,6 +112,8 @@ export interface components {
       /** @enum {string} */
       name: "stdout" | "stderr";
       text: string;
+      /** @enum {string} */
+      traceback_format?: "text" | "html";
       /** @enum {string} */
       type: "stream";
     };

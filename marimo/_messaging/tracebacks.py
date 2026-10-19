@@ -46,6 +46,8 @@ def _show_tracebacks_enabled() -> bool:
 
 def write_traceback(traceback: str, *, code: str | None = None) -> None:
     in_run_mode = get_mode() == "run"
+    if in_run_mode:
+        code = None
     code_mode = is_code_mode_request()
     ctx = safe_get_context()
 
@@ -76,6 +78,7 @@ def write_traceback(traceback: str, *, code: str | None = None) -> None:
                         if code_mode
                         else _highlight_traceback(traceback),
                         code=code if code is not None else msgspec.UNSET,
+                        traceback_format="text" if code_mode else "html",
                     ),
                 ),
                 ctx.stream,

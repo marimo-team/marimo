@@ -101,9 +101,12 @@ def test_message_is_an_opaque_custom_event(
         headers=token_header("fake-token"),
     )
     assert (response.status_code, response.content) == (202, b"")
-    assert [(event.name, event.data.custom) for event in events] == [
-        ("custom", protocol.Custom(type=AGENT_MESSAGE_TYPE, data=payload))
-    ]
+    assert len(events) == 1
+    event = events[0].event
+    assert isinstance(event, protocol.CustomEvent)
+    assert event.data.custom == protocol.Custom(
+        type=AGENT_MESSAGE_TYPE, data=payload
+    )
 
 
 @pytest.mark.parametrize("client_attached", [False, True])

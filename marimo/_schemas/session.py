@@ -38,6 +38,7 @@ class StreamOutput(BaseDict):
     text: str
     mimetype: KnownMimeType | None
     code: NotRequired[str]
+    traceback_format: NotRequired[Literal["text", "html"]]
 
 
 class StreamMediaOutput(BaseDict):
@@ -46,6 +47,7 @@ class StreamMediaOutput(BaseDict):
     data: str
     mimetype: KnownMimeType
     code: NotRequired[str]
+    traceback_format: NotRequired[Literal["text", "html"]]
 
 
 class ErrorOutput(BaseDict):

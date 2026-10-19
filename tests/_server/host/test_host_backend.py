@@ -392,7 +392,7 @@ async def test_host_run_carries_screenshot_metadata(
     b.adopt(RT1, manager.next_session)
     run_id = protocol.RunId("run-screenshot")
     b.run(run_id, "ctx.screenshot()")
-    await manager.next_session.submitted.wait()
+    await asyncio.wait_for(manager.next_session.submitted.wait(), 5)
     command = manager.next_session.commands[-1]
     assert command.request.meta == {
         SCREENSHOT_SERVER_URL_KEY: "http://127.0.0.1:2718/base",

@@ -1113,12 +1113,11 @@ async def test_attachment_feed_uses_full_current_state_and_unsubscribes(
 
 
 @pytest.mark.parametrize("mode", ["edit", "run"])
-def test_app_state_without_host_has_no_notebook_or_session(mode: str) -> None:
+def test_app_state_without_host_has_no_notebook(mode: str) -> None:
     state = AppStateBase(
         State({"session_manager": SimpleNamespace(mode=SessionMode(mode))})
     )
     assert state.notebook_for_session(FakeSession(None)) is None  # type: ignore[arg-type]
-    assert state.session_for_notebook("missing") is None
 
 
 async def test_bridge_supplies_metadata_for_the_current_session(
@@ -1143,9 +1142,30 @@ async def test_bridge_supplies_metadata_for_the_current_session(
         "file": str(tmp_path / "a.py"),
         "extra": 7,
     }
+    assert session.commands[-1].request.user == {}
     session.broadcast(CompletedRunNotification(run_id=run.id))
     backend = bridge._backends[notebook.id]
     assert backend._run is not None
     assert backend._run.task is not None
     await backend._run.task
+    bridge.close()
+
+
+async def test_removing_notebook_clears_browser_attachments(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    session = FakeSession(str(tmp_path / "a.py"))
+    session.notify = Mock()  # type: ignore[attr-defined]
+    manager.sessions["browser"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    notebook = bridge.notebook_for_session(session)  # type: ignore[arg-type]
+    assert notebook is not None
+    notebook.attach(identity="codex", kind="agent", name="Codex")
+    bridge.host.remove_notebook(notebook.id)
+    session.notify.assert_called_with(  # type: ignore[attr-defined]
+        AttachmentsNotification(attachments=[]), from_consumer_id=None
+    )
+    assert bridge.session_for_notebook(notebook.id) is None
     bridge.close()

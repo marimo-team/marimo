@@ -574,7 +574,7 @@ class Runner:
             raise raw_result.exception
 
         try:
-            run_result = self._finalize_run_result(raw_result, cell_id)
+            run_result = self._finalize_run_result(raw_result, cell)
         except BaseException as exc:
             unexpected_failure = exc
             run_result = RunResult(output=None, exception=None)
@@ -609,9 +609,10 @@ class Runner:
         return run_result
 
     def _finalize_run_result(
-        self, raw_result: RunResult, cell_id: CellId_t
+        self, raw_result: RunResult, cell: CellImpl
     ) -> RunResult:
         """Classify the Evaluator's RunResult and apply Runner side effects."""
+        cell_id = cell.cell_id
         exc = raw_result.exception
         if exc is None:
             return raw_result
@@ -631,7 +632,7 @@ class Runner:
                 type(exc), exc, exc.__traceback__, file=tmpio
             )
             tmpio.seek(0)
-            write_traceback(tmpio.read(), code=self.graph.cells[cell_id].code)
+            write_traceback(tmpio.read(), code=cell.code)
             return RunResult(output=None, exception=MarimoInterrupt())
 
         # Should cover all cell runtime exceptions.
@@ -686,9 +687,7 @@ class Runner:
                     file=tmpio,
                 )
                 tmpio.seek(0)
-                write_traceback(
-                    tmpio.read(), code=self.graph.cells[cell_id].code
-                )
+                write_traceback(tmpio.read(), code=cell.code)
             return run_result
 
         # Anything else escaping the Evaluator is unexpected.
@@ -699,7 +698,7 @@ class Runner:
             type(exc), exc, exc.__traceback__, file=tmpio
         )
         tmpio.seek(0)
-        write_traceback(tmpio.read(), code=self.graph.cells[cell_id].code)
+        write_traceback(tmpio.read(), code=cell.code)
         return RunResult(output=None, exception=UnknownError(f"{exc}"))
 
     def _update_debugger_state(

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 import msgspec
 
@@ -37,6 +37,10 @@ class CellOutput(msgspec.Struct):
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
     # Source code associated with this output, omitted when unavailable.
     code: str | msgspec.UnsetType = msgspec.UNSET
+    # Traceback MIME data can be plain text in code-mode requests.
+    traceback_format: Literal["text", "html"] | msgspec.UnsetType = (
+        msgspec.UNSET
+    )
 
     def __repr__(self) -> str:
         return f"CellOutput(channel={self.channel}, mimetype={self.mimetype}, timestamp={self.timestamp})"

@@ -226,6 +226,8 @@ def serialize_session_view(
 
             if isinstance(console_out.code, str):
                 console[-1]["code"] = console_out.code
+            if console_out.traceback_format is not msgspec.UNSET:
+                console[-1]["traceback_format"] = console_out.traceback_format
 
         code_hash = _hash_code(view.last_executed_code.get(cell_id))
 
@@ -326,6 +328,9 @@ def deserialize_session(
                         data=console["data"],
                         mimetype=console["mimetype"],
                         code=console.get("code", msgspec.UNSET),
+                        traceback_format=console.get(
+                            "traceback_format", msgspec.UNSET
+                        ),
                     )
                 )
             else:
@@ -359,6 +364,9 @@ def deserialize_session(
                         data=data,
                         mimetype=mimetype,
                         code=console.get("code", msgspec.UNSET),
+                        traceback_format=console.get(
+                            "traceback_format", msgspec.UNSET
+                        ),
                     )
                 )
 

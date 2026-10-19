@@ -681,6 +681,12 @@ class SessionBridge(SessionEventListener):
             isinstance(event.event, protocol.NotebookRemovedEvent)
             and event.notebook_id is not None
         ):
+            session = self.session_for_notebook(event.notebook_id)
+            if session is not None:
+                session.notify(
+                    AttachmentsNotification(attachments=[]),
+                    from_consumer_id=None,
+                )
             self._backends.pop(event.notebook_id, None)
             self._file_texts.pop(event.notebook_id, None)
             self._rebaselining.pop(event.notebook_id, None)
@@ -693,7 +699,10 @@ class SessionBridge(SessionEventListener):
             and event.notebook_id is not None
         ):
             session = self.session_for_notebook(event.notebook_id)
-            notebook = self.host.peek_notebook(event.notebook_id)
+            try:
+                notebook = self.host.peek_notebook(event.notebook_id)
+            except NotFound:
+                return
             if session is not None and notebook is not None:
                 session.notify(
                     AttachmentsNotification(attachments=notebook.attachments),

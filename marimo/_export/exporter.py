@@ -291,6 +291,8 @@ class Exporter:
                 nb_cell["name"] = DEFAULT_CELL_NAME
             for snapshot_cell in session_snapshot["cells"]:
                 snapshot_cell["console"] = []
+                for output in snapshot_cell["outputs"]:
+                    output.pop("code", None)
             return ""
 
         return app_code

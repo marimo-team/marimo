@@ -206,7 +206,7 @@ class SessionBackend(SessionConsumer):
                     query_params={},
                     path_params={},
                     cookies={},
-                    user=None,
+                    user={},
                     meta=self._request_metadata(session),
                 )
             run.submitted = True

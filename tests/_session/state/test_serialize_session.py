@@ -132,7 +132,9 @@ def test_exception_type_survives_cache_round_trip(
     )
     session_view.cell_notifications[CELL1] = _make_cell_notification(
         CELL1,
-        output=CellOutput.errors([asdict(error) if dictionary else error]),
+        output=CellOutput.errors(
+            [asdict(error) if dictionary else error],  # type: ignore[list-item]
+        ),
     )
     session_view.last_executed_code[CELL1] = "raise ValueError('bad value')"
     saved = serialize_session_view(
@@ -155,8 +157,9 @@ def test_exception_type_survives_cache_round_trip(
 
 
 @pytest.mark.parametrize("dictionary", [False, True])
+@pytest.mark.parametrize("traceback_format", ["text", "html"])
 def test_error_evidence_survives_cache_round_trip(
-    session_view: SessionView, *, dictionary: bool
+    session_view: SessionView, *, dictionary: bool, traceback_format: str
 ) -> None:
     code = "raise ValueError('failed code')"
     traceback = (
@@ -182,6 +185,7 @@ def test_error_evidence_survives_cache_round_trip(
                     mimetype="application/vnd.marimo+traceback",
                     data=traceback,
                     code=code,
+                    traceback_format=traceback_format,  # type: ignore[arg-type]
                 )
             ],
         )
@@ -207,6 +211,7 @@ def test_error_evidence_survives_cache_round_trip(
     assert isinstance(notification.console, list)
     assert notification.console[0].code == code
     assert notification.console[0].data == traceback
+    assert notification.console[0].traceback_format == traceback_format
 
 
 @pytest.mark.parametrize(
