@@ -171,6 +171,8 @@ test = [
     "inline-snapshot~=0.29.0",
     "hypothesis~=6.102.1",
     "dirty-equals~=0.9.0",
+    # For protocol code generation tests
+    "jinja2>=3.1.6",
     # No cp315 wheels as of 2026-10 for matplotlib 3.10 and zstandard; drop the
     # python_version markers when published. numpy is listed on its own because
     # tests used to get it only through matplotlib.

@@ -9,7 +9,8 @@ notebooks and runtimes.
 - [Conformance tests](conformance/README.md)
 
 The OpenAPI schema is the source of truth for the Python types in
-`marimo/_core/protocol.py` and the frontend schemas and types in
+`marimo/_core/protocol.py`, the typed event adapters in
+`marimo/_core/protocol_events.py`, and the frontend schemas and types in
 `frontend/src/core/host/protocol.ts`. The frontend generator also adds the
 native `marimo` event with an `unknown` payload.
 

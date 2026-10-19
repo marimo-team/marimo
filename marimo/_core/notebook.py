@@ -16,10 +16,10 @@ from marimo._core.document import Stale
 from marimo._core.errors import Conflict, EditConflict, NoRuntime, NotFound
 from marimo._core.executions import Executions, Released, Removed
 from marimo._core.ids import mint
-from marimo._core.stream import Event, Kind, kind_of, message, utcnow
+from marimo._core.stream import RoutedEvent, snapshot_event, utcnow
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Iterator, Mapping, Sequence
 
     from marimo._core.analysis import Analyzer
     from marimo._core.document import (
@@ -28,7 +28,8 @@ if TYPE_CHECKING:
         DocumentCell,
     )
     from marimo._core.executions import Change
-    from marimo._core.stream import Body, Sink
+    from marimo._core.protocol_events import Body, RemovableBody, SnapshotBody
+    from marimo._core.stream import Sink
 
 
 LOGGER = logging.getLogger(__name__)
@@ -275,7 +276,7 @@ class Notebook:
                 self._apply(
                     self.executions.remove_cell(protocol.CellId(cell_id))
                 )
-                self._remove("cell", cell_id, request_id)
+                self._remove(protocol.Cell, cell_id, request_id)
             record = self._refresh()
             if record is not None:
                 self._publish(record, request_id)
@@ -421,7 +422,7 @@ class Notebook:
         assert self._runtime is not None
         self._apply(self.executions.interrupt())
         runtime, self._runtime = self._runtime, None
-        self._remove("runtime", runtime.id, self._runtime_request)
+        self._remove(protocol.Runtime, runtime.id, self._runtime_request)
         self._runtime_request = None
 
     # ---- runs ----------------------------------------------------------
@@ -492,7 +493,7 @@ class Notebook:
         """Remove an attachment if it exists."""
         attachment = self._attachments.pop(attachment_id, None)
         if attachment is not None:
-            self._remove("attachment", attachment.id, None)
+            self._remove(protocol.Attachment, attachment.id, None)
 
     # ---- backend updates -----------------------------------------------
 
@@ -583,35 +584,31 @@ class Notebook:
 
     # ---- stream --------------------------------------------------------
 
-    def _snapshot(self) -> list[Event]:
-        """Return current state as events in dependency order."""
-        bodies: list[Body] = [
-            *(self._cell_record(cell) for cell in self.document),
-            self._document_record,
-        ]
+    def _records(self) -> Iterator[tuple[SnapshotBody, protocol.RunId | None]]:
+        """Current records in dependency order, borrowed until publication."""
+        for cell in self.document:
+            yield self._cell_record(cell), None
+        yield self._document_record, None
         if self._analysis is not None:
-            bodies.append(self._analysis)
+            yield self._analysis, None
         if self._runtime is not None:
-            bodies.append(self._runtime)
-        bodies.extend(self._attachments.values())
-        events = [
-            Event(kind_of(body), message(body), notebook_id=self.id)
-            for body in bodies
-        ]
-        executions = self.executions
-        for record in executions._records():
-            run_id = executions.run_id_of(record)
-            events.append(
-                Event(
-                    kind_of(record),
-                    message(
-                        record, request_id=executions.snapshot_request(run_id)
-                    ),
-                    notebook_id=self.id,
-                    run_id=run_id,
-                )
+            yield self._runtime, None
+        for attachment in self._attachments.values():
+            yield attachment, None
+        for record in self.executions._records():
+            yield record, self.executions.run_id_of(record)
+
+    def _snapshot(self) -> list[RoutedEvent]:
+        """Return current state as events in dependency order."""
+        return [
+            snapshot_event(
+                record,
+                request_id=self.executions.snapshot_request(run_id),
+                notebook_id=self.id,
+                run_id=run_id,
             )
-        return events
+            for record, run_id in self._records()
+        ]
 
     def _dispose(self, *, request_id: str | None = None) -> None:
         """Close the notebook and remove its state, children first.
@@ -627,7 +624,7 @@ class Notebook:
             self.detach(attachment_id)
         if self._runtime is not None:
             runtime, self._runtime = self._runtime, None
-            self._remove("runtime", runtime.id, request_id)
+            self._remove(protocol.Runtime, runtime.id, request_id)
 
     def _publish(self, body: Body, request_id: str | None) -> None:
         self.sink.publish(
@@ -638,12 +635,12 @@ class Notebook:
 
     def _remove(
         self,
-        kind: Kind,
+        record_type: type[RemovableBody],
         object_id: str,
         request_id: str | None,
     ) -> None:
         self.sink.remove(
-            kind,
+            record_type,
             object_id,
             notebook_id=self.id,
             request_id=request_id,
@@ -662,7 +659,7 @@ class Notebook:
                 request_id = executions.request_id(run_id)
                 if isinstance(change, Removed):
                     self.sink.remove(
-                        change.kind,
+                        change.record_type,
                         change.id,
                         notebook_id=self.id,
                         run_id=run_id,

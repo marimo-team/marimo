@@ -16,7 +16,7 @@ from marimo._core.executions import (
     Released,
     Removed,
 )
-from marimo._core.stream import kind_of, utcnow
+from marimo._core.stream import utcnow
 from tests._core.conftest import retained_execution
 
 NOTEBOOK = protocol.NotebookId("n1")
@@ -81,9 +81,11 @@ def describe(changes: list[Change]) -> list[str]:
         if isinstance(change, Released):
             out.append(f"released {change.run_id}")
         elif isinstance(change, Removed):
-            out.append(f"{change.kind}.removed {change.id}")
+            out.append(
+                f"{change.record_type.__name__.lower()}.removed {change.id}"
+            )
         else:
-            out.append(f"{kind_of(change)} {change.id}")
+            out.append(f"{type(change).__name__.lower()} {change.id}")
     return out
 
 

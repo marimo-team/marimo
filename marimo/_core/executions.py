@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from msgspec.structs import replace
 
@@ -56,7 +56,7 @@ class _Result:
 class Removed:
     """A current record that a transition removed."""
 
-    kind: Literal["execution", "console", "display", "variable"]
+    record_type: type[protocol.Execution | protocol.Console | protocol.Display]
     id: str
     run_id: protocol.RunId | None
 
@@ -497,13 +497,13 @@ class Executions:
         run_id = result.execution.run_id
         changes: list[Removed] = [
             Removed(
-                "console" if isinstance(item, protocol.Console) else "display",
+                type(item),
                 item.id,
                 run_id,
             )
             for item in result.outputs.values()
         ]
-        changes.append(Removed("execution", execution_id, run_id))
+        changes.append(Removed(protocol.Execution, execution_id, run_id))
         self._forget_result(execution_id)
         return changes
 

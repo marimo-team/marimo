@@ -199,7 +199,9 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         removed = asyncio.Event()
         host.subscribe(
             lambda event: (
-                removed.set() if event.name == "run.removed" else None
+                removed.set()
+                if isinstance(event.event, protocol.RunRemovedEvent)
+                else None
             ),
             notebook_id=notebook.id,
         )

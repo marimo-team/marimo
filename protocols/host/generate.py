@@ -2,6 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "datamodel-code-generator==0.72.0",
+#   "jinja2==3.1.6",
 #   "ruff==0.16.4",
 #   "msgspec[yaml]==0.22.0"
 # ]
@@ -76,6 +77,82 @@ def tuple_arrays(source: bytes) -> bytes:
     return source
 
 
+def event_adapters(document: dict[str, Any]) -> str:
+    """Derive typed event adapters from the discriminator and schema refs."""
+    from jinja2 import Environment, FileSystemLoader, StrictUndefined
+
+    schemas = document["components"]["schemas"]
+    mapping = schemas["Event"]["discriminator"]["mapping"]
+
+    def reference(value: dict[str, Any]) -> str:
+        ref = value["$ref"]
+        prefix = "#/components/schemas/"
+        if not ref.startswith(prefix):
+            raise ValueError(f"Expected a local schema reference: {ref}")
+        return ref.removeprefix(prefix)
+
+    records = {}
+    removals = []
+    for tag, ref in sorted(mapping.items()):
+        name = reference({"$ref": ref})
+        data = schemas[name]["properties"]["data"]
+        if "$ref" not in data:
+            continue  # Control events have no record payload.
+        message = reference(data)
+        if tag.endswith(".removed"):
+            removals.append((tag.removesuffix(".removed"), name, message))
+            continue
+        schema = schemas[message]
+        fields = {
+            field: reference(value)
+            for field, value in schema["properties"].items()
+            if "$ref" in value
+            and schemas[reference(value)].get("type") == "object"
+            and field in schema.get("required", [])
+        }
+        if len(fields) != 1:
+            raise ValueError(f"{message} must contain one required record")
+        field, body = next(iter(fields.items()))
+        if set(schema["properties"]) != {field, "request_id", "time"}:
+            raise ValueError(f"Unsupported event metadata in {message}")
+        records[tag] = {
+            "event": name,
+            "message": message,
+            "body": body,
+            "field": field,
+            "requires_time": "time" in schema.get("required", []),
+        }
+
+    removed = []
+    for tag, name, message in removals:
+        if tag not in records:
+            raise ValueError(f"{name} has no corresponding record event")
+        removed.append({**records[tag], "event": name, "message": message})
+
+    env = Environment(
+        loader=FileSystemLoader(Path(__file__).parent / "templates"),
+        undefined=StrictUndefined,
+        keep_trailing_newline=True,
+    )
+    return env.get_template("events.py.jinja2").render(
+        records=list(records.values()), removals=removed
+    )
+
+
+def format_generated(output_path: Path) -> None:
+    subprocess.run(
+        [
+            "ruff",
+            "format",
+            "--isolated",
+            "--line-length",
+            "79",
+            str(output_path),
+        ],
+        check=True,
+    )
+
+
 def generate_models(document: dict[str, Any], output_path: Path) -> None:
     from datamodel_code_generator import (
         DataModelType,
@@ -124,17 +201,7 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
 
     output_path.write_bytes(tuple_arrays(output_path.read_bytes()))
 
-    subprocess.run(
-        [
-            "ruff",
-            "format",
-            "--isolated",
-            "--line-length",
-            "79",
-            str(output_path),
-        ],
-        check=True,
-    )
+    format_generated(output_path)
 
 
 def main() -> None:
@@ -144,20 +211,25 @@ def main() -> None:
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
-    destination = root.parents[1] / "marimo" / "_core" / "protocol.py"
+    destination = root.parents[1] / "marimo" / "_core"
     document = sorted_keys(
         msgspec.yaml.decode((root / "openapi.yaml").read_bytes())
     )
     with tempfile.TemporaryDirectory() as directory:
         output = Path(directory) / "protocol.py"
         generate_models(document, output)
-        content = output.read_bytes()
-        if not destination.exists() or destination.read_bytes() != content:
-            if args.check:
-                raise SystemExit(
-                    "Host models are stale; run make host-protocol-codegen"
-                )
-            destination.write_bytes(content)
+        adapters = Path(directory) / "protocol_events.py"
+        adapters.write_text(event_adapters(document), encoding="utf-8")
+        format_generated(adapters)
+        for generated in (output, adapters):
+            target = destination / generated.name
+            content = generated.read_bytes()
+            if not target.exists() or target.read_bytes() != content:
+                if args.check:
+                    raise SystemExit(
+                        "Host bindings are stale; run make host-protocol-codegen"
+                    )
+                target.write_bytes(content)
     print("Host protocol models are current.")
 
 

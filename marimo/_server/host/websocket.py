@@ -18,7 +18,7 @@ from marimo._server.api.endpoints.ws.ws_message_loop import (
 from marimo._server.api.endpoints.ws.ws_session_connector import ConnectionType
 from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._server.host.events import (
-    MarimoMessage,
+    MarimoEvent,
     notification_event,
     serialize_event,
 )
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from starlette.websockets import WebSocket
 
     from marimo._core.notebook import Notebook
-    from marimo._core.stream import Event
+    from marimo._core.stream import RoutedEvent
     from marimo._messaging.types import KernelMessage
     from marimo._server.api.endpoints.ws.ws_connection_validator import (
         ConnectionParams,
@@ -75,7 +75,7 @@ class EditorEventSocket(SessionHandler):
         self.types = types
         self.cursor = cursor
         self._ready_id = 0
-        self._events: asyncio.Queue[Event | _Close] = asyncio.Queue()
+        self._events: asyncio.Queue[RoutedEvent | _Close] = asyncio.Queue()
         self._connection_type = (
             ConnectionType.RTC_EXISTING
             if params.rtc_enabled and not params.kiosk
@@ -89,10 +89,10 @@ class EditorEventSocket(SessionHandler):
         if event.wanted(self.types):
             self._events.put_nowait(event)
 
-    def _on_host_event(self, event: Event) -> None:
+    def _on_host_event(self, event: RoutedEvent) -> None:
         # The session delivers marimo notifications with recipient filtering,
         # including edits that must not echo to the client that sent them.
-        if event.name != "marimo" and (
+        if not isinstance(event.event, MarimoEvent) and (
             event.id is None or event.id > self._ready_id
         ):
             self._events.put_nowait(event)
@@ -112,7 +112,7 @@ class EditorEventSocket(SessionHandler):
             for event in initial:
                 # Session notifications must retain their recipient filtering,
                 # including on reconnect; only protocol records use replay.
-                if event.name != "marimo":
+                if not isinstance(event.event, MarimoEvent):
                     self._events.put_nowait(event)
             await self.websocket.accept()
             async with self._connection_lifetime(self.websocket) as startup:
@@ -167,14 +167,14 @@ class EditorEventSocket(SessionHandler):
                 ):
                     await self.websocket.close(event.code, event.reason)
                 return
-            if isinstance(event.data, MarimoMessage):
+            if isinstance(event.event, MarimoEvent):
                 viewer = self.params.kiosk
                 if self._session is not None:
                     viewer = self._is_viewer(
                         self._session, self._connection_type
                     )
                 if should_filter_operation(
-                    event.data.marimo.name, is_kiosk=viewer
+                    event.event.data.marimo.name, is_kiosk=viewer
                 ):
                     continue
             await self.websocket.send_text(serialize_event(event))
