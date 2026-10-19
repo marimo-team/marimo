@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import msgspec
 import pytest
@@ -11,6 +11,7 @@ from marimo._messaging.notification import (
     CellNotification,
     EnvironmentOperationNotification,
     EnvironmentOperationStatus,
+    KernelCapabilitiesNotification,
     ModelLifecycleNotification,
     ModelOpen,
     OperationCancelled,
@@ -36,6 +37,19 @@ from marimo._plugins.ui._impl.input import slider
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 from tests._messaging.mocks import MockStream
+
+
+@pytest.mark.parametrize("installed", [False, True])
+@pytest.mark.parametrize("on_path", [False, True])
+def test_ty_capability(installed: bool, on_path: bool) -> None:
+    with (
+        patch(
+            "marimo._messaging.notification.DependencyManager.ty.has",
+            return_value=installed,
+        ),
+        patch("shutil.which", return_value="/bin/ty" if on_path else None),
+    ):
+        assert KernelCapabilitiesNotification().ty is (installed or on_path)
 
 
 def test_value_ui_element() -> None:
