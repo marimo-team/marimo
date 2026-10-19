@@ -144,9 +144,8 @@ dev = [
     # published.
     "duckdb>=1.0.0; python_version < '3.15'",
     "sqlglot[c]>=26.8.0",
-    # Stubs for optional dataframe backends. pyarrow has no cp315 wheels as of
-    # 2026-10; drop the marker when published.
-    "pyarrow-stubs; python_version < '3.15'",
+    # Stubs for optional dataframe backends
+    "pyarrow-stubs",
     # For linting
     "ruff>=0.16.6",
     # For AI
@@ -170,7 +169,7 @@ test = [
     "inline-snapshot~=0.29.0",
     "hypothesis~=6.102.1",
     "dirty-equals~=0.9.0",
-    # No cp315 wheels as of 2026-10 for matplotlib, zstandard and cffi; drop the
+    # No cp315 wheels as of 2026-10 for matplotlib 3.10 and zstandard; drop the
     # python_version markers when published. numpy is listed on its own because
     # tests used to get it only through matplotlib.
     # Forced for modern matplotlib.
@@ -178,7 +177,7 @@ test = [
     "numpy",
     "pillow>=9",
     "zstandard>=0.21.0; python_version < '3.15'",
-    "cffi>=1.16.0; python_version < '3.15'",
+    "cffi>=1.16.0",
 ]
 
 test-optional = [
@@ -319,7 +318,7 @@ docs = [
 # For packages without eligible source distributions, require wheels
 # for these targets so resolution can backtrack past incomplete uploads.
 required-environments = [
-    "sys_platform == 'linux' and platform_machine == 'x86_64' and python_version >= '3.10' and python_version < '3.15'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64' and python_version >= '3.10' and python_version < '3.16'",
     "sys_platform == 'darwin' and platform_machine == 'arm64' and python_version == '3.10'",
     "sys_platform == 'win32' and platform_machine == 'AMD64' and python_version == '3.10'",
 ]
