@@ -35,6 +35,7 @@ from marimo._runtime.exceptions import (
     MarimoRuntimeException,
     unwrap_user_exception,
 )
+from marimo._runtime.execution import ExecutionAttempt
 from marimo._runtime.executor import (
     DebuggerLifecycle,
     Evaluator,
@@ -153,6 +154,7 @@ class Runner:
         excluded_cells: set[CellId_t] | None = None,
         execution_context: ExecutionContextManager | None = None,
         user_config: MarimoConfig | None = None,
+        executions: dict[CellId_t, ExecutionAttempt] | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -160,6 +162,7 @@ class Runner:
         self.execution_context = execution_context
         self._hooks = hooks
         self.user_config = user_config
+        self._executions = executions if executions is not None else {}
 
         # runtime globals
         self.glbls = glbls
@@ -790,6 +793,26 @@ class Runner:
         pre_exec_ctx: Any,
         post_exec_ctx: Any,
     ) -> None:
+        # Nested commands can evaluate a queued cell before this runner does.
+        # Capture the attempt and its source only when it is about to run.
+        execution = self._executions.pop(
+            cell_id, None
+        ) or ExecutionAttempt.plan(cell_id, self.graph.cells[cell_id].code)
+        with execution.activate():
+            execution.start()
+            try:
+                await self._run_one_in_context(
+                    cell_id, pre_exec_ctx, post_exec_ctx
+                )
+            finally:
+                execution.finish()
+
+    async def _run_one_in_context(
+        self,
+        cell_id: CellId_t,
+        pre_exec_ctx: Any,
+        post_exec_ctx: Any,
+    ) -> None:
         cell = self.graph.cells[cell_id]
         for pre_hook in self._hooks.pre_execution_hooks:
             pre_hook(cell, pre_exec_ctx)
@@ -874,16 +897,32 @@ class Runner:
             # the stream lock that this broadcast needs.
             broadcast_notification(InterruptedNotification())
 
+        # Interrupted and cancelled cells share one attempt across the
+        # finish hooks, which may report more than one error for a cell.
+        skipped = set(self.cells_to_run).union(
+            *(self.cancelled_cells[cid] for cid in self.cancelled_cells)
+        )
+        for cell_id in sorted(skipped):
+            if cell_id not in self._executions:
+                self._executions[cell_id] = ExecutionAttempt.plan(
+                    cell_id, self.graph.cells[cell_id].code
+                )
         finish_ctx = OnFinishHookContext(
             graph=self.graph,
             cells_to_run=self.cells_to_run,
             interrupted=self.interrupted,
             cancelled_cells=self.cancelled_cells,
             exceptions=self.exceptions,
+            execution_ids={
+                cid: execution.id
+                for cid, execution in self._executions.items()
+            },
         )
         LOGGER.debug("Running on_finish hooks")
         for finish_hook in self._hooks.on_finish_hooks:
             finish_hook(finish_ctx)
+        for execution in self._executions.values():
+            execution.finish()
 
     async def _dispatch_runnable(
         self,

@@ -125,6 +125,17 @@ fe-codegen:
 	pnpm run codegen
 	pnpm format packages/openapi/
 
+.PHONY: host-protocol-codegen
+# Generate host protocol Python bindings
+host-protocol-codegen:
+	uv run --locked --script protocols/host/generate.py
+
+.PHONY: host-protocol-check
+# Check host model generation and portable protocol fixtures
+host-protocol-check:
+	uv run --locked --script protocols/host/generate.py --check
+	uv run --locked --project protocols/host/conformance pytest protocols/host/conformance
+
 .PHONY: fe-plugin-schema
 # 🔄 Generate frontend plugin API schema
 fe-plugin-schema:

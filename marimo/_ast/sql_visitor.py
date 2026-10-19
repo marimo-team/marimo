@@ -106,7 +106,8 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
 
 class _TokenExtractor:
     def __init__(self, sql_statement: str, tokens: list[Any]) -> None:
-        self.sql_statement = sql_statement
+        # DuckDB token positions are UTF-8 byte offsets.
+        self.sql_statement = sql_statement.encode("utf-8")
         self.tokens = tokens
 
     def token_str(self, i: int) -> str:
@@ -115,16 +116,16 @@ class _TokenExtractor:
         start = token[0]
 
         # If it starts with a quote, find the matching end quote
-        if sql_statement[start] == '"':
-            end = sql_statement.find('"', start + 1) + 1
-        elif sql_statement[start] == "'":
-            end = sql_statement.find("'", start + 1) + 1
-        elif sql_statement[start:].startswith("e'"):
+        if sql_statement.startswith(b'"', start):
+            end = sql_statement.find(b'"', start + 1) + 1
+        elif sql_statement.startswith(b"'", start):
+            end = sql_statement.find(b"'", start + 1) + 1
+        elif sql_statement.startswith(b"e'", start):
             start += 1
-            end = sql_statement.find("'", start + 1) + 1
+            end = sql_statement.find(b"'", start + 1) + 1
         else:
             # For non-quoted tokens, find until space or comment
-            maybe_end = re.search(r"[\s\-/]", sql_statement[start:])
+            maybe_end = re.search(rb"[\s\-/]", sql_statement[start:])
             end = (
                 start + maybe_end.start() if maybe_end else len(sql_statement)
             )
@@ -133,7 +134,7 @@ class _TokenExtractor:
                 # in (select * from x);;
                 end = min(end, tokens[i + 1][0])
 
-        return sql_statement[start:end]
+        return sql_statement[start:end].decode("utf-8")
 
     def is_keyword(self, i: int, match: str) -> bool:
         import duckdb
@@ -184,6 +185,10 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     import duckdb
 
     tokens = duckdb.tokenize(sql_statement)
+    # DuckDB 2 emits comments as tokens; definition matching needs only syntax.
+    comment_type = getattr(duckdb.token_type, "comment", None)
+    if comment_type is not None:
+        tokens = [token for token in tokens if token[1] != comment_type]
     token_extractor = _TokenExtractor(
         sql_statement=sql_statement, tokens=tokens
     )

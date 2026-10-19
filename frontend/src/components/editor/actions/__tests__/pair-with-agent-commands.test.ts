@@ -154,63 +154,54 @@ describe("getTerminalCommand", () => {
       ).toBe(
         String.raw`${cli} "$(MARIMO_PAIR_NEXT=1 uvx marimo@latest pair prompt \
   --url http://localhost:8000 \
-  --file notebooks/example.py \
   --session s_ab12cd \
   --with-token)"`,
       );
     },
   );
 
-  it("includes the url and file for each agent", () => {
+  it("includes the url and agent flag for each agent", () => {
     expect(getTerminalCommand("claude", CONNECTION, false)).toBe(
-      `claude "$(uv run marimo pair prompt --url http://localhost:8000 --file notebooks/example.py --claude)"`,
+      `claude "$(uv run marimo pair prompt --url http://localhost:8000 --claude)"`,
     );
     expect(getTerminalCommand("codex", CONNECTION, false)).toBe(
-      `codex "$(uv run marimo pair prompt --url http://localhost:8000 --file notebooks/example.py --codex)"`,
+      `codex "$(uv run marimo pair prompt --url http://localhost:8000 --codex)"`,
     );
     expect(getTerminalCommand("opencode", CONNECTION, false)).toBe(
-      `opencode --prompt "$(uv run marimo pair prompt --url http://localhost:8000 --file notebooks/example.py --opencode)"`,
+      `opencode --prompt "$(uv run marimo pair prompt --url http://localhost:8000 --opencode)"`,
     );
   });
 
-  it("omits the file flag when the page URL has no file", () => {
-    const command = getTerminalCommand(
-      "claude",
-      CONNECTION_WITHOUT_FILE,
-      false,
-    );
+  it("never passes a file to marimo pair prompt", () => {
+    const command = getTerminalCommand("claude", CONNECTION, false);
     expect(command).not.toContain("--file");
-    expect(command).not.toContain("--session");
+    expect(command).not.toContain("notebooks/example.py");
+  });
+
+  it("omits the session outside the preview", () => {
+    expect(getTerminalCommand("claude", CONNECTION, false)).not.toContain(
+      "--session",
+    );
+  });
+
+  it("omits the session when it is unknown", () => {
+    expect(
+      getTerminalCommand(
+        "claude",
+        CONNECTION_WITHOUT_FILE,
+        false,
+        PAIR_PREVIEW,
+      ),
+    ).not.toContain("--session");
   });
 
   it("shell-escapes a url containing metacharacters", () => {
     const command = getTerminalCommand(
       "claude",
-      { url: "http://host:8000?auth=a&b", file: "notebook.py" },
+      { url: "http://host:8000?auth=a&b" },
       false,
     );
     expect(command).toContain("--url 'http://host:8000?auth=a&b'");
-  });
-
-  it.each([
-    ["relative/my notebook.py", "--file 'relative/my notebook.py'"],
-    ["/tmp/my notebook.py", "--file '/tmp/my notebook.py'"],
-    [
-      String.raw`C:\Users\Jane Doe\notebook.py`,
-      String.raw`--file 'C:\Users\Jane Doe\notebook.py'`,
-    ],
-    [
-      String.raw`\\server\share\my notebook.py`,
-      String.raw`--file '\\server\share\my notebook.py'`,
-    ],
-    ["notebooks/it's.py", `--file 'notebooks/it'"'"'s.py'`],
-  ])("shell-escapes file path %s", (file, expected) => {
-    const command = getTerminalCommand(
-      "claude",
-      { url: CONNECTION.url, file },
-      false,
-    );
-    expect(command).toContain(expected);
   });
 
   it("adds --with-token before the agent flag when requested", () => {
@@ -230,23 +221,22 @@ describe("getRawPrompt", () => {
     expect(
       getRawPrompt(
         {
-          url: "http://host/{file}",
-          file: "{session}/it's.py",
-          session: "{command}",
+          url: "http://host/{session}",
+          session: "{command}/it's",
         },
-        "tok'en {file} $&",
+        "tok'en {session} $&",
         {
           ...PAIR_PREVIEW,
           command: "custom marimo",
           templates: {
             ...PAIR_PREVIEW.templates,
-            prompt: "{command}\n{url}\n{file}{session}{authentication}",
+            prompt: "{command}\n{url}\n{session}{authentication}",
           },
         },
       ),
     ).toBe(
-      "custom marimo\nhttp://host/{file}\nFile: {session}/it's.py\nSession: {command}\n" +
-        `\n\nFor authenticated Pair commands, set \`export MARIMO_TOKEN='tok'"'"'en {file} $&'\` in the shell that runs marimo.`,
+      "custom marimo\nhttp://host/{session}\nSession: {command}/it's\n" +
+        `\n\nFor authenticated Pair commands, set \`export MARIMO_TOKEN='tok'"'"'en {session} $&'\` in the shell that runs marimo.`,
     );
   });
 
@@ -256,10 +246,7 @@ describe("getRawPrompt", () => {
       { ...CONNECTION_WITHOUT_FILE, session: "s_ab12cd" },
       "Session: s_ab12cd\n",
     ],
-    [
-      { ...CONNECTION_WITHOUT_FILE, file: "notebook.py" },
-      "File: notebook.py\n",
-    ],
+    [{ ...CONNECTION_WITHOUT_FILE, file: "notebook.py" }, ""],
   ])("omits absent preview fields for %j", (connection, fields) => {
     expect(getRawPrompt(connection, null, PAIR_PREVIEW)).toBe(
       "Pair with me on this running marimo notebook.\n\n" +
@@ -270,13 +257,12 @@ describe("getRawPrompt", () => {
     );
   });
 
-  it("renders the shared preview template with optional session context", () => {
+  it("renders the shared preview template with the session and no file", () => {
     expect(
       getRawPrompt({ ...CONNECTION, session: "s_ab12cd" }, null, PAIR_PREVIEW),
     ).toBe(
       "Pair with me on this running marimo notebook.\n\n" +
         "URL: http://localhost:8000\n" +
-        "File: notebooks/example.py\n" +
         "Session: s_ab12cd\n\n" +
         "Run `uvx marimo@latest pair --help` first.\n" +
         "Use `uvx marimo@latest` for all marimo commands.\n\n" +

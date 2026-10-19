@@ -35,6 +35,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.commands import (
     CreateNotebookCommand,
     DeleteCellCommand,
+    EditCellsCommand,
     ExecuteCellCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
@@ -1689,19 +1690,18 @@ except NameError:
         assert "C" not in k.globals
         stream = MockStream(k.stream)
         stderr = MockStderr(k.stderr)
+        errors = [
+            m["output"]["data"][0]["msg"]
+            for m in stream.operations
+            if m.get("output") and m["output"]["channel"] == "marimo-error"
+        ]
         if k.execution_type == "strict":
-            assert (
-                "name `R` is referenced before definition."
-                in stream.operations[-4]["output"]["data"][0]["msg"]
-            )
-            assert (
-                "This cell wasn't run"
-                in stream.operations[-1]["output"]["data"][0]["msg"]
-            )
+            assert "name `R` is referenced before definition." in errors[0]
+            assert "This cell wasn't run" in errors[-1]
         else:
             assert (
                 "Name `C` is not defined. It was expected to be defined in"
-                in stream.operations[-2]["output"]["data"][0]["msg"]
+                in errors[-1]
             )
             assert "NameError" in stderr.messages[0]
             assert "NameError" in stderr.messages[-1]
@@ -1713,9 +1713,9 @@ except NameError:
         # Has no errors
         assert not k.errors
         stream = MockStream(mocked_kernel.stream)
-        (m1, m2, m3, m4) = stream.operations
-        assert all(m["op"] == "cell-op" for m in stream.operations)
-        assert all(m["cell_id"] == SCRATCH_CELL_ID for m in stream.operations)
+        messages = [m for m in stream.operations if m["op"] == "cell-op"]
+        (m1, m2, m3, m4) = messages
+        assert all(m["cell_id"] == SCRATCH_CELL_ID for m in messages)
         assert m1["status"] == "queued"
         assert m2["status"] == "running"
         assert m3["status"] is None
@@ -1743,8 +1743,9 @@ except NameError:
         # Has no errors
         assert not k.errors
         stream = MockStream(mocked_kernel.stream)
-        messages = stream.operations
-        output_message = messages[-2]
+        output_message = next(
+            m for m in reversed(stream.operations) if m.get("output")
+        )
         assert (
             output_message["output"]["data"] == "<pre class='text-xs'>20</pre>"
         )
@@ -1771,8 +1772,9 @@ except NameError:
         # Has no errors
         assert not k.errors
         stream = MockStream(mocked_kernel.stream)
-        messages = stream.operations
-        output_message = messages[-2]
+        output_message = next(
+            m for m in reversed(stream.operations) if m.get("output")
+        )
         assert (
             output_message["output"]["data"] == "<pre class='text-xs'>20</pre>"
         )
@@ -2049,11 +2051,21 @@ except NameError:
         assert (
             len(cell_notifications) == 4
         )  # queued -> running -> output -> idle
-        for cell_notification in cell_notifications:
-            if cell_notification.status == "idle":
-                assert cell_notification.run_id is None
-            else:
-                assert cell_notification.run_id is not None
+        assert cell_notifications[0].run_id is not None
+        assert (
+            len({notification.run_id for notification in cell_notifications})
+            == 1
+        )
+        assert cell_notifications[1].execution_id is not None
+        assert (
+            len(
+                {
+                    notification.execution_id
+                    for notification in cell_notifications[1:]
+                }
+            )
+            == 1
+        )
 
     async def test_serialization_hint_cleared_only_on_demotion(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
@@ -2180,6 +2192,49 @@ except NameError:
         assert "b" not in k.globals
         assert "c" in k.globals
         assert "d" not in k.globals
+
+    async def test_edit_cells_registers_code_without_running(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+
+        await k.edit_cells(
+            EditCellsCommand(
+                codes={"0": "x = 2", "1": "y = 3"}, configs={}, delete_ids=[]
+            )
+        )
+
+        cell = k.graph.cells["0"]
+        assert cell.code == "x = 2"
+        assert cell.stale
+        assert "y" not in k.globals
+        # A cell the kernel has never seen arrives with its first run.
+        assert "1" not in k.graph.cells
+
+    async def test_edit_cells_replaces_pending_code(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreateNotebookCommand(
+                execution_requests=(
+                    ExecuteCellCommand(cell_id="0", code="x = 0"),
+                ),
+                cell_ids=("0",),
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+
+        await k.edit_cells(
+            EditCellsCommand(codes={"0": "x = 5"}, configs={}, delete_ids=[])
+        )
+
+        assert k._uninstantiated_execution_requests["0"].code == "x = 5"
+        assert not k.graph.cells
 
     async def test_sync_graph_uninstantiated_request_cleanup(
         self, any_kernel: Kernel

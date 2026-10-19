@@ -79,7 +79,7 @@ const Dropdown = (props: DropdownProps): JSX.Element => {
   const singleValue = value.length === 0 ? defaultValue : value[0];
 
   return (
-    <Labeled label={label} id={id} fullWidth={fullWidth}>
+    <Labeled label={label} controlId={id} fullWidth={fullWidth}>
       <NativeSelect
         data-testid="marimo-plugin-dropdown"
         onChange={(e) => {

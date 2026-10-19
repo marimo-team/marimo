@@ -18,7 +18,7 @@ from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
 from marimo._messaging.notification import NotificationMessage
-from marimo._runtime.commands import CommandMessage
+from marimo._runtime.commands import ClientCommand
 
 if TYPE_CHECKING:
     import psutil
@@ -232,7 +232,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from marimo._messaging.cell_output import CellChannel, CellOutput
     from marimo._messaging.mimetypes import KnownMimeType
     from marimo._metadata import opengraph
-    from marimo._runtime import commands
     from marimo._runtime.packages.package_manager import PackageDescription
     from marimo._schemas import export
     from marimo._server.ai.tools.types import ToolDefinition
@@ -341,11 +340,9 @@ def _generate_server_api_schema() -> dict[str, Any]:
         opengraph.OpenGraphMetadata,
         files.FileInfo,
         files.FileRoot,
-        commands.ExecuteCellCommand,
         snippets.SnippetSection,
         snippets.Snippet,
         snippets.Snippets,
-        commands.UpdateUIElementCommand,
         # Requests/responses
         completion.VariableContext,
         completion.SchemaColumn,
@@ -405,32 +402,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         home.ShutdownSessionRequest,
         home.WorkspaceFilesRequest,
         home.WorkspaceFilesResponse,
-        commands.ClearCacheCommand,
-        commands.CodeCompletionCommand,
-        commands.DebugCellCommand,
-        commands.DeleteCellCommand,
-        commands.DiscoverDataSourcesCommand,
-        commands.ExecuteCellsCommand,
-        commands.ExecuteScratchpadCommand,
-        commands.ExecuteStaleCellsCommand,
-        commands.ExecuteCellCommand,
-        commands.GetCacheInfoCommand,
-        commands.HTTPRequest,
-        commands.InstallPackagesCommand,
-        commands.InvokeFunctionCommand,
-        commands.ListDataSourceConnectionCommand,
-        commands.ListSecretKeysCommand,
-        commands.ListSQLTablesCommand,
-        commands.ListSQLSchemasCommand,
-        commands.ModelMessage,
-        commands.PreviewDatasetColumnCommand,
-        commands.PreviewSQLTableCommand,
-        commands.RenameNotebookCommand,
-        commands.StopKernelCommand,
-        commands.UpdateCellConfigCommand,
-        commands.UpdateUserConfigCommand,
-        commands.ModelCommand,
-        commands.ValidateSQLCommand,
         models.BaseResponse,
         models.ClearCacheRequest,
         models.CodeCompletionRequest,
@@ -478,19 +449,21 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.ValidateSQLRequest,
     ]
 
-    # Hack to get the unions to be included in the schema
+    # Hack to get the unions included in the schema.
     class KnownUnions(msgspec.Struct):
         notification: NotificationMessage
-        command: CommandMessage
+        # Commands are exported only through ClientCommand and its dependencies.
+        command: ClientCommand
         error: MarimoError
         data_type: DataType
 
+    roots = [*MODELS, KnownUnions]
     _defs, component_schemas = msgspec.json.schema_components(
-        MODELS + [KnownUnions],
+        roots,
         ref_template="#/components/schemas/{name}",
     )
 
-    _enrich_branded_types(component_schemas, MODELS)
+    _enrich_branded_types(component_schemas, roots)
 
     schemas_generator = SchemaGenerator(
         {

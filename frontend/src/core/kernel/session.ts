@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { init } from "@paralleldrive/cuid2";
+import { atom } from "jotai";
 import { Logger } from "@/utils/Logger";
 import type { TypedString } from "@/utils/typed";
 import { updateQueryParams } from "@/utils/urls";
@@ -8,6 +9,14 @@ import { initialModeAtom } from "../mode";
 import { store } from "../state/jotai";
 
 export type SessionId = TypedString<"SessionId">;
+
+/**
+ * Server-owned identity of the notebook Session. It survives browser reloads
+ * and reconnects and ends with the Session.
+ */
+export type StableSessionId = TypedString<"StableSessionId">;
+
+export const stableSessionIdAtom = atom<StableSessionId | null>(null);
 
 const createId = init({ length: 6 });
 

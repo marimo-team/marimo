@@ -317,6 +317,14 @@ export default defineConfig({
       "react-dnd-html5-backend",
       "dnd-core",
     ],
+    alias: [
+      // The default `browser` export of loro-crdt loads its wasm with a
+      // synchronous XMLHttpRequest at module evaluation. A page served with
+      // `Permissions-Policy: sync-xhr=()` blocks that request, and the
+      // editor fails to load. The bundler entry loads the wasm with an
+      // asynchronous fetch instead.
+      { find: /^loro-crdt$/, replacement: "loro-crdt/bundler" },
+    ],
   },
   worker: {
     format: "es",

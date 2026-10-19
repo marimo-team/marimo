@@ -18,6 +18,7 @@ from marimo._cli.pair.client import (
     NoSessionError,
     PairError,
     PairInputError,
+    StableSessionUnsupportedError,
     StaleSessionError,
     display_url,
     execute as execute_code,
@@ -213,16 +214,16 @@ class _DocsCommand(ColoredCommand):
     Workflow:
       If no server is running, start one in the background:
         marimo edit <notebook.py> --no-token
-      If you do not have the server URL or notebook file:
+      If you do not have the server URL or session:
         marimo pair notebook list
-      marimo pair execute --url <URL> --file <FILE> --code-file - <<'PY'
+      marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
       import marimo._code_mode as cm
       async with cm.get_context() as ctx:
           ctx.packages.add("pandas")
           cid = ctx.create_cell("import pandas as pd")
           ctx.run_cell(cid)
       PY
-      marimo pair execute --url <URL> --file <FILE> --code-file - <<'PY'
+      marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
       import marimo._code_mode as cm
       async with cm.get_context() as ctx:
           cell = ctx.cells["<CELL_ID>"]
@@ -231,14 +232,11 @@ class _DocsCommand(ColoredCommand):
 
     \b
     Target selection:
-      If the notebook file is known, use --file <FILE> without --session.
-      This resolves the notebook's current session after a page reload.
-      If no file is known, use the supplied --session <SESSION>.
-      If --file matches multiple sessions, use the supplied session for the intended notebook.
-      If the intended session is unclear, run marimo pair notebook list again.
-      Session IDs change when the page reloads. If execute reports a stale
-      session, run marimo pair notebook list again.
-      If both options are supplied, --session takes precedence over --file.
+      --session takes the session_id from marimo pair notebook list. It does not
+      change when the page reloads or the notebook is renamed. If a command reports
+      an unknown session, the notebook was closed or restarted: run
+      marimo pair notebook list again and pick the new session_id.
+      If one notebook has several sessions, ask the user which one.
       Do not switch sessions after authentication or connection errors,
       or when execution is unconfirmed.
 
@@ -263,7 +261,7 @@ class _DocsCommand(ColoredCommand):
       ctx.delete_cell(cid)
       ctx.packages.add("pandas>=2")  # queued, installs on exit
       If a cm call fails, run help(cm):
-        marimo pair execute --url <URL> --file <FILE> -c 'import marimo._code_mode as cm; help(cm)'
+        marimo pair execute --url <URL> --session <SESSION> -c 'import marimo._code_mode as cm; help(cm)'
     """,
 )
 def pair() -> None:
@@ -286,14 +284,7 @@ def pair() -> None:
     "session_id",
     required=False,
     metavar="ID",
-    help="Current session ID. Resolved from --file when omitted.",
-)
-@click.option(
-    "--file",
-    "file_path",
-    required=False,
-    metavar="PATH",
-    help="Notebook path or file key. Used to resolve --session when omitted.",
+    help="Stable session_id from marimo pair notebook list.",
 )
 @click.option(
     "--token-file",
@@ -322,7 +313,6 @@ def execute(
     ctx: click.Context,
     url: str,
     session_id: str | None,
-    file_path: str | None,
     token_file: Path | None,
     code: str | None,
     code_file: str | None,
@@ -345,7 +335,7 @@ def execute(
     try:
         token = load_token(token_file, os.environ)
         if session_id is None:
-            session_id = resolve_session(url=url, token=token, file=file_path)
+            session_id = resolve_session(url=url, token=token)
         result = execute_code(
             url=url,
             session_id=session_id,
@@ -506,10 +496,21 @@ def _failure_guidance(
             f"{_HEADLESS_NEXT} Ask the user to open it, then:\n"
             f"marimo pair notebook list --url {display_url(error.url)}"
         )
+    if isinstance(error, StableSessionUnsupportedError):
+        return (
+            (
+                f"Server {safe_url} runs a marimo version without "
+                "session_id. Upgrade marimo on the server."
+            ),
+            None,
+        )
     if isinstance(error, StaleSessionError):
-        return "The session is stale.", (
-            "Sessions change when the page reloads. List them again:\n"
-            f"marimo pair notebook list --url {safe_url}"
+        return (
+            (
+                f"No session {session_id or '<ID>'} on {safe_url}. "
+                "The notebook was closed or restarted."
+            ),
+            f"marimo pair notebook list --url {safe_url}",
         )
     message = str(error)
     if message == "Authentication failed.":
@@ -598,18 +599,11 @@ def docs(topic: str | None) -> None:
     help="URL of the running marimo kernel.",
 )
 @click.option(
-    "--file",
-    "file_path",
-    default=None,
-    type=str,
-    help="Notebook path or file key from the page URL.",
-)
-@click.option(
     "--session",
     "session_id",
     default=None,
     type=str,
-    help="Current session ID to include in the prompt.",
+    help="Stable session_id to include in the prompt.",
 )
 @click.option(
     "--claude",
@@ -637,7 +631,6 @@ def docs(topic: str | None) -> None:
 )
 def prompt(
     url: str,
-    file_path: str | None,
     session_id: str | None,
     claude: bool,
     codex: bool,
@@ -654,7 +647,7 @@ def prompt(
         opencode "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --opencode)"
 
         # Connect to a specific notebook
-        claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --file 'notebooks/example.py' --claude)"
+        claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --session 'sess-example' --claude)"
 
         # With an auth token
         claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude --with-token)"
@@ -708,23 +701,17 @@ def prompt(
         click.echo(
             render_prompt(
                 url=url,
-                file_path=file_path,
                 session_id=session_id,
                 token_file=token_file,
             )
         )
         return
 
-    # Preserve the file key exactly as supplied. Relative keys are resolved by
-    # the server workspace and may refer to a remote or non-POSIX filesystem.
     # Shell-quote dynamic values because this command is copy-pasted into a
-    # shell and paths may contain spaces or metacharacters.
+    # shell and values may contain spaces or metacharacters.
     execute_cmd = f"execute-code.sh --url {shlex.quote(url)}"
-    # The legacy script accepts only one selector. Match execute's precedence.
     if session_id:
         execute_cmd += f" --session {shlex.quote(session_id)}"
-    elif file_path:
-        execute_cmd += f" --file {shlex.quote(file_path)}"
 
     token_hint = ""
     if token_file is not None:
@@ -734,13 +721,11 @@ def prompt(
             f"--token \"$(cat '{token_file}')\"`."
         )
 
-    file_hint = f" (file {file_path})" if file_path else ""
-
     # Output the prompt to the wrapper agent CLI
     click.echo(
         "Use the /marimo-pair skill to pair-program on a running "
         "marimo notebook.\n\n"
-        f"Connect to the notebook at: {url}{file_hint}\n\n"
+        f"Connect to the notebook at: {url}\n\n"
         f"Use `{execute_cmd}` from the marimo-pair "
         "skill to execute code in the notebook."
         f"{token_hint}\n\n"
@@ -762,7 +747,7 @@ def _group_notebooks(
     url: str, sessions: dict[str, dict[str, str | None]]
 ) -> list[dict[str, object]]:
     grouped: dict[str | None, dict[str, object]] = {}
-    for session_id, session in sessions.items():
+    for routing_id, session in sessions.items():
         key = session.get("path") or session.get("filename")
         notebook = grouped.setdefault(
             key,
@@ -775,7 +760,9 @@ def _group_notebooks(
         )
         notebook_sessions = notebook["sessions"]
         assert isinstance(notebook_sessions, list)
-        notebook_sessions.append({"id": session_id})
+        notebook_sessions.append(
+            {"id": routing_id, "session_id": session["session_id"]}
+        )
 
     for notebook in grouped.values():
         notebook_sessions = notebook["sessions"]
@@ -827,10 +814,16 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
         except PairError as error:
             if isinstance(error, PairInputError) and urls:
                 raise click.UsageError(str(error)) from error
-            message = str(error).rstrip(".")
-            warnings.append(
-                f"Server {display_url(url)} could not be read: {message}."
-            )
+            if isinstance(error, StableSessionUnsupportedError):
+                warnings.append(
+                    f"Server {display_url(url)} runs a marimo version "
+                    "without session_id. Upgrade marimo on the server."
+                )
+            else:
+                message = str(error).rstrip(".")
+                warnings.append(
+                    f"Server {display_url(url)} could not be read: {message}."
+                )
         else:
             notebooks.extend(_group_notebooks(display_url(url), sessions))
 

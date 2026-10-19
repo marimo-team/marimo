@@ -87,8 +87,8 @@ components:
           type: string
         context:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/AiCompletionContext'
+          - type: 'null'
           default: null
         id:
           anyOf:
@@ -461,8 +461,9 @@ components:
         \ appends, [] clears, None unchanged.\n        status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
         \        stale_inputs: Whether cell has stale inputs from changed dependencies.\n\
         \        run_id: Execution run ID for tracing. Auto-set from context.\n  \
-        \      serialization: Top-level reusability hint. UNSET unchanged, None clears,\
-        \ str sets.\n        timestamp: Creation timestamp, auto-set."
+        \      execution_id: Evaluation of this cell producing the update, when known.\n\
+        \        serialization: Top-level reusability hint. UNSET unchanged, None\
+        \ clears, str sets.\n        timestamp: Creation timestamp, auto-set."
       properties:
         cell_id:
           $ref: '#/components/schemas/CellId'
@@ -471,16 +472,21 @@ components:
           - items:
               $ref: '#/components/schemas/CellOutput'
             type: array
-          - type: 'null'
           - $ref: '#/components/schemas/CellOutput'
+          - type: 'null'
+          default: null
+        execution_id:
+          anyOf:
+          - type: string
+          - type: 'null'
           default: null
         op:
           enum:
           - cell-op
         output:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/CellOutput'
+          - type: 'null'
           default: null
         run_id:
           anyOf:
@@ -711,44 +717,10 @@ components:
       - uiMessages
       title: ChatRequest
       type: object
-    ClearCacheCommand:
-      description: "Clear all cached data.\n\n    Clears all cache contexts, freeing\
-        \ memory and disk space.\n    Affects all cells using the @cache decorator."
-      properties:
-        type:
-          enum:
-          - clear-cache
-      required:
-      - type
-      title: ClearCacheCommand
-      type: object
     ClearCacheRequest:
       properties: {}
       required: []
       title: ClearCacheRequest
-      type: object
-    CodeCompletionCommand:
-      description: "Request code completion suggestions.\n\n    Sent when the user\
-        \ requests autocomplete. Provides code context up to\n    the cursor position\
-        \ for the language server.\n\n    Attributes:\n        id: Unique identifier\
-        \ for this request.\n        document: Source code up to the cursor position.\n\
-        \        cell_id: Cell where completion is requested."
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-        document:
-          type: string
-        id:
-          $ref: '#/components/schemas/RequestId'
-        type:
-          enum:
-          - code-completion
-      required:
-      - type
-      - id
-      - document
-      - cellId
-      title: CodeCompletionCommand
       type: object
     CodeCompletionRequest:
       properties:
@@ -841,16 +813,22 @@ components:
       title: ColumnStats
       type: object
     CompletedRunNotification:
-      description: "Run of submitted cells and descendants completed.\n\n    Attributes:\n\
-        \        run_id: Correlation ID echoed from the command that triggered\n \
-        \           this completion. `None` for handlers that don't take a\n     \
-        \       `run_id` (everything except `handle_execute_scratchpad`\n        \
-        \    today). Consumers that want to wait for a specific command's\n      \
-        \      completion filter on this field."
+      description: The command's reactive cycle ended, after its console was flushed.
       properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         op:
           enum:
           - completed-run
+        outcome:
+          default: succeeded
+          enum:
+          - failed
+          - interrupted
+          - succeeded
         run_id:
           anyOf:
           - type: string
@@ -1021,42 +999,6 @@ components:
       - config
       title: CreateCell
       type: object
-    CreateNotebookCommand:
-      description: "Instantiate and initialize a notebook.\n\n    Sent when a notebook\
-        \ is first loaded. Contains all cells and initial UI element values.\n\n \
-        \   Attributes:\n        execution_requests: ExecuteCellCommand for each notebook\
-        \ cell.\n        cell_ids: Initial cell IDs in the notebook.\n        set_ui_element_value_request:\
-        \ Initial UI element values.\n        auto_run: Whether to automatically execute\
-        \ cells on instantiation.\n        request: HTTP request context if available."
-      properties:
-        autoRun:
-          type: boolean
-        cellIds:
-          items:
-            type: string
-          type: array
-        executionRequests:
-          items:
-            $ref: '#/components/schemas/ExecuteCellCommand'
-          type: array
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-        setUiElementValueRequest:
-          $ref: '#/components/schemas/UpdateUIElementCommand'
-        type:
-          enum:
-          - create-notebook
-      required:
-      - type
-      - executionRequests
-      - cellIds
-      - setUiElementValueRequest
-      - autoRun
-      title: CreateNotebookCommand
-      type: object
     CreateSecretRequest:
       properties:
         key:
@@ -1133,8 +1075,8 @@ components:
           - data-column-preview
         stats:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/ColumnStats'
+          - type: 'null'
           default: null
         table_name:
           type: string
@@ -1210,7 +1152,7 @@ components:
           enum:
           - data-source-discovery-result
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         sources:
           items:
             $ref: '#/components/schemas/DetectedDataSource'
@@ -1406,26 +1348,6 @@ components:
       required: []
       title: DatasourcesConfig
       type: object
-    DebugCellCommand:
-      description: "Enter debugger mode for a cell.\n\n    Starts the Python debugger\
-        \ (pdb) for the specified cell.\n\n    Attributes:\n        cell_id: Cell\
-        \ to debug.\n        request: HTTP request context if available."
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-        type:
-          enum:
-          - debug-cell
-      required:
-      - type
-      - cellId
-      title: DebugCellCommand
-      type: object
     DebugCellRequest:
       properties:
         cellId:
@@ -1530,8 +1452,8 @@ components:
             propertyName: kind
         tree:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/DependencyTreeNode'
+          - type: 'null'
       required:
       - tree
       - context
@@ -1909,33 +1831,6 @@ components:
       - hash
       title: EsmSpec
       type: object
-    ExecuteCellCommand:
-      description: "Execute a single cell.\n\n    Executes a cell with the provided\
-        \ code. Dependent cells may be\n    re-executed based on the reactive execution\
-        \ mode.\n\n    Attributes:\n        cell_id: Cell to execute.\n        code:\
-        \ Python code to execute.\n        request: HTTP request context if available.\n\
-        \        timestamp: Unix timestamp when command was created."
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-        code:
-          type: string
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-        timestamp:
-          type: number
-        type:
-          enum:
-          - execute-cell
-      required:
-      - type
-      - cellId
-      - code
-      title: ExecuteCellCommand
-      type: object
     ExecuteCellsCommand:
       description: "Execute multiple cells in a batch.\n\n    Executes multiple cells\
         \ with their corresponding code. The kernel manages\n    dependency tracking\
@@ -2005,12 +1900,17 @@ components:
         \     `CompletedRunNotification` emitted at the end of this command\n    \
         \        carries the same `run_id` so a caller holding a\n            `ScratchCellListener`\
         \ can filter for *its* completion and\n            ignore `CompletedRun` events\
-        \ from unrelated commands on the\n            same session."
+        \ from unrelated commands on the\n            same session.\n        allow_stdin:\
+        \ Whether code may request interactive input. When false,\n            input\
+        \ reads receive EOF for the duration of this command."
       properties:
+        allowStdin:
+          default: true
+          type: boolean
         cellOutputs:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/CellOutputs'
+          - type: 'null'
           default: null
         code:
           type: string
@@ -2041,10 +1941,13 @@ components:
       type: object
     ExecuteScratchpadRequest:
       properties:
+        allowStdin:
+          default: true
+          type: boolean
         cellOutputs:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/CellOutputs'
+          - type: 'null'
           default: null
         code:
           type: string
@@ -2069,23 +1972,46 @@ components:
       - code
       title: ExecuteScratchpadRequest
       type: object
-    ExecuteStaleCellsCommand:
-      description: "Execute all stale cells.\n\n    Cells become stale when their\
-        \ dependencies change but haven't been\n    re-executed yet. Brings the notebook\
-        \ to a consistent state.\n\n    Attributes:\n        request: HTTP request\
-        \ context if available."
+    ExecutionNotification:
+      description: "An attempt's lifecycle, independent of a cell's displayed status.\n\
+        \n    `planned` supplies the source and identity before output is reported.\n\
+        \    `running` means evaluation began. `completed` follows the final output\n\
+        \    and errors, including for attempts that never ran. Buffered and background\n\
+        \    console output may still arrive with the completed attempt's identity."
       properties:
-        request:
+        caused_by:
           anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
+          - type: string
           - type: 'null'
           default: null
-        type:
+        cell_id:
+          $ref: '#/components/schemas/CellId'
+        code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        execution_id:
+          type: string
+        op:
           enum:
-          - execute-stale-cells
+          - execution
+        phase:
+          enum:
+          - completed
+          - planned
+          - running
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
       required:
-      - type
-      title: ExecuteStaleCellsCommand
+      - op
+      - execution_id
+      - cell_id
+      - run_id
+      - phase
+      title: ExecutionNotification
       type: object
     ExportAsHTMLRequest:
       description: "Request a static HTML export.\n\n    `layout` carries the current\
@@ -2254,8 +2180,8 @@ components:
       properties:
         info:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FileInfo'
+          - type: 'null'
           default: null
         message:
           anyOf:
@@ -2322,8 +2248,8 @@ components:
       properties:
         info:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FileInfo'
+          - type: 'null'
           default: null
         message:
           anyOf:
@@ -2416,8 +2342,8 @@ components:
           type: string
         opengraph:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/OpenGraphMetadata'
+          - type: 'null'
           default: null
         path:
           type: string
@@ -2472,8 +2398,8 @@ components:
       properties:
         info:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FileInfo'
+          - type: 'null'
           default: null
         message:
           anyOf:
@@ -2582,8 +2508,8 @@ components:
       properties:
         info:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FileInfo'
+          - type: 'null'
           default: null
         message:
           anyOf:
@@ -2692,17 +2618,6 @@ components:
       - status
       - found
       title: FunctionCallResultNotification
-      type: object
-    GetCacheInfoCommand:
-      description: "Retrieve cache statistics.\n\n    Collects cache usage info across\
-        \ all contexts (hit/miss rates, time saved, disk usage)."
-      properties:
-        type:
-          enum:
-          - get-cache-info
-      required:
-      - type
-      title: GetCacheInfoCommand
       type: object
     GetCacheInfoRequest:
       properties: {}
@@ -2926,6 +2841,10 @@ components:
         op:
           enum:
           - interrupted
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
       required:
       - op
       title: InterruptedNotification
@@ -3038,7 +2957,8 @@ components:
         \ per cell if resumed.\n        app_config: Application configuration.\n \
         \       kiosk: Whether running in kiosk mode.\n        capabilities: Available\
         \ kernel capabilities.\n        auto_instantiated: Whether cells already executed\
-        \ (run mode)."
+        \ (run mode).\n        stable_session_id: Server-owned Session identity that\
+        \ survives\n            browser reconnects. None where no server Session exists."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
@@ -3088,6 +3008,11 @@ components:
           - kernel-ready
         resumed:
           type: boolean
+        stable_session_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         ui_values:
           anyOf:
           - type: object
@@ -3163,22 +3088,14 @@ components:
       properties:
         command:
           anyOf:
-          - $ref: '#/components/schemas/CreateNotebookCommand'
-          - $ref: '#/components/schemas/RenameNotebookCommand'
-          - $ref: '#/components/schemas/CodeCompletionCommand'
           - $ref: '#/components/schemas/ExecuteCellsCommand'
           - $ref: '#/components/schemas/ExecuteScratchpadCommand'
-          - $ref: '#/components/schemas/ExecuteStaleCellsCommand'
-          - $ref: '#/components/schemas/DebugCellCommand'
-          - $ref: '#/components/schemas/SetBreakpointsCommand'
           - $ref: '#/components/schemas/DeleteCellCommand'
-          - $ref: '#/components/schemas/SyncGraphCommand'
           - $ref: '#/components/schemas/UpdateCellConfigCommand'
-          - $ref: '#/components/schemas/InstallPackagesCommand'
           - $ref: '#/components/schemas/UpdateUIElementCommand'
           - $ref: '#/components/schemas/ModelCommand'
           - $ref: '#/components/schemas/InvokeFunctionCommand'
-          - $ref: '#/components/schemas/UpdateUserConfigCommand'
+          - $ref: '#/components/schemas/InstallPackagesCommand'
           - $ref: '#/components/schemas/PreviewDatasetColumnCommand'
           - $ref: '#/components/schemas/PreviewSQLTableCommand'
           - $ref: '#/components/schemas/ListSQLTablesCommand'
@@ -3186,25 +3103,13 @@ components:
           - $ref: '#/components/schemas/ValidateSQLCommand'
           - $ref: '#/components/schemas/ListDataSourceConnectionCommand'
           - $ref: '#/components/schemas/DiscoverDataSourcesCommand'
-          - $ref: '#/components/schemas/StorageListEntriesCommand'
-          - $ref: '#/components/schemas/StorageDownloadCommand'
           - $ref: '#/components/schemas/ListSecretKeysCommand'
-          - $ref: '#/components/schemas/RefreshSecretsCommand'
-          - $ref: '#/components/schemas/ClearCacheCommand'
-          - $ref: '#/components/schemas/GetCacheInfoCommand'
-          - $ref: '#/components/schemas/StopKernelCommand'
           discriminator:
             mapping:
-              clear-cache: '#/components/schemas/ClearCacheCommand'
-              code-completion: '#/components/schemas/CodeCompletionCommand'
-              create-notebook: '#/components/schemas/CreateNotebookCommand'
-              debug-cell: '#/components/schemas/DebugCellCommand'
               delete-cell: '#/components/schemas/DeleteCellCommand'
               discover-data-sources: '#/components/schemas/DiscoverDataSourcesCommand'
               execute-cells: '#/components/schemas/ExecuteCellsCommand'
               execute-scratchpad: '#/components/schemas/ExecuteScratchpadCommand'
-              execute-stale-cells: '#/components/schemas/ExecuteStaleCellsCommand'
-              get-cache-info: '#/components/schemas/GetCacheInfoCommand'
               install-packages: '#/components/schemas/InstallPackagesCommand'
               invoke-function: '#/components/schemas/InvokeFunctionCommand'
               list-data-source-connection: '#/components/schemas/ListDataSourceConnectionCommand'
@@ -3214,16 +3119,8 @@ components:
               model: '#/components/schemas/ModelCommand'
               preview-dataset-column: '#/components/schemas/PreviewDatasetColumnCommand'
               preview-sql-table: '#/components/schemas/PreviewSQLTableCommand'
-              refresh-secrets: '#/components/schemas/RefreshSecretsCommand'
-              rename-notebook: '#/components/schemas/RenameNotebookCommand'
-              set-breakpoints: '#/components/schemas/SetBreakpointsCommand'
-              stop-kernel: '#/components/schemas/StopKernelCommand'
-              storage-download: '#/components/schemas/StorageDownloadCommand'
-              storage-list-entries: '#/components/schemas/StorageListEntriesCommand'
-              sync-graph: '#/components/schemas/SyncGraphCommand'
               update-cell-config: '#/components/schemas/UpdateCellConfigCommand'
               update-ui-element: '#/components/schemas/UpdateUIElementCommand'
-              update-user-config: '#/components/schemas/UpdateUserConfigCommand'
               validate-sql: '#/components/schemas/ValidateSQLCommand'
             propertyName: type
         data_type:
@@ -3271,6 +3168,7 @@ components:
         notification:
           anyOf:
           - $ref: '#/components/schemas/CellNotification'
+          - $ref: '#/components/schemas/ExecutionNotification'
           - $ref: '#/components/schemas/FunctionCallResultNotification'
           - $ref: '#/components/schemas/UIElementMessageNotification'
           - $ref: '#/components/schemas/ModelLifecycleNotification'
@@ -3330,6 +3228,7 @@ components:
               datasets: '#/components/schemas/DatasetsNotification'
               environment-operation: '#/components/schemas/EnvironmentOperationNotification'
               environment-state: '#/components/schemas/EnvironmentStateNotification'
+              execution: '#/components/schemas/ExecutionNotification'
               focus-cell: '#/components/schemas/FocusCellNotification'
               function-call-result: '#/components/schemas/FunctionCallResultNotification'
               interrupted: '#/components/schemas/InterruptedNotification'
@@ -4106,7 +4005,7 @@ components:
               update: '#/components/schemas/ModelUpdate'
             propertyName: method
         model_id:
-          type: string
+          $ref: '#/components/schemas/WidgetModelId'
         op:
           enum:
           - model-lifecycle
@@ -4140,8 +4039,8 @@ components:
           type: array
         esm_spec:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/EsmSpec'
+          - type: 'null'
           default: null
         method:
           enum:
@@ -4204,8 +4103,8 @@ components:
           type: array
         esm_spec:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/EsmSpec'
+          - type: 'null'
           default: null
         method:
           enum:
@@ -4790,17 +4689,6 @@ components:
       - op
       title: ReconnectedNotification
       type: object
-    RefreshSecretsCommand:
-      description: "Refresh secrets from the secrets store.\n\n    Reloads secrets\
-        \ from the provider without restarting the kernel."
-      properties:
-        type:
-          enum:
-          - refresh-secrets
-      required:
-      - type
-      title: RefreshSecretsCommand
-      type: object
     ReloadNotification:
       description: Instructs frontend to reload the page.
       properties:
@@ -4838,21 +4726,6 @@ components:
       - op
       - cell_id
       title: RemoveUIElementsNotification
-      type: object
-    RenameNotebookCommand:
-      description: "Rename or move the notebook file.\n\n    Updates the notebook's\
-        \ filename in the kernel metadata.\n\n    Attributes:\n        filename: New\
-        \ filename or path for the notebook."
-      properties:
-        filename:
-          type: string
-        type:
-          enum:
-          - rename-notebook
-      required:
-      - type
-      - filename
-      title: RenameNotebookCommand
       type: object
     RenameNotebookRequest:
       properties:
@@ -5116,8 +4989,8 @@ components:
           $ref: '#/components/schemas/RequestId'
         table:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/DataTable'
+          - type: 'null'
       required:
       - op
       - request_id
@@ -5390,33 +5263,6 @@ components:
     SessionId:
       format: session-id
       type: string
-    SetBreakpointsCommand:
-      description: "Set the live debugger's breakpoints (session-scoped, not persisted).\n\
-        \n    Replaces the full breakpoint set: the frontend always sends the complete\n\
-        \    map of cell id -> 1-based line numbers. Only meaningful when the\n  \
-        \  `debugger` experimental feature is enabled.\n\n    Attributes:\n      \
-        \  breakpoints: Map of cell id to lines that have a breakpoint.\n        request:\
-        \ HTTP request context if available."
-      properties:
-        breakpoints:
-          additionalProperties:
-            items:
-              type: integer
-            type: array
-          type: object
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-        type:
-          enum:
-          - set-breakpoints
-      required:
-      - type
-      - breakpoints
-      title: SetBreakpointsCommand
-      type: object
     SetBreakpointsRequest:
       properties:
         breakpoints:
@@ -5718,46 +5564,6 @@ components:
       - text
       title: StdinRequest
       type: object
-    StopKernelCommand:
-      description: "Stop kernel execution.\n\n    Signals the kernel to stop processing\
-        \ and shut down gracefully.\n    Used when closing a notebook or terminating\
-        \ a session."
-      properties:
-        type:
-          enum:
-          - stop-kernel
-      required:
-      - type
-      title: StopKernelCommand
-      type: object
-    StorageDownloadCommand:
-      description: "Download a storage entry.\n\n    Obtains a pre-signed URL or downloads\
-        \ the file locally and returns a virtual file URL\n    so the frontend can\
-        \ fetch the contents.\n\n    Attributes:\n        request_id: Unique identifier\
-        \ for this request.\n        namespace: Variable name identifying the storage\
-        \ backend.\n        path: Full path of the entry to download.\n        preview:\
-        \ If true, a local preview of the file is returned.\n            This is useful\
-        \ if you need to bypass CORS."
-      properties:
-        namespace:
-          type: string
-        path:
-          type: string
-        preview:
-          default: false
-          type: boolean
-        requestId:
-          type: string
-        type:
-          enum:
-          - storage-download
-      required:
-      - type
-      - requestId
-      - namespace
-      - path
-      title: StorageDownloadCommand
-      type: object
     StorageDownloadReadyNotification:
       description: "Signals that a storage file download is ready.\n\n    The url\
         \ may be a signed cloud URL (preferred) or a virtual file URL\n    (fallback\
@@ -5780,7 +5586,7 @@ components:
           enum:
           - storage-download-ready
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         url:
           anyOf:
           - type: string
@@ -5847,7 +5653,7 @@ components:
           - type: 'null'
           default: null
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - op
       - request_id
@@ -5910,41 +5716,6 @@ components:
       - protocols
       - backendTypes
       title: StorageHidesWhen
-      type: object
-    StorageListEntriesCommand:
-      description: "List storage entries at a prefix.\n\n    Navigates storage like\
-        \ a folder tree using delimiter-based listing.\n    Returns entries (files/objects)\
-        \ and virtual directories at one level.\n\n    Attributes:\n        request_id:\
-        \ Unique identifier for this request.\n        namespace: Variable name identifying\
-        \ the storage backend.\n        limit: Max entries to return.\n        prefix:\
-        \ Path prefix to list (None = root).\n        page_token: Token for the next\
-        \ page of entries."
-      properties:
-        limit:
-          type: integer
-        namespace:
-          type: string
-        pageToken:
-          anyOf:
-          - type: string
-          - type: 'null'
-          default: null
-        prefix:
-          anyOf:
-          - type: string
-          - type: 'null'
-          default: null
-        requestId:
-          type: string
-        type:
-          enum:
-          - storage-list-entries
-      required:
-      - type
-      - requestId
-      - namespace
-      - limit
-      title: StorageListEntriesCommand
       type: object
     StorageListEntriesRequest:
       properties:
@@ -6043,39 +5814,6 @@ components:
       required: []
       title: SuccessResponse
       type: object
-    SyncGraphCommand:
-      description: "Synchronize the kernel graph with file manager state.\n\n    Used\
-        \ when the notebook file changes externally (e.g., file reload or version\
-        \ control).\n    Updates changed cells, deletes removed cells, and optionally\
-        \ executes modified cells.\n\n    Attributes:\n        cells: All cells known\
-        \ to file manager, mapping cell_id to code.\n        run_ids: Cells to execute\
-        \ or update.\n        delete_ids: Cells to delete from the graph.\n      \
-        \  timestamp: Unix timestamp when command was created."
-      properties:
-        cells:
-          additionalProperties:
-            type: string
-          type: object
-        deleteIds:
-          items:
-            type: string
-          type: array
-        runIds:
-          items:
-            type: string
-          type: array
-        timestamp:
-          type: number
-        type:
-          enum:
-          - sync-graph
-      required:
-      - type
-      - cells
-      - runIds
-      - deleteIds
-      title: SyncGraphCommand
-      type: object
     SyncSandboxResponse:
       properties:
         error:
@@ -6157,6 +5895,7 @@ components:
           - code-mode
           - file-watch
           - frontend
+          - host
           - kernel
         version:
           anyOf:
@@ -6373,21 +6112,6 @@ components:
       - values
       title: UpdateUIElementValuesRequest
       type: object
-    UpdateUserConfigCommand:
-      description: "Update user configuration.\n\n    Updates global marimo configuration\
-        \ (runtime settings, display options, editor preferences).\n\n    Attributes:\n\
-        \        config: Complete user configuration."
-      properties:
-        config:
-          $ref: '#/components/schemas/MarimoConfig'
-        type:
-          enum:
-          - update-user-config
-      required:
-      - type
-      - config
-      title: UpdateUserConfigCommand
-      type: object
     UpdateUserConfigRequest:
       properties:
         config:
@@ -6471,15 +6195,15 @@ components:
           - validate-sql-result
         parse_result:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/SqlParseResult'
+          - type: 'null'
           default: null
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         validate_result:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/SqlCatalogCheckResult'
+          - type: 'null'
           default: null
       required:
       - op
@@ -6577,12 +6301,12 @@ components:
       title: VariablesNotification
       type: object
     VenvConfig:
-      description: "Configuration for an external Python environment in edit mode.\n\n\
-        \    Launches the notebook kernel in an existing virtualenv. Applies to\n    single\
-        \ notebooks and directories when editing without `--sandbox`.\n\n    **Keys.**\n\
-        \n    - `path`: path to a virtualenv directory (absolute or relative to\n    \
-        \  pyproject.toml)\n    - `writable`: if true, marimo will manage script metadata\
-        \ (inline\n      dependencies). Defaults to false."
+      description: "Configuration for an external Python environment in edit mode.\n\
+        \n    Launches the notebook kernel in an existing virtualenv. Applies to\n\
+        \    single notebooks and directories when editing without `--sandbox`.\n\n\
+        \    **Keys.**\n\n    - `path`: path to a virtualenv directory (absolute or\
+        \ relative to\n      pyproject.toml)\n    - `writable`: if true, marimo will\
+        \ manage script metadata (inline\n      dependencies). Defaults to false."
       properties:
         path:
           type: string

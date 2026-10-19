@@ -1,9 +1,58 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import subprocess
+from typing import Any, get_args
 
 import yaml
+
+from marimo._cli.development.commands import _generate_server_api_schema
+from marimo._runtime import commands
+
+
+def test_openapi_exports_only_client_commands() -> None:
+    schemas = _generate_server_api_schema()["components"]["schemas"]
+    command_names = {
+        model.__name__
+        for model in vars(commands).values()
+        if isinstance(model, type) and issubclass(model, commands.Command)
+    }
+
+    assert command_names & schemas.keys() == {
+        command.__name__ for command in get_args(commands.ClientCommand)
+    }
+
+
+def test_openapi_preserves_brands_in_client_commands() -> None:
+    schemas = _generate_server_api_schema()["components"]["schemas"]
+
+    assert schemas["ExecuteCellsCommand"]["properties"]["cellIds"] == {
+        "type": "array",
+        "items": {"$ref": "#/components/schemas/CellId"},
+    }
+    assert schemas["UpdateUIElementCommand"]["properties"]["objectIds"] == {
+        "type": "array",
+        "items": {"$ref": "#/components/schemas/UIElementId"},
+    }
+
+
+def _normalize_union_order(schema: Any) -> Any:
+    if isinstance(schema, list):
+        return [_normalize_union_order(value) for value in schema]
+    if isinstance(schema, dict):
+        result = {
+            key: _normalize_union_order(value) for key, value in schema.items()
+        }
+        # msgspec versions can emit equivalent union alternatives in a different order.
+        for key in ("anyOf", "oneOf"):
+            if isinstance(result.get(key), list):
+                result[key] = sorted(
+                    result[key],
+                    key=lambda value: json.dumps(value, sort_keys=True),
+                )
+        return result
+    return schema
 
 
 def test_cli_development_openapi() -> None:
@@ -33,6 +82,8 @@ def test_openapi_up_to_date() -> None:
         generated_content["info"].pop("version", None)
 
     cmd = "marimo development openapi > packages/openapi/api.yaml && make fe-codegen"
-    assert current_content == generated_content, (
+    assert _normalize_union_order(current_content) == _normalize_union_order(
+        generated_content
+    ), (
         f"packages/openapi/api.yaml is not up to date. Run '{cmd}' to update it."
     )

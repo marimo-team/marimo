@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-24.04
     container:
       # Keep this tag in sync with EXPECTED_PLAYWRIGHT_VERSION below.
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC
@@ -104,7 +104,7 @@ jobs:
       - name: 🎭 Verify Playwright image version
         working-directory: ./frontend
         env:
-          EXPECTED_PLAYWRIGHT_VERSION: 1.62.1
+          EXPECTED_PLAYWRIGHT_VERSION: 1.63.0
         run: |
           ACTUAL_PLAYWRIGHT_VERSION=$(pnpm exec playwright --version)
           ACTUAL_PLAYWRIGHT_VERSION=${ACTUAL_PLAYWRIGHT_VERSION#Version }

@@ -1,0 +1,16 @@
+{
+  "type": "tag:marimo.io,2026:host/decision-required",
+  "title": "Decision required",
+  "status": 409,
+  "detail": "Where should forecasts.py run?",
+  "decisions": [
+    {
+      "id": "environment",
+      "prompt": "Where should forecasts.py run?",
+      "options": [
+        { "id": "sandbox", "label": "Sandbox from the notebook's dependencies" },
+        { "id": "ctl-3f9a", "label": ".venv (Python 3.12)" }
+      ]
+    }
+  ]
+}

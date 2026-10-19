@@ -773,17 +773,18 @@ def test_get_dataframe() -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_dataframe_csv() -> None:
     import altair as alt
-    import pandas as pd
     import polars as pl
 
     data = "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/stocks.csv"
-    fake_payload = b"symbol,price\nMSFT,39.81\nAAPL,28.13\n"
+    expected = pl.DataFrame(
+        {"symbol": ["MSFT", "AAPL"], "price": [39.81, 28.13]}
+    )
     with unittest.mock.patch(
-        "urllib.request.urlopen",
-        return_value=io.BytesIO(fake_payload),
-    ):
+        "polars.read_csv", return_value=expected
+    ) as read_csv:
         chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
-        assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
+        read_csv.assert_called_once_with(data)
+        assert chart.dataframe is expected
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

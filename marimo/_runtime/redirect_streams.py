@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import contextlib
+import io
 import os
 import sys
+from contextvars import ContextVar
 from typing import TYPE_CHECKING
 
 from marimo._messaging.streams import redirect
@@ -18,6 +20,33 @@ from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+
+_STDIN_ALLOWED = ContextVar("stdin_allowed", default=True)
+
+
+class _EOFStdin(io.StringIO):
+    def _readline_with_prompt(
+        self, prompt: str = "", password: bool = False
+    ) -> str:
+        del prompt, password
+        raise EOFError("EOF when reading a line")
+
+
+@contextlib.contextmanager
+def stdin_context(allow_stdin: bool) -> Iterator[None]:
+    """Give noninteractive commands an empty stdin, including nested cells."""
+    if allow_stdin:
+        yield
+        return
+    token = _STDIN_ALLOWED.set(False)
+    previous = sys.stdin
+    sys.stdin = _EOFStdin()
+    try:
+        yield
+    finally:
+        sys.stdin = previous
+        _STDIN_ALLOWED.reset(token)
 
 
 def forward_os_stream(stream_object: Stdout | Stderr, fd: int) -> None:
@@ -102,7 +131,8 @@ def redirect_streams(
         py_stdin = sys.stdin
         sys.stdout = stdout  # type: ignore
         sys.stderr = stderr  # type: ignore
-        sys.stdin = stdin  # type: ignore
+        if _STDIN_ALLOWED.get():
+            sys.stdin = stdin  # type: ignore
 
         try:
             with redirect(stdout), redirect(stderr):

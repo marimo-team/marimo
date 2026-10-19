@@ -44,14 +44,14 @@
 - 🖐️ **interactive:** [スライダー、テーブル、プロットなど](https://docs.marimo.io/guides/interactivity.html)を Python にバインドできます（コールバック不要）。
 - 🐍 **git-friendly:** ノートブックは `.py` ファイルとして保存されます。
 - 🛢️ **designed for data:** データフレーム、データベース、ウェアハウス、レイクハウスを [SQL でクエリ](https://docs.marimo.io/guides/working_with_data/sql.html)したり、[データフレームをフィルタ・検索](https://docs.marimo.io/guides/working_with_data/dataframes.html)できます。
-- 🤖 **AI-native:** データ作業に特化した AI でセルを[生成](https://docs.marimo.io/guides/generate_with_ai/)できます。
+- 🤖 **AI-native:** Claude Code などの [AI エージェントとペア](https://marimo.io/pair)を組み、エディタの[組み込み AI 機能](https://docs.marimo.io/guides/editor_features/ai_completion/)を利用できます。
 - 🔬 **reproducible:** [隠れた状態なし](https://docs.marimo.io/guides/reactivity.html#no-hidden-state)、決定論的な実行、[組み込みパッケージ管理](https://docs.marimo.io/guides/package_management/)を備えています。
 - 🏃 **executable:** ノートブックを [Python スクリプトとして実行](https://docs.marimo.io/guides/scripts.html)でき、CLI 引数でパラメータ化できます。
 - 🛜 **shareable:** インタラクティブな Web アプリとしてデプロイしたり、[スライド](https://docs.marimo.io/guides/apps.html#slides-layout)に変換したり、[WASM でブラウザ実行](https://docs.marimo.io/guides/wasm.html)できます。
 - 🧩 **reusable:** ノートブック間で関数やクラスを[インポートして再利用](https://docs.marimo.io/guides/reusing_functions/)できます。
 - 🧪 **testable:** ノートブックに対して [pytest を実行](https://docs.marimo.io/guides/testing/)できます。
 - ⌨️ **a modern editor:** GitHub Copilot、AI アシスタント、Ruff によるコード整形、高速補完、[VS Code 拡張](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo) などのエディタ機能を備えています。
-- 🧑‍💻 **use your favorite editor:** VS Code や Cursor、neovim、Zed、その他のテキストエディタで編集できます。
+- 🧑‍💻 **use your favorite editor:** [VS Code や Cursor](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo) や [PyCharm](https://plugins.jetbrains.com/plugin/32416-marimo) で実行できるほか、neovim、Zed、[その他のテキストエディタ](https://docs.marimo.io/guides/editor_features/watching/)で編集できます。
 
 ```python
 pip install marimo && marimo tutorial intro
@@ -98,7 +98,7 @@ marimo はノートブックのコード、出力、プログラム状態の一�
 
 **Performant runtime.** 静的解析により、実行が必要なセルのみを効率的に実行します。
 
-**Batteries-included.** GitHub Copilot、AI アシスタント、Ruff による整形、HTML 出力、インタラクティブなデータフレームビューア、そして [VS Code 拡張](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo) など、多数の便利機能が含まれています。
+**Batteries-included.** GitHub Copilot、AI アシスタント、Ruff による整形、HTML 出力、インタラクティブなデータフレームビューア、そして [VS Code 拡張](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)、[PyCharm プラグイン](https://plugins.jetbrains.com/plugin/32416-marimo)など、多数の便利機能が含まれています。
 
 ## Quickstart
 

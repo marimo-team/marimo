@@ -6,13 +6,18 @@ from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
+from marimo._runtime.dataflow import edges
+from marimo._runtime.dataflow.definitions import DefinitionRegistry
 from marimo._runtime.dataflow.graph import DirectedGraph
-from marimo._runtime.dataflow.topology import GraphTopology
+from marimo._runtime.dataflow.topology import (
+    GraphTopology,
+    MutableGraphTopology,
+)
 from marimo._runtime.dataflow.types import Edge, EdgeWithVar
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection
+    from collections.abc import Callable, Collection, Mapping
 
 
 LOGGER = _loggers.marimo_logger()
@@ -65,6 +70,37 @@ def transitive_closure(
                 queue.append(relative)
 
     return result
+
+
+def get_ancestors_from_cells(
+    cells: Mapping[CellId_t, CellImpl], cell_ids: set[CellId_t]
+) -> set[CellId_t]:
+    """Find ancestors from compiled cells without modifying runtime state.
+
+    Cells are indexed in mapping order, matching ordinary graph registration.
+    Unknown IDs and the roots themselves are excluded from the result.
+    """
+    roots = cell_ids & cells.keys()
+    if not roots:
+        return set()
+
+    topology = MutableGraphTopology()
+    definitions = DefinitionRegistry()
+    for cid, cell in cells.items():
+        parents, children = edges.register_cell_dependencies(
+            cid, cell, topology, definitions
+        )
+        for parent in parents:
+            topology.add_edge(parent, cid)
+        for child in children:
+            topology.add_edge(cid, child)
+
+    return transitive_closure(
+        topology,
+        roots,
+        children=False,
+        inclusive=False,
+    )
 
 
 def induced_subgraph(

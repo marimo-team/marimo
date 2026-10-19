@@ -4,8 +4,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+import pytest
+
 from marimo import __version__
-from tests._server.mocks import token_header, with_session
+from marimo._types.ids import SessionId
+from tests._server.mocks import (
+    get_session_manager,
+    token_header,
+    with_session,
+)
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -51,6 +58,75 @@ def test_version(client: TestClient) -> None:
     response = client.get("/api/version", headers=token_header())
     assert response.status_code == 200, response.text
     assert response.text == __version__
+
+
+def test_sessions_requires_auth(client: TestClient) -> None:
+    response = client.get("/api/sessions")
+    assert response.status_code == 401, response.text
+
+
+def test_sessions_empty(client: TestClient) -> None:
+    response = client.get("/api/sessions", headers=token_header())
+    assert response.status_code == 200, response.text
+    assert response.json() == {}
+
+
+@pytest.mark.parametrize("connection_id", [SESSION_ID, "session-456"])
+def test_sessions_stable_id_survives_reconnect(
+    client: TestClient, connection_id: str
+) -> None:
+    with client.websocket_connect(
+        f"/ws?session_id={SESSION_ID}", headers=token_header()
+    ) as websocket:
+        assert websocket.receive_json()["op"] == "kernel-ready"
+        session = get_session_manager(client).get_session(
+            SessionId(SESSION_ID)
+        )
+        assert session is not None
+        expected = {
+            "session_id": session.stable_id,
+            "filename": session.app_file_manager.filename,
+            "path": session.app_file_manager.path,
+        }
+        response = client.get("/api/sessions", headers=token_header())
+        assert response.status_code == 200, response.text
+        assert response.json() == {SESSION_ID: expected}
+
+    with client.websocket_connect(
+        f"/ws?session_id={connection_id}", headers=token_header()
+    ) as websocket:
+        assert websocket.receive_json()["op"] == "reconnected"
+        response = client.get("/api/sessions", headers=token_header())
+        assert response.status_code == 200, response.text
+        assert response.json() == {connection_id: expected}
+
+
+def test_sessions_stable_id_changes_after_restart(client: TestClient) -> None:
+    with client.websocket_connect(
+        f"/ws?session_id={SESSION_ID}", headers=token_header()
+    ) as websocket:
+        assert websocket.receive_json()["op"] == "kernel-ready"
+        response = client.get("/api/sessions", headers=token_header())
+        assert response.status_code == 200, response.text
+        previous = response.json()[SESSION_ID]
+
+    response = client.post("/api/kernel/restart_session", headers=HEADERS)
+    assert response.status_code == 200, response.text
+    response = client.get("/api/sessions", headers=token_header())
+    assert response.status_code == 200, response.text
+    assert response.json() == {}
+
+    with client.websocket_connect(
+        f"/ws?session_id={SESSION_ID}", headers=token_header()
+    ) as websocket:
+        assert websocket.receive_json()["op"] == "kernel-ready"
+        response = client.get("/api/sessions", headers=token_header())
+        assert response.status_code == 200, response.text
+        current = response.json()[SESSION_ID]
+        assert current["session_id"] != previous["session_id"]
+        assert response.json() == {
+            SESSION_ID: {**previous, "session_id": current["session_id"]}
+        }
 
 
 def test_memory(client: TestClient) -> None:

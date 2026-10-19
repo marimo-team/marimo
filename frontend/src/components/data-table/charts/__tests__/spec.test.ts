@@ -69,30 +69,33 @@ describe("getAxisEncoding", () => {
     });
   });
 
-  it("should return correct encoding for temporal field with timeUnit", () => {
-    const result = getAxisEncoding(
-      {
-        field: "date",
-        selectedDataType: "temporal",
-        aggregate: NONE_VALUE,
-        timeUnit: "yearmonth",
-      },
-      undefined,
-      "Date",
-      undefined,
-      ChartType.LINE,
-    );
+  it.each(["yearmonth", "hours", "yearmonthdatehours"] as const)(
+    "should preserve the %s time unit in temporal axis encodings",
+    (timeUnit) => {
+      const result = getAxisEncoding(
+        {
+          field: "date",
+          selectedDataType: "temporal",
+          aggregate: NONE_VALUE,
+          timeUnit,
+        },
+        undefined,
+        "Date",
+        undefined,
+        ChartType.LINE,
+      );
 
-    expect(result).toEqual({
-      field: "date",
-      type: "temporal",
-      bin: undefined,
-      title: "Date",
-      stack: undefined,
-      aggregate: undefined,
-      timeUnit: "yearmonth",
-    });
-  });
+      expect(result).toEqual({
+        field: "date",
+        type: "temporal",
+        bin: undefined,
+        title: "Date",
+        stack: undefined,
+        aggregate: undefined,
+        timeUnit,
+      });
+    },
+  );
 
   it("should return correct encoding for categorical field", () => {
     const result = getAxisEncoding(

@@ -174,6 +174,57 @@ class TestFindSQLDefs:
         assert find_sql_defs(sql) == SQLDefs(views=[SQLRef(table="test_view")])
 
     @staticmethod
+    def test_find_sql_defs_unicode_comment_select() -> None:
+        assert find_sql_defs("-- комментарий\nSELECT 1 AS x") == SQLDefs()
+
+    @staticmethod
+    @pytest.mark.parametrize("text", ["тест", "测试", "🚀"])
+    @pytest.mark.parametrize(
+        "prefix", ["-- {text}\n", "/* {text} */", "SELECT '{text}';"]
+    )
+    def test_find_sql_defs_after_unicode(prefix: str, text: str) -> None:
+        prefix = prefix.format(text=text)
+        assert (
+            find_sql_defs(prefix + "SELECT a FROM t WHERE x = 1") == SQLDefs()
+        )
+        assert find_sql_defs(
+            prefix + "CREATE TABLE t(id INT); CREATE VIEW v AS SELECT * FROM t"
+        ) == SQLDefs(tables=[SQLRef(table="t")], views=[SQLRef(table="v")])
+
+    @staticmethod
+    @pytest.mark.parametrize("quote", ["", '"'])
+    def test_find_sql_defs_unicode_identifiers(quote: str) -> None:
+        catalog = f"{quote}каталог{quote}"
+        schema = f"{quote}схема{quote}"
+        table = f"{quote}表{quote}"
+        view = f"{quote}представление{quote}"
+        sql = (
+            f"CREATE SCHEMA {catalog}.{schema};"
+            f"CREATE TABLE {catalog}.{schema}.{table}(id INT);"
+            f"CREATE VIEW {catalog}.{schema}.{view} AS SELECT '🚀';"
+        )
+        assert find_sql_defs(sql) == SQLDefs(
+            tables=[SQLRef(table="表", catalog="каталог", schema="схема")],
+            views=[
+                SQLRef(
+                    table="представление", catalog="каталог", schema="схема"
+                )
+            ],
+            schemas=["схема"],
+            reffed_catalogs=["каталог", "каталог", "каталог"],
+            reffed_schemas=["схема", "схема"],
+        )
+
+    @staticmethod
+    @pytest.mark.parametrize("quote", ["'", '"', "e'"])
+    @pytest.mark.parametrize("alias", ["", ' AS "каталог🚀"'])
+    def test_find_sql_defs_unicode_attach(quote: str, alias: str) -> None:
+        sql = f"ATTACH {quote}данные数据库.db{quote[-1]}{alias}"
+        assert find_sql_defs(sql) == SQLDefs(
+            catalogs=["каталог🚀" if alias else "данные数据库"]
+        )
+
+    @staticmethod
     def test_find_sql_defs_temporary() -> None:
         sql = "CREATE TEMPORARY TABLE temp_table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
@@ -293,6 +344,18 @@ class TestFindSQLDefs:
                 name VARCHAR
             ) -- Comment at the end
             """,
+            """
+            CREATE/* after CREATE */TABLE/* after TABLE */
+            IF/* after IF */NOT/* after NOT */EXISTS
+            -- Before the table name
+            my_table (id INT)
+            """,
+            """
+            CREATE -- Before OR
+            OR /* Before REPLACE */ REPLACE
+            /* Before TEMP */ TEMP -- Before TABLE
+            TABLE /* Before the table name */ my_table (id INT)
+            """,
         ],
     )
     def test_find_sql_defs_many_comments(
@@ -390,10 +453,18 @@ class TestFindSQLDefs:
         )
 
     @staticmethod
-    def test_find_sql_defs_with_catalog_and_schema() -> None:
-        sql = """
-        CREATE TABLE my_catalog.my_schema.my_table (id INT);
-        """
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "CREATE TABLE my_catalog.my_schema.my_table (id INT);",
+            """
+            CREATE TABLE my_catalog /* Before the schema */ . my_schema
+            -- Before the table
+            . my_table (id INT);
+            """,
+        ],
+    )
+    def test_find_sql_defs_with_catalog_and_schema(sql: str) -> None:
         assert find_sql_defs(sql) == SQLDefs(
             tables=[
                 SQLRef(

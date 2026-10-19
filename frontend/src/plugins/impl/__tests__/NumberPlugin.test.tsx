@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { act, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
 import { initialModeAtom } from "@/core/mode";
@@ -473,5 +474,162 @@ describe("NumberPlugin", () => {
       '[data-testid="marimo-plugin-number-input"]',
     );
     expect(numberField?.classList.contains("w-full")).toBe(true);
+  });
+
+  describe("does not snap values to step (#9106)", () => {
+    // Feeds `setValue` back into `value`, as the kernel round-trip does.
+    const renderNumber = (
+      initialValue: number,
+      data: Pick<z.infer<NumberPlugin["validator"]>, "start" | "stop" | "step">,
+      { debounce = false } = {},
+    ) => {
+      const plugin = new NumberPlugin();
+      const setValue = vi.fn();
+      const Harness = () => {
+        const [value, setState] = useState<number | null>(initialValue);
+        return plugin.render({
+          host: document.createElement("div"),
+          value,
+          setValue: (next) => {
+            setValue(next);
+            setState(next);
+          },
+          data: {
+            ...data,
+            label: null,
+            debounce,
+            fullWidth: false,
+          },
+          functions: {},
+        });
+      };
+      const { getByRole } = render(<Harness />);
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      const input = getByRole("textbox", {
+        name: "Number input",
+      }) as HTMLInputElement;
+      return { input, setValue };
+    };
+
+    const typeAndCommit = (input: HTMLInputElement, text: string) => {
+      act(() => {
+        input.focus();
+      });
+      fireEvent.change(input, { target: { value: text } });
+      act(() => {
+        input.blur();
+      });
+    };
+
+    it.each([
+      { value: 2.23, start: 1.255_57, step: 0.001 },
+      { value: 2.233_45, start: 1, step: 0.001 },
+    ])(
+      "displays $value as-is with start=$start and step=$step",
+      ({ value, start, step }) => {
+        const { input } = renderNumber(value, { start, stop: 20, step });
+        expect(input.value).toBe(String(value));
+      },
+    );
+
+    it.each([
+      { typed: "2.3377", start: 1, step: 0.01 },
+      { typed: "2.23111", start: 1.222, step: 0.01 },
+    ])(
+      "keeps typed value $typed with start=$start and step=$step",
+      ({ typed, start, step }) => {
+        const { input, setValue } = renderNumber(2.233_45, {
+          start,
+          stop: 20,
+          step,
+        });
+        typeAndCommit(input, typed);
+        expect(setValue).toHaveBeenLastCalledWith(Number(typed));
+        expect(input.value).toBe(typed);
+        expect(input.getAttribute("aria-invalid")).not.toBe("true");
+        // React Aria sets a custom validity on this text input in native mode,
+        // which would block `mo.ui.form` submission.
+        expect(input.validity.valid).toBe(true);
+      },
+    );
+
+    it("clamps typed values to start and stop", () => {
+      const { input, setValue } = renderNumber(5, {
+        start: 2,
+        stop: 10,
+        step: 1,
+      });
+      typeAndCommit(input, "25");
+      expect(setValue).toHaveBeenLastCalledWith(10);
+      expect(input.value).toBe("10");
+      typeAndCommit(input, "1");
+      expect(setValue).toHaveBeenLastCalledWith(2);
+      expect(input.value).toBe("2");
+    });
+
+    it("shows the bound when typing past a bound it is already at", () => {
+      const { input, setValue } = renderNumber(10, {
+        start: 2,
+        stop: 10,
+        step: 1,
+      });
+      typeAndCommit(input, "50");
+      expect(setValue).not.toHaveBeenCalled();
+      expect(input.value).toBe("10");
+    });
+
+    it("increments and decrements by step", () => {
+      const { input, setValue } = renderNumber(5, {
+        start: 0,
+        stop: 10,
+        step: 0.5,
+      });
+      fireEvent.keyDown(input, { key: "ArrowUp" });
+      expect(setValue).toHaveBeenLastCalledWith(5.5);
+      expect(input.value).toBe("5.5");
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      expect(setValue).toHaveBeenLastCalledWith(5);
+      expect(input.value).toBe("5");
+    });
+
+    it.each([
+      { key: "ArrowUp", expected: 3 },
+      { key: "ArrowDown", expected: 2 },
+    ])(
+      "$key from an off-step value moves to the nearest step ($expected)",
+      ({ key, expected }) => {
+        const { input, setValue } = renderNumber(2.23, {
+          start: 0,
+          stop: 10,
+          step: 1,
+        });
+        fireEvent.keyDown(input, { key });
+        expect(setValue).toHaveBeenLastCalledWith(expected);
+        expect(input.value).toBe(String(expected));
+      },
+    );
+
+    it.each([
+      { typed: "2.3377", expected: 2.3377 },
+      { typed: "50", expected: 20 },
+    ])(
+      "commits typed $typed as $expected after the debounce delay",
+      ({ typed, expected }) => {
+        const { input, setValue } = renderNumber(
+          2.233_45,
+          { start: 1, stop: 20, step: 0.01 },
+          { debounce: true },
+        );
+        typeAndCommit(input, typed);
+        expect(setValue).not.toHaveBeenCalled();
+        act(() => {
+          vi.advanceTimersByTime(200);
+        });
+        expect(setValue).toHaveBeenLastCalledWith(expected);
+        expect(input.value).toBe(String(expected));
+      },
+    );
   });
 });

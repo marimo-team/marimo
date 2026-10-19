@@ -35,7 +35,7 @@ def _command(server: PairTestServer, *arguments: str) -> list[str]:
         "--url",
         server.url,
         "--session",
-        server.session_id,
+        server.stable_session_id,
         *arguments,
     ]
 
@@ -88,6 +88,17 @@ def test_streams_output_before_execution_finishes(
     assert stdout == "b\n"
 
 
+def test_executes_by_stable_session_id(server: PairTestServer) -> None:
+    assert server.stable_session_id != server.session_id
+
+    result = _run(server, "-c", "print('stable')")
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["stdout"] == "stable\n"
+    assert payload["session"]["id"] == server.stable_session_id
+
+
 @pytest.mark.skipif(os.name != "posix", reason="SIGINT requires POSIX")
 def test_interrupt_disconnects_and_kernel_recovers(
     server: PairTestServer,
@@ -117,7 +128,7 @@ def test_interrupt_disconnects_and_kernel_recovers(
     assert payload["success"] is True
     assert payload["stdout"] == "alive\n"
     assert payload["output"] is None
-    assert payload["session"]["id"] == server.session_id
+    assert payload["session"]["id"] == server.stable_session_id
 
 
 def test_missing_input_does_not_read_stdin_or_execute(

@@ -18,8 +18,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
 import { API } from "@/core/network/api";
 import { pairPreviewAtom } from "@/core/config/pair";
-import { getSessionId } from "@/core/kernel/session";
-import { useFilename } from "@/core/saving/filename";
+import { stableSessionIdAtom } from "@/core/kernel/session";
 import {
   AGENT_LABELS,
   AGENT_TABS,
@@ -54,16 +53,14 @@ export const PairWithAgentModal: React.FC<{
   const [activeTab, setActiveTab] = useState<AgentTab>("claude");
   const runtimeManager = useRuntimeManager();
   const preview = useAtomValue(pairPreviewAtom);
-  const filename = useFilename();
+  const stableSessionId = useAtomValue(stableSessionIdAtom);
   const commandStep = preview ? 1 : 2;
   const authToken = useAuthToken();
   const hasToken = Boolean(authToken);
   const connection: ConnectionInfo = {
     url: runtimeManager.httpURL.toString(),
-    file:
-      getFileFromURL(window.location.href) ??
-      (preview ? filename || undefined : undefined),
-    session: preview ? getSessionId() : undefined,
+    file: preview ? undefined : getFileFromURL(window.location.href),
+    session: preview ? (stableSessionId ?? undefined) : undefined,
   };
 
   return (

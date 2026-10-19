@@ -10,7 +10,7 @@ import { viewStateAtom } from "@/core/mode";
 import {
   type ConnectionStatus,
   WebSocketClosedReason,
-  WebSocketState,
+  ConnectionState,
 } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 
@@ -21,10 +21,10 @@ export const StatusOverlay: React.FC<{
 }> = ({ connection, isRunning, onReconnect }) => {
   const { mode } = useAtomValue(viewStateAtom);
   const isClosed =
-    connection.state === WebSocketState.CLOSED &&
+    connection.state === ConnectionState.CLOSED &&
     (mode === "read" ||
       connection.code !== WebSocketClosedReason.KERNEL_STARTUP_ERROR);
-  const isOpen = connection.state === WebSocketState.OPEN;
+  const isOpen = connection.state === ConnectionState.OPEN;
   // Editor startup failures have their own recovery UI.
   const canReconnect =
     isClosed && connection.code === WebSocketClosedReason.KERNEL_DISCONNECTED;

@@ -626,6 +626,7 @@ def __():
             query_params={},
             file_key=file_key,
             auto_instantiate=False,
+            main=True,
         )
 
         # Wait a loop to ensure the session is created
@@ -663,6 +664,7 @@ def __():
             query_params={},
             file_key=file_key,
             auto_instantiate=False,
+            main=True,
         )
 
         # Modify the file again
@@ -840,6 +842,7 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
             query_params={},
             file_key=str(tmp_file),
             auto_instantiate=False,
+            main=True,
         )
         mock_session_view = MagicMock(spec=SessionView)
         session.session_view = mock_session_view
@@ -949,6 +952,7 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
             query_params={},
             file_key=str(tmp_file),
             auto_instantiate=False,
+            main=True,
         )
 
         # Wait a bit for session to be ready
@@ -1045,6 +1049,7 @@ def __():
             query_params={},
             file_key=str(tmp_path1),
             auto_instantiate=False,
+            main=True,
         )
 
         # Try to rename to a non-existent file

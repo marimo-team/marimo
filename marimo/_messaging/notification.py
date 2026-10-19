@@ -32,7 +32,7 @@ from marimo._data.models import (
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
-from marimo._messaging.context import RUN_ID_CTX, RunId_t
+from marimo._messaging.context import RUN_ID_CTX, RunId_t, execution_id_for
 from marimo._messaging.notebook.changes import Transaction
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
@@ -42,6 +42,7 @@ from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
 from marimo._types.ids import (
     CellId_t,
     RequestId,
+    StableSessionId,
     UIElementId,
     VariableName,
     WidgetModelId,
@@ -84,6 +85,24 @@ class Notification(msgspec.Struct, tag_field="op"):
     name: ClassVar[str]
 
 
+class ExecutionNotification(Notification, tag="execution"):
+    """An attempt's lifecycle, independent of a cell's displayed status.
+
+    `planned` supplies the source and identity before output is reported.
+    `running` means evaluation began. `completed` follows the final output
+    and errors, including for attempts that never ran. Buffered and background
+    console output may still arrive with the completed attempt's identity.
+    """
+
+    name: ClassVar[str] = "execution"
+    execution_id: str
+    cell_id: CellId_t
+    run_id: str | None
+    phase: Literal["planned", "running", "completed"]
+    code: str | None = None
+    caused_by: str | None = None
+
+
 class CellNotification(Notification, tag="cell-op"):
     """Updates a cell's state in the frontend.
 
@@ -99,6 +118,7 @@ class CellNotification(Notification, tag="cell-op"):
         status: Execution status (idle/running/stale/queued/disabled-transitively).
         stale_inputs: Whether cell has stale inputs from changed dependencies.
         run_id: Execution run ID for tracing. Auto-set from context.
+        execution_id: Evaluation of this cell producing the update, when known.
         serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
         timestamp: Creation timestamp, auto-set.
     """
@@ -110,6 +130,7 @@ class CellNotification(Notification, tag="cell-op"):
     status: RuntimeStateType | None = None
     stale_inputs: bool | None = None
     run_id: RunId_t | None = None
+    execution_id: str | None = None
     # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's
     # serialization hint unchanged; None explicitly clears it (cell is no
     # longer a top-level definition); a string sets it.
@@ -117,12 +138,9 @@ class CellNotification(Notification, tag="cell-op"):
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
+        if self.execution_id is None:
+            self.execution_id = execution_id_for(self.cell_id)
         if self.run_id is not None:
-            return
-
-        # We currently don't support tracing for replayed cell ops (previous session runs)
-        if self.status == "idle":
-            self.run_id = None
             return
 
         try:
@@ -328,21 +346,18 @@ class InterruptedNotification(Notification, tag="interrupted"):
     """Kernel was interrupted by user (SIGINT/Ctrl+C)."""
 
     name: ClassVar[str] = "interrupted"
+    run_id: str | None = msgspec.field(
+        default_factory=lambda: RUN_ID_CTX.get(None)
+    )
 
 
 class CompletedRunNotification(Notification, tag="completed-run"):
-    """Run of submitted cells and descendants completed.
-
-    Attributes:
-        run_id: Correlation ID echoed from the command that triggered
-            this completion. `None` for handlers that don't take a
-            `run_id` (everything except `handle_execute_scratchpad`
-            today). Consumers that want to wait for a specific command's
-            completion filter on this field.
-    """
+    """The command's reactive cycle ended, after its console was flushed."""
 
     name: ClassVar[str] = "completed-run"
     run_id: str | None = None
+    outcome: Literal["succeeded", "failed", "interrupted"] = "succeeded"
+    error: str | None = None
 
 
 class KernelCapabilitiesNotification(msgspec.Struct):
@@ -434,6 +449,8 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
         kiosk: Whether running in kiosk mode.
         capabilities: Available kernel capabilities.
         auto_instantiated: Whether cells already executed (run mode).
+        stable_session_id: Server-owned Session identity that survives
+            browser reconnects. None where no server Session exists.
     """
 
     name: ClassVar[str] = "kernel-ready"
@@ -451,6 +468,7 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     capabilities: KernelCapabilitiesNotification
     consumer_capabilities: ConsumerCapabilities
     auto_instantiated: bool = False
+    stable_session_id: StableSessionId | None = None
 
 
 class CompletionResultNotification(Notification, tag="completion-result"):
@@ -1088,6 +1106,7 @@ class NotebookDocumentTransactionNotification(
 NotificationMessage = (
     # Cell operations
     CellNotification
+    | ExecutionNotification
     | FunctionCallResultNotification
     | UIElementMessageNotification
     | ModelLifecycleNotification

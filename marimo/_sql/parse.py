@@ -8,6 +8,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._sql.utils import is_duckdb_v2
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -137,27 +138,31 @@ def _parse_sql_duckdb(
         return SqlParseResult(success=True, errors=[]), None
 
     position = int(parsed_error.position or 0)
-    subquery = query[:position]
+    # DuckDB 2 reports UTF-8 byte offsets; DuckDB 1 uses code points.
+    if is_duckdb_v2():
+        subquery = query.encode("utf-8")[:position].decode("utf-8")
+        position = len(subquery)
+    else:
+        subquery = query[:position]
     line_number = subquery.count("\n") + 1
 
     last_newline_idx = subquery.rfind("\n")
-    column_number = position - last_newline_idx - 1
+    # CodeMirror positions use UTF-16 code units, including surrogate pairs.
+    line_prefix = subquery[last_newline_idx + 1 :]
+    column_number = len(line_prefix.encode("utf-16-le")) // 2
 
-    # Adjust column_number to account for any added quotes from bracket replacements
-    # SELECT {id} FRO users
-    #             ^ error position should be here
-    # SELECT {id} FRO users
-    #               ^ user sees this
-    # So in this case, we subtract the offset from the column position.
-    # If the error is before the brackets, we don't need to add the offset because it just increases the string length
-    # Column position will be the same as the user sees.
+    # Count quotes separately: a multiline placeholder can put only its closing
+    # quote on the error line.
     error_line_start = last_newline_idx + 1
     cumulative_offset = 0
+    preceding_offset = 0
     for idx, offset in idx_to_offset_dict.items():
-        # Only count replacements that are on the same line as the error
-        # and come before the error position
-        if error_line_start <= idx < position:
-            cumulative_offset += offset
+        sanitized_idx = idx + preceding_offset
+        closing_quote_idx = query.index("}", sanitized_idx) + 1
+        preceding_offset += offset
+        for quote_idx in (sanitized_idx, closing_quote_idx):
+            if error_line_start <= quote_idx < position:
+                cumulative_offset += 1
     column_number -= cumulative_offset
 
     sql_parse_result = SqlParseResult(

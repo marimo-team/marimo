@@ -21,9 +21,9 @@ function isUninformative(value: unknown): boolean {
 const SuccessResultSchema = z.looseObject({
   status: z.string().default("success"),
   auth_required: z.boolean().default(false),
-  action_url: z.any(),
-  next_steps: z.any(),
-  meta: z.any(),
+  action_url: z.any().optional(),
+  next_steps: z.any().optional(),
+  meta: z.any().optional(),
   message: z.string().nullish(),
 });
 

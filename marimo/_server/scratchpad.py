@@ -115,10 +115,10 @@ class ScratchCellListener(EventAwareExtension):
         del session
         msg = deserialize_kernel_message(notification)
 
-        # Completion sentinel: the ``CompletedRunNotification`` tagged
+        # Completion sentinel: the `CompletedRunNotification` tagged
         # with OUR run_id means the scratchpad's full cascade (including
-        # any ``state_updates`` flushed after the scratch cell goes
-        # idle) has settled. ``CompletedRun``s with other ids belong to
+        # any `state_updates` flushed after the scratch cell goes
+        # idle) has settled. `CompletedRun`s with other ids belong to
         # unrelated commands — skip them.
         if isinstance(msg, CompletedRunNotification):
             if msg.run_id == self._run_id:
@@ -366,6 +366,11 @@ def extract_result(
     return CodeExecutionResult(
         success=len(errors) == 0,
         output=output_data,
+        output_mimetype=(
+            cell_notif.output.mimetype
+            if cell_notif.output is not None
+            else None
+        ),
         stdout=stdout,
         stderr=stderr,
         errors=errors,

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { NumberField } from "@/components/ui/number-field";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
+import { clamp } from "@/utils/math";
 import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
 
@@ -65,22 +66,38 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
     onChange: props.setValue,
   });
 
+  const clampToRange = (n: number) =>
+    clamp(n, props.start ?? -Infinity, props.stop ?? Infinity);
+
   const handleChange = (newValue: number) => {
-    onChange(withoutNaN(newValue));
+    const n = withoutNaN(newValue);
+    const next = n == null ? null : clampToRange(n);
+    // e.g. typing past `stop` while already at `stop`
+    if (next !== value) {
+      onChange(next);
+    }
   };
 
   return (
-    <Labeled label={props.label} id={id} fullWidth={props.fullWidth}>
+    <Labeled label={props.label} controlId={id} fullWidth={props.fullWidth}>
       <NumberField
         data-testid="marimo-plugin-number-input"
         className={cn("min-w-[3em]", props.fullWidth && "w-full")}
         minValue={props.start ?? undefined}
         maxValue={props.stop ?? undefined}
-        // This needs to be `?? NaN` since `?? undefined` makes  uncontrolled component
+        // This needs to be `NaN` since `undefined` makes  uncontrolled component
         // and can lead to leaving the old value in forms (https://github.com/marimo-team/marimo/issues/7352)
         // We out NaNs later
-        value={value ?? Number.NaN}
+        value={value == null ? Number.NaN : clampToRange(value)}
         step={props.step}
+        // By default React Aria rounds every value to `start + n * step`, but
+        // `step` is only the stepper increment: users can enter any value in
+        // range (#9106). "validate" turns off that rounding (and the clamping,
+        // done above instead); its step validation is turned off so off-step
+        // values aren't flagged invalid or block `mo.ui.form` submission.
+        commitBehavior="validate"
+        validationBehavior="aria"
+        isInvalid={false}
         onChange={handleChange}
         id={id}
         aria-label={props.label || "Number input"}

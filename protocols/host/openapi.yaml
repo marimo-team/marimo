@@ -1,0 +1,1827 @@
+openapi: 3.1.0
+info:
+  title: marimo host protocol
+  version: 1.0.0
+  description: |
+    The contract a marimo host serves so that other programs on the same
+    machine can find it, see what it has, and work with its notebooks. A
+    host is a program that runs marimo notebooks, such as the marimo CLI
+    or the VS Code extension. A client is a program that talks to a host
+    from the outside, such as Pair.
+
+    A host writes a small file, the host record, that says where its API
+    is and how to authenticate. A client reads that file, opens the host's
+    event stream to learn what it has, and calls the operations the host
+    lists. There are two streams: `/events` carries the catalog, and
+    `/notebooks/{notebook_id}/events` carries one notebook: its cells and
+    document, its runtime, and the runs of code against it. Clients ignore
+    fields, operation names, event
+    names, and problem types they do not recognize. A change that would
+    break an existing client requires a new record version and a new base
+    path.
+security:
+  - hostToken: []
+paths:
+  /events:
+    get:
+      operationId: events
+      summary: Read the host's catalog as a stream
+      description: |
+        Sends everything the host has, then every change as it happens.
+        The response is a stream of server-sent events, so it stays open
+        and the host appends one event at a time. The catalog is the host
+        object, its projects, notebooks, runtimes, and attachments.
+
+        A new connection starts with one event per object the host knows
+        about, parents before children, followed by a `ready` event.
+        Snapshot events have no `id`; `ready` and live events have an `id`
+        line. The most recent `id` a client has seen is its position in
+        the stream. When a connection drops, the client reconnects and
+        sends that position in the `Last-Event-ID` header. If the host
+        still has the events after that point, it sends them with their
+        original ids and timestamps, even before the new `ready`, and then
+        `ready`. If it does not, it sends `reset`, and the client discards
+        what it holds and receives the full state again. A client also
+        discards an incomplete snapshot before reconnecting without a
+        cursor. On `reset` it clears its cursor until the next `ready`.
+
+        `types` limits the stream to some kinds of object without changing
+        ids or positions. It also filters the host object; `ready` and
+        `reset` are always sent. Keep the same filter when resuming a
+        cursor. The host writes a `: ping` comment every fifteen seconds
+        when nothing else is happening. A client that hears nothing for 45
+        seconds treats the connection as lost and reconnects.
+      parameters:
+        - $ref: '#/components/parameters/Types'
+        - $ref: '#/components/parameters/LastEventId'
+      responses:
+        '200':
+          description: The catalog, then changes, as server-sent events.
+          content:
+            text/event-stream:
+              schema:
+                description: |
+                  One event. `data` holds JSON, and the event name says
+                  which shape: a HostMessage, ProjectMessage,
+                  NotebookMessage, RuntimeMessage, or AttachmentMessage
+                  for an event named after that object; a RemovedMessage
+                  for an event ending in `.removed`; and an empty object
+                  for `ready` and `reset`.
+                type: object
+                required: [event, data]
+                properties:
+                  id:
+                    type: string
+                    description: The resume cursor. Omitted on snapshot and reset events.
+                  event:
+                    type: string
+                    description: The object kind, a kind ending in `.removed`, `ready`, or `reset`. Clients ignore unknown names but retain their cursor.
+                  data:
+                    type: string
+                    description: The message as JSON. Unknown event names do not require decoding this field.
+              x-effect-stream:
+                encoding: sse
+                errorSchema: { $ref: '#/components/schemas/Problem' }
+                failureEvent: effect/httpapi/stream/failure
+              example: "event: host\ndata: {\"host\":{\"operations\":[\"runtime.start\"]}}\n\nid: 41\nevent: ready\ndata: {}\n\n"
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '500': { $ref: '#/components/responses/Internal' }
+  /notebooks:
+    post:
+      operationId: notebook.create
+      summary: Create a notebook
+      description: |
+        Adds an empty notebook to the project. The request carries the
+        notebook's own fields, and the host fills in what it owns. In a
+        project with a `root`, `path` is required and `name` defaults to
+        the filename; if a file already exists at `path`, the host
+        answers `conflict` and leaves it alone. In a project without a
+        root, `name` is required, the host chooses storage, and `path` is
+        null. A request missing the required field is `invalid-request`.
+        The new notebook appears on the catalog stream with this
+        request's key.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateNotebookRequest' }
+      responses:
+        '201':
+          description: The notebook was created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Notebook' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+  /notebooks/{notebook_id}:
+    patch:
+      operationId: notebook.update
+      summary: Rename or move a notebook
+      description: |
+        Changes `path`, `name`, or both. A new `path` moves the file
+        under the same project root, and an attached runtime follows it.
+        A new `name` changes the label shown to people. What the file
+        contains is content, which this protocol does not write. If a
+        file already exists at `path`, the host answers `conflict`.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateNotebookRequest' }
+      responses:
+        '200':
+          description: The notebook as it now is.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Notebook' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+    delete:
+      operationId: notebook.delete
+      summary: Delete a notebook
+      description: |
+        Deletes the file. While the notebook has a runtime, the host
+        answers `conflict` instead.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: The notebook was deleted.
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+  /notebooks/{notebook_id}/events:
+    get:
+      operationId: notebook.events
+      summary: Follow one notebook as a stream
+      description: |
+        Sends the notebook, its cells and document, its runtime, its
+        attachments, its runs, their executions, and their items, then
+        every change as it happens. The
+        stream follows the same rules as `/events`: a snapshot that ends
+        in `ready`, ids as positions, `Last-Event-ID` to resume, `reset`
+        when the host cannot, a `: ping` comment every fifteen seconds,
+        and `types` to limit the kinds sent. The optional `run_id` query
+        narrows the stream to one run. A cursor belongs to the stream it
+        came from.
+
+        Opening this stream attaches the client to the notebook. An
+        attachment appears on both streams while the connection is open
+        and is removed when it closes. Every opening, including a reconnect,
+        creates a separate attachment. The optional
+        `Marimo-Attachment-Identity` header supplies its `identity` so
+        consumers can group connections from the same client. A shared
+        identity does not merge attachments or extend their lifetimes.
+        The snapshot includes every run that is not yet completed, with
+        its executions and items, plus
+        any completed results the host retains. Result retention is
+        independent of replay history. Removed objects are absent from
+        snapshots; a resumable stream carries their removal events.
+
+        The stream may also carry `custom` events: namespaced JSON payloads
+        that describe occurrences rather than object state. These have
+        cursors and timestamps and participate in replay, but never appear
+        in snapshots. A reset cannot recover custom events whose history
+        has expired. `types=custom` selects them. They do not belong to a
+        run and are excluded by `run_id`.
+
+        The opening phase is one consistent cut of the notebook, taken
+        under the lock that changes to the document take, so reading to
+        `ready` and closing is a snapshot, and `types=cell,document` is a
+        snapshot of the document alone. Cells arrive before the document
+        that orders them, in the opening phase and after every change, so
+        a client never holds a document whose `order` names a cell it has
+        not received. The effects of one change to the document arrive
+        together, with no other event between them. The analysis, when
+        the host has one, follows the document it describes.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/Types'
+        - $ref: '#/components/parameters/RunFilter'
+        - $ref: '#/components/parameters/LastEventId'
+        - $ref: '#/components/parameters/AttachmentIdentity'
+        - $ref: '#/components/parameters/AttachmentKind'
+        - $ref: '#/components/parameters/AttachmentName'
+      responses:
+        '200':
+          description: The notebook, then changes, as server-sent events.
+          content:
+            text/event-stream:
+              schema:
+                description: |
+                  One event. `data` holds JSON, and the event name says
+                  which shape: a NotebookMessage, DocumentMessage,
+                  AnalysisMessage, CellMessage, RuntimeMessage, AttachmentMessage,
+                  RunMessage, ExecutionMessage, ConsoleMessage,
+                  DisplayMessage, or VariableMessage for an event named
+                  after that kind; a CustomMessage for `custom`; a RemovedMessage
+                  for an event ending in `.removed`; and an empty object
+                  for `ready` and `reset`.
+                type: object
+                required: [event, data]
+                properties:
+                  id:
+                    type: string
+                    description: The resume cursor. Omitted on snapshot and reset events.
+                  event:
+                    type: string
+                    description: The kind, a kind ending in `.removed`, `ready`, or `reset`. Clients ignore unknown names but retain their cursor.
+                  data:
+                    type: string
+                    description: The message as JSON. Unknown event names do not require decoding this field.
+              x-effect-stream:
+                encoding: sse
+                errorSchema: { $ref: '#/components/schemas/Problem' }
+                failureEvent: effect/httpapi/stream/failure
+              example: "event: notebook\ndata: {\"notebook\":{\"id\":\"n1\",\"project_id\":\"p1\",\"path\":\"forecasts.py\",\"name\":\"forecasts\",\"operations\":[],\"updated_at\":null}}\n\nid: 41\nevent: ready\ndata: {}\n\n"
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '500': { $ref: '#/components/responses/Internal' }
+  /notebooks/{notebook_id}/edits:
+    post:
+      operationId: notebook.edit
+      summary: Change parts of the document
+      description: |
+        Applies an ordered list of changes to the document as one unit.
+        Each change says what it replaces and carries the etag that state
+        had when the client read it, so two writers never silently
+        overwrite each other. Every etag is compared with the document as
+        it was when the request arrived, so one request can create a cell
+        and then place it with the order etag the client read. Cells and
+        the order each have their own etag, so writers touching different
+        parts never conflict. An etag of `*` skips the check. A `put_cell`
+        with a null etag creates the cell, after or before an existing cell
+        or at the end; placement has no precondition, so two clients
+        inserting at once both succeed.
+
+        If any precondition is stale, nothing is applied and the host
+        answers `conflict` with `edit` naming the first stale change and
+        carrying the object as it now is. A change that could not apply to
+        any state, such as an order that leaves out a cell or names one
+        twice, is `invalid-request`.
+
+        On success the document has changed, and every attachment sees
+        the effects on the notebook's stream with this request's key: the
+        cells that changed, `cell.removed` for each deleted cell, and then
+        the document, with nothing in between. The analysis of the new
+        revision follows with the same key once the host has it. The
+        response carries the
+        new etags, so a client keeps editing without reading again. A
+        change that changes nothing keeps its etags and sends no events.
+        Whether the result has reached the store shows in the document's
+        `saved_etag`.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EditRequest' }
+      responses:
+        '200':
+          description: The changes were applied.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EditResponse' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+  /notebooks/{notebook_id}/save:
+    post:
+      operationId: notebook.save
+      summary: Write the document to the host's store
+      description: |
+        Writes the document as currently applied, after which `saved_etag`
+        equals `etag`. There is no body to send, since the host already
+        holds the state. A host that persists every change as it applies
+        it need not offer this operation. A client shows a save control
+        when the notebook lists it, and reads whether anything is unsaved
+        from the two etags either way.
+
+        The response is an edit response, because a host may rewrite code
+        as it saves, for example to format it. Such changes reach the
+        stream like any other and the response carries the new etags.
+        `If-Match` makes the document etag the client last read a
+        precondition; the host answers `conflict` when the document has
+        moved on. If the store has changed since the host last read or
+        wrote it, the host answers `decision-required`, offering to
+        overwrite the store or to reload from it, and the client repeats
+        the request with its decision and a new key.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveRequest' }
+      responses:
+        '200':
+          description: The document is in the store.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EditResponse' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+  /notebooks/{notebook_id}/open:
+    post:
+      operationId: notebook.open
+      summary: Show a notebook in the host's own interface
+      description: |
+        Opens the notebook where the host normally shows notebooks, such
+        as a browser tab or an editor, and returns the URL it used.
+        Opening may start a runtime. The URL never contains the host's
+        token, and a client opens it exactly as given. If the notebook
+        cannot be shown, for example because its file is gone, the host
+        answers `conflict`.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: The notebook is being shown.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OpenNotebookResponse' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+  /notebooks/{notebook_id}/runtime:
+    put:
+      operationId: runtime.start
+      summary: Start the notebook's runtime, or find the one it has
+      description: |
+        Makes sure the notebook has a running runtime. If it has none, the
+        host starts one and answers `202` with the runtime `starting`. The
+        client then follows `runtime` events for that runtime, on either
+        stream, until its status is `running` or `failed`. If the notebook
+        already has a runtime, the host answers `200` with it and starts
+        nothing.
+
+        Sometimes the host needs a choice the client did not make, such as
+        which environment the kernel should run in. It then answers `409`
+        with a problem of type `decision-required` that lists the options,
+        and the client repeats the request with a new `Idempotency-Key`
+        and `decisions` filled in. A client that already knows its choice
+        can include `decisions` the first time.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StartRuntimeRequest' }
+      responses:
+        '200':
+          description: The notebook already has a runtime.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Runtime' }
+        '202':
+          description: A runtime is starting. Follow it on a stream.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Runtime' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+    delete:
+      operationId: runtime.stop
+      summary: Stop the notebook's runtime
+      description: |
+        Ends the runtime for everyone attached to the notebook. A runtime
+        that is still starting is cancelled; a running kernel is shut
+        down. Running executions end `interrupted`. Retained results stay
+        and are no longer live. The notebook and its attachments stay,
+        but Python state is lost. The client follows the
+        runtime on a stream until `runtime.removed`. If the notebook has
+        no runtime, the host answers `no-runtime`.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: The runtime is shutting down.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Runtime' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+  /notebooks/{notebook_id}/runtime/restart:
+    post:
+      operationId: runtime.restart
+      summary: Restart the notebook's kernel
+      description: |
+        Stops the runtime and starts a new one with a new id. The stream
+        shows the old runtime `terminating`, then `runtime.removed`, then
+        the new runtime `starting`, so a notebook never has two runtimes
+        at once. Running executions end `interrupted`. Retained results
+        stay and are no longer live. The response carries the replacement
+        runtime in its `starting` state. The client follows that id until
+        it is `running` or has `failed`. If the notebook has no runtime,
+        the host answers `no-runtime`.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: The replacement runtime is starting. Follow its id on a stream.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Runtime' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+  /notebooks/{notebook_id}/runtime/runs:
+    post:
+      operationId: runtime.run
+      summary: Run code or cells against the notebook's runtime
+      description: |
+        Runs `code` in a copy of the notebook runtime's namespace, or runs
+        `cells` of the document. Scratch code stays out of the graph and
+        its execution carries the submitted code. The runtime's execution
+        configuration determines whether dependent cells run too. Each cell
+        gets an execution with its `cell_id` and no code. The host assigns a run
+        id independent of the request's `Idempotency-Key` and answers `202`
+        with the run `queued` or `running`. The rest arrives on the notebook's
+        stream with this request's key: executions as they start, console
+        and display items, the variables each cell execution bound, and a
+        final execution whose `outcome` is
+        `value`, `error`, or `interrupted`, and a final `run` whose
+        status is `completed`. A client that wants to see all of it opens
+        the notebook's stream before sending the request.
+
+        A cell in `cells` that the document does not have, or whose
+        `code_hash` is not the one the request carries, is a `conflict`
+        whose `edit` names the cell and its index in `cells`, and nothing
+        runs. A client that read the cells from the stream sends their
+        `code_hash` so that an edit it did not see is a conflict rather
+        than a run of other code.
+
+        One run is in progress at a time. The host answers `no-runtime`
+        when the notebook has no runtime and `conflict` while another run
+        is in progress. Within the host's retry window, repeating the
+        request returns its latest run record without executing again,
+        even if its outputs have expired. A call to `input()` gets end of
+        file rather than blocking.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunRequest' }
+      responses:
+        '202':
+          description: The run was accepted. Follow it on the notebook's stream.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+  /notebooks/{notebook_id}/runtime/runs/{run_id}:
+    delete:
+      operationId: runtime.interrupt
+      summary: Interrupt a run
+      description: |
+        Stops a run that is in progress. The notebook's stream then
+        carries its executions with the outcome `interrupted` and the
+        run with status `completed` and outcome `interrupted` once the
+        interruption has taken effect. Queued executions end `interrupted` and
+        the running one is interrupted. A host may answer `conflict`
+        for a run that has not started. Once the run is completed, the host
+        answers `conflict`. A host that lists `runtime.run` supports this route.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: The run is being interrupted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+components:
+  securitySchemes:
+    hostToken:
+      type: http
+      scheme: bearer
+      description: |
+        The `token` from a host record, sent as `Authorization: Bearer
+        <token>` on every request. Hosts accept the token only in that
+        header, never in a cookie or a query parameter, and send no CORS
+        headers. Hosts answer only requests that arrive over the machine's
+        own loopback interface, and clients never follow redirects, so the
+        token never leaves the machine.
+  parameters:
+    AttachmentIdentity:
+      name: Marimo-Attachment-Identity
+      in: header
+      required: false
+      description: |
+        An opaque client identity, copied to the attachment's `identity`.
+        Clients can reuse it across streams and reconnects so consumers
+        can group their attachments within a host. It is descriptive data,
+        not an authentication credential or an idempotency key. Every
+        stream still creates its own attachment. Invalid values receive
+        a 400 `invalid-request` response.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[!-~]+$'
+    AttachmentKind:
+      name: Marimo-Attachment-Kind
+      in: header
+      required: false
+      description: |
+        What kind of client is attached, such as `browser`, `editor`, or
+        `agent`. Copied to the attachment's `kind`; omitted means `client`.
+        Hosts accept kinds they do not recognize. Values must contain one
+        or more lowercase ASCII letters, digits, or hyphens; invalid values
+        receive a 400 `invalid-request` response.
+      schema:
+        type: string
+        pattern: '^[a-z0-9-]+$'
+        default: client
+    AttachmentName:
+      name: Marimo-Attachment-Name
+      in: header
+      required: false
+      description: |
+        A human-readable label copied to the attachment's `name`, such as
+        `Notebook CLI`. Omitted or empty means the attachment's name is
+        null. The value must be at most 256 characters; longer values
+        receive a 400 `invalid-request` response.
+      schema:
+        type: string
+        maxLength: 256
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        A key the client makes up for this request, such as a UUID. It
+        does two jobs. If the client sends the same request again, for
+        example after a timeout, the host returns the original response
+        instead of doing the work twice. And the host puts the key on
+        every event about the object the request changed, as
+        `request_id`, until that object reaches a final status, so the
+        client can tell which changes it caused. Sending the same key with
+        a different request is a `conflict`. Keys are scoped to the host,
+        across all mutation routes, for a host-documented retry window
+        independent of result and replay retention. Repeating a run request
+        returns its latest run record, even if its outputs have expired.
+        Outside that window or after loss of host state, the key may execute
+        again. Error responses do not reserve a key. Clients use fresh keys
+        for new work and decision retries.
+      schema: { type: string }
+    NotebookId:
+      name: notebook_id
+      in: path
+      required: true
+      description: The notebook's id.
+      schema: { $ref: '#/components/schemas/NotebookId' }
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      description: The run's id.
+      schema: { $ref: '#/components/schemas/RunId' }
+    RunFilter:
+      name: run_id
+      in: query
+      required: false
+      description: Narrows the notebook stream to one run.
+      schema: { $ref: '#/components/schemas/RunId' }
+    Types:
+      name: types
+      in: query
+      required: false
+      description: Which kinds to send, as a comma-separated list of kind names such as `runtime,project`. Omit it to receive every kind the stream carries.
+      schema: { type: string }
+    LastEventId:
+      name: Last-Event-ID
+      in: header
+      required: false
+      description: The `id` of the last event the client received, when reconnecting.
+      schema: { type: string }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: The document etag the client last read, as a precondition. The host answers `conflict` when the document's etag differs.
+      schema: { type: string }
+  responses:
+    InvalidRequest:
+      description: The body or parameters are malformed.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: The token is missing or wrong.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: The request did not come from this machine.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: There is no such object or route.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    MethodNotAllowed:
+      description: The route exists but not for this method. `Allow` lists the methods it accepts.
+      headers:
+        Allow:
+          schema: { type: string }
+          description: The methods this route accepts, comma separated.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotAcceptable:
+      description: No representation the host produces satisfies `Accept`.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: The request conflicts with the current state (`conflict`), needs a runtime the notebook does not have (`no-runtime`), or needs a decision first (`decision-required`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    UnsupportedOperation:
+      description: The host does not offer this operation. Its `operations` list says which it does.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Internal:
+      description: The host failed.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  schemas:
+    ProjectId:
+      type: string
+      minLength: 1
+      description: Identifies a project. Unique within the host and unchanged while the project exists.
+    NotebookId:
+      type: string
+      minLength: 1
+      description: Identifies a notebook. Unique within the host and unchanged while the notebook exists.
+    RuntimeId:
+      type: string
+      minLength: 1
+      description: Identifies a runtime. Unique within the host; every start and restart creates a new id.
+    AttachmentId:
+      type: string
+      minLength: 1
+      description: Identifies an attachment. Unique within the host.
+    RunId:
+      type: string
+      minLength: 1
+      description: Identifies a run independently of the request's `Idempotency-Key`. Events carry the key in `request_id`.
+    ExecutionId:
+      type: string
+      minLength: 1
+      description: Identifies an execution. Unique within the host.
+    ItemId:
+      type: string
+      minLength: 1
+      description: Identifies a console, display, or variable item. Unique within the host; sending an item again with the same id replaces it.
+    CellId:
+      type: string
+      minLength: 1
+      description: Identifies a cell within its notebook. Stable while the host serves the notebook; whether it survives a reload of the store depends on the format. `setup` is the setup cell.
+    HostRecord:
+      type: object
+      description: |
+        A host record is the file a host writes so that clients can find
+        it. A host writes `<marimo-state-dir>/hosts-v1/<id>.json` once its API
+        is serving at `url`, where `<id>` is an identifier the host makes
+        up each time it starts. The record does not change while the host
+        runs, and the host removes it when it stops.
+
+        A client reads `version` before anything else and skips any record
+        it cannot parse or whose version it does not support. It also
+        checks that the file and its directory belong to the current user
+        and cannot be read by others, and that `url` points at this
+        machine.
+      required: [version, process, name, url, token]
+      properties:
+        version:
+          type: integer
+          enum: [1]
+          description: The version of this record's format. This document describes version 1.
+        process: { $ref: '#/components/schemas/Process' }
+        name:
+          type: string
+          description: A label for the host to show people, such as `VS Code` or `marimo`. Two hosts can share a name; the filename is the identity.
+          example: marimo
+        url:
+          type: string
+          description: Where the host's API is. The scheme is `http`, and the host part is `127.0.0.1` or `[::1]`, written exactly that way.
+          example: http://127.0.0.1:2718/api/marimo/v1
+        token:
+          type: string
+          minLength: 1
+          description: The secret a client sends to prove it read the record.
+    Process:
+      type: object
+      description: |
+        The process that wrote a record. A client checks that a process
+        with this `pid` that started at `started_at` still exists. If it
+        does not, the record is stale and may be removed.
+      required: [pid, started_at]
+      properties:
+        pid:
+          type: integer
+          format: int64
+          minimum: 1
+          description: The process id.
+        started_at:
+          type: string
+          format: date-time
+          description: When the process started.
+    ObjectType:
+      type: string
+      description: |
+        The kinds a stream carries, and the values `types` accepts. The
+        catalog stream carries host, project, notebook, runtime, and
+        attachment. A notebook's stream carries notebook, document,
+        analysis, cell, runtime, attachment, run, execution, console,
+        display, variable, and custom. Custom events describe occurrences
+        rather than object state.
+      enum: [host, project, notebook, document, analysis, cell, runtime, attachment, run, execution, console, display, variable, custom]
+    Custom:
+      type: object
+      description: |
+        A notebook occurrence with a producer-defined payload. It is replayed
+        while event history is retained, but is never included in snapshots
+        and does not belong to a run. The notebook is identified by the stream.
+      required: [type, data]
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.
+        data:
+          description: Any JSON value, including null. The producer defines its schema and consumers of the type validate it.
+    Host:
+      type: object
+      description: |
+        What the host can do. There is exactly one host object, and it is
+        the first object in a snapshot when the filter includes `host`.
+        A resumed stream only sends it if its operations changed since
+        the cursor. The host sends it again if its operations change.
+      required: [operations]
+      properties:
+        operations:
+          type: array
+          items: { type: string }
+          description: The operations this host implements, such as `runtime.start`. Whether a client may call one on a given project or notebook is that object's `operations`. Clients accept names they do not recognize.
+    ProjectStatus:
+      type: string
+      description: |
+        How far a host has gotten finding the notebooks in a project.
+        While it is `indexing`, more notebooks are coming. Once it is
+        `indexed`, the host believes it has found every notebook under the
+        root. A `partial` project is one the host stopped scanning on
+        purpose, or one with something it could not read.
+      enum: [indexing, indexed, partial]
+    Project:
+      type: object
+      description: A project is a group of notebooks that the host presents together, usually a directory.
+      required: [id, name, root, status, message, operations]
+      properties:
+        id: { $ref: '#/components/schemas/ProjectId' }
+        name:
+          type: string
+          description: A label to show people, usually the name of the root directory.
+        root:
+          type: [string, 'null']
+          description: The absolute path of the project's directory, written the way the host's operating system writes paths. Null when the project has no directory.
+        status: { $ref: '#/components/schemas/ProjectStatus' }
+        message:
+          type: [string, 'null']
+          description: Why the host stopped scanning. Null unless `status` is `partial`.
+        operations:
+          type: array
+          items: { type: string }
+          description: Operations this client may call on the project, today `notebook.create`. A subset of `host.operations`, narrowed by permission and never by state. The host sends the project again when it changes.
+    Notebook:
+      type: object
+      description: |
+        A notebook is a document and its results as the host knows them,
+        usually backed by a file. Its kernel, when it has one, is a
+        separate object, the runtime. A host sends at most one `notebook`
+        event per second for the same notebook, since `updated_at`
+        changes on every save.
+      required: [id, project_id, path, name, operations, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/NotebookId' }
+        project_id: { $ref: '#/components/schemas/ProjectId' }
+        path:
+          type: [string, 'null']
+          description: The file's path relative to the project root, written the way the host's operating system writes paths. Null when the notebook has no file, such as one not yet saved, or one deleted while a runtime still refers to it.
+        name:
+          type: string
+          description: A label to show people. Derived from the filename when the host has nothing better.
+        operations:
+          type: array
+          items: { type: string }
+          description: Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations`, narrowed by permission and never by state; whether a runtime is attached shows in the `runtime` object, and preconditions still apply when an operation is called. The host sends the notebook again when it changes.
+        updated_at:
+          type: [string, 'null']
+          format: date-time
+          description: When the file was last modified, as of the host's last look at it. Null when the host does not know.
+    RuntimeStatus:
+      type: string
+      description: |
+        Where a runtime is in its life. A `starting` runtime is bringing
+        its kernel up. A `running` runtime accepts work. A `terminating`
+        runtime is shutting its kernel down. A `failed` runtime could not
+        start, or its kernel exited unexpectedly. A runtime that has
+        ended is removed rather than given a status.
+      enum: [starting, running, terminating, failed]
+    Runtime:
+      type: object
+      description: |
+        A runtime is a kernel attached to one notebook, and a notebook has
+        at most one. It ends when a client or the host stops it or its
+        process exits, and the host then sends `runtime.removed`. Every start and restart creates
+        a new runtime with a new id. Results carry their producer's runtime
+        id so clients can tell which are live.
+      required: [id, notebook_id, status, message, marimo_version, started_at]
+      properties:
+        id: { $ref: '#/components/schemas/RuntimeId' }
+        notebook_id: { $ref: '#/components/schemas/NotebookId' }
+        status: { $ref: '#/components/schemas/RuntimeStatus' }
+        message:
+          type: [string, 'null']
+          description: A note about the current status, such as progress while `starting` or the reason when `failed`. Null otherwise.
+        marimo_version:
+          type: [string, 'null']
+          description: The version of marimo running the kernel. Null until the host knows it.
+        started_at:
+          type: string
+          format: date-time
+          description: When this runtime started.
+    Attachment:
+      type: object
+      description: |
+        An attachment is a consumer connected to a notebook, such as a
+        browser tab, an editor, or an agent. Opening the notebook's stream
+        creates one. It is removed when that connection closes, and not
+        when the notebook's runtime stops or restarts. Each stream has its
+        own attachment, even when several share a client identity.
+      required: [id, notebook_id, kind, name, since]
+      properties:
+        id: { $ref: '#/components/schemas/AttachmentId' }
+        notebook_id: { $ref: '#/components/schemas/NotebookId' }
+        identity:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^[!-~]+$'
+          description: |
+            The opaque client identity supplied by `Marimo-Attachment-Identity`.
+            Omitted when none was supplied. Consumers can group attachments
+            with the same identity within a host. It does not identify an
+            individual connection or change its lifetime.
+        kind:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          description: What kind of thing is attached, supplied by `Marimo-Attachment-Kind`, such as `browser`, `editor`, or `agent`. Defaults to `client` when the header is omitted. Clients accept kinds they do not recognize.
+        name:
+          type: [string, 'null']
+          maxLength: 256
+          description: A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.
+        since:
+          type: string
+          format: date-time
+          description: When it attached.
+    Lifecycle:
+      type: string
+      description: |
+        Where a run or execution is in its lifecycle. An execution is
+        `queued` until it starts, `running` while code executes, and
+        `completed` once it has ended. How it ended is its `outcome`.
+      enum: [queued, running, completed]
+    RunOutcome:
+      type: string
+      description: |
+        How a run ended. `succeeded` means its work settled without an
+        execution error or interruption. `failed` means an execution
+        failed or the host could not finish the cycle. `interrupted`
+        means the cycle was cut short by interruption, even if an earlier
+        execution failed. Execution outcomes retain their individual results.
+      enum: [succeeded, failed, interrupted]
+    Run:
+      type: object
+      description: |
+        One bounded cycle of notebook work initiated by an action. It
+        includes synchronous callbacks and reactive work owned and awaited
+        by the runtime's scheduler. Context inherited by an independent task
+        records provenance, not ownership of the cycle. The host completes it
+        only after all member executions have ended and scheduling for the
+        cycle has finished. It never reopens or acquires new executions.
+        Independently triggered later work starts another run, even when
+        its cause belongs to an earlier run. Every consumer attached to
+        the notebook sees it.
+
+        Retention is up to the host and independent of replay history.
+        Hosts SHOULD retain ephemeral results briefly after completion to
+        allow reconnection. Runs, executions, and items each have removal
+        events; a cell result may outlive its run.
+      required: [id, notebook_id, caused_by, status, outcome, started_at, completed_at]
+      properties:
+        id: { $ref: '#/components/schemas/RunId' }
+        notebook_id: { $ref: '#/components/schemas/NotebookId' }
+        caused_by:
+          oneOf: [{ $ref: '#/components/schemas/ExecutionId' }, { type: 'null' }]
+          description: The execution that caused this runtime-scheduled run. This records provenance, not membership in that execution's run, and does not extend the earlier run's lifetime. Null for a client request or when the runtime does not know the source.
+        status:
+          $ref: '#/components/schemas/Lifecycle'
+          description: Queued until the first execution starts, running until the cycle has settled or been terminated, and completed once all member executions are terminal and no more can be scheduled in this run. A run can complete with no executions.
+        outcome:
+          oneOf: [{ $ref: '#/components/schemas/RunOutcome' }, { type: 'null' }]
+          description: Null until completed, then final. Published with the terminal status and completed_at. An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested.
+        started_at:
+          type: [string, 'null']
+          format: date-time
+          description: When the first execution started. Null if none has started.
+        completed_at:
+          type: [string, 'null']
+          format: date-time
+          description: When the run ended. Null until the run is `completed`.
+    DisplayData:
+      type: object
+      description: A rendered value.
+      required: [mimetype, data]
+      properties:
+        mimetype:
+          type: string
+          description: The format of `data`, such as `text/html` or `image/png`.
+          example: text/html
+        data:
+          type: string
+          description: The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve.
+    Variable:
+      type: object
+      description: |
+        A name a cell's execution bound in the notebook's namespace, with
+        the revision of its value. The execution binds it as it ends, and
+        the item is removed with the execution. An update, as when a
+        state setter runs or a client sets a value, advances the revision
+        without binding again, and the producer sends the item again with
+        the same id. Hosts publish a cell execution's variables before its
+        `completed` status, and remove a cell's previous execution and
+        its items before publishing the next one. A scratch execution's
+        names live only while it runs, so it publishes no variables.
+      required: [id, execution_id, name, revision, type, preview]
+      properties:
+        id: { $ref: '#/components/schemas/ItemId' }
+        execution_id:
+          $ref: '#/components/schemas/ExecutionId'
+          description: The execution that bound the name.
+        name:
+          type: string
+          description: The name in the namespace.
+        revision: { $ref: '#/components/schemas/Revision' }
+        type:
+          type: [string, 'null']
+          description: The runtime's label for the value's type. A host may leave it null.
+        preview:
+          type: [string, 'null']
+          description: A short rendering of the value. A host may leave it null.
+    Revision:
+      type: object
+      description: |
+        A variable's value at a point in time. Two revisions are equal
+        when `execution` and `update` are equal. Clients compare
+        revisions for equality.
+      required: [execution, update]
+      properties:
+        execution:
+          $ref: '#/components/schemas/ExecutionId'
+          description: The execution whose evaluation produced the value. Usually the variable's `execution_id`, and earlier when the runtime carried the value forward.
+        update:
+          type: integer
+          minimum: 0
+          description: How many times the value has been updated since it was produced. Zero at binding.
+    Position:
+      type: object
+      description: A position within code, using LSP coordinates.
+      required: [line, character]
+      properties:
+        line:
+          type: integer
+          minimum: 0
+          description: Zero-based line within the code.
+        character:
+          type: integer
+          minimum: 0
+          description: Zero-based offset in the line, in UTF-16 code units.
+    Range:
+      type: object
+      description: A span within code.
+      required: [start, end]
+      properties:
+        start: { $ref: '#/components/schemas/Position' }
+        end:
+          $ref: '#/components/schemas/Position'
+          description: Exclusive end. Equal to start when only a point is known.
+    Related:
+      type: object
+      description: A cell involved in an error, possibly the one carrying it.
+      required: [cell_id, range, message]
+      properties:
+        cell_id: { $ref: '#/components/schemas/CellId' }
+        range:
+          oneOf: [{ $ref: '#/components/schemas/Range' }, { type: 'null' }]
+          description: Where in that cell, when known.
+        message:
+          type: string
+          description: What that cell contributes, such as `reads x from C`.
+    Error:
+      type: object
+      description: |
+        A problem shaped like an LSP diagnostic. Further members are
+        kind-specific, as in Problem Details, and a client ignores
+        members it does not know.
+      required: [kind, message, source, severity, range, name, traceback, related]
+      properties:
+        kind:
+          type: string
+          description: The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions, and reserves `multiple-definitions` and `cycle-dependencies` for analysis, because every host schedules them the same way. Clients show unrecognized kinds as plain errors.
+        message:
+          type: string
+          description: A description of the error to show people.
+        source:
+          type: [string, 'null']
+          description: Who produced it, such as `marimo` or a SQL analyzer. Scopes kind.
+        severity:
+          type: string
+          enum: [error, warning, information, hint]
+          description: Error unless the producer says otherwise. Only error affects scheduling.
+        range:
+          oneOf: [{ $ref: '#/components/schemas/Range' }, { type: 'null' }]
+          description: Where in the code, when known.
+        name:
+          type: [string, 'null']
+          description: The exception class, such as `ZeroDivisionError`. Set when kind is exception, null otherwise.
+        traceback:
+          oneOf: [{ $ref: '#/components/schemas/DisplayData' }, { type: 'null' }]
+          description: The traceback as rendered by the runtime, plain text or HTML by its mimetype. Null when unavailable or not shown.
+        related:
+          type: array
+          items: { $ref: '#/components/schemas/Related' }
+          description: Every involved cell, including this one, in canonical order. Each copy of a cross-cell error carries the same list; clients deduplicate on kind and related cell ids. Empty when the error involves this code alone.
+    Outcome:
+      description: |
+        How an execution ended, tagged on `kind`. A `value` carries the
+        execution's value as last rendered; while the execution is
+        running it is the value so far, and it is final once the
+        execution is `completed`. An `error` carries the error that ended it.
+        An `interrupted` execution was cancelled before or during execution. Other
+        kinds are defined by later versions of this protocol.
+      oneOf:
+        - $ref: '#/components/schemas/ValueOutcome'
+        - $ref: '#/components/schemas/ErrorOutcome'
+        - $ref: '#/components/schemas/InterruptedOutcome'
+      discriminator:
+        propertyName: kind
+        mapping:
+          value: '#/components/schemas/ValueOutcome'
+          error: '#/components/schemas/ErrorOutcome'
+          interrupted: '#/components/schemas/InterruptedOutcome'
+    ValueOutcome:
+      type: object
+      required: [kind, display]
+      properties:
+        kind:
+          type: string
+          enum: [value]
+        display:
+          oneOf: [{ $ref: '#/components/schemas/DisplayData' }, { type: 'null' }]
+          description: The value as last rendered. Replaced as it grows. Null when the code produced no value.
+    ErrorOutcome:
+      type: object
+      required: [kind, error]
+      properties:
+        kind:
+          type: string
+          enum: [error]
+        error: { $ref: '#/components/schemas/Error' }
+    InterruptedOutcome:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [interrupted]
+    Execution:
+      type: object
+      description: |
+        One cell evaluated within a run, or scratch code evaluated once.
+        It moves through `queued`, `running`, and `completed`, and ends with
+        one outcome. Side effects belong to the execution whose context
+        produced them; items can arrive after the execution is completed
+        while it remains retained.
+      required: [id, run_id, runtime_id, caused_by, cell_id, code, code_hash, depends_on, status, outcome, started_at, completed_at]
+      properties:
+        id: { $ref: '#/components/schemas/ExecutionId' }
+        run_id:
+          oneOf: [{ $ref: '#/components/schemas/RunId' }, { type: 'null' }]
+          description: The run that owns this execution. Every live execution belongs to exactly one run. May name a run the host has dropped. Null only for a restored result whose run is unknown.
+        runtime_id:
+          oneOf: [{ $ref: '#/components/schemas/RuntimeId' }, { type: 'null' }]
+          description: The runtime that produced this execution. Live when it equals the current runtime's id. Null when the producer is unknown.
+        caused_by:
+          oneOf: [{ $ref: '#/components/schemas/ExecutionId' }, { type: 'null' }]
+          description: The execution in the same run that caused this one. Null for executions requested directly.
+        cell_id:
+          oneOf: [{ $ref: '#/components/schemas/CellId' }, { type: 'null' }]
+          description: The cell this execution belongs to. Null for scratch code, a cell outside the document.
+        code:
+          type: [string, 'null']
+          description: The submitted code for an execution with no cell. Null for a cell's execution, since the cell holds its code.
+        code_hash:
+          $ref: '#/components/schemas/Etag'
+          description: The `code_hash` of the code that was evaluated, computed as a cell's is.
+        depends_on:
+          type: object
+          additionalProperties:
+            oneOf: [{ $ref: '#/components/schemas/Revision' }, { type: 'null' }]
+          description: The variables the execution used, by name, each at the revision the runtime holds its result valid against. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on.
+        status: { $ref: '#/components/schemas/Lifecycle' }
+        outcome:
+          oneOf: [{ $ref: '#/components/schemas/Outcome' }, { type: 'null' }]
+          description: How the execution ended. Null while queued; while running, a value carries the display so far; final once completed.
+        started_at:
+          type: [string, 'null']
+          format: date-time
+          description: When the code started executing. Null while queued and for an execution that never ran.
+        completed_at:
+          type: [string, 'null']
+          format: date-time
+          description: When the execution ended. Null until it is completed.
+    Console:
+      type: object
+      description: |
+        Text an execution wrote to stdout or stderr. Items are ordinary
+        objects: a producer replaces one by sending it again with the
+        same id, and items are removed with their execution.
+      required: [id, execution_id, seq, name, text]
+      properties:
+        id: { $ref: '#/components/schemas/ItemId' }
+        execution_id: { $ref: '#/components/schemas/ExecutionId' }
+        seq:
+          type: integer
+          minimum: 0
+          description: Position among the execution's items, increasing in the order they were produced.
+        name:
+          type: string
+          enum: [stdout, stderr]
+          description: Which stream the text went to.
+        text:
+          type: string
+          description: The text, exactly as written.
+    Display:
+      type: object
+      description: |
+        A value an execution showed as a side effect, such as a figure
+        from `plt.show()`. A producer replaces one by sending it again
+        with the same id, which is how a progress bar updates in place.
+      required: [id, execution_id, seq, mimetype, data]
+      properties:
+        id: { $ref: '#/components/schemas/ItemId' }
+        execution_id: { $ref: '#/components/schemas/ExecutionId' }
+        seq:
+          type: integer
+          minimum: 0
+          description: Position among the execution's items, increasing in the order they were produced.
+        mimetype:
+          type: string
+          description: The format of `data`, such as `image/png`.
+        data:
+          type: string
+          description: The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve.
+    Etag:
+      type: string
+      description: |
+        An identifier derived from content, so that every host, kernel,
+        and store computes the same value for the same state. It is the
+        first 16 hexadecimal characters, in lower case, of SHA-256 over
+        the UTF-8 encoding of a canonical text. Each etag says what its
+        text is; a text made of several values is those values joined by
+        newlines. Clients do not compute etags. They read them from the
+        stream and from responses, and send them back as preconditions.
+    CellConfig:
+      type: object
+      description: How a cell is laid out and whether it runs. Every field is always present, so a cell's etag is well defined.
+      required: [column, disabled, hide_code, expand_output]
+      properties:
+        column:
+          type: [integer, 'null']
+          description: The column the cell sits in, for multi-column layouts. Null in a single column.
+        disabled:
+          type: boolean
+          description: Whether the cell is kept from running.
+        hide_code:
+          type: boolean
+          description: Whether clients hide the code by default.
+        expand_output:
+          type: boolean
+          description: Whether clients show the full output rather than a scrolled box.
+    Analysis:
+      type: object
+      description: |
+        What a document's cells imply, computed together over one
+        revision of the document so that cross-cell errors agree. One
+        per notebook, and removed with it. It follows the document it
+        describes, and `document_etag` says which revision that is.
+      required: [notebook_id, document_etag, cells]
+      properties:
+        notebook_id:
+          $ref: '#/components/schemas/NotebookId'
+          description: The notebook this analysis belongs to.
+        document_etag:
+          $ref: '#/components/schemas/Etag'
+          description: The document revision this analysis describes. Equal to the document's `etag` while the analysis is current.
+        cells:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/CellAnalysis' }
+          description: Every cell of that revision, by id.
+    CellAnalysis:
+      type: object
+      description: |
+        What a cell's text implies: the names it defines and reads, which
+        are the edges of the dependency graph, and the errors found in the
+        text alone or across the set of cells. A pure function of the
+        code, so two producers compute the same values.
+      required: [defs, refs, errors]
+      properties:
+        defs:
+          type: array
+          items: { type: string }
+          description: Names this cell defines.
+        refs:
+          type: array
+          items: { type: string }
+          description: Names this cell reads from other cells.
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/Error' }
+          description: Diagnostics about the code. Only an `error` affects scheduling. `multiple-definitions` lists the definers in `related`, each `range` at its definition; `cycle-dependencies` lists the cycle. Both are reported on every cell involved, differing only in `range`. Every other kind belongs to the analyzer named in `source`.
+    Cell:
+      type: object
+      description: |
+        A unit of code and configuration in the document. A cell event
+        fires when its code, name, or config changes. Markdown and SQL
+        cells are code that calls `mo.md` or `mo.sql`; a client chooses
+        the editor to show.
+      required: [id, notebook_id, code, name, config, etag, code_hash]
+      properties:
+        id: { $ref: '#/components/schemas/CellId' }
+        notebook_id: { $ref: '#/components/schemas/NotebookId' }
+        code:
+          type: string
+          description: The cell's source code, with newline line endings. A host normalizes other line endings when it loads a file.
+        name:
+          type: string
+          description: The cell's name. `_` for an anonymous cell; otherwise a Python identifier, unique within the notebook.
+        config: { $ref: '#/components/schemas/CellConfig' }
+        etag:
+          $ref: '#/components/schemas/Etag'
+          description: Identifies code, name, and config together, and is the precondition for editing the cell. Its text is `code_hash`, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output` in that order, each written as a JSON scalar such as `null`, `0`, or `true`.
+        code_hash:
+          $ref: '#/components/schemas/Etag'
+          description: Identifies the code alone. Its text is `code`. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code.
+    Document:
+      type: object
+      description: |
+        The document as a whole, without its cells, which are their own
+        objects: the cell order and app config. One per notebook,
+        and removed with it. The order and the app
+        config carry their own etags, so an edit to one does not conflict
+        with an edit to the other, or with edits to cells.
+      required: [notebook_id, order, app_config, etag, saved_etag, order_etag, app_config_etag]
+      properties:
+        notebook_id:
+          $ref: '#/components/schemas/NotebookId'
+          description: The notebook this document belongs to.
+        order:
+          type: array
+          items: { $ref: '#/components/schemas/CellId' }
+          description: Cell ids in display order. A permutation of the notebook's cells, each appearing exactly once.
+        app_config:
+          type: object
+          additionalProperties: true
+          description: Notebook-level settings, the keyword arguments to `marimo.App` such as `width` and `app_title`. Informational for now; no change sets it over this protocol.
+        etag:
+          $ref: '#/components/schemas/Etag'
+          description: Identifies the document as currently applied. Its text is `order_etag`, `app_config_etag`, and every cell's `etag` in order, so it changes when any of them does.
+        saved_etag:
+          oneOf: [{ $ref: '#/components/schemas/Etag' }, { type: 'null' }]
+          description: Identifies the document as last written to the host's store, computed the same way over that state. Equal to `etag` when every accepted change has been persisted. Null when nothing has been persisted, which is the case for a scratch copy.
+        order_etag:
+          $ref: '#/components/schemas/Etag'
+          description: Identifies the order alone. Its text is the cell IDs in order as a JSON array, with no whitespace and strings carrying only the escapes JSON requires. Editing a cell does not change it.
+        app_config_etag:
+          $ref: '#/components/schemas/Etag'
+          description: Identifies the app config alone. Its text is the app config as canonical JSON, with keys sorted by code point, no whitespace, and strings carrying only the escapes JSON requires.
+    HostMessage:
+      type: object
+      description: The data of a `host` event. The host object, plus which request caused the event and when.
+      required: [host]
+      properties:
+        request_id: &request_id
+          type: string
+          description: The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.
+        time: &time
+          type: string
+          format: date-time
+          description: When the host made this change. Present on live and replayed events; omitted on snapshots.
+        host: { $ref: '#/components/schemas/Host' }
+    CustomMessage:
+      type: object
+      description: The data of a `custom` event. This envelope is standardized; the custom type and payload are defined by their producer.
+      required: [custom, time]
+      properties:
+        custom: { $ref: '#/components/schemas/Custom' }
+        request_id: *request_id
+        time:
+          type: string
+          format: date-time
+          description: When the host emitted this event. Preserved on replay.
+    ProjectMessage:
+      type: object
+      description: The data of a `project` event. The project as it now is.
+      required: [project]
+      properties:
+        request_id: *request_id
+        time: *time
+        project: { $ref: '#/components/schemas/Project' }
+    NotebookMessage:
+      type: object
+      description: The data of a `notebook` event. The notebook as it now is.
+      required: [notebook]
+      properties:
+        request_id: *request_id
+        time: *time
+        notebook: { $ref: '#/components/schemas/Notebook' }
+    RuntimeMessage:
+      type: object
+      description: The data of a `runtime` event. The runtime as it now is.
+      required: [runtime]
+      properties:
+        request_id: *request_id
+        time: *time
+        runtime: { $ref: '#/components/schemas/Runtime' }
+    AttachmentMessage:
+      type: object
+      description: The data of an `attachment` event. The attachment as it now is.
+      required: [attachment]
+      properties:
+        request_id: *request_id
+        time: *time
+        attachment: { $ref: '#/components/schemas/Attachment' }
+    RunMessage:
+      type: object
+      description: The data of a `run` event. The run as it now is.
+      required: [run]
+      properties:
+        request_id: *request_id
+        time: *time
+        run: { $ref: '#/components/schemas/Run' }
+    ExecutionMessage:
+      type: object
+      description: The data of an `execution` event. The execution as it now is.
+      required: [execution]
+      properties:
+        request_id: *request_id
+        time: *time
+        execution: { $ref: '#/components/schemas/Execution' }
+    ConsoleMessage:
+      type: object
+      description: The data of a `console` event. The item as it now is.
+      required: [console]
+      properties:
+        request_id: *request_id
+        time: *time
+        console: { $ref: '#/components/schemas/Console' }
+    DisplayMessage:
+      type: object
+      description: The data of a `display` event. The item as it now is.
+      required: [display]
+      properties:
+        request_id: *request_id
+        time: *time
+        display: { $ref: '#/components/schemas/Display' }
+    VariableMessage:
+      type: object
+      description: The data of a `variable` event. The item as it now is.
+      required: [variable]
+      properties:
+        request_id: *request_id
+        time: *time
+        variable: { $ref: '#/components/schemas/Variable' }
+    DocumentMessage:
+      type: object
+      description: The data of a `document` event. The document as it now is.
+      required: [document]
+      properties:
+        request_id: *request_id
+        time: *time
+        document: { $ref: '#/components/schemas/Document' }
+    AnalysisMessage:
+      type: object
+      description: The data of an `analysis` event. The analysis as it now is.
+      required: [analysis]
+      properties:
+        request_id: *request_id
+        time: *time
+        analysis: { $ref: '#/components/schemas/Analysis' }
+    CellMessage:
+      type: object
+      description: The data of a `cell` event. The cell as it now is.
+      required: [cell]
+      properties:
+        request_id: *request_id
+        time: *time
+        cell: { $ref: '#/components/schemas/Cell' }
+    RemovedMessage:
+      type: object
+      description: |
+        The data of a `project.removed`, `notebook.removed`,
+        `cell.removed`, `runtime.removed`, `attachment.removed`,
+        `run.removed`, `execution.removed`, `console.removed`,
+        `display.removed`, or `variable.removed` event. The client deletes the object with this
+        id; the event name says which kind it is. Removing a notebook
+        removes its document and cells with it, without events of their
+        own; the document never has one.
+      required: [id]
+      properties:
+        request_id: *request_id
+        time: *time
+        id:
+          type: string
+          description: The id of the object that was removed.
+    Problem:
+      type: object
+      description: |
+        An error. Every error response has this one shape, following RFC
+        9457, and is served as `application/problem+json`. `status`
+        repeats the HTTP status, and `type` says more precisely what went
+        wrong. `decisions` appears only when `type` is
+        `tag:marimo.io,2026:host/decision-required`. A client ignores
+        members it does not recognize. An error never contains a token.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          description: |
+            What kind of problem this is, as a URI. The kinds this
+            protocol defines all start with `tag:marimo.io,2026:host/` and
+            end with one of `invalid-request` (400), `unauthorized` (401),
+            `forbidden` (403), `not-found` (404), `method-not-allowed`
+            (405), `not-acceptable` (406), `conflict` (409), `no-runtime`
+            (409), `decision-required` (409), `internal` (500), or
+            `unsupported-operation` (501). A client that sees a kind it
+            does not recognize falls back to `status`.
+          example: tag:marimo.io,2026:host/not-found
+        title:
+          type: string
+          description: A short, human-readable name for the kind of problem.
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          description: The HTTP status code of the response.
+        detail:
+          type: string
+          description: A human-readable explanation of what went wrong this time.
+        decisions:
+          type: array
+          items: { $ref: '#/components/schemas/Decision' }
+          description: The choices the client has to make before the host can carry out the request. Only present for `decision-required`.
+        edit:
+          $ref: '#/components/schemas/EditConflict'
+          description: Which change was stale and what the host holds instead. Only present for a `conflict` answering an edit, a save, or a run of cells.
+    Decision:
+      type: object
+      description: |
+        A question the host needs answered before it can carry out a
+        request. The client answers by repeating the request with
+        `decisions` in the body, mapping this `id` to the `id` of an
+        option.
+      required: [id, prompt, options]
+      properties:
+        id:
+          type: string
+          description: Identifies the question when the client answers it.
+        prompt:
+          type: string
+          description: The question, worded for a person.
+          example: Where should forecasts.py run?
+        options:
+          type: array
+          items: { $ref: '#/components/schemas/DecisionOption' }
+          description: The possible answers.
+    DecisionOption:
+      type: object
+      description: One possible answer to a decision.
+      required: [id, label]
+      properties:
+        id:
+          type: string
+          description: Identifies this answer.
+        label:
+          type: string
+          description: Text to show a person.
+          example: Sandbox from the notebook's dependencies
+    CreateNotebookRequest:
+      type: object
+      description: The notebook's own fields, minus what the host assigns. A project with a root requires `path`; one without requires `name`.
+      required: [project_id]
+      properties:
+        project_id: { $ref: '#/components/schemas/ProjectId' }
+        path:
+          type: string
+          description: Where to put the file, relative to the project root and written the way the host's operating system writes paths.
+          example: analysis.py
+        name:
+          type: string
+          description: A label to show people. In a project with a root it defaults to the filename.
+    UpdateNotebookRequest:
+      type: object
+      description: The fields to change. At least one is present.
+      properties:
+        path:
+          type: string
+          description: The new location, relative to the project root and written the way the host's operating system writes paths.
+        name:
+          type: string
+          description: The new label to show people.
+    OpenNotebookResponse:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          description: The URL the host used to show the notebook. It never contains the host's token.
+    StartRuntimeRequest:
+      type: object
+      properties:
+        decisions:
+          type: object
+          additionalProperties: { type: string }
+          description: |
+            Answers to the questions in a `decision-required` problem.
+            Each key is a decision's `id` and each value is the `id` of
+            the chosen option. A client that already knows its choices can
+            send them the first time.
+          example: { environment: sandbox }
+    CellConfigInput:
+      type: object
+      description: A cell's settings as a client writes them. A field left out takes its default.
+      properties:
+        column:
+          type: [integer, 'null']
+          default: null
+        disabled:
+          type: boolean
+          default: false
+        hide_code:
+          type: boolean
+          default: false
+        expand_output:
+          type: boolean
+          default: false
+    CellInput:
+      type: object
+      description: A cell as a client writes it. The host derives the etags and the analysis.
+      required: [id, code]
+      properties:
+        id:
+          $ref: '#/components/schemas/CellId'
+          description: The cell's id. A client chooses the id of a cell it creates.
+        code:
+          type: string
+          description: The cell's source code.
+        name:
+          type: string
+          default: _
+          description: The cell's name. `_` for an anonymous cell.
+        config:
+          $ref: '#/components/schemas/CellConfigInput'
+    PutCell:
+      type: object
+      description: Replaces a whole cell, or creates one.
+      required: [kind, base_etag, cell]
+      properties:
+        kind:
+          type: string
+          enum: [put_cell]
+        base_etag:
+          type: [string, 'null']
+          description: The cell's etag as last read, `*` to skip the check, or null to create the cell. Null when the cell exists, or an etag when it does not, is a `conflict`.
+        cell: { $ref: '#/components/schemas/CellInput' }
+        after:
+          $ref: '#/components/schemas/CellId'
+          description: The cell a created cell goes after. Ignored for an existing cell.
+        before:
+          $ref: '#/components/schemas/CellId'
+          description: The cell a created cell goes before. Ignored for an existing cell. With neither `after` nor `before`, a created cell goes at the end.
+    DeleteCell:
+      type: object
+      description: Removes a cell.
+      required: [kind, id, base_etag]
+      properties:
+        kind:
+          type: string
+          enum: [delete_cell]
+        id:
+          $ref: '#/components/schemas/CellId'
+          description: The cell to remove.
+        base_etag:
+          type: string
+          description: The cell's etag as last read, or `*`.
+    SetOrder:
+      type: object
+      description: Replaces the cell order.
+      required: [kind, base_etag, order]
+      properties:
+        kind:
+          type: string
+          enum: [set_order]
+        base_etag:
+          type: string
+          description: The document's `order_etag` as last read, or `*`.
+        order:
+          type: array
+          items: { $ref: '#/components/schemas/CellId' }
+          description: Every cell id exactly once, in the new order, counting cells this edit creates and leaving out cells it deletes.
+    Change:
+      description: One change to the document, tagged on `kind`.
+      oneOf:
+        - $ref: '#/components/schemas/PutCell'
+        - $ref: '#/components/schemas/DeleteCell'
+        - $ref: '#/components/schemas/SetOrder'
+      discriminator:
+        propertyName: kind
+        mapping:
+          put_cell: '#/components/schemas/PutCell'
+          delete_cell: '#/components/schemas/DeleteCell'
+          set_order: '#/components/schemas/SetOrder'
+    EditRequest:
+      type: object
+      required: [changes]
+      properties:
+        changes:
+          type: array
+          items: { $ref: '#/components/schemas/Change' }
+          description: The changes, applied in order as one unit.
+    CellEtags:
+      type: object
+      description: The identifiers of a cell after an edit.
+      required: [etag, code_hash]
+      properties:
+        etag: { $ref: '#/components/schemas/Etag' }
+        code_hash: { $ref: '#/components/schemas/Etag' }
+    EditResponse:
+      type: object
+      description: The document after an edit or a save, and the cells it touched.
+      required: [document, cells]
+      properties:
+        document: { $ref: '#/components/schemas/Document' }
+        cells:
+          type: object
+          additionalProperties:
+            oneOf: [{ $ref: '#/components/schemas/CellEtags' }, { type: 'null' }]
+          description: The etags of each cell the request created or changed, by id, and null for each cell it deleted.
+    EditConflict:
+      type: object
+      description: The first stale change of an edit or run, and the state the host holds.
+      required: [change, cell, document]
+      properties:
+        change:
+          type: integer
+          minimum: 0
+          description: The index of the stale change in the request's `changes`, or of the stale cell in a run's `cells`. `0` for a save with a stale `If-Match`.
+        cell:
+          oneOf: [{ $ref: '#/components/schemas/Cell' }, { type: 'null' }]
+          description: The cell the change named, as it now is. Null when the document does not have it, or when the change named the order.
+        document: { $ref: '#/components/schemas/Document' }
+    SaveRequest:
+      type: object
+      description: What a save needs from the client, which is nothing until the host asks a question. `{}` is the usual body.
+      properties:
+        decisions:
+          type: object
+          additionalProperties: { type: string }
+          description: Answers to the questions in a `decision-required` problem, as for `runtime.start`.
+    RunRequest:
+      type: object
+      description: What to run, exactly one of `code` and `cells`.
+      properties:
+        code:
+          type: string
+          description: Python code to run as scratch code.
+        cells:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/RequestedCell' }
+          description: Cells of the document to run, in no particular order. The runtime's execution configuration determines whether dependent cells run too.
+    RequestedCell:
+      type: object
+      required: [id]
+      properties:
+        id: { $ref: '#/components/schemas/CellId' }
+        code_hash:
+          $ref: '#/components/schemas/Etag'
+          description: The cell's `code_hash` as last read. A cell whose code differs is a `conflict`. Absent, the cell runs as it is.

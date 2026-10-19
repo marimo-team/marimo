@@ -2954,3 +2954,63 @@ async def test_export_wasm_unexecuted_pins_header_to_pyodide_lock(
     assert "numpy==1.26.0" not in result.text
     assert "nltools==0.6.0.dev2" in result.text
     assert 'lock_kind = \\"observed\\"' in result.text
+
+
+async def test_export_wasm_offline_resolves_header_as_written(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Offline exports resolve the header against their own lockfile."""
+    lockfile = tmp_path / "pyodide-lock.json"
+    lockfile.write_text(
+        json.dumps(
+            {
+                "packages": {
+                    "numpy": {
+                        "name": "numpy",
+                        "version": "2.4.3",
+                        "package_type": "package",
+                    }
+                }
+            }
+        )
+    )
+    monkeypatch.setenv("MARIMO_PYODIDE_LOCK_FILE", str(lockfile))
+
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        textwrap.dedent(
+            """
+            # /// script
+            # dependencies = ["numpy", "pandas>=2"]
+            # ///
+
+            import marimo
+
+            __generated_with = "0.0.0"
+            app = marimo.App()
+
+
+            if __name__ == "__main__":
+                app.run()
+            """
+        ).lstrip()
+    )
+
+    async def bundle(code: str, *_args: Any, sources: Any, **_kwargs: Any):
+        return code, sources
+
+    with patch(
+        "marimo._export.offline.bundle_wasm_runtime",
+        AsyncMock(side_effect=bundle),
+    ) as bundle_wasm_runtime:
+        result = await export_wasm(
+            WASMFileExportRequest(
+                path=MarimoPath(notebook),
+                options=WASMExportOptions(mode="run", show_code=True),
+                offline_export_dir=tmp_path / "dist",
+            )
+        )
+
+    assert result.did_error is False
+    bundled_code = bundle_wasm_runtime.await_args.args[0]
+    assert 'dependencies = ["numpy", "pandas>=2"]' in bundled_code

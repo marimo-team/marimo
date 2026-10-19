@@ -11,7 +11,7 @@ import { reloadSafe } from "@/utils/reload-safe";
 import { generateUUID } from "@/utils/uuid";
 import { createModuleWorker } from "@/utils/worker";
 import { notebookIsRunningAtom } from "../cells/cells";
-import type { CommandMessage } from "../kernel/messages";
+import type { ClientCommand } from "../kernel/messages";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
 import { withDevAssetUrl } from "../network/export-asset-url";
@@ -711,7 +711,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   public listStorageEntries = throwNotImplemented;
   public downloadStorage = throwNotImplemented;
 
-  private async putControlRequest(operation: CommandMessage) {
+  private async putControlRequest(operation: ClientCommand) {
     await this.rpc.proxy.request.bridge({
       functionName: "put_control_request",
       payload: operation,
