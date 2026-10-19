@@ -152,7 +152,10 @@ class Event:
         """Whether the event belongs in the catalog or notebook stream."""
         if notebook_id is None:
             return self.kind in CATALOG_KINDS
-        return self.notebook_id == notebook_id and self.kind in NOTEBOOK_KINDS
+        return self.notebook_id == notebook_id and (
+            self.kind in NOTEBOOK_KINDS
+            or (self.kind is None and self.name not in ("ready", "reset"))
+        )
 
     def wanted(
         self, types: Collection[str] | None, run_id: str | None = None
@@ -160,7 +163,7 @@ class Event:
         """Apply kind and run filters, always including `ready` and `reset`."""
         if self.name in ("ready", "reset"):
             return True
-        return (types is None or self.kind in types) and (
+        return (types is None or (self.kind or self.name) in types) and (
             run_id is None or self.run_id == run_id
         )
 
@@ -174,6 +177,10 @@ class Sink(ABC):
     A `Stream` is a sink. A host can give a notebook one that observes
     each event before the stream records it.
     """
+
+    def append(self, event: Event) -> Event:
+        """Record an event without requiring a public protocol type."""
+        return self._append(deepcopy(event))
 
     def publish(
         self,
@@ -215,7 +222,11 @@ class Sink(ABC):
 
     @abstractmethod
     def _append(self, event: Event) -> Event:
-        """Record an event and return it as recorded."""
+        """Record an owned event and return an isolated copy as recorded.
+
+        The event must already be isolated from the caller. Forward it to
+        another sink's `_append` without copying it again.
+        """
 
 
 class Stream(Sink):
@@ -280,10 +291,6 @@ class Stream(Sink):
         finally:
             self._dispatching = False
             self._drain()
-
-    def append(self, event: Event) -> Event:
-        """Record an emitted event with a cursor belonging to this log."""
-        return self._append(deepcopy(event))
 
     def _append(self, event: Event) -> Event:
         self._last_id += 1

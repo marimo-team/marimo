@@ -99,10 +99,13 @@ def test_readers_cannot_change_other_readers_or_replay() -> None:
 
 
 @pytest.mark.parametrize("external", [False, True])
+@pytest.mark.parametrize("via_notebook", [False, True])
 def test_mutable_payloads_are_isolated_from_callers_and_listeners(
-    external: bool,
+    host: Host, notebook: Notebook, external: bool, via_notebook: bool
 ) -> None:
-    stream = Stream()
+    stream = host._stream if via_notebook else Stream()
+    sink = notebook.sink if via_notebook else stream
+    cursor = stream.last_id
     payload = protocol.Custom(type="example", data={"values": [1]})
     delivered: list[Event] = []
 
@@ -117,13 +120,13 @@ def test_mutable_payloads_are_isolated_from_callers_and_listeners(
             "custom",
             protocol.CustomMessage(custom=payload, time=msgspec.UNSET),
         )
-        published = stream.append(event)
+        published = sink.append(event)
     else:
-        published = stream.publish(payload)
+        published = sink.publish(payload)
     payload.data["values"].append(3)
     assert isinstance(published.data, protocol.CustomMessage)
     published.data.custom.data["values"].append(4)
-    replay = stream.since(0)
+    replay = stream.since(cursor)
     assert replay is not None
     assert [event.data.custom.data for event in [*delivered, *replay]] == [
         {"values": [1]},

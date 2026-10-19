@@ -33,7 +33,7 @@ KIOSK_EXCLUDED_OPERATIONS = {
 }
 
 
-def _should_filter_operation(op: str, *, is_kiosk: bool) -> bool:
+def should_filter_operation(op: str, *, is_kiosk: bool) -> bool:
     """Determine if operation should be filtered based on kiosk mode.
 
     Args:
@@ -71,7 +71,7 @@ def prepare_wire_message(data: KernelMessage, *, is_kiosk: bool) -> str | None:
     """
     op: str = deserialize_kernel_notification_name(data)
 
-    if _should_filter_operation(op, is_kiosk=is_kiosk):
+    if should_filter_operation(op, is_kiosk=is_kiosk):
         return None
 
     try:

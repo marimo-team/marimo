@@ -471,7 +471,7 @@ def session_view() -> Generator[SessionView, None, None]:
     yield sv
 
     # Test all operations can be serialized/deserialized
-    for operation in sv.notifications:
+    for operation in sv.snapshot_notifications():
         assert_serialize_roundtrip(operation)
 
 

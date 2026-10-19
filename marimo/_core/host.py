@@ -55,9 +55,9 @@ class _NotebookSink(Sink):
             return event
         with self._stream.deferred():
             removals = self._log.observe(event)
-            recorded = self._stream.append(event)
+            recorded = self._stream._append(event)
             for removed in removals:
-                self._stream.append(removed)
+                self._stream._append(removed)
         return recorded
 
 

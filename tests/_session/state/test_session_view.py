@@ -27,6 +27,7 @@ from marimo._messaging.notification import (
     EnvironmentOperationNotification,
     EnvironmentOperationStatus,
     EnvironmentState,
+    EnvironmentStateNotification,
     EsmSpec,
     ModelClose,
     ModelCustom,
@@ -44,6 +45,7 @@ from marimo._messaging.notification import (
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
+    StartupProgressNotification,
     VariableDeclarationNotification,
     VariablesNotification,
     VariableValue,
@@ -1011,7 +1013,9 @@ def test_add_data_source_connections(session_view: SessionView) -> None:
     assert INTERNAL_DUCKDB_ENGINE in names
 
     # Check connectors in operations
-    assert session_view.data_connectors in session_view.notifications
+    assert (
+        session_view.data_connectors in session_view.snapshot_notifications()
+    )
 
     # Filter out connections from variables
     session_view.add_raw_notification(
@@ -1830,7 +1834,7 @@ def test_session_view_startup_logs_operations_exclude_done(
     session_view.add_notification(start_log)
 
     # Should include in operations while in progress
-    operations = session_view.notifications
+    operations = session_view.snapshot_notifications()
     startup_ops = [
         op for op in operations if isinstance(op, StartupLogsNotification)
     ]
@@ -1842,7 +1846,7 @@ def test_session_view_startup_logs_operations_exclude_done(
     session_view.add_notification(done_log)
 
     # Should not include done startup logs in operations
-    operations = session_view.notifications
+    operations = session_view.snapshot_notifications()
     startup_ops = [
         op for op in operations if isinstance(op, StartupLogsNotification)
     ]
@@ -2428,3 +2432,60 @@ def test_preparation_remains_available_after_package_changes(
             logs={},
         ),
     ]
+
+
+@pytest.mark.parametrize("include_notebook", [False, True])
+def test_snapshot_notifications_preserve_replay_order(
+    session_view: SessionView, include_notebook: bool
+) -> None:
+    progress = StartupProgressNotification(
+        phase="starting-kernel", logs="Ready\n", log_mode="replace"
+    )
+    model = ModelLifecycleNotification(
+        model_id=WidgetModelId("model"),
+        message=ModelOpen(state={"value": 1}, buffer_paths=[], buffers=[]),
+    )
+    cell = CellNotification(
+        cell_id=cell_id,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="old output",
+        ),
+        status="idle",
+    )
+    # The output can arrive before its widget model exists.
+    for notification in (cell, model, progress):
+        session_view.add_notification(notification)
+
+    notifications = session_view.snapshot_notifications(
+        include_notebook=include_notebook
+    )
+    assert notifications == [
+        EnvironmentStateNotification(
+            source="kernel",
+            state=EnvironmentState(restart_required=False, operations=[]),
+        ),
+        EnvironmentStateNotification(
+            source="server",
+            state=EnvironmentState(restart_required=False, operations=[]),
+        ),
+        progress,
+        *([model, cell] if include_notebook else []),
+    ]
+    captured = msgspec.json.encode(notifications)
+    session_view.update_cell_outputs({cell_id: ("text/plain", "new output")})
+    session_view.add_notification(
+        StartupProgressNotification(
+            phase="starting-kernel", logs="More logs\n", log_mode="append"
+        )
+    )
+    assert msgspec.json.encode(notifications) == captured
+    assert (
+        msgspec.json.encode(
+            session_view.snapshot_notifications(
+                include_notebook=include_notebook
+            )
+        )
+        != captured
+    )

@@ -30,6 +30,7 @@ jobs:
             frontend:
               - 'frontend/**'
               - 'packages/**'
+              - 'protocols/host/**'
               - 'pnpm-workspace.yaml'
 
   lint_frontend:
@@ -147,6 +148,9 @@ jobs:
 
       - name: 📋 Register tsc problem matcher
         run: echo "::add-matcher::${{ github.workspace }}/.github/problemMatchers/tsc.json"
+
+      - name: 🔎 Check host protocol bindings
+        run: pnpm codegen:check
 
       - name: 🔎 Type check
         id: typecheck
