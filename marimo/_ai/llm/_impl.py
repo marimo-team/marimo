@@ -449,7 +449,7 @@ class google(ChatModel):
                 contents=google_messages,
                 config=generation_config,  # type: ignore[arg-type]
             )
-            return response.text
+            return response.text or ""
 
         return _stream_or_fallback(
             lambda: self._stream_response(
