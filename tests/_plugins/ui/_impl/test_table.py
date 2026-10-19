@@ -629,6 +629,15 @@ def test_search_sort_mismatched_columns_with_pagination(
     assert data == {"a": [2], "b": [10, 20]}
 
 
+def test_select_rows_mismatched_columns() -> None:
+    data = {"a": [2], "b": [10, 20]}
+    table = ui.table(data, selection="multi")
+
+    assert table._convert_value(["0", "1"]) == {"a": [2, None], "b": [10, 20]}
+    assert table._convert_value(["1"]) == {"a": [None], "b": [20]}
+    assert data == {"a": [2], "b": [10, 20]}
+
+
 def test_search_sort_nonexistent_columns() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data)
