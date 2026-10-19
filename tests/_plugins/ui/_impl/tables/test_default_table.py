@@ -1313,6 +1313,30 @@ class TestMismatchedColumnLengths(unittest.TestCase):
             {"a": 3, "b": None},
         ]
 
+    def test_select_rows_pads_short_columns(self) -> None:
+        data = {"a": [2], "b": [10, 20]}
+        mgr = DefaultTableManager(data)
+        assert mgr.select_rows([1]).data == {"a": [None], "b": [20]}
+        assert mgr.select_rows([0, 1]).data == {"a": [2, None], "b": [10, 20]}
+        assert data == {"a": [2], "b": [10, 20]}
+
+    def test_search_pads_short_columns(self) -> None:
+        mgr = DefaultTableManager({"a": [2], "b": [10, 20]})
+        assert mgr.search("20").data == {"a": [None], "b": [20]}
+        assert mgr.search("none").data == {"a": [None], "b": [20]}
+
+    def test_select_cells_pads_short_columns(self) -> None:
+        mgr = DefaultTableManager({"a": [2], "b": [10, 20]})
+        assert mgr.select_cells(
+            [
+                TableCoordinate(row_id=1, column_name="a"),
+                TableCoordinate(row_id=1, column_name="b"),
+            ]
+        ) == [
+            TableCell(row=1, column="a", value=None),
+            TableCell(row=1, column="b", value=20),
+        ]
+
 
 def test_validate_header_tooltip_valid() -> None:
     columns = {"name", "age", "birth_year"}
