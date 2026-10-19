@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { createStore } from "jotai";
-import { expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { Logger } from "@/utils/Logger";
 import {
   configOverridesAtom,
   connectionTransportTypeAtom,
@@ -12,9 +13,144 @@ import {
 import {
   AppConfigSchema,
   defaultUserConfig,
+  parseConfigOverrides,
+  parseUserConfig,
   type UserConfig,
   UserConfigSchema,
 } from "../config-schema";
+
+describe("configuration loading", () => {
+  beforeEach(() => {
+    vi.spyOn(Logger, "warn").mockImplementation(vi.fn());
+    vi.spyOn(Logger, "log").mockImplementation(vi.fn());
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  test("recovers invalid fields without discarding valid settings or mutating input", () => {
+    const input = {
+      keymap: {
+        preset: "helix",
+        overrides: { "run-cell": "Ctrl-Enter" },
+        destructive_delete: false,
+      },
+      display: { theme: "dark" },
+      save: { autosave: "off" },
+      future_section: { enabled: true },
+    };
+    const original = structuredClone(input);
+
+    expect(parseUserConfig(input)).toEqual(
+      mergeConfig(defaultUserConfig(), input, {
+        keymap: { preset: "default" },
+      }),
+    );
+    expect(input).toEqual(original);
+    expect(Logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("keymap.preset"),
+    );
+  });
+
+  test("recovers malformed sections and multiple invalid fields", () => {
+    expect(
+      parseUserConfig({
+        keymap: null,
+        display: { theme: "dark", code_editor_font_size: -1 },
+        save: { autosave: "invalid", autosave_delay: 5000 },
+        ai: { max_tokens: -1, rules: "Keep answers short" },
+      }),
+    ).toEqual(
+      mergeConfig(defaultUserConfig(), {
+        display: { theme: "dark" },
+        save: { autosave_delay: 5000 },
+        ai: { rules: "Keep answers short" },
+      }),
+    );
+  });
+
+  test("discards invalid array settings instead of leaving malformed entries", () => {
+    expect(
+      parseUserConfig({
+        file_browser: { folders: [{ name: "Missing path" }] },
+        runtime: {
+          default_auto_download: ["html", "invalid"],
+          on_cell_change: "lazy",
+        },
+      }),
+    ).toEqual(
+      mergeConfig(defaultUserConfig(), {
+        runtime: { on_cell_change: "lazy" },
+      }),
+    );
+  });
+
+  test.each([null, [], "vim", 42])(
+    "recovers malformed root config: %j",
+    (input) => {
+      expect(parseUserConfig(input)).toEqual(defaultUserConfig());
+      expect(parseConfigOverrides(input)).toEqual({});
+    },
+  );
+
+  test("keeps strict validation for the settings form", () => {
+    expect(
+      UserConfigSchema.safeParse({ keymap: { preset: "helix" } }).success,
+    ).toBe(false);
+  });
+
+  test("preserves sparse overrides, transformations, and unknown keys", () => {
+    const input = {
+      completion: { copilot: true, future_option: "enabled" },
+      display: { default_width: "normal" },
+      save: { autosave_delay: 100 },
+      ai: {
+        models: { chat_model: "custom/model", future_option: true },
+      },
+      file_browser: { folders: [{ path: "/data", future_option: true }] },
+      future_section: { enabled: true },
+    };
+
+    expect(parseConfigOverrides(input)).toEqual({
+      ...input,
+      completion: { copilot: "github", future_option: "enabled" },
+      display: { default_width: "compact" },
+      save: { autosave_delay: 1000 },
+    });
+    expect(parseConfigOverrides({})).toEqual({});
+    expect(parseConfigOverrides(undefined)).toEqual({});
+    expect(parseConfigOverrides({ display: { theme: undefined } })).toEqual({
+      display: {},
+    });
+  });
+
+  test("invalid overrides preserve lower-priority user settings", () => {
+    const userConfig = parseUserConfig({
+      keymap: { preset: "vim", overrides: { "run-cell": "Ctrl-Enter" } },
+      display: { theme: "dark", code_editor_font_size: 18 },
+      file_browser: { folders: [{ path: "/data" }] },
+    });
+    const input = {
+      keymap: { preset: "helix", overrides: { "run-cell": 42 } },
+      display: { theme: "light" },
+      file_browser: { folders: [{ name: "Missing path" }] },
+      save: null,
+    };
+    const original = structuredClone(input);
+    const overrides = parseConfigOverrides(input);
+
+    expect(overrides).toEqual({
+      keymap: { overrides: {} },
+      display: { theme: "light" },
+      file_browser: {},
+    });
+    expect(mergeConfig(userConfig, overrides)).toEqual(
+      mergeConfig(userConfig, { display: { theme: "light" } }),
+    );
+    expect(input).toEqual(original);
+  });
+});
 
 test("default AppConfig", () => {
   const defaultConfig = AppConfigSchema.parse({});

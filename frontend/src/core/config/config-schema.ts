@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { z } from "zod";
-import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import type { MarimoConfig, schemas } from "../network/types";
 
@@ -309,7 +308,7 @@ export function parseAppConfig(config: unknown) {
 
 export function parseUserConfig(config: unknown): UserConfig {
   try {
-    const parsed = UserConfigSchema.parse(config);
+    const { parsed } = recoverConfig(config, "user configuration");
     for (const [key, value] of Object.entries(parsed.experimental ?? {})) {
       if (value === true) {
         Logger.log(`🧪 Experimental feature "${key}" is enabled.`);
@@ -330,21 +329,106 @@ export function parseUserConfig(config: unknown): UserConfig {
   }
 }
 
-export function parseConfigOverrides(config: unknown): {} {
+export function parseConfigOverrides(config: unknown): Record<string, unknown> {
   try {
-    const overrides = config as {};
-    invariant(
-      typeof overrides === "object",
-      "internal-error: marimo-config-overrides is not an object",
+    const { input, parsed } = recoverConfig(
+      config,
+      "project configuration overrides",
     );
+    const overrides = isConfigObject(input)
+      ? pickProvidedConfig(input, parsed)
+      : {};
     if (Object.keys(overrides).length > 0) {
       Logger.log("🔧 Project configuration overrides:", overrides);
     }
-    return overrides as {};
+    return overrides;
   } catch (error) {
     Logger.error(`Marimo got an unexpected configuration overrides: ${error}`);
     return {};
   }
+}
+
+function isConfigObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function omitInvalidConfigValue(
+  config: unknown,
+  path: readonly PropertyKey[],
+): unknown {
+  if (path.length === 0) {
+    return undefined;
+  }
+  const [key, ...rest] = path;
+  if (
+    !isConfigObject(config) ||
+    typeof key !== "string" ||
+    !Object.hasOwn(config, key)
+  ) {
+    return config;
+  }
+
+  // Arrays are single settings: removing an entry's required field would
+  // leave the array invalid, and deleting an index would leave a hole.
+  if (rest.length === 0 || Array.isArray(config[key])) {
+    const { [key]: _invalid, ...recovered } = config;
+    return recovered;
+  }
+
+  const value = omitInvalidConfigValue(config[key], rest);
+  if (value === config[key]) {
+    return config;
+  }
+  return { ...config, [key]: value };
+}
+
+function recoverConfig(config: unknown, source: string) {
+  let input = config;
+  let result = UserConfigSchema.safeParse(input);
+  while (!result.success) {
+    Logger.warn(
+      `Marimo found invalid settings in ${source}; ignoring them:\n${z.prettifyError(result.error)}`,
+    );
+    let recovered = input;
+    for (const issue of result.error.issues) {
+      recovered = omitInvalidConfigValue(recovered, issue.path);
+    }
+    if (recovered === input) {
+      throw result.error;
+    }
+    input = recovered;
+    result = UserConfigSchema.safeParse(input);
+  }
+  return { input, parsed: result.data };
+}
+
+function pickProvidedConfig(
+  input: Record<string, unknown>,
+  parsed: Record<string, unknown>,
+): Record<string, unknown> {
+  // Schema defaults must not turn missing overrides into explicit settings.
+  return Object.fromEntries(
+    Object.entries(input)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [
+        key,
+        Object.hasOwn(parsed, key)
+          ? pickProvidedConfigValue(value, parsed[key])
+          : value,
+      ]),
+  );
+}
+
+function pickProvidedConfigValue(input: unknown, parsed: unknown): unknown {
+  if (isConfigObject(input) && isConfigObject(parsed)) {
+    return pickProvidedConfig(input, parsed);
+  }
+  if (Array.isArray(input) && Array.isArray(parsed)) {
+    return input.map((value, index) =>
+      pickProvidedConfigValue(value, parsed[index]),
+    );
+  }
+  return parsed;
 }
 
 export function defaultUserConfig(): UserConfig {
