@@ -399,7 +399,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         if isinstance(self.data, dict) and self.is_column_oriented:
             # Column-oriented: sort indices, then reorder all columns
             num_rows = self.get_num_rows()
-            # Match normalization: absent values sort like explicit None.
+            # Match other table managers, we preserve None values
             data_dict = {
                 col: (
                     values
