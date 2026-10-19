@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import os
 import secrets
+import shutil
 import signal
 import socket
 import subprocess
@@ -696,13 +697,13 @@ class TyServer(BaseLspServer):
 
     async def start(self) -> AlertNotification | None:
         # ty is not required, so we don't want to alert or fail if it is not installed
-        if not DependencyManager.ty.has():
+        if not (DependencyManager.ty.has() or DependencyManager.which("ty")):
             LOGGER.debug("ty is not installed. Skipping LSP server.")
             return None
         return await super().start()
 
     def validate_requirements(self) -> str | Literal[True]:
-        if not DependencyManager.ty.has():
+        if not (DependencyManager.ty.has() or DependencyManager.which("ty")):
             return "ty is missing. Install it with `pip install ty`."
 
         if not DependencyManager.which("node"):
@@ -711,12 +712,21 @@ class TyServer(BaseLspServer):
         return True
 
     def get_command(self) -> list[str]:
-        from ty.__main__ import find_ty_bin  # type: ignore
-
         lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
 
         # Use typed format to avoid quoting issues: ty:<binary_path>
-        ty_command = f"ty:{find_ty_bin()}"
+        try:
+            from ty.__main__ import find_ty_bin  # type: ignore
+
+            ty_command = f"ty:{find_ty_bin()}"
+        except ImportError:
+            # Tools installed with `uv tool install` are only on PATH.
+            ty_bin = shutil.which("ty")
+            if ty_bin is None:
+                raise FileNotFoundError(
+                    "ty executable not found on PATH"
+                ) from None
+            ty_command = f"ty:{ty_bin}"
 
         return [
             "node",
