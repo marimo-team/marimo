@@ -9,6 +9,7 @@ import secrets
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.api.deps import AppStateBase
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
@@ -27,12 +28,12 @@ LOGGER = _loggers.marimo_logger()
 async def host(app: Starlette) -> AsyncIterator[None]:
     """Initialize the host API and discovery record in edit mode."""
     state = AppStateBase.from_app(app)
-    if state.mode is not SessionMode.EDIT:
+    if not GLOBAL_SETTINGS.ENABLE_HOST or state.mode is not SessionMode.EDIT:
         yield
         return
 
-    bridge = SessionBridge(state.session_manager)
-    bridge.open()
+    bridge = SessionBridge(state.session_manager, state.config_manager)
+    await bridge.open()
     token = secrets.token_urlsafe(32)
     server = state.server.config
     url = host_url(server.host, server.port, state.base_url)
@@ -42,20 +43,25 @@ async def host(app: Starlette) -> AsyncIterator[None]:
     async def maintain() -> None:
         while True:
             await asyncio.sleep(1)
-            bridge.host.expire()
+            context.expire()
 
     maintenance = asyncio.create_task(maintain(), name="host.retention")
-    record = HostRecordFile(url=url, token=token)
-    try:
-        record.write()
-    except Exception as e:
-        LOGGER.warning("Could not write the host record: %s", e)
+    record = None
+    if url is None:
+        LOGGER.warning("No host record: loopback cannot reach %s", server.host)
+    else:
+        record = HostRecordFile(url=url, token=token)
+        try:
+            record.write()
+        except Exception as e:
+            LOGGER.warning("Could not write the host record: %s", e)
     try:
         yield
     finally:
         maintenance.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await maintenance
-        record.remove()
+        if record is not None:
+            record.remove()
         bridge.close()
         app.state.host_context = None

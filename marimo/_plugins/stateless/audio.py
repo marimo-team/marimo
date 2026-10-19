@@ -4,6 +4,7 @@ from __future__ import annotations
 import io
 import os
 import wave
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import marimo._output.data.data as mo_data
@@ -57,7 +58,7 @@ def convert_numpy_to_wav(
 
 
 def get_resolved_src(
-    src: str | io.BytesIO | NDArray[Any],
+    src: str | bytes | io.BytesIO | io.BufferedReader | Path | NDArray[Any],
     rate: int | None,
     normalize: bool,
 ) -> str | None:
@@ -72,6 +73,13 @@ def get_resolved_src(
 
     if isinstance(src, bytes):
         return mo_data.audio(src).url
+
+    if isinstance(src, Path):
+        expanded = src.expanduser()
+        if expanded.is_file():
+            ext = expanded.suffix or ".wav"
+            return mo_data.audio(expanded.read_bytes(), ext=ext).url
+        return src.as_posix()
 
     if isinstance(src, str) and os.path.isfile(os.path.expanduser(src)):
         src = os.path.expanduser(src)
@@ -94,7 +102,7 @@ def get_resolved_src(
 
 @mddoc
 def audio(
-    src: str | io.BytesIO | NDArray[Any],
+    src: str | bytes | io.BytesIO | io.BufferedReader | Path | NDArray[Any],
     rate: int | None = None,
     normalize: bool = True,
 ) -> Html:

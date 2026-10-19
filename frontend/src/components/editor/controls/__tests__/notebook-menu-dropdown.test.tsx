@@ -10,6 +10,7 @@ import {
 import { Provider } from "jotai";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { requestId } from "@/__tests__/branded";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { ModalProvider } from "@/components/modal/ImperativeModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,7 +26,7 @@ import { requestClientAtom } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { isWasm } from "@/core/wasm/utils";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import {
   DEFAULT_EXPORT_OPTIONS,
   exportOptionsAtom,
@@ -111,7 +112,7 @@ describe("NotebookMenuDropdown", () => {
     store.set(requestClientAtom, MockRequestClient.create());
     store.set(filenameAtom, "/project/notebook.py");
     store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
-    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
     store.set(kioskModeAtom, false);
     store.set(layoutStateAtom, {
       selectedLayout: "vertical",
@@ -129,7 +130,7 @@ describe("NotebookMenuDropdown", () => {
     }));
     invalidateDataSourceDiscovery();
     vi.spyOn(DiscoverDataSources, "request").mockResolvedValue({
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       sources: [],
     });
   });
@@ -142,7 +143,7 @@ describe("NotebookMenuDropdown", () => {
 
   it("shows detected databases in the add connection submenu", async () => {
     vi.mocked(DiscoverDataSources.request).mockResolvedValue({
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       sources: [POSTGRES_SOURCE],
     });
 
@@ -172,7 +173,7 @@ describe("NotebookMenuDropdown", () => {
 
   it("shows detected storage in the add remote storage submenu", async () => {
     vi.mocked(DiscoverDataSources.request).mockResolvedValue({
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       sources: [S3_SOURCE],
     });
 

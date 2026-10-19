@@ -15,6 +15,8 @@ class GlobalSettings:
     YES: bool = False
     CHECK_STATUS_UPDATE: bool = False
     TRACING: bool = is_env_true("MARIMO_TRACING")
+    # Temporary opt-in while the host protocol is experimental.
+    ENABLE_HOST: bool = is_env_true("MARIMO_ENABLE_HOST")
     PROFILE_DIR: str | None = None
     LOG_LEVEL: int = logging.WARNING
     MANAGE_SCRIPT_METADATA: bool = is_env_true("MARIMO_MANAGE_SCRIPT_METADATA")
@@ -46,7 +48,7 @@ class GlobalSettings:
     )
     # Hide all external code-sharing affordances (shareable WASM links, molab,
     # HTML sharing) across every notebook session. Enforced by
-    # SecurityConfigManager, which MarimoConfigManager merges after all other
+    # SecurityConfigReader, which MarimoConfigManager merges after all other
     # config sources, so it cannot be re-enabled by any config file or runtime
     # override. Intended for machine-wide enforcement set by infra admins in a
     # devpod or container spec.

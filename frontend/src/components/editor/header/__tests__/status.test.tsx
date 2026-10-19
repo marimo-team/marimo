@@ -10,7 +10,7 @@ import { viewStateAtom } from "@/core/mode";
 import {
   type ConnectionStatus,
   WebSocketClosedReason,
-  WebSocketState,
+  ConnectionState,
 } from "@/core/websocket/types";
 import { StatusOverlay } from "../status";
 
@@ -40,7 +40,7 @@ describe("StatusOverlay disconnect indicator", () => {
     const onReconnect = vi.fn();
     const { getByTestId } = renderOverlay(
       {
-        state: WebSocketState.CLOSED,
+        state: ConnectionState.CLOSED,
         code: WebSocketClosedReason.KERNEL_DISCONNECTED,
         reason: "kernel not found",
       },
@@ -57,7 +57,7 @@ describe("StatusOverlay disconnect indicator", () => {
 
   it("renders a disabled button when no onReconnect is provided", () => {
     const { getByTestId } = renderOverlay({
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       code: WebSocketClosedReason.KERNEL_DISCONNECTED,
       reason: "kernel not found",
     });
@@ -68,7 +68,7 @@ describe("StatusOverlay disconnect indicator", () => {
 
   it("leaves editor startup failures to the inline notice", () => {
     const { queryByTestId } = renderOverlay({
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
       reason: "Failed to start kernel sandbox",
     });

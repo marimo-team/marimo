@@ -17,7 +17,7 @@ import {
   getConnectionTooltip,
   isAppInteractionDisabled,
 } from "@/core/websocket/connection-utils";
-import type { WebSocketState } from "@/core/websocket/types";
+import type { ConnectionState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { Tooltip } from "../../ui/tooltip";
 import { MarkdownIcon, PythonIcon } from "./code/icons";
@@ -28,7 +28,7 @@ export const CreateCellButton = ({
   tooltipContent,
   oneClickShortcut,
 }: {
-  connectionState: WebSocketState;
+  connectionState: ConnectionState;
   tooltipContent: React.ReactNode;
   onClick: ((opts: { code: string; hideCode?: boolean }) => void) | undefined;
   oneClickShortcut: "shift" | "mod";

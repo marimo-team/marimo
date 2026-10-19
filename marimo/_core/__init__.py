@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Types and state for the marimo host protocol.
+"""State and commands for marimo hosts.
 
-Hosts track projects and notebooks. Notebooks track runtimes, client
-attachments, and runs. State changes are published as events.
+A host catalogs notebooks and retains run history. A notebook brings
+its document, execution results, and runtime together. State changes
+are published as events described in `protocols/host/spec.md`.
 """

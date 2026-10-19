@@ -360,10 +360,12 @@ const StdInput = (props: {
           }
 
           if (e.key === "Enter" && !e.shiftKey) {
-            if (value && !isPassword) {
-              addToHistory(value);
+            // Submit the visible input even if its change has not committed yet.
+            const submittedValue = e.currentTarget.value;
+            if (submittedValue && !isPassword) {
+              addToHistory(submittedValue);
             }
-            onSubmit(value);
+            onSubmit(submittedValue);
             setValue("");
             e.preventDefault();
             e.stopPropagation();

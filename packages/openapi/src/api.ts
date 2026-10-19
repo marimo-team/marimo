@@ -4281,38 +4281,25 @@ export interface components {
       /** @default null */
       variables?: (string | components["schemas"]["VariableContext"])[] | null;
     };
-    /**
-     * ClearCacheCommand
-     * @description Clear all cached data.
-     *
-     *         Clears all cache contexts, freeing memory and disk space.
-     *         Affects all cells using the @cache decorator.
-     */
-    ClearCacheCommand: {
-      /** @enum {unknown} */
-      type: "clear-cache";
-    };
     /** ClearCacheRequest */
     ClearCacheRequest: Record<string, any>;
-    /**
-     * CodeCompletionCommand
-     * @description Request code completion suggestions.
-     *
-     *         Sent when the user requests autocomplete. Provides code context up to
-     *         the cursor position for the language server.
-     *
-     *         Attributes:
-     *             id: Unique identifier for this request.
-     *             document: Source code up to the cursor position.
-     *             cell_id: Cell where completion is requested.
-     */
-    CodeCompletionCommand: {
-      cellId: components["schemas"]["CellId"];
-      document: string;
-      id: components["schemas"]["RequestId"];
-      /** @enum {unknown} */
-      type: "code-completion";
-    };
+    ClientCommand:
+      | components["schemas"]["ExecuteCellsCommand"]
+      | components["schemas"]["ExecuteScratchpadCommand"]
+      | components["schemas"]["DeleteCellCommand"]
+      | components["schemas"]["UpdateCellConfigCommand"]
+      | components["schemas"]["UpdateUIElementCommand"]
+      | components["schemas"]["ModelCommand"]
+      | components["schemas"]["InvokeFunctionCommand"]
+      | components["schemas"]["InstallPackagesCommand"]
+      | components["schemas"]["PreviewDatasetColumnCommand"]
+      | components["schemas"]["PreviewSQLTableCommand"]
+      | components["schemas"]["ListSQLTablesCommand"]
+      | components["schemas"]["ListSQLSchemasCommand"]
+      | components["schemas"]["ValidateSQLCommand"]
+      | components["schemas"]["ListDataSourceConnectionCommand"]
+      | components["schemas"]["DiscoverDataSourcesCommand"]
+      | components["schemas"]["ListSecretKeysCommand"];
     /** CodeCompletionRequest */
     CodeCompletionRequest: {
       cellId: components["schemas"]["CellId"];
@@ -4469,29 +4456,6 @@ export interface components {
       /** @enum {unknown} */
       type: "create-cell";
     };
-    /**
-     * CreateNotebookCommand
-     * @description Instantiate and initialize a notebook.
-     *
-     *         Sent when a notebook is first loaded. Contains all cells and initial UI element values.
-     *
-     *         Attributes:
-     *             execution_requests: ExecuteCellCommand for each notebook cell.
-     *             cell_ids: Initial cell IDs in the notebook.
-     *             set_ui_element_value_request: Initial UI element values.
-     *             auto_run: Whether to automatically execute cells on instantiation.
-     *             request: HTTP request context if available.
-     */
-    CreateNotebookCommand: {
-      autoRun: boolean;
-      cellIds: string[];
-      executionRequests: components["schemas"]["ExecuteCellCommand"][];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      setUiElementValueRequest: components["schemas"]["UpdateUIElementCommand"];
-      /** @enum {unknown} */
-      type: "create-notebook";
-    };
     /** CreateSecretRequest */
     CreateSecretRequest: {
       key: string;
@@ -4579,7 +4543,7 @@ export interface components {
     DataSourceDiscoveryResultNotification: {
       /** @enum {unknown} */
       op: "data-source-discovery-result";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       sources: components["schemas"]["DetectedDataSource"][];
     };
     /**
@@ -4646,6 +4610,17 @@ export interface components {
         | "time"
         | "unknown";
     };
+    /** @enum {unknown} */
+    DataType:
+      | "boolean"
+      | "date"
+      | "datetime"
+      | "geometry"
+      | "integer"
+      | "number"
+      | "string"
+      | "time"
+      | "unknown";
     /**
      * Database
      * @description Represents a collection of schemas.
@@ -4696,23 +4671,6 @@ export interface components {
       auto_discover_columns?: boolean | "auto";
       auto_discover_schemas?: boolean | "auto";
       auto_discover_tables?: boolean | "auto";
-    };
-    /**
-     * DebugCellCommand
-     * @description Enter debugger mode for a cell.
-     *
-     *         Starts the Python debugger (pdb) for the specified cell.
-     *
-     *         Attributes:
-     *             cell_id: Cell to debug.
-     *             request: HTTP request context if available.
-     */
-    DebugCellCommand: {
-      cellId: components["schemas"]["CellId"];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      /** @enum {unknown} */
-      type: "debug-cell";
     };
     /** DebugCellRequest */
     DebugCellRequest: {
@@ -4987,28 +4945,6 @@ export interface components {
       url: string;
     };
     /**
-     * ExecuteCellCommand
-     * @description Execute a single cell.
-     *
-     *         Executes a cell with the provided code. Dependent cells may be
-     *         re-executed based on the reactive execution mode.
-     *
-     *         Attributes:
-     *             cell_id: Cell to execute.
-     *             code: Python code to execute.
-     *             request: HTTP request context if available.
-     *             timestamp: Unix timestamp when command was created.
-     */
-    ExecuteCellCommand: {
-      cellId: components["schemas"]["CellId"];
-      code: string;
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      timestamp?: number;
-      /** @enum {unknown} */
-      type: "execute-cell";
-    };
-    /**
      * ExecuteCellsCommand
      * @description Execute multiple cells in a batch.
      *
@@ -5095,22 +5031,6 @@ export interface components {
       runId?: string | null;
     };
     /**
-     * ExecuteStaleCellsCommand
-     * @description Execute all stale cells.
-     *
-     *         Cells become stale when their dependencies change but haven't been
-     *         re-executed yet. Brings the notebook to a consistent state.
-     *
-     *         Attributes:
-     *             request: HTTP request context if available.
-     */
-    ExecuteStaleCellsCommand: {
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      /** @enum {unknown} */
-      type: "execute-stale-cells";
-    };
-    /**
      * ExecutionNotification
      * @description An attempt's lifecycle, independent of a cell's displayed status.
      *
@@ -5122,7 +5042,7 @@ export interface components {
     ExecutionNotification: {
       /** @default null */
       caused_by?: string | null;
-      cell_id: string;
+      cell_id: components["schemas"]["CellId"];
       /** @default null */
       code?: string | null;
       execution_id: string;
@@ -5456,16 +5376,6 @@ export interface components {
       return_value: unknown;
       status: components["schemas"]["HumanReadableStatus"];
     };
-    /**
-     * GetCacheInfoCommand
-     * @description Retrieve cache statistics.
-     *
-     *         Collects cache usage info across all contexts (hit/miss rates, time saved, disk usage).
-     */
-    GetCacheInfoCommand: {
-      /** @enum {unknown} */
-      type: "get-cache-info";
-    };
     /** GetCacheInfoRequest */
     GetCacheInfoRequest: Record<string, any>;
     /**
@@ -5774,109 +5684,16 @@ export interface components {
       preset: "default" | "vim";
       vimrc?: string | null;
     };
-    /** KnownUnions */
+    /**
+     * KnownUnions
+     * @deprecated
+     * @description Use the named NotificationMessage, ClientCommand, MarimoError, and DataType schemas directly.
+     */
     KnownUnions: {
-      command:
-        | components["schemas"]["CreateNotebookCommand"]
-        | components["schemas"]["RenameNotebookCommand"]
-        | components["schemas"]["CodeCompletionCommand"]
-        | components["schemas"]["ExecuteCellsCommand"]
-        | components["schemas"]["ExecuteScratchpadCommand"]
-        | components["schemas"]["ExecuteStaleCellsCommand"]
-        | components["schemas"]["DebugCellCommand"]
-        | components["schemas"]["SetBreakpointsCommand"]
-        | components["schemas"]["DeleteCellCommand"]
-        | components["schemas"]["SyncGraphCommand"]
-        | components["schemas"]["UpdateCellConfigCommand"]
-        | components["schemas"]["InstallPackagesCommand"]
-        | components["schemas"]["UpdateUIElementCommand"]
-        | components["schemas"]["ModelCommand"]
-        | components["schemas"]["InvokeFunctionCommand"]
-        | components["schemas"]["UpdateUserConfigCommand"]
-        | components["schemas"]["PreviewDatasetColumnCommand"]
-        | components["schemas"]["PreviewSQLTableCommand"]
-        | components["schemas"]["ListSQLTablesCommand"]
-        | components["schemas"]["ListSQLSchemasCommand"]
-        | components["schemas"]["ValidateSQLCommand"]
-        | components["schemas"]["ListDataSourceConnectionCommand"]
-        | components["schemas"]["DiscoverDataSourcesCommand"]
-        | components["schemas"]["StorageListEntriesCommand"]
-        | components["schemas"]["StorageDownloadCommand"]
-        | components["schemas"]["ListSecretKeysCommand"]
-        | components["schemas"]["RefreshSecretsCommand"]
-        | components["schemas"]["ClearCacheCommand"]
-        | components["schemas"]["GetCacheInfoCommand"]
-        | components["schemas"]["StopKernelCommand"];
-      /** @enum {unknown} */
-      data_type:
-        | "boolean"
-        | "date"
-        | "datetime"
-        | "geometry"
-        | "integer"
-        | "number"
-        | "string"
-        | "time"
-        | "unknown";
-      error:
-        | components["schemas"]["SetupRootError"]
-        | components["schemas"]["CycleError"]
-        | components["schemas"]["MultipleDefinitionError"]
-        | components["schemas"]["ImportStarError"]
-        | components["schemas"]["MarimoAncestorStoppedError"]
-        | components["schemas"]["MarimoAncestorPreventedError"]
-        | components["schemas"]["MarimoExceptionRaisedError"]
-        | components["schemas"]["MarimoStrictExecutionError"]
-        | components["schemas"]["MarimoInterruptionError"]
-        | components["schemas"]["MarimoSyntaxError"]
-        | components["schemas"]["MarimoInternalError"]
-        | components["schemas"]["MarimoSQLError"]
-        | components["schemas"]["UnknownError"];
-      notification:
-        | components["schemas"]["CellNotification"]
-        | components["schemas"]["ExecutionNotification"]
-        | components["schemas"]["FunctionCallResultNotification"]
-        | components["schemas"]["UIElementMessageNotification"]
-        | components["schemas"]["ModelLifecycleNotification"]
-        | components["schemas"]["RemoveUIElementsNotification"]
-        | components["schemas"]["ReloadNotification"]
-        | components["schemas"]["ReconnectedNotification"]
-        | components["schemas"]["InterruptedNotification"]
-        | components["schemas"]["CompletedRunNotification"]
-        | components["schemas"]["KernelReadyNotification"]
-        | components["schemas"]["CompletionResultNotification"]
-        | components["schemas"]["AlertNotification"]
-        | components["schemas"]["BannerNotification"]
-        | components["schemas"]["MissingPackageAlertNotification"]
-        | components["schemas"]["EnvironmentOperationNotification"]
-        | components["schemas"]["EnvironmentStateNotification"]
-        | components["schemas"]["StartupLogsNotification"]
-        | components["schemas"]["StartupProgressNotification"]
-        | components["schemas"]["KernelStartupErrorNotification"]
-        | components["schemas"]["VariablesNotification"]
-        | components["schemas"]["VariableValuesNotification"]
-        | components["schemas"]["QueryParamsSetNotification"]
-        | components["schemas"]["QueryParamsAppendNotification"]
-        | components["schemas"]["QueryParamsDeleteNotification"]
-        | components["schemas"]["QueryParamsClearNotification"]
-        | components["schemas"]["DatasetsNotification"]
-        | components["schemas"]["DataColumnPreviewNotification"]
-        | components["schemas"]["SQLTablePreviewNotification"]
-        | components["schemas"]["SQLTableListPreviewNotification"]
-        | components["schemas"]["SQLSchemaListPreviewNotification"]
-        | components["schemas"]["DataSourceConnectionsNotification"]
-        | components["schemas"]["DataSourceDiscoveryResultNotification"]
-        | components["schemas"]["ValidateSQLResultNotification"]
-        | components["schemas"]["StorageNamespacesNotification"]
-        | components["schemas"]["StorageEntriesNotification"]
-        | components["schemas"]["StorageDownloadReadyNotification"]
-        | components["schemas"]["SecretKeysResultNotification"]
-        | components["schemas"]["CacheClearedNotification"]
-        | components["schemas"]["CacheInfoNotification"]
-        | components["schemas"]["FocusCellNotification"]
-        | components["schemas"]["ActiveLineNotification"]
-        | components["schemas"]["NotebookDocumentTransactionNotification"]
-        | components["schemas"]["ConsumerCapabilitiesNotification"];
+      command: components["schemas"]["ClientCommand"];
+      data_type: components["schemas"]["DataType"];
+      error: components["schemas"]["MarimoError"];
+      notification: components["schemas"]["NotificationMessage"];
     };
     /**
      * LanguageServersConfig
@@ -6156,6 +5973,20 @@ export interface components {
       snippets?: components["schemas"]["SnippetsConfig"];
       venv?: components["schemas"]["VenvConfig"];
     };
+    MarimoError:
+      | components["schemas"]["SetupRootError"]
+      | components["schemas"]["CycleError"]
+      | components["schemas"]["MultipleDefinitionError"]
+      | components["schemas"]["ImportStarError"]
+      | components["schemas"]["MarimoAncestorStoppedError"]
+      | components["schemas"]["MarimoAncestorPreventedError"]
+      | components["schemas"]["MarimoExceptionRaisedError"]
+      | components["schemas"]["MarimoStrictExecutionError"]
+      | components["schemas"]["MarimoInterruptionError"]
+      | components["schemas"]["MarimoSyntaxError"]
+      | components["schemas"]["MarimoInternalError"]
+      | components["schemas"]["MarimoSQLError"]
+      | components["schemas"]["UnknownError"];
     /** MarimoExceptionRaisedError */
     MarimoExceptionRaisedError: {
       exception_type: string;
@@ -6323,7 +6154,7 @@ export interface components {
         | components["schemas"]["ModelUpdate"]
         | components["schemas"]["ModelCustom"]
         | components["schemas"]["ModelClose"];
-      model_id: string;
+      model_id: components["schemas"]["WidgetModelId"];
       /** @enum {unknown} */
       op: "model-lifecycle";
     };
@@ -6456,6 +6287,51 @@ export interface components {
         | components["schemas"]["SetConfig"]
       )[];
     };
+    NotificationMessage:
+      | components["schemas"]["CellNotification"]
+      | components["schemas"]["ExecutionNotification"]
+      | components["schemas"]["FunctionCallResultNotification"]
+      | components["schemas"]["UIElementMessageNotification"]
+      | components["schemas"]["ModelLifecycleNotification"]
+      | components["schemas"]["RemoveUIElementsNotification"]
+      | components["schemas"]["ReloadNotification"]
+      | components["schemas"]["ReconnectedNotification"]
+      | components["schemas"]["InterruptedNotification"]
+      | components["schemas"]["CompletedRunNotification"]
+      | components["schemas"]["KernelReadyNotification"]
+      | components["schemas"]["CompletionResultNotification"]
+      | components["schemas"]["AlertNotification"]
+      | components["schemas"]["BannerNotification"]
+      | components["schemas"]["MissingPackageAlertNotification"]
+      | components["schemas"]["EnvironmentOperationNotification"]
+      | components["schemas"]["EnvironmentStateNotification"]
+      | components["schemas"]["StartupLogsNotification"]
+      | components["schemas"]["StartupProgressNotification"]
+      | components["schemas"]["KernelStartupErrorNotification"]
+      | components["schemas"]["VariablesNotification"]
+      | components["schemas"]["VariableValuesNotification"]
+      | components["schemas"]["QueryParamsSetNotification"]
+      | components["schemas"]["QueryParamsAppendNotification"]
+      | components["schemas"]["QueryParamsDeleteNotification"]
+      | components["schemas"]["QueryParamsClearNotification"]
+      | components["schemas"]["DatasetsNotification"]
+      | components["schemas"]["DataColumnPreviewNotification"]
+      | components["schemas"]["SQLTablePreviewNotification"]
+      | components["schemas"]["SQLTableListPreviewNotification"]
+      | components["schemas"]["SQLSchemaListPreviewNotification"]
+      | components["schemas"]["DataSourceConnectionsNotification"]
+      | components["schemas"]["DataSourceDiscoveryResultNotification"]
+      | components["schemas"]["ValidateSQLResultNotification"]
+      | components["schemas"]["StorageNamespacesNotification"]
+      | components["schemas"]["StorageEntriesNotification"]
+      | components["schemas"]["StorageDownloadReadyNotification"]
+      | components["schemas"]["SecretKeysResultNotification"]
+      | components["schemas"]["CacheClearedNotification"]
+      | components["schemas"]["CacheInfoNotification"]
+      | components["schemas"]["FocusCellNotification"]
+      | components["schemas"]["ActiveLineNotification"]
+      | components["schemas"]["NotebookDocumentTransactionNotification"]
+      | components["schemas"]["ConsumerCapabilitiesNotification"];
     /**
      * OpenAiConfig
      * @description Configuration options for OpenAI or OpenAI-compatible services.
@@ -6736,16 +6612,6 @@ export interface components {
       op: "reconnected";
     };
     /**
-     * RefreshSecretsCommand
-     * @description Refresh secrets from the secrets store.
-     *
-     *         Reloads secrets from the provider without restarting the kernel.
-     */
-    RefreshSecretsCommand: {
-      /** @enum {unknown} */
-      type: "refresh-secrets";
-    };
-    /**
      * ReloadNotification
      * @description Instructs frontend to reload the page.
      */
@@ -6772,20 +6638,6 @@ export interface components {
       cell_id: components["schemas"]["CellId"];
       /** @enum {unknown} */
       op: "remove-ui-elements";
-    };
-    /**
-     * RenameNotebookCommand
-     * @description Rename or move the notebook file.
-     *
-     *         Updates the notebook's filename in the kernel metadata.
-     *
-     *         Attributes:
-     *             filename: New filename or path for the notebook.
-     */
-    RenameNotebookCommand: {
-      filename: string;
-      /** @enum {unknown} */
-      type: "rename-notebook";
     };
     /** RenameNotebookRequest */
     RenameNotebookRequest: {
@@ -7130,27 +6982,6 @@ export interface components {
     };
     /** Format: session-id */
     SessionId: TypedString<"SessionId">;
-    /**
-     * SetBreakpointsCommand
-     * @description Set the live debugger's breakpoints (session-scoped, not persisted).
-     *
-     *         Replaces the full breakpoint set: the frontend always sends the complete
-     *         map of cell id -> 1-based line numbers. Only meaningful when the
-     *         `debugger` experimental feature is enabled.
-     *
-     *         Attributes:
-     *             breakpoints: Map of cell id to lines that have a breakpoint.
-     *             request: HTTP request context if available.
-     */
-    SetBreakpointsCommand: {
-      breakpoints: {
-        [key: string]: number[];
-      };
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      /** @enum {unknown} */
-      type: "set-breakpoints";
-    };
     /** SetBreakpointsRequest */
     SetBreakpointsRequest: {
       breakpoints: {
@@ -7335,40 +7166,6 @@ export interface components {
       text: string;
     };
     /**
-     * StopKernelCommand
-     * @description Stop kernel execution.
-     *
-     *         Signals the kernel to stop processing and shut down gracefully.
-     *         Used when closing a notebook or terminating a session.
-     */
-    StopKernelCommand: {
-      /** @enum {unknown} */
-      type: "stop-kernel";
-    };
-    /**
-     * StorageDownloadCommand
-     * @description Download a storage entry.
-     *
-     *         Obtains a pre-signed URL or downloads the file locally and returns a virtual file URL
-     *         so the frontend can fetch the contents.
-     *
-     *         Attributes:
-     *             request_id: Unique identifier for this request.
-     *             namespace: Variable name identifying the storage backend.
-     *             path: Full path of the entry to download.
-     *             preview: If true, a local preview of the file is returned.
-     *                 This is useful if you need to bypass CORS.
-     */
-    StorageDownloadCommand: {
-      namespace: string;
-      path: string;
-      /** @default false */
-      preview?: boolean;
-      requestId: string;
-      /** @enum {unknown} */
-      type: "storage-download";
-    };
-    /**
      * StorageDownloadReadyNotification
      * @description Signals that a storage file download is ready.
      *
@@ -7388,7 +7185,7 @@ export interface components {
       filename?: string | null;
       /** @enum {unknown} */
       op: "storage-download-ready";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       /** @default null */
       url?: string | null;
     };
@@ -7426,7 +7223,7 @@ export interface components {
       prefix?: string | null;
       /** @default null */
       query?: string | null;
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
     };
     /**
      * StorageEntry
@@ -7460,31 +7257,6 @@ export interface components {
       /** @enum {unknown} */
       kind: "storage";
       protocols: string[];
-    };
-    /**
-     * StorageListEntriesCommand
-     * @description List storage entries at a prefix.
-     *
-     *         Navigates storage like a folder tree using delimiter-based listing.
-     *         Returns entries (files/objects) and virtual directories at one level.
-     *
-     *         Attributes:
-     *             request_id: Unique identifier for this request.
-     *             namespace: Variable name identifying the storage backend.
-     *             limit: Max entries to return.
-     *             prefix: Path prefix to list (None = root).
-     *             page_token: Token for the next page of entries.
-     */
-    StorageListEntriesCommand: {
-      limit: number;
-      namespace: string;
-      /** @default null */
-      pageToken?: string | null;
-      /** @default null */
-      prefix?: string | null;
-      requestId: string;
-      /** @enum {unknown} */
-      type: "storage-list-entries";
     };
     /** StorageListEntriesRequest */
     StorageListEntriesRequest: {
@@ -7543,29 +7315,6 @@ export interface components {
       /** @default true */
       success?: boolean;
     };
-    /**
-     * SyncGraphCommand
-     * @description Synchronize the kernel graph with file manager state.
-     *
-     *         Used when the notebook file changes externally (e.g., file reload or version control).
-     *         Updates changed cells, deletes removed cells, and optionally executes modified cells.
-     *
-     *         Attributes:
-     *             cells: All cells known to file manager, mapping cell_id to code.
-     *             run_ids: Cells to execute or update.
-     *             delete_ids: Cells to delete from the graph.
-     *             timestamp: Unix timestamp when command was created.
-     */
-    SyncGraphCommand: {
-      cells: {
-        [key: string]: string;
-      };
-      deleteIds: string[];
-      runIds: string[];
-      timestamp?: number;
-      /** @enum {unknown} */
-      type: "sync-graph";
-    };
     /** SyncSandboxResponse */
     SyncSandboxResponse: {
       /** @default null */
@@ -7612,6 +7361,7 @@ export interface components {
         | "code-mode"
         | "file-watch"
         | "frontend"
+        | "host"
         | "kernel";
       /** @default null */
       version?: number | null;
@@ -7752,20 +7502,6 @@ export interface components {
       objectIds: components["schemas"]["UIElementId"][];
       values: unknown[];
     };
-    /**
-     * UpdateUserConfigCommand
-     * @description Update user configuration.
-     *
-     *         Updates global marimo configuration (runtime settings, display options, editor preferences).
-     *
-     *         Attributes:
-     *             config: Complete user configuration.
-     */
-    UpdateUserConfigCommand: {
-      config: components["schemas"]["MarimoConfig"];
-      /** @enum {unknown} */
-      type: "update-user-config";
-    };
     /** UpdateUserConfigRequest */
     UpdateUserConfigRequest: {
       config: components["schemas"]["MarimoConfig"];
@@ -7822,7 +7558,7 @@ export interface components {
       op: "validate-sql-result";
       /** @default null */
       parse_result?: components["schemas"]["SqlParseResult"] | null;
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       /** @default null */
       validate_result?: components["schemas"]["SqlCatalogCheckResult"] | null;
     };

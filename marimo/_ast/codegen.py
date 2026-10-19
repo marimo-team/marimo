@@ -572,9 +572,9 @@ def generate_filecontents(
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
 
-    # Normalize internal cell names. Empty names would emit ``def ():``
+    # Normalize internal cell names. Empty names would emit `def ():`
     # (invalid Python) and fall back to the unparsable-cell path;
-    # ``"__"`` is a legacy internal marker.
+    # `"__"` is a legacy internal marker.
     for idx, name in enumerate(names):
         if name == "__" or not name:
             names[idx] = DEFAULT_CELL_NAME

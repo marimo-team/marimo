@@ -151,21 +151,18 @@ def _parse_sql_duckdb(
     line_prefix = subquery[last_newline_idx + 1 :]
     column_number = len(line_prefix.encode("utf-16-le")) // 2
 
-    # Adjust column_number to account for any added quotes from bracket replacements
-    # SELECT {id} FRO users
-    #             ^ error position should be here
-    # SELECT {id} FRO users
-    #               ^ user sees this
-    # So in this case, we subtract the offset from the column position.
-    # If the error is before the brackets, we don't need to add the offset because it just increases the string length
-    # Column position will be the same as the user sees.
+    # Count quotes separately: a multiline placeholder can put only its closing
+    # quote on the error line.
     error_line_start = last_newline_idx + 1
     cumulative_offset = 0
+    preceding_offset = 0
     for idx, offset in idx_to_offset_dict.items():
-        # Only count replacements that are on the same line as the error
-        # and come before the error position
-        if error_line_start <= idx < position:
-            cumulative_offset += offset
+        sanitized_idx = idx + preceding_offset
+        closing_quote_idx = query.index("}", sanitized_idx) + 1
+        preceding_offset += offset
+        for quote_idx in (sanitized_idx, closing_quote_idx):
+            if error_line_start <= quote_idx < position:
+                cumulative_offset += 1
     column_number -= cumulative_offset
 
     sql_parse_result = SqlParseResult(

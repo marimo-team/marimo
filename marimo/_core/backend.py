@@ -2,12 +2,12 @@
 """Kernel commands and updates for the host API.
 
 ```python
-notebook = host.add_notebook(record, backend)
-notebook.start()  # Calls backend.start(...).
+notebook = Notebook(notebook_id, document, Executions(), backend, sink)
+runtime, _ = notebook.start()  # Calls backend.start(runtime.id).
 
-# The backend reports kernel startup through Notebook.observe.
-notebook.observe(Starting("Launching kernel"))
-notebook.observe(Running())
+# The backend reports on that runtime through Notebook.observe.
+notebook.observe(Starting(runtime.id, "Launching kernel"))
+notebook.observe(Running(runtime.id))
 ```
 
 marimo currently manages sessions and kernels outside the core model.
@@ -29,6 +29,8 @@ class Backend(Protocol):
 
     Commands return without waiting for completion. Implementations report
     updates through `Notebook.observe` and assign execution and item IDs.
+    Runtime reports name the runtime they concern, so a report from a
+    kernel the notebook no longer tracks is ignored.
     """
 
     def start(self, runtime_id: protocol.RuntimeId) -> None:
@@ -38,8 +40,8 @@ class Backend(Protocol):
         `Exited` with a reason on failure.
         """
 
-    def stop(self) -> None:
-        """Stop the kernel and report `Exited` when shutdown completes."""
+    def stop(self, runtime_id: protocol.RuntimeId) -> None:
+        """Stop the runtime's kernel and report `Exited` once it has."""
 
     def run(self, run_id: protocol.RunId, code: str) -> None:
         """Evaluate scratch code and report the run's progress and output."""
@@ -54,13 +56,14 @@ class Backend(Protocol):
         """
 
 
-# Runtime lifecycle
+# Runtime reports
 
 
 @dataclass(frozen=True)
 class Starting:
     """Kernel startup progress, with an optional status message."""
 
+    runtime_id: protocol.RuntimeId
     message: str | None = None
 
 
@@ -68,6 +71,7 @@ class Starting:
 class Running:
     """The kernel is ready to execute code."""
 
+    runtime_id: protocol.RuntimeId
     marimo_version: str | None = None
 
 
@@ -75,7 +79,11 @@ class Running:
 class Exited:
     """The kernel stopped or exited unexpectedly."""
 
+    runtime_id: protocol.RuntimeId
     reason: str | None = None
+
+
+RuntimeReport = Starting | Running | Exited
 
 
 # Runs
@@ -126,7 +134,7 @@ class Produced:
 
 @dataclass(frozen=True)
 class Concluded:
-    """An execution's current outcome; final once the execution is completed."""
+    """An execution outcome, final when the execution completes."""
 
     execution_id: protocol.ExecutionId
     outcome: protocol.Outcome

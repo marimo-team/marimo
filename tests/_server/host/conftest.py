@@ -9,12 +9,21 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._core import backend as be
+from marimo._messaging.notebook import NotebookDocument
+from marimo._messaging.notification import NotificationMessage
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
 from marimo._session.model import ConnectionState
 from marimo._session.types import KernelState
+from marimo._types.ids import ConsumerId
+
+
+@pytest.fixture
+def enable_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(GLOBAL_SETTINGS, "ENABLE_HOST", True)
 
 
 class FakeSession:
@@ -25,6 +34,7 @@ class FakeSession:
         self.event_bus = SessionEventBus()
         self.consumers: list[tuple[SessionConsumer, bool]] = []
         self.commands: list[Any] = []
+        self.notifications: list[NotificationMessage] = []
         self.submitted = asyncio.Event()
         self.interrupts = 0
         self.closed = False
@@ -32,16 +42,26 @@ class FakeSession:
         self.exit_info: Any = None
         self.app_file_manager = MagicMock()
         self.app_file_manager.path = path
-        self.document = MagicMock()
-        self.document.cell_ids = []
-        self.document.cells = []
+        self.app_file_manager.app.config.asdict_difference.return_value = {}
+        self.document = NotebookDocument([])
         self.session_view = MagicMock()
+        self.config_manager = MagicMock()
+        self.config_manager.get_config.return_value = {
+            "runtime": {"on_cell_change": "autorun"}
+        }
 
     def connect_consumer(
         self, consumer: SessionConsumer, *, main: bool
     ) -> None:
         self.consumers.append((consumer, main))
         consumer.on_attach(self, self.event_bus)  # type: ignore[arg-type]
+
+    def disconnect_consumer(self, consumer: SessionConsumer) -> None:
+        for entry in self.consumers:
+            if entry[0] is consumer:
+                self.consumers.remove(entry)
+                consumer.on_detach()
+                return
 
     def instantiate(self, request: Any, *, http_request: Any) -> None:
         del request, http_request
@@ -75,6 +95,16 @@ class FakeSession:
         message = serialize_kernel_message(notification)
         for consumer, _ in list(self.consumers):
             consumer.notify(message)
+
+    def notify(
+        self,
+        notification: NotificationMessage,
+        from_consumer_id: ConsumerId | None = None,
+    ) -> None:
+        """What a session does with a notification: record and broadcast."""
+        del from_consumer_id
+        self.notifications.append(notification)
+        self.broadcast(notification)
 
 
 class FakeManager:

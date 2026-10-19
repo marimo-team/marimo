@@ -13,29 +13,103 @@ import msgspec
 import pytest
 import uvicorn
 
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._core import backend as be, protocol
 from marimo._server.host import HOST_API_PATH, record as record_module
 from marimo._server.host.lifespan import host as host_lifespan
 from marimo._server.host.record import host_url
 from marimo._server.main import create_starlette_app
+from marimo._session.model import SessionMode
 from marimo._utils.lifespans import Lifespans
-from tests._core.conftest import ScriptedBackend, project, record
+from tests._core.conftest import (
+    ScriptedBackend,
+    add_notebook,
+    project,
+    record,
+    runtime_id_of,
+)
 from tests._server.host.drive import finished
-from tests._server.mocks import get_starlette_server_state_init
+from tests._server.mocks import (
+    get_mock_session_manager,
+    get_starlette_server_state_init,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+pytestmark = pytest.mark.usefixtures("enable_host")
 
-def test_the_url_always_names_a_loopback_address() -> None:
-    assert (
-        host_url("0.0.0.0", 2718, "")
-        == f"http://127.0.0.1:2718{HOST_API_PATH}"
+
+@pytest.mark.parametrize(
+    ("host", "loopback"),
+    [
+        ("0.0.0.0", "127.0.0.1"),
+        ("127.0.0.1", "127.0.0.1"),
+        ("127.1.2.3", "127.1.2.3"),
+        ("localhost", "127.0.0.1"),
+        ("LOCALHOST", "127.0.0.1"),
+        ("::ffff:127.0.0.1", "127.0.0.1"),
+        ("::1", "[::1]"),
+        ("[::1]", "[::1]"),
+        ("::", "[::1]"),
+        ("[::]", "[::1]"),
+    ],
+)
+def test_the_url_names_the_loopback_that_reaches_the_bind(
+    host: str, loopback: str
+) -> None:
+    assert host_url(host, 2718, "/marimo") == (
+        f"http://{loopback}:2718/marimo{HOST_API_PATH}"
     )
-    assert host_url("::1", 2718, "/marimo") == (
-        f"http://[::1]:2718/marimo{HOST_API_PATH}"
+
+
+@pytest.mark.parametrize("host", ["192.168.1.5", "10.0.0.1", "fe80::1", "x"])
+def test_an_unreachable_bind_has_no_url(host: str) -> None:
+    assert host_url(host, 2718, "") is None
+
+
+async def test_an_unreachable_bind_writes_no_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
+    app = create_starlette_app(
+        base_url="", enable_auth=True, lifespan=Lifespans([host_lifespan])
     )
-    assert host_url("[::1]", 2718, "") == f"http://[::1]:2718{HOST_API_PATH}"
+    state = get_starlette_server_state_init()
+    state.apply(app.state)
+    app.state.server = uvicorn.Server(
+        uvicorn.Config(app, host="192.168.1.5", port=1234)
+    )
+
+    async with app.router.lifespan_context(app):
+        assert list((tmp_path / "hosts-v1").glob("*.json")) == []
+        assert app.state.host_context is not None
+
+
+@pytest.mark.parametrize(
+    ("enabled", "mode"), [(False, SessionMode.EDIT), (True, SessionMode.RUN)]
+)
+async def test_inactive_host_writes_no_record_and_serves_no_api(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    enabled: bool,
+    mode: SessionMode,
+) -> None:
+    monkeypatch.setattr(GLOBAL_SETTINGS, "ENABLE_HOST", enabled)
+    monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
+    app = create_starlette_app(
+        base_url="", enable_auth=False, lifespan=Lifespans([host_lifespan])
+    )
+    get_starlette_server_state_init(
+        session_manager=get_mock_session_manager(mode=mode)
+    ).apply(app.state)
+    app.state.server = uvicorn.Server(
+        uvicorn.Config(app, host="127.0.0.1", port=1234)
+    )
+
+    async with app.router.lifespan_context(app):
+        assert not (tmp_path / "hosts-v1").exists()
+        assert (await finished(app, "GET", "/notebooks")).status == 404
 
 
 @pytest.mark.parametrize("external_port", [1234, 8443])
@@ -97,10 +171,11 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         context = app.state.host_context
         host = context.bridge.host
         now = 0.0
-        host.clock = lambda: now
+        host.clock = context.clock = lambda: now
         host.update_project(project())
-        notebook = host.add_notebook(record(), ScriptedBackend())
-        notebook.observe(be.Running())
+        notebook = await add_notebook(host, record(), ScriptedBackend())
+        notebook.adopt(lambda _: None)
+        notebook.observe(be.Running(runtime_id_of(notebook)))
         headers = {
             "Authorization": f"Bearer {context.token}",
             "Idempotency-Key": "run",
@@ -135,5 +210,6 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         ]
         now = 300
         await asyncio.wait_for(removed.wait(), timeout=5)
+        assert context.replies == {}
     assert maintenance.done()
     assert app.state.host_context is None

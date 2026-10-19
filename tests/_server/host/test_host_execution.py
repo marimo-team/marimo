@@ -4,12 +4,12 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._core.document import code_hash
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
 from marimo._server.main import create_starlette_app
@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from tests._server.host.drive import Response
 
 AUTH = {"Authorization": "Bearer execution-test"}
+pytestmark = pytest.mark.usefixtures("enable_host")
 
 
 def key(value: str) -> dict[str, str]:
@@ -63,7 +64,7 @@ async def live_host(
     app = create_starlette_app(base_url="", enable_auth=True)
     get_starlette_server_state_init(session_manager=manager).apply(app.state)
     bridge = SessionBridge(manager)
-    bridge.open()
+    await bridge.open()
     app.state.host_context = HostContext(
         bridge=bridge, token="execution-test", port=PORT
     )
@@ -100,7 +101,7 @@ async def test_move_preserves_the_running_notebook(
 ) -> None:
     app, notebook_id, events = live_host
     host = app.state.host_context.bridge.host
-    runtime = host.notebook(notebook_id).runtime
+    runtime = (await host.notebook(notebook_id)).runtime
     source, target = tmp_path / "notebook.py", tmp_path / "moved.py"
     session = next(iter(app.state.session_manager.sessions.values()))
     cells = list(session.app_file_manager.app.cell_manager.codes())
@@ -120,7 +121,7 @@ async def test_move_preserves_the_running_notebook(
     assert not source.exists()
     assert list(AppFileManager(str(target)).app.cell_manager.codes()) == cells
     assert session.app_file_manager.path == str(target)
-    assert host.notebook(notebook_id).runtime == runtime
+    assert (await host.notebook(notebook_id)).runtime == runtime
 
     accepted = await finished(
         app,
@@ -221,18 +222,25 @@ async def test_scratch_outcomes_from_the_kernel(
         assert outcome["error"]["message"]
 
 
-async def test_background_output_stays_with_its_execution(
+async def test_background_output_after_a_scratch_run_is_dropped(
     live_host: tuple[Starlette, str, Response],
 ) -> None:
+    """A completed scratch run is history; the backend forgets it.
+
+    Output its code produces later, from a background thread, has no
+    current execution to join and never reaches clients.
+    """
     app, notebook_id, events = live_host
     path = f"/notebooks/{notebook_id}/runtime/runs"
     code = """import builtins
 import threading
 import marimo as mo
 builtins._host_test_gate = threading.Event()
+builtins._host_test_printed = threading.Event()
 def worker():
     builtins._host_test_gate.wait(5)
     print("late output")
+    builtins._host_test_printed.set()
 mo.Thread(target=worker).start()
 """
     first = await finished(
@@ -246,7 +254,7 @@ mo.Thread(target=worker).start()
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("id") == "first"
+            r.get("data", {}).get("run", {}).get("id") == first.json()["id"]
             and r["data"]["run"]["status"] == "completed"
             for r in response.records
         ),
@@ -258,7 +266,7 @@ mo.Thread(target=worker).start()
         headers=key("second"),
         body=json.dumps(
             {
-                "code": "import builtins\nimport time\nbuiltins._host_test_gate.set()\ntime.sleep(0.2)\ndel builtins._host_test_gate"
+                "code": "import builtins\nbuiltins._host_test_gate.set()\nassert builtins._host_test_printed.wait(5)\ndel builtins._host_test_gate, builtins._host_test_printed"
             }
         ).encode(),
     )
@@ -266,26 +274,26 @@ mo.Thread(target=worker).start()
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("id") == "second"
+            r.get("data", {}).get("run", {}).get("id") == second.json()["id"]
             and r["data"]["run"]["status"] == "completed"
             for r in response.records
         ),
+    )
+    assert (
+        next(
+            r["data"]["run"]["outcome"]
+            for r in reversed(events.records)
+            if r.get("data", {}).get("run", {}).get("id")
+            == second.json()["id"]
+        )
+        == "succeeded"
     )
     console = [
         r["data"]["console"]
         for r in events.records
         if r.get("event") == "console"
     ]
-    assert any("late output" in item["text"] for item in console)
-    first_execution = next(
-        record["data"]["execution"]
-        for record in events.records
-        if record.get("event") == "execution"
-        and record["data"]["execution"]["run_id"] == "first"
-    )
-    assert {item["execution_id"] for item in console} == {
-        first_execution["id"]
-    }
+    assert not any("late output" in item["text"] for item in console)
 
 
 async def test_queued_cancellation_never_executes_the_code(
@@ -309,7 +317,10 @@ async def test_queued_cancellation_never_executes_the_code(
         )
         assert accepted.status == 202
         interrupted = await finished(
-            app, "DELETE", runs + "/canceled", headers=key("interrupt")
+            app,
+            "DELETE",
+            runs + "/" + accepted.json()["id"],
+            headers=key("interrupt"),
         )
         assert interrupted.status == 202
         await wait_for(
@@ -332,7 +343,8 @@ async def test_queued_cancellation_never_executes_the_code(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("id") == "next"
+            r.get("data", {}).get("run", {}).get("id")
+            == following.json()["id"]
             and r["data"]["run"]["status"] == "completed"
             for r in response.records
         ),
@@ -453,6 +465,8 @@ async def initialize_cascade(app: Starlette, events: Response) -> None:
             r.get("data", {}).get("run", {}).get("status") == "completed"
             for r in response.records
         ),
+        # Initial widget imports and construction can be slow on CI.
+        timeout=15,
     )
     runs = [
         r["data"]["run"] for r in events.records if r.get("event") == "run"
@@ -491,7 +505,7 @@ async def test_scratch_run_includes_the_full_reactive_cycle(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("id") == "cascade"
+            r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
             and r["data"]["run"]["status"] == "completed"
             for r in response.records
         ),
@@ -514,7 +528,7 @@ async def test_scratch_run_includes_the_full_reactive_cycle(
     assert root["cell_id"] is None
     assert root["outcome"]["kind"] == "value"
     assert all(
-        e["run_id"] == "cascade"
+        e["run_id"] == accepted.json()["id"]
         and e["cell_id"] is not None
         and e["caused_by"] == root["id"]
         for e in downstream
@@ -553,7 +567,8 @@ async def test_detached_reactivity_starts_a_new_run(
         if command
         else "mo.Thread(target=lambda: (gate.wait(), set_x(20))).start()"
     )
-    for run_id, code in [
+    submitted = {}
+    for request_id, code in [
         ("origin", origin),
         ("release", "gate.set()"),
     ]:
@@ -561,10 +576,12 @@ async def test_detached_reactivity_starts_a_new_run(
             app,
             "POST",
             f"/notebooks/{notebook_id}/runtime/runs",
-            headers=key(run_id),
+            headers=key(request_id),
             body=json.dumps({"code": code}).encode(),
         )
         assert accepted.status == 202
+        run_id = accepted.json()["id"]
+        submitted[request_id] = run_id
         await wait_for(
             events,
             lambda response, run_id=run_id: any(
@@ -591,7 +608,7 @@ async def test_detached_reactivity_starts_a_new_run(
         if r.get("data", {}).get("execution", {}).get("id")
         == printed["execution_id"]
     )
-    assert execution["run_id"] not in ("origin", "release")
+    assert execution["run_id"] not in submitted.values()
     await wait_for(
         events,
         lambda response: any(
@@ -603,7 +620,7 @@ async def test_detached_reactivity_starts_a_new_run(
     origin = [
         r["data"]["run"]
         for r in events.records
-        if r.get("data", {}).get("run", {}).get("id") == "origin"
+        if r.get("data", {}).get("run", {}).get("id") == submitted["origin"]
     ]
     assert [r["status"] for r in origin] == ["queued", "running", "completed"]
     assert origin[-1]["outcome"] == "succeeded"
@@ -633,7 +650,7 @@ async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("id") == "nested"
+            r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
             and r["data"]["run"]["status"] == "completed"
             for r in response.records
         ),
@@ -683,7 +700,7 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("id") == "retry"
+            r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
             and r["data"]["run"]["status"] == "completed"
             for r in response.records
         ),
@@ -695,14 +712,14 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
         and r["data"]["execution"]["status"] == "completed"
     ]
     assert [(e["code_hash"], e["outcome"]["kind"]) for e in executions] == [
-        (hashlib.sha256(b"if !!!").hexdigest(), "error"),
-        (hashlib.sha256(b"x = 42").hexdigest(), "value"),
+        (code_hash("if !!!"), "error"),
+        (code_hash("x = 42"), "value"),
     ]
     assert len({e["id"] for e in executions}) == 2
     runs = [
         r["data"]["run"]
         for r in events.records
-        if r.get("data", {}).get("run", {}).get("id") == "retry"
+        if r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
     ]
     assert runs[-1]["outcome"] == "failed"
 
@@ -735,7 +752,7 @@ async def test_nested_commands_can_run_a_cell_queued_by_the_outer_command(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("id") == "nested-queue"
+            r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
             and r["data"]["run"]["status"] == "completed"
             for r in response.records
         ),
@@ -751,7 +768,7 @@ async def test_nested_commands_can_run_a_cell_queued_by_the_outer_command(
     runs = [
         r["data"]["run"]
         for r in events.records
-        if r.get("data", {}).get("run", {}).get("id") == "nested-queue"
+        if r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
     ]
     assert runs[-1]["outcome"] == "succeeded"
 
@@ -791,14 +808,14 @@ async def test_awaited_commands_join_the_enclosing_run(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("id") == "awaited"
+            r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
             and r["data"]["run"]["status"] == "completed"
             for r in response.records
         ),
     )
     records = events.records[before:]
     runs = [r["data"]["run"] for r in records if r.get("event") == "run"]
-    assert {r["id"] for r in runs} == {"awaited"}
+    assert {r["id"] for r in runs} == {accepted.json()["id"]}
     assert runs[-1]["outcome"] == "failed"
     executions = [
         r["data"]["execution"]
@@ -814,10 +831,8 @@ async def test_awaited_commands_join_the_enclosing_run(
     assert root["outcome"]["kind"] == "value"
     assert "42" in root["outcome"]["display"]["data"]
     assert child["outcome"]["kind"] == "error"
-    assert (
-        child["code_hash"] == hashlib.sha256(child_code.encode()).hexdigest()
-    )
-    assert all(e["run_id"] == "awaited" for e in executions)
+    assert child["code_hash"] == code_hash(child_code)
+    assert all(e["run_id"] == accepted.json()["id"] for e in executions)
 
 
 @pytest.mark.parametrize(
