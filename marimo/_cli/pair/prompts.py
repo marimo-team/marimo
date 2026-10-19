@@ -17,6 +17,7 @@ def get_pair_command() -> str:
 class PromptTemplates:
     prompt: str
     notebook: str
+    session: str
     token_file: str
     token: str
 
@@ -32,6 +33,7 @@ def render_prompt(
     *,
     url: str,
     notebook_id: str | None = None,
+    session_id: str | None = None,
     token_file: Path | None = None,
 ) -> str:
     templates = load_prompt_templates()
@@ -43,6 +45,9 @@ def render_prompt(
             if notebook_id
             else ""
         ),
+        session=templates.session.format(session=session_id)
+        if session_id and not notebook_id
+        else "",
         authentication=(
             templates.token_file.format(
                 token_file=shlex.quote(str(token_file))

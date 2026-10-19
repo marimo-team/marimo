@@ -13,17 +13,18 @@ import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
-import { PAIR_PREVIEW } from "@/__tests__/fixtures/pair-preview";
+import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { type Attachment, attachmentsAtom } from "@/core/attachments/state";
 import { exportedForTesting, notebookAtom } from "@/core/cells/cells";
 import {
-  type CellOutputHandoff,
-  type ErrorHandoffOutput,
-  ERROR_HANDOFF_INSTRUCTIONS,
+  type CellOutputMessage,
+  type ErrorMessageOutput,
+  ERROR_MESSAGE_INSTRUCTIONS,
 } from "@/core/cells/error-report";
-import { pairPreviewAtom } from "@/core/config/pair";
+import { pairConfigAtom } from "@/core/config/pair";
+import { notebookStateFromSession } from "@/core/cells/session";
 import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
 import {
   type StableSessionId,
@@ -58,13 +59,13 @@ const AGENT: Attachment = {
 const ROUTE = "/pair/notebooks/stable%2Ftest/messages";
 const MESSAGE = "df is not defined";
 const CODE = "df.head()";
-const REPORT: CellOutputHandoff<ErrorHandoffOutput> = {
+const REPORT: CellOutputMessage<ErrorMessageOutput> = {
   type: "cell-output",
   cell_id: CELL_ID,
   code: CODE,
   output: {
     type: "error",
-    instructions: ERROR_HANDOFF_INSTRUCTIONS,
+    instructions: ERROR_MESSAGE_INSTRUCTIONS,
     message: MESSAGE,
   },
 };
@@ -91,7 +92,7 @@ function renderButton({
 } = {}) {
   const store = createStore();
   store.set(connectionAtom, { state: ConnectionState.OPEN });
-  store.set(pairPreviewAtom, preview ? PAIR_PREVIEW : undefined);
+  store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
   store.set(attachmentsAtom, attachments);
   store.set(stableSessionIdAtom, stableId);
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -118,7 +119,7 @@ describe("SendErrorReportButton", () => {
     });
   });
 
-  it("hides outside the preview without building content", () => {
+  it("hides when host is disabled without building content", () => {
     const getContent = vi.fn(() => REPORT);
     expect(
       renderButton({
@@ -207,6 +208,7 @@ describe("SendErrorReportButton", () => {
       expect(toast).toHaveBeenCalledWith({
         variant: "danger",
         title,
+        description: error.message,
         duration: 5000,
       }),
     );
@@ -243,7 +245,7 @@ describe("SendErrorReportButton", () => {
         ...REPORT,
         output: {
           type: "error",
-          instructions: ERROR_HANDOFF_INSTRUCTIONS,
+          instructions: ERROR_MESSAGE_INSTRUCTIONS,
           message: MESSAGE,
           traceback: "Traceback\nNameError: df is not defined",
         },
@@ -286,12 +288,96 @@ describe("SendErrorReportButton", () => {
         ...REPORT,
         output: {
           type: "error",
-          instructions: ERROR_HANDOFF_INSTRUCTIONS,
+          instructions: ERROR_MESSAGE_INSTRUCTIONS,
           message: "ValueError: bad <value>",
           traceback: "Traceback\nValueError: bad <value>",
         },
       }),
     );
+  });
+
+  it("sends plain code-mode traceback text without parsing it as HTML", async () => {
+    const traceback =
+      '  File "<cell>", line 1\nValueError: bad <value> & <other>';
+    renderButton({
+      content: (
+        <OutputRenderer
+          cellId={CELL_ID}
+          message={{
+            channel: "stderr",
+            mimetype: "application/vnd.marimo+traceback",
+            traceback_format: "text",
+            code: CODE,
+            data: traceback,
+          }}
+        />
+      ),
+    });
+    expect(screen.getByText(/ValueError: bad <value>/)).toHaveTextContent(
+      "<cell>",
+    );
+    send();
+    await waitFor(() =>
+      expect(API.post).toHaveBeenCalledWith(ROUTE, {
+        ...REPORT,
+        output: {
+          type: "error",
+          instructions: ERROR_MESSAGE_INSTRUCTIONS,
+          message: "ValueError: bad <value> & <other>",
+          traceback,
+        },
+      }),
+    );
+  });
+
+  it("sends the restored exception type and complete traceback", async () => {
+    const state = notebookStateFromSession(
+      {
+        version: "1",
+        metadata: { marimo_version: "1", script_metadata_hash: null },
+        cells: [
+          {
+            id: CELL_ID,
+            code_hash: null,
+            console: [],
+            outputs: [
+              {
+                type: "error",
+                ename: "ValueError",
+                evalue: "cached failure",
+                traceback: [
+                  "<pre>Traceback",
+                  "  failed()\n",
+                  "ValueError: cached failure</pre>",
+                ],
+                code: CODE,
+              },
+            ],
+          },
+        ],
+      },
+      null,
+    );
+    const message = state?.cellRuntime[CELL_ID].output;
+    expect(message).toBeDefined();
+    renderButton({
+      content: message && <OutputRenderer cellId={CELL_ID} message={message} />,
+    });
+    send();
+    await waitFor(() =>
+      expect(API.post).toHaveBeenCalledWith(ROUTE, {
+        ...REPORT,
+        output: {
+          type: "error",
+          instructions: ERROR_MESSAGE_INSTRUCTIONS,
+          message: "cached failure",
+          traceback: "Traceback\n  failed()\nValueError: cached failure",
+        },
+      }),
+    );
+    expect(message?.data).toEqual([
+      expect.objectContaining({ exception_type: "ValueError" }),
+    ]);
   });
 
   it("sends updated content after the error changes", async () => {
@@ -410,7 +496,7 @@ describe("SendErrorReportButton", () => {
         code: "x + 1",
         output: {
           type: "error",
-          instructions: ERROR_HANDOFF_INSTRUCTIONS,
+          instructions: ERROR_MESSAGE_INSTRUCTIONS,
           message: "Ancestor failed",
         },
       }),
@@ -435,7 +521,7 @@ describe("SendErrorReportButton", () => {
         code: "slow()",
         output: {
           type: "error",
-          instructions: ERROR_HANDOFF_INSTRUCTIONS,
+          instructions: ERROR_MESSAGE_INSTRUCTIONS,
           message: "This cell was interrupted and needs to be re-run",
         },
       }),

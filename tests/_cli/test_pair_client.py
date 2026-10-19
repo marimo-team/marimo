@@ -1,9 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import http.client
 import io
 import json
 import os
+import queue
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
@@ -141,6 +144,70 @@ def test_iter_sse_reads_cursor_multiline_and_ignores_invalid_ids() -> None:
     ]
 
 
+def test_event_pump_reports_clean_eof_after_events() -> None:
+    event = SSEEvent("custom", "payload", "cursor-one")
+    incoming: queue.Queue[SSEEvent | Exception | None] = queue.Queue()
+    client.pump_events([event], incoming, threading.Event())
+    assert [incoming.get_nowait(), incoming.get_nowait()] == [event, None]
+    assert incoming.empty()
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        OSError("disconnected"),
+        http.client.IncompleteRead(b""),
+        ValueError("invalid frame"),
+    ],
+)
+def test_event_pump_reports_failure_then_eof(failure: Exception) -> None:
+    event = SSEEvent("custom", "before failure")
+
+    def events() -> Iterator[SSEEvent]:
+        yield event
+        raise failure
+
+    incoming: queue.Queue[SSEEvent | Exception | None] = queue.Queue()
+    client.pump_events(events(), incoming, threading.Event())
+    assert [
+        incoming.get_nowait(),
+        incoming.get_nowait(),
+        incoming.get_nowait(),
+    ] == [
+        event,
+        failure,
+        None,
+    ]
+    assert incoming.empty()
+
+
+def test_event_pump_cancels_without_draining_a_full_queue() -> None:
+    incoming: queue.Queue[SSEEvent | Exception | None] = queue.Queue(maxsize=1)
+    queued = SSEEvent("custom", "already queued")
+    incoming.put_nowait(queued)
+    started = threading.Event()
+    stopped = threading.Event()
+
+    def events() -> Iterator[SSEEvent]:
+        started.set()
+        yield SSEEvent("custom", "blocked by backpressure")
+
+    worker = threading.Thread(
+        target=client.pump_events,
+        args=(events(), incoming, stopped),
+        daemon=True,
+    )
+    worker.start()
+    try:
+        assert started.wait(timeout=1)
+    finally:
+        stopped.set()
+        worker.join(timeout=1)
+    assert not worker.is_alive()
+    assert incoming.get_nowait() == queued
+    assert incoming.empty()
+
+
 def test_open_events_uses_host_headers_and_cursor(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -246,14 +313,126 @@ def test_execute_missing_completion_is_unconfirmed(
         )
 
 
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize("with_traceback", [False, True])
+def test_execution_error_snapshots_are_emitted_once(
+    monkeypatch: pytest.MonkeyPatch,
+    stream: bool,
+    with_traceback: bool,
+) -> None:
+    error: dict[str, object] = {
+        "name": "ValueError",
+        "message": "<invalid value>",
+    }
+    expected = "ValueError: <invalid value>\n"
+    if with_traceback:
+        expected = "Traceback: original cell\n" + expected
+        error["traceback"] = {"mimetype": "text/plain", "data": expected}
+    frames = [b"event: ready\ndata: {}\n\n"]
+    for status in ("concluded", "completed"):
+        snapshot = {
+            "execution": {
+                "id": "execution-one",
+                "run_id": "run-one",
+                "status": status,
+                "outcome": {"kind": "error", "error": error},
+            }
+        }
+        frames.append(
+            b"event: execution\ndata: "
+            + json.dumps(snapshot).encode()
+            + b"\n\n"
+        )
+    frames.append(
+        b'event: run\ndata: {"run":{"id":"run-one","status":"completed","outcome":"failed"}}\n\n'
+    )
+    response = io.BytesIO(b"".join(frames))
+
+    def open_response(**kwargs: Any) -> client.EventStream:
+        return client.EventStream(
+            response
+            if kwargs["method"] == "GET"
+            else io.BytesIO(b'{"id":"run-one"}'),
+            Mock(),
+        )
+
+    monkeypatch.setattr(client, "open_response", open_response)
+    stderr = io.StringIO()
+    result = client.execute(
+        url="http://localhost:2718/api/marimo/v1",
+        notebook_id="nb-one",
+        token="private",
+        code="raise ValueError('<invalid value>')",
+        stdout=io.StringIO(),
+        stderr=stderr,
+        stream=stream,
+    )
+    assert result == client.ExecutionResult(
+        False, None, "", "" if stream else expected, "failed"
+    )
+    assert stderr.getvalue() == (expected if stream else "")
+    assert response.closed
+
+
+def test_lost_run_submission_response_is_unknown_and_never_retried(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = io.BytesIO(b"event: ready\ndata: {}\n\n")
+    calls: list[dict[str, Any]] = []
+
+    def open_response(**kwargs: Any) -> client.EventStream:
+        calls.append(kwargs)
+        if kwargs["method"] == "GET":
+            return client.EventStream(response, Mock())
+        raise client.PairConnectionError("private transport details")
+
+    monkeypatch.setattr(client, "open_response", open_response)
+    fallback = Mock(
+        side_effect=AssertionError("Execution must not be retried")
+    )
+    monkeypatch.setattr(client, "execute_editor", fallback)
+    with pytest.raises(
+        PairError, match="before completion was confirmed"
+    ) as caught:
+        client.execute(
+            url="http://localhost:2718/api/marimo/v1",
+            notebook_id="nb-one",
+            token="private",
+            code="side_effect()",
+            stdout=io.StringIO(),
+            stderr=io.StringIO(),
+            stream=False,
+        )
+    assert type(caught.value) is PairError
+    assert "private transport details" not in str(caught.value)
+    assert [call["method"] for call in calls] == ["GET", "POST"]
+    assert calls[1]["url"].endswith("/notebooks/nb-one/runtime/runs")
+    fallback.assert_not_called()
+    assert response.closed
+
+
 @pytest.mark.parametrize(
-    "url", ["ftp://localhost", "http://[", "http://localhost:99999"]
+    "url",
+    [
+        "ftp://user:private-password@localhost?access_token=private-token#private-fragment",
+        "http://user:private-password@[?access_token=private-token#private-fragment",
+        "http://user:private-password@localhost:99999?access_token=private-token#private-fragment",
+    ],
 )
 def test_open_response_rejects_invalid_url_without_exposing_it(
     url: str,
 ) -> None:
-    with pytest.raises(PairInputError):
+    with pytest.raises(PairInputError) as caught:
         client.open_response(method="GET", url=url, headers={}, body=None)
+    assert all(
+        secret not in str(caught.value)
+        for secret in (
+            "private-password",
+            "private-token",
+            "private-fragment",
+            "user:",
+        )
+    )
 
 
 def test_list_sessions_sends_request_and_parses_response(

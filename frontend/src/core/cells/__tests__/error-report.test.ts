@@ -4,11 +4,23 @@
 import { describe, expect, it } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import type { MarimoError } from "@/core/kernel/messages";
-import { buildErrorReport, ERROR_HANDOFF_INSTRUCTIONS } from "../error-report";
+import { buildErrorReport, ERROR_MESSAGE_INSTRUCTIONS } from "../error-report";
 
 const CELL_ID = cellId("failed-cell");
 
 describe("buildErrorReport", () => {
+  it("preserves plain traceback text without treating angle brackets as HTML", () => {
+    const traceback =
+      '  File "<cell>", line 1\nValueError: expected <value> & got <other>';
+    expect(
+      buildErrorReport(CELL_ID, { traceback, tracebackFormat: "text" }).output,
+    ).toEqual({
+      type: "error",
+      instructions: ERROR_MESSAGE_INSTRUCTIONS,
+      message: "ValueError: expected <value> & got <other>",
+      traceback,
+    });
+  });
   it("owns the instruction to repair the live notebook", () => {
     const report = buildErrorReport(CELL_ID, {
       errors: [{ type: "syntax", msg: "invalid code" }],
@@ -55,7 +67,7 @@ describe("buildErrorReport", () => {
       code: "failed()",
       output: {
         type: "error",
-        instructions: ERROR_HANDOFF_INSTRUCTIONS,
+        instructions: ERROR_MESSAGE_INSTRUCTIONS,
         message: "bad <value>\nanother error",
         traceback,
       },
@@ -80,7 +92,7 @@ describe("buildErrorReport", () => {
       cell_id: CELL_ID,
       output: {
         type: "error",
-        instructions: ERROR_HANDOFF_INSTRUCTIONS,
+        instructions: ERROR_MESSAGE_INSTRUCTIONS,
         message: "legacy error",
       },
     });
@@ -98,7 +110,7 @@ describe("buildErrorReport", () => {
       code: "",
       output: {
         type: "error",
-        instructions: ERROR_HANDOFF_INSTRUCTIONS,
+        instructions: ERROR_MESSAGE_INSTRUCTIONS,
         message: "invalid code",
       },
     });
@@ -117,7 +129,7 @@ describe("buildErrorReport", () => {
       cell_id: CELL_ID,
       output: {
         type: "error",
-        instructions: ERROR_HANDOFF_INSTRUCTIONS,
+        instructions: ERROR_MESSAGE_INSTRUCTIONS,
         message: "first\nsecond",
         traceback:
           "Traceback\nValueError: first\n\nTraceback\nValueError: second",

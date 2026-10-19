@@ -17,18 +17,16 @@ import { Events } from "@/utils/events";
 import { Tooltip } from "@/components/ui/tooltip";
 import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
 import { API } from "@/core/network/api";
-import { pairPreviewAtom } from "@/core/config/pair";
+import { pairConfigAtom } from "@/core/config/pair";
 import { stableSessionIdAtom } from "@/core/kernel/session";
 import {
   AGENT_LABELS,
   AGENT_TABS,
   type AgentTab,
   type ConnectionInfo,
-  getFileFromURL,
   getRawPrompt,
   getTerminalCommand,
   maskToken,
-  SKILL_INSTALL,
   TERMINAL_TABS,
 } from "./pair-with-agent-commands";
 
@@ -52,43 +50,64 @@ export const PairWithAgentModal: React.FC<{
 }> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<AgentTab>("claude");
   const runtimeManager = useRuntimeManager();
-  const preview = useAtomValue(pairPreviewAtom);
+  const config = useAtomValue(pairConfigAtom);
+  const hostEnabled = config?.hostEnabled ?? false;
   const stableSessionId = useAtomValue(stableSessionIdAtom);
-  const [notebookId, setNotebookId] = useState<string | undefined>();
+  const [lookup, setLookup] = useState<
+    {
+      sessionId: string;
+    } & (
+      | { status: "ready"; notebookId: string | null }
+      | { status: "loading" | "error" }
+    )
+  >();
   useEffect(() => {
-    if (!preview || !stableSessionId) {
-      setNotebookId(undefined);
+    if (!hostEnabled || !stableSessionId) {
+      setLookup(undefined);
       return;
     }
+    const sessionId = stableSessionId;
+    setLookup({ sessionId, status: "loading" });
     let cancelled = false;
     API.get<Record<string, { session_id: string; notebook_id: string | null }>>(
       "/sessions",
     )
       .then((sessions) => {
         if (!cancelled) {
-          setNotebookId(
-            Object.values(sessions).find(
-              (session) => session.session_id === stableSessionId,
-            )?.notebook_id ?? undefined,
+          const session = Object.values(sessions).find(
+            (session) => session.session_id === sessionId,
+          );
+          setLookup(
+            session
+              ? { sessionId, status: "ready", notebookId: session.notebook_id }
+              : { sessionId, status: "error" },
           );
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setNotebookId(undefined);
+          setLookup({ sessionId, status: "error" });
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [preview, stableSessionId]);
-  const commandStep = preview ? 1 : 2;
+  }, [hostEnabled, stableSessionId]);
+  const currentLookup =
+    lookup?.sessionId === stableSessionId ? lookup : undefined;
+  const verified = !hostEnabled || currentLookup?.status === "ready";
+  const notebookId =
+    hostEnabled && currentLookup?.status === "ready"
+      ? currentLookup.notebookId
+      : undefined;
+  const targetReady = Boolean(stableSessionId) && verified;
   const authToken = useAuthToken();
   const hasToken = Boolean(authToken);
   const connection: ConnectionInfo = {
     url: runtimeManager.httpURL.toString(),
-    file: preview ? undefined : getFileFromURL(window.location.href),
-    notebook: preview ? notebookId : undefined,
+    notebook: notebookId ?? undefined,
+    session:
+      targetReady && !notebookId ? (stableSessionId ?? undefined) : undefined,
   };
 
   return (
@@ -111,6 +130,13 @@ export const PairWithAgentModal: React.FC<{
       </DialogHeader>
 
       <div className="flex flex-col gap-4 py-2">
+        {!targetReady && (
+          <output className="text-sm text-muted-foreground">
+            {currentLookup?.status === "error"
+              ? "Could not verify this notebook. Close this dialog and try again."
+              : "Waiting for the notebook connection…"}
+          </output>
+        )}
         <Tabs
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as AgentTab)}
@@ -129,34 +155,27 @@ export const PairWithAgentModal: React.FC<{
               value={tab}
               className="mt-4 flex flex-col gap-4"
             >
-              {!preview && (
-                <Step
-                  index={1}
-                  title="Install the skill"
-                  hint="Run once per machine."
-                >
-                  <CommandBlock command={SKILL_INSTALL} />
-                </Step>
-              )}
               <Step
-                index={commandStep}
+                index={1}
                 title="Run in your terminal"
-                hint={tab === "opencode" ? "Requires OpenCode 2.x." : undefined}
+                hint={
+                  hostEnabled && tab === "opencode"
+                    ? "Agent connections require OpenCode 2.x."
+                    : undefined
+                }
               >
                 <CommandBlock
                   command={getTerminalCommand(
                     tab,
                     connection,
                     hasToken,
-                    preview,
+                    config,
                   )}
+                  disabled={!targetReady}
                 />
               </Step>
               {hasToken && authToken && (
-                <Step
-                  index={commandStep + 1}
-                  title="Paste when prompted for a token"
-                >
+                <Step index={2} title="Paste when prompted for a token">
                   <CommandBlock
                     command={authToken}
                     display={maskToken(authToken)}
@@ -168,17 +187,8 @@ export const PairWithAgentModal: React.FC<{
           ))}
 
           <TabsContent value="prompt" className="mt-4 flex flex-col gap-4">
-            {!preview && (
-              <Step
-                index={1}
-                title="Make sure the marimo-pair skill is available to your agent"
-                hint="Skip if your agent already has it."
-              >
-                <CommandBlock command={SKILL_INSTALL} />
-              </Step>
-            )}
             <Step
-              index={commandStep}
+              index={1}
               title="Copy this prompt into your agent"
               hint={
                 hasToken
@@ -187,13 +197,14 @@ export const PairWithAgentModal: React.FC<{
               }
             >
               <CommandBlock
-                command={getRawPrompt(connection, authToken, preview)}
+                command={getRawPrompt(connection, authToken, config)}
                 display={getRawPrompt(
                   connection,
                   authToken ? maskToken(authToken) : null,
-                  preview,
+                  config,
                 )}
                 multiline={true}
+                disabled={!targetReady}
               />
             </Step>
           </TabsContent>
@@ -231,11 +242,21 @@ const CommandBlock: React.FC<{
   display?: string;
   multiline?: boolean;
   copyLabel?: string;
-}> = ({ command, display, multiline = false, copyLabel = "Copy command" }) => {
+  disabled?: boolean;
+}> = ({
+  command,
+  display,
+  multiline = false,
+  copyLabel = "Copy command",
+  disabled = false,
+}) => {
   const [copied, setCopied] = useState(false);
 
   const copy = Events.stopPropagation(async (e) => {
     e.preventDefault();
+    if (disabled) {
+      return;
+    }
     await copyToClipboard(command);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -250,6 +271,7 @@ const CommandBlock: React.FC<{
         <Tooltip content="Copied!" open={copied}>
           <Button
             aria-label="Copy prompt"
+            disabled={disabled}
             onClick={copy}
             size="xs"
             variant="ghost"
@@ -272,7 +294,13 @@ const CommandBlock: React.FC<{
         {display ?? command}
       </code>
       <Tooltip content="Copied!" open={copied}>
-        <Button aria-label={copyLabel} onClick={copy} size="xs" variant="ghost">
+        <Button
+          aria-label={copyLabel}
+          onClick={copy}
+          size="xs"
+          variant="ghost"
+          disabled={disabled}
+        >
           {copied ? (
             <CheckIcon size={14} strokeWidth={1.5} />
           ) : (

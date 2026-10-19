@@ -7,7 +7,7 @@ import signal
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import pytest
 
@@ -26,7 +26,17 @@ def server(
         yield running
 
 
-def _command(server: PairTestServer, *arguments: str) -> list[str]:
+def _command(
+    server: PairTestServer,
+    *arguments: str,
+    selector: Literal["notebook", "session", "auto"] = "notebook",
+) -> list[str]:
+    target = []
+    if selector == "notebook":
+        assert server.notebook_id is not None
+        target = ["--notebook", server.notebook_id]
+    elif selector == "session":
+        target = ["--session", server.stable_session_id]
     return [
         sys.executable,
         "-m",
@@ -35,8 +45,7 @@ def _command(server: PairTestServer, *arguments: str) -> list[str]:
         "execute",
         "--url",
         server.url,
-        "--notebook",
-        server.notebook_id,
+        *target,
         *arguments,
     ]
 
@@ -46,9 +55,10 @@ def _run(
     *arguments: str,
     code_input: str | None = None,
     timeout: float = 20,
+    selector: Literal["notebook", "session", "auto"] = "notebook",
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        _command(server, *arguments),
+        _command(server, *arguments, selector=selector),
         input=code_input,
         text=True,
         capture_output=True,
@@ -89,15 +99,107 @@ def test_streams_output_before_execution_finishes(
     assert stdout == "b\n"
 
 
-def test_executes_by_stable_session_id(server: PairTestServer) -> None:
+@pytest.mark.parametrize("selector", ["notebook", "session", "auto"])
+def test_host_execution_target_selection(
+    server: PairTestServer,
+    selector: Literal["notebook", "session", "auto"],
+) -> None:
     assert server.notebook_id != server.session_id
 
-    result = _run(server, "-c", "print('stable')")
+    result = _run(server, "-c", "print('stable')", selector=selector)
 
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
     assert payload["stdout"] == "stable\n"
     assert payload["notebook"]["id"] == server.notebook_id
+    if selector == "notebook":
+        assert "session" not in payload
+    else:
+        assert payload["session"]["id"] == server.stable_session_id
+
+
+@pytest.fixture(scope="module")
+def editor_server(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Generator[PairTestServer, None, None]:
+    with pair_test_server(
+        tmp_path_factory.mktemp("pair-editor"),
+        host_enabled=False,
+        token="pair-editor-private-token",
+    ) as running:
+        yield running
+
+
+@pytest.mark.parametrize("selector", ["session", "auto"])
+def test_editor_execution_without_host_preserves_session_contract(
+    editor_server: PairTestServer,
+    tmp_path: Path,
+    selector: Literal["session", "auto"],
+) -> None:
+    token_file = tmp_path / "token"
+    token_file.write_text("pair-editor-private-token")
+    assert editor_server.notebook_id is None
+    result = _run(
+        editor_server,
+        "--token-file",
+        str(token_file),
+        "-c",
+        "print('editor'); 42",
+        selector=selector,
+    )
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["success"] is True
+    assert payload["stdout"] == "editor\n"
+    assert payload["output"] == {
+        "mimetype": "text/html",
+        "data": "<pre class='text-xs'>42</pre>",
+    }
+    assert payload["session"] == {"id": editor_server.stable_session_id}
+    assert "notebook" not in payload
+
+
+def test_editor_execution_requires_editor_token(
+    editor_server: PairTestServer,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MARIMO_TOKEN", raising=False)
+    result = _run(
+        editor_server, "-c", "print('must not execute')", selector="session"
+    )
+    assert result.returncode == 2
+    assert "must not execute" not in result.stdout
+    assert "pair-editor-private-token" not in result.stdout + result.stderr
+    editor_server.wait_for_kernel("idle")
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_editor_execution_failure_preserves_output(
+    editor_server: PairTestServer,
+    tmp_path: Path,
+    stream: bool,
+) -> None:
+    token_file = tmp_path / "token"
+    token_file.write_text("pair-editor-private-token")
+    result = _run(
+        editor_server,
+        "--token-file",
+        str(token_file),
+        *(["--stream"] if stream else []),
+        "-c",
+        "print('before error'); 1 / 0",
+        selector="session",
+    )
+    assert result.returncode == 1, result.stderr
+    if stream:
+        assert result.stdout == "before error\n"
+        assert "ZeroDivisionError" in result.stderr
+    else:
+        payload = json.loads(result.stdout)
+        assert payload["success"] is False
+        assert payload["stdout"] == "before error\n"
+        assert "ZeroDivisionError" in payload["stderr"]
+        assert payload["session"] == {"id": editor_server.stable_session_id}
 
 
 @pytest.mark.skipif(os.name != "posix", reason="SIGINT requires POSIX")
@@ -159,6 +261,7 @@ def test_host_run_error_returns_failed_result(
     assert error in payload["stderr"]
 
 
+@pytest.mark.skipif(os.name != "posix", reason="SIGINT requires POSIX")
 def test_concurrent_host_run_reports_conflict(server: PairTestServer) -> None:
     process = subprocess.Popen(
         _command(server, "-c", "import time; time.sleep(30)"),

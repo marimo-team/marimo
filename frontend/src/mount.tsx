@@ -10,7 +10,7 @@ import {
   userConfigAtom,
 } from "@/core/config/config";
 import { KnownQueryParams } from "@/core/constants";
-import { pairPreviewAtom, pairPreviewSchema } from "@/core/config/pair";
+import { pairConfigAtom, pairConfigSchema } from "@/core/config/pair";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 import { getMarimoCode } from "@/core/meta/globals";
 import {
@@ -209,7 +209,7 @@ const mountOptionsSchema = z.object({
    * marimo config overrides
    */
   configOverrides: passthroughObject,
-  pairPreview: pairPreviewSchema.optional(),
+  pairConfig: pairConfigSchema.optional(),
   /**
    * marimo app config
    */
@@ -347,7 +347,7 @@ function initStore(options: unknown) {
   );
   store.set(userConfigAtom, parseUserConfig(parsedOptions.data.config));
   store.set(appConfigAtom, parseAppConfig(parsedOptions.data.appConfig));
-  store.set(pairPreviewAtom, parsedOptions.data.pairPreview);
+  store.set(pairConfigAtom, parsedOptions.data.pairConfig);
 
   // Runtime config
   if (parsedOptions.data.runtimeConfig.length > 0) {

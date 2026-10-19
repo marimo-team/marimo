@@ -1,50 +1,34 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
+import { shellQuote } from "@/utils/shell";
 import {
   type ConnectionInfo,
-  getFileFromURL,
   getMarimoCommand,
   getRawPrompt,
   getTerminalCommand,
   maskToken,
 } from "../pair-with-agent-commands";
-import { shellQuote } from "@/utils/shell";
-import { PAIR_PREVIEW } from "@/__tests__/fixtures/pair-preview";
 
 const CONNECTION: ConnectionInfo = {
   url: "http://localhost:8000",
-  file: "notebooks/example.py",
-  notebook: "s_ab12cd",
+  notebook: "nb-one",
 };
-
-const CONNECTION_WITHOUT_FILE: ConnectionInfo = {
+const CONNECTION_WITHOUT_TARGET: ConnectionInfo = {
   url: "http://localhost:8000",
 };
 
 describe("shellQuote", () => {
-  it("quotes an empty string", () => {
+  it("quotes empty and unsafe arguments", () => {
     expect(shellQuote("")).toBe("''");
-  });
-
-  it("leaves shell-safe values untouched", () => {
     expect(shellQuote("http://localhost:8000")).toBe("http://localhost:8000");
-    expect(shellQuote("notebooks/example.py")).toBe("notebooks/example.py");
-  });
-
-  it("quotes values with shell metacharacters", () => {
     expect(shellQuote("http://host:8000?a=1&b=2")).toBe(
       "'http://host:8000?a=1&b=2'",
     );
-    expect(shellQuote("has space")).toBe("'has space'");
     expect(shellQuote("$(rm -rf /)")).toBe("'$(rm -rf /)'");
-  });
-
-  it("escapes embedded single quotes without breaking out", () => {
-    // Closes the quote, emits a literal ' via "'", then reopens: '"'"'
     expect(shellQuote("a'b")).toBe(`'a'"'"'b'`);
   });
-
   it.each([
     ["/tmp/my notebook.py", "'/tmp/my notebook.py'"],
     [
@@ -55,265 +39,115 @@ describe("shellQuote", () => {
       String.raw`\\server\share\my notebook.py`,
       String.raw`'\\server\share\my notebook.py'`,
     ],
-  ])("quotes non-portable path %s as one argument", (path, expected) => {
+  ])("quotes path %s as one argument", (path, expected) => {
     expect(shellQuote(path)).toBe(expected);
   });
 });
 
-describe("getFileFromURL", () => {
-  it("returns undefined when the file query parameter is absent or empty", () => {
-    expect(getFileFromURL("http://localhost:8000")).toBeUndefined();
-    expect(getFileFromURL("http://localhost:8000?file=")).toBeUndefined();
-  });
-
-  it("decodes spaces and literal plus signs", () => {
-    expect(
-      getFileFromURL(
-        "http://localhost:8000?file=relative%2Fmy%20notebook%2Bdata.py",
-      ),
-    ).toBe("relative/my notebook+data.py");
-    expect(getFileFromURL("http://localhost:8000?file=my+notebook.py")).toBe(
-      "my notebook.py",
-    );
-  });
-
-  it("preserves decoded Windows paths and uses the first duplicate value", () => {
-    expect(
-      getFileFromURL(
-        "http://localhost:8000?file=C%3A%5CUsers%5CJane%20Doe%5Cnotebook.py",
-      ),
-    ).toBe(String.raw`C:\Users\Jane Doe\notebook.py`);
-    expect(
-      getFileFromURL("http://localhost:8000?file=first.py&file=second.py"),
-    ).toBe("first.py");
-  });
-});
-
 describe("getMarimoCommand", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it("uses the local checkout in dev", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it("uses the checkout command in development", () => {
     vi.stubEnv("DEV", true);
     expect(getMarimoCommand()).toBe("uv run marimo");
   });
-
-  it("uses uvx outside of dev", () => {
+  it("uses uvx outside development", () => {
     vi.stubEnv("DEV", false);
     expect(getMarimoCommand()).toBe("uvx marimo@latest");
   });
 });
 
 describe("getTerminalCommand", () => {
-  it("uses the preview launcher in production and quotes session-only targets", () => {
-    vi.stubEnv("DEV", false);
+  it.each([
+    ["claude", "claude"],
+    ["codex", "codex"],
+    ["opencode", "opencode --prompt"],
+  ] as const)("launches %s through the public CLI", (agent, cli) => {
+    expect(getTerminalCommand(agent, CONNECTION, true, PAIR_CONFIG)).toBe(
+      `${cli} "$(uvx marimo@latest pair prompt \\\n  --url http://localhost:8000 \\\n  --notebook nb-one \\\n  --with-token)"`,
+    );
+  });
+  it("uses a stable Session ID for editor execution", () => {
+    const command = getTerminalCommand(
+      "claude",
+      { url: "http://host:8000?a=1&b=2", session: "stable_' {file}" },
+      false,
+      PAIR_CONFIG,
+    );
+    expect(command).toContain("--url 'http://host:8000?a=1&b=2'");
+    expect(command).toContain(`--session 'stable_'"'"' {file}'`);
+    expect(command).not.toContain("--notebook");
+  });
+  it("prefers the verified Notebook ID to a Session ID", () => {
+    const command = getTerminalCommand(
+      "codex",
+      { ...CONNECTION, session: "stable-one" },
+      false,
+      PAIR_CONFIG,
+    );
+    expect(command).toContain("--notebook nb-one");
+    expect(command).not.toContain("stable-one");
+    expect(command).not.toContain("--with-token");
+  });
+  it("uses the CLI without injected configuration", () => {
+    vi.stubEnv("DEV", true);
     try {
-      expect(
-        getTerminalCommand(
-          "claude",
-          { url: "http://host:8000?a=1&b=2", notebook: "s_' {file}" },
-          false,
-          { ...PAIR_PREVIEW, command: "uvx marimo@latest" },
-        ),
-      ).toBe(
-        String.raw`claude "$(MARIMO_PAIR_NEXT=1 uvx marimo@latest pair prompt \
-  --url 'http://host:8000?a=1&b=2' \
-  --notebook 's_'"'"' {file}')"`,
+      const command = getTerminalCommand(
+        "claude",
+        CONNECTION_WITHOUT_TARGET,
+        false,
       );
-      expect(
-        getTerminalCommand(
-          "codex",
-          CONNECTION_WITHOUT_FILE,
-          false,
-          PAIR_PREVIEW,
-        ),
-      ).toBe(
-        String.raw`codex "$(MARIMO_PAIR_NEXT=1 uvx marimo@latest pair prompt \
-  --url http://localhost:8000)"`,
+      expect(command).toContain("uv run marimo pair prompt");
+      expect(command).not.toMatch(
+        /--claude|MARIMO_PAIR_NEXT|--file|--session|--notebook/,
       );
     } finally {
       vi.unstubAllEnvs();
     }
   });
-
-  it.each([
-    ["claude", "claude"],
-    ["codex", "codex"],
-    ["opencode", "opencode --prompt"],
-  ] as const)(
-    "enables the preview inside the %s prompt command",
-    (agent, cli) => {
-      expect(
-        getTerminalCommand(
-          agent,
-          { ...CONNECTION, notebook: "s_ab12cd" },
-          true,
-          PAIR_PREVIEW,
-        ),
-      ).toBe(
-        String.raw`${cli} "$(MARIMO_PAIR_NEXT=1 uvx marimo@latest pair prompt \
-  --url http://localhost:8000 \
-  --notebook s_ab12cd \
-  --with-token)"`,
-      );
-    },
-  );
-
-  it("includes the url and agent flag for each agent", () => {
-    expect(getTerminalCommand("claude", CONNECTION, false)).toBe(
-      `claude "$(uv run marimo pair prompt --url http://localhost:8000 --claude)"`,
-    );
-    expect(getTerminalCommand("codex", CONNECTION, false)).toBe(
-      `codex "$(uv run marimo pair prompt --url http://localhost:8000 --codex)"`,
-    );
-    expect(getTerminalCommand("opencode", CONNECTION, false)).toBe(
-      `opencode --prompt "$(uv run marimo pair prompt --url http://localhost:8000 --opencode)"`,
-    );
-  });
-
-  it("never passes a file to marimo pair prompt", () => {
-    const command = getTerminalCommand("claude", CONNECTION, false);
-    expect(command).not.toContain("--file");
-    expect(command).not.toContain("notebooks/example.py");
-  });
-
-  it("omits the session outside the preview", () => {
-    expect(getTerminalCommand("claude", CONNECTION, false)).not.toContain(
-      "--notebook",
-    );
-  });
-
-  it("omits the session when it is unknown", () => {
-    expect(
-      getTerminalCommand(
-        "claude",
-        CONNECTION_WITHOUT_FILE,
-        false,
-        PAIR_PREVIEW,
-      ),
-    ).not.toContain("--notebook");
-  });
-
-  it("shell-escapes a url containing metacharacters", () => {
-    const command = getTerminalCommand(
-      "claude",
-      { url: "http://host:8000?auth=a&b" },
-      false,
-    );
-    expect(command).toContain("--url 'http://host:8000?auth=a&b'");
-  });
-
-  it("adds --with-token before the agent flag when requested", () => {
-    const command = getTerminalCommand("claude", CONNECTION, true);
-    expect(command).toContain("--with-token --claude");
-  });
-
-  it("omits --with-token when not requested", () => {
-    expect(getTerminalCommand("claude", CONNECTION, false)).not.toContain(
-      "--with-token",
-    );
-  });
 });
 
 describe("getRawPrompt", () => {
-  it("uses supplied templates without reinterpreting inserted values", () => {
-    expect(
-      getRawPrompt(
-        {
-          url: "http://host/{session}",
-          notebook: "{command}/it's",
+  it("does not interpret placeholders in inserted values", () => {
+    const prompt = getRawPrompt(
+      { url: "http://host/{session}", notebook: "{command}/it's" },
+      "tok'en {session} $&",
+      {
+        ...PAIR_CONFIG,
+        command: "custom marimo",
+        templates: {
+          ...PAIR_CONFIG.templates,
+          prompt: "{command}\n{url}\n{notebook}{authentication}",
         },
-        "tok'en {session} $&",
-        {
-          ...PAIR_PREVIEW,
-          command: "custom marimo",
-          templates: {
-            ...PAIR_PREVIEW.templates,
-            prompt: "{command}\n{url}\n{notebook}{authentication}",
-          },
-        },
-      ),
-    ).toBe(
+      },
+    );
+    expect(prompt).toBe(
       "custom marimo\nhttp://host/{session}\nNotebook: {command}/it's\n" +
         `\n\nFor authenticated notebook discovery, set \`export MARIMO_TOKEN='tok'"'"'en {session} $&'\` in the shell that runs marimo.`,
     );
   });
-
   it.each([
-    [CONNECTION_WITHOUT_FILE, ""],
+    [CONNECTION_WITHOUT_TARGET, ""],
+    [CONNECTION, "Notebook: nb-one\n"],
     [
-      { ...CONNECTION_WITHOUT_FILE, notebook: "s_ab12cd" },
-      "Notebook: s_ab12cd\n",
+      { ...CONNECTION_WITHOUT_TARGET, session: "stable-one" },
+      "Session: stable-one\n",
     ],
-    [{ ...CONNECTION_WITHOUT_FILE, file: "notebook.py" }, ""],
-  ])("omits absent preview fields for %j", (connection, fields) => {
-    expect(getRawPrompt(connection, null, PAIR_PREVIEW)).toBe(
-      "Pair with me on this running marimo notebook.\n\n" +
-        `URL: http://localhost:8000\n${fields}\n` +
-        "Run `uvx marimo@latest pair --help` first.\n" +
-        "Use `uvx marimo@latest` for all marimo commands.",
-    );
-  });
-
-  it("renders the shared preview template with the session and no file", () => {
+  ])("renders the shared CLI prompt for %j", (connection, target) => {
+    const expected = `Pair with me on this running marimo notebook.\n\nURL: http://localhost:8000\n${target}\nRun \`uvx marimo@latest pair --help\` first.\nUse \`uvx marimo@latest\` for all marimo commands.`;
+    expect(getRawPrompt(connection, null, PAIR_CONFIG)).toBe(expected);
     expect(
-      getRawPrompt({ ...CONNECTION, notebook: "s_ab12cd" }, null, PAIR_PREVIEW),
-    ).toBe(
-      "Pair with me on this running marimo notebook.\n\n" +
-        "URL: http://localhost:8000\n" +
-        "Notebook: s_ab12cd\n\n" +
-        "Run `uvx marimo@latest pair --help` first.\n" +
-        "Use `uvx marimo@latest` for all marimo commands.",
-    );
+      getRawPrompt(connection, null, { ...PAIR_CONFIG, hostEnabled: false }),
+    ).toBe(expected);
   });
-
-  it("references the file-scoped execute-code command", () => {
-    const prompt = getRawPrompt(CONNECTION, null);
-    expect(prompt).toContain(
-      "execute-code.sh --url http://localhost:8000 --file notebooks/example.py",
-    );
-    expect(prompt).toContain(
-      "Connect to the notebook at: http://localhost:8000 (file notebooks/example.py)",
-    );
-  });
-
-  it("omits file targeting when the page URL has no file", () => {
-    const prompt = getRawPrompt(CONNECTION_WITHOUT_FILE, null);
-    expect(prompt).toContain("execute-code.sh --url http://localhost:8000");
-    expect(prompt).not.toContain("--file");
-    expect(prompt).not.toContain("--notebook");
-  });
-
-  it("omits the token hint when there is no token", () => {
-    const prompt = getRawPrompt(CONNECTION, null);
-    expect(prompt).not.toContain("--token");
-    expect(prompt).not.toContain("auth token");
-  });
-
-  it("includes a file-scoped token hint when a token is present", () => {
-    const prompt = getRawPrompt(CONNECTION, "secret-token");
-    expect(prompt).toContain(
-      "execute-code.sh --url http://localhost:8000 --file notebooks/example.py --token secret-token",
-    );
-  });
-
-  it("shell-escapes a token containing a single quote", () => {
-    const prompt = getRawPrompt(CONNECTION, "tok'en");
-    expect(prompt).toContain(`--token 'tok'"'"'en'`);
-  });
-
-  it("matches the CLI prompt shape", () => {
-    const prompt = getRawPrompt(CONNECTION, null);
-    expect(prompt).toMatchInlineSnapshot(`
-      "Use the /marimo-pair skill to pair-program on a running marimo notebook.
-
-      Connect to the notebook at: http://localhost:8000 (file notebooks/example.py)
-
-      Use \`execute-code.sh --url http://localhost:8000 --file notebooks/example.py\` from the marimo-pair skill to execute code in the notebook.
-
-      Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair."
-    `);
+  it("matches the shared prompt without injected templates", () => {
+    vi.stubEnv("DEV", false);
+    try {
+      expect(getRawPrompt(CONNECTION, "secret-token")).toBe(
+        getRawPrompt(CONNECTION, "secret-token", PAIR_CONFIG),
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 
@@ -322,12 +156,8 @@ describe("maskToken", () => {
     expect(maskToken("ab")).toBe("****");
     expect(maskToken("abcd")).toBe("****");
   });
-
-  it("reveals only the last four characters", () => {
-    expect(maskToken("abcdefgh")).toBe("****efgh");
-  });
-
-  it("caps the number of mask characters at eight", () => {
-    expect(maskToken("0123456789abcdef")).toBe("********cdef");
-  });
+  it("reveals only the last four characters", () =>
+    expect(maskToken("abcdefgh")).toBe("****efgh"));
+  it("caps mask characters at eight", () =>
+    expect(maskToken("0123456789abcdef")).toBe("********cdef"));
 });

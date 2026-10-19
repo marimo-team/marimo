@@ -76,7 +76,13 @@ def opencode_server() -> Iterator[tuple[OpenCodeServer, str]]:
                 )
             else:
                 status = 200
-                if self.command == "POST":
+                endpoint = urlsplit(self.path)
+                location = parse_qs(endpoint.query).get("location[directory]")
+                if (
+                    self.command == "POST"
+                    and endpoint.path == "/api/session/ses_one/prompt"
+                    and location == [os.getcwd()]
+                ):
                     state.messages.put(
                         json.loads(
                             self.rfile.read(
@@ -85,16 +91,16 @@ def opencode_server() -> Iterator[tuple[OpenCodeServer, str]]:
                         )
                     )
                     body = {}
-                elif self.path == "/api/info":
+                elif self.command == "GET" and self.path == "/api/info":
                     body = {"pid": state.pid, "version": state.version}
-                elif parse_qs(urlsplit(self.path).query).get(
-                    "location[directory]"
-                ) != [os.getcwd()]:
+                elif self.command != "GET" or location != [os.getcwd()]:
                     status, body = 404, {"error": "Wrong OpenCode location"}
-                elif self.path.startswith("/api/shell?"):
+                elif endpoint.path == "/api/shell":
                     body = {"data": state.shells}
-                else:
+                elif endpoint.path == "/api/session/ses_one":
                     body = {"data": {"id": state.session}}
+                else:
+                    status, body = 404, {"error": "Unknown OpenCode endpoint"}
             data = json.dumps(body).encode()
             self.send_response(status)
             self.send_header("Content-Length", str(len(data)))
@@ -164,10 +170,12 @@ def test_verified_session_delivery(tmp_path: Path) -> None:
 
 def test_unconfigured_and_unsupported_version() -> None:
     assert OpenCodeHarness().detect({}) is None
-    assert OpenCodeHarness().identity({"OPENCODE": "1"}) is None
+    assert OpenCodeHarness().identity({}) is None
     assert isinstance(harness_for("opencode"), OpenCodeHarness)
     with pytest.raises(PairInputError, match=r"require OpenCode 2\.x"):
         OpenCodeHarness().detect({"OPENCODE": "1"})
+    with pytest.raises(PairInputError, match=r"require OpenCode 2\.x"):
+        OpenCodeHarness().identity({"OPENCODE": "1"})
 
 
 def test_native_session_id_does_not_require_shell_lookup(
@@ -180,6 +188,42 @@ def test_native_session_id_does_not_require_shell_lookup(
         target = OpenCodeHarness().detect(env)
         assert target is not None
         assert urlsplit(target.address).path == "/api/session/ses_one/prompt"
+
+
+def test_empty_xdg_state_uses_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pathlib import Path
+
+    with opencode_server() as (state, url):
+        state_home = tmp_path / ".local" / "state"
+        state_home.mkdir(parents=True)
+        env = native_env(state_home, state, url)
+        env["XDG_STATE_HOME"] = ""
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        assert OpenCodeHarness().detect(env) is not None
+
+
+def test_identity_resolution_failure_is_not_absence(tmp_path: Path) -> None:
+    from marimo._cli.pair.harnesses import environment_identity
+
+    with pytest.raises(PairInputError, match="service record"):
+        environment_identity(
+            {"OPENCODE_TERMINAL": "1", "XDG_STATE_HOME": str(tmp_path)}
+        )
+
+
+def test_native_discovery_checks_platform_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from unittest.mock import Mock
+
+    check = Mock()
+    monkeypatch.setattr(OpenCodeHarness, "check", check)
+    with opencode_server() as (state, url):
+        env = native_env(tmp_path, state, url)
+        assert OpenCodeHarness().detect(env) is not None
+    check.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -284,9 +328,8 @@ def test_delivery_errors_are_sanitized(tmp_path: Path) -> None:
 
 
 def test_detached_forwarder_to_opencode(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("MARIMO_PAIR_NEXT", "1")
     with (
         opencode_server() as (state, url),
         pair_test_server(tmp_path) as notebook,

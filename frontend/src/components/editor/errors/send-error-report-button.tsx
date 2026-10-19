@@ -9,22 +9,22 @@ import {
   attachmentLabel,
 } from "@/core/attachments/state";
 import { agentToast } from "@/core/attachments/toast";
-import { pairPreviewAtom } from "@/core/config/pair";
+import { pairConfigAtom } from "@/core/config/pair";
 import { stableSessionIdAtom } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
-import { HTTPError } from "@/utils/errors";
+import { HTTPError, prettyError } from "@/utils/errors";
 
 export function SendErrorReportButton({
   getContent,
 }: {
   getContent: () => unknown;
 }) {
-  const pairPreview = useAtomValue(pairPreviewAtom);
+  const hostEnabled = useAtomValue(pairConfigAtom)?.hostEnabled;
   const agents = useAtomValue(agentAttachmentsAtom);
   const stableSessionId = useAtomValue(stableSessionIdAtom);
   const [sending, setSending] = useState(false);
 
-  if (!pairPreview) {
+  if (!hostEnabled) {
     return null;
   }
 
@@ -48,6 +48,7 @@ export function SendErrorReportButton({
           error instanceof HTTPError && error.status === 409
             ? "No agent attached"
             : "Could not send error",
+        description: prettyError(error),
       });
     } finally {
       setSending(false);

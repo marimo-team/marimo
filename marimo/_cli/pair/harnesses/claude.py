@@ -30,7 +30,22 @@ class ClaudeHarness:
     kind = "claude"
 
     def identity(self, env: Mapping[str, str]) -> str | None:
-        return env.get("CLAUDE_CODE_MESSAGING_SOCKET") or None
+        address = env.get("CLAUDE_CODE_MESSAGING_SOCKET")
+        if address:
+            return address
+        if any(
+            key in env
+            for key in (
+                "CLAUDE_PID",
+                "CLAUDE_CODE_MESSAGING_SOCKET",
+                "CLAUDE_CODE_MESSAGING_TOKEN",
+            )
+        ):
+            raise PairInputError(
+                "Claude Code did not export its inbox socket. "
+                "Run this command inside a current Claude Code session."
+            )
+        return None
 
     def detect(
         self,

@@ -87,7 +87,7 @@ class SSEEvent:
 
 @dataclass(frozen=True)
 class ExecutionResult:
-    """Captured output and final outcome of a notebook host run."""
+    """Captured output and final outcome of a notebook execution."""
 
     success: bool
     output: dict[str, str] | None
@@ -164,6 +164,38 @@ def iter_sse(
 
     if data:
         yield SSEEvent(name=name, data="\n".join(data), id=cursor)
+
+
+def pump_events(
+    events: Iterable[SSEEvent],
+    incoming: queue.Queue[SSEEvent | Exception | None],
+    stopped: threading.Event,
+) -> None:
+    """Read events on a worker thread with bounded, cancellable delivery."""
+
+    def put(value: SSEEvent | Exception | None) -> None:
+        while not stopped.is_set():
+            try:
+                incoming.put(value, timeout=0.1)
+                return
+            except queue.Full:
+                continue
+
+    try:
+        for event in events:
+            if stopped.is_set():
+                return
+            put(event)
+    except (
+        PairError,
+        OSError,
+        http.client.HTTPException,
+        ValueError,
+        AttributeError,
+    ) as error:
+        put(error)
+    finally:
+        put(None)
 
 
 def open_response(
@@ -342,33 +374,13 @@ def execute(
         ):
             raise PairError("The server returned an invalid run.")
         run_id = str(started["id"])
-        incoming: queue.Queue[SSEEvent | BaseException | None] = queue.Queue(
+        incoming: queue.Queue[SSEEvent | Exception | None] = queue.Queue(
             maxsize=64
         )
 
-        def read() -> None:
-            def put(value: SSEEvent | BaseException | None) -> None:
-                while not stopped.is_set():
-                    try:
-                        incoming.put(value, timeout=0.1)
-                        return
-                    except queue.Full:
-                        continue
-
-            try:
-                for value in events:
-                    put(value)
-            except (
-                OSError,
-                http.client.HTTPException,
-                ValueError,
-                AttributeError,
-            ) as error:
-                put(error)
-            finally:
-                put(None)
-
-        reader = threading.Thread(target=read, daemon=True)
+        reader = threading.Thread(
+            target=pump_events, args=(events, incoming, stopped), daemon=True
+        )
         reader.start()
         while True:
             if interrupted.is_set() and not interrupt_sent:
@@ -399,7 +411,10 @@ def execute(
                 if isinstance(outcome, dict):
                     if outcome.get("kind") == "value":
                         output = outcome.get("display")
-                    elif outcome.get("kind") == "error":
+                    elif (
+                        outcome.get("kind") == "error"
+                        and execution.get("status") == "completed"
+                    ):
                         error = outcome["error"]
                         traceback = error.get("traceback")
                         if (
@@ -442,6 +457,7 @@ def execute(
                     )
     except (
         StopIteration,
+        PairConnectionError,
         OSError,
         http.client.HTTPException,
         ValueError,
@@ -459,6 +475,95 @@ def execute(
         response.close()
         if reader is not None:
             reader.join(timeout=1)
+
+
+def execute_editor(
+    *,
+    url: str,
+    session_id: str,
+    token: str | None,
+    code: str,
+    stdout: TextIO,
+    stderr: TextIO,
+    stream: bool,
+) -> ExecutionResult:
+    request_url = _endpoint_url(url, "/api/kernel/execute")
+    headers = {
+        "Content-Type": "application/json",
+        "Marimo-Stable-Session-Id": session_id,
+    }
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
+    body = json.dumps({"code": code}).encode("utf-8")
+    try:
+        response = open_response(
+            method="POST", url=request_url, headers=headers, body=body
+        )
+    except PairConnectionError as error:
+        raise PairError(
+            "The execution response ended before completion was confirmed."
+        ) from error
+    stdout_parts: list[str] = []
+    stderr_parts: list[str] = []
+
+    def write_event(target: TextIO, parts: list[str], value: str) -> None:
+        if stream:
+            target.write(value)
+            target.flush()
+        else:
+            parts.append(value)
+
+    try:
+        try:
+            for event in iter_sse(response):
+                payload = json.loads(event.data)
+                if event.name == "stdout":
+                    write_event(stdout, stdout_parts, payload["data"])
+                elif event.name == "stderr":
+                    write_event(stderr, stderr_parts, payload["data"])
+                elif event.name == "done":
+                    raw_output = payload.get("output")
+                    data = ""
+                    mimetype = "text/plain"
+                    if isinstance(raw_output, dict):
+                        data = str(raw_output.get("data") or "")
+                        mimetype = str(
+                            raw_output.get("mimetype") or "text/plain"
+                        )
+                    output = (
+                        None
+                        if not data
+                        else {"mimetype": mimetype, "data": data}
+                    )
+                    if stream and output is not None:
+                        stdout.write(f"{output['data']}\n")
+                    return ExecutionResult(
+                        success=bool(payload["success"]),
+                        outcome="succeeded"
+                        if payload["success"]
+                        else "failed",
+                        output=output,
+                        stdout="".join(stdout_parts),
+                        stderr="".join(stderr_parts),
+                    )
+        except (
+            OSError,
+            http.client.HTTPException,
+            ValueError,
+            KeyError,
+            TypeError,
+        ) as error:
+            # A malformed event means the outcome is unknown. The code may
+            # have run, so the caller must inspect rather than retry.
+            raise PairError(
+                "The execution response ended before completion was confirmed."
+            ) from error
+
+        raise PairError(
+            "The execution response ended before completion was confirmed."
+        )
+    finally:
+        response.close()
 
 
 @dataclass(frozen=True)
@@ -592,7 +697,7 @@ def resolve_host(url: str, *, root: Path | None = None) -> HostEndpoint:
         except (OSError, ValueError, msgspec.DecodeError, psutil.Error):
             continue
     raise PairError(
-        "No live host record matches this URL. Pair requires a local edit server."
+        "No live host record matches this URL. Start a local edit server with MARIMO_ENABLE_HOST=1, or restart the existing server with it."
     )
 
 
@@ -679,6 +784,38 @@ def resolve_notebook(*, url: str, token: str | None) -> str:
         url=safe_url,
         candidates=tuple(candidates),
     )
+
+
+def resolve_execution_target(
+    *, url: str, token: str | None, session_id: str | None = None
+) -> tuple[str | None, str]:
+    """Choose a host Notebook or editor Session before submitting code."""
+    sessions = list_sessions(url=url, token=token)
+    found = [
+        value
+        for value in sessions.values()
+        if session_id is None or value["session_id"] == session_id
+    ]
+    if not found:
+        if session_id is not None:
+            raise StaleNotebookError(
+                f"Invalid stable session id: {session_id}"
+            )
+        raise NoNotebookError(
+            f"No running session on {display_url(url)}.", url=display_url(url)
+        )
+    if len(found) != 1:
+        raise AmbiguousNotebookError(
+            f"Server {display_url(url)} has {len(found)} running sessions.",
+            url=display_url(url),
+            candidates=tuple(
+                sorted(str(value["session_id"]) for value in found)
+            ),
+        )
+    selected = found[0]
+    stable_id = selected["session_id"]
+    assert stable_id is not None
+    return selected.get("notebook_id"), stable_id
 
 
 def registry_urls() -> list[str]:

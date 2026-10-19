@@ -1,9 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { assertNever } from "@/utils/assertNever";
-import { KnownQueryParams } from "@/core/constants";
 import { shellQuote } from "@/utils/shell";
-import type { PairPreviewConfig } from "@/core/config/pair";
+import type { PairConfig } from "@/core/config/pair";
 
 export type AgentTab = "claude" | "codex" | "opencode" | "prompt";
 
@@ -18,28 +17,16 @@ export const AGENT_LABELS: Record<AgentTab, string> = {
   prompt: "Prompt",
 };
 
-export const SKILL_INSTALL = "npx skills add marimo-team/marimo-pair";
-
 /** How to invoke marimo: from the local checkout in dev, else via uvx. */
 export function getMarimoCommand(): string {
   return import.meta.env.DEV ? "uv run marimo" : "uvx marimo@latest";
 }
 
-/** Return the server file key from a page URL, preserving its decoded value. */
-export function getFileFromURL(href: string): string | undefined {
-  const file = new URL(href).searchParams.get(KnownQueryParams.filePath);
-  return file === null || file === "" ? undefined : file;
-}
-
-function getFileFlag(file: string | undefined): string {
-  return file ? ` --file ${shellQuote(file)}` : "";
-}
-
 /** Identifies the specific running notebook to pair on. */
 export interface ConnectionInfo {
   url: string;
-  /** The server's file key, when known. */
-  file?: string;
+  /** Stable Session ID for ordinary editor execution. */
+  session?: string;
   /** The host notebook ID, when known. */
   notebook?: string;
 }
@@ -50,21 +37,23 @@ export interface ConnectionInfo {
  */
 export function getTerminalCommand(
   agent: Exclude<AgentTab, "prompt">,
-  { url, notebook }: ConnectionInfo,
+  { url, notebook, session }: ConnectionInfo,
   withToken: boolean,
-  preview?: PairPreviewConfig,
+  config?: PairConfig,
 ): string {
-  const command = preview?.command ?? getMarimoCommand();
-  const prefix = preview ? "MARIMO_PAIR_NEXT=1 " : "";
+  const command = config?.command ?? getMarimoCommand();
   const base = [
-    `${prefix}${command} pair prompt`,
+    `${command} pair prompt`,
     `--url ${shellQuote(url)}`,
-    preview && notebook ? `--notebook ${shellQuote(notebook)}` : "",
+    notebook
+      ? `--notebook ${shellQuote(notebook)}`
+      : session
+        ? `--session ${shellQuote(session)}`
+        : "",
     withToken ? "--with-token" : "",
-    preview ? "" : `--${agent}`,
   ]
     .filter(Boolean)
-    .join(preview ? " \\\n  " : " ");
+    .join(" \\\n  ");
   switch (agent) {
     case "claude":
       return `claude "$(${base})"`;
@@ -83,37 +72,39 @@ export function getTerminalCommand(
  * an agent behaves the same as the terminal commands.
  */
 export function getRawPrompt(
-  { url, file, notebook }: ConnectionInfo,
+  { url, notebook, session }: ConnectionInfo,
   token: string | null,
-  preview?: PairPreviewConfig,
+  config?: PairConfig,
 ): string {
-  if (preview) {
-    const { command, templates } = preview;
-    return formatPrompt(templates.prompt, {
+  const command = config?.command ?? getMarimoCommand();
+  const templates = config?.templates;
+  const authentication = token
+    ? formatPrompt(
+        templates?.token ??
+          "\n\nFor authenticated notebook discovery, set `export MARIMO_TOKEN={token}` in the shell that runs marimo.",
+        { token: shellQuote(token) },
+      )
+    : "";
+  return formatPrompt(
+    templates?.prompt ??
+      "Pair with me on this running marimo notebook.\n\nURL: {url}\n{notebook}{session}\nRun `{command} pair --help` first.\nUse `{command}` for all marimo commands.{authentication}",
+    {
       command,
       url,
-      notebook: notebook ? formatPrompt(templates.notebook, { notebook }) : "",
-      authentication: token
-        ? formatPrompt(templates.token, { token: shellQuote(token) })
+      notebook: notebook
+        ? formatPrompt(templates?.notebook ?? "Notebook: {notebook}\n", {
+            notebook,
+          })
         : "",
-    });
-  }
-
-  const fileFlag = getFileFlag(file);
-  const fileHint = file ? ` (file ${file})` : "";
-  const executeCmd = `execute-code.sh --url ${shellQuote(url)}${fileFlag}`;
-  const tokenHint = token
-    ? `\n\nUse this auth token when calling \`execute-code.sh\`: \`${executeCmd} --token ${shellQuote(token)}\`.`
-    : "";
-  return [
-    "Use the /marimo-pair skill to pair-program on a running marimo notebook.",
-    "",
-    `Connect to the notebook at: ${url}${fileHint}`,
-    "",
-    `Use \`${executeCmd}\` from the marimo-pair skill to execute code in the notebook.${tokenHint}`,
-    "",
-    "Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.",
-  ].join("\n");
+      session:
+        session && !notebook
+          ? formatPrompt(templates?.session ?? "Session: {session}\n", {
+              session,
+            })
+          : "",
+      authentication,
+    },
+  );
 }
 
 function formatPrompt(

@@ -19,15 +19,22 @@ def registered_harnesses() -> list[Harness]:
     return [CodexHarness(), ClaudeHarness(), OpenCodeHarness()]
 
 
-def environment_identity(env: Mapping[str, str]) -> tuple[str, str | None]:
+def environment_identity(
+    env: Mapping[str, str], kind: str | None = None
+) -> tuple[str, str | None]:
+    candidates = [harness_for(kind)] if kind else registered_harnesses()
     found = [
         (candidate.kind, identity)
-        for candidate in registered_harnesses()
+        for candidate in candidates
         if (identity := candidate.identity(env)) is not None
     ]
     if len(found) > 1:
         raise PairInputError(
             "Nested harnesses detected. Pass --harness <kind>."
+        )
+    if kind and not found:
+        raise PairInputError(
+            f"No {kind} conversation detected. Run detach inside that harness."
         )
     return found[0] if found else ("unknown", None)
 

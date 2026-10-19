@@ -8,8 +8,8 @@ import { connectionAtom } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { ConnectionState } from "@/core/websocket/types";
-import { pairPreviewAtom } from "@/core/config/pair";
-import { PAIR_PREVIEW } from "./fixtures/pair-preview";
+import { pairConfigAtom } from "@/core/config/pair";
+import { PAIR_CONFIG } from "./fixtures/pair-config";
 import { mount, visibleForTesting } from "../mount";
 
 // Mock React DOM
@@ -84,20 +84,20 @@ describe("mount", () => {
       mockElement,
     );
 
-  it("hydrates the server's Pair preview configuration", () => {
-    const error = mountRead({ pairPreview: PAIR_PREVIEW });
+  it("hydrates the server's Pair configuration", () => {
+    const error = mountRead({ pairConfig: PAIR_CONFIG });
 
     expect(error).toBeUndefined();
-    expect(store.get(pairPreviewAtom)).toEqual(PAIR_PREVIEW);
+    expect(store.get(pairConfigAtom)).toEqual(PAIR_CONFIG);
   });
 
-  it("uses legacy Pair behavior when the host omits preview configuration", () => {
-    store.set(pairPreviewAtom, PAIR_PREVIEW);
+  it("clears Pair configuration when the server omits it", () => {
+    store.set(pairConfigAtom, PAIR_CONFIG);
 
     const error = mountRead();
 
     expect(error).toBeUndefined();
-    expect(store.get(pairPreviewAtom)).toBeUndefined();
+    expect(store.get(pairConfigAtom)).toBeUndefined();
   });
 
   describe("connection state initialization", () => {

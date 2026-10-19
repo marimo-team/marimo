@@ -212,11 +212,9 @@ def test_liveness_tracks_socket_and_process(
 def test_detached_forwarder_delivers_to_claude_socket(
     inbox: tuple[str, socket.socket],
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from marimo._cli.pair.client import resolve_host
 
-    monkeypatch.setenv("MARIMO_PAIR_NEXT", "1")
     address, listener = inbox
     received: queue.Queue[list[dict[str, object]]] = queue.Queue()
 

@@ -123,10 +123,7 @@ class OpenCodeHarness:
     kind = "opencode"
 
     def identity(self, env: Mapping[str, str]) -> str | None:
-        try:
-            target = self.detect(env)
-        except PairError:
-            return None
+        target = self.detect(env)
         return target.address if target else None
 
     def detect(
@@ -140,7 +137,7 @@ class OpenCodeHarness:
             return None
         self.check()
         state = Path(
-            env.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state"))
+            env.get("XDG_STATE_HOME") or Path.home() / ".local" / "state"
         )
         path = state / "opencode" / "service.json"
         try:
@@ -204,7 +201,6 @@ class OpenCodeHarness:
                     + _SETUP
                 )
             session = sessions.pop()
-        self.check()
         if not owner.alive():
             raise PairInputError("The OpenCode inbox owner is not running.")
         address = base + "/api/session/" + quote(session, safe="")

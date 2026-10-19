@@ -47,7 +47,6 @@ def wait_messages(path: Path, count: int) -> list[dict[str, str]]:
 def test_detached_delivery_replacement_and_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("MARIMO_PAIR_NEXT", "1")
     inbox = tmp_path / "inbox.jsonl"
     binary = tmp_path / "bin" / "codex"
     binary.parent.mkdir()
@@ -218,9 +217,8 @@ def test_failed_start_removes_record(tmp_path: Path) -> None:
 
 
 def test_subprocess_reconnect_replays_messages_and_server_detach(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("MARIMO_PAIR_NEXT", "1")
     with pair_test_server(tmp_path) as server:
         host = resolve_host(server.url)
         observer = open_events(

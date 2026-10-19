@@ -25,7 +25,7 @@ from marimo._cli.pair.client import (
     SSEEvent,
     StaleNotebookError,
 )
-from marimo._cli.pair.connection import ConnectionStore, connection_identity
+from marimo._cli.pair.connection import ConnectionStore
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
 from marimo._cli.pair.forwarder import ForwarderConfig, run_forwarder
 from tests._cli.test_pair_delivery import record
@@ -307,7 +307,6 @@ def test_detached_platform_options(monkeypatch: pytest.MonkeyPatch) -> None:
 def isolated_cli(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> ConnectionStore:
-    monkeypatch.setenv("MARIMO_PAIR_NEXT", "1")
     monkeypatch.setenv("CODEX_SESSION_ID", "thread")
     monkeypatch.setattr(
         commands,
@@ -345,7 +344,7 @@ def test_connect_and_detach_lifecycle(
         ],
     )
     assert result.exit_code == 0, result.output
-    check.assert_called_once()
+    check.assert_not_called()
     stop.assert_called_once()
     assert start.call_args.args[0].identity == previous.identity
     assert isolated_cli.load(previous.identity) is None
@@ -357,25 +356,6 @@ def test_connect_and_detach_lifecycle(
     assert result.exit_code == 0, result.output
     assert isolated_cli.load(previous.identity) is None
     assert stop.call_count == 2
-
-
-def test_connect_flag_off(
-    isolated_cli: ConnectionStore, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    assert (
-        isolated_cli.load(connection_identity("s_one", "codex", "thread"))
-        is None
-    )
-    monkeypatch.delenv("MARIMO_PAIR_NEXT")
-    result = CliRunner().invoke(
-        cli_main,
-        [
-            "pair",
-            *["connect", "--url", "http://server", "--notebook", "s_one"],
-        ],
-    )
-    assert result.exit_code == 1
-    assert "MARIMO_PAIR_NEXT=1" in result.output
 
 
 def test_stream_close_interrupts_blocked_read() -> None:

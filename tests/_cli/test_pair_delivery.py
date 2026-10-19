@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -20,7 +20,15 @@ from marimo._cli.pair.connection import (
 )
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
 from marimo._cli.pair.harnesses import detect_target
+from marimo._cli.pair.harnesses.claude import ClaudeHarness
 from marimo._cli.pair.harnesses.codex import CodexHarness
+
+
+@pytest.fixture
+def codex_ready(monkeypatch: pytest.MonkeyPatch) -> Mock:
+    check = Mock()
+    monkeypatch.setattr(CodexHarness, "check", check)
+    return check
 
 
 @pytest.fixture
@@ -42,6 +50,7 @@ def test_codex_detect(
     address: str | None,
     monkeypatch: pytest.MonkeyPatch,
     owner: ProcessHandle,
+    codex_ready: Mock,
 ) -> None:
     import psutil
 
@@ -54,6 +63,7 @@ def test_codex_detect(
         if address is None
         else DeliveryTarget("codex", address, "Codex", process=owner)
     )
+    assert codex_ready.call_count == (1 if address is not None else 0)
 
 
 @pytest.mark.parametrize(
@@ -87,7 +97,7 @@ def test_no_inbox_and_no_owner(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_explicit_pid_keeps_recipient_and_skips_ancestor_detection(
-    monkeypatch: pytest.MonkeyPatch, owner: ProcessHandle
+    monkeypatch: pytest.MonkeyPatch, owner: ProcessHandle, codex_ready: Mock
 ) -> None:
     import psutil
 
@@ -100,6 +110,7 @@ def test_explicit_pid_keeps_recipient_and_skips_ancestor_detection(
         {"CODEX_THREAD_ID": "thread"}, "codex", pid=owner.pid
     )
     assert target == DeliveryTarget("codex", "thread", "Codex", owner)
+    codex_ready.assert_called_once()
 
 
 @pytest.mark.parametrize("pid", [0, -1])
@@ -289,6 +300,77 @@ def test_connection_rejects_ambiguous_and_corrupt(
         store.path("../escape")
 
 
+def test_corrupt_connection_recovery_never_signals(
+    tmp_path: Path, owner: ProcessHandle, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = ConnectionStore(tmp_path)
+    current = record(owner)
+    store.path(current.identity).write_text('{"forwarder_pid": 123}')
+    stop = Mock(side_effect=AssertionError("No valid process ownership"))
+    monkeypatch.setattr(ProcessHandle, "stop", stop)
+    with store.locked(current.identity):
+        store.stop(current.identity)
+        store.save(current)
+    assert store.load(current.identity) == current
+    stop.assert_not_called()
+
+
+def test_selection_skips_unrelated_corruption(
+    tmp_path: Path, owner: ProcessHandle
+) -> None:
+    store = ConnectionStore(tmp_path)
+    current = record(owner)
+    store.save(current)
+    store.path(connection_identity("other", "codex", "bad")).write_text("{}")
+    assert store.select("s_one", kind="unknown", conversation=None) == current
+
+
+def test_connection_io_error_does_not_remove_record(
+    tmp_path: Path, owner: ProcessHandle, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = ConnectionStore(tmp_path)
+    current = record(owner)
+    store.save(current)
+    monkeypatch.setattr(Path, "read_bytes", Mock(side_effect=PermissionError))
+    with (
+        pytest.raises(PairInputError, match="Could not read"),
+        store.locked(current.identity),
+    ):
+        store.stop(current.identity)
+    assert store.path(current.identity).exists()
+
+
+def test_stop_validated_zombie_does_not_wait(
+    owner: ProcessHandle, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import psutil
+
+    zombie = Mock()
+    zombie.create_time.return_value = owner.started
+    zombie.is_running.return_value = True
+    zombie.status.return_value = psutil.STATUS_ZOMBIE
+    monkeypatch.setattr(psutil, "Process", Mock(return_value=zombie))
+    owner.stop()
+    zombie.terminate.assert_not_called()
+    zombie.wait.assert_not_called()
+
+
+def test_stop_process_that_becomes_a_zombie(
+    owner: ProcessHandle, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import psutil
+
+    process = Mock()
+    process.create_time.return_value = owner.started
+    process.is_running.return_value = True
+    process.status.side_effect = [psutil.STATUS_RUNNING, psutil.STATUS_ZOMBIE]
+    process.wait.side_effect = psutil.TimeoutExpired(5)
+    monkeypatch.setattr(psutil, "Process", Mock(return_value=process))
+    owner.stop()
+    process.terminate.assert_called_once()
+    process.kill.assert_not_called()
+
+
 PAYLOADS: list[object] = [
     {
         "type": "cell-output",
@@ -378,6 +460,41 @@ def test_cleanup_only_owned_aged_files(
     assert not old.exists()
     assert path.exists()
     assert unowned.exists()
+
+
+def test_cleanup_removed_directory_is_replaced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    files = AgentMessageFiles()
+    old = files.write("old")
+    directory = old.parent
+    os.utime(old, (1, 1))
+    os.utime(directory, (1, 1))
+    AgentMessageFiles.cleanup(now=100000)
+    assert not directory.exists()
+    new = files.write("new")
+    assert new.parent != directory
+    assert json.loads(new.read_text()) == "new"
+    assert new.stat().st_mode & 0o777 == 0o600
+
+
+def test_replaced_payload_directory_is_not_followed(tmp_path: Path) -> None:
+    files = AgentMessageFiles()
+    original = files.write("old")
+    directory = original.parent
+    original.unlink()
+    directory.rmdir()
+    try:
+        directory.symlink_to(tmp_path, target_is_directory=True)
+    except OSError:
+        pytest.skip("Symlinks unavailable")
+    try:
+        with pytest.raises(PairError, match="No shortened message"):
+            files.write("must not reach the replacement")
+        assert list(tmp_path.iterdir()) == []
+    finally:
+        directory.unlink()
 
 
 def test_nul_and_surrogate_text() -> None:
@@ -489,6 +606,71 @@ def test_identity_uses_registered_adapters_and_refuses_ambiguity(
     codex.identity.return_value = "codex-thread"
     with pytest.raises(PairInputError, match="Nested harnesses"):
         harnesses.environment_identity({})
+    assert harnesses.environment_identity({}, "codex") == (
+        "codex",
+        "codex-thread",
+    )
+    other.identity.side_effect = PairInputError("Unresolved conversation")
+    with pytest.raises(PairInputError, match="Unresolved conversation"):
+        harnesses.environment_identity({})
+    codex.identity.return_value = None
+    with pytest.raises(PairInputError, match="No codex conversation"):
+        harnesses.environment_identity({}, "codex")
+
+
+@pytest.mark.parametrize(
+    ("env", "message"),
+    [
+        ({"CLAUDE_PID": "123"}, "inbox socket"),
+        ({"CLAUDE_CODE_MESSAGING_SOCKET": ""}, "inbox socket"),
+        ({"CLAUDE_CODE_MESSAGING_TOKEN": "private-token"}, "inbox socket"),
+        ({"CODEX_SESSION_ID": ""}, "conversation ID"),
+        ({"CODEX_THREAD_ID": ""}, "conversation ID"),
+    ],
+)
+def test_unresolved_native_context_cannot_detach_another_conversation(
+    env: dict[str, str],
+    message: str,
+    tmp_path: Path,
+    owner: ProcessHandle,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.pair import commands
+
+    store = ConnectionStore(tmp_path)
+    other = record(owner, "another-conversation")
+    store.save(other)
+    monkeypatch.setattr(commands, "ConnectionStore", lambda: store)
+    stop = Mock(
+        side_effect=AssertionError("Unresolved identity cannot stop a process")
+    )
+    monkeypatch.setattr(ProcessHandle, "stop", stop)
+    with patch.dict(os.environ, env, clear=True):
+        result = CliRunner().invoke(commands.detach, ["--notebook", "s_one"])
+    assert result.exit_code == 1
+    assert message in result.output
+    assert "private-token" not in result.output
+    assert store.load(other.identity) == other
+    stop.assert_not_called()
+
+
+def test_explicit_harness_ignores_unresolved_inherited_harness() -> None:
+    from marimo._cli.pair.harnesses import environment_identity
+
+    assert environment_identity(
+        {"CLAUDE_PID": "123", "CODEX_SESSION_ID": "thread-one"}, "codex"
+    ) == ("codex", "thread-one")
+    assert environment_identity(
+        {
+            "CODEX_THREAD_ID": "",
+            "CLAUDE_CODE_MESSAGING_SOCKET": "/native/inbox",
+        },
+        "claude",
+    ) == ("claude", "/native/inbox")
+    assert ClaudeHarness().identity({}) is None
+    assert CodexHarness().detect({}) is None
 
 
 def test_pair_lock_rejects_symlink_without_modifying_target(

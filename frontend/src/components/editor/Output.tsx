@@ -66,7 +66,10 @@ export type OnRefactorWithAI = (opts: {
  * Renders an output based on an OutputMessage.
  */
 export const OutputRenderer: React.FC<{
-  message: Pick<OutputMessage, "channel" | "data" | "mimetype" | "code">;
+  message: Pick<
+    OutputMessage,
+    "channel" | "data" | "mimetype" | "code" | "traceback_format"
+  >;
   cellId?: CellId;
   onRefactorWithAI?: OnRefactorWithAI;
   wrapText?: boolean;
@@ -185,6 +188,7 @@ export const OutputRenderer: React.FC<{
         <MarimoTracebackOutput
           onRefactorWithAI={onRefactorWithAI}
           traceback={data}
+          tracebackFormat={message.traceback_format}
           code={message.code}
           cellId={cellId}
         />

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import tempfile
 import time
 import uuid
@@ -25,10 +26,15 @@ class AgentMessageFiles:
 
     def write(self, payload: object) -> Path:
         try:
-            if self.directory is None:
+            if self.directory is None or not self.directory.exists():
                 self.directory = Path(
                     tempfile.mkdtemp(prefix=_PREFIX)
                 ).resolve()
+            info = self.directory.lstat()
+            if not stat.S_ISDIR(info.st_mode) or (
+                hasattr(os, "getuid") and info.st_uid != os.getuid()
+            ):
+                raise ValueError("The message directory is no longer owned.")
             path = self.directory / f"{uuid.uuid4().hex}.json"
             descriptor = os.open(
                 path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
@@ -59,6 +65,7 @@ class AgentMessageFiles:
                     and directory.stat().st_uid != os.getuid()
                 ):
                     continue
+                directory_mtime = directory.stat().st_mtime
                 for path in directory.iterdir():
                     if (
                         not path.is_symlink()
@@ -71,7 +78,7 @@ class AgentMessageFiles:
                         and path.stat().st_mtime < cutoff
                     ):
                         path.unlink()
-                if directory.stat().st_mtime < cutoff:
+                if directory_mtime < cutoff:
                     directory.rmdir()
             except OSError:
                 continue

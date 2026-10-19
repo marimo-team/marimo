@@ -21,18 +21,19 @@ import {
   attachmentLabel,
 } from "@/core/attachments/state";
 import { agentToast } from "@/core/attachments/toast";
-import { pairPreviewAtom } from "@/core/config/pair";
+import { pairConfigAtom } from "@/core/config/pair";
 import { stableSessionIdAtom } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
 import { useTimeAgo } from "@/hooks/useFormatting";
 import { FooterItem } from "../footer-item";
 
 export function AttachmentStatus() {
-  const pairPreview = useAtomValue(pairPreviewAtom);
+  const hostEnabled = useAtomValue(pairConfigAtom)?.hostEnabled;
   const agents = useAtomValue(agentAttachmentsAtom);
   const [open, setOpen] = useState(false);
   const previous = useRef(new Set<string>());
   const automatic = useRef(false);
+  const pointerInside = useRef(false);
   const timeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const stopTimer = useCallback(() => clearTimeout(timeout.current), []);
@@ -47,8 +48,11 @@ export function AttachmentStatus() {
   };
 
   useEffect(() => {
+    if (!open) {
+      pointerInside.current = false;
+    }
     const current = new Set(
-      pairPreview ? agents.map((agent) => agent.identity ?? agent.id) : [],
+      hostEnabled ? agents.map((agent) => agent.identity ?? agent.id) : [],
     );
     const connected = [...current].some((id) => !previous.current.has(id));
     for (const id of current) {
@@ -58,15 +62,20 @@ export function AttachmentStatus() {
       stopTimer();
       setOpen(false);
     } else if (connected) {
+      if (open && !automatic.current) {
+        return;
+      }
       automatic.current = true;
       setOpen(true);
-      startTimer();
+      if (!pointerInside.current) {
+        startTimer();
+      }
     }
-  }, [agents, pairPreview, startTimer, stopTimer]);
+  }, [agents, hostEnabled, open, startTimer, stopTimer]);
 
   useEffect(() => stopTimer, [stopTimer]);
 
-  if (!pairPreview || agents.length === 0) {
+  if (!hostEnabled || agents.length === 0) {
     return null;
   }
   const identities = new Set(agents.map((agent) => agent.identity ?? agent.id));
@@ -106,8 +115,12 @@ export function AttachmentStatus() {
         align="start"
         onOpenAutoFocus={preserveEditorFocus}
         onCloseAutoFocus={preserveEditorFocus}
-        onPointerEnter={stopTimer}
+        onPointerEnter={() => {
+          pointerInside.current = true;
+          stopTimer();
+        }}
         onPointerLeave={() => {
+          pointerInside.current = false;
           if (automatic.current) {
             startTimer();
           }
@@ -134,8 +147,11 @@ export function AttachmentStatus() {
 
 function AttachmentStatusItem({ attachment }: { attachment: Attachment }) {
   const stableSessionId = useAtomValue(stableSessionIdAtom);
-  const [confirming, setConfirming] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
+  const [state, setState] = useState<"idle" | "confirming" | "disconnecting">(
+    "idle",
+  );
+  const confirming = state !== "idle";
+  const disconnecting = state === "disconnecting";
   const disconnectButton = useRef<HTMLButtonElement>(null);
   const timeAgo = useTimeAgo();
   const label = attachmentLabel(attachment);
@@ -149,7 +165,7 @@ function AttachmentStatusItem({ attachment }: { attachment: Attachment }) {
     if (disconnecting || !stableSessionId) {
       return;
     }
-    setDisconnecting(true);
+    setState("disconnecting");
     try {
       await API.post(
         `/pair/notebooks/${encodeURIComponent(stableSessionId)}/attachments/detach`,
@@ -158,8 +174,7 @@ function AttachmentStatusItem({ attachment }: { attachment: Attachment }) {
     } catch {
       agentToast({ variant: "danger", title: `Could not disconnect ${label}` });
     } finally {
-      setDisconnecting(false);
-      setConfirming(false);
+      setState("idle");
     }
   };
 
@@ -188,7 +203,7 @@ function AttachmentStatusItem({ attachment }: { attachment: Attachment }) {
           size="icon"
           variant="outlineDestructive"
           disabled={disconnecting || !stableSessionId}
-          onClick={confirming ? disconnect : () => setConfirming(true)}
+          onClick={confirming ? disconnect : () => setState("confirming")}
           aria-label={disconnectLabel}
           title={disconnectLabel}
           aria-busy={disconnecting}
@@ -207,7 +222,7 @@ function AttachmentStatusItem({ attachment }: { attachment: Attachment }) {
             variant="outline"
             disabled={disconnecting}
             onClick={() => {
-              setConfirming(false);
+              setState("idle");
               disconnectButton.current?.focus();
             }}
             aria-label={`Cancel disconnect ${label}`}

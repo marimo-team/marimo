@@ -3,7 +3,10 @@
 import { toast } from "@/components/ui/use-toast";
 
 export function agentToast(
-  options: Pick<Parameters<typeof toast>[0], "title" | "variant">,
+  options: Pick<
+    Parameters<typeof toast>[0],
+    "title" | "variant" | "description"
+  >,
 ) {
   const duration = options.variant === "danger" ? 5000 : 3000;
   const { dismiss } = toast({ ...options, duration });

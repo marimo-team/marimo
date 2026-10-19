@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Literal
 
 import msgspec
 
+from marimo import _loggers
 from marimo._cli.pair.client import PairInputError
 from marimo._cli.pair.delivery import ProcessHandle
 from marimo._utils.file_lock import file_lock
@@ -21,6 +22,11 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 _ID = re.compile(r"p1_[0-9a-f]{64}\Z")
+LOGGER = _loggers.marimo_logger()
+
+
+class _InvalidConnection(PairInputError):
+    """A malformed record that cannot establish process ownership."""
 
 
 def connection_identity(
@@ -81,13 +87,13 @@ class ConnectionStore:
         try:
             record = msgspec.json.decode(raw, type=Connection)
         except msgspec.DecodeError as error:
-            raise PairInputError(
+            raise _InvalidConnection(
                 "Invalid Pair connection. Run connect again."
             ) from error
         if record.identity != identity:
-            raise PairInputError("Mismatched Pair connection identity.")
+            raise _InvalidConnection("Mismatched Pair connection identity.")
         if record.harness_pid <= 0 or record.forwarder_pid <= 0:
-            raise PairInputError("Invalid Pair process identity.")
+            raise _InvalidConnection("Invalid Pair process identity.")
         return record
 
     def select(
@@ -104,7 +110,16 @@ class ConnectionStore:
             return record
         candidates = []
         for path in self.root.glob("p1_*.json"):
-            record = self.load(path.stem)
+            if _ID.fullmatch(path.stem) is None:
+                continue
+            try:
+                record = self.load(path.stem)
+            except _InvalidConnection:
+                LOGGER.warning(
+                    "Skipped an invalid Pair connection record. "
+                    "Run connect inside its harness to replace it."
+                )
+                continue
             if record is not None and record.notebook == notebook:
                 candidates.append(record)
         if len(candidates) > 1:
@@ -137,7 +152,12 @@ class ConnectionStore:
 
     def stop(self, identity: str) -> None:
         """Stop and remove a connection while the caller holds its lock."""
-        record = self.load(identity)
+        try:
+            record = self.load(identity)
+        except _InvalidConnection:
+            # Malformed records cannot authorize signalling a process.
+            self.path(identity).unlink(missing_ok=True)
+            return
         if record is not None:
             record.forwarder.stop()
             self.remove(record)

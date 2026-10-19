@@ -1,14 +1,22 @@
 # OpenCode inbox setup
 
 Notebook agent messages require OpenCode 2.x on macOS or Linux.
-Enable `MARIMO_PAIR_NEXT=1` on the marimo CLI and server.
+Enable the host protocol on the marimo server:
+
+```sh
+MARIMO_ENABLE_HOST=1 uvx marimo@latest edit notebook.py
+```
 
 Use a native OpenCode conversation backed by its registered local service.
 Ask OpenCode to run this command in its shell tool, from the conversation's project directory:
 
 ```sh
-MARIMO_PAIR_NEXT=1 uv run marimo pair connect --url http://localhost:2718 --notebook <notebook-id> --harness opencode
+uvx marimo@latest pair connect --url http://localhost:2718 --notebook <notebook-id> --harness opencode
 ```
+
+Use the backend URL printed by marimo. In a development checkout, this differs
+from the Vite frontend URL. Get the Notebook ID from `marimo pair notebook list --url <url>`
+or the notebook's Pair with agent dialog.
 
 Pair reads the private `$XDG_STATE_HOME/opencode/service.json` record
 (`~/.local/state/opencode/service.json` by default). It verifies the service

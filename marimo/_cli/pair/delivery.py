@@ -39,14 +39,24 @@ class ProcessHandle:
 
         try:
             process = psutil.Process(self.pid)
-            if process.create_time() != self.started:
+            if (
+                process.create_time() != self.started
+                or not process.is_running()
+                or process.status() == psutil.STATUS_ZOMBIE
+            ):
                 return
             process.terminate()
             try:
                 process.wait(timeout=5)
             except psutil.TimeoutExpired:
+                if process.status() == psutil.STATUS_ZOMBIE:
+                    return
                 process.kill()
-                process.wait(timeout=5)
+                try:
+                    process.wait(timeout=5)
+                except psutil.TimeoutExpired:
+                    if process.status() != psutil.STATUS_ZOMBIE:
+                        raise
         except psutil.NoSuchProcess:
             pass
         except psutil.Error as error:
@@ -72,7 +82,10 @@ class DeliveryTarget:
 
 
 class Harness(Protocol):
-    """Discover a harness destination, check support, and bind its inbox."""
+    """Discover a ready harness destination and bind its inbox.
+
+    Each adapter checks readiness during detection, before returning a target.
+    """
 
     kind: str
 

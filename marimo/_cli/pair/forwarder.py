@@ -10,7 +10,7 @@ import subprocess
 import sys
 import threading
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
@@ -26,6 +26,7 @@ from marimo._cli.pair.client import (
     StaleNotebookError,
     iter_sse,
     open_events,
+    pump_events,
 )
 from marimo._cli.pair.connection import Connection, ConnectionStore
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
@@ -34,7 +35,7 @@ from marimo._messaging.messages import AGENT_MESSAGE_TYPE
 from marimo._utils.subprocess import kill_subprocess
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
 
     from marimo._cli.pair.delivery import Inbox
 
@@ -94,15 +95,15 @@ def start_forwarder(
     try:
         handle = ProcessHandle.capture(process.pid)
         record = Connection(
-            1,
-            config.identity,
-            config.notebook,
-            config.target.kind,
-            config.target.process.pid,
-            config.target.process.started,
-            handle.pid,
-            handle.started,
-            time.time(),
+            version=1,
+            identity=config.identity,
+            notebook=config.notebook,
+            harness_kind=config.target.kind,
+            harness_pid=config.target.process.pid,
+            harness_start=config.target.process.started,
+            forwarder_pid=handle.pid,
+            forwarder_start=handle.started,
+            created_at=time.time(),
         )
         store.save(record)
         assert process.stdin is not None
@@ -110,9 +111,7 @@ def start_forwarder(
         output = process.stdout
         # Secrets travel through the private pipe, never argv or a state file.
         process.stdin.write(
-            json.dumps(
-                {"config": asdict(config), "root": str(store.root)}
-            ).encode("utf-8")
+            msgspec.json.encode(_Bootstrap(config, str(store.root)))
         )
         process.stdin.close()
         ready: queue.Queue[bytes] = queue.Queue(maxsize=1)
@@ -127,7 +126,7 @@ def start_forwarder(
             ) from error
         if line != b"attached\n" or process.poll() is not None:
             raise PairError(
-                "The agent message forwarder could not attach. Check the server, token and preview flag."
+                "The agent message forwarder could not attach. Check the server, token and MARIMO_ENABLE_HOST=1."
             )
         return record
     except (OSError, psutil.Error, PairError):
@@ -154,15 +153,7 @@ def _read_stream(
     responses: list[EventStream],
     cursor: str | None = None,
 ) -> None:
-    def put(item: SSEEvent | Exception | None) -> None:
-        while not stopped.is_set():
-            try:
-                incoming.put(item, timeout=0.1)
-                return
-            except queue.Full:
-                continue
-
-    try:
+    def events() -> Iterator[SSEEvent]:
         response = open_events(
             url=config.url,
             notebook=config.notebook,
@@ -173,24 +164,12 @@ def _read_stream(
         )
         responses.append(response)
         try:
-            if stopped.is_set():
-                return
-            for event in iter_sse(response):
-                if stopped.is_set():
-                    return
-                put(event)
+            if not stopped.is_set():
+                yield from iter_sse(response)
         finally:
             response.close()
-    except (
-        PairError,
-        OSError,
-        http.client.HTTPException,
-        ValueError,
-        AttributeError,
-    ) as error:
-        put(error)
-    else:
-        put(None)
+
+    pump_events(events(), incoming, stopped)
 
 
 def _wait_reconnect(inbox: Inbox, delay: float) -> bool:

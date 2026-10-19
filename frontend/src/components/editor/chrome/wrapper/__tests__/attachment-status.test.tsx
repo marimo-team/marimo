@@ -11,11 +11,11 @@ import {
 import { createStore, Provider } from "jotai";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PAIR_PREVIEW } from "@/__tests__/fixtures/pair-preview";
+import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { type Attachment, attachmentsAtom } from "@/core/attachments/state";
-import { pairPreviewAtom } from "@/core/config/pair";
+import { pairConfigAtom } from "@/core/config/pair";
 import {
   type StableSessionId,
   stableSessionIdAtom,
@@ -40,7 +40,7 @@ const AGENT: Attachment = {
 function renderStatus(attachments: Attachment[] = [AGENT], preview = true) {
   const store = createStore();
   store.set(connectionAtom, { state: ConnectionState.OPEN });
-  store.set(pairPreviewAtom, preview ? PAIR_PREVIEW : undefined);
+  store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
   store.set(attachmentsAtom, attachments);
   store.set(stableSessionIdAtom, "stable/test" as StableSessionId);
   return {
@@ -71,7 +71,7 @@ describe("AttachmentStatus", () => {
     vi.useRealTimers();
   });
 
-  it("renders nothing outside the preview", () => {
+  it("renders nothing when host is disabled", () => {
     expect(renderStatus([AGENT], false).container).toBeEmptyDOMElement();
   });
 
@@ -169,6 +169,44 @@ describe("AttachmentStatus", () => {
     fireEvent.click(trigger);
     act(() => vi.advanceTimersByTime(5000));
     expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("keeps manual confirmation open when another agent connects", () => {
+    vi.useFakeTimers();
+    const { store } = renderStatus();
+    const trigger = screen.getByLabelText("Pi connected");
+    fireEvent.click(trigger);
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("button", { name: "Disconnect Pi" }));
+    act(() =>
+      store.set(attachmentsAtom, [
+        AGENT,
+        { ...AGENT, id: "a2", name: "Claude" },
+      ]),
+    );
+    act(() => vi.advanceTimersByTime(5000));
+    expect(
+      screen.getByRole("button", { name: "Confirm disconnect Pi" }),
+    ).toBeInTheDocument();
+    expect(API.post).not.toHaveBeenCalled();
+  });
+
+  it("keeps focused details open when another agent connects", () => {
+    vi.useFakeTimers();
+    const { store } = renderStatus();
+    act(() => screen.getByRole("button", { name: "Disconnect Pi" }).focus());
+    act(() => store.set(attachmentsAtom, [AGENT, { ...AGENT, id: "a2" }]));
+    act(() => vi.advanceTimersByTime(5000));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("keeps hovered details open when another agent connects", () => {
+    vi.useFakeTimers();
+    const { store } = renderStatus();
+    fireEvent.pointerEnter(screen.getByRole("dialog"));
+    act(() => store.set(attachmentsAtom, [AGENT, { ...AGENT, id: "a2" }]));
+    act(() => vi.advanceTimersByTime(5000));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("pauses the automatic close while the pointer is over the details", () => {

@@ -22,7 +22,7 @@ class CodexHarness:
 
     @staticmethod
     def executable() -> str:
-        # Batch shims can interpret handoff text as shell syntax on Windows.
+        # Batch shims can interpret message text as shell syntax on Windows.
         return "codex.exe" if is_windows() else "codex"
 
     def detect(
@@ -37,6 +37,7 @@ class CodexHarness:
         if not address:
             return None
         if process is not None:
+            self.check()
             return DeliveryTarget(self.kind, address, "Codex", process=process)
         owner = None
         try:
@@ -58,10 +59,19 @@ class CodexHarness:
             ) from error
         if owner is None:
             raise PairInputError("Run connect inside a native Codex session.")
+        self.check()
         return DeliveryTarget(self.kind, address, "Codex", process=owner)
 
     def identity(self, env: Mapping[str, str]) -> str | None:
-        return env.get("CODEX_SESSION_ID") or env.get("CODEX_THREAD_ID")
+        address = env.get("CODEX_SESSION_ID") or env.get("CODEX_THREAD_ID")
+        if not address:
+            if "CODEX_SESSION_ID" in env or "CODEX_THREAD_ID" in env:
+                raise PairInputError(
+                    "Codex did not export a conversation ID. "
+                    "Run this command inside a native Codex session."
+                )
+            return None
+        return address
 
     def check(self) -> None:
         try:
@@ -127,11 +137,11 @@ class CodexInbox:
             )
         except (OSError, ValueError, subprocess.TimeoutExpired) as error:
             raise PairError(
-                "Could not deliver the handoff to Codex."
+                "Could not deliver the message to Codex."
             ) from error
         if result.returncode != 0:
             raise PairError(
-                "Codex rejected the handoff. Check that the conversation "
+                "Codex rejected the message. Check that the conversation "
                 "uses the shared daemon and supports codex queue."
             )
 
