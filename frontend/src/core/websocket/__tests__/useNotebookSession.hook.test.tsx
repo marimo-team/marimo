@@ -21,14 +21,9 @@ import {
   vi,
 } from "vitest";
 
-vi.mock("@/core/websocket/useWebSocket", async () => {
-  const actual =
-    await vi.importActual<typeof import("../useWebSocket")>("../useWebSocket");
-  return {
-    ...actual,
-    useConnectionTransport: vi.fn(),
-  };
-});
+vi.mock("../transports/create", () => ({
+  createConnectionTransport: vi.fn(),
+}));
 
 vi.mock("@/core/runtime/config", async () => {
   const actual = await vi.importActual<typeof import("@/core/runtime/config")>(
@@ -60,8 +55,8 @@ import { connectionAtom, startupProgressAtom } from "../../network/connection";
 import type { SessionId } from "../../kernel/session";
 import { WebSocketClosedReason, ConnectionState } from "../types";
 import type { IConnectionTransport } from "../transports/transport";
-import { useMarimoKernelConnection } from "../useMarimoKernelConnection";
-import { useConnectionTransport } from "../useWebSocket";
+import { useNotebookSession } from "../useNotebookSession";
+import { createConnectionTransport } from "../transports/create";
 
 interface MockTransport {
   readyState: 0 | 1 | 2 | 3;
@@ -85,6 +80,26 @@ function makeTransport(
   };
 }
 
+function getTransportHandlers() {
+  const transport = vi.mocked(createConnectionTransport).mock.results.at(-1)!
+    .value as MockTransport;
+  function emit(
+    event: "open" | "close" | "error" | "message",
+    message: Event | CloseEvent | MessageEvent,
+  ) {
+    const callback = transport.addEventListener.mock.calls.find(
+      ([name]) => name === event,
+    )?.[1];
+    callback?.(message);
+  }
+  return {
+    onError: (event: Event) => emit("error", event),
+    onOpen: (event: Event) => emit("open", event),
+    onClose: (event: CloseEvent) => emit("close", event),
+    onMessage: (event: MessageEvent) => emit("message", event),
+  };
+}
+
 function makeRuntimeManager(
   reconcileFromHealth = vi.fn<() => Promise<boolean>>().mockResolvedValue(true),
 ) {
@@ -92,8 +107,9 @@ function makeRuntimeManager(
     reconcileFromHealth,
     probeHealth: vi.fn().mockResolvedValue(true),
     getWsURL: () => new URL("ws://localhost/ws"),
-    waitForHealthy: vi.fn().mockResolvedValue(undefined),
-    isSameOrigin: true,
+    // Keep the initial connection pending; these tests exercise session retries.
+    waitForHealthy: vi.fn(() => new Promise<void>(() => {})),
+    isSameOrigin: false,
   };
 }
 
@@ -105,7 +121,7 @@ function renderConnectionHook(store: ReturnType<typeof createStore>) {
   );
   return renderHook(
     () =>
-      useMarimoKernelConnection({
+      useNotebookSession({
         sessionId: "test-session" as SessionId,
         autoInstantiate: false,
         setCells: () => {},
@@ -114,7 +130,7 @@ function renderConnectionHook(store: ReturnType<typeof createStore>) {
   );
 }
 
-describe("useMarimoKernelConnection.reconnect()", () => {
+describe("useNotebookSession.reconnect()", () => {
   let transport: MockTransport;
   let isHealthy: Mock<() => Promise<boolean>>;
   let store: ReturnType<typeof createStore>;
@@ -128,7 +144,7 @@ describe("useMarimoKernelConnection.reconnect()", () => {
       code: WebSocketClosedReason.KERNEL_DISCONNECTED,
       reason: "kernel not found",
     });
-    vi.mocked(useConnectionTransport).mockReturnValue(transport);
+    vi.mocked(createConnectionTransport).mockReturnValue(transport);
     vi.mocked(useRuntimeManager).mockReturnValue(
       makeRuntimeManager(isHealthy) as unknown as ReturnType<
         typeof useRuntimeManager
@@ -189,13 +205,13 @@ describe("useMarimoKernelConnection.reconnect()", () => {
   });
 });
 
-describe("useMarimoKernelConnection messages", () => {
+describe("useNotebookSession messages", () => {
   let store: ReturnType<typeof createStore>;
 
   beforeEach(() => {
     store = createStore();
-    vi.mocked(useConnectionTransport).mockClear();
-    vi.mocked(useConnectionTransport).mockReturnValue(
+    vi.mocked(createConnectionTransport).mockClear();
+    vi.mocked(createConnectionTransport).mockReturnValue(
       makeTransport(WebSocket.OPEN),
     );
     vi.mocked(useRuntimeManager).mockReturnValue(
@@ -205,7 +221,7 @@ describe("useMarimoKernelConnection messages", () => {
   });
 
   function receive(payload: unknown) {
-    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
+    const options = getTransportHandlers();
     act(() => {
       options.onMessage(
         new MessageEvent("message", { data: JSON.stringify(payload) }),
@@ -290,6 +306,56 @@ describe("useMarimoKernelConnection messages", () => {
   });
 });
 
+it.each(["kernel-ready", "reconnected"])(
+  "waits for %s before marking the session connected",
+  async (op) => {
+    const store = createStore();
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
+    vi.mocked(createConnectionTransport).mockClear();
+    vi.mocked(createConnectionTransport).mockReturnValue(
+      makeTransport(WebSocket.OPEN),
+    );
+    vi.mocked(useRuntimeManager).mockReturnValue(
+      makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
+    );
+    renderConnectionHook(store);
+    const options = getTransportHandlers();
+
+    await act(async () => {
+      await options.onOpen(new Event("open"));
+    });
+    expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
+
+    act(() => {
+      options.onMessage(
+        new MessageEvent("message", {
+          data: JSON.stringify({
+            op,
+            data: {
+              op,
+              cell_ids: [],
+              codes: [],
+              names: [],
+              configs: [],
+              layout: null,
+              resumed: true,
+              ui_values: {},
+              last_executed_code: {},
+              last_execution_time: {},
+              app_config: { width: "normal" },
+              kiosk: false,
+              capabilities: { terminal: false },
+              auto_instantiated: false,
+              consumer_capabilities: { edit: true, interact: true },
+            },
+          }),
+        }),
+      );
+    });
+    expect(store.get(connectionAtom).state).toBe(ConnectionState.OPEN);
+  },
+);
+
 describe("attachment snapshots across browser connections", () => {
   const agent: Attachment = {
     id: "a1",
@@ -305,12 +371,12 @@ describe("attachment snapshots across browser connections", () => {
     store.set(connectionAtom, { state: ConnectionState.OPEN });
     store.set(attachmentsAtom, [agent]);
     const transport = makeTransport(WebSocket.OPEN);
-    vi.mocked(useConnectionTransport).mockReturnValue(transport);
+    vi.mocked(createConnectionTransport).mockReturnValue(transport);
     vi.mocked(useRuntimeManager).mockReturnValue(
       makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
     );
     renderConnectionHook(store);
-    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
+    const options = getTransportHandlers();
     const receive = (data: NotificationPayload["data"]) =>
       act(() => {
         options.onMessage(
@@ -385,56 +451,6 @@ describe("attachment snapshots across browser connections", () => {
   });
 });
 
-it.each(["kernel-ready", "reconnected"])(
-  "waits for %s before marking the session connected",
-  async (op) => {
-    const store = createStore();
-    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
-    vi.mocked(useConnectionTransport).mockClear();
-    vi.mocked(useConnectionTransport).mockReturnValue(
-      makeTransport(WebSocket.OPEN),
-    );
-    vi.mocked(useRuntimeManager).mockReturnValue(
-      makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
-    );
-    renderConnectionHook(store);
-    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
-
-    await act(async () => {
-      await options.onOpen(new Event("open"));
-    });
-    expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
-
-    act(() => {
-      options.onMessage(
-        new MessageEvent("message", {
-          data: JSON.stringify({
-            op,
-            data: {
-              op,
-              cell_ids: [],
-              codes: [],
-              names: [],
-              configs: [],
-              layout: null,
-              resumed: true,
-              ui_values: {},
-              last_executed_code: {},
-              last_execution_time: {},
-              app_config: { width: "normal" },
-              kiosk: false,
-              capabilities: { terminal: false },
-              auto_instantiated: false,
-              consumer_capabilities: { edit: true, interact: true },
-            },
-          }),
-        }),
-      );
-    });
-    expect(store.get(connectionAtom).state).toBe(ConnectionState.OPEN);
-  },
-);
-
 it.each([true, false])(
   "keeps attachments only when kernel-ready resumes the session: %s",
   (resumed) => {
@@ -450,14 +466,14 @@ it.each([true, false])(
       },
     ];
     store.set(attachmentsAtom, attachments);
-    vi.mocked(useConnectionTransport).mockReturnValue(
+    vi.mocked(createConnectionTransport).mockReturnValue(
       makeTransport(WebSocket.OPEN),
     );
     vi.mocked(useRuntimeManager).mockReturnValue(
       makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
     );
     renderConnectionHook(store);
-    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
+    const options = getTransportHandlers();
     act(() =>
       options.onMessage(
         new MessageEvent("message", {
@@ -496,12 +512,12 @@ describe("connection notice", () => {
     const store = createStore();
     store.set(connectionAtom, { state: ConnectionState.CONNECTING });
     const transport = makeTransport(WebSocket.OPEN);
-    vi.mocked(useConnectionTransport).mockReturnValue(transport);
+    vi.mocked(createConnectionTransport).mockReturnValue(transport);
     vi.mocked(useRuntimeManager).mockReturnValue(
       makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
     );
     const Connection = () => {
-      const { reconnect } = useMarimoKernelConnection({
+      const { reconnect } = useNotebookSession({
         sessionId: "test-session" as SessionId,
         autoInstantiate: false,
         setCells: () => {},
@@ -520,7 +536,7 @@ describe("connection notice", () => {
         </ErrorBoundary>
       </JotaiProvider>,
     );
-    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
+    const options = getTransportHandlers();
     const send = (data: NotificationPayload["data"]) =>
       act(() => {
         options.onMessage(
@@ -709,15 +725,15 @@ describe("connection notice", () => {
 
 it("replaces environment state from snapshots, then continues live progress", () => {
   const store = createStore();
-  vi.mocked(useConnectionTransport).mockClear();
-  vi.mocked(useConnectionTransport).mockReturnValue(
+  vi.mocked(createConnectionTransport).mockClear();
+  vi.mocked(createConnectionTransport).mockReturnValue(
     makeTransport(WebSocket.OPEN),
   );
   vi.mocked(useRuntimeManager).mockReturnValue(
     makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
   );
   renderConnectionHook(store);
-  const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)?.[0];
+  const options = getTransportHandlers();
   function receive(data: NotificationPayload["data"]) {
     act(() =>
       options?.onMessage(

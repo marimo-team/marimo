@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Logger } from "@/utils/Logger";
 import { WebSocketClosedReason, ConnectionState } from "../types";
-import { classifyCloseEvent } from "../useMarimoKernelConnection";
+import { classifyCloseEvent } from "../connection-state";
 
 function classify(reason: string | undefined) {
   return classifyCloseEvent({ reason });
@@ -40,7 +40,7 @@ describe("classifyCloseEvent", () => {
       // terminal or a rejected client would reconnect forever.
       "MARIMO_UNAUTHORIZED",
       "MARIMO_KIOSK_NOT_ALLOWED",
-    ])("%s → terminal with KERNEL_DISCONNECTED, closes transport", (reason) => {
+    ])("%s → terminal with KERNEL_DISCONNECTED", (reason) => {
       const decision = classify(reason);
       expect(decision.kind).toBe("terminal");
       expect(decision.status).toMatchObject({
@@ -49,11 +49,10 @@ describe("classifyCloseEvent", () => {
       });
       expect(decision).toMatchObject({
         kind: "terminal",
-        closeTransport: true,
       });
     });
 
-    it("MARIMO_KERNEL_STARTUP_ERROR → terminal + closeTransport", () => {
+    it("MARIMO_KERNEL_STARTUP_ERROR → terminal", () => {
       const decision = classify("MARIMO_KERNEL_STARTUP_ERROR");
       expect(decision.kind).toBe("terminal");
       expect(decision.status).toMatchObject({
@@ -62,7 +61,6 @@ describe("classifyCloseEvent", () => {
       });
       expect(decision).toMatchObject({
         kind: "terminal",
-        closeTransport: true,
       });
     });
   });
