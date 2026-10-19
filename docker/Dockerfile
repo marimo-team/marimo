@@ -16,14 +16,15 @@ ARG marimo_version=0.12.8
 LABEL org.opencontainers.image.version="${marimo_version}"
 
 ENV MARIMO_SKIP_UPDATE_CHECK=1
-ENV UV_SYSTEM_PYTHON=1
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
-RUN uv pip install --no-cache-dir marimo==${marimo_version} && \
+# Keep packages and wheel data in one writable environment.
+RUN uv venv --seed "${VIRTUAL_ENV}" && \
+  uv pip install --no-cache-dir marimo==${marimo_version} && \
   mkdir -p /app/data && \
-  chown -R appuser:appuser /app && \
-  chown -R appuser:appuser /usr/local/lib/python3.13/site-packages/ && \
-  chown -R appuser:appuser /usr/local/bin/
+  chown -R appuser:appuser /app "${VIRTUAL_ENV}"
 
 COPY --chown=appuser:appuser marimo/_tutorials tutorials
 RUN rm -rf tutorials/__init__.py
@@ -42,18 +43,15 @@ CMD ["sh", "-c", "exec marimo edit --no-token -p $PORT --host $HOST"]
 
 # -data entry point
 FROM base AS data
-USER root
+USER appuser
 RUN uv pip install --no-cache-dir \
     altair \
     marimo[recommended,lsp] \
     numpy \
     pandas
-USER appuser
 CMD ["sh", "-c", "exec marimo edit --no-token -p $PORT --host $HOST"]
 
 # -sql entry point, extends -data
 FROM data AS sql
-USER root
 RUN uv pip install --no-cache-dir marimo[sql]
-USER appuser
 CMD ["sh", "-c", "exec marimo edit --no-token -p $PORT --host $HOST"]
