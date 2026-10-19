@@ -383,7 +383,7 @@ class KernelCapabilitiesNotification(msgspec.Struct):
         self.terminal = not is_windows() and not is_pyodide()
         self.pylsp = DependencyManager.pylsp.has()
         self.basedpyright = DependencyManager.basedpyright.has()
-        self.ty = DependencyManager.ty.has()
+        self.ty = DependencyManager.ty.has() or DependencyManager.which("ty")
         self.pyrefly = DependencyManager.pyrefly.has()
 
 

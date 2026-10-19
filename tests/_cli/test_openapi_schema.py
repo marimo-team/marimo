@@ -1,12 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, get_args
 
 import msgspec
 import pytest
 
-from marimo._cli.development.schema import _generate_schema_components
+from marimo._cli.development.schema import (
+    _generate_schema_components,
+    generate_server_api_schema,
+)
+from marimo._runtime import commands
 from marimo._types.ids import CellId_t
 
 
@@ -83,3 +87,58 @@ def test_exporting_a_struct_under_its_own_name() -> None:
 def test_export_name_cannot_overwrite_a_dependency(name: str) -> None:
     with pytest.raises(ValueError, match=f"Schema export '{name}' conflicts"):
         _generate_schema_components([Payload], {name: Literal["other"]})
+
+
+def test_openapi_exports_only_client_commands() -> None:
+    schemas = generate_server_api_schema()["components"]["schemas"]
+    command_names = {
+        model.__name__
+        for model in vars(commands).values()
+        if isinstance(model, type) and issubclass(model, commands.Command)
+    }
+
+    assert command_names & schemas.keys() == {
+        command.__name__ for command in get_args(commands.ClientCommand)
+    }
+
+
+def test_openapi_preserves_brands_in_client_commands() -> None:
+    schemas = generate_server_api_schema()["components"]["schemas"]
+
+    assert schemas["ExecuteCellsCommand"]["properties"]["cellIds"] == {
+        "type": "array",
+        "items": {"$ref": "#/components/schemas/CellId"},
+    }
+    assert schemas["UpdateUIElementCommand"]["properties"]["objectIds"] == {
+        "type": "array",
+        "items": {"$ref": "#/components/schemas/UIElementId"},
+    }
+
+
+def test_openapi_known_unions_reference_named_exports() -> None:
+    schemas = generate_server_api_schema()["components"]["schemas"]
+
+    assert {
+        "NotificationMessage",
+        "ClientCommand",
+        "MarimoError",
+        "DataType",
+    } <= schemas.keys()
+    assert schemas["KnownUnions"] == {
+        "title": "KnownUnions",
+        "deprecated": True,
+        "description": (
+            "Use the named NotificationMessage, ClientCommand, MarimoError, "
+            "and DataType schemas directly."
+        ),
+        "type": "object",
+        "properties": {
+            "notification": {
+                "$ref": "#/components/schemas/NotificationMessage"
+            },
+            "command": {"$ref": "#/components/schemas/ClientCommand"},
+            "error": {"$ref": "#/components/schemas/MarimoError"},
+            "data_type": {"$ref": "#/components/schemas/DataType"},
+        },
+        "required": ["notification", "command", "error", "data_type"],
+    }

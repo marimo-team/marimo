@@ -708,6 +708,11 @@ def test_run_in_sandbox_from_script_environment(
 @pytest.mark.skipif(
     os.name == "nt", reason="signal forwarding differs on Windows"
 )
+@pytest.mark.skipif(
+    "sys.version_info >= (3, 15)",
+    reason="the published marimo pulls loro, which has no cp315 wheel; "
+    "drop once a release carries the loro marker",
+)
 @pytest.mark.usefixtures("_restore_signal_handlers")
 def test_run_in_sandbox_without_a_manifest() -> None:
     """No target means no manifest: marimo runs ephemerally."""

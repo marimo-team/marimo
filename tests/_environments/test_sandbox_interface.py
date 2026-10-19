@@ -507,6 +507,11 @@ def test_close_cleans_unnamed_manifest() -> None:
     assert not temporary_source.exists()
 
 
+@pytest.mark.skipif(
+    "sys.version_info >= (3, 15)",
+    reason="the published marimo pulls loro, which has no cp315 wheel; "
+    "drop once a release carries the loro marker",
+)
 @pytest.mark.network
 def test_add_after_rename_updates_the_running_environment(
     tmp_path: Path,

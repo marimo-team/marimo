@@ -97,6 +97,7 @@ export const getFormatters = memoizeLastValue((locale: string) => {
 
   const dateFormatter = new Intl.DateTimeFormat(locale, {
     dateStyle: "short", // 3/4/2024
+    timeZone: "UTC",
   });
 
   const dateTimeFormatter = new Intl.DateTimeFormat(locale, {
@@ -122,6 +123,24 @@ export const getFormatters = memoizeLastValue((locale: string) => {
     integerFormatter,
   };
 });
+
+const TIMEZONE_SUFFIX = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+
+/**
+ * The date formatters render in UTC. A naive datetime string carries no
+ * offset, and `new Date` would read it as local time, so pin it to UTC
+ * to keep the wall-clock fields the backend sent.
+ */
+function parseDateAsUTC(value: unknown): Date {
+  if (typeof value !== "string") {
+    return new Date(value as number | Date);
+  }
+  const trimmed = value.trim();
+  if (TIMEZONE_SUFFIX.test(trimmed) || !trimmed.includes(":")) {
+    return new Date(trimmed);
+  }
+  return new Date(`${trimmed.replace(" ", "T")}Z`);
+}
 
 // Apply formatting to a value given a format and data type
 export const applyFormat = (
@@ -152,7 +171,7 @@ export const applyFormat = (
       return value;
     case "datetime":
     case "date": {
-      const date = new Date(value as string);
+      const date = parseDateAsUTC(value);
       switch (format) {
         case "Date":
           return dateFormatter.format(date);

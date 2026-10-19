@@ -6,14 +6,14 @@ import { Popover as PopoverPrimitive } from "radix-ui";
 const PopoverClose = PopoverPrimitive.Close;
 
 import type { Column, ColumnDef } from "@tanstack/react-table";
-import { formatDate, isValid } from "date-fns";
+import { isValid } from "date-fns";
 import { useRef } from "react";
 import { useLocale, useNumberFormatter } from "react-aria";
 import { WithLocale } from "@/core/i18n/with-locale";
 import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
-import { type DateFormat, exactDateTime, getDateFormat } from "@/utils/dates";
+import { exactDateTime } from "@/utils/dates";
 import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
@@ -583,21 +583,19 @@ function renderDate({
   value,
   dataType,
   dtype,
-  format,
+  displayValue,
   locale,
 }: {
   value: Date;
   dataType?: DataType;
   dtype?: string;
-  format?: DateFormat | null;
+  displayValue?: string;
   locale: string;
 }): React.ReactNode {
   const type = dataType === "date" ? "date" : "datetime";
   const timezone = extractTimezone(dtype);
 
-  const exactValue = format
-    ? formatDate(value, format)
-    : exactDateTime(value, timezone, locale);
+  const exactValue = displayValue ?? exactDateTime(value, timezone, locale);
 
   return (
     <DatePopover date={value} type={type}>
@@ -640,7 +638,8 @@ export function renderCellValue<TData, TValue>({
 
   if (dataType === "datetime" && typeof value === "string") {
     try {
-      if (!isValid(value)) {
+      const date = new Date(value);
+      if (!format || !isValid(date)) {
         return (
           <div onClick={selectCell} className={cellStyles}>
             {value}
@@ -648,14 +647,15 @@ export function renderCellValue<TData, TValue>({
         );
       }
 
-      const date = new Date(value);
-      const format = getDateFormat(value);
+      const displayValue = String(column.applyColumnFormatting(value));
       return (
-        <WithLocale>
-          {(locale) =>
-            renderDate({ value: date, dataType, dtype, format, locale })
-          }
-        </WithLocale>
+        <div onClick={selectCell} className={cellStyles}>
+          <WithLocale>
+            {(locale) =>
+              renderDate({ value: date, dataType, dtype, displayValue, locale })
+            }
+          </WithLocale>
+        </div>
       );
     } catch (error) {
       Logger.error("Error parsing datetime, fallback to string", error);
@@ -672,10 +672,17 @@ export function renderCellValue<TData, TValue>({
     }
 
     // e.g. 2010-10-07 17:15:00
+    const displayValue = format
+      ? String(column.applyColumnFormatting(value))
+      : undefined;
     return (
-      <WithLocale>
-        {(locale) => renderDate({ value, dataType, dtype, locale })}
-      </WithLocale>
+      <div onClick={selectCell} className={cellStyles}>
+        <WithLocale>
+          {(locale) =>
+            renderDate({ value, dataType, dtype, displayValue, locale })
+          }
+        </WithLocale>
+      </div>
     );
   }
 
