@@ -449,6 +449,21 @@ Lint your SQL code and provide better autocompletions and error highlighting.
 
 To disable the linter, you can set the `sql_linter` configuration to `false` in your `pyproject.toml` file or disable it in the marimo editor's settings menu.
 
+**SQL keyword case**
+
+marimo generates SQL in a few places — new SQL cell boilerplate, keyword
+autocompletions, and table snippets in the Data Sources panel. By default,
+generated keywords are uppercase (`SELECT`, `FROM`). To generate lowercase
+keywords instead, set `sql_keyword_case` in your `pyproject.toml`:
+
+```toml
+[tool.marimo.runtime]
+sql_keyword_case = "lower"
+```
+
+or change it in the marimo editor's settings menu. This only affects SQL that
+marimo generates; formatting a cell preserves the case of SQL you have written.
+
 **SQL Formatting**
 
 Click on the paint roller icon at the bottom right of the SQL cell to format your SQL code.

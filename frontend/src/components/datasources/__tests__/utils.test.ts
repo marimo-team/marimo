@@ -1,8 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { userConfigAtom } from "@/core/config/config";
+import { defaultUserConfig } from "@/core/config/config-schema";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
+import { store } from "@/core/state/jotai";
 import type {
   Database,
   DatabaseSchema,
@@ -464,6 +467,87 @@ describe("sqlCode", () => {
       });
       expect(result).toBe(
         '_df = mo.sql(f"""\nSELECT email FROM users LIMIT 100\n""", engine=postgres)',
+      );
+    });
+  });
+
+  describe("lowercase keyword case", () => {
+    beforeEach(() => {
+      const config = defaultUserConfig();
+      store.set(userConfigAtom, {
+        ...config,
+        runtime: { ...config.runtime, sql_keyword_case: "lower" },
+      });
+    });
+
+    afterEach(() => {
+      store.set(userConfigAtom, defaultUserConfig());
+    });
+
+    it("should lowercase keywords in the default formatter", () => {
+      const sqlTableContext: SQLTableContext = {
+        engine: "snowflake",
+        schema: "public",
+        defaultSchema: "public",
+        defaultDatabase: "mydb",
+        database: "mydb",
+        dialect: "snowflake",
+      };
+
+      const result = sqlCode({
+        table: mockTable,
+        columnName: mockColumn.name,
+        sqlTableContext,
+      });
+      expect(result).toBe(
+        '_df = mo.sql(f"""\nselect email from users limit 100\n""", engine=snowflake)',
+      );
+    });
+
+    it("should lowercase SELECT TOP for MSSQL", () => {
+      const sqlTableContext: SQLTableContext = {
+        engine: "mssql",
+        schema: "dbo",
+        defaultSchema: "dbo",
+        defaultDatabase: "master",
+        database: "master",
+        dialect: "mssql",
+      };
+
+      const result = sqlCode({
+        table: mockTable,
+        columnName: mockColumn.name,
+        sqlTableContext,
+      });
+      expect(result).toBe(
+        '_df = mo.sql(f"""\nselect top 100 email from users\n""", engine=mssql)',
+      );
+    });
+
+    it("should lowercase keywords but not quoted identifiers for postgres", () => {
+      const sqlTableContext: SQLTableContext = {
+        engine: "postgres",
+        schema: "public",
+        defaultSchema: "public",
+        defaultDatabase: "mydb",
+        database: "mydb",
+        dialect: "postgres",
+      };
+
+      const result = sqlCode({
+        table: mockTable,
+        columnName: mockColumn.name,
+        sqlTableContext,
+      });
+      expect(result).toBe(
+        '_df = mo.sql(f"""\nselect "email" from "users" limit 100\n""", engine=postgres)',
+      );
+    });
+
+    it("should lowercase keywords without sqlTableContext", () => {
+      const result = sqlCode({ table: mockTable, columnName: mockColumn.name });
+      expect(result).toBe(
+        "_df = mo.sql(f'select \"email\" from users limit 100')",
       );
     });
   });
