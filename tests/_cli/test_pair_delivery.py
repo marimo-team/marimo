@@ -143,9 +143,18 @@ def test_explicit_pid_inspection_failure(
     ("status", "code", "ok"),
     [("running", 0, True), ("stopped", 0, False), ("running", 1, False)],
 )
+@pytest.mark.parametrize(
+    ("platform", "executable"), [("linux", "codex"), ("win32", "codex.exe")]
+)
 def test_daemon_probe(
-    status: str, code: int, ok: bool, monkeypatch: pytest.MonkeyPatch
+    status: str,
+    code: int,
+    ok: bool,
+    platform: str,
+    executable: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(sys, "platform", platform)
     run = Mock(
         return_value=subprocess.CompletedProcess(
             [], code, json.dumps({"status": status}).encode()
@@ -158,13 +167,13 @@ def test_daemon_probe(
         with pytest.raises(PairInputError, match="daemon is not running"):
             CodexHarness().check()
     assert run.call_args_list[0].args[0] == [
-        "codex",
+        executable,
         "app-server",
         "daemon",
         "version",
     ]
     if ok:
-        assert run.call_args_list[1].args[0] == ["codex", "queue", "--help"]
+        assert run.call_args_list[1].args[0] == [executable, "queue", "--help"]
 
 
 @pytest.mark.parametrize("stdout", [b"bad", b"[]", b"null"])
@@ -180,7 +189,13 @@ def test_malformed_daemon_probe(
         CodexHarness().check()
 
 
-def test_codex_send_preserves_message(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("platform", "executable"), [("linux", "codex"), ("win32", "codex.exe")]
+)
+def test_codex_send_preserves_message(
+    platform: str, executable: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sys, "platform", platform)
     run = Mock(return_value=subprocess.CompletedProcess([], 0, b"queued"))
     monkeypatch.setattr(subprocess, "run", run)
     message = 'line 1\n"quotes"; $(must not execute)'
@@ -188,7 +203,7 @@ def test_codex_send_preserves_message(monkeypatch: pytest.MonkeyPatch) -> None:
         message
     )
     assert run.call_args.args[0] == [
-        "codex",
+        executable,
         "queue",
         "--thread",
         "thread",
@@ -476,7 +491,8 @@ def test_cleanup_removed_directory_is_replaced(
     new = files.write("new")
     assert new.parent != directory
     assert json.loads(new.read_text()) == "new"
-    assert new.stat().st_mode & 0o777 == 0o600
+    if os.name == "posix":
+        assert new.stat().st_mode & 0o777 == 0o600
 
 
 def test_replaced_payload_directory_is_not_followed(tmp_path: Path) -> None:
