@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Logger } from "@/utils/Logger";
 import { WebSocketClosedReason, ConnectionState } from "../types";
-import { classifyCloseEvent } from "../useMarimoKernelConnection";
+import { classifyCloseEvent } from "../connection-state";
 
 function classify(reason: string | undefined) {
   return classifyCloseEvent({ reason });
@@ -13,8 +13,10 @@ describe("classifyCloseEvent", () => {
   describe("transient closes (default branch)", () => {
     it("retries on empty/undefined reason", () => {
       const decision = classify(undefined);
-      expect(decision.kind).toBe("retry");
-      expect(decision.status).toEqual({ state: ConnectionState.CONNECTING });
+      expect(decision).toEqual({
+        kind: "retry",
+        status: { state: ConnectionState.CONNECTING },
+      });
     });
 
     it("treats unknown reason strings as transient and logs a warning", () => {
@@ -40,29 +42,25 @@ describe("classifyCloseEvent", () => {
       // terminal or a rejected client would reconnect forever.
       "MARIMO_UNAUTHORIZED",
       "MARIMO_KIOSK_NOT_ALLOWED",
-    ])("%s → terminal with KERNEL_DISCONNECTED, closes transport", (reason) => {
+    ])("%s → terminal with KERNEL_DISCONNECTED", (reason) => {
       const decision = classify(reason);
-      expect(decision.kind).toBe("terminal");
-      expect(decision.status).toMatchObject({
-        state: ConnectionState.CLOSED,
-        code: WebSocketClosedReason.KERNEL_DISCONNECTED,
-      });
       expect(decision).toMatchObject({
         kind: "terminal",
-        closeTransport: true,
+        status: {
+          state: ConnectionState.CLOSED,
+          code: WebSocketClosedReason.KERNEL_DISCONNECTED,
+        },
       });
     });
 
-    it("MARIMO_KERNEL_STARTUP_ERROR → terminal + closeTransport", () => {
+    it("MARIMO_KERNEL_STARTUP_ERROR → terminal", () => {
       const decision = classify("MARIMO_KERNEL_STARTUP_ERROR");
-      expect(decision.kind).toBe("terminal");
-      expect(decision.status).toMatchObject({
-        state: ConnectionState.CLOSED,
-        code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
-      });
       expect(decision).toMatchObject({
         kind: "terminal",
-        closeTransport: true,
+        status: {
+          state: ConnectionState.CLOSED,
+          code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+        },
       });
     });
   });

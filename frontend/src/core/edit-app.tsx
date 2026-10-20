@@ -41,7 +41,7 @@ import { viewStateAtom } from "./mode";
 import { useRequestClient } from "./network/requests";
 import { useFilename } from "./saving/filename";
 import { lastSavedNotebookAtom } from "./saving/state";
-import { useMarimoKernelConnection } from "./websocket/useMarimoKernelConnection";
+import { useNotebookSession } from "./websocket/useNotebookSession";
 
 interface AppProps {
   /**
@@ -83,7 +83,7 @@ export const EditApp: React.FC<AppProps> = ({
     };
   }, []);
 
-  const { connection, reconnect } = useMarimoKernelConnection({
+  const { connection, reconnect } = useNotebookSession({
     autoInstantiate: userConfig.runtime.auto_instantiate,
     setCells: (cells, layout) => {
       setCells(cells);

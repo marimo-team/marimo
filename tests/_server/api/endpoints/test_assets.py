@@ -17,6 +17,8 @@ from marimo._server.api.endpoints.assets import (
     DEFAULT_NOTEBOOK_NAME,
     _inject_service_worker,
 )
+from marimo._server.host.bridge import SessionBridge
+from marimo._server.host.context import HostContext
 from marimo._server.workspace import (
     DirectoryWorkspace,
     EmptyWorkspace,
@@ -32,6 +34,7 @@ from tests._server.mocks import (
     with_workspace,
     workspace_scope,
 )
+from tests._server.templates.utils import parse_mount_config
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -977,3 +980,40 @@ def test_serve_static_allowed_files(client: TestClient) -> None:
         assert response.status_code in (200, 404), (
             f"Unexpected status {response.status_code} for {name!r}"
         )
+
+
+@pytest.mark.parametrize("remote_url", [None, "https://remote.example"])
+@pytest.mark.parametrize("cataloged", [True, False])
+def test_index_supplies_the_local_host_notebook_identity(
+    client: TestClient, remote_url: str | None, cataloged: bool
+) -> None:
+    state = AppState.from_app(cast(Any, client.app))
+    bridge = SessionBridge(state.session_manager)
+    bridge.index.refresh()
+    (original_id,) = bridge.host.notebooks
+    if not cataloged:
+        bridge.index.forget(original_id)
+    initial_notebooks = dict(bridge.host.notebooks)
+    client.app.state.host_context = HostContext(
+        bridge=bridge, token="host-token", port=1234
+    )  # type: ignore[union-attr]
+    client.app.state.remote_url = remote_url  # type: ignore[union-attr]
+    response = client.get("/", headers=token_header())
+    assert response.status_code == 200
+    config = parse_mount_config(response.text)
+    if remote_url is not None:
+        assert config.get("notebookId") is None
+        assert bridge.host.notebooks == initial_notebooks
+    else:
+        (notebook_id,) = bridge.host.notebooks
+        assert config.get("notebookId") == notebook_id
+        if cataloged:
+            assert notebook_id == original_id
+        notebooks = dict(bridge.host.notebooks)
+        reloaded = client.get("/", headers=token_header())
+        assert reloaded.status_code == 200
+        assert (
+            parse_mount_config(reloaded.text).get("notebookId") == notebook_id
+        )
+        assert bridge.host.notebooks == notebooks
+    assert not state.session_manager.sessions

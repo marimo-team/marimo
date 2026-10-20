@@ -1,30 +1,19 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-export type ConnectionEvent = "open" | "close" | "message" | "error";
 
-export interface IConnectionTransportMap {
-  open: WebSocketEventMap["open"];
-  message: WebSocketEventMap["message"];
-  close: WebSocketEventMap["close"];
-  error: WebSocketEventMap["error"];
-}
+import type {
+  NotebookTransport,
+  ConnectionEvent,
+  ConnectionTransportCallback,
+  IConnectionTransportMap,
+} from "../../host/connection";
+export type {
+  ConnectionEvent,
+  ConnectionTransportCallback,
+  IConnectionTransportMap,
+} from "../../host/connection";
 
-export type ConnectionTransportCallback<T extends ConnectionEvent> = (
-  data: IConnectionTransportMap[T],
-) => void;
-
-export interface IConnectionTransport {
-  reconnect(code?: number | undefined, reason?: string | undefined): void;
-  close(): void;
+export interface IConnectionTransport extends NotebookTransport {
   send(data: string | ArrayBuffer | Blob | ArrayBufferView<ArrayBuffer>): void;
-  addEventListener<T extends ConnectionEvent>(
-    event: T,
-    callback: ConnectionTransportCallback<T>,
-  ): void;
-  removeEventListener<T extends ConnectionEvent>(
-    event: T,
-    callback: ConnectionTransportCallback<T>,
-  ): void;
-  readyState: WebSocket["readyState"];
 }
 
 export class ConnectionSubscriptions {

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BasicTransport } from "../transports/basic";
 import { SseTransport } from "../transports/sse";
 import { WsTransport } from "../transports/ws";
-import { createConnectionTransport } from "../useWebSocket";
+import { createConnectionTransport } from "../transports/create";
 
 vi.mock("../../wasm/utils", () => ({
   isWasm: () => false,

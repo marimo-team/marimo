@@ -22,7 +22,7 @@ import { getSessionId } from "./kernel/session";
 import { connectionAtom } from "./network/connection";
 import { useRequestClient } from "./network/requests";
 import { isAppConnecting } from "./websocket/connection-utils";
-import { useMarimoKernelConnection } from "./websocket/useMarimoKernelConnection";
+import { useNotebookSession } from "./websocket/useNotebookSession";
 
 interface AppProps {
   appConfig: AppConfig;
@@ -51,7 +51,7 @@ export const RunApp: React.FC<AppProps> = ({ appConfig, hideHeader }) => {
     };
   }, []);
 
-  const { connection, reconnect } = useMarimoKernelConnection({
+  const { connection, reconnect } = useNotebookSession({
     autoInstantiate: true,
     setCells: setCells,
     sessionId: getSessionId(),
