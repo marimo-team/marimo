@@ -29,10 +29,12 @@ function setup() {
     controller.connect({
       createTransport: () => transport,
       url: () => "ws://localhost/ws",
+      messageFormat: "host",
       signal,
       waitUntilReady: () => healthy.promise,
       checkHealth,
       onNotification: (notification) => onNotification({ data: notification }),
+      onMessageError: vi.fn(),
       decodeJson: jsonParseWithSpecialChar,
       classifyClose: classifyCloseEvent,
     });
@@ -49,6 +51,34 @@ function setup() {
 }
 
 describe("NotebookClient lifetime", () => {
+  it.each(["{broken", JSON.stringify({ event: "ready", data: {} })])(
+    "stops consuming a malformed host stream: %s",
+    (data) => {
+      const { connect, events, client, store, transport, onNotification } =
+        setup();
+      const lifetime = new AbortController();
+      connect(lifetime.signal);
+      events.dispatchEvent(new Event("open"));
+      events.dispatchEvent(new MessageEvent("message", { data }));
+      events.dispatchEvent(
+        new MessageEvent("message", {
+          data: JSON.stringify({
+            event: "marimo",
+            data: { marimo: { op: "reconnected" } },
+          }),
+        }),
+      );
+      expect(store.get(client.connectionAtom)).toEqual({
+        state: ConnectionState.CLOSED,
+        code: "KERNEL_DISCONNECTED",
+        reason: "Failed to decode notebook message",
+      });
+      expect(transport.close).toHaveBeenCalledOnce();
+      expect(onNotification).not.toHaveBeenCalled();
+      lifetime.abort();
+    },
+  );
+
   it.each(["MARIMO_UNAUTHORIZED", "MARIMO_TRANSPORT_EXHAUSTED"])(
     "stops automatic recovery after %s but permits an explicit reconnect",
     async (reason) => {

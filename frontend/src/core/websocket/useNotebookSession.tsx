@@ -66,7 +66,7 @@ import { type LayoutState, useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom, startupProgressAtom } from "../network/connection";
 import type { RequestId } from "../network/DeferredRequestRegistry";
-import { useRuntimeManager } from "../runtime/config";
+import { runtimeConfigAtom, useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
 import {
@@ -136,6 +136,7 @@ export function useNotebookSession(opts: {
   const setStableSessionId = useSetAtom(stableSessionIdAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
+  const { notebookId } = useAtomValue(runtimeConfigAtom);
   const transportType = useAtomValue(connectionTransportTypeAtom);
   const setCacheInfo = useSetAtom(cacheInfoAtom);
   const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
@@ -408,10 +409,19 @@ export function useNotebookSession(opts: {
   };
 
   const store = useStore();
+  const onMessageError = (error: unknown) => {
+    toast({
+      title: "Failed to handle message",
+      description: prettyError(error),
+      variant: "danger",
+    });
+  };
   const notebook = useNotebookClient({
     sessionId,
     static: isStaticNotebook(),
     transportType,
+    messageFormat:
+      notebookId && transportType === "websocket" ? "host" : "session",
     url: () =>
       transportType === "sse"
         ? runtimeManager.getSseURL(sessionId).toString()
@@ -424,16 +434,13 @@ export function useNotebookSession(opts: {
       }
     },
     checkHealth: () => runtimeManager.reconcileFromHealth(),
+    onMessageError,
     onNotification: (notification) => {
       try {
         handleNotification(notification);
       } catch (error) {
         Logger.error("Failed to handle notification", notification, error);
-        toast({
-          title: "Failed to handle message",
-          description: prettyError(error),
-          variant: "danger",
-        });
+        onMessageError(error);
       }
     },
   });

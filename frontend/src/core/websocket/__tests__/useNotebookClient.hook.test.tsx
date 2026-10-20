@@ -48,11 +48,13 @@ function setup(strict = false) {
     sessionId: "first",
     static: false,
     transportType: "websocket" as const,
+    messageFormat: "host" as const,
     url: () => "ws://localhost/ws",
     headers: () => ({}),
     waitUntilReady: async () => undefined,
     checkHealth: async () => true,
     onNotification: vi.fn(),
+    onMessageError: vi.fn(),
   };
   const wrapper = ({ children }: PropsWithChildren) => (
     <Provider store={store}>{children}</Provider>

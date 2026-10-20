@@ -36,6 +36,7 @@ vi.mock("@/core/runtime/config", async () => {
 });
 
 import { MockNotebook } from "@/__mocks__/notebook";
+import * as Toast from "@/components/ui/use-toast";
 import { Logger } from "@/utils/Logger";
 import { Deferred } from "@/utils/Deferred";
 import { cellId } from "@/__tests__/branded";
@@ -259,6 +260,40 @@ describe("useNotebookSession messages", () => {
       expect(store.get(attachmentsAtom)).toEqual(attachments);
     }
   });
+
+  it.each(["{broken", "null"])(
+    "reports a malformed legacy frame and continues applying notifications: %s",
+    (data) => {
+      const toast = vi.spyOn(Toast, "toast");
+      try {
+        receive({ data: { op: "reconnected" } });
+        act(() =>
+          getTransportHandlers().onMessage(
+            new MessageEvent("message", { data }),
+          ),
+        );
+        expect(toast).toHaveBeenCalledExactlyOnceWith({
+          title: "Failed to handle message",
+          description: expect.any(String),
+          variant: "danger",
+        });
+        expect(store.get(connectionAtom)).toEqual({
+          state: ConnectionState.OPEN,
+        });
+        receive({
+          data: {
+            op: "completed-run",
+            run_id: "r1",
+            outcome: "succeeded",
+            error: null,
+          },
+        });
+        expect(store.get(initialRunCompletedAtom)).toBe(true);
+      } finally {
+        toast.mockRestore();
+      }
+    },
+  );
 
   it.each(["session", "host"])(
     "records completion of the initial run from the %s stream",

@@ -26,6 +26,8 @@ export interface NotebookConnection {
   createTransport: (url: () => string) => NotebookTransport;
   /** The current stream URL, including authentication and subscription options. */
   url: () => string;
+  /** Host events require an intact stream; legacy notifications are independent. */
+  messageFormat: "host" | "session";
   /** Abort to close the transport and clear the client's state. */
   signal: AbortSignal;
   /** Wait until the host can accept the initial connection. */
@@ -36,6 +38,8 @@ export interface NotebookConnection {
   decodeJson: (message: string) => unknown;
   /** Handle a native marimo notification. Its payload has not been validated. */
   onNotification: (notification: unknown) => void;
+  /** Report a malformed message without coupling the client to editor UI. */
+  onMessageError: (error: unknown) => void;
   /** Choose the connection status and retry policy after the transport closes. */
   classifyClose: (event: CloseEvent) => CloseDecision;
 }
@@ -54,10 +58,12 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
   function connect({
     createTransport,
     url,
+    messageFormat,
     signal,
     waitUntilReady,
     checkHealth,
     onNotification,
+    onMessageError,
     decodeJson,
     classifyClose,
   }: NotebookConnection) {
@@ -126,6 +132,10 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
         event = parseNotebookEvent(decodeJson(message.data));
       } catch (error) {
         Logger.error("Failed to decode notebook message", error);
+        if (messageFormat === "session") {
+          onMessageError(error);
+          return;
+        }
         terminal = true;
         setStatus({
           ...disconnected,
