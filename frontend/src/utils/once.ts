@@ -2,6 +2,7 @@
 
 import { arrayShallowEquals } from "./arrays";
 
+export function once<F extends (...args: never[]) => unknown>(fn: F): F;
 export function once<Args extends unknown[], Result, This>(
   fn: (this: This, ...args: Args) => Result,
 ): (this: This, ...args: Args) => Result {
@@ -16,6 +17,9 @@ export function once<Args extends unknown[], Result, This>(
   };
 }
 
+export function memoizeLastValue<F extends (...args: never[]) => unknown>(
+  fn: F,
+): F;
 export function memoizeLastValue<Args extends unknown[], Result, This>(
   fn: (this: This, ...args: Args) => Result,
 ): (this: This, ...args: Args) => Result {
