@@ -11,6 +11,7 @@ import {
   TransportReadyState,
 } from "./connection";
 import { parseNotebookEvent } from "./events";
+import { createStream } from "./stream";
 
 /** A connection to a notebook on a marimo host. */
 export interface NotebookClient {
@@ -49,6 +50,9 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
   const connectionAtom = atom<ConnectionStatus>({
     state: ConnectionState.NOT_STARTED,
   });
+  // One atom holds the whole stream. Resource atoms derive from it.
+  const stream = createStream({});
+  const streamAtom = atom(stream.initial);
   let reconnect: (() => Promise<void>) | undefined;
   const client: NotebookClient = {
     connectionAtom,
@@ -73,7 +77,13 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
     let shouldRetry = true;
     let terminal = false;
     let checkingHealth = false;
-    const transport = createTransport(url);
+    const transport = createTransport(() => {
+      // Each connection begins a fresh snapshot.
+      if (!signal.aborted) {
+        store.set(streamAtom, stream.initial);
+      }
+      return url();
+    });
     const setStatus = (status: ConnectionStatus) =>
       store.set(connectionAtom, status);
     const disconnected = {
@@ -130,12 +140,14 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
       let event;
       try {
         event = parseNotebookEvent(decodeJson(message.data));
+        store.set(streamAtom, stream.reduce(store.get(streamAtom), event));
       } catch (error) {
         Logger.error("Failed to decode notebook message", error);
         if (messageFormat === "session") {
           onMessageError(error);
           return;
         }
+        store.set(streamAtom, stream.initial);
         terminal = true;
         setStatus({
           ...disconnected,
@@ -193,6 +205,7 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
         transport.removeEventListener("message", onMessage);
         transport.close();
         reconnect = undefined;
+        store.set(streamAtom, stream.initial);
         setStatus({ state: ConnectionState.NOT_STARTED });
       },
       { once: true },

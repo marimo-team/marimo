@@ -9,6 +9,18 @@ import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { classifyCloseEvent } from "../../websocket/connection-state";
 import { createNotebookClient } from "../notebook-client";
 
+function notebookMessage(id: string) {
+  const notebook = {
+    id,
+    project_id: "p1",
+    path: null,
+    name: id,
+    operations: [],
+    updated_at: null,
+  };
+  return JSON.stringify({ event: "notebook", data: { notebook } });
+}
+
 function setup() {
   const events = new EventTarget();
   const healthy = new Deferred<void>();
@@ -78,6 +90,25 @@ describe("NotebookClient lifetime", () => {
       lifetime.abort();
     },
   );
+
+  it("stops consuming a stream whose notebook changes", () => {
+    const { connect, events, client, store, transport } = setup();
+    const lifetime = new AbortController();
+    connect(lifetime.signal);
+    events.dispatchEvent(new Event("open"));
+    for (const id of ["n1", "n2"]) {
+      events.dispatchEvent(
+        new MessageEvent("message", { data: notebookMessage(id) }),
+      );
+    }
+    expect(store.get(client.connectionAtom)).toEqual({
+      state: ConnectionState.CLOSED,
+      code: "KERNEL_DISCONNECTED",
+      reason: "Failed to decode notebook message",
+    });
+    expect(transport.close).toHaveBeenCalledOnce();
+    lifetime.abort();
+  });
 
   it.each(["MARIMO_UNAUTHORIZED", "MARIMO_TRANSPORT_EXHAUSTED"])(
     "stops automatic recovery after %s but permits an explicit reconnect",
