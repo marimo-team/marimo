@@ -14,7 +14,9 @@ from marimo._ast.app import App
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.input import dropdown
 from marimo._runtime.commands import ExecuteCellCommand
+from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
+from marimo._runtime.side_effect import SideEffect
 from marimo._save.cache import Cache
 from marimo._save.stubs.module_stub import ModuleStub
 from marimo._save.stubs.ui_element_stub import UIElementStub
@@ -988,6 +990,37 @@ class TestCacheDecorator:
 
         assert k.globals["a"] == 5
         assert k.globals["b"] == 55
+
+    async def test_call_off_cell_records_no_side_effect(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # Called after its cell returned, as from a plain thread that restored
+        # the kernel context (#11308). No cell runs, so there is no cell to
+        # mark for cache invalidation, and the call still works.
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    def double(x):
+                        return x * 2
+                    """
+                ),
+            ]
+        )
+        ctx = get_context()
+        assert ctx.cell_id is None
+
+        assert k.globals["double"](2) == 4
+        assert k.globals["double"](2) == 4
+        assert k.globals["double"].hits == 1
+        assert not any(
+            isinstance(item, SideEffect)
+            for items in ctx.cell_lifecycle_registry.registry.values()
+            for item in items
+        )
 
     async def test_basic_cache(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -2951,6 +2984,36 @@ class TestAsyncCacheDecorator:
         assert k.globals["b"] == 55
         # Should have cache hits like the sync version
         assert k.globals["async_fib"].hits == 9
+
+    async def test_async_call_off_cell_records_no_side_effect(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # Awaited after its cell returned, so no cell runs and there is no
+        # cell to mark for cache invalidation. The call still works.
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    async def double(x):
+                        return x * 2
+                    """
+                ),
+            ]
+        )
+        ctx = get_context()
+        assert ctx.cell_id is None
+
+        assert await k.globals["double"](2) == 4
+        assert await k.globals["double"](2) == 4
+        assert k.globals["double"].hits == 1
+        assert not any(
+            isinstance(item, SideEffect)
+            for items in ctx.cell_lifecycle_registry.registry.values()
+            for item in items
+        )
 
     async def test_async_lru_cache(
         self, k: Kernel, exec_req: ExecReqProvider
