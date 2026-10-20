@@ -14,7 +14,7 @@ import { parseNotebookEvent } from "./events";
 
 /** A connection to a notebook on a marimo host. */
 export interface NotebookClient {
-  /** Transport state, independent of kernel readiness. */
+  /** Client connection status, independent of application session readiness. */
   readonly connectionAtom: Atom<ConnectionStatus>;
   /** Attempt to restore a closed connection after checking host health. */
   reconnect(): Promise<void>;
