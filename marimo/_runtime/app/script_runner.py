@@ -187,7 +187,7 @@ class AppScriptRunner:
                 teardown_context()
 
     def _scheduler_pending(self, glbls: dict[str, Any]) -> bool:
-        """Whether a cell is queued, after requeueing stub definers."""
+        """Whether a cell is queued, after requeuing stub definers."""
         if self._scheduler.pending():
             return True
         if self._cache is None:
