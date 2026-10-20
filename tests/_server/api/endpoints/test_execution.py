@@ -6,7 +6,7 @@ import json
 import sys
 import time
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -16,7 +16,11 @@ from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.notification import ConsumerCapabilities
-from marimo._runtime.commands import ExecuteCellsCommand
+from marimo._runtime.commands import (
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
+)
+from marimo._server import scratchpad as scratchpad_mod
 from marimo._server.api.utils import enforce_consumer_capability
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.http import HTTPException
@@ -58,9 +62,6 @@ def _count_execute_interrupts(
         watcher_fires (bool): The disconnect watcher sees the disconnect.
         stream_cancelled (bool): The response stream is cancelled.
     """
-    from unittest.mock import patch
-
-    from marimo._server import scratchpad as scratchpad_mod
 
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session is not None
@@ -266,9 +267,7 @@ class TestExecutionRoutes_EditMode:
     @staticmethod
     @with_session(SESSION_ID)
     def test_execute_with_stable_session_id(client: TestClient) -> None:
-        from unittest.mock import patch
 
-        from marimo._runtime.commands import ExecuteScratchpadCommand
         from marimo._server import scratchpad as scratchpad_mod
 
         session = get_session_manager(client).get_session(SESSION_ID)
@@ -361,9 +360,8 @@ class TestExecutionRoutes_EditMode:
         """Inject the trusted server URL, auth token, and notebook key
         so screenshots authenticate and attach to the active notebook.
         """
-        from unittest.mock import PropertyMock, patch
+        from unittest.mock import PropertyMock
 
-        from marimo._runtime.commands import ExecuteScratchpadCommand
         from marimo._server import scratchpad as scratchpad_mod
 
         session = get_session_manager(client).get_session(SESSION_ID)
@@ -431,11 +429,9 @@ class TestExecutionRoutes_EditMode:
         `cell.console_outputs`.  Regression guard: removing the
         construction line in the endpoint should fail this test.
         """
-        from unittest.mock import patch
 
         from marimo._messaging.cell_output import CellChannel, CellOutput
         from marimo._messaging.notification import CellNotification
-        from marimo._runtime.commands import ExecuteScratchpadCommand
         from marimo._server import scratchpad as scratchpad_mod
 
         session = get_session_manager(client).get_session(SESSION_ID)

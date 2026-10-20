@@ -15,11 +15,14 @@ from __future__ import annotations
 
 import datetime
 import json
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     import duckdb as duckdb_mod
     import geopandas as gpd_mod
     import ibis as ibis_mod
@@ -291,6 +294,61 @@ def arrow_invalid_wkb() -> pa_mod.Table:
 
     return _arrow_table_with_extension(
         "geoarrow.wkb", [b"invalid", None], pa.binary(), crs=True
+    )
+
+
+@contextmanager
+def registered_arrow_extension(
+    name: str,
+    storage_type: pa_mod.DataType,
+    serialized: bytes = b'{"crs":"EPSG:4326"}',
+) -> Generator[pa_mod.ExtensionType, None, None]:
+    """Register an Arrow extension type for the duration of a test.
+
+    Registered types carry their name in the field type instead of the field
+    metadata, as GeoArrow-aware readers produce them. Deserialization keeps
+    the serialized payload, so Arrow data that DuckDB or Parquet reproduce
+    retains its declaration.
+    """
+    import pyarrow as pa
+
+    class RegisteredExtension(pa.ExtensionType):
+        def __init__(
+            self, storage: pa.DataType, payload: bytes = serialized
+        ) -> None:
+            self.payload = payload
+            super().__init__(storage, name)
+
+        def __arrow_ext_serialize__(self) -> bytes:
+            return self.payload
+
+        @classmethod
+        def __arrow_ext_deserialize__(
+            cls, storage_type: pa.DataType, serialized: bytes
+        ) -> RegisteredExtension:
+            return cls(storage_type, serialized)
+
+    extension = RegisteredExtension(storage_type)
+    pa.register_extension_type(extension)  # type: ignore[arg-type]
+    try:
+        yield extension
+    finally:
+        pa.unregister_extension_type(name)
+
+
+def registered_extension_column(
+    extension: pa_mod.ExtensionType, chunks: list[list[Any]]
+) -> pa_mod.ChunkedArray[Any]:
+    """Build an extension column with one chunk per value list."""
+    import pyarrow as pa
+
+    return pa.chunked_array(
+        [
+            pa.ExtensionArray.from_storage(
+                extension, pa.array(values, type=extension.storage_type)
+            )
+            for values in chunks
+        ]
     )
 
 

@@ -1107,7 +1107,20 @@ def test_export_as_html_code_hash_consistency(
     session_view.cell_notifications[cell_ids[0]] = CellNotification(
         cell_id=cell_ids[0],
         status="idle",
-        output=None,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="application/vnd.marimo+error",
+            data=[
+                {
+                    "type": "exception",
+                    "msg": "bad",
+                    "exception_type": "ValueError",
+                    "raising_cell": None,
+                    "traceback": None,
+                }
+            ],
+            code="private_source_sentinel = 42",
+        ),
         console=[],
         timestamp=0,
     )
@@ -1139,6 +1152,8 @@ def test_export_as_html_code_hash_consistency(
     html_with_code, _ = exporter.export_as_html(export_request)
 
     assert export_request.snapshot == snapshot_before
+    assert "private_source_sentinel" not in html_without_code
+    assert "private_source_sentinel" in html_with_code
 
     # Extract code hash from both HTML outputs
     hash_pattern = r"<marimo-code-hash[^>]*>([a-f0-9]+)</marimo-code-hash>"

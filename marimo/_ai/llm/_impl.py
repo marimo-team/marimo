@@ -48,6 +48,36 @@ def _looks_like_streaming_error(e: Exception) -> bool:
     )
 
 
+def _start_stream(
+    chunks: Generator[str, None, None],
+) -> Generator[str, None, None]:
+    """Return a generator that replays the first chunk, then yields the rest.
+
+    Starting it here raises a streaming error inside the caller's try block, so non-streaming models can fallback safely.
+    """
+    first = next(chunks, None)
+
+    def resume() -> Generator[str, None, None]:
+        if first is not None:
+            yield first
+        yield from chunks
+
+    return resume()
+
+
+def _stream_or_fallback(
+    stream: Callable[[], Generator[str, None, None]],
+    fallback: Callable[[], str],
+) -> Generator[str, None, None] | str:
+    """Stream the response, or call `fallback` if the model can't stream."""
+    try:
+        return _start_stream(stream())
+    except Exception as e:
+        if _looks_like_streaming_error(e):
+            return fallback()
+        raise
+
+
 class simple(ChatModel):
     """
     Convenience class for wrapping a ChatModel or callable to
@@ -303,17 +333,23 @@ class anthropic(ChatModel):
         ):
             params["temperature"] = config.temperature
 
-        # Try streaming first, fall back to non-streaming on error
-        try:
-            # Note: client.messages.stream() doesn't take a 'stream' parameter
-            # It's already a streaming method
-            return self._stream_response(client, params)
-        except Exception as e:
-            # Fall back to non-streaming mode if streaming fails
-            if _looks_like_streaming_error(e):
-                response = client.messages.create(**params)
-                return response.content[0].text
-            raise
+        def non_streaming() -> str:
+            response = client.messages.create(**params)
+            # The first block can be a thinking block, which has no text
+            return next(
+                (
+                    block.text
+                    for block in response.content
+                    if block.type == "text"
+                ),
+                "",
+            )
+
+        # Note: client.messages.stream() doesn't take a 'stream' parameter
+        # It's already a streaming method
+        return _stream_or_fallback(
+            lambda: self._stream_response(client, params), non_streaming
+        )
 
 
 class google(ChatModel):
@@ -407,21 +443,20 @@ class google(ChatModel):
             "presence_penalty": config.presence_penalty,
         }
 
-        # Try streaming first, fall back to non-streaming on error
-        try:
-            return self._stream_response(
-                client, google_messages, generation_config
+        def non_streaming() -> str:
+            response = client.models.generate_content(
+                model=self.model,
+                contents=google_messages,
+                config=generation_config,  # type: ignore[arg-type]
             )
-        except Exception as e:
-            # Fall back to non-streaming mode if streaming fails
-            if _looks_like_streaming_error(e):
-                response = client.models.generate_content(
-                    model=self.model,
-                    contents=google_messages,
-                    config=generation_config,  # type: ignore[arg-type]
-                )
-                return response.text
-            raise
+            return response.text or ""
+
+        return _stream_or_fallback(
+            lambda: self._stream_response(
+                client, google_messages, generation_config
+            ),
+            non_streaming,
+        )
 
 
 class groq(ChatModel):
@@ -517,23 +552,22 @@ class groq(ChatModel):
             + messages
         )
 
-        # Try streaming first, fall back to non-streaming on error
-        try:
-            return self._stream_response(client, groq_messages, config)
-        except Exception as e:
-            # Fall back to non-streaming mode if streaming fails
-            if _looks_like_streaming_error(e):
-                response = client.chat.completions.create(
-                    model=self.model,
-                    messages=groq_messages,
-                    max_tokens=config.max_tokens,
-                    temperature=config.temperature,
-                    top_p=config.top_p,
-                    stop=None,
-                    stream=False,
-                )
-                return response.choices[0].message.content or ""
-            raise
+        def non_streaming() -> str:
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=groq_messages,
+                max_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                stop=None,
+                stream=False,
+            )
+            return response.choices[0].message.content or ""
+
+        return _stream_or_fallback(
+            lambda: self._stream_response(client, groq_messages, config),
+            non_streaming,
+        )
 
 
 class bedrock(ChatModel):
@@ -643,19 +677,21 @@ class bedrock(ChatModel):
         client = self._create_client()
         params = self._build_converse_params(messages, config)
 
+        def non_streaming() -> str:
+            response = client.converse(**params)
+            output = response.get("output", {})
+            message = output.get("message", {})
+            content = message.get("content", [])
+            # The first block can be reasoning, which has no text
+            return next(
+                (block["text"] for block in content if "text" in block),
+                "",
+            )
+
         try:
-            try:
-                return self._stream_response(client, params)
-            except Exception as stream_error:
-                if _looks_like_streaming_error(stream_error):
-                    response = client.converse(**params)
-                    output = response.get("output", {})
-                    message = output.get("message", {})
-                    content = message.get("content", [])
-                    if content and "text" in content[0]:
-                        return content[0]["text"]
-                    return ""
-                raise
+            return _stream_or_fallback(
+                lambda: self._stream_response(client, params), non_streaming
+            )
         except Exception as e:
             error_msg = str(e)
 

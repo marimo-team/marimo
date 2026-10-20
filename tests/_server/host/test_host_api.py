@@ -21,12 +21,12 @@ from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.protocol import ProjectMessage
 from marimo._core.run_log import RetentionPolicy
-from marimo._core.stream import Event
+from marimo._core.stream import RoutedEvent, event_name
 from marimo._messaging.notification import CompletedRunNotification
 from marimo._server.host import HOST_API_PATH, api as api_module
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
-from marimo._server.host.events import MarimoMessage
+from marimo._server.host.events import MarimoEvent, MarimoMessage
 from marimo._server.host.index import WorkspaceIndex
 from marimo._server.main import create_starlette_app
 from marimo._server.models.home import MarimoFile
@@ -553,7 +553,10 @@ async def test_a_notebook_stream_attaches_the_client(harness: Harness) -> None:
 
     disconnect()
     await asyncio.wait_for(task, 5)
-    assert [e.name for e in harness.host.events(notebook_id=notebook.id)] == [
+    assert [
+        event_name(e.event)
+        for e in harness.host.events(notebook_id=notebook.id)
+    ] == [
         "notebook",
         "cell",
         "document",
@@ -622,7 +625,9 @@ async def test_a_reconnect_with_one_identity_attaches_fresh(
     old = first.records[0]["data"]["attachment"]
     disconnect_first()
     await asyncio.wait_for(first_task, 5)
-    assert "attachment" not in [e.name for e in harness.host.events()]
+    assert "attachment" not in [
+        event_name(e.event) for e in harness.host.events()
+    ]
 
     second, second_task, disconnect_second = request(
         harness.app,
@@ -1143,7 +1148,10 @@ async def test_request_receipts_expire_independently_of_results(
     assert replayed.json()["status"] == "completed"
     assert replayed.json()["outcome"] == "succeeded"
     assert any(
-        event.kind == "execution"
+        isinstance(
+            event.event,
+            (protocol.ExecutionEvent, protocol.ExecutionRemovedEvent),
+        )
         for event in harness.host.events(notebook_id=nid)
     ) == (cell_id is not None)
     conflicting = await finished(
@@ -1381,9 +1389,9 @@ async def test_operations_the_host_does_not_offer_are_501(
     notebook = await harness.host.notebook(harness.notebook_id)
     host = Host(operations=[])
     [project] = [
-        e.data.project
+        e.event.data.project
         for e in harness.host.events()
-        if isinstance(e.data, ProjectMessage)
+        if isinstance(e.event.data, ProjectMessage)
     ]
     host.update_project(project)
     host.add_notebook(harness.host.notebooks[notebook.id], make_notebook)
@@ -1959,7 +1967,7 @@ async def test_marimo_notifications_use_their_own_sse_kind(
         await wait_for(response, until_ready)
         payload = MarimoMessage(CompletedRunNotification(run_id="r1"))
         published = notebook.sink.append(
-            Event("marimo", payload, notebook_id=notebook.id)
+            RoutedEvent(MarimoEvent(payload), notebook_id=notebook.id)
         )
         await wait_for(response, lambda r: "marimo" in r.names())
         assert [r for r in response.records if r.get("event") == "marimo"] == [
@@ -1994,7 +2002,9 @@ def test_websocket_delivers_live_events(harness: Harness, query: str) -> None:
         )
         client.portal.call(analyzed, notebook)
         payload = MarimoMessage(CompletedRunNotification(run_id="r1"))
-        event = Event("marimo", payload, notebook_id=notebook.id, run_id="r1")
+        event = RoutedEvent(
+            MarimoEvent(payload), notebook_id=notebook.id, run_id="r1"
+        )
         client.portal.call(notebook.sink.append, event)
         path = f"{HOST_API_PATH}/notebooks/{notebook.id}/events/ws{query}"
         with client.websocket_connect(
@@ -2004,13 +2014,17 @@ def test_websocket_delivers_live_events(harness: Harness, query: str) -> None:
             assert all("id" not in event for event in initial[:-1])
             client.portal.call(
                 notebook.sink.append,
-                Event("marimo", payload, notebook_id="nb_other", run_id="r1"),
+                RoutedEvent(
+                    MarimoEvent(payload), notebook_id="nb_other", run_id="r1"
+                ),
             )
             if "run_id" in query:
                 client.portal.call(
                     notebook.sink.append,
-                    Event(
-                        "marimo", payload, notebook_id=notebook.id, run_id="r2"
+                    RoutedEvent(
+                        MarimoEvent(payload),
+                        notebook_id=notebook.id,
+                        run_id="r2",
                     ),
                 )
             first = client.portal.call(notebook.sink.append, event)
@@ -2060,12 +2074,15 @@ def test_websocket_disconnect_detaches_the_client(
         )
         client.portal.call(analyzed, notebook)
         removed = asyncio.Event()
-        events: list[Event] = []
+        events: list[RoutedEvent] = []
 
-        def observe(event: Event) -> None:
-            if event.notebook_id == notebook.id and event.kind == "attachment":
+        def observe(event: RoutedEvent) -> None:
+            if event.notebook_id == notebook.id and isinstance(
+                event.event,
+                (protocol.AttachmentEvent, protocol.AttachmentRemovedEvent),
+            ):
                 events.append(event)
-                if event.name == "attachment.removed":
+                if isinstance(event.event, protocol.AttachmentRemovedEvent):
                     removed.set()
 
         unsubscribe = client.portal.call(harness.host.subscribe, observe)
@@ -2083,13 +2100,15 @@ def test_websocket_disconnect_detaches_the_client(
                 else:
                     websocket.close()
                 client.portal.call(asyncio.wait_for, removed.wait(), 5)
-            assert [event.name for event in events] == [
+            assert [event_name(event.event) for event in events] == [
                 "attachment",
                 "attachment.removed",
             ]
-            assert isinstance(events[0].data, protocol.AttachmentMessage)
-            assert isinstance(events[1].data, protocol.RemovedMessage)
-            assert events[1].data.id == events[0].data.attachment.id
+            assert isinstance(events[0].event, protocol.AttachmentEvent)
+            assert isinstance(events[1].event, protocol.AttachmentRemovedEvent)
+            assert (
+                events[1].event.data.id == events[0].event.data.attachment.id
+            )
             assert harness.backend().calls == []
         finally:
             client.portal.call(unsubscribe)
@@ -2174,7 +2193,7 @@ def test_editor_authentication_is_limited_to_the_event_socket(
             payload = MarimoMessage(CompletedRunNotification(run_id="r1"))
             published = client.portal.call(
                 notebook.sink.append,
-                Event("marimo", payload, notebook_id=notebook.id),
+                RoutedEvent(MarimoEvent(payload), notebook_id=notebook.id),
             )
             assert websocket.receive_json() == {
                 "id": str(published.id),
@@ -2284,7 +2303,7 @@ def test_websocket_rejects_unknown_notebooks_and_routes(
 def test_websocket_snapshot_failure_releases_subscription(
     harness: Harness, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def broken(*_args: Any, **_kwargs: Any) -> list[Event]:
+    def broken(*_args: Any, **_kwargs: Any) -> list[RoutedEvent]:
         raise RuntimeError("snapshot failed")
 
     with TestClient(with_client_address(harness.app)) as client:

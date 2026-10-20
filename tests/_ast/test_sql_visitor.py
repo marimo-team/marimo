@@ -1168,6 +1168,89 @@ class TestFindSQLRefs:
             SQLRef(table="target_table"),
         }
 
+    @pytest.mark.parametrize(
+        "statement",
+        [
+            "INSERT INTO items VALUES (1) RETURNING *",
+            "UPDATE items SET id = 2 RETURNING *",
+            "DELETE FROM items RETURNING *",
+        ],
+    )
+    def test_dml_cte_reference(self, statement: str) -> None:
+        sql = f"WITH changed AS ({statement}) SELECT * FROM changed"
+        assert find_sql_refs(sql) == {SQLRef(table="items")}
+
+    @pytest.mark.parametrize(
+        "statement",
+        [
+            "INSERT INTO changed (id) VALUES (1) RETURNING *",
+            "UPDATE changed SET id = 2 RETURNING *",
+            "DELETE FROM changed RETURNING *",
+        ],
+    )
+    def test_dml_cte_name_matches_target(self, statement: str) -> None:
+        sql = f"WITH changed AS ({statement}) SELECT * FROM changed"
+        assert find_sql_refs(sql) == {SQLRef(table="changed")}
+
+    def test_nested_dml_cte_scope(self) -> None:
+        sql = """
+        SELECT * FROM changed
+        JOIN (
+            WITH changed AS (INSERT INTO items VALUES (1) RETURNING *),
+                 local_rows AS (SELECT * FROM changed)
+            SELECT * FROM local_rows
+        ) sub ON changed.id = sub.id
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="changed"),
+            SQLRef(table="items"),
+        }
+
+    def test_dml_cte_schema_qualified_reference(self) -> None:
+        sql = """
+        WITH changed AS (DELETE FROM items RETURNING *)
+        SELECT * FROM archive.changed a JOIN changed c ON a.id = c.id
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="items"),
+            SQLRef(table="changed", schema="archive"),
+        }
+
+    def test_dml_cte_reads_table_with_same_name(self) -> None:
+        sql = """
+        WITH changed AS (
+            INSERT INTO items SELECT * FROM changed RETURNING *
+        )
+        SELECT * FROM changed
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="items"),
+            SQLRef(table="changed"),
+        }
+
+    def test_dml_cte_with_recursive_source(self) -> None:
+        sql = """
+        WITH RECURSIVE nums AS (
+            SELECT 1 AS id
+            UNION ALL
+            SELECT id + 1 FROM nums WHERE id < 3
+        ), changed AS (INSERT INTO items SELECT * FROM nums RETURNING *)
+        SELECT * FROM changed
+        """
+        assert find_sql_refs(sql) == {SQLRef(table="items")}
+
+    def test_dml_cte_cannot_reference_later_recursive_cte(self) -> None:
+        sql = """
+        WITH RECURSIVE changed AS (
+            INSERT INTO items SELECT * FROM later RETURNING *
+        ), later AS (SELECT 1 AS id)
+        SELECT * FROM changed
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="items"),
+            SQLRef(table="later"),
+        }
+
     def test_multiple_statements_with_optimize_error(self) -> None:
         # Verify that OptimizeError in one statement doesn't affect others.
         # The try/except is inside the loop, so each statement is independent.

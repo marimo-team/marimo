@@ -4,6 +4,8 @@ from __future__ import annotations
 import sys
 import traceback as tb
 
+import msgspec
+
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.context import is_code_mode_request
 from marimo._messaging.notification import CellNotification
@@ -42,9 +44,12 @@ def _show_tracebacks_enabled() -> bool:
         return True  # no context → not in run mode, always show
 
 
-def write_traceback(traceback: str) -> None:
+def write_traceback(traceback: str, *, code: str | None = None) -> None:
     in_run_mode = get_mode() == "run"
+    if in_run_mode:
+        code = None
     code_mode = is_code_mode_request()
+    ctx = safe_get_context()
 
     if isinstance(sys.stderr, Stderr) and not code_mode:
         # In run mode, only forward to the frontend if show_tracebacks is on.
@@ -53,11 +58,11 @@ def write_traceback(traceback: str) -> None:
         sys.stderr._write_with_mimetype(
             _highlight_traceback(traceback),
             mimetype="application/vnd.marimo+traceback",
+            code=code,
         )
     else:
         # When stderr is not redirected (e.g., run mode with redirect_console_to_browser=False),
         # send the traceback directly via the stream to ensure exceptions reach the frontend
-        ctx = safe_get_context()
         if ctx is not None and ctx.cell_id is not None:
             # In run mode, only forward to the frontend if show_tracebacks is on.
             if in_run_mode and not _show_tracebacks_enabled():
@@ -72,6 +77,8 @@ def write_traceback(traceback: str) -> None:
                         data=traceback
                         if code_mode
                         else _highlight_traceback(traceback),
+                        code=code if code is not None else msgspec.UNSET,
+                        traceback_format="text" if code_mode else "html",
                     ),
                 ),
                 ctx.stream,

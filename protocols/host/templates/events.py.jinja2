@@ -1,0 +1,87 @@
+# Copyright 2026 Marimo. All rights reserved.
+# AUTO-GENERATED FILE — DO NOT EDIT.
+# Generated from protocols/host/openapi.yaml.
+# Regenerate with `make host-protocol-codegen`.
+"""Typed envelope adapters. Payload ownership stays with the caller."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, TypeAlias, overload
+
+from msgspec import UNSET, UnsetType
+
+from marimo._core import protocol
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+Body: TypeAlias = {% for r in records %}protocol.{{ r.body }}{{ " | " if not loop.last }}{% endfor %}
+SnapshotBody: TypeAlias = {% for r in records if not r.requires_time %}protocol.{{ r.body }}{{ " | " if not loop.last }}{% endfor %}
+RecordEvent: TypeAlias = {% for r in records %}protocol.{{ r.event }}{{ " | " if not loop.last }}{% endfor %}
+RemovableBody: TypeAlias = {% for r in removals %}protocol.{{ r.body }}{{ " | " if not loop.last }}{% endfor %}
+RemovalEvent: TypeAlias = {% for r in removals %}protocol.{{ r.event }}{{ " | " if not loop.last }}{% endfor %}
+
+{% for r in records %}
+@overload
+def record(
+    value: protocol.{{ r.body }}, *,
+    request_id: str | UnsetType = UNSET,
+    time: datetime{{ "" if r.requires_time else " | UnsetType = UNSET" }},
+) -> protocol.{{ r.event }}: ...
+{% endfor %}
+
+def record(
+    value: Body, *,
+    request_id: str | UnsetType = UNSET,
+    time: datetime | UnsetType = UNSET,
+) -> RecordEvent:
+    """Wrap a record without copying it; occurrences require a timestamp."""
+    match value:
+{% for r in records %}
+        case protocol.{{ r.body }}():
+{% if r.requires_time %}
+            if isinstance(time, UnsetType):
+                raise ValueError("{{ r.event }} requires an emission time")
+{% endif %}
+            return protocol.{{ r.event }}(
+                protocol.{{ r.message }}({{ r.field }}=value, request_id=request_id, time=time)
+            )
+{% endfor %}
+    raise TypeError(f"Unsupported record type: {type(value)}")
+
+{% for r in records %}
+@overload
+def body(event: protocol.{{ r.event }}) -> protocol.{{ r.body }}: ...
+{% endfor %}
+
+def body(event: RecordEvent) -> Body:
+    """Read a record payload without copying it."""
+    match event:
+{% for r in records %}
+        case protocol.{{ r.event }}(data=data):
+            return data.{{ r.field }}
+{% endfor %}
+    raise TypeError(f"Not a record event: {type(event)}")
+
+{% for r in removals %}
+@overload
+def removed(
+    record_type: type[protocol.{{ r.body }}], object_id: str, *,
+    request_id: str | UnsetType = UNSET,
+    time: datetime | UnsetType = UNSET,
+) -> protocol.{{ r.event }}: ...
+{% endfor %}
+
+def removed(
+    record_type: type[RemovableBody], object_id: str, *,
+    request_id: str | UnsetType = UNSET,
+    time: datetime | UnsetType = UNSET,
+) -> RemovalEvent:
+    """Construct the removal envelope for a supported record type."""
+{% for r in removals %}
+    if record_type is protocol.{{ r.body }}:
+        return protocol.{{ r.event }}(
+            protocol.{{ r.message }}(id=object_id, request_id=request_id, time=time)
+        )
+{% endfor %}
+    raise TypeError(f"No removal event for {record_type}")

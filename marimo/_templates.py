@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from marimo._ast.app_config import _AppConfig
 from marimo._cli.pair.prompts import get_pair_command, load_prompt_templates
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._convert.common.filename import parse_title
 from marimo._convert.converters import MarimoConvert
 from marimo._messaging.notification import ModelLifecycleNotification
@@ -23,7 +24,6 @@ from marimo._schemas.session import NotebookSessionV1
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._session.notebook import read_css_file, read_html_head_file
-from marimo._utils.env import is_env_true
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
 
@@ -108,6 +108,7 @@ def _get_mount_config(
     session_snapshot: NotebookSessionV1 | None = None,
     notebook_snapshot: NotebookV1 | None = None,
     runtime_config: list[dict[str, Any]] | None = None,
+    notebook_id: str | None = None,
     layout: LayoutConfig | None = None,
 ) -> str:
     """
@@ -139,14 +140,18 @@ def _get_mount_config(
         "runtime_config": runtime_config,
     }
 
-    pair_preview = ""
-    if is_env_true("MARIMO_PAIR_NEXT"):
-        pair_preview = ',\n            "pairPreview": ' + json_script(
-            {
-                "command": get_pair_command(),
-                "templates": asdict(load_prompt_templates()),
-            }
-        )
+    pair_config = json_script(
+        {
+            "command": get_pair_command(),
+            "templates": asdict(load_prompt_templates()),
+            "hostEnabled": GLOBAL_SETTINGS.ENABLE_HOST and mode == "edit",
+        }
+    )
+    host_notebook = (
+        ',\n            "notebookId": ' + json_script(notebook_id)
+        if notebook_id is not None
+        else ""
+    )
 
     return """{{
             "filename": {filename},
@@ -162,11 +167,13 @@ def _get_mount_config(
             "view": {view},
             "notebook": {notebook},
             "session": {session},
-            "runtimeConfig": {runtime_config}{pair_preview}
+            "runtimeConfig": {runtime_config}{host_notebook},
+            "pairConfig": {pair_config}
         }}
 """.format(
         **{k: json_script(v) for k, v in options.items()},
-        pair_preview=pair_preview,
+        pair_config=pair_config,
+        host_notebook=host_notebook,
     ).strip()
 
 
@@ -300,6 +307,7 @@ def notebook_page_template(
     session_snapshot: NotebookSessionV1 | None = None,
     notebook_snapshot: NotebookV1 | None = None,
     runtime_config: list[dict[str, Any]] | None = None,
+    notebook_id: str | None = None,
     asset_url: str | None = None,
     html_head: str | None = None,
     execute_opengraph_generators: bool = False,
@@ -343,6 +351,7 @@ def notebook_page_template(
             config_overrides=config_overrides,
             app_config=app_config,
             runtime_config=runtime_config,
+            notebook_id=notebook_id,
             notebook_snapshot=notebook_snapshot,
             session_snapshot=session_snapshot,
         ),

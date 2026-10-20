@@ -3,6 +3,7 @@
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import { KnownQueryParams } from "../constants";
+import { NOTEBOOK_EVENT_TYPES } from "../host/events";
 import { isIslands } from "../islands/utils";
 import { getSessionId, type SessionId } from "../kernel/session";
 import { isStaticNotebook } from "../static/static-state";
@@ -154,7 +155,18 @@ export class RuntimeManager {
    * The WebSocket URL of the runtime.
    */
   public getWsURL(sessionId: SessionId): URL {
-    return this.formatWsURL("/ws", this.getSessionSearchParams(sessionId));
+    const searchParams = this.getSessionSearchParams(sessionId);
+    // TODO(MO-8039): Rediscover hosts and resolve notebooks on reconnect.
+    const notebookId = this.config.notebookId;
+    const path = notebookId
+      ? `/api/marimo/v1/notebooks/${encodeURIComponent(notebookId)}/events/ws`
+      : "/ws";
+    const url = this.formatWsURL(path, searchParams);
+    if (notebookId) {
+      // TODO(MO-8034): Separate host options from notebook query params.
+      url.searchParams.set("types", NOTEBOOK_EVENT_TYPES.join(","));
+    }
+    return url;
   }
 
   /**
@@ -164,6 +176,8 @@ export class RuntimeManager {
    * (see `headers()`) instead of the URL.
    */
   public getSseURL(sessionId: SessionId): URL {
+    // TODO: Migrate editor SSE to the host event stream. Until then, host
+    // state such as attachments is unavailable on this legacy connection.
     const url = this.formatHttpURL({
       path: "/sse",
       searchParams: this.getSessionSearchParams(sessionId),

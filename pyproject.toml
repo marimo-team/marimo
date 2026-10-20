@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.8.3,<0.13.0"]
+requires = ["uv_build>=0.8.3,<0.14.0"]
 build-backend = "uv_build"
 
 [project]
@@ -46,8 +46,8 @@ dependencies = [
     "typing_extensions>=4.4.0; python_version < '3.12'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
     "docutils>=0.16.0",
-    # to show RAM, CPU usage, other system utilities
-    "psutil>=5.0; sys_platform != 'emscripten' and sys_platform != 'android'",
+    # to show RAM, CPU usage, other system utilities; 5.6 adds Process.parents()
+    "psutil>=5.6.0; sys_platform != 'emscripten' and sys_platform != 'android'",
     # required dependency in Starlette for SessionMiddleware support
     "itsdangerous>=2.0.0",
     # for dataframe support
@@ -171,6 +171,8 @@ test = [
     "inline-snapshot~=0.29.0",
     "hypothesis~=6.102.1",
     "dirty-equals~=0.9.0",
+    # For protocol code generation tests
+    "jinja2>=3.1.6",
     # No cp315 wheels as of 2026-10 for matplotlib 3.10 and zstandard; drop the
     # python_version markers when published. numpy is listed on its own because
     # tests used to get it only through matplotlib.
@@ -232,8 +234,7 @@ test-optional = [
     "jupytext>=1.17.2",
     # For standard scientific computing/ ML
     # flax 0.10 requires jax>=0.4.27, so keep the floors compatible.
-    # TODO: Remove <0.11.2 after Flax 0.12.10 enters CI's 7-day window (2026-10-01).
-    "jax>=0.4.27,<0.11.2; python_version == '3.12'",
+    "jax>=0.4.27; python_version == '3.12'",
     "flax>=0.10.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
@@ -305,7 +306,7 @@ docs = [
     "mkdocs-redirects>=1.2.2",
     "mkdocs-click>=0.8.1",
     "mike>=2.0.0",  # for versioning
-    "pillow>=10.2.0,!=11.3.0",  # for social cards, 11.3.0 doesn't have manylinux wheels
+    "pillow>=10.2.0",  # for social cards
     "cairosvg>=2.7.1",  # for social cards
     "mdx-include>=1.4.2",
     "pymdown-extensions>=10.21.2",

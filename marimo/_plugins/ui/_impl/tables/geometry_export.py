@@ -13,7 +13,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.geometry import (
     GeometryColumnInfo,
     GeometryEncoding,
-    find_geometry_columns,
+    arrow_storage_field,
 )
 from marimo._plugins.ui._impl.tables.narwhals_table import (
     NarwhalsTableManager,
@@ -175,12 +175,55 @@ def _missing_package_message(
     return f"This {source_label} table needs {package} to export {label}."
 
 
+def _geographic_prerequisite_error(
+    manager: NarwhalsTableManager[Any, Any],
+    format_name: Literal["parquet", "geojson"],
+) -> GeometryExportError | None:
+    """Check current packages for a supported geographic export source."""
+    label = "GeoParquet" if format_name == "parquet" else "GeoJSON"
+    if (
+        manager.data.implementation.is_duckdb()
+        and not DependencyManager.pyarrow.has()
+    ):
+        return GeometryExportError(
+            "missing_packages",
+            _missing_package_message(manager, "pyarrow"),
+            missing_packages=["pyarrow"],
+        )
+    if not DependencyManager.geopandas.has():
+        return GeometryExportError(
+            "missing_packages",
+            _missing_package_message(manager, "geopandas", label),
+            missing_packages=["geopandas"],
+        )
+    if format_name == "parquet":
+        if not DependencyManager.geopandas.has_at_version(
+            min_version=_MIN_GEOPANDAS_GEOPARQUET_VERSION, quiet=True
+        ):
+            return GeometryExportError(
+                "unsupported_version", _GEOPANDAS_UPGRADE_MESSAGE
+            )
+        if not DependencyManager.pyarrow.has():
+            return GeometryExportError(
+                "missing_packages",
+                _missing_package_message(manager, "pyarrow", "GeoParquet"),
+                missing_packages=["pyarrow"],
+            )
+    elif not DependencyManager.shapely.has_at_version(
+        min_version=_MIN_SHAPELY_GEOJSON_VERSION, quiet=True
+    ):
+        return GeometryExportError(
+            "unsupported_version", _SHAPELY_UPGRADE_MESSAGE
+        )
+    return None
+
+
 def _describe_export_source(manager: TableManager[Any]) -> _ExportSource:
     """Keep parsed source declarations separate from the metadata response."""
     if not isinstance(manager, NarwhalsTableManager):
         return _ExportSource(ExportMetadata())
 
-    info_by_name = _export_geometry_columns(manager)
+    info_by_name = manager._geometry_columns
     if not info_by_name:
         return _ExportSource(ExportMetadata())
 
@@ -188,7 +231,6 @@ def _describe_export_source(manager: TableManager[Any]) -> _ExportSource:
     primary: str | None = None
     columns: list[GeometryExportColumn] = []
     source_reason: str | None = None
-    source_missing_packages: list[str] = []
     schema: pa.Schema | None = None
     declarations: dict[str, ArrowGeometryDeclaration] = {}
     first_rejection: GeometryExportError | None = None
@@ -206,16 +248,13 @@ def _describe_export_source(manager: TableManager[Any]) -> _ExportSource:
                     crs=crs.to_string() if crs is not None else None,
                 )
             )
-        is_supported_source = DependencyManager.geopandas.has()
+        is_supported_source = True
     elif (
         source.implementation.is_pyarrow() or source.implementation.is_duckdb()
     ):
         if source.implementation.is_duckdb():
             if DependencyManager.pyarrow.has():
                 schema = _duckdb_geometry_schema(manager)
-            else:
-                source_reason = _missing_package_message(manager, "pyarrow")
-                source_missing_packages = ["pyarrow"]
         else:
             schema = source.to_native().schema
         for name, info in info_by_name.items():
@@ -247,7 +286,7 @@ def _describe_export_source(manager: TableManager[Any]) -> _ExportSource:
             if source_reason is None and rejection is not None:
                 source_reason = rejection[1]
                 first_rejection = GeometryExportError(*rejection, column=name)
-        is_supported_source = DependencyManager.geopandas.has()
+        is_supported_source = True
     else:
         columns = [
             GeometryExportColumn(name=name, encoding=info.encoding, crs=None)
@@ -256,61 +295,29 @@ def _describe_export_source(manager: TableManager[Any]) -> _ExportSource:
         is_supported_source = False
 
     formats: dict[str, ExportFormatEligibility] = {}
-    if not is_supported_source:
-        for format_name, label in (
-            ("parquet", "GeoParquet"),
-            ("geojson", "GeoJSON"),
-        ):
-            if (
-                source.implementation.is_pandas()
-                or source.implementation.is_pyarrow()
-                or source.implementation.is_duckdb()
-            ):
-                reason = _missing_package_message(manager, "geopandas", label)
-                missing_packages = ["geopandas"]
-            else:
-                reason = (
-                    f"{label} export is not supported for this table type."
-                )
-                missing_packages = []
-            formats[format_name] = ExportFormatEligibility(
-                available=False,
-                reason=reason,
-                missing_packages=missing_packages,
-            )
-    else:
-        if DependencyManager.shapely.has_at_version(
-            min_version=_MIN_SHAPELY_GEOJSON_VERSION, quiet=True
-        ):
-            formats["geojson"] = ExportFormatEligibility(available=True)
-        else:
-            formats["geojson"] = ExportFormatEligibility(
-                available=False, reason=_SHAPELY_UPGRADE_MESSAGE
-            )
-        if not DependencyManager.geopandas.has_at_version(
-            min_version=_MIN_GEOPANDAS_GEOPARQUET_VERSION, quiet=True
-        ):
-            formats["parquet"] = ExportFormatEligibility(
-                available=False,
-                reason=_GEOPANDAS_UPGRADE_MESSAGE,
-            )
-        elif not DependencyManager.pyarrow.has():
-            formats["parquet"] = ExportFormatEligibility(
-                available=False,
-                reason=_missing_package_message(
-                    manager, "pyarrow", "GeoParquet"
-                ),
-                missing_packages=["pyarrow"],
+    for format_name in ("parquet", "geojson"):
+        failure: GeometryExportError | None
+        if not is_supported_source:
+            label = "GeoParquet" if format_name == "parquet" else "GeoJSON"
+            failure = GeometryExportError(
+                "unsupported_representation",
+                f"{label} export is not supported for this table type.",
             )
         else:
-            formats["parquet"] = ExportFormatEligibility(available=True)
+            failure = _geographic_prerequisite_error(manager, format_name)
+        formats[format_name] = ExportFormatEligibility(
+            available=failure is None,
+            reason=str(failure) if failure is not None else None,
+            missing_packages=(failure.missing_packages or [])
+            if failure is not None
+            else [],
+        )
 
     if source_reason is not None:
         formats = {
             name: ExportFormatEligibility(
                 available=False,
                 reason=source_reason,
-                missing_packages=source_missing_packages,
             )
             for name in ("parquet", "geojson")
         }
@@ -359,7 +366,7 @@ def _duckdb_geometry_schema(
         reader.close()
     fields = []
     for arrow_field in schema:
-        arrow_field = _arrow_storage_field(arrow_field)
+        arrow_field = arrow_storage_field(arrow_field)
         info = manager._geometry_columns.get(arrow_field.name)
         if info is not None and info.encoding == "wkb":
             metadata = dict(arrow_field.metadata or {})
@@ -380,7 +387,7 @@ def _duckdb_geometry_schema(
 def _arrow_geometry_declaration(
     field: pa.Field[Any],
 ) -> ArrowGeometryDeclaration:
-    field = _arrow_storage_field(field)
+    field = arrow_storage_field(field)
     metadata = field.metadata
     if not metadata:
         return ArrowGeometryDeclaration()
@@ -482,49 +489,8 @@ def has_geometry_columns(manager: TableManager[Any]) -> bool:
         manager (TableManager[Any]): Manager for the export source.
     """
     return isinstance(manager, NarwhalsTableManager) and bool(
-        _export_geometry_columns(manager)
+        manager._geometry_columns
     )
-
-
-def _arrow_storage_field(field: pa.Field[Any]) -> pa.Field[Any]:
-    import pyarrow as pa
-
-    if not isinstance(field.type, pa.ExtensionType):
-        return field
-    extension = field.type
-    if not (
-        extension.extension_name.startswith("geoarrow.")
-        or extension.extension_name == "ogc.wkb"
-    ):
-        return field
-    metadata: dict[bytes | str, bytes | str] = {
-        key: value for key, value in (field.metadata or {}).items()
-    }
-    metadata[b"ARROW:extension:name"] = extension.extension_name.encode()
-    serialized = extension.__arrow_ext_serialize__()
-    if extension.extension_name == "ogc.wkb" and not serialized:
-        metadata.pop(b"ARROW:extension:metadata", None)
-    else:
-        metadata[b"ARROW:extension:metadata"] = serialized
-    return field.with_type(extension.storage_type).with_metadata(metadata)
-
-
-def _export_geometry_columns(
-    manager: NarwhalsTableManager[Any, Any],
-) -> dict[str, GeometryColumnInfo]:
-    if not manager.data.implementation.is_pyarrow():
-        return find_geometry_columns(manager.data)
-
-    import pyarrow as pa
-
-    schema = pa.schema(
-        [
-            _arrow_storage_field(field)
-            for field in manager.data.to_native().schema
-        ]
-    )
-    schema_view = pa.Table.from_batches([], schema=schema)
-    return find_geometry_columns(nw.from_native(schema_view))
 
 
 def _arrow_to_geodataframe(
@@ -651,40 +617,9 @@ def _prepare_geographic_export(
             "geometry_required",
             f"Choose a {'primary ' if format_name == 'parquet' else ''}geometry column for {label} export.",
         )
-    if (
-        manager.data.implementation.is_duckdb()
-        and not DependencyManager.pyarrow.has()
-    ):
-        raise GeometryExportError(
-            "missing_packages",
-            _missing_package_message(manager, "pyarrow"),
-            missing_packages=["pyarrow"],
-        )
-    if not DependencyManager.geopandas.has():
-        raise GeometryExportError(
-            "missing_packages",
-            _missing_package_message(manager, "geopandas", label),
-            missing_packages=["geopandas"],
-        )
-    if format_name == "parquet":
-        if not DependencyManager.geopandas.has_at_version(
-            min_version=_MIN_GEOPANDAS_GEOPARQUET_VERSION, quiet=True
-        ):
-            raise GeometryExportError(
-                "unsupported_version", _GEOPANDAS_UPGRADE_MESSAGE
-            )
-        if not DependencyManager.pyarrow.has():
-            raise GeometryExportError(
-                "missing_packages",
-                _missing_package_message(manager, "pyarrow", "GeoParquet"),
-                missing_packages=["pyarrow"],
-            )
-    elif not DependencyManager.shapely.has_at_version(
-        min_version=_MIN_SHAPELY_GEOJSON_VERSION, quiet=True
-    ):
-        raise GeometryExportError(
-            "unsupported_version", _SHAPELY_UPGRADE_MESSAGE
-        )
+    failure = _geographic_prerequisite_error(manager, format_name)
+    if failure is not None:
+        raise failure
     if source.rejection is not None:
         raise source.rejection
     if (
@@ -1211,7 +1146,7 @@ def _validate_geoparquet(
             or "crs" not in column
             or name not in schema.names
             or not pa.types.is_binary(
-                _arrow_storage_field(schema.field(name)).type
+                arrow_storage_field(schema.field(name)).type
             )
         ):
             raise GeometryExportError(
@@ -1308,7 +1243,7 @@ def _prepare_arrow_export(
             continue
 
         index = export_table.schema.get_field_index(column)
-        field = export_table.schema.field(index)
+        field = arrow_storage_field(export_table.schema.field(index))
         metadata = dict(field.metadata or {})
         metadata.pop(b"ARROW:extension:name", None)
         metadata.pop(b"ARROW:extension:metadata", None)
@@ -1320,7 +1255,15 @@ def _prepare_arrow_export(
             metadata=metadata or None,
         )
 
-        values = export_table.column(index)
+        values = pa.chunked_array(
+            [
+                chunk.storage
+                if isinstance(chunk, pa.ExtensionArray)
+                else chunk
+                for chunk in export_table.column(index).chunks
+            ],
+            type=field.type,
+        )
         export_values: pa.Array[Any] | pa.ChunkedArray[Any]
         if info.encoding == "wkb":
             export_values = pa.array(

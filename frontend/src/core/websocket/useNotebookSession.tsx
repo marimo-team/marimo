@@ -1,8 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { invalidatePackageData } from "@/core/packages/package-data";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useRef } from "react";
+import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { useLayoutEffect } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
@@ -12,8 +12,7 @@ import type {
   NotificationMessageData,
   NotificationPayload,
 } from "@/core/kernel/messages";
-import { TRANSPORT_EXHAUSTED_REASON } from "@/core/websocket/transports/ws";
-import { useConnectionTransport } from "@/core/websocket/useWebSocket";
+import { useNotebookClient } from "@/core/websocket/useNotebookClient";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   handleWidgetMessage,
@@ -21,11 +20,7 @@ import {
 } from "@/plugins/impl/anywidget/registry";
 import { logNever } from "@/utils/assertNever";
 import { prettyError } from "@/utils/errors";
-import {
-  type JsonString,
-  safeExtractSetUIElementMessageBuffers,
-} from "@/utils/json/base64";
-import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
+import { safeExtractSetUIElementMessageBuffers } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useAlertActions } from "../alerts/state";
@@ -70,7 +65,7 @@ import { type LayoutState, useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom, startupProgressAtom } from "../network/connection";
 import type { RequestId } from "../network/DeferredRequestRegistry";
-import { useRuntimeManager } from "../runtime/config";
+import { runtimeConfigAtom, useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
 import {
@@ -81,103 +76,9 @@ import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
 import { isWasm } from "../wasm/utils";
-import {
-  type ConnectionStatus,
-  WebSocketClosedReason,
-  ConnectionState,
-} from "./types";
+import { WebSocketClosedReason, ConnectionState } from "./types";
 
 const SUPPORTS_LAZY_KERNELS = true;
-
-// All MARIMO_* reasons except TRANSPORT_EXHAUSTED are emitted by the backend
-// (marimo/_server/api/endpoints/ws_endpoint.py and ws/*.py). Keep in sync with
-// the backend literals. Over the SSE transport these arrive as in-band
-// `close` events rather than WebSocket close frames, so every terminal
-// reason must be classified here — an unclassified reason falls into the
-// retry path.
-export type CloseReason =
-  | "MARIMO_NO_FILE_KEY"
-  | "MARIMO_NO_SESSION_ID"
-  | "MARIMO_NO_SESSION"
-  | "MARIMO_SHUTDOWN"
-  | "MARIMO_KERNEL_STARTUP_ERROR"
-  | "MARIMO_UNAUTHORIZED"
-  | "MARIMO_KIOSK_NOT_ALLOWED"
-  | typeof TRANSPORT_EXHAUSTED_REASON;
-
-export type CloseDecision =
-  | { kind: "terminal"; status: ConnectionStatus; closeTransport: boolean }
-  | { kind: "gave-up"; status: ConnectionStatus }
-  | { kind: "retry"; status: ConnectionStatus };
-
-export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
-  switch (event.reason as CloseReason | undefined) {
-    case TRANSPORT_EXHAUSTED_REASON:
-      return {
-        kind: "gave-up",
-        status: {
-          state: ConnectionState.CLOSED,
-          code: WebSocketClosedReason.KERNEL_DISCONNECTED,
-          reason: "kernel not found",
-        },
-      };
-    case "MARIMO_NO_FILE_KEY":
-    case "MARIMO_NO_SESSION_ID":
-    case "MARIMO_NO_SESSION":
-    case "MARIMO_SHUTDOWN":
-      return {
-        kind: "terminal",
-        status: {
-          state: ConnectionState.CLOSED,
-          code: WebSocketClosedReason.KERNEL_DISCONNECTED,
-          reason: "kernel not found",
-        },
-        closeTransport: true,
-      };
-    case "MARIMO_UNAUTHORIZED":
-      return {
-        kind: "terminal",
-        status: {
-          state: ConnectionState.CLOSED,
-          code: WebSocketClosedReason.KERNEL_DISCONNECTED,
-          reason: "not authorized",
-        },
-        closeTransport: true,
-      };
-    case "MARIMO_KIOSK_NOT_ALLOWED":
-      return {
-        kind: "terminal",
-        status: {
-          state: ConnectionState.CLOSED,
-          code: WebSocketClosedReason.KERNEL_DISCONNECTED,
-          reason: "kiosk mode is not available for this session",
-        },
-        closeTransport: true,
-      };
-    case "MARIMO_KERNEL_STARTUP_ERROR":
-      return {
-        kind: "terminal",
-        status: {
-          state: ConnectionState.CLOSED,
-          code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
-          reason: "Failed to start kernel sandbox",
-        },
-        closeTransport: true,
-      };
-    default:
-      // Empty/undefined reasons are normal transient closes. Anything else is
-      // an unknown server reason; warn so a new MARIMO_* reason doesn't fall
-      // silently into the retry path.
-      if (event.reason) {
-        logNever(event.reason as never);
-      }
-  }
-
-  return {
-    kind: "retry",
-    status: { state: ConnectionState.CONNECTING },
-  };
-}
 
 function getExistingCells(): CellData[] | undefined {
   if (!SUPPORTS_LAZY_KERNELS) {
@@ -190,16 +91,12 @@ function getExistingCells(): CellData[] | undefined {
   );
 }
 
-/**
- * Creates a connection to the Marimo kernel and handles incoming messages.
- */
-export function useMarimoKernelConnection(opts: {
+/** Coordinate session startup and apply notifications to the editor. */
+export function useNotebookSession(opts: {
   sessionId: SessionId;
   autoInstantiate: boolean;
   setCells: (cells: CellData[], layout: LayoutState) => void;
 }) {
-  // Track whether we want to try reconnecting.
-  const shouldTryReconnecting = useRef<boolean>(true);
   const { autoInstantiate, sessionId, setCells } = opts;
   const { showBoundary } = useErrorBoundary();
 
@@ -238,6 +135,7 @@ export function useMarimoKernelConnection(opts: {
   const setStableSessionId = useSetAtom(stableSessionIdAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
+  const { notebookId } = useAtomValue(runtimeConfigAtom);
   const transportType = useAtomValue(connectionTransportTypeAtom);
   const setCacheInfo = useSetAtom(cacheInfoAtom);
   const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
@@ -246,8 +144,7 @@ export function useMarimoKernelConnection(opts: {
     filterFromVariables: filterStorageFromVariables,
   } = useStorageActions();
 
-  const handleMessage = (e: MessageEvent<JsonString<NotificationPayload>>) => {
-    const msg = jsonParseWithSpecialChar(e.data);
+  const handleNotification = (msg: NotificationPayload) => {
     switch (msg.data.op) {
       case "reload":
         reloadSafe();
@@ -505,107 +402,58 @@ export function useMarimoKernelConnection(opts: {
     }
   };
 
-  const tryReconnecting = (code?: number, reason?: string) => {
-    // If not properly gated, we could try reconnecting forever if the
-    // issue is not transient. So we want to try reconnecting only once after an
-    // open connection is closed.
-    if (shouldTryReconnecting.current) {
-      shouldTryReconnecting.current = false;
-      ws.reconnect(code, reason);
-    }
+  const store = useStore();
+  const onMessageError = (error: unknown) => {
+    toast({
+      title: "Failed to handle message",
+      description: prettyError(error),
+      variant: "danger",
+    });
   };
-
-  // Manual reconnect. Probes /health first to fail fast when the runtime
-  // is unreachable, instead of waiting on partysocket's retry budget.
-  const reconnect = async () => {
-    if (
-      ws.readyState === WebSocket.OPEN ||
-      ws.readyState === WebSocket.CONNECTING
-    ) {
-      return;
-    }
-    shouldTryReconnecting.current = true;
-    setKernelStartupError(null);
-    setConnection({ state: ConnectionState.CONNECTING });
-    const healthy = await runtimeManager.reconcileFromHealth();
-    if (!healthy) {
-      shouldTryReconnecting.current = false;
-      setConnection({
-        state: ConnectionState.CLOSED,
-        code: WebSocketClosedReason.KERNEL_DISCONNECTED,
-        reason: "kernel not found",
-      });
-      return;
-    }
-    ws.reconnect();
-  };
-
-  const ws = useConnectionTransport({
+  const notebook = useNotebookClient({
+    sessionId,
     static: isStaticNotebook(),
     transportType,
-    /**
-     * Unique URL for this session.
-     */
+    messageFormat:
+      notebookId && transportType === "websocket" ? "host" : "session",
     url: () =>
       transportType === "sse"
         ? runtimeManager.getSseURL(sessionId).toString()
         : runtimeManager.getWsURL(sessionId).toString(),
-    /**
-     * Auth headers for the SSE transport. WebSockets cannot send headers
-     * and instead put the access token in the URL.
-     */
+    // SSE uses headers for auth. WebSockets carry the token in the URL.
     headers: () => runtimeManager.headers(),
-
-    /**
-     * The transport is open; kernel-ready establishes session readiness.
-     */
-    onOpen: async () => {
-      updateStartupProgress(null);
-      // If we are open, we can reset our reconnecting flag.
-      shouldTryReconnecting.current = true;
+    waitUntilReady: async () => {
+      if (!isStaticNotebook() && !isWasm() && !runtimeManager.isSameOrigin) {
+        await runtimeManager.waitForHealthy();
+      }
     },
-
-    /**
-     * Wait to connect, in case the remote kernel still starting up.
-     */
-    waitToConnect: async () => {
-      if (isStaticNotebook()) {
-        return;
-      }
-      if (isWasm()) {
-        return;
-      }
-
-      if (runtimeManager.isSameOrigin) {
-        return;
-      }
-      await runtimeManager.waitForHealthy();
-    },
-
-    /**
-     * Handle messages sent by the kernel.
-     */
-    onMessage: (e) => {
+    checkHealth: () => runtimeManager.reconcileFromHealth(),
+    onMessageError,
+    onNotification: (notification) => {
       try {
-        handleMessage(e);
+        handleNotification(notification);
       } catch (error) {
-        Logger.error("Failed to handle message", e.data, error);
-        toast({
-          title: "Failed to handle message",
-          description: prettyError(error),
-          variant: "danger",
-        });
+        Logger.error("Failed to handle notification", notification, error);
+        onMessageError(error);
       }
     },
+  });
 
-    /**
-     * Handle a close event. We may want to reconnect.
-     */
-    onClose: (e) => {
-      Logger.warn("WebSocket closed", e.code, e.reason);
-      const decision = classifyCloseEvent(e);
+  // Subscribe before passive connection setup: static/WASM transports can emit synchronously.
+  useLayoutEffect(() => {
+    const updateConnection = () => {
+      const status = store.get(notebook.connectionAtom);
+      if (status.state === ConnectionState.NOT_STARTED) {
+        return;
+      }
+      if (status.state === ConnectionState.OPEN) {
+        updateStartupProgress(null);
+        return; // kernel-ready, not the socket, establishes session readiness.
+      }
+      if (status.state === ConnectionState.CONNECTING) {
+        setKernelStartupError(null);
+      }
       setConnection((previous) => {
-        const status = decision.status;
         if (
           status.state === ConnectionState.CLOSED &&
           status.code === WebSocketClosedReason.KERNEL_STARTUP_ERROR &&
@@ -624,31 +472,17 @@ export function useMarimoKernelConnection(opts: {
         }
         return status;
       });
-      if (decision.kind === "terminal" && decision.closeTransport) {
-        ws.close(); // close to prevent reconnecting
-        return;
-      }
-      if (decision.kind === "retry") {
-        // Session should be valid
-        // - browser tab might have been closed or re-opened
-        // - computer might have just woken from sleep
-        tryReconnecting(e.code, e.reason);
-      }
-    },
+    };
+    const unsubscribe = store.sub(notebook.connectionAtom, updateConnection);
+    updateConnection();
+    return unsubscribe;
+  }, [
+    notebook,
+    store,
+    setConnection,
+    setKernelStartupError,
+    updateStartupProgress,
+  ]);
 
-    /**
-     * When we encounter an error, we should close the connection.
-     */
-    onError: (e) => {
-      Logger.warn("WebSocket error", e);
-      setConnection({
-        state: ConnectionState.CLOSED,
-        code: WebSocketClosedReason.KERNEL_DISCONNECTED,
-        reason: "kernel not found",
-      });
-      tryReconnecting();
-    },
-  });
-
-  return { connection, reconnect };
+  return { notebook, connection, reconnect: notebook.reconnect };
 }

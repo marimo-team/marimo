@@ -365,7 +365,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
         self, session: Session, *, include_notebook: bool = True
     ) -> None:
         """Replay retained state to this client."""
-        # Send after kernel-ready/reconnected and before later live deltas.
         notifications = session.session_view.snapshot_notifications(
             include_notebook=include_notebook
         )

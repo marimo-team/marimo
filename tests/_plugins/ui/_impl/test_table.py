@@ -1831,6 +1831,74 @@ def test_download_arrow_wkb_as_complete_wkt(format_type: str) -> None:
     assert source.schema.field("geometry").metadata == metadata
 
 
+@pytest.mark.requires("pyarrow", "shapely")
+@pytest.mark.parametrize("format_type", TEXT_DOWNLOAD_FORMATS)
+@pytest.mark.parametrize("encoding", ["wkb", "wkt"])
+def test_download_registered_arrow_geometry_as_complete_text(
+    format_type: str, encoding: str
+) -> None:
+    import pyarrow as pa
+    from shapely import from_wkt
+
+    from tests._plugins.ui._impl.tables import geometry_fixtures as fixtures
+
+    long_geometry = from_wkt(LONG_GEOMETRY_WKT)
+    if encoding == "wkb":
+        storage_type = pa.binary()
+        values = [long_geometry.wkb, from_wkt(POINT_GEOMETRY_WKT).wkb, None]
+        expected_long = long_geometry.wkt
+    else:
+        storage_type = pa.string()
+        values = [LONG_GEOMETRY_WKT, POINT_GEOMETRY_WKT, None]
+        expected_long = LONG_GEOMETRY_WKT
+
+    with fixtures.registered_arrow_extension(
+        f"geoarrow.{encoding}", storage_type
+    ) as extension:
+        geometry = fixtures.registered_extension_column(
+            extension, [values[:2], values[2:]]
+        )
+        source = pa.table(
+            {"row_label": ["long", "point", "null"], "geometry": geometry}
+        )
+
+        rows = _download_text_rows(ui.table(source), format_type)
+
+        _assert_complete_geometry_rows(rows, format_type, expected_long)
+        assert source.schema.field("geometry").type == extension
+        assert source.column("geometry").num_chunks == 2
+        assert source.column("geometry").to_pylist() == values
+
+
+@pytest.mark.requires("pyarrow")
+def test_download_registered_arrow_wkb_without_shapely_as_hex() -> None:
+    import pyarrow as pa
+
+    from tests._plugins.ui._impl.tables import geometry_fixtures as fixtures
+
+    wkb = fixtures.WKB_POINT_1_2
+    with fixtures.registered_arrow_extension(
+        "geoarrow.wkb", pa.binary()
+    ) as extension:
+        source = pa.table(
+            {
+                "row_label": ["point", "null"],
+                "geometry": fixtures.registered_extension_column(
+                    extension, [[wkb, None]]
+                ),
+            }
+        )
+        with patch.object(
+            DependencyManager.shapely, "has", return_value=False
+        ):
+            rows = _download_text_rows(ui.table(source), "csv")
+
+    assert rows == [
+        {"row_label": "point", "geometry": wkb.hex()},
+        {"row_label": "null", "geometry": ""},
+    ]
+
+
 @pytest.mark.requires("duckdb", "pyarrow")
 @pytest.mark.parametrize("format_type", TEXT_DOWNLOAD_FORMATS)
 def test_download_duckdb_geometry_as_complete_text(

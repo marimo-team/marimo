@@ -9,11 +9,6 @@ from starlette.authentication import requires
 from starlette.responses import JSONResponse, StreamingResponse
 
 from marimo import _loggers
-from marimo._code_mode.screenshot_meta import (
-    SCREENSHOT_AUTH_TOKEN_KEY,
-    SCREENSHOT_FILE_KEY,
-    SCREENSHOT_SERVER_URL_KEY,
-)
 from marimo._runtime.commands import HTTPRequest, UpdateUIElementCommand
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
@@ -332,6 +327,7 @@ async def execute_code(
     from marimo._server.scratchpad import (
         ScratchCellListener,
         build_done_event,
+        build_scratchpad_request,
         snapshot_for_scratchpad,
     )
 
@@ -378,15 +374,14 @@ async def execute_code(
             # listener. See #10035.
             async with session.scratchpad_lock:
                 with session.scoped(listener):
-                    http_req = HTTPRequest.from_request(request)
                     server_url, auth_token = get_code_mode_credentials(
                         app_state, request
                     )
-                    http_req.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
-                    http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
-                    http_req.meta[SCREENSHOT_FILE_KEY] = (
-                        session.app_file_manager.path
-                        or session.initialization_id
+                    http_req = build_scratchpad_request(
+                        session,
+                        request,
+                        server_url=server_url,
+                        auth_token=auth_token,
                     )
                     notebook_cells, cell_outputs = snapshot_for_scratchpad(
                         session

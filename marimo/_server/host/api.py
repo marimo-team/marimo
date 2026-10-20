@@ -30,6 +30,7 @@ from marimo._core.errors import (
     NoRuntime,
     NotFound,
 )
+from marimo._core.stream import event_name
 from marimo._server.api.auth import TOKEN_QUERY_PARAM, validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
@@ -38,7 +39,12 @@ from marimo._server.api.endpoints.ws.ws_connection_validator import (
 )
 from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._server.api.utils import format_url_host, open_url_in_browser
-from marimo._server.host import HOST_API_PATH
+from marimo._server.host import (
+    ATTACHMENT_IDENTITY,
+    ATTACHMENT_KIND,
+    ATTACHMENT_NAME,
+    HOST_API_PATH,
+)
 from marimo._server.host.context import CachedMutation
 from marimo._server.host.events import serialize_event
 from marimo._server.host.websocket import EditorEventSocket
@@ -52,7 +58,7 @@ if TYPE_CHECKING:
     from starlette.requests import HTTPConnection, Request
 
     from marimo._core.notebook import Notebook
-    from marimo._core.stream import Event
+    from marimo._core.stream import RoutedEvent
     from marimo._server.host.bridge import SessionBridge
     from marimo._server.host.context import HostContext
 
@@ -64,9 +70,6 @@ _Body = TypeVar("_Body", bound=msgspec.Struct)
 PROBLEM_TYPE_PREFIX = "tag:marimo.io,2026:host/"
 """Prefix for host protocol problem types."""
 
-ATTACHMENT_IDENTITY = "Marimo-Attachment-Identity"
-ATTACHMENT_KIND = "Marimo-Attachment-Kind"
-ATTACHMENT_NAME = "Marimo-Attachment-Name"
 
 _ATTACHMENT_HEADERS = {
     "identity": ATTACHMENT_IDENTITY,
@@ -254,10 +257,10 @@ def _mutation(operation: str) -> Callable[[_Endpoint], _Endpoint]:
             lifecycle_accepted: Callable[[Response], None] | None = None
             if operation == "runtime.run" and request.method == "POST":
                 # The receipt outlives results without retaining their payloads.
-                def updated(event: Event) -> None:
-                    if isinstance(event.data, protocol.RunMessage):
-                        run = event.data.run
-                        if event.data.request_id == key:
+                def updated(event: RoutedEvent) -> None:
+                    if isinstance(event.event, protocol.RunEvent):
+                        run = event.event.data.run
+                        if event.event.data.request_id == key:
                             mutation.run = run
                             if (
                                 run.status == "completed"
@@ -319,13 +322,13 @@ def _watch_lifecycle(
 ) -> tuple[Callable[[Response], None], Callable[[], None]]:
     runtime_id: protocol.RuntimeId | None = None
     previous_id: protocol.RuntimeId | None = None
-    early: list[Event] = []
+    early: list[RoutedEvent] = []
 
     def settle() -> None:
         context.settle(mutation)
         unsubscribe()
 
-    def updated(event: Event) -> None:
+    def updated(event: RoutedEvent) -> None:
         nonlocal previous_id
         if mutation.expires_at is not None:
             return
@@ -333,13 +336,13 @@ def _watch_lifecycle(
             # A backend can finish synchronously, before the response exists.
             early.append(event)
             return
-        if event.name == "notebook.removed":
+        if isinstance(event.event, protocol.NotebookRemovedEvent):
             settle()
-        elif isinstance(event.data, protocol.RuntimeMessage):
-            runtime = event.data.runtime
+        elif isinstance(event.event, protocol.RuntimeEvent):
+            runtime = event.event.data.runtime
             if (
                 operation == "runtime.restart"
-                and event.data.request_id == request_id
+                and event.event.data.request_id == request_id
                 and runtime.status == "terminating"
                 and runtime.id != runtime_id
             ):
@@ -350,12 +353,10 @@ def _watch_lifecycle(
                 and runtime.status in ("running", "failed")
             ):
                 settle()
-        elif event.name == "runtime.removed" and isinstance(
-            event.data, protocol.RemovedMessage
-        ):
-            if event.data.id == runtime_id or (
-                event.data.id == previous_id
-                and event.data.request_id != request_id
+        elif isinstance(event.event, protocol.RuntimeRemovedEvent):
+            if event.event.data.id == runtime_id or (
+                event.event.data.id == previous_id
+                and event.event.data.request_id != request_id
             ):
                 # A later stop can cancel a restart before its replacement starts.
                 settle()
@@ -672,12 +673,14 @@ def _initial_events(
     notebook_id: protocol.NotebookId | None,
     run_id: str | None = None,
     include_session: bool = False,
-) -> list[Event]:
+) -> list[RoutedEvent]:
     """Capture a snapshot or replay, with `ready` marking its end."""
     events = bridge.host.events(
         cursor, notebook_id=notebook_id, types=types, run_id=run_id
     )
-    needs_snapshot = cursor is None or events[0].name == "reset"
+    needs_snapshot = cursor is None or isinstance(
+        events[0].event, protocol.ResetEvent
+    )
     if include_session and notebook_id is not None and needs_snapshot:
         ready = events.pop()
         events.extend(
@@ -691,13 +694,13 @@ def _initial_events(
 
 class _EventSubscription:
     def __init__(
-        self, initial: list[Event], queue: asyncio.Queue[Event]
+        self, initial: list[RoutedEvent], queue: asyncio.Queue[RoutedEvent]
     ) -> None:
         self.initial = initial
         self._queue = queue
         self._ready_id = initial[-1].id or 0
 
-    async def next(self) -> Event:
+    async def next(self) -> RoutedEvent:
         """Wait for a live event not already covered by the initial state."""
         while True:
             event = await self._queue.get()
@@ -715,7 +718,7 @@ def _subscribe_events(
     run_id: str | None = None,
     include_session: bool = False,
 ) -> Iterator[_EventSubscription]:
-    queue: asyncio.Queue[Event] = asyncio.Queue()
+    queue: asyncio.Queue[RoutedEvent] = asyncio.Queue()
     # Subscribe and capture state in one event-loop turn to avoid lost updates.
     unsubscribe = bridge.host.subscribe(
         queue.put_nowait,
@@ -775,13 +778,13 @@ def _stream(
     )
 
 
-def _frame(event: Event) -> bytes:
+def _frame(event: RoutedEvent) -> bytes:
     """Encode an event as an SSE frame."""
     lines = []
     if event.id is not None:
         lines.append(f"id: {event.id}")
-    lines.append(f"event: {event.name}")
-    data = b"{}" if event.data is None else msgspec.json.encode(event.data)
+    lines.append(f"event: {event_name(event.event)}")
+    data = msgspec.json.encode(event.event.data)
     lines.append(f"data: {data.decode()}")
     return ("\n".join(lines) + "\n\n").encode()
 

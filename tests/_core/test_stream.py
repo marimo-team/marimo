@@ -8,17 +8,16 @@ from typing import get_args
 import msgspec
 import pytest
 
-from marimo._core import backend as be, protocol
+from marimo._core import backend as be, protocol, protocol_events
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.stream import (
-    CATALOG_KINDS,
-    NOTEBOOK_KINDS,
-    Body,
-    Event,
+    ExtensionEvent,
+    RoutedEvent,
     Stream,
-    kind_of,
-    message,
+    event_name,
+    removal,
+    utcnow,
 )
 from tests._core.conftest import ScriptedBackend, names, project
 
@@ -28,29 +27,29 @@ def test_subscriber_failure_does_not_prevent_startup(
     notebook: Notebook,
     backend: ScriptedBackend,
 ) -> None:
-    def fail(_event: Event) -> None:
+    def fail(_event: RoutedEvent) -> None:
         raise RuntimeError("subscriber failed")
 
     host.subscribe(fail)
-    delivered: list[Event] = []
+    delivered: list[RoutedEvent] = []
     host.subscribe(delivered.append)
 
     runtime, created = notebook.start()
 
     assert created
     assert backend.calls == [("start", runtime.id)]
-    assert [e.name for e in delivered] == ["runtime"]
+    assert [event_name(e.event) for e in delivered] == ["runtime"]
 
 
 def test_nested_publications_follow_the_current_event() -> None:
     stream = Stream()
 
-    def publish_another(event: Event) -> None:
+    def publish_another(event: RoutedEvent) -> None:
         if event.id == 1:
             stream.publish(project("p2"))
 
     stream.subscribe(publish_another)
-    delivered: list[Event] = []
+    delivered: list[RoutedEvent] = []
     stream.subscribe(delivered.append)
 
     stream.publish(project())
@@ -62,40 +61,40 @@ def test_nested_publications_follow_the_current_event() -> None:
 def test_readers_cannot_change_other_readers_or_replay() -> None:
     stream = Stream()
 
-    def mutate(event: Event) -> None:
-        assert isinstance(event.data, protocol.ProjectMessage)
+    def mutate(event: RoutedEvent) -> None:
+        assert isinstance(event.event, protocol.ProjectEvent)
         with pytest.raises(AttributeError):
-            event.data.project.name = "subscriber mutation"
+            event.event.data.project.name = "subscriber mutation"
         with pytest.raises(AttributeError):
-            event.data.project.operations.clear()
+            event.event.data.project.operations.clear()
 
     stream.subscribe(mutate)
-    delivered: list[Event] = []
+    delivered: list[RoutedEvent] = []
     stream.subscribe(delivered.append)
     original = project()
     published = stream.publish(original)
     with pytest.raises(AttributeError):
         original.name = "caller mutation"
 
-    assert isinstance(published.data, protocol.ProjectMessage)
-    assert published.data.project == project()
+    assert isinstance(published.event, protocol.ProjectEvent)
+    assert published.event.data.project == project()
     with pytest.raises(AttributeError):
-        published.data.project.name = "return value mutation"
-    assert isinstance(delivered[0].data, protocol.ProjectMessage)
-    assert delivered[0].data.project == project()
+        published.event.data.project.name = "return value mutation"
+    assert isinstance(delivered[0].event, protocol.ProjectEvent)
+    assert delivered[0].event.data.project == project()
     with pytest.raises(AttributeError):
-        delivered[0].data.project.name = "listener mutation"
+        delivered[0].event.data.project.name = "listener mutation"
 
     replay = stream.since(0)
     assert replay is not None
-    assert isinstance(replay[0].data, protocol.ProjectMessage)
-    assert replay[0].data.project == project()
+    assert isinstance(replay[0].event, protocol.ProjectEvent)
+    assert replay[0].event.data.project == project()
     with pytest.raises(AttributeError):
-        replay[0].data.project.name = "replay mutation"
+        replay[0].event.data.project.name = "replay mutation"
     reread = stream.since(0)
     assert reread is not None
-    assert isinstance(reread[0].data, protocol.ProjectMessage)
-    assert reread[0].data.project == project()
+    assert isinstance(reread[0].event, protocol.ProjectEvent)
+    assert reread[0].event.data.project == project()
 
 
 @pytest.mark.parametrize("external", [False, True])
@@ -107,28 +106,31 @@ def test_mutable_payloads_are_isolated_from_callers_and_listeners(
     sink = notebook.sink if via_notebook else stream
     cursor = stream.last_id
     payload = protocol.Custom(type="example", data={"values": [1]})
-    delivered: list[Event] = []
+    delivered: list[RoutedEvent] = []
 
-    def mutate(event: Event) -> None:
-        assert isinstance(event.data, protocol.CustomMessage)
-        event.data.custom.data["values"].append(2)
+    def mutate(event: RoutedEvent) -> None:
+        assert isinstance(event.event, protocol.CustomEvent)
+        event.event.data.custom.data["values"].append(2)
 
     stream.subscribe(mutate)
     stream.subscribe(delivered.append)
     if external:
-        event = Event(
-            "custom",
-            protocol.CustomMessage(custom=payload, time=msgspec.UNSET),
+        event = RoutedEvent(
+            protocol.CustomEvent(
+                protocol.CustomMessage(custom=payload, time=utcnow())
+            ),
         )
         published = sink.append(event)
     else:
         published = sink.publish(payload)
     payload.data["values"].append(3)
-    assert isinstance(published.data, protocol.CustomMessage)
-    published.data.custom.data["values"].append(4)
+    assert isinstance(published.event, protocol.CustomEvent)
+    published.event.data.custom.data["values"].append(4)
     replay = stream.since(cursor)
     assert replay is not None
-    assert [event.data.custom.data for event in [*delivered, *replay]] == [
+    assert [
+        event.event.data.custom.data for event in [*delivered, *replay]
+    ] == [
         {"values": [1]},
         {"values": [1]},
     ]
@@ -136,7 +138,7 @@ def test_mutable_payloads_are_isolated_from_callers_and_listeners(
 
 def test_deferred_events_join_history_before_delivery() -> None:
     stream = Stream()
-    delivered: list[Event] = []
+    delivered: list[RoutedEvent] = []
     stream.subscribe(delivered.append)
 
     with stream.deferred():
@@ -150,8 +152,8 @@ def test_deferred_events_join_history_before_delivery() -> None:
 def test_subscribers_act_after_the_command_reaches_the_backend(
     host: Host, notebook: Notebook, backend: ScriptedBackend
 ) -> None:
-    def stop_on_starting(event: Event) -> None:
-        if event.name == "runtime":
+    def stop_on_starting(event: RoutedEvent) -> None:
+        if isinstance(event.event, protocol.RuntimeEvent):
             notebook.stop()
 
     host.subscribe(stop_on_starting, types={"runtime"})
@@ -172,8 +174,8 @@ def test_subscribers_cannot_interrupt_a_restart(
     backend.calls.clear()
     started: list[tuple[protocol.Runtime, bool]] = []
 
-    def start_on_removal(event: Event) -> None:
-        if event.name == "runtime.removed":
+    def start_on_removal(event: RoutedEvent) -> None:
+        if isinstance(event.event, protocol.RuntimeRemovedEvent):
             started.append(notebook.start())
 
     host.subscribe(start_on_removal, types={"runtime"})
@@ -193,8 +195,8 @@ def test_subscribers_cannot_start_a_runtime_during_adoption(
     started: list[tuple[protocol.Runtime, bool]] = []
     attached: list[protocol.RuntimeId] = []
 
-    def start_on_removal(event: Event) -> None:
-        if event.name == "runtime.removed":
+    def start_on_removal(event: RoutedEvent) -> None:
+        if isinstance(event.event, protocol.RuntimeRemovedEvent):
             started.append(notebook.start())
 
     host.subscribe(start_on_removal, types={"runtime"})
@@ -213,9 +215,8 @@ def test_custom_events_are_on_the_notebook_stream_only(
 ) -> None:
     cursor = host.events(notebook_id=notebook.id)[-1].id
     assert cursor is not None
-    custom = notebook.emit("marimo.test", {"hello": 1})
+    notebook.emit("marimo.test", {"hello": 1})
 
-    assert kind_of(custom) == "custom"
     assert names(host.events(cursor, notebook_id=notebook.id)) == [
         "custom",
         "ready",
@@ -232,18 +233,56 @@ def test_custom_events_are_on_the_notebook_stream_only(
     assert names(replayed) == ["custom"]
 
 
-def test_every_body_has_a_kind_a_stream_and_a_message() -> None:
-    kinds = {body_type.__name__.lower() for body_type in get_args(Body)}
-    assert kinds == CATALOG_KINDS | NOTEBOOK_KINDS
-    assert CATALOG_KINDS - NOTEBOOK_KINDS == {"host", "project"}
-    for body_type in get_args(Body):
+def test_every_body_has_a_kind_a_stream_and_a_typed_event() -> None:
+    for body_type in get_args(protocol_events.Body):
         kind = body_type.__name__.lower()
-        wrapper = type(message(_blank(body_type)))
+        event = Stream().publish(
+            _blank(body_type),
+            notebook_id=protocol.NotebookId("n1"),
+        )
+        assert type(event.event).__name__ == f"{body_type.__name__}Event"
+        assert event_name(event.event) == kind
+        wrapper = type(event.event.data)
         assert wrapper.__name__ == f"{body_type.__name__}Message"
         assert kind in {
             field.name for field in msgspec.structs.fields(wrapper)
         }
-        assert kind_of(_blank(body_type)) == kind
+        assert event.wanted({kind})
+        assert not event.wanted({"unknown"})
+        assert protocol_events.body(event.event) == _blank(body_type)
+        assert event.visible_in(None) == (
+            kind in {"host", "project", "notebook", "runtime", "attachment"}
+        )
+        assert event.visible_in("n1") == (kind not in {"host", "project"})
+        assert not event.visible_in("n2")
+
+
+@pytest.mark.parametrize(
+    "record_type", get_args(protocol_events.RemovableBody)
+)
+def test_removals_preserve_scope_and_type_filters(
+    record_type: type[protocol_events.RemovableBody],
+) -> None:
+    kind = record_type.__name__.lower()
+    event = removal(record_type, "item", notebook_id=protocol.NotebookId("n1"))
+    assert event.visible_in(None) == (
+        kind in {"project", "notebook", "runtime", "attachment"}
+    )
+    assert event.visible_in("n1") == (kind != "project")
+    assert not event.visible_in("n2")
+    assert event.wanted({kind})
+    assert not event.wanted({"host"})
+
+
+def test_extension_type_filters_preserve_the_full_wire_name() -> None:
+    class Extension(ExtensionEvent, tag="extension.removed"):
+        pass
+
+    event = RoutedEvent(Extension(protocol.RemovedMessage(id="item")))
+    assert [
+        event.wanted(types)
+        for types in (None, {"extension.removed"}, {"extension"})
+    ] == [True, True, False]
 
 
 def _blank(body_type: type[msgspec.Struct]) -> msgspec.Struct:

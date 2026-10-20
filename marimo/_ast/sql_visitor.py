@@ -545,42 +545,49 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
 
     refs: set[SQLRef] = set()
 
+    def is_cte_reference(table: exp.Table) -> bool:
+        if table.db or table.catalog:
+            return False
+
+        target = (
+            table.parent if isinstance(table.parent, exp.Schema) else table
+        )
+        if (
+            isinstance(target.parent, (exp.Insert, exp.Update, exp.Delete))
+            and target.parent.this is target
+        ):
+            return False
+
+        table_name = table.name.lower()
+        node: exp.Expr = table
+        while parent := node.parent:
+            with_clause = (
+                parent
+                if isinstance(parent, exp.With)
+                else parent.args.get("with_")
+            )
+            if isinstance(with_clause, exp.With) and node is not with_clause:
+                for cte in with_clause.expressions:
+                    if cte is node and not with_clause.args.get("recursive"):
+                        break
+                    if cte.alias.lower() == table_name:
+                        return True
+                    if cte is node:
+                        break
+            node = parent
+        return False
+
     def _collect_table_refs_excluding_ctes(expression: exp.Expression) -> None:
-        """Walk all Table nodes, filtering out unqualified CTE references.
-
-        find_all(exp.Table) doesn't understand CTE scope, so bare
-        references to CTE names would be misidentified as real tables.
-
-        We only collect CTEs from the statement-level WITH clause
-        rather than nested subqueries, because a subquery's CTE is
-        scoped to that subquery and must not mask a real table with the
-        same name in the outer query. We identify statement-level CTEs
-        by checking that the CTE's grandparent (With -> Expression) is
-        the top-level expression. Schema-qualified refs (e.g. schema.foo)
-        are always real tables even if a CTE shares the same base name.
-        """
-        cte_names: set[str] = set()
-        for cte in expression.find_all(exp.CTE):
-            with_node = cte.parent
-            if with_node and with_node.parent is expression:
-                alias = cte.alias
-                if alias:
-                    cte_names.add(alias.lower())
         for table in expression.find_all(exp.Table):
-            if ref := get_ref_from_table(table):
-                is_unqualified_cte = (
-                    ref.table.lower() in cte_names
-                    and ref.schema is None
-                    and ref.catalog is None
-                )
-                if not is_unqualified_cte:
+            if not is_cte_reference(table):
+                if ref := get_ref_from_table(table):
                     refs.add(ref)
 
     for expression in expression_list:
         if expression is None:
             continue
 
-        if bool(
+        requires_table_scan = bool(
             expression.find(
                 exp.Update,
                 exp.Insert,
@@ -593,7 +600,8 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
                 exp.TruncateTable,
                 exp.Copy,
             )
-        ):
+        )
+        if requires_table_scan:
             _collect_table_refs_excluding_ctes(expression)  # type: ignore[arg-type]
 
         # build_scope only works for select statements.
@@ -604,7 +612,12 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
             if root := build_scope(expression):
                 for scope in root.traverse():  # type: ignore
                     for _node, source in scope.selected_sources.values():
+                        # SQLGlot can expose DML CTE references as plain tables.
                         if isinstance(source, exp.Table):
+                            if requires_table_scan and is_cte_reference(
+                                source
+                            ):
+                                continue
                             if ref := get_ref_from_table(source):
                                 refs.add(ref)
         except OptimizeError:

@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import asdict
 
 import pytest
-from inline_snapshot import snapshot
 
+from marimo._cli.pair.prompts import load_prompt_templates
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._schemas.session import (
     VERSION,
     Cell,
@@ -20,46 +22,39 @@ from marimo._server.templates.api import (
 from tests._server.templates.utils import parse_mount_config
 
 
-@pytest.mark.parametrize("flag", ["1", "true", " TRUE "])
+@pytest.mark.parametrize("enabled", [True, False])
 @pytest.mark.parametrize(
     ("editable", "command"),
     [(True, "uv run marimo"), (False, "uvx marimo@latest")],
 )
-def test_render_notebook_pair_preview(
-    monkeypatch: pytest.MonkeyPatch, flag: str, editable: bool, command: str
+def test_pair_cli_config_is_unconditional(
+    monkeypatch: pytest.MonkeyPatch,
+    enabled: bool,
+    editable: bool,
+    command: str,
 ) -> None:
-    monkeypatch.setenv("MARIMO_PAIR_NEXT", flag)
+    monkeypatch.setattr(GLOBAL_SETTINGS, "ENABLE_HOST", enabled)
     monkeypatch.setattr(
         "marimo._cli.pair.prompts.is_editable", lambda _: editable
     )
     html = render_notebook(
         code="import marimo\napp = marimo.App()", mode="edit"
     )
-    assert parse_mount_config(html)["pairPreview"] == {
+    assert parse_mount_config(html)["pairConfig"] == {
         "command": command,
-        "templates": snapshot(
-            {
-                "prompt": "Pair with me on this running marimo notebook.\n\nURL: {url}\n{session}\nRun `{command} pair --help` first.\nUse `{command}` for all marimo commands.\n\nOnce connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).{authentication}",
-                "session": "Session: {session}\n",
-                "token_file": "\n\nFor authenticated Pair commands, pass `--token-file {token_file}`.",
-                "token": "\n\nFor authenticated Pair commands, set `export MARIMO_TOKEN={token}` in the shell that runs marimo.",
-            }
-        ),
+        "templates": asdict(load_prompt_templates()),
+        "hostEnabled": enabled,
     }
 
 
-@pytest.mark.parametrize("flag", [None, "", "0", "false"])
-def test_render_notebook_omits_pair_preview(
-    monkeypatch: pytest.MonkeyPatch, flag: str | None
+def test_read_mode_disables_agent_aware_ui(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    if flag is None:
-        monkeypatch.delenv("MARIMO_PAIR_NEXT", raising=False)
-    else:
-        monkeypatch.setenv("MARIMO_PAIR_NEXT", flag)
+    monkeypatch.setattr(GLOBAL_SETTINGS, "ENABLE_HOST", True)
     html = render_notebook(
-        code="import marimo\napp = marimo.App()", mode="edit"
+        code="import marimo\napp = marimo.App()", mode="read"
     )
-    assert "pairPreview" not in parse_mount_config(html)
+    assert parse_mount_config(html)["pairConfig"]["hostEnabled"] is False
 
 
 class TestRenderNotebook(unittest.TestCase):

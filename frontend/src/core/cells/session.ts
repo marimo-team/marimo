@@ -206,8 +206,20 @@ function createCellRuntimeFromSession(
         channel: "marimo-error",
         data: [
           {
-            type: "unknown",
+            type: "exception",
+            exception_type: primaryOutput.ename,
             msg: primaryOutput.evalue,
+            raising_cell: null,
+            traceback:
+              primaryOutput.traceback.length === 0
+                ? null
+                : primaryOutput.traceback
+                    .map((line, index, lines) =>
+                      index < lines.length - 1 && !line.endsWith("\n")
+                        ? `${line}\n`
+                        : line,
+                    )
+                    .join(""),
           },
         ],
         mimetype: "application/vnd.marimo+error",
@@ -223,6 +235,9 @@ function createCellRuntimeFromSession(
         timestamp: DEFAULT_TIMESTAMP,
       };
     }
+    if (runtimeState.output && primaryOutput.code !== undefined) {
+      runtimeState.output.code = primaryOutput.code;
+    }
   }
 
   const consoleOutputs = sessionCell.console || [];
@@ -237,7 +252,13 @@ function createCellRuntimeFromSession(
           channel: "media",
           data: consoleOutput.data,
           mimetype: consoleOutput.mimetype,
+          ...(consoleOutput.traceback_format === undefined
+            ? {}
+            : { traceback_format: consoleOutput.traceback_format }),
           timestamp: DEFAULT_TIMESTAMP,
+          ...(consoleOutput.code === undefined
+            ? {}
+            : { code: consoleOutput.code }),
         };
       }
       // Handle StreamOutput (type: "stream")
@@ -245,7 +266,13 @@ function createCellRuntimeFromSession(
         channel: consoleOutput.name === "stderr" ? "stderr" : "stdout",
         data: consoleOutput.text,
         mimetype: consoleOutput.mimetype ?? "text/plain",
+        ...(consoleOutput.traceback_format === undefined
+          ? {}
+          : { traceback_format: consoleOutput.traceback_format }),
         timestamp: DEFAULT_TIMESTAMP,
+        ...(consoleOutput.code === undefined
+          ? {}
+          : { code: consoleOutput.code }),
       };
     }),
   };

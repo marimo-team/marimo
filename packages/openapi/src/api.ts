@@ -4166,6 +4166,7 @@ export interface components {
     /** CellOutput */
     CellOutput: {
       channel: components["schemas"]["CellChannel"];
+      code?: string;
       data:
         | string
         | (
@@ -4211,6 +4212,8 @@ export interface components {
         | "video/mp4"
         | "video/mpeg";
       timestamp?: number;
+      /** @enum {unknown} */
+      traceback_format?: "html" | "text";
     };
     /**
      * CellOutputs

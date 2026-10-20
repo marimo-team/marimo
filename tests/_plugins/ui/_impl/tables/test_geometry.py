@@ -150,6 +150,46 @@ class TestArrowDetection:
 
         assert find_geometry_columns(nw.from_native(table)) == {}
 
+    @pytest.mark.parametrize(
+        ("name", "encoding"),
+        [
+            ("geoarrow.wkb", "wkb"),
+            ("ogc.wkb", "wkb"),
+            ("geoarrow.wkt", "wkt"),
+        ],
+    )
+    def test_detects_registered_extension_types(
+        self, name: str, encoding: str
+    ) -> None:
+        import narwhals.stable.v2 as nw
+        import pyarrow as pa
+
+        storage_type = pa.string() if encoding == "wkt" else pa.binary()
+        with geo.registered_arrow_extension(name, storage_type) as extension:
+            table = pa.table(
+                {"geom": geo.registered_extension_column(extension, [[None]])}
+            )
+
+            assert find_geometry_columns(nw.from_native(table)) == {
+                "geom": GeometryColumnInfo(
+                    encoding=encoding,  # type: ignore[arg-type]
+                    external_type=name,
+                )
+            }
+
+    def test_ignores_registered_non_geo_extension(self) -> None:
+        import narwhals.stable.v2 as nw
+        import pyarrow as pa
+
+        with geo.registered_arrow_extension(
+            "example.label", pa.string(), b""
+        ) as extension:
+            table = pa.table(
+                {"label": geo.registered_extension_column(extension, [["a"]])}
+            )
+
+            assert find_geometry_columns(nw.from_native(table)) == {}
+
     def test_manager_field_type_uses_geometry_semantics(self) -> None:
         manager = get_table_manager(geo.arrow_wkb_known_crs())
 

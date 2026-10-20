@@ -522,6 +522,8 @@ components:
       properties:
         channel:
           $ref: '#/components/schemas/CellChannel'
+        code:
+          type: string
         data:
           anyOf:
           - type: string
@@ -586,6 +588,10 @@ components:
           - video/mpeg
         timestamp:
           type: number
+        traceback_format:
+          enum:
+          - html
+          - text
       required:
       - channel
       - mimetype

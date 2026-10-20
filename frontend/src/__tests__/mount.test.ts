@@ -6,10 +6,11 @@ import { initialLayoutState, layoutStateAtom } from "@/core/layout/state";
 import { kioskModeAtom } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
+import { runtimeConfigAtom } from "@/core/runtime/config";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { ConnectionState } from "@/core/websocket/types";
-import { pairPreviewAtom } from "@/core/config/pair";
-import { PAIR_PREVIEW } from "./fixtures/pair-preview";
+import { pairConfigAtom } from "@/core/config/pair";
+import { PAIR_CONFIG } from "./fixtures/pair-config";
 import { mount, visibleForTesting } from "../mount";
 
 // Mock React DOM
@@ -84,23 +85,42 @@ describe("mount", () => {
       mockElement,
     );
 
-  it("hydrates the server's Pair preview configuration", () => {
-    const error = mountRead({ pairPreview: PAIR_PREVIEW });
+  it("hydrates the server's Pair configuration", () => {
+    const error = mountRead({ pairConfig: PAIR_CONFIG });
 
     expect(error).toBeUndefined();
-    expect(store.get(pairPreviewAtom)).toEqual(PAIR_PREVIEW);
+    expect(store.get(pairConfigAtom)).toEqual(PAIR_CONFIG);
   });
 
-  it("uses legacy Pair behavior when the host omits preview configuration", () => {
-    store.set(pairPreviewAtom, PAIR_PREVIEW);
+  it("clears Pair configuration when the server omits it", () => {
+    store.set(pairConfigAtom, PAIR_CONFIG);
 
     const error = mountRead();
 
     expect(error).toBeUndefined();
-    expect(store.get(pairPreviewAtom)).toBeUndefined();
+    expect(store.get(pairConfigAtom)).toBeUndefined();
   });
 
   describe("connection state initialization", () => {
+    it("passes the host notebook identity to the local runtime", () => {
+      mount({ ...baseOptions, notebookId: "nb_local" }, mockElement);
+      expect(store.get(runtimeConfigAtom).notebookId).toBe("nb_local");
+    });
+
+    it("uses a remote runtime's own notebook identity", () => {
+      mount(
+        {
+          ...baseOptions,
+          notebookId: "nb_local",
+          runtimeConfig: [
+            { url: "https://remote.example", notebookId: "nb_remote" },
+          ],
+        },
+        mockElement,
+      );
+      expect(store.get(runtimeConfigAtom).notebookId).toBe("nb_remote");
+    });
+
     it("should set connection to CONNECTING when runtimeConfig has lazy=false", () => {
       mount(
         {

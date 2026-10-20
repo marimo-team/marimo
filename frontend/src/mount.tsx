@@ -10,7 +10,7 @@ import {
   userConfigAtom,
 } from "@/core/config/config";
 import { KnownQueryParams } from "@/core/constants";
-import { pairPreviewAtom, pairPreviewSchema } from "@/core/config/pair";
+import { pairConfigAtom, pairConfigSchema } from "@/core/config/pair";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 import { getMarimoCode } from "@/core/meta/globals";
 import {
@@ -209,7 +209,7 @@ const mountOptionsSchema = z.object({
    * marimo config overrides
    */
   configOverrides: passthroughObject,
-  pairPreview: pairPreviewSchema.optional(),
+  pairConfig: pairConfigSchema.optional(),
   /**
    * marimo app config
    */
@@ -274,6 +274,8 @@ const mountOptionsSchema = z.object({
       .transform((val) => val as api.Notebook["NotebookV1"]),
   ]),
 
+  notebookId: z.string().optional(),
+
   /**
    * Runtime configs
    */
@@ -284,6 +286,7 @@ const mountOptionsSchema = z.object({
         // Lazy by default, but can be overridden by the runtime config
         lazy: z.boolean().default(true),
         authToken: z.string().nullish(),
+        notebookId: z.string().optional(),
       }),
     )
     .nullish()
@@ -347,7 +350,7 @@ function initStore(options: unknown) {
   );
   store.set(userConfigAtom, parseUserConfig(parsedOptions.data.config));
   store.set(appConfigAtom, parseAppConfig(parsedOptions.data.appConfig));
-  store.set(pairPreviewAtom, parsedOptions.data.pairPreview);
+  store.set(pairConfigAtom, parsedOptions.data.pairConfig);
 
   // Runtime config
   if (parsedOptions.data.runtimeConfig.length > 0) {
@@ -364,6 +367,7 @@ function initStore(options: unknown) {
   } else {
     store.set(runtimeConfigAtom, {
       ...DEFAULT_RUNTIME_CONFIG,
+      notebookId: parsedOptions.data.notebookId,
       lazy: false,
       serverToken: parsedOptions.data.serverToken,
     });

@@ -11,9 +11,11 @@ from typing import TYPE_CHECKING
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.api.deps import AppStateBase
+from marimo._server.api.utils import format_url_host
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
 from marimo._server.host.record import HostRecordFile, host_url
+from marimo._server.scratchpad import scratchpad_request_metadata
 from marimo._session.model import SessionMode
 
 if TYPE_CHECKING:
@@ -32,10 +34,22 @@ async def host(app: Starlette) -> AsyncIterator[None]:
         yield
         return
 
-    bridge = SessionBridge(state.session_manager, state.config_manager)
+    server = state.server.config
+    url_host = format_url_host(
+        server.host, server.port, route_bind_all_to_loopback=True
+    )
+    server_url = f"http://{url_host}:{server.port}{state.base_url.rstrip('/')}"
+    bridge = SessionBridge(
+        state.session_manager,
+        state.config_manager,
+        request_metadata=lambda session: scratchpad_request_metadata(
+            session,
+            server_url=server_url,
+            auth_token=str(state.session_manager.auth_token),
+        ),
+    )
     await bridge.open()
     token = secrets.token_urlsafe(32)
-    server = state.server.config
     url = host_url(server.host, server.port, state.base_url)
     context = HostContext(bridge=bridge, token=token, port=server.port)
     app.state.host_context = context

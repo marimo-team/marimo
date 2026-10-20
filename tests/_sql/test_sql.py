@@ -333,6 +333,38 @@ def test_invalid_sql(
     assert isinstance(exc_info.value.__cause__, sqlalchemy.exc.StatementError)
 
 
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+def test_sql_preserves_structured_error_details(
+    duckdb_connection: duckdb.DuckDBPyConnection,
+) -> None:
+    """mo.sql must not drop hint/sql_line/sql_col from engine-reported
+    MarimoSQLException (issue #10987)."""
+    from marimo._sql.engines.duckdb import DuckDBEngine
+    from marimo._sql.error_utils import MarimoSQLException
+
+    original_execute = DuckDBEngine.execute
+
+    def raising_execute(_engine: object, query: str) -> object:
+        raise MarimoSQLException(
+            message="boom",
+            sql_statement=query,
+            sql_line=3,
+            sql_col=12,
+            hint="try CAST",
+        )
+
+    DuckDBEngine.execute = raising_execute  # type: ignore[method-assign]
+    try:
+        with pytest.raises(MarimoSQLException) as exc_info:
+            sql("SELECT * FROM t", engine=duckdb_connection)
+        assert exc_info.value.sql_line == 3
+        assert exc_info.value.sql_col == 12
+        assert exc_info.value.hint == "try CAST"
+        assert exc_info.value.sql_statement == "SELECT * FROM t"
+    finally:
+        DuckDBEngine.execute = original_execute  # type: ignore[method-assign]
+
+
 # TODO
 @pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
 def test_sql_with_limit() -> None:

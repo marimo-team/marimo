@@ -23,7 +23,7 @@ from marimo._core.notebook import Notebook
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.host import OPERATIONS, document as documents
 from marimo._server.host.analysis import HostAnalyzer
-from marimo._server.host.backend import SessionBackend
+from marimo._server.host.backend import RequestMetadata, SessionBackend
 from marimo._server.host.events import notification_event
 from marimo._server.host.index import WorkspaceIndex
 from marimo._session.events import SessionEventListener
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
-    from marimo._core.stream import Event, Sink
+    from marimo._core.stream import RoutedEvent, Sink
     from marimo._messaging.notebook import NotebookCell
     from marimo._server.session_manager import SessionManager
     from marimo._session.notebook import AppFileManager
@@ -93,9 +93,12 @@ class SessionBridge(SessionEventListener):
         self,
         manager: SessionManager,
         config_manager: MarimoConfigManager | None = None,
+        *,
+        request_metadata: RequestMetadata | None = None,
     ) -> None:
         self._manager = manager
         self._config_manager = config_manager
+        self._request_metadata = request_metadata
         self._files_lock = asyncio.Lock()
         self._saving: set[protocol.NotebookId] = set()
         # TODO(MO-8005): The writer owns this baseline once there is one
@@ -113,7 +116,7 @@ class SessionBridge(SessionEventListener):
             self.host, manager.workspace, self._initialize_notebook
         )
         self._unsubscribe = self.host.subscribe(
-            self._forget_backend, types={"notebook"}
+            self._on_host_event, types={"notebook"}
         )
 
     async def open(self) -> None:
@@ -126,6 +129,14 @@ class SessionBridge(SessionEventListener):
     def close(self) -> None:
         self._manager.event_bus.unsubscribe(self)
         self._unsubscribe()
+
+    def notebook_for_session(self, session: Session) -> Notebook | None:
+        """Return the host notebook that owns this session's runtime."""
+        for notebook_id, backend in self._backends.items():
+            if backend.session is session:
+                # Adoption loads the notebook before it attaches a session.
+                return self.host.peek_notebook(notebook_id)
+        return None
 
     async def refresh(self) -> None:
         """Refresh the catalog without observing a half-finished file move."""
@@ -383,7 +394,7 @@ class SessionBridge(SessionEventListener):
 
     def session_snapshot(
         self, notebook_id: protocol.NotebookId
-    ) -> list[Event]:
+    ) -> list[RoutedEvent]:
         """Return retained marimo events for one client without publishing them."""
         session = self._session_of(notebook_id)
         if session is None:
@@ -654,12 +665,16 @@ class SessionBridge(SessionEventListener):
             session_detached=lambda session: self._detach_document(
                 notebook_id, session
             ),
+            request_metadata=self._request_metadata,
         )
         self._backends[notebook_id] = backend
         return backend
 
-    def _forget_backend(self, event: Event) -> None:
-        if event.name == "notebook.removed" and event.notebook_id is not None:
+    def _on_host_event(self, event: RoutedEvent) -> None:
+        if (
+            isinstance(event.event, protocol.NotebookRemovedEvent)
+            and event.notebook_id is not None
+        ):
             self._backends.pop(event.notebook_id, None)
             self._file_texts.pop(event.notebook_id, None)
             self._rebaselining.pop(event.notebook_id, None)
