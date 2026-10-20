@@ -78,7 +78,7 @@ describe("RuntimeManager", () => {
             "wss://example.com/nested/api/marimo/v1/notebooks/nb_123/events/ws",
           params: {
             file: "notebook.py",
-            types: "marimo",
+            types: "notebook,document,cell,attachment,marimo",
             session_id: sessionId,
             access_token: "test-token",
           },
