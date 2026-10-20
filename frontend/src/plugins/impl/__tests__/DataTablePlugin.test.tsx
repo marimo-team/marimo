@@ -136,6 +136,90 @@ describe("LoadingDataTableComponent", () => {
     expect(downloadGeoJSON).toHaveBeenCalledTimes(1);
   });
 
+  it("refreshes export metadata when a dataframe transform changes the data", async () => {
+    const host = document.createElement("div");
+    const metadataFor = (name: string) => ({
+      geometry_columns: [{ name, encoding: "objects", crs: "EPSG:4326" }],
+      primary_geometry_column: name,
+      default_geometry_column: name,
+      formats: {
+        parquet: { available: true, reason: null, missing_packages: [] },
+      },
+    });
+    const getExportMetadata = vi
+      .fn()
+      .mockResolvedValueOnce(metadataFor("before"))
+      .mockResolvedValueOnce(metadataFor("after"));
+    const view = (data: string) => (
+      <Provider store={store}>
+        <TooltipProvider>
+          <LoadingDataTableComponent
+            label={null}
+            totalRows={1}
+            pagination={false}
+            pageSize={10}
+            selection={null}
+            showDownload={true}
+            showFilters={false}
+            showColumnSummaries={false}
+            showDataTypes={false}
+            showPageSizeSelector={false}
+            showColumnExplorer={false}
+            showRowExplorer={false}
+            showChartBuilder={false}
+            rowHeaders={[]}
+            fieldTypes={undefined}
+            totalColumns={1}
+            maxColumns="all"
+            hasStableRowId={false}
+            lazy={false}
+            host={host}
+            showSearch={false}
+            value={[]}
+            setValue={vi.fn()}
+            data={data}
+            search={vi.fn().mockResolvedValue({
+              data,
+              total_rows: 1,
+              cell_styles: null,
+              cell_hover_texts: null,
+            })}
+            download_as={vi.fn()}
+            download_geojson={vi.fn()}
+            get_export_metadata={getExportMetadata}
+            get_column_summaries={vi.fn()}
+            get_data_url={vi.fn() as GetDataUrl}
+            get_row_ids={vi.fn() as GetRowIds}
+            get_size_bytes={vi.fn().mockResolvedValue({ size_bytes: null })}
+          />
+        </TooltipProvider>
+      </Provider>
+    );
+    const { rerender } = render(
+      view(JSON.stringify([{ before: "POINT (1 2)" }])),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("columnheader", { name: "before" }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("export-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("export-summary-parquet")).toHaveTextContent(
+        "before",
+      ),
+    );
+
+    rerender(view(JSON.stringify([{ after: "POINT (3 4)" }])));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("export-summary-parquet")).toHaveTextContent(
+        "after",
+      ),
+    );
+    expect(getExportMetadata).toHaveBeenCalledTimes(2);
+  });
+
   it("does not log duplicate keys when a pivot becomes empty", async () => {
     const host = document.createElement("div");
     const consoleError = vi
