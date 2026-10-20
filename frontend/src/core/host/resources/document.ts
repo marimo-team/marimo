@@ -27,7 +27,7 @@ interface PendingDocument {
  * A snapshot's records are pending until `ready`. A live revision is pending
  * from its first cell until its `document` event.
  */
-export interface DocumentState {
+interface DocumentState {
   readonly current: Document | null;
   readonly pending: PendingDocument | null;
 }

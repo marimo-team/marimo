@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { NotebookEvent } from "../events";
 import type { Resource } from "../resources/resource";
-import { createStream, type Stream, type StreamState } from "../stream";
+import { createStream } from "../stream";
 import { fixtureEvents } from "./fixtures";
 
 interface CellIds {
@@ -54,17 +54,15 @@ const revisions: Resource<Revisions> = {
   },
 };
 
-interface Resources {
-  cells: CellIds;
-  revisions: Revisions;
+function createTestStream() {
+  return createStream({ cells, revisions });
 }
-type State = StreamState<Resources>;
 
 function replay(
-  stream: Stream<Resources>,
+  stream: ReturnType<typeof createTestStream>,
   events: readonly NotebookEvent[],
-  from: State = stream.initial,
-): State {
+  from = stream.initial,
+) {
   return events.reduce((state, event) => stream.reduce(state, event), from);
 }
 
@@ -77,7 +75,7 @@ if (cellEvent?.event !== "cell") {
 
 describe("notebook stream", () => {
   it("reads the snapshot, goes live at ready, and rebuilds after reset", () => {
-    const stream = createStream({ cells, revisions });
+    const stream = createTestStream();
     const partial = replay(stream, snapshot.slice(0, ready));
     expect(partial).toMatchObject({
       phase: "snapshot",
@@ -105,7 +103,7 @@ describe("notebook stream", () => {
   });
 
   it("keeps resource state by reference when an event does not apply", () => {
-    const stream = createStream({ cells, revisions });
+    const stream = createTestStream();
     const state = replay(stream, snapshot);
     const runtime = snapshot.find((event) => event.event === "runtime");
     const unhandled = stream.reduce(state, { ...runtime!, id: "100" });
@@ -121,7 +119,7 @@ describe("notebook stream", () => {
   });
 
   it("clears resources when its notebook is removed and ignores other notebooks", () => {
-    const stream = createStream({ cells, revisions });
+    const stream = createTestStream();
     const state = replay(stream, snapshot);
     const time = "2026-10-01T09:30:00Z";
     expect(
@@ -141,7 +139,7 @@ describe("notebook stream", () => {
   });
 
   it("rejects objects from another notebook", () => {
-    const stream = createStream({ cells, revisions });
+    const stream = createTestStream();
     const state = replay(stream, snapshot.slice(0, ready));
     const notebook = snapshot[0];
     if (notebook.event !== "notebook") {
@@ -162,7 +160,7 @@ describe("notebook stream", () => {
   });
 
   it("records each live event's cursor and resumes in place", () => {
-    const stream = createStream({ cells, revisions });
+    const stream = createTestStream();
     const partial = replay(stream, snapshot.slice(0, ready));
     expect(stream.resume(partial)).toEqual({
       ...stream.initial,
@@ -195,7 +193,7 @@ describe("notebook stream", () => {
   });
 
   it("requires a cursor on live events other than reset and notifications", () => {
-    const stream = createStream({ cells, revisions });
+    const stream = createTestStream();
     const state = replay(stream, snapshot);
     expect(() => stream.reduce(state, cellEvent)).toThrow("cursor");
     expect(
