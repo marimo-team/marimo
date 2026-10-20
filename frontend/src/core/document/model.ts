@@ -11,6 +11,7 @@ import { selectAtom } from "jotai/vanilla/utils";
 import type { Document } from "../host/resources/document";
 import * as Protocol from "@marimo-team/client/protocol";
 import {
+  acknowledge,
   type CellEdit,
   createCell,
   deleteCell,
@@ -42,13 +43,33 @@ export interface DocumentEditor {
 /** Synchronous; a thrown error discards the entire transaction. */
 export type DocumentEdit = (editor: DocumentEditor) => void;
 
+/** A captured edit request. Return this same object when reporting its result. */
+export interface DocumentSubmission {
+  readonly notebookId: Protocol.NotebookId;
+  readonly changes: readonly Protocol.Change[];
+}
+
+type ResponseRevision = Pick<Protocol.Document, "notebook_id" | "version">;
+
+interface PendingSubmission {
+  readonly submission: DocumentSubmission;
+  readonly draft: Draft;
+  readonly responseRevision: ResponseRevision | null;
+}
+
 interface ModelState {
   readonly confirmed: Document | null;
   readonly drafts: ReadonlyMap<Protocol.NotebookId, Draft>;
+  readonly pending: PendingSubmission | null;
 }
 
-/** Local edits over confirmed host state, retained per notebook across snapshots. */
-interface DocumentModel {
+/**
+ * Local edits over confirmed host state, with one submission in flight.
+ *
+ * A reset retains the submission so its receipt can reconcile a new snapshot.
+ * Switching notebook identity invalidates it, retaining each notebook's draft.
+ */
+export interface DocumentModel {
   /** Hold onto the selector; its value is stable until the cell changes. */
   cellAtom(id: Protocol.CellId): Atom<EditableCell | undefined>;
   readonly orderAtom: Atom<readonly Protocol.CellId[] | null>;
@@ -57,8 +78,25 @@ interface DocumentModel {
   > | null>;
   /** Null when the document or source needed by a put is unavailable. */
   readonly changesAtom: Atom<readonly Protocol.Change[] | null>;
+  /** Remains pending until both the response and its streamed revision arrive. */
+  readonly pendingAtom: Atom<DocumentSubmission | null>;
   readonly editAtom: WritableAtom<null, [edit: DocumentEdit], void>;
-  /** Stop observing the source and accepting edits. Safe to repeat. */
+  /** Capture a request, or null when unavailable, unchanged, or already sending. */
+  readonly submitAtom: WritableAtom<null, [], DocumentSubmission | null>;
+  /**
+   * Report the response revision, or null for a rejected request.
+   *
+   * Success waits for a complete streamed document at that version or later.
+   * Duplicate replies and replies for another notebook are ignored. Retry an
+   * uncertain request with the same body and idempotency key; do not reject it
+   * or capture a new request until its outcome is known.
+   */
+  readonly settleAtom: WritableAtom<
+    null,
+    [submission: DocumentSubmission, responseRevision: ResponseRevision | null],
+    void
+  >;
+  /** Stop observing the source and invalidate pending work. Safe to repeat. */
   dispose(): void;
 }
 
@@ -82,13 +120,22 @@ function withDraft(state: ModelState, draft: Draft): ModelState {
   return { ...state, drafts };
 }
 
-/** Discard removed-cell edits when publishing a confirmed document. */
+/** Publish the confirmed document and any released fields together. */
 function reconcile(state: ModelState): ModelState {
-  const { confirmed } = state;
+  const { confirmed, pending } = state;
   if (confirmed === null) {
     return state;
   }
-  return withDraft(state, prune(confirmed, draftOf(state)));
+  let draft = draftOf(state);
+  if (
+    pending !== null &&
+    pending.responseRevision !== null &&
+    confirmed.revision.version >= pending.responseRevision.version
+  ) {
+    draft = acknowledge(draft, pending.draft);
+    state = { ...state, pending: null };
+  }
+  return withDraft(state, prune(confirmed, draft, state.pending?.draft));
 }
 
 /** Create once per source and store; the owner must dispose the model. */
@@ -99,6 +146,7 @@ export function createDocumentModel(
   const stateAtom = atom<ModelState>({
     confirmed: store.get(source),
     drafts: new Map(),
+    pending: null,
   });
   let disposed = false;
   const documentAtom = atom((get): EditableDocument | null => {
@@ -130,6 +178,7 @@ export function createDocumentModel(
       ? null
       : toChanges(state.confirmed, draftOf(state));
   });
+  const pendingAtom = atom((get) => get(stateAtom).pending?.submission ?? null);
 
   const unsubscribe = store.sub(source, () => {
     const confirmed = store.get(source);
@@ -137,6 +186,12 @@ export function createDocumentModel(
       reconcile({
         ...state,
         confirmed,
+        pending:
+          confirmed !== null &&
+          state.pending !== null &&
+          confirmed.revision.notebook_id !== state.pending.submission.notebookId
+            ? null
+            : state.pending,
       }),
     );
   });
@@ -152,7 +207,12 @@ export function createDocumentModel(
     }
     editing = true;
     try {
-      const draft = editDocument(state.confirmed, draftOf(state), edit);
+      const draft = editDocument(
+        state.confirmed,
+        draftOf(state),
+        edit,
+        state.pending?.draft,
+      );
       if (
         disposed ||
         get(stateAtom) !== state ||
@@ -166,12 +226,75 @@ export function createDocumentModel(
     }
   });
 
+  const submitAtom = atom(null, (get, set): DocumentSubmission | null => {
+    const state = get(stateAtom);
+    if (disposed || state.confirmed === null || state.pending !== null) {
+      return null;
+    }
+    const draft = draftOf(state);
+    const changes = toChanges(state.confirmed, draft);
+    if (changes === null) {
+      return null;
+    }
+    if (changes.length === 0) {
+      set(stateAtom, withDraft(state, EMPTY_DRAFT));
+      return null;
+    }
+    const submission = {
+      notebookId: state.confirmed.revision.notebook_id,
+      changes,
+    };
+    set(stateAtom, {
+      ...state,
+      pending: { submission, draft, responseRevision: null },
+    });
+    return submission;
+  });
+
+  const settleAtom = atom(
+    null,
+    (
+      get,
+      set,
+      submission: DocumentSubmission,
+      responseRevision: ResponseRevision | null,
+    ) => {
+      const state = get(stateAtom);
+      if (
+        disposed ||
+        state.pending?.submission !== submission ||
+        state.pending.responseRevision !== null
+      ) {
+        return;
+      }
+      if (
+        responseRevision !== null &&
+        responseRevision.notebook_id !== submission.notebookId
+      ) {
+        throw new Error("Edit response belongs to another notebook");
+      }
+      set(
+        stateAtom,
+        reconcile({
+          ...state,
+          pending:
+            responseRevision === null
+              ? null
+              : { ...state.pending, responseRevision },
+        }),
+      );
+    },
+  );
+
   return {
     cellAtom,
     orderAtom,
     appConfigAtom,
     changesAtom,
+    pendingAtom,
     editAtom,
+    submitAtom,
+    settleAtom,
     dispose() {
       if (!disposed) {
         disposed = true;
@@ -179,6 +302,7 @@ export function createDocumentModel(
         store.set(stateAtom, {
           confirmed: null,
           drafts: new Map(),
+          pending: null,
         });
       }
     },
@@ -189,6 +313,7 @@ function editDocument(
   confirmed: Document,
   draft: Draft,
   edit: DocumentEdit,
+  sent: Draft = EMPTY_DRAFT,
 ): Draft {
   let next = draft;
   let active = true;
@@ -240,7 +365,7 @@ function editDocument(
     },
     deleteCell: (id) => {
       requireCell(id);
-      next = deleteCell(next, id);
+      next = deleteCell(next, id, sent);
     },
     setOrder: (order) => {
       assertActive();
