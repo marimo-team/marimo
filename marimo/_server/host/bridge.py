@@ -130,11 +130,6 @@ class SessionBridge(SessionEventListener):
         self._manager.event_bus.unsubscribe(self)
         self._unsubscribe()
 
-    def session_for_notebook(self, notebook_id: str) -> Session | None:
-        """Return the current session for a host notebook."""
-        backend = self._backends.get(protocol.NotebookId(notebook_id))
-        return None if backend is None else backend.session
-
     def notebook_for_session(self, session: Session) -> Notebook | None:
         """Return the host notebook that owns this session's runtime."""
         for notebook_id, backend in self._backends.items():

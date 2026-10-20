@@ -1046,7 +1046,7 @@ async def test_session_notifications_join_the_notebook_stream_once(
 async def test_session_notebook_lookup_boundaries(
     manager: FakeManager, tmp_path: Path
 ) -> None:
-    prepare(manager, tmp_path, "a.py", "unopened.py")
+    prepare(manager, tmp_path, "a.py")
     saved = FakeSession(str(tmp_path / "a.py"))
     unsaved = FakeSession(None)
     outside = FakeSession(str(tmp_path.parent / "outside.py"))
@@ -1055,19 +1055,13 @@ async def test_session_notebook_lookup_boundaries(
     await bridge.open()
     notebook = bridge.notebook_for_session(saved)  # type: ignore[arg-type]
     assert notebook is not None
-    assert bridge.session_for_notebook(notebook.id) is saved
     assert bridge.notebook_for_session(unsaved) is None  # type: ignore[arg-type]
     assert bridge.notebook_for_session(outside) is None  # type: ignore[arg-type]
     assert (
         bridge.notebook_for_session(FakeSession(str(tmp_path / "a.py")))
         is None
     )  # type: ignore[arg-type]
-    unopened = bridge.index.notebook_for(str(tmp_path / "unopened.py"))
-    assert unopened is not None
-    assert bridge.session_for_notebook(unopened.id) is None
-    assert bridge.session_for_notebook("missing") is None
     saved.close()
-    assert bridge.session_for_notebook(notebook.id) is None
     assert bridge.notebook_for_session(saved) is None  # type: ignore[arg-type]
     bridge.close()
 
