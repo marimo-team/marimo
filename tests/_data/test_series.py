@@ -172,8 +172,12 @@ def is_pyarrow_type(response: Any) -> bool:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@pytest.mark.parametrize("series", create_series([]))
-def test_empty_series_info(series: Any) -> None:
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"A": []}, exclude=NON_EAGER_LIBS),
+)
+def test_empty_series_info(df: Any) -> None:
+    series = df["A"]
     number_info = get_number_series_info(series)
     category_info = get_category_series_info(series)
     date_info = get_date_series_info(series)
@@ -189,8 +193,12 @@ def test_empty_series_info(series: Any) -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@pytest.mark.parametrize("series", create_series([None, None]))
-def test_all_null_series_info(series: Any) -> None:
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"A": [None, None]}, exclude=NON_EAGER_LIBS),
+)
+def test_all_null_series_info(df: Any) -> None:
+    series = df["A"]
     assert get_number_series_info(series).min is None
     assert get_number_series_info(series).max is None
     assert get_category_series_info(series).categories == []

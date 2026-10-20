@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 Numeric = int | float
+NO_VALUE: Final = object()
 
 
 @mddoc
@@ -148,12 +149,16 @@ class date(UIElement[str, dt.date]):
         Returns:
             date: A date picker initialized with the series' min and max dates as bounds.
         """
-        start = kwargs.pop("start", None)
-        stop = kwargs.pop("stop", None)
+        start = kwargs.pop("start", NO_VALUE)
+        stop = kwargs.pop("stop", NO_VALUE)
         info = get_date_series_info(series)
-        start = info.min if start is None else start
-        stop = info.max if stop is None else stop
-        if start is None or stop is None:
+        if start is NO_VALUE:
+            start = info.min
+        if stop is NO_VALUE:
+            stop = info.max
+        if (start is NO_VALUE or start is None) and (
+            stop is NO_VALUE or stop is None
+        ):
             raise ValueError(
                 "Cannot infer both start and stop from an empty or all-null series; "
                 "provide explicit bounds."
@@ -307,12 +312,16 @@ class datetime(UIElement[str | None, dt.datetime | None]):
         Returns:
             datetime: A datetime picker initialized with the series' min and max datetimes as bounds.
         """
-        start = kwargs.pop("start", None)
-        stop = kwargs.pop("stop", None)
+        start = kwargs.pop("start", NO_VALUE)
+        stop = kwargs.pop("stop", NO_VALUE)
         info = get_datetime_series_info(series)
-        start = info.min if start is None else start
-        stop = info.max if stop is None else stop
-        if start is None or stop is None:
+        if start is NO_VALUE:
+            start = info.min
+        if stop is NO_VALUE:
+            stop = info.max
+        if (start is NO_VALUE or start is None) and (
+            stop is NO_VALUE or stop is None
+        ):
             raise ValueError(
                 "Cannot infer both start and stop from an empty or all-null series; "
                 "provide explicit bounds."
@@ -475,12 +484,16 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
         Returns:
             date_range: A date range picker initialized with the series' min and max dates as bounds.
         """
-        start = kwargs.pop("start", None)
-        stop = kwargs.pop("stop", None)
+        start = kwargs.pop("start", NO_VALUE)
+        stop = kwargs.pop("stop", NO_VALUE)
         info = get_date_series_info(series)
-        start = info.min if start is None else start
-        stop = info.max if stop is None else stop
-        if start is None or stop is None:
+        if start is NO_VALUE:
+            start = info.min
+        if stop is NO_VALUE:
+            stop = info.max
+        if (start is NO_VALUE or start is None) and (
+            stop is NO_VALUE or stop is None
+        ):
             raise ValueError(
                 "Cannot infer both start and stop from an empty or all-null series; "
                 "provide explicit bounds."

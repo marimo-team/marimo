@@ -58,7 +58,7 @@ def _is_missing(value: Any) -> bool:
     if value is None:
         return True
     try:
-        return bool(value.__ne__(value))
+        return bool(value != value)  # noqa: PLR0124
     except (TypeError, ValueError):
         return False
 
@@ -71,6 +71,8 @@ def get_number_series_info(series: nw.Series[Any]) -> NumberSeriesInfo:
     assert_narwhals_series(series)
 
     series = series.drop_nulls()
+    raw_min = series.min()
+    raw_max = series.max()
 
     def validate_number(value: Any) -> float:
         value = unwrap_py_scalar(value)
@@ -84,13 +86,13 @@ def get_number_series_info(series: nw.Series[Any]) -> NumberSeriesInfo:
     return NumberSeriesInfo(
         min=(
             None
-            if series.len() == 0 or _is_missing(series.min())
-            else validate_number(series.min())
+            if series.len() == 0 or _is_missing(raw_min)
+            else validate_number(raw_min)
         ),
         max=(
             None
-            if series.len() == 0 or _is_missing(series.max())
-            else validate_number(series.max())
+            if series.len() == 0 or _is_missing(raw_max)
+            else validate_number(raw_max)
         ),
         label=_get_name(series),
     )
@@ -119,6 +121,10 @@ def get_date_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
     assert_narwhals_series(series)
 
     series = series.drop_nulls()
+    raw_min = series.min()
+    raw_max = series.max()
+    raw_min = series.min()
+    raw_max = series.max()
 
     def validate_date(value: Any) -> str:
         value = unwrap_py_scalar(value)
@@ -133,13 +139,13 @@ def get_date_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
     return DateSeriesInfo(
         min=(
             None
-            if series.len() == 0 or _is_missing(series.min())
-            else validate_date(series.min())
+            if series.len() == 0 or _is_missing(raw_min)
+            else validate_date(raw_min)
         ),
         max=(
             None
-            if series.len() == 0 or _is_missing(series.max())
-            else validate_date(series.max())
+            if series.len() == 0 or _is_missing(raw_max)
+            else validate_date(raw_max)
         ),
         label=_get_name(series),
     )
@@ -153,6 +159,8 @@ def get_datetime_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
     assert_narwhals_series(series)
 
     series = series.drop_nulls()
+    raw_min = series.min()
+    raw_max = series.max()
 
     def validate_datetime(value: Any) -> str:
         value = unwrap_py_scalar(value)
@@ -171,13 +179,13 @@ def get_datetime_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
     return DateSeriesInfo(
         min=(
             None
-            if series.len() == 0 or _is_missing(series.min())
-            else validate_datetime(series.min())
+            if series.len() == 0 or _is_missing(raw_min)
+            else validate_datetime(raw_min)
         ),
         max=(
             None
-            if series.len() == 0 or _is_missing(series.max())
-            else validate_datetime(series.max())
+            if series.len() == 0 or _is_missing(raw_max)
+            else validate_datetime(raw_max)
         ),
         label=_get_name(series),
     )
