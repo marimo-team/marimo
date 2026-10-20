@@ -1481,7 +1481,7 @@ class LazyLoader(BasePersistenceLoader):
         def _put_or_mark_unserializable(
             key: str,
             value: Any,
-            serialize: Callable[[Any], bytes],
+            loader: str,
             items: list[Item],
             var_name: str = "",
         ) -> bool:
@@ -1492,8 +1492,25 @@ class LazyLoader(BasePersistenceLoader):
             marked unserializable. Records the blob digest for the signed
             manifest when the loader is signing.
             """
+            # Serializer defaults can fail, so fall back to pickle in those cases.
+            serializers: dict[str, Callable[[Any], bytes]] = {
+                loader: BLOB_SERIALIZERS.get(loader, pickle.dumps),
+                "pickle": pickle.dumps,
+            }
             try:
-                data = serialize(value)
+                for suffix, serialize in serializers.items():
+                    try:
+                        data = serialize(value)
+                    except Exception as e:
+                        error = e
+                        continue
+                    if suffix != loader:
+                        key = Path(key).with_suffix(f".{suffix}").as_posix()
+                        for item in items:
+                            item.reference = key
+                    break
+                else:
+                    raise error
                 store.put(key, data)
                 if signing:
                     blob_hashes[key] = _sha256hex(data)
@@ -1519,13 +1536,10 @@ class LazyLoader(BasePersistenceLoader):
             """Serialize and write all blobs + manifest in background."""
             try:
                 if return_ref:
-                    serialize = BLOB_SERIALIZERS.get(
-                        return_loader, pickle.dumps
-                    )
                     _put_or_mark_unserializable(
                         return_ref,
                         return_value,
-                        serialize,
+                        return_loader,
                         [return_item],
                         "return",
                     )
@@ -1534,7 +1548,7 @@ class LazyLoader(BasePersistenceLoader):
                     ui_ok = _put_or_mark_unserializable(
                         ui_key,
                         ui_vars,
-                        pickle.dumps,
+                        "pickle",
                         [defs_dict[v] for v in ui_defs_list],
                         "ui",
                     )
@@ -1553,12 +1567,11 @@ class LazyLoader(BasePersistenceLoader):
                                 "Failed to clear stale ui blob %s", ui_key
                             )
                 for loader, vars_dict in format_vars.items():
-                    serialize = BLOB_SERIALIZERS.get(loader, pickle.dumps)
                     for var, obj in vars_dict.items():
                         _put_or_mark_unserializable(
                             (path / f"{var}.{loader}").as_posix(),
                             obj,
-                            serialize,
+                            loader,
                             [defs_dict[var]],
                             var,
                         )
