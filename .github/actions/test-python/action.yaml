@@ -61,7 +61,8 @@ runs:
       shell: bash
       run: |
         uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
-          -v \
+          -q \
+          --exclude-warning-annotations \
           ${{ !contains(github.event.pull_request.labels.*.name, 'test-serial') && '-n auto' || '-p no:xdist' }} \
           -k "not test_cli" \
           --durations=10 \
@@ -78,7 +79,8 @@ runs:
       shell: bash
       run: |
         uv run --python ${{ inputs.python-version }} --group test-optional pytest tests/ \
-          -v \
+          -q \
+          --exclude-warning-annotations \
           ${{ !contains(github.event.pull_request.labels.*.name, 'test-serial') && '-n auto' || '-p no:xdist' }} \
           -k "not test_cli" \
           --durations=10 \
@@ -99,7 +101,8 @@ runs:
         UV_RESOLUTION: lowest-direct
       run: |
         uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
-          -v \
+          -q \
+          --exclude-warning-annotations \
           ${{ !contains(github.event.pull_request.labels.*.name, 'test-serial') && '-n auto' || '-p no:xdist' }} \
           -k "not test_cli" \
           --durations=10 \
