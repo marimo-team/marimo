@@ -11,11 +11,21 @@ import {
   TransportReadyState,
 } from "./connection";
 import { parseNotebookEvent } from "./events";
+import { type Document, document } from "./resources/document";
+import { createStream } from "./stream";
 
 /** A connection to a notebook on a marimo host. */
 export interface NotebookClient {
   /** Client connection status, independent of application session readiness. */
   readonly connectionAtom: Atom<ConnectionStatus>;
+  /**
+   * The most recently confirmed document.
+   *
+   * Null until a snapshot is complete, after reset or removal, and on
+   * connections without host document events. A temporary disconnection
+   * retains the last document. Partial updates are not exposed.
+   */
+  readonly documentAtom: Atom<Document | null>;
   /** Attempt to restore a closed connection after checking host health. */
   reconnect(): Promise<void>;
 }
@@ -49,9 +59,16 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
   const connectionAtom = atom<ConnectionStatus>({
     state: ConnectionState.NOT_STARTED,
   });
+  // One atom holds the whole stream, which resource atoms derive from.
+  const stream = createStream({ document });
+  const streamAtom = atom(stream.initial);
+  const documentAtom = atom(
+    (get) => get(streamAtom).resources.document.current,
+  );
   let reconnect: (() => Promise<void>) | undefined;
   const client: NotebookClient = {
     connectionAtom,
+    documentAtom,
     reconnect: async () => reconnect?.(),
   };
 
@@ -73,7 +90,33 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
     let shouldRetry = true;
     let terminal = false;
     let checkingHealth = false;
-    const transport = createTransport(url);
+    let streamKey: string | undefined;
+    const transport = createTransport(() => {
+      if (messageFormat === "session") {
+        return url();
+      }
+      const next = new URL(url());
+      next.searchParams.delete("cursor");
+      if (signal.aborted) {
+        return next.toString();
+      }
+      // A cursor is useful with the state that produced it, which a change
+      // of session or notebook invalidates. Authentication may change freely.
+      const identity = new URL(next);
+      identity.searchParams.delete("access_token");
+      identity.searchParams.sort();
+      const key = identity.toString();
+      const state =
+        key === streamKey
+          ? stream.resume(store.get(streamAtom))
+          : stream.initial;
+      streamKey = key;
+      store.set(streamAtom, state);
+      if (state.cursor !== null) {
+        next.searchParams.set("cursor", state.cursor);
+      }
+      return next.toString();
+    });
     const setStatus = (status: ConnectionStatus) =>
       store.set(connectionAtom, status);
     const disconnected = {
@@ -130,12 +173,14 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
       let event;
       try {
         event = parseNotebookEvent(decodeJson(message.data));
+        store.set(streamAtom, stream.reduce(store.get(streamAtom), event));
       } catch (error) {
         Logger.error("Failed to decode notebook message", error);
         if (messageFormat === "session") {
           onMessageError(error);
           return;
         }
+        store.set(streamAtom, stream.initial);
         terminal = true;
         setStatus({
           ...disconnected,
@@ -193,6 +238,7 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
         transport.removeEventListener("message", onMessage);
         transport.close();
         reconnect = undefined;
+        store.set(streamAtom, stream.initial);
         setStatus({ state: ConnectionState.NOT_STARTED });
       },
       { once: true },
