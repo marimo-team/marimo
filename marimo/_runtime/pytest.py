@@ -7,6 +7,7 @@ import re
 import sys
 import types
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo._ast.pytest import MARIMO_TEST_STUB_NAME
@@ -22,8 +23,6 @@ MARIMO_TEST_BLOCK_REGEX = re.compile(rf"{MARIMO_TEST_STUB_NAME}_\d+[(?::)\.]+")
 
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     import pytest
     from _pytest.nodes import Collector, Item, Node
 
@@ -360,27 +359,35 @@ def run_pytest(
     # method is too brittle to handle absolute paths. As such, we default to
     # the normal behavior (in which pytest alters the system path).
     plugin = ReplaceStubPlugin(defs, lcls, global_defs=global_defs)
+    args = [
+        "-qq",
+        "--disable-warnings",
+        "--color=yes",
+        "--code-highlight=no",
+        "-p",
+        "no:codecov",  # Disable codecov plugin to avoid duplicate reports
+        "-p",
+        "no:sugar",  # Disable sugar plugin to avoid duplicate reports
+        "-p",
+        "no:cacheprovider",  # Skip .pytest_cache I/O
+    ]
+    # Without a project config file, pytest anchors collection at the working
+    # directory when the notebook lives under it, and otherwise at the nearest
+    # ancestor the two share (on another Windows drive: the working directory
+    # itself). From that anchor it lists every directory down to the notebook,
+    # racing other processes that create and delete entries along the way, as
+    # under a shared temp directory. Anchor at the notebook's own directory
+    # instead; a project config file above it still applies.
+    notebook_dir = Path(os.path.abspath(notebook_path)).parent
+    if not notebook_dir.is_relative_to(Path.cwd()):
+        args.append(f"--rootdir={notebook_dir}")
+    args.append(notebook_path)
     try:
         # pytest in wasm doesn't seem to set environment variables correctly.
         # This work around is to prevent collision with non-wasm testing.
         os.environ["MARIMO_PYTEST_WASM"] = "1"
         with capture_stdout() as stdout:
-            pytest.main(
-                [
-                    "-qq",
-                    "--disable-warnings",
-                    "--color=yes",
-                    "--code-highlight=no",
-                    "-p",
-                    "no:codecov",  # Disable codecov plugin to avoid duplicate reports
-                    "-p",
-                    "no:sugar",  # Disable sugar plugin to avoid duplicate reports
-                    "-p",
-                    "no:cacheprovider",  # Skip .pytest_cache I/O
-                    notebook_path,
-                ],
-                plugins=[plugin],
-            )
+            pytest.main(args, plugins=[plugin])
     finally:
         del os.environ["MARIMO_PYTEST_WASM"]
         # Evict only project-local modules pytest imported during the run

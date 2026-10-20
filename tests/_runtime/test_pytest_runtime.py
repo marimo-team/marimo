@@ -5,7 +5,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -543,3 +543,114 @@ def test_rerun_keeps_lazily_imported_modules(tmp_path, monkeypatch) -> None:
     # edits are picked up on the next run.
     assert dynamo_kept
     assert not helper_kept
+
+
+def test_collection_stays_in_notebook_dir_outside_working_tree(
+    tmp_path, monkeypatch
+) -> None:
+    """Collection never walks the directories above a notebook that lives
+    outside the working directory.
+
+    With no project config between the notebook and the filesystem root,
+    pytest anchors at the nearest ancestor the notebook shares with the
+    working directory (across drives on Windows, at the working directory
+    itself) and collects every directory from there down to the notebook.
+    On CI that chain passes through the shared temp directory, where other
+    workers create and delete entries mid-scan, and an entry that vanishes
+    between the directory listing and its stat fails the whole collection.
+    """
+    import marimo
+    from marimo._runtime.pytest import run_pytest
+
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    notebook_dir = tmp_path / "notebooks"
+    notebook_dir.mkdir()
+    notebook = notebook_dir / "notebook.py"
+    notebook.write_text("import marimo\napp = marimo.App()\n")
+    monkeypatch.chdir(workdir)
+
+    app = marimo.App()
+
+    @app.cell
+    def _():
+        def test_anchor():
+            assert True
+
+        return
+
+    scanned: list[Path] = []
+    real_scandir = os.scandir
+
+    def recording_scandir(path: str | os.PathLike[str] | int = ".") -> Any:
+        # Directory removal scans by file descriptor; only paths matter here.
+        if isinstance(path, int):
+            return real_scandir(path)
+        scanned.append(Path(os.path.abspath(path)))
+        return real_scandir(path)
+
+    monkeypatch.setattr(os, "scandir", recording_scandir)
+    previous = os.environ.get("PYTEST_CURRENT_TEST", "")
+    os.environ.pop("PYTEST_CURRENT_TEST", None)
+    try:
+        _, lcls = app.run()
+        result = run_pytest(
+            defs={"test_anchor"}, lcls=dict(lcls), notebook_path=notebook
+        )
+    finally:
+        if previous:
+            os.environ["PYTEST_CURRENT_TEST"] = previous
+
+    assert (result.passed, result.failed, result.errors) == (1, 0, 0), (
+        result.output
+    )
+    # The notebook's own directory is listed; nothing above it is.
+    assert notebook_dir in scanned
+    assert tmp_path not in scanned
+
+
+def test_working_dir_conftest_applies_to_notebook_below_it(
+    tmp_path, monkeypatch
+) -> None:
+    """A conftest.py in the working directory still serves a notebook in a
+    subdirectory when no project config file marks the root. Anchoring the
+    run at the notebook is reserved for notebooks outside the working tree.
+    """
+    import marimo
+    from marimo._runtime.pytest import run_pytest
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "conftest.py").write_text(
+        "import pytest\n\n\n"
+        "@pytest.fixture\n"
+        "def shared_value():\n"
+        "    return 7\n"
+    )
+    notebook_dir = tmp_path / "notebooks"
+    notebook_dir.mkdir()
+    notebook = notebook_dir / "notebook.py"
+    notebook.write_text("import marimo\napp = marimo.App()\n")
+
+    app = marimo.App()
+
+    @app.cell
+    def _():
+        def test_shared(shared_value):
+            assert shared_value == 7
+
+        return
+
+    previous = os.environ.get("PYTEST_CURRENT_TEST", "")
+    os.environ.pop("PYTEST_CURRENT_TEST", None)
+    try:
+        _, lcls = app.run()
+        result = run_pytest(
+            defs={"test_shared"}, lcls=dict(lcls), notebook_path=notebook
+        )
+    finally:
+        if previous:
+            os.environ["PYTEST_CURRENT_TEST"] = previous
+
+    assert (result.passed, result.failed, result.errors) == (1, 0, 0), (
+        result.output
+    )
