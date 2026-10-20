@@ -45,14 +45,14 @@ class CellLifecycleRegistry:
             # already be deleted.
             if cell_id not in ctx.graph.cells:
                 raise NoOwningCellError(
-                    "The cell that started this background work was "
-                    "deleted, so marimo cannot clean up after it."
+                    "Since the cell that started this background work was deleted,"
+                    "marimo cannot provide clean up. Start background work with "
+                    "mo.Thread within a cell."
                 )
         if cell_id is None:
             raise NoOwningCellError(
                 "No cell is running on this thread, so marimo cannot clean "
-                "up this object when a cell re-runs. Start background work "
-                "with mo.Thread from a cell instead of a plain thread."
+                "up. Start background work with mo.Thread within a cell."
             )
 
         item.create(ctx)
