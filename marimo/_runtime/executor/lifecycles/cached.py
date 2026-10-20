@@ -176,7 +176,11 @@ class CachedLifecycle:
             # TODO(dmadisetti): Attempt to restore UI elements as well.
             # Currently the UIElement class has UIDs that are session-specific.
             ui_live = self._restored_ui_defs(attempt, glbls)
-            if not ui_live:
+            # A cell with no definitions and an unpicklable last expression
+            # restores a placeholder as its output. The caller would get the
+            # placeholder back, so the cell runs live instead.
+            stub_output = _is_unhashable_stub(attempt.meta.get("return"))
+            if not ui_live and not stub_output:
                 self._restored_keys[cell_id] = str(
                     self._loader.build_path(attempt.key)
                 )
@@ -188,8 +192,8 @@ class CachedLifecycle:
                 )
 
             LOGGER.debug(
-                "Cache hit for %s defines UI elements; running "
-                "live to register them with this session",
+                "Cache hit for %s defines UI elements or a placeholder "
+                "output, so it runs live",
                 cell_id,
             )
             self._attempts.pop(cell_id, None)

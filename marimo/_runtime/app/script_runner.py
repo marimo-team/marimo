@@ -197,7 +197,12 @@ class AppScriptRunner:
         cells = self._cache.invalidate_stub_definers(glbls)
         if not cells:
             return False
-        self._scheduler.requeue_for_rerun(cells)
+        # A rerun producer may define new values, so every cell downstream
+        # of it is requeued too. Those whose inputs did not change hit the
+        # cache again.
+        self._scheduler.requeue_for_rerun(
+            dataflow.transitive_closure(self.app.graph, cells)
+        )
         return self._scheduler.pending()
 
     def _handle_run_result(
@@ -214,7 +219,11 @@ class AppScriptRunner:
         if isinstance(exc, MarimoRescheduleError):
             # Stale-cache signal from a lifecycle; `cells_to_rerun` includes
             # this cell, so requeuing (producers first) retries it live.
-            self._scheduler.requeue_for_rerun(exc.cells_to_rerun)
+            # Descendants of the rerun producers are requeued as well, since
+            # the values they read may change.
+            self._scheduler.requeue_for_rerun(
+                dataflow.transitive_closure(self.app.graph, exc.cells_to_rerun)
+            )
             return
         if not isinstance(exc, BaseException):
             # Defensive check descendants, since all exceptions are expected to

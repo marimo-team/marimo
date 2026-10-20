@@ -11,6 +11,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._save.manifest import CacheManifest, is_manifest_name
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 NOTEBOOK_SOURCE = """# /// script
@@ -320,3 +321,156 @@ def test_app_run_reruns_cells_whose_definitions_did_not_pickle(
         assert "defined increment" in result.stdout, (
             f"the {attempt} run must execute the cell"
         )
+
+
+# `n` changes on every run and `f` cannot be pickled.
+STUB_DESCENDANT_NOTEBOOK_SOURCE = """# /// script
+# [tool.marimo.runtime]
+# cache_cells = true
+# ///
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    import time
+
+    n = time.time()
+    f = lambda: 1
+    return f, n
+
+
+@app.cell
+def _(n):
+    y = 2 * n
+    return (y,)
+"""
+
+# Reads only `f`, so its cache key hashes the code of the defining cell.
+STUB_READER_CELL_SOURCE = """
+
+@app.cell
+def _(f):
+    h = f()
+    print("computed h")
+    return (h,)
+"""
+
+STUB_DESCENDANT_DRIVER_SOURCE = """from notebook import app
+
+_, defs = app.run()
+print(f"consistent={defs['y'] == 2 * defs['n']}")
+"""
+
+
+def _run_driver(tmp_path: Path, notebook: str) -> Callable[[], str]:
+    (tmp_path / "notebook.py").write_text(notebook, encoding="utf-8")
+    driver = tmp_path / "driver.py"
+    driver.write_text(STUB_DESCENDANT_DRIVER_SOURCE, encoding="utf-8")
+
+    def run() -> str:
+        result = subprocess.run(
+            [sys.executable, str(driver)],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+            timeout=120,
+        )
+        assert result.returncode == 0, result.stderr
+        return result.stdout
+
+    return run
+
+
+def test_app_run_reruns_descendants_of_rerun_producers(
+    tmp_path: Path,
+) -> None:
+    """A producer rerun after the run reruns the cells that read it.
+
+    On a warm run the first cell restores a stale `n` next to a placeholder
+    for `f`, and the second cell restores the `y` that matched the stale
+    `n`. Rerunning the first cell alone would hand back `y != 2 * n`.
+    """
+    run = _run_driver(tmp_path, STUB_DESCENDANT_NOTEBOOK_SOURCE)
+    assert "consistent=True" in run()
+    assert "consistent=True" in run(), (
+        "the derived value must come from the rerun producer"
+    )
+
+
+def test_app_run_reruns_descendants_when_a_reader_reschedules(
+    tmp_path: Path,
+) -> None:
+    """A producer rerun mid-run reruns the cells that read it.
+
+    The third cell reads the placeholder for `f` and reschedules the first
+    cell before the run ends. The second cell must follow the rerun, while
+    the third cell's key did not change, so it still restores.
+    """
+    run = _run_driver(
+        tmp_path, STUB_DESCENDANT_NOTEBOOK_SOURCE + STUB_READER_CELL_SOURCE
+    )
+    cold = run()
+    assert "consistent=True" in cold
+    assert "computed h" in cold
+    warm = run()
+    assert "consistent=True" in warm, (
+        "the derived value must come from the rerun producer"
+    )
+    assert "computed h" not in warm, (
+        "a descendant whose inputs did not change should still restore"
+    )
+
+
+OUTPUT_STUB_NOTEBOOK_SOURCE = """# /// script
+# [tool.marimo.runtime]
+# cache_cells = true
+# ///
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    lambda value: value + 1
+    return
+"""
+
+OUTPUT_STUB_DRIVER_SOURCE = """from notebook import app
+
+outputs, _ = app.run()
+output = outputs[0]
+print(f"output kind={type(output).__name__}")
+print(f"called {output(1)}")
+"""
+
+
+def test_app_run_never_returns_a_placeholder_output(tmp_path: Path) -> None:
+    """A def-less cell whose last expression did not pickle runs live.
+
+    The cell defines nothing, so no definition reveals the placeholder. The
+    restored output itself must be recognized and the cell rerun.
+    """
+    (tmp_path / "notebook.py").write_text(
+        OUTPUT_STUB_NOTEBOOK_SOURCE, encoding="utf-8"
+    )
+    driver = tmp_path / "driver.py"
+    driver.write_text(OUTPUT_STUB_DRIVER_SOURCE, encoding="utf-8")
+
+    for attempt in ("cold", "warm"):
+        result = subprocess.run(
+            [sys.executable, str(driver)],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+            timeout=120,
+        )
+        assert "output kind=function" in result.stdout, (
+            attempt,
+            result.stdout,
+        )
+        assert result.returncode == 0, (attempt, result.stderr)
+        assert "called 2" in result.stdout, attempt
