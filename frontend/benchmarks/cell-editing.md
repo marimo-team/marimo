@@ -111,6 +111,20 @@ Before/after narrowing outline subscriptions to cell order and runtime state.
 
 The 100-cell continuous p95 ranged from 37.2–110.7 ms before and 22.8–24.9 ms after.
 
+### Favicon input processing
+
+*Last recorded: 2026-10-20 · Apple M4 Max · Chromium 153.0.8010.12 · 6× CPU slowdown · background CPU load present*
+
+Milliseconds, median of three per-run p95 values; no outputs, 150 continuous and 20 paused characters.
+Before/after narrowing favicon subscriptions and fixing reset cleanup.
+
+| Cells | Continuous before | Continuous after | Paused before | Paused after |
+| --- | --- | --- | --- | --- |
+| 25 | 12.9 | 13.2 | 12.4 | 12.2 |
+| 100 | 19.7 | 19.5 | 20.5 | 20.6 |
+
+For 50 keystrokes at 25 cells, favicon renders and icon lookups each fell from 50 to 0.
+
 ### Isolated operations
 
 *Last recorded: 2026-10-19 · Apple M4 Max · Node 24.22.0 · Vitest 4.1.11 · jsdom*
