@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, cast
 from marimo import _loggers as loggers
 from marimo._cli.tips import CliTip
 from marimo._config.manager import MarimoConfigManager, ScriptConfigReader
-from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.config import StarletteServerState
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
@@ -204,11 +203,6 @@ class AppState(AppStateBase):
             )
 
         return self.session_by_stable_id(stable_session_id)
-
-    def require_host(self) -> None:
-        """Reject agent-aware routes when host support is disabled."""
-        if not GLOBAL_SETTINGS.ENABLE_HOST:
-            raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
 
     def session_by_stable_id(self, stable_id: str) -> Session:
         """Resolve a notebook's stable session ID.

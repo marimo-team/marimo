@@ -60,12 +60,10 @@ def create_starlette_app(
     skew_protection: bool = True,
     timeout: float | None = None,
 ) -> Starlette:
-    final_middlewares: list[Middleware] = []
-    if GLOBAL_SETTINGS.ENABLE_HOST:
-        # Handle host API requests first to bypass the editor's middleware.
-        final_middlewares.append(
-            Middleware(HostApiMiddleware, base_url=base_url)
-        )
+    # Handle host API requests first to bypass the editor's middleware.
+    final_middlewares: list[Middleware] = [
+        Middleware(HostApiMiddleware, base_url=base_url)
+    ]
 
     if allow_origins is None:
         allow_origins = ("localhost", "127.0.0.1") + (

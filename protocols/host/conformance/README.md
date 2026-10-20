@@ -4,7 +4,7 @@ Python tests for hosts implementing the [host protocol](../spec.md). The suite
 uses HTTP and SSE and does not import marimo.
 
 Start a host in a disposable workspace (for marimo, use
-`MARIMO_ENABLE_HOST=1 marimo edit`), then run this from the repository root:
+`marimo edit`), then run this from the repository root:
 
 ```sh
 uv run --locked --project protocols/host/conformance \

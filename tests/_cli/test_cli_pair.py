@@ -64,7 +64,6 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     Notebook discovery uses the editor token. Pass --token-file <PATH> to
     notebook list or execute without --notebook when a token is required.
     Host commands read their token from the private local host record.
-    With host support off, execution uses the editor token and stable Session.
 
   Workflow:
     If no server is running, start one in the background:
@@ -73,8 +72,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
       marimo pair notebook list
     Connect to the notebook before waiting for work.
     Run marimo pair connect --help to check supported harnesses.
-    If your harness is supported, start the server with MARIMO_ENABLE_HOST=1,
-    then run (restart an existing server to enable host support):
+    If your harness is supported, run:
       marimo pair connect --url <URL> --notebook <NOTEBOOK>
     Otherwise, work with the notebook using pair execute:
     marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
@@ -101,7 +99,6 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     or when execution is unconfirmed.
 
   Agent messages (preview):
-    Start the server with MARIMO_ENABLE_HOST=1. The CLI needs no flag.
     Inside Codex, Claude Code, or OpenCode, run:
       marimo pair connect --url <URL> --notebook <NOTEBOOK>.
     Codex must use its shared daemon and support codex queue.

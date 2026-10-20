@@ -697,7 +697,7 @@ def resolve_host(url: str, *, root: Path | None = None) -> HostEndpoint:
         except (OSError, ValueError, msgspec.DecodeError, psutil.Error):
             continue
     raise PairError(
-        "No live host record matches this URL. Start a local edit server with MARIMO_ENABLE_HOST=1, or restart the existing server with it."
+        "No live host record matches this URL. Start a local edit server, or restart the existing server."
     )
 
 

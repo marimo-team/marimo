@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._core import backend as be
 from marimo._messaging.notebook import NotebookDocument
 from marimo._messaging.notification import NotificationMessage
@@ -19,11 +18,6 @@ from marimo._session.events import SessionEventBus
 from marimo._session.model import ConnectionState
 from marimo._session.types import KernelState
 from marimo._types.ids import ConsumerId
-
-
-@pytest.fixture
-def enable_host(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(GLOBAL_SETTINGS, "ENABLE_HOST", True)
 
 
 class FakeSession:

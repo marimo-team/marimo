@@ -35,17 +35,15 @@ Run `uvx marimo@latest pair --help` for the available commands.
 ## Receive notebook messages in your agent
 
 Agent messages let you send notebook errors to a connected conversation.
-This preview requires host support on the marimo server.
 Agent connections require a saved notebook inside the server project.
 
 Start the server with:
 
 ```bash
-MARIMO_ENABLE_HOST=1 uvx marimo@latest edit my_notebook.py
+uvx marimo@latest edit my_notebook.py
 ```
 
-If the server is already running, restart it with this setting.
-Then open **Connect your agent** and follow the dialog instructions.
+Open **Connect your agent** and follow the dialog instructions.
 
 Supported agents have these requirements:
 

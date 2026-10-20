@@ -129,7 +129,7 @@ def start_forwarder(
             or process.poll() is not None
         ):
             raise PairError(
-                "The agent message forwarder could not attach. Check the server, token and MARIMO_ENABLE_HOST=1."
+                "The agent message forwarder could not attach. Check the server and token."
             )
         return record
     except (OSError, psutil.Error, PairError):
