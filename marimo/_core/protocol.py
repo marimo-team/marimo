@@ -47,7 +47,10 @@ class CellConfig(Struct, frozen=True):
         ),
     ]
     hide_code: Annotated[
-        bool, Meta(description="Whether clients hide the code by default.")
+        bool,
+        Meta(
+            description="Whether clients hide the code by default. This is a presentation preference; source availability is represented by `Cell.code`."
+        ),
     ]
 
 
@@ -758,16 +761,19 @@ class AttachmentRemovedEvent(
 
 
 class Cell(Struct, frozen=True):
-    code: Annotated[
-        str,
-        Meta(
-            description="The cell's source code, with newline line endings. A host normalizes other line endings when it loads a file."
-        ),
-    ]
+    code: (
+        Annotated[
+            str,
+            Meta(
+                description="The cell's source code, with newline line endings, or null when the host does not expose source to this client. An empty string is an empty cell. A host normalizes other line endings when it loads a file. Source availability does not grant editing permission; see the notebook's operations."
+            ),
+        ]
+        | None
+    )
     code_hash: Annotated[
         Etag,
         Meta(
-            description="Identifies the code alone. Its text is `code`. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code."
+            description="Identifies the code alone. Its text is the actual source, even when `code` is null. Withholding source does not change this hash, the cell or document etags, or their versions. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code without needing the source."
         ),
     ]
     config: CellConfig
@@ -1685,7 +1691,7 @@ class Execution(Struct, frozen=True):
         Annotated[
             str,
             Meta(
-                description="The submitted code for an execution with no cell. Null for a cell's execution, since the cell holds its code."
+                description="The submitted code for an execution with no cell. Null for a cell's execution; its source is available through the cell when the host exposes it."
             ),
         ]
         | None

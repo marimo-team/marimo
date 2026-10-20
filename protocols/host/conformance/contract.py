@@ -206,7 +206,8 @@ def document_state(
     assert sorted(document["order"]) == sorted(cells)
     for cell in cells.values():
         assert cell["notebook_id"] == document["notebook_id"]
-        assert cell["code_hash"] == etag(cell["code"])
+        if cell["code"] is not None:
+            assert cell["code_hash"] == etag(cell["code"])
         config = cell["config"]
         parts = [cell["code_hash"], cell["name"]]
         parts.extend(

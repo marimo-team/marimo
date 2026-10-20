@@ -20,6 +20,7 @@ FIXTURES = (
 MODELS = {
     "record.json": protocol.HostRecord,
     "cell.json": protocol.Cell,
+    "cell-withheld.json": protocol.Cell,
     "analysis.json": protocol.Analysis,
     "diagnostic.json": protocol.Error,
     "edit.json": protocol.EditRequest,
@@ -611,3 +612,24 @@ def test_required_nullable_fields(field: str) -> None:
         msgspec.json.decode(
             json.dumps({**wire, field: ""}), type=protocol.Execution
         )
+
+
+def test_cell_source_is_required_but_nullable_only_in_records() -> None:
+    cell = json.loads((FIXTURES / "cell.json").read_text(encoding="utf-8"))
+    for code in (None, "", cell["code"]):
+        value = msgspec.json.decode(
+            json.dumps({**cell, "code": code}), type=protocol.Cell
+        )
+        assert value.code == code
+    missing = {key: value for key, value in cell.items() if key != "code"}
+    with pytest.raises(
+        msgspec.ValidationError, match="missing required field"
+    ):
+        msgspec.json.decode(json.dumps(missing), type=protocol.Cell)
+    for value in ({"id": cell["id"]}, {"id": cell["id"], "code": None}):
+        with pytest.raises(msgspec.ValidationError):
+            msgspec.json.decode(json.dumps(value), type=protocol.CellInput)
+    value = msgspec.json.decode(
+        json.dumps({"id": cell["id"], "code": ""}), type=protocol.CellInput
+    )
+    assert value.code == ""

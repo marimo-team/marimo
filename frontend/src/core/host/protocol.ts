@@ -618,7 +618,7 @@ export const Execution = zod
       .string()
       .nullable()
       .describe(
-        "The submitted code for an execution with no cell. Null for a cell's execution, since the cell holds its code.",
+        "The submitted code for an execution with no cell. Null for a cell's execution; its source is available through the cell when the host exposes it.",
       ),
     code_hash: Etag.describe(
       "The `code_hash` of the code that was evaluated, computed as a cell's is.",
@@ -715,7 +715,9 @@ export const CellConfig = zod
     disabled: zod.boolean().describe("Whether the cell is kept from running."),
     hide_code: zod
       .boolean()
-      .describe("Whether clients hide the code by default."),
+      .describe(
+        "Whether clients hide the code by default. This is a presentation preference; source availability is represented by `Cell.code`.",
+      ),
     expand_output: zod
       .boolean()
       .describe(
@@ -771,8 +773,9 @@ export const Cell = zod
     notebook_id: NotebookId,
     code: zod
       .string()
+      .nullable()
       .describe(
-        "The cell's source code, with newline line endings. A host normalizes other line endings when it loads a file.",
+        "The cell's source code, with newline line endings, or null when the host does not expose source to this client. An empty string is an empty cell. A host normalizes other line endings when it loads a file. Source availability does not grant editing permission; see the notebook's operations.",
       ),
     name: zod
       .string()
@@ -784,7 +787,7 @@ export const Cell = zod
       "Identifies code, name, and config together, and is the precondition for editing the cell. Its text is `code_hash`, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output` in that order, each written as a JSON scalar such as `null`, `0`, or `true`.",
     ),
     code_hash: Etag.describe(
-      "Identifies the code alone. Its text is `code`. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code.",
+      "Identifies the code alone. Its text is the actual source, even when `code` is null. Withholding source does not change this hash, the cell or document etags, or their versions. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code without needing the source.",
     ),
     version: zod
       .int()
@@ -1800,7 +1803,7 @@ export const CellInput = zod
     config: CellConfigInput.optional(),
   })
   .describe(
-    "A cell as a client writes it. The host derives the etags and the analysis.",
+    "A cell as a client writes it. Code must be a string, even when the host withholds source in cell records. Null is not an edit or a request to preserve existing source. The host derives the etags and the analysis.",
   );
 
 export type CellInput = zod.input<typeof CellInput>;
