@@ -39,9 +39,9 @@ uv run --no-project --with-editable ../.. marimo edit . \
   --headless --no-token --skip-update-check --port 29871
 ```
 
-The fixture directory must not exist. Fixtures contain 20 lines per cell, no outputs, and disabled Copilot and pylsp.
+The fixture directory must not exist. Fixtures contain 20 editable lines per cell, excluding the generated return statement.
+Copilot and pylsp are disabled. Default fixtures have no outputs.
 Add `--outlines` to create `outline-25.py` and `outline-100.py` with 48 and 198 rendered headings.
-Set `EDITING_BENCH_HEADINGS` to the corresponding count when benchmarking these fixtures.
 The harness restores edits after successful runs. Failed or interrupted runs can leave edits behind.
 
 In another terminal, from `frontend`:
@@ -51,6 +51,15 @@ node benchmarks/cell-editing.browser.ts \
   'http://127.0.0.1:29871/?file=browser-25.py' ../.context/browser-results
 node benchmarks/cell-editing.browser.ts \
   'http://127.0.0.1:29871/?file=browser-100.py' ../.context/browser-results
+```
+
+For fixtures generated with `--outlines`, use these commands instead:
+
+```sh
+EDITING_BENCH_HEADINGS=48 node benchmarks/cell-editing.browser.ts \
+  'http://127.0.0.1:29871/?file=outline-25.py' ../.context/outline-results
+EDITING_BENCH_HEADINGS=198 node benchmarks/cell-editing.browser.ts \
+  'http://127.0.0.1:29871/?file=outline-100.py' ../.context/outline-results
 ```
 
 | Environment variable | Default | Purpose |

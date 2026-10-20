@@ -105,13 +105,13 @@ try {
             { selector: headingSelector, expected: expectedHeadings },
           );
         }
-        const headingCount = await page.locator(headingSelector).count();
         await page.waitForFunction(
           () =>
             !document.querySelector(
               '[data-status="running"], [data-status="queued"]',
             ),
         );
+        const headingCount = await page.locator(headingSelector).count();
         const editor = page.locator(".cm-content").nth(Math.floor(count / 2));
         await editor.focus();
         await editor.press("ControlOrMeta+End");
