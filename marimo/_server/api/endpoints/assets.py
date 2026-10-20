@@ -423,6 +423,7 @@ async def index(request: Request) -> Response:
         )
         if (
             context is not None
+            and context.bridge.app_sessions is None
             and absolute_filepath
             and not app_state.remote_url
         ):

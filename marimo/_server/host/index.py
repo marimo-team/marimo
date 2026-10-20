@@ -114,6 +114,19 @@ class WorkspaceIndex:
             return None
         return self._publish(file, modified, request_id=request_id)
 
+    def untitled(self) -> protocol.Notebook:
+        """Register an editor document before it has a file."""
+        record = protocol.Notebook(
+            id=mint(protocol.NotebookId, "nb"),
+            project_id=self.project_id,
+            path=None,
+            name="Untitled",
+            operations=("notebook.edit",),
+            updated_at=None,
+        )
+        self._host.add_notebook(record, self._initialize)
+        return record
+
     def moved(
         self,
         notebook_id: protocol.NotebookId,

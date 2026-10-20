@@ -58,6 +58,10 @@ class HostApiMiddleware:
         context = getattr(request.app.state, "host_context", None)
         if context is None:
             response = problem(404, "not-found", "This server is not a host")
+        elif context.bridge.app_sessions is not None:
+            response = problem(
+                404, "not-found", "App sessions do not expose a host catalog"
+            )
         elif self.editor_socket.matches(scope)[
             0
         ] is Match.FULL and not _bearer_matches(

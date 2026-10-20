@@ -25,12 +25,32 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+async def ensure_app_host(app: Starlette) -> HostContext:
+    """Initialize a private app host, including for mounts without a lifespan."""
+    state = AppStateBase.from_app(app)
+    assert state.mode is SessionMode.RUN
+    if state.host_context is not None:
+        return state.host_context
+    bridge = SessionBridge(state.session_manager, state.config_manager)
+    # App open only subscribes to session events: it does not index files or
+    # await adoption. Concurrent first connections share this context.
+    await bridge.open()
+    context = HostContext(bridge=bridge, token="", port=0)
+    app.state.host_context = context
+    return context
+
+
 @contextlib.asynccontextmanager
 async def host(app: Starlette) -> AsyncIterator[None]:
-    """Initialize the host API and discovery record in edit mode."""
+    """Serve notebook sessions; publish local discovery only in edit mode."""
     state = AppStateBase.from_app(app)
-    if state.mode is not SessionMode.EDIT:
-        yield
+    if state.mode is SessionMode.RUN:
+        context = await ensure_app_host(app)
+        try:
+            yield
+        finally:
+            context.bridge.close()
+            app.state.host_context = None
         return
 
     server = state.server.config
