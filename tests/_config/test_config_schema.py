@@ -15,7 +15,6 @@ from typing import (
 import msgspec
 import pytest
 from msgspec import UNSET, UnsetType
-from msgspec.structs import fields
 
 from marimo._config import config as legacy_config, config_schema
 from marimo._config.config import (
@@ -27,7 +26,6 @@ from marimo._config.config_schema import MarimoConfig
 from marimo._config.manager import UserConfigStore
 from marimo._config.schema_utils import (
     Config,
-    config_field_metadata,
     default_if_unset,
 )
 
@@ -84,9 +82,11 @@ def test_runtime_defaults_read_environment(
 
 @pytest.mark.parametrize("cls", SCHEMA_CLASSES, ids=lambda cls: cls.__name__)
 def test_schema_fields_have_descriptions(cls: type[Config]) -> None:
-    metadata = config_field_metadata(cls)
     assert issubclass(cls, msgspec.Struct)
-    assert all(metadata[item.name].description for item in fields(cls))
+    properties = msgspec.json.schema(cls)["$defs"][cls.__name__]["properties"]
+    assert all(
+        properties[name].get("description") for name in cls.__struct_fields__
+    )
 
 
 def _normalize_type(annotation: Any) -> Any:
@@ -346,16 +346,13 @@ def test_metadata_describes_and_hides_secrets() -> None:
         for name in config.__struct_fields__
         if name not in {"api_key", "extra_headers"}
     }
-    metadata = config_field_metadata(config_schema.OpenAiConfig)
-    assert metadata["api_key"].extra == {"sensitive": True}
-    assert metadata["model"].extra == {"deprecated": True}
     schema = msgspec.json.schema(config_schema.OpenAiConfig)["$defs"][
         "OpenAiConfig"
     ]
     assert schema["properties"]["model"]["deprecated"] is True
     assert (
         schema["properties"]["api_key"]["description"]
-        == metadata["api_key"].description
+        == "the OpenAI API key or an `env:` reference"
     )
 
 
@@ -401,5 +398,4 @@ def test_credential_mappings_are_hidden_from_representations(
     assert "credential-mapping-secret" not in repr(config)
     assert "credential-mapping-secret" not in repr(config.__rich_repr__())
     assert field_name not in dict(config.__rich_repr__())
-    assert config_field_metadata(cls)[field_name].extra == {"sensitive": True}
     assert config.to_dict()[field_name] == credentials

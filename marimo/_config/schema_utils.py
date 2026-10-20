@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import copy
 import sys
-from functools import cache
 from typing import (
     Annotated,
     Any,
@@ -28,20 +27,6 @@ else:
 def default_if_unset(value: Any, default: Any) -> Any:
     """Use a fallback only for absent values, preserving explicit None."""
     return default if value is UNSET else value
-
-
-@cache
-def config_field_metadata(cls: type[Config]) -> dict[str, Meta]:
-    """Read field metadata without changing the field's runtime type."""
-    return {
-        name: metadata
-        for name, annotation in get_type_hints(
-            cls, include_extras=True
-        ).items()
-        if get_origin(annotation) is Annotated
-        for metadata in get_args(annotation)[1:]
-        if isinstance(metadata, Meta)
-    }
 
 
 def _prepare_mcp_config(
@@ -126,7 +111,15 @@ class Config(msgspec.Struct, dict=True, kw_only=True):
         self._extra_fields: dict[str, object] = {}
 
     def __rich_repr__(self) -> list[tuple[str, Any]]:
-        metadata = config_field_metadata(type(self))
+        metadata = {
+            name: metadata
+            for name, annotation in get_type_hints(
+                type(self), include_extras=True
+            ).items()
+            if get_origin(annotation) is Annotated
+            for metadata in get_args(annotation)[1:]
+            if isinstance(metadata, Meta)
+        }
         return [
             (item.name, getattr(self, item.name))
             for item in fields(self)
