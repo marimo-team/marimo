@@ -3,13 +3,12 @@
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import { KnownQueryParams } from "../constants";
+import { NOTEBOOK_EVENT_TYPES } from "../host/events";
 import { isIslands } from "../islands/utils";
 import { getSessionId, type SessionId } from "../kernel/session";
 import { isStaticNotebook } from "../static/static-state";
 import { isWasm } from "../wasm/utils";
 import type { RuntimeConfig } from "./types";
-
-const HOST_EVENT_TYPES = ["marimo"];
 
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
@@ -165,7 +164,7 @@ export class RuntimeManager {
     const url = this.formatWsURL(path, searchParams);
     if (notebookId) {
       // TODO(MO-8034): Separate host options from notebook query params.
-      url.searchParams.set("types", HOST_EVENT_TYPES.join(","));
+      url.searchParams.set("types", NOTEBOOK_EVENT_TYPES.join(","));
     }
     return url;
   }
@@ -177,6 +176,8 @@ export class RuntimeManager {
    * (see `headers()`) instead of the URL.
    */
   public getSseURL(sessionId: SessionId): URL {
+    // TODO: Migrate editor SSE to the host event stream. Until then, host
+    // state such as attachments is unavailable on this legacy connection.
     const url = this.formatHttpURL({
       path: "/sse",
       searchParams: this.getSessionSearchParams(sessionId),

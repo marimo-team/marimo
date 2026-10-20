@@ -41,11 +41,6 @@ import { Logger } from "@/utils/Logger";
 import { Deferred } from "@/utils/Deferred";
 import { cellId } from "@/__tests__/branded";
 import { alertAtom, getPackageAlert } from "@/core/alerts/state";
-import {
-  type Attachment,
-  attachmentsAtom,
-  agentAttachmentsAtom,
-} from "@/core/attachments/state";
 import { notebookAtom } from "@/core/cells/cells";
 import { AppConfigSchema } from "@/core/config/config-schema";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
@@ -239,28 +234,6 @@ describe("useNotebookSession messages", () => {
     });
   }
 
-  it("replaces attachment snapshots, including the last detach", () => {
-    const agent: Attachment = {
-      id: "a1",
-      kind: "agent",
-      name: "Pi",
-      since: "2026-10-14T00:00:00Z",
-      notebook_id: "nb-test",
-      identity: "pi-thread",
-    };
-    const client: Attachment = {
-      id: "c1",
-      kind: "client",
-      name: null,
-      since: "2026-10-14T00:00:01Z",
-      notebook_id: "nb-test",
-    };
-    for (const attachments of [[agent, client], [client], []]) {
-      receive({ data: { op: "attachments", attachments } });
-      expect(store.get(attachmentsAtom)).toEqual(attachments);
-    }
-  });
-
   it.each(["{broken", "null"])(
     "reports a malformed legacy frame and continues applying notifications: %s",
     (data) => {
@@ -405,150 +378,6 @@ it.each(["kernel-ready", "reconnected"])(
       );
     });
     expect(store.get(connectionAtom).state).toBe(ConnectionState.OPEN);
-  },
-);
-
-describe("attachment snapshots across browser connections", () => {
-  const agent: Attachment = {
-    id: "a1",
-    kind: "agent",
-    name: "Pi",
-    since: "2026-10-14T00:00:00Z",
-    notebook_id: "nb-test",
-    identity: "pi-thread",
-  };
-
-  function connectedSession() {
-    const store = createStore();
-    store.set(connectionAtom, { state: ConnectionState.OPEN });
-    store.set(attachmentsAtom, [agent]);
-    const transport = makeTransport(WebSocket.OPEN);
-    vi.mocked(createConnectionTransport).mockReturnValue(transport);
-    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
-    renderConnectionHook(store);
-    const options = getTransportHandlers();
-    const receive = (data: NotificationPayload["data"]) =>
-      act(() => {
-        options.onMessage(
-          new MessageEvent("message", {
-            data: JSON.stringify({ op: data.op, data }),
-          }),
-        );
-      });
-    return { store, transport, options, receive };
-  }
-
-  it.each([
-    "MARIMO_NO_FILE_KEY",
-    "MARIMO_NO_SESSION_ID",
-    "MARIMO_NO_SESSION",
-    "MARIMO_SHUTDOWN",
-    "MARIMO_KERNEL_STARTUP_ERROR",
-    "MARIMO_UNAUTHORIZED",
-    "MARIMO_KIOSK_NOT_ALLOWED",
-    "MARIMO_TRANSPORT_EXHAUSTED",
-  ])("clears cached attachments on %s", (reason) => {
-    const { store, transport, options } = connectedSession();
-    act(() => options.onClose(new CloseEvent("close", { reason })));
-    expect(store.get(attachmentsAtom)).toEqual([]);
-    expect(store.get(agentAttachmentsAtom)).toEqual([]);
-    expect(store.get(connectionAtom).state).toBe(ConnectionState.CLOSED);
-    expect(transport.reconnect).not.toHaveBeenCalled();
-  });
-
-  it("clears the snapshot on transport error", () => {
-    const { store, options } = connectedSession();
-    act(() => options.onError(new Event("error")));
-    expect(store.get(attachmentsAtom)).toEqual([]);
-    expect(store.get(agentAttachmentsAtom)).toEqual([]);
-  });
-
-  it("waits for a fresh snapshot after a transient reconnect", async () => {
-    const { store, transport, options, receive } = connectedSession();
-    act(() => options.onClose(new CloseEvent("close")));
-    expect(store.get(attachmentsAtom)).toEqual([]);
-    expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
-    expect(transport.reconnect).toHaveBeenCalledOnce();
-
-    await act(async () => options.onOpen(new Event("open")));
-    receive({ op: "reconnected" });
-    expect(store.get(connectionAtom).state).toBe(ConnectionState.OPEN);
-    expect(store.get(agentAttachmentsAtom)).toEqual([]);
-
-    const refreshed = { ...agent, id: "a2", name: "Codex" };
-    receive({ op: "attachments", attachments: [refreshed] });
-    expect(store.get(agentAttachmentsAtom)).toEqual([refreshed]);
-    receive({ op: "attachments", attachments: [] });
-    expect(store.get(agentAttachmentsAtom)).toEqual([]);
-  });
-
-  it("keeps a fresh snapshot hidden until the session is ready", async () => {
-    const { store, options, receive } = connectedSession();
-    act(() => options.onClose(new CloseEvent("close")));
-    await act(async () => options.onOpen(new Event("open")));
-    receive({ op: "attachments", attachments: [agent] });
-    expect(store.get(attachmentsAtom)).toEqual([agent]);
-    expect(store.get(agentAttachmentsAtom)).toEqual([]);
-    receive({ op: "reconnected" });
-    expect(store.get(agentAttachmentsAtom)).toEqual([agent]);
-  });
-
-  it("invalidates an old snapshot when a new transport opens", async () => {
-    const { store, options } = connectedSession();
-    await act(async () => options.onOpen(new Event("open")));
-    expect(store.get(attachmentsAtom)).toEqual([]);
-    expect(store.get(agentAttachmentsAtom)).toEqual([]);
-  });
-});
-
-it.each([true, false])(
-  "keeps attachments only when kernel-ready resumes the session: %s",
-  (resumed) => {
-    const store = createStore();
-    const attachments: Attachment[] = [
-      {
-        id: "a1",
-        kind: "agent",
-        name: "Pi",
-        since: "2026-10-14T00:00:00Z",
-        notebook_id: "nb-test",
-        identity: "pi-thread",
-      },
-    ];
-    store.set(attachmentsAtom, attachments);
-    vi.mocked(createConnectionTransport).mockReturnValue(
-      makeTransport(WebSocket.OPEN),
-    );
-    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
-    renderConnectionHook(store);
-    const options = getTransportHandlers();
-    act(() =>
-      options.onMessage(
-        new MessageEvent("message", {
-          data: JSON.stringify({
-            op: "kernel-ready",
-            data: {
-              op: "kernel-ready",
-              cell_ids: [],
-              codes: [],
-              names: [],
-              configs: [],
-              layout: null,
-              resumed,
-              ui_values: {},
-              last_executed_code: {},
-              last_execution_time: {},
-              app_config: { width: "normal" },
-              kiosk: false,
-              capabilities: { terminal: false },
-              auto_instantiated: true,
-              consumer_capabilities: { edit: true, interact: true },
-            },
-          }),
-        }),
-      ),
-    );
-    expect(store.get(attachmentsAtom)).toEqual(resumed ? attachments : []);
   },
 );
 

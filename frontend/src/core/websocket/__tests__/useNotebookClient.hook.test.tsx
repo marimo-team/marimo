@@ -9,6 +9,9 @@ import { ConnectionState } from "../types";
 import { createConnectionTransport } from "../transports/create";
 import type { IConnectionTransport } from "../transports/transport";
 import { useNotebookClient } from "../useNotebookClient";
+import { fixtureMessages } from "../../host/__tests__/fixtures";
+import { agentAttachmentsAtom } from "../../attachments/state";
+import { notebookClientAtom } from "../state";
 
 vi.mock("../transports/create", () => ({ createConnectionTransport: vi.fn() }));
 
@@ -30,6 +33,10 @@ function makeTransport() {
   };
   return {
     transport,
+    receive: (message: unknown) =>
+      events.dispatchEvent(
+        new MessageEvent("message", { data: JSON.stringify(message) }),
+      ),
     notify: () =>
       events.dispatchEvent(
         new MessageEvent("message", {
@@ -72,6 +79,29 @@ beforeEach(() => {
 });
 
 describe("useNotebookClient", () => {
+  it("exposes host presence to the UI without waiting for kernel-ready", async () => {
+    const transport = makeTransport();
+    vi.mocked(createConnectionTransport).mockReturnValue(transport.transport);
+    const { result, store, unmount } = setup();
+    await act(async () => Promise.resolve());
+    expect(store.get(notebookClientAtom)).toBe(result.current);
+    act(() =>
+      fixtureMessages("notebook-events.sse").forEach(transport.receive),
+    );
+    expect(store.get(agentAttachmentsAtom)).toEqual([
+      {
+        id: "a2",
+        notebook_id: "n1",
+        kind: "agent",
+        name: "Notebook CLI",
+        since: "2026-10-01T09:20:03Z",
+      },
+    ]);
+    unmount();
+    expect(store.get(notebookClientAtom)).toBeNull();
+    expect(store.get(agentAttachmentsAtom)).toEqual([]);
+  });
+
   it("uses current callbacks and URL providers without reconnecting on a rerender", async () => {
     const first = makeTransport();
     vi.mocked(createConnectionTransport).mockReturnValue(first.transport);

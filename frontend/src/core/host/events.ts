@@ -15,6 +15,7 @@ export const NOTEBOOK_EVENT_TYPES = [
   "notebook",
   "document",
   "cell",
+  "attachment",
   "marimo",
 ] as const satisfies readonly (Protocol.ObjectType | "marimo")[];
 

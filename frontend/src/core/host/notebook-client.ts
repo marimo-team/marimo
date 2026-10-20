@@ -11,6 +11,8 @@ import {
   TransportReadyState,
 } from "./connection";
 import { parseNotebookEvent } from "./events";
+import type { Attachment } from "./protocol";
+import { attachments } from "./resources/attachments";
 import { type Document, document } from "./resources/document";
 import { createStream } from "./stream";
 
@@ -26,6 +28,8 @@ export interface NotebookClient {
    * retains the last document. Partial updates are not exposed.
    */
   readonly documentAtom: Atom<Document | null>;
+  /** Live attachments, empty until the stream is ready or while disconnected. */
+  readonly attachmentsAtom: Atom<readonly Attachment[]>;
   /** Attempt to restore a closed connection after checking host health. */
   reconnect(): Promise<void>;
 }
@@ -60,15 +64,23 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
     state: ConnectionState.NOT_STARTED,
   });
   // One atom holds the whole stream, which resource atoms derive from.
-  const stream = createStream({ document });
+  const stream = createStream({ document, attachments });
   const streamAtom = atom(stream.initial);
+  // A resumed stream is live, but presence waits for this connection's ready.
+  const readyAtom = atom(false);
   const documentAtom = atom(
     (get) => get(streamAtom).resources.document.current,
+  );
+  const attachmentsAtom = atom((get) =>
+    get(readyAtom) && get(connectionAtom).state === ConnectionState.OPEN
+      ? get(streamAtom).resources.attachments
+      : attachments.initial,
   );
   let reconnect: (() => Promise<void>) | undefined;
   const client: NotebookClient = {
     connectionAtom,
     documentAtom,
+    attachmentsAtom,
     reconnect: async () => reconnect?.(),
   };
 
@@ -111,14 +123,17 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
           ? stream.resume(store.get(streamAtom))
           : stream.initial;
       streamKey = key;
+      store.set(readyAtom, false);
       store.set(streamAtom, state);
       if (state.cursor !== null) {
         next.searchParams.set("cursor", state.cursor);
       }
       return next.toString();
     });
-    const setStatus = (status: ConnectionStatus) =>
+    const setStatus = (status: ConnectionStatus) => {
+      store.set(readyAtom, false);
       store.set(connectionAtom, status);
+    };
     const disconnected = {
       state: ConnectionState.CLOSED,
       code: ConnectionClosedReason.KERNEL_DISCONNECTED,
@@ -174,6 +189,9 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
       try {
         event = parseNotebookEvent(decodeJson(message.data));
         store.set(streamAtom, stream.reduce(store.get(streamAtom), event));
+        if (event.event === "ready" || event.event === "reset") {
+          store.set(readyAtom, event.event === "ready");
+        }
       } catch (error) {
         Logger.error("Failed to decode notebook message", error);
         if (messageFormat === "session") {

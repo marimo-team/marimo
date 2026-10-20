@@ -14,6 +14,7 @@ import {
   type NotebookConnection,
 } from "../host/notebook-client";
 import { classifyCloseEvent } from "./connection-state";
+import { notebookClientAtom } from "./state";
 import {
   createConnectionTransport,
   type ConnectionTransportOptions,
@@ -41,6 +42,7 @@ export function useNotebookClient(options: Options): NotebookClient {
 
   useEffect(() => {
     const lifetime = new AbortController();
+    store.set(notebookClientAtom, controller.client);
     controller.connect({
       createTransport: (url) =>
         createConnectionTransport({
@@ -61,9 +63,15 @@ export function useNotebookClient(options: Options): NotebookClient {
       decodeJson: jsonParseWithSpecialChar,
       classifyClose: classifyCloseEvent,
     });
-    return () => lifetime.abort();
+    return () => {
+      lifetime.abort();
+      if (store.get(notebookClientAtom) === controller.client) {
+        store.set(notebookClientAtom, null);
+      }
+    };
   }, [
     controller,
+    store,
     sessionId,
     isStatic,
     transportType,

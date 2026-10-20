@@ -13,7 +13,6 @@ from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.notification import (
     AlertNotification,
-    AttachmentsNotification,
     BannerNotification,
     EnvironmentOperationNotification,
     EnvironmentStateNotification,
@@ -25,7 +24,6 @@ from marimo._messaging.serde import (
     deserialize_kernel_notification_name,
     serialize_kernel_message,
 )
-from marimo._server.api.deps import AppStateBase
 from marimo._server.api.endpoints.ws.ws_kernel_ready import (
     build_kernel_ready,
     is_rtc_available,
@@ -93,7 +91,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
         self.doc_manager = doc_manager
         self.status = ConnectionState.CONNECTING
         self._session: Session | None = None
-        self._app_state: AppStateBase | None = None
         self.cancel_close_handle: asyncio.TimerHandle | None = None
         # Messages from the kernel are put in this queue
         # to be sent to the frontend
@@ -151,7 +148,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
             WebSocketDisconnect: If the connection is rejected; carries the
                 close code and reason.
         """
-        self._app_state = AppStateBase.from_app(connection.app)
         startup = asyncio.create_task(
             SessionConnector(
                 manager=self.manager,
@@ -369,17 +365,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
         self, session: Session, *, include_notebook: bool = True
     ) -> None:
         """Replay retained state to this client."""
-        # Send after kernel-ready/reconnected and before later live deltas.
-        notebook = (
-            self._app_state.notebook_for_session(session)
-            if self._app_state is not None
-            else None
-        )
-        self._serialize_and_notify(
-            AttachmentsNotification(
-                attachments=[] if notebook is None else notebook.attachments
-            )
-        )
         notifications = session.session_view.snapshot_notifications(
             include_notebook=include_notebook
         )
