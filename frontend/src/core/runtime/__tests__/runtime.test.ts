@@ -2,14 +2,15 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
-import type { SessionId } from "@/core/kernel/session";
+import { isSessionId, type SessionId } from "@/core/kernel/session";
 import { Logger } from "@/utils/Logger";
 import { RuntimeManager } from "../runtime";
 import type { RuntimeConfig } from "../types";
 
 // Mock the session module
-vi.mock("@/core/kernel/session", () => ({
-  getSessionId: () => "test-session-id" as SessionId,
+vi.mock("@/core/kernel/session", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/kernel/session")>()),
+  getSessionId: () => "test-session-id",
 }));
 
 vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
@@ -60,7 +61,11 @@ describe("RuntimeManager", () => {
           url: "https://example.com/nested?file=notebook.py",
           notebookId: "nb_123",
         });
-        const url = runtime.getWsURL("session-123" as SessionId);
+        const sessionId = "s_123456";
+        if (!isSessionId(sessionId)) {
+          throw new Error("Invalid test session ID");
+        }
+        const url = runtime.getWsURL(sessionId);
         expect({
           endpoint: `${url.origin}${url.pathname}`,
           params: Object.fromEntries(url.searchParams),
@@ -70,7 +75,7 @@ describe("RuntimeManager", () => {
           params: {
             file: "notebook.py",
             types: "marimo",
-            session_id: "session-123",
+            session_id: sessionId,
             access_token: "test-token",
           },
         });
