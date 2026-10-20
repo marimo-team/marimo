@@ -41,6 +41,7 @@ from marimo._runtime.commands import (
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
 )
+from marimo._runtime.context import get_context
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.runtime import (
     Kernel,
@@ -1724,6 +1725,22 @@ except NameError:
         assert m4["status"] == "idle"
         # Does not pollute globals
         assert "x" not in k.globals
+
+    @staticmethod
+    async def test_run_scratch_owns_lifecycle_items(
+        mocked_kernel: MockedKernel,
+    ) -> None:
+        # The scratchpad cell is not in the notebook graph, yet it owns what
+        # it creates.
+        k = mocked_kernel.k
+        await k.run_scratchpad(
+            "from marimo._output.data import data as mo_data\n"
+            'vfile = mo_data.any_data(b"hello", ext="txt")'
+        )
+        assert not mocked_kernel.stderr.messages, mocked_kernel.stderr
+        ctx = get_context()
+        assert SCRATCH_CELL_ID in ctx.cell_lifecycle_registry.registry
+        assert len(ctx.virtual_file_registry.registry) == 1
 
     @staticmethod
     async def test_run_scratch_with_other_globals(

@@ -401,3 +401,51 @@ async def test_threads_share_output_list_with_parent(
         "All threads should share the same output list, "
         f"but got ids: {output_ids}"
     )
+
+
+async def test_thread_of_deleted_cell_cannot_create_lifecycle_items(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    # The spawning cell is deleted while its thread still runs. Nothing can
+    # dispose of what the thread creates afterwards, so the thread gets an
+    # error instead of an item registered under the dead cell.
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import threading
+                import marimo as mo
+                from marimo._output.data import data as mo_data
+                """
+            ),
+            spawn := exec_req.get(
+                """
+                gate = threading.Event()
+                outcome = {}
+
+                def build(gate=gate, outcome=outcome):
+                    gate.wait()
+                    try:
+                        outcome["vfile"] = mo_data.any_data(b"hello", ext="txt")
+                    except Exception as e:
+                        outcome["error"] = e
+
+                thread = mo.Thread(target=build)
+                thread.start()
+                """
+            ),
+        ]
+    )
+    ctx = get_context()
+    gate, outcome, thread = (
+        k.globals["gate"],
+        k.globals["outcome"],
+        k.globals["thread"],
+    )
+    await k.delete_cell(DeleteCellCommand(cell_id=spawn.cell_id))
+    gate.set()
+    thread.join(timeout=10)
+
+    assert isinstance(outcome.get("error"), NoOwningCellError), outcome
+    assert spawn.cell_id not in ctx.cell_lifecycle_registry.registry
+    assert not ctx.virtual_file_registry.registry

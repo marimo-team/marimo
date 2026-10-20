@@ -5,6 +5,7 @@ import dataclasses
 
 from marimo._messaging.context import EXECUTION_CTX
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
+from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._types.ids import CellId_t
 
 
@@ -30,30 +31,34 @@ class CellLifecycleRegistry:
     def add(self, item: CellLifecycleItem) -> None:
         """Create `item` and register it with the cell that owns it.
 
-        The owner is the running cell, or else the cell whose evaluation
-        spawned the current task or thread. Raises `NoOwningCellError` when
-        there is neither.
+        The owner is the cell whose evaluation created `item`, directly or
+        from a task or thread it spawned, or else the cell running on this
+        context. Raises `NoOwningCellError` when there is neither.
         """
         from marimo._runtime.context import get_context
 
         ctx = get_context()
 
-        cell_id = ctx.cell_id
-        if cell_id is None and (execution := EXECUTION_CTX.get()) is not None:
+        execution = EXECUTION_CTX.get()
+        if execution is None:
+            cell_id = ctx.cell_id
+            if cell_id is None:
+                raise NoOwningCellError(
+                    "No cell is running on this thread, so marimo cannot clean "
+                    "up. Start background work with mo.Thread within a cell."
+                )
+        else:
+            # The tag is task-local, so it names the spawning cell even when
+            # another cell runs on the shared context, and it outlives the
+            # cell body, so that cell can already be deleted. The scratchpad
+            # cell runs on a graph of its own.
             cell_id = CellId_t(execution.cell_id)
-            # The tag outlives the cell body, so the spawning cell can
-            # already be deleted.
-            if cell_id not in ctx.graph.cells:
+            if cell_id not in ctx.graph.cells and cell_id != SCRATCH_CELL_ID:
                 raise NoOwningCellError(
                     "Since the cell that started this background work was deleted, "
                     "marimo cannot provide clean up. Start background work with "
                     "mo.Thread within a cell."
                 )
-        if cell_id is None:
-            raise NoOwningCellError(
-                "No cell is running on this thread, so marimo cannot clean "
-                "up. Start background work with mo.Thread within a cell."
-            )
 
         item.create(ctx)
         return self.inject(cell_id, item)

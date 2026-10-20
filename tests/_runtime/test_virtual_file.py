@@ -446,6 +446,52 @@ async def test_vfile_from_task_of_deleted_cell_raises(
     assert not ctx.virtual_file_registry.registry
 
 
+async def test_vfile_from_task_resumed_in_another_cell_is_owned_by_spawner(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    # The task resumes while another cell runs on the shared context. The
+    # spawning cell still owns the file: re-running the other cell keeps it
+    # and re-running the spawning cell disposes of it. The other cell opens
+    # the gate itself, which strict mode would do on a copy.
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import asyncio
+                from marimo._output.data import data as mo_data
+                """
+            ),
+            spawn := exec_req.get(
+                """
+                gate = asyncio.Event()
+
+                async def build(gate):
+                    await gate.wait()
+                    return mo_data.any_data(b"hello world", ext="txt")
+
+                task = asyncio.create_task(build(gate))
+                """
+            ),
+            other := exec_req.get(
+                """
+                gate.set()
+                vfile = await task
+                """
+            ),
+        ]
+    )
+    ctx = get_context()
+    vfile = k.globals["vfile"]
+    assert vfile.filename in ctx.virtual_file_registry.registry
+
+    await k.run([other])
+    assert vfile.filename in ctx.virtual_file_registry.registry
+
+    await k.run([spawn])
+    assert vfile.filename not in ctx.virtual_file_registry.registry
+    k.globals["task"].cancel()
+
+
 def test_virtual_file_registry_shared_inmemory_storage(
     run_mode_kernel: MockedKernel,  # noqa: ARG001
 ) -> None:
