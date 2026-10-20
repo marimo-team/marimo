@@ -548,16 +548,12 @@ def test_rerun_keeps_lazily_imported_modules(tmp_path, monkeypatch) -> None:
 def test_collection_stays_in_notebook_dir_outside_working_tree(
     tmp_path, monkeypatch
 ) -> None:
-    """Collection never walks the directories above a notebook that lives
-    outside the working directory.
+    """Reactive collection never lists the directories above a notebook outside
+    the working directory.
 
-    With no project config between the notebook and the filesystem root,
-    pytest anchors at the nearest ancestor the notebook shares with the
-    working directory (across drives on Windows, at the working directory
-    itself) and collects every directory from there down to the notebook.
-    On CI that chain passes through the shared temp directory, where other
-    workers create and delete entries mid-scan, and an entry that vanishes
-    between the directory listing and its stat fails the whole collection.
+    On CI those directories include the shared temp directory, where other
+    workers create and delete entries mid-scan, and a vanished entry fails
+    the run.
     """
     import marimo
     from marimo._runtime.pytest import run_pytest
@@ -583,7 +579,7 @@ def test_collection_stays_in_notebook_dir_outside_working_tree(
     real_scandir = os.scandir
 
     def recording_scandir(path: str | os.PathLike[str] | int = ".") -> Any:
-        # Directory removal scans by file descriptor; only paths matter here.
+        # Directory removal scans by file descriptor, with no path to record.
         if isinstance(path, int):
             return real_scandir(path)
         scanned.append(Path(os.path.abspath(path)))
@@ -604,7 +600,7 @@ def test_collection_stays_in_notebook_dir_outside_working_tree(
     assert (result.passed, result.failed, result.errors) == (1, 0, 0), (
         result.output
     )
-    # The notebook's own directory is listed; nothing above it is.
+    # Pytest lists the notebook's own directory and nothing above it.
     assert notebook_dir in scanned
     assert tmp_path not in scanned
 
@@ -612,9 +608,8 @@ def test_collection_stays_in_notebook_dir_outside_working_tree(
 def test_working_dir_conftest_applies_to_notebook_below_it(
     tmp_path, monkeypatch
 ) -> None:
-    """A conftest.py in the working directory still serves a notebook in a
-    subdirectory when no project config file marks the root. Anchoring the
-    run at the notebook is reserved for notebooks outside the working tree.
+    """With no project config file, a conftest.py in the working directory
+    applies to a notebook in a subdirectory.
     """
     import marimo
     from marimo._runtime.pytest import run_pytest

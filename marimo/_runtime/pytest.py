@@ -371,13 +371,9 @@ def run_pytest(
         "-p",
         "no:cacheprovider",  # Skip .pytest_cache I/O
     ]
-    # Without a project config file, pytest anchors collection at the working
-    # directory when the notebook lives under it, and otherwise at the nearest
-    # ancestor the two share (on another Windows drive: the working directory
-    # itself). From that anchor it lists every directory down to the notebook,
-    # racing other processes that create and delete entries along the way, as
-    # under a shared temp directory. Anchor at the notebook's own directory
-    # instead; a project config file above it still applies.
+    # Pytest lists every directory between its anchor and the notebook, and a
+    # shared temp directory can change under it mid-scan. Anchor a notebook
+    # outside the working directory at its own directory.
     notebook_dir = Path(os.path.abspath(notebook_path)).parent
     if not notebook_dir.is_relative_to(Path.cwd()):
         args.append(f"--rootdir={notebook_dir}")
