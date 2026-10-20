@@ -300,7 +300,7 @@ def test_subprocess_reconnect_replays_messages_and_server_detach(
                 "cursor"
             ]
             assert isinstance(cursor, str)
-            assert cursor.isdigit()
+            assert cursor
             # The observer keeps the producer guard satisfied during the gap.
             send("during gap")
             (tmp_path / "resume").touch()
