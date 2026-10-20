@@ -344,7 +344,7 @@ def test_metadata_describes_and_hides_secrets() -> None:
     assert dict(config.__rich_repr__()) == {
         name: getattr(config, name)
         for name in config.__struct_fields__
-        if name != "api_key"
+        if name not in {"api_key", "extra_headers"}
     }
     metadata = config_field_metadata(config_schema.OpenAiConfig)
     assert metadata["api_key"].extra == {"sensitive": True}
@@ -373,3 +373,33 @@ def test_cache_store_union_uses_struct_conversion() -> None:
             )
         else:
             assert isinstance(config.store, config_schema.StoreConfig)
+
+
+@pytest.mark.parametrize(
+    ("cls", "field_name", "settings"),
+    [
+        (config_schema.OpenAiConfig, "extra_headers", {}),
+        (config_schema.MCPServerStdioConfig, "env", {"command": "python"}),
+        (
+            config_schema.MCPServerStreamableHttpConfig,
+            "env",
+            {"url": "https://example.com"},
+        ),
+        (
+            config_schema.MCPServerStreamableHttpConfig,
+            "headers",
+            {"url": "https://example.com"},
+        ),
+    ],
+)
+def test_credential_mappings_are_hidden_from_representations(
+    cls: type[Config], field_name: str, settings: dict[str, Any]
+) -> None:
+    credentials = {"AUTHORIZATION": "credential-mapping-secret"}
+    config = cls.from_dict({**settings, field_name: credentials})
+
+    assert "credential-mapping-secret" not in repr(config)
+    assert "credential-mapping-secret" not in repr(config.__rich_repr__())
+    assert field_name not in dict(config.__rich_repr__())
+    assert config_field_metadata(cls)[field_name].extra == {"sensitive": True}
+    assert config.to_dict()[field_name] == credentials

@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import copy
 import sys
-from collections.abc import Mapping
 from functools import cache
 from typing import (
     Annotated,
@@ -46,10 +45,10 @@ def config_field_metadata(cls: type[Config]) -> dict[str, Meta]:
 
 
 def _prepare_mcp_config(
-    values: Mapping[str, object], path: tuple[str, ...] | None
+    values: dict[str, object], path: tuple[str, ...] | None
 ) -> dict[str, object]:
     """Infer internal union tags without changing the user's MCP format."""
-    prepared = copy.deepcopy(dict(values))
+    prepared = copy.deepcopy(values)
     section: Any = prepared
     for key in path or ():
         if not isinstance(section, dict) or key not in section:
@@ -70,7 +69,7 @@ def _prepare_mcp_config(
 
 def _retain_unknown_fields(value: object, source: object) -> None:
     """Keep unknown settings at every level for lossless load/save cycles."""
-    if isinstance(value, Config) and isinstance(source, Mapping):
+    if isinstance(value, Config) and isinstance(source, dict):
         names = {item.encode_name for item in fields(value)}
         value._extra_fields = copy.deepcopy(
             {key: item for key, item in source.items() if key not in names}
@@ -80,7 +79,7 @@ def _retain_unknown_fields(value: object, source: object) -> None:
                 _retain_unknown_fields(
                     getattr(value, item.name), source[item.encode_name]
                 )
-    elif isinstance(value, dict) and isinstance(source, Mapping):
+    elif isinstance(value, dict) and isinstance(source, dict):
         for key, item in value.items():
             if key in source:
                 _retain_unknown_fields(item, source[key])
@@ -143,7 +142,7 @@ class Config(msgspec.Struct, dict=True, kw_only=True):
         return f"{type(self).__name__}({values})"
 
     @classmethod
-    def from_dict(cls, values: Mapping[str, object]) -> Self:
+    def from_dict(cls, values: dict[str, object]) -> Self:
         """Validate settings, retaining unknown keys and legacy MCP inputs."""
         config = msgspec.convert(
             _prepare_mcp_config(values, cls._mcp_path), type=cls

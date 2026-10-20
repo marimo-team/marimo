@@ -487,7 +487,10 @@ class OpenAiConfig(Config, kw_only=True):
     ] = UNSET
     extra_headers: Annotated[
         dict[str, str] | UnsetType,
-        Meta(description="extra headers to be passed to the OpenAI client"),
+        Meta(
+            description="extra headers to be passed to the OpenAI client",
+            extra={"sensitive": True},
+        ),
     ] = UNSET
     model: Annotated[
         str | UnsetType,
@@ -861,7 +864,10 @@ class MCPServerStdioConfig(
     ] = UNSET
     env: Annotated[
         dict[str, str] | UnsetType | None,
-        Meta(description="Environment variables supplied to the MCP server."),
+        Meta(
+            description="Environment variables supplied to the MCP server.",
+            extra={"sensitive": True},
+        ),
     ] = UNSET
     disabled: Annotated[
         bool | UnsetType | None, Meta(description="Disable this MCP server.")
@@ -878,7 +884,10 @@ class MCPServerStreamableHttpConfig(
     ]
     headers: Annotated[
         dict[str, str] | UnsetType | None,
-        Meta(description="HTTP headers sent to the MCP server."),
+        Meta(
+            description="HTTP headers sent to the MCP server.",
+            extra={"sensitive": True},
+        ),
     ] = UNSET
     timeout: Annotated[
         float | UnsetType | None,
@@ -887,7 +896,8 @@ class MCPServerStreamableHttpConfig(
     env: Annotated[
         dict[str, str] | UnsetType | None,
         Meta(
-            description="Environment variables used by the MCP server configuration."
+            description="Environment variables used by the MCP server configuration.",
+            extra={"sensitive": True},
         ),
     ] = UNSET
     disabled: Annotated[
