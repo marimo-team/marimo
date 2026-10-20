@@ -186,7 +186,8 @@
     "build-storybook": "storybook build",
     "sync-katex-css": "node --experimental-strip-types scripts/sync-katex-css.ts",
     "codegen": "node --experimental-strip-types scripts/generate-host-protocol.ts",
-    "codegen:check": "node --experimental-strip-types scripts/generate-host-protocol.ts --check"
+    "codegen:check": "node --experimental-strip-types scripts/generate-host-protocol.ts --check",
+    "doctor": "npx react-doctor@latest"
   },
   "peerDependencies": {
     "react": "^17 || ^18 || ^19",
