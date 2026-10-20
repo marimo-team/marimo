@@ -157,14 +157,15 @@ def test_daemon_probe(
     else:
         with pytest.raises(PairInputError, match="daemon is not running"):
             CodexHarness().check()
+    executable = "codex.exe" if sys.platform == "win32" else "codex"
     assert run.call_args_list[0].args[0] == [
-        "codex",
+        executable,
         "app-server",
         "daemon",
         "version",
     ]
     if ok:
-        assert run.call_args_list[1].args[0] == ["codex", "queue", "--help"]
+        assert run.call_args_list[1].args[0] == [executable, "queue", "--help"]
 
 
 @pytest.mark.parametrize("stdout", [b"bad", b"[]", b"null"])
@@ -188,7 +189,7 @@ def test_codex_send_preserves_message(monkeypatch: pytest.MonkeyPatch) -> None:
         message
     )
     assert run.call_args.args[0] == [
-        "codex",
+        "codex.exe" if sys.platform == "win32" else "codex",
         "queue",
         "--thread",
         "thread",
@@ -477,7 +478,8 @@ def test_cleanup_removed_directory_is_replaced(
     new = files.write("new")
     assert new.parent != directory
     assert json.loads(new.read_text()) == "new"
-    assert new.stat().st_mode & 0o777 == 0o600
+    if sys.platform != "win32":
+        assert new.stat().st_mode & 0o777 == 0o600
 
 
 def test_replaced_payload_directory_is_not_followed(tmp_path: Path) -> None:
