@@ -7,8 +7,10 @@ import { waitFor } from "../state/jotai";
 import { type ConnectionStatus, ConnectionState } from "../websocket/types";
 
 /**
- * Atom for storing the connection status.
- * Initialized to NOT_STARTED.
+ * Shared application state, not the actual event-stream status.
+ *
+ * TODO(MO-8051) Expose read-only connection state and derive UI availability
+ * separately.
  */
 export const connectionAtom = atom<ConnectionStatus>({
   state: ConnectionState.NOT_STARTED,
