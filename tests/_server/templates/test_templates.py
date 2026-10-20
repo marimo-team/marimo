@@ -636,6 +636,13 @@ class TestHomePageTemplate(unittest.TestCase):
 
 class TestStaticNotebookTemplate(unittest.TestCase):
     def setUp(self) -> None:
+        # Keep the pair command stable across installation modes.
+        editable = patch(
+            "marimo._cli.pair.prompts.is_editable", return_value=True
+        )
+        editable.start()
+        self.addCleanup(editable.stop)
+
         tmp_path = Path(tempfile.mkdtemp())
         self.tmp_path = tmp_path
         root = Path(__file__).parent / "data"

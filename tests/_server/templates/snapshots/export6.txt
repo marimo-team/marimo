@@ -108,7 +108,8 @@
             "view": {"showAppCode": true},
             "notebook": {"cells": [], "metadata": {"marimo_version": "0.0.0"}, "version": "1"},
             "session": {"cells": [], "metadata": {"marimo_version": "0.0.0"}, "version": "1"},
-            "runtimeConfig": null
+            "runtimeConfig": null,
+            "pairConfig": {"command": "uv run marimo", "hostEnabled": false, "templates": {"notebook": "Notebook: {notebook}\n", "prompt": "Pair with me on this running marimo notebook.\n\nURL: {url}\n{notebook}{session}\nRun `{command} pair --help` first.\nUse `{command}` for all marimo commands.{authentication}", "session": "Session: {session}\n", "token": "\n\nFor authenticated notebook discovery, set `export MARIMO_TOKEN={token}` in the shell that runs marimo.", "token_file": "\n\nFor authenticated notebook discovery, pass `--token-file {token_file}`."}}
         }),
         writable: false,
         configurable: false,

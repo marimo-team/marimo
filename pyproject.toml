@@ -46,8 +46,8 @@ dependencies = [
     "typing_extensions>=4.4.0; python_version < '3.12'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
     "docutils>=0.16.0",
-    # to show RAM, CPU usage, other system utilities
-    "psutil>=5.0; sys_platform != 'emscripten' and sys_platform != 'android'",
+    # to show RAM, CPU usage, other system utilities; 5.6 adds Process.parents()
+    "psutil>=5.6.0; sys_platform != 'emscripten' and sys_platform != 'android'",
     # required dependency in Starlette for SessionMiddleware support
     "itsdangerous>=2.0.0",
     # for dataframe support
