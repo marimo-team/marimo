@@ -1,5 +1,6 @@
 # Debugging with IDEs
 
+
 ## VS Code
 
 Normal mode and `--sandbox` mode need separate `launch.json` configurations, since
@@ -41,6 +42,11 @@ debugger" from the Run and Debug panel to step through the server.
 
 The frontend and marimo server must be run separately for this to
 work. Run the frontend dev server (`pnpm dev`) on its own, then launch "Marimo api debugger" to start and debug the server.
+
+With a breakpoint set in the Python source, you can step through the server like in the video below.
+
+<video muted controls loop playsinline width="100%" align="center" src="../docs/_static/development-docs-debugging-with-vscode.webm" alt="Video showing debugging with VS Code hitting marimo server breakpoints">
+</video>
 
 ### Debugging in sandbox mode
 
