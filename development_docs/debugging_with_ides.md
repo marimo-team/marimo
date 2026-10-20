@@ -1,4 +1,11 @@
-# Debugging with VS Code
+# Debugging with IDEs
+
+## VS Code
+
+Normal mode and `--sandbox` mode need separate `launch.json` configurations, since
+sandbox mode runs differently. Use the
+"launch" config below for normal mode, and the "attach" config under [Debugging in
+sandbox mode](#debugging-in-sandbox-mode) when running with `--sandbox`.
 
 To debug the marimo server, create
 `.vscode/launch.json` with:
@@ -35,7 +42,7 @@ debugger" from the Run and Debug panel to step through the server.
 The frontend and marimo server must be run separately for this to
 work. Run the frontend dev server (`pnpm dev`) on its own, then launch "Marimo api debugger" to start and debug the server.
 
-## Debugging in sandbox mode
+### Debugging in sandbox mode
 
 `marimo edit --sandbox` resolves the notebook's environment with `uv` and
 then hands off to it: `NotebookSandbox.launch` (see
@@ -52,7 +59,7 @@ instead of launching it. The sandbox environment is its own isolated venv
 installed into it directly:
 
 1. [Install `debugpy`](https://github.com/microsoft/debugpy#installation)
-   into that environment's interpreter.
+   into the server environment.
 
 2. Add the `debugpy.listen()` call at the top of `start()` in
    `marimo/_server/start.py`, which is the function that actually boots
