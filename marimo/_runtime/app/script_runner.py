@@ -108,9 +108,7 @@ class AppScriptRunner:
             glbls.update(self._glbls)
 
             outputs: dict[CellId_t, Any] = {}
-            while self._scheduler.pending() or self._rerun_stub_definers(
-                glbls
-            ):
+            while self._scheduler_pending(glbls):
                 cid = self._scheduler.pop_cell()
                 if self._scheduler.cancelled(cid):
                     continue
@@ -144,9 +142,7 @@ class AppScriptRunner:
             glbls.update(self._glbls)
 
             outputs: dict[CellId_t, Any] = {}
-            while self._scheduler.pending() or self._rerun_stub_definers(
-                glbls
-            ):
+            while self._scheduler_pending(glbls):
                 cid = self._scheduler.pop_cell()
                 if self._scheduler.cancelled(cid):
                     continue
@@ -190,14 +186,14 @@ class AppScriptRunner:
             if installed_context:
                 teardown_context()
 
-    def _rerun_stub_definers(self, glbls: dict[str, Any]) -> bool:
-        """Requeue the cells whose definitions restored as stubs.
-
-        In a notebook, the cell that reads a stub reruns its producer; the
-        caller of `App.run` reads the definitions only after the run.
-        """
+    def _scheduler_pending(self, glbls: dict[str, Any]) -> bool:
+        """Whether a cell is queued, after requeueing stub definers."""
+        if self._scheduler.pending():
+            return True
         if self._cache is None:
             return False
+        # In a notebook, the cell that reads a stub reruns its producer; the
+        # caller of `App.run` reads the definitions only after the run.
         cells = self._cache.invalidate_stub_definers(glbls)
         if not cells:
             return False
