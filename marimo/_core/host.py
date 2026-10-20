@@ -295,7 +295,7 @@ class Host:
 
     def events(
         self,
-        cursor: int | None = None,
+        cursor: str | None = None,
         *,
         notebook_id: str | None = None,
         types: Collection[str] | None = None,
@@ -303,8 +303,9 @@ class Host:
     ) -> list[RoutedEvent]:
         """Return a snapshot or replay followed by `ready`.
 
-        A cursor requests the events after it. An unavailable cursor returns
-        `reset` and a snapshot.
+        A cursor requests the events after it. A cursor this stream did not
+        issue, or whose events it no longer has, returns `reset` and a
+        snapshot.
         """
         scope = None
         if notebook_id is not None:
@@ -312,12 +313,13 @@ class Host:
                 raise NotFound(f"no notebook {notebook_id}")
             scope = self._records[notebook_id].id
         ready = RoutedEvent(
-            protocol.ReadyEvent(data={}, id=str(self._stream.last_id))
+            protocol.ReadyEvent(data={}, id=self._stream.cursor)
         )
         if cursor is None:
             events = self._snapshot(scope)
         else:
-            missed = self._stream.since(cursor)
+            position = self._stream.position(cursor)
+            missed = None if position is None else self._stream.since(position)
             if missed is None:
                 events = [
                     RoutedEvent(protocol.ResetEvent(data={})),

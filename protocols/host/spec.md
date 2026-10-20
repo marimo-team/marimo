@@ -247,10 +247,12 @@ each document change as a group without interleaving unrelated events, so
 clients can apply an edit together with its effects on the rest of the
 document.
 
-Each **cursor** marks a position in the stream. After disconnecting, a client
-can reconnect with its last cursor to request the events it missed. If the host
-no longer has those events, it requests a reset. Clients MUST then discard
-their previous view and rebuild it from a fresh snapshot.
+Each **cursor** marks a position in the stream. Clients treat cursors as
+opaque. A client sends back the last cursor it received and does not compare
+or construct cursors. After disconnecting, a client can reconnect with its last
+cursor to request the events it missed. If the host no longer has those events,
+or the cursor predates a loss of host state, it requests a reset. Clients MUST
+then discard their previous view and rebuild it from a fresh snapshot.
 
 Event history can expire while results remain stored. Those results still
 appear in a fresh snapshot, even when their original events are unavailable.
@@ -319,9 +321,10 @@ Preconditions use **etags**, identifiers derived from content. They let clients
 edit different parts of a document independently while detecting competing
 changes to the same part. For example, two clients can update different cells,
 but an edit based on an older version of the same cell produces a conflict.
-An accepted edit answers with the document and the version of each cell it
-touched. The client already has the content it sent, and the versions let it
-recognize the edit when its events arrive on the stream.
+An accepted edit answers with the version of each cell it touched and the
+document at the edit's revision or a later one. The client already has the
+content it sent, and the versions let it recognize the edit when its events
+arrive on the stream.
 
 Accepting an edit and saving it are separate actions. The host reports whether
 the current document has reached storage, whether it saves automatically or

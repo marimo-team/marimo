@@ -28,6 +28,7 @@ from tests._server.host.conftest import FakeManager, FakeSession
 from tests._server.host.drive import (
     AUTHORITY,
     PORT,
+    position,
     socket_snapshot,
     with_client_address,
 )
@@ -282,7 +283,9 @@ def test_reconnect_replays_original_events_then_continues_live(
                 )
                 live = socket.receive_json()
                 assert live["data"]["marimo"]["run_id"] == "live"
-                assert int(live["id"]) > int(replay[-1]["id"])
+                assert position(bridge.host, live["id"]) > position(
+                    bridge.host, replay[-1]["id"]
+                )
         finally:
             client.portal.call(bridge.close)
 
@@ -312,11 +315,15 @@ def test_expired_cursor_resets_to_current_state(
                 reset = socket_snapshot(socket)
                 assert reset[0] == {"event": "reset", "data": {}}
                 assert reset[1:-1] == initial[:-1]
-                assert int(reset[-1]["id"]) > int(cursor)
+                assert position(bridge.host, reset[-1]["id"]) > position(
+                    bridge.host, cursor
+                )
                 event = client.portal.call(notebook.emit, "test.live", {})
                 live = socket.receive_json()
                 assert live["event"] == "custom"
                 assert live["data"]["custom"] == msgspec.to_builtins(event)
-                assert int(live["id"]) > int(reset[-1]["id"])
+                assert position(bridge.host, live["id"]) > position(
+                    bridge.host, reset[-1]["id"]
+                )
         finally:
             client.portal.call(bridge.close)

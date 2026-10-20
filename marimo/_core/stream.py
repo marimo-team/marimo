@@ -8,6 +8,7 @@ stream from the last event id received on that stream.
 from __future__ import annotations
 
 import logging
+import secrets
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Callable, Collection, Iterator
@@ -93,9 +94,11 @@ class RoutedEvent:
     run_id: protocol.RunId | None = None
 
     @property
-    def id(self) -> int | None:
-        """The stream's integer cursor, absent on snapshots and resets."""
-        return None if self.event.id is UNSET else int(self.event.id)
+    def position(self) -> int | None:
+        """The event's position in its stream, absent on snapshots and resets."""
+        if self.event.id is UNSET:
+            return None
+        return int(self.event.id.rpartition("-")[2])
 
     def visible_in(self, notebook_id: str | None) -> bool:
         """Whether the event belongs in the catalog or notebook stream."""
@@ -216,6 +219,9 @@ class Stream(Sink):
     """
 
     def __init__(self, *, history: int = 1000) -> None:
+        # Cursors name the stream that issued them, so a cursor from before
+        # a restart resets instead of replaying another history.
+        self._epoch = secrets.token_hex(4)
         self._last_id = 0
         self._history: deque[RoutedEvent] = deque(maxlen=history)
         self._listeners: list[Listener] = []
@@ -228,18 +234,46 @@ class Stream(Sink):
     def last_id(self) -> int:
         return self._last_id
 
-    def since(self, cursor: int) -> list[RoutedEvent] | None:
-        """Return events after `cursor`, or `None` for a stale or future cursor."""
-        if cursor == self._last_id:
-            return []
-        if cursor > self._last_id:
+    @property
+    def cursor(self) -> str:
+        """The cursor of the last event, as `ready` carries it."""
+        return self.cursor_at(self._last_id)
+
+    def cursor_at(self, position: int) -> str:
+        """Return the cursor this stream issues for `position`."""
+        return f"{self._epoch}-{position}"
+
+    def position(self, cursor: str) -> int | None:
+        """Return the position `cursor` names, or `None` if another stream issued it."""
+        epoch, _, position = cursor.partition("-")
+        # Header text is latin-1, where superscripts count as digits.
+        if epoch != self._epoch or not (
+            position.isascii() and position.isdigit()
+        ):
             return None
-        oldest = self._history[0].id if self._history else self._last_id + 1
+        try:
+            return int(position)
+        except ValueError:
+            return None
+
+    def since(self, position: int) -> list[RoutedEvent] | None:
+        """Return events after `position`, or `None` for a stale or future one."""
+        if position == self._last_id:
+            return []
+        if position > self._last_id:
+            return None
+        oldest = (
+            self._history[0].position if self._history else self._last_id + 1
+        )
         assert oldest is not None
-        if cursor < oldest - 1:
+        if position < oldest - 1:
             return None
         return deepcopy(
-            [e for e in self._history if e.id is not None and e.id > cursor]
+            [
+                e
+                for e in self._history
+                if e.position is not None and e.position > position
+            ]
         )
 
     def subscribe(self, listener: Listener) -> Callable[[], None]:
@@ -277,7 +311,7 @@ class Stream(Sink):
         self._last_id += 1
         stamped = replace(
             event,
-            event=msgspec.structs.replace(event.event, id=str(self._last_id)),
+            event=msgspec.structs.replace(event.event, id=self.cursor),
         )
         self._history.append(stamped)
         self._pending.append((stamped, tuple(self._listeners)))

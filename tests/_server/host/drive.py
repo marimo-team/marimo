@@ -19,6 +19,8 @@ if TYPE_CHECKING:
     from starlette.testclient import WebSocketTestSession
     from starlette.types import ASGIApp, Receive, Scope, Send
 
+    from marimo._core.host import Host
+
 PORT = 1234
 """Server port used to validate the request's Host header."""
 
@@ -37,6 +39,13 @@ def with_client_address(
         await app(scope, receive, send)
 
     return wrapped
+
+
+def position(host: Host, cursor: str) -> int:
+    """Return where a cursor the host issued falls in its stream."""
+    found = host._stream.position(cursor)
+    assert found is not None, f"{cursor} is not from this host"
+    return found
 
 
 def socket_snapshot(websocket: WebSocketTestSession) -> list[dict[str, Any]]:

@@ -622,7 +622,7 @@ async def _notebook_events_ws(websocket: WebSocket) -> None:
         notebook.detach(attachment.id)
 
 
-def _cursor(request: HTTPConnection) -> int | Response | None:
+def _cursor(request: HTTPConnection) -> str | Response | None:
     raw = request.headers.get("Last-Event-ID")
     if request.scope["type"] == "websocket":
         query = request.query_params.get("cursor")
@@ -630,15 +630,10 @@ def _cursor(request: HTTPConnection) -> int | Response | None:
             if raw is not None and raw != query:
                 return problem(400, "invalid-request", "Conflicting cursors")
             raw = query
-    if raw is None:
-        return None
-    # Header text is latin-1, where superscripts count as digits.
-    if not (raw.isascii() and raw.isdigit()):
-        return problem(400, "invalid-request", "Last-Event-ID must be an id")
-    try:
-        return int(raw)
-    except ValueError:
-        return problem(400, "invalid-request", "Last-Event-ID is too long")
+    if raw == "":
+        return problem(400, "invalid-request", "Last-Event-ID is empty")
+    # Cursors are opaque; one the host did not issue resets the stream.
+    return raw
 
 
 def _types(request: HTTPConnection) -> set[str] | Response | None:
@@ -667,7 +662,7 @@ def _attachment_problem(error: msgspec.ValidationError) -> str:
 
 def _initial_events(
     bridge: SessionBridge,
-    cursor: int | None,
+    cursor: str | None,
     types: set[str] | None,
     *,
     notebook_id: protocol.NotebookId | None,
@@ -698,20 +693,20 @@ class _EventSubscription:
     ) -> None:
         self.initial = initial
         self._queue = queue
-        self._ready_id = initial[-1].id or 0
+        self._ready_id = initial[-1].position or 0
 
     async def next(self) -> RoutedEvent:
         """Wait for a live event not already covered by the initial state."""
         while True:
             event = await self._queue.get()
-            if event.id is None or event.id > self._ready_id:
+            if event.position is None or event.position > self._ready_id:
                 return event
 
 
 @contextmanager
 def _subscribe_events(
     bridge: SessionBridge,
-    cursor: int | None,
+    cursor: str | None,
     types: set[str] | None,
     *,
     notebook_id: protocol.NotebookId | None,
@@ -742,7 +737,7 @@ def _subscribe_events(
 
 def _stream(
     context: HostContext,
-    cursor: int | None,
+    cursor: str | None,
     types: set[str] | None,
     *,
     notebook_id: protocol.NotebookId | None,
@@ -781,8 +776,8 @@ def _stream(
 def _frame(event: RoutedEvent) -> bytes:
     """Encode an event as an SSE frame."""
     lines = []
-    if event.id is not None:
-        lines.append(f"id: {event.id}")
+    if event.event.id is not msgspec.UNSET:
+        lines.append(f"id: {event.event.id}")
     lines.append(f"event: {event_name(event.event)}")
     data = msgspec.json.encode(event.event.data)
     lines.append(f"data: {data.decode()}")

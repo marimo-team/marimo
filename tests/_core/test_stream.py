@@ -45,7 +45,7 @@ def test_nested_publications_follow_the_current_event() -> None:
     stream = Stream()
 
     def publish_another(event: RoutedEvent) -> None:
-        if event.id == 1:
+        if event.position == 1:
             stream.publish(project("p2"))
 
     stream.subscribe(publish_another)
@@ -54,7 +54,7 @@ def test_nested_publications_follow_the_current_event() -> None:
 
     stream.publish(project())
 
-    assert [e.id for e in delivered] == [1, 2]
+    assert [e.position for e in delivered] == [1, 2]
     assert delivered == stream.since(0)
 
 
@@ -143,10 +143,10 @@ def test_deferred_events_join_history_before_delivery() -> None:
 
     with stream.deferred():
         stream.publish(project())
-        assert [e.id for e in stream.since(0) or []] == [1]
+        assert [e.position for e in stream.since(0) or []] == [1]
         assert delivered == []
 
-    assert [e.id for e in delivered] == [1]
+    assert [e.position for e in delivered] == [1]
 
 
 def test_subscribers_act_after_the_command_reaches_the_backend(
@@ -213,7 +213,9 @@ def test_subscribers_cannot_start_a_runtime_during_adoption(
 def test_custom_events_are_on_the_notebook_stream_only(
     host: Host, notebook: Notebook
 ) -> None:
-    cursor = host.events(notebook_id=notebook.id)[-1].id
+    ready = host.events(notebook_id=notebook.id)[-1]
+    cursor = ready.event.id
+    assert isinstance(cursor, str)
     assert cursor is not None
     notebook.emit("marimo.test", {"hello": 1})
 
@@ -228,7 +230,7 @@ def test_custom_events_are_on_the_notebook_stream_only(
     assert names(
         host.events(cursor, notebook_id=notebook.id, types={"attachment"})
     ) == ["ready"]
-    replayed = host._stream.since(cursor)
+    replayed = host._stream.since(ready.position or 0)
     assert replayed is not None
     assert names(replayed) == ["custom"]
 

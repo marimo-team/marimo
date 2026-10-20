@@ -297,8 +297,8 @@ async def test_session_updates_after_catalog_removal_are_ignored(
     assert record is not None
     notebook = await bridge.host.notebook(record.id)
     bridge.index.forget(record.id)
-    cursor = bridge.host.events()[-1].id
-    assert cursor is not None
+    cursor = bridge.host.events()[-1].event.id
+    assert isinstance(cursor, str)
 
     session.broadcast(
         StartupProgressNotification(
