@@ -209,7 +209,6 @@ function handleMessage(
       case "cache-info":
       case "kernel-startup-error":
       case "notebook-document-transaction":
-      case "attachments":
         return;
 
       case "completed-run":

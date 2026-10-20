@@ -5,7 +5,6 @@ import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { useLayoutEffect } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
-import { attachmentsAtom } from "@/core/attachments/state";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import { applyTransactionChanges } from "@/core/cells/document-changes";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
@@ -140,7 +139,6 @@ export function useNotebookSession(opts: {
   const transportType = useAtomValue(connectionTransportTypeAtom);
   const setCacheInfo = useSetAtom(cacheInfoAtom);
   const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
-  const setAttachments = useSetAtom(attachmentsAtom);
   const {
     setNamespaces: setStorageNamespaces,
     filterFromVariables: filterStorageFromVariables,
@@ -148,9 +146,6 @@ export function useNotebookSession(opts: {
 
   const handleNotification = (msg: NotificationPayload) => {
     switch (msg.data.op) {
-      case "attachments":
-        setAttachments(msg.data.attachments);
-        return;
       case "reload":
         reloadSafe();
         return;
@@ -185,7 +180,6 @@ export function useNotebookSession(opts: {
           existingCells,
         });
         if (!msg.data.resumed) {
-          setAttachments([]);
           // A freshly started kernel may expose a different environment
           // (e.g. new env vars); re-run discovery instead of reusing stale
           // suggestions from the previous kernel instance.
@@ -452,7 +446,6 @@ export function useNotebookSession(opts: {
       if (status.state === ConnectionState.NOT_STARTED) {
         return;
       }
-      setAttachments([]);
       if (status.state === ConnectionState.OPEN) {
         updateStartupProgress(null);
         return; // kernel-ready, not the socket, establishes session readiness.
@@ -487,7 +480,6 @@ export function useNotebookSession(opts: {
     notebook,
     store,
     setConnection,
-    setAttachments,
     setKernelStartupError,
     updateStartupProgress,
   ]);

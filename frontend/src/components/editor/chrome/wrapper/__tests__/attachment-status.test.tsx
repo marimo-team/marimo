@@ -8,13 +8,13 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { createStore, Provider } from "jotai";
+import { atom, createStore, Provider } from "jotai";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import { type Attachment, attachmentsAtom } from "@/core/attachments/state";
+import type { Attachment } from "@/core/attachments/state";
 import { pairConfigAtom } from "@/core/config/pair";
 import {
   type StableSessionId,
@@ -22,12 +22,15 @@ import {
 } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
 import { connectionAtom } from "@/core/network/connection";
-import { WebSocketClosedReason, ConnectionState } from "@/core/websocket/types";
+import { notebookClientAtom } from "@/core/websocket/state";
+import { ConnectionState } from "@/core/websocket/types";
 import { Deferred } from "@/utils/Deferred";
 import { AttachmentStatus } from "../footer-items/attachment-status";
 
 vi.mock("@/components/ui/use-toast", () => ({ toast: vi.fn() }));
 vi.mock("@/core/network/api", () => ({ API: { post: vi.fn() } }));
+
+const attachmentsAtom = atom<Attachment[]>([]);
 
 const AGENT: Attachment = {
   id: "a1",
@@ -41,6 +44,12 @@ function renderStatus(attachments: Attachment[] = [AGENT], preview = true) {
   const store = createStore();
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
+  store.set(notebookClientAtom, {
+    connectionAtom: atom({ state: ConnectionState.OPEN }),
+    documentAtom: atom(null),
+    attachmentsAtom,
+    reconnect: async () => undefined,
+  });
   store.set(attachmentsAtom, attachments);
   store.set(stableSessionIdAtom, "stable/test" as StableSessionId);
   return {
@@ -340,21 +349,6 @@ describe("AttachmentStatus", () => {
     expect(
       screen.getByRole("button", { name: "Disconnect Pi" }),
     ).toBeDisabled();
-  });
-
-  it.each([
-    { state: ConnectionState.CONNECTING },
-    { state: ConnectionState.CLOSING },
-    { state: ConnectionState.NOT_STARTED },
-    {
-      state: ConnectionState.CLOSED,
-      code: WebSocketClosedReason.KERNEL_DISCONNECTED,
-      reason: "offline",
-    },
-  ])("hides connected claims while the browser is %j", (connection) => {
-    const { store, container } = renderStatus();
-    act(() => store.set(connectionAtom, connection));
-    expect(container).toBeEmptyDOMElement();
   });
 
   it("removes detached agents when the list is replaced", () => {

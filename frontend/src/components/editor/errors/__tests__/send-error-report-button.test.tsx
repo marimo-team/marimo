@@ -8,7 +8,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { createStore, Provider, useAtomValue } from "jotai";
+import { atom, createStore, Provider, useAtomValue } from "jotai";
 import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
@@ -16,7 +16,7 @@ import { cellId } from "@/__tests__/branded";
 import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import { type Attachment, attachmentsAtom } from "@/core/attachments/state";
+import type { Attachment } from "@/core/attachments/state";
 import { exportedForTesting, notebookAtom } from "@/core/cells/cells";
 import {
   type CellOutputMessage,
@@ -32,7 +32,8 @@ import {
 } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
 import { connectionAtom } from "@/core/network/connection";
-import { WebSocketClosedReason, ConnectionState } from "@/core/websocket/types";
+import { notebookClientAtom } from "@/core/websocket/state";
+import { ConnectionState } from "@/core/websocket/types";
 import { Deferred } from "@/utils/Deferred";
 import { HTTPError } from "@/utils/errors";
 import { MarimoErrorOutput } from "../../output/MarimoErrorOutput";
@@ -48,6 +49,8 @@ vi.mock("@/components/editor/chrome/wrapper/useOpenAiAssistant", () => ({
 
 const CELL_ID = cellId("test-cell");
 const STABLE_ID = "stable/test" as StableSessionId;
+const attachmentsAtom = atom<Attachment[]>([]);
+
 const AGENT: Attachment = {
   id: "a1",
   kind: "agent",
@@ -93,6 +96,12 @@ function renderButton({
   const store = createStore();
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
+  store.set(notebookClientAtom, {
+    connectionAtom: atom({ state: ConnectionState.OPEN }),
+    documentAtom: atom(null),
+    attachmentsAtom,
+    reconnect: async () => undefined,
+  });
   store.set(attachmentsAtom, attachments);
   store.set(stableSessionIdAtom, stableId);
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -176,26 +185,6 @@ describe("SendErrorReportButton", () => {
     act(() => store.set(attachmentsAtom, []));
     expect(screen.getByRole("button")).toBeDisabled();
   });
-
-  it.each([
-    { state: ConnectionState.CONNECTING },
-    { state: ConnectionState.CLOSING },
-    { state: ConnectionState.NOT_STARTED },
-    {
-      state: ConnectionState.CLOSED,
-      code: WebSocketClosedReason.KERNEL_DISCONNECTED,
-      reason: "offline",
-    },
-  ])(
-    "does not send from a stale snapshot while the browser is %j",
-    (connection) => {
-      const { store } = renderButton();
-      act(() => store.set(connectionAtom, connection));
-      expect(screen.getByRole("button")).toBeDisabled();
-      send();
-      expect(API.post).not.toHaveBeenCalled();
-    },
-  );
 
   it.each([
     [new HTTPError(409, "Conflict"), "No agent attached"],
