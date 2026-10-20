@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import http.client
+import io
 import json
 import os
 import subprocess
 import sys
 import threading
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -25,7 +27,7 @@ from marimo._cli.pair.client import (
     SSEEvent,
     StaleNotebookError,
 )
-from marimo._cli.pair.connection import ConnectionStore
+from marimo._cli.pair.connection import ConnectionStore, connection_identity
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
 from marimo._cli.pair.forwarder import ForwarderConfig, run_forwarder
 from tests._cli.test_pair_delivery import record
@@ -301,6 +303,36 @@ def test_detached_platform_options(monkeypatch: pytest.MonkeyPatch) -> None:
     assert forwarder.detached_options() == {"creationflags": 520}
     monkeypatch.setattr(sys, "platform", "darwin")
     assert forwarder.detached_options() == {"start_new_session": True}
+
+
+@pytest.mark.parametrize("ready_line", [b"attached\n", b"attached\r\n"])
+def test_start_forwarder_accepts_platform_newlines(
+    ready_line: bytes,
+    config: ForwarderConfig,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = replace(
+        config,
+        identity=connection_identity(
+            config.notebook, config.target.kind, config.target.address
+        ),
+    )
+    process = Mock(
+        pid=os.getpid(),
+        stdin=io.BytesIO(),
+        stdout=io.BytesIO(ready_line),
+    )
+    process.poll.return_value = None
+    monkeypatch.setattr(subprocess, "Popen", Mock(return_value=process))
+    stop = Mock()
+    monkeypatch.setattr(ProcessHandle, "stop", stop)
+    store = ConnectionStore(tmp_path)
+
+    connection = forwarder.start_forwarder(config, store)
+
+    assert store.load(config.identity) == connection
+    stop.assert_not_called()
 
 
 @pytest.fixture
