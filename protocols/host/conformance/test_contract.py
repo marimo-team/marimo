@@ -25,6 +25,7 @@ FIXTURES = ROOT / "fixtures"
 MODELS = {
     "record.json": "HostRecord",
     "cell.json": "Cell",
+    "cell-withheld.json": "Cell",
     "analysis.json": "Analysis",
     "diagnostic.json": "Error",
     "edit.json": "EditRequest",
@@ -96,6 +97,45 @@ def test_required_nullable_fields_and_future_fields():
             validate("Execution", missing)
         with pytest.raises(ValidationError):
             validate("Execution", {**value, field: ""})
+
+
+def test_cell_source_is_required_but_nullable_only_in_records():
+    cell = json.loads((FIXTURES / "cell.json").read_text())
+    for code in (None, "", cell["code"]):
+        validate("Cell", {**cell, "code": code})
+    missing = {key: value for key, value in cell.items() if key != "code"}
+    with pytest.raises(ValidationError):
+        validate("Cell", missing)
+    for value in ({"id": cell["id"]}, {"id": cell["id"], "code": None}):
+        with pytest.raises(ValidationError):
+            validate("CellInput", value)
+    validate("CellInput", {"id": cell["id"], "code": ""})
+
+
+async def test_document_checker_accepts_withheld_source_and_checks_etags():
+    snapshot = []
+    async for frame in frames(
+        lines((FIXTURES / "notebook-events.sse").read_text())
+    ):
+        if frame.event == "ready":
+            break
+        snapshot.append(frame)
+    document, cells = document_state(snapshot)
+    for frame in snapshot:
+        if frame.event == "cell":
+            message = frame.message()
+            message["cell"]["code"] = None
+            frame.data = json.dumps(message)
+    assert document_state(snapshot) == (
+        document,
+        {key: {**cell, "code": None} for key, cell in cells.items()},
+    )
+    cell = next(frame for frame in snapshot if frame.event == "cell")
+    message = cell.message()
+    message["cell"]["code_hash"] = "0000000000000000"
+    cell.data = json.dumps(message)
+    with pytest.raises(AssertionError):
+        document_state(snapshot)
 
 
 async def test_document_checker_rejects_wrong_hashes_and_ordering():

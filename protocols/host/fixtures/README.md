@@ -9,7 +9,9 @@ opaque. Gaps represent events outside an excerpt or its filter.
 shown in `run.sse`. Its snapshot includes the display and console output
 already produced. Both streams end with the same execution and run completion
 events, using the same cursors. `cell.json` is cell `c3` from that snapshot,
-and `analysis.json` is the analysis of that document.
+and `analysis.json` is the analysis of that document. `cell-withheld.json`
+is the same cell with source withheld from the client: its hashes and version
+are unchanged.
 
 `run-cells-request.json` requests `c3`, which defines `x`. In `run-cells.sse`,
 the runtime then evaluates `k7f2`, which defines `y` using `x`. The dependent

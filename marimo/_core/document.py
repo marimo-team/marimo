@@ -182,7 +182,7 @@ class Document:
     ) -> Document:
         """Rebuild a document from the records the notebook published.
 
-        Cell identities, order, and revisions must agree.
+        Source must be available; cell identities, order, and revisions must agree.
         """
         by_id = {cell.id: cell for cell in cells}
         if len(by_id) != len(cells) or (
@@ -194,13 +194,19 @@ class Document:
             )
         if any(cell.notebook_id != document.notebook_id for cell in cells):
             raise ValueError("cells must belong to the document")
-        restored = cls(
-            [
-                DocumentCell(cell.id, cell.code, cell.name, cell.config)
-                for cell in (by_id[cell_id] for cell_id in document.order)
-            ],
-            document.app_config,
-        )
+        restored_cells = []
+        for cell_id in document.order:
+            record = by_id[cell_id]
+            if record.code is None:
+                raise ValueError(
+                    "cannot restore a document with withheld source"
+                )
+            restored_cells.append(
+                DocumentCell(
+                    record.id, record.code, record.name, record.config
+                )
+            )
+        restored = cls(restored_cells, document.app_config)
         for cell in restored:
             original = by_id[cell.id]
             if (

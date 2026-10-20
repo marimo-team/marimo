@@ -19,6 +19,7 @@ function readFixture(name: string): unknown {
 const records = {
   "record.json": Protocol.HostRecord,
   "cell.json": Protocol.Cell,
+  "cell-withheld.json": Protocol.Cell,
   "analysis.json": Protocol.Analysis,
   "diagnostic.json": Protocol.Error,
   "edit.json": Protocol.EditRequest,
@@ -109,6 +110,20 @@ describe("host protocol bindings", () => {
       app_config: { extension: { values: [1, null, false] } },
     };
     expect(Protocol.Document.parse(configured)).toEqual(configured);
+  });
+
+  it("requires source in edits while allowing withheld source in records", () => {
+    expectTypeOf<Protocol.Cell["code"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<Protocol.CellInput["code"]>().toEqualTypeOf<string>();
+    const cell = Protocol.Cell.parse(readFixture("cell.json"));
+    const { code, ...missing } = cell;
+    expect(Protocol.Cell.safeParse(missing).success).toBe(false);
+    expect(Protocol.Cell.parse({ ...cell, code: "" }).code).toBe("");
+    for (const input of [{ id: cell.id }, { id: cell.id, code: null }]) {
+      expect(Protocol.CellInput.safeParse(input).success).toBe(false);
+    }
+    expect(Protocol.CellInput.parse({ id: cell.id, code }).code).toBe(code);
+    expect(Protocol.CellInput.parse({ id: cell.id, code: "" }).code).toBe("");
   });
 
   it("applies the defaults declared for cell inputs", () => {

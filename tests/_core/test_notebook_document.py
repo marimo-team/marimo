@@ -378,6 +378,13 @@ class TestFromRecords:
         assert restored == notebook.document
         assert document.saved_etag != restored.etag
 
+    def test_rejects_withheld_source(self) -> None:
+        document, cells = records(hosted(Document(fixture_cells(), {})))
+        cells[0] = replace(cells[0], code=None)
+
+        with pytest.raises(ValueError, match="withheld source"):
+            Document.restore(document, cells)
+
     @pytest.mark.parametrize(
         "invalid", ["order", "notebook-id", "cell-etag", "document-etag"]
     )
