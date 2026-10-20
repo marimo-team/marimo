@@ -432,6 +432,7 @@ def test_full_json_dump_roundtrip(payload: object, tmp_path: Path) -> None:
         ["long" * 10000],
         {"lens": "x" * 10000},
     ],
+    ids=["unicode", "traceback", "list", "lens"],
 )
 def test_oversized_dump_retained(payload: object, tmp_path: Path) -> None:
     files = AgentMessageFiles()
