@@ -18,6 +18,13 @@
       "matchDepTypes": ["peerDependencies", "project.dependencies"],
       "enabled": false
     },
+    // Widen the build backend upper bound while preserving the minimum version
+    {
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["build-system.requires"],
+      "matchPackageNames": ["uv_build"],
+      "rangeStrategy": "widen"
+    },
     // Don't upgrade node
     {
       "matchPackageNames": ["node"],
