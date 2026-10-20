@@ -22,7 +22,7 @@
     {
       "matchManagers": ["pep621"],
       "matchDepTypes": ["build-system.requires"],
-      "matchPackageNames": ["uv_build"],
+      "matchPackageNames": ["uv-build"],
       "rangeStrategy": "widen"
     },
     // Don't upgrade node
