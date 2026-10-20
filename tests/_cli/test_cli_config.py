@@ -70,7 +70,7 @@ def test_config_describe_nested_and_optional_sections(
     assert "# Deprecated" in output
     assert "custom_css: list[str]" in output
     assert "max_tokens: int | None" in output
-    assert "# Default: unset" in output
+    assert "# Default: unset" not in output
     assert "# Default: dynamic" in output
     assert "# Default: []" in output
     assert "# Default: {}" in output
@@ -96,13 +96,10 @@ command: str
 
 args: list[str] | None
 # Arguments passed to the MCP server command.
-# Default: unset
 
 env: dict[str, str] | None
 # Environment variables supplied to the MCP server.
-# Default: unset
 
 disabled: bool | None
-# Disable this MCP server.
-# Default: unset"""
+# Disable this MCP server."""
     )

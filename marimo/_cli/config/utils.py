@@ -94,7 +94,8 @@ def format_config_docs(cls: type[Config]) -> str:
                 format_fields(section, field_path, level + 1)
             else:
                 if item.default is UNSET:
-                    default = "unset"
+                    output.append("")
+                    continue
                 elif item.default is not NODEFAULT:
                     default = repr(item.default)
                 elif item.default_factory in (dict, list):
