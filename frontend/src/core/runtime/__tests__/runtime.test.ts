@@ -2,7 +2,11 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
-import { isSessionId, type SessionId } from "@/core/kernel/session";
+import {
+  generateSessionId,
+  isSessionId,
+  type SessionId,
+} from "@/core/kernel/session";
 import { Logger } from "@/utils/Logger";
 import { RuntimeManager } from "../runtime";
 import type { RuntimeConfig } from "../types";
@@ -253,14 +257,20 @@ describe("RuntimeManager", () => {
   });
 
   describe("getSseURL", () => {
-    it("should return an http(s) URL with the session ID", () => {
-      const runtime = new RuntimeManager(mockConfig);
-      const url = runtime.getSseURL("1234" as SessionId);
-
-      expect(url.protocol).toBe("https:");
-      expect(url.pathname).toBe("/sse");
-      expect(url.searchParams.get("session_id")).toBe("1234");
-    });
+    it.each([undefined, "nb_123"])(
+      "uses the legacy session stream when notebookId is %s",
+      (notebookId) => {
+        const runtime = new RuntimeManager({
+          ...mockConfig,
+          url: "https://example.com/nested?file=notebook.py",
+          notebookId,
+        });
+        const sessionId = generateSessionId();
+        expect(runtime.getSseURL(sessionId).toString()).toBe(
+          `https://example.com/nested/sse?file=notebook.py&session_id=${sessionId}`,
+        );
+      },
+    );
 
     it("should never put the auth token in the URL, even cross-origin", () => {
       // SSE requests can send headers, so auth travels in the

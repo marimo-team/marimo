@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 export interface RuntimeConfig {
-  /** The host notebook whose event socket serves this editor. */
+  /** The host notebook for WebSocket events. SSE uses the legacy session stream. */
   readonly notebookId?: string;
   /**
    * The URL of the runtime server.
