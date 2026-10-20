@@ -2,36 +2,32 @@
 
 import { arrayShallowEquals } from "./arrays";
 
-// oxlint-disable-next-line typescript/no-explicit-any
-export function once<T extends (...args: any[]) => any>(fn: T): T {
-  let result: ReturnType<T>;
+export function once<Args extends unknown[], Result, This>(
+  fn: (this: This, ...args: Args) => Result,
+): (this: This, ...args: Args) => Result {
+  let result: Result;
   let called = false;
-  return function (
-    this: ThisParameterType<T>,
-    ...args: Parameters<T>
-  ): ReturnType<T> {
+  return function (this: This, ...args: Args): Result {
     if (!called) {
       called = true;
-      result = fn.apply(this, args) as ReturnType<T>;
+      result = fn.apply(this, args);
     }
     return result;
-  } as T;
+  };
 }
 
-// oxlint-disable-next-line typescript/no-explicit-any
-export function memoizeLastValue<T extends (...args: any[]) => any>(fn: T): T {
-  let result: ReturnType<T>;
-  let lastArgs: Parameters<T> | undefined;
+export function memoizeLastValue<Args extends unknown[], Result, This>(
+  fn: (this: This, ...args: Args) => Result,
+): (this: This, ...args: Args) => Result {
+  let result: Result;
+  let lastArgs: Args | undefined;
   let lastError: unknown;
   let hasError = false;
 
-  return function (
-    this: ThisParameterType<T>,
-    ...args: Parameters<T>
-  ): ReturnType<T> {
+  return function (this: This, ...args: Args): Result {
     if (lastArgs === undefined || !arrayShallowEquals(args, lastArgs)) {
       try {
-        result = fn.apply(this, args) as ReturnType<T>;
+        result = fn.apply(this, args);
         hasError = false;
         lastError = undefined;
       } catch (error) {
@@ -45,5 +41,5 @@ export function memoizeLastValue<T extends (...args: any[]) => any>(fn: T): T {
       throw lastError;
     }
     return result;
-  } as T;
+  };
 }
