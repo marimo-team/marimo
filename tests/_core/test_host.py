@@ -103,8 +103,10 @@ async def test_catalog_snapshot_and_replay_exclude_runs(host: Host) -> None:
     notebook.start()
     notebook.observe(be.Running(runtime_id_of(notebook)))
     run = notebook.run("1", request_id="r1")
-    cursor = host.events()[-1].id
-    assert cursor is not None
+    ready = host.events()[-1]
+    cursor = ready.event.id
+    assert isinstance(cursor, str)
+    assert ready.position is not None
 
     notebook.observe(
         be.Planned(
@@ -123,8 +125,8 @@ async def test_catalog_snapshot_and_replay_exclude_runs(host: Host) -> None:
         "attachment",
         "ready",
     ]
-    assert all(e.id is None for e in events[:-1])
-    assert events[-1].id == cursor + 2
+    assert all(e.position is None for e in events[:-1])
+    assert events[-1].position == ready.position + 2
     assert all(
         getattr(e.event.data, "time", None) is UNSET for e in events[:-1]
     )
@@ -158,7 +160,7 @@ async def test_a_notebook_stream_sees_only_its_notebook(host: Host) -> None:
     assert all(e.notebook_id == "n1" for e in events[:-1])
 
     # Replay includes both starting and running states for n1.
-    live = host.events(0, notebook_id="n1")
+    live = host.events(host._stream.cursor_at(0), notebook_id="n1")
     assert names(live) == [
         "notebook",
         "document",
@@ -168,7 +170,7 @@ async def test_a_notebook_stream_sees_only_its_notebook(host: Host) -> None:
         "execution",
         "ready",
     ]
-    assert all(e.id is not None for e in live)
+    assert all(e.position is not None for e in live)
 
     with pytest.raises(NotFound):
         host.events(notebook_id="n3")
@@ -178,8 +180,8 @@ async def test_resume_replays_or_resets() -> None:
     small = Host(operations=[], history=2)
     small.update_project(project())
     await add_notebook(small, record(), ScriptedBackend())
-    cursor = small.events()[-1].id
-    assert cursor is not None
+    cursor = small.events()[-1].event.id
+    assert isinstance(cursor, str)
 
     assert names(small.events(cursor)) == ["ready"]
     small.update_project(project("p2"))
@@ -187,14 +189,19 @@ async def test_resume_replays_or_resets() -> None:
     small.update_project(project("p3"))
     small.update_project(project("p4"))
     assert names(small.events(cursor))[0] == "reset"
-    assert names(small.events(10**6))[0] == "reset"
+    assert names(small.events(small._stream.cursor_at(10**6)))[0] == "reset"
+    # A cursor from before a restart names another stream's history.
+    restarted = Host(operations=[]).events()[-1].event.id
+    assert isinstance(restarted, str)
+    assert names(small.events(restarted))[0] == "reset"
 
 
 async def test_types_filter_keeps_ready_and_reset(host: Host) -> None:
     host.update_project(project())
     await add_notebook(host, record(), ScriptedBackend())
     assert names(host.events(types={"notebook"})) == ["notebook", "ready"]
-    assert names(host.events(10**6, types={"notebook"})) == [
+    future = host._stream.cursor_at(10**6)
+    assert names(host.events(future, types={"notebook"})) == [
         "reset",
         "notebook",
         "ready",
@@ -350,7 +357,7 @@ async def test_catalog_updates_do_not_share_mutable_records(
     source = replace(source, name="changed", operations=())
     host.update_project(source)
 
-    replay = host.events(0, types={"project"})
+    replay = host.events(host._stream.cursor_at(0), types={"project"})
     projects = [
         e.event.data.project
         for e in replay
@@ -540,7 +547,7 @@ async def test_expiration_converges_for_live_replay_and_snapshot(
     ]
     assert all(event.event.data.request_id == "request" for event in live)
     replay = host.events(
-        snapshot[-1].id, notebook_id=notebook.id, run_id=run.id
+        snapshot[-1].event.id, notebook_id=notebook.id, run_id=run.id
     )
     assert (isinstance(replay[0].event, protocol.ResetEvent)) == (history == 2)
     assert (

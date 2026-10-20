@@ -115,7 +115,7 @@ class TestStart:
 
         for events in (
             host.events(notebook_id=notebook.id),
-            host.events(0, notebook_id=notebook.id),
+            host.events(host._stream.cursor_at(0), notebook_id=notebook.id),
         ):
             assert [
                 event.event.data.runtime
@@ -513,7 +513,7 @@ class TestRun:
         notebook.observe(be.Concluded(ExecutionId("e1"), value("9")))
         notebook.observe(be.Status(ExecutionId("e1"), "completed"))
         notebook.observe(be.Done(run.id, "succeeded"))
-        cursor = host.events()[-1].id
+        cursor = host.events()[-1].event.id
         live: list[RoutedEvent] = []
         unsubscribe = host.subscribe(
             live.append, notebook_id=notebook.id, run_id=run.id

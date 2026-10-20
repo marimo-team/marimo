@@ -84,7 +84,8 @@ def test_extension_routing_and_control_filters() -> None:
     stream = Stream()
     recorded = stream.append(event)
     assert recorded.event == MarimoEvent(
-        data=MarimoMessage(CompletedRunNotification(run_id="r1")), id="1"
+        data=MarimoMessage(CompletedRunNotification(run_id="r1")),
+        id=stream.cursor_at(1),
     )
     assert stream.since(0) == [recorded]
 

@@ -61,7 +61,7 @@ class EditorEventSocket(SessionHandler):
         params: ConnectionParams,
         doc_manager: LoroDocManager,
         types: set[str] | None,
-        cursor: int | None,
+        cursor: str | None,
     ) -> None:
         super().__init__(
             manager=manager,
@@ -93,7 +93,7 @@ class EditorEventSocket(SessionHandler):
         # The session delivers marimo notifications with recipient filtering,
         # including edits that must not echo to the client that sent them.
         if not isinstance(event.event, MarimoEvent) and (
-            event.id is None or event.id > self._ready_id
+            event.position is None or event.position > self._ready_id
         ):
             self._events.put_nowait(event)
 
@@ -108,7 +108,7 @@ class EditorEventSocket(SessionHandler):
             initial = self.bridge.host.events(
                 self.cursor, notebook_id=self.notebook.id, types=self.types
             )
-            self._ready_id = initial[-1].id or 0
+            self._ready_id = initial[-1].position or 0
             for event in initial:
                 # Session notifications must retain their recipient filtering,
                 # including on reconnect; only protocol records use replay.

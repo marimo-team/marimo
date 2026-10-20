@@ -39,6 +39,7 @@ from tests._server.host.drive import (
     PORT,
     Response,
     finished,
+    position,
     request,
     socket_snapshot,
     until_ready,
@@ -311,15 +312,31 @@ async def test_malformed_bearers_are_401_problems(
         assert response.headers["content-type"] == "application/problem+json"
 
 
-@pytest.mark.parametrize("cursor", ["x", "-1", "1" * 5000, "1 "])
-async def test_a_malformed_cursor_is_a_400_problem(
+# A bare integer is a cursor from a host before this one.
+@pytest.mark.parametrize("cursor", ["1", "x", "-1", "1" * 5000, "1 "])
+async def test_a_cursor_the_host_did_not_issue_resets_the_stream(
     harness: Harness, cursor: str
 ) -> None:
-    response = await finished(
+    response, _, disconnect = request(
         harness.app,
         "GET",
         "/events",
         headers={**AUTH, "Last-Event-ID": cursor},
+    )
+    await wait_for(response, until_ready)
+    assert response.names() == [
+        "reset",
+        "host",
+        "project",
+        "notebook",
+        "ready",
+    ]
+    disconnect()
+
+
+async def test_an_empty_cursor_is_a_400_problem(harness: Harness) -> None:
+    response = await finished(
+        harness.app, "GET", "/events", headers={**AUTH, "Last-Event-ID": ""}
     )
     assert response.status == 400
     assert response.json()["type"].endswith("/invalid-request")
@@ -448,13 +465,13 @@ async def test_the_catalog_stream_sends_a_snapshot_then_changes(
     await wait_for(response, until_ready)
     assert response.names() == ["host", "project", "notebook", "ready"]
     assert "id" not in response.records[0]
-    cursor = int(response.records[-1]["id"])
+    cursor = response.records[-1]["id"]
 
     notebook = await harness.host.notebook(harness.notebook_id)
     notebook.start()
     await wait_for(response, lambda r: r.names()[-1] == "runtime")
     live = response.records[-1]
-    assert int(live["id"]) > cursor
+    assert position(harness.host, live["id"]) > position(harness.host, cursor)
     assert live["data"]["runtime"]["status"] == "starting"
     assert "time" in live["data"]
     disconnect()
@@ -522,11 +539,6 @@ async def test_types_and_cursors_apply_to_the_stream(harness: Harness) -> None:
     await wait_for(resumed, until_ready)
     assert resumed.names() == ["runtime", "ready"]
     disconnect()
-
-    bad = await finished(
-        harness.app, "GET", "/events", headers={**AUTH, "Last-Event-ID": "x"}
-    )
-    assert bad.status == 400
 
 
 async def test_a_notebook_stream_attaches_the_client(harness: Harness) -> None:
@@ -1971,7 +1983,7 @@ async def test_marimo_notifications_use_their_own_sse_kind(
         await wait_for(response, lambda r: "marimo" in r.names())
         assert [r for r in response.records if r.get("event") == "marimo"] == [
             {
-                "id": str(published.id),
+                "id": published.event.id,
                 "event": "marimo",
                 "data": {
                     "marimo": {
@@ -2043,7 +2055,7 @@ def test_websocket_delivers_live_events(harness: Harness, query: str) -> None:
                 },
             }
             assert websocket.receive_json() == {
-                "id": str(first.id),
+                "id": first.event.id,
                 **expected,
             }
             if not query:
@@ -2054,7 +2066,7 @@ def test_websocket_delivers_live_events(harness: Harness, query: str) -> None:
                     "data": {"text": "hello"},
                 }
             assert websocket.receive_json() == {
-                "id": str(second.id),
+                "id": second.event.id,
                 **expected,
             }
 
@@ -2195,7 +2207,7 @@ def test_editor_authentication_is_limited_to_the_event_socket(
                 RoutedEvent(MarimoEvent(payload), notebook_id=notebook.id),
             )
             assert websocket.receive_json() == {
-                "id": str(published.id),
+                "id": published.event.id,
                 "event": "marimo",
                 "data": {
                     "marimo": {
@@ -2258,9 +2270,7 @@ def test_event_socket_respects_disabled_editor_authentication(
     [
         ("?types=bogus", AUTH, "Invalid event types"),
         ("?run_id=", AUTH, "run_id must not be empty"),
-        ("?cursor=bad", AUTH, "Invalid event cursor"),
         ("?cursor=", AUTH, "Invalid event cursor"),
-        ("", {**AUTH, "Last-Event-ID": "-1"}, "Invalid event cursor"),
         ("?cursor=1", {**AUTH, "Last-Event-ID": "2"}, "Invalid event cursor"),
         (
             "",
