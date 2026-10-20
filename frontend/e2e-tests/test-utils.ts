@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Locator, Page } from "@playwright/test";
+import { Logger } from "../src/utils/Logger";
 
 /**
  * Wait for a marimo app to be fully loaded and ready
@@ -53,7 +54,7 @@ export async function waitForServerReady(
         );
       }
 
-      console.log(`Server not ready, retrying... (${retries}/${maxRetries})`);
+      Logger.log(`Server not ready, retrying... (${retries}/${maxRetries})`);
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
   }
@@ -124,7 +125,7 @@ export async function safeGoto(
     await page.goto(url, { waitUntil: "networkidle", timeout });
   } catch (error) {
     // Fallback to basic load
-    console.log(`Network idle failed, trying basic load: ${error}`);
+    Logger.log(`Network idle failed, trying basic load: ${error}`);
     await page.goto(url, { waitUntil: "load", timeout });
   }
 }

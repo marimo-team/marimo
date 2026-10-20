@@ -69,11 +69,9 @@ async function prepareVisualCase(
   await page.setViewportSize(DESKTOP_VIEWPORT);
   await page.goto(getThemedUrl(visualCase.app, visualCase.theme));
 
-  if (visualCase.view === "edit") {
-    await maybeRestartKernel(page);
-  } else {
-    await waitForMarimoApp(page);
-  }
+  await (visualCase.view === "edit"
+    ? maybeRestartKernel(page)
+    : waitForMarimoApp(page));
 
   const heading = page.getByRole("heading", {
     name: "Semantic token fixture",
@@ -95,11 +93,9 @@ async function prepareVisualCase(
   );
 
   const saveButton = page.locator("#save-button");
-  if (visualCase.view === "edit") {
-    await expect(saveButton).toBeVisible();
-  } else {
-    await expect(saveButton).toHaveCount(0);
-  }
+  await (visualCase.view === "edit"
+    ? expect(saveButton).toBeVisible()
+    : expect(saveButton).toHaveCount(0));
 
   await page.evaluate(async () => {
     await document.fonts.ready;
