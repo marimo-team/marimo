@@ -434,7 +434,7 @@ x = as_marimo_element.count
         k: Kernel,  # noqa: ARG004
     ) -> None:
         # A plain thread that restored the kernel's runtime context while no
-        # cell is running (#11308) cannot build a widget, because no cell can
+        # cell is running cannot build a widget, because no cell can
         # close its comm. The error names mo.Thread, and a comm opened before
         # the check is closed again, so the comm manager is unchanged.
         ctx = get_context()

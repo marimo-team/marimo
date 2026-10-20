@@ -995,7 +995,7 @@ class TestCacheDecorator:
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
         # Called after its cell returned, as from a plain thread that restored
-        # the kernel context (#11308). No cell runs, so there is no cell to
+        # the kernel context. No cell runs, so there is no cell to
         # mark for cache invalidation, and the call still works.
         await k.run(
             [

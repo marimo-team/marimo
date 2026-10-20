@@ -325,7 +325,7 @@ def test_any_data_with_context_but_no_cell_raises(
     run_mode_kernel: MockedKernel,  # noqa: ARG001
 ) -> None:
     # A runtime context is installed but no cell is running, as on a plain
-    # thread that restored the kernel's context (#11308). Nothing can dispose
+    # thread that restored the kernel's context. Nothing can dispose
     # the file, so marimo refuses to create it rather than leak it.
     ctx = get_context()
     assert ctx.cell_id is None
@@ -381,7 +381,7 @@ async def test_vfile_from_task_is_owned_by_spawning_cell(
 async def test_vfile_from_thread_with_copied_context_is_owned_by_spawning_cell(
     execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    # A plain thread that restores the kernel context (#11308) owns nothing
+    # A plain thread that restores the kernel context owns nothing
     # by itself. A cell owns anything the thread creates under a `contextvars`
     # copy taken in that cell, and deleting the cell disposes it.
     k = execution_kernel
