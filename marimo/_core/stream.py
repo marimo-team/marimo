@@ -251,7 +251,10 @@ class Stream(Sink):
             position.isascii() and position.isdigit()
         ):
             return None
-        return int(position)
+        try:
+            return int(position)
+        except ValueError:
+            return None
 
     def since(self, position: int) -> list[RoutedEvent] | None:
         """Return events after `position`, or `None` for a stale or future one."""

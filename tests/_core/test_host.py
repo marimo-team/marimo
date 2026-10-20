@@ -190,6 +190,8 @@ async def test_resume_replays_or_resets() -> None:
     small.update_project(project("p4"))
     assert names(small.events(cursor))[0] == "reset"
     assert names(small.events(small._stream.cursor_at(10**6)))[0] == "reset"
+    oversized = small._stream.cursor_at(0) + "1" * 5000
+    assert names(small.events(oversized))[0] == "reset"
     # A cursor from before a restart names another stream's history.
     restarted = Host(operations=[]).events()[-1].event.id
     assert isinstance(restarted, str)
