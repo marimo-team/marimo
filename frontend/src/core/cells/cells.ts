@@ -1761,7 +1761,8 @@ export const cellErrorsAtom = atom((get) => {
 });
 
 export const notebookOutline = atom((get) => {
-  const { cellIds, cellRuntime } = get(notebookAtom);
+  const cellIds = get(cellIdsAtom);
+  const cellRuntime = get(cellsRuntimeAtom);
   const outlines = cellIds.inOrderIds.map(
     (cellId) => cellRuntime[cellId].outline,
   );

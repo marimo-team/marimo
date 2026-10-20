@@ -39,6 +39,10 @@ const continuousKeys = Number(process.env.EDITING_BENCH_CONTINUOUS_KEYS ?? 30);
 const pausedKeys = 20;
 const expectedKeys = continuousKeys + pausedKeys;
 const warmup = " warmup";
+const expectedHeadings = process.env.EDITING_BENCH_HEADINGS
+  ? Number(process.env.EDITING_BENCH_HEADINGS)
+  : undefined;
+const headingSelector = ".marimo-cell :is(h1, h2, h3, h4, h5, h6)";
 const rates = (process.env.EDITING_BENCH_RATES ?? "1,4,6")
   .split(",")
   .map(Number);
@@ -47,10 +51,12 @@ if (
   repetitions < 1 ||
   !Number.isInteger(continuousKeys) ||
   continuousKeys < 1 ||
+  (expectedHeadings !== undefined &&
+    (!Number.isInteger(expectedHeadings) || expectedHeadings < 0)) ||
   rates.some((rate) => !Number.isFinite(rate) || rate < 1)
 ) {
   throw new Error(
-    "Use positive integer repetitions and key counts, and CPU slowdown rates of at least 1",
+    "Use positive integer repetitions and key counts, nonnegative integer heading counts, and CPU slowdown rates of at least 1",
   );
 }
 
@@ -92,6 +98,14 @@ try {
             document.querySelectorAll(".cm-content").length === expected,
           count,
         );
+        if (expectedHeadings !== undefined) {
+          await page.waitForFunction(
+            ({ selector, expected }) =>
+              document.querySelectorAll(selector).length === expected,
+            { selector: headingSelector, expected: expectedHeadings },
+          );
+        }
+        const headingCount = await page.locator(headingSelector).count();
         await page.waitForFunction(
           () =>
             !document.querySelector(
@@ -277,6 +291,7 @@ try {
           url,
           browser: browser.version(),
           cellCount: count,
+          headingCount,
           rate,
           repetition,
           continuousKeys,

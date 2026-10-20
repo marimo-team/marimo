@@ -40,6 +40,8 @@ uv run --no-project --with-editable ../.. marimo edit . \
 ```
 
 The fixture directory must not exist. Fixtures contain 20 lines per cell, no outputs, and disabled Copilot and pylsp.
+Add `--outlines` to create `outline-25.py` and `outline-100.py` with 48 and 198 rendered headings.
+Set `EDITING_BENCH_HEADINGS` to the corresponding count when benchmarking these fixtures.
 The harness restores edits after successful runs. Failed or interrupted runs can leave edits behind.
 
 In another terminal, from `frontend`:
@@ -56,6 +58,7 @@ node benchmarks/cell-editing.browser.ts \
 | `EDITING_BENCH_RUNS` | `3` | Repetitions |
 | `EDITING_BENCH_RATES` | `1,4,6` | CPU slowdown rates |
 | `EDITING_BENCH_CONTINUOUS_KEYS` | `30` | Characters at 80 ms intervals, followed by 20 characters at 400 ms intervals |
+| `EDITING_BENCH_HEADINGS` | Unset | Wait for this number of rendered headings before typing |
 | `EDITING_BENCH_PROFILE` | `0` | Set to `1` for a CPU profile and browser trace |
 | `EDITING_BENCH_REACT` | `0` | Set to `1` for React commit records with the profiling build |
 
@@ -93,6 +96,20 @@ Milliseconds, median of three per-run percentiles. Paused typing uses 20 charact
 | 25 | 30 | 13.0 | 18.6 | 11.4 | 13.6 |
 | 25 | 150 | 10.8 | 14.1 | 11.0 | 13.5 |
 | 100 | 30 | 17.3 | 19.2 | 16.7 | 19.4 |
+
+### Input processing with rendered headings
+
+*Last recorded: 2026-10-20 · Apple M4 Max · Chromium 153.0.8010.12 · 6× CPU slowdown · background CPU load present*
+
+Milliseconds, median of three per-run p95 values; 30 continuous and 20 paused characters.
+Before/after narrowing outline subscriptions to cell order and runtime state.
+
+| Cells | Headings | Continuous before | Continuous after | Paused before | Paused after |
+| --- | --- | --- | --- | --- | --- |
+| 25 | 48 | 24.5 | 18.0 | 25.7 | 16.0 |
+| 100 | 198 | 74.9 | 24.5 | 38.9 | 23.6 |
+
+The 100-cell continuous p95 ranged from 37.2–110.7 ms before and 22.8–24.9 ms after.
 
 ### Isolated operations
 
