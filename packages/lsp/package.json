@@ -25,5 +25,5 @@
     "vscode-ws-jsonrpc": "^3.5.0",
     "ws": "^8.21.3"
   },
-  "packageManager": "pnpm@10.34.5"
+  "packageManager": "pnpm@12.10.1"
 }

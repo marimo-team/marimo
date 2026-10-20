@@ -1,3 +1,161 @@
+---
+lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    configDependencies: {}
+    packageManagerDependencies:
+      pnpm:
+        specifier: 12.10.1
+        version: 12.10.1
+
+packages:
+
+  '@pnpm/exe.android-arm64@12.10.1':
+    resolution: {integrity: sha512-CVTlHPwNvadQCJD9bGSMzWIhFX8QpjtqC2c27dhdnn/9iKzEjZ3qL62o3gHpKbIuo6qn4WxTKRoaokgNdReBig==}
+    cpu: [arm64]
+    os: [android]
+
+  '@pnpm/exe.android-x64@12.10.1':
+    resolution: {integrity: sha512-NFiYLIaodY7da0XIebwcU3JoP7IK/lzF7zgKSSP+9H+QcFnQ1GDfBkuBKCYJzZ+Xu0WH54neIPLBBCaOjaaauA==}
+    cpu: [x64]
+    os: [android]
+
+  '@pnpm/exe.darwin-arm64@12.10.1':
+    resolution: {integrity: sha512-0O8tdQ8ijlPJudXspLMTcitMkdBEz6uUflazL5uQE0WMs85oQIp0U+5hfEktMFB64QqEhjqlvvujTwbzdr9oMg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@pnpm/exe.darwin-x64@12.10.1':
+    resolution: {integrity: sha512-ud+1/uZOKEo8P/AsPynOJc/LNwfI0j6WwCElibj71rU9l4nIBnsSn+wWTIPZPkZ4BBSH5+82azSnAARMyJ1lNA==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@pnpm/exe.freebsd-x64@12.10.1':
+    resolution: {integrity: sha512-mj9PE5rf8uAfQQ2K66HSATMSut+lNiB4eSqFd5+azFVCMnxNSy/32xpZQJT21PhnN3Y4qbK+iKHe5nWAxSuRhw==}
+    cpu: [x64]
+    os: [freebsd]
+
+  '@pnpm/exe.linux-arm64-musl@12.10.1':
+    resolution: {integrity: sha512-xba+00wZJ8Um6rBJJjWl88uJj0tydB8dtomvjlCLvi0uL32vpa9CRP8Vv26FIXvbiZ1bo2RCzYt/eChxJVV52w==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@pnpm/exe.linux-arm64@12.10.1':
+    resolution: {integrity: sha512-oBdMp69ScC9UnniG4qZAQVr2fBDSXjm4yk/72vkEVyrlwS23yMxcRQl7Qdo3sgXPAygY6TWnPRKm4rXzjoyW7w==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@pnpm/exe.linux-ppc64@12.10.1':
+    resolution: {integrity: sha512-Yyb3wu09h3c7mLme270uHFiVaAIUHC411Ru9LIU2BKUIstrGlXa9OqqVWoXaRgYRdFdOFknkwG7GNn6ygwLbnw==}
+    cpu: [ppc64]
+    os: [linux]
+    libc: [glibc]
+
+  '@pnpm/exe.linux-riscv64@12.10.1':
+    resolution: {integrity: sha512-PdkeUFFkybknnGkWP0H22eMpIiS4OZXL5BcQzF4lh+vmrW3IaC2HOkbANKgot/PKO0Kl77pzA/6PKFxgbgfXIQ==}
+    cpu: [riscv64]
+    os: [linux]
+    libc: [glibc]
+
+  '@pnpm/exe.linux-s390x@12.10.1':
+    resolution: {integrity: sha512-1okKuHKJwJPAbofDxfhZWAUxEWtee4ZSf7Pah8kcvocaJkf2WxFJ5KVTiNIvDml5GLidDQsgf7Pcf/WHbCak7Q==}
+    cpu: [s390x]
+    os: [linux]
+    libc: [glibc]
+
+  '@pnpm/exe.linux-x64-musl@12.10.1':
+    resolution: {integrity: sha512-e6IqzVNkPa7srFKJKnY23uWJ+qz0LaRWiTUo/sHfFXRRMRzB5uNOr6qWWip/jqhdGwU91n9J7LrEYZ6e0tRczw==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@pnpm/exe.linux-x64@12.10.1':
+    resolution: {integrity: sha512-ZByV0DRgWzGaDSjT5ddRBASdwz+r/qPMYh7o6RGmPQjtRGNFbSl94xY2DcAM8mqCOZJUUDtAXQ+wpBXcdpKlkg==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@pnpm/exe.win32-arm64@12.10.1':
+    resolution: {integrity: sha512-I7QZHcjioG7orFeCRUFUHByJ1G0zFPnAlaGGyrUvb6MGkv5oeNwNPl7t+Gp+7zHfnMcgLGJ1a+Wfim0IDw3lOw==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@pnpm/exe.win32-x64@12.10.1':
+    resolution: {integrity: sha512-4WJFdp58EKlCj0zLobrXU0vpszSZIr4X/3y/uNbAQqGW0zE+VdruZB0gFc3L2kzsUzVwTYbaCn+XEhnCYSAlTg==}
+    cpu: [x64]
+    os: [win32]
+
+  pnpm@12.10.1:
+    resolution: {integrity: sha512-ukCjfrGjcNYP6oxM8dNkwTvMzvUY6YrSvO6VT1OdONo3RY5YJho/pV4GUjRQ6g//+fSXsTW+QfLBXBZCusrObA==}
+    engines: {node: '>=18.*'}
+    hasBin: true
+
+snapshots:
+
+  '@pnpm/exe.android-arm64@12.10.1':
+    optional: true
+
+  '@pnpm/exe.android-x64@12.10.1':
+    optional: true
+
+  '@pnpm/exe.darwin-arm64@12.10.1':
+    optional: true
+
+  '@pnpm/exe.darwin-x64@12.10.1':
+    optional: true
+
+  '@pnpm/exe.freebsd-x64@12.10.1':
+    optional: true
+
+  '@pnpm/exe.linux-arm64-musl@12.10.1':
+    optional: true
+
+  '@pnpm/exe.linux-arm64@12.10.1':
+    optional: true
+
+  '@pnpm/exe.linux-ppc64@12.10.1':
+    optional: true
+
+  '@pnpm/exe.linux-riscv64@12.10.1':
+    optional: true
+
+  '@pnpm/exe.linux-s390x@12.10.1':
+    optional: true
+
+  '@pnpm/exe.linux-x64-musl@12.10.1':
+    optional: true
+
+  '@pnpm/exe.linux-x64@12.10.1':
+    optional: true
+
+  '@pnpm/exe.win32-arm64@12.10.1':
+    optional: true
+
+  '@pnpm/exe.win32-x64@12.10.1':
+    optional: true
+
+  pnpm@12.10.1:
+    optionalDependencies:
+      '@pnpm/exe.android-arm64': 12.10.1
+      '@pnpm/exe.android-x64': 12.10.1
+      '@pnpm/exe.darwin-arm64': 12.10.1
+      '@pnpm/exe.darwin-x64': 12.10.1
+      '@pnpm/exe.freebsd-x64': 12.10.1
+      '@pnpm/exe.linux-arm64': 12.10.1
+      '@pnpm/exe.linux-arm64-musl': 12.10.1
+      '@pnpm/exe.linux-ppc64': 12.10.1
+      '@pnpm/exe.linux-riscv64': 12.10.1
+      '@pnpm/exe.linux-s390x': 12.10.1
+      '@pnpm/exe.linux-x64': 12.10.1
+      '@pnpm/exe.linux-x64-musl': 12.10.1
+      '@pnpm/exe.win32-arm64': 12.10.1
+      '@pnpm/exe.win32-x64': 12.10.1
+
+---
 lockfileVersion: '9.0'
 
 settings:
@@ -12,9 +170,7 @@ overrides:
   katex: ^0.18.7
 
 patchedDependencies:
-  html-to-image@1.11.13:
-    hash: 405d43fd603ed64fdfdd4e3572f22a2b0eab5c8bd36a0dbd88f28ab1f311893f
-    path: patches/html-to-image@1.11.13.patch
+  html-to-image@1.11.13: 405d43fd603ed64fdfdd4e3572f22a2b0eab5c8bd36a0dbd88f28ab1f311893f
 
 importers:
 
@@ -34,7 +190,7 @@ importers:
         version: 2.11.2
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3)(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
+        version: 4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
 
   frontend:
     dependencies:
@@ -106,7 +262,7 @@ importers:
         version: 3.2.2(react@19.3.0)
       '@glideapps/glide-data-grid':
         specifier: 6.0.4-alpha24
-        version: 6.0.4-alpha24(lodash@4.17.21)(marked@15.0.12)(react-dom@19.3.0(react@19.3.0))(react-responsive-carousel@3.2.23)(react@19.3.0)
+        version: 6.0.4-alpha24(lodash@4.17.21)(marked@15.0.12)(react-dom@19.3.0(react@19.3.0))(react-responsive-carousel@3.2.23)(react@19.3.0)(supports-color@10.0.0)
       '@hookform/resolvers':
         specifier: ^5.9.1
         version: 5.9.1(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.54.2(react@19.3.0))(zod@4.6.5)
@@ -139,7 +295,7 @@ importers:
         version: 2.0.1(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)
       '@marimo-team/codemirror-mcp':
         specifier: ^0.1.7
-        version: 0.1.7(@codemirror/autocomplete@6.20.3)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)(@modelcontextprotocol/sdk@1.17.2)
+        version: 0.1.7(@codemirror/autocomplete@6.20.3)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))
       '@marimo-team/codemirror-sql':
         specifier: ^0.3.0
         version: 0.3.0(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)
@@ -175,7 +331,7 @@ importers:
         version: 0.2.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(reveal.js@6.0.2)
       '@streamdown/math':
         specifier: ^1.0.2
-        version: 1.0.2(react@19.3.0)
+        version: 1.0.2(react@19.3.0)(supports-color@10.0.0)
       '@tailwindcss/postcss':
         specifier: ^4.3.3
         version: 4.3.3
@@ -292,10 +448,10 @@ importers:
         version: 2.3.0
       jotai:
         specifier: ^2.20.3
-        version: 2.20.3(@babel/core@7.29.0)(@babel/template@7.28.6)(@types/react@19.3.0)(react@19.3.0)
+        version: 2.20.3(@babel/core@7.29.0(supports-color@10.0.0))(@babel/template@7.28.6)(@types/react@19.3.0)(react@19.3.0)
       jotai-scope:
         specifier: ^0.12.2
-        version: 0.12.2(jotai@2.20.3(@babel/core@7.29.0)(@babel/template@7.28.6)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+        version: 0.12.2(jotai@2.20.3(@babel/core@7.29.0(supports-color@10.0.0))(@babel/template@7.28.6)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       js-cookie:
         specifier: ^3.0.8
         version: 3.0.8
@@ -331,7 +487,7 @@ importers:
         version: 8.4.2
       plotly.js:
         specifier: ^3.7.0
-        version: 3.7.0(mapbox-gl@1.13.3)
+        version: 3.7.0(mapbox-gl@1.13.3)(supports-color@10.0.0)
       pyodide:
         specifier: 314.0.0
         version: 314.0.0
@@ -370,7 +526,7 @@ importers:
         version: 7.54.2(react@19.3.0)
       react-markdown:
         specifier: ^9.1.0
-        version: 9.1.0(@types/react@19.3.0)(react@19.3.0)
+        version: 9.1.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.0.0)
       react-resizable-panels:
         specifier: 2.1.9
         version: 2.1.9(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -391,7 +547,7 @@ importers:
         version: 6.0.0
       remark-gfm:
         specifier: ^4.0.1
-        version: 4.0.1
+        version: 4.0.1(supports-color@10.0.0)
       reveal.js:
         specifier: ^6.0.2
         version: 6.0.2
@@ -403,7 +559,7 @@ importers:
         version: 15.8.2
       streamdown:
         specifier: ^2.6.0
-        version: 2.6.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        version: 2.6.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.0.0)
       string-dedent:
         specifier: ^3.0.2
         version: 3.0.2
@@ -431,6 +587,9 @@ importers:
       use-resize-observer:
         specifier: ^9.1.0
         version: 9.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      vega:
+        specifier: 6.2.0
+        version: 6.2.0
       vega-lite:
         specifier: 6.4.3
         version: 6.4.3(vega@6.2.0)
@@ -473,7 +632,7 @@ importers:
         version: 10.6.0(@types/react@19.3.0)(react@19.3.0)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))
       '@storybook/react-vite':
         specifier: ^10.6.0
-        version: 10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rollup@4.50.1)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))(typescript@5.9.3)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
+        version: 10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rollup@4.50.1)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))(supports-color@10.0.0)(typescript@5.9.3)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
       '@testing-library/jest-dom':
         specifier: ^7.0.1
         version: 7.0.1(@testing-library/dom@10.4.1)(vitest@4.1.11)
@@ -515,7 +674,7 @@ importers:
         version: 7.0.3
       jsdom:
         specifier: ^24.1.3
-        version: 24.1.3
+        version: 24.1.3(supports-color@10.0.0)
       msw:
         specifier: ^2.15.0
         version: 2.15.0(@types/node@24.13.6)(typescript@5.9.3)
@@ -524,7 +683,7 @@ importers:
         version: 6.2.6
       orval:
         specifier: 8.40.0
-        version: 8.40.0(@modelcontextprotocol/sdk@1.17.2)(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(swr@2.4.2(react@19.3.0))(typescript@5.9.3)(zod@4.6.5)
+        version: 8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(swr@2.4.2(react@19.3.0))(typescript@5.9.3)(zod@4.6.5)
       oxc-transform-react:
         specifier: 0.145.0
         version: 0.145.0
@@ -551,10 +710,10 @@ importers:
         version: 10.6.0(@types/react@19.3.0)(react@19.3.0)
       stylelint:
         specifier: ^16.26.1
-        version: 16.26.1(typescript@5.9.3)
+        version: 16.26.1(supports-color@10.0.0)(typescript@5.9.3)
       stylelint-config-standard:
         specifier: ^36.0.1
-        version: 36.0.1(stylelint@16.26.1(typescript@5.9.3))
+        version: 36.0.1(stylelint@16.26.1(supports-color@10.0.0)(typescript@5.9.3))
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
@@ -569,7 +728,7 @@ importers:
         version: 3.6.0(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3)(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
+        version: 4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
@@ -581,7 +740,7 @@ importers:
         version: link:../ts-config
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3)(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
+        version: 4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
@@ -612,13 +771,13 @@ importers:
         version: 1.2.8
       tsup:
         specifier: ^8.5.1
-        version: 8.5.1(@swc/core@1.12.14(@swc/helpers@0.5.17))(jiti@2.7.0)(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
+        version: 8.5.1(@swc/core@1.12.14(@swc/helpers@0.5.17))(jiti@2.7.0)(postcss@8.5.28)(supports-color@10.0.0)(typescript@5.9.3)(yaml@2.9.1)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3)(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
+        version: 4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
       vscode-ws-jsonrpc:
         specifier: ^3.5.0
         version: 3.5.0
@@ -665,7 +824,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3)(msw@2.15.0(@types/node@20.19.43)(typescript@5.9.3))(vite@8.3.0(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
+        version: 4.1.11(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3(supports-color@10.0.0))(msw@2.15.0(@types/node@20.19.43)(typescript@5.9.3))(vite@8.3.0(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
 
   packages/ts-config: {}
 
@@ -4608,11 +4767,6 @@ packages:
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
-    peerDependencies:
-      ajv: ^8.0.0
-    peerDependenciesMeta:
-      ajv:
-        optional: true
 
   ajv@6.15.0:
     resolution: {integrity: sha512-fgFx7Hfoq60ytK2c7DhnF8jIvzYgOMxfugjLOSMHjLIPgenqa7S7oaagATUq99mV6IYvN2tRmC0wnTYX6iPbMw==}
@@ -5072,7 +5226,6 @@ packages:
 
   concat-stream@1.6.2:
     resolution: {integrity: sha512-27HBghJxjiZtIk3Ycvn/4kbJk/1uZuJFfuPEns6LaEvpvG1f0hTea8lilrouyo9mVc2GWdcEZ8OLoGmSADlrCw==}
-    engines: {'0': node >= 0.8}
 
   confbox@0.1.8:
     resolution: {integrity: sha512-RMtmw0iFkeR4YV+fUOSucriAQNb9g8zFR52MWCtl+cCZOFRNL6zeB395vPzFhEjjn4fMxXudmELnl/KF/WrK6w==}
@@ -5853,7 +6006,6 @@ packages:
 
   extsprintf@1.3.0:
     resolution: {integrity: sha512-11Ndz7Nv+mvAC1j0ktTa7fAb0vLyGGX+rMHNBYQviQDGU0Hw7lhctJANqbPhu9nV9/izT/IntTgZ7Im/9LJs9g==}
-    engines: {'0': node >=0.6.0}
 
   falafel@2.2.5:
     resolution: {integrity: sha512-HuC1qF9iTnHDnML9YZAdCDQwT0yKl/U55K4XSUXqGAA2GLoafFgWRqdAbhWJxXaYD4pyoVxAJ8wH670jMpI9DQ==}
@@ -9338,7 +9490,6 @@ packages:
 
   verror@1.10.0:
     resolution: {integrity: sha512-ZZKSmDAEFOijERBLkmYfJ+vmk3w+7hOLYDNkRCuRuMJGEmqYNCNLyBBFwWKVMhfwaEF3WOd0Zlw86U/WC/+nYw==}
-    engines: {'0': node >=0.6.0}
 
   vfile-location@5.0.3:
     resolution: {integrity: sha512-5yXvWDEgqeiYiBe1lbxYF7UMAIm/IcopxMHrMQDq3nvKcjPKIhZklUKL+AE7J7uApI4kwe2snsK+eI6UTj9EHg==}
@@ -9818,16 +9969,16 @@ snapshots:
 
   '@babel/compat-data@7.29.0': {}
 
-  '@babel/core@7.29.0':
+  '@babel/core@7.29.0(supports-color@10.0.0)':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/generator': 7.29.0
       '@babel/helper-compilation-targets': 7.28.6
-      '@babel/helper-module-transforms': 7.28.6(@babel/core@7.29.0)
+      '@babel/helper-module-transforms': 7.28.6(@babel/core@7.29.0(supports-color@10.0.0))(supports-color@10.0.0)
       '@babel/helpers': 7.28.6
       '@babel/parser': 7.29.8
       '@babel/template': 7.28.6
-      '@babel/traverse': 7.29.0
+      '@babel/traverse': 7.29.0(supports-color@10.0.0)
       '@babel/types': 7.29.8
       '@jridgewell/remapping': 2.3.5
       convert-source-map: 2.0.0
@@ -9856,19 +10007,19 @@ snapshots:
 
   '@babel/helper-globals@7.28.0': {}
 
-  '@babel/helper-module-imports@7.28.6':
+  '@babel/helper-module-imports@7.28.6(supports-color@10.0.0)':
     dependencies:
-      '@babel/traverse': 7.29.0
+      '@babel/traverse': 7.29.0(supports-color@10.0.0)
       '@babel/types': 7.29.8
     transitivePeerDependencies:
       - supports-color
 
-  '@babel/helper-module-transforms@7.28.6(@babel/core@7.29.0)':
+  '@babel/helper-module-transforms@7.28.6(@babel/core@7.29.0(supports-color@10.0.0))(supports-color@10.0.0)':
     dependencies:
-      '@babel/core': 7.29.0
-      '@babel/helper-module-imports': 7.28.6
+      '@babel/core': 7.29.0(supports-color@10.0.0)
+      '@babel/helper-module-imports': 7.28.6(supports-color@10.0.0)
       '@babel/helper-validator-identifier': 7.29.7
-      '@babel/traverse': 7.29.0
+      '@babel/traverse': 7.29.0(supports-color@10.0.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -9895,7 +10046,7 @@ snapshots:
       '@babel/parser': 7.29.8
       '@babel/types': 7.29.8
 
-  '@babel/traverse@7.29.0':
+  '@babel/traverse@7.29.0(supports-color@10.0.0)':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/generator': 7.29.0
@@ -10585,9 +10736,9 @@ snapshots:
   '@github/copilot-win32-x64@1.0.83':
     optional: true
 
-  '@glideapps/glide-data-grid@6.0.4-alpha24(lodash@4.17.21)(marked@15.0.12)(react-dom@19.3.0(react@19.3.0))(react-responsive-carousel@3.2.23)(react@19.3.0)':
+  '@glideapps/glide-data-grid@6.0.4-alpha24(lodash@4.17.21)(marked@15.0.12)(react-dom@19.3.0(react@19.3.0))(react-responsive-carousel@3.2.23)(react@19.3.0)(supports-color@10.0.0)':
     dependencies:
-      '@linaria/react': 6.3.0(react@19.3.0)
+      '@linaria/react': 6.3.0(react@19.3.0)(supports-color@10.0.0)
       canvas-hypertxt: 1.0.3
       lodash: 4.17.21
       marked: 15.0.12
@@ -10830,18 +10981,18 @@ snapshots:
       '@lezer/highlight': 1.2.3
       '@lezer/lr': 1.4.10
 
-  '@linaria/core@6.3.0':
+  '@linaria/core@6.3.0(supports-color@10.0.0)':
     dependencies:
-      '@wyw-in-js/processor-utils': 0.6.0
+      '@wyw-in-js/processor-utils': 0.6.0(supports-color@10.0.0)
     transitivePeerDependencies:
       - supports-color
 
-  '@linaria/react@6.3.0(react@19.3.0)':
+  '@linaria/react@6.3.0(react@19.3.0)(supports-color@10.0.0)':
     dependencies:
       '@emotion/is-prop-valid': 1.4.0
-      '@linaria/core': 6.3.0
-      '@wyw-in-js/processor-utils': 0.6.0
-      '@wyw-in-js/shared': 0.6.0
+      '@linaria/core': 6.3.0(supports-color@10.0.0)
+      '@wyw-in-js/processor-utils': 0.6.0(supports-color@10.0.0)
+      '@wyw-in-js/shared': 0.6.0(supports-color@10.0.0)
       minimatch: 9.0.5
       react: 19.3.0
       react-html-attributes: 1.4.6
@@ -10906,12 +11057,12 @@ snapshots:
       marked: 15.0.12
       vscode-languageserver-protocol: 3.18.3
 
-  '@marimo-team/codemirror-mcp@0.1.7(@codemirror/autocomplete@6.20.3)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)(@modelcontextprotocol/sdk@1.17.2)':
+  '@marimo-team/codemirror-mcp@0.1.7(@codemirror/autocomplete@6.20.3)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))':
     dependencies:
       '@codemirror/autocomplete': 6.20.3
       '@codemirror/state': 6.7.6
       '@codemirror/view': 6.43.13
-      '@modelcontextprotocol/sdk': 1.17.2
+      '@modelcontextprotocol/sdk': 1.17.2(supports-color@10.0.0)
 
   '@marimo-team/codemirror-sql@0.3.0(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)':
     dependencies:
@@ -10936,7 +11087,7 @@ snapshots:
     dependencies:
       '@chevrotain/types': 11.1.2
 
-  '@modelcontextprotocol/sdk@1.17.2':
+  '@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0)':
     dependencies:
       ajv: 6.15.0
       content-type: 1.0.5
@@ -10944,8 +11095,8 @@ snapshots:
       cross-spawn: 7.0.6
       eventsource: 3.0.7
       eventsource-parser: 3.1.0
-      express: 5.2.1
-      express-rate-limit: 7.5.1(express@5.2.1)
+      express: 5.2.1(supports-color@10.0.0)
+      express-rate-limit: 7.5.1(express@5.2.1(supports-color@10.0.0))
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
       zod: 3.25.76
@@ -11104,13 +11255,13 @@ snapshots:
       - '@faker-js/faker'
       - zod
 
-  '@orval/mcp@8.40.0(@modelcontextprotocol/sdk@1.17.2)(zod@4.6.5)':
+  '@orval/mcp@8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(zod@4.6.5)':
     dependencies:
       '@orval/core': 8.40.0
       '@orval/fetch': 8.40.0
       '@orval/zod': 8.40.0(zod@4.6.5)
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.17.2
+      '@modelcontextprotocol/sdk': 1.17.2(supports-color@10.0.0)
     transitivePeerDependencies:
       - '@faker-js/faker'
       - zod
@@ -12577,7 +12728,7 @@ snapshots:
       '@scalar/types': 0.23.0
       ajv: 8.20.0
       ajv-draft-04: 1.0.0(ajv@8.20.0)
-      ajv-formats: 3.0.1(ajv@8.20.0)
+      ajv-formats: 3.0.1
       yaml: 2.9.1
 
   '@scalar/openapi-parser@0.29.11':
@@ -12667,16 +12818,16 @@ snapshots:
       '@types/react': 19.3.0
       '@types/react-dom': 19.3.0(@types/react@19.3.0)
 
-  '@storybook/react-vite@10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rollup@4.50.1)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))(typescript@5.9.3)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))':
+  '@storybook/react-vite@10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rollup@4.50.1)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))(supports-color@10.0.0)(typescript@5.9.3)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))':
     dependencies:
       '@joshwooding/vite-plugin-react-docgen-typescript': 0.7.0(typescript@5.9.3)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
       '@rollup/pluginutils': 5.2.0(rollup@4.50.1)
       '@storybook/builder-vite': 10.6.0(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
-      '@storybook/react': 10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))(typescript@5.9.3)
+      '@storybook/react': 10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))(supports-color@10.0.0)(typescript@5.9.3)
       empathic: 2.0.0
       magic-string: 1.4.1
       react: 19.3.0
-      react-docgen: 8.0.2
+      react-docgen: 8.0.2(supports-color@10.0.0)
       react-dom: 19.3.0(react@19.3.0)
       resolve: 1.22.10
       storybook: 10.6.0(@types/react@19.3.0)(react@19.3.0)
@@ -12690,12 +12841,12 @@ snapshots:
       - rollup
       - supports-color
 
-  '@storybook/react@10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))(typescript@5.9.3)':
+  '@storybook/react@10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))(supports-color@10.0.0)(typescript@5.9.3)':
     dependencies:
       '@storybook/global': 5.0.0
       '@storybook/react-dom-shim': 10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))
       react: 19.3.0
-      react-docgen: 8.0.2
+      react-docgen: 8.0.2(supports-color@10.0.0)
       react-docgen-typescript: 2.4.0(typescript@5.9.3)
       react-dom: 19.3.0(react@19.3.0)
       storybook: 10.6.0(@types/react@19.3.0)(react@19.3.0)
@@ -12706,12 +12857,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@streamdown/math@1.0.2(react@19.3.0)':
+  '@streamdown/math@1.0.2(react@19.3.0)(supports-color@10.0.0)':
     dependencies:
       katex: 0.18.7
       react: 19.3.0
       rehype-katex: 7.0.1
-      remark-math: 6.0.0
+      remark-math: 6.0.0(supports-color@10.0.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -12895,7 +13046,7 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
     optionalDependencies:
-      vitest: 4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3)(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
+      vitest: 4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
 
   '@testing-library/react@16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
@@ -13136,7 +13287,7 @@ snapshots:
 
   '@types/fast-json-stable-stringify@2.1.2':
     dependencies:
-      fast-json-stable-stringify: 2.1.0
+      fast-json-stable-stringify: 2.0.0
 
   '@types/filesystem@0.0.36':
     dependencies:
@@ -13392,7 +13543,7 @@ snapshots:
       obug: 2.1.4
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3)(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
+      vitest: 4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
 
   '@vitest/expect@3.2.4':
     dependencies:
@@ -13480,14 +13631,14 @@ snapshots:
 
   '@workflow/serde@4.1.0': {}
 
-  '@wyw-in-js/processor-utils@0.6.0':
+  '@wyw-in-js/processor-utils@0.6.0(supports-color@10.0.0)':
     dependencies:
       '@babel/generator': 7.29.0
-      '@wyw-in-js/shared': 0.6.0
+      '@wyw-in-js/shared': 0.6.0(supports-color@10.0.0)
     transitivePeerDependencies:
       - supports-color
 
-  '@wyw-in-js/shared@0.6.0':
+  '@wyw-in-js/shared@0.6.0(supports-color@10.0.0)':
     dependencies:
       debug: 4.4.3(supports-color@10.0.0)
       find-up: 5.0.0
@@ -13544,8 +13695,8 @@ snapshots:
       ajv: 8.20.0
     optional: true
 
-  ajv-formats@3.0.1(ajv@8.20.0):
-    optionalDependencies:
+  ajv-formats@3.0.1:
+    dependencies:
       ajv: 8.20.0
 
   ajv@6.15.0:
@@ -13685,7 +13836,7 @@ snapshots:
 
   blob-polyfill@7.0.20220408: {}
 
-  body-parser@2.3.0:
+  body-parser@2.3.0(supports-color@10.0.0):
     dependencies:
       bytes: 3.1.2
       content-type: 2.0.0
@@ -14450,13 +14601,17 @@ snapshots:
 
   dayjs@1.11.21: {}
 
-  debug@2.6.9:
+  debug@2.6.9(supports-color@10.0.0):
     dependencies:
       ms: 2.0.0
+    optionalDependencies:
+      supports-color: 10.0.0
 
-  debug@3.2.7:
+  debug@3.2.7(supports-color@10.0.0):
     dependencies:
       ms: 2.1.3
+    optionalDependencies:
+      supports-color: 10.0.0
 
   debug@4.4.3(supports-color@10.0.0):
     dependencies:
@@ -14827,14 +14982,14 @@ snapshots:
 
   expect-type@1.4.0: {}
 
-  express-rate-limit@7.5.1(express@5.2.1):
+  express-rate-limit@7.5.1(express@5.2.1(supports-color@10.0.0)):
     dependencies:
-      express: 5.2.1
+      express: 5.2.1(supports-color@10.0.0)
 
-  express@5.2.1:
+  express@5.2.1(supports-color@10.0.0):
     dependencies:
       accepts: 2.0.0
-      body-parser: 2.3.0
+      body-parser: 2.3.0(supports-color@10.0.0)
       content-disposition: 1.1.0
       content-type: 1.0.5
       cookie: 0.7.2
@@ -14844,7 +14999,7 @@ snapshots:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
-      finalhandler: 2.1.1
+      finalhandler: 2.1.1(supports-color@10.0.0)
       fresh: 2.0.0
       http-errors: 2.0.1
       merge-descriptors: 2.0.0
@@ -14855,9 +15010,9 @@ snapshots:
       proxy-addr: 2.0.8
       qs: 6.15.3
       range-parser: 1.3.0
-      router: 2.2.0
-      send: 1.2.1
-      serve-static: 2.2.1
+      router: 2.2.0(supports-color@10.0.0)
+      send: 1.2.1(supports-color@10.0.0)
+      serve-static: 2.2.1(supports-color@10.0.0)
       statuses: 2.0.2
       type-is: 2.1.0
       vary: 1.1.2
@@ -14945,7 +15100,7 @@ snapshots:
     dependencies:
       to-regex-range: 5.0.1
 
-  finalhandler@2.1.1:
+  finalhandler@2.1.1(supports-color@10.0.0):
     dependencies:
       debug: 4.4.3(supports-color@10.0.0)
       encodeurl: 2.0.0
@@ -15357,7 +15512,7 @@ snapshots:
       '@ungap/structured-clone': 1.3.0
       unist-util-position: 5.0.0
 
-  hast-util-to-jsx-runtime@2.3.6:
+  hast-util-to-jsx-runtime@2.3.6(supports-color@10.0.0):
     dependencies:
       '@types/estree': 1.0.9
       '@types/hast': 3.0.4
@@ -15366,9 +15521,9 @@ snapshots:
       devlop: 1.1.0
       estree-util-is-identifier-name: 3.0.0
       hast-util-whitespace: 3.0.0
-      mdast-util-mdx-expression: 2.0.1
-      mdast-util-mdx-jsx: 3.2.0
-      mdast-util-mdxjs-esm: 2.0.1
+      mdast-util-mdx-expression: 2.0.1(supports-color@10.0.0)
+      mdast-util-mdx-jsx: 3.2.0(supports-color@10.0.0)
+      mdast-util-mdxjs-esm: 2.0.1(supports-color@10.0.0)
       property-information: 7.1.0
       space-separated-tokens: 2.0.2
       style-to-js: 1.1.21
@@ -15475,7 +15630,7 @@ snapshots:
       statuses: 2.0.2
       toidentifier: 1.0.1
 
-  http-proxy-agent@7.0.2:
+  http-proxy-agent@7.0.2(supports-color@10.0.0):
     dependencies:
       agent-base: 7.1.4
       debug: 4.4.3(supports-color@10.0.0)
@@ -15673,14 +15828,14 @@ snapshots:
 
   jiti@2.7.0: {}
 
-  jotai-scope@0.12.2(jotai@2.20.3(@babel/core@7.29.0)(@babel/template@7.28.6)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0):
+  jotai-scope@0.12.2(jotai@2.20.3(@babel/core@7.29.0(supports-color@10.0.0))(@babel/template@7.28.6)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0):
     dependencies:
-      jotai: 2.20.3(@babel/core@7.29.0)(@babel/template@7.28.6)(@types/react@19.3.0)(react@19.3.0)
+      jotai: 2.20.3(@babel/core@7.29.0(supports-color@10.0.0))(@babel/template@7.28.6)(@types/react@19.3.0)(react@19.3.0)
       react: 19.3.0
 
-  jotai@2.20.3(@babel/core@7.29.0)(@babel/template@7.28.6)(@types/react@19.3.0)(react@19.3.0):
+  jotai@2.20.3(@babel/core@7.29.0(supports-color@10.0.0))(@babel/template@7.28.6)(@types/react@19.3.0)(react@19.3.0):
     optionalDependencies:
-      '@babel/core': 7.29.0
+      '@babel/core': 7.29.0(supports-color@10.0.0)
       '@babel/template': 7.28.6
       '@types/react': 19.3.0
       react: 19.3.0
@@ -15706,14 +15861,14 @@ snapshots:
 
   jsbn@0.1.1: {}
 
-  jsdom@24.1.3:
+  jsdom@24.1.3(supports-color@10.0.0):
     dependencies:
       cssstyle: 4.6.0
       data-urls: 5.0.0
       decimal.js: 10.6.0
       form-data: 4.0.6
       html-encoding-sniffer: 4.0.0
-      http-proxy-agent: 7.0.2
+      http-proxy-agent: 7.0.2(supports-color@10.0.0)
       https-proxy-agent: 7.0.6(supports-color@10.0.0)
       is-potential-custom-element-name: 1.0.1
       nwsapi: 2.2.20
@@ -16078,14 +16233,14 @@ snapshots:
       unist-util-is: 6.0.0
       unist-util-visit-parents: 6.0.2
 
-  mdast-util-from-markdown@2.0.2:
+  mdast-util-from-markdown@2.0.2(supports-color@10.0.0):
     dependencies:
       '@types/mdast': 4.0.4
       '@types/unist': 3.0.3
       decode-named-character-reference: 1.2.0
       devlop: 1.1.0
       mdast-util-to-string: 4.0.0
-      micromark: 4.0.2
+      micromark: 4.0.2(supports-color@10.0.0)
       micromark-util-decode-numeric-character-reference: 2.0.2
       micromark-util-decode-string: 2.0.1
       micromark-util-normalize-identifier: 2.0.1
@@ -16103,79 +16258,79 @@ snapshots:
       mdast-util-find-and-replace: 3.0.2
       micromark-util-character: 2.1.1
 
-  mdast-util-gfm-footnote@2.1.0:
+  mdast-util-gfm-footnote@2.1.0(supports-color@10.0.0):
     dependencies:
       '@types/mdast': 4.0.4
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.0.2
+      mdast-util-from-markdown: 2.0.2(supports-color@10.0.0)
       mdast-util-to-markdown: 2.1.2
       micromark-util-normalize-identifier: 2.0.1
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm-strikethrough@2.0.0:
+  mdast-util-gfm-strikethrough@2.0.0(supports-color@10.0.0):
     dependencies:
       '@types/mdast': 4.0.4
-      mdast-util-from-markdown: 2.0.2
+      mdast-util-from-markdown: 2.0.2(supports-color@10.0.0)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm-table@2.0.0:
+  mdast-util-gfm-table@2.0.0(supports-color@10.0.0):
     dependencies:
       '@types/mdast': 4.0.4
       devlop: 1.1.0
       markdown-table: 3.0.4
-      mdast-util-from-markdown: 2.0.2
+      mdast-util-from-markdown: 2.0.2(supports-color@10.0.0)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm-task-list-item@2.0.0:
+  mdast-util-gfm-task-list-item@2.0.0(supports-color@10.0.0):
     dependencies:
       '@types/mdast': 4.0.4
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.0.2
+      mdast-util-from-markdown: 2.0.2(supports-color@10.0.0)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm@3.1.0:
+  mdast-util-gfm@3.1.0(supports-color@10.0.0):
     dependencies:
-      mdast-util-from-markdown: 2.0.2
+      mdast-util-from-markdown: 2.0.2(supports-color@10.0.0)
       mdast-util-gfm-autolink-literal: 2.0.1
-      mdast-util-gfm-footnote: 2.1.0
-      mdast-util-gfm-strikethrough: 2.0.0
-      mdast-util-gfm-table: 2.0.0
-      mdast-util-gfm-task-list-item: 2.0.0
+      mdast-util-gfm-footnote: 2.1.0(supports-color@10.0.0)
+      mdast-util-gfm-strikethrough: 2.0.0(supports-color@10.0.0)
+      mdast-util-gfm-table: 2.0.0(supports-color@10.0.0)
+      mdast-util-gfm-task-list-item: 2.0.0(supports-color@10.0.0)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-math@3.0.0:
+  mdast-util-math@3.0.0(supports-color@10.0.0):
     dependencies:
       '@types/hast': 3.0.4
       '@types/mdast': 4.0.4
       devlop: 1.1.0
       longest-streak: 3.1.0
-      mdast-util-from-markdown: 2.0.2
+      mdast-util-from-markdown: 2.0.2(supports-color@10.0.0)
       mdast-util-to-markdown: 2.1.2
       unist-util-remove-position: 5.0.0
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-mdx-expression@2.0.1:
+  mdast-util-mdx-expression@2.0.1(supports-color@10.0.0):
     dependencies:
       '@types/estree-jsx': 1.0.5
       '@types/hast': 3.0.4
       '@types/mdast': 4.0.4
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.0.2
+      mdast-util-from-markdown: 2.0.2(supports-color@10.0.0)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-mdx-jsx@3.2.0:
+  mdast-util-mdx-jsx@3.2.0(supports-color@10.0.0):
     dependencies:
       '@types/estree-jsx': 1.0.5
       '@types/hast': 3.0.4
@@ -16183,7 +16338,7 @@ snapshots:
       '@types/unist': 3.0.3
       ccount: 2.0.1
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.0.2
+      mdast-util-from-markdown: 2.0.2(supports-color@10.0.0)
       mdast-util-to-markdown: 2.1.2
       parse-entities: 4.0.2
       stringify-entities: 4.0.4
@@ -16192,13 +16347,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-mdxjs-esm@2.0.1:
+  mdast-util-mdxjs-esm@2.0.1(supports-color@10.0.0):
     dependencies:
       '@types/estree-jsx': 1.0.5
       '@types/hast': 3.0.4
       '@types/mdast': 4.0.4
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.0.2
+      mdast-util-from-markdown: 2.0.2(supports-color@10.0.0)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
@@ -16460,7 +16615,7 @@ snapshots:
 
   micromark-util-types@2.0.2: {}
 
-  micromark@4.0.2:
+  micromark@4.0.2(supports-color@10.0.0):
     dependencies:
       '@types/debug': 4.1.12
       debug: 4.4.3(supports-color@10.0.0)
@@ -16616,9 +16771,9 @@ snapshots:
       railroad-diagrams: 1.0.0
       randexp: 0.4.6
 
-  needle@2.9.1:
+  needle@2.9.1(supports-color@10.0.0):
     dependencies:
-      debug: 3.2.7
+      debug: 3.2.7(supports-color@10.0.0)
       iconv-lite: 0.4.24
       sax: 1.6.1
     transitivePeerDependencies:
@@ -16740,7 +16895,7 @@ snapshots:
       type-check: 0.3.2
       word-wrap: 1.2.5
 
-  orval@8.40.0(@modelcontextprotocol/sdk@1.17.2)(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(swr@2.4.2(react@19.3.0))(typescript@5.9.3)(zod@4.6.5):
+  orval@8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(swr@2.4.2(react@19.3.0))(typescript@5.9.3)(zod@4.6.5):
     dependencies:
       '@commander-js/extra-typings': 15.0.0(commander@15.0.0)
       '@orval/angular': 8.40.0
@@ -16749,7 +16904,7 @@ snapshots:
       '@orval/effect': 8.40.0
       '@orval/fetch': 8.40.0
       '@orval/hono': 8.40.0(typescript@5.9.3)(zod@4.6.5)
-      '@orval/mcp': 8.40.0(@modelcontextprotocol/sdk@1.17.2)(zod@4.6.5)
+      '@orval/mcp': 8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(zod@4.6.5)
       '@orval/mock': 8.40.0(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))
       '@orval/pinia-colada': 8.40.0
       '@orval/query': 8.40.0
@@ -17067,7 +17222,7 @@ snapshots:
     dependencies:
       playwright-core: 1.63.0
 
-  plotly.js@3.7.0(mapbox-gl@1.13.3):
+  plotly.js@3.7.0(mapbox-gl@1.13.3)(supports-color@10.0.0):
     dependencies:
       '@plotly/d3': 3.8.2
       '@plotly/d3-sankey': 0.7.2
@@ -17101,7 +17256,7 @@ snapshots:
       parse-svg-path: 0.1.2
       point-in-polygon: 1.1.0
       polybooljs: 1.2.2
-      probe-image-size: 7.2.3
+      probe-image-size: 7.2.3(supports-color@10.0.0)
       regl-error2d: 2.0.12
       regl-line2d: 3.1.3
       regl-scatter2d: 3.3.1
@@ -17332,11 +17487,11 @@ snapshots:
     dependencies:
       parse-ms: 4.0.0
 
-  probe-image-size@7.2.3:
+  probe-image-size@7.2.3(supports-color@10.0.0):
     dependencies:
       lodash.merge: 4.6.2
-      needle: 2.9.1
-      stream-parser: 0.3.1
+      needle: 2.9.1(supports-color@10.0.0)
+      stream-parser: 0.3.1(supports-color@10.0.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -17578,10 +17733,10 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
-  react-docgen@8.0.2:
+  react-docgen@8.0.2(supports-color@10.0.0):
     dependencies:
-      '@babel/core': 7.29.0
-      '@babel/traverse': 7.29.0
+      '@babel/core': 7.29.0(supports-color@10.0.0)
+      '@babel/traverse': 7.29.0(supports-color@10.0.0)
       '@babel/types': 7.29.8
       '@types/babel__core': 7.20.5
       '@types/babel__traverse': 7.20.7
@@ -17644,17 +17799,17 @@ snapshots:
 
   react-is@17.0.2: {}
 
-  react-markdown@9.1.0(@types/react@19.3.0)(react@19.3.0):
+  react-markdown@9.1.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.0.0):
     dependencies:
       '@types/hast': 3.0.4
       '@types/mdast': 4.0.4
       '@types/react': 19.3.0
       devlop: 1.1.0
-      hast-util-to-jsx-runtime: 2.3.6
+      hast-util-to-jsx-runtime: 2.3.6(supports-color@10.0.0)
       html-url-attributes: 3.0.1
       mdast-util-to-hast: 13.2.0
       react: 19.3.0
-      remark-parse: 11.0.0
+      remark-parse: 11.0.0(supports-color@10.0.0)
       remark-rehype: 11.1.2
       unified: 11.0.5
       unist-util-visit: 5.1.0
@@ -17900,30 +18055,30 @@ snapshots:
       '@types/hast': 3.0.4
       hast-util-sanitize: 5.0.2
 
-  remark-gfm@4.0.1:
+  remark-gfm@4.0.1(supports-color@10.0.0):
     dependencies:
       '@types/mdast': 4.0.4
-      mdast-util-gfm: 3.1.0
+      mdast-util-gfm: 3.1.0(supports-color@10.0.0)
       micromark-extension-gfm: 3.0.0
-      remark-parse: 11.0.0
+      remark-parse: 11.0.0(supports-color@10.0.0)
       remark-stringify: 11.0.0
       unified: 11.0.5
     transitivePeerDependencies:
       - supports-color
 
-  remark-math@6.0.0:
+  remark-math@6.0.0(supports-color@10.0.0):
     dependencies:
       '@types/mdast': 4.0.4
-      mdast-util-math: 3.0.0
+      mdast-util-math: 3.0.0(supports-color@10.0.0)
       micromark-extension-math: 3.1.0
       unified: 11.0.5
     transitivePeerDependencies:
       - supports-color
 
-  remark-parse@11.0.0:
+  remark-parse@11.0.0(supports-color@10.0.0):
     dependencies:
       '@types/mdast': 4.0.4
-      mdast-util-from-markdown: 2.0.2
+      mdast-util-from-markdown: 2.0.2(supports-color@10.0.0)
       micromark-util-types: 2.0.2
       unified: 11.0.5
     transitivePeerDependencies:
@@ -18063,7 +18218,7 @@ snapshots:
       points-on-curve: 0.2.0
       points-on-path: 0.2.1
 
-  router@2.2.0:
+  router@2.2.0(supports-color@10.0.0):
     dependencies:
       debug: 4.4.3(supports-color@10.0.0)
       depd: 2.0.0
@@ -18109,7 +18264,7 @@ snapshots:
 
   semver@7.8.5: {}
 
-  send@1.2.1:
+  send@1.2.1(supports-color@10.0.0):
     dependencies:
       debug: 4.4.3(supports-color@10.0.0)
       encodeurl: 2.0.0
@@ -18125,12 +18280,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  serve-static@2.2.1:
+  serve-static@2.2.1(supports-color@10.0.0):
     dependencies:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       parseurl: 1.3.3
-      send: 1.2.1
+      send: 1.2.1(supports-color@10.0.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -18314,18 +18469,18 @@ snapshots:
       - react
       - utf-8-validate
 
-  stream-parser@0.3.1:
+  stream-parser@0.3.1(supports-color@10.0.0):
     dependencies:
-      debug: 2.6.9
+      debug: 2.6.9(supports-color@10.0.0)
     transitivePeerDependencies:
       - supports-color
 
   stream-shift@1.0.3: {}
 
-  streamdown@2.6.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
+  streamdown@2.6.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.0.0):
     dependencies:
       clsx: 2.1.1
-      hast-util-to-jsx-runtime: 2.3.6
+      hast-util-to-jsx-runtime: 2.3.6(supports-color@10.0.0)
       html-url-attributes: 3.0.1
       marked: 17.0.1
       react: 19.3.0
@@ -18333,8 +18488,8 @@ snapshots:
       rehype-harden: 1.1.8
       rehype-raw: 7.0.0
       rehype-sanitize: 6.0.0
-      remark-gfm: 4.0.1
-      remark-parse: 11.0.0
+      remark-gfm: 4.0.1(supports-color@10.0.0)
+      remark-parse: 11.0.0(supports-color@10.0.0)
       remark-rehype: 11.1.2
       remend: 1.3.1
       tailwind-merge: 3.6.0
@@ -18447,16 +18602,16 @@ snapshots:
       postcss: 8.5.28
       postcss-selector-parser: 7.1.5
 
-  stylelint-config-recommended@14.0.1(stylelint@16.26.1(typescript@5.9.3)):
+  stylelint-config-recommended@14.0.1(stylelint@16.26.1(supports-color@10.0.0)(typescript@5.9.3)):
     dependencies:
-      stylelint: 16.26.1(typescript@5.9.3)
+      stylelint: 16.26.1(supports-color@10.0.0)(typescript@5.9.3)
 
-  stylelint-config-standard@36.0.1(stylelint@16.26.1(typescript@5.9.3)):
+  stylelint-config-standard@36.0.1(stylelint@16.26.1(supports-color@10.0.0)(typescript@5.9.3)):
     dependencies:
-      stylelint: 16.26.1(typescript@5.9.3)
-      stylelint-config-recommended: 14.0.1(stylelint@16.26.1(typescript@5.9.3))
+      stylelint: 16.26.1(supports-color@10.0.0)(typescript@5.9.3)
+      stylelint-config-recommended: 14.0.1(stylelint@16.26.1(supports-color@10.0.0)(typescript@5.9.3))
 
-  stylelint@16.26.1(typescript@5.9.3):
+  stylelint@16.26.1(supports-color@10.0.0)(typescript@5.9.3):
     dependencies:
       '@csstools/css-parser-algorithms': 3.0.5(@csstools/css-tokenizer@3.0.4)
       '@csstools/css-syntax-patches-for-csstree': 1.0.20
@@ -18749,7 +18904,7 @@ snapshots:
 
   tslib@2.8.1: {}
 
-  tsup@8.5.1(@swc/core@1.12.14(@swc/helpers@0.5.17))(jiti@2.7.0)(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1):
+  tsup@8.5.1(@swc/core@1.12.14(@swc/helpers@0.5.17))(jiti@2.7.0)(postcss@8.5.28)(supports-color@10.0.0)(typescript@5.9.3)(yaml@2.9.1):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.27.3)
       cac: 6.7.14
@@ -19232,18 +19387,18 @@ snapshots:
       d3-array: 3.2.4
       vega-dataflow: 6.1.3
       vega-statistics: 2.0.0
-      vega-time: 3.3.0
+      vega-time: 3.1.0
       vega-util: 2.1.3
 
   vega-typings@0.7.2:
     dependencies:
-      vega-util: 1.17.4
+      vega-util: 1.10.0
 
   vega-typings@2.1.0:
     dependencies:
       '@types/geojson': 7946.0.16
       vega-event-selector: 4.0.0
-      vega-expression: 6.2.2
+      vega-expression: 6.1.0
       vega-util: 2.1.3
 
   vega-typings@2.3.0:
@@ -19262,7 +19417,7 @@ snapshots:
   vega-view-transforms@5.1.0:
     dependencies:
       vega-dataflow: 6.1.3
-      vega-scenegraph: 5.3.0
+      vega-scenegraph: 5.1.0
       vega-util: 2.1.3
 
   vega-view@6.1.2:
@@ -19271,7 +19426,7 @@ snapshots:
       d3-timer: 3.0.1
       vega-dataflow: 6.1.3
       vega-format: 2.1.3
-      vega-functions: 6.2.0
+      vega-functions: 6.1.3
       vega-runtime: 7.1.2
       vega-scenegraph: 5.3.0
       vega-util: 2.1.3
@@ -19390,7 +19545,7 @@ snapshots:
       terser: 5.44.1
       yaml: 2.9.1
 
-  vitest@4.1.11(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3)(msw@2.15.0(@types/node@20.19.43)(typescript@5.9.3))(vite@8.3.0(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1)):
+  vitest@4.1.11(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3(supports-color@10.0.0))(msw@2.15.0(@types/node@20.19.43)(typescript@5.9.3))(vite@8.3.0(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1)):
     dependencies:
       '@vitest/expect': 4.1.11
       '@vitest/mocker': 4.1.11(msw@2.15.0(@types/node@20.19.43)(typescript@5.9.3))(vite@8.3.0(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
@@ -19415,11 +19570,11 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.19.43
       '@vitest/coverage-v8': 4.1.11(vitest@4.1.11)
-      jsdom: 24.1.3
+      jsdom: 24.1.3(supports-color@10.0.0)
     transitivePeerDependencies:
       - msw
 
-  vitest@4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3)(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1)):
+  vitest@4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1)):
     dependencies:
       '@vitest/expect': 4.1.11
       '@vitest/mocker': 4.1.11(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
@@ -19444,11 +19599,11 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.13.6
       '@vitest/coverage-v8': 4.1.11(vitest@4.1.11)
-      jsdom: 24.1.3
+      jsdom: 24.1.3(supports-color@10.0.0)
     transitivePeerDependencies:
       - msw
 
-  vitest@4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3)(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1)):
+  vitest@4.1.11(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1)):
     dependencies:
       '@vitest/expect': 4.1.11
       '@vitest/mocker': 4.1.11(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
@@ -19473,7 +19628,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.13.6
       '@vitest/coverage-v8': 4.1.11(vitest@4.1.11)
-      jsdom: 24.1.3
+      jsdom: 24.1.3(supports-color@10.0.0)
     transitivePeerDependencies:
       - msw
 
