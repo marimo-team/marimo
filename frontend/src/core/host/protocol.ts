@@ -1892,7 +1892,9 @@ export const EditResponse = zod
         "The version of each cell the request created or changed, by id, and null for each cell it deleted.",
       ),
   })
-  .describe("The document after an edit or a save, and the cells it touched.");
+  .describe(
+    "The document as an edit or save left it, or at a later revision, and the cells it touched.",
+  );
 
 export type EditResponse = zod.input<typeof EditResponse>;
 export type EditResponseOutput = zod.output<typeof EditResponse>;
