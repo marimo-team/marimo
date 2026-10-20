@@ -217,7 +217,7 @@ class AppScriptRunner:
             return
         if isinstance(exc, MarimoRescheduleError):
             # Stale-cache signal from a lifecycle; `cells_to_rerun` includes
-            # this cell, so requeueing (producers first) retries it live.
+            # this cell, so requeuing (producers first) retries it live.
             self._scheduler.requeue_for_rerun(exc.cells_to_rerun)
             return
         if not isinstance(exc, BaseException):
