@@ -11,12 +11,21 @@ import {
   TransportReadyState,
 } from "./connection";
 import { parseNotebookEvent } from "./events";
+import { type Document, document } from "./resources/document";
 import { createStream } from "./stream";
 
 /** A connection to a notebook on a marimo host. */
 export interface NotebookClient {
   /** Client connection status, independent of application session readiness. */
   readonly connectionAtom: Atom<ConnectionStatus>;
+  /**
+   * The most recently confirmed document.
+   *
+   * Null until a snapshot is complete, after reset or removal, and on
+   * connections without host document events. A temporary disconnection
+   * retains the last document. Partial updates are not exposed.
+   */
+  readonly documentAtom: Atom<Document | null>;
   /** Attempt to restore a closed connection after checking host health. */
   reconnect(): Promise<void>;
 }
@@ -50,12 +59,16 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
   const connectionAtom = atom<ConnectionStatus>({
     state: ConnectionState.NOT_STARTED,
   });
-  // One atom holds the whole stream. Resource atoms derive from it.
-  const stream = createStream({});
+  // One atom holds the whole stream, which resource atoms derive from.
+  const stream = createStream({ document });
   const streamAtom = atom(stream.initial);
+  const documentAtom = atom(
+    (get) => get(streamAtom).resources.document.current,
+  );
   let reconnect: (() => Promise<void>) | undefined;
   const client: NotebookClient = {
     connectionAtom,
+    documentAtom,
     reconnect: async () => reconnect?.(),
   };
 

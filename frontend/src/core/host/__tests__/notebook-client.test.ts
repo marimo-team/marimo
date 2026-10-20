@@ -142,6 +142,36 @@ describe("NotebookClient lifetime", () => {
     lifetime.abort();
   });
 
+  it("exposes the confirmed document until the lifetime ends", async () => {
+    const { connect, events, client, store, healthy, receive } = setup();
+    const lifetime = new AbortController();
+    connect(lifetime.signal);
+    healthy.resolve();
+    await healthy.promise;
+    events.dispatchEvent(new Event("open"));
+    const snapshot = fixtureMessages("notebook-events.sse");
+    for (const message of snapshot.slice(0, -3)) {
+      receive(message);
+    }
+    expect(store.get(client.documentAtom)).toBeNull();
+    for (const message of snapshot.slice(-3)) {
+      receive(message);
+    }
+    expect(store.get(client.documentAtom)?.revision.order).toEqual([
+      "c1",
+      "c3",
+      "k7f2",
+    ]);
+    events.dispatchEvent(new CloseEvent("close"));
+    expect(store.get(client.documentAtom)?.revision.order).toEqual([
+      "c1",
+      "c3",
+      "k7f2",
+    ]);
+    lifetime.abort();
+    expect(store.get(client.documentAtom)).toBeNull();
+  });
+
   it("stops consuming a stream whose notebook changes", () => {
     const { connect, events, client, store, transport } = setup();
     const lifetime = new AbortController();
