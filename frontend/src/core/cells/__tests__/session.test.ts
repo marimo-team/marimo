@@ -174,12 +174,61 @@ describe("notebookStateFromSession", () => {
         channel: "marimo-error",
         data: [
           {
-            type: "unknown",
+            type: "exception",
+            exception_type: "ValueError",
             msg: "Something went wrong",
+            raising_cell: null,
+            traceback: "Traceback line 1",
           },
         ],
         mimetype: "application/vnd.marimo+error",
         timestamp: 0,
+      });
+    });
+
+    it("restores matching code from the session", () => {
+      const code = "raise ValueError('cached failure')";
+      const session = createSession([
+        createSessionCell(
+          "cell-1",
+          [
+            {
+              type: "error",
+              ename: "ValueError",
+              evalue: "cached failure",
+              traceback: ["Traceback\n", "ValueError: cached failure"],
+              code,
+            },
+          ],
+          [
+            {
+              type: "stream",
+              name: "stderr",
+              text: "ValueError: cached <failure>",
+              mimetype: "application/vnd.marimo+traceback",
+              traceback_format: "text",
+              code,
+            },
+          ],
+        ),
+      ]);
+      const state = notebookStateFromSession(session, null);
+      invariant(state, "state is null");
+      expect(state.cellRuntime[CELL_1].output).toMatchObject({
+        code,
+        data: [
+          {
+            type: "exception",
+            exception_type: "ValueError",
+            msg: "cached failure",
+            traceback: "Traceback\nValueError: cached failure",
+          },
+        ],
+      });
+      expect(state.cellRuntime[CELL_1].consoleOutputs[0].code).toBe(code);
+      expect(state.cellRuntime[CELL_1].consoleOutputs[0]).toMatchObject({
+        traceback_format: "text",
+        data: "ValueError: cached <failure>",
       });
     });
 

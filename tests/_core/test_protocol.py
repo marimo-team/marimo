@@ -12,7 +12,7 @@ from typing import Any
 import msgspec
 import pytest
 
-from marimo._core import protocol
+from marimo._core import protocol, protocol_events
 
 FIXTURES = (
     Path(__file__).resolve().parents[2] / "protocols" / "host" / "fixtures"
@@ -157,6 +157,7 @@ def test_stream_models(path: Path) -> None:
     for event in events:
         kind = event["event"]
         data = json.loads(event["data"])
+        round_trip(protocol.Event, json.dumps({**event, "data": data}))
         if kind in ("ready", "reset"):
             assert data == {}
             assert ("id" in event) == (kind == "ready")
@@ -167,13 +168,39 @@ def test_stream_models(path: Path) -> None:
         if "id" in event:
             assert event["id"] not in cursors
             cursors.add(event["id"])
-        model = (
-            protocol.RemovedMessage
-            if kind.endswith(".removed")
-            else getattr(protocol, f"{kind.title()}Message")
-        )
-        round_trip(model, event["data"])
     assert not snapshot, f"{path.name}: incomplete snapshot"
+
+
+@pytest.mark.parametrize(
+    "path", sorted(FIXTURES.glob("*.sse")), ids=lambda path: path.name
+)
+def test_produced_events_match_wire_fixtures(path: Path) -> None:
+    for frame in stream_events(path):
+        expected = {**frame, "data": json.loads(frame["data"])}
+        wire = msgspec.json.decode(json.dumps(expected), type=protocol.Event)
+        if isinstance(wire, (protocol.ReadyEvent, protocol.ResetEvent)):
+            continue
+        if isinstance(wire, protocol_events.RemovalEvent):
+            record_type = getattr(
+                protocol, frame["event"].removesuffix(".removed").title()
+            )
+            produced = protocol_events.removed(
+                record_type,
+                wire.data.id,
+                request_id=wire.data.request_id,
+                time=wire.data.time,
+            )
+        else:
+            value = protocol_events.body(wire)
+            produced = protocol_events.record(
+                value, request_id=wire.data.request_id, time=wire.data.time
+            )
+            assert protocol_events.body(produced) is value
+        # The stream assigns cursors independently of constructing envelopes.
+        encoded = msgspec.json.encode(
+            msgspec.structs.replace(produced, id=wire.id)
+        )
+        assert json.loads(encoded) == expected
 
 
 def test_custom_event_replay_preserves_envelope_and_cursor() -> None:

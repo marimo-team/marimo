@@ -394,7 +394,11 @@ class ThreadSafeStderr(Stderr):
         self._stream.flush_console()
 
     def _write_with_mimetype(
-        self, data: str, mimetype: ConsoleMimeType
+        self,
+        data: str,
+        mimetype: ConsoleMimeType,
+        *,
+        code: str | None = None,
     ) -> int:
         assert self._stream.cell_id is not None
         if not isinstance(data, str):
@@ -416,6 +420,7 @@ class ThreadSafeStderr(Stderr):
                     cell_id=self._stream.cell_id,
                     data=data,
                     mimetype=mimetype,
+                    code=code,
                 )
             )
             self._stream.console_msg_cv.notify()

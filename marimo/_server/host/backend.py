@@ -19,8 +19,9 @@ from marimo._messaging.notification import (
     StartupProgressNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
-from marimo._runtime.commands import ExecuteScratchpadCommand
+from marimo._runtime.commands import ExecuteScratchpadCommand, HTTPRequest
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._server.host.events import notification_event
 from marimo._server.host.translate import RunTranslator
 from marimo._server.scratchpad import snapshot_for_scratchpad
 from marimo._session.consumer import SessionConsumer
@@ -31,10 +32,13 @@ from marimo._types.ids import ConsumerId, SessionId
 from marimo._version import __version__
 
 if TYPE_CHECKING:
+    from marimo._core.stream import Sink
+    from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
     from marimo._server.session_manager import SessionManager
     from marimo._session.events import SessionEventBus
     from marimo._session.session import Session
+    from marimo._types.encodable import Encodable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -44,6 +48,7 @@ _PHASES = {
 }
 
 Observe = Callable[[be.Message], None]
+RequestMetadata = Callable[["Session"], dict[str, "Encodable"]]
 
 
 @dataclass
@@ -77,21 +82,26 @@ class SessionBackend(SessionConsumer):
         file: Callable[[], str | None],
         manager: SessionManager,
         observe: Observe,
+        sink: Sink,
         document_changed: Callable[[], None] | None = None,
         session_attached: Callable[[], None] | None = None,
         session_detached: Callable[[Session], None] | None = None,
+        *,
+        request_metadata: RequestMetadata | None = None,
     ) -> None:
         self._notebook_id = notebook_id
         self._file = file
         """Resolve the notebook's current path after file moves."""
         self._manager = manager
         self._observe = observe
+        self._sink = sink
         self._document_changed = document_changed
         """Called after the session's document changes, from any writer."""
         self._session_attached = session_attached
         """Called with the session attached, before the runtime is reported."""
         self._session_detached = session_detached
         """Called with the session that detached, before its exit is reported."""
+        self._request_metadata = request_metadata
         self._kernel: _Kernel | None = None
         self._run: _Run | None = None
         self._translators: dict[str, RunTranslator] = {}
@@ -177,12 +187,34 @@ class SessionBackend(SessionConsumer):
                 http_request=None,
             )
             cells, outputs = snapshot_for_scratchpad(session)
+            request = None
+            if self._request_metadata is not None:
+                # Host runs have no HTTP origin. Give the URL fields the same
+                # keys a real request has so notebook code can read them.
+                empty_url: dict[str, Encodable] = {
+                    "path": "",
+                    "port": None,
+                    "scheme": "",
+                    "netloc": "",
+                    "query": "",
+                    "hostname": None,
+                }
+                request = HTTPRequest(
+                    url=dict(empty_url),
+                    base_url=dict(empty_url),
+                    headers={},
+                    query_params={},
+                    path_params={},
+                    cookies={},
+                    user={},
+                    meta=self._request_metadata(session),
+                )
             run.submitted = True
             self._translators[run.translator.run_id] = run.translator
             session.put_control_request(
                 ExecuteScratchpadCommand(
                     code=code,
-                    request=None,
+                    request=request,
                     notebook_cells=cells,
                     cell_outputs=outputs,
                     run_id=run.translator.run_id,
@@ -292,6 +324,11 @@ class SessionBackend(SessionConsumer):
 
     def notify(self, notification: KernelMessage) -> None:
         message = deserialize_kernel_message(notification)
+        with self._sink.deferred():
+            self._sink.append(notification_event(self._notebook_id, message))
+            self._handle_notification(message)
+
+    def _handle_notification(self, message: NotificationMessage) -> None:
         if isinstance(message, NotebookDocumentTransactionNotification):
             if self._document_changed is not None and self.session is not None:
                 self._document_changed()

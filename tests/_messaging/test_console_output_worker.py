@@ -44,6 +44,37 @@ class TestConsoleOutputWorker:
             ("second", "second"),
         ]
 
+    def test_flush_keeps_source_code_and_separates_outputs_by_code(
+        self,
+    ) -> None:
+        buffered = {}
+        for code in ("x = 1", "x = 2"):
+            _add_output_to_buffer(
+                ConsoleMsg(
+                    CellChannel.STDERR,
+                    "cell1",
+                    "Traceback",
+                    "application/vnd.marimo+traceback",
+                    run_id="same-run",
+                    execution_id="same-execution",
+                    code=code,
+                ),
+                buffered,
+            )
+        stream = MockStream()
+        _flush_outputs(buffered, stream)
+        assert [n.console.code for n in stream.cell_notifications] == [
+            "x = 1",
+            "x = 2",
+        ]
+
+    def test_write_console_output_omits_code_when_absent(self) -> None:
+        stream = MockStream()
+        _write_console_output(
+            stream, CellChannel.STDERR, "cell1", "Hello", "text/plain"
+        )
+        assert "code" not in stream.operations[0]["console"]
+
     def test_buffer_preserves_run_ids_across_execution_boundaries(
         self,
     ) -> None:

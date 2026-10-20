@@ -20,10 +20,12 @@ from marimo._core.errors import (
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
+from marimo._messaging.notification import AttachmentsNotification
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.host import OPERATIONS, document as documents
 from marimo._server.host.analysis import HostAnalyzer
-from marimo._server.host.backend import SessionBackend
+from marimo._server.host.backend import RequestMetadata, SessionBackend
+from marimo._server.host.events import notification_event
 from marimo._server.host.index import WorkspaceIndex
 from marimo._session.events import SessionEventListener
 from marimo._session.notebook.storage import rename_no_replace
@@ -37,7 +39,7 @@ if TYPE_CHECKING:
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
-    from marimo._core.stream import Event, Sink
+    from marimo._core.stream import RoutedEvent, Sink
     from marimo._messaging.notebook import NotebookCell
     from marimo._server.session_manager import SessionManager
     from marimo._session.notebook import AppFileManager
@@ -92,9 +94,12 @@ class SessionBridge(SessionEventListener):
         self,
         manager: SessionManager,
         config_manager: MarimoConfigManager | None = None,
+        *,
+        request_metadata: RequestMetadata | None = None,
     ) -> None:
         self._manager = manager
         self._config_manager = config_manager
+        self._request_metadata = request_metadata
         self._files_lock = asyncio.Lock()
         self._saving: set[protocol.NotebookId] = set()
         # TODO(MO-8005): The writer owns this baseline once there is one
@@ -112,7 +117,7 @@ class SessionBridge(SessionEventListener):
             self.host, manager.workspace, self._initialize_notebook
         )
         self._unsubscribe = self.host.subscribe(
-            self._forget_backend, types={"notebook"}
+            self._on_host_event, types={"notebook", "attachment"}
         )
 
     async def open(self) -> None:
@@ -125,6 +130,19 @@ class SessionBridge(SessionEventListener):
     def close(self) -> None:
         self._manager.event_bus.unsubscribe(self)
         self._unsubscribe()
+
+    def session_for_notebook(self, notebook_id: str) -> Session | None:
+        """Return the current session for a host notebook."""
+        backend = self._backends.get(protocol.NotebookId(notebook_id))
+        return None if backend is None else backend.session
+
+    def notebook_for_session(self, session: Session) -> Notebook | None:
+        """Return the host notebook that owns this session's runtime."""
+        for notebook_id, backend in self._backends.items():
+            if backend.session is session:
+                # Adoption loads the notebook before it attaches a session.
+                return self.host.peek_notebook(notebook_id)
+        return None
 
     async def refresh(self) -> None:
         """Refresh the catalog without observing a half-finished file move."""
@@ -163,7 +181,7 @@ class SessionBridge(SessionEventListener):
             saved_etag = document.etag if session is None else None
             if session is not None and loaded is not None:
                 saved_etag = Document(loaded.cells, loaded.app_config).etag
-            backend = self._make_backend(record.id)
+            backend = self._make_backend(record.id, sink)
             return Notebook(
                 record.id,
                 document,
@@ -379,6 +397,18 @@ class SessionBridge(SessionEventListener):
         return protocol.EditResponse(
             cells=response.cells, document=mirrored.document
         )
+
+    def session_snapshot(
+        self, notebook_id: protocol.NotebookId
+    ) -> list[RoutedEvent]:
+        """Return retained marimo events for one client without publishing them."""
+        session = self._session_of(notebook_id)
+        if session is None:
+            return []
+        return [
+            notification_event(notebook_id, notification)
+            for notification in session.session_view.snapshot_notifications()
+        ]
 
     def _session_of(self, notebook_id: protocol.NotebookId) -> Session | None:
         backend = self._backends.get(notebook_id)
@@ -615,7 +645,7 @@ class SessionBridge(SessionEventListener):
         self.index.moved(notebook_id, str(target), request_id=request_id)
 
     def _make_backend(
-        self, notebook_id: protocol.NotebookId
+        self, notebook_id: protocol.NotebookId, sink: Sink
     ) -> SessionBackend:
         def file() -> str | None:
             path = self.index.file_of(notebook_id)
@@ -635,21 +665,49 @@ class SessionBridge(SessionEventListener):
             file,
             self._manager,
             observe,
+            sink,
             document_changed=lambda: self._mirror(notebook_id),
             session_attached=lambda: self._attach_document(notebook_id),
             session_detached=lambda session: self._detach_document(
                 notebook_id, session
             ),
+            request_metadata=self._request_metadata,
         )
         self._backends[notebook_id] = backend
         return backend
 
-    def _forget_backend(self, event: Event) -> None:
-        if event.name == "notebook.removed" and event.notebook_id is not None:
+    def _on_host_event(self, event: RoutedEvent) -> None:
+        if (
+            isinstance(event.event, protocol.NotebookRemovedEvent)
+            and event.notebook_id is not None
+        ):
+            session = self.session_for_notebook(event.notebook_id)
+            if session is not None:
+                session.notify(
+                    AttachmentsNotification(attachments=[]),
+                    from_consumer_id=None,
+                )
             self._backends.pop(event.notebook_id, None)
             self._file_texts.pop(event.notebook_id, None)
             self._rebaselining.pop(event.notebook_id, None)
             self._mirrored.pop(event.notebook_id, None)
+        elif (
+            isinstance(
+                event.event,
+                (protocol.AttachmentEvent, protocol.AttachmentRemovedEvent),
+            )
+            and event.notebook_id is not None
+        ):
+            session = self.session_for_notebook(event.notebook_id)
+            try:
+                notebook = self.host.peek_notebook(event.notebook_id)
+            except NotFound:
+                return
+            if session is not None and notebook is not None:
+                session.notify(
+                    AttachmentsNotification(attachments=notebook.attachments),
+                    from_consumer_id=None,
+                )
 
     async def _adopt(self, session: Session) -> None:
         path = session.app_file_manager.path

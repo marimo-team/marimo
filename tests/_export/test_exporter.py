@@ -269,7 +269,7 @@ async def test_run_notebook_with_stop() -> None:
     assert did_error is False
     cell_notifications = [
         op
-        for op in session_view.notifications
+        for op in session_view.snapshot_notifications()
         if isinstance(op, CellNotification)
     ]
     snapshot(
@@ -354,7 +354,7 @@ async def test_run_notebook_with_stack_trace() -> None:
     assert did_error is True
     cell_notifications = [
         op
-        for op in session_view.notifications
+        for op in session_view.snapshot_notifications()
         if isinstance(op, CellNotification)
     ]
 
@@ -401,7 +401,7 @@ async def test_run_notebook_with_console_output(
 
     cell_notifications = [
         op
-        for op in session_view.notifications
+        for op in session_view.snapshot_notifications()
         if isinstance(op, CellNotification)
     ]
     snapshot(
@@ -632,7 +632,7 @@ def test_export_as_html_omits_getpass_response(
     )
 
     assert secret not in html
-    assert secret not in encode_json_str(session_view.notifications)
+    assert secret not in encode_json_str(session_view.snapshot_notifications())
     assert parse_mount_config(html)["session"]["cells"][0]["console"] == [
         {
             "type": "stream",
@@ -1107,7 +1107,20 @@ def test_export_as_html_code_hash_consistency(
     session_view.cell_notifications[cell_ids[0]] = CellNotification(
         cell_id=cell_ids[0],
         status="idle",
-        output=None,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="application/vnd.marimo+error",
+            data=[
+                {
+                    "type": "exception",
+                    "msg": "bad",
+                    "exception_type": "ValueError",
+                    "raising_cell": None,
+                    "traceback": None,
+                }
+            ],
+            code="private_source_sentinel = 42",
+        ),
         console=[],
         timestamp=0,
     )
@@ -1139,6 +1152,8 @@ def test_export_as_html_code_hash_consistency(
     html_with_code, _ = exporter.export_as_html(export_request)
 
     assert export_request.snapshot == snapshot_before
+    assert "private_source_sentinel" not in html_without_code
+    assert "private_source_sentinel" in html_with_code
 
     # Extract code hash from both HTML outputs
     hash_pattern = r"<marimo-code-hash[^>]*>([a-f0-9]+)</marimo-code-hash>"

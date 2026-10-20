@@ -47,6 +47,10 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                 ),
             )
 
+            attachments = other_websocket.receive_json()
+            assert attachments["op"] == "attachments"
+            assert attachments["data"]["attachments"] == []
+
             for _ in range(2):
                 assert (
                     other_websocket.receive_json()["op"] == "environment-state"
@@ -204,8 +208,6 @@ def test_third_viewer_survives_takeover(client: TestClient) -> None:
 
 
 def test_capabilities_changed_is_not_recorded(client: TestClient) -> None:
-    from marimo._messaging.serde import deserialize_kernel_message
-
     with client.websocket_connect("/ws?session_id=a", headers=_HEADERS) as ta:
         assert_kernel_ready_response(ta.receive_json())
         with client.websocket_connect(
@@ -221,8 +223,7 @@ def test_capabilities_changed_is_not_recorded(client: TestClient) -> None:
             sm = client.app.state.session_manager
             session = next(iter(sm.sessions.values()))
             recorded = [
-                deserialize_kernel_message(n).name
-                for n in session.session_view.notifications
+                n.name for n in session.session_view.snapshot_notifications()
             ]
             assert "consumer-capabilities" not in recorded
 

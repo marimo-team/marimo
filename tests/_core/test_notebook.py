@@ -12,7 +12,7 @@ from inline_snapshot import snapshot
 from msgspec import UNSET
 from msgspec.structs import replace
 
-from marimo._core import backend as be, protocol
+from marimo._core import backend as be, protocol, protocol_events
 from marimo._core.document import Document, DocumentCell
 from marimo._core.errors import Conflict, NoRuntime, NotFound
 from marimo._core.executions import CellExecution, Executions
@@ -44,7 +44,7 @@ from marimo._core.protocol import (
     RuntimeMessage,
     ValueOutcome,
 )
-from marimo._core.stream import Event, Stream
+from marimo._core.stream import RoutedEvent, Stream, event_name
 from tests._core.conftest import (
     Clock,
     ScriptedBackend,
@@ -66,8 +66,16 @@ def published(
 ) -> tuple[protocol.Document, list[protocol.Cell]]:
     """The document and cell records the notebook publishes."""
     events = notebook._snapshot()
-    (document,) = [e.data.document for e in events if e.kind == "document"]  # type: ignore[union-attr]
-    cells = [e.data.cell for e in events if e.kind == "cell"]  # type: ignore[union-attr]
+    (document,) = [
+        e.event.data.document
+        for e in events
+        if isinstance(e.event, protocol.DocumentEvent)
+    ]
+    cells = [
+        e.event.data.cell
+        for e in events
+        if isinstance(e.event, protocol.CellEvent)
+    ]
     return document, cells
 
 
@@ -110,14 +118,17 @@ class TestStart:
             host.events(0, notebook_id=notebook.id),
         ):
             assert [
-                event.data.runtime
+                event.event.data.runtime
                 for event in events
-                if isinstance(event.data, RuntimeMessage)
+                if isinstance(event.event.data, RuntimeMessage)
             ] == [runtime]
         assert backend.calls == [("start", runtime.id)]
 
     def test_starts_a_runtime_and_asks_the_backend(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+        self,
+        notebook: Notebook,
+        backend: ScriptedBackend,
+        log: list[RoutedEvent],
     ) -> None:
         runtime, created = notebook.start(request_id="req-1")
 
@@ -128,7 +139,10 @@ class TestStart:
         assert request_ids(log) == ["req-1"]
 
     def test_returns_an_existing_runtime_without_starting(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+        self,
+        notebook: Notebook,
+        backend: ScriptedBackend,
+        log: list[RoutedEvent],
     ) -> None:
         first, _ = notebook.start()
         again, created = notebook.start()
@@ -139,7 +153,7 @@ class TestStart:
         assert names(log) == ["runtime"]
 
     def test_request_follows_the_runtime_until_it_settles(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         notebook.start(request_id="req-1")
         notebook.observe(
@@ -158,7 +172,7 @@ class TestStart:
         assert notebook.runtime.message is None
 
     def test_a_kernel_that_never_comes_up_fails(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         notebook.start(request_id="req-1")
         notebook.observe(
@@ -173,7 +187,10 @@ class TestStart:
 
 class TestStop:
     def test_stop_cancels_a_pending_restart(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+        self,
+        notebook: Notebook,
+        backend: ScriptedBackend,
+        log: list[RoutedEvent],
     ) -> None:
         runtime = running(notebook, backend)
         notebook.restart(request_id="restart")
@@ -192,7 +209,10 @@ class TestStop:
             notebook.stop()
 
     def test_terminates_then_removes_once_the_kernel_is_gone(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+        self,
+        notebook: Notebook,
+        backend: ScriptedBackend,
+        log: list[RoutedEvent],
     ) -> None:
         running(notebook, backend)
         log.clear()
@@ -211,7 +231,7 @@ class TestStop:
         host: Host,
         notebook: Notebook,
         backend: ScriptedBackend,
-        log: list[Event],
+        log: list[RoutedEvent],
     ) -> None:
         running(notebook, backend)
         run = scratch(notebook)
@@ -227,7 +247,7 @@ class TestStop:
             "run",
             "runtime.removed",
         ]
-        interrupted = log[1].data
+        interrupted = log[1].event.data
         assert isinstance(interrupted, ExecutionMessage)
         assert interrupted.execution.status == "completed"
         assert isinstance(interrupted.execution.outcome, InterruptedOutcome)
@@ -241,7 +261,10 @@ class TestStop:
         ]
 
     def test_a_failed_runtime_is_removed_at_once(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+        self,
+        notebook: Notebook,
+        backend: ScriptedBackend,
+        log: list[RoutedEvent],
     ) -> None:
         notebook.start()
         notebook.observe(be.Exited(runtime_id_of(notebook), "boom"))
@@ -260,7 +283,7 @@ class TestStop:
         host: Host,
         notebook: Notebook,
         backend: ScriptedBackend,
-        log: list[Event],
+        log: list[RoutedEvent],
     ) -> None:
         running(notebook, backend)
         run = scratch(notebook)
@@ -297,7 +320,10 @@ class TestRestart:
             notebook.restart()
 
     def test_replaces_the_runtime_and_keeps_old_results(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+        self,
+        notebook: Notebook,
+        backend: ScriptedBackend,
+        log: list[RoutedEvent],
     ) -> None:
         before = running(notebook, backend)
         run = scratch(notebook)
@@ -336,7 +362,7 @@ class TestRestart:
             "runtime",
             "runtime",
         ]
-        execution = log[1].data
+        execution = log[1].event.data
         assert isinstance(execution, ExecutionMessage)
         assert execution.execution.runtime_id == before.id
         assert request_ids(log)[0] == "req-restart"
@@ -362,7 +388,10 @@ class TestRestart:
 
 class TestAdoption:
     def test_a_kernel_someone_else_started_is_published(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+        self,
+        notebook: Notebook,
+        backend: ScriptedBackend,
+        log: list[RoutedEvent],
     ) -> None:
         adopted = notebook.adopt(lambda _: None)
         notebook.observe(
@@ -381,7 +410,10 @@ class TestAdoption:
         assert request_ids(log) == [UNSET, UNSET, UNSET]
 
     def test_reports_about_other_kernels_change_nothing(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+        self,
+        notebook: Notebook,
+        backend: ScriptedBackend,
+        log: list[RoutedEvent],
     ) -> None:
         stranger = RuntimeId("rt-stranger")
         notebook.observe(be.Running(stranger, marimo_version="0.25.0"))
@@ -436,7 +468,7 @@ class TestAdoption:
         host: Host,
         notebook: Notebook,
         backend: ScriptedBackend,
-        log: list[Event],
+        log: list[RoutedEvent],
     ) -> None:
         running(notebook, backend)
         run = scratch(notebook)
@@ -449,9 +481,9 @@ class TestAdoption:
         assert notebook.runtime.message == "killed"
         assert names(log) == ["execution", "run", "runtime"]
         [run] = [
-            event.data.run
+            event.event.data.run
             for event in host.events(notebook_id=notebook.id)
-            if isinstance(event.data, RunMessage)
+            if isinstance(event.event.data, RunMessage)
         ]
         assert run.status == "completed"
 
@@ -482,7 +514,7 @@ class TestRun:
         notebook.observe(be.Status(ExecutionId("e1"), "completed"))
         notebook.observe(be.Done(run.id, "succeeded"))
         cursor = host.events()[-1].id
-        live: list[Event] = []
+        live: list[RoutedEvent] = []
         unsubscribe = host.subscribe(
             live.append, notebook_id=notebook.id, run_id=run.id
         )
@@ -517,7 +549,7 @@ class TestRun:
         host: Host,
         notebook: Notebook,
         backend: ScriptedBackend,
-        log: list[Event],
+        log: list[RoutedEvent],
     ) -> None:
         running(notebook, backend)
         log.clear()
@@ -558,17 +590,17 @@ class TestRun:
         runs = [
             data.run
             for event in log
-            if isinstance(data := event.data, RunMessage)
+            if isinstance(data := event.event.data, RunMessage)
         ]
         executions = [
             data.execution
             for event in log
-            if isinstance(data := event.data, ExecutionMessage)
+            if isinstance(data := event.event.data, ExecutionMessage)
         ]
         consoles = [
             data.console
             for event in log
-            if isinstance(data := event.data, ConsoleMessage)
+            if isinstance(data := event.event.data, ConsoleMessage)
         ]
         assert [run.status for run in runs] == [
             "queued",
@@ -583,9 +615,16 @@ class TestRun:
             ("completed", value("working<pre>9</pre>")),
         ]
         retained = [
-            event.data
+            event.event.data
             for event in host.events(notebook_id=notebook.id)
-            if event.kind in {"run", "execution", "console"}
+            if isinstance(
+                event.event,
+                (
+                    protocol.RunEvent,
+                    protocol.ExecutionEvent,
+                    protocol.ConsoleEvent,
+                ),
+            )
         ]
         assert retained == [
             RunMessage(run=runs[-1]),
@@ -649,7 +688,10 @@ class TestRun:
         ]
 
     def test_one_run_at_a_time(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+        self,
+        notebook: Notebook,
+        backend: ScriptedBackend,
+        log: list[RoutedEvent],
     ) -> None:
         running(notebook, backend)
         first = notebook.run("1", request_id="first")
@@ -657,9 +699,9 @@ class TestRun:
             notebook.run("2", request_id="second")
         notebook.observe(be.Done(first.id, "succeeded"))
         final = next(
-            event.data
+            event.event.data
             for event in reversed(log)
-            if isinstance(event.data, RunMessage)
+            if isinstance(event.event.data, RunMessage)
         )
         assert isinstance(final, RunMessage)
         assert final.run.status == "completed"
@@ -675,16 +717,19 @@ class TestRun:
         notebook.observe(be.Produced(console("o1", "e1", "0\n")))
         notebook.observe(be.Produced(console("o1", "e1", "0\n1\n")))
         items = [
-            event.data.console
+            event.event.data.console
             for event in host.events(notebook_id=notebook.id)
-            if isinstance(event.data, ConsoleMessage)
+            if isinstance(event.event.data, ConsoleMessage)
         ]
         assert len(items) == 1
         assert isinstance(items[0], Console)
         assert items[0].text == "0\n1\n"
 
     def test_messages_about_unknown_runs_are_ignored(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+        self,
+        notebook: Notebook,
+        backend: ScriptedBackend,
+        log: list[RoutedEvent],
     ) -> None:
         running(notebook, backend)
         log.clear()
@@ -702,7 +747,10 @@ class TestRun:
 
 class TestRunCompletion:
     def test_later_work_gets_its_own_run(
-        self, notebook: Notebook, backend: ScriptedBackend, log: list[Event]
+        self,
+        notebook: Notebook,
+        backend: ScriptedBackend,
+        log: list[RoutedEvent],
     ) -> None:
         running(notebook, backend)
         original = scratch(notebook)
@@ -715,9 +763,9 @@ class TestRunCompletion:
         assert request_ids(log) == [UNSET, UNSET]
         assert all(event.run_id == "later" for event in log)
         final = next(
-            event.data
+            event.event.data
             for event in reversed(log)
-            if isinstance(event.data, RunMessage)
+            if isinstance(event.event.data, RunMessage)
         )
         assert isinstance(final, RunMessage)
         assert final.run.caused_by == "e1"
@@ -728,7 +776,7 @@ class TestRunCompletion:
         self,
         notebook: Notebook,
         backend: ScriptedBackend,
-        log: list[Event],
+        log: list[RoutedEvent],
         outcome: RunOutcome,
     ) -> None:
         running(notebook, backend)
@@ -736,9 +784,9 @@ class TestRunCompletion:
         assert run.outcome is None
         notebook.observe(be.Done(run.id, outcome))
         final = next(
-            event.data
+            event.event.data
             for event in reversed(log)
-            if isinstance(event.data, RunMessage)
+            if isinstance(event.event.data, RunMessage)
         )
         assert isinstance(final, RunMessage)
         assert final.run.status == "completed"
@@ -751,7 +799,7 @@ class TestRunCompletion:
         self,
         notebook: Notebook,
         backend: ScriptedBackend,
-        log: list[Event],
+        log: list[RoutedEvent],
         outcome: RunOutcome,
     ) -> None:
         running(notebook, backend)
@@ -802,9 +850,9 @@ class TestRunCompletion:
             notebook.observe(be.Done(run.id, "succeeded"))
         notebook.observe(be.Done(run.id, outcome))
         final = next(
-            event.data
+            event.event.data
             for event in reversed(log)
-            if isinstance(event.data, RunMessage)
+            if isinstance(event.event.data, RunMessage)
         )
         assert isinstance(final, RunMessage)
         assert final.run.outcome == outcome
@@ -863,7 +911,7 @@ class TestCellResults:
         self,
         notebook: Notebook,
         backend: ScriptedBackend,
-        log: list[Event],
+        log: list[RoutedEvent],
         same_run: bool,
     ) -> None:
         running(notebook, backend)
@@ -915,9 +963,9 @@ class TestCellResults:
             "execution",
         ]
         visible = [
-            event.data.execution.id
+            event.event.data.execution.id
             for event in notebook._snapshot()
-            if isinstance(event.data, ExecutionMessage)
+            if isinstance(event.event.data, ExecutionMessage)
         ]
         assert visible == [new]
         notebook.observe(be.Concluded(new, ValueOutcome(None)))
@@ -959,7 +1007,7 @@ class TestCellResults:
 
 class TestAttachments:
     def test_api_clients_attach_and_detach(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         att = notebook.attach()
         notebook.detach(att.id)
@@ -970,7 +1018,7 @@ class TestAttachments:
         assert names(log) == ["attachment", "attachment.removed"]
 
     def test_one_identity_attaches_separately(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         first = notebook.attach(identity="k1", kind="agent", name="Codex")
         second = notebook.attach(identity="k1", kind="agent", name="Codex")
@@ -981,7 +1029,7 @@ class TestAttachments:
         assert _attachment_ids(notebook) == {first.id, second.id}
 
     def test_detach_leaves_other_attachments_with_the_identity(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         first = notebook.attach(identity="k1")
         second = notebook.attach(identity="k1")
@@ -993,39 +1041,39 @@ class TestAttachments:
         assert _attachment_ids(notebook) == {second.id}
 
     def test_attach_without_an_identity_omits_it_on_the_wire(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         att = notebook.attach()
 
         assert att.identity is UNSET
-        wire = msgspec.json.decode(msgspec.json.encode(log[0].data))
+        wire = msgspec.json.decode(msgspec.json.encode(log[0].event.data))
         assert "identity" not in wire["attachment"]
 
 
 class TestEmit:
     def test_emit_publishes_a_custom_event_on_the_notebook_stream(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         custom = notebook.emit("marimo.test", {"hello": 1}, request_id="req-1")
 
         assert custom == Custom(type="marimo.test", data={"hello": 1})
         assert names(log) == ["custom"]
         assert log[0].notebook_id == notebook.id
-        published = log[0].data
+        published = log[0].event.data
         assert isinstance(published, CustomMessage)
         assert published.custom == custom
         assert published.request_id == "req-1"
         assert published.time is not UNSET
 
     def test_emit_rejects_data_that_is_not_json(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         with pytest.raises(TypeError):
             notebook.emit("marimo.test", object())
         assert "custom" not in names(log)
 
     def test_emit_rejects_an_empty_type(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         with pytest.raises(ValueError):
             notebook.emit("", 1)
@@ -1041,9 +1089,9 @@ class TestEmit:
 
 def _attachment_ids(notebook: Notebook) -> set[str]:
     return {
-        event.data.attachment.id
+        event.event.data.attachment.id
         for event in notebook._snapshot()
-        if isinstance(event.data, AttachmentMessage)
+        if isinstance(event.event.data, AttachmentMessage)
     }
 
 
@@ -1085,15 +1133,17 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
     notebook.observe(be.Done(run.id, "succeeded"))
     initial = host.events(notebook_id=notebook.id)
     assert [
-        getattr(event.data, event.kind)
+        protocol_events.body(event.event)
         for event in initial
-        if event.kind in {"console", "display"}
+        if isinstance(
+            event.event, (protocol.ConsoleEvent, protocol.DisplayEvent)
+        )
     ] == [first_console, first_display, second_console, second_display]
 
-    live: list[Event] = []
+    live: list[RoutedEvent] = []
     snapshots: list[dict] = []
 
-    def updated(event: Event) -> None:
+    def updated(event: RoutedEvent) -> None:
         live.append(event)
         snapshots.append(fold(notebook._snapshot()))
 
@@ -1112,9 +1162,9 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
         host.remove_notebook(notebook.id)
 
     assert [
-        (event.name, event.data.id)
+        (event_name(event.event), event.event.data.id)
         for event in live
-        if event.name.endswith(".removed")
+        if isinstance(event.event, protocol_events.RemovalEvent)
     ] == [
         ("console.removed", first_console.id),
         ("display.removed", first_display.id),
@@ -1135,7 +1185,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
     assert all(
         ("execution", first) not in state
         for event, state in zip(live, snapshots, strict=True)
-        if event.name.endswith(".removed")
+        if isinstance(event.event, protocol_events.RemovalEvent)
     )
 
 
@@ -1158,7 +1208,7 @@ async def test_initial_results_are_published_and_replaced_by_live_execution(
             saved_etag=document.etag,
         ),
     )
-    live: list[Event] = []
+    live: list[RoutedEvent] = []
     host.subscribe(live.append, notebook_id=record().id)
     notebook = await host.notebook(record().id)
     assert notebook.runtime is None
@@ -1271,9 +1321,11 @@ def test_restoration_preserves_revisions_and_outputs(
     assert notebook.executions.current(CellId("c1")) == retained
     assert backend.calls == []
     outputs = [
-        e for e in notebook._snapshot() if e.kind in ("console", "display")
+        protocol_events.body(e.event)
+        for e in notebook._snapshot()
+        if isinstance(e.event, (protocol.ConsoleEvent, protocol.DisplayEvent))
     ]
-    assert [getattr(e.data, e.kind).seq for e in outputs] == [0, 1, 2]
+    assert [output.seq for output in outputs] == [0, 1, 2]
     # Restoration copies the supplied records.
     document_record.app_config["width"] = "medium"
     assert published(notebook) == published(original)
@@ -1301,7 +1353,7 @@ async def test_edits_preserve_results_and_deletion_removes_them() -> None:
     assert (
         next(iter(notebook.document)).code_hash != retained.execution.code_hash
     )
-    live: list[Event] = []
+    live: list[RoutedEvent] = []
     host.subscribe(live.append, notebook_id=notebook.id)
     notebook.replace([], {})
     assert list(notebook.document) == []
@@ -1369,7 +1421,7 @@ async def test_source_edits_keep_live_results_until_the_cell_is_deleted() -> (
     notebook.replace([DocumentCell("c1", "43")], {})
     assert notebook.executions._records() == retained
 
-    live: list[Event] = []
+    live: list[RoutedEvent] = []
     host.subscribe(live.append, notebook_id=notebook.id)
     notebook.replace([], {})
     assert list(notebook.document) == []

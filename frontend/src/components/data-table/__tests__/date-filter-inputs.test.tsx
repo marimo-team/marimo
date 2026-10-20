@@ -1,7 +1,30 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
 import { dateToLocalISODate } from "@/utils/dates";
-import { parsePastedRange } from "../date-filter-inputs";
+import { parsePastedDate, parsePastedRange } from "../date-filter-inputs";
+
+describe("parsePastedDate", () => {
+  it("parses a time-only string for the time filter type", () => {
+    const result = parsePastedDate("time", "2:30 PM");
+    expect(result).toEqual(new Date(1970, 0, 1, 14, 30));
+  });
+
+  it("parses a local ISO datetime for the datetime filter type", () => {
+    const result = parsePastedDate("datetime", "2026-02-01T08:30:00");
+    expect(result).toEqual(new Date(2026, 1, 1, 8, 30, 0));
+  });
+
+  it("falls back to the Date constructor for other formats", () => {
+    const result = parsePastedDate("datetime", "Feb 1, 2026 08:30:00");
+    expect(result).toBeDefined();
+    expect(result?.getFullYear()).toBe(2026);
+  });
+
+  it("returns undefined for an empty or unparsable string", () => {
+    expect(parsePastedDate("date", "")).toBeUndefined();
+    expect(parsePastedDate("time", "not-a-time")).toBeUndefined();
+  });
+});
 
 describe("parsePastedRange", () => {
   it.each([

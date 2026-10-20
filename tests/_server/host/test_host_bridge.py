@@ -5,22 +5,30 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
+from starlette.datastructures import State
 
 from marimo._core import protocol
 from marimo._core.errors import Conflict, DecisionRequired, EditConflict
-from marimo._core.stream import Event
+from marimo._core.stream import RoutedEvent
 from marimo._messaging.notification import (
+    AttachmentsNotification,
     CompletedRunNotification,
     ExecutionNotification,
     StartupProgressNotification,
+    VariablesNotification,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._server.api.deps import AppStateBase
 from marimo._server.host.bridge import SessionBridge
+from marimo._server.host.events import MarimoEvent, MarimoMessage
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace
+from marimo._session.model import SessionMode
 from tests._core.conftest import names
 from tests._server.host.conftest import FakeManager, FakeSession
 
@@ -191,10 +199,10 @@ async def test_a_subscriber_can_stop_an_adopted_session(
     session = FakeSession(str(tmp_path / "a.py"))
     manager.sessions["browser"] = session
 
-    def stop_on_starting(event: Event) -> None:
+    def stop_on_starting(event: RoutedEvent) -> None:
         if (
-            isinstance(event.data, protocol.RuntimeMessage)
-            and event.data.runtime.status == "starting"
+            isinstance(event.event, protocol.RuntimeEvent)
+            and event.event.data.runtime.status == "starting"
         ):
             notebook.stop()
 
@@ -399,7 +407,7 @@ async def test_editor_transactions_reach_the_host_document(
     await bridge.open()
     record = bridge.index.notebook_for(str(tmp_path / "a.py"))
     assert record is not None
-    events: list[Event] = []
+    events: list[RoutedEvent] = []
     bridge.host.subscribe(events.append, notebook_id=record.id)
 
     # The document comes from the session, ids included.
@@ -450,8 +458,7 @@ async def test_host_edits_reach_the_session_as_one_transaction(
     record = bridge.index.notebook_for(str(tmp_path / "a.py"))
     assert record is not None
     notebook = await bridge.host.notebook(record.id)
-    document = notebook.document
-    events: list[Event] = []
+    events: list[RoutedEvent] = []
     bridge.host.subscribe(events.append, notebook_id=record.id)
 
     response = await bridge.edit(
@@ -472,8 +479,16 @@ async def test_host_edits_reach_the_session_as_one_transaction(
     (notification,) = session.notifications
     assert isinstance(notification, NotebookDocumentTransactionNotification)
     assert notification.transaction.source == "host"
-    # The backend saw its own edit come back and mirrored nothing new.
-    assert names(events) == ["cell", "document"]
+    # The session echoes the edit without publishing the document twice.
+    assert names(
+        [e for e in events if not isinstance(e.event, MarimoEvent)]
+    ) == [
+        "cell",
+        "document",
+    ]
+    assert [
+        e.event.data for e in events if isinstance(e.event, MarimoEvent)
+    ] == [MarimoMessage(notification)]
     assert notebook.document.etag == response.document.etag
     assert "y = x" not in (tmp_path / "a.py").read_text()
     bridge.close()
@@ -533,7 +548,7 @@ async def test_a_new_session_replaces_a_read_without_host_edits(
     assert record is not None
     notebook = await bridge.host.notebook(record.id)
     document = notebook.document
-    events: list[Event] = []
+    events: list[RoutedEvent] = []
     bridge.host.subscribe(events.append, notebook_id=record.id)
 
     # The file changes after the host read it, then a session opens it.
@@ -696,7 +711,7 @@ async def test_save_writes_the_cells_and_keeps_the_app_config(
     notebook = await bridge.host.notebook(record.id)
     document = notebook.document
     (cell,) = document
-    events: list[Event] = []
+    events: list[RoutedEvent] = []
     bridge.host.subscribe(events.append, notebook_id=record.id)
 
     edited = await bridge.edit(
@@ -723,7 +738,7 @@ async def test_save_writes_the_cells_and_keeps_the_app_config(
     assert "x = 2" in text
     assert 'width="full"' in text
     assert names(events)[-1] == "document"
-    assert events[-1].data.request_id == "save-1"  # type: ignore[union-attr]
+    assert events[-1].event.data.request_id == "save-1"  # type: ignore[union-attr]
     bridge.close()
 
 
@@ -797,7 +812,7 @@ async def test_save_with_a_session_writes_through_the_editors_file_manager(
     (cell,) = document
     # The editor wrote once, so its manager remembers what is on disk.
     session.app_file_manager.save_from_cells(list(session.document.cells))
-    events: list[Event] = []
+    events: list[RoutedEvent] = []
     bridge.host.subscribe(events.append, notebook_id=record.id)
 
     edited = await bridge.edit(
@@ -816,10 +831,10 @@ async def test_save_with_a_session_writes_through_the_editors_file_manager(
     published = [
         e
         for e in events
-        if e.name == "document"
-        and e.data.document.saved_etag == saved.document.etag  # type: ignore[union-attr]
+        if isinstance(e.event, protocol.DocumentEvent)
+        and e.event.data.document.saved_etag == saved.document.etag  # type: ignore[union-attr]
     ]
-    assert [e.data.request_id for e in published] == ["save-1"]  # type: ignore[union-attr]
+    assert [e.event.data.request_id for e in published] == ["save-1"]  # type: ignore[union-attr]
     bridge.close()
 
 
@@ -982,4 +997,175 @@ async def test_reloading_refuses_to_drop_an_edit_made_while_reading(
         await asyncio.wait_for(reloading, 5)
     assert conflict.value.document == edited.document
     assert notebook.document.cell(cell.id).code == "x = 3"  # type: ignore[union-attr]
+    bridge.close()
+
+
+async def test_session_notifications_join_the_notebook_stream_once(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path, "a.py", "b.py")
+    session = FakeSession(str(tmp_path / "a.py"))
+    manager.sessions["browser"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    a = bridge.index.notebook_for(str(tmp_path / "a.py"))
+    b = bridge.index.notebook_for(str(tmp_path / "b.py"))
+    assert a is not None
+    assert b is not None
+
+    first: list[RoutedEvent] = []
+    second: list[RoutedEvent] = []
+    catalog: list[RoutedEvent] = []
+    other: list[RoutedEvent] = []
+    filtered: list[RoutedEvent] = []
+    bridge.host.subscribe(first.append, notebook_id=a.id)
+    bridge.host.subscribe(second.append, notebook_id=a.id)
+    bridge.host.subscribe(catalog.append)
+    bridge.host.subscribe(other.append, notebook_id=b.id)
+    bridge.host.subscribe(filtered.append, notebook_id=a.id, types={"marimo"})
+
+    variables = VariablesNotification(variables=[])
+    planned = ExecutionNotification(
+        run_id="run-1",
+        execution_id="execution-1",
+        cell_id="cell-1",
+        phase="planned",
+        code="x = 1",
+    )
+    session.broadcast(variables)
+    session.broadcast(planned)
+
+    assert first == second
+    assert catalog == other == []
+    assert filtered == [e for e in first if isinstance(e.event, MarimoEvent)]
+    assert [(e.run_id, e.event.data) for e in filtered] == [
+        (None, MarimoMessage(variables)),
+        (protocol.RunId("run-1"), MarimoMessage(planned)),
+    ]
+    bridge.close()
+
+
+async def test_session_notebook_lookup_boundaries(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path, "a.py", "unopened.py")
+    saved = FakeSession(str(tmp_path / "a.py"))
+    unsaved = FakeSession(None)
+    outside = FakeSession(str(tmp_path.parent / "outside.py"))
+    manager.sessions.update(saved=saved, unsaved=unsaved, outside=outside)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    notebook = bridge.notebook_for_session(saved)  # type: ignore[arg-type]
+    assert notebook is not None
+    assert bridge.session_for_notebook(notebook.id) is saved
+    assert bridge.notebook_for_session(unsaved) is None  # type: ignore[arg-type]
+    assert bridge.notebook_for_session(outside) is None  # type: ignore[arg-type]
+    assert (
+        bridge.notebook_for_session(FakeSession(str(tmp_path / "a.py")))
+        is None
+    )  # type: ignore[arg-type]
+    unopened = bridge.index.notebook_for(str(tmp_path / "unopened.py"))
+    assert unopened is not None
+    assert bridge.session_for_notebook(unopened.id) is None
+    assert bridge.session_for_notebook("missing") is None
+    saved.close()
+    assert bridge.session_for_notebook(notebook.id) is None
+    assert bridge.notebook_for_session(saved) is None  # type: ignore[arg-type]
+    bridge.close()
+
+
+async def test_attachment_feed_uses_full_current_state_and_unsubscribes(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path, "a.py", "b.py")
+    first = FakeSession(str(tmp_path / "a.py"))
+    second = FakeSession(str(tmp_path / "b.py"))
+    first.notify = Mock()  # type: ignore[attr-defined]
+    second.notify = Mock()  # type: ignore[attr-defined]
+    manager.sessions.update(first=first, second=second)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    notebook = bridge.notebook_for_session(first)  # type: ignore[arg-type]
+    assert notebook is not None
+    assert notebook.attachments == []
+    agent = notebook.attach(identity="codex", kind="agent", name="Codex")
+    client = notebook.attach(kind="client")
+    notebook.detach(agent.id)
+    notebook.detach("missing")
+    assert first.notify.call_args_list == [  # type: ignore[attr-defined]
+        (
+            (AttachmentsNotification(attachments=[agent]),),
+            {"from_consumer_id": None},
+        ),
+        (
+            (AttachmentsNotification(attachments=[agent, client]),),
+            {"from_consumer_id": None},
+        ),
+        (
+            (AttachmentsNotification(attachments=[client]),),
+            {"from_consumer_id": None},
+        ),
+    ]
+    second.notify.assert_not_called()  # type: ignore[attr-defined]
+    bridge.close()
+    notebook.detach(client.id)
+    assert first.notify.call_count == 3  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize("mode", ["edit", "run"])
+def test_app_state_without_host_has_no_notebook(mode: str) -> None:
+    state = AppStateBase(
+        State({"session_manager": SimpleNamespace(mode=SessionMode(mode))})
+    )
+    assert state.notebook_for_session(FakeSession(None)) is None  # type: ignore[arg-type]
+
+
+async def test_bridge_supplies_metadata_for_the_current_session(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    session = FakeSession(str(tmp_path / "a.py"))
+    manager.sessions["browser"] = session
+    bridge = SessionBridge(
+        manager,  # type: ignore[arg-type]
+        request_metadata=lambda current: {
+            "file": current.app_file_manager.path,
+            "extra": 7,
+        },
+    )
+    await bridge.open()
+    notebook = bridge.notebook_for_session(session)  # type: ignore[arg-type]
+    assert notebook is not None
+    run = notebook.run("print(1)", request_id="metadata-test")
+    await session.submitted.wait()
+    assert session.commands[-1].request.meta == {
+        "file": str(tmp_path / "a.py"),
+        "extra": 7,
+    }
+    assert session.commands[-1].request.user == {}
+    session.broadcast(CompletedRunNotification(run_id=run.id))
+    backend = bridge._backends[notebook.id]
+    assert backend._run is not None
+    assert backend._run.task is not None
+    await backend._run.task
+    bridge.close()
+
+
+async def test_removing_notebook_clears_browser_attachments(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    session = FakeSession(str(tmp_path / "a.py"))
+    session.notify = Mock()  # type: ignore[attr-defined]
+    manager.sessions["browser"] = session
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    notebook = bridge.notebook_for_session(session)  # type: ignore[arg-type]
+    assert notebook is not None
+    notebook.attach(identity="codex", kind="agent", name="Codex")
+    bridge.host.remove_notebook(notebook.id)
+    session.notify.assert_called_with(  # type: ignore[attr-defined]
+        AttachmentsNotification(attachments=[]), from_consumer_id=None
+    )
+    assert bridge.session_for_notebook(notebook.id) is None
     bridge.close()

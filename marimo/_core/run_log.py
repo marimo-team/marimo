@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from math import isfinite
 from typing import TYPE_CHECKING
 
-from marimo._core import protocol
-from marimo._core.stream import Event, Kind, message, removal
+from marimo._core import protocol, protocol_events
+from marimo._core.stream import RoutedEvent, removal, snapshot_event
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -29,15 +29,15 @@ class RetentionPolicy:
 class _Scratch:
     """A scratch execution's latest event and its outputs."""
 
-    execution: Event
-    outputs: dict[str, Event] = field(default_factory=dict)
+    execution: RoutedEvent
+    outputs: dict[str, RoutedEvent] = field(default_factory=dict)
 
 
 @dataclass
 class _Run:
     """A run's latest event and what still keeps it visible."""
 
-    event: Event
+    event: RoutedEvent
     request_id: str | None
     live: set[str] = field(default_factory=set)
     scratch: dict[str, _Scratch] = field(default_factory=dict)
@@ -60,10 +60,10 @@ class RunLog:
         self._clock = clock
         self._runs: dict[str, _Run] = {}
 
-    def observe(self, event: Event) -> list[Event]:
+    def observe(self, event: RoutedEvent) -> list[RoutedEvent]:
         """Record an event and return removals to publish after it."""
-        match event:
-            case Event(
+        match event.event:
+            case protocol.RunEvent(
                 data=protocol.RunMessage(run=run, request_id=request_id)
             ):
                 entry = self._runs.get(run.id)
@@ -76,7 +76,9 @@ class RunLog:
                 if run.status == "completed" and entry.completed_at is None:
                     entry.completed_at = self._clock()
                 return self._close(run.id)
-            case Event(data=protocol.ExecutionMessage(execution=execution)):
+            case protocol.ExecutionEvent(
+                data=protocol.ExecutionMessage(execution=execution)
+            ):
                 if (entry := self._entry(event)) is not None:
                     entry.had_executions = True
                     entry.live.add(execution.id)
@@ -86,12 +88,16 @@ class RunLog:
                             entry.scratch[execution.id] = _Scratch(event)
                         else:
                             scratch.execution = event
-            case Event(data=protocol.ConsoleMessage(console=item)):
+            case protocol.ConsoleEvent(
+                data=protocol.ConsoleMessage(console=item)
+            ):
                 self._record_output(event, item)
-            case Event(data=protocol.DisplayMessage(display=item)):
+            case protocol.DisplayEvent(
+                data=protocol.DisplayMessage(display=item)
+            ):
                 self._record_output(event, item)
-            case Event(
-                kind="execution", data=protocol.RemovedMessage(id=execution_id)
+            case protocol.ExecutionRemovedEvent(
+                data=protocol.RemovedMessage(id=execution_id)
             ):
                 if (entry := self._entry(event)) is not None:
                     entry.live.discard(execution_id)
@@ -105,10 +111,10 @@ class RunLog:
         entry = self._runs.get(run_id)
         if entry is None:
             return None
-        assert isinstance(entry.event.data, protocol.RunMessage)
-        return entry.event.data.run
+        assert isinstance(entry.event.event, protocol.RunEvent)
+        return entry.event.event.data.run
 
-    def snapshot(self) -> list[Event]:
+    def snapshot(self) -> list[RoutedEvent]:
         """Return the runs and scratch the log holds, parents first."""
         events = [
             self._snapshot_event(e.event, e) for e in self._runs.values()
@@ -122,10 +128,10 @@ class RunLog:
                 )
         return events
 
-    def expire(self, policy: RetentionPolicy) -> list[Event]:
+    def expire(self, policy: RetentionPolicy) -> list[RoutedEvent]:
         """Return removals for scratch whose retention has ended."""
         now = self._clock()
-        events: list[Event] = []
+        events: list[RoutedEvent] = []
         for run_id, entry in list(self._runs.items()):
             if (
                 (entry.scratch or not entry.had_executions)
@@ -135,9 +141,9 @@ class RunLog:
                 events.extend(self._release(run_id))
         return events
 
-    def clear(self) -> list[Event]:
+    def clear(self) -> list[RoutedEvent]:
         """Remove all retained history."""
-        events: list[Event] = []
+        events: list[RoutedEvent] = []
         for run_id, entry in list(self._runs.items()):
             entry.live.clear()
             if entry.completed_at is None:
@@ -145,11 +151,11 @@ class RunLog:
             events.extend(self._release(run_id))
         return events
 
-    def _entry(self, event: Event) -> _Run | None:
+    def _entry(self, event: RoutedEvent) -> _Run | None:
         return None if event.run_id is None else self._runs.get(event.run_id)
 
     def _record_output(
-        self, event: Event, item: protocol.Console | protocol.Display
+        self, event: RoutedEvent, item: protocol.Console | protocol.Display
     ) -> None:
         entry = self._entry(event)
         if entry is None:
@@ -158,21 +164,28 @@ class RunLog:
         if scratch is not None:
             scratch.outputs[item.id] = event
 
-    def _release(self, run_id: str) -> list[Event]:
+    def _release(self, run_id: str) -> list[RoutedEvent]:
         """Remove a run's scratch, then the run if nothing else holds it."""
         entry = self._runs[run_id]
-        events: list[Event] = []
+        events: list[RoutedEvent] = []
         for execution_id, scratch in entry.scratch.items():
             for output in scratch.outputs.values():
-                assert output.kind is not None
-                item = getattr(output.data, output.kind)
-                events.append(self._removal(entry, output.kind, item.id))
-            events.append(self._removal(entry, "execution", execution_id))
+                assert isinstance(
+                    output.event,
+                    (protocol.ConsoleEvent, protocol.DisplayEvent),
+                )
+                body = protocol_events.body(output.event)
+                events.append(self._removal(entry, type(body), body.id))
+            events.append(
+                self._removal(entry, protocol.Execution, execution_id)
+            )
             entry.live.discard(execution_id)
         entry.scratch.clear()
         return [*events, *self._close(run_id, retain_empty=False)]
 
-    def _close(self, run_id: str, *, retain_empty: bool = True) -> list[Event]:
+    def _close(
+        self, run_id: str, *, retain_empty: bool = True
+    ) -> list[RoutedEvent]:
         entry = self._runs[run_id]
         if (
             entry.completed_at is None
@@ -181,29 +194,30 @@ class RunLog:
         ):
             return []
         del self._runs[run_id]
-        return [self._removal(entry, "run", run_id)]
+        return [self._removal(entry, protocol.Run, run_id)]
 
-    def _removal(self, entry: _Run, kind: Kind, object_id: str) -> Event:
+    def _removal(
+        self,
+        entry: _Run,
+        record_type: type[protocol_events.RemovableBody],
+        object_id: str,
+    ) -> RoutedEvent:
         return removal(
-            kind,
+            record_type,
             object_id,
             notebook_id=entry.event.notebook_id,
             request_id=entry.request_id,
             run_id=entry.event.run_id,
         )
 
-    def _snapshot_event(self, event: Event, entry: _Run) -> Event:
-        assert event.kind is not None
-        body = getattr(event.data, event.kind)
-        return Event(
-            event.name,
-            message(
-                body,
-                request_id=(
-                    None
-                    if entry.completed_at is not None
-                    else entry.request_id
-                ),
+    def _snapshot_event(self, event: RoutedEvent, entry: _Run) -> RoutedEvent:
+        assert isinstance(event.event, protocol_events.RecordEvent)
+        body = protocol_events.body(event.event)
+        assert isinstance(body, protocol_events.SnapshotBody)
+        return snapshot_event(
+            body,
+            request_id=(
+                None if entry.completed_at is not None else entry.request_id
             ),
             notebook_id=event.notebook_id,
             run_id=event.run_id,

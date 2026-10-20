@@ -103,6 +103,27 @@ class TestPyodideStdout:
 
 
 class TestPyodideStderr:
+    @pytest.mark.parametrize("code", [None, "raise ValueError('failed')"])
+    def test_traceback_source_forwarding(
+        self,
+        pyodide_stderr: PyodideStderr,
+        pyodide_pipe: Mock,
+        code: str | None,
+    ) -> None:
+        pyodide_stderr._write_with_mimetype(
+            "ValueError: failed",
+            mimetype="application/vnd.marimo+traceback",
+            code=code,
+        )
+        pyodide_pipe.assert_called_once()
+        console = json.loads(pyodide_pipe.call_args.args[0])["console"]
+        assert console["data"] == "ValueError: failed"
+        assert console["mimetype"] == "application/vnd.marimo+traceback"
+        if code is None:
+            assert "code" not in console
+        else:
+            assert console["code"] == code
+
     def test_writable(self, pyodide_stderr: PyodideStderr) -> None:
         assert pyodide_stderr.writable() is True
 

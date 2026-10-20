@@ -24,7 +24,7 @@ from marimo._core.errors import EditConflict, Invalid
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
-from marimo._core.stream import Event, Stream
+from marimo._core.stream import RoutedEvent, Stream
 from tests._core.conftest import (
     ScriptedAnalyzer,
     ScriptedBackend,
@@ -104,8 +104,16 @@ def records(
 ) -> tuple[protocol.Document, list[protocol.Cell]]:
     """The document and cell records the notebook publishes."""
     events = notebook._snapshot()
-    (document,) = [e.data.document for e in events if e.kind == "document"]  # type: ignore[union-attr]
-    cells = [e.data.cell for e in events if e.kind == "cell"]  # type: ignore[union-attr]
+    (document,) = [
+        e.event.data.document
+        for e in events
+        if isinstance(e.event, protocol.DocumentEvent)
+    ]
+    cells = [
+        e.event.data.cell
+        for e in events
+        if isinstance(e.event, protocol.CellEvent)
+    ]
     return document, cells
 
 
@@ -503,17 +511,17 @@ class TestNotebook:
         self,
         host: Host,
         notebook: Notebook,
-        log: list[Event],
+        log: list[RoutedEvent],
         method: str,
         remove: bool,
     ) -> None:
         notebook.replace([cell("c1", "0")], {})
         log.clear()
 
-        def change_again(event: Event) -> None:
+        def change_again(event: RoutedEvent) -> None:
             if (
-                isinstance(event.data, protocol.CellMessage)
-                and event.data.request_id == "first"
+                isinstance(event.event, protocol.CellEvent)
+                and event.event.data.request_id == "first"
             ):
                 change = delete("c1", "*") if remove else put("c1", "2", "*")
                 notebook.edit([change], request_id="second")
@@ -527,11 +535,11 @@ class TestNotebook:
             )
 
         first_cell, first_document = log[:2]
-        assert isinstance(first_cell.data, protocol.CellMessage)
-        assert isinstance(first_document.data, protocol.DocumentMessage)
-        published = first_cell.data.cell
+        assert isinstance(first_cell.event, protocol.CellEvent)
+        assert isinstance(first_document.event, protocol.DocumentEvent)
+        published = first_cell.event.data.cell
         assert response == protocol.EditResponse(
-            document=first_document.data.document,
+            document=first_document.event.data.document,
             cells={
                 "c1": protocol.CellVersion(
                     etag=published.etag,
@@ -545,7 +553,7 @@ class TestNotebook:
         )
 
     async def test_initialization_publishes_cells_then_the_document(
-        self, host: Host, log: list[Event]
+        self, host: Host, log: list[RoutedEvent]
     ) -> None:
         host.update_project(project())
         host.add_notebook(
@@ -577,7 +585,7 @@ class TestNotebook:
         assert "cell" not in names(host.events())
 
     def test_replace_publishes_what_changed(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         notebook.replace(fixture_cells(), {})
         log.clear()
@@ -592,11 +600,11 @@ class TestNotebook:
         )
 
         assert names(log) == ["cell", "cell.removed", "document"]
-        assert all(e.data.request_id == "edit-1" for e in log)  # type: ignore[union-attr]
-        assert log[1].data.id == "k7f2"  # type: ignore[union-attr]
+        assert all(e.event.data.request_id == "edit-1" for e in log)  # type: ignore[union-attr]
+        assert log[1].event.data.id == "k7f2"  # type: ignore[union-attr]
 
     def test_replace_can_record_the_saved_revision(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         notebook.replace(fixture_cells(), {})
         log.clear()
@@ -612,10 +620,10 @@ class TestNotebook:
             "cell.removed",
             "document",
         ]
-        assert log[-1].data.document == response.document  # type: ignore[union-attr]
+        assert log[-1].event.data.document == response.document  # type: ignore[union-attr]
 
     def test_mark_saved_records_the_revision_that_was_written(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         notebook.replace(fixture_cells(), {})
         written = notebook.document.etag
@@ -628,13 +636,13 @@ class TestNotebook:
         assert document.etag != written
         assert names(log) == ["document"]
         assert request_ids(log) == ["save-1"]
-        assert log[0].data.document == document  # type: ignore[union-attr]
+        assert log[0].event.data.document == document  # type: ignore[union-attr]
         # Marking the same revision again publishes nothing.
         assert notebook.mark_saved(written) == document
         assert names(log) == ["document"]
 
     def test_edit_publishes_as_one_unit_with_the_request_key(
-        self, notebook: Notebook, log: list[Event]
+        self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         notebook.replace(fixture_cells(), {})
         log.clear()
@@ -651,7 +659,7 @@ class TestNotebook:
 
         assert names(log) == ["cell", "cell.removed", "document"]
         assert request_ids(log) == ["edit-1"] * 3
-        assert response.document == log[-1].data.document  # type: ignore[union-attr]
+        assert response.document == log[-1].event.data.document  # type: ignore[union-attr]
         assert set(response.cells) == {"c2", "k7f2"}
 
 
@@ -667,7 +675,7 @@ def cell_analyses(
 
 class TestAnalysis:
     async def test_the_initial_revision_is_analyzed_and_published_after_the_document(
-        self, host: Host, log: list[Event]
+        self, host: Host, log: list[RoutedEvent]
     ) -> None:
         host.update_project(project())
         analyzer = ScriptedAnalyzer()
@@ -705,7 +713,7 @@ class TestAnalysis:
         ]
 
     async def test_edits_during_analysis_are_analyzed_once_afterwards(
-        self, host: Host, log: list[Event]
+        self, host: Host, log: list[RoutedEvent]
     ) -> None:
         host.update_project(project())
         analyzer = ScriptedAnalyzer()
@@ -745,7 +753,7 @@ class TestAnalysis:
         assert notebook.analysis.document_etag == latest.etag
 
     async def test_an_edit_is_analyzed_under_its_request_key(
-        self, host: Host, log: list[Event]
+        self, host: Host, log: list[RoutedEvent]
     ) -> None:
         host.update_project(project())
         analyzer = ScriptedAnalyzer()
@@ -809,7 +817,7 @@ class TestAnalysis:
 
     @pytest.mark.parametrize("edit_while_running", [False, True])
     async def test_a_failed_analysis_leaves_the_notebook_ready_for_the_next(
-        self, host: Host, log: list[Event], edit_while_running: bool
+        self, host: Host, log: list[RoutedEvent], edit_while_running: bool
     ) -> None:
         host.update_project(project())
         analyzer = ScriptedAnalyzer()
@@ -839,7 +847,7 @@ class TestAnalysis:
         assert names(log) == ["analysis"]
 
     async def test_removal_discards_a_result_even_if_cancellation_is_suppressed(
-        self, host: Host, log: list[Event]
+        self, host: Host, log: list[RoutedEvent]
     ) -> None:
         started, cancelled = asyncio.Event(), asyncio.Event()
         result = asyncio.get_running_loop().create_future()

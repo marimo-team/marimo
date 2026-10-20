@@ -7,13 +7,13 @@ import asyncio
 
 import pytest
 
-from marimo._core import backend as be, protocol
+from marimo._core import backend as be, protocol, protocol_events
 from marimo._core.document import Document, code_hash
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.run_log import RetentionPolicy
-from marimo._core.stream import Event, Sink
+from marimo._core.stream import RoutedEvent, Sink, event_name
 
 OPERATIONS = ["notebook.create", "runtime.start", "runtime.run"]
 
@@ -155,19 +155,19 @@ async def notebook(host: Host, backend: ScriptedBackend) -> Notebook:
 
 
 @pytest.fixture
-def log(host: Host) -> list[Event]:
+def log(host: Host) -> list[RoutedEvent]:
     """Collect events published during the test."""
-    events: list[Event] = []
+    events: list[RoutedEvent] = []
     host.subscribe(events.append, notebook_id="n1")
     return events
 
 
-def names(events: list[Event]) -> list[str]:
-    return [e.name for e in events]
+def names(events: list[RoutedEvent]) -> list[str]:
+    return [event_name(e.event) for e in events]
 
 
-def request_ids(events: list[Event]) -> list[object]:
-    return [getattr(e.data, "request_id", None) for e in events]
+def request_ids(events: list[RoutedEvent]) -> list[object]:
+    return [getattr(e.event.data, "request_id", None) for e in events]
 
 
 class Clock:
@@ -221,17 +221,36 @@ def finish(notebook: Notebook, execution: protocol.ExecutionId) -> None:
     notebook.observe(be.Status(execution, "completed"))
 
 
-def fold(events: list[Event], initial: dict | None = None) -> dict:
+def fold(events: list[RoutedEvent], initial: dict | None = None) -> dict:
     state = dict(initial or {})
-    for event in events:
-        if event.name == "reset":
+    for routed in events:
+        event = routed.event
+        if isinstance(event, protocol.ResetEvent):
             state.clear()
-        elif event.kind in {"run", "execution", "console", "display"}:
-            if event.name.endswith(".removed"):
-                state.pop((event.kind, event.data.id), None)
-            else:
-                body = getattr(event.data, event.kind)
-                state[event.kind, body.id] = body
+        elif isinstance(
+            event,
+            (
+                protocol.RunEvent,
+                protocol.ExecutionEvent,
+                protocol.ConsoleEvent,
+                protocol.DisplayEvent,
+            ),
+        ):
+            body = protocol_events.body(event)
+            state[event_name(event), body.id] = body
+        elif isinstance(
+            event,
+            (
+                protocol.RunRemovedEvent,
+                protocol.ExecutionRemovedEvent,
+                protocol.ConsoleRemovedEvent,
+                protocol.DisplayRemovedEvent,
+            ),
+        ):
+            state.pop(
+                (event_name(event).removesuffix(".removed"), event.data.id),
+                None,
+            )
     return state
 
 

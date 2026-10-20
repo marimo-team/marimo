@@ -1,6 +1,7 @@
 {
-  "prompt": "Pair with me on this running marimo notebook.\n\nURL: {url}\n{session}\nRun `{command} pair --help` first.\nUse `{command}` for all marimo commands.\n\nOnce connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).{authentication}",
-  "session": "Session: {session}\n",
-  "token_file": "\n\nFor authenticated Pair commands, pass `--token-file {token_file}`.",
-  "token": "\n\nFor authenticated Pair commands, set `export MARIMO_TOKEN={token}` in the shell that runs marimo."
+  "prompt": "Pair with me on this running marimo notebook.\n\nURL: {url}\n{notebook}{session}\nRun `{command} pair --help` first.\nUse `{command}` for all marimo commands.{authentication}",
+  "notebook": "Notebook: {notebook}\n",
+  "token_file": "\n\nFor authenticated notebook discovery, pass `--token-file {token_file}`.",
+  "token": "\n\nFor authenticated notebook discovery, set `export MARIMO_TOKEN={token}` in the shell that runs marimo.",
+  "session": "Session: {session}\n"
 }

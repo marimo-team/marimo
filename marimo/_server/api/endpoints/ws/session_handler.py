@@ -13,6 +13,7 @@ from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.notification import (
     AlertNotification,
+    AttachmentsNotification,
     BannerNotification,
     EnvironmentOperationNotification,
     EnvironmentStateNotification,
@@ -24,6 +25,7 @@ from marimo._messaging.serde import (
     deserialize_kernel_notification_name,
     serialize_kernel_message,
 )
+from marimo._server.api.deps import AppStateBase
 from marimo._server.api.endpoints.ws.ws_kernel_ready import (
     build_kernel_ready,
     is_rtc_available,
@@ -75,6 +77,8 @@ class SessionHandler(SessionConsumer, abc.ABC):
     `message_queue`.
     """
 
+    _replay_notebook_on_reconnect = False
+
     def __init__(
         self,
         *,
@@ -89,6 +93,7 @@ class SessionHandler(SessionConsumer, abc.ABC):
         self.doc_manager = doc_manager
         self.status = ConnectionState.CONNECTING
         self._session: Session | None = None
+        self._app_state: AppStateBase | None = None
         self.cancel_close_handle: asyncio.TimerHandle | None = None
         # Messages from the kernel are put in this queue
         # to be sent to the frontend
@@ -146,6 +151,7 @@ class SessionHandler(SessionConsumer, abc.ABC):
             WebSocketDisconnect: If the connection is rejected; carries the
                 close code and reason.
         """
+        self._app_state = AppStateBase.from_app(connection.app)
         startup = asyncio.create_task(
             SessionConnector(
                 manager=self.manager,
@@ -311,7 +317,9 @@ class SessionHandler(SessionConsumer, abc.ABC):
                     description="You have reconnected to an existing session.",
                 )
             )
-            self._write_environment_state(session)
+            self._replay_previous_session(
+                session, include_notebook=self._replay_notebook_on_reconnect
+            )
             return
 
         self._write_kernel_ready_from_session_view(session, self.params.kiosk)
@@ -357,29 +365,25 @@ class SessionHandler(SessionConsumer, abc.ABC):
         # Replay all operations
         self._replay_previous_session(session)
 
-    def _write_environment_state(self, session: Session) -> None:
-        # Attachment and snapshot delivery run in one event-loop turn, before
-        # any later live deltas. Empty states also clear a previous session.
-        for source in ("kernel", "server"):
-            self._serialize_and_notify(
-                EnvironmentStateNotification(
-                    source=source,
-                    state=session.session_view.get_environment_state(source),
-                )
+    def _replay_previous_session(
+        self, session: Session, *, include_notebook: bool = True
+    ) -> None:
+        """Replay retained state to this client."""
+        # Send after kernel-ready/reconnected and before later live deltas.
+        notebook = (
+            self._app_state.notebook_for_session(session)
+            if self._app_state is not None
+            else None
+        )
+        self._serialize_and_notify(
+            AttachmentsNotification(
+                attachments=[] if notebook is None else notebook.attachments
             )
-        if session.session_view.startup_progress is not None:
-            # Completed startup follows kernel-ready/reconnected on the normal
-            # queue, so replay cannot put a ready notebook back into startup.
-            self._serialize_and_notify(session.session_view.startup_progress)
-
-    def _replay_previous_session(self, session: Session) -> None:
-        """Replay the previous session view."""
-        self._write_environment_state(session)
-        notifications = session.session_view.notifications
-        if len(notifications) == 0:
-            LOGGER.debug("No notifications to replay")
-            return
-        LOGGER.debug(f"Replaying {len(notifications)} notifications")
+        )
+        notifications = session.session_view.snapshot_notifications(
+            include_notebook=include_notebook
+        )
+        LOGGER.debug("Replaying %s notifications", len(notifications))
         for notif in notifications:
             LOGGER.debug("Replaying notification %s", notif)
             self._serialize_and_notify(notif)

@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Literal
 from unittest.mock import patch
 
@@ -8,6 +9,7 @@ import msgspec
 import pytest
 
 from marimo._ast.cell import RuntimeStateType
+from marimo._core.protocol import Attachment, NotebookId
 from marimo._data.models import (
     Database,
     DataSourceConnection,
@@ -19,6 +21,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import UnknownError
 from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.notification import (
+    AttachmentsNotification,
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
@@ -27,6 +30,7 @@ from marimo._messaging.notification import (
     EnvironmentOperationNotification,
     EnvironmentOperationStatus,
     EnvironmentState,
+    EnvironmentStateNotification,
     EsmSpec,
     ModelClose,
     ModelCustom,
@@ -44,6 +48,7 @@ from marimo._messaging.notification import (
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
+    StartupProgressNotification,
     VariableDeclarationNotification,
     VariablesNotification,
     VariableValue,
@@ -81,6 +86,54 @@ updated_output = CellOutput(
 
 initial_status: RuntimeStateType = "running"
 updated_status: RuntimeStateType = "running"
+
+
+def test_attachment_replay_starts_without_a_notification(
+    session_view: SessionView,
+) -> None:
+    assert not any(
+        isinstance(notification, AttachmentsNotification)
+        for notification in session_view.snapshot_notifications()
+    )
+
+
+@pytest.mark.parametrize("clear", [False, True])
+def test_attachment_changes_are_not_retained_for_replay(
+    session_view: SessionView, *, clear: bool
+) -> None:
+    agent = Attachment(
+        id="a1",
+        kind="agent",
+        name="Claude Code",
+        since=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        notebook_id=NotebookId("nb-test"),
+    )
+    other = Attachment(
+        id="a2",
+        kind="agent",
+        name="Codex",
+        since=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        notebook_id=NotebookId("nb-test"),
+    )
+    client = Attachment(
+        id="c1",
+        kind="client",
+        name=None,
+        since=datetime(2026, 1, 3, tzinfo=timezone.utc),
+        notebook_id=NotebookId("nb-test"),
+    )
+    session_view.add_raw_notification(
+        serialize_kernel_message(
+            AttachmentsNotification(attachments=[agent, other, client])
+        )
+    )
+    latest = AttachmentsNotification(attachments=[] if clear else [other])
+    session_view.add_raw_notification(serialize_kernel_message(latest))
+
+    assert not any(
+        isinstance(notification, AttachmentsNotification)
+        for notification in session_view.snapshot_notifications()
+    )
 
 
 def test_session_view_cell_notification(session_view: SessionView) -> None:
@@ -1011,7 +1064,9 @@ def test_add_data_source_connections(session_view: SessionView) -> None:
     assert INTERNAL_DUCKDB_ENGINE in names
 
     # Check connectors in operations
-    assert session_view.data_connectors in session_view.notifications
+    assert (
+        session_view.data_connectors in session_view.snapshot_notifications()
+    )
 
     # Filter out connections from variables
     session_view.add_raw_notification(
@@ -1830,7 +1885,7 @@ def test_session_view_startup_logs_operations_exclude_done(
     session_view.add_notification(start_log)
 
     # Should include in operations while in progress
-    operations = session_view.notifications
+    operations = session_view.snapshot_notifications()
     startup_ops = [
         op for op in operations if isinstance(op, StartupLogsNotification)
     ]
@@ -1842,7 +1897,7 @@ def test_session_view_startup_logs_operations_exclude_done(
     session_view.add_notification(done_log)
 
     # Should not include done startup logs in operations
-    operations = session_view.notifications
+    operations = session_view.snapshot_notifications()
     startup_ops = [
         op for op in operations if isinstance(op, StartupLogsNotification)
     ]
@@ -2428,3 +2483,60 @@ def test_preparation_remains_available_after_package_changes(
             logs={},
         ),
     ]
+
+
+@pytest.mark.parametrize("include_notebook", [False, True])
+def test_snapshot_notifications_preserve_replay_order(
+    session_view: SessionView, include_notebook: bool
+) -> None:
+    progress = StartupProgressNotification(
+        phase="starting-kernel", logs="Ready\n", log_mode="replace"
+    )
+    model = ModelLifecycleNotification(
+        model_id=WidgetModelId("model"),
+        message=ModelOpen(state={"value": 1}, buffer_paths=[], buffers=[]),
+    )
+    cell = CellNotification(
+        cell_id=cell_id,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="old output",
+        ),
+        status="idle",
+    )
+    # The output can arrive before its widget model exists.
+    for notification in (cell, model, progress):
+        session_view.add_notification(notification)
+
+    notifications = session_view.snapshot_notifications(
+        include_notebook=include_notebook
+    )
+    assert notifications == [
+        EnvironmentStateNotification(
+            source="kernel",
+            state=EnvironmentState(restart_required=False, operations=[]),
+        ),
+        EnvironmentStateNotification(
+            source="server",
+            state=EnvironmentState(restart_required=False, operations=[]),
+        ),
+        progress,
+        *([model, cell] if include_notebook else []),
+    ]
+    captured = msgspec.json.encode(notifications)
+    session_view.update_cell_outputs({cell_id: ("text/plain", "new output")})
+    session_view.add_notification(
+        StartupProgressNotification(
+            phase="starting-kernel", logs="More logs\n", log_mode="append"
+        )
+    )
+    assert msgspec.json.encode(notifications) == captured
+    assert (
+        msgspec.json.encode(
+            session_view.snapshot_notifications(
+                include_notebook=include_notebook
+            )
+        )
+        != captured
+    )
