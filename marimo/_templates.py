@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from marimo._ast.app_config import _AppConfig
 from marimo._cli.pair.prompts import get_pair_command, load_prompt_templates
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
-from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._convert.common.filename import parse_title
 from marimo._convert.converters import MarimoConvert
 from marimo._messaging.notification import ModelLifecycleNotification
@@ -144,7 +143,7 @@ def _get_mount_config(
         {
             "command": get_pair_command(),
             "templates": asdict(load_prompt_templates()),
-            "hostEnabled": GLOBAL_SETTINGS.ENABLE_HOST and mode == "edit",
+            "hostEnabled": mode == "edit",
         }
     )
     host_notebook = (

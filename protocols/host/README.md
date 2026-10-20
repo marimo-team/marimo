@@ -14,7 +14,7 @@ The OpenAPI schema is the source of truth for the Python types in
 `frontend/src/core/host/protocol.ts`. The frontend generator also adds the
 native `marimo` event with an `unknown` payload.
 
-With `MARIMO_ENABLE_HOST=1`, the editor consumes host events over WebSockets
+The editor consumes host events over WebSockets
 when its runtime configuration includes a `notebookId`. With
 `server.transport = "sse"`, it continues using the legacy `/sse` session
 stream, even when a notebook ID is available. The host's SSE endpoint serves

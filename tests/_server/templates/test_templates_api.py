@@ -7,7 +7,6 @@ from dataclasses import asdict
 import pytest
 
 from marimo._cli.pair.prompts import load_prompt_templates
-from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._schemas.session import (
     VERSION,
     Cell,
@@ -22,18 +21,15 @@ from marimo._server.templates.api import (
 from tests._server.templates.utils import parse_mount_config
 
 
-@pytest.mark.parametrize("enabled", [True, False])
 @pytest.mark.parametrize(
     ("editable", "command"),
     [(True, "uv run marimo"), (False, "uvx marimo@latest")],
 )
 def test_pair_cli_config_is_unconditional(
     monkeypatch: pytest.MonkeyPatch,
-    enabled: bool,
     editable: bool,
     command: str,
 ) -> None:
-    monkeypatch.setattr(GLOBAL_SETTINGS, "ENABLE_HOST", enabled)
     monkeypatch.setattr(
         "marimo._cli.pair.prompts.is_editable", lambda _: editable
     )
@@ -43,14 +39,11 @@ def test_pair_cli_config_is_unconditional(
     assert parse_mount_config(html)["pairConfig"] == {
         "command": command,
         "templates": asdict(load_prompt_templates()),
-        "hostEnabled": enabled,
+        "hostEnabled": True,
     }
 
 
-def test_read_mode_disables_agent_aware_ui(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(GLOBAL_SETTINGS, "ENABLE_HOST", True)
+def test_read_mode_disables_agent_aware_ui() -> None:
     html = render_notebook(
         code="import marimo\napp = marimo.App()", mode="read"
     )

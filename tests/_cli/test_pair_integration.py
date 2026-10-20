@@ -124,21 +124,20 @@ def editor_server(
 ) -> Generator[PairTestServer, None, None]:
     with pair_test_server(
         tmp_path_factory.mktemp("pair-editor"),
-        host_enabled=False,
         token="pair-editor-private-token",
     ) as running:
         yield running
 
 
 @pytest.mark.parametrize("selector", ["session", "auto"])
-def test_editor_execution_without_host_preserves_session_contract(
+def test_authenticated_execution_preserves_session_contract(
     editor_server: PairTestServer,
     tmp_path: Path,
     selector: Literal["session", "auto"],
 ) -> None:
     token_file = tmp_path / "token"
     token_file.write_text("pair-editor-private-token")
-    assert editor_server.notebook_id is None
+    assert editor_server.notebook_id is not None
     result = _run(
         editor_server,
         "--token-file",
@@ -156,7 +155,7 @@ def test_editor_execution_without_host_preserves_session_contract(
         "data": "<pre class='text-xs'>42</pre>",
     }
     assert payload["session"] == {"id": editor_server.stable_session_id}
-    assert "notebook" not in payload
+    assert payload["notebook"]["id"] == editor_server.notebook_id
 
 
 def test_editor_execution_requires_editor_token(

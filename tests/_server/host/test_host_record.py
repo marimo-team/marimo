@@ -13,7 +13,6 @@ import msgspec
 import pytest
 import uvicorn
 
-from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._core import backend as be, protocol
 from marimo._server.host import HOST_API_PATH, record as record_module
 from marimo._server.host.lifespan import host as host_lifespan
@@ -36,8 +35,6 @@ from tests._server.mocks import (
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-pytestmark = pytest.mark.usefixtures("enable_host")
 
 
 @pytest.mark.parametrize(
@@ -86,22 +83,16 @@ async def test_an_unreachable_bind_writes_no_record(
         assert app.state.host_context is not None
 
 
-@pytest.mark.parametrize(
-    ("enabled", "mode"), [(False, SessionMode.EDIT), (True, SessionMode.RUN)]
-)
-async def test_inactive_host_writes_no_record_and_serves_no_api(
+async def test_run_mode_writes_no_record_and_serves_no_host_api(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    enabled: bool,
-    mode: SessionMode,
 ) -> None:
-    monkeypatch.setattr(GLOBAL_SETTINGS, "ENABLE_HOST", enabled)
     monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
     app = create_starlette_app(
         base_url="", enable_auth=False, lifespan=Lifespans([host_lifespan])
     )
     get_starlette_server_state_init(
-        session_manager=get_mock_session_manager(mode=mode)
+        session_manager=get_mock_session_manager(mode=SessionMode.RUN)
     ).apply(app.state)
     app.state.server = uvicorn.Server(
         uvicorn.Config(app, host="127.0.0.1", port=1234)

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import os
 import socket
 import subprocess
 import sys
@@ -168,7 +167,6 @@ def _start_server(
     notebook: Path,
     stderr_path: Path,
     *,
-    host_enabled: bool,
     token: str | None,
     attempts: int = 3,
 ) -> tuple[subprocess.Popen[bytes], str]:
@@ -195,10 +193,6 @@ def _start_server(
                 stdout=subprocess.DEVNULL,
                 stderr=stderr_file,
                 cwd=notebook.parent,
-                env={
-                    **os.environ,
-                    "MARIMO_ENABLE_HOST": "1" if host_enabled else "0",
-                },
             )
         url = f"http://127.0.0.1:{port}"
         try:
@@ -214,15 +208,13 @@ def _start_server(
 
 @contextmanager
 def pair_test_server(
-    tmp_path: Path, *, host_enabled: bool = True, token: str | None = None
+    tmp_path: Path, *, token: str | None = None
 ) -> Generator[PairTestServer, None, None]:
     notebook = tmp_path / "pair-integration.py"
     notebook.write_text("import marimo\napp = marimo.App()\n")
     stderr_path = tmp_path / "marimo-stderr.log"
 
-    process, url = _start_server(
-        notebook, stderr_path, host_enabled=host_enabled, token=token
-    )
+    process, url = _start_server(notebook, stderr_path, token=token)
     try:
         session_id = f"pair_{uuid.uuid4().hex[:8]}"
         websocket = websockets.sync.client.connect(
