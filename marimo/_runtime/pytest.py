@@ -7,6 +7,7 @@ import re
 import sys
 import types
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo._ast.pytest import MARIMO_TEST_STUB_NAME
@@ -22,8 +23,6 @@ MARIMO_TEST_BLOCK_REGEX = re.compile(rf"{MARIMO_TEST_STUB_NAME}_\d+[(?::)\.]+")
 
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     import pytest
     from _pytest.nodes import Collector, Item, Node
 
@@ -183,6 +182,7 @@ class ReplaceStubPlugin:
         defs: set[str] | None = None,
         lcls: dict[str, Any] | None = None,
         global_defs: set[str] | None = None,
+        notebook_path: str | None = None,
     ) -> None:
         if lcls is None:
             lcls = globals()
@@ -191,6 +191,9 @@ class ReplaceStubPlugin:
 
         self.lcls = lcls
         self.defs = defs
+        self._notebook = (
+            Path(os.path.abspath(notebook_path)) if notebook_path else None
+        )
         # Notebook-global names (setup + top-level defs). Together with `defs`
         # they bound which fixtures stay visible during live collection; any
         # fixture outside this scope belongs to a sibling cell and is hidden to
@@ -221,6 +224,24 @@ class ReplaceStubPlugin:
         module = _live_module_cls().from_parent(parent, path=module_path)
         module._set_globals(self._live_module_globals())
         return module
+
+    def pytest_ignore_collect(self, collection_path: Path) -> bool | None:
+        """Offer pytest nothing but the notebook and the directories leading
+        to it.
+
+        Pytest lists every directory from its anchor down to the notebook and
+        would otherwise collect, then discard, each neighbouring entry. A
+        shared temp directory on that path changes under it mid-scan, and a
+        neighbour that vanishes before pytest stats it fails the whole run.
+        """
+        if self._notebook is None:
+            return None
+        if (
+            collection_path == self._notebook
+            or collection_path in self._notebook.parents
+        ):
+            return None
+        return True
 
     def _live_owner(self, item: Item) -> str | None:
         """Name of the module-level object (function/class) owning `item`."""
@@ -359,7 +380,9 @@ def run_pytest(
     # Ideally, --import-mode=importlib would be a great flag- however the
     # method is too brittle to handle absolute paths. As such, we default to
     # the normal behavior (in which pytest alters the system path).
-    plugin = ReplaceStubPlugin(defs, lcls, global_defs=global_defs)
+    plugin = ReplaceStubPlugin(
+        defs, lcls, global_defs=global_defs, notebook_path=notebook_path
+    )
     try:
         # pytest in wasm doesn't seem to set environment variables correctly.
         # This work around is to prevent collision with non-wasm testing.

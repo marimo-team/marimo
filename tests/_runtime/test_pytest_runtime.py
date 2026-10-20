@@ -543,3 +543,225 @@ def test_rerun_keeps_lazily_imported_modules(tmp_path, monkeypatch) -> None:
     # edits are picked up on the next run.
     assert dynamo_kept
     assert not helper_kept
+
+
+def test_collection_skips_entries_beside_the_notebook_path(
+    tmp_path, monkeypatch
+) -> None:
+    """Reactive collection offers pytest nothing but the notebook and the
+    directories leading to it.
+
+    Pytest lists every directory between its anchor and the notebook. On CI
+    that includes the shared temp directory, where other workers create and
+    delete entries mid-scan, and an entry that vanishes before pytest looks
+    at it fails the run.
+    """
+    import marimo
+    from marimo._runtime.pytest import run_pytest
+
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    monkeypatch.chdir(workdir)
+    (tmp_path / "beside_dir").mkdir()
+    (tmp_path / "test_beside.py").write_text("def test_beside():\n    pass\n")
+    record = tmp_path / "offered.txt"
+    # The shared parent's conftest sees every path pytest offers to collect.
+    (tmp_path / "conftest.py").write_text(
+        "from pathlib import Path\n\n"
+        f"RECORD = Path({str(record)!r})\n\n\n"
+        "def pytest_collect_directory(path, parent):\n"
+        "    with RECORD.open('a') as f:\n"
+        "        f.write(f'{path}\\n')\n\n\n"
+        "def pytest_collect_file(file_path, parent):\n"
+        "    with RECORD.open('a') as f:\n"
+        "        f.write(f'{file_path}\\n')\n"
+    )
+    notebook_dir = tmp_path / "notebooks"
+    notebook_dir.mkdir()
+    notebook = notebook_dir / "notebook.py"
+    notebook.write_text("import marimo\napp = marimo.App()\n")
+
+    app = marimo.App()
+
+    @app.cell
+    def _():
+        def test_anchor():
+            assert True
+
+        return
+
+    previous = os.environ.get("PYTEST_CURRENT_TEST", "")
+    os.environ.pop("PYTEST_CURRENT_TEST", None)
+    try:
+        _, lcls = app.run()
+        result = run_pytest(
+            defs={"test_anchor"}, lcls=dict(lcls), notebook_path=notebook
+        )
+    finally:
+        if previous:
+            os.environ["PYTEST_CURRENT_TEST"] = previous
+
+    assert (result.passed, result.failed, result.errors) == (1, 0, 0), (
+        result.output
+    )
+    assert record.exists(), "the shared parent's conftest was not loaded"
+    offered = {Path(line) for line in record.read_text().splitlines()}
+    assert {notebook_dir, notebook} <= offered
+    assert not offered & {
+        workdir,
+        tmp_path / "beside_dir",
+        tmp_path / "test_beside.py",
+    }
+
+
+def test_working_dir_conftest_applies_to_notebook_below_it(
+    tmp_path, monkeypatch
+) -> None:
+    """With no project config file, a conftest.py in the working directory
+    applies to a notebook in a subdirectory.
+    """
+    import marimo
+    from marimo._runtime.pytest import run_pytest
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "conftest.py").write_text(
+        "import pytest\n\n\n"
+        "@pytest.fixture\n"
+        "def shared_value():\n"
+        "    return 7\n"
+    )
+    notebook_dir = tmp_path / "notebooks"
+    notebook_dir.mkdir()
+    notebook = notebook_dir / "notebook.py"
+    notebook.write_text("import marimo\napp = marimo.App()\n")
+
+    app = marimo.App()
+
+    @app.cell
+    def _():
+        def test_shared(shared_value):
+            assert shared_value == 7
+
+        return
+
+    previous = os.environ.get("PYTEST_CURRENT_TEST", "")
+    os.environ.pop("PYTEST_CURRENT_TEST", None)
+    try:
+        _, lcls = app.run()
+        result = run_pytest(
+            defs={"test_shared"}, lcls=dict(lcls), notebook_path=notebook
+        )
+    finally:
+        if previous:
+            os.environ["PYTEST_CURRENT_TEST"] = previous
+
+    assert (result.passed, result.failed, result.errors) == (1, 0, 0), (
+        result.output
+    )
+
+
+def test_parent_conftest_applies_from_sibling_working_dir(
+    tmp_path, monkeypatch
+) -> None:
+    """With no project config file, a conftest.py in the directory shared by
+    the working directory and the notebook still applies to the notebook.
+    """
+    import marimo
+    from marimo._runtime.pytest import run_pytest
+
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    monkeypatch.chdir(workdir)
+    (tmp_path / "conftest.py").write_text(
+        "import pytest\n\n\n"
+        "@pytest.fixture\n"
+        "def shared_value():\n"
+        "    return 7\n"
+    )
+    notebook_dir = tmp_path / "notebooks"
+    notebook_dir.mkdir()
+    notebook = notebook_dir / "notebook.py"
+    notebook.write_text("import marimo\napp = marimo.App()\n")
+
+    app = marimo.App()
+
+    @app.cell
+    def _():
+        def test_shared(shared_value):
+            assert shared_value == 7
+
+        return
+
+    previous = os.environ.get("PYTEST_CURRENT_TEST", "")
+    os.environ.pop("PYTEST_CURRENT_TEST", None)
+    try:
+        _, lcls = app.run()
+        result = run_pytest(
+            defs={"test_shared"}, lcls=dict(lcls), notebook_path=notebook
+        )
+    finally:
+        if previous:
+            os.environ["PYTEST_CURRENT_TEST"] = previous
+
+    assert (result.passed, result.failed, result.errors) == (1, 0, 0), (
+        result.output
+    )
+
+
+def test_project_config_applies_to_notebook_outside_working_dir(
+    tmp_path, monkeypatch
+) -> None:
+    """A project's pytest config and root conftest.py apply to a notebook in
+    that project even when the working directory lies outside it: config
+    paths such as `pythonpath` resolve against the config file, and the
+    root conftest's fixtures are visible.
+    """
+    import marimo
+    from marimo._runtime.pytest import run_pytest
+
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    monkeypatch.chdir(workdir)
+    project = tmp_path / "project"
+    (project / "src").mkdir(parents=True)
+    (project / "src" / "project_helper.py").write_text("VALUE = 42\n")
+    (project / "pyproject.toml").write_text(
+        '[tool.pytest.ini_options]\npythonpath = ["src"]\n'
+    )
+    (project / "conftest.py").write_text(
+        "import pytest\n\n\n"
+        "@pytest.fixture\n"
+        "def shared_value():\n"
+        "    return 7\n"
+    )
+    notebook_dir = project / "notebooks"
+    notebook_dir.mkdir()
+    notebook = notebook_dir / "notebook.py"
+    notebook.write_text("import marimo\napp = marimo.App()\n")
+
+    app = marimo.App()
+
+    @app.cell
+    def _():
+        def test_project(shared_value):
+            import project_helper  # type: ignore[import-not-found]
+
+            assert (shared_value, project_helper.VALUE) == (7, 42)
+
+        return
+
+    previous = os.environ.get("PYTEST_CURRENT_TEST", "")
+    os.environ.pop("PYTEST_CURRENT_TEST", None)
+    try:
+        _, lcls = app.run()
+        result = run_pytest(
+            defs={"test_project"}, lcls=dict(lcls), notebook_path=notebook
+        )
+    finally:
+        if previous:
+            os.environ["PYTEST_CURRENT_TEST"] = previous
+        sys.modules.pop("project_helper", None)
+
+    assert (result.passed, result.failed, result.errors) == (1, 0, 0), (
+        result.output
+    )
