@@ -8,6 +8,7 @@ import { Deferred } from "@/utils/Deferred";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { classifyCloseEvent } from "../../websocket/connection-state";
 import { createNotebookClient } from "../notebook-client";
+import { fixtureMessages } from "./fixtures";
 
 function notebookMessage(id: string) {
   const notebook = {
@@ -21,12 +22,16 @@ function notebookMessage(id: string) {
   return JSON.stringify({ event: "notebook", data: { notebook } });
 }
 
-function setup() {
+function setup(url: () => string = () => "ws://localhost/ws") {
   const events = new EventTarget();
   const healthy = new Deferred<void>();
+  let provider = url;
+  const urls: URL[] = [];
   const transport = {
     readyState: WebSocket.CLOSED,
-    reconnect: vi.fn(),
+    reconnect: vi.fn(() => {
+      urls.push(new URL(provider()));
+    }),
     close: vi.fn(() => events.dispatchEvent(new CloseEvent("close"))),
     send: vi.fn(),
     addEventListener: events.addEventListener.bind(events),
@@ -39,8 +44,11 @@ function setup() {
   const client = controller.client;
   const connect = (signal: AbortSignal) =>
     controller.connect({
-      createTransport: () => transport,
-      url: () => "ws://localhost/ws",
+      createTransport: (next) => {
+        provider = next;
+        return transport;
+      },
+      url,
       messageFormat: "host",
       signal,
       waitUntilReady: () => healthy.promise,
@@ -59,6 +67,11 @@ function setup() {
     onNotification,
     store,
     checkHealth,
+    urls,
+    receive: (message: unknown) =>
+      events.dispatchEvent(
+        new MessageEvent("message", { data: JSON.stringify(message) }),
+      ),
   };
 }
 
@@ -90,6 +103,44 @@ describe("NotebookClient lifetime", () => {
       lifetime.abort();
     },
   );
+
+  it("resumes from the last cursor until reset or a new session", async () => {
+    const session = { id: "first", token: "a" };
+    const { connect, events, healthy, urls, receive } = setup(
+      () =>
+        `ws://localhost/ws?session_id=${session.id}&access_token=${session.token}&cursor=999`,
+    );
+    const lifetime = new AbortController();
+    connect(lifetime.signal);
+    healthy.resolve();
+    await healthy.promise;
+    expect(urls[0].searchParams.get("cursor")).toBeNull();
+
+    const snapshot = fixtureMessages("notebook-events.sse");
+    events.dispatchEvent(new Event("open"));
+    for (const message of snapshot) {
+      receive(message);
+    }
+    session.token = "b";
+    events.dispatchEvent(new CloseEvent("close"));
+    expect(urls[1].searchParams.get("cursor")).toBe("97");
+    expect(urls[1].searchParams.get("access_token")).toBe("b");
+
+    events.dispatchEvent(new Event("open"));
+    receive({ event: "reset", data: {} });
+    events.dispatchEvent(new CloseEvent("close"));
+    expect(urls[2].searchParams.get("cursor")).toBeNull();
+
+    events.dispatchEvent(new Event("open"));
+    for (const message of snapshot) {
+      receive(message);
+    }
+    session.id = "second";
+    events.dispatchEvent(new CloseEvent("close"));
+    expect(urls[3].searchParams.get("cursor")).toBeNull();
+    expect(urls[3].searchParams.get("session_id")).toBe("second");
+    lifetime.abort();
+  });
 
   it("stops consuming a stream whose notebook changes", () => {
     const { connect, events, client, store, transport } = setup();

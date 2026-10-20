@@ -4,8 +4,10 @@ import type { NotebookEvent } from "./events";
 import type * as Protocol from "./protocol";
 import type {
   EventOf,
+  HandlerContext,
   Resource,
   ResourceEventName,
+  StreamPhase,
 } from "./resources/resource";
 
 /** A resource for each entry of a state map under the same name. */
@@ -16,17 +18,23 @@ export type Resources<States> = {
 /**
  * The state of one notebook stream.
  *
- * Holds the phase, the notebook identity, and the state of each resource.
+ * Holds the phase, the notebook identity, the resume cursor, and the state
+ * of each resource.
  */
 export interface StreamState<States> {
-  /** `snapshot` until `ready` arrives and `live` after it. */
-  readonly phase: "snapshot" | "live";
+  readonly phase: StreamPhase;
   /**
    * The notebook the stream describes.
    *
    * Retained across `reset`.
    */
   readonly notebookId: Protocol.NotebookIdOutput | null;
+  /**
+   * The id of the last live event.
+   *
+   * Null before `ready` and after `reset`.
+   */
+  readonly cursor: string | null;
   /** The state of each resource by name. */
   readonly resources: States;
 }
@@ -41,6 +49,13 @@ export interface Stream<States> {
    * notebook.
    */
   reduce(state: StreamState<States>, event: NotebookEvent): StreamState<States>;
+  /**
+   * The state to hold while reconnecting.
+   *
+   * A live stream keeps its state and resumes from `cursor`. An incomplete
+   * snapshot starts over.
+   */
+  resume(state: StreamState<States>): StreamState<States>;
 }
 
 /** Events that may arrive without a cursor after `ready`. */
@@ -87,6 +102,7 @@ export function createStream<States extends object>(
   const initial: StreamState<States> = {
     phase: "snapshot",
     notebookId: null,
+    cursor: null,
     resources: initialResources,
   };
 
@@ -113,23 +129,38 @@ export function createStream<States extends object>(
     state: StreamState<States>,
     event: EventOf<ResourceEventName>,
   ): StreamState<States> {
+    const context: HandlerContext = { phase: state.phase };
     let next = state.resources;
     for (const name of names) {
       type State = States[typeof name];
       // Handlers are keyed by the event name they accept.
       const handler = resources[name].on[event.event] as
-        | ((state: State, event: Protocol.EventOutput) => State)
+        | ((
+            state: State,
+            event: Protocol.EventOutput,
+            context: HandlerContext,
+          ) => State)
         | undefined;
       if (handler === undefined) {
         continue;
       }
       const before = next[name];
-      const after = handler(before, event);
+      const after = handler(before, event, context);
       if (after !== before) {
         next = { ...next, [name]: after };
       }
     }
     return next === state.resources ? state : { ...state, resources: next };
+  }
+
+  /** Record the position of a live event. */
+  function advance(
+    state: StreamState<States>,
+    id: string | undefined,
+  ): StreamState<States> {
+    return state.phase === "live" && id !== undefined && id !== state.cursor
+      ? { ...state, cursor: id }
+      : state;
   }
 
   return {
@@ -145,25 +176,38 @@ export function createStream<States extends object>(
       switch (event.event) {
         case "marimo":
         case "unknown":
-          return state;
+          return advance(state, event.id);
         case "reset":
           return { ...initial, notebookId: state.notebookId };
         case "ready":
-          return state.phase === "live" ? state : { ...state, phase: "live" };
+          // Handlers see the phase that ended, so a snapshot's ready differs
+          // from one that ends a replay.
+          return { ...fanOut(state, event), phase: "live", cursor: event.id };
         case "notebook":
-          return identify(state, event.data.notebook.id);
+          return advance(identify(state, event.data.notebook.id), event.id);
         case "notebook.removed":
-          return state.notebookId !== null && event.data.id !== state.notebookId
-            ? state
-            : clear(state);
+          return advance(
+            state.notebookId !== null && event.data.id !== state.notebookId
+              ? state
+              : clear(state),
+            event.id,
+          );
         default: {
           const notebookId = notebookIdOf(event);
-          return fanOut(
-            notebookId === undefined ? state : identify(state, notebookId),
-            event,
+          return advance(
+            fanOut(
+              notebookId === undefined ? state : identify(state, notebookId),
+              event,
+            ),
+            event.id,
           );
         }
       }
+    },
+    resume(state) {
+      return state.phase === "snapshot"
+        ? { ...initial, notebookId: state.notebookId }
+        : state;
     },
   };
 }

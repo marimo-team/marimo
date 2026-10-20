@@ -10,7 +10,7 @@ interface CellIds {
   readonly ids: readonly string[];
 }
 
-/** A resource that lists cells, to observe how the stream feeds handlers. */
+/** A resource whose events are complete on their own. */
 const cells: Resource<CellIds> = {
   initial: { ids: [] },
   on: {
@@ -25,10 +25,43 @@ const cells: Resource<CellIds> = {
   },
 };
 
-type State = StreamState<{ cells: CellIds }>;
+interface Revisions {
+  /** Cells changed since the last revision. */
+  readonly pending: readonly string[];
+  readonly published: readonly (readonly string[])[];
+}
+
+function publish(state: Revisions): Revisions {
+  return { pending: [], published: [...state.published, state.pending] };
+}
+
+/** A resource assembled from groups of events, like a document from its cells. */
+const revisions: Resource<Revisions> = {
+  initial: { pending: [], published: [] },
+  on: {
+    cell: (state, event) => ({
+      ...state,
+      pending: [...state.pending, event.data.cell.id],
+    }),
+    "cell.removed": (state, event) => ({
+      ...state,
+      pending: [...state.pending, event.data.id],
+    }),
+    // A live revision completes a group. A snapshot's revision waits for ready.
+    document: (state, _event, { phase }) =>
+      phase === "live" ? publish(state) : state,
+    ready: publish,
+  },
+};
+
+interface Resources {
+  cells: CellIds;
+  revisions: Revisions;
+}
+type State = StreamState<Resources>;
 
 function replay(
-  stream: Stream<{ cells: CellIds }>,
+  stream: Stream<Resources>,
   events: readonly NotebookEvent[],
   from: State = stream.initial,
 ): State {
@@ -44,14 +77,26 @@ if (cellEvent?.event !== "cell") {
 
 describe("notebook stream", () => {
   it("reads the snapshot, goes live at ready, and rebuilds after reset", () => {
-    const stream = createStream({ cells });
+    const stream = createStream({ cells, revisions });
     const partial = replay(stream, snapshot.slice(0, ready));
-    expect(partial).toMatchObject({ phase: "snapshot", notebookId: "n1" });
+    expect(partial).toMatchObject({
+      phase: "snapshot",
+      notebookId: "n1",
+      cursor: null,
+    });
     expect(partial.resources.cells.ids).toEqual(["c1", "c3", "k7f2"]);
+    expect(partial.resources.revisions).toEqual({
+      pending: ["c1", "c3", "k7f2"],
+      published: [],
+    });
 
     const live = replay(stream, snapshot.slice(ready), partial);
-    expect(live.phase).toBe("live");
+    expect(live).toMatchObject({ phase: "live", cursor: "97" });
     expect(live.resources.cells).toBe(partial.resources.cells);
+    expect(live.resources.revisions).toEqual({
+      pending: [],
+      published: [["c1", "c3", "k7f2"]],
+    });
 
     const resetEvents = fixtureEvents("events-reset.sse");
     const afterReset = stream.reduce(live, resetEvents[0]);
@@ -59,28 +104,24 @@ describe("notebook stream", () => {
     expect(replay(stream, resetEvents, live).phase).toBe("live");
   });
 
-  it("returns the same state when no resource changes", () => {
-    const stream = createStream({ cells });
+  it("keeps resource state by reference when an event does not apply", () => {
+    const stream = createStream({ cells, revisions });
     const state = replay(stream, snapshot);
     const runtime = snapshot.find((event) => event.event === "runtime");
-    expect(stream.reduce(state, { ...runtime!, id: "100" })).toBe(state);
+    const unhandled = stream.reduce(state, { ...runtime!, id: "100" });
+    expect(unhandled.resources).toBe(state.resources);
+    expect(unhandled.cursor).toBe("100");
     expect(
-      stream.reduce(state, {
-        event: "cell.removed",
-        id: "101",
-        data: { id: "missing", time: "2026-10-01T09:30:00Z" },
-      }),
-    ).toBe(state);
-    expect(stream.reduce(state, { event: "unknown", name: "x", id: "1" })).toBe(
-      state,
-    );
+      stream.reduce(state, { event: "unknown", name: "x", id: "101" })
+        .resources,
+    ).toBe(state.resources);
     expect(
       stream.reduce(state, { event: "marimo", data: { marimo: {} } }),
     ).toBe(state);
   });
 
   it("clears resources when its notebook is removed and ignores other notebooks", () => {
-    const stream = createStream({ cells });
+    const stream = createStream({ cells, revisions });
     const state = replay(stream, snapshot);
     const time = "2026-10-01T09:30:00Z";
     expect(
@@ -88,8 +129,8 @@ describe("notebook stream", () => {
         event: "notebook.removed",
         id: "100",
         data: { id: "n2", time },
-      }),
-    ).toBe(state);
+      }).resources,
+    ).toBe(state.resources);
     const removed = stream.reduce(state, {
       event: "notebook.removed",
       id: "100",
@@ -100,7 +141,7 @@ describe("notebook stream", () => {
   });
 
   it("rejects objects from another notebook", () => {
-    const stream = createStream({ cells });
+    const stream = createStream({ cells, revisions });
     const state = replay(stream, snapshot.slice(0, ready));
     const notebook = snapshot[0];
     if (notebook.event !== "notebook") {
@@ -120,11 +161,46 @@ describe("notebook stream", () => {
     ).toThrow("changed identity");
   });
 
+  it("records each live event's cursor and resumes in place", () => {
+    const stream = createStream({ cells, revisions });
+    const partial = replay(stream, snapshot.slice(0, ready));
+    expect(stream.resume(partial)).toEqual({
+      ...stream.initial,
+      notebookId: "n1",
+    });
+
+    const live = replay(stream, snapshot.slice(ready), partial);
+    const [cell, , removed, published, saved] = fixtureEvents("edits.sse");
+    const editing = replay(stream, [cell], live);
+    expect(editing.cursor).toBe("110");
+    expect(editing.resources.revisions.pending).toEqual(["c2"]);
+    expect(stream.resume(editing)).toBe(editing);
+
+    const edited = replay(stream, [removed, published], editing);
+    expect(edited.cursor).toBe("113");
+    expect(edited.resources.revisions).toEqual({
+      pending: [],
+      published: [
+        ["c1", "c3", "k7f2"],
+        ["c2", "k7f2"],
+      ],
+    });
+    expect(stream.reduce(edited, saved).cursor).toBe("114");
+    expect(
+      stream.reduce(edited, { event: "ready", id: "116", data: {} }).cursor,
+    ).toBe("116");
+    expect(stream.reduce(edited, { event: "reset", data: {} }).cursor).toBe(
+      null,
+    );
+  });
+
   it("requires a cursor on live events other than reset and notifications", () => {
-    const stream = createStream({ cells });
+    const stream = createStream({ cells, revisions });
     const state = replay(stream, snapshot);
     expect(() => stream.reduce(state, cellEvent)).toThrow("cursor");
-    expect(stream.reduce(state, { ...cellEvent, id: "100" })).toBe(state);
+    expect(
+      stream.reduce(state, { ...cellEvent, id: "100" }).resources.cells,
+    ).toBe(state.resources.cells);
     expect(stream.reduce(state, { event: "reset", data: {} }).phase).toBe(
       "snapshot",
     );

@@ -77,12 +77,32 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
     let shouldRetry = true;
     let terminal = false;
     let checkingHealth = false;
+    let streamKey: string | undefined;
     const transport = createTransport(() => {
-      // Each connection begins a fresh snapshot.
-      if (!signal.aborted) {
-        store.set(streamAtom, stream.initial);
+      if (messageFormat === "session") {
+        return url();
       }
-      return url();
+      const next = new URL(url());
+      next.searchParams.delete("cursor");
+      if (signal.aborted) {
+        return next.toString();
+      }
+      // A cursor is useful with the state that produced it, which a change
+      // of session or notebook invalidates. Authentication may change freely.
+      const identity = new URL(next);
+      identity.searchParams.delete("access_token");
+      identity.searchParams.sort();
+      const key = identity.toString();
+      const state =
+        key === streamKey
+          ? stream.resume(store.get(streamAtom))
+          : stream.initial;
+      streamKey = key;
+      store.set(streamAtom, state);
+      if (state.cursor !== null) {
+        next.searchParams.set("cursor", state.cursor);
+      }
+      return next.toString();
     });
     const setStatus = (status: ConnectionStatus) =>
       store.set(connectionAtom, status);

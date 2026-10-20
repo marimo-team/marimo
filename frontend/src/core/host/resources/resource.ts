@@ -14,18 +14,25 @@ export type EventOf<Name extends EventName> = Extract<
 /**
  * Events the stream handles itself.
  *
- * They mark the phase, identify the notebook, or carry a native
+ * They identify the notebook, discard state, or carry a native
  * notification. Resources do not receive them.
  */
 export type StreamEventName =
   | "reset"
-  | "ready"
   | "notebook"
   | "notebook.removed"
   | "marimo";
 
-/** Events a resource may handle. */
+/** Events a resource may handle. `ready` marks the end of the snapshot. */
 export type ResourceEventName = Exclude<EventName, StreamEventName>;
+
+/** `snapshot` until `ready` arrives and `live` after it. */
+export type StreamPhase = "snapshot" | "live";
+
+/** What a handler may know about the stream beyond the event. */
+export interface HandlerContext {
+  readonly phase: StreamPhase;
+}
 
 /**
  * A pure handler for each event the resource reads.
@@ -36,6 +43,7 @@ export type EventHandlers<State> = {
   readonly [Name in ResourceEventName]?: (
     state: State,
     event: EventOf<Name>,
+    context: HandlerContext,
   ) => State;
 };
 
