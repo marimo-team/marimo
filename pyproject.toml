@@ -631,8 +631,8 @@ channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64", "linux-aarch64"]
 
 [tool.pixi.dependencies]
-nodejs = "22.*"
-pnpm = "10.*"
+nodejs = "24.*"
+pnpm = "12.*"
 make = ">=4.4.1,<5"
 pre_commit = ">=4.2.0,<5"
 uv = ">=0.6.12,<0.7"

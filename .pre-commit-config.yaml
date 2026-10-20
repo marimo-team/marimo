@@ -5,6 +5,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: check-yaml
+        exclude: ^pnpm-lock\.yaml$
 
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
