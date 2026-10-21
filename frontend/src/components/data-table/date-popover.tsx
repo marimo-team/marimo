@@ -45,10 +45,9 @@ export const DatePopover: React.FC<DatePopoverProps> = ({
 
 const TimezoneDisplay = ({ date }: { date: Date }) => {
   const { locale } = useLocale();
-  const localTimezone = useMemo(
-    () => new Intl.DateTimeFormat(locale).resolvedOptions().timeZone,
-    [locale],
-  );
+  // The system timezone can change without the locale changing.
+  const localTimezone = new Intl.DateTimeFormat(locale).resolvedOptions()
+    .timeZone;
   const hasSubSeconds = date.getUTCMilliseconds() !== 0;
 
   const utcFormatter = useDateFormatter(

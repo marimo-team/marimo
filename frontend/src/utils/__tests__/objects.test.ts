@@ -204,6 +204,27 @@ describe("Objects", () => {
   });
 
   describe("filter", () => {
+    it.each([42, { base_url: "https://example.com" }])(
+      "preserves an own __proto__ property with value %j",
+      (value) => {
+        const obj = { ["__proto__"]: value, removed: value };
+        const result = Objects.filter(obj, (_, key) => key !== "removed");
+
+        expect(Object.entries(result)).toEqual([["__proto__", value]]);
+        expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+        expect(Object.getOwnPropertyDescriptor(result, "__proto__")).toEqual({
+          value,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+        expect(Object.keys(obj)).toEqual(["__proto__", "removed"]);
+        expect(Objects.filter(obj, (_, key) => key !== "__proto__")).toEqual({
+          removed: value,
+        });
+      },
+    );
+
     it("should filter object entries by predicate", () => {
       const obj = { a: 1, b: 2, c: 3, d: 4 };
       const result = Objects.filter(obj, (v) => v % 2 === 0);
