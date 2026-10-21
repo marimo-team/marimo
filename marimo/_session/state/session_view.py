@@ -600,13 +600,10 @@ class SessionView:
 
         self.last_execution_time[cell_id] = time_elapsed
 
-    def snapshot_notifications(
-        self, *, include_notebook: bool = True
-    ) -> list[NotificationMessage]:
+    def snapshot_notifications(self) -> list[NotificationMessage]:
         """Copy retained notifications for a connecting client.
 
-        An existing client can omit notebook state and refresh only its
-        environment and startup status. The caller supplies kernel-ready.
+        The caller supplies kernel-ready before replaying these notifications.
         """
         notifications: list[NotificationMessage] = [
             EnvironmentStateNotification(source=source, state=state)
@@ -614,8 +611,7 @@ class SessionView:
         ]
         if self.startup_progress is not None:
             notifications.append(self.startup_progress)
-        if include_notebook:
-            notifications.extend(self._notebook_notifications())
+        notifications.extend(self._notebook_notifications())
         return copy.deepcopy(notifications)
 
     def _notebook_notifications(self) -> list[NotificationMessage]:

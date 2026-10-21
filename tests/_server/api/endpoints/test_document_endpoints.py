@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from tests._server.api.endpoints.ws_helpers import (
     HEADERS as _HEADERS,
     assert_kernel_ready_response,
+    receive_notification,
 )
 
 if TYPE_CHECKING:
@@ -23,7 +24,7 @@ def test_create_cell_with_missing_anchor_is_appended(
     with client.websocket_connect(
         "/ws?session_id=123", headers=_HEADERS
     ) as websocket:
-        assert_kernel_ready_response(websocket.receive_json())
+        assert_kernel_ready_response(receive_notification(websocket))
 
         response = client.post(
             "/api/document/transaction",
@@ -56,7 +57,7 @@ def test_delete_of_missing_cell_is_a_no_op(client: TestClient) -> None:
     with client.websocket_connect(
         "/ws?session_id=123", headers=_HEADERS
     ) as websocket:
-        assert_kernel_ready_response(websocket.receive_json())
+        assert_kernel_ready_response(receive_notification(websocket))
 
         sm = client.app.state.session_manager
         session = next(iter(sm.sessions.values()))

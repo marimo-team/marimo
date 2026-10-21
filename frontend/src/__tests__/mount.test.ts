@@ -102,23 +102,18 @@ describe("mount", () => {
   });
 
   describe("connection state initialization", () => {
-    it("passes the host notebook identity to the local runtime", () => {
-      mount({ ...baseOptions, notebookId: "nb_local" }, mockElement);
-      expect(store.get(runtimeConfigAtom).notebookId).toBe("nb_local");
-    });
-
-    it("uses a remote runtime's own notebook identity", () => {
+    it("uses the remote runtime's framing instead of the page's", () => {
       mount(
         {
           ...baseOptions,
-          notebookId: "nb_local",
+          messageFormat: "host",
           runtimeConfig: [
-            { url: "https://remote.example", notebookId: "nb_remote" },
+            { url: "https://remote.example", messageFormat: "session" },
           ],
         },
         mockElement,
       );
-      expect(store.get(runtimeConfigAtom).notebookId).toBe("nb_remote");
+      expect(store.get(runtimeConfigAtom).messageFormat).toBe("session");
     });
 
     it("should set connection to CONNECTING when runtimeConfig has lazy=false", () => {

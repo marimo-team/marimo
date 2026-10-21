@@ -1,8 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 export interface RuntimeConfig {
-  /** The host notebook for WebSocket events. SSE uses the legacy session stream. */
-  readonly notebookId?: string;
+  /** Temporary stream framing selection during the host migration. */
+  readonly messageFormat?: "host" | "session";
   /**
    * The URL of the runtime server.
    */

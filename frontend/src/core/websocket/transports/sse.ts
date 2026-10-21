@@ -218,16 +218,20 @@ export class SseTransport implements IConnectionTransport {
     const decoder = new TextDecoder();
     let buffer = "";
     let eventName: string | null = null;
+    let eventId: string | null = null;
     let dataLines: string[] = [];
 
     const dispatch = (): ServerClose | null => {
       if (dataLines.length === 0) {
         eventName = null;
+        eventId = null;
         return null;
       }
       const data = dataLines.join("\n");
       const name = eventName;
+      const id = eventId;
       eventName = null;
+      eventId = null;
       dataLines = [];
       if (name === "close") {
         return parseServerClose(data);
@@ -236,9 +240,15 @@ export class SseTransport implements IConnectionTransport {
       // (rather than on open, so a server that accepts and immediately
       // closes cannot retry forever).
       this.retryCount = 0;
+      // Normalize SSE fields into the same envelope as host WebSockets.
+      // Leave the payload text intact for the client's JSON decoder.
+      const envelope =
+        name === null
+          ? data
+          : `{"event":${JSON.stringify(name)},"data":${data}${id === null ? "" : `,"id":${JSON.stringify(id)}`}}`;
       this.subscriptions.notify(
         "message",
-        new MessageEvent("message", { data }),
+        new MessageEvent("message", { data: envelope }),
       );
       return null;
     };
@@ -284,8 +294,10 @@ export class SseTransport implements IConnectionTransport {
           dataLines.push(fieldValue);
         } else if (field === "event") {
           eventName = fieldValue;
+        } else if (field === "id") {
+          eventId = fieldValue;
         }
-        // `id` and `retry` fields are unused.
+        // The host client owns the cursor; `retry` does not override our policy.
       }
       if (cursor > 0) {
         buffer = buffer.slice(cursor);

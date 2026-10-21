@@ -4,7 +4,7 @@ import asyncio
 import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
@@ -625,7 +625,7 @@ async def test_connections_share_starting_notebook(
     def connector(sid: str) -> SessionConnector:
         return SessionConnector(
             manager=session_manager,
-            handler=MagicMock(),
+            handler=MagicMock(_prepare_session=AsyncMock()),
             params=ConnectionParams(
                 session_id=SessionId(sid),
                 file_key=NEW_FILE,
@@ -716,7 +716,7 @@ async def test_refresh_reuses_pending_startup(
     monkeypatch.setattr(SessionImpl, "create", create)
 
     def connector(sid: str) -> SessionConnector:
-        handler = MagicMock(consumer_id=sid)
+        handler = MagicMock(consumer_id=sid, _prepare_session=AsyncMock())
         return SessionConnector(
             manager=session_manager,
             handler=handler,

@@ -7,6 +7,7 @@ from tests._server.api.endpoints.ws_helpers import (
     HEADERS as _HEADERS,
     assert_kernel_ready_response,
     create_response,
+    receive_notification,
     receive_until,
 )
 
@@ -25,14 +26,14 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
     with client.websocket_connect(
         "/ws?session_id=123", headers=_HEADERS
     ) as websocket:
-        editor_ready = websocket.receive_json()
+        editor_ready = receive_notification(websocket)
         assert_kernel_ready_response(editor_ready)
 
         # Connect in kiosk mode
         with client.websocket_connect(
             "/ws?session_id=456&kiosk=true", headers=_HEADERS
         ) as other_websocket:
-            data = other_websocket.receive_json()
+            data = receive_notification(other_websocket)
             assert_kernel_ready_response(
                 data,
                 create_response(
@@ -49,7 +50,8 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
 
             for _ in range(2):
                 assert (
-                    other_websocket.receive_json()["op"] == "environment-state"
+                    receive_notification(other_websocket)["op"]
+                    == "environment-state"
                 )
 
             # Send document transaction to reorder cells
@@ -68,7 +70,7 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             assert response.status_code == 200, response.text
 
             # Assert kiosk session received the document transaction
-            data = other_websocket.receive_json()
+            data = receive_notification(other_websocket)
             assert data["op"] == "notebook-document-transaction"
 
             # A full save replaces the canonical document. Viewers receive
@@ -121,12 +123,12 @@ def test_second_edit_connection_joins_as_viewer(client: TestClient) -> None:
     with client.websocket_connect(
         "/ws?session_id=ed1", headers=_HEADERS
     ) as editor:
-        assert_kernel_ready_response(editor.receive_json())
+        assert_kernel_ready_response(receive_notification(editor))
 
         with client.websocket_connect(
             "/ws?session_id=vw1", headers=_HEADERS
         ) as viewer:
-            data = viewer.receive_json()
+            data = receive_notification(viewer)
             assert_kernel_ready_response(
                 data,
                 create_response(
@@ -144,7 +146,7 @@ def test_second_edit_connection_joins_as_viewer(client: TestClient) -> None:
 
 def test_takeover_ping_pong_preserves_membership(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=a", headers=_HEADERS) as ta:
-        assert_kernel_ready_response(ta.receive_json())
+        assert_kernel_ready_response(receive_notification(ta))
         with client.websocket_connect(
             "/ws?session_id=b", headers=_HEADERS
         ) as tb:
@@ -171,7 +173,7 @@ def test_takeover_ping_pong_preserves_membership(client: TestClient) -> None:
 
 def test_third_viewer_survives_takeover(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=a", headers=_HEADERS) as ta:
-        assert_kernel_ready_response(ta.receive_json())
+        assert_kernel_ready_response(receive_notification(ta))
         with client.websocket_connect(
             "/ws?session_id=b", headers=_HEADERS
         ) as tb:
@@ -205,7 +207,7 @@ def test_third_viewer_survives_takeover(client: TestClient) -> None:
 
 def test_capabilities_changed_is_not_recorded(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=a", headers=_HEADERS) as ta:
-        assert_kernel_ready_response(ta.receive_json())
+        assert_kernel_ready_response(receive_notification(ta))
         with client.websocket_connect(
             "/ws?session_id=b", headers=_HEADERS
         ) as tb:
@@ -228,13 +230,13 @@ def test_refresh_resumes_as_editor(client: TestClient) -> None:
     with client.websocket_connect(
         "/ws?session_id=ed1", headers=_HEADERS
     ) as editor:
-        assert_kernel_ready_response(editor.receive_json())
+        assert_kernel_ready_response(receive_notification(editor))
     # editor socket closed on block exit -> session is orphaned
 
     with client.websocket_connect(
         "/ws?session_id=ed2", headers=_HEADERS
     ) as refreshed:
-        assert refreshed.receive_json() == {
+        assert receive_notification(refreshed) == {
             "op": "reconnected",
             "data": {"op": "reconnected"},
         }

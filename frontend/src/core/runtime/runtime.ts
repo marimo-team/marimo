@@ -3,7 +3,6 @@
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import { KnownQueryParams } from "../constants";
-import { NOTEBOOK_EVENT_TYPES } from "../host/events";
 import { isIslands } from "../islands/utils";
 import { getSessionId, type SessionId } from "../kernel/session";
 import { isStaticNotebook } from "../static/static-state";
@@ -155,15 +154,11 @@ export class RuntimeManager {
    */
   public getWsURL(sessionId: SessionId): URL {
     const searchParams = this.getSessionSearchParams(sessionId);
-    // TODO(MO-8039): Rediscover hosts and resolve notebooks on reconnect.
-    const notebookId = this.config.notebookId;
-    const path = notebookId
-      ? `/api/marimo/v1/notebooks/${encodeURIComponent(notebookId)}/events/ws`
-      : "/ws";
-    const url = this.formatWsURL(path, searchParams);
-    if (notebookId) {
-      // TODO(MO-8034): Separate host options from notebook query params.
-      url.searchParams.set("types", NOTEBOOK_EVENT_TYPES.join(","));
+    const url = this.formatWsURL("/ws", searchParams);
+    if (this.config.messageFormat === "host") {
+      url.searchParams.set("message_format", "host");
+    } else {
+      url.searchParams.delete("message_format");
     }
     return url;
   }
@@ -175,13 +170,16 @@ export class RuntimeManager {
    * (see `headers()`) instead of the URL.
    */
   public getSseURL(sessionId: SessionId): URL {
-    // TODO: Migrate editor SSE to the host event stream. Until then, host
-    // state such as attachments is unavailable on this legacy connection.
     const url = this.formatHttpURL({
       path: "/sse",
       searchParams: this.getSessionSearchParams(sessionId),
       restrictToKnownQueryParams: false,
     });
+    if (this.config.messageFormat === "host") {
+      url.searchParams.set("message_format", "host");
+    } else {
+      url.searchParams.delete("message_format");
+    }
     // The page URL can still carry access_token (merged in from the
     // current page's params, before auth cleanup strips it); never
     // forward it — a token in the URL leaks into proxy/server logs.

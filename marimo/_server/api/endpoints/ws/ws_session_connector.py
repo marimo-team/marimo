@@ -86,7 +86,7 @@ class SessionConnector:
     async def _connect(self) -> tuple[Session, ConnectionType]:
         # 1. Kiosk mode
         if self.params.kiosk:
-            return self._connect_kiosk()
+            return await self._connect_kiosk()
 
         # A completed launch may still be waiting for its first connection.
         if self.manager.is_session_starting(
@@ -97,6 +97,7 @@ class SessionConnector:
         # 2. Reconnect to existing session with same ID
         existing_by_id = self.manager.get_session(self.params.session_id)
         if existing_by_id is not None:
+            await self.handler._prepare_session(existing_by_id)
             return self._reconnect_session(existing_by_id)
 
         # 3. Connect to existing session
@@ -112,6 +113,7 @@ class SessionConnector:
             and session_in_edit_mode
             and self.params.rtc_enabled
         ):
+            await self.handler._prepare_session(existing_by_file)
             return self._connect_rtc_session(existing_by_file)
 
         # 3b. Viewer only mode: a second connection request is auto routed as reader only
@@ -120,19 +122,20 @@ class SessionConnector:
             and session_in_edit_mode
             and not initial_capabilities(existing_by_file, self.params).edit
         ):
-            return self._connect_kiosk()
+            return await self._connect_kiosk()
 
         # 4. Resume previous session
         resumable = self.manager.maybe_resume_session(
             self.params.session_id, self.params.file_key
         )
         if resumable is not None:
+            await self.handler._prepare_session(resumable)
             return self._resume_session(resumable)
 
         # 5. Create new session
         return await self._create_new_session()
 
-    def _connect_kiosk(self) -> tuple[Session, ConnectionType]:
+    async def _connect_kiosk(self) -> tuple[Session, ConnectionType]:
         """Connect to kiosk session.
 
         Raises:
@@ -168,6 +171,7 @@ class SessionConnector:
             )
 
         LOGGER.debug("Connecting to kiosk session")
+        await self.handler._prepare_session(kiosk_session)
         self.handler._connect_kiosk(kiosk_session)
         return kiosk_session, ConnectionType.KIOSK
 
@@ -229,6 +233,7 @@ class SessionConnector:
             main=True,
         )
 
+        await self.handler._prepare_session(new_session)
         self._notify_kernel_ready(new_session)
 
         # In run mode, auto-instantiate server-side (frontend won't call it)

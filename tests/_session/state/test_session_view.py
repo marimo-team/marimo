@@ -2434,9 +2434,8 @@ def test_preparation_remains_available_after_package_changes(
     ]
 
 
-@pytest.mark.parametrize("include_notebook", [False, True])
 def test_snapshot_notifications_preserve_replay_order(
-    session_view: SessionView, include_notebook: bool
+    session_view: SessionView,
 ) -> None:
     progress = StartupProgressNotification(
         phase="starting-kernel", logs="Ready\n", log_mode="replace"
@@ -2458,9 +2457,7 @@ def test_snapshot_notifications_preserve_replay_order(
     for notification in (cell, model, progress):
         session_view.add_notification(notification)
 
-    notifications = session_view.snapshot_notifications(
-        include_notebook=include_notebook
-    )
+    notifications = session_view.snapshot_notifications()
     assert notifications == [
         EnvironmentStateNotification(
             source="kernel",
@@ -2471,7 +2468,8 @@ def test_snapshot_notifications_preserve_replay_order(
             state=EnvironmentState(restart_required=False, operations=[]),
         ),
         progress,
-        *([model, cell] if include_notebook else []),
+        model,
+        cell,
     ]
     captured = msgspec.json.encode(notifications)
     session_view.update_cell_outputs({cell_id: ("text/plain", "new output")})
@@ -2482,10 +2480,5 @@ def test_snapshot_notifications_preserve_replay_order(
     )
     assert msgspec.json.encode(notifications) == captured
     assert (
-        msgspec.json.encode(
-            session_view.snapshot_notifications(
-                include_notebook=include_notebook
-            )
-        )
-        != captured
+        msgspec.json.encode(session_view.snapshot_notifications()) != captured
     )
