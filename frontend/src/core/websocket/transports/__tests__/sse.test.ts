@@ -90,6 +90,23 @@ describe("SseTransport", () => {
     expect(messages[1].data).toBe("line1\nline2");
   });
 
+  it("preserves host event names and cursors without carrying IDs into snapshots", async () => {
+    const { stream, push } = createControllableStream();
+    fetchMock.mockResolvedValueOnce(sseResponse(stream));
+    transport.reconnect();
+    await vi.waitFor(() => expect(opens).toHaveLength(1));
+
+    push("id: cursor-1\nevent: rea");
+    push("dy\ndata: {}\n\n: keep-alive\n\nevent: reset\ndata: {}\n\n");
+    push('event: marimo\ndata: {"marimo":\ndata: {"op":"reconnected"}}\n\n');
+    await vi.waitFor(() => expect(messages).toHaveLength(3));
+    expect(messages.map((message) => JSON.parse(message.data))).toEqual([
+      { event: "ready", id: "cursor-1", data: {} },
+      { event: "reset", data: {} },
+      { event: "marimo", data: { marimo: { op: "reconnected" } } },
+    ]);
+  });
+
   it("ignores keep-alive comments", async () => {
     const { stream, push } = createControllableStream();
     fetchMock.mockResolvedValueOnce(sseResponse(stream));

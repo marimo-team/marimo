@@ -107,7 +107,7 @@ def _get_mount_config(
     session_snapshot: NotebookSessionV1 | None = None,
     notebook_snapshot: NotebookV1 | None = None,
     runtime_config: list[dict[str, Any]] | None = None,
-    notebook_id: str | None = None,
+    message_format: Literal["host", "session"] | None = None,
     layout: LayoutConfig | None = None,
 ) -> str:
     """
@@ -146,9 +146,9 @@ def _get_mount_config(
             "hostEnabled": mode == "edit",
         }
     )
-    host_notebook = (
-        ',\n            "notebookId": ' + json_script(notebook_id)
-        if notebook_id is not None
+    stream_format = (
+        ',\n            "messageFormat": ' + json_script(message_format)
+        if message_format is not None
         else ""
     )
 
@@ -166,13 +166,13 @@ def _get_mount_config(
             "view": {view},
             "notebook": {notebook},
             "session": {session},
-            "runtimeConfig": {runtime_config}{host_notebook},
+            "runtimeConfig": {runtime_config}{stream_format},
             "pairConfig": {pair_config}
         }}
 """.format(
         **{k: json_script(v) for k, v in options.items()},
         pair_config=pair_config,
-        host_notebook=host_notebook,
+        stream_format=stream_format,
     ).strip()
 
 
@@ -306,7 +306,7 @@ def notebook_page_template(
     session_snapshot: NotebookSessionV1 | None = None,
     notebook_snapshot: NotebookV1 | None = None,
     runtime_config: list[dict[str, Any]] | None = None,
-    notebook_id: str | None = None,
+    message_format: Literal["host", "session"] | None = None,
     asset_url: str | None = None,
     html_head: str | None = None,
     execute_opengraph_generators: bool = False,
@@ -350,7 +350,7 @@ def notebook_page_template(
             config_overrides=config_overrides,
             app_config=app_config,
             runtime_config=runtime_config,
-            notebook_id=notebook_id,
+            message_format=message_format,
             notebook_snapshot=notebook_snapshot,
             session_snapshot=session_snapshot,
         ),

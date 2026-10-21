@@ -135,7 +135,7 @@ export function useNotebookSession(opts: {
   const setStableSessionId = useSetAtom(stableSessionIdAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
-  const { notebookId } = useAtomValue(runtimeConfigAtom);
+  const { messageFormat = "session" } = useAtomValue(runtimeConfigAtom);
   const transportType = useAtomValue(connectionTransportTypeAtom);
   const setCacheInfo = useSetAtom(cacheInfoAtom);
   const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
@@ -414,8 +414,7 @@ export function useNotebookSession(opts: {
     sessionId,
     static: isStaticNotebook(),
     transportType,
-    messageFormat:
-      notebookId && transportType === "websocket" ? "host" : "session",
+    messageFormat,
     url: () =>
       transportType === "sse"
         ? runtimeManager.getSseURL(sessionId).toString()

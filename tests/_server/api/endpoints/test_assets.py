@@ -984,7 +984,7 @@ def test_serve_static_allowed_files(client: TestClient) -> None:
 
 @pytest.mark.parametrize("remote_url", [None, "https://remote.example"])
 @pytest.mark.parametrize("cataloged", [True, False])
-def test_index_supplies_the_local_host_notebook_identity(
+def test_index_selects_stream_format_without_provisioning_a_notebook(
     client: TestClient, remote_url: str | None, cataloged: bool
 ) -> None:
     state = AppState.from_app(cast(Any, client.app))
@@ -1001,19 +1001,7 @@ def test_index_supplies_the_local_host_notebook_identity(
     response = client.get("/", headers=token_header())
     assert response.status_code == 200
     config = parse_mount_config(response.text)
-    if remote_url is not None:
-        assert config.get("notebookId") is None
-        assert bridge.host.notebooks == initial_notebooks
-    else:
-        (notebook_id,) = bridge.host.notebooks
-        assert config.get("notebookId") == notebook_id
-        if cataloged:
-            assert notebook_id == original_id
-        notebooks = dict(bridge.host.notebooks)
-        reloaded = client.get("/", headers=token_header())
-        assert reloaded.status_code == 200
-        assert (
-            parse_mount_config(reloaded.text).get("notebookId") == notebook_id
-        )
-        assert bridge.host.notebooks == notebooks
+    assert config["messageFormat"] == "host"
+    assert "notebookId" not in config
+    assert bridge.host.notebooks == initial_notebooks
     assert not state.session_manager.sessions

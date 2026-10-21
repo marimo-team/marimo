@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict
 from urllib.parse import urlencode
 
 from starlette.authentication import has_required_scope, requires
@@ -417,21 +417,14 @@ async def index(request: Request) -> Response:
             except ValueError:
                 pass  # Keep absolute if not under directory
 
-        notebook_id = None
         context: HostContext | None = getattr(
             request.app.state, "host_context", None
         )
-        if (
-            context is not None
-            and context.bridge.app_sessions is None
-            and absolute_filepath
-            and not app_state.remote_url
-        ):
-            record = context.bridge.index.notebook_for(absolute_filepath)
-            if record is None:
-                record = context.bridge.index.ensure(absolute_filepath)
-            if record is not None:
-                notebook_id = record.id
+        message_format: Literal["host", "session"] = (
+            "host"
+            if context is not None and context.bridge.app_sessions is None
+            else "session"
+        )
 
         html = notebook_page_template(
             html=html,
@@ -445,7 +438,7 @@ async def index(request: Request) -> Response:
             lsp_workspace=lsp_workspace,
             mode=app_state.mode,
             notebook_snapshot=notebook_snapshot,
-            notebook_id=notebook_id,
+            message_format=message_format,
             runtime_config=[{"url": app_state.remote_url}]
             if app_state.remote_url
             else None,
