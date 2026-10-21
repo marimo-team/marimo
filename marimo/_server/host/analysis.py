@@ -1,8 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Cell definitions, references, syntax errors, and multiple definitions.
-
-The kernel reports cycles.
-"""
+"""Cell definitions, references, syntax errors, and graph diagnostics."""
 
 from __future__ import annotations
 
@@ -13,7 +10,10 @@ from typing import TYPE_CHECKING
 from marimo._ast.cell import CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._core import protocol
-from marimo._lint.validate_graph import check_for_multiple_definitions
+from marimo._lint.validate_graph import (
+    check_for_cycles,
+    check_for_multiple_definitions,
+)
 from marimo._lint.visitors import VariableLineVisitor
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.dataflow.edges import resolve_cell_references
@@ -21,6 +21,7 @@ from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._core.document import Document
+    from marimo._messaging.errors import CycleError
 
 SOURCE = "marimo"
 
@@ -70,6 +71,7 @@ class CellAnalyzer:
         self._cache = cache
 
         conflicts = check_for_multiple_definitions(graph)
+        cycles = check_for_cycles(graph)
         order = {cell.id: index for index, cell in enumerate(document)}
         analyses: dict[protocol.CellId, protocol.CellAnalysis] = {}
         for cell in document:
@@ -104,6 +106,13 @@ class CellAnalyzer:
                             ),
                         )
                         for error in conflicts.get(CellId_t(cell.id), ())
+                    )
+                    + tuple(
+                        _cycle(error)
+                        for error in sorted(
+                            cycles.get(CellId_t(cell.id), ()),
+                            key=lambda error: error.edges_with_vars,
+                        )
                     ),
                 )
         return analyses
@@ -153,6 +162,31 @@ class CellAnalyzer:
                 character=_utf16(compiled.code, line, location.end_column),
             ),
         )
+
+
+def _cycle(error: CycleError) -> protocol.Error:
+    edges = error.edges_with_vars
+    # Preserve dependency order, starting at the same cell for any rotation.
+    start = min(range(len(edges)), key=lambda index: edges[index][2])
+    edges = edges[start:] + edges[:start]
+    return protocol.Error(
+        kind="cycle-dependencies",
+        message=error.describe(),
+        source=SOURCE,
+        severity="error",
+        range=None,
+        name=None,
+        traceback=None,
+        related=tuple(
+            protocol.Related(
+                cell_id=protocol.CellId(child),
+                range=None,
+                message=f"Depends on {parent}"
+                + (f" through {', '.join(names)}" if names else ""),
+            )
+            for parent, names, child in edges
+        ),
+    )
 
 
 def _syntax_error(code: str, e: Exception) -> protocol.Error:
