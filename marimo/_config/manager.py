@@ -411,6 +411,12 @@ class EnvConfigReader(ConfigReader):
             project_config,
             allowed_values=("websocket", "sse"),
         )
+        self._maybe_override_from_env(
+            "MARIMO_RUNTIME_ON_CELL_CHANGE",
+            ["runtime", "on_cell_change"],
+            project_config,
+            allowed_values=("lazy", "autorun"),
+        )
         return project_config
 
 
