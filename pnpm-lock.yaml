@@ -287,6 +287,9 @@ importers:
       '@lezer/python':
         specifier: ^1.1.19
         version: 1.1.19
+      '@marimo-team/client':
+        specifier: workspace:*
+        version: link:../packages/client
       '@marimo-team/codemirror-ai':
         specifier: ^0.3.10
         version: 0.3.10(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)
@@ -681,9 +684,6 @@ importers:
       npm-run-all2:
         specifier: ^6.2.6
         version: 6.2.6
-      orval:
-        specifier: 8.40.0
-        version: 8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(swr@2.4.2(react@19.3.0))(typescript@5.9.3)(zod@4.6.5)
       oxc-transform-react:
         specifier: 0.145.0
         version: 0.145.0

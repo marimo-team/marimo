@@ -1,6 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Logger } from "@/utils/Logger";
+import type { Attachment } from "@marimo-team/client/protocol";
+import { createReducer } from "@marimo-team/client/reducer";
 import { type Atom, atom, type createStore } from "jotai/vanilla";
 import {
   type ConnectionStatus,
@@ -10,11 +12,16 @@ import {
   type NotebookTransport,
   TransportReadyState,
 } from "./connection";
-import { parseNotebookEvent } from "./events";
-import type { Attachment } from "./protocol";
+import { type NotebookEvent, parseNotebookEvent } from "./events";
 import { attachments } from "./resources/attachments";
 import { type Document, document } from "./resources/document";
-import { createStream } from "./stream";
+
+/** Events that may arrive without a cursor after `ready`. */
+const UNCURSORED = new Set<NotebookEvent["event"]>([
+  "reset",
+  "marimo",
+  "unknown",
+]);
 
 /** A connection to a notebook on a marimo host. */
 export interface NotebookClient {
@@ -64,8 +71,8 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
     state: ConnectionState.NOT_STARTED,
   });
   // One atom holds the whole stream, which resource atoms derive from.
-  const stream = createStream({ document, attachments });
-  const streamAtom = atom(stream.initial);
+  const reducer = createReducer({ document, attachments });
+  const streamAtom = atom(reducer.initial);
   // A resumed stream is live, but presence waits for this connection's ready.
   const readyAtom = atom(false);
   const documentAtom = atom(
@@ -103,6 +110,8 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
     let terminal = false;
     let checkingHealth = false;
     let streamKey: string | undefined;
+    // The id of the last live event. Null before `ready` and after `reset`.
+    let cursor: string | null = null;
     const transport = createTransport(() => {
       if (messageFormat === "session") {
         return url();
@@ -118,15 +127,23 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
       identity.searchParams.delete("access_token");
       identity.searchParams.sort();
       const key = identity.toString();
+      const current = store.get(streamAtom);
+      // A live stream keeps its state and resumes from the cursor. An
+      // incomplete snapshot starts over.
       const state =
-        key === streamKey
-          ? stream.resume(store.get(streamAtom))
-          : stream.initial;
+        key !== streamKey
+          ? reducer.initial
+          : current.phase === "snapshot"
+            ? { ...reducer.initial, notebookId: current.notebookId }
+            : current;
+      if (state.phase === "snapshot") {
+        cursor = null;
+      }
       streamKey = key;
       store.set(readyAtom, false);
       store.set(streamAtom, state);
-      if (state.cursor !== null) {
-        next.searchParams.set("cursor", state.cursor);
+      if (cursor !== null) {
+        next.searchParams.set("cursor", cursor);
       }
       return next.toString();
     });
@@ -188,7 +205,22 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
       let event;
       try {
         event = parseNotebookEvent(decodeJson(message.data));
-        store.set(streamAtom, stream.reduce(store.get(streamAtom), event));
+        const state = store.get(streamAtom);
+        if (
+          state.phase === "live" &&
+          event.id === undefined &&
+          !UNCURSORED.has(event.event)
+        ) {
+          throw new Error("Live notebook event is missing its cursor");
+        }
+        if (event.event !== "marimo" && event.event !== "unknown") {
+          store.set(streamAtom, reducer.reduce(state, event));
+        }
+        if (event.event === "reset") {
+          cursor = null;
+        } else if (event.event === "ready" || state.phase === "live") {
+          cursor = event.id ?? cursor;
+        }
         if (event.event === "ready" || event.event === "reset") {
           store.set(readyAtom, event.event === "ready");
         }
@@ -198,7 +230,8 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
           onMessageError(error);
           return;
         }
-        store.set(streamAtom, stream.initial);
+        store.set(streamAtom, reducer.initial);
+        cursor = null;
         terminal = true;
         setStatus({
           ...disconnected,
@@ -256,7 +289,7 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
         transport.removeEventListener("message", onMessage);
         transport.close();
         reconnect = undefined;
-        store.set(streamAtom, stream.initial);
+        store.set(streamAtom, reducer.initial);
         setStatus({ state: ConnectionState.NOT_STARTED });
       },
       { once: true },

@@ -1,5 +1,4 @@
 # SCM syntax highlighting & preventing 3-way merges
 pixi.lock merge=binary linguist-language=YAML linguist-generated=true
-frontend/src/core/host/protocol.ts linguist-generated=true
 packages/client/src/protocol.ts linguist-generated=true
 packages/client/src/operations.ts linguist-generated=true

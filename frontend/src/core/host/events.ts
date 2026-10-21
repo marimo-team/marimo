@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { z } from "zod";
-import * as Protocol from "./protocol";
+import * as Protocol from "@marimo-team/client/protocol";
 
 /**
  * Notebook stream events, including native marimo notifications.
@@ -29,16 +29,29 @@ const knownNames = new Set<string>(
   Protocol.Event.options.flatMap((schema) => schema.shape.event.options),
 );
 
+/**
+ * A native marimo message carried by a host stream.
+ *
+ * The protocol leaves extension events to their producer. The payload is
+ * passed through for the session handler to interpret.
+ */
+const MarimoEvent = z.object({
+  event: z.literal("marimo"),
+  id: z.string().min(1).optional(),
+  data: z.object({ marimo: z.unknown() }),
+});
+
 /** A decoded event, or the name and cursor of an unrecognized event. */
 export type NotebookEvent =
   | Protocol.EventOutput
+  | z.output<typeof MarimoEvent>
   | {
       readonly event: "unknown";
       readonly name: string;
       readonly id?: string;
     };
 
-const sessionEnvelope = z.object({ data: Protocol.MarimoNotification });
+const sessionEnvelope = z.object({ data: z.unknown() });
 
 /**
  * Decode a host event or a legacy `{ data: notification }` session message.
@@ -54,6 +67,9 @@ export function parseNotebookEvent(value: unknown): NotebookEvent {
     };
   }
   const parsed = envelope.parse(value);
+  if (parsed.event === "marimo") {
+    return MarimoEvent.parse(parsed);
+  }
   if (knownNames.has(parsed.event)) {
     return Protocol.Event.parse(parsed);
   }
