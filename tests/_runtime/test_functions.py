@@ -4,7 +4,6 @@ import dataclasses
 import logging
 from typing import TYPE_CHECKING
 
-from marimo import _loggers
 from marimo._runtime.commands import InvokeFunctionCommand
 from marimo._runtime.context import get_context
 from marimo._runtime.functions import (
@@ -129,14 +128,8 @@ async def test_function_call_request_found_after_register(k: Kernel) -> None:
 async def test_function_call_request_not_found_logs(
     k: Kernel, caplog: pytest.LogCaptureFixture
 ) -> None:
-    logger = _loggers.marimo_logger()
-    old_propagate = logger.propagate
-    logger.propagate = True
-    try:
-        with caplog.at_level(logging.WARNING):
-            await k.function_call_request(_invoke("missing-ns", "missing-fn"))
-    finally:
-        logger.propagate = old_propagate
+    with caplog.at_level(logging.WARNING):
+        await k.function_call_request(_invoke("missing-ns", "missing-fn"))
 
     records = [
         record
@@ -160,14 +153,8 @@ async def test_function_call_request_found_does_not_log(
         Function(name="echo", arg_cls=Args, function=lambda x: x.value),
     )
 
-    logger = _loggers.marimo_logger()
-    old_propagate = logger.propagate
-    logger.propagate = True
-    try:
-        with caplog.at_level(logging.WARNING):
-            await k.function_call_request(_invoke(namespace, "echo"))
-    finally:
-        logger.propagate = old_propagate
+    with caplog.at_level(logging.WARNING):
+        await k.function_call_request(_invoke(namespace, "echo"))
 
     assert not [
         record
