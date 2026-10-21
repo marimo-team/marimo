@@ -1532,7 +1532,10 @@ def test_editor_sandbox_supplies_server_tools(
                 f"ws://{DEFAULT_HOST}:{port}/ws?{query}"
             ) as websocket:
                 while True:
-                    message = json.loads(websocket.recv(timeout=60))
+                    event = json.loads(websocket.recv(timeout=60))
+                    if event["event"] != "marimo":
+                        continue
+                    message = event["data"]["marimo"]
                     assert message["op"] != "kernel-startup-error", message
                     if message["op"] == "kernel-ready":
                         break

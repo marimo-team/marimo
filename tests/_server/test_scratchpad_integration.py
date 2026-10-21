@@ -188,7 +188,10 @@ class _Session:
             if remaining <= 0:
                 raise TimeoutError("websocket predicate never satisfied")
             raw = self.ws.recv(timeout=remaining)
-            msg: dict[str, Any] = json.loads(raw)
+            event = json.loads(raw)
+            if event["event"] != "marimo":
+                continue
+            msg: dict[str, Any] = event["data"]["marimo"]
             if predicate(msg):
                 return msg
 
