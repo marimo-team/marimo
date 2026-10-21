@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
 from marimo._config.types import (
+    CacheLoader as CacheLoader,
     CacheVerification as CacheVerification,
     CopilotMode as CopilotMode,
     ExecutionType as ExecutionType,
@@ -631,11 +632,13 @@ class CacheConfig(TypedDict, total=False):
     """Configuration for caching.
 
     `verification` is the signature-checking posture; `store` is the backing
-    store, or a list of stores composed into a `TieredStore`.
+    store, or a list of stores composed into a `TieredStore`; `loader` is the
+    default `method` for `mo.persistent_cache`.
     """
 
     verification: CacheVerification
     store: CacheStoreConfig
+    loader: CacheLoader
 
 
 class SigningConfig(TypedDict, total=False):

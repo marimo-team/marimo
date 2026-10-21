@@ -21,7 +21,9 @@ class TestVersionCache:
 
             ref = 1
             with persistent_cache(
-                name="pickle-dump-v4", save_path="tests/_save/cache-dumps"
+                name="pickle-dump-v4",
+                save_path="tests/_save/cache-dumps",
+                method="pickle",
             ) as cache:
                 value = 1 + len(unhashable) + ref
             assert cache.hit

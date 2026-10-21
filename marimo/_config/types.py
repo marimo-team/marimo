@@ -14,3 +14,5 @@ SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
 StoreKey = Literal["file", "redis", "rest", "tiered"]
 CopilotMode = Literal["ask", "manual", "agent", "code_mode"]
 CacheVerification = Literal["off", "on", "strict"]
+# Built-in loader or installed marimo.cache.loader entry-point name.
+CacheLoader = Literal["pickle", "json", "lazy"] | str

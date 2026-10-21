@@ -277,7 +277,7 @@ class TestRecording:
             assert len(entries) == 1
             block, key = entries.pop()
             assert block == "train"
-            assert (cache_dir / block / f"{key}.pickle").exists()
+            assert (cache_dir / block / f"{key}.jsonl").exists()
 
     @staticmethod
     async def test_records_accumulate_across_edits(
@@ -706,7 +706,7 @@ class TestRecording:
             assert {block for block, _ in there} == {"there"}
             for block, key in here | there:
                 directory = cache_dir if block == "here" else elsewhere
-                assert (directory / block / f"{key}.pickle").exists()
+                assert (directory / block / f"{key}.jsonl").exists()
 
     @staticmethod
     async def test_every_copy_of_a_manifest_finds_the_notebook(

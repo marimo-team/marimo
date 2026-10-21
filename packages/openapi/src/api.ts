@@ -4062,9 +4062,11 @@ export interface components {
      * @description Configuration for caching.
      *
      *         `verification` is the signature-checking posture; `store` is the backing
-     *         store, or a list of stores composed into a `TieredStore`.
+     *         store, or a list of stores composed into a `TieredStore`; `loader` is the
+     *         default `method` for `mo.persistent_cache`.
      */
     CacheConfig: {
+      loader?: ("json" | "lazy" | "pickle") | string;
       store?:
         | components["schemas"]["StoreConfig"][]
         | components["schemas"]["StoreConfig"];
