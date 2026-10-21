@@ -1,7 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type * as Protocol from "../protocol.ts";
+import type { Kind } from "../reducer.ts";
 import {
+  below,
   type Connection,
   type MutationOptions,
   type OperationsBelow,
@@ -9,6 +11,7 @@ import {
   type Result,
   type Target,
 } from "../request.ts";
+import { NotebookEvents, type NotebookEventsInit } from "./events.ts";
 
 /** How a `NotebookClient` reaches and authenticates with its host. */
 export type NotebookClientInit = Connection;
@@ -52,6 +55,21 @@ export class NotebookClient {
    */
   public get url(): URL {
     return new URL(this.#url);
+  }
+
+  /**
+   * Follow the notebook's stream.
+   *
+   * The stream is served below the notebook's URL over server-sent events,
+   * and shares this client's connection.
+   */
+  public events<const K extends string = Kind>(
+    options: Omit<NotebookEventsInit<K>, keyof Connection> = {},
+  ): NotebookEvents<K> {
+    return new NotebookEvents<K>(below(this.#url, "/events"), {
+      ...this.#target.connection,
+      ...options,
+    });
   }
 
   /** Rename or move the notebook. */
