@@ -337,16 +337,22 @@ class SessionHandler(SessionConsumer, abc.ABC):
             or self.mode == SessionMode.RUN
         )
         if should_ttl_close:
+            connection_generation = session.connection_generation
 
             def _close() -> None:
+                live = self.manager.get_session(self.params.session_id)
+                # A later connection owns its own full retention window,
+                # including while it is disconnected again.
+                if (
+                    live is None
+                    or live is not session
+                    or live.connection_generation != connection_generation
+                ):
+                    return
                 if self.status != ConnectionState.OPEN:
                     # Guard: if another consumer has taken over, the session
                     # is alive.
-                    live = self.manager.get_session(self.params.session_id)
-                    if (
-                        live is not None
-                        and live.connection_state() == ConnectionState.OPEN
-                    ):
+                    if live.connection_state() == ConnectionState.OPEN:
                         LOGGER.debug(
                             "Session %s has active consumer, skipping TTL close",
                             self.params.session_id,
