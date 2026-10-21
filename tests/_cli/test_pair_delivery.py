@@ -200,17 +200,28 @@ def test_codex_send_preserves_message(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "failure", [OSError("secret"), subprocess.TimeoutExpired("secret", 15)]
+    "failure",
+    [
+        OSError("secret"),
+        FileNotFoundError("secret"),
+        PermissionError("secret"),
+        subprocess.TimeoutExpired("secret", 15),
+    ],
 )
 def test_codex_send_failure_does_not_leak(
     failure: Exception, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(subprocess, "run", Mock(side_effect=failure))
-    with pytest.raises(PairError, match="Could not deliver") as error:
+    with pytest.raises(PairError) as error:
         CodexHarness().open_inbox(
             DeliveryTarget("codex", "thread", "Codex")
         ).send("message")
     assert "secret" not in str(error.value)
+    from marimo._cli.pair.client import SubmissionRejectedError
+
+    assert isinstance(error.value, SubmissionRejectedError) == isinstance(
+        failure, (FileNotFoundError, PermissionError)
+    )
 
 
 def test_process_identity_guards_pid_reuse(owner: ProcessHandle) -> None:

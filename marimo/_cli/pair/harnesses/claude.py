@@ -9,8 +9,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from marimo._cli.pair.client import PairError, PairInputError
-from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
+from marimo._cli.pair.client import (
+    PairError,
+    PairInputError,
+    SubmissionRejectedError,
+)
+from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle, Submission
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -121,9 +125,11 @@ class ClaudeInbox:
     target: DeliveryTarget
     inbox_bytes: ClassVar[int] = 64 * 1024
 
-    def send(self, text: str) -> None:
+    def send(self, text: str) -> Submission:
         if not self.target.auth_token:
-            raise PairError("The Claude Code inbox token is unavailable.")
+            return Submission(
+                "rejected", "The Claude Code inbox token is unavailable."
+            )
         # The socket and auth line are documented; the user frame is private.
         # Keep this encoding covered by a native Claude acceptance test.
         frames = [
@@ -134,7 +140,12 @@ class ClaudeInbox:
         try:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as inbox:
                 inbox.settimeout(5)
-                inbox.connect(self.target.address)
+                try:
+                    inbox.connect(self.target.address)
+                except OSError as error:
+                    raise SubmissionRejectedError(
+                        "Could not deliver the message: the Claude Code inbox connection failed."
+                    ) from error
                 inbox.sendall(data)
                 inbox.shutdown(socket.SHUT_WR)
         except (OSError, ValueError) as error:
@@ -142,6 +153,10 @@ class ClaudeInbox:
                 "Could not deliver the message to Claude Code. "
                 "Check that its inbox is available and inbound messages are allowed."
             ) from error
+        return Submission(
+            "unknown",
+            "The socket write completed. Claude Code did not confirm acceptance.",
+        )
 
     def alive(self) -> bool:
         return (

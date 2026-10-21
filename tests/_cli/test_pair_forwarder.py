@@ -15,6 +15,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
+import msgspec
 import pytest
 from click.testing import CliRunner
 
@@ -29,8 +30,9 @@ from marimo._cli.pair.client import (
     StaleNotebookError,
 )
 from marimo._cli.pair.connection import ConnectionStore, connection_identity
-from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
+from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle, Submission
 from marimo._cli.pair.forwarder import ForwarderConfig, run_forwarder
+from marimo._messaging.agents import MESSAGE_TYPE
 from tests._cli.test_pair_delivery import record
 
 if TYPE_CHECKING:
@@ -47,8 +49,9 @@ class RecordingInbox:
     def alive(self) -> bool:
         return self.living
 
-    def send(self, text: str) -> None:
+    def send(self, text: str) -> Submission:
         self.messages.append(text)
+        return Submission("submitted")
 
 
 @pytest.fixture
@@ -111,6 +114,147 @@ def agent_message(value: object) -> SSEEvent:
             {"custom": {"type": "marimo.pair.agent-message", "data": value}}
         ),
     )
+
+
+def routed_message(
+    attempt: str, value: object, attachment: str = "att-one"
+) -> SSEEvent:
+    return SSEEvent(
+        "custom",
+        json.dumps(
+            {
+                "custom": {
+                    "type": MESSAGE_TYPE,
+                    "data": {
+                        "attempt_id": attempt,
+                        "attachment_id": attachment,
+                        "message": value,
+                    },
+                }
+            }
+        ),
+        attempt,
+    )
+
+
+def test_stream_binding_ignores_sibling_identity_and_other_recipients(
+    config, monkeypatch
+) -> None:
+    install_stream(
+        monkeypatch,
+        [
+            [
+                SSEEvent(
+                    "pair.stream",
+                    json.dumps(
+                        {"attachment": "att-one", "key": "private-key"}
+                    ),
+                ),
+                attached(),
+                SSEEvent(
+                    "attachment",
+                    json.dumps(
+                        {
+                            "attachment": {
+                                "id": "sibling",
+                                "identity": config.identity,
+                            }
+                        }
+                    ),
+                ),
+                routed_message(
+                    "other", "private to another recipient", "sibling"
+                ),
+                SSEEvent("attachment.removed", json.dumps({"id": "sibling"})),
+                routed_message("attempt-one", {"opaque": [True, None]}),
+                routed_message("attempt-two", "another explicit send"),
+                None,
+            ]
+        ],
+    )
+    report = Mock()
+    monkeypatch.setattr(forwarder, "_report", report)
+    inbox = RecordingInbox()
+    run_forwarder(config, inbox, ready=Mock())
+    assert len(inbox.messages) == 2
+    assert inbox.messages[0].endswith('{"opaque": [true, null]}')
+    assert inbox.messages[1].endswith("another explicit send")
+    assert [
+        (c.args[1].attempt_id, c.args[1].status, c.args[2])
+        for c in report.call_args_list
+    ] == [
+        ("attempt-one", "submitted", "private-key"),
+        ("attempt-two", "submitted", "private-key"),
+    ]
+
+
+@pytest.mark.parametrize("rejected", [False, True])
+def test_failed_native_attempt_and_lost_report_do_not_repeat_submission(
+    config, monkeypatch, rejected
+) -> None:
+    install_stream(
+        monkeypatch,
+        [
+            [
+                SSEEvent(
+                    "pair.stream",
+                    json.dumps(
+                        {"attachment": "att-one", "key": "private-key"}
+                    ),
+                ),
+                attached(),
+                routed_message("once", "one send"),
+                None,
+            ]
+        ],
+    )
+    inbox = RecordingInbox()
+    from marimo._cli.pair.client import SubmissionRejectedError
+
+    failure = (
+        SubmissionRejectedError("Definite refusal")
+        if rejected
+        else PairError("Possible submission")
+    )
+    send = Mock(side_effect=failure)
+    monkeypatch.setattr(inbox, "send", send)
+    reports = Mock(side_effect=PairConnectionError("Lost report"))
+    monkeypatch.setattr(forwarder, "open_response", reports)
+    run_forwarder(config, inbox, ready=Mock())
+    send.assert_called_once()
+    reports.assert_called_once()
+    report = msgspec.json.decode(reports.call_args.kwargs["body"])
+    assert report["status"] == ("rejected" if rejected else "unknown")
+
+
+def test_message_file_failure_is_a_rejection_before_native_delivery(
+    config, monkeypatch
+) -> None:
+    install_stream(
+        monkeypatch,
+        [
+            [
+                SSEEvent(
+                    "pair.stream",
+                    json.dumps(
+                        {"attachment": "att-one", "key": "private-key"}
+                    ),
+                ),
+                attached(),
+                routed_message("file", "😀" * 1000),
+                None,
+            ]
+        ],
+    )
+    monkeypatch.setattr(
+        AgentMessageFiles, "write", Mock(side_effect=PairError("Cannot save"))
+    )
+    report = Mock()
+    monkeypatch.setattr(forwarder, "_report", report)
+    inbox = RecordingInbox()
+    run_forwarder(config, inbox, ready=Mock())
+    assert inbox.messages == []
+    assert report.call_args.args[1].status == "rejected"
 
 
 def test_coalescing_bounds_final_messages(

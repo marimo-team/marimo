@@ -2,27 +2,44 @@
 from __future__ import annotations
 
 import base64
-import http.client
 import os
 import stat
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, TypeVar
-from urllib.parse import quote, urlencode, urlsplit
+from time import monotonic
+from typing import TYPE_CHECKING, ClassVar, Literal, TypeVar
+from urllib.parse import quote, unquote, urlencode, urlsplit
 
 import msgspec
 
-from marimo._cli.pair.client import PairError, PairInputError
-from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
+from marimo._cli.pair.client import (
+    PairError,
+    PairInputError,
+    SubmissionRejectedError,
+)
+from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle, Submission
+from marimo._utils.requests import RequestError, request
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
 T = TypeVar("T")
+_REQUEST_TIMEOUT = 10
 _SETUP = (
     "OpenCode agent messages require OpenCode 2.x. "
     "Run connect in a native OpenCode 2.x shell with a registered local service."
 )
+
+
+def _check_status(status: int | None) -> None:
+    if status in {401, 403}:
+        raise SubmissionRejectedError(
+            "OpenCode refused the inbox request before admission."
+        )
+    if status is not None and status != 200:
+        raise PairError(
+            "OpenCode did not confirm the inbox request. Check the session and credentials."
+        )
 
 
 def _request(
@@ -32,9 +49,10 @@ def _request(
     *,
     text: str | None = None,
 ) -> T:
+    deadline = monotonic() + _REQUEST_TIMEOUT
     try:
         endpoint = urlsplit(url)
-        port = endpoint.port
+        _ = endpoint.port
     except ValueError as error:
         raise PairInputError("The OpenCode inbox URL is invalid.") from error
     if (
@@ -47,40 +65,34 @@ def _request(
         raise PairInputError(
             "OpenCode delivery requires a local HTTP endpoint."
         )
-    connection = http.client.HTTPConnection(
-        endpoint.hostname, port, timeout=10
-    )
     headers = {"Content-Type": "application/json"}
     if authorization:
         headers["Authorization"] = authorization
     try:
-        body = (
-            None
-            if text is None
-            else msgspec.json.encode({"text": text, "delivery": "queue"})
+        response = request(
+            "GET" if text is None else "POST",
+            url,
+            data=(
+                None
+                if text is None
+                else msgspec.json.encode({"text": text, "delivery": "queue"})
+            ),
+            headers=headers,
+            deadline=deadline,
+            max_response_bytes=1024 * 1024,
         )
-        path = endpoint.path + ("?" + endpoint.query if endpoint.query else "")
-        connection.request(
-            "GET" if text is None else "POST", path, body, headers
-        )
-        response = connection.getresponse()
-        if response.status != 200:
-            raise PairError(
-                "OpenCode rejected the inbox request. Check the session and credentials."
-            )
-        data = response.read(1024 * 1024 + 1)
-        if len(data) > 1024 * 1024:
-            raise PairError("OpenCode returned an oversized inbox response.")
-        return msgspec.json.decode(data, type=result_type)
-    except (
-        OSError,
-        http.client.HTTPException,
-        ValueError,
-        msgspec.DecodeError,
-    ) as error:
+    except RequestError as error:
+        _check_status(error.status_code)
+        if error.dispatched is False:
+            raise SubmissionRejectedError(
+                "Could not connect to the OpenCode inbox."
+            ) from error
         raise PairError("Could not reach the OpenCode inbox.") from error
-    finally:
-        connection.close()
+    _check_status(response.status_code)
+    try:
+        return msgspec.json.decode(response.content, type=result_type)
+    except msgspec.DecodeError as error:
+        raise PairError("Could not reach the OpenCode inbox.") from error
 
 
 @dataclass(frozen=True)
@@ -115,6 +127,16 @@ class _Session(msgspec.Struct):
 
 class _SessionResponse(msgspec.Struct):
     data: _Session
+
+
+class _AdmittedMessage(msgspec.Struct):
+    id: str
+    type: Literal["user"]
+    sessionID: str
+
+
+class _PromptResponse(msgspec.Struct):
+    data: _AdmittedMessage
 
 
 class OpenCodeHarness:
@@ -232,8 +254,19 @@ class OpenCodeInbox:
     target: DeliveryTarget
     inbox_bytes: ClassVar[int] = 64 * 1024
 
-    def send(self, text: str) -> None:
-        _request(self.target.address, self.target.auth_token, dict, text=text)
+    def send(self, text: str) -> Submission:
+        response = _request(
+            self.target.address,
+            self.target.auth_token,
+            _PromptResponse,
+            text=text,
+        )
+        session_id = unquote(
+            urlsplit(self.target.address).path.rsplit("/", 2)[1]
+        )
+        if not response.data.id or response.data.sessionID != session_id:
+            raise PairError("OpenCode returned an invalid admission response.")
+        return Submission("submitted", "OpenCode admitted the message.")
 
     def alive(self) -> bool:
         return self.target.process is not None and self.target.process.alive()

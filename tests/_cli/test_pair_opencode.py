@@ -5,8 +5,10 @@ import base64
 import json
 import os
 import queue
+import socket
 import sys
 import threading
+import time
 import urllib.request
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -16,17 +18,23 @@ from urllib.parse import parse_qs, urlsplit
 import msgspec
 import pytest
 
-from marimo._cli.pair.client import PairError, PairInputError
+from marimo._cli.pair.client import (
+    PairError,
+    PairInputError,
+    SubmissionRejectedError,
+)
 from marimo._cli.pair.connection import ConnectionStore, connection_identity
-from marimo._cli.pair.delivery import ProcessHandle
+from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
 from marimo._cli.pair.forwarder import ForwarderConfig, start_forwarder
 from marimo._cli.pair.harnesses import detect_target, harness_for
-from marimo._cli.pair.harnesses.opencode import OpenCodeHarness
+from marimo._cli.pair.harnesses.opencode import OpenCodeHarness, OpenCodeInbox
 from tests._cli._pair_server import pair_test_server
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
+
+    from tests._http import HTTPEndpoint
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32",
@@ -49,6 +57,9 @@ class OpenCodeServer:
         self.session = "ses_one"
         self.messages: queue.Queue[dict[str, str]] = queue.Queue()
         self.status = 200
+        self.admission: dict[str, object] = {
+            "data": {"id": "msg_one", "type": "user", "sessionID": "ses_one"}
+        }
 
 
 @contextmanager
@@ -90,7 +101,7 @@ def opencode_server() -> Iterator[tuple[OpenCodeServer, str]]:
                             )
                         )
                     )
-                    body = {}
+                    body = state.admission
                 elif self.command == "GET" and self.path == "/api/info":
                     body = {"pid": state.pid, "version": state.version}
                 elif self.command != "GET" or location != [os.getcwd()]:
@@ -314,17 +325,139 @@ def test_explicit_owner_does_not_skip_session_verification(
             harness.detect(env, process=owner)
 
 
-def test_delivery_errors_are_sanitized(tmp_path: Path) -> None:
+@pytest.mark.parametrize("status", [400, 404, 422, 500, 503])
+def test_delivery_errors_are_sanitized(tmp_path: Path, status: int) -> None:
     with opencode_server() as (state, url):
         env = native_env(tmp_path, state, url)
         harness = OpenCodeHarness()
         target = harness.detect(env)
         assert target is not None
-        state.status = 503
-        with pytest.raises(PairError, match="rejected") as caught:
+        state.status = status
+        with pytest.raises(PairError, match="did not confirm") as caught:
             harness.open_inbox(target).send("private notebook content")
         assert "private notebook content" not in str(caught.value)
         assert "credential-must-not-appear" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "admission",
+    [
+        {},
+        {"data": {}},
+        {"data": {"id": "", "type": "user", "sessionID": "ses_one"}},
+        {
+            "data": {
+                "id": "msg_one",
+                "type": "assistant",
+                "sessionID": "ses_one",
+            }
+        },
+        {"data": {"id": "msg_one", "type": "user", "sessionID": "ses_other"}},
+    ],
+)
+def test_unconfirmed_admission_is_not_success(
+    tmp_path: Path, admission
+) -> None:
+    with opencode_server() as (state, url):
+        harness = OpenCodeHarness()
+        target = harness.detect(native_env(tmp_path, state, url))
+        assert target is not None
+        state.admission = admission
+        with pytest.raises(PairError) as caught:
+            harness.open_inbox(target).send("message")
+        assert not isinstance(caught.value, SubmissionRejectedError)
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_definite_refusal_preserves_rejection(
+    tmp_path: Path, status: int
+) -> None:
+    with opencode_server() as (state, url):
+        harness = OpenCodeHarness()
+        target = harness.detect(native_env(tmp_path, state, url))
+        assert target is not None
+        state.status = status
+        with pytest.raises(SubmissionRejectedError):
+            harness.open_inbox(target).send("message")
+
+
+@pytest.fixture
+def http_inbox(http_endpoint: HTTPEndpoint) -> OpenCodeInbox:
+    http_endpoint.body = msgspec.json.encode(
+        {"data": {"id": "msg_one", "type": "user", "sessionID": "ses_one"}}
+    )
+    return OpenCodeInbox(
+        DeliveryTarget(
+            "opencode",
+            http_endpoint.url + "/api/session/ses_one/prompt",
+            "OpenCode",
+        )
+    )
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_refusal_with_truncated_body_still_rejects(
+    http_inbox: OpenCodeInbox, http_endpoint: HTTPEndpoint, status: int
+) -> None:
+    http_endpoint.status = status
+    http_endpoint.content_length = len(http_endpoint.body) + 10
+    with pytest.raises(SubmissionRejectedError):
+        http_inbox.send("message")
+    assert len(http_endpoint.requests) == 1
+
+
+@pytest.mark.parametrize("status", [302, 307])
+def test_redirect_does_not_resend_content(
+    http_inbox: OpenCodeInbox, http_endpoint: HTTPEndpoint, status: int
+) -> None:
+    http_endpoint.status = status
+    http_endpoint.headers["Location"] = "/api/session/other/prompt"
+    with pytest.raises(PairError) as caught:
+        http_inbox.send("message")
+    assert not isinstance(caught.value, SubmissionRejectedError)
+    assert len(http_endpoint.requests) == 1
+
+
+def test_truncated_admission_does_not_confirm_or_reject(
+    http_inbox: OpenCodeInbox, http_endpoint: HTTPEndpoint
+) -> None:
+    http_endpoint.content_length = len(http_endpoint.body) + 10
+    with pytest.raises(PairError) as caught:
+        http_inbox.send("message")
+    assert not isinstance(caught.value, SubmissionRejectedError)
+    assert len(http_endpoint.requests) == 1
+
+
+def test_native_request_uses_one_deadline_without_retry(
+    http_inbox: OpenCodeInbox,
+    http_endpoint: HTTPEndpoint,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    http_endpoint.chunk_delay = 0.04
+    monkeypatch.setattr(
+        "marimo._cli.pair.harnesses.opencode._REQUEST_TIMEOUT", 0.1
+    )
+    started = time.monotonic()
+    with pytest.raises(PairError) as caught:
+        http_inbox.send("message")
+    assert time.monotonic() - started < 0.25
+    assert not isinstance(caught.value, SubmissionRejectedError)
+    assert len(http_endpoint.requests) == 1
+
+
+def test_native_connection_failure_rejects_before_dispatch() -> None:
+    with socket.socket() as closed:
+        closed.bind(("127.0.0.1", 0))
+        port = closed.getsockname()[1]
+        inbox = OpenCodeInbox(
+            DeliveryTarget(
+                "opencode",
+                f"http://127.0.0.1:{port}/api/session/ses_one/prompt",
+                "OpenCode",
+            )
+        )
+        with pytest.raises(SubmissionRejectedError):
+            inbox.send("message")
 
 
 def test_detached_forwarder_to_opencode(

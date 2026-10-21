@@ -187,6 +187,9 @@ def test_send_failure_does_not_leak(tmp_path: Path) -> None:
         ClaudeHarness().open_inbox(target).send("private-message")
     assert "private-token" not in str(error.value)
     assert "private-message" not in str(error.value)
+    from marimo._cli.pair.client import SubmissionRejectedError
+
+    assert isinstance(error.value, SubmissionRejectedError)
 
 
 def test_liveness_tracks_socket_and_process(

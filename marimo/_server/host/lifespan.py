@@ -78,6 +78,7 @@ async def host(app: Starlette) -> AsyncIterator[None]:
         try:
             yield
         finally:
+            context.agents.close()
             context.bridge.close()
             app.state.host_context = None
         return
@@ -109,5 +110,6 @@ async def host(app: Starlette) -> AsyncIterator[None]:
             await maintenance
         if record is not None:
             record.remove()
+        context.agents.close()
         context.bridge.close()
         app.state.host_context = None
