@@ -67,14 +67,21 @@ it("filters the latest right-clicked cell when the menu is already open", () => 
     />,
   );
 
-  fireEvent.contextMenu(screen.getByText("first"));
+  const firstCell = screen.getByText("first");
+  const secondCell = screen.getByText("second");
+  fireEvent.contextMenu(firstCell);
+  expect(firstCell).toHaveClass("bg-(--green-4)");
   expect(
     screen.getByRole("menuitem", { name: "Filter by this value" }),
   ).toBeInTheDocument();
-  fireEvent.contextMenu(screen.getByText("second"));
+  fireEvent.contextMenu(secondCell);
+  expect(firstCell).not.toHaveClass("bg-(--green-4)");
+  expect(secondCell).toHaveClass("bg-(--green-4)");
   fireEvent.click(
     screen.getByRole("menuitem", { name: "Filter by this value" }),
   );
+  expect(firstCell).not.toHaveClass("bg-(--green-4)");
+  expect(secondCell).not.toHaveClass("bg-(--green-4)");
 
   const update = onFilter.mock.calls.at(-1)?.[0];
   expect(update([])).toEqual([

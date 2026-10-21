@@ -185,7 +185,7 @@ const PanelSlot = (props: Props) => {
     const buffer = new EventBuffer(processEvents);
     eventBufferRef.current = buffer;
     return () => {
-      buffer.clear();
+      buffer.dispose();
       eventBufferRef.current = null;
     };
   }, [processEvents]);

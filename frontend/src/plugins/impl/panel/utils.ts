@@ -83,6 +83,7 @@ export class EventBuffer<T> {
       clearTimeout(this.timeout);
     }
     this.timeout = window.setTimeout(() => {
+      this.timeout = null;
       this.isBlocked = false;
       if (this.buffer.length > 0) {
         this.flush();
@@ -96,6 +97,15 @@ export class EventBuffer<T> {
 
   public clear() {
     this.buffer = [];
+  }
+
+  public dispose() {
+    if (this.timeout !== null) {
+      clearTimeout(this.timeout);
+      this.timeout = null;
+    }
+    this.isBlocked = false;
+    this.clear();
   }
 
   public getAndClear() {

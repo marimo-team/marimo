@@ -126,7 +126,7 @@ function withoutLeadingDot(path: string): string {
  * Resolve a URL to a blob URL if it's a virtual file, for use with dynamic import().
  * Unlike fetch, import() can't be patched, so we need to convert data URLs to blob URLs.
  * The caller owns a returned URL that differs from the input and must revoke it
- * after the import settles.
+ * once no module consumers or their cleanup callbacks need it.
  *
  * @returns The original URL if not a virtual file, or a blob URL if it is
  */

@@ -46,38 +46,76 @@ function abortSignalAny(signals: AbortSignal[]): AbortSignal {
   return controller.signal;
 }
 
+interface ModuleEntry {
+  promise: Promise<unknown>;
+  references: number;
+  dispose: () => void;
+}
+
 /**
  * Deduplicates ESM imports by jsHash.
  * A single import is shared across all widget instances using the same module.
  */
 class WidgetDefRegistry {
-  #cache = new Map<string, Promise<unknown>>();
+  #cache = new Map<string, ModuleEntry>();
 
   /**
    * Get (or start) the ESM import for a widget module, cached by
    * jsHash so multiple instances share one import. Pass
    * `kernelAuthored: true` only for URLs from an `EsmSpec`; it widens
-   * the import gate to remote and data URLs.
+   * the import gate to remote and data URLs. A lifetime retains the module
+   * until that signal aborts; omit it to retain for the notebook's lifetime.
    */
   public getModule(options: {
     jsUrl: string;
     jsHash: string;
     kernelAuthored?: boolean;
+    lifetime?: AbortSignal;
   }): Promise<unknown> {
-    const { jsUrl, jsHash, kernelAuthored = false } = options;
-    const cached = this.#cache.get(jsHash);
-    if (cached) {
-      return cached;
+    const { jsUrl, jsHash, kernelAuthored = false, lifetime } = options;
+    let entry = this.#cache.get(jsHash);
+    if (!entry) {
+      const imported = this.#doImport(jsUrl, { kernelAuthored });
+      const created: ModuleEntry = {
+        references: 0,
+        dispose: () => undefined,
+        promise: imported.then(
+          ({ module, dispose }) => {
+            created.dispose = dispose;
+            return module;
+          },
+          (error) => {
+            // An invalidated import must not evict its replacement.
+            if (this.#cache.get(jsHash) === created) {
+              this.#cache.delete(jsHash);
+            }
+            throw error;
+          },
+        ),
+      };
+      this.#cache.set(jsHash, created);
+      entry = created;
     }
-
-    const promise = this.#doImport(jsUrl, { kernelAuthored }).catch((error) => {
-      // On failure, remove from cache so a retry with a new URL can work
-      this.#cache.delete(jsHash);
-      throw error;
-    });
-
-    this.#cache.set(jsHash, promise);
-    return promise;
+    const retained = entry;
+    retained.references += 1;
+    const release = () => {
+      retained.references -= 1;
+      if (retained.references === 0) {
+        if (this.#cache.get(jsHash) === retained) {
+          this.#cache.delete(jsHash);
+        }
+        void retained.promise.then(
+          () => retained.dispose(),
+          () => undefined,
+        );
+      }
+    };
+    if (lifetime?.aborted) {
+      release();
+    } else {
+      lifetime?.addEventListener("abort", release, { once: true });
+    }
+    return retained.promise;
   }
 
   public invalidate(jsHash: string): void {
@@ -87,7 +125,7 @@ class WidgetDefRegistry {
   async #doImport(
     jsUrl: string,
     opts: { kernelAuthored?: boolean } = {},
-  ): Promise<unknown> {
+  ): Promise<{ module: unknown; dispose: () => void }> {
     // By default, only trust marimo virtual file paths: arbitrary URLs
     // would let markdown-injected elements import attacker-controlled
     // JavaScript. Kernel-authored URLs (from an `EsmSpec`) are exempt —
@@ -107,13 +145,18 @@ class WidgetDefRegistry {
     const url = isStaticNotebook()
       ? resolveVirtualFileURL(remoteUrl)
       : remoteUrl;
-    try {
-      return await import(/* @vite-ignore */ url);
-    } finally {
+    const dispose = () => {
       // Only the static-file resolver's newly created URL belongs to us.
       if (url !== remoteUrl) {
         URL.revokeObjectURL(url);
       }
+    };
+    try {
+      const module = await import(/* @vite-ignore */ url);
+      return { module, dispose };
+    } catch (error) {
+      dispose();
+      throw error;
     }
   }
 }
@@ -139,6 +182,7 @@ interface CreateWidgetBindingOptions<T extends ModelState> {
   model: Model<T>;
   createHost: HostFactory;
   controller?: AbortController;
+  onDestroy?: () => void;
 }
 
 async function safelyRunCleanup(cleanup: Cleanup, reason: string) {
@@ -166,6 +210,7 @@ export class WidgetBinding<T extends ModelState = ModelState> {
   #createHost: HostFactory;
   #cleanupTasks = new Set<Promise<void>>();
   #viewTasks = new Set<Promise<void>>();
+  #onDestroy?: () => void;
 
   private constructor(options: {
     widget: ResolvedWidget<T>;
@@ -173,12 +218,14 @@ export class WidgetBinding<T extends ModelState = ModelState> {
     exports: unknown;
     controller: AbortController;
     createHost: HostFactory;
+    onDestroy?: () => void;
   }) {
     this.#widget = options.widget;
     this.#model = options.model;
     this.#exports = options.exports;
     this.#controller = options.controller;
     this.#createHost = options.createHost;
+    this.#onDestroy = options.onDestroy;
   }
 
   /**
@@ -192,76 +239,94 @@ export class WidgetBinding<T extends ModelState = ModelState> {
     model,
     createHost,
     controller = new AbortController(),
+    onDestroy,
   }: CreateWidgetBindingOptions<T>): Promise<WidgetBinding<T>> {
     const signal = controller.signal;
-    const widget: ResolvedWidget<T> =
-      typeof widgetDef === "function" ? await widgetDef() : widgetDef;
+    let lateCleanup: Promise<void> | undefined;
+    try {
+      const widget: ResolvedWidget<T> =
+        typeof widgetDef === "function" ? await widgetDef() : widgetDef;
 
-    const initPromise = Promise.resolve(
-      widget.initialize?.({
-        model: modelProxy(model, signal),
-        experimental,
-        signal,
-      }),
-    );
-    // If destroyed mid-initialize, still run a late-arriving legacy
-    // cleanup callback: the widget acquired resources.
-    initPromise
-      .then(async (settled) => {
-        if (signal.aborted && isCleanup(settled)) {
-          await safelyRunCleanup(settled, "late initialize");
-        }
-      })
-      .catch(() => undefined);
-
-    // Race against destruction so a hung `initialize` can't strand
-    // callers whose model already closed.
-    const result = await Promise.race([
-      initPromise,
-      new Promise<never>((_, reject) => {
-        const abort = () => reject(new Error("[anywidget] binding destroyed"));
-        if (signal.aborted) {
-          abort();
-          return;
-        }
-        signal.addEventListener("abort", abort, { once: true });
-      }),
-    ]);
-
-    if (signal.aborted) {
-      throw new Error("[anywidget] binding destroyed");
-    }
-
-    // Distinguish anywidget's three return shapes:
-    //   function → legacy cleanup callback (run on destroy)
-    //   object   → widget exports (anywidget>=0.11)
-    //   void     → nothing
-    let exports: unknown;
-    let initializeCleanup: Cleanup | undefined;
-    if (isCleanup(result)) {
-      initializeCleanup = result;
-      exports = undefined;
-    } else if (typeof result === "object" && result !== null) {
-      exports = result;
-    } else {
-      exports = undefined;
-    }
-
-    const binding = new WidgetBinding({
-      widget,
-      model,
-      exports,
-      controller,
-      createHost,
-    });
-    if (initializeCleanup) {
-      signal.addEventListener(
-        "abort",
-        () => void binding.#trackCleanup(initializeCleanup, "initialize"),
-        { once: true },
+      if (signal.aborted) {
+        throw new Error("[anywidget] binding destroyed");
+      }
+      const initPromise = Promise.resolve(
+        widget.initialize?.({
+          model: modelProxy(model, signal),
+          experimental,
+          signal,
+        }),
       );
+      // If destroyed mid-initialize, still run a late-arriving legacy
+      // cleanup callback: the widget acquired resources.
+      lateCleanup = initPromise
+        .then(async (settled) => {
+          if (signal.aborted && isCleanup(settled)) {
+            await safelyRunCleanup(settled, "late initialize");
+          }
+        })
+        .catch(() => undefined);
+
+      // Race against destruction so a hung `initialize` can't strand
+      // callers whose model already closed.
+      const result = await Promise.race([
+        initPromise,
+        new Promise<never>((_, reject) => {
+          const abort = () =>
+            reject(new Error("[anywidget] binding destroyed"));
+          if (signal.aborted) {
+            abort();
+            return;
+          }
+          signal.addEventListener("abort", abort, { once: true });
+        }),
+      ]);
+
+      if (signal.aborted) {
+        throw new Error("[anywidget] binding destroyed");
+      }
+
+      // Distinguish anywidget's three return shapes:
+      //   function → legacy cleanup callback (run on destroy)
+      //   object   → widget exports (anywidget>=0.11)
+      //   void     → nothing
+      let exports: unknown;
+      let initializeCleanup: Cleanup | undefined;
+      if (isCleanup(result)) {
+        initializeCleanup = result;
+        exports = undefined;
+      } else if (typeof result === "object" && result !== null) {
+        exports = result;
+      } else {
+        exports = undefined;
+      }
+
+      const binding = new WidgetBinding({
+        widget,
+        model,
+        exports,
+        controller,
+        createHost,
+        onDestroy,
+      });
+      if (initializeCleanup) {
+        signal.addEventListener(
+          "abort",
+          () => void binding.#trackCleanup(initializeCleanup, "initialize"),
+          { once: true },
+        );
+      }
+      return binding;
+    } catch (error) {
+      // A canceled initialize may still be using import.meta.url in its
+      // late cleanup. Keep the module alive until that work settles.
+      if (lateCleanup) {
+        void lateCleanup.then(() => onDestroy?.());
+      } else {
+        onDestroy?.();
+      }
+      throw error;
     }
-    return binding;
   }
 
   /**
@@ -360,6 +425,8 @@ export class WidgetBinding<T extends ModelState = ModelState> {
     while (this.#cleanupTasks.size > 0) {
       await Promise.all(this.#cleanupTasks);
     }
+    this.#onDestroy?.();
+    this.#onDestroy = undefined;
   }
 }
 

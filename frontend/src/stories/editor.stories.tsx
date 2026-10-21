@@ -5,7 +5,7 @@ import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import CodeMirror from "@uiw/react-codemirror";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { copilotBundle } from "@/core/codemirror/copilot/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -57,22 +57,30 @@ const Editor = (opts: { extensions?: Extension[] }): React.ReactNode => {
   return <div className="cm" ref={ref} />;
 };
 
-export const Primary: Story = {
-  render: (_args, ctx) => (
+const PrimaryEditor = ({ theme }: Pick<CodeMirrorSetupOpts, "theme">) => {
+  const extensions = useMemo(
+    () =>
+      basicBundle({
+        completionConfig: {
+          activate_on_typing: false,
+          copilot: false,
+          signature_hint_on_typing: false,
+        },
+        theme,
+        hotkeys: new OverridingHotkeyProvider({}),
+      } as unknown as CodeMirrorSetupOpts),
+    [theme],
+  );
+
+  return (
     <div className="Cell m-20 w-[60%] overflow-hidden">
-      <Editor
-        extensions={basicBundle({
-          completionConfig: {
-            activate_on_typing: false,
-            copilot: false,
-            signature_hint_on_typing: false,
-          },
-          theme: ctx.globals.theme,
-          hotkeys: new OverridingHotkeyProvider({}),
-        } as unknown as CodeMirrorSetupOpts)}
-      />
+      <Editor extensions={extensions} />
     </div>
-  ),
+  );
+};
+
+export const Primary: Story = {
+  render: (_args, ctx) => <PrimaryEditor theme={ctx.globals.theme} />,
 };
 
 export const DefaultPython: Story = {

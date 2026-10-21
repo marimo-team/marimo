@@ -206,22 +206,33 @@ export class WidgetRuntime {
     controller: AbortController;
   }): Promise<WidgetBinding<ModelState>> {
     const { spec, model, controller } = options;
-    const mod = await WIDGET_DEF_REGISTRY.getModule({
-      jsUrl: spec.url,
-      jsHash: spec.hash,
-      kernelAuthored: true,
-    });
-    const widget = resolveAnyWidget(mod, spec.url);
-    if (!widget) {
-      WIDGET_DEF_REGISTRY.invalidate(spec.hash);
-      throw getInvalidAnyWidgetModuleError(mod, spec.url);
+    const moduleLifetime = new AbortController();
+    let mod: unknown;
+    try {
+      mod = await WIDGET_DEF_REGISTRY.getModule({
+        jsUrl: spec.url,
+        jsHash: spec.hash,
+        kernelAuthored: true,
+        lifetime: moduleLifetime.signal,
+      });
+      const widget = resolveAnyWidget(mod, spec.url);
+      if (!widget) {
+        WIDGET_DEF_REGISTRY.invalidate(spec.hash);
+        throw getInvalidAnyWidgetModuleError(mod, spec.url);
+      }
+      // WidgetBinding owns release once initialization starts, including
+      // late cleanup when the generation is destroyed during initialize.
+      return WidgetBinding.create({
+        widgetDef: widget,
+        model,
+        createHost: this.#createHost,
+        controller,
+        onDestroy: () => moduleLifetime.abort(),
+      });
+    } catch (error) {
+      moduleLifetime.abort();
+      throw error;
     }
-    return WidgetBinding.create({
-      widgetDef: widget,
-      model,
-      createHost: this.#createHost,
-      controller,
-    });
   }
 
   #startGeneration(spec: EsmSpec, model: Model<ModelState>): Generation {

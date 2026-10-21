@@ -12,7 +12,7 @@ import { Logger } from "@/utils/Logger";
 import type { Cell } from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
 import { CopyIcon, FilterIcon, SquareStack } from "lucide-react";
-import { type RefObject, useState } from "react";
+import { type RefObject, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import {
   ContextMenu,
@@ -126,11 +126,16 @@ export const DataTableContextMenu = <TData,>({
   const [activeCell, setActiveCell] = useState<Cell<TData, unknown> | null>(
     null,
   );
+  const highlightedCell = useRef<Element | null>(null);
   const handleContextMenuChange = useEvent((open: boolean) => {
-    const cell = contextMenuRef.current;
-    if (open) {
-      setActiveCell(cell);
+    highlightedCell.current?.classList.remove("bg-(--green-4)");
+    highlightedCell.current = null;
+    if (!open) {
+      return;
     }
+
+    const cell = contextMenuRef.current;
+    setActiveCell(cell);
     if (!cell) {
       return;
     }
@@ -144,18 +149,15 @@ export const DataTableContextMenu = <TData,>({
       return;
     }
 
-    if (open) {
-      cellElement.classList.add("bg-(--green-4)");
-    } else {
-      cellElement.classList.remove("bg-(--green-4)");
-    }
+    cellElement.classList.add("bg-(--green-4)");
+    highlightedCell.current = cellElement;
   });
 
   return (
     <ContextMenu onOpenChange={handleContextMenuChange}>
       <ContextMenuTrigger
         asChild={true}
-        onContextMenu={() => setActiveCell(contextMenuRef.current)}
+        onContextMenu={() => handleContextMenuChange(true)}
       >
         {tableBody}
       </ContextMenuTrigger>

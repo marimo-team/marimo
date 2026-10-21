@@ -4,7 +4,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { switchLanguage } from "@/core/codemirror/language/extension";
 import { LanguageToggle } from "../language-toggle";
@@ -14,6 +14,10 @@ vi.mock("@/core/codemirror/language/extension", () => ({
 }));
 
 describe("LanguageToggle", () => {
+  afterEach(() => {
+    vi.mocked(switchLanguage).mockClear();
+  });
+
   it("uses the editor mounted after the button rendered", () => {
     const editorViewRef = createRef<EditorView>();
     const onAfterToggle = vi.fn();
@@ -32,6 +36,7 @@ describe("LanguageToggle", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
+    expect(switchLanguage).not.toHaveBeenCalled();
     expect(onAfterToggle).not.toHaveBeenCalled();
 
     const view = new EditorView({ state: EditorState.create() });
