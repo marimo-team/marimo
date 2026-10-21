@@ -170,6 +170,9 @@ class SessionHandler(SessionConsumer, abc.ABC):
             await cancel_and_wait(disconnected)
             await cancel_and_wait(startup)
 
+    async def _prepare_session(self, session: Session) -> None:
+        """Prepare a selected session before delivering its initial state."""
+
     @abc.abstractmethod
     async def _wait_for_disconnect(self) -> None:
         """Notice a closed transport even while a session is starting."""

@@ -26,7 +26,7 @@ class MarimoEvent(ExtensionEvent, frozen=True, tag="marimo"):
 
 
 def notification_event(
-    notebook_id: protocol.NotebookId, notification: NotificationMessage
+    notebook_id: protocol.NotebookId | None, notification: NotificationMessage
 ) -> RoutedEvent:
     """Wrap a notification with its notebook and optional run scope."""
     run_id = getattr(notification, "run_id", None)
@@ -37,14 +37,34 @@ def notification_event(
     )
 
 
-def serialize_event(event: RoutedEvent) -> str:
-    """Encode one host event as a WebSocket frame."""
-    return msgspec.json.encode(event.event).decode()
+def _visible_event(
+    event: RoutedEvent, *, include_code: bool
+) -> protocol.Event | ExtensionEvent:
+    """Encode a frame using this connection's source-visibility policy.
 
-
-def serialize_sse_event(event: RoutedEvent) -> str:
-    """Encode a host event using SSE fields."""
+    Project a copy at delivery, so the host retains source and revisions for
+    snapshots, replay, and staleness checks regardless of the reader.
+    """
     message = event.event
+    if not include_code and isinstance(message, protocol.CellEvent):
+        cell = msgspec.structs.replace(message.data.cell, code=None)
+        data = msgspec.structs.replace(message.data, cell=cell)
+        message = msgspec.structs.replace(message, data=data)
+    return message
+
+
+def serialize_event(event: RoutedEvent, *, include_code: bool = True) -> str:
+    """Encode a host WebSocket envelope."""
+    return msgspec.json.encode(
+        _visible_event(event, include_code=include_code)
+    ).decode()
+
+
+def serialize_sse_event(
+    event: RoutedEvent, *, include_code: bool = True
+) -> str:
+    """Encode the same host event using SSE fields."""
+    message = _visible_event(event, include_code=include_code)
     lines = []
     if message.id is not msgspec.UNSET:
         lines.append(f"id: {message.id}")

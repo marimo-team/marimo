@@ -47,7 +47,7 @@ from marimo._server.host import (
 )
 from marimo._server.host.context import CachedMutation
 from marimo._server.host.events import serialize_event, serialize_sse_event
-from marimo._server.host.websocket import EditorEventSocket
+from marimo._server.host.session import SessionEventStream
 from marimo._server.sse import SSE_HEADERS
 from marimo._server.tokens import AuthToken
 
@@ -534,7 +534,7 @@ async def _editor_events_ws(websocket: WebSocket) -> None:
             code=1008, reason="Session notebook does not match"
         )
         return
-    await EditorEventSocket(
+    await SessionEventStream(
         websocket,
         notebook=notebook,
         bridge=bridge,
