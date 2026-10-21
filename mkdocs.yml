@@ -286,6 +286,7 @@ nav:
       - Command Line Arguments: api/cli_args.md
       - Caching: api/caching.md
       - State: api/state.md
+      - Agent messaging: api/agents.md
       - App: api/app.md
       - Cell: api/cell.md
       - Watch: api/watch.md

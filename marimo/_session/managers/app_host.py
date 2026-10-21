@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.cell import CellConfig
     from marimo._config.manager import MarimoConfigManager
+    from marimo._messaging.agents import AgentConnection
     from marimo._runtime.commands import AppMetadata
     from marimo._session.app_host.host import AppHost
     from marimo._types.ids import CellId_t
@@ -169,6 +170,7 @@ class AppHostKernelManager(KernelManager):
         self._session_id = session_id
         self.queue_manager = queue_manager
         self.mode = mode
+        self.agent_messaging: AgentConnection | None = None
         self._configs = configs
         self._app_metadata = app_metadata
         self._config_manager = config_manager

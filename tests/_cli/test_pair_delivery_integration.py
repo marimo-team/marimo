@@ -44,9 +44,18 @@ def wait_messages(path: Path, count: int) -> list[dict[str, str]]:
 @pytest.mark.skipif(
     os.name != "posix", reason="The stub executable uses a POSIX shebang."
 )
+@pytest.mark.parametrize("ipc", [False, True])
+@pytest.mark.parametrize(
+    "widget",
+    [False, pytest.param(True, marks=pytest.mark.requires("anywidget"))],
+)
 def test_detached_delivery_replacement_and_files(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ipc: bool, widget: bool
 ) -> None:
+    if ipc:
+        (tmp_path / "pyproject.toml").write_text(
+            f"[tool.marimo.venv]\npath = {json.dumps(sys.prefix)}\nwritable = false\n"
+        )
     inbox = tmp_path / "inbox.jsonl"
     binary = tmp_path / "bin" / "codex"
     binary.parent.mkdir()
@@ -134,11 +143,83 @@ def test_detached_delivery_replacement_and_files(
             }
             assert first[0]["message"] == first[1]["message"]
 
+            code = (
+                "import marimo as mo\n"
+                "print(len(mo.agents.list()))\n"
+                f"print(mo.agents.send({{'from': 'python'}}, to={records[0].identity!r}).recipients[0].status)\n"
+            )
+            result = runner.invoke(
+                cli_main, ["pair", "execute", *arguments, "-c", code]
+            )
+            assert result.exit_code == 0, result.output
+            assert json.loads(result.stdout)["stdout"] == "2\nsubmitted\n"
+            python_messages = wait_messages(inbox, 3)
+            assert python_messages[2]["thread"] == "first"
+            assert json.loads(
+                python_messages[2]["message"].split("\n", 1)[1]
+            ) == {"from": "python"}
+
+            if widget:
+                widget_code = (
+                    "import anywidget, builtins\n"
+                    "builtins._messaging_widget = anywidget.AnyWidget()\n"
+                    "builtins._widget_results = []\n"
+                    "def on_agent_message(widget, content, buffers):\n"
+                    "    import builtins, marimo as mo\n"
+                    "    from marimo._runtime.context import get_context\n"
+                    f"    result = mo.agents.send(content, to={records[0].identity!r})\n"
+                    "    builtins._widget_results.append((get_context().cell_id, result.recipients[0].status))\n"
+                    "builtins._messaging_widget.on_msg(on_agent_message)\n"
+                    "print(builtins._messaging_widget._model_id)\n"
+                )
+                result = runner.invoke(
+                    cli_main,
+                    ["pair", "execute", *arguments, "-c", widget_code],
+                )
+                assert result.exit_code == 0, result.output
+                model_id = json.loads(result.stdout)["stdout"].strip()
+                request = urllib.request.Request(
+                    f"{server.url}/api/kernel/set_model_value",
+                    data=json.dumps(
+                        {
+                            "modelId": model_id,
+                            "message": {
+                                "method": "custom",
+                                "content": {"from": "widget"},
+                            },
+                            "buffers": [],
+                        }
+                    ).encode(),
+                    headers={
+                        "Content-Type": "application/json",
+                        "Marimo-Session-Id": server.session_id,
+                    },
+                    method="POST",
+                )
+                with urllib.request.urlopen(request, timeout=5) as response:
+                    assert response.status == 200
+                result = runner.invoke(
+                    cli_main,
+                    [
+                        "pair",
+                        "execute",
+                        *arguments,
+                        "-c",
+                        "import builtins\nprint(builtins._widget_results)\nbuiltins._messaging_widget.close()\ndel builtins._widget_results, builtins._messaging_widget",
+                    ],
+                )
+                assert result.exit_code == 0, result.output
+                assert (
+                    json.loads(result.stdout)["stdout"]
+                    == "[(None, 'submitted')]\n"
+                )
+                assert wait_messages(inbox, 4)[3]["thread"] == "first"
+
             large = {"lens": "😀" * 10000}
             send(large)
-            messages = wait_messages(inbox, 4)
+            messages = wait_messages(inbox, 5 + int(widget))
             references = []
-            for message in messages[2:]:
+            for message in messages[3 + int(widget) :]:
                 assert len(message["message"].encode("utf-8")) <= 8192
                 path = Path(
                     message["message"].rsplit(
@@ -343,3 +424,39 @@ def test_subprocess_reconnect_does_not_redirect_messages_and_server_detach(
             if process.poll() is None:
                 process.kill()
             process.communicate(timeout=5)
+
+
+@pytest.mark.parametrize("ipc", [False, True])
+def test_python_http_uses_editor_auth_and_base_path(
+    tmp_path: Path, ipc: bool
+) -> None:
+    if ipc:
+        (tmp_path / "pyproject.toml").write_text(
+            f"[tool.marimo.venv]\npath = {json.dumps(sys.prefix)}\nwritable = false\n"
+        )
+    with pair_test_server(
+        tmp_path,
+        token="private-editor-token",
+        base_url="/embedded",
+        skew_protection=True,
+    ) as server:
+        code = (
+            "import marimo as mo\n"
+            "print(mo.agents.list())\n"
+            "print(mo.agents.send(None, to='absent').recipients[0].status)\n"
+        )
+        result = CliRunner().invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                server.url,
+                "--notebook",
+                server.notebook_id,
+                "-c",
+                code,
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout)["stdout"] == "()\nrejected\n"

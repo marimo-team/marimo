@@ -63,6 +63,7 @@ def main() -> None:
         is_ipc=True,
         redirect_console_to_browser=args.redirect_console_to_browser,
         parent_pid=args.parent_pid,
+        agent_messaging=args.agent_messaging,
     )
 
 

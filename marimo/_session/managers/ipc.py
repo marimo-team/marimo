@@ -55,6 +55,7 @@ if TYPE_CHECKING:
     from marimo._environments.sandbox import NotebookSandbox
     from marimo._ipc.queue_manager import QueueManager as IPCQueueManagerType
     from marimo._ipc.types import ConnectionInfo
+    from marimo._messaging.agents import AgentConnection
     from marimo._runtime.commands import AppMetadata
     from marimo._runtime.virtual_file.storage import VirtualFileStorageType
     from marimo._types.ids import CellId_t
@@ -279,6 +280,7 @@ class IPCKernelManagerImpl(KernelManager):
         self._sandbox = sandbox
         self.queue_manager = queue_manager
         self.connection_info = connection_info
+        self.agent_messaging: AgentConnection | None = None
         self.mode = mode
         self.configs = configs
         self.app_metadata = app_metadata
@@ -320,6 +322,7 @@ class IPCKernelManagerImpl(KernelManager):
             redirect_console_to_browser=self.redirect_console_to_browser,
             parent_pid=os.getpid(),
             virtual_file_storage=_virtual_file_storage(),
+            agent_messaging=self.agent_messaging,
         )
 
         self._notify(

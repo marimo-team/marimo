@@ -22,12 +22,16 @@ if TYPE_CHECKING:
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._environments.sandbox import NotebookSandbox
+    from marimo._messaging.agents import AgentConnection
     from marimo._messaging.notebook.document import NotebookDocument
     from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
     from marimo._runtime import commands
     from marimo._session.consumer import SessionConsumer
-    from marimo._session.extensions.types import SessionExtension
+    from marimo._session.extensions.types import (
+        ExtensionRegistry,
+        SessionExtension,
+    )
     from marimo._session.model import (
         ConnectionState,
         SessionMode,
@@ -68,6 +72,7 @@ class KernelManager(Protocol):
 
     kernel_task: ProcessLike | threading.Thread | None
     mode: SessionMode
+    agent_messaging: AgentConnection | None
 
     async def start_kernel(self) -> None:
         """Start the kernel process or thread."""
@@ -144,6 +149,7 @@ class Session(Protocol):
     connection_generation: int
     scratchpad_lock: asyncio.Lock
     room: Room
+    extensions: ExtensionRegistry
 
     @property
     def stable_id(self) -> StableSessionId:

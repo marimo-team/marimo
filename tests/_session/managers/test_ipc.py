@@ -261,6 +261,29 @@ class TestVirtualFileStorage:
         decoded = KernelArgs.decode_json(json.dumps(payload).encode())
         assert decoded.virtual_file_storage is None
 
+    def test_optional_agent_http_bootstrap(self) -> None:
+        import json
+
+        from marimo._ipc.types import KernelArgs
+        from marimo._messaging.agents import AgentConnection
+
+        config = AgentConnection(
+            "http://127.0.0.1/base/session", "edit", "skew"
+        )
+        args = self._kernel_args(agent_messaging=config)
+        assert (
+            KernelArgs.decode_json(args.encode_json()).agent_messaging
+            == config
+        )
+        payload = json.loads(args.encode_json())
+        payload.pop("agent_messaging")
+        assert (
+            KernelArgs.decode_json(
+                json.dumps(payload).encode()
+            ).agent_messaging
+            is None
+        )
+
     def test_manager_requests_shared_memory_when_available(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
