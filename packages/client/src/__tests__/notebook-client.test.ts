@@ -36,7 +36,6 @@ function connect(
   );
   const notebook = new NotebookClient(url, {
     token: "secret",
-    headers: { "X-Example": "1" },
     fetch,
   });
   const sent = () => new Request(...fetch.mock.calls[0]);
@@ -64,7 +63,6 @@ describe("NotebookClient", () => {
       "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/edits",
     );
     expect(request.headers.get("Authorization")).toBe("Bearer secret");
-    expect(request.headers.get("X-Example")).toBe("1");
     expect(request.headers.get("Idempotency-Key")).toMatch(/^[\da-f-]{36}$/);
     expect(await request.json()).toEqual({ changes });
   });

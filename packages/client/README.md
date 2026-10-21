@@ -19,8 +19,8 @@ const client = new Client("http://127.0.0.1:2718/api/marimo/v1", {
 });
 ```
 
-Requests use HTTP and event streams use server-sent events. Pass `fetch` or
-`headers` alongside `token` to customize requests.
+Requests use HTTP and event streams use server-sent events. Pass `fetch`
+alongside `token` to customize requests.
 
 ## Find notebooks
 

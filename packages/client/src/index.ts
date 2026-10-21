@@ -1,16 +1,20 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-export { Client, type ClientInit } from "./client.ts";
+export { Client } from "./client.ts";
+export type { ClientOptions } from "./request.ts";
 export {
   CatalogEvents,
-  type CatalogEventsInit,
+  type CatalogEventsOptions,
   type CatalogEvent,
 } from "./catalog/events.ts";
 export type { CatalogKind, NotebookKind } from "./kinds.ts";
-export { NotebookClient, type NotebookClientInit } from "./notebook/client.ts";
+export {
+  NotebookClient,
+  type NotebookClientOptions,
+} from "./notebook/client.ts";
 export {
   NotebookEvents,
-  type NotebookEventsInit,
+  type NotebookEventsOptions,
   type NotebookEvent,
 } from "./notebook/events.ts";
 export type { Result } from "./request.ts";

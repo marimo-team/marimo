@@ -23,7 +23,9 @@ export type StreamEvent<K extends string = Protocol.ObjectTypeOutput> =
   | ExtensionEvent<Exclude<K, Protocol.ObjectTypeOutput>>;
 
 /** What an `EventStream` delivers and where it starts. */
-export interface EventStreamInit<K extends string = Protocol.ObjectTypeOutput> {
+export interface EventStreamOptions<
+  K extends string = Protocol.ObjectTypeOutput,
+> {
   /**
    * The kinds to deliver.
    *
@@ -74,7 +76,7 @@ export class EventStream<const K extends string = Protocol.ObjectTypeOutput> {
   readonly #wanted: ReadonlySet<string>;
   readonly #listeners = new Set<(event: StreamEvent<K>) => void>();
 
-  public constructor(init: EventStreamInit<K>, kinds: readonly string[]) {
+  public constructor(init: EventStreamOptions<K>, kinds: readonly string[]) {
     this.#cursor = init.cursor ?? null;
     this.#wanted = new Set([
       "ready",

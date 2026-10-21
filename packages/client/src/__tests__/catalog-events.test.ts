@@ -6,7 +6,7 @@ import { notebooks, projects } from "./catalog-resources.ts";
 import {
   CatalogEvents,
   type CatalogEvent,
-  type CatalogEventsInit,
+  type CatalogEventsOptions,
   type Transport,
 } from "../index.ts";
 import { fixtureEvents } from "./fixtures.ts";
@@ -153,8 +153,8 @@ describe("CatalogEvents", () => {
     expectTypeOf<CatalogEvent<"notebook">["event"]>().toEqualTypeOf<
       "notebook" | "notebook.removed" | "ready" | "reset"
     >();
-    expectTypeOf<CatalogEventsInit>().not.toHaveProperty("runId");
-    expectTypeOf<CatalogEventsInit["types"]>().toEqualTypeOf<
+    expectTypeOf<CatalogEventsOptions>().not.toHaveProperty("runId");
+    expectTypeOf<CatalogEventsOptions["types"]>().toEqualTypeOf<
       | readonly ("host" | "project" | "notebook" | "runtime" | "attachment")[]
       | undefined
     >();
