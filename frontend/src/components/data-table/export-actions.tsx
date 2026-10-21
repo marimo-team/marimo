@@ -761,6 +761,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
             const expanded =
               configurableFormat !== null &&
               expandedFormat === configurableFormat;
+            const FormatHeader = configurableFormat ? "button" : "div";
             const panelId = `export-options-${option.format}`;
             const rowFailure =
               failure?.action.format === option.format ? failure : null;
@@ -802,55 +803,67 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                 data-testid={`export-row-${option.format}`}
                 className={cn(expanded && "bg-muted/40")}
               >
-                <div className="grid min-h-[60px] grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-1 px-2.5 py-2 hover:bg-accent/50">
-                  {configurableFormat ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`${optionLabel} options`}
-                      aria-expanded={expanded}
-                      aria-controls={panelId}
-                      onClick={() => toggleExpanded(option.format)}
-                    >
-                      <ChevronRightIcon
-                        className={cn(
-                          "h-4 w-4 text-muted-foreground transition-transform",
-                          expanded && "rotate-90",
-                        )}
-                      />
-                    </Button>
-                  ) : (
-                    <span aria-hidden={true} className="h-6 w-6" />
-                  )}
-                  <div className="flex min-w-0 items-center gap-3 pl-1">
-                    <option.icon
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center hover:bg-accent/50">
+                  <FormatHeader
+                    type={configurableFormat ? "button" : undefined}
+                    className={cn(
+                      "grid min-h-[60px] min-w-0 grid-cols-[28px_minmax(0,1fr)] items-center gap-x-1 py-2 pl-2.5 pr-1 text-left",
+                      configurableFormat &&
+                        "cursor-pointer focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
+                    )}
+                    aria-label={
+                      configurableFormat ? `${optionLabel} options` : undefined
+                    }
+                    aria-expanded={configurableFormat ? expanded : undefined}
+                    aria-controls={configurableFormat ? panelId : undefined}
+                    onClick={
+                      configurableFormat
+                        ? () => toggleExpanded(option.format)
+                        : undefined
+                    }
+                  >
+                    <span
                       aria-hidden={true}
-                      data-testid={`export-format-icon-${option.format}`}
-                      className="h-4 w-4 shrink-0 text-muted-foreground"
-                    />
-                    <div className="grid min-w-0 gap-1">
-                      <span className="flex min-w-0 items-baseline gap-x-2">
-                        <span className="text-sm font-medium leading-tight">
-                          {optionLabel}
-                        </span>
-                        {summary && (
-                          <span
-                            data-testid={`export-summary-${option.format}`}
-                            className="min-w-0 truncate text-xs text-muted-foreground"
-                          >
-                            {summary}
+                      className="inline-flex h-6 w-6 items-center justify-center"
+                    >
+                      {configurableFormat && (
+                        <ChevronRightIcon
+                          className={cn(
+                            "h-4 w-4 text-muted-foreground transition-transform",
+                            expanded && "rotate-90",
+                          )}
+                        />
+                      )}
+                    </span>
+                    <span className="flex min-w-0 items-center gap-3 pl-1">
+                      <option.icon
+                        aria-hidden={true}
+                        data-testid={`export-format-icon-${option.format}`}
+                        className="h-4 w-4 shrink-0 text-muted-foreground"
+                      />
+                      <span className="grid min-w-0 gap-1">
+                        <span className="flex min-w-0 items-baseline gap-x-2">
+                          <span className="text-sm font-medium leading-tight">
+                            {optionLabel}
                           </span>
-                        )}
+                          {summary && (
+                            <span
+                              data-testid={`export-summary-${option.format}`}
+                              className="min-w-0 truncate text-xs text-muted-foreground"
+                            >
+                              {summary}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-xs text-muted-foreground leading-tight">
+                          {option.format === "parquet" && hasGeometry
+                            ? "Parquet with geometry and CRS metadata"
+                            : option.description}
+                        </span>
                       </span>
-                      <span className="text-xs text-muted-foreground leading-tight">
-                        {option.format === "parquet" && hasGeometry
-                          ? "Parquet with geometry and CRS metadata"
-                          : option.description}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-0.5">
+                    </span>
+                  </FormatHeader>
+                  <div className="flex items-center gap-0.5 pr-2.5">
                     <Tooltip
                       content={
                         option.canDownload
