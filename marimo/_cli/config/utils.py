@@ -48,7 +48,7 @@ def format_config_docs(cls: type[Config]) -> str:
     """Describe schema fields without loading config or dynamic defaults."""
     output: list[str] = []
     if doc := inspect.getdoc(cls):
-        output.extend([muted(f"# {doc}"), ""])
+        output.extend([doc, ""])
 
     def format_fields(cls: type[Config], path: str, level: int) -> None:
         prefix = "  " * level
@@ -82,21 +82,27 @@ def format_config_docs(cls: type[Config]) -> str:
                 label += orange("[Deprecated] ")
             if extra.get("sensitive"):
                 label += cyan("[Sensitive] ")
-            if section is not None:
-                output.append(f"{prefix}{label}[{green(field_path)}]")
-            else:
-                output.append(
-                    f"{prefix}{label}{yellow(item.encode_name)}: {_format_type(annotation)}"
-                )
+            name = (
+                green(f"[{field_path}]", bold=True)
+                if section is not None
+                else yellow(field_path)
+            )
+            if section is not None and level == 0:
+                name += " " + muted("─" * 32)
+            output.append(f"{prefix}{label}{name}")
+            details_prefix = prefix + "  "
             if metadata.description:
                 output.extend(
-                    prefix + muted(f"# {line}")
+                    details_prefix + line
                     for line in metadata.description.splitlines()
                 )
             if section is not None:
                 output.append("")
                 format_fields(section, field_path, level + 1)
             else:
+                output.append(
+                    details_prefix + muted(f"Type: {_format_type(annotation)}")
+                )
                 if item.default is UNSET:
                     output.append("")
                     continue
@@ -107,9 +113,11 @@ def format_config_docs(cls: type[Config]) -> str:
                 elif item.default_factory is not NODEFAULT:
                     default = "dynamic"
                 else:
-                    output.extend([prefix + muted("# Required"), ""])
+                    output.extend([details_prefix + muted("Required"), ""])
                     continue
-                output.extend([prefix + muted(f"# Default: {default}"), ""])
+                output.extend(
+                    [details_prefix + muted(f"Default: {default}"), ""]
+                )
 
     format_fields(cls, "", 0)
     return "\n".join(output).rstrip()

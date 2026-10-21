@@ -36,19 +36,22 @@ def test_config_describe() -> None:
 def test_config_describe_field_metadata() -> None:
     assert format_config_docs(SaveConfig) == snapshot(
         """\
-# Configuration for saving.
+Configuration for saving.
 
-autosave: Literal['off', 'after_delay']
-# one of `"off"` or `"after_delay"`
-# Default: 'after_delay'
+autosave
+  one of `"off"` or `"after_delay"`
+  Type: Literal['off', 'after_delay']
+  Default: 'after_delay'
 
-autosave_delay: int
-# Delay in milliseconds before automatically saving.
-# Default: 1000
+autosave_delay
+  Delay in milliseconds before automatically saving.
+  Type: int
+  Default: 1000
 
-format_on_save: bool
-# if `True`, format the code on save
-# Default: False"""
+format_on_save
+  if `True`, format the code on save
+  Type: bool
+  Default: False"""
     )
 
 
@@ -61,28 +64,36 @@ def test_config_describe_nested_and_optional_sections(
     result = CliRunner().invoke(config, ["describe"])
     assert result.exit_code == 0, result.output
     output = result.output
-    assert "[ai.models]" in output
-    assert "[ai.open_ai]" in output
-    assert "[experimental]" in output
-    assert "[cache]" in output
-    assert "[venv]" in output
-    assert "# Enable live debugging with gutter breakpoints and pdb." in output
-    assert "[Deprecated] model: str | None" in output
-    assert "[Deprecated] [Sensitive] api_key: str | None" in output
-    assert "[Sensitive] codeium_api_key: str | None" in output
-    assert "[Sensitive] activate_on_typing" not in output
+    assert "  [ai.models]\n" in output
+    assert "  [ai.open_ai]\n" in output
+    assert "\n[experimental] " + "─" * 32 + "\n" in output
+    assert "\n[cache] " + "─" * 32 + "\n" in output
+    assert "\n[venv] " + "─" * 32 + "\n" in output
+    assert "Enable live debugging with gutter breakpoints and pdb." in output
+    assert "[Deprecated] completion.model\n" in output
+    assert "[Deprecated] [Sensitive] completion.api_key\n" in output
+    assert "[Sensitive] completion.codeium_api_key\n" in output
+    assert "[Sensitive] completion.activate_on_typing" not in output
     assert (
-        "# Deprecated completion model. Use ai.models.autocomplete_model instead."
+        "Deprecated completion model. Use ai.models.autocomplete_model instead."
         in output
     )
-    assert "# Deprecated" not in {line.strip() for line in output.splitlines()}
-    assert "[Deprecated] activate_on_typing" not in output
-    assert "custom_css: list[str]" in output
-    assert "max_tokens: int | None" in output
-    assert "# Default: unset" not in output
-    assert "# Default: dynamic" in output
-    assert "# Default: []" in output
-    assert "# Default: {}" in output
+    assert not any(
+        line.lstrip().startswith("#") for line in output.splitlines()
+    )
+    assert "[Deprecated] completion.activate_on_typing" not in output
+    assert (
+        "display.custom_css\n    list of paths to custom CSS files\n    Type: list[str]"
+        in output
+    )
+    assert (
+        "ai.max_tokens\n    the maximum number of tokens to use in AI completions\n    Type: int | None"
+        in output
+    )
+    assert "Default: unset" not in output
+    assert "Default: dynamic" in output
+    assert "Default: []" in output
+    assert "Default: {}" in output
     assert (
         "dict[str, MCPServerStdioConfig | MCPServerStreamableHttpConfig]"
         in output
@@ -97,18 +108,22 @@ def test_config_describe_nested_and_optional_sections(
 def test_config_describe_required_and_nullable_fields() -> None:
     assert format_config_docs(MCPServerStdioConfig) == snapshot(
         """\
-# Configuration for STDIO transport MCP servers
+Configuration for STDIO transport MCP servers
 
-command: str
-# Command used to launch the MCP server.
-# Required
+command
+  Command used to launch the MCP server.
+  Type: str
+  Required
 
-args: list[str] | None
-# Arguments passed to the MCP server command.
+args
+  Arguments passed to the MCP server command.
+  Type: list[str] | None
 
-[Sensitive] env: dict[str, str] | None
-# Environment variables supplied to the MCP server.
+[Sensitive] env
+  Environment variables supplied to the MCP server.
+  Type: dict[str, str] | None
 
-disabled: bool | None
-# Disable this MCP server."""
+disabled
+  Disable this MCP server.
+  Type: bool | None"""
     )
