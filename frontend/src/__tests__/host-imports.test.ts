@@ -19,6 +19,7 @@ it("enforces host dependencies for runtime and type imports", () => {
     "src/core/host/allowed.ts": `
       import { atom } from "jotai/vanilla";
       import { z } from "zod";
+      import * as Protocol from "@marimo-team/client/protocol";
       import { Logger } from "@/utils/Logger";
       import type { Document } from "./document";
       export * from "@/core/host/events";

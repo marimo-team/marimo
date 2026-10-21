@@ -45,7 +45,7 @@ import { notebookAtom } from "@/core/cells/cells";
 import { AppConfigSchema } from "@/core/config/config-schema";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
-import type { RunEvent } from "@/core/host/protocol";
+import type { RunEvent } from "@marimo-team/client/protocol";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { initialRunCompletedAtom } from "../../kernel/state";

@@ -26,7 +26,12 @@ export const hostImports = {
       const root = filename.slice(0, index + marker.length);
       const name = source?.value;
       if (typeof name === "string") {
-        if (name === "jotai/vanilla" || name === "zod") {
+        if (
+          name === "jotai/vanilla" ||
+          name === "zod" ||
+          name === "@marimo-team/client" ||
+          name.startsWith("@marimo-team/client/")
+        ) {
           return;
         }
         const target = name.startsWith(".")
@@ -44,7 +49,7 @@ export const hostImports = {
       context.report({
         node: source ?? node,
         message:
-          "Host code may import only host modules, jotai/vanilla, zod, and Logger.",
+          "Host code may import only host modules, @marimo-team/client, jotai/vanilla, zod, and Logger.",
       });
     }
     return {

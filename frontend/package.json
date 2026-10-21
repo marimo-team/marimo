@@ -57,6 +57,7 @@
     "@marimo-team/codemirror-mcp": "^0.1.7",
     "@marimo-team/codemirror-sql": "^0.3.0",
     "@marimo-team/llm-info": "workspace:*",
+    "@marimo-team/client": "workspace:*",
     "@marimo-team/marimo-api": "workspace:*",
     "@marimo-team/react-slotz": "^0.2.0",
     "@marimo-team/smart-cells": "workspace:*",
@@ -185,8 +186,6 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "sync-katex-css": "node --experimental-strip-types scripts/sync-katex-css.ts",
-    "codegen": "node --experimental-strip-types scripts/generate-host-protocol.ts",
-    "codegen:check": "node --experimental-strip-types scripts/generate-host-protocol.ts --check",
     "doctor": "npx react-doctor@latest"
   },
   "peerDependencies": {
@@ -216,7 +215,6 @@
     "jsdom": "^24.1.3",
     "msw": "^2.15.0",
     "npm-run-all2": "^6.2.6",
-    "orval": "8.40.0",
     "oxc-transform-react": "0.145.0",
     "oxfmt": "^0.68.0",
     "oxlint": "^1.83.0",

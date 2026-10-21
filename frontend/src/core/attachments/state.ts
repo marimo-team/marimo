@@ -1,10 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
-import type { Attachment } from "@/core/host/protocol";
+import type { Attachment } from "@marimo-team/client/protocol";
 import { notebookClientAtom } from "@/core/websocket/state";
 
-export type { Attachment } from "@/core/host/protocol";
+export type { Attachment } from "@marimo-team/client/protocol";
 
 export const agentAttachmentsAtom = atom((get) => {
   const notebook = get(notebookClientAtom);

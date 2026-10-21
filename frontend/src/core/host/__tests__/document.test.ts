@@ -1,17 +1,20 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import type { NotebookEvent } from "../events";
+import type * as Protocol from "@marimo-team/client/protocol";
 import { document } from "../resources/document";
-import { createStream } from "../stream";
+import { createReducer } from "@marimo-team/client/reducer";
 import { fixtureEvents } from "./fixtures";
 
-const stream = createStream({ document });
+const reducer = createReducer({ document });
 const snapshot = fixtureEvents("notebook-events.sse");
 const edits = fixtureEvents("edits.sse");
 
-function replay(events: readonly NotebookEvent[], from = stream.initial) {
-  return events.reduce((state, event) => stream.reduce(state, event), from);
+function replay(
+  events: readonly Protocol.EventOutput[],
+  from = reducer.initial,
+) {
+  return events.reduce((state, event) => reducer.reduce(state, event), from);
 }
 
 const confirmed = () => replay(snapshot);
@@ -33,12 +36,12 @@ describe("document resource", () => {
       confirmed(),
     );
     expect(current(pending)).toEqual(first);
-    const changed = stream.reduce(pending, edit);
+    const changed = reducer.reduce(pending, edit);
     expect(current(changed)?.revision).toEqual(edit.data.document);
     expect([...current(changed)!.cells.keys()].toSorted()).toEqual(
       edit.data.document.order.toSorted(),
     );
-    const saved = current(stream.reduce(changed, save));
+    const saved = current(reducer.reduce(changed, save));
     expect(saved?.revision).toEqual(save.data.document);
     expect(saved?.cells.get("c3")?.code).toBe("x = 22");
     expect(saved?.cells.has("k7f2")).toBe(false);
@@ -55,7 +58,7 @@ describe("document resource", () => {
       order: revision.order.toReversed(),
       version: revision.version + 1,
     };
-    const changed = stream.reduce(state, {
+    const changed = reducer.reduce(state, {
       event: "document",
       data: { document: reordered },
       id: "200",
@@ -66,17 +69,17 @@ describe("document resource", () => {
     });
 
     const empty = { ...revision, order: [] };
-    const opening = stream.reduce(stream.initial, {
+    const opening = reducer.reduce(reducer.initial, {
       event: "document",
       data: { document: empty },
     });
     expect(current(opening)).toBeNull();
     expect(
-      current(stream.reduce(opening, { event: "ready", data: {}, id: "0" })),
+      current(reducer.reduce(opening, { event: "ready", data: {}, id: "0" })),
     ).toEqual({ revision: empty, cells: new Map() });
     expect(
       current(
-        stream.reduce(stream.initial, { event: "ready", data: {}, id: "0" }),
+        reducer.reduce(reducer.initial, { event: "ready", data: {}, id: "0" }),
       ),
     ).toBeNull();
   });
@@ -89,7 +92,6 @@ describe("document resource", () => {
     }
     const partial = replay([cell, removed], state);
     expect(current(partial)).toBe(current(state));
-    expect(stream.resume(partial)).toBe(partial);
     const completed = replay(
       [published, { event: "ready", data: {}, id: "113" }],
       partial,
@@ -98,7 +100,7 @@ describe("document resource", () => {
   });
 
   it("removes a notebook without waiting for individual cell removals", () => {
-    const removed = stream.reduce(confirmed(), {
+    const removed = reducer.reduce(confirmed(), {
       event: "notebook.removed",
       data: { id: "n1", time: "2026-10-01T09:30:00Z" },
       id: "200",
@@ -110,15 +112,15 @@ describe("document resource", () => {
     const state = confirmed();
     const revision = current(state)!.revision;
     expect(() =>
-      stream.reduce(state, {
+      reducer.reduce(state, {
         event: "document",
         data: { document: { ...revision, order: ["missing"] } },
         id: "200",
       }),
     ).toThrow("Document records do not match");
-    const partial = stream.reduce(state, edits[0]);
+    const partial = reducer.reduce(state, edits[0]);
     expect(() =>
-      stream.reduce(partial, { event: "ready", data: {}, id: "200" }),
+      reducer.reduce(partial, { event: "ready", data: {}, id: "200" }),
     ).toThrow("incomplete document update");
   });
 });

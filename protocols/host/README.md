@@ -10,9 +10,9 @@ notebooks and runtimes.
 
 The OpenAPI schema is the source of truth for the Python types in
 `marimo/_core/protocol.py`, the typed event adapters in
-`marimo/_core/protocol_events.py`, and the frontend schemas and types in
-`frontend/src/core/host/protocol.ts`. The frontend generator also adds the
-native `marimo` event with an `unknown` payload.
+`marimo/_core/protocol_events.py`, and the TypeScript schemas and types in
+`packages/client/src/protocol.ts`. The frontend defines the native
+`marimo` extension event itself, with an `unknown` payload.
 
 The editor consumes host events over WebSockets
 when its runtime configuration includes a `notebookId`. With
@@ -28,12 +28,12 @@ make host-protocol-codegen
 make host-protocol-check
 ```
 
-Generate and check the frontend bindings:
+Generate and check the TypeScript bindings:
 
 ```sh
-pnpm --dir frontend codegen
-pnpm --dir frontend codegen:check
-pnpm --dir frontend test src/core/host/__tests__/protocol.test.ts
+pnpm --dir packages/client codegen
+pnpm --dir packages/client codegen:check
+pnpm --dir packages/client test
 ```
 
 Other consumers can generate types from the same schema by pinning a marimo

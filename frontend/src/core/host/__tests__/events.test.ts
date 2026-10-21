@@ -1,8 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
-import { parseNotebookEvent } from "../events";
+import { type NotebookEvent, parseNotebookEvent } from "../events";
 
 describe("notebook messages", () => {
   it("normalizes session and host envelopes for native marimo messages", () => {
@@ -10,6 +10,9 @@ describe("notebook messages", () => {
       op: "variables",
       variables: [{ name: "x", value: Number.NaN }],
     };
+    expectTypeOf<
+      Extract<NotebookEvent, { event: "marimo" }>["data"]["marimo"]
+    >().toBeUnknown();
     const host = { event: "marimo", data: { marimo: notification } };
     expect(parseNotebookEvent({ data: notification })).toEqual(host);
     expect(parseNotebookEvent({ ...host, id: "42" })).toEqual({

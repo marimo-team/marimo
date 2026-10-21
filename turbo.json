@@ -7,7 +7,7 @@
       "env": ["NODE_ENV", "VITE_MARIMO_VERSION", "VITE_MARIMO_ISLANDS"]
     },
     "typecheck": {
-      "dependsOn": ["codegen", "^codegen"]
+      "dependsOn": ["codegen", "^codegen", "^build"]
     },
     "test": {
       "dependsOn": ["build"]

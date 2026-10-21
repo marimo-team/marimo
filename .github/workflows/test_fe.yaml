@@ -150,9 +150,6 @@ jobs:
         run: echo "::add-matcher::${{ github.workspace }}/.github/problemMatchers/tsc.json"
 
       - name: 🔎 Check host protocol bindings
-        run: pnpm codegen:check
-
-      - name: 🔎 Check @marimo-team/client bindings
         run: pnpm --dir ../packages/client codegen:check
 
       - name: 🔎 Type check
