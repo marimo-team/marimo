@@ -2,21 +2,30 @@
 from __future__ import annotations
 
 import inspect
+import json
 import os
 import sys
 import tempfile
 import textwrap
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import urlencode
 
 import pytest
 
+from marimo._core.protocol import ProjectMessage
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import (
     DirectoryWorkspace,
+    EmptyWorkspace,
     FixedFilesWorkspace,
+    SingleFileWorkspace,
 )
 from marimo._session.model import SessionMode
+from marimo._utils.marimo_path import MarimoPath
+from tests._server.api.endpoints.test_sse import SSETestConnection
+from tests._server.host.drive import socket_snapshot
+from tests._server.host.test_editor_websocket import receive_notification
 from tests._server.mocks import get_session_manager, token_header, with_session
 
 if TYPE_CHECKING:
@@ -593,3 +602,103 @@ def test_running_notebooks_handles_files_outside_directory(
                 finally:
                     session_manager.workspace = original_workspace
                     session.app_file_manager.filename = original_filename
+
+
+@pytest.mark.parametrize("transport", ["ws", "sse"])
+@pytest.mark.parametrize("source", ["tutorial", "single-file", "empty"])
+def test_open_notebook_connects_and_reconnects_to_host(
+    client: TestClient, tmp_path: Path, transport: str, source: str
+) -> None:
+    manager = get_session_manager(client)
+    root = tmp_path / "workspace"
+    root.mkdir()
+    if source == "tutorial":
+        manager.workspace = DirectoryWorkspace(
+            str(root), include_markdown=False
+        )
+    else:
+        path = str(tmp_path / "opened.py")
+        Path(path).write_text("import marimo\napp = marimo.App()\n")
+        if source == "empty":
+            manager.workspace = EmptyWorkspace()
+        else:
+            original = root / "original.py"
+            original.write_text("import marimo\napp = marimo.App()\n")
+            manager.workspace = SingleFileWorkspace.from_path(
+                MarimoPath(str(original))
+            )
+    with client:
+        if source == "tutorial":
+            response = client.post(
+                "/api/home/tutorial/open",
+                headers=HEADERS,
+                json={"tutorialId": "intro"},
+            )
+            assert response.status_code == 200, response.text
+            path = response.json()["path"]
+        query = urlencode(
+            {
+                "session_id": SESSION_ID,
+                "file": path,
+                "access_token": "fake-token",
+                "message_format": "host",
+            }
+        )
+        notebook = None
+        for notification in ("kernel-ready", "reconnected"):
+            if transport == "ws":
+                with client.websocket_connect(f"/ws?{query}") as socket:
+                    snapshot = socket_snapshot(socket)
+                    ready = receive_notification(socket, notification)
+            else:
+
+                async def read_sse():
+                    async with SSETestConnection(
+                        client.app, query
+                    ) as connection:
+                        snapshot = []
+                        while True:
+                            event = await connection.next_event()
+                            snapshot.append(
+                                {
+                                    "event": event["event"],
+                                    "data": json.loads(event["data"]),
+                                }
+                            )
+                            if event["event"] == "ready":
+                                break
+                        ready = json.loads(
+                            (await connection.next_notification())["data"]
+                        )["data"]
+                        return snapshot, ready
+
+                assert client.portal is not None
+                snapshot, ready = client.portal.call(read_sse)
+            bridge = client.app.state.host_context.bridge
+            record = bridge.index.notebook_for(path)
+            assert record is not None
+            if notebook is None:
+                notebook = record
+            assert record == notebook
+            [project] = [
+                e.event.data.project
+                for e in bridge.host.events()
+                if isinstance(e.event.data, ProjectMessage)
+                and e.event.data.project.id == record.project_id
+            ]
+            assert (project.name, project.root, record.path) == (
+                "Open notebooks",
+                None,
+                None,
+            )
+            assert snapshot[0]["data"]["notebook"]["id"] == record.id
+            assert ready["op"] == notification
+            if notification == "kernel-ready":
+                assert ready["consumer_capabilities"]["edit"] is True
+                if source == "tutorial":
+                    assert any(
+                        e["event"] == "cell" and e["data"]["cell"]["code"]
+                        for e in snapshot
+                    )
+            assert client.portal is not None
+            client.portal.call(bridge.index.refresh_async)
