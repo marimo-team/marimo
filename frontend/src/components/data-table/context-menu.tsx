@@ -12,7 +12,7 @@ import { Logger } from "@/utils/Logger";
 import type { Cell } from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
 import { CopyIcon, FilterIcon, SquareStack } from "lucide-react";
-import type { RefObject } from "react";
+import { type RefObject, useState } from "react";
 import useEvent from "react-use-event-hook";
 import {
   ContextMenu,
@@ -123,8 +123,14 @@ export const DataTableContextMenu = <TData,>({
   tableRef: RefObject<HTMLTableSectionElement | null>;
   copyAllCells: () => void;
 }) => {
+  const [activeCell, setActiveCell] = useState<Cell<TData, unknown> | null>(
+    null,
+  );
   const handleContextMenuChange = useEvent((open: boolean) => {
     const cell = contextMenuRef.current;
+    if (open) {
+      setActiveCell(cell);
+    }
     if (!cell) {
       return;
     }
@@ -147,32 +153,30 @@ export const DataTableContextMenu = <TData,>({
 
   return (
     <ContextMenu onOpenChange={handleContextMenuChange}>
-      <ContextMenuTrigger asChild={true}>{tableBody}</ContextMenuTrigger>
+      <ContextMenuTrigger
+        asChild={true}
+        onContextMenu={() => setActiveCell(contextMenuRef.current)}
+      >
+        {tableBody}
+      </ContextMenuTrigger>
       <ContextMenuPortal>
-        <CellContextMenu
-          cellRef={contextMenuRef}
-          copySelectedCells={copyAllCells}
-        />
+        {activeCell && (
+          <CellContextMenu cell={activeCell} copySelectedCells={copyAllCells} />
+        )}
       </ContextMenuPortal>
     </ContextMenu>
   );
 };
 
 export const CellContextMenu = <TData,>({
-  cellRef,
+  cell,
   copySelectedCells,
 }: {
-  cellRef: RefObject<Cell<TData, unknown> | null>;
+  cell: Cell<TData, unknown>;
   copySelectedCells: () => void;
 }) => {
   const selectedCells = useAtomValue(selectedCellsAtom);
   const multipleSelectedCells = selectedCells.size > 1;
-
-  const cell = cellRef.current;
-  if (!cell) {
-    Logger.error("No cell found in context menu");
-    return;
-  }
 
   const table = cell.getContext().table;
   const displayedValue = cell.getValue();

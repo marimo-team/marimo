@@ -77,6 +77,23 @@ describe("useMessageQueue", () => {
     expect(result.current.messages).toEqual([]);
   });
 
+  it("preserves multiple enqueues and flushes before React renders", () => {
+    const { result } = renderHook(() => useMessageQueue());
+    const send = vi.fn();
+
+    act(() => {
+      result.current.enqueue([textPart("first")]);
+      result.current.enqueue([textPart("second")]);
+      result.current.flushNext(send);
+      result.current.flushNext(send);
+    });
+
+    expect(send).toHaveBeenNthCalledWith(1, [textPart("first")]);
+    expect(send).toHaveBeenNthCalledWith(2, [textPart("second")]);
+    expect(result.current.messages).toEqual([]);
+    expect(result.current.hasQueuedRef.current).toBe(false);
+  });
+
   it("flushNext on an empty queue is a no-op", () => {
     const { result } = renderHook(() => useMessageQueue());
     const send = vi.fn();

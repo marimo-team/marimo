@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { DatabaseIcon, DiamondPlusIcon, PlusIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/editor/inputs/Inputs";
 import { MinimalHotkeys } from "@/components/shortcuts/renderShortcut";
 import {
@@ -36,7 +36,7 @@ export const CreateCellButton = ({
   const { createNewCell, addSetupCellIfDoesntExist } = useCellActions();
   const shortcut = `${oneClickShortcut}-Click`;
   const [open, setOpen] = useState(false);
-  const [justOpened, setJustOpened] = useState(false);
+  const justOpened = useRef(false);
 
   const baseTooltipContent =
     getConnectionTooltip(connectionState) || tooltipContent;
@@ -83,9 +83,11 @@ export const CreateCellButton = ({
 
   const openDropdown = () => {
     setOpen(true);
-    setJustOpened(true);
+    justOpened.current = true;
     // Allow interactions after a brief delay to prevent the dropdown items immediately being clicked
-    setTimeout(() => setJustOpened(false), 200);
+    setTimeout(() => {
+      justOpened.current = false;
+    }, 200);
   };
 
   // We use onPointerDownCapture (not onPointerDown) to intercept events in
@@ -121,15 +123,17 @@ export const CreateCellButton = ({
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (isOpen) {
-      setJustOpened(true);
+      justOpened.current = true;
       // Allow interactions after a brief delay
-      setTimeout(() => setJustOpened(false), 200);
+      setTimeout(() => {
+        justOpened.current = false;
+      }, 200);
     }
   };
 
   const handleFirstItemClick = (e: React.MouseEvent) => {
     // Hack to prevent the first item from being clicked when the dropdown is opened
-    if (justOpened) {
+    if (justOpened.current) {
       e.preventDefault();
       e.stopPropagation();
       return;

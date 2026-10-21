@@ -7,6 +7,7 @@ import { userConfigAtom } from "@/core/config/config";
 import { parseUserConfig } from "@/core/config/config-schema";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
+import type { DataURLString } from "@/utils/json/base64";
 import { Model } from "../model";
 import type { Host } from "../host";
 import type { ModelState } from "../types";
@@ -146,6 +147,69 @@ describe("WidgetDefRegistry", () => {
       await expect(
         getModule(registry, "./@file/123-widget.js", "trusted-hash"),
       ).rejects.not.toThrow(/untrusted/i);
+    });
+  });
+
+  describe("static module URLs", () => {
+    afterEach(() => {
+      delete window.__MARIMO_STATIC__;
+      vi.restoreAllMocks();
+    });
+
+    it("releases the generated URL when a static module fails to import", async () => {
+      window.__MARIMO_STATIC__ = {
+        files: {
+          "/@file/widget.js":
+            "data:text/javascript;base64,ZXhwb3J0IHt9" as DataURLString,
+        },
+      };
+      const create = vi
+        .spyOn(URL, "createObjectURL")
+        .mockReturnValue("blob:widget-module");
+      const revoke = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => undefined);
+
+      await expect(
+        getModule(registry, "./@file/widget.js", "static-module"),
+      ).rejects.toThrow(/blob:/);
+
+      expect(create).toHaveBeenCalledOnce();
+      expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:widget-module");
+    });
+
+    it("does not revoke an unchanged URL for a missing static file", async () => {
+      window.__MARIMO_STATIC__ = { files: {} };
+      const revoke = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => undefined);
+
+      await expect(
+        getModule(registry, "./@file/missing.js", "missing-module"),
+      ).rejects.toThrow(/http:/);
+
+      expect(revoke).not.toHaveBeenCalled();
+    });
+
+    it("releases the generated URL after a successful module import", async () => {
+      window.__MARIMO_STATIC__ = {
+        files: {
+          "/@file/widget.js":
+            "data:text/javascript;base64,ZXhwb3J0IHt9" as DataURLString,
+        },
+      };
+      // Node cannot import blob URLs; a data URL exercises successful loading.
+      const moduleUrl = "data:text/javascript,export const loaded = true";
+      vi.spyOn(URL, "createObjectURL").mockReturnValue(moduleUrl);
+      const revoke = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => undefined);
+
+      await expect(
+        getModule(registry, "./@file/widget.js", "static-success"),
+      ).resolves.toHaveProperty("loaded", true);
+
+      expect(revoke).toHaveBeenCalledExactlyOnceWith(moduleUrl);
     });
   });
 });

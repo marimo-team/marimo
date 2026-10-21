@@ -52,8 +52,7 @@ const Editor = (opts: { extensions?: Extension[] }): React.ReactNode => {
     });
 
     return () => view.destroy();
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [ref.current]);
+  }, [opts.extensions]);
 
   return <div className="cm" ref={ref} />;
 };

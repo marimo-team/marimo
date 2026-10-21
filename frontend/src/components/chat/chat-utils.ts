@@ -294,16 +294,12 @@ export function useMessageQueue() {
   // invoked from a callback (e.g. `onFinish`) in the same tick as `enqueue`.
   const messagesRef = useRef<QueuedUserMessage[]>([]);
   const hasQueuedRef = useRef(false);
-  messagesRef.current = messages;
-  hasQueuedRef.current = messages.length > 0;
 
   const enqueue = useEvent((parts: ChatMessagePart[]) => {
-    setMessages((prev) => {
-      const next = [...prev, { id: generateUUID(), parts }];
-      messagesRef.current = next;
-      hasQueuedRef.current = true;
-      return next;
-    });
+    const next = [...messagesRef.current, { id: generateUUID(), parts }];
+    messagesRef.current = next;
+    hasQueuedRef.current = true;
+    setMessages(next);
   });
 
   const flushNext = useEvent((send: (parts: ChatMessagePart[]) => void) => {

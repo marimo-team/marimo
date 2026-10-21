@@ -103,11 +103,18 @@ class WidgetDefRegistry {
         )}`,
       );
     }
-    let url = asRemoteURL(jsUrl).toString();
-    if (isStaticNotebook()) {
-      url = resolveVirtualFileURL(url);
+    const remoteUrl = asRemoteURL(jsUrl).toString();
+    const url = isStaticNotebook()
+      ? resolveVirtualFileURL(remoteUrl)
+      : remoteUrl;
+    try {
+      return await import(/* @vite-ignore */ url);
+    } finally {
+      // Only the static-file resolver's newly created URL belongs to us.
+      if (url !== remoteUrl) {
+        URL.revokeObjectURL(url);
+      }
     }
-    return import(/* @vite-ignore */ url);
   }
 }
 
