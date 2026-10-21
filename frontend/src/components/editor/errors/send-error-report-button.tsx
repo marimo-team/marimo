@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { attachmentLabel, useNotebookAttachments } from "@/core/notebook";
 import { agentToast } from "@/components/editor/agent-toast";
-import { pairConfigAtom } from "@/core/config/pair";
+import { initialModeAtom } from "@/core/mode";
 import { stableSessionIdAtom } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
 import { HTTPError, prettyError } from "@/utils/errors";
@@ -16,12 +16,12 @@ export function SendErrorReportButton({
 }: {
   getContent: () => unknown;
 }) {
-  const hostEnabled = useAtomValue(pairConfigAtom)?.hostEnabled;
+  const isEditMode = useAtomValue(initialModeAtom) === "edit";
   const agents = useNotebookAttachments("agent");
   const stableSessionId = useAtomValue(stableSessionIdAtom);
   const [sending, setSending] = useState(false);
 
-  if (!hostEnabled) {
+  if (!isEditMode || agents.length === 0) {
     return null;
   }
 

@@ -13,7 +13,6 @@ import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
-import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import type { Attachment } from "@/core/notebook/attachments";
@@ -23,7 +22,7 @@ import {
   type ErrorMessageOutput,
   ERROR_MESSAGE_INSTRUCTIONS,
 } from "@/core/cells/error-report";
-import { pairConfigAtom } from "@/core/config/pair";
+import { type AppMode, initialModeAtom, viewStateAtom } from "@/core/mode";
 import { readExport } from "@/core/cells/session";
 import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
 import {
@@ -86,19 +85,19 @@ const ERRORS: MarimoError[] = [
 ];
 
 function renderButton({
-  preview = true,
+  mode = "edit",
   attachments = [AGENT],
   stableId = STABLE_ID,
   content = <SendErrorReportButton getContent={() => REPORT} />,
 }: {
-  preview?: boolean;
+  mode?: AppMode;
   attachments?: Attachment[];
   stableId?: StableSessionId | null;
   content?: React.ReactNode;
 } = {}) {
   const store = createStore();
   store.set(connectionAtom, { state: ConnectionState.OPEN });
-  store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
+  store.set(initialModeAtom, mode);
   store.set(attachmentsAtom, attachments);
   store.set(stableSessionIdAtom, stableId);
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -125,23 +124,33 @@ describe("SendErrorReportButton", () => {
     });
   });
 
-  it("hides when host is disabled without building content", () => {
+  it("hides in read mode without building content", () => {
     const getContent = vi.fn(() => REPORT);
     expect(
       renderButton({
-        preview: false,
+        mode: "read",
         content: <SendErrorReportButton getContent={getContent} />,
       }).container,
     ).toBeEmptyDOMElement();
     expect(getContent).not.toHaveBeenCalled();
   });
 
+  it("remains available when an editor enters presentation mode", () => {
+    const { store } = renderButton();
+    act(() => store.set(viewStateAtom, { mode: "present", cellAnchor: null }));
+    expect(screen.getByRole("button")).toBeEnabled();
+  });
+
   it.each([
     { attachments: [] },
     { attachments: [{ ...AGENT, kind: "client" as const }] },
-    { stableId: null },
-  ])("disables sending without an agent or stable ID: %j", (options) => {
-    renderButton(options);
+  ])("hides without connected agents: %j", (options) => {
+    expect(renderButton(options).container).toBeEmptyDOMElement();
+    expect(API.post).not.toHaveBeenCalled();
+  });
+
+  it("disables sending without a stable ID", () => {
+    renderButton({ stableId: null });
     expect(screen.getByRole("button")).toBeDisabled();
     send();
     expect(API.post).not.toHaveBeenCalled();
@@ -177,10 +186,10 @@ describe("SendErrorReportButton", () => {
     expect(screen.getByRole("button")).toBeEnabled();
   });
 
-  it("disables the button after the last agent disconnects", () => {
-    const { store } = renderButton();
+  it("hides the button after the last agent disconnects", () => {
+    const { store, container } = renderButton();
     act(() => store.set(attachmentsAtom, []));
-    expect(screen.getByRole("button")).toBeDisabled();
+    expect(container).toBeEmptyDOMElement();
   });
 
   it.each([

@@ -11,15 +11,14 @@ import {
 import { atom, createStore, Provider } from "jotai";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import type { Attachment } from "@/core/notebook/attachments";
-import { pairConfigAtom } from "@/core/config/pair";
 import {
   type StableSessionId,
   stableSessionIdAtom,
 } from "@/core/kernel/session";
+import { type AppMode, initialModeAtom, viewStateAtom } from "@/core/mode";
 import { API } from "@/core/network/api";
 import { connectionAtom } from "@/core/network/connection";
 import { ConnectionState } from "@/core/session/types";
@@ -44,10 +43,13 @@ const AGENT: Attachment = {
   identity: null,
 };
 
-function renderStatus(attachments: Attachment[] = [AGENT], preview = true) {
+function renderStatus(
+  attachments: Attachment[] = [AGENT],
+  mode: AppMode = "edit",
+) {
   const store = createStore();
   store.set(connectionAtom, { state: ConnectionState.OPEN });
-  store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
+  store.set(initialModeAtom, mode);
   store.set(attachmentsAtom, attachments);
   store.set(stableSessionIdAtom, "stable/test" as StableSessionId);
   return {
@@ -78,8 +80,14 @@ describe("AttachmentStatus", () => {
     vi.useRealTimers();
   });
 
-  it("renders nothing when host is disabled", () => {
-    expect(renderStatus([AGENT], false).container).toBeEmptyDOMElement();
+  it("renders nothing in read mode", () => {
+    expect(renderStatus([AGENT], "read").container).toBeEmptyDOMElement();
+  });
+
+  it("remains available when an editor enters presentation mode", () => {
+    const { store } = renderStatus();
+    act(() => store.set(viewStateAtom, { mode: "present", cellAnchor: null }));
+    expect(screen.getByLabelText("Pi connected")).toBeInTheDocument();
   });
 
   it("renders nothing without agents", () => {

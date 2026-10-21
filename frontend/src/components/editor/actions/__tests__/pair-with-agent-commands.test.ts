@@ -118,9 +118,6 @@ describe("getRawPrompt", () => {
   ])("renders the shared CLI prompt for %j", (connection, target) => {
     const expected = `Pair with me on this running marimo notebook.\n\nURL: http://localhost:8000\n${target}\nRun \`marimo pair --help\` first.\nUse \`marimo\` for all marimo commands.`;
     expect(getRawPrompt(connection, null, PAIR_CONFIG)).toBe(expected);
-    expect(
-      getRawPrompt(connection, null, { ...PAIR_CONFIG, hostEnabled: false }),
-    ).toBe(expected);
   });
   it("matches the shared prompt without injected templates", () => {
     expect(getRawPrompt(CONNECTION, "secret-token")).toBe(

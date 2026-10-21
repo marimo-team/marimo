@@ -19,6 +19,7 @@ import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
 import { API } from "@/core/network/api";
 import { pairConfigAtom } from "@/core/config/pair";
 import { stableSessionIdAtom } from "@/core/kernel/session";
+import { initialModeAtom } from "@/core/mode";
 import {
   AGENT_LABELS,
   AGENT_TABS,
@@ -51,11 +52,11 @@ export const PairWithAgentModal: React.FC<{
   const [activeTab, setActiveTab] = useState<AgentTab>("claude");
   const runtimeManager = useRuntimeManager();
   const config = useAtomValue(pairConfigAtom);
-  const hostEnabled = config?.hostEnabled ?? false;
+  const isEditMode = useAtomValue(initialModeAtom) === "edit";
   const stableSessionId = useAtomValue(stableSessionIdAtom);
   const lookupIdentity = useMemo(
-    () => ({ hostEnabled, stableSessionId }),
-    [hostEnabled, stableSessionId],
+    () => ({ isEditMode, stableSessionId }),
+    [isEditMode, stableSessionId],
   );
   const [lookup, setLookup] = useState<
     {
@@ -63,8 +64,8 @@ export const PairWithAgentModal: React.FC<{
     } & ({ status: "ready"; notebookId: string | null } | { status: "error" })
   >();
   useEffect(() => {
-    const { hostEnabled, stableSessionId: sessionId } = lookupIdentity;
-    if (!hostEnabled || !sessionId) {
+    const { isEditMode, stableSessionId: sessionId } = lookupIdentity;
+    if (!isEditMode || !sessionId) {
       return;
     }
     let cancelled = false;
@@ -98,9 +99,9 @@ export const PairWithAgentModal: React.FC<{
   }, [lookupIdentity]);
   const currentLookup =
     lookup?.identity === lookupIdentity ? lookup : undefined;
-  const verified = !hostEnabled || currentLookup?.status === "ready";
+  const verified = !isEditMode || currentLookup?.status === "ready";
   const notebookId =
-    hostEnabled && currentLookup?.status === "ready"
+    isEditMode && currentLookup?.status === "ready"
       ? currentLookup.notebookId
       : undefined;
   const targetReady = Boolean(stableSessionId) && verified;
@@ -162,6 +163,11 @@ export const PairWithAgentModal: React.FC<{
               <Step
                 index={hasToken ? 1 : undefined}
                 title="Run this command in your terminal:"
+                hint={
+                  isEditMode && tab === "opencode"
+                    ? "Agent connections require OpenCode 2.x."
+                    : undefined
+                }
               >
                 <CommandBlock
                   command={getTerminalCommand(

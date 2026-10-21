@@ -21,14 +21,14 @@ import {
   useNotebookAttachments,
 } from "@/core/notebook";
 import { agentToast } from "@/components/editor/agent-toast";
-import { pairConfigAtom } from "@/core/config/pair";
+import { initialModeAtom } from "@/core/mode";
 import { stableSessionIdAtom } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
 import { useTimeAgo } from "@/hooks/useFormatting";
 import { FooterItem } from "../footer-item";
 
 export function AttachmentStatus() {
-  const hostEnabled = useAtomValue(pairConfigAtom)?.hostEnabled;
+  const isEditMode = useAtomValue(initialModeAtom) === "edit";
   const agents = useNotebookAttachments("agent");
   const [open, setOpen] = useState(false);
   const previous = useRef(new Set<string>());
@@ -52,7 +52,7 @@ export function AttachmentStatus() {
       pointerInside.current = false;
     }
     const current = new Set(
-      hostEnabled ? agents.map((agent) => agent.identity ?? agent.id) : [],
+      isEditMode ? agents.map((agent) => agent.identity ?? agent.id) : [],
     );
     const connected = [...current].some((id) => !previous.current.has(id));
     for (const id of current) {
@@ -71,11 +71,11 @@ export function AttachmentStatus() {
         startTimer();
       }
     }
-  }, [agents, hostEnabled, open, startTimer, stopTimer]);
+  }, [agents, isEditMode, open, startTimer, stopTimer]);
 
   useEffect(() => stopTimer, [stopTimer]);
 
-  if (!hostEnabled || agents.length === 0) {
+  if (!isEditMode || agents.length === 0) {
     return null;
   }
   const identities = new Set(agents.map((agent) => agent.identity ?? agent.id));

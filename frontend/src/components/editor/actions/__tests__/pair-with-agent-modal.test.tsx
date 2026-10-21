@@ -19,6 +19,7 @@ import {
   type StableSessionId,
   stableSessionIdAtom,
 } from "@/core/kernel/session";
+import { initialModeAtom, viewStateAtom } from "@/core/mode";
 import { filenameAtom } from "@/core/saving/file-state";
 import {
   DEFAULT_RUNTIME_CONFIG,
@@ -62,6 +63,7 @@ describe("PairWithAgentModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     store.set(pairConfigAtom, PAIR_CONFIG);
+    store.set(initialModeAtom, "edit");
     store.set(stableSessionIdAtom, STABLE_ID);
     store.set(filenameAtom, "/project/my notebook.py");
     store.set(runtimeConfigAtom, {
@@ -77,6 +79,7 @@ describe("PairWithAgentModal", () => {
 
   afterEach(() => {
     store.set(pairConfigAtom, undefined);
+    store.set(initialModeAtom, undefined);
     store.set(stableSessionIdAtom, null);
     store.set(filenameAtom, null);
     vi.unstubAllGlobals();
@@ -146,9 +149,9 @@ describe("PairWithAgentModal", () => {
   );
 
   it.each(["Claude", "Codex", "OpenCode", "Other Agents"])(
-    "uses the editor CLI in %s when host is disabled",
+    "uses the session target in %s in read mode",
     async (tab) => {
-      store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: false });
+      store.set(initialModeAtom, "read");
       await act(async () => {
         render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
       });
@@ -177,10 +180,10 @@ describe("PairWithAgentModal", () => {
     },
   );
 
-  it.each([true, false])(
-    "masks the raw token but copies it intact (host mode=%s)",
-    async (hostEnabled) => {
-      store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled });
+  it.each(["edit", "read"] as const)(
+    "masks the raw token but copies it intact (mode=%s)",
+    async (mode) => {
+      store.set(initialModeAtom, mode);
       vi.mocked(fetch).mockImplementation((url) =>
         responseFor(url, "secret-token"),
       );
@@ -208,14 +211,23 @@ describe("PairWithAgentModal", () => {
     },
   );
 
-  it("uses the CLI when an older server omits Pair configuration", async () => {
+  it("uses the default CLI when Pair configuration is absent", async () => {
     store.set(pairConfigAtom, undefined);
     await act(async () => {
       render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
     });
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveTextContent(`--session ${STABLE_ID}`);
+    expect(panel).toHaveTextContent(`--notebook ${NOTEBOOK_ID}`);
     expect(panel).not.toHaveTextContent("skill");
+    expect(screen.getByRole("button", { name: "Copy command" })).toBeEnabled();
+  });
+
+  it("retains the verified notebook target in presentation mode", async () => {
+    store.set(viewStateAtom, { mode: "present", cellAnchor: null });
+    await act(async () => {
+      render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
+    });
+    expect(screen.getByRole("tabpanel")).toHaveTextContent(NOTEBOOK_ID);
     expect(screen.getByRole("button", { name: "Copy command" })).toBeEnabled();
   });
 
@@ -316,14 +328,12 @@ describe("PairWithAgentModal", () => {
     expect(screen.getByRole("tabpanel")).not.toHaveTextContent("--notebook");
   });
 
-  it("reverifies the target when host mode is enabled again for the same Session", async () => {
+  it("reverifies the target when edit mode is restored for the same Session", async () => {
     await act(async () => {
       render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
     });
     expect(screen.getByRole("tabpanel")).toHaveTextContent(NOTEBOOK_ID);
-    act(() =>
-      store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: false }),
-    );
+    act(() => store.set(initialModeAtom, "read"));
 
     const pending = new Deferred<Response>();
     vi.mocked(fetch).mockImplementation((url) =>
@@ -331,7 +341,7 @@ describe("PairWithAgentModal", () => {
         ? pending.promise
         : responseFor(url),
     );
-    act(() => store.set(pairConfigAtom, PAIR_CONFIG));
+    act(() => store.set(initialModeAtom, "edit"));
     expect(screen.getByRole("button", { name: "Copy command" })).toBeDisabled();
     expect(screen.getByRole("tabpanel")).not.toHaveTextContent(NOTEBOOK_ID);
 
@@ -355,7 +365,7 @@ describe("PairWithAgentModal", () => {
     expect(screen.getByRole("button", { name: "Copy command" })).toBeDisabled();
   });
 
-  it("copies a host mode terminal command without the token and lets the user copy the token separately", async () => {
+  it("copies a terminal command without the token and lets the user copy the token separately", async () => {
     vi.mocked(fetch).mockImplementation((url) =>
       responseFor(url, "secret-token"),
     );
