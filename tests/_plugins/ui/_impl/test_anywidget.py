@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import gc
 import weakref
 from concurrent.futures import ThreadPoolExecutor
@@ -20,6 +21,7 @@ from marimo._plugins.ui._impl.from_anywidget import (
 from marimo._runtime.cell_lifecycle_registry import NoOwningCellError
 from marimo._runtime.commands import (
     ModelCommand,
+    ModelCustomMessage,
     ModelUpdateMessage,
     UpdateUIElementCommand,
 )
@@ -454,6 +456,60 @@ x = as_marimo_element.count
                 pool.submit(build_off_cell, Widget).result(timeout=10)
 
         assert set(WIDGET_COMM_MANAGER.comms) == comms_before
+
+    @staticmethod
+    async def test_widget_built_from_widget_message_task_belongs_to_its_cell(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # A widget message handler that starts an asyncio task, which builds
+        # another widget after the cell has run, as a chat widget does when it
+        # renders an agent's reply. The new widget belongs to the cell that
+        # created the handling widget, so rerunning that cell closes it.
+        await k.run(
+            [
+                cell := exec_req.get(
+                    """
+import asyncio
+import anywidget
+
+class Child(anywidget.AnyWidget):
+    _esm = "export default { render() {} }"
+
+class Host(anywidget.AnyWidget):
+    _esm = "export default { render() {} }"
+
+host = Host()
+children = []
+
+def on_msg(widget, content, buffers):
+    async def build():
+        children.append(Child())
+
+    asyncio.get_running_loop().create_task(build())
+
+host.on_msg(on_msg)
+"""
+                ),
+            ]
+        )
+        await k.handle_message(
+            ModelCommand(
+                model_id=WidgetModelId(k.globals["host"]._model_id),
+                message=ModelCustomMessage(content={"type": "build"}),
+                buffers=[],
+            )
+        )
+        for _ in range(100):
+            if k.globals["children"]:
+                break
+            await asyncio.sleep(0.01)
+
+        (child,) = k.globals["children"]
+        assert child.comm.comm_id in WIDGET_COMM_MANAGER.comms
+
+        await k.run([cell])
+
+        assert child.comm.comm_id not in WIDGET_COMM_MANAGER.comms
 
     @staticmethod
     def test_state_merging() -> None:

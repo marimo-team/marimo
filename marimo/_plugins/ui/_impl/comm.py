@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from marimo._loggers import marimo_logger
+from marimo._messaging.context import EXECUTION_CTX
 from marimo._messaging.notification import (
     EsmSpec,
     ModelClose,
@@ -71,7 +72,11 @@ class MarimoCommManager:
             for key in ("_esm", "_css"):
                 message.state.pop(key, None)
 
-        comm.handle_msg(command.into_comm_payload())
+        token = EXECUTION_CTX.set(comm.execution_tag)
+        try:
+            comm.handle_msg(command.into_comm_payload())
+        finally:
+            EXECUTION_CTX.reset(token)
 
         # For update messages, return ui_element_id and state for cell re-run
         if isinstance(message, ModelUpdateMessage) and comm.ui_element_id:
@@ -180,6 +185,10 @@ class MarimoComm:
         self.comm_manager = comm_manager
         self.target_name = target_name
         self.ui_element_id: str | None = None
+        # The evaluation that opened this comm, so work its messages start,
+        # such as an asyncio task that builds more widgets, belongs to the
+        # same cell, like the work of a mo.Thread started there.
+        self.execution_tag = EXECUTION_CTX.get()
 
         # Library-owned callbacks (such as anywidget's file watcher) may send
         # from a plain background thread, which has no marimo runtime context.
