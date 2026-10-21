@@ -14,6 +14,20 @@ const columns = [
   { accessorKey: "value", meta: { filterType: "text" as const } },
 ];
 
+function createCells() {
+  const table = createTable({
+    data: rows,
+    columns,
+    locale: "en-US",
+    getCoreRowModel: getCoreRowModel(),
+    onColumnFiltersChange: () => undefined,
+    state: {},
+    onStateChange: () => undefined,
+    renderFallbackValue: null,
+  });
+  return table.getRowModel().rows.map((row) => row.getAllCells()[0]);
+}
+
 function Harness({ cells }: { cells: Cell<(typeof rows)[number], unknown>[] }) {
   const contextMenuRef = useRef<Cell<(typeof rows)[number], unknown> | null>(
     null,
@@ -21,6 +35,9 @@ function Harness({ cells }: { cells: Cell<(typeof rows)[number], unknown>[] }) {
   const tableRef = useRef<HTMLTableSectionElement>(null);
   const tableBody = (
     <tbody ref={tableRef}>
+      <tr>
+        <td>empty</td>
+      </tr>
       {cells.map((cell) => {
         return (
           <tr key={cell.id}>
@@ -90,4 +107,24 @@ it("filters the latest right-clicked cell when the menu is already open", () => 
       value: { type: "text", operator: "equals", text: "second" },
     },
   ]);
+});
+
+it("does not reuse a previous cell after the menu closes", () => {
+  render(<Harness cells={createCells()} />);
+
+  const firstCell = screen.getByText("first");
+  fireEvent.contextMenu(firstCell);
+  expect(firstCell).toHaveClass("bg-(--green-4)");
+  fireEvent.keyDown(document.activeElement ?? document.body, {
+    key: "Escape",
+  });
+  expect(firstCell).not.toHaveClass("bg-(--green-4)");
+  expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+  // Right-clicking outside any data cell must not resurrect the old one
+  fireEvent.contextMenu(screen.getByText("empty"));
+  expect(firstCell).not.toHaveClass("bg-(--green-4)");
+  expect(
+    screen.queryByRole("menuitem", { name: "Filter by this value" }),
+  ).not.toBeInTheDocument();
 });

@@ -78,22 +78,31 @@ describe("EventBuffer", () => {
     vi.useRealTimers();
   });
 
-  it("disposes queued events and cancels the pending timer", () => {
+  it("flushes queued events and cancels the pending timer on dispose", () => {
     eventBuffer.add("event1");
     eventBuffer.add("event2");
     expect(vi.getTimerCount()).toBe(1);
+    expect(processEvents).toHaveBeenCalledOnce();
 
     eventBuffer.dispose();
+    expect(processEvents).toHaveBeenCalledTimes(2);
     eventBuffer.dispose();
 
     expect(eventBuffer.size()).toBe(0);
     expect(vi.getTimerCount()).toBe(0);
     vi.advanceTimersByTime(100);
-    expect(processEvents).toHaveBeenCalledOnce();
+    expect(processEvents).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not process an empty buffer on dispose", () => {
+    eventBuffer.dispose();
+    expect(processEvents).not.toHaveBeenCalled();
   });
 
   it("resets the blocked state when disposed", () => {
     eventBuffer.add("event1");
+    // Emulate a real processEvents, which drains the buffer
+    eventBuffer.getAndClear();
     eventBuffer.dispose();
     eventBuffer.add("event2");
 

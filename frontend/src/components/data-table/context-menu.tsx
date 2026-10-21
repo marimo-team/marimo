@@ -131,6 +131,8 @@ export const DataTableContextMenu = <TData,>({
     highlightedCell.current?.classList.remove("bg-(--green-4)");
     highlightedCell.current = null;
     if (!open) {
+      // Forget the cell so a later right-click outside any cell can't reuse it
+      contextMenuRef.current = null;
       return;
     }
 
@@ -154,7 +156,15 @@ export const DataTableContextMenu = <TData,>({
   });
 
   return (
-    <ContextMenu onOpenChange={handleContextMenuChange}>
+    // Open via the trigger so a right-click while already open retargets the
+    // menu; Radix only reports open changes, so use it for closing.
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (!open) {
+          handleContextMenuChange(false);
+        }
+      }}
+    >
       <ContextMenuTrigger
         asChild={true}
         onContextMenu={() => handleContextMenuChange(true)}

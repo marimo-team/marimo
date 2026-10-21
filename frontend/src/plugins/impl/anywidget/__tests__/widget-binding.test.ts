@@ -328,12 +328,15 @@ describe("WidgetDefRegistry", () => {
         expect(revoke).toHaveBeenCalledExactlyOnceWith(moduleUrl);
       });
 
-      // A later generation must not reuse the revoked base URL.
+      // A later generation reuses the evaluated module rather than
+      // re-running its top-level side effects, and does not revoke again.
       const third = createRuntime("third");
-      await third.getWidget();
-      expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
+      const widget = await third.getWidget();
+      expect(widget.exports).toEqual({ moduleUrl });
+      expect(URL.createObjectURL).toHaveBeenCalledOnce();
       third.dispose();
-      await vi.waitFor(() => expect(revoke).toHaveBeenCalledTimes(2));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(revoke).toHaveBeenCalledOnce();
     });
   });
 });

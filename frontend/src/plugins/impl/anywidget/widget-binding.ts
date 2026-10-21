@@ -63,8 +63,9 @@ class WidgetDefRegistry {
    * Get (or start) the ESM import for a widget module, cached by
    * jsHash so multiple instances share one import. Pass
    * `kernelAuthored: true` only for URLs from an `EsmSpec`; it widens
-   * the import gate to remote and data URLs. A lifetime retains the module
-   * until that signal aborts; omit it to retain for the notebook's lifetime.
+   * the import gate to remote and data URLs. A lifetime retains the module's
+   * temporary URL until that signal aborts; omit it to retain the URL for
+   * the notebook's lifetime. The evaluated module itself stays cached.
    */
   public getModule(options: {
     jsUrl: string;
@@ -101,11 +102,14 @@ class WidgetDefRegistry {
     const release = () => {
       retained.references -= 1;
       if (retained.references === 0) {
-        if (this.#cache.get(jsHash) === retained) {
-          this.#cache.delete(jsHash);
-        }
+        // Keep the evaluated module cached: re-importing would re-run its
+        // top-level side effects (e.g. `customElements.define`). Only the
+        // temporary URL is released.
         void retained.promise.then(
-          () => retained.dispose(),
+          () => {
+            retained.dispose();
+            retained.dispose = () => undefined;
+          },
           () => undefined,
         );
       }
