@@ -14,22 +14,15 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.notification import (
     AlertNotification,
     BannerNotification,
-    EnvironmentOperationNotification,
-    EnvironmentStateNotification,
     NotificationMessage,
     ReconnectedNotification,
-    StartupProgressNotification,
 )
 from marimo._messaging.serde import (
-    deserialize_kernel_notification_name,
     serialize_kernel_message,
 )
 from marimo._server.api.endpoints.ws.ws_kernel_ready import (
     build_kernel_ready,
     is_rtc_available,
-)
-from marimo._server.api.endpoints.ws.ws_message_loop import (
-    prepare_wire_message,
 )
 from marimo._server.api.endpoints.ws.ws_session_connector import (
     SessionConnector,
@@ -42,7 +35,7 @@ from marimo._types.ids import ConsumerId
 from marimo._utils.asyncio_utils import cancel_and_wait
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, AsyncIterator
+    from collections.abc import AsyncIterator
 
     from starlette.requests import HTTPConnection
 
@@ -70,12 +63,9 @@ class SessionHandler(SessionConsumer, abc.ABC):
     Owns the transport-agnostic session lifecycle: connecting (new, resume,
     reconnect, kiosk), the kernel-ready handshake, message replay, and
     TTL-based session close on disconnect. Subclasses implement the small
-    transport surface (`_request_close`, `_is_transport_connected`,
-    `_cancel_message_loop`) and their own message loop that drains
-    `message_queue`.
+    transport surface (`_request_close`, `_is_transport_connected`) and
+    deliver notifications through the host stream.
     """
-
-    _replay_notebook_on_reconnect = False
 
     def __init__(
         self,
@@ -92,13 +82,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
         self.status = ConnectionState.CONNECTING
         self._session: Session | None = None
         self.cancel_close_handle: asyncio.TimerHandle | None = None
-        # Messages from the kernel are put in this queue
-        # to be sent to the frontend
-        self.message_queue: asyncio.Queue[KernelMessage] = asyncio.Queue()
-        # Startup precedes session attachment and its viewer filtering.
-        self._startup_queue: asyncio.Queue[KernelMessage | None] | None = (
-            asyncio.Queue()
-        )
         self._consumer_id = ConsumerId(params.session_id)
 
     @property
@@ -117,10 +100,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
     @abc.abstractmethod
     def _is_transport_connected(self) -> bool:
         """Whether the transport can still deliver messages."""
-
-    @abc.abstractmethod
-    def _cancel_message_loop(self) -> None:
-        """Stop the message loop that drains `message_queue`."""
 
     # Shared session lifecycle
 
@@ -177,28 +156,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
     async def _wait_for_disconnect(self) -> None:
         """Notice a closed transport even while a session is starting."""
 
-    async def _startup_messages(
-        self, startup: asyncio.Task[tuple[Session, ConnectionType]]
-    ) -> AsyncGenerator[str, None]:
-        """Send progress before session messages, including before failure."""
-        queue = self._startup_queue
-        assert queue is not None
-
-        def finished(
-            _task: asyncio.Task[tuple[Session, ConnectionType]],
-        ) -> None:
-            queue.put_nowait(None)
-
-        startup.add_done_callback(finished)
-        try:
-            while (data := await queue.get()) is not None:
-                text = prepare_wire_message(data, is_kiosk=self.params.kiosk)
-                if text is not None:
-                    yield text
-        finally:
-            startup.remove_done_callback(finished)
-            self._startup_queue = None
-
     def _is_viewer(
         self, session: Session, connection_type: ConnectionType
     ) -> bool:
@@ -208,24 +165,9 @@ class SessionHandler(SessionConsumer, abc.ABC):
             is_main_consumer=session.room.main_consumer is self,
         )
 
+    @abc.abstractmethod
     def notify(self, notification: KernelMessage) -> None:
-        name = deserialize_kernel_notification_name(notification)
-        if (
-            self._startup_queue is not None
-            and self.status == ConnectionState.CONNECTING
-            and (
-                name == StartupProgressNotification.name
-                or self._session is None
-                and name
-                in (
-                    EnvironmentOperationNotification.name,
-                    EnvironmentStateNotification.name,
-                )
-            )
-        ):
-            self._startup_queue.put_nowait(notification)
-        else:
-            self.message_queue.put_nowait(notification)
+        """Deliver a private session notification through the host stream."""
 
     def _serialize_and_notify(self, notification: NotificationMessage) -> None:
         self.notify(serialize_kernel_message(notification))
@@ -316,9 +258,7 @@ class SessionHandler(SessionConsumer, abc.ABC):
                     description="You have reconnected to an existing session.",
                 )
             )
-            self._replay_previous_session(
-                session, include_notebook=self._replay_notebook_on_reconnect
-            )
+            self._replay_previous_session(session)
             return
 
         self._write_kernel_ready_from_session_view(session, self.params.kiosk)
@@ -364,13 +304,9 @@ class SessionHandler(SessionConsumer, abc.ABC):
         # Replay all operations
         self._replay_previous_session(session)
 
-    def _replay_previous_session(
-        self, session: Session, *, include_notebook: bool = True
-    ) -> None:
+    def _replay_previous_session(self, session: Session) -> None:
         """Replay retained state to this client."""
-        notifications = session.session_view.snapshot_notifications(
-            include_notebook=include_notebook
-        )
+        notifications = session.session_view.snapshot_notifications()
         LOGGER.debug("Replaying %s notifications", len(notifications))
         for notif in notifications:
             LOGGER.debug("Replaying notification %s", notif)
@@ -441,8 +377,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
             self._request_close(
                 WebSocketCodes.NORMAL_CLOSE, WebSocketCloseReason.SHUTDOWN
             )
-
-        self._cancel_message_loop()
 
     def connection_state(self) -> ConnectionState:
         return self.status

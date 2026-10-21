@@ -29,6 +29,7 @@ from tests._server.api.endpoints.ws_helpers import (
     HEADERS as WS_HEADERS,
     assert_kernel_ready_response,
     create_response,
+    receive_notification,
     receive_until,
 )
 from tests._server.mocks import (
@@ -822,12 +823,12 @@ def test_takeover_transfers_edit_without_disconnect(
     with client.websocket_connect(
         "/ws?session_id=ed1", headers=WS_HEADERS
     ) as editor:
-        assert_kernel_ready_response(editor.receive_json())
+        assert_kernel_ready_response(receive_notification(editor))
         with client.websocket_connect(
             "/ws?session_id=vw1", headers=WS_HEADERS
         ) as viewer:
             assert_kernel_ready_response(
-                viewer.receive_json(),
+                receive_notification(viewer),
                 create_response(
                     {
                         "kiosk": True,

@@ -33,7 +33,14 @@ if TYPE_CHECKING:
 class QueryParams(State[SerializedQueryParams]):
     """Query parameters for a marimo app."""
 
-    IGNORED_KEYS = {"access_token", "refresh_token", "session_id"}
+    IGNORED_KEYS = {
+        "access_token",
+        "refresh_token",
+        "session_id",
+        "cursor",
+        "message_format",
+        "types",
+    }
 
     def __init__(
         self,

@@ -1,51 +1,39 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 import sys
 from contextlib import aclosing
 from typing import TYPE_CHECKING
 
 from starlette.responses import StreamingResponse
-from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.notification import (
-    KernelStartupErrorNotification,
-)
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
-from marimo._server.api.endpoints.ws.session_handler import SessionHandler
-from marimo._server.api.endpoints.ws.sse_handler import SSESessionHandler
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionRejection,
     WebSocketConnectionValidator,
     parse_connection_params,
 )
-from marimo._server.api.endpoints.ws.ws_formatter import (
-    serialize_notification_for_wire,
-)
-from marimo._server.api.endpoints.ws.ws_message_loop import (
-    WebSocketMessageLoop,
-)
 from marimo._server.api.endpoints.ws.ws_rtc_handler import RTCWebSocketHandler
 from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
+from marimo._server.host import stream_options
+from marimo._server.host.lifespan import ensure_host
+from marimo._server.host.session import SessionEventStream
 from marimo._server.router import APIRouter
 from marimo._server.rtc.doc import LoroDocManager
 from marimo._server.sse import SSE_HEADERS, format_close_event
-from marimo._session.managers.ipc import KernelStartupError
-from marimo._session.model import SessionMode
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
     from starlette.requests import Request
+    from starlette.websockets import WebSocket
 
     from marimo._server.api.endpoints.ws.ws_connection_validator import (
         ConnectionParams,
     )
-    from marimo._server.session_manager import SessionManager
 
 LOGGER = _loggers.marimo_logger()
 
@@ -54,9 +42,6 @@ LORO_ALLOWED = sys.version_info >= (3, 11)
 router = APIRouter()
 
 DOC_MANAGER = LoroDocManager()
-
-# Strong refs so fire-and-forget tasks aren't GC'd mid-flight.
-_background_tasks: set[asyncio.Task[None]] = set()
 
 
 @router.websocket("/ws")
@@ -81,13 +66,36 @@ async def websocket_endpoint(
     if params is None:
         return
 
-    # Start handler
-    await WebSocketHandler(
-        websocket=websocket,
-        manager=app_state.session_manager,
+    try:
+        handler = await _session_events(websocket, params)
+    except ValueError as exc:
+        await websocket.close(code=1008, reason=str(exc))
+        return
+    await handler.start()
+
+
+async def _session_events(
+    connection: WebSocket | Request, params: ConnectionParams
+) -> SessionEventStream:
+    message_format = connection.query_params.get("message_format", "session")
+    if message_format not in ("host", "session"):
+        raise ValueError("message_format must be host or session")
+    cursor = stream_options.cursor(connection)
+    types = stream_options.types(connection)
+    if "run_id" in connection.query_params:
+        raise ValueError("Session streams do not support run_id filtering")
+    context = await ensure_host(connection.app)
+    return SessionEventStream(
+        connection,
+        notebook=None,
+        bridge=context.bridge,
+        manager=AppState(connection).session_manager,
         params=params,
-        mode=app_state.mode,
-    ).start()
+        doc_manager=DOC_MANAGER,
+        types=types,
+        cursor=cursor,
+        message_format="host" if message_format == "host" else "session",
+    )
 
 
 def _sse_response(events: AsyncGenerator[str, None]) -> StreamingResponse:
@@ -114,13 +122,13 @@ def _close_only_stream(code: int, reason: str) -> StreamingResponse:
 async def sse_endpoint(request: Request) -> StreamingResponse:
     """Experimental SSE alternative to the main `/ws` endpoint.
 
-    Enabled with `server.transport = "sse"`. Streams kernel messages as
+    Enabled with `server.transport = "sse"`. Streams host events as
     server-sent events; control requests flow through the regular HTTP
     POST endpoints.
 
     responses:
         200:
-            description: Kernel messages as a server-sent event stream
+            description: Host events as a server-sent event stream
             content:
                 text/event-stream:
                     schema:
@@ -148,14 +156,17 @@ async def sse_endpoint(request: Request) -> StreamingResponse:
     # The handler connects to the session lazily, on the first iteration
     # of the stream. Connecting here instead would attach a consumer that
     # is never detached if the response body is never consumed.
-    handler = SSESessionHandler(
-        request=request,
-        manager=app_state.session_manager,
-        params=params,
-        mode=app_state.mode,
-        doc_manager=DOC_MANAGER,
-    )
-    return _sse_response(handler.stream())
+    async def stream() -> AsyncGenerator[str, None]:
+        try:
+            handler = await _session_events(request, params)
+        except ValueError as exc:
+            yield format_close_event(1008, str(exc))
+            return
+        async with aclosing(handler.sse()) as events:
+            async for event in events:
+                yield event
+
+    return _sse_response(stream())
 
 
 # WebSocket endpoint for LoroDoc synchronization
@@ -205,138 +216,3 @@ async def ws_sync(
     # Handle RTC connection
     handler = RTCWebSocketHandler(websocket, file_key, DOC_MANAGER)
     await handler.handle()
-
-
-class WebSocketHandler(SessionHandler):
-    """WebSocket that sessions use to send messages to frontends.
-
-    Each new socket gets a unique session. At most one session can exist when
-    in edit mode (unless RTC is enabled).
-    """
-
-    def __init__(
-        self,
-        *,
-        websocket: WebSocket,
-        manager: SessionManager,
-        params: ConnectionParams,
-        mode: SessionMode,
-    ):
-        super().__init__(
-            manager=manager,
-            params=params,
-            mode=mode,
-            doc_manager=DOC_MANAGER,
-        )
-        self.websocket = websocket
-        self.ws_future: asyncio.Task[None] | None = None
-
-    async def start(self) -> None:
-        """Start the WebSocket handler.
-
-        Accepts the connection, establishes a session, and starts the
-        message loop.
-        """
-        # Accept the websocket connection
-        await self.websocket.accept()
-
-        LOGGER.debug(
-            "Websocket open request for session with id %s",
-            self.params.session_id,
-        )
-        LOGGER.debug("Existing sessions: %s", self.manager.sessions)
-
-        async with self._connection_lifetime(self.websocket) as startup:
-            try:
-                async with aclosing(
-                    self._startup_messages(startup)
-                ) as messages:
-                    async for text in messages:
-                        await self.websocket.send_text(text)
-                session, connection_type = await startup
-            except asyncio.CancelledError:
-                await self._safe_close(WebSocketCodes.NORMAL_CLOSE, "")
-                return
-            except KernelStartupError as e:
-                LOGGER.error("Kernel startup failed: %s", e)
-                await self._close_kernel_startup_error(str(e))
-                return
-            except WebSocketDisconnect as e:
-                await self._safe_close(e.code, e.reason or "")
-                return
-            LOGGER.debug(
-                "Connected to session %s with type %s",
-                session.initialization_id,
-                connection_type,
-            )
-
-            # Start message loops
-            message_loop = WebSocketMessageLoop(
-                websocket=self.websocket,
-                message_queue=self.message_queue,
-                is_kiosk=lambda: self._is_viewer(session, connection_type),
-                on_check_status_update=self._check_status_update,
-            )
-
-            try:
-                self.ws_future = asyncio.create_task(message_loop.start())
-                await self.ws_future
-            except asyncio.CancelledError:
-                LOGGER.debug("Websocket terminated with CancelledError")
-
-    async def _wait_for_disconnect(self) -> None:
-        while True:
-            message = await self.websocket.receive()
-            if message["type"] == "websocket.disconnect":
-                return
-
-    async def _safe_close(self, code: int, reason: str) -> None:
-        """Close the WebSocket, ignoring errors from uninitialized state.
-
-        uvicorn never calls websockets' `connection_open()`, so internal
-        attributes like `transfer_data_task` are missing. Closing a
-        websocket in that state raises `AttributeError`. The connection
-        is cleaned up when the handler returns regardless.
-        """
-        if self.websocket.client_state is WebSocketState.DISCONNECTED:
-            # The client already closed the transport (for example, it
-            # navigated away while the kernel was still starting). Sending
-            # another close would make uvicorn raise
-            # "Unexpected ASGI message 'websocket.close'".
-            return
-        try:
-            await self.websocket.close(code, reason)
-        except WebSocketDisconnect:
-            pass
-        except AttributeError as e:
-            if "transfer_data_task" not in str(e):
-                raise
-            LOGGER.debug(
-                "Ignoring AttributeError during websocket close: "
-                "missing transfer_data_task",
-                exc_info=True,
-            )
-
-    async def _close_kernel_startup_error(self, error_message: str) -> None:
-        """Send full error as message, then close the WebSocket."""
-        if self.websocket.application_state is WebSocketState.CONNECTED:
-            notification = KernelStartupErrorNotification(error=error_message)
-            text = serialize_notification_for_wire(notification)
-            await self.websocket.send_text(text)
-            # Then close with simple reason
-            await self._safe_close(
-                WebSocketCodes.UNEXPECTED_ERROR,
-                WebSocketCloseReason.KERNEL_STARTUP_ERROR,
-            )
-
-    def _request_close(self, code: int, reason: str) -> None:
-        task = asyncio.create_task(self._safe_close(code, reason))
-        _background_tasks.add(task)
-        task.add_done_callback(_background_tasks.discard)
-
-    def _is_transport_connected(self) -> bool:
-        return self.websocket.application_state is WebSocketState.CONNECTED
-
-    def _cancel_message_loop(self) -> None:
-        if self.ws_future:
-            self.ws_future.cancel()

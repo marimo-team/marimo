@@ -8,6 +8,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+import msgspec
+
 from marimo import _loggers
 from marimo._core import backend as be, protocol
 from marimo._messaging.notification import (
@@ -25,7 +27,7 @@ from marimo._server.host.events import notification_event
 from marimo._server.host.translate import RunTranslator
 from marimo._server.scratchpad import snapshot_for_scratchpad
 from marimo._session.consumer import SessionConsumer
-from marimo._session.model import ConnectionState
+from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.types import KernelState
 from marimo._types.ids import ConsumerId, SessionId
@@ -366,6 +368,19 @@ class SessionBackend(SessionConsumer):
             )
             self._translators[run_id] = translator
             self._observe(be.Scheduled(translator.run_id))
+        # Run kernels omit source from native notifications. App documents are
+        # immutable, so recover the submitted source for host revision hashes.
+        # Keep the native message private and unchanged in the shared log.
+        if (
+            isinstance(message, ExecutionNotification)
+            and message.phase == "planned"
+            and message.code is None
+            and self._manager.mode is SessionMode.RUN
+            and self.session is not None
+        ):
+            cell = self.session.document.get(message.cell_id)
+            if cell is not None:
+                message = msgspec.structs.replace(message, code=cell.code)
         for out in translator.feed(message):
             self._observe(out)
         if translator.completed:

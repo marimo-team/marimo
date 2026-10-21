@@ -8,6 +8,8 @@ import pytest
 
 from marimo import __version__
 from marimo._types.ids import SessionId
+from tests._server.api.endpoints.ws_helpers import receive_notification
+from tests._server.host.drive import socket_snapshot
 from tests._server.mocks import (
     get_session_manager,
     token_header,
@@ -76,16 +78,23 @@ def test_sessions_stable_id_survives_reconnect(
     client: TestClient, connection_id: str
 ) -> None:
     with client.websocket_connect(
-        f"/ws?session_id={SESSION_ID}", headers=token_header()
+        f"/ws?message_format=host&session_id={SESSION_ID}",
+        headers=token_header(),
     ) as websocket:
-        assert websocket.receive_json()["op"] == "kernel-ready"
+        snapshot = socket_snapshot(websocket)
+        notebook_id = next(
+            e["data"]["notebook"]["id"]
+            for e in snapshot
+            if e["event"] == "notebook"
+        )
+        assert receive_notification(websocket)["op"] == "kernel-ready"
         session = get_session_manager(client).get_session(
             SessionId(SESSION_ID)
         )
         assert session is not None
         expected = {
             "session_id": session.stable_id,
-            "notebook_id": None,
+            "notebook_id": notebook_id,
             "filename": session.app_file_manager.filename,
             "path": session.app_file_manager.path,
         }
@@ -94,9 +103,10 @@ def test_sessions_stable_id_survives_reconnect(
         assert response.json() == {SESSION_ID: expected}
 
     with client.websocket_connect(
-        f"/ws?session_id={connection_id}", headers=token_header()
+        f"/ws?message_format=host&session_id={connection_id}",
+        headers=token_header(),
     ) as websocket:
-        assert websocket.receive_json()["op"] == "reconnected"
+        assert receive_notification(websocket)["op"] == "reconnected"
         response = client.get("/api/sessions", headers=token_header())
         assert response.status_code == 200, response.text
         assert response.json() == {connection_id: expected}
@@ -104,9 +114,10 @@ def test_sessions_stable_id_survives_reconnect(
 
 def test_sessions_stable_id_changes_after_restart(client: TestClient) -> None:
     with client.websocket_connect(
-        f"/ws?session_id={SESSION_ID}", headers=token_header()
+        f"/ws?message_format=host&session_id={SESSION_ID}",
+        headers=token_header(),
     ) as websocket:
-        assert websocket.receive_json()["op"] == "kernel-ready"
+        assert receive_notification(websocket)["op"] == "kernel-ready"
         response = client.get("/api/sessions", headers=token_header())
         assert response.status_code == 200, response.text
         previous = response.json()[SESSION_ID]
@@ -118,9 +129,10 @@ def test_sessions_stable_id_changes_after_restart(client: TestClient) -> None:
     assert response.json() == {}
 
     with client.websocket_connect(
-        f"/ws?session_id={SESSION_ID}", headers=token_header()
+        f"/ws?message_format=host&session_id={SESSION_ID}",
+        headers=token_header(),
     ) as websocket:
-        assert websocket.receive_json()["op"] == "kernel-ready"
+        assert receive_notification(websocket)["op"] == "kernel-ready"
         response = client.get("/api/sessions", headers=token_header())
         assert response.status_code == 200, response.text
         current = response.json()[SESSION_ID]

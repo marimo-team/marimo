@@ -51,7 +51,7 @@ def editor_host(client: TestClient) -> Iterator[SessionBridge]:
 
 def socket_url(bridge: SessionBridge, session_id: str = "s1") -> str:
     (notebook_id,) = bridge.host.notebooks
-    return f"{HOST_API_PATH}/notebooks/{notebook_id}/events/ws?session_id={session_id}&access_token=fake-token"
+    return f"{HOST_API_PATH}/notebooks/{notebook_id}/events/ws?message_format=host&session_id={session_id}&access_token=fake-token"
 
 
 def receive_notification(
@@ -415,10 +415,16 @@ def test_invalid_event_types_are_rejected_before_starting_a_session(
     assert not get_session_manager(client).sessions
 
 
+@pytest.mark.parametrize("session_route", [False, True])
 def test_editor_resumes_host_events_without_replaying_private_notifications(
-    client: TestClient, editor_host: SessionBridge
+    client: TestClient, editor_host: SessionBridge, session_route: bool
 ) -> None:
-    url = f"{socket_url(editor_host)}&types=marimo,custom"
+    endpoint = (
+        "/ws?message_format=host&session_id=s1&access_token=fake-token"
+        if session_route
+        else socket_url(editor_host)
+    )
+    url = f"{endpoint}&types=marimo,custom"
     with client.websocket_connect(url) as socket:
         cursor = socket_snapshot(socket)[-1]["id"]
         receive_notification(socket, "kernel-ready")
@@ -458,3 +464,49 @@ def test_an_empty_cursor_is_rejected_before_starting_a_session(
             pytest.fail("Invalid cursor was accepted")
     assert (exc.value.code, exc.value.reason) == (1008, "Invalid event cursor")
     assert not get_session_manager(client).sessions
+
+
+def test_untitled_editor_bootstraps_and_reconnects_with_host_events(
+    client: TestClient,
+) -> None:
+    from marimo._server.workspace import EmptyWorkspace
+
+    manager = get_session_manager(client)
+    manager.workspace = EmptyWorkspace()
+    bridge = SessionBridge(manager)
+    client.app.state.host_context = HostContext(
+        bridge=bridge, token="host-token", port=1234
+    )
+    url = "/ws?message_format=host&session_id=new&access_token=fake-token"
+    with client:
+        assert client.portal is not None
+        client.portal.call(bridge.open)
+        try:
+            with client.websocket_connect(url) as ws:
+                snapshot = socket_snapshot(ws)
+                ready = receive_notification(ws, "kernel-ready")
+                notebook_id = next(
+                    e["data"]["notebook"]["id"]
+                    for e in snapshot
+                    if e["event"] == "notebook"
+                )
+                response = client.post(
+                    "/api/kernel/run",
+                    headers=headers("new"),
+                    json={"cellIds": ready["cell_ids"], "codes": ["x = 42"]},
+                )
+                assert response.status_code == 200
+                receive_notification(ws, "completed-run")
+            with client.websocket_connect(url) as ws:
+                snapshot = socket_snapshot(ws)
+                receive_notification(ws, "reconnected")
+                assert (
+                    next(
+                        e["data"]["notebook"]["id"]
+                        for e in snapshot
+                        if e["event"] == "notebook"
+                    )
+                    == notebook_id
+                )
+        finally:
+            client.portal.call(bridge.close)

@@ -63,8 +63,6 @@ class _Close:
 class SessionEventStream(SessionHandler):
     """Merge host events with the session's private notification delivery."""
 
-    _replay_notebook_on_reconnect = True
-
     def __init__(
         self,
         connection: WebSocket | Request,
@@ -286,7 +284,3 @@ class SessionEventStream(SessionHandler):
 
     def _is_transport_connected(self) -> bool:
         return not self._stream_finished
-
-    def _cancel_message_loop(self) -> None:
-        # The stream owns its sending task; detach queues a close event.
-        pass
