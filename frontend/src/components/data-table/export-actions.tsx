@@ -356,6 +356,9 @@ function useExportFailure(context: ExportContext) {
     context: ExportContext;
     failure: ExportFailure;
   } | null>(null);
+  if (actionFailure !== null && actionFailure.context !== context) {
+    setActionFailure(null);
+  }
   const setFailure = (failure: ExportFailure | null) => {
     setActionFailure(failure === null ? null : { context, failure });
   };

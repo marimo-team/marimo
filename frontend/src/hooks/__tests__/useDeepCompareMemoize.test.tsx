@@ -20,4 +20,20 @@ describe("useDeepCompareMemoize", () => {
     rerender({ value: { nested: [1, 3] } });
     expect(result.current).toBe(changed);
   });
+
+  it("handles inline callbacks without causing additional renders", () => {
+    let renders = 0;
+    const { result, rerender } = renderHook(
+      ({ value }) => {
+        renders++;
+        return useDeepCompareMemoize({ callback: () => value });
+      },
+      { initialProps: { value: "initial" } },
+    );
+
+    const initialRenders = renders;
+    rerender({ value: "changed" });
+    expect(result.current.callback()).toBe("changed");
+    expect(renders).toBe(initialRenders + 1);
+  });
 });

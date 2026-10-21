@@ -42,8 +42,10 @@ export function useDebounceControlledState<T>(opts: {
   disabled?: boolean;
 }) {
   const { initialValue, onChange, delay, disabled } = opts;
-  const [internalValue, setInternalValue] =
-    useInternalStateWithSync(initialValue);
+  const [internalValue, setInternalValue] = useInternalStateWithSync(
+    initialValue,
+    Object.is,
+  );
   const debouncedValue = useDebounce(internalValue, delay || 200);
 
   const onUpdate = useEvent(onChange);

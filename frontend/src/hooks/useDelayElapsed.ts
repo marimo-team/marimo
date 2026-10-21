@@ -10,7 +10,7 @@ import { useLayoutEffect, useState } from "react";
 export function useDelayElapsed(delayMs: number): boolean {
   const [timer, setTimer] = useState({ delayMs, elapsed: delayMs <= 0 });
 
-  if (timer.delayMs !== delayMs) {
+  if (!Object.is(timer.delayMs, delayMs)) {
     setTimer({ delayMs, elapsed: delayMs <= 0 });
   }
 
@@ -25,5 +25,5 @@ export function useDelayElapsed(delayMs: number): boolean {
     return () => clearTimeout(timeout);
   }, [delayMs]);
 
-  return timer.delayMs === delayMs ? timer.elapsed : delayMs <= 0;
+  return Object.is(timer.delayMs, delayMs) ? timer.elapsed : delayMs <= 0;
 }

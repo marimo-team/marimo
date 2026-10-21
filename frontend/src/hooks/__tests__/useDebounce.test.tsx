@@ -141,6 +141,37 @@ describe("useDebounceControlledState", () => {
     expect(result.current.debouncedValue).toBe("external");
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("handles NaN external values without repeatedly resetting the draft", () => {
+    const onChange = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ value }) =>
+        useDebounceControlledState({ initialValue: value, onChange }),
+      { initialProps: { value: Number.NaN } },
+    );
+
+    expect(result.current.value).toBeNaN();
+    act(() => result.current.onChange(1));
+    rerender({ value: Number.NaN });
+    expect(result.current.value).toBe(1);
+    rerender({ value: 2 });
+    expect(result.current.value).toBe(2);
+    rerender({ value: Number.NaN });
+    expect(result.current.value).toBeNaN();
+  });
+
+  it("resets the draft when the external value changes from zero to negative zero", () => {
+    const onChange = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ value }) =>
+        useDebounceControlledState({ initialValue: value, onChange }),
+      { initialProps: { value: 0 } },
+    );
+
+    act(() => result.current.onChange(1));
+    rerender({ value: -0 });
+    expect(result.current.value).toBe(-0);
+  });
 });
 
 describe("useDebouncedCallback", () => {

@@ -1,8 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { type JSX, useId, useMemo, useState } from "react";
+import { type JSX, useId, useMemo } from "react";
 import { useLocale } from "react-aria";
 import { z } from "zod";
 import { NumberField } from "@/components/ui/number-field";
+import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 import { cn } from "@/utils/cn";
 import { clamp } from "@/utils/math";
 import {
@@ -156,13 +157,10 @@ const SliderComponent = ({
   const { locale } = useLocale();
 
   // Hold internal value
-  const [internalValue, setInternalValue] = useState(value);
-  const [previousValue, setPreviousValue] = useState(value);
-  // Reset the editable buffer before children render a changed Python value.
-  if (!Object.is(value, previousValue)) {
-    setPreviousValue(value);
-    setInternalValue(value);
-  }
+  const [internalValue, setInternalValue] = useInternalStateWithSync(
+    value,
+    Object.is,
+  );
 
   const stepsConfig = useMemo(() => computeStepsConfig(steps), [steps]);
 
