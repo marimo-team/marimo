@@ -1,0 +1,33 @@
+{
+  "name": "@marimo-team/client",
+  "version": "0.1.0",
+  "description": "A typed client for the marimo host protocol",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    "./protocol": "./dist/protocol.js",
+    "./reducer": "./dist/reducer.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "codegen": "node --experimental-strip-types scripts/generate-protocol.ts",
+    "codegen:check": "node --experimental-strip-types scripts/generate-protocol.ts --check",
+    "test": "vitest",
+    "typecheck": "tsgo"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "orval": "8.40.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11",
+    "yaml": "^2.9.1"
+  }
+}

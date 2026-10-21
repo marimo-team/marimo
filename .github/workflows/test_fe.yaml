@@ -152,6 +152,9 @@ jobs:
       - name: 🔎 Check host protocol bindings
         run: pnpm codegen:check
 
+      - name: 🔎 Check @marimo-team/client bindings
+        run: pnpm --dir ../packages/client codegen:check
+
       - name: 🔎 Type check
         id: typecheck
         env:
@@ -178,6 +181,10 @@ jobs:
       - name: 🧪 Test llm-info
         working-directory: ${{ github.workspace }}
         run: pnpm --dir packages/llm-info test -- --run
+
+      - name: 🧪 Test @marimo-team/client
+        working-directory: ${{ github.workspace }}
+        run: pnpm --dir packages/client test -- --run
 
       - name: 📊 Report coverage
         # Runs even when tests fail (reportOnFailure writes the summary anyway).
