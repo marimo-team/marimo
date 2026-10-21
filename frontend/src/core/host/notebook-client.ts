@@ -1,27 +1,31 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Logger } from "@/utils/Logger";
-import type { Attachment, NotebookOutput } from "@marimo-team/client/protocol";
-import { createNotebookReducer } from "@marimo-team/client";
-import { type Atom, atom, type createStore } from "jotai/vanilla";
 import {
-  type ConnectionStatus,
-  ConnectionState,
-  ConnectionClosedReason,
-  type CloseDecision,
+  createNotebookReducer,
+  type NotebookEvent,
+  NotebookEvents,
   type NotebookTransport,
-  TransportReadyState,
+  StreamStopped,
+} from "@marimo-team/client";
+import type { Attachment, NotebookOutput } from "@marimo-team/client/protocol";
+import { type Atom, atom, type createStore } from "jotai/vanilla";
+import { z } from "zod";
+import {
+  ConnectionClosedReason,
+  ConnectionState,
+  type ConnectionStatus,
 } from "./connection";
-import { type NotebookEvent, parseNotebookEvent } from "./events";
 import { attachments } from "./resources/attachments";
 import { type Document, document } from "./resources/document";
 
-/** Events that may arrive without a cursor after `ready`. */
-const UNCURSORED = new Set<NotebookEvent["event"]>([
-  "reset",
-  "marimo",
-  "unknown",
-]);
+/** The kinds the editor reads, with marimo's own notifications. */
+const TYPES = ["notebook", "cell", "document", "attachment", "marimo"] as const;
+
+type EditorEvent = NotebookEvent<(typeof TYPES)[number]>;
+
+/** A native marimo notification, passed through without interpretation. */
+const MarimoMessage = z.object({ marimo: z.unknown() });
 
 /** A connection to a notebook on a marimo host. */
 export interface NotebookClient {
@@ -43,28 +47,53 @@ export interface NotebookClient {
   reconnect(): Promise<void>;
 }
 
-/** The transport and application callbacks needed to connect a notebook. */
+/** The transport and application callbacks needed to follow a notebook. */
 export interface NotebookConnection {
-  /** Create a transport that reads the URL again on each connection attempt. */
-  createTransport: (url: () => string) => NotebookTransport;
-  /** The current stream URL, including authentication and subscription options. */
-  url: () => string;
-  /** Abort to close the transport and clear the client's state. */
+  /** Opens one connection to the notebook's stream. */
+  transport: NotebookTransport;
+  /** Abort to close the stream and clear the client's state. */
   signal: AbortSignal;
-  /** Wait until the host can accept the initial connection. */
-  waitUntilReady: () => Promise<void>;
   /** Check whether the host is reachable before an explicit reconnect. */
   checkHealth: () => Promise<boolean>;
-  /** Decode wire text without interpreting its event type. */
-  decodeJson: (message: string) => unknown;
   /** Handle a native marimo notification. Its payload has not been validated. */
   onNotification: (notification: unknown) => void;
-  /** Choose the connection status and retry policy after the transport closes. */
-  classifyClose: (event: CloseEvent) => CloseDecision;
+}
+
+const disconnected = {
+  state: ConnectionState.CLOSED,
+  code: ConnectionClosedReason.KERNEL_DISCONNECTED,
+  reason: "kernel not found",
+} satisfies ConnectionStatus;
+
+const malformed = {
+  ...disconnected,
+  reason: "Failed to decode notebook message",
+} satisfies ConnectionStatus;
+
+function isStatus(value: unknown): value is ConnectionStatus {
+  return typeof value === "object" && value !== null && "state" in value;
+}
+
+/**
+ * The status to show after the stream stopped.
+ *
+ * A transport says which status its stop means. An event the protocol
+ * rejects is malformed. Anything else means the host was not reached.
+ */
+function statusAfter(error: unknown): ConnectionStatus {
+  if (error instanceof StreamStopped && isStatus(error.cause)) {
+    return error.cause;
+  }
+  if (error instanceof StreamStopped && error.cause instanceof z.ZodError) {
+    return malformed;
+  }
+  return disconnected;
 }
 
 /** Create a client without opening a connection. */
 export function createNotebookClient(store: ReturnType<typeof createStore>) {
+  // `useNotebookSession` copies this into the editor's shared `connectionAtom`,
+  // which gates features until MO-8051 derives availability separately.
   const connectionAtom = atom<ConnectionStatus>({
     state: ConnectionState.NOT_STARTED,
   });
@@ -73,16 +102,18 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
   const streamAtom = atom(reducer.initial);
   // A resumed stream is live, but presence waits for this connection's ready.
   const readyAtom = atom(false);
+  const presentAtom = atom(
+    (get) =>
+      get(readyAtom) && get(connectionAtom).state === ConnectionState.OPEN,
+  );
   const notebookAtom = atom((get) =>
-    get(readyAtom) && get(connectionAtom).state === ConnectionState.OPEN
-      ? get(streamAtom).notebook
-      : null,
+    get(presentAtom) ? get(streamAtom).notebook : null,
   );
   const documentAtom = atom(
     (get) => get(streamAtom).resources.document.current,
   );
   const attachmentsAtom = atom((get) =>
-    get(readyAtom) && get(connectionAtom).state === ConnectionState.OPEN
+    get(presentAtom)
       ? get(streamAtom).resources.attachments
       : attachments.initial,
   );
@@ -95,156 +126,83 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
     reconnect: async () => reconnect?.(),
   };
 
+  function setStatus(status: ConnectionStatus) {
+    store.set(readyAtom, false);
+    store.set(connectionAtom, status);
+  }
+
   function connect({
-    createTransport,
-    url,
+    transport,
     signal,
-    waitUntilReady,
     checkHealth,
     onNotification,
-    decodeJson,
-    classifyClose,
   }: NotebookConnection) {
     if (signal.aborted) {
       return;
     }
-    let shouldRetry = true;
-    let terminal = false;
+    let events: NotebookEvents<(typeof TYPES)[number]> | undefined;
     let checkingHealth = false;
-    let streamKey: string | undefined;
-    // The id of the last live event. Null before `ready` and after `reset`.
-    let cursor: string | null = null;
-    const transport = createTransport(() => {
-      const next = new URL(url());
-      next.searchParams.delete("cursor");
-      if (signal.aborted) {
-        return next.toString();
-      }
-      // A cursor is useful with the state that produced it, which a change
-      // of session or notebook invalidates. Authentication may change freely.
-      const identity = new URL(next);
-      identity.searchParams.delete("access_token");
-      identity.searchParams.sort();
-      const key = identity.toString();
-      const current = store.get(streamAtom);
-      // A live stream keeps its state and resumes from the cursor. An
-      // incomplete snapshot starts over.
-      const state =
-        key !== streamKey || current.phase === "snapshot"
-          ? reducer.initial
-          : current;
-      if (state.phase === "snapshot") {
-        cursor = null;
-      }
-      streamKey = key;
-      store.set(readyAtom, false);
-      store.set(streamAtom, state);
-      if (cursor !== null) {
-        next.searchParams.set("cursor", cursor);
-      }
-      return next.toString();
-    });
-    const setStatus = (status: ConnectionStatus) => {
-      store.set(readyAtom, false);
-      store.set(connectionAtom, status);
-    };
-    const disconnected = {
-      state: ConnectionState.CLOSED,
-      code: ConnectionClosedReason.KERNEL_DISCONNECTED,
-      reason: "kernel not found",
-    } satisfies ConnectionStatus;
+    // Whether the replica still holds the state the last cursor describes.
+    let resumable = true;
 
-    function retry(code?: number, reason?: string) {
-      if (!signal.aborted && !terminal && shouldRetry) {
-        shouldRetry = false;
-        transport.reconnect(code, reason);
-      }
+    /** Mirror one stream into the atoms until it closes. */
+    function follow(cursor?: string) {
+      resumable = true;
+      const current = new NotebookEvents(transport, {
+        types: TYPES,
+        cursor,
+        signal,
+        // TODO(MO-8051): Gate editing and running on the notebook's operations
+        // and request results instead. The stream's status would then only
+        // mark the view as stale.
+        onStatus: (status) => {
+          if (status === "connecting") {
+            setStatus({ state: ConnectionState.CONNECTING });
+          } else if (status === "connected") {
+            setStatus({ state: ConnectionState.OPEN });
+          }
+        },
+      });
+      current.subscribe(
+        (event) => apply(current, event),
+        (error) => {
+          if (!signal.aborted && current === events) {
+            Logger.warn("Notebook stream stopped", error);
+            setStatus(statusAfter(error));
+          }
+        },
+      );
+      events = current;
     }
 
-    function onOpen() {
-      if (signal.aborted || terminal) {
-        return;
-      }
-      shouldRetry = true;
-      setStatus({ state: ConnectionState.OPEN });
-    }
-
-    function onClose(event: CloseEvent) {
-      if (signal.aborted || terminal) {
-        return;
-      }
-      Logger.warn("Notebook connection closed", event.code, event.reason);
-      const decision = classifyClose(event);
-      setStatus(decision.status);
-      if (decision.kind === "terminal") {
-        terminal = true;
-        transport.close();
-      } else if (decision.kind === "retry") {
-        retry(event.code, event.reason);
-      } else {
-        terminal = true;
-      }
-    }
-
-    function onError(event: Event) {
-      if (signal.aborted || terminal) {
-        return;
-      }
-      Logger.warn("Notebook connection error", event);
-      setStatus(disconnected);
-      retry();
-    }
-
-    function onMessage(message: MessageEvent<string>) {
-      if (signal.aborted || terminal) {
-        return;
-      }
-      let event;
-      try {
-        event = parseNotebookEvent(decodeJson(message.data));
-        const state = store.get(streamAtom);
-        if (
-          state.phase === "live" &&
-          event.id === undefined &&
-          !UNCURSORED.has(event.event)
-        ) {
-          throw new Error("Live notebook event is missing its cursor");
-        }
-        if (event.event !== "marimo" && event.event !== "unknown") {
-          store.set(streamAtom, reducer.reduce(state, event));
-        }
-        if (event.event === "reset") {
-          cursor = null;
-        } else if (event.event === "ready" || state.phase === "live") {
-          cursor = event.id ?? cursor;
-        }
-        if (event.event === "ready" || event.event === "reset") {
-          store.set(readyAtom, event.event === "ready");
-        }
-      } catch (error) {
-        Logger.error("Failed to decode notebook message", error);
-        store.set(streamAtom, reducer.initial);
-        cursor = null;
-        terminal = true;
-        setStatus({
-          ...disconnected,
-          reason: "Failed to decode notebook message",
-        });
-        transport.close();
-        return;
-      }
+    function apply(source: NotebookEvents<string>, event: EditorEvent) {
       if (event.event === "marimo") {
-        onNotification(event.data.marimo);
+        const message = MarimoMessage.safeParse(event.data);
+        if (message.success) {
+          onNotification(message.data.marimo);
+        } else {
+          Logger.error("Failed to decode notebook message", event);
+        }
+        return;
+      }
+      try {
+        store.set(streamAtom, reducer.reduce(store.get(streamAtom), event));
+      } catch (error) {
+        // An event the replica cannot apply, such as another notebook's.
+        Logger.error("Failed to apply notebook event", error);
+        source.close();
+        resumable = false;
+        store.set(streamAtom, reducer.initial);
+        setStatus(malformed);
+        return;
+      }
+      if (event.event === "ready" || event.event === "reset") {
+        store.set(readyAtom, event.event === "ready");
       }
     }
 
     reconnect = async () => {
-      if (
-        signal.aborted ||
-        checkingHealth ||
-        transport.readyState === TransportReadyState.OPEN ||
-        transport.readyState === TransportReadyState.CONNECTING
-      ) {
+      if (signal.aborted || checkingHealth || events?.status !== "closed") {
         return;
       }
       checkingHealth = true;
@@ -255,17 +213,13 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
           return;
         }
         if (!healthy) {
-          shouldRetry = false;
           setStatus(disconnected);
           return;
         }
-        terminal = false;
-        shouldRetry = true;
-        transport.reconnect();
+        follow(resumable ? (events.cursor ?? undefined) : undefined);
       } catch (error) {
         if (!signal.aborted) {
           Logger.error("Notebook health check failed", error);
-          shouldRetry = false;
           setStatus(disconnected);
         }
       } finally {
@@ -276,11 +230,6 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
     signal.addEventListener(
       "abort",
       () => {
-        transport.removeEventListener("open", onOpen);
-        transport.removeEventListener("close", onClose);
-        transport.removeEventListener("error", onError);
-        transport.removeEventListener("message", onMessage);
-        transport.close();
         reconnect = undefined;
         store.set(streamAtom, reducer.initial);
         setStatus({ state: ConnectionState.NOT_STARTED });
@@ -288,28 +237,8 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
       { once: true },
     );
 
-    transport.addEventListener("open", onOpen);
-    transport.addEventListener("close", onClose);
-    transport.addEventListener("error", onError);
-    transport.addEventListener("message", onMessage);
-
-    if (transport.readyState === TransportReadyState.CLOSED) {
-      setStatus({ state: ConnectionState.CONNECTING });
-      void waitUntilReady()
-        .then(() => {
-          if (!signal.aborted) {
-            transport.reconnect();
-          }
-        })
-        .catch((error) => {
-          if (!signal.aborted) {
-            Logger.error("Healthy connection never made", error);
-            terminal = true;
-            setStatus(disconnected);
-            transport.close();
-          }
-        });
-    }
+    setStatus({ state: ConnectionState.CONNECTING });
+    follow();
   }
 
   return { client, connect };

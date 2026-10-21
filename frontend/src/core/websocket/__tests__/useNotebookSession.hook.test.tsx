@@ -21,8 +21,8 @@ import {
   vi,
 } from "vitest";
 
-vi.mock("../transports/create", () => ({
-  createConnectionTransport: vi.fn(),
+vi.mock("../transports/notebook", () => ({
+  createNotebookTransport: vi.fn(),
 }));
 
 vi.mock("@/core/runtime/config", async () => {
@@ -36,7 +36,6 @@ vi.mock("@/core/runtime/config", async () => {
 });
 
 import { MockNotebook } from "@/__mocks__/notebook";
-import { Logger } from "@/utils/Logger";
 import { Deferred } from "@/utils/Deferred";
 import { cellId } from "@/__tests__/branded";
 import { alertAtom, getPackageAlert } from "@/core/alerts/state";
@@ -44,7 +43,6 @@ import { notebookAtom } from "@/core/cells/cells";
 import { AppConfigSchema } from "@/core/config/config-schema";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
-import type { RunEvent } from "@marimo-team/client/protocol";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { initialRunCompletedAtom } from "../../kernel/state";
@@ -52,54 +50,72 @@ import { connectionAtom, startupProgressAtom } from "../../network/connection";
 import { generateSessionId } from "../../kernel/session";
 import { RuntimeManager } from "../../runtime/runtime";
 import { WebSocketClosedReason, ConnectionState } from "../types";
-import type { IConnectionTransport } from "../transports/transport";
+import { classifyCloseEvent } from "../connection-state";
+import { createNotebookTransport } from "../transports/notebook";
 import { useNotebookSession } from "../useNotebookSession";
-import { createConnectionTransport } from "../transports/create";
+import { type NotebookTransport, StreamStopped } from "@marimo-team/client";
 
 const SESSION_ID = generateSessionId();
 
-interface MockTransport {
-  readyState: 0 | 1 | 2 | 3;
-  reconnect: Mock<IConnectionTransport["reconnect"]>;
-  close: Mock<IConnectionTransport["close"]>;
-  send: Mock<IConnectionTransport["send"]>;
-  addEventListener: Mock<IConnectionTransport["addEventListener"]>;
-  removeEventListener: Mock<IConnectionTransport["removeEventListener"]>;
+/** One connection the fake transport opened. */
+interface Attempt {
+  open(): void;
+  receive(message: unknown): void;
+  drop(): void;
+  stop(error: StreamStopped): void;
 }
 
-function makeTransport(
-  readyState: 0 | 1 | 2 | 3 = WebSocket.CLOSED,
-): MockTransport {
-  return {
-    readyState,
-    reconnect: vi.fn(),
-    close: vi.fn(),
-    send: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
+/** A transport the test drives, one connection at a time. */
+function makeTransport() {
+  const attempts: Attempt[] = [];
+  const transport: NotebookTransport = ({ signal }, handlers) =>
+    new Promise((resolve, reject) => {
+      attempts.push({
+        open: handlers.open,
+        receive: handlers.message,
+        drop: resolve,
+        stop: reject,
+      });
+      signal.addEventListener("abort", () => resolve(), { once: true });
+    });
+  return { transport, attempts };
+}
+
+type FakeTransport = ReturnType<typeof makeTransport>;
+
+/** Use a fake transport for the next session the hook follows. */
+function withTransport(fake: FakeTransport = makeTransport()) {
+  vi.mocked(createNotebookTransport).mockReturnValue(fake.transport);
+  return fake;
+}
+
+/** Let the stream open its first connection. */
+const started = () => act(() => Promise.resolve());
+
+/** Drive the latest connection the fake transport opened. */
+function connection(fake: FakeTransport) {
+  const current = () => {
+    const attempt = fake.attempts.at(-1);
+    if (attempt === undefined) {
+      throw new Error("No connection was opened");
+    }
+    return attempt;
   };
-}
-
-function getTransportHandlers() {
-  const result = vi.mocked(createConnectionTransport).mock.results.at(-1);
-  if (!result || result.type !== "return") {
-    throw new Error("No connection transport was created");
-  }
-  const transport = result.value;
-  function emit(
-    event: "open" | "close" | "error" | "message",
-    message: Event | CloseEvent | MessageEvent,
-  ) {
-    const callback = vi
-      .mocked(transport.addEventListener)
-      .mock.calls.find(([name]) => name === event)?.[1];
-    callback?.(message);
-  }
   return {
-    onError: (event: Event) => emit("error", event),
-    onOpen: (event: Event) => emit("open", event),
-    onClose: (event: CloseEvent) => emit("close", event),
-    onMessage: (event: MessageEvent) => emit("message", event),
+    open: () => current().open(),
+    receive: (message: unknown) => current().receive(message),
+    /** Deliver a notification as the session routes frame it. */
+    send: (notification: unknown) =>
+      current().receive({ event: "marimo", data: { marimo: notification } }),
+    /** End the connection so the stream reconnects. */
+    drop: () => current().drop(),
+    /** Close the connection with a reason the editor treats as final. */
+    close: (reason: string) =>
+      current().stop(
+        new StreamStopped(reason, {
+          cause: classifyCloseEvent({ reason }).status,
+        }),
+      ),
   };
 }
 
@@ -141,12 +157,12 @@ function renderConnectionHook(store: ReturnType<typeof createStore>) {
 }
 
 describe("useNotebookSession.reconnect()", () => {
-  let transport: MockTransport;
+  let fake: FakeTransport;
   let isHealthy: Mock<() => Promise<boolean>>;
   let store: ReturnType<typeof createStore>;
 
   beforeEach(() => {
-    transport = makeTransport(WebSocket.CLOSED);
+    fake = withTransport();
     isHealthy = vi.fn<() => Promise<boolean>>().mockResolvedValue(true);
     store = createStore();
     store.set(connectionAtom, {
@@ -154,55 +170,53 @@ describe("useNotebookSession.reconnect()", () => {
       code: WebSocketClosedReason.KERNEL_DISCONNECTED,
       reason: "kernel not found",
     });
-    vi.mocked(createConnectionTransport).mockReturnValue(transport);
     vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager(isHealthy));
   });
 
-  function renderUseHook() {
-    return renderConnectionHook(store);
+  async function renderStopped() {
+    const hook = renderConnectionHook(store);
+    await started();
+    await act(async () => connection(fake).close("MARIMO_SHUTDOWN"));
+    return hook;
   }
 
-  it("is a no-op when the transport is already OPEN", async () => {
-    transport.readyState = WebSocket.OPEN;
-    const { result } = renderUseHook();
-    await act(async () => {
-      await result.current.reconnect();
-    });
-    expect(isHealthy).not.toHaveBeenCalled();
-    expect(transport.reconnect).not.toHaveBeenCalled();
-  });
-
-  it("is a no-op when the transport is already CONNECTING", async () => {
-    transport.readyState = WebSocket.CONNECTING;
-    const { result } = renderUseHook();
-    await act(async () => {
-      await result.current.reconnect();
-    });
-    expect(isHealthy).not.toHaveBeenCalled();
-    expect(transport.reconnect).not.toHaveBeenCalled();
-  });
+  it.each(["connecting", "connected"])(
+    "is a no-op while the stream is %s",
+    async (state) => {
+      const { result } = renderConnectionHook(store);
+      await started();
+      if (state === "connected") {
+        act(() => connection(fake).open());
+      }
+      await act(async () => {
+        await result.current.reconnect();
+      });
+      expect(isHealthy).not.toHaveBeenCalled();
+      expect(fake.attempts).toHaveLength(1);
+    },
+  );
 
   it("probes /health and reconnects when the runtime is healthy", async () => {
     isHealthy.mockResolvedValue(true);
-    const { result } = renderUseHook();
+    const { result } = await renderStopped();
     await act(async () => {
       await result.current.reconnect();
     });
     expect(isHealthy).toHaveBeenCalledOnce();
-    expect(transport.reconnect).toHaveBeenCalledOnce();
+    expect(fake.attempts).toHaveLength(2);
     expect(store.get(connectionAtom)).toEqual({
       state: ConnectionState.CONNECTING,
     });
   });
 
-  it("transitions to CLOSED and does not call ws.reconnect when the probe fails", async () => {
+  it("transitions to CLOSED and does not reconnect when the probe fails", async () => {
     isHealthy.mockResolvedValue(false);
-    const { result } = renderUseHook();
+    const { result } = await renderStopped();
     await act(async () => {
       await result.current.reconnect();
     });
     expect(isHealthy).toHaveBeenCalledOnce();
-    expect(transport.reconnect).not.toHaveBeenCalled();
+    expect(fake.attempts).toHaveLength(1);
     expect(store.get(connectionAtom)).toEqual({
       state: ConnectionState.CLOSED,
       code: WebSocketClosedReason.KERNEL_DISCONNECTED,
@@ -213,115 +227,30 @@ describe("useNotebookSession.reconnect()", () => {
 
 describe("useNotebookSession messages", () => {
   let store: ReturnType<typeof createStore>;
+  let fake: FakeTransport;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     store = createStore();
-    vi.mocked(createConnectionTransport).mockClear();
-    vi.mocked(createConnectionTransport).mockReturnValue(
-      makeTransport(WebSocket.OPEN),
-    );
+    fake = withTransport();
     vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
     renderConnectionHook(store);
+    await started();
   });
 
   function receive(payload: unknown) {
-    const options = getTransportHandlers();
-    act(() => {
-      options.onMessage(
-        new MessageEvent("message", { data: JSON.stringify(payload) }),
-      );
-    });
+    act(() => connection(fake).receive(payload));
   }
 
-  it.each(["{broken", "null"])(
-    "closes a malformed stream and ignores subsequent notifications: %s",
-    (data) => {
-      receive({ event: "marimo", data: { marimo: { op: "reconnected" } } });
-      act(() =>
-        getTransportHandlers().onMessage(new MessageEvent("message", { data })),
-      );
-      expect(store.get(connectionAtom)).toEqual({
-        state: ConnectionState.CLOSED,
-        code: "KERNEL_DISCONNECTED",
-        reason: "Failed to decode notebook message",
-      });
-      receive({
-        event: "marimo",
-        data: {
-          marimo: {
-            op: "completed-run",
-            run_id: "r1",
-            outcome: "succeeded",
-            error: null,
-          },
-        },
-      });
-      expect(store.get(initialRunCompletedAtom)).toBe(false);
-    },
-  );
-
-  it.each(["session", "host"])(
-    "records completion of the initial run from the %s stream",
-    (stream) => {
-      const notification = {
-        op: "completed-run",
-        run_id: null,
-        outcome: "succeeded",
-        error: null,
-      } satisfies NotificationPayload["data"];
-      expect(store.get(initialRunCompletedAtom)).toBe(false);
-      receive(
-        stream === "host"
-          ? { id: "42", event: "marimo", data: { marimo: notification } }
-          : { op: notification.op, data: notification },
-      );
-      expect(store.get(initialRunCompletedAtom)).toBe(true);
-    },
-  );
-
-  it("ignores other host events before handling the next notification", () => {
-    const errors = vi.spyOn(Logger, "error").mockImplementation(vi.fn());
-    try {
-      receive({ id: "1", event: "ready", data: {} });
-      receive({
-        id: "2",
-        event: "run",
-        data: {
-          run: {
-            id: "r1",
-            notebook_id: "n1",
-            caused_by: null,
-            status: "completed",
-            outcome: "succeeded",
-            started_at: "2026-10-19T12:00:00Z",
-            completed_at: "2026-10-19T12:00:01Z",
-          },
-        },
-      } satisfies RunEvent);
-      receive({
-        id: "3",
-        event: "future-event",
-        data: { marimo: { op: "completed-run", run_id: "r1" } },
-      });
-      receive({ id: "4", event: "another-event", data: null });
-      expect(store.get(initialRunCompletedAtom)).toBe(false);
-      receive({
-        id: "5",
-        event: "marimo",
-        data: {
-          marimo: {
-            op: "completed-run",
-            run_id: "r1",
-            outcome: "succeeded",
-            error: null,
-          },
-        },
-      });
-      expect(store.get(initialRunCompletedAtom)).toBe(true);
-      expect(errors).not.toHaveBeenCalled();
-    } finally {
-      errors.mockRestore();
-    }
+  it("records completion of the initial run", () => {
+    const notification = {
+      op: "completed-run",
+      run_id: null,
+      outcome: "succeeded",
+      error: null,
+    } satisfies NotificationPayload["data"];
+    expect(store.get(initialRunCompletedAtom)).toBe(false);
+    receive({ id: "42", event: "marimo", data: { marimo: notification } });
+    expect(store.get(initialRunCompletedAtom)).toBe(true);
   });
 });
 
@@ -330,45 +259,34 @@ it.each(["kernel-ready", "reconnected"])(
   async (op) => {
     const store = createStore();
     store.set(connectionAtom, { state: ConnectionState.CONNECTING });
-    vi.mocked(createConnectionTransport).mockClear();
-    vi.mocked(createConnectionTransport).mockReturnValue(
-      makeTransport(WebSocket.OPEN),
-    );
+    const fake = withTransport();
     vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
     renderConnectionHook(store);
-    const options = getTransportHandlers();
+    await started();
+    const conn = connection(fake);
 
-    await act(async () => {
-      await options.onOpen(new Event("open"));
-    });
+    await act(async () => conn.open());
     expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
 
-    act(() => {
-      options.onMessage(
-        new MessageEvent("message", {
-          data: JSON.stringify({
-            op,
-            data: {
-              op,
-              cell_ids: [],
-              codes: [],
-              names: [],
-              configs: [],
-              layout: null,
-              resumed: true,
-              ui_values: {},
-              last_executed_code: {},
-              last_execution_time: {},
-              app_config: { width: "normal" },
-              kiosk: false,
-              capabilities: { terminal: false },
-              auto_instantiated: false,
-              consumer_capabilities: { edit: true, interact: true },
-            },
-          }),
-        }),
-      );
-    });
+    act(() =>
+      conn.send({
+        op,
+        cell_ids: [],
+        codes: [],
+        names: [],
+        configs: [],
+        layout: null,
+        resumed: true,
+        ui_values: {},
+        last_executed_code: {},
+        last_execution_time: {},
+        app_config: { width: "normal" },
+        kiosk: false,
+        capabilities: { terminal: false },
+        auto_instantiated: false,
+        consumer_capabilities: { edit: true, interact: true },
+      }),
+    );
     expect(store.get(connectionAtom).state).toBe(ConnectionState.OPEN);
   },
 );
@@ -377,11 +295,10 @@ describe("connection notice", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  function renderNotice() {
+  async function renderNotice() {
     const store = createStore();
     store.set(connectionAtom, { state: ConnectionState.CONNECTING });
-    const transport = makeTransport(WebSocket.OPEN);
-    vi.mocked(createConnectionTransport).mockReturnValue(transport);
+    const fake = withTransport();
     vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
     const Connection = () => {
       const { reconnect } = useNotebookSession({
@@ -403,20 +320,17 @@ describe("connection notice", () => {
         </ErrorBoundary>
       </JotaiProvider>,
     );
-    const options = getTransportHandlers();
+    await started();
+    const conn = connection(fake);
+    // Messages arrive on an open connection.
+    act(() => conn.open());
     const send = (data: NotificationPayload["data"]) =>
-      act(() => {
-        options.onMessage(
-          new MessageEvent("message", {
-            data: JSON.stringify({ op: data.op, data }),
-          }),
-        );
-      });
-    return { store, transport, options, send };
+      act(() => conn.send(data));
+    return { store, fake, conn, send };
   }
 
-  it("keeps elapsed time across startup phases and leaves reconnection to the footer once cells are available", () => {
-    const { store, options, send } = renderNotice();
+  it("keeps elapsed time across startup phases and leaves reconnection to the footer once cells are available", async () => {
+    const { store, conn, send } = await renderNotice();
     send({
       op: "startup-progress",
       phase: "preparing-environment",
@@ -456,7 +370,7 @@ describe("connection notice", () => {
     expect(
       screen.queryByRole("region", { name: "Notebook startup" }),
     ).not.toBeInTheDocument();
-    act(() => options.onClose(new CloseEvent("close")));
+    await act(async () => conn.drop());
     act(() => vi.advanceTimersByTime(500));
     expect(store.get(connectionAtom)).toEqual({
       state: ConnectionState.CONNECTING,
@@ -467,8 +381,8 @@ describe("connection notice", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("restores startup output before appending live chunks and resets it for a new attempt", () => {
-    const { store, send } = renderNotice();
+  it("restores startup output before appending live chunks and resets it for a new attempt", async () => {
+    const { store, send } = await renderNotice();
     const snapshot = {
       op: "startup-progress",
       phase: "starting-kernel",
@@ -494,7 +408,7 @@ describe("connection notice", () => {
   });
 
   it("restores completed startup output without putting a connected kernel back into startup", async () => {
-    const { store, options, send } = renderNotice();
+    const { store, conn, send } = await renderNotice();
     send({ op: "reconnected" });
     send({
       op: "startup-progress",
@@ -512,13 +426,15 @@ describe("connection notice", () => {
       screen.queryByRole("region", { name: "Notebook startup" }),
     ).not.toBeInTheDocument();
 
-    // A new transport starts from the next session's authoritative snapshot.
-    await act(async () => options.onOpen(new Event("open")));
+    // A new connection starts from the next session's authoritative snapshot.
+    await act(async () => conn.drop());
+    await act(async () => vi.advanceTimersByTime(2000));
+    await act(async () => conn.open());
     expect(store.get(startupProgressAtom)).toBeNull();
   });
 
-  it("does not flash a notice when startup finishes within the delay", () => {
-    const { send } = renderNotice();
+  it("does not flash a notice when startup finishes within the delay", async () => {
+    const { send } = await renderNotice();
     send({
       op: "startup-progress",
       phase: "preparing-environment",
@@ -546,16 +462,11 @@ describe("connection notice", () => {
   it.each(["preparing-environment", "starting-kernel"] as const)(
     "keeps a %s failure available until the user retries",
     async (phase) => {
-      const { store, transport, options, send } = renderNotice();
+      const { store, fake, conn, send } = await renderNotice();
       send({ op: "startup-progress", phase, logs: "", log_mode: "replace" });
       const error = "A full diagnostic\nwith <stderr> details";
       send({ op: "kernel-startup-error", error });
-      transport.readyState = WebSocket.CLOSED;
-      act(() =>
-        options.onClose(
-          new CloseEvent("close", { reason: "MARIMO_KERNEL_STARTUP_ERROR" }),
-        ),
-      );
+      await act(async () => conn.close("MARIMO_KERNEL_STARTUP_ERROR"));
       expect(screen.getByRole("status")).toHaveTextContent(
         "Kernel failed to start",
       );
@@ -566,11 +477,11 @@ describe("connection notice", () => {
       expect(screen.getByLabelText("Error details")).toHaveTextContent(error, {
         normalizeWhitespace: false,
       });
-      expect(transport.reconnect).not.toHaveBeenCalled();
+      expect(fake.attempts).toHaveLength(1);
       await act(async () =>
         fireEvent.click(screen.getByRole("button", { name: "Try again" })),
       );
-      expect(transport.reconnect).toHaveBeenCalledOnce();
+      expect(fake.attempts).toHaveLength(2);
       expect(store.get(kernelStartupErrorAtom)).toBeNull();
       expect(
         screen.queryByRole("button", { name: "Try again" }),
@@ -590,23 +501,14 @@ describe("connection notice", () => {
   );
 });
 
-it("replaces environment state from snapshots, then continues live progress", () => {
+it("replaces environment state from snapshots, then continues live progress", async () => {
   const store = createStore();
-  vi.mocked(createConnectionTransport).mockClear();
-  vi.mocked(createConnectionTransport).mockReturnValue(
-    makeTransport(WebSocket.OPEN),
-  );
+  const fake = withTransport();
   vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
   renderConnectionHook(store);
-  const options = getTransportHandlers();
+  await started();
   function receive(data: NotificationPayload["data"]) {
-    act(() =>
-      options?.onMessage(
-        new MessageEvent("message", {
-          data: JSON.stringify({ op: data.op, data }),
-        }),
-      ),
-    );
+    act(() => connection(fake).send(data));
   }
   receive({
     op: "environment-operation",

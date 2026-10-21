@@ -5,48 +5,37 @@ import { act, renderHook } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import type { PropsWithChildren } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NotebookTransport } from "@marimo-team/client";
 import { ConnectionState } from "../types";
-import { createConnectionTransport } from "../transports/create";
-import type { IConnectionTransport } from "../transports/transport";
+import { createNotebookTransport } from "../transports/notebook";
 import { useNotebookClient } from "../useNotebookClient";
 import { fixtureMessages } from "../../host/__tests__/fixtures";
 import { agentAttachmentsAtom } from "../../attachments/state";
 import { notebookClientAtom } from "../state";
 
-vi.mock("../transports/create", () => ({ createConnectionTransport: vi.fn() }));
+vi.mock("../transports/notebook", () => ({ createNotebookTransport: vi.fn() }));
 
-function makeTransport(url?: () => string) {
-  const events = new EventTarget();
-  const transport: IConnectionTransport = {
-    readyState: WebSocket.CLOSED,
-    reconnect: vi.fn(() => {
-      url?.();
-      transport.readyState = WebSocket.OPEN;
-      events.dispatchEvent(new Event("open"));
-    }),
-    close: vi.fn(() => {
-      transport.readyState = WebSocket.CLOSED;
-      events.dispatchEvent(new CloseEvent("close"));
-    }),
-    send: vi.fn(),
-    addEventListener: events.addEventListener.bind(events),
-    removeEventListener: events.removeEventListener.bind(events),
-  };
+/** A transport whose connections the test drives. */
+function makeTransport() {
+  const opened: {
+    signal: AbortSignal;
+    open(): void;
+    receive(message: unknown): void;
+  }[] = [];
+  const transport: NotebookTransport = ({ signal }, handlers) =>
+    new Promise((resolve) => {
+      opened.push({ signal, open: handlers.open, receive: handlers.message });
+      signal.addEventListener("abort", () => resolve(), { once: true });
+    });
   return {
     transport,
-    receive: (message: unknown) =>
-      events.dispatchEvent(
-        new MessageEvent("message", { data: JSON.stringify(message) }),
-      ),
+    opened,
+    /** Open the latest connection and deliver a host-framed notification. */
     notify: () =>
-      events.dispatchEvent(
-        new MessageEvent("message", {
-          data: JSON.stringify({
-            event: "marimo",
-            data: { marimo: { op: "reconnected" } },
-          }),
-        }),
-      ),
+      opened.at(-1)?.receive({
+        event: "marimo",
+        data: { marimo: { op: "reconnected" } },
+      }),
   };
 }
 
@@ -73,19 +62,21 @@ function setup(strict = false) {
 }
 
 beforeEach(() => {
-  vi.mocked(createConnectionTransport).mockReset();
+  vi.mocked(createNotebookTransport).mockReset();
 });
 
 describe("useNotebookClient", () => {
   it("exposes host presence to the UI without waiting for kernel-ready", async () => {
-    const transport = makeTransport();
-    vi.mocked(createConnectionTransport).mockReturnValue(transport.transport);
+    const fake = makeTransport();
+    vi.mocked(createNotebookTransport).mockReturnValue(fake.transport);
     const { result, store, unmount } = setup();
     await act(async () => Promise.resolve());
     expect(store.get(notebookClientAtom)).toBe(result.current);
-    act(() =>
-      fixtureMessages("notebook-events.sse").forEach(transport.receive),
-    );
+    const [connection] = fake.opened;
+    act(() => {
+      connection.open();
+      fixtureMessages("notebook-events.sse").forEach(connection.receive);
+    });
     expect(store.get(agentAttachmentsAtom)).toEqual([
       {
         id: "a2",
@@ -101,49 +92,48 @@ describe("useNotebookClient", () => {
   });
 
   it("uses current callbacks and URL providers without reconnecting on a rerender", async () => {
-    const first = makeTransport();
-    vi.mocked(createConnectionTransport).mockReturnValue(first.transport);
+    const fake = makeTransport();
+    vi.mocked(createNotebookTransport).mockReturnValue(fake.transport);
     const { rerender, options, unmount } = setup();
     await act(async () => Promise.resolve());
     const onNotification = vi.fn();
     rerender({ ...options, onNotification, url: () => "ws://redirected/ws" });
-    act(() => first.notify());
+    act(() => fake.notify());
     expect(options.onNotification).not.toHaveBeenCalled();
     expect(onNotification).toHaveBeenCalledExactlyOnceWith({
       data: { op: "reconnected" },
     });
-    expect(createConnectionTransport).toHaveBeenCalledOnce();
-    expect(vi.mocked(createConnectionTransport).mock.calls[0][0].url()).toBe(
+    expect(createNotebookTransport).toHaveBeenCalledOnce();
+    const [{ url }] = vi.mocked(createNotebookTransport).mock.calls[0];
+    expect(String(await (url as () => Promise<string>)())).toBe(
       "ws://redirected/ws",
     );
     unmount();
   });
 
-  it("cleans up every transport under Strict Mode and only connects the active lifetime", async () => {
-    const transports: ReturnType<typeof makeTransport>[] = [];
-    vi.mocked(createConnectionTransport).mockImplementation(() => {
+  it("closes every stream under Strict Mode and only follows the active lifetime", async () => {
+    const fakes: ReturnType<typeof makeTransport>[] = [];
+    vi.mocked(createNotebookTransport).mockImplementation(() => {
       const next = makeTransport();
-      transports.push(next);
+      fakes.push(next);
       return next.transport;
     });
     const { result, store, options, unmount } = setup(true);
     await act(async () => Promise.resolve());
-    expect(transports).toHaveLength(2);
-    expect(transports[0].transport.reconnect).not.toHaveBeenCalled();
-    expect(transports[0].transport.close).toHaveBeenCalledOnce();
-    expect(transports[1].transport.reconnect).toHaveBeenCalledOnce();
+    expect(fakes).toHaveLength(2);
+    expect(fakes[0].opened.every((attempt) => attempt.signal.aborted)).toBe(
+      true,
+    );
+    const [active] = fakes[1].opened;
+    act(() => active.open());
     expect(store.get(result.current.connectionAtom)).toEqual({
       state: ConnectionState.OPEN,
     });
-    act(() => {
-      for (const transport of transports) {
-        transport.notify();
-      }
-    });
+    act(() => fakes.forEach((fake) => fake.notify()));
     expect(options.onNotification).toHaveBeenCalledOnce();
     unmount();
-    expect(transports[1].transport.close).toHaveBeenCalledOnce();
+    expect(active.signal.aborted).toBe(true);
     await result.current.reconnect();
-    expect(transports[1].transport.reconnect).toHaveBeenCalledOnce();
+    expect(fakes[1].opened).toHaveLength(1);
   });
 });
