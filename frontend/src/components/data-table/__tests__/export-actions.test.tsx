@@ -914,6 +914,94 @@ describe("ExportActions dialog", () => {
     expect(within(dialog).queryByRole("group")).not.toBeInTheDocument();
   });
 
+  it("describes format options with their description and current settings", async () => {
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue(geometryMetadata),
+    });
+    await openDialog();
+    await screen.findByRole("button", { name: "GeoParquet options" });
+
+    for (const [label, description] of [
+      ["CSV", "Comma-separated values Comma · UTF-8"],
+      ["TSV", "Best for Excel and Google Sheets UTF-8"],
+      ["JSON", "Raw JSON data Escapes non-ASCII"],
+      ["GeoParquet", "Parquet with geometry and CRS metadata location"],
+      ["GeoJSON", "Geometry in longitude and latitude location"],
+    ]) {
+      expect(
+        screen.getByRole("button", { name: `${label} options` }),
+      ).toHaveAccessibleDescription(description);
+    }
+
+    const csvOptions = screen.getByRole("button", { name: "CSV options" });
+    fireEvent.click(csvOptions);
+    fireEvent.change(screen.getByRole("combobox", { name: "Delimiter" }), {
+      target: { value: ";" },
+    });
+    expect(csvOptions).toHaveAccessibleDescription(
+      "Comma-separated values Semicolon · UTF-8",
+    );
+    fireEvent.click(csvOptions);
+    expect(csvOptions).toHaveAccessibleDescription(
+      "Comma-separated values Semicolon · UTF-8",
+    );
+  });
+
+  it.each([
+    ["CSV", "Comma-separated values"],
+    ["TSV", "Best for Excel and Google Sheets"],
+    ["JSON", "Raw JSON data"],
+    ["GeoParquet", "Parquet with geometry and CRS metadata"],
+    ["GeoJSON", "Geometry in longitude and latitude"],
+  ])(
+    "toggles %s options from the row label and description",
+    async (label, description) => {
+      renderExportActions({
+        getExportMetadata: vi.fn().mockResolvedValue(geometryMetadata),
+      });
+      await openDialog();
+      const toggle = await screen.findByRole("button", {
+        name: `${label} options`,
+      });
+
+      fireEvent.click(screen.getByText(label));
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+      expect(
+        screen.getByRole("group", { name: `${label} options` }),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText(description));
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(
+        screen.queryByRole("group", { name: `${label} options` }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("keeps download and copy independent of row expansion", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue("name,value\n"),
+      }),
+    );
+    renderExportActions();
+    await openDialog();
+    const toggle = screen.getByRole("button", { name: "CSV options" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
+    await waitFor(() => expect(downloadByURL).toHaveBeenCalled());
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(screen.getByText("CSV"));
+    fireEvent.click(screen.getByRole("button", { name: "Copy CSV" }));
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await waitFor(() => {
+      expect(copyToClipboard).toHaveBeenCalledWith("name,value\n");
+    });
+  });
+
   it("sends only changed CSV options with a download", async () => {
     renderExportActions();
     await openDialog();
