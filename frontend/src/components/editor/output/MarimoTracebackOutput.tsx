@@ -248,7 +248,7 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
             <Tooltip content={tooltipContent}>
               <button
                 type="button"
-                className="ml-1 p-1 rounded-sm hover:bg-muted transition-all inline"
+                className="ml-1 p-1 rounded-sm hover:bg-muted transition-colors inline"
               >
                 <BugPlayIcon
                   onClick={() => {

@@ -48,7 +48,7 @@ export const SelectorButton: React.FC<{
 }> = ({ name, color, icon, onSelect }) => (
   <button
     type="button"
-    className="py-3 flex flex-col items-center justify-center gap-1 transition-all hover:scale-105 hover:brightness-110 rounded shadow-sm-solid hover:shadow-md-solid"
+    className="py-3 flex flex-col items-center justify-center gap-1 transition-[scale,filter,box-shadow] hover:scale-105 hover:brightness-110 rounded shadow-sm-solid hover:shadow-md-solid"
     style={{ backgroundColor: color }}
     onClick={onSelect}
   >

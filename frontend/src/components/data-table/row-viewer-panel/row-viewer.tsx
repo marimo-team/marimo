@@ -34,6 +34,7 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { GetRowResult } from "@/plugins/impl/DataTablePlugin";
+import { Objects } from "@/utils/objects";
 import { NAMELESS_COLUMN_PREFIX, renderCellValue } from "../columns";
 import { prettifyRowCount } from "../pagination";
 import {
@@ -88,8 +89,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
     handleRowSelectionChange?.((prev) => {
       if (isRowSelected) {
         // Remove this row from selection
-        const { [rowIdx]: removedRow, ...rest } = prev;
-        return rest;
+        return Objects.filter(prev, (_, key) => key !== String(rowIdx));
       }
       // Add this row to selection
       return { ...prev, [rowIdx]: true };

@@ -27,8 +27,8 @@ export function matchesDiscoveryGroup(
  */
 export interface LiveConnectionSnapshot {
   dialects: readonly string[];
-  storageProtocols: readonly string[];
-  storageBackendTypes: readonly string[];
+  storageProtocols: ReadonlySet<string>;
+  storageBackendTypes: ReadonlySet<string>;
 }
 
 /**
@@ -47,15 +47,13 @@ export function isDetectedSourceConnected(
   }
 
   if (
-    match.protocols.some((protocol) =>
-      snapshot.storageProtocols.includes(protocol),
-    )
+    match.protocols.some((protocol) => snapshot.storageProtocols.has(protocol))
   ) {
     return true;
   }
 
   return match.backendTypes.some((backendType) =>
-    snapshot.storageBackendTypes.includes(backendType),
+    snapshot.storageBackendTypes.has(backendType),
   );
 }
 
