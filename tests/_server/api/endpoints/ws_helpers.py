@@ -20,8 +20,6 @@ def receive_notification(websocket: WebSocketTestSession) -> dict[str, Any]:
     """Read a private session notification from the host event stream."""
     while True:
         event = websocket.receive_json()
-        if "op" in event:
-            return event
         assert "event" in event
         if event["event"] == "marimo":
             notification = event["data"]["marimo"]

@@ -51,7 +51,7 @@ def editor_host(client: TestClient) -> Iterator[SessionBridge]:
 
 def socket_url(bridge: SessionBridge, session_id: str = "s1") -> str:
     (notebook_id,) = bridge.host.notebooks
-    return f"{HOST_API_PATH}/notebooks/{notebook_id}/events/ws?message_format=host&session_id={session_id}&access_token=fake-token"
+    return f"{HOST_API_PATH}/notebooks/{notebook_id}/events/ws?session_id={session_id}&access_token=fake-token"
 
 
 def receive_notification(
@@ -420,7 +420,7 @@ def test_editor_resumes_host_events_without_replaying_private_notifications(
     client: TestClient, editor_host: SessionBridge, session_route: bool
 ) -> None:
     endpoint = (
-        "/ws?message_format=host&session_id=s1&access_token=fake-token"
+        "/ws?session_id=s1&access_token=fake-token"
         if session_route
         else socket_url(editor_host)
     )
@@ -477,7 +477,7 @@ def test_untitled_editor_bootstraps_and_reconnects_with_host_events(
     client.app.state.host_context = HostContext(
         bridge=bridge, token="host-token", port=1234
     )
-    url = "/ws?message_format=host&session_id=new&access_token=fake-token"
+    url = "/ws?session_id=new&access_token=fake-token"
     with client:
         assert client.portal is not None
         client.portal.call(bridge.open)

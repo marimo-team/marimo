@@ -6,17 +6,14 @@ from __future__ import annotations
 import asyncio
 from contextlib import aclosing
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo._core import protocol
 from marimo._core.stream import RoutedEvent
 from marimo._messaging.notification import KernelStartupErrorNotification
-from marimo._messaging.serde import (
-    deserialize_kernel_message,
-    serialize_kernel_message,
-)
+from marimo._messaging.serde import deserialize_kernel_message
 from marimo._server.api.endpoints.ws.notification_filter import (
     should_filter_operation,
 )
@@ -32,7 +29,6 @@ from marimo._server.host.events import (
 from marimo._server.sse import (
     HEARTBEAT_EVENT,
     format_close_event,
-    format_sse_event,
     wait_for_http_disconnect,
 )
 from marimo._session.managers.ipc import KernelStartupError
@@ -75,7 +71,6 @@ class SessionEventStream(SessionHandler):
         types: set[str] | None,
         cursor: str | None,
         heartbeat_seconds: float = 20.0,
-        message_format: Literal["host", "session"] = "host",
     ) -> None:
         super().__init__(
             manager=manager,
@@ -83,7 +78,6 @@ class SessionEventStream(SessionHandler):
             mode=manager.mode,
             doc_manager=doc_manager,
         )
-        self.message_format = message_format
         self.connection = connection
         self.heartbeat_seconds = heartbeat_seconds
         self._stream_finished = False
@@ -218,15 +212,7 @@ class SessionEventStream(SessionHandler):
             if self.notebook is not None and self._attachment is not None:
                 self.notebook.detach(self._attachment.id)
 
-    def _serialize(self, event: RoutedEvent) -> str | None:
-        # Temporary wire compatibility; lifecycle and recipient filtering are
-        # shared with host delivery. Remove after the frontend cutover.
-        if self.message_format == "session":
-            if not isinstance(event.event, MarimoEvent):
-                return None
-            notification = event.event.data.marimo
-            data = serialize_kernel_message(notification).decode()
-            return f'{{"op": "{notification.name}", "data": {data}}}'
+    def _serialize(self, event: RoutedEvent) -> str:
         return serialize_event(
             event, include_code=self.manager.should_send_code_to_frontend()
         )
@@ -246,9 +232,7 @@ class SessionEventStream(SessionHandler):
                         ):
                             await websocket.close(event.code, event.reason)
                     elif event is not None:
-                        payload = self._serialize(event)
-                        if payload is not None:
-                            await websocket.send_text(payload)
+                        await websocket.send_text(self._serialize(event))
         except WebSocketDisconnect:
             pass
 
@@ -260,10 +244,6 @@ class SessionEventStream(SessionHandler):
                     yield format_close_event(event.code, event.reason)
                 elif event is None:
                     yield HEARTBEAT_EVENT
-                elif self.message_format == "session":
-                    payload = self._serialize(event)
-                    if payload is not None:
-                        yield format_sse_event(payload)
                 else:
                     yield serialize_sse_event(
                         event,

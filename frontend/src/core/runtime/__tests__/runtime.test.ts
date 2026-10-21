@@ -60,7 +60,6 @@ describe("RuntimeManager", () => {
       expect(url.protocol).toBe("wss:");
       expect(url.hostname).toBe("example.com");
       expect(url.pathname).toBe("/ws");
-      expect(url.searchParams.get("message_format")).toBe("host");
       expect(url.searchParams.has("types")).toBe(false);
       expect(url.searchParams.get("session_id")).toBe(sessionId);
     });
@@ -236,7 +235,6 @@ describe("RuntimeManager", () => {
       );
       const url = runtime.getSseURL("s_123" as SessionId);
 
-      expect(url.searchParams.get("message_format")).toBe("host");
       expect(url.searchParams.get("access_token")).toBeNull();
       expect(url.toString()).not.toContain("my-secret-token");
     });
@@ -740,7 +738,7 @@ describe("RuntimeManager", () => {
       const sessionId = "test" as SessionId;
 
       expect(runtime.getWsURL(sessionId).toString()).toMatchInlineSnapshot(
-        `"blob:https://example.com/12345678-1234-1234-1234-123456789abc?session_id=test&message_format=host"`,
+        `"blob:https://example.com/12345678-1234-1234-1234-123456789abc?session_id=test"`,
       );
       expect(Logger.warn).toHaveBeenCalledOnce();
     });

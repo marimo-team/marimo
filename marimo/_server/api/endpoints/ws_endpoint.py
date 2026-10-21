@@ -77,9 +77,6 @@ async def websocket_endpoint(
 async def _session_events(
     connection: WebSocket | Request, params: ConnectionParams
 ) -> SessionEventStream:
-    message_format = connection.query_params.get("message_format", "session")
-    if message_format not in ("host", "session"):
-        raise ValueError("message_format must be host or session")
     cursor = stream_options.cursor(connection)
     types = stream_options.types(connection)
     if "run_id" in connection.query_params:
@@ -94,7 +91,6 @@ async def _session_events(
         doc_manager=DOC_MANAGER,
         types=types,
         cursor=cursor,
-        message_format="host" if message_format == "host" else "session",
     )
 
 

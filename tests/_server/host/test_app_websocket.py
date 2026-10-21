@@ -46,7 +46,7 @@ def app_host(client: TestClient) -> Iterator[SessionBridge]:
 
 
 def url(session_id: str) -> str:
-    return f"/ws?message_format=host&session_id={session_id}&access_token=fake-token"
+    return f"/ws?session_id={session_id}&access_token=fake-token"
 
 
 @pytest.mark.parametrize("include_code", [False, True])
@@ -156,9 +156,7 @@ def test_app_host_keeps_authentication(
     client: TestClient, app_host: SessionBridge
 ) -> None:
     with pytest.raises(WebSocketDisconnect) as exc:
-        with client.websocket_connect(
-            "/ws?message_format=host&session_id=alice"
-        ):
+        with client.websocket_connect("/ws?session_id=alice"):
             pass
     assert exc.value.code == WebSocketCodes.UNAUTHORIZED
     assert not app_host.host.notebooks

@@ -113,7 +113,7 @@ class SSETestConnection:
         """Skip host model events when asserting session lifecycle notifications."""
         while True:
             record = await self.next_event()
-            if record["event"] in ("close", "comment", "message"):
+            if record["event"] in ("close", "comment"):
                 return record
             if record["event"] == "marimo":
                 notification = json.loads(record["data"])["marimo"]
@@ -186,10 +186,9 @@ async def _expect_close(
     assert json.loads(event["data"]) == {"code": code, "reason": reason}
 
 
-@pytest.mark.parametrize("format_query", ["", "&message_format=session"])
-async def test_sse_kernel_ready(client: TestClient, format_query: str) -> None:
-    async with _connect(client, SSE_QUERY + format_query) as connection:
-        event = await connection.next_event()
+async def test_sse_kernel_ready(client: TestClient) -> None:
+    async with _connect(client) as connection:
+        event = await connection.next_notification()
         assert connection.status == 200
         assert connection.headers["content-type"].startswith(
             "text/event-stream"
@@ -703,9 +702,7 @@ async def test_sse_host_snapshot_and_cursor_replay(
     manager = get_session_manager(client)
     manager.mode = mode
     manager.include_code = False
-    query = (
-        SSE_QUERY + "&message_format=host&types=notebook,cell,custom,marimo"
-    )
+    query = SSE_QUERY + "&types=notebook,cell,custom,marimo"
     async with _connect(client, query) as connection:
         snapshot = []
         while True:
@@ -744,8 +741,7 @@ async def test_sse_host_snapshot_and_cursor_replay(
 
 
 @pytest.mark.parametrize(
-    "options",
-    ["cursor=", "types=invalid", "run_id=unknown", "message_format=invalid"],
+    "options", ["cursor=", "types=invalid", "run_id=unknown"]
 )
 async def test_sse_rejects_invalid_subscription_before_startup(
     client: TestClient, options: str
