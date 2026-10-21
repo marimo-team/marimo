@@ -44,8 +44,8 @@ afterward.
 ## Discover local hosts in Node.js
 
 `discoverHosts()` performs [local discovery](../../protocols/host/spec.md#local-discovery)
-on macOS and Linux. This example lists the notebooks each discovered host
-currently knows about:
+on macOS and Linux (requires `procps` on Linux). This example lists the notebooks
+each discovered host currently knows about:
 
 ```ts
 import { Client } from "@marimo-team/client";

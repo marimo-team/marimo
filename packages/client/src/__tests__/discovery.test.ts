@@ -191,6 +191,7 @@ describe.skipIf(!["darwin", "linux"].includes(process.platform))(
       await write(record, "other.json");
       const hosts = discoverHosts({ stateDir });
       expect((await hosts.next()).value).toEqual(record);
+      await rm(join(directory, "host.json"));
       await rm(join(directory, "other.json"));
       expect((await hosts.next()).done).toBe(true);
     });
@@ -209,15 +210,24 @@ describe.skipIf(!["darwin", "linux"].includes(process.platform))(
 
     it("skips processes that have exited", async () => {
       await write();
-      runPs.mockRejectedValue(Object.assign(new Error("exited"), { code: 1 }));
+      runPs.mockRejectedValue(
+        Object.assign(new Error("exited"), {
+          code: 1,
+          stdout: "",
+          stderr: "",
+        }),
+      );
       expect(await collect()).toEqual([]);
     });
 
-    it("reports failures to run process inspection", async () => {
+    it.each([
+      { code: "ENOENT", stdout: "", stderr: "" },
+      { code: 1, stdout: "", stderr: "ps: invalid option -- 'p'\n" },
+      { code: 1, stdout: "Usage: ps [-o COL1,COL2=HEADER]\n", stderr: "" },
+      { code: 2, stdout: "", stderr: "" },
+    ])("reports process inspection failures: %j", async (details) => {
       await write();
-      const error = Object.assign(new Error("ps unavailable"), {
-        code: "ENOENT",
-      });
+      const error = Object.assign(new Error("ps failed"), details);
       runPs.mockRejectedValue(error);
       await expect(collect()).rejects.toBe(error);
     });

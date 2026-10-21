@@ -26,6 +26,7 @@ export interface DiscoverHostsOptions {
  * No HTTP requests are made; a host can stop after it has been discovered.
  *
  * Supports macOS and Linux, using `/bin/ps` to verify process start times.
+ * Linux requires procps; BusyBox ps is not supported.
  * Throws on unsupported platforms or if process inspection fails.
  */
 export async function* discoverHosts(
@@ -153,9 +154,19 @@ async function isRunning(
       },
     ));
   } catch (error) {
-    // ps exits with status 1 when the process no longer exists.
-    if (error instanceof Error && "code" in error && error.code === 1)
+    // An empty result exits with status 1. Diagnostics indicate an inspection
+    // failure (for example, unsupported ps options), not a dead process.
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      error.code === 1 &&
+      "stdout" in error &&
+      error.stdout === "" &&
+      "stderr" in error &&
+      error.stderr === ""
+    ) {
       return false;
+    }
     throw error;
   }
   const match = /^(.*?)\s+(\S+)\s*$/.exec(stdout.trim());
