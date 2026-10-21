@@ -11,7 +11,6 @@ import type {
 import {
   createNotebookClient,
   type NotebookClient,
-  type NotebookConnection,
 } from "../host/notebook-client";
 import { classifyCloseEvent } from "./connection-state";
 import { notebookClientAtom } from "./state";
@@ -21,24 +20,20 @@ import {
 } from "./transports/create";
 
 type Options = ConnectionTransportOptions & {
-  sessionId: string;
-  messageFormat: NotebookConnection["messageFormat"];
   waitUntilReady: () => Promise<void>;
   checkHealth: () => Promise<boolean>;
   onNotification: (notification: NotificationPayload) => void;
-  onMessageError: NotebookConnection["onMessageError"];
 };
 
 export function useNotebookClient(options: Options): NotebookClient {
   const store = useStore();
-  const { sessionId, static: isStatic, transportType, messageFormat } = options;
+  const { static: isStatic, transportType } = options;
   const controller = useMemo(() => createNotebookClient(store), [store]);
   const url = useEvent(options.url);
   const headers = useEvent(options.headers);
   const waitUntilReady = useEvent(options.waitUntilReady);
   const checkHealth = useEvent(options.checkHealth);
   const onNotification = useEvent(options.onNotification);
-  const onMessageError = useEvent(options.onMessageError);
 
   useEffect(() => {
     const lifetime = new AbortController();
@@ -52,11 +47,9 @@ export function useNotebookClient(options: Options): NotebookClient {
           transportType,
         }),
       url,
-      messageFormat,
       signal: lifetime.signal,
       waitUntilReady,
       checkHealth,
-      onMessageError,
       // The host validates the envelope, not the native notification contents.
       onNotification: (notification) =>
         onNotification({ data: notification as NotificationMessage }),
@@ -72,16 +65,13 @@ export function useNotebookClient(options: Options): NotebookClient {
   }, [
     controller,
     store,
-    sessionId,
     isStatic,
     transportType,
-    messageFormat,
     url,
     headers,
     waitUntilReady,
     checkHealth,
     onNotification,
-    onMessageError,
   ]);
 
   return controller.client;

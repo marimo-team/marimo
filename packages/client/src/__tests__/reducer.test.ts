@@ -93,7 +93,7 @@ describe("notebook reducer", () => {
 
     const resetEvents = fixtureEvents("events-reset.sse");
     const afterReset = reducer.reduce(live, resetEvents[0]);
-    expect(afterReset).toEqual({ ...reducer.initial, notebookId: "n1" });
+    expect(afterReset).toEqual(reducer.initial);
     expect(replay(reducer, resetEvents, live).phase).toBe("live");
   });
 
@@ -137,7 +137,11 @@ describe("notebook reducer", () => {
       id: "100",
       data: { id: "n1", time },
     });
-    expect(removed).toMatchObject({ phase: "live", notebookId: "n1" });
+    expect(removed).toMatchObject({
+      phase: "live",
+      notebookId: "n1",
+      notebook: null,
+    });
     expect(removed.resources).toBe(reducer.initial.resources);
   });
 

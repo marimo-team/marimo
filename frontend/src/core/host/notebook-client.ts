@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Logger } from "@/utils/Logger";
-import type { Attachment } from "@marimo-team/client/protocol";
+import type { Attachment, NotebookOutput } from "@marimo-team/client/protocol";
 import { createReducer } from "@marimo-team/client/reducer";
 import { type Atom, atom, type createStore } from "jotai/vanilla";
 import {
@@ -27,6 +27,8 @@ const UNCURSORED = new Set<NotebookEvent["event"]>([
 export interface NotebookClient {
   /** Client connection status, independent of application session readiness. */
   readonly connectionAtom: Atom<ConnectionStatus>;
+  /** Identity and capabilities, available while the stream is connected and ready. */
+  readonly notebookAtom: Atom<NotebookOutput | null>;
   /**
    * The most recently confirmed document.
    *
@@ -47,8 +49,6 @@ export interface NotebookConnection {
   createTransport: (url: () => string) => NotebookTransport;
   /** The current stream URL, including authentication and subscription options. */
   url: () => string;
-  /** Host events require an intact stream; legacy notifications are independent. */
-  messageFormat: "host" | "session";
   /** Abort to close the transport and clear the client's state. */
   signal: AbortSignal;
   /** Wait until the host can accept the initial connection. */
@@ -59,8 +59,6 @@ export interface NotebookConnection {
   decodeJson: (message: string) => unknown;
   /** Handle a native marimo notification. Its payload has not been validated. */
   onNotification: (notification: unknown) => void;
-  /** Report a malformed message without coupling the client to editor UI. */
-  onMessageError: (error: unknown) => void;
   /** Choose the connection status and retry policy after the transport closes. */
   classifyClose: (event: CloseEvent) => CloseDecision;
 }
@@ -75,6 +73,11 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
   const streamAtom = atom(reducer.initial);
   // A resumed stream is live, but presence waits for this connection's ready.
   const readyAtom = atom(false);
+  const notebookAtom = atom((get) =>
+    get(readyAtom) && get(connectionAtom).state === ConnectionState.OPEN
+      ? get(streamAtom).notebook
+      : null,
+  );
   const documentAtom = atom(
     (get) => get(streamAtom).resources.document.current,
   );
@@ -86,6 +89,7 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
   let reconnect: (() => Promise<void>) | undefined;
   const client: NotebookClient = {
     connectionAtom,
+    notebookAtom,
     documentAtom,
     attachmentsAtom,
     reconnect: async () => reconnect?.(),
@@ -94,12 +98,10 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
   function connect({
     createTransport,
     url,
-    messageFormat,
     signal,
     waitUntilReady,
     checkHealth,
     onNotification,
-    onMessageError,
     decodeJson,
     classifyClose,
   }: NotebookConnection) {
@@ -113,9 +115,6 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
     // The id of the last live event. Null before `ready` and after `reset`.
     let cursor: string | null = null;
     const transport = createTransport(() => {
-      if (messageFormat === "session") {
-        return url();
-      }
       const next = new URL(url());
       next.searchParams.delete("cursor");
       if (signal.aborted) {
@@ -131,11 +130,9 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
       // A live stream keeps its state and resumes from the cursor. An
       // incomplete snapshot starts over.
       const state =
-        key !== streamKey
+        key !== streamKey || current.phase === "snapshot"
           ? reducer.initial
-          : current.phase === "snapshot"
-            ? { ...reducer.initial, notebookId: current.notebookId }
-            : current;
+          : current;
       if (state.phase === "snapshot") {
         cursor = null;
       }
@@ -226,10 +223,6 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
         }
       } catch (error) {
         Logger.error("Failed to decode notebook message", error);
-        if (messageFormat === "session") {
-          onMessageError(error);
-          return;
-        }
         store.set(streamAtom, reducer.initial);
         cursor = null;
         terminal = true;

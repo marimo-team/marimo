@@ -49,12 +49,10 @@ function setup(url: () => string = () => "ws://localhost/ws") {
         return transport;
       },
       url,
-      messageFormat: "host",
       signal,
       waitUntilReady: () => healthy.promise,
       checkHealth,
       onNotification: (notification) => onNotification({ data: notification }),
-      onMessageError: vi.fn(),
       decodeJson: jsonParseWithSpecialChar,
       classifyClose: classifyCloseEvent,
     });
@@ -76,6 +74,71 @@ function setup(url: () => string = () => "ws://localhost/ws") {
 }
 
 describe("NotebookClient lifetime", () => {
+  it("exposes identity and capabilities only after the notebook is ready", async () => {
+    const { connect, healthy, events, receive, client, store } = setup();
+    const lifetime = new AbortController();
+    connect(lifetime.signal);
+    healthy.resolve();
+    await healthy.promise;
+    events.dispatchEvent(new Event("open"));
+    const notebook = {
+      id: "nb/with space",
+      project_id: "p1",
+      path: null,
+      name: "Notebook",
+      operations: ["notebook.edit"],
+      updated_at: null,
+    };
+    receive({ event: "notebook", data: { notebook } });
+    expect(store.get(client.notebookAtom)).toBeNull();
+    receive({ event: "ready", id: "1", data: {} });
+    expect(store.get(client.notebookAtom)).toEqual(notebook);
+    receive({
+      event: "notebook",
+      id: "2",
+      data: { notebook: { ...notebook, operations: [] } },
+    });
+    expect(store.get(client.notebookAtom)?.operations).toEqual([]);
+    receive({ event: "notebook.removed", id: "3", data: { id: notebook.id } });
+    expect(store.get(client.notebookAtom)).toBeNull();
+    lifetime.abort();
+  });
+
+  it("rebuilds the replica after a reconnect reset selects a new notebook", async () => {
+    const notebookId = "n2";
+    const { connect, events, healthy, urls, receive, client, store } = setup(
+      () => "ws://localhost/ws?session_id=visitor",
+    );
+    const lifetime = new AbortController();
+    connect(lifetime.signal);
+    healthy.resolve();
+    await healthy.promise;
+    events.dispatchEvent(new Event("open"));
+    fixtureMessages("notebook-events.sse").forEach(receive);
+    expect(store.get(client.documentAtom)?.revision.notebook_id).toBe("n1");
+
+    events.dispatchEvent(new CloseEvent("close"));
+    expect(urls.at(-1)?.searchParams.get("cursor")).toBe("97");
+    expect(store.get(client.documentAtom)?.revision.notebook_id).toBe("n1");
+    expect(store.get(client.notebookAtom)).toBeNull();
+    events.dispatchEvent(new Event("open"));
+    receive({ event: "reset", data: {} });
+    expect(store.get(client.documentAtom)).toBeNull();
+    for (const event of fixtureMessages("notebook-events.sse")) {
+      receive(
+        JSON.parse(
+          JSON.stringify(event).replaceAll('"n1"', JSON.stringify(notebookId)),
+        ),
+      );
+    }
+    expect(store.get(client.documentAtom)?.revision.notebook_id).toBe(
+      notebookId,
+    );
+    expect(store.get(client.connectionAtom).state).toBe(ConnectionState.OPEN);
+    expect(store.get(client.notebookAtom)?.id).toBe(notebookId);
+    lifetime.abort();
+  });
+
   it.each(["{broken", JSON.stringify({ event: "ready", data: {} })])(
     "stops consuming a malformed host stream: %s",
     (data) => {
@@ -423,7 +486,7 @@ describe("NotebookClient attachments", () => {
     },
   );
 
-  it("keeps legacy sessions empty", async () => {
+  it("keeps host resources empty for notification-only WASM connections", async () => {
     const { client, store, receive, lifetime } = await open();
     receive({ data: { op: "kernel-ready" } });
     receive({ data: { op: "reconnected" } });

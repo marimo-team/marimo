@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 from urllib.parse import urlencode
 
 from starlette.authentication import has_required_scope, requires
@@ -50,7 +50,6 @@ from marimo._utils.paths import (
 if TYPE_CHECKING:
     from starlette.requests import Request
 
-    from marimo._server.host.context import HostContext
 
 LOGGER = _loggers.marimo_logger()
 
@@ -417,15 +416,6 @@ async def index(request: Request) -> Response:
             except ValueError:
                 pass  # Keep absolute if not under directory
 
-        context: HostContext | None = getattr(
-            request.app.state, "host_context", None
-        )
-        message_format: Literal["host", "session"] = (
-            "host"
-            if context is not None and context.bridge.app_sessions is None
-            else "session"
-        )
-
         html = notebook_page_template(
             html=html,
             base_url=app_state.base_url,
@@ -438,7 +428,6 @@ async def index(request: Request) -> Response:
             lsp_workspace=lsp_workspace,
             mode=app_state.mode,
             notebook_snapshot=notebook_snapshot,
-            message_format=message_format,
             runtime_config=[{"url": app_state.remote_url}]
             if app_state.remote_url
             else None,

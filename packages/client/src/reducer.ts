@@ -59,9 +59,11 @@ export interface ReducerState<States> {
   /**
    * The notebook the stream describes.
    *
-   * Retained across `reset`.
+   * Cleared on `reset`: session brokering may select a new notebook.
    */
   readonly notebookId: Protocol.NotebookIdOutput | null;
+  /** Latest notebook metadata, cleared on reset or removal. */
+  readonly notebook: Protocol.NotebookOutput | null;
   /** The state of each resource by name. */
   readonly resources: States;
 }
@@ -122,6 +124,7 @@ export function createReducer<States extends object>(
   const initial: ReducerState<States> = {
     phase: "snapshot",
     notebookId: null,
+    notebook: null,
     resources: initialResources,
   };
 
@@ -139,9 +142,9 @@ export function createReducer<States extends object>(
   }
 
   function clear(state: ReducerState<States>): ReducerState<States> {
-    return state.resources === initialResources
+    return state.resources === initialResources && state.notebook === null
       ? state
-      : { ...state, resources: initialResources };
+      : { ...state, notebook: null, resources: initialResources };
   }
 
   function fanOut(
@@ -177,13 +180,16 @@ export function createReducer<States extends object>(
     reduce(state, event) {
       switch (event.event) {
         case "reset":
-          return { ...initial, notebookId: state.notebookId };
+          return initial;
         case "ready":
           // Handlers see the phase that ended, so a snapshot's ready differs
           // from one that ends a replay.
           return { ...fanOut(state, event), phase: "live" };
         case "notebook":
-          return identify(state, event.data.notebook.id);
+          return {
+            ...identify(state, event.data.notebook.id),
+            notebook: event.data.notebook,
+          };
         case "host":
         case "project":
         case "project.removed":

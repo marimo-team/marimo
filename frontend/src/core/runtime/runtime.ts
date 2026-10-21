@@ -155,11 +155,7 @@ export class RuntimeManager {
   public getWsURL(sessionId: SessionId): URL {
     const searchParams = this.getSessionSearchParams(sessionId);
     const url = this.formatWsURL("/ws", searchParams);
-    if (this.config.messageFormat === "host") {
-      url.searchParams.set("message_format", "host");
-    } else {
-      url.searchParams.delete("message_format");
-    }
+    url.searchParams.set("message_format", "host");
     return url;
   }
 
@@ -175,11 +171,7 @@ export class RuntimeManager {
       searchParams: this.getSessionSearchParams(sessionId),
       restrictToKnownQueryParams: false,
     });
-    if (this.config.messageFormat === "host") {
-      url.searchParams.set("message_format", "host");
-    } else {
-      url.searchParams.delete("message_format");
-    }
+    url.searchParams.set("message_format", "host");
     // The page URL can still carry access_token (merged in from the
     // current page's params, before auth cleanup strips it); never
     // forward it — a token in the URL leaks into proxy/server logs.

@@ -107,7 +107,6 @@ def _get_mount_config(
     session_snapshot: NotebookSessionV1 | None = None,
     notebook_snapshot: NotebookV1 | None = None,
     runtime_config: list[dict[str, Any]] | None = None,
-    message_format: Literal["host", "session"] | None = None,
     layout: LayoutConfig | None = None,
 ) -> str:
     """
@@ -146,12 +145,6 @@ def _get_mount_config(
             "hostEnabled": mode == "edit",
         }
     )
-    stream_format = (
-        ',\n            "messageFormat": ' + json_script(message_format)
-        if message_format is not None
-        else ""
-    )
-
     return """{{
             "filename": {filename},
             "cwd": {cwd},
@@ -166,13 +159,12 @@ def _get_mount_config(
             "view": {view},
             "notebook": {notebook},
             "session": {session},
-            "runtimeConfig": {runtime_config}{stream_format},
+            "runtimeConfig": {runtime_config},
             "pairConfig": {pair_config}
         }}
 """.format(
         **{k: json_script(v) for k, v in options.items()},
         pair_config=pair_config,
-        stream_format=stream_format,
     ).strip()
 
 
@@ -306,7 +298,6 @@ def notebook_page_template(
     session_snapshot: NotebookSessionV1 | None = None,
     notebook_snapshot: NotebookV1 | None = None,
     runtime_config: list[dict[str, Any]] | None = None,
-    message_format: Literal["host", "session"] | None = None,
     asset_url: str | None = None,
     html_head: str | None = None,
     execute_opengraph_generators: bool = False,
@@ -350,7 +341,6 @@ def notebook_page_template(
             config_overrides=config_overrides,
             app_config=app_config,
             runtime_config=runtime_config,
-            message_format=message_format,
             notebook_snapshot=notebook_snapshot,
             session_snapshot=session_snapshot,
         ),
