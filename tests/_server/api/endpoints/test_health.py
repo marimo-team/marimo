@@ -78,8 +78,7 @@ def test_sessions_stable_id_survives_reconnect(
     client: TestClient, connection_id: str
 ) -> None:
     with client.websocket_connect(
-        f"/ws?message_format=host&session_id={SESSION_ID}",
-        headers=token_header(),
+        f"/ws?session_id={SESSION_ID}", headers=token_header()
     ) as websocket:
         snapshot = socket_snapshot(websocket)
         notebook_id = next(
@@ -103,8 +102,7 @@ def test_sessions_stable_id_survives_reconnect(
         assert response.json() == {SESSION_ID: expected}
 
     with client.websocket_connect(
-        f"/ws?message_format=host&session_id={connection_id}",
-        headers=token_header(),
+        f"/ws?session_id={connection_id}", headers=token_header()
     ) as websocket:
         assert receive_notification(websocket)["op"] == "reconnected"
         response = client.get("/api/sessions", headers=token_header())
@@ -114,8 +112,7 @@ def test_sessions_stable_id_survives_reconnect(
 
 def test_sessions_stable_id_changes_after_restart(client: TestClient) -> None:
     with client.websocket_connect(
-        f"/ws?message_format=host&session_id={SESSION_ID}",
-        headers=token_header(),
+        f"/ws?session_id={SESSION_ID}", headers=token_header()
     ) as websocket:
         assert receive_notification(websocket)["op"] == "kernel-ready"
         response = client.get("/api/sessions", headers=token_header())
@@ -129,8 +126,7 @@ def test_sessions_stable_id_changes_after_restart(client: TestClient) -> None:
     assert response.json() == {}
 
     with client.websocket_connect(
-        f"/ws?message_format=host&session_id={SESSION_ID}",
-        headers=token_header(),
+        f"/ws?session_id={SESSION_ID}", headers=token_header()
     ) as websocket:
         assert receive_notification(websocket)["op"] == "kernel-ready"
         response = client.get("/api/sessions", headers=token_header())

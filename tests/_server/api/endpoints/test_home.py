@@ -641,7 +641,6 @@ def test_open_notebook_connects_and_reconnects_to_host(
                 "session_id": SESSION_ID,
                 "file": path,
                 "access_token": "fake-token",
-                "message_format": "host",
             }
         )
         notebook = None

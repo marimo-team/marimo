@@ -147,8 +147,11 @@ def _wait_for_kernel_ready(
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError("kernel did not become ready")
-        message = json.loads(websocket.recv(timeout=remaining))
-        if message.get("op") == "kernel-ready":
+        event = json.loads(websocket.recv(timeout=remaining))
+        if event["event"] != "marimo":
+            continue
+        message = event["data"]["marimo"]
+        if message["op"] == "kernel-ready":
             return
 
 

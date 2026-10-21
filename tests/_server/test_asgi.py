@@ -87,10 +87,10 @@ class TestASGIAppBuilder(unittest.TestCase):
             try:
                 with (
                     client.websocket_connect(
-                        "/one/ws?message_format=host&session_id=visitor"
+                        "/one/ws?session_id=visitor"
                     ) as one,
                     client.websocket_connect(
-                        "/two/ws?message_format=host&session_id=visitor"
+                        "/two/ws?session_id=visitor"
                     ) as two,
                 ):
                     snapshots = [socket_snapshot(ws) for ws in (one, two)]
@@ -472,9 +472,7 @@ class TestASGIAppBuilder(unittest.TestCase):
                 assert "http" in invoked_for
 
                 # WebSocket should also have user/meta in scope.
-                with client.websocket_connect(
-                    "/ws?message_format=host&session_id=test123"
-                ) as ws:
+                with client.websocket_connect("/ws?session_id=test123") as ws:
                     data = ws.receive_text()
                     assert data  # kernel-ready message
             finally:

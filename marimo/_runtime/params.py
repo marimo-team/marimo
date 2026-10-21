@@ -38,7 +38,6 @@ class QueryParams(State[SerializedQueryParams]):
         "refresh_token",
         "session_id",
         "cursor",
-        "message_format",
         "types",
     }
 

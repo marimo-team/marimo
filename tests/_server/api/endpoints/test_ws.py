@@ -55,11 +55,9 @@ WS_URL = _create_ws_url("123")
 OTHER_WS_URL = _create_ws_url("456")
 
 
-@pytest.mark.parametrize("format_query", ["", "&message_format=session"])
-def test_ws(client: TestClient, format_query: str) -> None:
-    with client.websocket_connect(WS_URL + format_query) as websocket:
-        # Legacy clients must see their notification first, with no host frames.
-        data = websocket.receive_json()
+def test_ws(client: TestClient) -> None:
+    with client.websocket_connect(WS_URL) as websocket:
+        data = receive_notification(websocket)
         assert_kernel_ready_response(data)
 
 
