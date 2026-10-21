@@ -41,6 +41,27 @@ for await (const event of client.events({ types: ["notebook"] })) {
 may still be indexing when `ready` arrives, so more notebooks can appear
 afterward.
 
+## Discover local hosts in Node.js
+
+`discoverHosts()` performs [local discovery](../../protocols/host/spec.md#local-discovery)
+on macOS and Linux. This example lists the notebooks each discovered host
+currently knows about:
+
+```ts
+import { Client } from "@marimo-team/client";
+import { discoverHosts } from "@marimo-team/client/node";
+
+for await (const host of discoverHosts()) {
+  const client = new Client(host.url, { token: host.token });
+  for await (const event of client.events({ types: ["notebook"] })) {
+    if (event.event === "ready") break;
+    if (event.event === "notebook") {
+      console.log(event.data.notebook.id, event.data.notebook.name);
+    }
+  }
+}
+```
+
 ## Work with a notebook
 
 Use an id or a notebook record from the catalog to get a `NotebookClient`.
