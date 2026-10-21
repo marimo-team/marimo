@@ -5,6 +5,8 @@
 export {
   useNotebookAttachments,
   attachmentLabel,
+  attachmentIdentity,
+  notebookAttachmentsAtom,
   type Attachment,
 } from "./attachments";
 export {

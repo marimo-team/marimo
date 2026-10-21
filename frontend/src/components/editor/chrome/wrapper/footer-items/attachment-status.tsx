@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { connectedAgentsAtom } from "@/core/agents/state";
 import {
   Popover,
   PopoverContent,
@@ -21,8 +22,8 @@ import {
   useNotebookAttachments,
 } from "@/core/notebook";
 import { agentToast } from "@/components/editor/agent-toast";
-import { initialModeAtom } from "@/core/mode";
 import { stableSessionIdAtom } from "@/core/kernel/session";
+import { initialModeAtom } from "@/core/mode";
 import { API } from "@/core/network/api";
 import { useTimeAgo } from "@/hooks/useFormatting";
 import { FooterItem } from "../footer-item";
@@ -30,6 +31,7 @@ import { FooterItem } from "../footer-item";
 export function AttachmentStatus() {
   const isEditMode = useAtomValue(initialModeAtom) === "edit";
   const agents = useNotebookAttachments("agent");
+  const connectedAgents = useAtomValue(connectedAgentsAtom);
   const [open, setOpen] = useState(false);
   const previous = useRef(new Set<string>());
   const automatic = useRef(false);
@@ -52,7 +54,7 @@ export function AttachmentStatus() {
       pointerInside.current = false;
     }
     const current = new Set(
-      isEditMode ? agents.map((agent) => agent.identity ?? agent.id) : [],
+      isEditMode ? connectedAgents.map((agent) => agent.id) : [],
     );
     const connected = [...current].some((id) => !previous.current.has(id));
     for (const id of current) {
@@ -71,18 +73,17 @@ export function AttachmentStatus() {
         startTimer();
       }
     }
-  }, [agents, isEditMode, open, startTimer, stopTimer]);
+  }, [connectedAgents, isEditMode, open, startTimer, stopTimer]);
 
   useEffect(() => stopTimer, [stopTimer]);
 
-  if (!isEditMode || agents.length === 0) {
+  if (!isEditMode || connectedAgents.length === 0) {
     return null;
   }
-  const identities = new Set(agents.map((agent) => agent.identity ?? agent.id));
   const label =
-    identities.size === 1
-      ? `${attachmentLabel(agents[0])} connected`
-      : `${identities.size} agents connected`;
+    connectedAgents.length === 1
+      ? `${connectedAgents[0].name} connected`
+      : `${connectedAgents.length} agents connected`;
 
   return (
     <Popover

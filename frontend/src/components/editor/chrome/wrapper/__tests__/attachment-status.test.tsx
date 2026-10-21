@@ -256,6 +256,20 @@ describe("AttachmentStatus", () => {
     }
   });
 
+  it("uses the newest logical recipient label and retains attachment labels", () => {
+    renderStatus([
+      { ...AGENT, identity: "same", name: "Old label" },
+      { ...AGENT, id: "a2", identity: "same", name: "New label" },
+    ]);
+    expect(screen.getByLabelText("New label connected")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Disconnect Old label" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Disconnect New label" }),
+    ).toBeInTheDocument();
+  });
+
   it("keeps the popover closed across a same-identity reconnect gap", () => {
     vi.useFakeTimers();
     const { store } = renderStatus([{ ...AGENT, identity: "same" }]);

@@ -495,12 +495,18 @@ def test_detached_forwarder_to_opencode(
                 }
                 request = urllib.request.Request(
                     f"{notebook.url}/api/pair/notebooks/{notebook.stable_session_id}/messages",
-                    data=json.dumps(message).encode(),
+                    data=json.dumps(
+                        {"message": message, "to": identity}
+                    ).encode(),
                     headers={"Content-Type": "application/json"},
                     method="POST",
                 )
                 with urllib.request.urlopen(request, timeout=5) as response:
-                    assert response.status == 202
+                    assert response.status == 200
+                    assert (
+                        json.load(response)["recipients"][0]["status"]
+                        == "submitted"
+                    )
                 received = state.messages.get(timeout=5)
                 assert received["delivery"] == "queue"
                 assert (

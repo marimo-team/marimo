@@ -36,3 +36,7 @@ export function useNotebookAttachments(kind?: Attachment["kind"]) {
 export function attachmentLabel(attachment: Attachment): string {
   return attachment.name || "Agent";
 }
+
+export function attachmentIdentity(attachment: Attachment): string {
+  return attachment.identity ?? attachment.id;
+}

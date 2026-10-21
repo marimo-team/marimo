@@ -105,12 +105,17 @@ def test_detached_delivery_replacement_and_files(
             def send(payload: object) -> None:
                 request = urllib.request.Request(
                     f"{server.url}/api/pair/notebooks/{server.stable_session_id}/messages",
-                    data=json.dumps(payload).encode("utf-8"),
+                    data=json.dumps(
+                        {"message": payload, "broadcast": True}
+                    ).encode("utf-8"),
                     headers={"Content-Type": "application/json"},
                     method="POST",
                 )
                 with urllib.request.urlopen(request, timeout=5) as response:
-                    assert response.status == 202
+                    assert response.status == 200
+                    assert {
+                        r["status"] for r in json.load(response)["recipients"]
+                    } == {"submitted"}
 
             send(
                 {
@@ -216,7 +221,7 @@ def test_failed_start_removes_record(tmp_path: Path) -> None:
     )
 
 
-def test_subprocess_reconnect_replays_messages_and_server_detach(
+def test_subprocess_reconnect_does_not_redirect_messages_and_server_detach(
     tmp_path: Path,
 ) -> None:
     with pair_test_server(tmp_path) as server:
@@ -265,15 +270,18 @@ def test_subprocess_reconnect_replays_messages_and_server_detach(
                         return identity
             raise AssertionError("No forwarder attachment")
 
-        def send(message: str) -> None:
+        def send(message: str) -> str:
             request = urllib.request.Request(
                 f"{server.url}/api/pair/notebooks/{server.stable_session_id}/messages",
                 method="POST",
-                data=json.dumps(message).encode(),
+                data=json.dumps(
+                    {"message": message, "to": config.identity}
+                ).encode(),
                 headers={"Content-Type": "application/json"},
             )
             with urllib.request.urlopen(request, timeout=5) as response:
-                assert response.status == 202
+                assert response.status == 200
+                return json.load(response)["recipients"][0]["status"]
 
         assert process.stdout is not None
         output = process.stdout
@@ -302,25 +310,23 @@ def test_subprocess_reconnect_replays_messages_and_server_detach(
         try:
             assert receive() in (b"attached\n", b"attached\r\n")
             first_id = attachment()
-            send("before drop")
+            assert send("before drop") == "submitted"
             wait_messages(tmp_path / "inbox.jsonl", 1)
             process.stdin.write(b"drop\n")
             process.stdin.flush()
             cursor = json.loads(receive())["cursor"]
             assert isinstance(cursor, str)
             assert cursor
-            # The observer keeps the producer guard satisfied during the gap.
-            send("during gap")
+            assert send("during gap") == "rejected"
             process.stdin.write(b"resume\n")
             process.stdin.flush()
             second_id = attachment()
             assert second_id != first_id
-            wait_messages(tmp_path / "inbox.jsonl", 2)
-            send("after reconnect")
-            messages = wait_messages(tmp_path / "inbox.jsonl", 3)
+            assert send("after reconnect") == "submitted"
+            messages = wait_messages(tmp_path / "inbox.jsonl", 2)
             assert [
                 message["message"].rsplit("\n", 1)[1] for message in messages
-            ] == ["before drop", "during gap", "after reconnect"]
+            ] == ["before drop", "after reconnect"]
             request = urllib.request.Request(
                 f"{server.url}/api/pair/notebooks/{server.stable_session_id}/attachments/detach",
                 method="POST",

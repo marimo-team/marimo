@@ -253,11 +253,16 @@ def test_detached_forwarder_delivers_to_claude_socket(
             request = urllib.request.Request(
                 f"{server.url}/api/pair/notebooks/{server.stable_session_id}/messages",
                 method="POST",
-                data=json.dumps(message).encode(),
+                data=json.dumps(
+                    {"message": message, "to": config.identity}
+                ).encode(),
                 headers={"Content-Type": "application/json"},
             )
             with urllib.request.urlopen(request, timeout=5) as response:
-                assert response.status == 202
+                assert response.status == 200
+                assert (
+                    json.load(response)["recipients"][0]["status"] == "unknown"
+                )
             frames = received.get(timeout=10)
             assert frames[0] == {
                 "type": "auth",
