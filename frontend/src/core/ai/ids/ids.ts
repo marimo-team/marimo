@@ -60,7 +60,12 @@ export class AiModelId {
 }
 
 function guessProviderId(id: string): ProviderId {
-  if (id.startsWith("gpt") || id.startsWith("o3") || id.startsWith("o1")) {
+  if (
+    id.startsWith("gpt") ||
+    id.startsWith("o4") ||
+    id.startsWith("o3") ||
+    id.startsWith("o1")
+  ) {
     return "openai";
   }
   if (id.startsWith("claude")) {

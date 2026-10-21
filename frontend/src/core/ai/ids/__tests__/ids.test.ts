@@ -88,6 +88,12 @@ describe("AiModelId", () => {
           expect(modelId.shortModelId).toBe("gpt-3.5-turbo");
         });
 
+        it("should guess openai for o4 models", () => {
+          const modelId = AiModelId.parse("o4-mini");
+          expect(modelId.providerId).toBe("openai");
+          expect(modelId.shortModelId).toBe("o4-mini");
+        });
+
         it("should guess openai for o3 models", () => {
           const modelId = AiModelId.parse("o3-mini");
           expect(modelId.providerId).toBe("openai");
