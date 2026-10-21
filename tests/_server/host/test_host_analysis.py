@@ -216,7 +216,6 @@ def test_definition_ranges_cover_the_bound_name() -> None:
         "a": "def x():\n    pass",
         "b": "import numpy as x",
         "c": "for x in range(3):\n    def y():\n        x = 1",
-        "d": "mo.sql('CREATE TABLE x (id INT)')",
     }
     assert render_diagnostics(codes, analyze(codes)) == snapshot("""\
 -- a --
@@ -225,7 +224,6 @@ def test_definition_ranges_cover_the_bound_name() -> None:
   |     ^ related[a]: Defines x
   |     ^ related[b]: Defines x
   |     ^ related[c]: Defines x
-  |     ^ related[d]: Defines x
 2 |     pass
 -- b --
 1 | import numpy as x
@@ -233,23 +231,33 @@ def test_definition_ranges_cover_the_bound_name() -> None:
   |                 ^ related[a]: Defines x
   |                 ^ related[b]: Defines x
   |                 ^ related[c]: Defines x
-  |                 ^ related[d]: Defines x
 -- c --
 1 | for x in range(3):
   |     ^ error[multiple-definitions]: Multiple cells define x
   |     ^ related[a]: Defines x
   |     ^ related[b]: Defines x
   |     ^ related[c]: Defines x
-  |     ^ related[d]: Defines x
 2 |     def y():
-3 |         x = 1
--- d --
+3 |         x = 1\
+""")
+
+
+@pytest.mark.skipif(
+    not DependencyManager.duckdb.has(), reason="Requires duckdb"
+)
+def test_sql_definition_has_no_source_range() -> None:
+    codes = {"a": "x = 1", "b": "mo.sql('CREATE TABLE x (id INT)')"}
+    assert render_diagnostics(codes, analyze(codes)) == snapshot("""\
+-- a --
+1 | x = 1
+  | ^ error[multiple-definitions]: Multiple cells define x
+  | ^ related[a]: Defines x
+  | ^ related[b]: Defines x
+-- b --
 1 | mo.sql('CREATE TABLE x (id INT)')
   = error[multiple-definitions]: Multiple cells define x (no range)
   = related[a]: Defines x (no range)
-  = related[b]: Defines x (no range)
-  = related[c]: Defines x (no range)
-  = related[d]: Defines x (no range)\
+  = related[b]: Defines x (no range)\
 """)
 
 
@@ -260,6 +268,9 @@ def span(line: int, start: int, end: int) -> protocol.Range:
     )
 
 
+@pytest.mark.skipif(
+    not DependencyManager.duckdb.has(), reason="Requires duckdb"
+)
 def test_qualified_sql_definitions_only_conflict_with_the_same_table() -> None:
     analyses = analyze(
         {
