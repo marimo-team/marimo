@@ -54,7 +54,13 @@ def _build_attr(name: str, value: JSONType) -> str:
     # when embedding in markdown
     # - dollar sign, when unescaped can incorrectly be recognized as
     # latex delimiter when embedding into markdown
-    processed = processed.replace("\\", "&#92;").replace("$", "&#36;")
+    # - brackets can be interpreted as markdown links or images
+    processed = (
+        processed.replace("\\", "&#92;")
+        .replace("$", "&#36;")
+        .replace("[", "&#91;")
+        .replace("]", "&#93;")
+    )
     return f"data-{name}='{processed}'"
 
 
