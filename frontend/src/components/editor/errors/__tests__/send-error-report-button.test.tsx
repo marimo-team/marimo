@@ -25,6 +25,7 @@ import {
 } from "@/core/cells/error-report";
 import { pairConfigAtom } from "@/core/config/pair";
 import { notebookStateFromSession } from "@/core/cells/session";
+import { createNotebookClient } from "@/core/host/notebook-client";
 import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
 import {
   type StableSessionId,
@@ -97,10 +98,9 @@ function renderButton({
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
   store.set(notebookClientAtom, {
+    ...createNotebookClient(store).client,
     connectionAtom: atom({ state: ConnectionState.OPEN }),
-    documentAtom: atom(null),
     attachmentsAtom,
-    reconnect: async () => undefined,
   });
   store.set(attachmentsAtom, attachments);
   store.set(stableSessionIdAtom, stableId);

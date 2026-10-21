@@ -51,24 +51,6 @@ describe("RuntimeManager", () => {
     });
   });
 
-  it.each(["getWsURL", "getSseURL"] as const)(
-    "%s selects host framing on the session endpoint",
-    (method) => {
-      const runtime = new RuntimeManager({
-        ...mockConfig,
-        url: "https://example.com/nested?file=notebook.py",
-        messageFormat: "host",
-      });
-      const url = runtime[method]("1234" as SessionId);
-      expect(url.pathname).toBe(
-        method === "getWsURL" ? "/nested/ws" : "/nested/sse",
-      );
-      expect(url.searchParams.get("message_format")).toBe("host");
-      expect(url.searchParams.get("session_id")).toBe("1234");
-      expect(url.searchParams.get("file")).toBe("notebook.py");
-    },
-  );
-
   describe("getWsURL", () => {
     it("should return WebSocket URL with session ID for https", () => {
       const runtime = new RuntimeManager(mockConfig);
@@ -78,6 +60,7 @@ describe("RuntimeManager", () => {
       expect(url.protocol).toBe("wss:");
       expect(url.hostname).toBe("example.com");
       expect(url.pathname).toBe("/ws");
+      expect(url.searchParams.get("message_format")).toBe("host");
       expect(url.searchParams.has("types")).toBe(false);
       expect(url.searchParams.get("session_id")).toBe(sessionId);
     });
@@ -253,6 +236,7 @@ describe("RuntimeManager", () => {
       );
       const url = runtime.getSseURL("s_123" as SessionId);
 
+      expect(url.searchParams.get("message_format")).toBe("host");
       expect(url.searchParams.get("access_token")).toBeNull();
       expect(url.toString()).not.toContain("my-secret-token");
     });
@@ -756,7 +740,7 @@ describe("RuntimeManager", () => {
       const sessionId = "test" as SessionId;
 
       expect(runtime.getWsURL(sessionId).toString()).toMatchInlineSnapshot(
-        `"blob:https://example.com/12345678-1234-1234-1234-123456789abc?session_id=test"`,
+        `"blob:https://example.com/12345678-1234-1234-1234-123456789abc?session_id=test&message_format=host"`,
       );
       expect(Logger.warn).toHaveBeenCalledOnce();
     });

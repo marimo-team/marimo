@@ -13,7 +13,9 @@ describe("RuntimeManager.getWsURL", () => {
     });
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
-    expect(url.toString()).toBe("wss://marimo.app/ws?session_id=1234");
+    expect(url.toString()).toBe(
+      "wss://marimo.app/ws?session_id=1234&message_format=host",
+    );
     expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
 
@@ -24,7 +26,9 @@ describe("RuntimeManager.getWsURL", () => {
     });
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
-    expect(url.toString()).toBe("ws://marimo.app/ws?session_id=1234");
+    expect(url.toString()).toBe(
+      "ws://marimo.app/ws?session_id=1234&message_format=host",
+    );
     expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
 
@@ -35,7 +39,9 @@ describe("RuntimeManager.getWsURL", () => {
     });
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
-    expect(url.toString()).toBe("ws://marimo.app/nested/ws?session_id=1234");
+    expect(url.toString()).toBe(
+      "ws://marimo.app/nested/ws?session_id=1234&message_format=host",
+    );
     expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
 
@@ -48,7 +54,7 @@ describe("RuntimeManager.getWsURL", () => {
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
     expect(url.toString()).toBe(
-      "ws://marimo.app/nested/ws?foo=bar&file=test.py&session_id=1234",
+      "ws://marimo.app/nested/ws?foo=bar&file=test.py&session_id=1234&message_format=host",
     );
     expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
@@ -62,7 +68,7 @@ describe("RuntimeManager.getWsURL", () => {
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
     expect(url.toString()).toBe(
-      "ws://marimo.app/ws?file=test.py&search=test&other=last&session_id=1234",
+      "ws://marimo.app/ws?file=test.py&search=test&other=last&session_id=1234&message_format=host",
     );
     expect(url.searchParams.get("file")).toBe("test.py");
     expect(url.searchParams.get("search")).toBe("test");

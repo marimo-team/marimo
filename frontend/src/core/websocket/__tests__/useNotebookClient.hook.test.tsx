@@ -15,11 +15,12 @@ import { notebookClientAtom } from "../state";
 
 vi.mock("../transports/create", () => ({ createConnectionTransport: vi.fn() }));
 
-function makeTransport() {
+function makeTransport(url?: () => string) {
   const events = new EventTarget();
   const transport: IConnectionTransport = {
     readyState: WebSocket.CLOSED,
     reconnect: vi.fn(() => {
+      url?.();
       transport.readyState = WebSocket.OPEN;
       events.dispatchEvent(new Event("open"));
     }),
@@ -52,16 +53,13 @@ function makeTransport() {
 function setup(strict = false) {
   const store = createStore();
   const options = {
-    sessionId: "first",
     static: false,
     transportType: "websocket" as const,
-    messageFormat: "host" as const,
     url: () => "ws://localhost/ws",
     headers: () => ({}),
     waitUntilReady: async () => undefined,
     checkHealth: async () => true,
     onNotification: vi.fn(),
-    onMessageError: vi.fn(),
   };
   const wrapper = ({ children }: PropsWithChildren) => (
     <Provider store={store}>{children}</Provider>
@@ -118,25 +116,6 @@ describe("useNotebookClient", () => {
     expect(vi.mocked(createConnectionTransport).mock.calls[0][0].url()).toBe(
       "ws://redirected/ws",
     );
-    unmount();
-  });
-
-  it("replaces the transport when session identity changes and ignores old messages", async () => {
-    const first = makeTransport();
-    const second = makeTransport();
-    vi.mocked(createConnectionTransport)
-      .mockReturnValueOnce(first.transport)
-      .mockReturnValueOnce(second.transport);
-    const { rerender, options, unmount } = setup();
-    await act(async () => Promise.resolve());
-    rerender({ ...options, sessionId: "second" });
-    await act(async () => Promise.resolve());
-    expect(first.transport.close).toHaveBeenCalledOnce();
-    act(() => {
-      first.notify();
-      second.notify();
-    });
-    expect(options.onNotification).toHaveBeenCalledOnce();
     unmount();
   });
 

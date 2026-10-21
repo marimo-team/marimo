@@ -10,15 +10,6 @@ import * as Protocol from "@marimo-team/client/protocol";
  * and cursor so clients can skip them without losing their place in the stream.
  */
 
-/** Event kinds requested by the client; removals and controls are implicit. */
-export const NOTEBOOK_EVENT_TYPES = [
-  "notebook",
-  "document",
-  "cell",
-  "attachment",
-  "marimo",
-] as const satisfies readonly (Protocol.ObjectType | "marimo")[];
-
 const envelope = z.object({
   event: z.string().min(1),
   data: z.unknown(),
@@ -54,7 +45,7 @@ export type NotebookEvent =
 const sessionEnvelope = z.object({ data: z.unknown() });
 
 /**
- * Decode a host event or a legacy `{ data: notification }` session message.
+ * Decode a host event or an in-process WASM `{ data: notification }` message.
  *
  * Throws if the envelope or a known event is malformed. Native notification
  * payloads are passed through for the session handler to interpret.

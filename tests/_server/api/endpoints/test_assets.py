@@ -984,7 +984,7 @@ def test_serve_static_allowed_files(client: TestClient) -> None:
 
 @pytest.mark.parametrize("remote_url", [None, "https://remote.example"])
 @pytest.mark.parametrize("cataloged", [True, False])
-def test_index_selects_stream_format_without_provisioning_a_notebook(
+def test_index_does_not_provision_a_notebook(
     client: TestClient, remote_url: str | None, cataloged: bool
 ) -> None:
     state = AppState.from_app(cast(Any, client.app))
@@ -1001,7 +1001,6 @@ def test_index_selects_stream_format_without_provisioning_a_notebook(
     response = client.get("/", headers=token_header())
     assert response.status_code == 200
     config = parse_mount_config(response.text)
-    assert config["messageFormat"] == "host"
     assert "notebookId" not in config
     assert bridge.host.notebooks == initial_notebooks
     assert not state.session_manager.sessions

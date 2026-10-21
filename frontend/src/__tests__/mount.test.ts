@@ -6,7 +6,6 @@ import { initialLayoutState, layoutStateAtom } from "@/core/layout/state";
 import { kioskModeAtom } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
-import { runtimeConfigAtom } from "@/core/runtime/config";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { ConnectionState } from "@/core/websocket/types";
 import { pairConfigAtom } from "@/core/config/pair";
@@ -102,20 +101,6 @@ describe("mount", () => {
   });
 
   describe("connection state initialization", () => {
-    it("uses the remote runtime's framing instead of the page's", () => {
-      mount(
-        {
-          ...baseOptions,
-          messageFormat: "host",
-          runtimeConfig: [
-            { url: "https://remote.example", messageFormat: "session" },
-          ],
-        },
-        mockElement,
-      );
-      expect(store.get(runtimeConfigAtom).messageFormat).toBe("session");
-    });
-
     it("should set connection to CONNECTING when runtimeConfig has lazy=false", () => {
       mount(
         {
