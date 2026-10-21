@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""The host's analyzer reports each cell's names and syntax errors."""
+"""The host's analyzer reports each cell's names, syntax errors, and conflicts."""
 
 from __future__ import annotations
 
@@ -47,12 +47,80 @@ def test_refs_are_names_other_cells_define() -> None:
     assert analyses["c"].refs == ("x",)
 
 
-def test_a_name_defined_twice_is_a_ref_for_neither_definer() -> None:
-    analyses = analyze({"a": "x = 1", "b": "x = 2\ny = x", "c": "z = x"})
+def test_a_name_defined_twice_is_an_error_on_each_definer() -> None:
+    analyses = analyze({"a": "x = 1", "b": "y = 2\nx = y", "c": "z = x"})
     assert analyses["b"].refs == ()
     assert analyses["c"].refs == ("x",)
-    # Cross-cell errors come from the kernel at run time for now.
-    assert all(analyses[cell_id].errors == () for cell_id in "abc")
+    assert analyses["c"].errors == ()
+
+    (first,) = analyses["a"].errors
+    (second,) = analyses["b"].errors
+    assert first.kind == second.kind == "multiple-definitions"
+    assert first.message == "Multiple cells define x"
+    assert first.severity == "error"
+    # Each copy is ranged at its own definition and lists every definer.
+    assert first.range == span(0, 0, 1)
+    assert second.range == span(1, 0, 1)
+    assert first.related == second.related
+    assert [(r.cell_id, r.range, r.message) for r in first.related] == [
+        ("a", span(0, 0, 1), "Defines x"),
+        ("b", span(1, 0, 1), "Defines x"),
+    ]
+
+
+def test_definition_ranges_cover_the_bound_name() -> None:
+    analyses = analyze(
+        {
+            "a": "def x():\n    pass",
+            "b": "import numpy as x",
+            "c": "for x in range(3):\n    def y():\n        x = 1",
+            "d": "mo.sql('CREATE TABLE x (id INT)')",
+        }
+    )
+    ranges = {cell_id: analyses[cell_id].errors[0].range for cell_id in "abcd"}
+    assert ranges["a"] == span(0, 4, 5)
+    assert ranges["b"] == span(0, 16, 17)
+    assert ranges["c"] == span(0, 4, 5)
+    # A SQL definition has no name in the Python source.
+    assert ranges["d"] is None
+
+
+def span(line: int, start: int, end: int) -> protocol.Range:
+    return protocol.Range(
+        start=protocol.Position(line=line, character=start),
+        end=protocol.Position(line=line, character=end),
+    )
+
+
+def test_qualified_sql_definitions_only_conflict_with_the_same_table() -> None:
+    analyses = analyze(
+        {
+            "a": 'mo.sql("CREATE TABLE finance.datalake.xx (id INT)")',
+            "b": 'mo.sql("CREATE TABLE finance.information_layer.xx (id INT)")',
+            "c": 'mo.sql("CREATE TABLE finance.datalake.xx (id INT)")',
+        }
+    )
+    assert analyses["b"].errors == ()
+    for cid in ("a", "c"):
+        (error,) = analyses[cid].errors
+        assert error.kind == "multiple-definitions"
+        assert tuple(item.cell_id for item in error.related) == ("a", "c")
+        assert error.range is None
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        ("import xlib as x", span(0, 15, 16)),
+        ("async def x():\n    pass", span(0, 10, 11)),
+        ("s = '😀'; x = 1", span(0, 10, 11)),
+        ("def f():\n    x = 1\nx = 2", span(2, 0, 1)),
+        ("[x for x in ()]\nx = 2", span(1, 0, 1)),
+    ],
+)
+def test_definition_ranges_use_shared_scope_and_token_handling(code, expected):
+    analyses = analyze({"a": code, "b": "x = 0"})
+    assert analyses["a"].errors[0].range == expected
 
 
 def test_syntax_errors_leave_the_cell_without_names() -> None:

@@ -11,6 +11,6 @@
   "traceback": null,
   "related": [
     {"cell_id": "c1", "range": null, "message": "Defines x"},
-    {"cell_id": "c2", "range": null, "message": "Also defines x"}
+    {"cell_id": "c2", "range": null, "message": "Defines x"}
   ]
 }
