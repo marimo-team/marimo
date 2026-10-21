@@ -31,6 +31,7 @@ import { usePackageAction } from "@/core/packages/usePackageAction";
 import { usePackageDependencies } from "@/core/packages/usePackageDependencies";
 import { useInstallPackages } from "@/core/packages/useInstallPackage";
 import { isWasm } from "@/core/wasm/utils";
+import { useStateForKey } from "@/hooks/useStateForKey";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -440,16 +441,10 @@ const DependencyTree: React.FC<{
   error?: Error | null;
   sandboxBackend: "uv" | "pixi" | null;
 }> = ({ tree, error, sandboxBackend }) => {
-  const [expandedNodes, setExpandedNodes] = React.useState<Set<string>>(
-    new Set(),
+  const [expandedNodes, setExpandedNodes] = useStateForKey(
+    tree,
+    () => new Set<string>(),
   );
-
-  const [previousTree, setPreviousTree] = React.useState(tree);
-  // Reset before children render so old node indices never expand a new tree.
-  if (previousTree !== tree) {
-    setPreviousTree(tree);
-    setExpandedNodes(new Set());
-  }
 
   if (error) {
     return <ErrorBanner error={error} />;

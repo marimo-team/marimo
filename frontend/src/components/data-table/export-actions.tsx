@@ -24,6 +24,7 @@ import type {
   GetExportMetadata,
 } from "./schemas";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { useStateForKey } from "@/hooks/useStateForKey";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -351,22 +352,6 @@ interface ExportContext {
   source: unknown;
 }
 
-function useExportFailure(context: ExportContext) {
-  const [actionFailure, setActionFailure] = React.useState<{
-    context: ExportContext;
-    failure: ExportFailure;
-  } | null>(null);
-  if (actionFailure !== null && actionFailure.context !== context) {
-    setActionFailure(null);
-  }
-  const setFailure = (failure: ExportFailure | null) => {
-    setActionFailure(failure === null ? null : { context, failure });
-  };
-  const failure =
-    actionFailure?.context === context ? actionFailure.failure : null;
-  return [failure, setFailure] as const;
-}
-
 export const ExportActions: React.FC<ExportActionProps> = (props) => {
   const { getExportMetadata, metadataSource } = props;
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
@@ -378,7 +363,10 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   if (exportContext.source !== metadataSource) {
     setExportContext({ source: metadataSource });
   }
-  const [failure, setFailure] = useExportFailure(exportContext);
+  const [failure, setFailure] = useStateForKey<ExportFailure | null>(
+    exportContext,
+    () => null,
+  );
   const mounted = React.useRef(false);
   const isCurrentContext = useEvent(
     (context: ExportContext) => mounted.current && context === exportContext,
