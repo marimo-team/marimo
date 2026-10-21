@@ -121,6 +121,26 @@ describe("useDebounceControlledState", () => {
 
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("replaces an uncommitted draft when the external value changes", () => {
+    const onChange = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ value }) =>
+        useDebounceControlledState({
+          initialValue: value,
+          onChange,
+          delay: 1000,
+        }),
+      { initialProps: { value: "initial" } },
+    );
+
+    act(() => result.current.onChange("draft"));
+    rerender({ value: "external" });
+    expect(result.current.value).toBe("external");
+    act(() => vi.runAllTimers());
+    expect(result.current.debouncedValue).toBe("external");
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });
 
 describe("useDebouncedCallback", () => {

@@ -444,10 +444,12 @@ const DependencyTree: React.FC<{
     new Set(),
   );
 
-  // Reset tree to collapsed state when tree data changes (including refetches)
-  React.useEffect(() => {
+  const [previousTree, setPreviousTree] = React.useState(tree);
+  // Reset before children render so old node indices never expand a new tree.
+  if (previousTree !== tree) {
+    setPreviousTree(tree);
     setExpandedNodes(new Set());
-  }, [tree]);
+  }
 
   if (error) {
     return <ErrorBanner error={error} />;

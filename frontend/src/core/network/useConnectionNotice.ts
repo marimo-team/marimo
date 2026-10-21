@@ -17,11 +17,17 @@ export function useConnectionNotice(
   const notice = useAtomValue(connectionNoticeAtom);
   const connected = useAtomValue(isConnectedAtom);
   const elapsed = useDelayElapsed(notice?.pending ? delayMs : 0);
-  const [previous, setPrevious] = useState<ConnectionNotice | null>(null);
+  const [previous, setPrevious] = useState<ConnectionNotice | null>(
+    elapsed ? notice : null,
+  );
+
+  const visibleNotice = elapsed ? notice : null;
+  if ((notice || !connected) && previous !== visibleNotice) {
+    setPrevious(visibleNotice);
+  }
 
   useEffect(() => {
     if (notice || !connected) {
-      setPrevious(elapsed ? notice : null);
       return;
     }
     const timeout = setTimeout(() => setPrevious(null), 1500);

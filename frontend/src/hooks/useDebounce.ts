@@ -2,6 +2,7 @@
 import { debounce } from "lodash-es";
 import { useEffect, useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { useInternalStateWithSync } from "./useInternalStateWithSync";
 
 export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -41,17 +42,11 @@ export function useDebounceControlledState<T>(opts: {
   disabled?: boolean;
 }) {
   const { initialValue, onChange, delay, disabled } = opts;
-  const [internalValue, setInternalValue] = useState<T>(initialValue);
+  const [internalValue, setInternalValue] =
+    useInternalStateWithSync(initialValue);
   const debouncedValue = useDebounce(internalValue, delay || 200);
 
   const onUpdate = useEvent(onChange);
-
-  // Handle external changes:
-  useEffect(() => {
-    // TODO: Replace this synchronization with a controlled-state primitive.
-    // oxlint-disable-next-line react/no-deriving-state-in-effects -- Synchronize the debounced draft when the controlled value changes.
-    setInternalValue(initialValue);
-  }, [initialValue]);
 
   // Handle debounced updates for user input
   useEffect(() => {

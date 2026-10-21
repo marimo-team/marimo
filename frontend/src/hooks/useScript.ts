@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 type ScriptStatus = "loading" | "ready" | "error" | "unknown";
 interface ScriptOptions {
@@ -12,79 +12,56 @@ export function useScript(
   src: string,
   options: ScriptOptions = defaultOptions,
 ) {
-  const [status, setStatus] = React.useState<ScriptStatus>(() => {
-    const existingScript = document.querySelector<HTMLScriptElement>(
+  const { removeOnUnmount } = options;
+  const getSnapshot = useCallback((): ScriptStatus => {
+    const script = document.querySelector<HTMLScriptElement>(
       `script[src="${src}"]`,
     );
-    return (existingScript?.dataset.status as ScriptStatus) || "unknown";
-  });
+    return (script?.dataset.status as ScriptStatus) || "unknown";
+  }, [src]);
 
-  React.useEffect(() => {
-    let script = document.querySelector<HTMLScriptElement>(
-      `script[src="${src}"]`,
-    );
-
-    const updateStatus = (newStatus: ScriptStatus) => {
-      if (script) {
-        script.dataset.status = newStatus;
-        setStatus(newStatus);
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      let script = document.querySelector<HTMLScriptElement>(
+        `script[src="${src}"]`,
+      );
+      const created = !script;
+      if (!script) {
+        script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        script.dataset.status = "loading";
       }
-    };
-
-    const handleScriptLoad = () => updateStatus("ready");
-    const handleScriptError = () => updateStatus("error");
-
-    // observes DOM changes and updates the status
-    const observeScript = (script: HTMLScriptElement) => {
-      const observer = new MutationObserver(() => {
-        const newStatus = script.dataset.status;
-        if (newStatus) {
-          setStatus(newStatus as ScriptStatus);
-        }
-      });
-      observer.observe(script, {
+      const element = script;
+      const handleLoad = () => {
+        element.dataset.status = "ready";
+      };
+      const handleError = () => {
+        element.dataset.status = "error";
+      };
+      const observer = new MutationObserver(onChange);
+      observer.observe(element, {
         attributes: true,
         attributeFilter: ["data-status"],
       });
-      return observer;
-    };
-
-    if (!script) {
-      script = document.createElement("script");
-      script.src = src;
-      script.async = true;
-      updateStatus("loading");
-      document.body.append(script);
-
-      script.addEventListener("load", handleScriptLoad);
-      script.addEventListener("error", handleScriptError);
-
-      const observer = observeScript(script);
-
+      if (created) {
+        element.addEventListener("load", handleLoad);
+        element.addEventListener("error", handleError);
+        document.body.append(element);
+      }
       return () => {
         observer.disconnect();
-        if (script) {
-          script.removeEventListener("load", handleScriptLoad);
-          script.removeEventListener("error", handleScriptError);
-
-          if (options.removeOnUnmount) {
-            script.remove();
+        if (created) {
+          element.removeEventListener("load", handleLoad);
+          element.removeEventListener("error", handleError);
+          if (removeOnUnmount) {
+            element.remove();
           }
         }
       };
-    }
+    },
+    [src, removeOnUnmount],
+  );
 
-    const domStatus = script.dataset.status;
-    if (domStatus) {
-      if (domStatus === "ready" || domStatus === "error") {
-        return;
-      }
-      const observer = observeScript(script);
-      return () => observer.disconnect();
-    }
-
-    setStatus("unknown");
-  }, [src, options.removeOnUnmount]);
-
-  return status;
+  return useSyncExternalStore(subscribe, getSnapshot);
 }

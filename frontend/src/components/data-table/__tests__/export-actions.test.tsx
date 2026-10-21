@@ -531,6 +531,23 @@ describe("ExportActions dialog", () => {
     expect(downloadByURL).not.toHaveBeenCalled();
   });
 
+  it("does not revive an earlier source failure when switching back", async () => {
+    downloadAs.mockRejectedValueOnce(new Error("First source failed"));
+    const { rerenderExportActions } = renderExportActions({
+      metadataSource: "first",
+    });
+    await openDialog();
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "First source failed",
+    );
+
+    rerenderExportActions({ metadataSource: "second" });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    rerenderExportActions({ metadataSource: "first" });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   async function startGeoParquetInstall(strictMode = false) {
     const getExportMetadata = vi.fn().mockResolvedValue(geometryMetadata);
     downloadAs.mockResolvedValueOnce({

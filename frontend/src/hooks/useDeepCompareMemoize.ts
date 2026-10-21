@@ -12,11 +12,12 @@ import React from "react";
  * Useful when the re-render if more expensive than the deep compare.
  */
 export function useDeepCompareMemoize<T>(value: T) {
-  const ref = React.useRef<T>(value);
+  const [memoized, setMemoized] = React.useState(() => value);
 
-  if (!dequal(value, ref.current)) {
-    ref.current = value;
+  if (!dequal(value, memoized)) {
+    setMemoized(() => value);
+    return value;
   }
 
-  return ref.current;
+  return memoized;
 }

@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { type LucideIcon, ChevronRightIcon, CornerLeftUp } from "lucide-react";
-import { type JSX, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type JSX, useLayoutEffect, useRef, useState } from "react";
 import { z } from "zod";
 import {
   FILE_ICON as FILE_TYPE_ICONS,
@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
 import { RANDOM_ID_ATTR } from "@/core/dom/ui-element-constants";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { useDelayElapsed } from "@/hooks/useDelayElapsed";
 import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 import { cn } from "@/utils/cn";
 import { type FilePath, PathBuilder, Paths } from "@/utils/paths";
@@ -200,7 +201,6 @@ export const FileBrowser = ({
 }: FileBrowserProps): JSX.Element | null => {
   const [path, setPath] = useInternalStateWithSync(initialPath);
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
-  const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
   const gridRef = useRef<HTMLTableElement | null>(null);
@@ -219,20 +219,8 @@ export const FileBrowser = ({
     return list_directory({ path: path });
   }, [path, randomId, list_directory]);
 
-  useEffect(() => {
-    if (!isPending) {
-      setShowLoadingOverlay(false);
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setShowLoadingOverlay(true);
-    }, 200);
-
-    return () => {
-      window.clearTimeout(timeout);
-    };
-  }, [isPending]);
+  const loadingDelayElapsed = useDelayElapsed(isPending ? 200 : 0);
+  const showLoadingOverlay = isPending && loadingDelayElapsed;
 
   // Reset the roving tabindex whenever the listing reloads (a new path or a
   // same-path refresh) so activeIndex never points past the current rows.

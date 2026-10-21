@@ -52,4 +52,21 @@ describe("useDelayElapsed", () => {
     // The pending timeout must be cleared, not left dangling.
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it("restarts a completed delay after the gate is temporarily disabled", () => {
+    const { result, rerender } = renderHook(
+      ({ delay }) => useDelayElapsed(delay),
+      { initialProps: { delay: 1000 } },
+    );
+    act(() => vi.advanceTimersByTime(1000));
+    expect(result.current).toBe(true);
+    rerender({ delay: 0 });
+    expect(result.current).toBe(true);
+    rerender({ delay: 1000 });
+    expect(result.current).toBe(false);
+    act(() => vi.advanceTimersByTime(999));
+    expect(result.current).toBe(false);
+    act(() => vi.advanceTimersByTime(1));
+    expect(result.current).toBe(true);
+  });
 });

@@ -8,20 +8,22 @@ import { useLayoutEffect, useState } from "react";
  * `delayMs <= 0`. Useful for suppressing spinner/fallback flashes.
  */
 export function useDelayElapsed(delayMs: number): boolean {
-  const [elapsed, setElapsed] = useState(delayMs <= 0);
+  const [timer, setTimer] = useState({ delayMs, elapsed: delayMs <= 0 });
 
-  // Layout effect (not a plain effect) so that when `delayMs` flips from `<= 0`
-  // to `> 0` — e.g. a gate re-closing — we reset `elapsed` to `false` before
-  // the browser paints, rather than briefly flashing the fallback for a frame.
+  if (timer.delayMs !== delayMs) {
+    setTimer({ delayMs, elapsed: delayMs <= 0 });
+  }
+
   useLayoutEffect(() => {
     if (delayMs <= 0) {
-      setElapsed(true);
       return;
     }
-    setElapsed(false);
-    const timeout = setTimeout(() => setElapsed(true), delayMs);
+    const timeout = setTimeout(
+      () => setTimer({ delayMs, elapsed: true }),
+      delayMs,
+    );
     return () => clearTimeout(timeout);
   }, [delayMs]);
 
-  return elapsed;
+  return timer.delayMs === delayMs ? timer.elapsed : delayMs <= 0;
 }

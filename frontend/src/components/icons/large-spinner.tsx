@@ -6,14 +6,12 @@ import { cn } from "@/utils/cn";
 
 export const LargeSpinner = ({ title }: { title?: string }) => {
   const [currentTitle, setCurrentTitle] = useState(title);
-  const [isVisible, setIsVisible] = useState(true);
+  const isVisible = title === currentTitle;
 
   useEffect(() => {
     if (title !== currentTitle) {
-      setIsVisible(false);
       const timer = setTimeout(() => {
         setCurrentTitle(title);
-        setIsVisible(true);
       }, 300); // Wait for fade out animation to complete
       return () => clearTimeout(timer);
     }

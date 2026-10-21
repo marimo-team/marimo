@@ -351,10 +351,22 @@ interface ExportContext {
   source: unknown;
 }
 
+function useExportFailure(context: ExportContext) {
+  const [actionFailure, setActionFailure] = React.useState<{
+    context: ExportContext;
+    failure: ExportFailure;
+  } | null>(null);
+  const setFailure = (failure: ExportFailure | null) => {
+    setActionFailure(failure === null ? null : { context, failure });
+  };
+  const failure =
+    actionFailure?.context === context ? actionFailure.failure : null;
+  return [failure, setFailure] as const;
+}
+
 export const ExportActions: React.FC<ExportActionProps> = (props) => {
   const { getExportMetadata, metadataSource } = props;
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
-  const [failure, setFailure] = React.useState<ExportFailure | null>(null);
   const [settings, setSettings] =
     React.useState<ExportSettings>(DEFAULT_SETTINGS);
   const [exportContext, setExportContext] = React.useState<ExportContext>(
@@ -363,6 +375,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   if (exportContext.source !== metadataSource) {
     setExportContext({ source: metadataSource });
   }
+  const [failure, setFailure] = useExportFailure(exportContext);
   const mounted = React.useRef(false);
   const isCurrentContext = useEvent(
     (context: ExportContext) => mounted.current && context === exportContext,
@@ -416,7 +429,6 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   }, []);
   React.useEffect(() => {
     latestActionId.current += 1;
-    setFailure(null);
   }, [metadataSource]);
   const policy = useAtomValue(downloadSizeLimitAtom);
   const overLimit = !!(
