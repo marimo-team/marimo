@@ -34,7 +34,8 @@ export function useFileSearch({
 }): { state: FileSearchState; refetch: () => void } {
   const { sendSearchFiles } = useRequestClient();
   const debouncedQuery = useDebounce(query, 300);
-  const pending = useRef<Promise<void>>(Promise.resolve());
+  // Nullable so the ref is not built on every render
+  const pending = useRef<Promise<void> | null>(null);
   const [revision, setRevision] = useState(0);
   const refetch = useCallback(() => setRevision((value) => value + 1), []);
   const requestIdentity = useMemo(
@@ -55,7 +56,7 @@ export function useFileSearch({
     }
     // Let the in-flight server scan finish before starting another. Superseded
     // queued queries and remaining roots are skipped, keeping scan work bounded.
-    const request = pending.current.then(async () => {
+    const request = (pending.current ?? Promise.resolve()).then(async () => {
       const filesByPath = new Map<string, FileTreeNode>();
       let rootLimitReached = false;
       let failedRootCount = 0;
