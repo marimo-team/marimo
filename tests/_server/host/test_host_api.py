@@ -27,7 +27,6 @@ from marimo._server.host import HOST_API_PATH, api as api_module
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
 from marimo._server.host.events import MarimoEvent, MarimoMessage
-from marimo._server.host.index import WorkspaceIndex
 from marimo._server.main import create_starlette_app
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace, SingleFileWorkspace
@@ -135,6 +134,7 @@ def harness(
     )
     app = create_starlette_app(base_url="", enable_auth=True)
     manager = get_mock_session_manager()
+    manager.workspace = workspace
     get_starlette_server_state_init(session_manager=manager).apply(app.state)
     bridge = SessionBridge(manager)
     bridge.host.retention = getattr(request, "param", RetentionPolicy())
@@ -147,9 +147,6 @@ def harness(
         return backend
 
     monkeypatch.setattr(bridge, "_make_backend", make)
-    bridge.index = WorkspaceIndex(
-        bridge.host, workspace, bridge._initialize_notebook
-    )
     bridge.index.refresh()
     app.state.host_context = HostContext(
         bridge=bridge,

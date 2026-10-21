@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import copy
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -26,7 +27,9 @@ from marimo._server.host.analysis import HostAnalyzer
 from marimo._server.host.backend import RequestMetadata, SessionBackend
 from marimo._server.host.events import notification_event
 from marimo._server.host.index import WorkspaceIndex
+from marimo._server.host.sessions import AppSessionNotebooks
 from marimo._session.events import SessionEventListener
+from marimo._session.model import SessionMode
 from marimo._session.notebook.storage import rename_no_replace
 from marimo._utils.generated_with import (
     contents_differ_excluding_generated_with,
@@ -34,7 +37,6 @@ from marimo._utils.generated_with import (
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
-    from pathlib import Path
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
@@ -110,21 +112,41 @@ class SessionBridge(SessionEventListener):
         # TODO(MO-8005): The response to the session's latest mirror of its
         # app config, for the edit that caused it. Ends with the mirror.
         self._mirrored: dict[protocol.NotebookId, protocol.EditResponse] = {}
-        self.host = Host(operations=OPERATIONS)
+        self.host: Host = Host(
+            operations=OPERATIONS if manager.mode is SessionMode.EDIT else ()
+        )
         self._backends: dict[protocol.NotebookId, SessionBackend] = {}
-        self.index = WorkspaceIndex(
-            self.host, manager.workspace, self._initialize_notebook
+        self._index: WorkspaceIndex | None = (
+            WorkspaceIndex(
+                self.host, manager.workspace, self._initialize_notebook
+            )
+            if manager.mode is SessionMode.EDIT
+            else None
+        )
+        self.app_sessions: AppSessionNotebooks | None = (
+            AppSessionNotebooks(self.host, self._initialize_app_notebook)
+            if manager.mode is SessionMode.RUN
+            else None
         )
         self._unsubscribe = self.host.subscribe(
             self._on_host_event, types={"notebook"}
         )
 
+    @property
+    def index(self) -> WorkspaceIndex:
+        """The file catalog, when workspace indexing is enabled."""
+        if self._index is None:
+            raise Conflict("This host has no file catalog")
+        return self._index
+
     async def open(self) -> None:
         """Index notebooks, adopt sessions, and subscribe to session events."""
-        self.index.refresh()
+        if self.app_sessions is None:
+            self.index.refresh()
         self._manager.event_bus.subscribe(self)
-        for session in list(self._manager.sessions.values()):
-            await self._adopt(session)
+        if self.app_sessions is None:
+            for session in list(self._manager.sessions.values()):
+                await self.adopt(session)
 
     def close(self) -> None:
         self._manager.event_bus.unsubscribe(self)
@@ -142,6 +164,22 @@ class SessionBridge(SessionEventListener):
         """Refresh the catalog without observing a half-finished file move."""
         async with self._files_lock:
             await self.index.refresh_async()
+
+    async def _initialize_app_notebook(
+        self, record: protocol.Notebook, sink: Sink
+    ) -> Notebook:
+        assert self.app_sessions is not None
+        session = self.app_sessions.session(record.id)
+        cells, app_config = documents.from_session(session)
+        document = Document(cells, app_config)
+        return Notebook(
+            record.id,
+            document,
+            Executions(),
+            self._make_backend(record.id, sink),
+            sink,
+            saved_etag=document.etag,
+        )
 
     async def _initialize_notebook(
         self, record: protocol.Notebook, sink: Sink
@@ -420,6 +458,10 @@ class SessionBridge(SessionEventListener):
         notebook = self.host.peek_notebook(notebook_id)
         if session is None or notebook is None:
             return
+        if self.app_sessions is not None:
+            cells, app_config = documents.from_session(session)
+            notebook.replace(cells, app_config, saved=True)
+            return
         # The editor owns the file now; a baseline being read for the
         # host is no longer wanted.
         self._rebaselining.pop(notebook_id, None)
@@ -465,6 +507,8 @@ class SessionBridge(SessionEventListener):
         Its baseline for external changes is the file as the editor
         left it, read off the event loop before the next save compares.
         """
+        if self.app_sessions is not None:
+            return
         session.app_file_manager.on_persisted = None
         self._rebaselining[notebook_id] = (
             asyncio.get_running_loop().create_task(
@@ -642,6 +686,10 @@ class SessionBridge(SessionEventListener):
         self, notebook_id: protocol.NotebookId, sink: Sink
     ) -> SessionBackend:
         def file() -> str | None:
+            if self.app_sessions is not None:
+                return self.app_sessions.session(
+                    notebook_id
+                ).app_file_manager.path
             path = self.index.file_of(notebook_id)
             return None if path is None else str(path)
 
@@ -680,43 +728,83 @@ class SessionBridge(SessionEventListener):
             self._rebaselining.pop(event.notebook_id, None)
             self._mirrored.pop(event.notebook_id, None)
 
-    async def _adopt(self, session: Session) -> None:
+    async def adopt(self, session: Session) -> Notebook | None:
+        """Expose the notebook selected by the existing session lifecycle."""
+        existing = self.notebook_for_session(session)
+        if existing is not None:
+            return existing
+        for notebook_id, candidate in self._adopting.items():
+            if candidate is session:
+                return await self.bind(notebook_id, session)
         path = session.app_file_manager.path
-        notebook = self.index.notebook_for(path)
-        if notebook is None and path is not None:
-            notebook = self.index.ensure(path)
+        notebook: protocol.Notebook | None
+        if self.app_sessions is not None:
+            notebook_id = self.app_sessions.register(session)
+            notebook = self.host.notebooks[notebook_id]
+        else:
+            notebook = self.index.notebook_for(path)
+            if notebook is None:
+                notebook = (
+                    self.index.untitled()
+                    if path is None
+                    else self.index.ensure(path)
+                )
         if notebook is None:
             LOGGER.debug("Not publishing session for %s", path)
-            return
-        if self._adopting.setdefault(notebook.id, session) is not session:
-            return
+            return None
         try:
-            loaded = await self.host.notebook(notebook.id)
-        finally:
-            self._adopting.pop(notebook.id, None)
-        backend = self._backends[notebook.id]
-        if backend.session is not None:
-            return
-        try:
-            loaded.adopt(lambda runtime_id: backend.adopt(runtime_id, session))
+            return await self.bind(notebook.id, session)
         except Conflict:
             LOGGER.debug("Not publishing a second session for %s", path)
-            return
+            return None
+
+    async def bind(
+        self, notebook_id: protocol.NotebookId, session: Session
+    ) -> Notebook:
+        """Bind a registered notebook to a runtime independently of its source."""
+        if self._adopting.setdefault(notebook_id, session) is not session:
+            raise Conflict("The notebook already belongs to another session")
+        try:
+            loaded = await self.host.notebook(notebook_id)
+        finally:
+            self._adopting.pop(notebook_id, None)
+        backend = self._backends[notebook_id]
+        if backend.session is session:
+            return loaded
+        if backend.session is not None:
+            raise Conflict("The notebook already belongs to another session")
+        loaded.adopt(lambda runtime_id: backend.adopt(runtime_id, session))
+        return loaded
 
     # Session events
 
     async def on_session_created(self, session: Session) -> None:
-        await self._adopt(session)
+        # App startup may finish after its browser has left. Bind only when
+        # a connection claims it, so observers do not keep abandoned apps alive.
+        if self.app_sessions is None:
+            await self.adopt(session)
+
+    async def on_session_closed(self, session: Session) -> None:
+        if self.app_sessions is not None:
+            self.app_sessions.remove(session)
 
     async def on_session_notebook_renamed(
         self, session: Session, old_path: str | None
     ) -> None:
         notebook = self.index.notebook_for(old_path)
+        if notebook is None:
+            loaded = self.notebook_for_session(session)
+            if loaded is not None:
+                notebook = self.host.notebooks[loaded.id]
         path = session.app_file_manager.path
         if path is None:
             return
         if notebook is None:
             # Add notebooks to the catalog when first saved.
-            await self._adopt(session)
+            await self.adopt(session)
             return
-        self.index.moved(notebook.id, path)
+        if self.index.moved(notebook.id, path) is None:
+            # An initially empty workspace has no project root. Keep the
+            # session notebook until workspace discovery can include its file.
+
+            self.index.rename(notebook.id, Path(path).stem)

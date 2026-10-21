@@ -15,7 +15,7 @@ from marimo._messaging.notification import NotificationMessage
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
-from marimo._session.model import ConnectionState
+from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.types import KernelState
 from marimo._types.ids import ConsumerId
 
@@ -103,6 +103,8 @@ class FakeSession:
 
 class FakeManager:
     """A session manager with configurable startup results and timing."""
+
+    mode = SessionMode.EDIT
 
     def __init__(self) -> None:
         self.sessions: dict[str, FakeSession] = {}

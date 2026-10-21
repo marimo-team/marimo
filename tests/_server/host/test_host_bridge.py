@@ -1055,7 +1055,7 @@ async def test_session_notebook_lookup_boundaries(
     await bridge.open()
     notebook = bridge.notebook_for_session(saved)  # type: ignore[arg-type]
     assert notebook is not None
-    assert bridge.notebook_for_session(unsaved) is None  # type: ignore[arg-type]
+    assert bridge.notebook_for_session(unsaved) is not None  # type: ignore[arg-type]
     assert bridge.notebook_for_session(outside) is None  # type: ignore[arg-type]
     assert (
         bridge.notebook_for_session(FakeSession(str(tmp_path / "a.py")))
