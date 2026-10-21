@@ -160,6 +160,7 @@ test = [
     "urllib3~=2.5.0",
     # Pytest and plugins
     "pytest~=9.0.2",
+    "pytest-github-actions-annotate-failures~=0.4.2",
     "pytest-timeout~=2.4.0",
     "pytest-codecov~=0.7.0",
     "pytest-rerunfailures~=16.1",
