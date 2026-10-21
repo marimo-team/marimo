@@ -202,8 +202,12 @@ def create_kernel_context(
                     kernel.app_metadata.filename, config=kernel.user_config
                 )
             ),
-            loader=get_loader_key(
-                kernel.app_metadata.filename, config=kernel.user_config
+            loader=(
+                parent.cache.loader
+                if parent is not None
+                else get_loader_key(
+                    kernel.app_metadata.filename, config=kernel.user_config
+                )
             ),
         ),
         cell_lifecycle_registry=CellLifecycleRegistry(),

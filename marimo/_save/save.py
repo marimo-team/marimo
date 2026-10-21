@@ -387,6 +387,7 @@ class _cache_call(CacheContext, Generic[P, R]):
         scope = {k: v for k, v in scope.items() if k in attempt.stateful_refs}
         attempt.update(scope, meta={"return": response, "runtime": runtime})
         if self.loader.save_cache(attempt):
+            self.loader.flush()
             self._record(attempt)
 
     def _record(self, attempt: Cache) -> None:
@@ -884,6 +885,7 @@ class _cache_context(SkipContext, CacheContext):
                 if saved:
                     self.loader.flush()
             except Exception as e:
+                saved = False
                 sys.stderr.write(
                     "An exception was raised when attempting to cache this code "
                     "block with the following message:\n"

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from marimo import _loggers
+from marimo import App, _loggers
 from marimo._config.config import merge_default_config
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._runtime.commands import ExecuteCellCommand
@@ -150,36 +150,83 @@ class TestEntryPointLoaders:
             persistent_cache("ns", method=method)
 
     @pytest.mark.parametrize(
-        "loader", ["pickle", "json", "lazy", "fake", "buffered"]
+        ("loader", "expected_loader"),
+        [
+            ("pickle", PickleLoader),
+            ("json", JsonLoader),
+            ("lazy", LazyLoader),
+            ("fake", FakeLoader),
+            ("buffered", BufferedLoader),
+        ],
     )
+    @pytest.mark.parametrize("form", ["context", "function", "async"])
     async def test_configured_loaders_restore_across_sessions(
-        self, loader: str, monkeypatch, tmp_path
+        self,
+        loader: str,
+        expected_loader: LoaderType,
+        form: str,
+        monkeypatch,
+        tmp_path,
     ) -> None:
         monkeypatch.setattr(
             "marimo._save.loaders._LOADER_REGISTRY",
             _registry(fake=FakeLoader, buffered=BufferedLoader),
         )
         user_config = merge_default_config({"cache": {"loader": loader}})
+        if form == "context":
+            code = (
+                f"with mo.persistent_cache('configured', save_path={str(tmp_path)!r}) as cache:\n"
+                "    result = {'answer': [42]}\n"
+                "was_hit = cache.hit"
+            )
+        else:
+            prefix = "async " if form == "async" else ""
+            await_call = "await " if form == "async" else ""
+            code = (
+                f"@mo.persistent_cache(save_path={str(tmp_path)!r})\n"
+                f"{prefix}def cache():\n    return {{'answer': [42]}}\n"
+                f"result = {await_call}cache()\n"
+                "was_hit = cache.cache_info().hits > 0"
+            )
         commands = [
             ExecuteCellCommand(
                 cell_id=CellId_t("imports"), code="import marimo as mo"
             ),
             ExecuteCellCommand(
                 cell_id=CellId_t("cache"),
-                code=(
-                    f"with mo.persistent_cache('configured', save_path={str(tmp_path)!r}) as cache:\n"
-                    "    result = {'answer': [42]}\n"
-                    "was_hit = cache.hit"
-                ),
+                code=code,
             ),
         ]
         for expected_hit in (False, True):
             with mocked_kernel_session(user_config=user_config) as tk:
                 await tk.kernel.run(commands)
                 assert (
+                    type(tk.kernel.globals["cache"].loader) is expected_loader
+                )
+                assert (
                     tk.kernel.globals["result"],
                     tk.kernel.globals["was_hit"],
                 ) == ({"answer": [42]}, expected_hit)
+
+    async def test_embedded_app_inherits_configured_loader(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(
+            "marimo._save.loaders._LOADER_REGISTRY", _registry(fake=FakeLoader)
+        )
+        child = App()
+
+        @child.cell
+        def _():
+            import marimo as mo
+
+            selected = mo.persistent_cache("child").loader
+            return (selected,)
+
+        user_config = merge_default_config({"cache": {"loader": "fake"}})
+        with mocked_kernel_session(user_config=user_config):
+            result = await child.embed()
+            assert type(result.defs["selected"]) is FakeLoader
 
 
 class TestGetLoaderKey:
@@ -232,3 +279,57 @@ def test_kernel_reads_cache_loader_from_user_config() -> None:
     user_config = merge_default_config({"cache": {"loader": "pickle"}})
     with mocked_kernel_session(user_config=user_config):
         assert get_context().cache.loader == "pickle"
+
+
+@pytest.mark.parametrize("alias", [False, True])
+async def test_default_cache_preserves_shared_outputs(alias, tmp_path) -> None:
+    commands = [
+        ExecuteCellCommand(
+            cell_id=CellId_t("imports"), code="import marimo as mo"
+        ),
+        ExecuteCellCommand(
+            cell_id=CellId_t("cache"),
+            code=(
+                f"with mo.persistent_cache('aliases', save_path={str(tmp_path)!r}) as cache:\n"
+                "    a = []\n"
+                f"    b = {'a' if alias else '[]'}\n"
+                "a.append(1)\n"
+                "was_hit = cache.hit"
+            ),
+        ),
+    ]
+    for expected_hit in (False, True):
+        with mocked_kernel_session() as tk:
+            await tk.kernel.run(commands)
+            assert (tk.kernel.globals["b"], tk.kernel.globals["was_hit"]) == (
+                [1] if alias else [],
+                expected_hit,
+            )
+
+
+async def test_default_cache_clear_recomputes(tmp_path) -> None:
+    with mocked_kernel_session() as tk:
+        tk.ctx.cache.store = FileStore(str(tmp_path))
+        await tk.kernel.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("imports"), code="import marimo as mo"
+                ),
+                ExecuteCellCommand(
+                    cell_id=CellId_t("cache"),
+                    code=(
+                        "@mo.persistent_cache\n"
+                        "def compute():\n    return 42\n"
+                        "compute()\ncompute()\n"
+                        "before = compute.cache_info()\n"
+                        "compute.cache_clear()\n"
+                        "result = compute()\n"
+                        "after = compute.cache_info()"
+                    ),
+                ),
+            ]
+        )
+        assert tk.kernel.globals["result"] == 42
+        assert tk.kernel.globals["before"].hits == 1
+        after = tk.kernel.globals["after"]
+        assert (after.hits, after.misses) == (1, 2)

@@ -736,7 +736,7 @@ class TestLazyLoader(ABCTestLoader):
             for p in Path(self.store.save_path).rglob("*")
             if p.is_file() and p.suffix != ".jsonl"
         )
-        assert blob_names == ["df.pickle", "return.pickle"], blob_names
+        assert blob_names == ["return.pickle"], blob_names
 
         cache_path = loader.build_path(key("pd_mixed_hash", "Pure"))
         decoded = msgspec.json.decode(
@@ -748,7 +748,7 @@ class TestLazyLoader(ABCTestLoader):
         loaded = loader.load_cache(key("pd_mixed_hash", "Pure"))
         assert loaded is not None
         pd.testing.assert_frame_equal(loaded.defs["df"], df)
-        pd.testing.assert_frame_equal(loaded.meta["return"], df)
+        assert loaded.meta["return"] is loaded.defs["df"]
 
     def test_typed_serializer_failure_falls_back_to_pickle(
         self, monkeypatch: pytest.MonkeyPatch
@@ -785,9 +785,9 @@ class TestLazyLoader(ABCTestLoader):
             for p in Path(self.store.save_path).rglob("*")
             if p.is_file() and p.suffix != ".jsonl"
         )
-        assert blob_names == ["return.pickle", "v.pickle"], blob_names
+        assert blob_names == ["return.pickle"], blob_names
 
         loaded = loader.load_cache(key("typed_fallback_hash", "Pure"))
         assert loaded is not None
         assert loaded.defs["v"] == value
-        assert loaded.meta["return"] == value
+        assert loaded.meta["return"] is loaded.defs["v"]

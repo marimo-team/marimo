@@ -12,6 +12,8 @@ import json
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+import pytest
+
 from marimo._runtime.callbacks.cache import (
     CacheCallbacks,
     cache_cells_enabled,
@@ -22,8 +24,6 @@ from marimo._save.stores.file import FileStore, export_manifest_name
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import pytest
 
 
 def _clear_loaders() -> None:
@@ -39,9 +39,23 @@ def test_export_manifest_name_is_per_notebook() -> None:
     assert name.endswith("-export.json")
 
 
-def test_dump_cache_manifests_writes_keys(tmp_path: Path) -> None:
+@pytest.mark.parametrize("tiered", [False, True])
+def test_dump_cache_manifests_writes_keys(
+    tmp_path: Path, tiered: bool
+) -> None:
+    from marimo._save.stores.dict_store import DictStore
+    from marimo._save.stores.tiered import TieredStore
+
     _clear_loaders()
-    store = LazyStore(FileStore(save_path=str(tmp_path)))
+    directories = (
+        [tmp_path / "first", tmp_path / "second"] if tiered else [tmp_path]
+    )
+    stores = [FileStore(save_path=str(directory)) for directory in directories]
+    store = LazyStore(
+        TieredStore([DictStore(), TieredStore(stores)])
+        if tiered
+        else stores[0]
+    )
     LazyLoader("blk", store=store)
     store.put("blk/hash/a.pickle", b"x")
     store.put("blk/hash/return.pickle", b"y")
@@ -50,12 +64,12 @@ def test_dump_cache_manifests_writes_keys(tmp_path: Path) -> None:
     finally:
         _clear_loaders()
 
-    manifest = tmp_path / export_manifest_name("nb.py")
-    assert manifest.exists()
-    assert set(json.loads(manifest.read_text())) == {
-        "blk/hash/a.pickle",
-        "blk/hash/return.pickle",
-    }
+    for directory in directories:
+        manifest = directory / export_manifest_name("nb.py")
+        assert set(json.loads(manifest.read_text())) == {
+            "blk/hash/a.pickle",
+            "blk/hash/return.pickle",
+        }
 
 
 def test_dump_cache_manifests_skips_non_file_stores(tmp_path: Path) -> None:

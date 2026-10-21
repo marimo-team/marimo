@@ -501,7 +501,10 @@ def _get_machine_signer(
                     "Generated cache signing key: %s", key_file
                 )
         finally:
-            os.unlink(tmp)
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
         return CacheSigner.from_private_key_pem(key_file.read_text())
     except Exception:
         logging.getLogger("marimo").warning(

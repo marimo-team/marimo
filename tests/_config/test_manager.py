@@ -1399,10 +1399,7 @@ def test_project_config_manager_strips_signing_and_verification(
     config = PyprojectConfigReader(str(pyproject_path)).read()
 
     assert "signing" not in config
-    assert config.get("cache") == {
-        "loader": loader,
-        "store": {"type": "file"},
-    }
+    assert config.get("cache") == {"store": {"type": "file"}}
 
 
 def test_effective_config_anchors_trust_in_user_layer_only(
@@ -1475,7 +1472,7 @@ def test_workspace_marimo_toml_strips_signing_and_verification(
 
     assert "signing" not in config
     assert config.get("cache", {}).get("verification") is None
-    assert config.get("cache", {}).get("loader") == loader
+    assert config.get("cache", {}).get("loader") is None
     # The store goes too, unlike the project and script layers. A store set
     # here would load as the user layer, so `cache_store_is_untrusted` could
     # not tell it apart from one the operator chose, and the unsigned pickle
@@ -1496,6 +1493,7 @@ def test_trusted_user_config_location_anchors_trust(
 
             [cache]
             verification = "strict"
+            loader = "pickle"
             """
         )
     )
@@ -1514,3 +1512,4 @@ def test_trusted_user_config_location_anchors_trust(
 
     assert config["signing"]["trusted_signers"] == {_FAKE_FP: "me"}
     assert config["cache"]["verification"] == "strict"
+    assert config["cache"]["loader"] == "pickle"

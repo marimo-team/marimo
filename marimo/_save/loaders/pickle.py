@@ -30,8 +30,9 @@ class PickleLoader(BasePersistenceLoader):
                 "Ignoring cache.store from an untrusted config layer for the "
                 "unsigned pickle loader (it would feed pickle.loads); using the "
                 "default store. Use method='lazy' with cache.verification set "
-                "to 'on' or 'strict' to verify a shared store, or configure the "
-                "store in user config."
+                "to 'on' or 'strict' and a signing key or "
+                "signing.trusted_signers to verify a shared store, or configure "
+                "the store in user config."
             )
 
     @staticmethod

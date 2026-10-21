@@ -424,15 +424,11 @@ def dump_cache_manifests(manifest_name: str) -> None:
     keys = LazyLoader.export_keys()
     seen: set[Path] = set()
     for loader in loaders:
-        store = loader.store
-        inner = store._inner if isinstance(store, LazyStore) else None
-        if not isinstance(inner, FileStore):
-            continue
-        cache_dir = inner.save_path
-        if cache_dir in seen:
-            continue
-        seen.add(cache_dir)
-        _write_export_manifest(cache_dir, manifest_name, keys)
+        for cache_dir in loader.store.local_dirs():
+            if cache_dir in seen:
+                continue
+            seen.add(cache_dir)
+            _write_export_manifest(cache_dir, manifest_name, keys)
 
 
 def _write_export_manifest(
@@ -691,13 +687,28 @@ class LazyLoader(BasePersistenceLoader):
             )
         loaders = state.active_lazy_loaders
         if store is None:
-            # Reuse the store across recreations of a named loader (State GC,
-            # partial reconstruction) so cached data survives.
-            prev = loaders.get(name)
-            store = prev.store if prev is not None else self._default_store()
+            ctx = safe_get_context()
+            if (
+                verification == "off"
+                and ctx is not None
+                and ctx.cache.store_from_untrusted_origin
+            ):
+                store = self._store_cls()
+                LOGGER.warning(
+                    "Ignoring cache.store from an untrusted config layer "
+                    "while cache verification is off; using the default store."
+                )
+            else:
+                # Reuse the store across recreations of a named loader (State GC,
+                # partial reconstruction) so cached data survives.
+                prev = loaders.get(name)
+                store = (
+                    prev.store if prev is not None else self._default_store()
+                )
         super().__init__(name, "jsonl", store)
         self._pending: list[threading.Thread] = []
         self._pending_writes: dict[str, threading.Event] = {}
+        self._pending_write_lock = threading.Lock()
         self._trusted_fingerprints = normalize_fingerprints(trusted_signers)
         self._verification = verification
         self._degrade_warned = False
@@ -731,6 +742,16 @@ class LazyLoader(BasePersistenceLoader):
         if isinstance(configured, LazyStore):
             return configured
         return self._store_cls(configured)
+
+    def _clearable_root(self) -> Path | None:
+        store = self.store
+        while isinstance(store, LazyStore):
+            store = store._inner
+        return store.save_path if isinstance(store, FileStore) else None
+
+    def clear(self) -> None:
+        self.flush()
+        super().clear()
 
     def _resolve_unset_signer(self) -> CacheSigner | None:
         """Auto-resolve the signer for an unset value, matching __init__.
@@ -873,7 +894,8 @@ class LazyLoader(BasePersistenceLoader):
         for t in self._pending:
             t.join()
         self._pending.clear()
-        self._pending_writes.clear()
+        with self._pending_write_lock:
+            self._pending_writes.clear()
 
     @classmethod
     def flush_all(cls) -> None:
@@ -902,12 +924,14 @@ class LazyLoader(BasePersistenceLoader):
 
     def _await_write(self, manifest_key: str) -> None:
         """Wait for this loader's pending write of the manifest."""
-        done = self._pending_writes.get(manifest_key)
+        with self._pending_write_lock:
+            done = self._pending_writes.get(manifest_key)
         if done is None:
             return
         done.wait()
-        if self._pending_writes.get(manifest_key) is done:
-            del self._pending_writes[manifest_key]
+        with self._pending_write_lock:
+            if self._pending_writes.get(manifest_key) is done:
+                del self._pending_writes[manifest_key]
 
     def cache_hit(self, key: HashKey) -> bool:
         self._await_write(str(self.build_path(key)))
@@ -1172,6 +1196,9 @@ class LazyLoader(BasePersistenceLoader):
                 )
             elif var_name in deferred:
                 ref, requires = deferred[var_name]
+                if ref in unpickled:
+                    defs[var_name] = unpickled[ref]
+                    continue
                 # Read the bytes now (via this loader's store); defer only
                 # the unpickle until Cache.restore has materialized the class.
                 raw = self.store.get(ref)
@@ -1186,6 +1213,7 @@ class LazyLoader(BasePersistenceLoader):
                 )
                 # Tag the cell class this instance needs materialized first.
                 stub.requires = requires
+                unpickled[ref] = stub
                 defs[var_name] = stub
             elif var_name in ref_vars:
                 ref_key = ref_vars[var_name]
@@ -1353,9 +1381,8 @@ class LazyLoader(BasePersistenceLoader):
         path = Path(self.name) / cache.hash
         # Copy so per-def digests below don't mutate the cache's meta.
         variable_hashes = dict(cache.meta.get("variable_hashes", {}))
-        return_item = to_item(
-            path, cache.meta.get("return", None), var_name="return"
-        )
+        return_value = cache.meta.get("return", None)
+        return_item = to_item(path, return_value, var_name="return")
         if return_item.reference:
             # Normalize base name to "return" while preserving format extension.
             ext = Path(return_item.reference).suffix
@@ -1371,6 +1398,10 @@ class LazyLoader(BasePersistenceLoader):
         ui_vars: dict[str, Any] = {}
         defs_dict: dict[str, Item] = {}
         ui_defs_list: list[str] = []
+        # Aliased outputs share a blob so restoring them preserves identity.
+        blob_items: dict[int, list[Item]] = {}
+        if return_item.reference:
+            blob_items[id(return_value)] = [return_item]
 
         for var, obj in cache.defs.items():
             if var not in variable_hashes:
@@ -1396,7 +1427,12 @@ class LazyLoader(BasePersistenceLoader):
                 ui_vars[var] = obj
                 ui_defs_list.append(var)
             elif loader != "inline":
-                format_vars.setdefault(loader, {})[var] = obj
+                items = blob_items.setdefault(id(obj), [])
+                if items:
+                    item.reference = items[0].reference
+                else:
+                    format_vars.setdefault(loader, {})[var] = obj
+                items.append(item)
 
         version = cache.meta.get("version", MARIMO_CACHE_VERSION)
 
@@ -1476,7 +1512,6 @@ class LazyLoader(BasePersistenceLoader):
         # Capture values for the background thread
         store = self.store
         return_ref = return_item.reference
-        return_value = cache.meta.get("return", None)
         return_loader = (
             maybe_update_lazy_stub(return_value)
             if return_value is not None
@@ -1546,7 +1581,7 @@ class LazyLoader(BasePersistenceLoader):
                         return_ref,
                         return_value,
                         return_loader,
-                        [return_item],
+                        blob_items[id(return_value)],
                         "return",
                     )
                 if ui_vars:
@@ -1578,7 +1613,7 @@ class LazyLoader(BasePersistenceLoader):
                             (path / f"{var}.{loader}").as_posix(),
                             obj,
                             loader,
-                            [defs_dict[var]],
+                            blob_items[id(obj)],
                             var,
                         )
                 # Manifest last — readers check for it to detect complete
@@ -1589,14 +1624,19 @@ class LazyLoader(BasePersistenceLoader):
                 LOGGER.exception("Failed to write cache blobs for %s", path)
 
         done = threading.Event()
+        with self._pending_write_lock:
+            previous = self._pending_writes.get(manifest_key)
+            self._pending_writes[manifest_key] = done
 
         def _tracked_write() -> None:
             try:
+                # An older write must finish before this one replaces it.
+                if previous is not None:
+                    previous.wait()
                 _serialize_and_write()
             finally:
                 done.set()
 
-        self._pending_writes[manifest_key] = done
         self._dispatch_write(_tracked_write)
         return True
 

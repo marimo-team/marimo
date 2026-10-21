@@ -1359,6 +1359,73 @@ class TestUntrustedLayerCannotAnchorTrust(_FileStoreLoaderTest):
 
 
 class TestReadYourWrites(_FileStoreLoaderTest):
+    @pytest.mark.parametrize(
+        ("untrusted", "explicit"),
+        [(True, False), (True, True), (False, False)],
+    )
+    @pytest.mark.parametrize("verification", ["off", "on"])
+    def test_configured_store_provenance(
+        self, untrusted, explicit, verification
+    ) -> None:
+        from marimo._save.loaders.lazy import LazyStore
+        from tests._runtime._helpers.session import mocked_kernel_session
+
+        signer, _ = _keypair()
+        with mocked_kernel_session() as tk:
+            tk.ctx.cache.store = self.store
+            tk.ctx.cache.store_from_untrusted_origin = untrusted
+            writer = LazyLoader(
+                "source",
+                store=LazyStore(self.store),
+                signer=signer,
+                verification=verification,
+            )
+            assert writer.save_cache(_simple_cache(v=42))
+            writer.flush()
+            reader = LazyLoader(
+                "source",
+                store=writer.store if explicit else None,
+                signer=signer,
+                verification=verification,
+            )
+            loaded = reader.load_cache(key("abc123"))
+            if untrusted and not explicit and verification == "off":
+                assert loaded is None
+            else:
+                assert loaded is not None
+                assert loaded.defs == {"v": 42}
+
+    def test_writes_to_one_key_finish_in_order(self, monkeypatch) -> None:
+        first_started = threading.Event()
+        release = threading.Event()
+        original_put = self.store.put
+
+        def blocked_first_put(key: str, value: bytes) -> bool:
+            if not first_started.is_set():
+                first_started.set()
+                release.wait()
+            return original_put(key, value)
+
+        monkeypatch.setattr(self.store, "put", blocked_first_put)
+        loader = self._loader(verification="off")
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            try:
+                assert loader.save_cache(_simple_cache(hash_val="same", v=7))
+                assert first_started.wait(timeout=5)
+                assert loader.save_cache(_simple_cache(hash_val="same", v=9))
+                result = executor.submit(loader.load_cache, key("same"))
+                with pytest.raises(TimeoutError):
+                    result.result(timeout=0.1)
+            finally:
+                release.set()
+                loader.flush()
+            loaded = result.result(timeout=5)
+        assert loaded is not None
+        assert loaded.defs == {"v": 9}
+        persisted = loader.load_cache(key("same"))
+        assert persisted is not None
+        assert persisted.defs == {"v": 9}
+
     @pytest.fixture
     def pending_write(
         self, monkeypatch: pytest.MonkeyPatch

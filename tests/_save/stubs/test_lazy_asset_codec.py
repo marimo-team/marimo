@@ -60,13 +60,10 @@ def test_lazy_loader_round_trips_blob_asset() -> None:
     loader.flush()
 
     assert (
-        Path("asset-test") / "asset_hash" / "preview.bin"
-    ).as_posix() in store._cache
-    assert (
         Path("asset-test") / "asset_hash" / "return.bin"
     ).as_posix() in store._cache
     loaded = loader.load_cache(HashKey("asset_hash", "Pure"))
 
     assert loaded is not None
     assert loaded.defs == {"preview": asset}
-    assert loaded.meta["return"] == asset
+    assert loaded.meta["return"] is loaded.defs["preview"]

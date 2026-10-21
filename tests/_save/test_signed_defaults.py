@@ -142,6 +142,22 @@ def test_concurrent_key_creation_keeps_one_identity(tmp_path: Path) -> None:
 
 
 @pytest.mark.requires("cryptography")
+def test_key_cleanup_failure_keeps_published_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    key_path = tmp_path / "key.pem"
+
+    def fail_cleanup(_path: str) -> None:
+        raise OSError("Temporary file could not be removed")
+
+    monkeypatch.setattr(os, "unlink", fail_cleanup)
+    signer = signing._get_machine_signer(str(key_path))
+    assert signer is not None
+    persisted = signing.CacheSigner.from_private_key_pem(key_path.read_text())
+    persisted.verify(b"cached result", signer.sign(b"cached result"))
+
+
+@pytest.mark.requires("cryptography")
 def test_persistent_cache_verifies_across_restarts(tmp_path: Path) -> None:
     """With `verification = "on"` in user config, a tampered entry recomputes."""
     private_pem, _ = signing.generate_keypair()
@@ -167,6 +183,7 @@ def test_persistent_cache_verifies_across_restarts(tmp_path: Path) -> None:
         os.environ,
         MARIMO_CACHE_SIGNING_PRIVATE_KEY=private_pem,
         HOME=str(home),
+        USERPROFILE=str(home),
         XDG_CONFIG_HOME=str(xdg_config),
         XDG_STATE_HOME=str(tmp_path / "xdg-state"),
     )

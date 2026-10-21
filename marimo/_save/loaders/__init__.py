@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from marimo import _loggers
 from marimo._entrypoints.registry import EntryPointRegistry
@@ -105,7 +105,7 @@ def get_persistent_loader(
 
 
 def normalize_loader_key(
-    raw: Any,
+    raw: object,
     registry: EntryPointRegistry[LoaderType] | None = None,
 ) -> CacheLoader:
     """Validate a `cache.loader` value, falling back to `DEFAULT_LOADER`.
