@@ -35,7 +35,7 @@ export class StreamStopped extends Error {
   public override readonly name = "StreamStopped";
 }
 
-/** Where one connection of a notebook stream starts. */
+/** Where one connection of a host stream starts. */
 export interface Attempt {
   /** Where to resume, or null to start with a snapshot. */
   readonly cursor: string | null;
@@ -52,16 +52,16 @@ export interface Handlers {
 }
 
 /**
- * Open one connection to a notebook stream and report it until it ends.
+ * Open one connection to a host stream and report it until it ends.
  *
- * `NotebookEvents` calls it again for each attempt. It resolves when the
+ * The event stream calls it again for each attempt. It resolves when the
  * connection ended and another attempt makes sense. It rejects when the
  * stream should stop, preferably with a `StreamStopped` that says why, and
  * `closed` rejects with the same error. It sends the cursor however its host
  * expects, and leaves reconnecting, validation, and the cursor's value to
- * `NotebookEvents`.
+ * the event stream.
  */
-export type NotebookTransport = (
-  attempt: Attempt,
-  handlers: Handlers,
-) => Promise<void>;
+export type Transport = (attempt: Attempt, handlers: Handlers) => Promise<void>;
+
+/** A custom transport for a notebook stream. */
+export type NotebookTransport = Transport;

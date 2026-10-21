@@ -1,67 +1,128 @@
 # @marimo-team/client
 
-A typed client for notebooks served by a marimo host. Hosts expose each
-notebook through the [host protocol](../../protocols/host/README.md), an HTTP
-API with its own event stream. `NotebookClient` sends the protocol's requests
-for one notebook, addressed by the notebook's URL. Request bodies are
-validated before they are sent, and the host's answer comes back as data or a
-problem.
+Connect to a marimo host to find notebooks, read their state, and request
+edits or execution. A host serves notebooks through the
+[host protocol](../../protocols/host/spec.md). `Client` works with the host's
+catalog. `NotebookClient` works with one notebook.
 
-`NotebookEvents` follows a notebook's stream. The stream starts with a
-snapshot that ends in `ready` and then delivers changes. When a connection
-drops, the stream resumes from the last event it received. When it cannot,
-it delivers `reset` and a fresh snapshot follows. Given a URL, it follows the
-stream over server-sent events, as the protocol defines. Given a
-`NotebookTransport`, it follows whatever connection the transport opens.
+## Connect to a host
+
+Give `Client` the host's API base URL and token. These can come from your
+application's configuration or the host's
+[local discovery record](../../protocols/host/spec.md#local-discovery).
 
 ```ts
-import { NotebookClient } from "@marimo-team/client";
+import { Client } from "@marimo-team/client";
 
-const notebook = new NotebookClient(
-  "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1",
-  { token: "your-token" },
-);
+const client = new Client("http://127.0.0.1:2718/api/marimo/v1", {
+  token: "your-token",
+});
+```
 
-const result = await notebook.edit([
-  { kind: "delete_cell", id: "c3", base_etag: "*" },
-]);
-if (!result.ok) {
-  console.error(result.problem.type);
-}
+Requests use HTTP and event streams use server-sent events. Pass `fetch` or
+`headers` alongside `token` to customize requests.
 
-for await (const event of notebook.events({ types: ["cell", "document"] })) {
-  if (event.event === "reset") {
-    // Discard what you built. A fresh snapshot follows.
+## Find notebooks
+
+The catalog stream describes the host's notebooks, projects, runtimes, and
+attachments. It also reports the host's capabilities. This example prints
+the notebooks the host currently knows about.
+
+```ts
+for await (const event of client.events({ types: ["notebook"] })) {
+  if (event.event === "notebook") {
+    console.log(event.data.notebook.id, event.data.notebook.name);
   }
+  if (event.event === "ready") break;
 }
 ```
 
-## Entry points
+`ready` ends the initial snapshot. Breaking out closes the stream. Projects
+may still be indexing when `ready` arrives, so more notebooks can appear
+afterward.
 
-- `@marimo-team/client` exports `NotebookClient` and `NotebookEvents`.
-- `@marimo-team/client/protocol` has the protocol's types and zod 4 schemas,
-  generated from `protocols/host/openapi.yaml`. Use the schemas to validate
-  protocol data yourself, for example in a host or a conformance test.
-- `@marimo-team/client/reducer` composes resources into a pure reducer over a
-  notebook stream. It handles `ready`, `reset`, and the notebook's identity,
-  so each resource handles the events of its own kinds.
+## Work with a notebook
 
-## Development
+Use an id or a notebook record from the catalog to get a `NotebookClient`.
+This example reads the document, prints its cell count, and asks the host
+to save it. It assumes the notebook supports `notebook.save`.
 
-The package is consumed from `dist`. Build it once, or keep it built while
-you work.
+```ts
+import type { DocumentOutput } from "@marimo-team/client/protocol";
+
+const notebook = client.notebook("n1");
+let document: DocumentOutput | undefined;
+
+for await (const event of notebook.events({ types: ["document"] })) {
+  if (event.event === "document") document = event.data.document;
+  if (event.event === "reset") document = undefined;
+  if (event.event === "ready") break;
+}
+
+if (document === undefined) throw new Error("The host did not send a document");
+console.log(`${document.order.length} cells`);
+
+const result = await notebook.save({ ifMatch: document.etag });
+if (result.ok) {
+  console.log("Saved", result.data.document.etag);
+} else {
+  console.error(result.problem);
+}
+```
+
+`ifMatch` makes the document's etag a precondition. If the document changes
+before the save, the host returns a conflict problem. Other actions, such
+as `edit` and `run`, use the same result shape. The notebook's advertised
+operations describe which actions it permits. Invalid request data,
+invalid responses, and connection failures throw.
+
+You can also construct a `NotebookClient` directly when you already know
+the notebook's URL.
+
+## Follow changes
+
+Keep iterating after `ready` to follow changes. Streams reconnect and resume
+from their last cursor. If they cannot resume, they deliver `reset` followed
+by a new snapshot. Discard accumulated state on `reset` before applying the
+snapshot.
+
+To maintain a notebook list or document state from events, see the
+[reducer guide](REDUCERS.md).
+
+To follow events over a WebSocket or another connection, see the
+[custom transport guide](TRANSPORTS.md).
+
+## Contributing
+
+The [host protocol](../../protocols/host/spec.md) explains the model and
+behavior. [OpenAPI](../../protocols/host/openapi.yaml) defines the routes and
+payloads. `@marimo-team/client/protocol` exports the TypeScript types and Zod
+schemas generated from it.
+
+Run these commands from the repository root. See
+[CONTRIBUTING.md](../../CONTRIBUTING.md) for setup.
+
+The package is consumed from `dist`. Build it once, or watch for changes
+while developing.
 
 ```sh
 pnpm --dir packages/client build
 pnpm --dir packages/client build --watch
 ```
 
-`src/operations.ts` is generated from the same spec as the schemas. It
-describes each operation for the client to call and is not exported.
-
-Regenerate and check the generated files.
+After changing OpenAPI, regenerate the protocol types, schemas, and
+operation definitions. `codegen:check` checks that generated files match
+the specification.
 
 ```sh
 pnpm --dir packages/client codegen
 pnpm --dir packages/client codegen:check
+```
+
+Run the package's tests and typecheck. Omit `--run` to watch tests while
+developing.
+
+```sh
+pnpm --dir packages/client test --run
+pnpm --dir packages/client typecheck
 ```

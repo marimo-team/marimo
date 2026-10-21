@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import type * as Protocol from "../protocol.ts";
-import { createReducer, type Resource } from "../reducer.ts";
+import { createNotebookReducer, type NotebookResource } from "../index.ts";
 import { fixtureEvents } from "./fixtures.ts";
 
 interface CellIds {
@@ -10,7 +10,7 @@ interface CellIds {
 }
 
 /** A resource whose events are complete on their own. */
-const cells: Resource<CellIds, "cell"> = {
+const cells: NotebookResource<CellIds, "cell"> = {
   initial: { ids: [] },
   on: {
     cell: (state, event) =>
@@ -35,7 +35,7 @@ function publish(state: Revisions): Revisions {
 }
 
 /** A resource assembled from groups of events, like a document from its cells. */
-const revisions: Resource<Revisions, "cell" | "document"> = {
+const revisions: NotebookResource<Revisions, "cell" | "document"> = {
   initial: { pending: [], published: [] },
   on: {
     cell: (state, event) => ({
@@ -54,7 +54,7 @@ const revisions: Resource<Revisions, "cell" | "document"> = {
 };
 
 function createTestReducer() {
-  return createReducer({ cells, revisions });
+  return createNotebookReducer({ cells, revisions });
 }
 
 function replay(
@@ -167,7 +167,7 @@ describe("notebook reducer", () => {
   });
 
   it("limits handlers to the events of a resource's kinds", () => {
-    const documents: Resource<null, "document"> = {
+    const documents: NotebookResource<null, "document"> = {
       initial: null,
       on: {
         document: (state) => state,
@@ -178,7 +178,7 @@ describe("notebook reducer", () => {
     };
     expect(documents.initial).toBeNull();
     // @ts-expect-error The catalog's kinds never reach a notebook stream.
-    const hosts: Resource<null, "host"> = { initial: null, on: {} };
+    const hosts: NotebookResource<null, "host"> = { initial: null, on: {} };
     expect(hosts.initial).toBeNull();
   });
 });

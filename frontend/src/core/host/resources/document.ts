@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type * as Protocol from "@marimo-team/client/protocol";
-import type { Resource } from "@marimo-team/client/reducer";
+import type { NotebookResource } from "@marimo-team/client";
 
 /**
  * The notebook's content at one revision.
@@ -58,7 +58,7 @@ function publish(
   return { current: { revision, cells }, pending: null };
 }
 
-export const document: Resource<DocumentState, "cell" | "document"> = {
+export const document: NotebookResource<DocumentState, "cell" | "document"> = {
   initial: { current: null, pending: null },
   on: {
     cell: (state, { data }) => {

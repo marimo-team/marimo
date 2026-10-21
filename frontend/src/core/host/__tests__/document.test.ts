@@ -3,10 +3,10 @@
 import { describe, expect, it } from "vitest";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { document } from "../resources/document";
-import { createReducer } from "@marimo-team/client/reducer";
+import { createNotebookReducer } from "@marimo-team/client";
 import { fixtureEvents } from "./fixtures";
 
-const reducer = createReducer({ document });
+const reducer = createNotebookReducer({ document });
 const snapshot = fixtureEvents("notebook-events.sse");
 const edits = fixtureEvents("edits.sse");
 
