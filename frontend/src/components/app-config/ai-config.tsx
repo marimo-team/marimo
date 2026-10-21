@@ -1850,7 +1850,7 @@ export const AddModelForm: React.FC<{
         id={modelNameInputId}
         value={modelName}
         onChange={(e) => setModelName(e.target.value)}
-        placeholder="gpt-4"
+        placeholder="gpt-5.6-sol"
         className="text-xs mb-0"
       />
     </div>

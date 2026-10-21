@@ -75,7 +75,7 @@ import marimo as mo
 
 chat = mo.ui.chat(
     mo.ai.llm.openai(
-        "gpt-4",
+        "gpt-5.6-sol",
         system_message="You are a helpful assistant.",
     ),
     show_configuration_controls=True
