@@ -8,8 +8,7 @@
   "license": "Apache-2.0",
   "exports": {
     ".": "./dist/index.js",
-    "./protocol": "./dist/protocol.js",
-    "./reducer": "./dist/reducer.js"
+    "./protocol": "./dist/protocol.js"
   },
   "files": [
     "dist"

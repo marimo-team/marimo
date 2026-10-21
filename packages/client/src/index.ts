@@ -1,7 +1,37 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+export { Client, type ClientInit } from "./client.ts";
+export {
+  CatalogEvents,
+  type CatalogEventsInit,
+  type CatalogEvent,
+} from "./catalog/events.ts";
+export type { CatalogKind, NotebookKind } from "./kinds.ts";
 export { NotebookClient, type NotebookClientInit } from "./notebook/client.ts";
-export { NotebookEvents, type NotebookEventsInit } from "./notebook/events.ts";
-export type { NotebookEvent } from "./notebook/stream.ts";
+export {
+  NotebookEvents,
+  type NotebookEventsInit,
+  type NotebookEvent,
+} from "./notebook/events.ts";
 export type { Result } from "./request.ts";
-export { type NotebookTransport, StreamStopped } from "./transport/frame.ts";
+export {
+  type Transport,
+  type NotebookTransport,
+  StreamStopped,
+} from "./transport/frame.ts";
+
+export {
+  createCatalogReducer,
+  type CatalogReducer,
+  type CatalogReducerState,
+  type CatalogResource,
+  type CatalogResourceEvent,
+} from "./reducers/catalog.ts";
+export {
+  createNotebookReducer,
+  type NotebookReducer,
+  type NotebookReducerState,
+  type NotebookResource,
+  type NotebookResourceEvent,
+} from "./reducers/notebook.ts";
+export type { HandlerContext } from "./reducers/resources.ts";

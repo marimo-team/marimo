@@ -1,10 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Attachment } from "@marimo-team/client/protocol";
-import type { Resource } from "@marimo-team/client/reducer";
+import type { NotebookResource } from "@marimo-team/client";
 
 /** Attachment records retained with the stream's resume cursor. */
-export const attachments: Resource<readonly Attachment[], "attachment"> = {
+export const attachments: NotebookResource<
+  readonly Attachment[],
+  "attachment"
+> = {
   initial: [],
   on: {
     attachment: (state, { data: { attachment } }) =>

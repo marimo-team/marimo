@@ -2,10 +2,10 @@
 
 import { describe, expect, it } from "vitest";
 import { attachments } from "../resources/attachments";
-import { createReducer } from "@marimo-team/client/reducer";
+import { createNotebookReducer } from "@marimo-team/client";
 import { fixtureEvents } from "./fixtures";
 
-const reducer = createReducer({ attachments });
+const reducer = createNotebookReducer({ attachments });
 const snapshot = fixtureEvents("notebook-events.sse");
 const records = snapshot.flatMap((event) =>
   event.event === "attachment" ? [event.data.attachment] : [],

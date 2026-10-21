@@ -1,8 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import * as Protocol from "../protocol.ts";
-import type { Kind } from "../reducer.ts";
-import { type Frame, isFrame, StreamStopped } from "../transport/frame.ts";
+import { type Frame, isFrame, StreamStopped } from "./frame.ts";
 
 /** An event the host sends for a kind outside the protocol, such as `marimo`. */
 type ExtensionEvent<Name extends string> = Name extends unknown
@@ -10,25 +9,25 @@ type ExtensionEvent<Name extends string> = Name extends unknown
   : never;
 
 /**
- * An event a notebook stream delivers for the requested kinds.
+ * An event a host stream delivers for the requested kinds.
  *
  * Each kind brings its record and removal events. `ready` and `reset` arrive
  * for every stream. A kind the protocol does not define arrives with its data
  * unvalidated.
  */
-export type NotebookEvent<K extends string = Kind> =
+export type StreamEvent<K extends string = Protocol.ObjectTypeOutput> =
   | Extract<
       Protocol.EventOutput,
       { event: K | `${K}.removed` | "ready" | "reset" }
     >
   | ExtensionEvent<Exclude<K, Protocol.ObjectTypeOutput>>;
 
-/** What a `NotebookStream` delivers and where it starts. */
-export interface NotebookStreamInit<K extends string = Kind> {
+/** What an `EventStream` delivers and where it starts. */
+export interface EventStreamInit<K extends string = Protocol.ObjectTypeOutput> {
   /**
    * The kinds to deliver.
    *
-   * Omit it to deliver every kind the protocol defines. Name a kind the
+   * Omit it to deliver every kind this stream carries. Name a kind the
    * protocol does not define, such as `marimo`, to deliver it as well.
    */
   readonly types?: readonly K[];
@@ -36,6 +35,7 @@ export interface NotebookStreamInit<K extends string = Kind> {
    * Resume after this event id instead of starting with a snapshot.
    *
    * The caller holds the state it built through that id.
+   * Use the same host, stream, and type filter that produced that state.
    */
   readonly cursor?: string;
 }
@@ -53,7 +53,7 @@ export function report(error: unknown): void {
 }
 
 /**
- * The protocol's rules for following a notebook stream, without a connection.
+ * The protocol's rules for following a host stream, without a connection.
  *
  * A connection calls `resume()` when it starts, to learn the cursor to send,
  * and `receive()` with each message. The stream validates events, tracks the
@@ -67,23 +67,23 @@ export function report(error: unknown): void {
  * - Kinds that were not requested keep their place in the stream without
  *   being delivered.
  */
-export class NotebookStream<const K extends string = Kind> {
+export class EventStream<const K extends string = Protocol.ObjectTypeOutput> {
   #cursor: string | null;
   /** Whether events since the last reset have no cursor to resume from. */
   #rebuilding = false;
-  readonly #wanted: ReadonlySet<string> | null;
-  readonly #listeners = new Set<(event: NotebookEvent<K>) => void>();
+  readonly #wanted: ReadonlySet<string>;
+  readonly #listeners = new Set<(event: StreamEvent<K>) => void>();
 
-  public constructor(init: NotebookStreamInit<K> = {}) {
+  public constructor(init: EventStreamInit<K>, kinds: readonly string[]) {
     this.#cursor = init.cursor ?? null;
-    this.#wanted =
-      init.types === undefined
-        ? null
-        : new Set([
-            "ready",
-            "reset",
-            ...init.types.flatMap((kind) => [kind, `${kind}.removed`]),
-          ]);
+    this.#wanted = new Set([
+      "ready",
+      "reset",
+      ...(init.types ?? kinds).flatMap((kind) => {
+        const removed = `${kind}.removed`;
+        return PROTOCOL_EVENTS.has(removed) ? [kind, removed] : [kind];
+      }),
+    ]);
   }
 
   /**
@@ -101,7 +101,7 @@ export class NotebookStream<const K extends string = Kind> {
    * Returns a function that stops calling it. A listener that throws does not
    * interrupt the stream.
    */
-  public subscribe(listener: (event: NotebookEvent<K>) => void): () => void {
+  public subscribe(listener: (event: StreamEvent<K>) => void): () => void {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);
   }
@@ -132,7 +132,7 @@ export class NotebookStream<const K extends string = Kind> {
   }
 
   #accept(frame: Frame) {
-    let event: NotebookEvent<string>;
+    let event: StreamEvent<string>;
     if (PROTOCOL_EVENTS.has(frame.event)) {
       const parsed = Protocol.Event.safeParse(frame);
       if (!parsed.success) {
@@ -154,16 +154,12 @@ export class NotebookStream<const K extends string = Kind> {
     } else if (this.#cursor === null) {
       this.#rebuilding = true;
     }
-    const wanted =
-      this.#wanted === null
-        ? PROTOCOL_EVENTS.has(event.event)
-        : this.#wanted.has(event.event);
-    if (!wanted) {
+    if (!this.#wanted.has(event.event)) {
       return;
     }
     for (const listener of this.#listeners) {
       try {
-        listener(event as NotebookEvent<K>);
+        listener(event as StreamEvent<K>);
       } catch (error) {
         report(error);
       }

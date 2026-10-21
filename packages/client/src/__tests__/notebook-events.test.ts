@@ -5,7 +5,7 @@ import NodeUrl from "node:url";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { NotebookClient } from "../notebook/client.ts";
 import { NotebookEvents } from "../notebook/events.ts";
-import type { NotebookEvent } from "../notebook/stream.ts";
+import type { NotebookEvent } from "../notebook/events.ts";
 import { type NotebookTransport, StreamStopped } from "../transport/frame.ts";
 import { ServerSentEventStream } from "../transport/sse.ts";
 

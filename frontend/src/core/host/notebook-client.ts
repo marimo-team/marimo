@@ -2,7 +2,7 @@
 
 import { Logger } from "@/utils/Logger";
 import type { Attachment, NotebookOutput } from "@marimo-team/client/protocol";
-import { createReducer } from "@marimo-team/client/reducer";
+import { createNotebookReducer } from "@marimo-team/client";
 import { type Atom, atom, type createStore } from "jotai/vanilla";
 import {
   type ConnectionStatus,
@@ -69,7 +69,7 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
     state: ConnectionState.NOT_STARTED,
   });
   // One atom holds the whole stream, which resource atoms derive from.
-  const reducer = createReducer({ document, attachments });
+  const reducer = createNotebookReducer({ document, attachments });
   const streamAtom = atom(reducer.initial);
   // A resumed stream is live, but presence waits for this connection's ready.
   const readyAtom = atom(false);

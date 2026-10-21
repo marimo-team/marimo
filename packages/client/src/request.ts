@@ -146,7 +146,7 @@ export function below(url: URL, suffix: string): URL {
 }
 
 /** The URL an operation's path resolves to below the target. */
-function resolve<Prefix extends string>(
+export function resolve<Prefix extends string>(
   target: Target<Prefix>,
   path: string,
   params: Readonly<Record<string, string>>,

@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type * as Protocol from "../protocol.ts";
-import type { Kind } from "../reducer.ts";
+import type { NotebookKind } from "../kinds.ts";
 import {
   below,
   type Connection,
@@ -63,7 +63,7 @@ export class NotebookClient {
    * The stream is served below the notebook's URL over server-sent events,
    * and shares this client's connection.
    */
-  public events<const K extends string = Kind>(
+  public events<const K extends string = NotebookKind>(
     options: Omit<NotebookEventsInit<K>, keyof Connection> = {},
   ): NotebookEvents<K> {
     return new NotebookEvents<K>(below(this.#url, "/events"), {

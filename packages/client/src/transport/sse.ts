@@ -2,7 +2,7 @@
 
 import * as Protocol from "../protocol.ts";
 import { type Connection, isType } from "../request.ts";
-import { type Frame, type NotebookTransport, StreamStopped } from "./frame.ts";
+import { type Frame, type Transport, StreamStopped } from "./frame.ts";
 
 /** Hosts send a comment every fifteen seconds while nothing else happens. */
 const SILENCE_MS = 45_000;
@@ -81,7 +81,7 @@ const RETRY_STATUSES = new Set([408, 429]);
  * `Problem`, except for statuses that ask the client to try again. Other
  * failures and 45 seconds of silence are retried.
  */
-export function sse(url: URL, connection: Connection): NotebookTransport {
+export function sse(url: URL, connection: Connection): Transport {
   return async ({ cursor, signal }, { open, message }) => {
     const headers = new Headers(connection.headers);
     headers.set("Accept", "text/event-stream");
