@@ -1252,6 +1252,64 @@ def test_env_config_manager_boolean_case_insensitive(
     assert config["runtime"]["auto_instantiate"] is expected
 
 
+@pytest.mark.parametrize("mode", ["lazy", "autorun"])
+def test_env_config_manager_on_cell_change(
+    monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", mode)
+    assert EnvConfigReader().read() == {"runtime": {"on_cell_change": mode}}
+
+
+@pytest.mark.parametrize(
+    ("value", "parsed"),
+    [
+        ("invalid", "invalid"),
+        ("", ""),
+        ("true", True),
+        ("[lazy,autorun]", ["lazy", "autorun"]),
+    ],
+)
+def test_env_config_manager_on_cell_change_invalid(
+    monkeypatch: pytest.MonkeyPatch, value: str, parsed: Any
+) -> None:
+    monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", value)
+    with patch("marimo._config.manager.LOGGER.warning") as warning:
+        assert EnvConfigReader().read() == {}
+    warning.assert_called_once_with(
+        "Ignoring invalid value %r for %s; expected one of %s",
+        parsed,
+        "MARIMO_RUNTIME_ON_CELL_CHANGE",
+        "'lazy', 'autorun'",
+    )
+
+
+@pytest.mark.parametrize("mode", ["lazy", "autorun"])
+def test_env_on_cell_change_overrides_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    file_mode = "autorun" if mode == "lazy" else "lazy"
+    user_path = tmp_path / "marimo.toml"
+    user_path.write_text(f'[runtime]\non_cell_change = "{file_mode}"\n')
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _self: str(user_path)
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        f'[tool.marimo.runtime]\non_cell_change = "{file_mode}"\n'
+    )
+    notebook = tmp_path / "app.py"
+    notebook.write_text(
+        "# /// script\n# [tool.marimo.runtime]\n"
+        f'# on_cell_change = "{file_mode}"\n# ///\n'
+    )
+    monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", mode)
+    manager = get_default_config_manager(current_path=str(notebook))
+    assert manager.get_config()["runtime"]["on_cell_change"] == mode
+    assert manager.get_config_overrides()["runtime"]["on_cell_change"] == mode
+    assert user_path.read_text() == (
+        f'[runtime]\non_cell_change = "{file_mode}"\n'
+    )
+
+
 def test_env_config_manager_no_env_vars() -> None:
     """Test that missing env vars return empty config"""
     manager = EnvConfigReader()
