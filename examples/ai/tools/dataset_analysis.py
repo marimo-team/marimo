@@ -108,7 +108,7 @@ def _(alt, cars, client, ell, schema):
 
 
     @ell.complex(
-        model="gpt-4-turbo", tools=[get_chart, get_filtered_table], client=client
+        model="gpt-5.6-sol", tools=[get_chart, get_filtered_table], client=client
     )
     def analyze_dataset(prompt: str) -> str:
         """You are an agent that can analayze the a dataset"""
