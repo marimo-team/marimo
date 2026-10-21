@@ -1,8 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { type JSX, useEffect, useId, useMemo, useState } from "react";
+import { type JSX, useId, useMemo } from "react";
 import { useLocale } from "react-aria";
 import { z } from "zod";
 import { NumberField } from "@/components/ui/number-field";
+import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 import { cn } from "@/utils/cn";
 import { clamp } from "@/utils/math";
 import {
@@ -156,13 +157,10 @@ const SliderComponent = ({
   const { locale } = useLocale();
 
   // Hold internal value
-  const [internalValue, setInternalValue] = useState(value);
-  // Update internal value on prop change
-  useEffect(() => {
-    // TODO: Replace this synchronization with a controlled-state primitive.
-    // oxlint-disable-next-line react/no-deriving-state-in-effects -- Synchronize the editable buffer when the controlled value changes.
-    setInternalValue(value);
-  }, [value]);
+  const [internalValue, setInternalValue] = useInternalStateWithSync(
+    value,
+    Object.is,
+  );
 
   const stepsConfig = useMemo(() => computeStepsConfig(steps), [steps]);
 

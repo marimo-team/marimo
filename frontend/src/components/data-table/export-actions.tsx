@@ -24,6 +24,7 @@ import type {
   GetExportMetadata,
 } from "./schemas";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { useStateForKey } from "@/hooks/useStateForKey";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -354,7 +355,6 @@ interface ExportContext {
 export const ExportActions: React.FC<ExportActionProps> = (props) => {
   const { getExportMetadata, metadataSource } = props;
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
-  const [failure, setFailure] = React.useState<ExportFailure | null>(null);
   const [settings, setSettings] =
     React.useState<ExportSettings>(DEFAULT_SETTINGS);
   const [exportContext, setExportContext] = React.useState<ExportContext>(
@@ -363,6 +363,10 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   if (exportContext.source !== metadataSource) {
     setExportContext({ source: metadataSource });
   }
+  const [failure, setFailure] = useStateForKey<ExportFailure | null>(
+    exportContext,
+    () => null,
+  );
   const mounted = React.useRef(false);
   const isCurrentContext = useEvent(
     (context: ExportContext) => mounted.current && context === exportContext,
@@ -416,7 +420,6 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   }, []);
   React.useEffect(() => {
     latestActionId.current += 1;
-    setFailure(null);
   }, [metadataSource]);
   const policy = useAtomValue(downloadSizeLimitAtom);
   const overLimit = !!(
@@ -452,7 +455,6 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     setExportDialogOpen(open);
     if (!open) {
       latestActionId.current += 1;
-      setFailure(null);
       setExpandedFormat(null);
       setSettings(DEFAULT_SETTINGS);
       setGeometryColumn(null);

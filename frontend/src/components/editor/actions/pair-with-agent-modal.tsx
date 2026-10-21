@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { CheckIcon, CopyIcon } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAtomValue } from "jotai";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,21 +53,20 @@ export const PairWithAgentModal: React.FC<{
   const config = useAtomValue(pairConfigAtom);
   const hostEnabled = config?.hostEnabled ?? false;
   const stableSessionId = useAtomValue(stableSessionIdAtom);
+  const lookupIdentity = useMemo(
+    () => ({ hostEnabled, stableSessionId }),
+    [hostEnabled, stableSessionId],
+  );
   const [lookup, setLookup] = useState<
     {
-      sessionId: string;
-    } & (
-      | { status: "ready"; notebookId: string | null }
-      | { status: "loading" | "error" }
-    )
+      identity: typeof lookupIdentity;
+    } & ({ status: "ready"; notebookId: string | null } | { status: "error" })
   >();
   useEffect(() => {
-    if (!hostEnabled || !stableSessionId) {
-      setLookup(undefined);
+    const { hostEnabled, stableSessionId: sessionId } = lookupIdentity;
+    if (!hostEnabled || !sessionId) {
       return;
     }
-    const sessionId = stableSessionId;
-    setLookup({ sessionId, status: "loading" });
     let cancelled = false;
     API.get<Record<string, { session_id: string; notebook_id: string | null }>>(
       "/sessions",
@@ -79,22 +78,26 @@ export const PairWithAgentModal: React.FC<{
           );
           setLookup(
             session
-              ? { sessionId, status: "ready", notebookId: session.notebook_id }
-              : { sessionId, status: "error" },
+              ? {
+                  identity: lookupIdentity,
+                  status: "ready",
+                  notebookId: session.notebook_id,
+                }
+              : { identity: lookupIdentity, status: "error" },
           );
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setLookup({ sessionId, status: "error" });
+          setLookup({ identity: lookupIdentity, status: "error" });
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [hostEnabled, stableSessionId]);
+  }, [lookupIdentity]);
   const currentLookup =
-    lookup?.sessionId === stableSessionId ? lookup : undefined;
+    lookup?.identity === lookupIdentity ? lookup : undefined;
   const verified = !hostEnabled || currentLookup?.status === "ready";
   const notebookId =
     hostEnabled && currentLookup?.status === "ready"

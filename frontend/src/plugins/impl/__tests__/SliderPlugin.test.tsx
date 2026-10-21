@@ -212,6 +212,28 @@ describe("SliderPlugin", () => {
     expect(setValue).toHaveBeenCalledWith(9);
   });
 
+  it("preserves an uncommitted drag until the controlled value changes", () => {
+    const plugin = new SliderPlugin();
+    const setValue = vi.fn();
+    const props = createProps({
+      debounce: true,
+      includeInput: false,
+      setValue,
+    });
+    const { getByRole, rerender } = render(plugin.render(props));
+
+    fireEvent.click(getByRole("button", { name: "Slider change" }));
+    rerender(
+      plugin.render({ ...props, data: { ...props.data, label: "Updated" } }),
+    );
+    fireEvent.click(getByRole("button", { name: "Slider commit" }));
+    expect(setValue).toHaveBeenLastCalledWith(6);
+
+    rerender(plugin.render({ ...props, value: 2 }));
+    fireEvent.click(getByRole("button", { name: "Slider commit" }));
+    expect(setValue).toHaveBeenLastCalledWith(2);
+  });
+
   describe("editable input with steps (regression for #9850)", () => {
     it("displays the actual step value, not the index", () => {
       const plugin = new SliderPlugin();
@@ -381,9 +403,8 @@ describe("SliderPlugin", () => {
         vi.advanceTimersByTime(0);
       });
 
-      // Shrink `steps` so the held index (4) is now out of range. The index
-      // syncs in an effect after this render, so the render must not throw on
-      // the stale, out-of-range index.
+      // Shrink `steps` so the held index (4) is now out of range. Updating
+      // the controlled index must render the new valid step without throwing.
       const shrunkProps = createStepsProps({
         steps: [10, 20],
         valueIndex: 1,

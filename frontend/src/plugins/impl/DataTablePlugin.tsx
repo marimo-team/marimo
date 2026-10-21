@@ -546,10 +546,12 @@ export const LoadingDataTableComponent = memo(
       }
     }, [setValue, filters, searchQuery, sorting, props.hasStableRowId]);
 
-    // If pageSize changes, reset pagination state
-    useEffect(() => {
+    const [previousPageSize, setPreviousPageSize] = useState(props.pageSize);
+    // Reconcile before requesting data for the updated table configuration.
+    if (previousPageSize !== props.pageSize) {
+      setPreviousPageSize(props.pageSize);
       setPaginationState({ pageIndex: 0, pageSize: props.pageSize });
-    }, [props.pageSize]);
+    }
 
     // Data loading
     const { data, error, isPending, isFetching } = useAsyncData<{
@@ -697,12 +699,13 @@ export const LoadingDataTableComponent = memo(
       [search, sorting, filters, searchQuery],
     );
 
-    // If total rows change, reset pageIndex
-    useEffect(() => {
+    const [previousTotalRows, setPreviousTotalRows] = useState(data?.totalRows);
+    if (previousTotalRows !== data?.totalRows) {
+      setPreviousTotalRows(data?.totalRows);
       setPaginationState((state) =>
         state.pageIndex === 0 ? state : { ...state, pageIndex: 0 },
       );
-    }, [data?.totalRows]);
+    }
 
     // Column summaries
     const { data: columnSummaries, error: columnSummariesError } = useAsyncData<
@@ -835,7 +838,7 @@ const DataTableComponent = ({
   sizeBytesIsLoading,
   maxColumns,
   pagination,
-  selection,
+  selection: requestedSelection,
   value,
   showFilters,
   showDownload,
@@ -843,7 +846,7 @@ const DataTableComponent = ({
   showColumnExplorer,
   showRowExplorer,
   showChartBuilder,
-  showDataTypes,
+  showDataTypes: requestedShowDataTypes,
   rowHeaders,
   fieldTypes,
   paginationState,
@@ -975,15 +978,11 @@ const DataTableComponent = ({
   const fractionDigitsByColumn = useDeepCompareMemoize(computedFractionDigits);
   const shownColumns = memoizedClampedFieldTypes.length;
 
-  // If the field types are not set, we don't show them
-  if (!fieldTypes) {
-    showDataTypes = false;
-  }
+  // Only show data types when they are explicitly supplied.
+  const showDataTypes = Boolean(fieldTypes && requestedShowDataTypes);
 
   // Row/cell selection writes back to the kernel, absent in static exports.
-  if (isStatic) {
-    selection = null;
-  }
+  const selection = isStatic ? null : requestedSelection;
 
   const columns = useMemo(
     () =>

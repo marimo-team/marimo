@@ -201,11 +201,16 @@ export const FileExplorer: React.FC<{
     () => filterHiddenTree(data, showHiddenFiles),
     [data, showHiddenFiles],
   );
-  React.useEffect(() => {
-    if (selectedFolder && !treeContainsId(visibleData, selectedFolder.id)) {
-      setSelectedFolder(null);
-    }
-  }, [selectedFolder, visibleData]);
+  const selectedFolderId = selectedFolder?.id;
+  const selectedFolderVisible = React.useMemo(
+    () =>
+      selectedFolderId === undefined ||
+      treeContainsId(visibleData, selectedFolderId),
+    [visibleData, selectedFolderId],
+  );
+  if (!selectedFolderVisible) {
+    setSelectedFolder(null);
+  }
   const contextValue = React.useMemo<FileExplorerContextValue>(
     () => ({
       tree,

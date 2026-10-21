@@ -12,11 +12,13 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { Provider } from "jotai";
+import { useState } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import type { DownloadAsFunction } from "@/components/data-table/schemas";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import { store } from "@/core/state/jotai";
+import { Deferred } from "@/utils/Deferred";
 import {
   type GetDataUrl,
   type GetRowIds,
@@ -463,7 +465,7 @@ describe("LoadingDataTableComponent", () => {
   });
 });
 
-describe("static notebook control suppression", () => {
+describe("table pagination and static notebook control suppression", () => {
   const fieldTypes: FieldTypesWithExternalType = [
     ["id", ["integer", "integer"]],
     ["name", ["string", "string"]],
@@ -536,6 +538,120 @@ describe("static notebook control suppression", () => {
 
   beforeEach(() => {
     mockIsStatic.mockReturnValue(false);
+  });
+
+  it("requests only the first page with the new configured page size", async () => {
+    const props = makeProps();
+    const view = (pageSize: number) => (
+      <Wrapper>
+        <LoadingDataTableComponent {...props} pageSize={pageSize} />
+      </Wrapper>
+    );
+    const { rerender } = render(view(PAGE_SIZE));
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(props.search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 1, page_size: PAGE_SIZE }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    props.search.mockClear();
+
+    rerender(view(5));
+    await waitFor(() => expect(props.search).toHaveBeenCalled());
+    expect(
+      props.search.mock.calls.every(
+        ([request]) => request.page_number === 0 && request.page_size === 5,
+      ),
+    ).toBe(true);
+  });
+
+  it("preserves a new page size when a pending response changes the row count in the same batch", async () => {
+    const props = makeProps();
+    const Harness = () => {
+      const [pageSize, setPageSize] = useState(PAGE_SIZE);
+      return (
+        <Wrapper>
+          <button type="button" onClick={() => setPageSize(5)}>
+            Change configured page size
+          </button>
+          <LoadingDataTableComponent {...props} pageSize={pageSize} />
+        </Wrapper>
+      );
+    };
+    render(<Harness />);
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    const response = {
+      data: firstPage,
+      total_rows: 25,
+      cell_styles: null,
+      cell_hover_texts: null,
+    };
+    const pendingPage = new Deferred<typeof response>();
+    props.search.mockReturnValueOnce(pendingPage.promise);
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(props.search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 1, page_size: PAGE_SIZE }),
+      ),
+    );
+    props.search.mockClear();
+
+    await act(async () => {
+      pendingPage.resolve(response);
+      // Settle the table-loading promises without committing the queued render.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Change configured page size" }),
+      );
+    });
+
+    await waitFor(() => expect(props.search).toHaveBeenCalled());
+    expect(props.search).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page_number: 0, page_size: 5 }),
+    );
+  });
+
+  it("returns to the first page when a refreshed result changes the row count", async () => {
+    const props = makeProps();
+    const view = () => (
+      <Wrapper>
+        <LoadingDataTableComponent {...props} />
+      </Wrapper>
+    );
+    const { rerender } = render(view());
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(props.search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 1 }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    props.search = vi.fn().mockResolvedValue({
+      data: firstPage,
+      total_rows: 25,
+      cell_styles: null,
+      cell_hover_texts: null,
+    });
+
+    rerender(view());
+    await waitFor(() =>
+      expect(props.search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 0, page_size: PAGE_SIZE }),
+      ),
+    );
   });
 
   it("renders kernel-dependent controls in normal mode", async () => {

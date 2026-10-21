@@ -314,6 +314,30 @@ describe("PairWithAgentModal", () => {
     expect(screen.getByRole("tabpanel")).not.toHaveTextContent("--notebook");
   });
 
+  it("reverifies the target when host mode is enabled again for the same Session", async () => {
+    await act(async () => {
+      render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
+    });
+    expect(screen.getByRole("tabpanel")).toHaveTextContent(NOTEBOOK_ID);
+    act(() =>
+      store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: false }),
+    );
+
+    const pending = new Deferred<Response>();
+    vi.mocked(fetch).mockImplementation((url) =>
+      String(url).endsWith("/api/sessions")
+        ? pending.promise
+        : responseFor(url),
+    );
+    act(() => store.set(pairConfigAtom, PAIR_CONFIG));
+    expect(screen.getByRole("button", { name: "Copy command" })).toBeDisabled();
+    expect(screen.getByRole("tabpanel")).not.toHaveTextContent(NOTEBOOK_ID);
+
+    await act(async () => pending.resolve(await responseFor("/api/sessions")));
+    expect(screen.getByRole("button", { name: "Copy command" })).toBeEnabled();
+    expect(screen.getByRole("tabpanel")).toHaveTextContent(NOTEBOOK_ID);
+  });
+
   it("keeps copying disabled when Notebook verification fails", async () => {
     vi.mocked(fetch).mockImplementation((url) =>
       String(url).endsWith("/api/sessions")
