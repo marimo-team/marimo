@@ -5,14 +5,10 @@ import os
 
 import click
 
-from marimo._cli.config.utils import highlight_toml_headers
+from marimo._cli.config.utils import format_config_with_sources
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
-from marimo._cli.print import echo, green
-from marimo._config.manager import (
-    UserConfigStore,
-    get_default_config_manager,
-)
-from marimo._config.reader import find_nearest_pyproject_toml
+from marimo._cli.print import echo
+from marimo._config.manager import get_default_config_manager
 
 
 @click.group(
@@ -23,35 +19,21 @@ def config() -> None:
 
 
 @click.command(cls=ColoredCommand, help="""Show the marimo config.""")
-def show() -> None:
+@click.argument(
+    "notebook", required=False, type=click.Path(exists=True, dir_okay=False)
+)
+def show(notebook: str | None = None) -> None:
     """
     Print out marimo config information.
     Example usage:
 
         marimo config show
     """
-    import tomlkit
-
-    current_path = os.getcwd()
-
-    config_manager = get_default_config_manager(current_path=current_path)
-    # Save config if doesn't exist
-    UserConfigStore().save_config_if_missing()
-
-    # Show project overrides if they exist
-    project_config_path = find_nearest_pyproject_toml(current_path)
-    overrides = config_manager.get_config_overrides()
-    if overrides:
-        echo(
-            f"\n📁 Project overrides from {green(str(project_config_path))}\n"
-        )
-        echo(highlight_toml_headers(tomlkit.dumps(overrides)))
-
-    # Show user config
-    user_config_path = config_manager.user_config_mgr.get_config_path()
-    echo(f"\n🏠 User config from {green(user_config_path)}\n")
-    user_config = config_manager.get_user_config()
-    echo(highlight_toml_headers(tomlkit.dumps(user_config)))
+    config_manager = get_default_config_manager(
+        current_path=notebook or os.getcwd()
+    )
+    echo("\nEffective configuration (sources shown in comments)\n")
+    echo(format_config_with_sources(config_manager.get_config_with_sources()))
 
 
 @click.command(cls=ColoredCommand, help="""Describe the marimo config.""")

@@ -3,6 +3,7 @@
 # ruff: noqa: PLC0414
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import dataclass
 
@@ -776,6 +777,16 @@ class PartialMarimoConfig(TypedDict, total=False):
 DEFAULT_CONFIG: MarimoConfig = cast(
     MarimoConfig, MarimoConfigSchema().to_dict()
 )
+
+# These defaults read the environment when DEFAULT_CONFIG is constructed.
+DEFAULT_CONFIG_ENV_VARS = {
+    ("runtime", name): variable
+    for name, variable in (
+        ("output_max_bytes", "MARIMO_OUTPUT_MAX_BYTES"),
+        ("std_stream_max_bytes", "MARIMO_STD_STREAM_MAX_BYTES"),
+    )
+    if variable in os.environ
+}
 
 
 def merge_default_config(

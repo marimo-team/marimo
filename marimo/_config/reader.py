@@ -5,8 +5,17 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, cast
 
+import msgspec
+
 from marimo import _loggers
-from marimo._config.config import PartialMarimoConfig
+from marimo._config.config import (
+    MarimoConfig,
+    PartialMarimoConfig,
+    merge_config,
+)
+from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
+from marimo._config.provenance import ConfigLayer, ConfigPath, ConfigSource
+from marimo._config.resolver import config_paths
 from marimo._utils.toml import toml_reader
 
 LOGGER = _loggers.marimo_logger()
@@ -23,6 +32,46 @@ class ConfigReader(ABC):
     def read(self) -> PartialMarimoConfig:
         """Read a sparse, unmasked configuration from this source."""
 
+    @property
+    def source(self) -> ConfigSource:
+        return ConfigSource("override", type(self).__name__)
+
+    @property
+    def field_sources(self) -> dict[ConfigPath, ConfigSource]:
+        """Sources that differ per field, such as environment variable names."""
+        return {}
+
+    def read_layer(self) -> ConfigLayer:
+        """Read explicit settings, warning about invalid values without filling defaults."""
+        config = self.read()
+        source = self.source
+        field_sources = self.field_sources
+        origins = {
+            path: field_sources.get(path, source)
+            for path in config_paths(cast(dict[str, Any], config))
+        }
+        if config:
+            try:
+                # Normalize legacy values before validating against the schema.
+                config = cast(
+                    PartialMarimoConfig,
+                    merge_config(cast(MarimoConfig, {}), config),
+                )
+                MarimoConfigSchema.from_dict(cast(dict[str, object], config))
+            except (
+                msgspec.ValidationError,
+                TypeError,
+                ValueError,
+                AttributeError,
+            ) as error:
+                sources = ", ".join(map(str, dict.fromkeys(origins.values())))
+                LOGGER.warning(
+                    "Invalid configuration from %s: %s",
+                    sources or source,
+                    error,
+                )
+        return ConfigLayer(config, source, origins)
+
 
 def read_marimo_config(path: str) -> PartialMarimoConfig:
     """Read the marimo.toml configuration."""
@@ -35,7 +84,7 @@ def read_pyproject_marimo_config(
     """Read the marimo tool config from a pyproject.toml file."""
     pyproject_config = toml_reader.read(pyproject_path)
     marimo_tool_config = get_marimo_config_from_pyproject_dict(
-        pyproject_config
+        pyproject_config, location=str(pyproject_path)
     )
     if marimo_tool_config is None:
         return None
@@ -194,6 +243,8 @@ def strip_untrusted_config(
 
 def get_marimo_config_from_pyproject_dict(
     pyproject_dict: dict[str, Any],
+    *,
+    location: str | None = None,
 ) -> PartialMarimoConfig | None:
     """Get the marimo config from a pyproject.toml dictionary."""
     marimo_tool_config = _get_tool_dict(pyproject_dict).get("marimo", None)
@@ -201,8 +252,9 @@ def get_marimo_config_from_pyproject_dict(
         return None
     if not isinstance(marimo_tool_config, dict):
         LOGGER.warning(
-            "pyproject.toml contains invalid marimo config: %s",
-            marimo_tool_config,
+            "Ignoring marimo configuration in %s: 'tool.marimo' must be a table, got %s.",
+            location or "pyproject.toml/script metadata",
+            type(marimo_tool_config).__name__,
         )
         return None
     return cast(PartialMarimoConfig, marimo_tool_config)

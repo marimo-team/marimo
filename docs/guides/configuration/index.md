@@ -60,11 +60,33 @@ marimo searches for the `.marimo.toml` file in the following order:
 If no `.marimo.toml` file is found, marimo creates one for you in an XDG config
 compliant way.
 
-To view your current configuration and locate the config file, run:
+To view the configuration marimo is using and the source of each value, run:
 
 ```bash
 marimo config show
 ```
+
+Each value has a source comment identifying the configuration file,
+environment variable, default, or inferred setting that supplied it:
+
+```toml
+[display]
+theme = "dark" # project: /path/to/pyproject.toml
+
+[save]
+autosave_delay = 1000 # default
+```
+
+To include a notebook's script metadata, pass its path:
+
+```bash
+marimo config show notebook.py
+```
+
+If a configuration file cannot be parsed, marimo prints a warning with the file
+path and parsing error, ignores that file's settings, and continues using the
+remaining sources. Invalid configuration values also produce warnings with
+their source and field path.
 
 To describe the user configuration options, run:
 

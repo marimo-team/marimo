@@ -9,6 +9,7 @@ from typing import Any, cast
 from marimo import _loggers
 from marimo._config.config import (
     DEFAULT_CONFIG,
+    DEFAULT_CONFIG_ENV_VARS,
     CompletionConfig,
     ExperimentalConfigType,
     ExportType,
@@ -24,6 +25,12 @@ from marimo._config.config import (
     merge_default_config,
 )
 from marimo._config.packages import PackageManagerKind
+from marimo._config.provenance import (
+    ConfigLayer,
+    ConfigPath,
+    ConfigSource,
+    ResolvedConfig,
+)
 from marimo._config.reader import (
     ALLOWED_SCRIPT_CONFIG_TOP_KEYS,
     ConfigReader,
@@ -35,7 +42,11 @@ from marimo._config.reader import (
     sanitize_pyproject_dict,
     strip_untrusted_config,
 )
-from marimo._config.resolver import merge_config_patches, resolve_config
+from marimo._config.resolver import (
+    merge_config_patches,
+    resolve_config,
+    resolve_config_with_sources,
+)
 from marimo._config.secrets import (
     redact_secrets,
     redact_secrets_partial,
@@ -144,7 +155,9 @@ class MarimoConfigManager:
 
     def get_user_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the user configuration"""
-        config = resolve_config(DEFAULT_CONFIG, (self.user_config_mgr.read(),))
+        config = resolve_config(
+            DEFAULT_CONFIG, (self.user_config_mgr.read_layer().config,)
+        )
         return redact_secrets(config) if hide_secrets else config
 
     def get_config_overrides(
@@ -160,7 +173,7 @@ class MarimoConfigManager:
 
     def _read_overrides(self) -> PartialMarimoConfig:
         return merge_config_patches(
-            reader.read()
+            reader.read_layer().config
             for reader in (*self.partials, *self.security_partials)
         )
 
@@ -179,15 +192,51 @@ class MarimoConfigManager:
 
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the configuration, by merging the user configuration and the configuration overrides"""
-        # NB. Defaults go under the user configuration, overrides over it. A
-        # default a partial computes from the notebook location is not
-        # something anyone wrote, so it must lose to a value the user set.
-        config = resolve_config(
-            DEFAULT_CONFIG,
-            (self.user_config_mgr.read(), self._read_overrides()),
-            fallback=self._read_defaults(),
+        return self.get_config_with_sources(hide_secrets=hide_secrets).config
+
+    def get_config_with_sources(
+        self, *, hide_secrets: bool = True
+    ) -> ResolvedConfig:
+        """Resolve settings and their winning sources without collapsing layers."""
+        readers = (*self.partials, *self.security_partials)
+        layers = [
+            ConfigLayer(
+                _contextual_defaults(reader),
+                ConfigSource("inferred", reader.source.location),
+            )
+            for reader in readers
+        ]
+        default_origins: dict[ConfigPath, ConfigSource] = {
+            path: ConfigSource("environment", variable)
+            for path, variable in DEFAULT_CONFIG_ENV_VARS.items()
+        }
+        default_origins[("package_management", "manager")] = ConfigSource(
+            "inferred"
         )
-        return redact_secrets(config) if hide_secrets else config
+        layers.append(
+            ConfigLayer(
+                cast(PartialMarimoConfig, DEFAULT_CONFIG),
+                ConfigSource("default"),
+                default_origins,
+            )
+        )
+        layers.append(self.user_config_mgr.read_layer())
+        overrides = resolve_config_with_sources(
+            reader.read_layer() for reader in readers
+        )
+        # Record-replacement merges are not associative. Preserve the existing
+        # grouping of overrides before merging them with user settings.
+        layers.append(
+            ConfigLayer(
+                cast(PartialMarimoConfig, overrides.config),
+                ConfigSource("override"),
+                overrides.origins,
+            )
+        )
+        resolved = resolve_config_with_sources(layers)
+        if hide_secrets:
+            resolved.config = redact_secrets(resolved.config)
+        return resolved
 
     def save_config(
         self, config: MarimoConfig | PartialMarimoConfig
@@ -225,6 +274,23 @@ class PyprojectConfigReader(ConfigReader):
     def __init__(self, start_path: str) -> None:
         self.start_path = start_path
         self.pyproject_path = find_nearest_pyproject_toml(start_path)
+        self._inferred_fields: set[ConfigPath] = set()
+
+    @property
+    def source(self) -> ConfigSource:
+        return ConfigSource(
+            "project",
+            str(self.pyproject_path)
+            if self.pyproject_path is not None
+            else None,
+        )
+
+    @property
+    def field_sources(self) -> dict[ConfigPath, ConfigSource]:
+        return {
+            path: ConfigSource("inferred", self.source.location)
+            for path in self._inferred_fields
+        }
 
     @property
     def _dotenv_root(self) -> Path:
@@ -253,6 +319,11 @@ class PyprojectConfigReader(ConfigReader):
             )
             if project_config is None:
                 return {}
+            if (
+                "display" in project_config
+                and "custom_css" not in project_config["display"]
+            ):
+                self._inferred_fields.add(("display", "custom_css"))
             project_config = self._resolve_pythonpath(project_config)
             project_config = self._resolve_dotenv(project_config)
             project_config = self._resolve_custom_css(project_config)
@@ -262,7 +333,11 @@ class PyprojectConfigReader(ConfigReader):
             # project, so an allowlist here adds little protection.
             project_config = strip_untrusted_config(project_config)
         except Exception as e:
-            LOGGER.warning("Failed to read project config: %s", e)
+            LOGGER.warning(
+                "Failed to read %s: %s. Project settings were ignored.",
+                self.source,
+                e,
+            )
             return {}
 
         return project_config
@@ -367,6 +442,24 @@ class PyprojectConfigReader(ConfigReader):
 
 
 class EnvConfigReader(ConfigReader):
+    @property
+    def source(self) -> ConfigSource:
+        return ConfigSource("environment")
+
+    @property
+    def field_sources(self) -> dict[ConfigPath, ConfigSource]:
+        variables = {
+            (
+                "runtime",
+                "auto_instantiate",
+            ): "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE",
+            ("server", "transport"): "MARIMO_SERVER_TRANSPORT",
+        }
+        return {
+            path: ConfigSource("environment", variable)
+            for path, variable in variables.items()
+        }
+
     def _maybe_override_from_env(
         self,
         key: str,
@@ -427,6 +520,10 @@ class SecurityConfigReader(ConfigReader):
     handles `MARIMO_RESTRICT_SHARING`.
     """
 
+    @property
+    def source(self) -> ConfigSource:
+        return ConfigSource("security", "MARIMO_RESTRICT_SHARING")
+
     def read(self) -> PartialMarimoConfig:
         config: PartialMarimoConfig = {}
         if GLOBAL_SETTINGS.RESTRICT_SHARING:
@@ -452,6 +549,10 @@ class ScriptConfigReader(ConfigReader):
 
     def __init__(self, filename: str | None) -> None:
         self.filename = filename
+
+    @property
+    def source(self) -> ConfigSource:
+        return ConfigSource("script", self.filename)
 
     def read(self) -> PartialMarimoConfig:
         return cast(PartialMarimoConfig, deep_copy(self._read_config()))
@@ -486,7 +587,7 @@ class ScriptConfigReader(ConfigReader):
             )
 
             marimo_config = get_marimo_config_from_pyproject_dict(
-                script_config
+                script_config, location=self.filename
             )
             if marimo_config is None:
                 return {}
@@ -499,7 +600,11 @@ class ScriptConfigReader(ConfigReader):
             marimo_config = strip_untrusted_config(marimo_config)
 
         except Exception as e:
-            LOGGER.warning("Failed to read script config: %s", e)
+            LOGGER.warning(
+                "Failed to read %s: %s. Script settings were ignored.",
+                self.source,
+                e,
+            )
             return {}
 
         return marimo_config
@@ -507,6 +612,13 @@ class ScriptConfigReader(ConfigReader):
 
 class UserConfigStore(ConfigReader):
     """Read and write the user configuration"""
+
+    @property
+    def source(self) -> ConfigSource:
+        try:
+            return ConfigSource("user", self.get_config_path())
+        except OSError:
+            return ConfigSource("user")
 
     def save_config(
         self, config: MarimoConfig | PartialMarimoConfig
@@ -563,8 +675,11 @@ class UserConfigStore(ConfigReader):
             try:
                 user_config = read_marimo_config(path)
             except Exception as e:
-                LOGGER.error("Failed to read user config at %s", path)
-                LOGGER.error(str(e))
+                LOGGER.warning(
+                    "Failed to read user configuration at %s: %s. User settings were ignored.",
+                    path,
+                    e,
+                )
                 return {}
             if not is_trusted_user_config_path(path):
                 # A `.marimo.toml` discovered by walking up from the cwd is
