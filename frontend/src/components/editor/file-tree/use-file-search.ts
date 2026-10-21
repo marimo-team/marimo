@@ -34,7 +34,7 @@ export function useFileSearch({
 }): { state: FileSearchState; refetch: () => void } {
   const { sendSearchFiles } = useRequestClient();
   const debouncedQuery = useDebounce(query, 300);
-  const pending = useRef<Promise<void> | null>(null);
+  const pending = useRef<Promise<void>>(Promise.resolve());
   const [revision, setRevision] = useState(0);
   const refetch = useCallback(() => setRevision((value) => value + 1), []);
   const requestIdentity = useMemo(
@@ -47,13 +47,15 @@ export function useFileSearch({
   }>();
 
   useEffect(() => {
+    // Read inputs through requestIdentity so it alone drives new requests
+    const { query, tree, showHiddenFiles, sendSearchFiles } = requestIdentity;
     let cancelled = false;
     if (!query || query !== debouncedQuery) {
       return;
     }
     // Let the in-flight server scan finish before starting another. Superseded
     // queued queries and remaining roots are skipped, keeping scan work bounded.
-    const request = (pending.current ?? Promise.resolve()).then(async () => {
+    const request = pending.current.then(async () => {
       const filesByPath = new Map<string, FileTreeNode>();
       let rootLimitReached = false;
       let failedRootCount = 0;
@@ -141,14 +143,7 @@ export function useFileSearch({
     return () => {
       cancelled = true;
     };
-  }, [
-    query,
-    debouncedQuery,
-    tree,
-    showHiddenFiles,
-    requestIdentity,
-    sendSearchFiles,
-  ]);
+  }, [debouncedQuery, requestIdentity]);
 
   if (!query) {
     return { state: { status: "idle" }, refetch };

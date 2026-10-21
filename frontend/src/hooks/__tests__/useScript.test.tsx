@@ -52,4 +52,26 @@ describe("useScript", () => {
     owner.unmount();
     expect(document.querySelectorAll("script")).toHaveLength(0);
   });
+
+  it("settles for remaining subscribers when the first unmounts mid-load", async () => {
+    const first = renderHook(() => useScript("/shared.js"));
+    const second = renderHook(() => useScript("/shared.js"));
+    first.unmount();
+    expect(second.result.current).toBe("loading");
+    await act(async () => {
+      document.querySelector("script")?.dispatchEvent(new Event("load"));
+    });
+    expect(second.result.current).toBe("ready");
+    // A later subscriber sees the settled status
+    expect(renderHook(() => useScript("/shared.js")).result.current).toBe(
+      "ready",
+    );
+  });
+
+  it("handles sources that are not valid inside a CSS selector", () => {
+    const src = '/odd"name].js';
+    const { result } = renderHook(() => useScript(src));
+    expect(result.current).toBe("loading");
+    expect(document.querySelector("script")?.getAttribute("src")).toBe(src);
+  });
 });

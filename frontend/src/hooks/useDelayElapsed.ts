@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Returns `false` until `delayMs` has elapsed since mount (or since `delayMs`
@@ -10,11 +10,13 @@ import { useLayoutEffect, useState } from "react";
 export function useDelayElapsed(delayMs: number): boolean {
   const [timer, setTimer] = useState({ delayMs, elapsed: delayMs <= 0 });
 
+  // Reset during render so a changed delay never commits a stale `elapsed`
+  // (e.g. a gate re-closing shows no fallback flash before paint)
   if (!Object.is(timer.delayMs, delayMs)) {
     setTimer({ delayMs, elapsed: delayMs <= 0 });
   }
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (delayMs <= 0) {
       return;
     }
@@ -25,5 +27,5 @@ export function useDelayElapsed(delayMs: number): boolean {
     return () => clearTimeout(timeout);
   }, [delayMs]);
 
-  return Object.is(timer.delayMs, delayMs) ? timer.elapsed : delayMs <= 0;
+  return timer.elapsed;
 }

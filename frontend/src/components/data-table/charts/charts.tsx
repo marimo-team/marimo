@@ -368,23 +368,13 @@ export const ChartPanel: React.FC<{
     // Re-run when the data table changes
   }, [tableData, renderLargeCharts, csvFieldTypes]);
 
-  const [general, xAxis, yAxis, color, style, tooltips] = useWatch({
-    control: form.control,
-    name: ["general", "xAxis", "yAxis", "color", "style", "tooltips"],
-  });
-  const formValues = useMemo(
-    () => ({ general, xAxis, yAxis, color, style, tooltips }),
-    [general, xAxis, yAxis, color, style, tooltips],
-  );
-
-  // This ensures the chart re-renders when the actual values change
-  const memoizedFormValues = useMemo(() => {
-    return structuredClone(formValues);
-  }, [formValues]);
+  // useWatch returns a new object only when a value changes. It is typed as
+  // deeply partial, but the form always starts from complete defaults.
+  const formValues = useWatch({ control: form.control }) as ChartSchemaType;
 
   const specWithoutData = createSpecWithoutData(
     selectedChartType,
-    memoizedFormValues,
+    formValues,
     theme,
     "container",
     CHART_HEIGHT,

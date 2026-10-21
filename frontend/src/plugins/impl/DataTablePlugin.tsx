@@ -702,11 +702,9 @@ export const LoadingDataTableComponent = memo(
     const [previousTotalRows, setPreviousTotalRows] = useState(data?.totalRows);
     if (previousTotalRows !== data?.totalRows) {
       setPreviousTotalRows(data?.totalRows);
-      if (paginationState.pageIndex !== 0) {
-        setPaginationState((state) =>
-          state.pageIndex === 0 ? state : { ...state, pageIndex: 0 },
-        );
-      }
+      setPaginationState((state) =>
+        state.pageIndex === 0 ? state : { ...state, pageIndex: 0 },
+      );
     }
 
     // Column summaries

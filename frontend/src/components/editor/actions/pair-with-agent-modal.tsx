@@ -63,10 +63,10 @@ export const PairWithAgentModal: React.FC<{
     } & ({ status: "ready"; notebookId: string | null } | { status: "error" })
   >();
   useEffect(() => {
-    if (!hostEnabled || !stableSessionId) {
+    const { hostEnabled, stableSessionId: sessionId } = lookupIdentity;
+    if (!hostEnabled || !sessionId) {
       return;
     }
-    const sessionId = stableSessionId;
     let cancelled = false;
     API.get<Record<string, { session_id: string; notebook_id: string | null }>>(
       "/sessions",
@@ -95,7 +95,7 @@ export const PairWithAgentModal: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [hostEnabled, stableSessionId, lookupIdentity]);
+  }, [lookupIdentity]);
   const currentLookup =
     lookup?.identity === lookupIdentity ? lookup : undefined;
   const verified = !hostEnabled || currentLookup?.status === "ready";

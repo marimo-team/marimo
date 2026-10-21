@@ -455,7 +455,6 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     setExportDialogOpen(open);
     if (!open) {
       latestActionId.current += 1;
-      setFailure(null);
       setExpandedFormat(null);
       setSettings(DEFAULT_SETTINGS);
       setGeometryColumn(null);
