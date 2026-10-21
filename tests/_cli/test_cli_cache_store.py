@@ -128,3 +128,34 @@ def test_dir_reports_nothing_for_a_store_with_no_local_directory(
 
     assert result.exit_code == 0, result.output
     assert result.output == "No cache directories found.\n"
+
+
+def test_clean_notebook_acts_on_the_configured_store(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests._cli.test_cli_cache import (
+        read_manifest,
+        write_entry,
+        write_lazy_entry,
+        write_manifest,
+    )
+
+    notebook = tmp_path / "nb.py"
+    notebook.write_text(NOTEBOOK)
+    decoy = make_cache_dir(tmp_path)
+    write_entry(decoy, "train", "C_ab12.pickle", 10)
+    store_dir = tmp_path / "elsewhere"
+    write_lazy_entry(store_dir, "train", "ab12")
+    manifest = write_manifest(
+        store_dir, notebook, {"3f9c": {"train": {"C_ab12"}}}
+    )
+    configure_store(monkeypatch, store_dir)
+
+    result = CliRunner().invoke(main, ["cache", "clean", str(notebook), "-y"])
+
+    assert result.exit_code == 0, result.output
+    assert "Deleted 1 entry, freeing 30 B." in result.output
+    assert not (store_dir / "train" / "ab12").exists()
+    assert read_manifest(manifest) == {}
+    # The notebook-adjacent directory was not what the kernel wrote to.
+    assert (decoy / "train" / "C_ab12.pickle").exists()
