@@ -763,6 +763,8 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
               expandedFormat === configurableFormat;
             const FormatHeader = configurableFormat ? "button" : "div";
             const panelId = `export-options-${option.format}`;
+            const descriptionId = `${panelId}-description`;
+            const summaryId = `${panelId}-summary`;
             const rowFailure =
               failure?.action.format === option.format ? failure : null;
             const summary =
@@ -814,6 +816,13 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                     aria-label={
                       configurableFormat ? `${optionLabel} options` : undefined
                     }
+                    aria-describedby={
+                      configurableFormat
+                        ? [descriptionId, summary && summaryId]
+                            .filter(Boolean)
+                            .join(" ")
+                        : undefined
+                    }
                     aria-expanded={configurableFormat ? expanded : undefined}
                     aria-controls={configurableFormat ? panelId : undefined}
                     onClick={
@@ -848,6 +857,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                           </span>
                           {summary && (
                             <span
+                              id={summaryId}
                               data-testid={`export-summary-${option.format}`}
                               className="min-w-0 truncate text-xs text-muted-foreground"
                             >
@@ -855,7 +865,10 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                             </span>
                           )}
                         </span>
-                        <span className="text-xs text-muted-foreground leading-tight">
+                        <span
+                          id={descriptionId}
+                          className="text-xs text-muted-foreground leading-tight"
+                        >
                           {option.format === "parquet" && hasGeometry
                             ? "Parquet with geometry and CRS metadata"
                             : option.description}

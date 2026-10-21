@@ -914,6 +914,39 @@ describe("ExportActions dialog", () => {
     expect(within(dialog).queryByRole("group")).not.toBeInTheDocument();
   });
 
+  it("describes format options with their description and current settings", async () => {
+    renderExportActions({
+      getExportMetadata: vi.fn().mockResolvedValue(geometryMetadata),
+    });
+    await openDialog();
+    await screen.findByRole("button", { name: "GeoParquet options" });
+
+    for (const [label, description] of [
+      ["CSV", "Comma-separated values Comma · UTF-8"],
+      ["TSV", "Best for Excel and Google Sheets UTF-8"],
+      ["JSON", "Raw JSON data Escapes non-ASCII"],
+      ["GeoParquet", "Parquet with geometry and CRS metadata location"],
+      ["GeoJSON", "Geometry in longitude and latitude location"],
+    ]) {
+      expect(
+        screen.getByRole("button", { name: `${label} options` }),
+      ).toHaveAccessibleDescription(description);
+    }
+
+    const csvOptions = screen.getByRole("button", { name: "CSV options" });
+    fireEvent.click(csvOptions);
+    fireEvent.change(screen.getByRole("combobox", { name: "Delimiter" }), {
+      target: { value: ";" },
+    });
+    expect(csvOptions).toHaveAccessibleDescription(
+      "Comma-separated values Semicolon · UTF-8",
+    );
+    fireEvent.click(csvOptions);
+    expect(csvOptions).toHaveAccessibleDescription(
+      "Comma-separated values Semicolon · UTF-8",
+    );
+  });
+
   it.each([
     ["CSV", "Comma-separated values"],
     ["TSV", "Best for Excel and Google Sheets"],
