@@ -3,6 +3,7 @@
 import NodeFs from "node:fs";
 import NodeUrl from "node:url";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+import { z } from "zod";
 import { NotebookClient } from "../notebook/client.ts";
 import { NotebookEvents } from "../notebook/events.ts";
 import type { NotebookEvent } from "../notebook/events.ts";
@@ -479,7 +480,9 @@ describe("NotebookEvents", () => {
         queueMicrotask(() => handlers.message(null));
       });
     const events = new NotebookEvents(transport);
-    await expect(events.closed).rejects.toThrow("not an event");
+    const error = await events.closed.catch((error: unknown) => error);
+    expect((error as StreamStopped).message).toContain("not an event");
+    expect((error as StreamStopped).cause).toBeInstanceOf(z.ZodError);
     expect(signal?.aborted).toBe(true);
   });
 });
