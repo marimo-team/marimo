@@ -514,7 +514,7 @@ const MarimoFileComponent = ({ file }: { file: MarimoFile }) => {
 
   return (
     <a
-      className="py-1.5 px-4 hover:bg-(--blue-2) hover:text-primary transition-all duration-300 cursor-pointer group relative flex gap-4 items-center"
+      className="py-1.5 px-4 hover:bg-(--blue-2) hover:text-primary transition-colors duration-300 cursor-pointer group relative flex gap-4 items-center"
       key={file.path}
       href={href.toString()}
       target={tabTarget(file.initializationId || file.path)}
@@ -542,7 +542,7 @@ const MarimoFileComponent = ({ file }: { file: MarimoFile }) => {
           </div>
           <ExternalLinkIcon
             size={20}
-            className="group-hover:opacity-100 opacity-0 transition-all duration-300 text-primary"
+            className="group-hover:opacity-100 opacity-0 transition-opacity duration-300 text-primary"
           />
         </div>
         {!!file.lastModified && (
@@ -617,14 +617,14 @@ const CreateNewNotebook: React.FC = () => {
     <a
       className="relative rounded-lg p-6 group
       text-primary hover:bg-(--blue-2) shadow-md-solid shadow-accent border bg-(--blue-1)
-      transition-all duration-300 cursor-pointer
+      transition-colors duration-300 cursor-pointer
       "
       href={url}
       target="_blank"
       rel="noreferrer"
     >
       <h2 className="text-lg font-semibold">Create a new notebook</h2>
-      <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300">
+      <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-opacity duration-300">
         <ExternalLinkIcon size={24} />
       </div>
     </a>

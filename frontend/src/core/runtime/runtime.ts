@@ -10,6 +10,8 @@ import { isStaticNotebook } from "../static/static-state";
 import { isWasm } from "../wasm/utils";
 import type { RuntimeConfig } from "./types";
 
+const knownQueryParams = new Set(Object.values(KnownQueryParams));
+
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
   private config: RuntimeConfig;
@@ -72,10 +74,7 @@ export class RuntimeManager {
     }
 
     for (const [key, value] of currentParams.entries()) {
-      if (
-        restrictToKnownQueryParams &&
-        !Object.values(KnownQueryParams).includes(key)
-      ) {
+      if (restrictToKnownQueryParams && !knownQueryParams.has(key)) {
         continue;
       }
       baseUrl.searchParams.set(key, value);

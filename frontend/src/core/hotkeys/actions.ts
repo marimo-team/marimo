@@ -2,6 +2,7 @@
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import useEvent from "react-use-event-hook";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
+import { Objects } from "@/utils/objects";
 
 /**
  * Map of registered keyboard shortcuts and their callbacks.
@@ -29,10 +30,7 @@ export function useSetRegisteredAction() {
       },
     ),
     unregisterAction: useEvent((shortcut: HotkeyAction) => {
-      set((actions) => {
-        const { [shortcut]: unused, ...rest } = actions;
-        return rest;
-      });
+      set((actions) => Objects.omit(actions, [shortcut]));
     }),
   };
 }

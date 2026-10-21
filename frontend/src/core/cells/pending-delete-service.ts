@@ -134,12 +134,8 @@ export function usePendingDeleteService() {
       submit({ cellIds, deleteCell, deleteManyCells, store });
     },
     clear,
-    get idle() {
-      return entries.size === 0;
-    },
-    get shouldConfirmDelete() {
-      return entries.size > 1;
-    },
+    idle: entries.size === 0,
+    shouldConfirmDelete: entries.size > 1,
   };
 }
 

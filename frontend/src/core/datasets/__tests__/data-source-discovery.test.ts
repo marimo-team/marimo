@@ -185,8 +185,8 @@ describe("isDetectedSourceConnected", () => {
   });
   const emptySnapshot = {
     dialects: [] as string[],
-    storageProtocols: [] as string[],
-    storageBackendTypes: [] as string[],
+    storageProtocols: new Set<string>(),
+    storageBackendTypes: new Set<string>(),
   };
 
   it("does not hide a source when nothing is connected", () => {
@@ -242,7 +242,7 @@ describe("isDetectedSourceConnected", () => {
     expect(
       isDetectedSourceConnected(s3, {
         ...emptySnapshot,
-        storageProtocols: ["s3"],
+        storageProtocols: new Set(["s3"]),
       }),
     ).toBe(true);
   });
@@ -262,7 +262,7 @@ describe("isDetectedSourceConnected", () => {
     expect(
       isDetectedSourceConnected(hf, {
         ...emptySnapshot,
-        storageBackendTypes: ["huggingface"],
+        storageBackendTypes: new Set(["huggingface"]),
       }),
     ).toBe(true);
   });

@@ -147,6 +147,8 @@ export function pasteCells(options: {
       }
 
       const edits: Edits["edits"] = [];
+      const editableColumnSet =
+        editableColumns === "all" ? null : new Set(editableColumns);
 
       for (const [rowIndex, dataRow] of parsedData.entries()) {
         if (!dataRow) {
@@ -175,7 +177,7 @@ export function pasteCells(options: {
           const column = columns[targetColIdx];
           const columnType = column.dataType;
           const editable =
-            editableColumns === "all" || editableColumns.includes(column.title);
+            editableColumnSet === null || editableColumnSet.has(column.title);
 
           if (!editable) {
             continue;

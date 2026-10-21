@@ -42,11 +42,13 @@ export function useDetectedDataSources(
       dialects: [...connections.values()].map((connection) =>
         connection.dialect.toLowerCase(),
       ),
-      storageProtocols: storageNamespaces.map((namespace) =>
-        namespace.protocol.toLowerCase(),
+      storageProtocols: new Set(
+        storageNamespaces.map((namespace) => namespace.protocol.toLowerCase()),
       ),
-      storageBackendTypes: storageNamespaces.map((namespace) =>
-        namespace.backendType.toLowerCase(),
+      storageBackendTypes: new Set(
+        storageNamespaces.map((namespace) =>
+          namespace.backendType.toLowerCase(),
+        ),
       ),
     };
 

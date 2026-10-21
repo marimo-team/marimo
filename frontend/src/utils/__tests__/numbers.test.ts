@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   countFractionDigits,
   maxFractionDigitsForSteps,
@@ -19,6 +19,53 @@ describe("prettyNumber", () => {
 });
 
 const options = { locale };
+
+describe("formatter reuse", () => {
+  it.each([
+    {
+      name: "scientific",
+      value: 0.000_123_4,
+      format: (value: number, locale: string) =>
+        prettyScientificNumber(value, { locale }),
+    },
+    {
+      name: "rounded",
+      value: 1234.567,
+      format: (value: number, locale: string) =>
+        prettyScientificNumber(value, { locale, shouldRound: true }),
+    },
+    {
+      name: "engineering",
+      value: 12_345,
+      format: prettyEngineeringNumber,
+    },
+  ])(
+    "reuses the $name formatter until the locale changes",
+    ({ format, value }) => {
+      const NumberFormat = Intl.NumberFormat;
+      const constructor = vi
+        .spyOn(Intl, "NumberFormat")
+        .mockImplementation(function (locales, options) {
+          return new NumberFormat(locales, options);
+        });
+      try {
+        const first = format(value, "fr-FR");
+        expect(format(value, "fr-FR")).toBe(first);
+        format(value * 2, "fr-FR");
+        expect(constructor).toHaveBeenCalledTimes(1);
+
+        format(value, "de-DE");
+        expect(constructor).toHaveBeenCalledTimes(2);
+        expect(constructor).toHaveBeenLastCalledWith(
+          "de-DE",
+          expect.any(Object),
+        );
+      } finally {
+        constructor.mockRestore();
+      }
+    },
+  );
+});
 
 describe("prettyScientificNumber", () => {
   it("should handle special cases", () => {

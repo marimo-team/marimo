@@ -106,9 +106,9 @@ export const AddCellWithAI: React.FC<{
   const runtimeManager = useRuntimeManager();
 
   const inputRef = useRef<ReactCodeMirrorRef>(null);
-  const submissionController = useRef(
-    new StagedCellSubmissionController(),
-  ).current;
+  const [submissionController] = useState(
+    () => new StagedCellSubmissionController(),
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { files, addFiles, removeFile } = useFileState();

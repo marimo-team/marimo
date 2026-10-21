@@ -104,7 +104,7 @@ function PluginSlotInternal<T>(
   ref: React.Ref<PluginSlotHandle>,
 ): JSX.Element {
   const [childNodes, setChildNodes] = useState<ReactNode>(children);
-  const [value, setValue] = useState<T>(getInitialValue());
+  const [value, setValue] = useState<T>(getInitialValue);
   const { theme } = useTheme();
 
   const [parsedResult, setParsedResult] = useState(() => {

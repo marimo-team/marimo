@@ -73,12 +73,16 @@ export const GlideDataEditor = ({
   });
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const editableColumnSet = useMemo(
+    () => (editableColumns === "all" ? null : new Set(editableColumns)),
+    [editableColumns],
+  );
 
   const columns: ModifiedGridColumn[] = useMemo(() => {
     const columns: ModifiedGridColumn[] = [];
     for (const [columnName, fieldType] of columnFields) {
       const editable =
-        editableColumns === "all" || editableColumns.includes(columnName);
+        editableColumnSet === null || editableColumnSet.has(columnName);
 
       columns.push({
         id: columnName,
@@ -100,7 +104,7 @@ export const GlideDataEditor = ({
     }
 
     return columns;
-  }, [columnFields, columnWidths, editableColumns, theme]);
+  }, [columnFields, columnWidths, editableColumnSet, theme]);
 
   const getCellContent = useCallback(
     (cell: Item): GridCell => {
@@ -110,8 +114,7 @@ export const GlideDataEditor = ({
       const dataItem = dataRow[columns[col].title];
       const columnKind = columns[col].kind;
       const editable =
-        editableColumns === "all" ||
-        editableColumns.includes(columns[col].title);
+        editableColumnSet === null || editableColumnSet.has(columns[col].title);
 
       if (columnKind === GridCellKind.Boolean) {
         const value = Boolean(dataItem);
@@ -141,7 +144,7 @@ export const GlideDataEditor = ({
         data: String(dataItem),
       };
     },
-    [columns, data, editableColumns],
+    [columns, data, editableColumnSet],
   );
 
   const onCellEdited = useCallback(

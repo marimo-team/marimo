@@ -53,14 +53,14 @@ const AnyLanguageCodeMirror: React.FC<
     extensions?: readonly Extension[];
   }
 > = ({
-  language,
+  language: requestedLanguage,
   hideUnsupportedLanguageErrors,
   showCopyButton,
   extensions = EMPTY_EXTENSIONS,
   ...props
 }) => {
   // Maybe normalize the language to the extension
-  language = LANGUAGE_MAP[language || ""] || language;
+  const language = LANGUAGE_MAP[requestedLanguage || ""] || requestedLanguage;
 
   const isSupported = isSupportedLanguage(language);
   if (!isSupported) {

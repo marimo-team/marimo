@@ -135,6 +135,7 @@ export function generateColumns<T>({
 }): ColumnDef<T>[] {
   // Row-headers are typically index columns
   const rowHeadersSet = new Set(rowHeaders.map(([columnName]) => columnName));
+  const wrappedColumnsSet = new Set(wrappedColumns);
 
   const typesByColumn = Maps.keyBy(fieldTypes, (entry) => entry[0]);
 
@@ -287,7 +288,7 @@ export function generateColumns<T>({
       }
 
       const justify = getJustify(key);
-      const wrapped = wrappedColumns?.includes(key);
+      const wrapped = wrappedColumnsSet.has(key);
       const isCellSelected = cell?.getIsSelected?.() || false;
       const canSelectCell =
         (selection === "single-cell" || selection === "multi-cell") &&

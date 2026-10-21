@@ -23,6 +23,31 @@ export const maxFractionalDigits = memoizeLastValue((locale: string) => {
   return 0;
 });
 
+const getScientificFormatter = memoizeLastValue(
+  (locale: string) =>
+    new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+      notation: "scientific",
+    }),
+);
+
+const getRoundedFormatter = memoizeLastValue(
+  (locale: string) =>
+    new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }),
+);
+
+const getEngineeringFormatter = memoizeLastValue(
+  (locale: string) =>
+    new Intl.NumberFormat(locale, {
+      notation: "engineering",
+      maximumSignificantDigits: 3,
+    }),
+);
+
 /** Decimal places needed to display `n` without float noise. */
 export function countFractionDigits(n: number): number {
   if (!Number.isFinite(n) || n === 0) {
@@ -108,23 +133,14 @@ export function prettyScientificNumber(
   // Determine if the number should be in scientific notation
   const absValue = Math.abs(value);
   if (absValue < 1e-2 || absValue >= 1e6) {
-    return new Intl.NumberFormat(opts.locale, {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-      notation: "scientific",
-    })
-      .format(value)
-      .toLowerCase();
+    return getScientificFormatter(opts.locale).format(value).toLowerCase();
   }
 
   const { shouldRound, locale } = opts;
 
   if (shouldRound) {
     // Number has an integer part, format with 2 decimal places
-    return new Intl.NumberFormat(locale, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(value);
+    return getRoundedFormatter(locale).format(value);
   }
 
   // Don't round
@@ -161,12 +177,7 @@ export function prettyEngineeringNumber(value: number, locale: string): string {
     return specialCase;
   }
 
-  const [mant, exp] = new Intl.NumberFormat(locale, {
-    notation: "engineering",
-    maximumSignificantDigits: 3,
-  })
-    .format(value)
-    .split("E");
+  const [mant, exp] = getEngineeringFormatter(locale).format(value).split("E");
 
   if (exp in prefixes) {
     return mant + prefixes[exp as keyof typeof prefixes];
