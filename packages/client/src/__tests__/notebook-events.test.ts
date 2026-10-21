@@ -7,7 +7,7 @@ import { NotebookClient } from "../notebook/client.ts";
 import { NotebookEvents } from "../notebook/events.ts";
 import type { NotebookEvent } from "../notebook/events.ts";
 import { type NotebookTransport, StreamStopped } from "../transport/frame.ts";
-import { ServerSentEventStream } from "../transport/sse.ts";
+import { ServerSentEventStream, sse } from "../transport/sse.ts";
 
 const fixtures = new NodeUrl.URL(
   "../../../../protocols/host/fixtures/",
@@ -481,6 +481,50 @@ describe("NotebookEvents", () => {
     const events = new NotebookEvents(transport);
     await expect(events.closed).rejects.toThrow("not an event");
     expect(signal?.aborted).toBe(true);
+  });
+});
+
+describe("sse", () => {
+  it("reads a URL given as a function before each connection", async () => {
+    vi.useFakeTimers();
+    const first = body();
+    const { fetch, sent } = answering(first.response);
+    let session = 1;
+    const events = new NotebookEvents(
+      sse(async () => `${url}?session_id=${session}`, { fetch }),
+    );
+    first.push(throughReady);
+    await vi.waitFor(() => expect(events.cursor).toBe("95"));
+    session = 2;
+    first.end();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect([sent(0).url, sent(1).url]).toMatchInlineSnapshot(`
+      [
+        "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/events?session_id=1",
+        "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/events?session_id=2",
+      ]
+    `);
+    expect(sent(1).headers.get("Last-Event-ID")).toBe("95");
+    events.close();
+  });
+
+  it("stops on a frame outside the protocol when asked to", async () => {
+    const stream = body();
+    const shutdown = new Error("MARIMO_SHUTDOWN");
+    const events = new NotebookEvents(
+      sse(url, {
+        fetch: answering(stream.response).fetch,
+        stop: (frame) => (frame.event === "close" ? shutdown : undefined),
+      }),
+      { types: ["marimo"] },
+    );
+    const received = collect(events);
+    stream.push('id: 1\nevent: marimo\ndata: {"marimo":{}}\n\n');
+    stream.push(
+      'event: close\ndata: {"code":1000,"reason":"MARIMO_SHUTDOWN"}\n\n',
+    );
+    await expect(events.closed).rejects.toBe(shutdown);
+    expect(received.map((event) => event.event)).toEqual(["marimo"]);
   });
 });
 

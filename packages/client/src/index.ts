@@ -15,10 +15,12 @@ export {
 } from "./notebook/events.ts";
 export type { Result } from "./request.ts";
 export {
+  type Frame,
   type Transport,
   type NotebookTransport,
   StreamStopped,
 } from "./transport/frame.ts";
+export { sse, type SseOptions, type StreamUrl } from "./transport/sse.ts";
 
 export {
   createCatalogReducer,

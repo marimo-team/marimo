@@ -50,8 +50,9 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 /**
  * A host stream, followed across reconnects.
  *
- * Given a URL, it follows the stream there over server-sent events. Given a
- * `Transport`, it follows whatever connection the transport opens.
+ * Given a URL, it follows the stream there with `sse` and sends `types` as a
+ * query parameter. Given a `Transport`, it follows whatever connection the
+ * transport opens.
  *
  * - It starts with a snapshot that ends in `ready`, then delivers changes.
  * - After a dropped connection it resumes from its cursor, backing off between
