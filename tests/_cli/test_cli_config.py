@@ -67,7 +67,14 @@ def test_config_describe_nested_and_optional_sections(
     assert "[cache]" in output
     assert "[venv]" in output
     assert "# Enable live debugging with gutter breakpoints and pdb." in output
-    assert "# Deprecated" in output
+    assert "[Deprecated] model: str | None" in output
+    assert "[Deprecated] api_key: str | None" in output
+    assert (
+        "# Deprecated completion model. Use ai.models.autocomplete_model instead."
+        in output
+    )
+    assert "# Deprecated" not in {line.strip() for line in output.splitlines()}
+    assert "[Deprecated] activate_on_typing" not in output
     assert "custom_css: list[str]" in output
     assert "max_tokens: int | None" in output
     assert "# Default: unset" not in output

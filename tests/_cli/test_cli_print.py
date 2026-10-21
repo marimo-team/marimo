@@ -4,6 +4,10 @@ from __future__ import annotations
 import io
 from contextlib import redirect_stderr, redirect_stdout
 
+import click
+import pytest
+
+from marimo._cli import print as cli_print
 from marimo._cli.print import echo
 
 
@@ -53,3 +57,19 @@ def test_echo_fallback_uses_stderr_encoding() -> None:
     with redirect_stderr(stream):
         echo("− err", err=True)
     assert _read(stream) == "\\u2212 err\n"
+
+
+@pytest.mark.parametrize("use_click", [True, False])
+def test_orange_and_yellow_have_distinct_colors(
+    monkeypatch: pytest.MonkeyPatch, use_click: bool
+) -> None:
+    monkeypatch.setattr(
+        cli_print,
+        "_style",
+        click.style if use_click else cli_print._ansi_style,
+    )
+    reset_bold = "\033[22m" if use_click else ""
+    assert cli_print.orange("[Deprecated]") == (
+        f"\033[38;5;208m{reset_bold}[Deprecated]\033[0m"
+    )
+    assert cli_print.yellow("model") == f"\033[33m{reset_bold}model\033[0m"

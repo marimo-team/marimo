@@ -76,19 +76,22 @@ def format_config_docs(cls: type[Config]) -> str:
                 if isinstance(nested, type) and issubclass(nested, Config)
                 else None
             )
+            label = (
+                orange("[Deprecated] ")
+                if (metadata.extra or {}).get("deprecated")
+                else ""
+            )
             if section is not None:
-                output.append(f"{prefix}[{green(field_path)}]")
+                output.append(f"{prefix}{label}[{green(field_path)}]")
             else:
                 output.append(
-                    f"{prefix}{yellow(item.encode_name)}: {_format_type(annotation)}"
+                    f"{prefix}{label}{yellow(item.encode_name)}: {_format_type(annotation)}"
                 )
             if metadata.description:
                 output.extend(
                     prefix + muted(f"# {line}")
                     for line in metadata.description.splitlines()
                 )
-            if (metadata.extra or {}).get("deprecated"):
-                output.append(prefix + muted("# Deprecated"))
             if section is not None:
                 output.append("")
                 format_fields(section, field_path, level + 1)
