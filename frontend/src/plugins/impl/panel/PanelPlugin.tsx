@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import {
@@ -146,17 +147,10 @@ const PanelSlot = (props: Props) => {
   > | null>(null);
   const [loaded, setLoaded] = useState<boolean>(false);
   const [rendered, setRendered] = useState<string | null>(null);
+  const eventBufferRef = useRef<EventBuffer<unknown> | null>(null);
 
-  // Store functions in a ref so the callback captured by EventBuffer stays current
-  const functionsRef = useRef(functions);
-  functionsRef.current = functions;
-
-  const processEvents = useCallback(() => {
-    if (!eventBufferRef.current) {
-      return;
-    }
-
-    const events = eventBufferRef.current.getAndClear();
+  const processEvents = useEvent(() => {
+    const events = eventBufferRef.current?.getAndClear() ?? [];
     if (events.length === 0) {
       return;
     }
@@ -182,14 +176,19 @@ const PanelSlot = (props: Props) => {
     );
     const buffers: ArrayBuffer[] = [];
     message.content = extractBuffers(message.content, buffers);
-    functionsRef.current.send_to_widget({ message, buffers }).catch((error) => {
+    functions.send_to_widget({ message, buffers }).catch((error) => {
       Logger.warn("Failed to send Panel event to backend", error);
     });
-  }, []);
+  });
 
-  const eventBufferRef = useRef<EventBuffer<unknown> | null>(
-    new EventBuffer(processEvents),
-  );
+  useEffect(() => {
+    const buffer = new EventBuffer(processEvents);
+    eventBufferRef.current = buffer;
+    return () => {
+      buffer.dispose();
+      eventBufferRef.current = null;
+    };
+  }, [processEvents]);
 
   // Load the bokeh extension
   useEffect(() => {

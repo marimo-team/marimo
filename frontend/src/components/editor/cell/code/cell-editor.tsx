@@ -572,7 +572,7 @@ const CellEditorInternal = ({
           <div className="absolute top-1 right-5">
             <LanguageToggles
               code={code}
-              editorView={editorViewRef.current}
+              editorViewRef={editorViewRef}
               currentLanguageAdapter={languageAdapter}
               onAfterToggle={afterToggleMarkdown}
             />

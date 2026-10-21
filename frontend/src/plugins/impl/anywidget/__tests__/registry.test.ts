@@ -238,6 +238,7 @@ describe("WidgetRegistry.getWidget", () => {
       jsUrl: SPEC.url,
       jsHash: SPEC.hash,
       kernelAuthored: true,
+      lifetime: expect.any(AbortSignal),
     });
     expect(widgetDef.initialize).toHaveBeenCalledTimes(1);
     expect(widget.exports).toBe(exports);
@@ -263,6 +264,7 @@ describe("WidgetRegistry.getWidget", () => {
       jsUrl: SPEC.url,
       jsHash: SPEC.hash,
       kernelAuthored: true,
+      lifetime: expect.any(AbortSignal),
     });
   });
 

@@ -12,7 +12,7 @@ import { Logger } from "@/utils/Logger";
 import type { Cell } from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
 import { CopyIcon, FilterIcon, SquareStack } from "lucide-react";
-import type { RefObject } from "react";
+import { type RefObject, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import {
   ContextMenu,
@@ -123,8 +123,21 @@ export const DataTableContextMenu = <TData,>({
   tableRef: RefObject<HTMLTableSectionElement | null>;
   copyAllCells: () => void;
 }) => {
+  const [activeCell, setActiveCell] = useState<Cell<TData, unknown> | null>(
+    null,
+  );
+  const highlightedCell = useRef<Element | null>(null);
   const handleContextMenuChange = useEvent((open: boolean) => {
+    highlightedCell.current?.classList.remove("bg-(--green-4)");
+    highlightedCell.current = null;
+    if (!open) {
+      // Forget the cell so a later right-click outside any cell can't reuse it
+      contextMenuRef.current = null;
+      return;
+    }
+
     const cell = contextMenuRef.current;
+    setActiveCell(cell);
     if (!cell) {
       return;
     }
@@ -138,41 +151,44 @@ export const DataTableContextMenu = <TData,>({
       return;
     }
 
-    if (open) {
-      cellElement.classList.add("bg-(--green-4)");
-    } else {
-      cellElement.classList.remove("bg-(--green-4)");
-    }
+    cellElement.classList.add("bg-(--green-4)");
+    highlightedCell.current = cellElement;
   });
 
   return (
-    <ContextMenu onOpenChange={handleContextMenuChange}>
-      <ContextMenuTrigger asChild={true}>{tableBody}</ContextMenuTrigger>
+    // Open via the trigger so a right-click while already open retargets the
+    // menu; Radix only reports open changes, so use it for closing.
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (!open) {
+          handleContextMenuChange(false);
+        }
+      }}
+    >
+      <ContextMenuTrigger
+        asChild={true}
+        onContextMenu={() => handleContextMenuChange(true)}
+      >
+        {tableBody}
+      </ContextMenuTrigger>
       <ContextMenuPortal>
-        <CellContextMenu
-          cellRef={contextMenuRef}
-          copySelectedCells={copyAllCells}
-        />
+        {activeCell && (
+          <CellContextMenu cell={activeCell} copySelectedCells={copyAllCells} />
+        )}
       </ContextMenuPortal>
     </ContextMenu>
   );
 };
 
 export const CellContextMenu = <TData,>({
-  cellRef,
+  cell,
   copySelectedCells,
 }: {
-  cellRef: RefObject<Cell<TData, unknown> | null>;
+  cell: Cell<TData, unknown>;
   copySelectedCells: () => void;
 }) => {
   const selectedCells = useAtomValue(selectedCellsAtom);
   const multipleSelectedCells = selectedCells.size > 1;
-
-  const cell = cellRef.current;
-  if (!cell) {
-    Logger.error("No cell found in context menu");
-    return;
-  }
 
   const table = cell.getContext().table;
   const displayedValue = cell.getValue();

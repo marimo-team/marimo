@@ -117,7 +117,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
       />
       <LanguageToggles
         code={cell.code}
-        editorView={editorViewRef.current}
+        editorViewRef={editorViewRef}
         currentLanguageAdapter={languageAdapter}
         onAfterToggle={afterToggleLanguage}
         className="flex items-center gap-1"

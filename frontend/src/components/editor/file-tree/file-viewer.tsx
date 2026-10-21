@@ -9,7 +9,7 @@ import {
   SaveIcon,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -82,7 +82,9 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   // carry no draft to preserve.
   // We use a ref for internalValue so we don't call this effect on each keystroke
   const internalValueRef = useRef<string>(internalValue);
-  internalValueRef.current = internalValue;
+  useLayoutEffect(() => {
+    internalValueRef.current = internalValue;
+  }, [internalValue]);
   useEffect(() => {
     return () => {
       if (

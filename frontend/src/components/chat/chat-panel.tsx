@@ -716,14 +716,10 @@ const ChatPanelBody = () => {
   );
 
   const isLoading = status === "submitted" || status === "streaming";
-  // Read via a ref so the queue-vs-send decision stays correct even when it is
-  // made after an `await` (e.g. resolving @-context), by which point the render
-  // closure's `isLoading` may be stale.
-  const isLoadingRef = useRef(isLoading);
-  isLoadingRef.current = isLoading;
-
+  // useEvent reads the latest loading state, even when called after an await
+  // (e.g. resolving @-context) that outlives the original render's closure.
   const submitOrQueue = useEvent((parts: ChatMessagePart[]) => {
-    if (isLoadingRef.current || hasQueuedRef.current) {
+    if (isLoading || hasQueuedRef.current) {
       enqueueUserMessage(parts);
     } else {
       sendUserMessage(parts);
