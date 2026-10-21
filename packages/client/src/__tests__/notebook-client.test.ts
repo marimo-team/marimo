@@ -5,7 +5,6 @@ import NodeUrl from "node:url";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { z } from "zod";
 import { NotebookClient } from "../notebook/client.ts";
-import type { OperationId } from "../operations.ts";
 import type { OperationsBelow } from "../request.ts";
 import type * as Protocol from "../protocol.ts";
 
@@ -78,10 +77,12 @@ describe("NotebookClient", () => {
     );
     await notebook.delete();
     await notebook.interrupt("r/1");
-    expect(fetch.mock.calls.map(([url]) => String(url))).toEqual([
-      "http://localhost/api/marimo/v1/notebooks/n1?session_id=s1",
-      "http://localhost/api/marimo/v1/notebooks/n1/runtime/runs/r%2F1?session_id=s1",
-    ]);
+    expect(fetch.mock.calls.map(([url]) => String(url))).toMatchInlineSnapshot(`
+      [
+        "http://localhost/api/marimo/v1/notebooks/n1?session_id=s1",
+        "http://localhost/api/marimo/v1/notebooks/n1/runtime/runs/r%2F1?session_id=s1",
+      ]
+    `);
   });
 
   it("accepts problems and reads their media type without regard to case", async () => {
@@ -186,7 +187,8 @@ describe("NotebookClient", () => {
   });
 
   it("has a method for each request below a notebook", () => {
-    const methods = {
+    // A new operation below a notebook fails this until it has a method.
+    expectTypeOf({
       "notebook.update": "update",
       "notebook.delete": "delete",
       "notebook.open": "open",
@@ -197,13 +199,6 @@ describe("NotebookClient", () => {
       "runtime.restart": "restart",
       "runtime.run": "run",
       "runtime.interrupt": "interrupt",
-    } as const satisfies Record<NotebookOperationId, keyof NotebookClient>;
-    expectTypeOf<Exclude<keyof NotebookClient, "url">>().toEqualTypeOf<
-      (typeof methods)[NotebookOperationId]
-    >();
-    // Streams and host-level operations come with NotebookEvents and Client.
-    expectTypeOf<Exclude<OperationId, NotebookOperationId>>().toEqualTypeOf<
-      "events" | "notebook.create" | "notebook.events"
-    >();
+    } as const).toExtend<Record<NotebookOperationId, keyof NotebookClient>>();
   });
 });

@@ -130,8 +130,19 @@ function idempotencyKey(): string {
 }
 
 /** Whether a `Content-Type` names `type`, ignoring case and parameters. */
-function isType(contentType: string | null, type: string): boolean {
+export function isType(contentType: string | null, type: string): boolean {
   return contentType?.split(";", 1)[0].trim().toLowerCase() === type;
+}
+
+/**
+ * A URL below `url`, keeping its query string.
+ *
+ * `suffix` is empty or starts with a slash, as the protocol's paths do.
+ */
+export function below(url: URL, suffix: string): URL {
+  const target = new URL(url);
+  target.pathname = url.pathname.replace(/\/$/, "") + suffix;
+  return target;
 }
 
 /** The URL an operation's path resolves to below the target. */
@@ -156,9 +167,7 @@ function resolve<Prefix extends string>(
       }
       return encodeURIComponent(value);
     });
-  const url = new URL(target.url);
-  url.pathname = target.url.pathname.replace(/\/$/, "") + suffix;
-  return url;
+  return below(target.url, suffix);
 }
 
 /**
