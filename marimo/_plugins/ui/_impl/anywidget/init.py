@@ -16,6 +16,7 @@ from marimo._plugins.ui._impl.comm import (  # pyright: ignore[reportMissingType
     MarimoCommManager,
 )
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
+from marimo._runtime.cell_lifecycle_registry import NoOwningCellError
 from marimo._runtime.context import ContextNotInitializedError, get_context
 
 
@@ -65,9 +66,15 @@ def init_marimo_widget(w: ipywidgets.Widget) -> None:
     # re-executed or deleted (sends ModelClose to the frontend).
     try:
         ctx = get_context()
-        ctx.cell_lifecycle_registry.add(CommLifecycleItem(w.comm))
     except ContextNotInitializedError:
-        pass
+        return
+    try:
+        ctx.cell_lifecycle_registry.add(CommLifecycleItem(w.comm))
+    except NoOwningCellError:
+        # The comm is already open. Closing the whole widget also drops it
+        # from ipywidgets' instance registry.
+        w.close()
+        raise
 
 
 WIDGET_COMM_MANAGER = MarimoCommManager()

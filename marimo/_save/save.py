@@ -38,6 +38,7 @@ from marimo._ast.transformers import (
 )
 from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._messaging.tracebacks import write_traceback
+from marimo._runtime.cell_lifecycle_registry import NoOwningCellError
 from marimo._runtime.context import get_context, safe_get_context
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.scratch import SCRATCH_CELL_ID
@@ -75,12 +76,24 @@ if TYPE_CHECKING:
 
     from typing_extensions import Self
 
+    from marimo._runtime.context import RuntimeContext
     from marimo._save.stores import Store
 
 P = ParamSpec("P")
 R = TypeVar("R")
 Q = ParamSpec("Q")
 S = TypeVar("S")
+
+
+def _mark_side_effect(ctx: RuntimeContext, key: str) -> None:
+    """Mark the owning cell so cell-level caches see this cache event.
+
+    An off-cell call has no cell to mark and nothing to dispose.
+    """
+    try:
+        ctx.cell_lifecycle_registry.add(SideEffect(key))
+    except NoOwningCellError:
+        pass
 
 
 class _cache_call(CacheContext, Generic[P, R]):
@@ -529,7 +542,7 @@ class _cache_call(CacheContext, Generic[P, R]):
         finally:
             # NB. Exceptions raise their own side effects.
             if ctx and not failed:
-                ctx.cell_lifecycle_registry.add(SideEffect(attempt.hash))
+                _mark_side_effect(ctx, attempt.hash)
         self._misses += 1
         return cast(R, response)
 
@@ -658,7 +671,7 @@ class _cache_call_async(_cache_call[P, R]):
         finally:
             # NB. Exceptions raise their own side effects.
             if ctx and not failed:
-                ctx.cell_lifecycle_registry.add(SideEffect(attempt.hash))
+                _mark_side_effect(ctx, attempt.hash)
         self._misses += 1
         return response
 
@@ -887,8 +900,7 @@ class _cache_context(SkipContext, CacheContext):
             if not failed:
                 # Conditional because pendantically, the side effect is on restore /
                 # save respectively, and exceptions should raise their own.
-                ctx = get_context()
-                ctx.cell_lifecycle_registry.add(SideEffect(self._cache.hash))
+                _mark_side_effect(get_context(), self._cache.hash)
 
         return False
 
