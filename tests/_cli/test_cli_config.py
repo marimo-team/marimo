@@ -68,7 +68,9 @@ def test_config_describe_nested_and_optional_sections(
     assert "[venv]" in output
     assert "# Enable live debugging with gutter breakpoints and pdb." in output
     assert "[Deprecated] model: str | None" in output
-    assert "[Deprecated] api_key: str | None" in output
+    assert "[Deprecated] [Sensitive] api_key: str | None" in output
+    assert "[Sensitive] codeium_api_key: str | None" in output
+    assert "[Sensitive] activate_on_typing" not in output
     assert (
         "# Deprecated completion model. Use ai.models.autocomplete_model instead."
         in output
@@ -104,7 +106,7 @@ command: str
 args: list[str] | None
 # Arguments passed to the MCP server command.
 
-env: dict[str, str] | None
+[Sensitive] env: dict[str, str] | None
 # Environment variables supplied to the MCP server.
 
 disabled: bool | None

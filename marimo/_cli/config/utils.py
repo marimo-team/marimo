@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal, Union, get_args, get_origin
 from msgspec import NODEFAULT, UNSET, Meta, UnsetType
 from msgspec.structs import fields
 
-from marimo._cli.print import green, muted, orange, yellow
+from marimo._cli.print import cyan, green, muted, orange, yellow
 from marimo._config.schema_utils import Config
 
 
@@ -76,11 +76,12 @@ def format_config_docs(cls: type[Config]) -> str:
                 if isinstance(nested, type) and issubclass(nested, Config)
                 else None
             )
-            label = (
-                orange("[Deprecated] ")
-                if (metadata.extra or {}).get("deprecated")
-                else ""
-            )
+            extra = metadata.extra or {}
+            label = ""
+            if extra.get("deprecated"):
+                label += orange("[Deprecated] ")
+            if extra.get("sensitive"):
+                label += cyan("[Sensitive] ")
             if section is not None:
                 output.append(f"{prefix}{label}[{green(field_path)}]")
             else:
