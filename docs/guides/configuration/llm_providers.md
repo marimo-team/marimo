@@ -26,7 +26,7 @@ Models are written as `provider/model`, and the provider prefix routes to the ma
 ```toml title="marimo.toml"
 [ai.models]
 chat_model = "openai/gpt-4o-mini"           # Routes to OpenAI config
-edit_model = "anthropic/claude-3-sonnet"    # Routes to Anthropic config
+edit_model = "anthropic/claude-sonnet-5-5"  # Routes to Anthropic config
 autocomplete_model = "ollama/codellama"     # Routes to Ollama config
 autocomplete_model = "some_other_provider/some_model" # Routes to OpenAI compatible config
 ```
@@ -163,7 +163,7 @@ api_key = "sk-proj-..."
 
 ```toml title="marimo.toml"
 [ai.models]
-chat_model = "anthropic/claude-3-7-sonnet-latest" # other options: claude-3-haiku, claude-3-opus
+chat_model = "anthropic/claude-sonnet-5-5" # other options: claude-haiku-5-5, claude-opus-5-5
 # See Anthropic model list: https://docs.anthropic.com/en/docs/about-claude/models
 
 [ai.anthropic]
@@ -184,7 +184,7 @@ AWS Bedrock exposes multiple foundation models via a unified AWS API.
 
 ```toml title="marimo.toml"
 [ai.models]
-chat_model = "bedrock/anthropic.claude-3-sonnet-latest"
+chat_model = "bedrock/global.anthropic.claude-sonnet-5"
 # Example model families include Anthropic Claude, Meta Llama, Cohere Command
 
 [ai.bedrock]
@@ -213,7 +213,7 @@ You can use Google AI via two backends: **Google AI Studio** (API key) or **Goog
 
 ```toml title="marimo.toml"
 [ai.models]
-chat_model = "google/gemini-2.5-pro"
+chat_model = "google/gemini-3.8-flash"
 # or any model from https://ai.google.dev/gemini-api/docs/models/gemini
 
 [ai.google]
