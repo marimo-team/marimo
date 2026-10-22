@@ -74,8 +74,8 @@ class Linter:
         ignore_scripts: bool = False,
         formatter: str = "full",
         lint_config: LintConfig | None = None,
-        infer_types: TypeInferenceMode = "off",
-        line_length: int = 79,
+        infer_types: TypeInferenceMode | None = "off",
+        line_length: int | None = 79,
     ):
         if rules is not None:
             self.rule_engine = RuleEngine(rules, early_stopping)
@@ -88,8 +88,8 @@ class Linter:
         self.unsafe_fixes = unsafe_fixes
         self.ignore_scripts = ignore_scripts
         self.formatter = formatter
-        # Regenerated files must match what the editor saves, so the same
-        # type-inference setting applies here.
+        # None inherits the notebook's formatting config. Explicit values
+        # override it, including "off".
         self.infer_types = infer_types
         self.line_length = line_length
         self.files: list[FileStatus] = []
@@ -396,12 +396,26 @@ class Linter:
                         modified_notebook, diagnostics
                     )
 
+        infer_types = self.infer_types
+        line_length = self.line_length
+        if infer_types is None or line_length is None:
+            from marimo._config.manager import get_default_config_manager
+
+            config = get_default_config_manager(
+                current_path=file_status.file
+            ).get_config(hide_secrets=False)
+            formatting = config["formatting"]
+            if infer_types is None:
+                infer_types = formatting.get("infer_types", "off")
+            if line_length is None:
+                line_length = formatting["line_length"]
+
         # Generate file contents from (possibly modified) notebook
         generated_contents = Linter._generate_file_contents_from_notebook(
             modified_notebook,
             file_status.file,
-            infer_types=self.infer_types,
-            line_length=self.line_length,
+            infer_types=infer_types,
+            line_length=line_length,
         )
 
         # Only write if content changed (excluding __generated_with differences)

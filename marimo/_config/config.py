@@ -236,7 +236,7 @@ class FormattingConfig(TypedDict):
     """
 
     line_length: int
-    infer_types: Literal["off", "jedi"]
+    infer_types: NotRequired[Literal["off", "jedi"]]
 
 
 @dataclass

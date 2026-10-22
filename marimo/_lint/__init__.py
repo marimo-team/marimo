@@ -60,36 +60,6 @@ def resolve_lint_config(
     return lint_config if lint_config else None
 
 
-def resolve_infer_types() -> TypeInferenceMode:
-    """Read `formatting.infer_types` from the user's configuration.
-
-    `marimo check --fix` regenerates notebook files. It must use the same
-    setting as the editor, or each rewrites the other's signatures.
-    """
-    import os
-
-    from marimo._config.manager import get_default_config_manager
-
-    config_mgr = get_default_config_manager(current_path=os.getcwd())
-    formatting = config_mgr.get_config(hide_secrets=False).get(
-        "formatting", {}
-    )
-    return formatting.get("infer_types", "off")
-
-
-def resolve_line_length() -> int:
-    """Read `formatting.line_length` from the user's configuration."""
-    import os
-
-    from marimo._config.manager import get_default_config_manager
-
-    config_mgr = get_default_config_manager(current_path=os.getcwd())
-    formatting = config_mgr.get_config(hide_secrets=False).get(
-        "formatting", {}
-    )
-    return int(formatting.get("line_length", 79))
-
-
 def run_check(
     file_patterns: tuple[str, ...],
     pipe: Callable[[str], None] | None = None,
@@ -98,8 +68,8 @@ def run_check(
     ignore_scripts: bool = False,
     formatter: str = "full",
     lint_config: LintConfig | None = None,
-    infer_types: TypeInferenceMode = "off",
-    line_length: int = 79,
+    infer_types: TypeInferenceMode | None = "off",
+    line_length: int | None = 79,
 ) -> Linter:
     """Run linting checks on files matching patterns (CLI entry point).
 
@@ -115,10 +85,10 @@ def run_check(
         formatter: Output format for diagnostics ("full" or "json")
         lint_config: Optional lint rule selection config
         infer_types: Backend that adds inferred type annotations to
-            regenerated files, matching the editor's
-            `formatting.infer_types`
-        line_length: Width an inferred annotation must fit within,
-            matching the editor's `formatting.line_length`
+            regenerated files. None uses each notebook's
+            `formatting.infer_types` setting.
+        line_length: Width an inferred annotation must fit within.
+            None uses each notebook's `formatting.line_length` setting.
 
     Returns:
         Linter with per-file status and diagnostics
