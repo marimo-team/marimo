@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Literal, Protocol, cast
 
 from marimo import _loggers
 from marimo._ast.variables import BUILTINS
-from marimo._ast.visitor import AnnotationData, Name
+from marimo._ast.visitor import AnnotationData, Name, ScopedVisitor
 from marimo._utils.strings import standardize_annotation_quotes
 
 if TYPE_CHECKING:
@@ -218,7 +218,10 @@ def probe_module(
     blocks: list[str] = []
     if setup_cell is not None and setup_cell.code.strip():
         blocks.append(setup_cell.code)
-    blocks.extend(status.code for status in _dependency_order(extraction))
+    for status in _dependency_order(extraction):
+        tree = ast.parse(status.code)
+        ScopedVisitor("cell_" + status.cell_id).visit(tree)
+        blocks.append(ast.unparse(tree))
     body = "\n".join(blocks)
     if body and not body.endswith("\n"):
         body += "\n"
@@ -277,13 +280,38 @@ def definition_sites(
 ) -> dict[Name, list[tuple[int, int]]]:
     """Line and column of every module-level binding of each name.
 
-    Bindings inside function, class, lambda, and comprehension scopes are
-    not module-level and are skipped. A name bound by `def`, `class`, or an
-    import has no site here, so it is never typed.
+    Names with bindings that cannot be fully inferred are omitted, even
+    when they also have ordinary assignments.
     """
     sites: dict[Name, list[tuple[int, int]]] = defaultdict(list)
+    unsupported: set[Name] = set()
 
     def visit(node: ast.AST) -> None:
+        if isinstance(
+            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ):
+            unsupported.add(node.name)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            unsupported.update(
+                alias.asname or alias.name.split(".")[0]
+                for alias in node.names
+            )
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar, ast.ExceptHandler)):
+            if node.name is not None:
+                unsupported.add(node.name)
+        elif isinstance(node, ast.MatchMapping) and node.rest is not None:
+            unsupported.add(node.rest)
+        elif isinstance(
+            node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+        ):
+            # Assignment expressions in comprehensions bind in the enclosing
+            # scope, but their value is not inferred here.
+            unsupported.update(
+                child.target.id
+                for child in ast.walk(node)
+                if isinstance(child, ast.NamedExpr)
+                and isinstance(child.target, ast.Name)
+            )
         if isinstance(node, _SCOPES):
             return
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
@@ -297,7 +325,11 @@ def definition_sites(
     except SyntaxError:
         return {}
     visit(tree)
-    return dict(sites)
+    return {
+        name: positions
+        for name, positions in sites.items()
+        if name not in unsupported
+    }
 
 
 _SCOPES = (

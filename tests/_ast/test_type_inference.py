@@ -683,6 +683,47 @@ def test_shadowed_nested_builtins_fall_back_to_bare_container(
     assert f"def _(value: {annotation}):" in source
 
 
+def test_private_names_keep_their_cell_scope(tmp_path: Path) -> None:
+    source = generate(
+        [
+            "_n = 1\ndef _f():\n    return _n\nx = _f()",
+            "_n = 'a'\ny = _n",
+            "print(x, y)",
+        ]
+    )
+    path = tmp_path / "private_names.py"
+    path.write_text(source)
+    _, values = runpy.run_path(str(path))["app"].run()
+    assert values["x"] == 1
+    assert values["y"] == "a"
+    assert "def _(x: int, y: str):" in source
+
+
+@pytest.mark.parametrize(
+    "rebind",
+    [
+        "import math as value",
+        "from math import sqrt as value",
+        "def value():\n    pass",
+        "async def value():\n    pass",
+        "class value:\n    pass",
+        "match 'a':\n    case value:\n        pass",
+        "match ['a']:\n    case [*value]:\n        pass",
+        "match {'a': 1}:\n    case {**value}:\n        pass",
+        "[(value := 'a') for _ in range(1)]",
+    ],
+)
+def test_partially_inferred_bindings_are_omitted(
+    rebind: str, tmp_path: Path
+) -> None:
+    source = generate(["value = 1\n" + rebind, "print(value)"])
+    path = tmp_path / "rebindings.py"
+    path.write_text(source)
+    _, values = runpy.run_path(str(path))["app"].run()
+    assert not isinstance(values["value"], int)
+    assert "def _(value):" in source
+
+
 @pytest.mark.skipif(
     importlib.util.find_spec("numpy") is None
     or importlib.util.find_spec("pandas") is None,
