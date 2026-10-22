@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import json
+import sys
 from functools import partial
 from inspect import cleandoc
 from pathlib import Path
@@ -19,7 +20,7 @@ from marimo._ast import codegen, compiler, load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
-from marimo._ast.names import is_internal_cell_name
+from marimo._ast.names import SETUP_CELL_NAME, is_internal_cell_name
 from marimo._schemas.notebook import NotebookV1
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
@@ -2301,3 +2302,29 @@ def test_format_markdown_preserves_surrounding_source(
     code: str, expected: str
 ) -> None:
     assert codegen.format_markdown(compile_cell(code)) == expected
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 15), reason="`lazy import` requires Python 3.15"
+)
+class TestLazyImports:
+    @staticmethod
+    def test_lazy_import_in_regular_cell_saves_as_unparsable_cell() -> None:
+        # The cell does not compile, so the fallback keeps the file loadable.
+        contents = wrap_generate_filecontents(
+            ["lazy import json", "x = 1"], ["one", "two"]
+        )
+        assert "app._unparsable_cell" in contents
+        assert "lazy import json" in contents
+        compile(contents, "<notebook>", "exec")
+
+    @staticmethod
+    def test_lazy_import_in_setup_cell_serializes() -> None:
+        contents = wrap_generate_filecontents(
+            ["lazy import json\nX = 1", "y = json.dumps(X)"],
+            [SETUP_CELL_NAME, "two"],
+        )
+        assert "with app.setup:" in contents
+        assert "    lazy import json" in contents
+        assert "app._unparsable_cell" not in contents
+        compile(contents, "<notebook>", "exec")

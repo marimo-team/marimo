@@ -301,7 +301,12 @@ def compile_cell(
         isinstance(stmt, (ast.Import, ast.ImportFrom)) for stmt in module.body
     )
 
-    v = ScopedVisitor("cell_" + cell_id)
+    # The cell manager prefixes the setup cell's id; the name itself is
+    # the suffix.
+    v = ScopedVisitor(
+        "cell_" + cell_id,
+        allow_lazy_imports=cell_id.endswith(SETUP_CELL_NAME),
+    )
     v.visit(module)
 
     expr: ast.Expression

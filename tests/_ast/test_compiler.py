@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from functools import partial
 from typing import Any
 from unittest.mock import patch
@@ -10,9 +11,11 @@ import pytest
 
 from marimo._ast import compiler
 from marimo._ast.cell_manager import CellManager
+from marimo._ast.errors import LazyImportError
 from marimo._ast.sql_visitor import SQLRef
 from marimo._ast.visitor import ImportData, VariableData
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._types.ids import CellId_t
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -1017,3 +1020,62 @@ class TestCellAstMatchesRawAst:
         assert pos is not None
 
         self._assert_fixed_ast_contains_line(cell.code, source, pos)
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 15), reason="`lazy import` requires Python 3.15"
+)
+class TestLazyImports:
+    @staticmethod
+    def test_lazy_import_in_regular_cell_is_a_syntax_error() -> None:
+        with pytest.raises(
+            LazyImportError, match="only allowed in the setup cell"
+        ) as e:
+            compile_cell("lazy import numpy")
+        assert e.value.lineno == 1
+
+    @staticmethod
+    def test_nested_lazy_import_in_regular_cell_is_a_syntax_error() -> None:
+        # Python itself accepts the statement at module level inside `if`,
+        # but the cell still becomes a function body when saved.
+        with pytest.raises(
+            LazyImportError, match="only allowed in the setup cell"
+        ) as e:
+            compile_cell("x = 1\nif x:\n    lazy import numpy")
+        assert e.value.lineno == 3
+        assert e.value.offset == 5
+
+    @staticmethod
+    def test_lazy_import_in_setup_cell_compiles() -> None:
+        from marimo._ast.names import SETUP_CELL_NAME
+
+        cell = compiler.compile_cell(
+            "lazy import numpy", cell_id=CellId_t(SETUP_CELL_NAME)
+        )
+        assert cell.defs == {"numpy"}
+        # The cell manager prefixes the setup cell id.
+        cell = compiler.compile_cell(
+            "lazy import numpy", cell_id=CellId_t("app1-" + SETUP_CELL_NAME)
+        )
+        assert cell.defs == {"numpy"}
+
+    @staticmethod
+    def test_plain_import_in_regular_cell_compiles() -> None:
+        assert compile_cell("import numpy").defs == {"numpy"}
+
+    @staticmethod
+    def test_lazy_import_is_tracked() -> None:
+        from marimo._ast.names import SETUP_CELL_NAME
+
+        cell = compiler.compile_cell(
+            "lazy import numpy\nimport os\nlazy from json import dumps",
+            cell_id=CellId_t(SETUP_CELL_NAME),
+        )
+        by_name = {data.definition: data for data in cell.imports}
+        assert by_name["numpy"].is_lazy
+        assert not by_name["os"].is_lazy
+        assert by_name["dumps"].is_lazy
+        # A lazy import is a different statement from a plain one.
+        assert by_name["numpy"] != ImportData(
+            module="numpy", definition="numpy", imported_symbol=None
+        )
