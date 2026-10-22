@@ -1160,7 +1160,7 @@ const DataTableComponent = ({
     <>
       {/* When the totalRows is "too_many" and the pageSize is the same as the
        * number of rows, we are likely displaying all the data (could be more, but we don't know the total). */}
-      {!pagination &&
+      {hasNextPage === undefined &&
         totalRows === TOO_MANY_ROWS &&
         paginationState.pageSize === data.length && (
           <Banner className="mb-1 rounded">

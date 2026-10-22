@@ -3942,7 +3942,10 @@ def test_lazy_table_pagination(
 @pytest.mark.parametrize(
     "df", create_dataframes({"value": range(1000)}, include=NON_EAGER_LIBS)
 )
-def test_lazy_table_pagination_collects_one_bounded_page(df: Any) -> None:
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_lazy_table_pagination_collects_one_bounded_page(
+    df: Any, wrapped: bool
+) -> None:
     import narwhals.stable.v2 as nw
 
     collected_shapes: list[tuple[int, int]] = []
@@ -3956,7 +3959,9 @@ def test_lazy_table_pagination_collects_one_bounded_page(df: Any) -> None:
         return result
 
     with patch.object(nw.LazyFrame, "collect", record_collect):
-        table = ui.table.lazy(df, page_size=10)
+        table = ui.table.lazy(
+            nw.from_native(df) if wrapped else df, page_size=10
+        )
         assert collected_shapes == []
         response = table._search(SearchTableArgs(page_size=10, page_number=50))
 

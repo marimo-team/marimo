@@ -306,9 +306,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         assert lazy_manager.take(1, 0).data.collect()["A"].to_list() == [1]
         assert lazy_manager.take(2, 0).data.collect()["A"].to_list() == [1, 2]
 
-        # Converted to eager frame
-        assert lazy_manager.take(2, 1).data["A"].to_list() == [2, 3]
-        assert lazy_manager.take(2, 2).data["A"].to_list() == [3]
+        assert lazy_manager.take(2, 1).data.collect()["A"].to_list() == [2, 3]
+        assert lazy_manager.take(2, 2).data.collect()["A"].to_list() == [3]
 
     def test_take_zero(self) -> None:
         limited_manager = self.manager.take(0, 0)
