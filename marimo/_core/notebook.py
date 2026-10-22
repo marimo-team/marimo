@@ -6,14 +6,21 @@ from __future__ import annotations
 import asyncio
 import logging
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 
 import msgspec
+from msgspec import UNSET
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
 from marimo._core.document import Stale
-from marimo._core.errors import Conflict, EditConflict, NoRuntime, NotFound
+from marimo._core.errors import (
+    Conflict,
+    EditConflict,
+    Invalid,
+    NoRuntime,
+    NotFound,
+)
 from marimo._core.executions import Executions, Released, Removed
 from marimo._core.ids import mint
 from marimo._core.stream import RoutedEvent, snapshot_event, utcnow
@@ -427,8 +434,40 @@ class Notebook:
 
     # ---- runs ----------------------------------------------------------
 
-    def run(self, code: str, *, request_id: str) -> protocol.Run:
-        """Queue scratch code on a running, idle runtime."""
+    @overload
+    def run(self, code: str, *, request_id: str) -> protocol.Run: ...
+
+    @overload
+    def run(
+        self,
+        *,
+        cells: Sequence[protocol.RequestedCell],
+        request_id: str,
+    ) -> protocol.Run: ...
+
+    def run(
+        self,
+        code: str | None = None,
+        *,
+        cells: Sequence[protocol.RequestedCell] | None = None,
+        request_id: str,
+    ) -> protocol.Run:
+        """Queue scratch code, or cells of the document, on an idle runtime.
+
+        Each requested cell must be in the document. One that names a
+        `code_hash` the cell no longer has is a conflict, and nothing runs.
+
+        Raises:
+            Invalid: If the request names neither code nor cells, or both,
+                an empty cell sequence, or a cell the document does not have.
+            NoRuntime: If the notebook has no runtime.
+            Conflict: If the runtime is not running, a run is in progress,
+                or a requested cell's code has changed.
+        """
+        if (code is None) == (cells is None):
+            raise Invalid("a run names code or cells, not both")
+        if cells is not None and not cells:
+            raise Invalid("a cell run names at least one cell")
         with self.sink.deferred():
             self._require_open()
             runtime = self._require_runtime()
@@ -437,6 +476,21 @@ class Notebook:
             active = self.executions.active()
             if active is not None:
                 raise Conflict(f"run {active.id} is in progress.")
+            targets: list[protocol.CellId] = []
+            for requested in cells or ():
+                cell = self._document.cell(requested.id)
+                if cell is None:
+                    raise Invalid(
+                        f"cell {requested.id} is not in the document."
+                    )
+                if (
+                    requested.code_hash is not UNSET
+                    and requested.code_hash != cell.code_hash
+                ):
+                    raise Conflict(
+                        f"cell {requested.id} has changed since it was read."
+                    )
+                targets.append(cell.id)
             run = protocol.Run(
                 id=mint(protocol.RunId, "run"),
                 notebook_id=self.id,
@@ -447,7 +501,10 @@ class Notebook:
                 completed_at=None,
             )
             self._apply(self.executions.begin(run, request_id))
-            self.backend.run(run.id, code)
+            if code is not None:
+                self.backend.run(run.id, code)
+            else:
+                self.backend.run_cells(run.id, self._document, targets)
             return run
 
     def interrupt(self, run_id: str) -> protocol.Run:

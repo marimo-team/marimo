@@ -943,11 +943,14 @@ async def _run(request: Request) -> Response:
     key = request.headers["Idempotency-Key"]
     notebook = await _notebook(request)
     body = await _decode(request, protocol.RunRequest)
-    if body.code is msgspec.UNSET or body.cells is not msgspec.UNSET:
+    if isinstance(body.code, str) and body.cells is msgspec.UNSET:
+        started = notebook.run(body.code, request_id=key)
+    elif body.code is msgspec.UNSET and isinstance(body.cells, tuple):
+        started = notebook.run(cells=body.cells, request_id=key)
+    else:
         return problem(
-            400, "invalid-request", "This host requires scratch code"
+            400, "invalid-request", "A run names code or cells, not both"
         )
-    started = notebook.run(body.code, request_id=key)
     return _reply(202, started)
 
 
