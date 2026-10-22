@@ -8,6 +8,7 @@ import math
 import pickle
 import queue
 import threading
+from contextlib import contextmanager
 from enum import Enum, auto
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any
@@ -50,6 +51,7 @@ from marimo._save.stores import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator
+    from contextlib import AbstractContextManager
 from marimo._save.stubs import (
     ClassStub,
     FunctionStub,
@@ -918,6 +920,26 @@ class LazyLoader(BasePersistenceLoader):
         """Loaders the current session has created (for flush/export)."""
         return list(_cache_state().active_lazy_loaders.values())
 
+    def _write_context(
+        self, manifest_key: str
+    ) -> AbstractContextManager[None]:
+        """Register a write and order it after earlier writes to the same key."""
+        done = threading.Event()
+        with self._pending_write_lock:
+            previous = self._pending_writes.get(manifest_key)
+            self._pending_writes[manifest_key] = done
+
+        @contextmanager
+        def write() -> Iterator[None]:
+            try:
+                if previous is not None:
+                    previous.wait()
+                yield
+            finally:
+                done.set()
+
+        return write()
+
     def _await_write(self, manifest_key: str) -> None:
         """Wait for this loader's pending write of the manifest."""
         with self._pending_write_lock:
@@ -1192,9 +1214,6 @@ class LazyLoader(BasePersistenceLoader):
                 )
             elif var_name in deferred:
                 ref, requires = deferred[var_name]
-                if ref in unpickled:
-                    defs[var_name] = unpickled[ref]
-                    continue
                 # Read the bytes now (via this loader's store); defer only
                 # the unpickle until Cache.restore has materialized the class.
                 raw = self.store.get(ref)
@@ -1209,7 +1228,6 @@ class LazyLoader(BasePersistenceLoader):
                 )
                 # Tag the cell class this instance needs materialized first.
                 stub.requires = requires
-                unpickled[ref] = stub
                 defs[var_name] = stub
             elif var_name in ref_vars:
                 ref_key = ref_vars[var_name]
@@ -1377,8 +1395,9 @@ class LazyLoader(BasePersistenceLoader):
         path = Path(self.name) / cache.hash
         # Copy so per-def digests below don't mutate the cache's meta.
         variable_hashes = dict(cache.meta.get("variable_hashes", {}))
-        return_value = cache.meta.get("return", None)
-        return_item = to_item(path, return_value, var_name="return")
+        return_item = to_item(
+            path, cache.meta.get("return", None), var_name="return"
+        )
         if return_item.reference:
             # Normalize base name to "return" while preserving format extension.
             ext = Path(return_item.reference).suffix
@@ -1394,10 +1413,6 @@ class LazyLoader(BasePersistenceLoader):
         ui_vars: dict[str, Any] = {}
         defs_dict: dict[str, Item] = {}
         ui_defs_list: list[str] = []
-        # Aliased outputs share a blob so restoring them preserves identity.
-        blob_items: dict[int, list[Item]] = {}
-        if return_item.reference:
-            blob_items[id(return_value)] = [return_item]
 
         for var, obj in cache.defs.items():
             if var not in variable_hashes:
@@ -1423,12 +1438,7 @@ class LazyLoader(BasePersistenceLoader):
                 ui_vars[var] = obj
                 ui_defs_list.append(var)
             elif loader != "inline":
-                items = blob_items.setdefault(id(obj), [])
-                if items:
-                    item.reference = items[0].reference
-                else:
-                    format_vars.setdefault(loader, {})[var] = obj
-                items.append(item)
+                format_vars.setdefault(loader, {})[var] = obj
 
         version = cache.meta.get("version", MARIMO_CACHE_VERSION)
 
@@ -1508,6 +1518,7 @@ class LazyLoader(BasePersistenceLoader):
         # Capture values for the background thread
         store = self.store
         return_ref = return_item.reference
+        return_value = cache.meta.get("return", None)
         return_loader = (
             maybe_update_lazy_stub(return_value)
             if return_value is not None
@@ -1569,71 +1580,62 @@ class LazyLoader(BasePersistenceLoader):
                 return False
             return True
 
+        write_context = self._write_context(manifest_key)
+
         def _serialize_and_write() -> None:
-            """Serialize and write all blobs + manifest in background."""
-            try:
-                if return_ref:
-                    _put_or_mark_unserializable(
-                        return_ref,
-                        return_value,
-                        return_loader,
-                        blob_items[id(return_value)],
-                        "return",
-                    )
-                if ui_vars:
-                    ui_key = (path / "ui.pickle").as_posix()
-                    ui_ok = _put_or_mark_unserializable(
-                        ui_key,
-                        ui_vars,
-                        "pickle",
-                        [defs_dict[v] for v in ui_defs_list],
-                        "ui",
-                    )
-                    if not ui_ok:
-                        # UI defs restore via `ui_defs` → `ui.pickle`,
-                        # bypassing the per-Item marks. Drop them from
-                        # `ui_defs` so restore routes through the now-marked
-                        # Items instead, and clear any stale blob lingering
-                        # from a prior run at this same hash path (which would
-                        # otherwise load as a phantom hit).
-                        ui_defs_list.clear()
-                        try:
-                            store.clear(ui_key)
-                        except Exception:
-                            LOGGER.warning(
-                                "Failed to clear stale ui blob %s", ui_key
-                            )
-                for loader, vars_dict in format_vars.items():
-                    for var, obj in vars_dict.items():
+            """Serialize and write blobs, then the manifest."""
+            with write_context:
+                try:
+                    if return_ref:
                         _put_or_mark_unserializable(
-                            (path / f"{var}.{loader}").as_posix(),
-                            obj,
-                            loader,
-                            blob_items[id(obj)],
-                            var,
+                            return_ref,
+                            return_value,
+                            return_loader,
+                            [return_item],
+                            "return",
                         )
-                # Manifest last — readers check for it to detect complete
-                # writes, and it now carries any unserializable marks set above
-                # plus (when signing) the signed blob hashes and signature.
-                store.put(manifest_key, _encode_manifest())
-            except Exception:
-                LOGGER.exception("Failed to write cache blobs for %s", path)
+                    if ui_vars:
+                        ui_key = (path / "ui.pickle").as_posix()
+                        ui_ok = _put_or_mark_unserializable(
+                            ui_key,
+                            ui_vars,
+                            "pickle",
+                            [defs_dict[v] for v in ui_defs_list],
+                            "ui",
+                        )
+                        if not ui_ok:
+                            # UI defs restore via `ui_defs` → `ui.pickle`,
+                            # bypassing the per-Item marks. Drop them from
+                            # `ui_defs` so restore routes through the now-marked
+                            # Items instead, and clear any stale blob lingering
+                            # from a prior run at this same hash path (which would
+                            # otherwise load as a phantom hit).
+                            ui_defs_list.clear()
+                            try:
+                                store.clear(ui_key)
+                            except Exception:
+                                LOGGER.warning(
+                                    "Failed to clear stale ui blob %s", ui_key
+                                )
+                    for loader, vars_dict in format_vars.items():
+                        for var, obj in vars_dict.items():
+                            _put_or_mark_unserializable(
+                                (path / f"{var}.{loader}").as_posix(),
+                                obj,
+                                loader,
+                                [defs_dict[var]],
+                                var,
+                            )
+                    # Manifest last — readers check for it to detect complete
+                    # writes, and it now carries any unserializable marks set above
+                    # plus (when signing) the signed blob hashes and signature.
+                    store.put(manifest_key, _encode_manifest())
+                except Exception:
+                    LOGGER.exception(
+                        "Failed to write cache blobs for %s", path
+                    )
 
-        done = threading.Event()
-        with self._pending_write_lock:
-            previous = self._pending_writes.get(manifest_key)
-            self._pending_writes[manifest_key] = done
-
-        def _tracked_write() -> None:
-            try:
-                # An older write must finish before this one replaces it.
-                if previous is not None:
-                    previous.wait()
-                _serialize_and_write()
-            finally:
-                done.set()
-
-        self._dispatch_write(_tracked_write)
+        self._dispatch_write(_serialize_and_write)
         return True
 
     def _dispatch_write(self, write_fn: Callable[[], None]) -> None:

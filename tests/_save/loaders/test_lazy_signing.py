@@ -1397,6 +1397,7 @@ class TestReadYourWrites(_FileStoreLoaderTest):
 
     def test_writes_to_one_key_finish_in_order(self, monkeypatch) -> None:
         first_started = threading.Event()
+        read_started = threading.Event()
         release = threading.Event()
         original_put = self.store.put
 
@@ -1408,12 +1409,18 @@ class TestReadYourWrites(_FileStoreLoaderTest):
 
         monkeypatch.setattr(self.store, "put", blocked_first_put)
         loader = self._loader(verification="off")
+
+        def read():
+            read_started.set()
+            return loader.load_cache(key("same"))
+
         with ThreadPoolExecutor(max_workers=1) as executor:
             try:
                 assert loader.save_cache(_simple_cache(hash_val="same", v=7))
                 assert first_started.wait(timeout=5)
                 assert loader.save_cache(_simple_cache(hash_val="same", v=9))
-                result = executor.submit(loader.load_cache, key("same"))
+                result = executor.submit(read)
+                assert read_started.wait(timeout=5)
                 with pytest.raises(TimeoutError):
                     result.result(timeout=0.1)
             finally:

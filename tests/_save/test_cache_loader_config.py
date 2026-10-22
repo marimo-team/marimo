@@ -281,32 +281,6 @@ def test_kernel_reads_cache_loader_from_user_config() -> None:
         assert get_context().cache.loader == "pickle"
 
 
-@pytest.mark.parametrize("alias", [False, True])
-async def test_default_cache_preserves_shared_outputs(alias, tmp_path) -> None:
-    commands = [
-        ExecuteCellCommand(
-            cell_id=CellId_t("imports"), code="import marimo as mo"
-        ),
-        ExecuteCellCommand(
-            cell_id=CellId_t("cache"),
-            code=(
-                f"with mo.persistent_cache('aliases', save_path={str(tmp_path)!r}) as cache:\n"
-                "    a = []\n"
-                f"    b = {'a' if alias else '[]'}\n"
-                "a.append(1)\n"
-                "was_hit = cache.hit"
-            ),
-        ),
-    ]
-    for expected_hit in (False, True):
-        with mocked_kernel_session() as tk:
-            await tk.kernel.run(commands)
-            assert (tk.kernel.globals["b"], tk.kernel.globals["was_hit"]) == (
-                [1] if alias else [],
-                expected_hit,
-            )
-
-
 async def test_default_cache_clear_recomputes(tmp_path) -> None:
     with mocked_kernel_session() as tk:
         tk.ctx.cache.store = FileStore(str(tmp_path))
