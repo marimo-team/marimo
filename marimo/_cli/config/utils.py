@@ -50,7 +50,9 @@ def format_config_docs(cls: type[Config]) -> str:
     if doc := inspect.getdoc(cls):
         output.extend([doc, ""])
 
-    def format_fields(cls: type[Config], path: str, level: int) -> None:
+    def format_fields(
+        cls: type[Config], path: str, level: int, experimental: bool = False
+    ) -> None:
         prefix = "  " * level
         for item in fields(cls):
             annotation = item.type
@@ -77,19 +79,29 @@ def format_config_docs(cls: type[Config]) -> str:
                 else None
             )
             extra = metadata.extra or {}
-            label = ""
+            is_experimental = (
+                experimental
+                or bool(extra.get("experimental"))
+                or field_path == "experimental"
+            )
+            labels: list[str] = []
             if extra.get("deprecated"):
-                label += orange("[Deprecated] ")
+                labels.append(orange("Deprecated"))
+            if is_experimental:
+                labels.append(muted("Experimental"))
             if extra.get("sensitive"):
-                label += cyan("[Sensitive] ")
+                labels.append(cyan("Sensitive"))
             name = (
                 green(f"[{field_path}]", bold=True)
                 if section is not None
                 else yellow(field_path)
             )
+            heading = f"{prefix}{name}"
+            if labels:
+                heading += " (" + ", ".join(labels) + ")"
             if section is not None and level == 0:
-                name += " " + muted("─" * 32)
-            output.append(f"{prefix}{label}{name}")
+                heading += " " + muted("─" * 32)
+            output.append(heading)
             details_prefix = prefix + "  "
             if metadata.description:
                 output.extend(
@@ -98,7 +110,7 @@ def format_config_docs(cls: type[Config]) -> str:
                 )
             if section is not None:
                 output.append("")
-                format_fields(section, field_path, level + 1)
+                format_fields(section, field_path, level + 1, is_experimental)
             else:
                 output.append(
                     details_prefix + muted(f"Type: {_format_type(annotation)}")

@@ -66,14 +66,17 @@ def test_config_describe_nested_and_optional_sections(
     output = result.output
     assert "  [ai.models]\n" in output
     assert "  [ai.open_ai]\n" in output
-    assert "\n[experimental] " + "─" * 32 + "\n" in output
+    assert "\n[experimental] (Experimental) " + "─" * 32 + "\n" in output
     assert "\n[cache] " + "─" * 32 + "\n" in output
     assert "\n[venv] " + "─" * 32 + "\n" in output
     assert "Enable live debugging with gutter breakpoints and pdb." in output
-    assert "[Deprecated] completion.model\n" in output
-    assert "[Deprecated] [Sensitive] completion.api_key\n" in output
-    assert "[Sensitive] completion.codeium_api_key\n" in output
-    assert "[Sensitive] completion.activate_on_typing" not in output
+    assert "completion.model (Deprecated)\n" in output
+    assert "completion.api_key (Deprecated, Sensitive)\n" in output
+    assert "completion.codeium_api_key (Sensitive)\n" in output
+    assert "completion.activate_on_typing (Sensitive)" not in output
+    assert "experimental.debugger (Experimental)\n" in output
+    assert "[Deprecated]" not in output
+    assert "[Sensitive]" not in output
     assert (
         "Deprecated completion model. Use ai.models.autocomplete_model instead."
         in output
@@ -81,7 +84,7 @@ def test_config_describe_nested_and_optional_sections(
     assert not any(
         line.lstrip().startswith("#") for line in output.splitlines()
     )
-    assert "[Deprecated] completion.activate_on_typing" not in output
+    assert "completion.activate_on_typing (Deprecated)" not in output
     assert (
         "display.custom_css\n    list of paths to custom CSS files\n    Type: list[str]"
         in output
@@ -119,7 +122,7 @@ args
   Arguments passed to the MCP server command.
   Type: list[str] | None
 
-[Sensitive] env
+env (Sensitive)
   Environment variables supplied to the MCP server.
   Type: dict[str, str] | None
 

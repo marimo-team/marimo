@@ -69,7 +69,7 @@ def test_orange_and_yellow_have_distinct_colors(
         click.style if use_click else cli_print._ansi_style,
     )
     reset_bold = "\033[22m" if use_click else ""
-    assert cli_print.orange("[Deprecated]") == (
-        f"\033[38;5;208m{reset_bold}[Deprecated]\033[0m"
+    assert cli_print.orange("(Deprecated)") == (
+        f"\033[38;5;208m{reset_bold}(Deprecated)\033[0m"
     )
     assert cli_print.yellow("model") == f"\033[33m{reset_bold}model\033[0m"
