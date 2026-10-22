@@ -76,6 +76,7 @@ export class Events<
   readonly #onStatus: ((status: Status) => void) | undefined;
   #settle: { resolve(): void; reject(error: unknown): void } | undefined;
   #release: (() => void) | undefined;
+  readonly #onErrors = new Set<(error: unknown) => void>();
 
   public constructor(
     source: string | URL | Transport,
@@ -133,13 +134,26 @@ export class Events<
   }
 
   /**
-   * Call `listener` with each event, in order.
+   * Call `onEvent` with each event, in order, and `onError` if the stream stops.
    *
-   * Returns a function that stops calling it. A listener that throws does not
+   * `onError` receives the error `closed` rejects with. Closing the stream does
+   * not call it, and neither does a stream that stopped before subscribing.
+   * Returns a function that stops calling both. A callback that throws does not
    * interrupt the stream.
    */
-  public subscribe(listener: (event: StreamEvent<K>) => void): () => void {
-    return this.#stream.subscribe(listener);
+  public subscribe(
+    onEvent: (event: StreamEvent<K>) => void,
+    onError?: (error: unknown) => void,
+  ): () => void {
+    const unsubscribe = this.#stream.subscribe(onEvent);
+    if (onError === undefined || this.#settle === undefined) {
+      return unsubscribe;
+    }
+    this.#onErrors.add(onError);
+    return () => {
+      this.#onErrors.delete(onError);
+      unsubscribe();
+    };
   }
 
   /** Stop following the stream. */
@@ -261,16 +275,34 @@ export class Events<
     }
   }
 
-  /** Close the stream once and return how to settle `closed`. */
+  /**
+   * Close the stream once and return how to settle `closed`.
+   *
+   * Rejecting also calls each subscriber's `onError`.
+   */
   #finish() {
     const settle = this.#settle;
     if (settle === undefined) {
       return undefined;
     }
     this.#settle = undefined;
+    const onErrors = [...this.#onErrors];
+    this.#onErrors.clear();
     this.#release?.();
     this.#controller.abort();
     this.#setStatus("closed");
-    return settle;
+    return {
+      resolve: settle.resolve,
+      reject: (error: unknown) => {
+        settle.reject(error);
+        for (const onError of onErrors) {
+          try {
+            onError(error);
+          } catch (thrown) {
+            report(thrown);
+          }
+        }
+      },
+    };
   }
 }

@@ -357,6 +357,29 @@ describe("NotebookEvents", () => {
     expect(events.status).toBe("closed");
   });
 
+  it("tells subscribers why it stopped, unless they left or closed it", async () => {
+    const refused = new Response(null, { status: 403 });
+    const stopped = new NotebookEvents(url, {
+      fetch: answering(refused).fetch,
+    });
+    const subscribed = vi.fn();
+    const left = vi.fn();
+    stopped.subscribe(() => undefined, subscribed);
+    stopped.subscribe(() => undefined, left)();
+    await stopped.closed.catch(() => undefined);
+    const late = vi.fn();
+    stopped.subscribe(() => undefined, late);
+    const closed = new NotebookEvents(url, { fetch: answering().fetch });
+    const closing = vi.fn();
+    closed.subscribe(() => undefined, closing);
+    closed.close();
+    await closed.closed;
+    expect(subscribed.mock.calls).toEqual([[expect.any(StreamStopped)]]);
+    expect(left).not.toHaveBeenCalled();
+    expect(late).not.toHaveBeenCalled();
+    expect(closing).not.toHaveBeenCalled();
+  });
+
   it.each([
     'event: cell\ndata: {"cell":{"id":"c1"}}\n\n',
     "event: reset\ndata: 5\n\n",
