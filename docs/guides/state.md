@@ -85,7 +85,7 @@ a state object, and returns
 - a getter function for reading the state
 - a setter function for updating the state
 
-For exaxmple,
+For example,
 
 ```python
 get_counter, set_counter = mo.state(0)
@@ -133,6 +133,11 @@ This rule has some important aspects:
    the getter. This restriction helps prevent against bugs that could
    otherwise arise. To lift this restriction, and allow the caller cell
    to be re-run, create your state with `mo.state(value, allow_self_loops=True)`.
+3. State lives as long as the cell that created it. If that cell re-runs, for
+   example because it reads a UI element, `mo.state()` creates a fresh state and
+   the previous value is lost. To keep state across interactions, create it in a
+   cell that doesn't reference UI elements or other state. If you want the state
+   to reset whenever an input changes, create it in a cell that reads that input.
 
 Notice how similar this rule is to the reactivity rule for UI element
 interactions.
