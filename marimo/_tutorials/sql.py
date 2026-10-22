@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -27,7 +27,6 @@ def _(mo):
 
     _Let's dive into the world of SQL where we don't just address tables, we also join them!_
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -41,7 +40,6 @@ def _(mo):
     pip install 'marimo[sql]'
     ```
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -95,7 +93,6 @@ def _(has_duckdb_installed, mo):
                 """
             )
         )
-    return
 
 
 @app.cell(hide_code=True)
@@ -128,7 +125,6 @@ def _(mo):
     means it can contain any valid Python code, such as the values of UI
     elements. This means your SQL statement and results can be reactive! 🚀
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -136,7 +132,6 @@ def _(mo):
     mo.md("""
     ## Querying dataframes with SQL
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -148,7 +143,6 @@ def _(mo):
         and in-memory tables that your notebook has access to.
     ///
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -156,7 +150,6 @@ def _(mo):
     mo.md(r"""
     Let's take a look at a SQL cell. The next cell generates a dataframe called `df`.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -207,7 +200,6 @@ def _(mo):
     mo.md(r"""
     Next, we create a SQL query, referencing the Python dataframe `df` directly.
     """)
-    return
 
 
 @app.cell
@@ -221,7 +213,6 @@ def _(df, mo):
         -- By default, the output variable starts with an underscore (`_df`), making it private to this cell. To access the query result in another cell, change the name of the output variable.
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -229,7 +220,6 @@ def _(mo):
     mo.md("""
     ## From Python to SQL and back
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -237,7 +227,6 @@ def _(mo):
     mo.md(r"""
     You can create SQL statements that depend on Python values, such as UI elements:
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -270,7 +259,6 @@ def _(mo):
     Since we named the output variable above **`result`**,
     we can use it back in Python.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -301,7 +289,6 @@ def _(charting_library, mo, render_chart, token_prefix):
     render_chart(
         charting_library.value, _header
     ) if charting_library.value else None
-    return
 
 
 @app.cell(hide_code=True)
@@ -355,7 +342,6 @@ def _(mo):
     mo.md(r"""
     ## CSVs, Parquet, Postgres, and more ...
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -376,7 +362,6 @@ def _(mo):
 
     For this example, we will query an HTTP endpoint for a CSV.
     """)
-    return
 
 
 @app.cell
@@ -391,7 +376,6 @@ def _(mo):
         SELECT * from cars;
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -435,7 +419,6 @@ def _(filtered_cars, mo):
             ),
         ]
     )
-    return
 
 
 @app.cell(hide_code=True)

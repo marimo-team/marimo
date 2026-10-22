@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -23,13 +23,11 @@ def _(mo):
     [PEP 723](https://peps.python.org/pep-0723/) inline metadata, to declare
     the Python version and packages that a notebook needs.
     """)
-    return
 
 
 @app.cell(hide_code=True)
 def _(check_dependencies):
     check_dependencies()
-    return
 
 
 @app.cell(hide_code=True)
@@ -51,7 +49,6 @@ def _(mo):
     environment with the right dependencies. The rest of the file remains a
     regular Python script.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -62,7 +59,6 @@ def _(mo):
     Here we'll use `wigglystuff.Slider2D`, an anywidget, and wrap it with
     `mo.ui.anywidget` so marimo can make it reactive.
     """)
-    return
 
 
 @app.cell
@@ -89,7 +85,6 @@ def _(mo, widget):
             f"x = {widget.x:.3f}, y = {widget.y:.3f}; "
             f"bounds {widget.x_bounds} / {widget.y_bounds}"
         )
-    return
 
 
 @app.cell(hide_code=True)

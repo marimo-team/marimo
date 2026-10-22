@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.25.2"
 app = marimo.App(app_title="marimo for Jupyter users")
 
 
@@ -20,7 +20,6 @@ def _(mo):
     This notebook explains important differences between Jupyter and marimo. If you're
     familiar with Jupyter and are trying out marimo for the first time, read on!
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -32,7 +31,6 @@ def _(mo):
 
     Try updating the value of x in the next cell, then run it.
     """)
-    return
 
 
 @app.cell
@@ -44,7 +42,6 @@ def _():
 @app.cell
 def _(x):
     y = x + 1; y
-    return
 
 
 @app.cell(hide_code=True)
@@ -59,7 +56,6 @@ def _(mo):
 
     In contrast, Jupyter requires you to manually run each cell.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -77,7 +73,6 @@ def _(mo):
 
     This makes marimo notebooks as reproducible as regular Python scripts.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -88,7 +83,6 @@ def _(mo):
     marimo comes with a [large library of UI elements](https://docs.marimo.io/guides/interactivity.html) that are automatically
     synchronized with Python.
     """)
-    return
 
 
 @app.cell
@@ -108,7 +102,6 @@ def _(mo):
 @app.cell
 def _(slider):
     slider.value
-    return
 
 
 @app.cell(hide_code=True)
@@ -123,7 +116,6 @@ def _(mo):
 
     In contrast, Jupyter's lack of reactivity makes IPyWidgets difficult to use.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -141,7 +133,6 @@ def _(mo):
     seamless to do so if you want to. In this way, marimo works as a replacement
     for both Jupyter and Streamlit.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -151,13 +142,11 @@ def _(mo):
 
     In marimo, cells can be arranged in any order — marimo figures out the one true way to execute them based on variable declarations and references (in a ["topologically sorted"](https://en.wikipedia.org/wiki/Topological_sorting#:~:text=In%20computer%20science%2C%20a%20topological,before%20v%20in%20the%20ordering.) order)
     """)
-    return
 
 
 @app.cell
 def _(z):
     z.value
-    return
 
 
 @app.cell
@@ -173,7 +162,6 @@ def _(mo):
 
     In contrast, Jupyter notebooks implicitly assume a top-to-bottom execution order.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -183,7 +171,6 @@ def _(mo):
 
     marimo disallows variable re-assignment. Here is something commonly done in Jupyter notebooks that cannot be done in marimo:
     """)
-    return
 
 
 @app.cell
@@ -201,7 +188,6 @@ def _():
 @app.cell
 def _(df):
     results = df.groupby(["my_column"]).sum()
-    return
 
 
 @app.cell(hide_code=True)
@@ -215,7 +201,6 @@ def _(mo):
     2. prefix variables with an underscore (`_df`) to make them local to the cell
     3. wrap your code in functions, or give your variables more descriptive names
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -233,7 +218,6 @@ def _(mo):
     ergonomics for authoring.
     ///
     """)
-    return
 
 
 @app.cell
@@ -241,7 +225,6 @@ def _(mo, slider):
     mo.md(f"""
     The value of {slider} is {slider.value}.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -254,7 +237,6 @@ def _(mo):
 
     _Tip: toggle a markdown view via `Cmd/Ctrl-Shift-M` in an empty cell._
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -274,7 +256,6 @@ def _(mo):
 
     marimo is designed so that small changes in your code yield small git diffs!
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -293,7 +274,6 @@ def _(mo):
     users](https://featured.plutojl.org/basic/pluto%20for%20jupyter%20users).
     We ❤️ Pluto.jl!_
     """)
-    return
 
 
 if __name__ == "__main__":

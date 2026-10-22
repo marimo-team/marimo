@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 with app.setup:
@@ -38,7 +38,6 @@ def _(mo):
     - 🐍 usable as Python scripts, with UI elements taking their default values
     - 🧩 modular, exposing functions and classes that can be imported from the notebook
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -70,7 +69,6 @@ def _(mo):
     import marimo as mo
     ```
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -116,7 +114,6 @@ def _(mo):
 
     Moreover, the cell defining a single pure function `say_hello` was saved "top-level" in the notebook file, making it possible for you to import it into other Python files or notebooks.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -131,7 +128,6 @@ def _(mo):
 
     We explain some properties of marimo's file format below.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -241,7 +237,6 @@ def _(mo):
         """,
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -253,7 +248,6 @@ def _(mo):
     functions and classes defined in your notebook into other Python modules. If you
     don't intend to do so, you can skip this section.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -284,7 +278,6 @@ def _(mo):
     classes. You can add the setup cell from the general menu of the editor under:
     ::lucide:diamond-plus:: Add setup cell.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -294,7 +287,6 @@ def _(mo):
 
     Notebook files expose functions and classes that depend only on variables defined in the setup cell (or on other such functions or classes). For example, the following cell:
     """)
-    return
 
 
 @app.function
@@ -330,7 +322,6 @@ def _(mo):
     from my_notebook import roll_die
     ```
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -338,7 +329,6 @@ def _(mo):
     mo.md(r"""
     Standalone classes are also exposed:
     """)
-    return
 
 
 @app.class_definition
@@ -365,7 +355,6 @@ def _(mo):
             return [roll_die() for _ in range(self.n_rolls)]
     ```
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -381,7 +370,6 @@ def _(mo):
 
     For example, this function will not be exposed:
     """)
-    return
 
 
 @app.cell
@@ -422,7 +410,6 @@ def _(mo):
 
     See the docs on [testing](https://docs.marimo.io/guides/testing/).
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -432,7 +419,6 @@ def _(mo):
 
     The source code of this notebook is shown below:
     """)
-    return
 
 
 @app.cell
@@ -445,7 +431,6 @@ def _():
 @app.cell
 def _(contents, mo):
     mo.ui.code_editor(contents)
-    return
 
 
 if __name__ == "__main__":
