@@ -54,9 +54,9 @@ def main() -> None:
         nonlocal calls
         calls += 1
         if calls == 2:
-            (directory / "reconnecting.json").write_text(
-                json.dumps({"cursor": cursor})
-            )
+            reconnecting = directory / "reconnecting.tmp"
+            reconnecting.write_text(json.dumps({"cursor": cursor}))
+            reconnecting.replace(directory / "reconnecting.json")
             while not (directory / "resume").exists():
                 time.sleep(0.01)
         response = open_events(
