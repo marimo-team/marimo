@@ -280,10 +280,24 @@ def test_subprocess_reconnect_replays_messages_and_server_detach(
 
         def receive() -> bytes:
             lines: queue.Queue[bytes] = queue.Queue(maxsize=1)
-            threading.Thread(
+            reader = threading.Thread(
                 target=lambda: lines.put(output.readline()), daemon=True
-            ).start()
-            return lines.get(timeout=10)
+            )
+            reader.start()
+            try:
+                line = lines.get(timeout=10)
+            except queue.Empty:
+                line = b""
+            if line:
+                return line
+            if process.poll() is None:
+                process.kill()
+            reader.join(timeout=5)
+            _, stderr = process.communicate(timeout=5)
+            raise AssertionError(
+                "Replay subprocess did not respond:\n"
+                + stderr.decode(errors="replace")
+            )
 
         try:
             assert receive() in (b"attached\n", b"attached\r\n")

@@ -66,7 +66,10 @@ def main() -> None:
         if calls == 1:
 
             def drop() -> None:
-                assert sys.stdin.readline() == "drop\n"
+                command = sys.stdin.readline()
+                assert command == "drop\n", (
+                    f"Expected drop command, got {command!r}"
+                )
                 response.socket.shutdown(socket.SHUT_RDWR)
 
             threading.Thread(target=drop, daemon=True).start()
