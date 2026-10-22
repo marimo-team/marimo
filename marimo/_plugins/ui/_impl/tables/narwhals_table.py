@@ -444,7 +444,15 @@ class NarwhalsTableManager(
             raise ValueError("Offset must be a non-negative integer")
 
         if is_narwhals_lazyframe(self.data):
-            if self.data.implementation.is_duckdb():
+            if self.data.implementation.is_polars():
+                import polars as pl
+
+                frame = self.data.to_native()
+                if isinstance(frame, pl.LazyFrame):
+                    return self.with_new_data(
+                        nw.from_native(frame.slice(offset, count))
+                    )
+            elif self.data.implementation.is_duckdb():
                 import duckdb
 
                 relation = self.data.to_native()

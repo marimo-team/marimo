@@ -541,6 +541,18 @@ describe("table pagination and static notebook control suppression", () => {
     mockIsStatic.mockReturnValue(false);
   });
 
+  it("preserves the preview banner for ordinary paginated tables with unknown totals", async () => {
+    const props = makeProps();
+    render(
+      <Wrapper>
+        <LoadingDataTableComponent {...props} totalRows="too_many" />
+      </Wrapper>,
+    );
+    expect(
+      await screen.findByText("Previewing the first 10 rows."),
+    ).toBeInTheDocument();
+  });
+
   it("pages lazy results with unknown totals and resets search, sorting, and filters to page one", async () => {
     const props = makeProps();
     const search = vi
