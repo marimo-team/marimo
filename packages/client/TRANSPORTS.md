@@ -15,7 +15,8 @@ is aborted.
 
 Resolve when the connection ends and another attempt makes sense. Reject
 when the stream should stop. The stream's `closed` promise rejects with the
-same error. Use `StreamStopped` to describe the failure.
+same error. Use `StreamStopped` to describe the failure. Calls to `open()` or
+`message(event)` after the promise settles are ignored.
 
 The stream validates events, tracks the cursor, delivers events to
 subscribers, and reconnects. It delivers `reset` when an interrupted snapshot

@@ -55,6 +55,18 @@ function answering(...responses: Response[]) {
   return { fetch, sent };
 }
 
+/** A transport whose connections deliver an event and drop after `uptime`. */
+function dropsAfter(uptime: number) {
+  let opened = 0;
+  const transport: NotebookTransport = (_attempt, { open, message }) => {
+    opened += 1;
+    open();
+    message({ event: "marimo", data: {}, id: String(opened) });
+    return new Promise((resolve) => setTimeout(resolve, uptime));
+  };
+  return { transport, opened: () => opened };
+}
+
 function collect<K extends string>(events: NotebookEvents<K>) {
   const received: NotebookEvent<K>[] = [];
   events.subscribe((event) => received.push(event));
@@ -250,6 +262,47 @@ describe("NotebookEvents", () => {
         "connected",
       ]
     `);
+    events.close();
+  });
+
+  it("gives up on a host that drops each connection soon after opening", async () => {
+    vi.useFakeTimers();
+    const { transport, opened } = dropsAfter(1000);
+    const events = new NotebookEvents(transport, { types: ["marimo"] });
+    await vi.advanceTimersByTimeAsync(200_000);
+    expect(events.status).toBe("closed");
+    expect(opened()).toBe(11);
+  });
+
+  it("keeps following a host whose connections stay up", async () => {
+    vi.useFakeTimers();
+    const { transport, opened } = dropsAfter(5000);
+    const events = new NotebookEvents(transport, { types: ["marimo"] });
+    await vi.advanceTimersByTimeAsync(200_000);
+    expect(events.status).not.toBe("closed");
+    expect(opened()).toBeGreaterThan(11);
+    events.close();
+  });
+
+  it("ignores a connection that reports after its attempt ended", async () => {
+    let late: Parameters<NotebookTransport>[1] | undefined;
+    const transport: NotebookTransport = async (_attempt, handlers) => {
+      late ??= handlers;
+    };
+    const statuses: string[] = [];
+    const events = new NotebookEvents(transport, {
+      types: ["marimo"],
+      onStatus: (status) => statuses.push(status),
+    });
+    const received = collect(events);
+    await vi.waitFor(() => expect(late).toBeDefined());
+    // Let the attempt end. The stream is then waiting to reconnect.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    late?.open();
+    late?.message({ event: "marimo", data: {}, id: "9" });
+    expect(statuses).toEqual([]);
+    expect(received).toEqual([]);
+    expect(events.cursor).toBeNull();
     events.close();
   });
 
