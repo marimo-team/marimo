@@ -848,7 +848,18 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         import polars as pl
 
         df = pl.DataFrame(
-            {"A": ["apple", "banana", "C++", "c++ guide", "ΟΣ", "ος", "οσ"]}
+            {
+                "A": [
+                    "apple",
+                    "banana",
+                    "C++",
+                    "c++ guide",
+                    "ΟΣ",
+                    "ος",
+                    "οσ",
+                    "İstanbul",
+                ]
+            }
         )
         manager = self.factory.create()(df)
         assert manager.search("^[ab]").get_num_rows() == 0
@@ -856,6 +867,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert manager.search("C++ G").get_num_rows() == 1
         assert manager.search("a.b").get_num_rows() == 0
         assert manager.search("Σ").get_num_rows() == 3
+        assert manager.search("İ").get_num_rows() == 1
 
     def test_search_wide_dataframe(self) -> None:
         """Regression test: search must not crash on wide tables (GitHub #8449)."""

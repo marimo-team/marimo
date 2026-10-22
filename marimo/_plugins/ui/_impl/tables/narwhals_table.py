@@ -455,7 +455,7 @@ class NarwhalsTableManager(
                 return self.with_new_data(self.data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
-        pattern = f"(?i){regex_literal(query.lower())}"
+        pattern = f"(?i){regex_literal(query)}"
 
         expressions: list[Any] = []
         for column, dtype in self.nw_schema.items():

@@ -264,7 +264,6 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 return isinstance(value, (pl.DataFrame, pl.LazyFrame))
 
             def search(self, query: str) -> PolarsTableManager:
-                query = query.lower()
                 pattern = f"(?i){regex_literal(query)}"
 
                 expressions: list[pl.Expr] = []
@@ -274,7 +273,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             pl.col(column).str.contains(pattern)
                         )
                     elif dtype == pl.List(pl.Utf8):
-                        expressions.append(pl.col(column).list.contains(query))
+                        expressions.append(
+                            pl.col(column).list.contains(query.lower())
+                        )
                     elif (
                         dtype.is_numeric()
                         or dtype.is_temporal()

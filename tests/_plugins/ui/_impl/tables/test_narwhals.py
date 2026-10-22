@@ -1437,7 +1437,18 @@ class TestOldDates:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": ["apple", "banana", "C++", "c++ guide", "ΟΣ", "ος", "οσ"]}
+        {
+            "A": [
+                "apple",
+                "banana",
+                "C++",
+                "c++ guide",
+                "ΟΣ",
+                "ος",
+                "οσ",
+                "İstanbul",
+            ]
+        }
     ),
 )
 def test_search_treats_query_as_literal(df: Any) -> None:
@@ -1447,6 +1458,7 @@ def test_search_treats_query_as_literal(df: Any) -> None:
     assert manager.search("C++ G").get_num_rows() == 1
     assert manager.search("a.b").get_num_rows() == 0
     assert manager.search("Σ").get_num_rows() == 3
+    assert manager.search("İ").get_num_rows() == 1
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

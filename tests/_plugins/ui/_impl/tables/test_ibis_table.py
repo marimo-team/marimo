@@ -313,7 +313,18 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         import ibis
 
         table = ibis.memtable(
-            {"A": ["apple", "banana", "C++", "c++ guide", "ΟΣ", "ος", "οσ"]}
+            {
+                "A": [
+                    "apple",
+                    "banana",
+                    "C++",
+                    "c++ guide",
+                    "ΟΣ",
+                    "ος",
+                    "οσ",
+                    "İstanbul",
+                ]
+            }
         )
         manager = self.factory.create()(table)
         assert manager.search("^[ab]").get_num_rows() == 0
@@ -321,6 +332,7 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert manager.search("C++ G").get_num_rows() == 1
         assert manager.search("a.b").get_num_rows() == 0
         assert manager.search("Σ").get_num_rows() == 3
+        assert manager.search("İ").get_num_rows() == 1
 
     def test_sort_values_with_nulls(self) -> None:
         import ibis

@@ -241,3 +241,37 @@ describe("UrlDetector with highlightPattern", () => {
     expect(container.querySelector("mark")).toBeNull();
   });
 });
+
+describe("UrlDetector highlight across part boundaries", () => {
+  it("marks a query that spans a text part and a link", () => {
+    const { container } = render(
+      <UrlDetector
+        parts={parseContent("see https://marimo.io/docs")}
+        highlightPattern={buildHighlightPattern("see https")}
+      />,
+    );
+    const marks = [...container.querySelectorAll("mark")].map(
+      (m) => m.textContent,
+    );
+    expect(marks).toEqual(["see ", "https"]);
+    const link = container.querySelector("a");
+    expect(link?.querySelector("mark")?.textContent).toBe("https");
+    expect(link).toHaveAttribute("href", "https://marimo.io/docs");
+    expect(container.textContent).toBe("see https://marimo.io/docs");
+  });
+
+  it("marks the fallback link when an image fails to load", () => {
+    const { container } = render(
+      <UrlDetector
+        parts={parseContent("https://example.com/image.png")}
+        highlightPattern={buildHighlightPattern("image")}
+      />,
+    );
+    const img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    fireEvent.error(img as HTMLImageElement);
+    const link = container.querySelector("a");
+    expect(link).toHaveAttribute("href", "https://example.com/image.png");
+    expect(link?.querySelector("mark")?.textContent).toBe("image");
+  });
+});

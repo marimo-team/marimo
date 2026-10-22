@@ -1852,7 +1852,18 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_search_treats_query_as_literal(self) -> None:
         df = pd.DataFrame(
-            {"A": ["apple", "banana", "C++", "c++ guide", "ΟΣ", "ος", "οσ"]}
+            {
+                "A": [
+                    "apple",
+                    "banana",
+                    "C++",
+                    "c++ guide",
+                    "ΟΣ",
+                    "ος",
+                    "οσ",
+                    "İstanbul",
+                ]
+            }
         )
         manager = self.factory.create()(df)
         assert manager.search("^[ab]").get_num_rows() == 0
@@ -1860,6 +1871,7 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.search("C++ G").get_num_rows() == 1
         assert manager.search("a.b").get_num_rows() == 0
         assert manager.search("Σ").get_num_rows() == 3
+        assert manager.search("İ").get_num_rows() == 1
 
     def test_sort_values_with_nulls(self) -> None:
         df = pd.DataFrame({"A": [3, 1, None, 2]})

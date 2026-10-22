@@ -1,7 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { buildHighlightPattern, highlightMatches } from "../search-highlight";
+import {
+  buildHighlightPattern,
+  findMatchRanges,
+  highlightMatches,
+  highlightRanges,
+} from "../search-highlight";
 
 function highlight(text: string, query: string) {
   return highlightMatches(text, buildHighlightPattern(query));
@@ -70,5 +75,35 @@ describe("highlightMatches", () => {
     const pattern = buildHighlightPattern("a");
     expect(marksOf(highlightMatches("aa", pattern)).marks).toEqual(["a", "a"]);
     expect(marksOf(highlightMatches("aa", pattern)).marks).toEqual(["a", "a"]);
+  });
+});
+
+describe("Unicode case folding", () => {
+  it("folds the Kelvin sign to k like the backend engines", () => {
+    expect(marksOf(highlight("K", "k")).marks).toEqual(["K"]);
+  });
+
+  it("folds every Greek sigma form", () => {
+    expect(marksOf(highlight("ΟΣ ος οσ", "σ")).marks).toEqual(["Σ", "ς", "σ"]);
+  });
+});
+
+describe("highlightRanges", () => {
+  it("applies shared ranges to a segment at an offset", () => {
+    const ranges = findMatchRanges(
+      "see https://x",
+      buildHighlightPattern("see https"),
+    );
+    expect(ranges).toEqual([[0, 9]]);
+    const { marks: textMarks } = marksOf(highlightRanges("see ", ranges, 0));
+    expect(textMarks).toEqual(["see "]);
+    const { marks: linkMarks } = marksOf(
+      highlightRanges("https://x", ranges, 4),
+    );
+    expect(linkMarks).toEqual(["https"]);
+  });
+
+  it("returns the segment unchanged when no range overlaps it", () => {
+    expect(highlightRanges("zzz", [[10, 12]], 0)).toBe("zzz");
   });
 });
