@@ -50,5 +50,9 @@ const events = new NotebookEvents(
 The URL function runs before each connection. A `StreamStopped` it throws
 stops the stream.
 
+Set `parseData` to decode each frame's raw data with a custom parser. It runs
+before `stop` and event delivery. The default is `JSON.parse`; if the parser
+throws, the frame keeps its original text.
+
 See the [transport contract](src/transport/frame.ts) for the function and
 event types.

@@ -658,6 +658,33 @@ describe("NotebookEvents", () => {
 });
 
 describe("sse", () => {
+  it("decodes raw data before stop and delivery, retaining text on parse errors", async () => {
+    const stream = body();
+    const message = vi.fn();
+    const stop = vi.fn(() => undefined);
+    const transport = sse(url, {
+      fetch: answering(stream.response).fetch,
+      parseData: (text) =>
+        JSON.parse(text, (_key, value) =>
+          typeof value === "number" ? BigInt(value) : value,
+        ),
+      stop,
+    });
+    stream.push('event: marimo\ndata: {"marimo":\ndata: {"value":42}}\n\n');
+    stream.push("event: custom\ndata: plain text\n\n");
+    stream.end();
+    await transport(
+      { cursor: null, signal: new AbortController().signal },
+      { open: vi.fn(), message },
+    );
+    const frames = [
+      { event: "marimo", data: { marimo: { value: 42n } } },
+      { event: "custom", data: "plain text" },
+    ];
+    expect(stop.mock.calls).toEqual(frames.map((frame) => [frame]));
+    expect(message.mock.calls).toEqual(frames.map((frame) => [frame]));
+  });
+
   it("reads a URL given as a function before each connection", async () => {
     vi.useFakeTimers();
     const first = body();

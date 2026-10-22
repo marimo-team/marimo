@@ -268,7 +268,12 @@ describe("sessionSse", () => {
     `);
   });
 
-  it("reads data with marimo's parser", async () => {
+  it.each([
+    ["NaN", Number.NaN],
+    ["Infinity", Number.POSITIVE_INFINITY],
+    ["-Infinity", Number.NEGATIVE_INFINITY],
+    ['{"$bigint":"9007199254740993"}', BigInt("9007199254740993")],
+  ])("reads %s with marimo's parser", async (encoded, value) => {
     const stream = body();
     vi.stubGlobal("fetch", async () => stream.response);
     const events = new NotebookEvents(
@@ -279,12 +284,12 @@ describe("sessionSse", () => {
       { types: ["marimo"] },
     );
     const received = collect(events);
-    stream.push('event: marimo\ndata: {"marimo":{"value":NaN}}\n\n');
+    onTestFinished(() => events.close());
+    stream.push(`event: marimo\ndata: {"marimo":{"value":${encoded}}}\n\n`);
     await vi.waitFor(() => expect(received).toHaveLength(1));
     expect(received).toEqual([
-      { event: "marimo", data: { marimo: { value: Number.NaN } } },
+      { event: "marimo", data: { marimo: { value } } },
     ]);
-    events.close();
   });
 });
 

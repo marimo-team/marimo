@@ -9,7 +9,7 @@ const SILENCE_MS = 45_000;
 
 /** Parse server-sent events from decoded text. */
 export class ServerSentEventStream extends TransformStream<string, Frame> {
-  public constructor() {
+  public constructor(parseData: (text: string) => unknown = JSON.parse) {
     let buffer = "";
     let event = "";
     let data: string[] = [];
@@ -19,7 +19,7 @@ export class ServerSentEventStream extends TransformStream<string, Frame> {
         const text = data.join("\n");
         let value: unknown = text;
         try {
-          value = JSON.parse(text);
+          value = parseData(text);
         } catch {
           // Unknown events need not carry JSON.
         }
@@ -80,8 +80,10 @@ export type StreamUrl =
   | URL
   | (() => string | URL | Promise<string | URL>);
 
-/** How `sse` reaches its host and which frames end the stream. */
+/** How `sse` reaches its host, decodes data, and ends the stream. */
 export interface SseOptions extends ClientOptions {
+  /** Decode each frame's data. Defaults to JSON.parse; on error, keep the text. */
+  readonly parseData?: (text: string) => unknown;
   /**
    * Decide whether a frame outside the protocol ends the stream.
    *
@@ -157,7 +159,7 @@ export function sse(url: StreamUrl, options: SseOptions = {}): Transport {
       const reader = response.body
         .pipeThrough(heard)
         .pipeThrough(new TextDecoderStream())
-        .pipeThrough(new ServerSentEventStream())
+        .pipeThrough(new ServerSentEventStream(options.parseData))
         .getReader();
       controller.signal.addEventListener("abort", () => void reader.cancel(), {
         once: true,

@@ -122,15 +122,15 @@ export function websocket(url: StreamUrl): NotebookTransport {
  * Follow a marimo session over its server-sent events route.
  *
  * The session's `close` frames carry the same reasons as WebSocket closes.
- * Data that standard JSON cannot read, such as `NaN`, is read with marimo's
- * parser.
+ * marimo's parser decodes tagged bigints and non-finite numbers in every frame.
  */
 export function sessionSse(
   url: StreamUrl,
   headers: () => Record<string, string>,
 ): NotebookTransport {
-  return withSessionIdentity(url, (target) => {
-    const stream = sse(target, {
+  return withSessionIdentity(url, (target) =>
+    sse(target, {
+      parseData: jsonParseWithSpecialChar,
       fetch: (input, init) => {
         const sent = new Headers(init?.headers);
         for (const [name, value] of Object.entries(headers())) {
@@ -142,21 +142,8 @@ export function sessionSse(
         frame.event === "close"
           ? stopOn(frame.data as { code?: number; reason?: string })
           : undefined,
-    });
-    return (attempt, handlers) =>
-      stream(attempt, {
-        ...handlers,
-        message: (frame) =>
-          handlers.message(
-            typeof frame === "object" &&
-              frame !== null &&
-              "data" in frame &&
-              typeof frame.data === "string"
-              ? { ...frame, data: jsonParseWithSpecialChar(frame.data) }
-              : frame,
-          ),
-      });
-  });
+    }),
+  );
 }
 
 /** A connection that opens and delivers nothing, for static notebooks. */
