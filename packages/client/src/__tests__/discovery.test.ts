@@ -237,14 +237,20 @@ describe.skipIf(!["darwin", "linux"].includes(process.platform))(
         await vi.importActual<typeof import("node:child_process")>(
           "node:child_process",
         );
-      runPs.mockImplementation(promisify(execFile));
+      const exec = promisify(execFile);
+      runPs.mockImplementation(exec);
+      // Node's uptime starts after the OS process does. Use the OS start
+      // time so that startup overhead cannot exceed the one-second tolerance.
+      const { stdout } = await exec(
+        "/bin/ps",
+        ["-p", String(process.pid), "-o", "lstart="],
+        { env: { ...process.env, LC_ALL: "C", TZ: "UTC" } },
+      );
       const live = {
         ...record,
         process: {
           pid: process.pid,
-          started_at: new Date(
-            Date.now() - process.uptime() * 1000,
-          ).toISOString(),
+          started_at: new Date(`${stdout.trim()} UTC`).toISOString(),
         },
       };
       await write(live);

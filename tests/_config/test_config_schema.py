@@ -356,6 +356,13 @@ def test_metadata_describes_and_hides_secrets() -> None:
     )
 
 
+@pytest.mark.parametrize("loader", ["pickle", "json", "lazy", "custom"])
+def test_cache_loader_accepts_builtin_and_custom_names(loader: str) -> None:
+    config = config_schema.CacheConfig.from_dict({"loader": loader})
+    assert config.loader == loader
+    assert config.to_dict() == {"loader": loader}
+
+
 def test_cache_store_union_uses_struct_conversion() -> None:
     for store in (
         {"type": "file", "args": {"path": "/cache"}},

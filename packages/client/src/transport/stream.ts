@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { z } from "zod";
 import * as Protocol from "../protocol.ts";
-import { type Frame, isFrame, StreamStopped } from "./frame.ts";
+import { type Frame, StreamStopped } from "./frame.ts";
 
 /** An event the host sends for a kind outside the protocol, such as `marimo`. */
 type ExtensionEvent<Name extends string> = Name extends unknown
@@ -23,7 +24,9 @@ export type StreamEvent<K extends string = Protocol.ObjectTypeOutput> =
   | ExtensionEvent<Exclude<K, Protocol.ObjectTypeOutput>>;
 
 /** What an `EventStream` delivers and where it starts. */
-export interface EventStreamInit<K extends string = Protocol.ObjectTypeOutput> {
+export interface EventStreamOptions<
+  K extends string = Protocol.ObjectTypeOutput,
+> {
   /**
    * The kinds to deliver.
    *
@@ -44,6 +47,13 @@ export interface EventStreamInit<K extends string = Protocol.ObjectTypeOutput> {
 const PROTOCOL_EVENTS = new Set<string>(
   Protocol.Event.options.flatMap((schema) => schema.shape.event.options),
 );
+
+/** The envelope every stream event has, before its data is validated. */
+const Envelope = z.object({
+  event: z.string().min(1),
+  data: z.unknown(),
+  id: z.string().optional(),
+});
 
 /** Rethrow a listener's error without interrupting the stream. */
 export function report(error: unknown): void {
@@ -74,7 +84,7 @@ export class EventStream<const K extends string = Protocol.ObjectTypeOutput> {
   readonly #wanted: ReadonlySet<string>;
   readonly #listeners = new Set<(event: StreamEvent<K>) => void>();
 
-  public constructor(init: EventStreamInit<K>, kinds: readonly string[]) {
+  public constructor(init: EventStreamOptions<K>, kinds: readonly string[]) {
     this.#cursor = init.cursor ?? null;
     this.#wanted = new Set([
       "ready",
@@ -122,13 +132,17 @@ export class EventStream<const K extends string = Protocol.ObjectTypeOutput> {
    * Accept one message from the connection.
    *
    * Throws `StreamStopped` when the message is not an event or an event the
-   * protocol defines is invalid. The caller stops following the stream then.
+   * protocol defines is invalid. Its `cause` is the validation error. The
+   * caller stops following the stream then.
    */
   public receive(message: unknown): void {
-    if (!isFrame(message)) {
-      throw new StreamStopped("The host sent a message that is not an event");
+    const envelope = Envelope.safeParse(message);
+    if (!envelope.success) {
+      throw new StreamStopped("The host sent a message that is not an event", {
+        cause: envelope.error,
+      });
     }
-    this.#accept(message);
+    this.#accept(envelope.data);
   }
 
   #accept(frame: Frame) {

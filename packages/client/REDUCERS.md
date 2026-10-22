@@ -108,9 +108,9 @@ function useNotebooks(client: Client) {
 ```
 
 Keep the client instance stable across renders. Temporary disconnects preserve
-state while the stream resumes. A `reset` rebuilds it. `events.closed` rejects
-if the stream stops with an error, so you can use it to surface connection
-failures in your application.
+state while the stream resumes. A `reset` rebuilds it. Pass a second function
+to `subscribe` to surface connection failures in your application. It
+receives the error when the stream stops.
 
 If you persist state for a later connection, save its matching cursor and
 reuse the same host, stream, and filter. The stream's cursor tracks received

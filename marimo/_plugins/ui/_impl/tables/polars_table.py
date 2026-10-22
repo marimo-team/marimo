@@ -54,6 +54,16 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return native
                 raise ValueError(f"Unsupported native type: {type(native)}")
 
+            def take(self, count: int, offset: int) -> PolarsTableManager:
+                if count < 0:
+                    raise ValueError("Count must be a positive integer")
+                if offset < 0:
+                    raise ValueError("Offset must be a non-negative integer")
+
+                return PolarsTableManager(
+                    self._original_data.slice(offset, count)
+                )
+
             @cached_property
             def schema(self) -> dict[str, pl.DataType]:
                 if isinstance(self._original_data, pl.LazyFrame):

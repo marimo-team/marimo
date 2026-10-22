@@ -3,11 +3,12 @@
 import NodeFs from "node:fs";
 import NodeUrl from "node:url";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+import { z } from "zod";
 import { NotebookClient } from "../notebook/client.ts";
 import { NotebookEvents } from "../notebook/events.ts";
 import type { NotebookEvent } from "../notebook/events.ts";
 import { type NotebookTransport, StreamStopped } from "../transport/frame.ts";
-import { ServerSentEventStream } from "../transport/sse.ts";
+import { ServerSentEventStream, sse } from "../transport/sse.ts";
 
 const fixtures = new NodeUrl.URL(
   "../../../../protocols/host/fixtures/",
@@ -356,6 +357,29 @@ describe("NotebookEvents", () => {
     expect(events.status).toBe("closed");
   });
 
+  it("tells subscribers why it stopped, unless they left or closed it", async () => {
+    const refused = new Response(null, { status: 403 });
+    const stopped = new NotebookEvents(url, {
+      fetch: answering(refused).fetch,
+    });
+    const subscribed = vi.fn();
+    const left = vi.fn();
+    stopped.subscribe(() => undefined, subscribed);
+    stopped.subscribe(() => undefined, left)();
+    await stopped.closed.catch(() => undefined);
+    const late = vi.fn();
+    stopped.subscribe(() => undefined, late);
+    const closed = new NotebookEvents(url, { fetch: answering().fetch });
+    const closing = vi.fn();
+    closed.subscribe(() => undefined, closing);
+    closed.close();
+    await closed.closed;
+    expect(subscribed.mock.calls).toEqual([[expect.any(StreamStopped)]]);
+    expect(left).not.toHaveBeenCalled();
+    expect(late).not.toHaveBeenCalled();
+    expect(closing).not.toHaveBeenCalled();
+  });
+
   it.each([
     'event: cell\ndata: {"cell":{"id":"c1"}}\n\n',
     "event: reset\ndata: 5\n\n",
@@ -479,8 +503,54 @@ describe("NotebookEvents", () => {
         queueMicrotask(() => handlers.message(null));
       });
     const events = new NotebookEvents(transport);
-    await expect(events.closed).rejects.toThrow("not an event");
+    const error = await events.closed.catch((error: unknown) => error);
+    expect((error as StreamStopped).message).toContain("not an event");
+    expect((error as StreamStopped).cause).toBeInstanceOf(z.ZodError);
     expect(signal?.aborted).toBe(true);
+  });
+});
+
+describe("sse", () => {
+  it("reads a URL given as a function before each connection", async () => {
+    vi.useFakeTimers();
+    const first = body();
+    const { fetch, sent } = answering(first.response);
+    let session = 1;
+    const events = new NotebookEvents(
+      sse(async () => `${url}?session_id=${session}`, { fetch }),
+    );
+    first.push(throughReady);
+    await vi.waitFor(() => expect(events.cursor).toBe("95"));
+    session = 2;
+    first.end();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect([sent(0).url, sent(1).url]).toMatchInlineSnapshot(`
+      [
+        "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/events?session_id=1",
+        "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/events?session_id=2",
+      ]
+    `);
+    expect(sent(1).headers.get("Last-Event-ID")).toBe("95");
+    events.close();
+  });
+
+  it("stops on a frame outside the protocol when asked to", async () => {
+    const stream = body();
+    const shutdown = new Error("MARIMO_SHUTDOWN");
+    const events = new NotebookEvents(
+      sse(url, {
+        fetch: answering(stream.response).fetch,
+        stop: (frame) => (frame.event === "close" ? shutdown : undefined),
+      }),
+      { types: ["marimo"] },
+    );
+    const received = collect(events);
+    stream.push('id: 1\nevent: marimo\ndata: {"marimo":{}}\n\n');
+    stream.push(
+      'event: close\ndata: {"code":1000,"reason":"MARIMO_SHUTDOWN"}\n\n',
+    );
+    await expect(events.closed).rejects.toBe(shutdown);
+    expect(received.map((event) => event.event)).toEqual(["marimo"]);
   });
 });
 

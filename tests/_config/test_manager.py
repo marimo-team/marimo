@@ -1244,6 +1244,64 @@ def test_env_config_manager_boolean_case_insensitive(
     assert config["runtime"]["auto_instantiate"] is expected
 
 
+@pytest.mark.parametrize("mode", ["lazy", "autorun"])
+def test_env_config_manager_on_cell_change(
+    monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", mode)
+    assert EnvConfigReader().read() == {"runtime": {"on_cell_change": mode}}
+
+
+@pytest.mark.parametrize(
+    ("value", "parsed"),
+    [
+        ("invalid", "invalid"),
+        ("", ""),
+        ("true", True),
+        ("[lazy,autorun]", ["lazy", "autorun"]),
+    ],
+)
+def test_env_config_manager_on_cell_change_invalid(
+    monkeypatch: pytest.MonkeyPatch, value: str, parsed: Any
+) -> None:
+    monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", value)
+    with patch("marimo._config.manager.LOGGER.warning") as warning:
+        assert EnvConfigReader().read() == {}
+    warning.assert_called_once_with(
+        "Ignoring invalid value %r for %s; expected one of %s",
+        parsed,
+        "MARIMO_RUNTIME_ON_CELL_CHANGE",
+        "'lazy', 'autorun'",
+    )
+
+
+@pytest.mark.parametrize("mode", ["lazy", "autorun"])
+def test_env_on_cell_change_overrides_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    file_mode = "autorun" if mode == "lazy" else "lazy"
+    user_path = tmp_path / "marimo.toml"
+    user_path.write_text(f'[runtime]\non_cell_change = "{file_mode}"\n')
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _self: str(user_path)
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        f'[tool.marimo.runtime]\non_cell_change = "{file_mode}"\n'
+    )
+    notebook = tmp_path / "app.py"
+    notebook.write_text(
+        "# /// script\n# [tool.marimo.runtime]\n"
+        f'# on_cell_change = "{file_mode}"\n# ///\n'
+    )
+    monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", mode)
+    manager = get_default_config_manager(current_path=str(notebook))
+    assert manager.get_config()["runtime"]["on_cell_change"] == mode
+    assert manager.get_config_overrides()["runtime"]["on_cell_change"] == mode
+    assert user_path.read_text() == (
+        f'[runtime]\non_cell_change = "{file_mode}"\n'
+    )
+
+
 def test_env_config_manager_no_env_vars() -> None:
     """Test that missing env vars return empty config"""
     manager = EnvConfigReader()
@@ -1374,8 +1432,9 @@ def test_script_config_manager_strips_signing_and_verification(
     assert "cache" not in config
 
 
+@pytest.mark.parametrize("loader", ["pickle", "custom"])
 def test_project_config_manager_strips_signing_and_verification(
-    tmp_path: Path,
+    tmp_path: Path, loader: str
 ) -> None:
     """A cloned repo's pyproject.toml is untrusted origin for signing config."""
     pyproject_path = tmp_path / "pyproject.toml"
@@ -1388,6 +1447,7 @@ def test_project_config_manager_strips_signing_and_verification(
 
     [tool.marimo.cache]
     verification = "off"
+    loader = "{loader}"
 
     [tool.marimo.cache.store]
     type = "file"
@@ -1397,8 +1457,6 @@ def test_project_config_manager_strips_signing_and_verification(
     config = PyprojectConfigReader(str(pyproject_path)).read()
 
     assert "signing" not in config
-    # `cache.store` is not a trust anchor, so a project may still choose one;
-    # the verifying loaders check its bytes before unpickling.
     assert config.get("cache") == {"store": {"type": "file"}}
 
 
@@ -1429,8 +1487,9 @@ def test_effective_config_anchors_trust_in_user_layer_only(
     assert user_fp in trusted
 
 
+@pytest.mark.parametrize("loader", ["pickle", "custom"])
 def test_workspace_marimo_toml_strips_signing_and_verification(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, loader: str
 ) -> None:
     """A `.marimo.toml` found by walking up from the cwd is project-origin.
 
@@ -1449,6 +1508,7 @@ def test_workspace_marimo_toml_strips_signing_and_verification(
 
             [cache]
             verification = "off"
+            loader = "{loader}"
 
             [cache.store]
             type = "file"
@@ -1470,6 +1530,7 @@ def test_workspace_marimo_toml_strips_signing_and_verification(
 
     assert "signing" not in config
     assert config.get("cache", {}).get("verification") is None
+    assert config.get("cache", {}).get("loader") is None
     # The store goes too, unlike the project and script layers. A store set
     # here would load as the user layer, so `cache_store_is_untrusted` could
     # not tell it apart from one the operator chose, and the unsigned pickle
@@ -1490,6 +1551,7 @@ def test_trusted_user_config_location_anchors_trust(
 
             [cache]
             verification = "strict"
+            loader = "pickle"
             """
         )
     )
@@ -1508,3 +1570,4 @@ def test_trusted_user_config_location_anchors_trust(
 
     assert config["signing"]["trusted_signers"] == {_FAKE_FP: "me"}
     assert config["cache"]["verification"] == "strict"
+    assert config["cache"]["loader"] == "pickle"

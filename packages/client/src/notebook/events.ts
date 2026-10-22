@@ -2,7 +2,7 @@
 
 import { type NotebookKind, notebookKinds } from "../kinds.ts";
 import type * as Protocol from "../protocol.ts";
-import { Events, type EventsInit } from "../transport/events.ts";
+import { Events, type EventsOptions } from "../transport/events.ts";
 import type { NotebookTransport } from "../transport/frame.ts";
 import type { StreamEvent } from "../transport/stream.ts";
 
@@ -10,9 +10,9 @@ import type { StreamEvent } from "../transport/stream.ts";
 export type NotebookEvent<K extends string = NotebookKind> = StreamEvent<K>;
 
 /** How a notebook stream reaches its host and what it follows. */
-export interface NotebookEventsInit<
+export interface NotebookEventsOptions<
   K extends string = NotebookKind,
-> extends EventsInit<K> {
+> extends EventsOptions<K> {
   /** Follow one run. A custom transport filters its own requests. */
   readonly runId?: Protocol.RunId;
 }
@@ -29,7 +29,7 @@ export class NotebookEvents<
 > extends Events<K> {
   public constructor(
     source: string | URL | NotebookTransport,
-    init: NotebookEventsInit<K> = {},
+    init: NotebookEventsOptions<K> = {},
   ) {
     if (typeof source !== "function" && init.runId !== undefined) {
       source = new URL(source);

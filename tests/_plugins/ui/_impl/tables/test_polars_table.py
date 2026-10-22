@@ -977,7 +977,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
             result = manager.take(count=5, offset=10)
             assert result.get_num_rows() == 5
-            assert result.data["A"].to_list() == [10, 11, 12, 13, 14]
+            assert result.data.collect()["A"].to_list() == [10, 11, 12, 13, 14]
 
         assert len(recorded_warnings) == 0
 
@@ -1093,3 +1093,48 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         data = self.get_complex_data()
         json_str = data.to_json_str(strict_json=True)
         snapshot("polars.download.json", json_str)
+
+
+@pytest.mark.requires("polars")
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize(
+    ("count", "offset"), [(0, 0), (0, 2), (2, 0), (2, 2), (2, 10)]
+)
+def test_take_filtered_sorted_page(
+    lazy: bool, count: int, offset: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import polars as pl
+
+    source = pl.DataFrame(
+        {"value": [6, 1, 5, 2, 4, 3], "label": list("abcdef")}
+    ).with_row_index("_marimo_row_id")
+    original = source.clone()
+    frame = source.lazy() if lazy else source
+    manager = PolarsTableManagerFactory.create()(frame)
+    filtered = manager.with_new_data(
+        manager.data.filter(nw.col("value") > 1)
+    ).sort_values([SortArgs(by="value", descending=True)])
+    expected = (
+        source.filter(pl.col("value") > 1)
+        .sort("value", descending=True)
+        .slice(offset, count)
+        .to_dicts()
+    )
+    collected_shapes: list[tuple[int, int]] = []
+    collect = pl.LazyFrame.collect
+
+    def record_collect(
+        self: pl.LazyFrame, *args: Any, **kwargs: Any
+    ) -> pl.DataFrame:
+        result = collect(self, *args, **kwargs)
+        collected_shapes.append(result.shape)
+        return result
+
+    monkeypatch.setattr(pl.LazyFrame, "collect", record_collect)
+    page = filtered.take(count, offset)
+    assert collected_shapes == []
+    assert isinstance(nw.to_native(page.data), pl.LazyFrame) == lazy
+    assert json.loads(page.to_json_str()) == expected
+    if lazy:
+        assert collected_shapes == [(len(expected), 3)]
+    assert source.equals(original)

@@ -4,13 +4,16 @@ import type * as z from "zod";
 import { type OperationId, operations } from "./operations.ts";
 import * as Protocol from "./protocol.ts";
 
-/** How requests reach and authenticate with a host. */
-export interface Connection {
+/** How a client reaches and authenticates with a host. */
+export interface ClientOptions {
   /** Sent as `Authorization: Bearer <token>`. */
   readonly token?: string;
-  /** Added to every request. */
-  readonly headers?: HeadersInit;
-  /** Defaults to `globalThis.fetch`. */
+  /**
+   * Sends each request. Defaults to `globalThis.fetch`.
+   *
+   * Wrap it to add headers or change requests. It receives each request with
+   * the client's own headers already set.
+   */
   readonly fetch?: typeof globalThis.fetch;
 }
 
@@ -66,7 +69,7 @@ export type OperationsBelow<Prefix extends string> = {
 export interface Target<Prefix extends string> {
   readonly url: URL;
   readonly prefix: Prefix;
-  readonly connection: Connection;
+  readonly client: ClientOptions;
 }
 
 /** What a request reads from each entry of the operations table. */
@@ -186,11 +189,11 @@ export async function request<
   { params = {}, body, headers = {}, options = {} }: Call<Id>,
 ): Promise<Result<Data<Id>>> {
   const operation = table[id];
-  const { connection } = target;
-  const sent = new Headers(connection.headers);
+  const { client } = target;
+  const sent = new Headers();
   sent.set("Accept", "application/json, application/problem+json");
-  if (connection.token !== undefined) {
-    sent.set("Authorization", `Bearer ${connection.token}`);
+  if (client.token !== undefined) {
+    sent.set("Authorization", `Bearer ${client.token}`);
   }
   if ("Idempotency-Key" in operation.headers) {
     sent.set("Idempotency-Key", options.idempotencyKey ?? idempotencyKey());
@@ -205,7 +208,7 @@ export async function request<
     sent.set("Content-Type", "application/json");
     payload = JSON.stringify(operation.body.parse(body));
   }
-  const fetch = connection.fetch ?? globalThis.fetch;
+  const fetch = client.fetch ?? globalThis.fetch;
   const response = await fetch(resolve(target, operation.path, params), {
     method: operation.method,
     headers: sent,

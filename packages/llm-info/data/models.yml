@@ -1141,6 +1141,21 @@ azure:
     limits: {context: 1000000, output: 384000}
 
 ollama:
+  - name: DeepSeek V4.1 Flash 1017
+    model: deepseek-v4.1-flash:1017
+    description: "October 17 update of DeepSeek V4.1 Flash for coding and end-to-end project development, with faster task completion and shorter outputs"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-17
+    cost: {input: 0.15, output: 0.6}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, high, max]
+    limits: {context: 1048576, output: 384000}
+
   - name: Muse Spark Open
     model: muse-spark-open
     description: "Open-weight model optimized for agentic coding, reliable tool calling, and codebase understanding"
@@ -1382,6 +1397,20 @@ ollama:
     cost: {input: 0.6, output: 3.6}
 
 wandb:
+  - name: Beam 1.0
+    model: reflection/Beam-1.0-501B-A23B
+    description: "Open-weight reasoning model from Reflection for coding and long-running agent workflows, with 501B total and 23B active parameters"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-10-16
+    cost: {input: 1, output: 3}
+    reasoning_options:
+      - type: effort
+        values: [minimal, low, medium, high, xhigh, max]
+    limits: {context: 1048576, output: 1048576}
+
   - name: Nemotron 3.5 Super VL
     model: nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B
     description: "Open multimodal Mixture-of-Experts model with 12B active parameters out of 120B for reasoning, coding, tool use, and document understanding"
@@ -1390,7 +1419,7 @@ wandb:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-10-15
-    cost: {input: 0.15, output: 0.75}
+    cost: {input: 0.15, output: 0.5}
     reasoning_options:
       - type: toggle
     limits: {context: 1048576, output: 1048576}
@@ -1595,6 +1624,20 @@ wandb:
     limits: {context: 131072, output: 131072}
 
 opencode-go:
+  - name: Beam Free
+    model: beam-free
+    description: "Free access to Reflection's Beam model for coding, reasoning, and long-running agent workflows, available for a limited time in supported regions"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-10-05
+    cost: {input: 0, output: 0}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1048576, output: 131072}
+
   - name: Gemini 4 Argon Contributor
     model: gemini-4-argon-contributor
     description: "Contributor tier of Gemini 4 Argon for reasoning, coding, and agents, with prompts and completions eligible for model training"

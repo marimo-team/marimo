@@ -1,6 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import html
+import json
+import re
+
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import RuntimeContext
 from marimo._runtime.runtime import Kernel
@@ -74,4 +78,6 @@ async def test_routes_non_lazy(k: Kernel, exec_req: ExecReqProvider) -> None:
     routes = k.globals["routes"]
     children = "<span>42</span><span>45</span>"
     assert children in routes.text
-    assert "data-routes='[&quot;#/&quot;,&quot;{/*path}&quot;]'" in routes.text
+    match = re.search("data-routes='(.*?)'", routes.text)
+    assert match is not None
+    assert json.loads(html.unescape(match[1])) == ["#/", "{/*path}"]

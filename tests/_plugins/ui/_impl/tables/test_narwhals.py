@@ -1007,6 +1007,48 @@ def test_empty_dataframe(df: Any) -> None:
     assert empty_manager.get_field_types() == []
 
 
+@pytest.mark.parametrize(
+    "df", create_dataframes({"A": [1, 2, 3]}, exclude=["duckdb"])
+)
+@pytest.mark.parametrize(("threshold", "expected"), [(0, 3), (1, 2), (3, 0)])
+def test_filtered_row_count(df: Any, threshold: int, expected: int) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    filtered = manager.with_new_data(
+        manager.data.filter(nw.col("A") > threshold)
+    )
+    assert filtered.get_num_rows() == expected
+    assert filtered.get_num_rows() == expected
+    assert manager.get_num_rows() == 3
+
+
+@pytest.mark.requires("polars")
+def test_lazy_row_count_collects_only_scalar(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import polars as pl
+
+    collected_shapes: list[tuple[int, int]] = []
+    collect = pl.LazyFrame.collect
+
+    def record_collect(
+        self: pl.LazyFrame, *args: Any, **kwargs: Any
+    ) -> pl.DataFrame:
+        result = collect(self, *args, **kwargs)
+        collected_shapes.append(result.shape)
+        return result
+
+    monkeypatch.setattr(pl.LazyFrame, "collect", record_collect)
+    manager = NarwhalsTableManager.from_dataframe(
+        pl.LazyFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    )
+    assert manager.get_num_rows(force=False) is None
+    assert collected_shapes == []
+    assert manager.get_num_rows() == 3
+    assert manager.get_num_rows() == 3
+    assert manager.get_num_rows(force=False) is None
+    assert collected_shapes == [(1, 1)]
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",

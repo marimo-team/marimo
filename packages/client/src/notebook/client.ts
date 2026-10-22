@@ -4,17 +4,17 @@ import type * as Protocol from "../protocol.ts";
 import type { NotebookKind } from "../kinds.ts";
 import {
   below,
-  type Connection,
+  type ClientOptions,
   type MutationOptions,
   type OperationsBelow,
   request,
   type Result,
   type Target,
 } from "../request.ts";
-import { NotebookEvents, type NotebookEventsInit } from "./events.ts";
+import { NotebookEvents, type NotebookEventsOptions } from "./events.ts";
 
 /** How a `NotebookClient` reaches and authenticates with its host. */
-export type NotebookClientInit = Connection;
+export type NotebookClientOptions = ClientOptions;
 
 /** Options for a request the host may need decisions for. */
 interface DecisionOptions extends MutationOptions {
@@ -39,12 +39,12 @@ export class NotebookClient {
   readonly #url: URL;
   readonly #target: Target<Scope>;
 
-  public constructor(url: string | URL, init: NotebookClientInit = {}) {
+  public constructor(url: string | URL, init: NotebookClientOptions = {}) {
     this.#url = new URL(url);
     this.#target = {
       url: this.#url,
       prefix: "/notebooks/{notebook_id}",
-      connection: init,
+      client: init,
     };
   }
 
@@ -61,13 +61,13 @@ export class NotebookClient {
    * Follow the notebook's stream.
    *
    * The stream is served below the notebook's URL over server-sent events,
-   * and shares this client's connection.
+   * and shares this client's options.
    */
   public events<const K extends string = NotebookKind>(
-    options: Omit<NotebookEventsInit<K>, keyof Connection> = {},
+    options: Omit<NotebookEventsOptions<K>, keyof ClientOptions> = {},
   ): NotebookEvents<K> {
     return new NotebookEvents<K>(below(this.#url, "/events"), {
-      ...this.#target.connection,
+      ...this.#target.client,
       ...options,
     });
   }
