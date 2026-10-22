@@ -25,6 +25,7 @@ describe("buildHighlightPattern", () => {
     const { marks } = marksOf(highlight("a.b a-b (x)", ".b"));
     expect(marks).toEqual([".b"]);
     expect(marksOf(highlight("f(x)", "(x)")).marks).toEqual(["(x)"]);
+    expect(marksOf(highlight("C and C++", "c++")).marks).toEqual(["C++"]);
   });
 });
 

@@ -844,13 +844,18 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         manager = self.factory.create()(df)
         assert manager.get_field_type("A") == ("string", "str")
 
-    def test_search_with_regex(self) -> None:
+    def test_search_treats_query_as_literal(self) -> None:
         import polars as pl
 
-        df = pl.DataFrame({"A": ["apple", "banana", "cherry"]})
+        df = pl.DataFrame(
+            {"A": ["apple", "banana", "C++", "c++ guide", "ΟΣ", "ος", "οσ"]}
+        )
         manager = self.factory.create()(df)
-        result = manager.search("^[ab]")
-        assert result.get_num_rows() == 2
+        assert manager.search("^[ab]").get_num_rows() == 0
+        assert manager.search("c++").get_num_rows() == 2
+        assert manager.search("C++ G").get_num_rows() == 1
+        assert manager.search("a.b").get_num_rows() == 0
+        assert manager.search("Σ").get_num_rows() == 3
 
     def test_search_wide_dataframe(self) -> None:
         """Regression test: search must not crash on wide tables (GitHub #8449)."""

@@ -309,13 +309,18 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         manager = self.factory.create()(table)
         assert manager.get_field_type("A") == ("unknown", "unknown")
 
-    def test_search_with_regex(self) -> None:
+    def test_search_treats_query_as_literal(self) -> None:
         import ibis
 
-        table = ibis.memtable({"A": ["apple", "banana", "cherry"]})
+        table = ibis.memtable(
+            {"A": ["apple", "banana", "C++", "c++ guide", "ΟΣ", "ος", "οσ"]}
+        )
         manager = self.factory.create()(table)
-        result = manager.search("^[ab]")
-        assert result.get_num_rows() == 2
+        assert manager.search("^[ab]").get_num_rows() == 0
+        assert manager.search("c++").get_num_rows() == 2
+        assert manager.search("C++ G").get_num_rows() == 1
+        assert manager.search("a.b").get_num_rows() == 0
+        assert manager.search("Σ").get_num_rows() == 3
 
     def test_sort_values_with_nulls(self) -> None:
         import ibis

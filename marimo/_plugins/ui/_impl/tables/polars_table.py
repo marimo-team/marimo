@@ -22,6 +22,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
     TableManager,
     TableManagerFactory,
+    regex_literal,
 )
 
 LOGGER = _loggers.marimo_logger()
@@ -264,12 +265,13 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             def search(self, query: str) -> PolarsTableManager:
                 query = query.lower()
+                pattern = f"(?i){regex_literal(query)}"
 
                 expressions: list[pl.Expr] = []
                 for column, dtype in self.schema.items():
                     if dtype == pl.String:
                         expressions.append(
-                            pl.col(column).str.contains(f"(?i){query}")
+                            pl.col(column).str.contains(pattern)
                         )
                     elif dtype == pl.List(pl.Utf8):
                         expressions.append(pl.col(column).list.contains(query))
@@ -281,7 +283,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         expressions.append(
                             pl.col(column)
                             .cast(pl.String)
-                            .str.contains(f"(?i){query}")
+                            .str.contains(pattern)
                         )
 
                 if not expressions:
