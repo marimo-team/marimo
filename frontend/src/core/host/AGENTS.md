@@ -11,6 +11,6 @@ Define interfaces here and inject application behavior through adapters.
 `notebook-client.ts` follows the notebook with `NotebookEvents` from
 `@marimo-team/client`, over a `NotebookTransport` the editor supplies. The
 editor's transports for its session routes live in
-`core/websocket/transports/notebook.ts`. Each kind of object is a `Resource`
+`core/websocket/transports/notebook.ts`. Each kind of object is a `NotebookResource`
 in `resources/` with pure handlers keyed by event name, composed with
-`createReducer`. The client holds one state atom and exposes derived atoms.
+`createNotebookReducer`. The client holds one state atom and exposes derived atoms.
