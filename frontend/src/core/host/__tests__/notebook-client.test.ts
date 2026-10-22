@@ -258,6 +258,50 @@ describe("NotebookClient lifetime", () => {
     expect(attempts).toHaveLength(1);
   });
 
+  it("discards an interrupted snapshot before a manual reconnect", async () => {
+    const { connect, opened, client, store } = setup();
+    connect(lifetime().signal);
+    const first = await opened();
+    const snapshot = fixtureEvents("notebook-events.sse");
+    for (const event of snapshot) {
+      if (event.event === "ready") {
+        break;
+      }
+      first.receive(event);
+    }
+    first.stop();
+    await vi.waitFor(() =>
+      expect(store.get(client.connectionAtom).state).toBe(
+        ConnectionState.CLOSED,
+      ),
+    );
+
+    await client.reconnect();
+    const second = await opened();
+    expect(second.cursor).toBeNull();
+    for (const event of snapshot) {
+      if (event.event === "notebook") {
+        second.receive(event);
+      }
+      if (event.event === "document") {
+        second.receive({
+          ...event,
+          data: { document: { ...event.data.document, order: [] } },
+        });
+      }
+    }
+    second.receive({ event: "ready", id: "100", data: {} });
+    expect({
+      connection: store.get(client.connectionAtom),
+      order: store.get(client.documentAtom)?.revision.order,
+      attachments: store.get(client.attachmentsAtom),
+    }).toEqual({
+      connection: { state: ConnectionState.OPEN },
+      order: [],
+      attachments: [],
+    });
+  });
+
   it("does not connect after abort", async () => {
     const { connect, attempts, client, store } = setup();
     const current = lifetime();
@@ -331,42 +375,53 @@ describe("NotebookClient attachments", () => {
     expect(store.get(client.attachmentsAtom)).toEqual([]);
   });
 
-  it("resumes attachments alongside an incomplete document and waits for replay ready", async () => {
-    vi.useFakeTimers();
-    const { client, store, attempt, opened } = await open();
-    expect(attempt.cursor).toBeNull();
-    fixtureMessages("notebook-events.sse").forEach(attempt.receive);
-    const confirmed = store.get(client.documentAtom);
-    const edits = fixtureMessages("edits.sse");
-    edits.slice(0, 3).forEach(attempt.receive);
-    const renamed = { ...agent, name: "Renamed agent" };
-    attempt.receive({
-      event: "attachment",
-      id: "112a",
-      data: { attachment: renamed },
-    });
-    expect(store.get(client.attachmentsAtom)).toEqual([browser, renamed]);
-    attempt.drop();
-    await backoff();
-    expect(store.get(client.attachmentsAtom)).toEqual([]);
-    const replay = await opened();
-    expect(replay.cursor).toBe("112a");
-    expect(store.get(client.attachmentsAtom)).toEqual([]);
-    expect(store.get(client.documentAtom)).toBe(confirmed);
-    edits.slice(3).forEach(replay.receive);
-    replay.receive({
-      event: "attachment.removed",
-      id: "115",
-      data: { id: browser.id },
-    });
-    expect(store.get(client.attachmentsAtom)).toEqual([]);
-    replay.receive({ event: "ready", id: "116", data: {} });
-    expect(store.get(client.attachmentsAtom)).toEqual([renamed]);
-    const revisions = fixtureEvents("edits.sse").flatMap((event) =>
-      event.event === "document" ? [event.data.document] : [],
-    );
-    expect(store.get(client.documentAtom)?.revision).toEqual(revisions.at(-1));
-  });
+  it.each(["automatic", "manual"])(
+    "preserves an incomplete live document across %s reconnect and waits for replay ready",
+    async (recovery) => {
+      vi.useFakeTimers();
+      const { client, store, attempt, opened } = await open();
+      expect(attempt.cursor).toBeNull();
+      fixtureMessages("notebook-events.sse").forEach(attempt.receive);
+      const confirmed = store.get(client.documentAtom);
+      const edits = fixtureMessages("edits.sse");
+      edits.slice(0, 3).forEach(attempt.receive);
+      const renamed = { ...agent, name: "Renamed agent" };
+      attempt.receive({
+        event: "attachment",
+        id: "112a",
+        data: { attachment: renamed },
+      });
+      expect(store.get(client.attachmentsAtom)).toEqual([browser, renamed]);
+      if (recovery === "automatic") {
+        attempt.drop();
+        await backoff();
+      } else {
+        attempt.stop();
+        await vi.advanceTimersByTimeAsync(0);
+        await client.reconnect();
+      }
+      expect(store.get(client.attachmentsAtom)).toEqual([]);
+      const replay = await opened();
+      expect(replay.cursor).toBe("112a");
+      expect(store.get(client.attachmentsAtom)).toEqual([]);
+      expect(store.get(client.documentAtom)).toBe(confirmed);
+      edits.slice(3).forEach(replay.receive);
+      replay.receive({
+        event: "attachment.removed",
+        id: "115",
+        data: { id: browser.id },
+      });
+      expect(store.get(client.attachmentsAtom)).toEqual([]);
+      replay.receive({ event: "ready", id: "116", data: {} });
+      expect(store.get(client.attachmentsAtom)).toEqual([renamed]);
+      const revisions = fixtureEvents("edits.sse").flatMap((event) =>
+        event.event === "document" ? [event.data.document] : [],
+      );
+      expect(store.get(client.documentAtom)?.revision).toEqual(
+        revisions.at(-1),
+      );
+    },
+  );
 
   it.each(["drop", "stop", "removed", "abort"])(
     "clears presence on %s and ignores messages after disposal",

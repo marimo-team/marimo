@@ -147,6 +147,9 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
 
     /** Mirror one stream into the atoms until it closes. */
     function follow(cursor?: string) {
+      if (cursor === undefined) {
+        store.set(streamAtom, reducer.initial);
+      }
       resumable = true;
       const current = new NotebookEvents(transport, {
         types: TYPES,
