@@ -28,7 +28,6 @@ from marimo._runtime.packages.package_manager import (
     PackageDescription,
     PackageManager,
 )
-from marimo._runtime.packages.utils import split_packages
 
 if TYPE_CHECKING:
     from marimo._code_mode._context import AsyncCodeModeContext
@@ -50,24 +49,41 @@ PackageOutcome = Literal["success", "failed", "restart-required"]
 
 @dataclass(frozen=True, slots=True)
 class PackageResult:
-    op: PackageOp
+    """Manager-reported batch outcome, not verified package state."""
+
+    requirement: str
+    action: Literal["add", "remove"]
     outcome: PackageOutcome
 
     @classmethod
     def succeeded(cls, op: PackageOp) -> PackageResult:
-        return cls(op, "success")
+        return cls(
+            op.package,
+            "add" if isinstance(op, _AddPackage) else "remove",
+            "success",
+        )
 
     @classmethod
     def failed(cls, op: PackageOp) -> PackageResult:
-        return cls(op, "failed")
+        return cls(
+            op.package,
+            "add" if isinstance(op, _AddPackage) else "remove",
+            "failed",
+        )
 
     @classmethod
     def restart_required(cls, op: PackageOp) -> PackageResult:
-        return cls(op, "restart-required")
+        return cls(
+            op.package,
+            "add" if isinstance(op, _AddPackage) else "remove",
+            "restart-required",
+        )
 
 
 # `Packages.list` shadows the builtin in method annotations.
 PackageResultList = list[PackageResult]
+PackageOpList = list[PackageOp]
+PackageResults = tuple[PackageResult, ...]
 
 
 def _flatten_packages(
@@ -104,11 +120,20 @@ class Packages:
     called before any :meth:`add` or :meth:`remove` in the same batch.
     """
 
-    __slots__ = ("_ctx", "_ops")
+    __slots__ = ("_ctx", "_ops", "_results")
 
     def __init__(self, ctx: AsyncCodeModeContext) -> None:
         self._ctx = ctx
         self._ops: list[PackageOp] = []
+        self._results: PackageResults = ()
+
+    @property
+    def results(self) -> PackageResults:
+        """Package outcomes in request order after context exit.
+
+        Cleared on context entry. Discarded operations produce no results.
+        """
+        return self._results
 
     def add(self, *packages: str | list[str] | tuple[str, ...]) -> None:
         """Queue packages for installation on context exit.
@@ -176,6 +201,7 @@ class Packages:
 
     def _reset(self) -> None:
         self._ops = []
+        self._results = ()
 
     async def _flush(self) -> PackageResultList:
         """Execute queued ops in order and retain their actual outcomes."""
@@ -199,8 +225,8 @@ class Packages:
             and filename is not None
         )
         results: PackageResultList = []
-        # Group adjacent actions so progress stays in package alerts without
-        # reordering an add/remove/add sequence.
+        # Each adjacent action group shares one solve without reordering
+        # an add/remove/add sequence.
         for installing, group in groupby(
             ops, key=lambda op: isinstance(op, _AddPackage)
         ):
@@ -217,10 +243,10 @@ class Packages:
                     broadcast_notification, stream=self._ctx._kernel.stream
                 ),
             ) as operation:
+                success = await self._run_batch(
+                    batch, pm, operation, manage_metadata
+                )
                 for op in batch:
-                    success = await self._run_operation(
-                        op, pm, operation, manage_metadata
-                    )
                     if success:
                         results.append(PackageResult.succeeded(op))
                     elif pm.restart_required:
@@ -230,50 +256,63 @@ class Packages:
 
         return results
 
-    async def _run_operation(
+    async def _run_batch(
         self,
-        op: PackageOp,
+        batch: PackageOpList,
         pm: PackageManager,
         operation: EnvironmentOperationReporter,
         manage_metadata: bool,
     ) -> bool:
-        pkg = op.package
-        installing = isinstance(op, _AddPackage)
-        operation.packages[pkg] = "running"
+        packages = [op.package for op in batch]
+        installing = isinstance(batch[0], _AddPackage)
+        operation.packages.update(dict.fromkeys(packages, "running"))
         operation.update(
-            {pkg: f"{'Installing' if installing else 'Removing'} {pkg}...\n"},
+            {
+                pkg: f"{'Installing' if installing else 'Removing'} {pkg}...\n"
+                for pkg in packages
+            },
             replace=True,
         )
         if installing:
-            success = await pm.install(
-                pkg,
-                version=None,
-                log_callback=lambda line: operation.update({pkg: line}),
+            success = await pm.install_many(
+                packages,
+                log_callback=lambda line: operation.update(
+                    dict.fromkeys(packages, line)
+                ),
             )
         else:
-            success = await pm.uninstall(pkg)
+            success = await pm.uninstall_many(packages)
+        status: Literal["succeeded", "restart-required", "failed"]
         if success:
-            operation.packages[pkg] = "succeeded"
+            status = "succeeded"
             filename = self._ctx._kernel.app_metadata.filename
             if manage_metadata and filename is not None:
                 await asyncio.to_thread(
                     pm.update_notebook_script_metadata,
                     filepath=filename,
                     **(
-                        {"packages_to_add": split_packages(pkg)}
+                        {"packages_to_add": packages}
                         if installing
-                        else {"packages_to_remove": split_packages(pkg)}
+                        else {"packages_to_remove": packages}
                     ),
                     upgrade=False,
                 )
-            message = f"Successfully {'installed' if installing else 'removed'} {pkg}\n"
+            messages = {
+                pkg: f"Successfully {'installed' if installing else 'removed'} {pkg}\n"
+                for pkg in packages
+            }
         elif pm.restart_required:
-            operation.packages[pkg] = "restart-required"
-            message = f"Dependency changes saved for {pkg}; restart the kernel to use them.\n"
+            status = "restart-required"
+            messages = {
+                pkg: f"Dependency changes saved for {pkg}; restart the kernel to use them.\n"
+                for pkg in packages
+            }
         else:
-            operation.packages[pkg] = "failed"
-            message = (
-                f"Failed to {'install' if installing else 'remove'} {pkg}\n"
-            )
-        operation.update({pkg: message})
+            status = "failed"
+            messages = {
+                pkg: f"Failed to {'install' if installing else 'remove'} batch containing {pkg}\n"
+                for pkg in packages
+            }
+        operation.packages.update(dict.fromkeys(packages, status))
+        operation.update(messages)
         return success

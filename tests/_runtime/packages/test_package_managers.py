@@ -77,7 +77,7 @@ def test_sandbox_backend_overrides_configured_package_manager() -> None:
     assert manager.name == "pixi"
 
 
-async def test_sandbox_package_manager_splits_package_operations() -> None:
+async def test_sandbox_package_manager_batches_package_operations() -> None:
     from marimo._runtime.packages.sandbox_package_manager import (
         SandboxPackageManager,
     )
@@ -95,12 +95,10 @@ async def test_sandbox_package_manager_splits_package_operations() -> None:
     assert await manager.uninstall("foo bar")
 
     assert [call.args[0] for call in sandbox.add.call_args_list] == [
-        "foo==1.0",
-        "bar[extra]",
+        ["foo==1.0", "bar[extra]"],
     ]
     assert [call.args[0] for call in sandbox.remove.call_args_list] == [
-        "foo",
-        "bar",
+        ["foo", "bar"],
     ]
 
 
