@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol, cast
 
 from marimo import _loggers
+from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import AnnotationData, Name
 from marimo._utils.strings import standardize_annotation_quotes
 
@@ -146,6 +147,18 @@ def infer_annotations(
         if len(annotation.repr) > budget:
             continue
         annotations[name] = annotation
+
+    # Signatures are evaluated in file order, not dependency order. Keep
+    # one annotation per variable only if every consuming signature can
+    # evaluate it before the notebook runs.
+    available = scope.builtins | setup_defs
+    for status in extraction:
+        if status.is_toplevel:
+            available.update(status.defs)
+        elif status.is_cell:
+            for name in (status.refs - status.defs) & annotations.keys():
+                if annotations[name].refs - available:
+                    del annotations[name]
     return annotations
 
 
@@ -489,9 +502,13 @@ def _member_type(
         return None
     bare = ast.Name(id=class_name, ctx=ast.Load())
     hinted = lower_hint(value.hint) if value.hint else None
-    # NB. A hint such as `List[DataFrame]` names something that is not in
-    # scope. The bare container is still true.
-    if hinted is None or _names_in(hinted) - scope.allowed_refs:
+    # A nested name may be unavailable or a shadowed builtin. The bare
+    # container is still true in either case.
+    if (
+        hinted is None
+        or _names_in(hinted) - scope.allowed_refs
+        or _names_in(hinted) & (BUILTINS - scope.builtins)
+    ):
         return bare
     return hinted
 

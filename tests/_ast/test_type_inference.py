@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import runpy
 from typing import TYPE_CHECKING
 
 import pytest
@@ -620,6 +621,66 @@ def test_infer_annotations_with_real_jedi() -> None:
         assert expected in source
     # A function is not an instance, so it has no annotation.
     assert "def _(helper):" in source
+
+
+@pytest.mark.parametrize(
+    "definition",
+    [
+        "value = Point()",
+        "value = [Point()]",
+        "value = {'a': [Point()]}",
+        "value = None\nif True:\n    value = Point()",
+    ],
+)
+def test_late_class_is_omitted_from_every_signature(
+    definition: str, tmp_path: Path
+) -> None:
+    source = generate(
+        [
+            definition,
+            "print(value)",
+            "class Point:\n    pass",
+            "print(value)",
+        ]
+    )
+    path = tmp_path / "late_class.py"
+    path.write_text(source)
+    runpy.run_path(str(path))
+    assert source.count("def _(value):") == 2
+
+
+def test_class_only_needs_to_precede_consuming_signatures(
+    tmp_path: Path,
+) -> None:
+    source = generate(
+        [
+            "value = Point()\nprint(value)",
+            "class Point:\n    pass",
+            "print(value)",
+        ]
+    )
+    path = tmp_path / "early_class.py"
+    path.write_text(source)
+    runpy.run_path(str(path))
+    assert "def _(value: Point):" in source
+
+
+@pytest.mark.parametrize(
+    ("setup", "definition", "annotation"),
+    [
+        ("int = 0", "value = [1, 'a']", "list"),
+        ("list = 0", "value = {'a': [1]}", "dict"),
+        ("str = 0", "value = (1, ['a'])", "tuple"),
+    ],
+)
+def test_shadowed_nested_builtins_fall_back_to_bare_container(
+    setup: str, definition: str, annotation: str, tmp_path: Path
+) -> None:
+    source = generate([definition, "print(value)"], setup=setup)
+    path = tmp_path / "shadowed_builtin.py"
+    path.write_text(source)
+    runpy.run_path(str(path))
+    assert f"def _(value: {annotation}):" in source
 
 
 @pytest.mark.skipif(
