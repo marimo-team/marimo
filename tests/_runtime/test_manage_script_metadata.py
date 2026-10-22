@@ -43,9 +43,11 @@ HAS_UV = DependencyManager.which("uv")
     new=property(lambda _: False),
 )
 async def test_manage_script_metadata_uv(
-    tmp_path: pathlib.Path, mocked_kernel: MockedKernel
+    tmp_path: pathlib.Path,
+    mocked_kernel: MockedKernel,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
+    monkeypatch.setattr(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", True)
     filename = str(tmp_path / "notebook.py")
     # Create empty file
     with open(filename, "w") as f:  # noqa: ASYNC230
@@ -96,9 +98,11 @@ async def test_manage_script_metadata_uv(
     new=property(lambda _: False),
 )
 async def test_manage_script_metadata_uv_deletion(
-    tmp_path: pathlib.Path, mocked_kernel: MockedKernel
+    tmp_path: pathlib.Path,
+    mocked_kernel: MockedKernel,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
+    monkeypatch.setattr(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", True)
     filename = str(tmp_path / "notebook.py")
     # Create empty file
     with open(filename, "w") as f:  # noqa: ASYNC230
@@ -154,9 +158,11 @@ async def test_manage_script_metadata_uv_deletion(
 
 @pytest.mark.skipif(not HAS_UV, reason="uv not installed")
 async def test_manage_script_metadata_uv_off(
-    tmp_path: pathlib.Path, mocked_kernel: MockedKernel
+    tmp_path: pathlib.Path,
+    mocked_kernel: MockedKernel,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = False
+    monkeypatch.setattr(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", False)
     filename = str(tmp_path / "notebook.py")
     # Create empty file
     with open(filename, "w") as f:  # noqa: ASYNC230
@@ -183,9 +189,11 @@ async def test_manage_script_metadata_uv_off(
 
 @pytest.mark.skipif(not HAS_UV, reason="uv not installed")
 async def test_manage_script_metadata_uv_no_filename(
-    tmp_path: pathlib.Path, mocked_kernel: MockedKernel
+    tmp_path: pathlib.Path,
+    mocked_kernel: MockedKernel,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
+    monkeypatch.setattr(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", True)
     filename = str(tmp_path / "notebook.py")
     # Create empty file
     with open(filename, "w") as f:  # noqa: ASYNC230
@@ -210,9 +218,11 @@ async def test_manage_script_metadata_uv_no_filename(
 
 
 async def test_manage_script_metadata_pip_noop(
-    tmp_path: pathlib.Path, mocked_kernel: MockedKernel
+    tmp_path: pathlib.Path,
+    mocked_kernel: MockedKernel,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
+    monkeypatch.setattr(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", True)
     filename = str(tmp_path / "notebook.py")
     # Create empty file
     with open(filename, "w") as f:  # noqa: ASYNC230

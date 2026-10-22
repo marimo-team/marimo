@@ -104,6 +104,9 @@ class NotebookWriter:
             elif path.exists():
                 header = handler.extract_header(path)
 
+            if header is None and notebook.header is not None:
+                header = notebook.header.value
+
             # For new .py files in sandbox mode, generate header with marimo
             if header is None and str(path).endswith(".py"):
                 from marimo._config.settings import GLOBAL_SETTINGS

@@ -9,6 +9,7 @@ import pytest
 from marimo import __version__
 from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.app_defaults import AppDefaults
 from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.notebook import AppFileManager
@@ -336,9 +337,16 @@ def test_save_from_cells_leaves_the_document_alone(
 
 
 @pytest.mark.parametrize("recreate", [False, True])
+@pytest.mark.parametrize("manage_script_metadata", [False, True])
 def test_save_from_cells_preserves_the_header(
-    tmp_path: Path, recreate: bool
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    recreate: bool,
+    manage_script_metadata: bool,
 ) -> None:
+    monkeypatch.setattr(
+        GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", manage_script_metadata
+    )
     path = tmp_path / "notebook.py"
     header = '# /// script\n# dependencies = ["requests"]\n# ///\n'
     path.write_text(
