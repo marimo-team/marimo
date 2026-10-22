@@ -138,16 +138,16 @@ const HomePage: React.FC = () => {
             </div>
           </header>
           <main className="mx-auto max-w-7xl px-5 py-10 sm:px-10 sm:py-14">
-            <div className="mb-10 flex flex-wrap items-center justify-between gap-5">
-              <div>
-                <h1 className="text-3xl font-semibold tracking-tight">
-                  Your notebooks
-                </h1>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Pick up where you left off, or start something new.
-                </p>
+            <div className="mb-10">
+              <h1 className="text-3xl font-semibold tracking-tight">
+                Your notebooks
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Pick up where you left off, or start something new.
+              </p>
+              <div className="mt-5">
+                <CreateNewNotebook />
               </div>
-              <CreateNewNotebook />
             </div>
             <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
               <ErrorBoundary>
@@ -659,7 +659,7 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
 const CreateNewNotebook: React.FC = () => {
   const url = newNotebookURL();
   return (
-    <Button asChild={true} size="default" className="gap-2 rounded-lg">
+    <Button asChild={true} size="sm" className="gap-2 rounded-lg">
       <a href={url} target="_blank" rel="noreferrer">
         <PlusIcon className="h-4 w-4" />
         New notebook

@@ -134,7 +134,7 @@ const RESOURCES = [
     url: Constants.githubPage,
   },
   {
-    title: "Community",
+    title: "Discussion",
     description: "Join the marimo Discord community",
     icon: MessagesSquareIcon,
     url: Constants.discordLink,
