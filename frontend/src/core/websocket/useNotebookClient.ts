@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { StreamStopped } from "@marimo-team/client";
 import { useStore } from "jotai";
 import { useEffect, useMemo } from "react";
 import useEvent from "react-use-event-hook";
-import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import type {
   NotificationMessage,
   NotificationPayload,
@@ -12,14 +12,16 @@ import {
   createNotebookClient,
   type NotebookClient,
 } from "../host/notebook-client";
-import { classifyCloseEvent } from "./connection-state";
 import { notebookClientAtom } from "./state";
 import {
-  createConnectionTransport,
-  type ConnectionTransportOptions,
-} from "./transports/create";
+  createNotebookTransport,
+  type NotebookTransportOptions,
+} from "./transports/notebook";
 
-type Options = ConnectionTransportOptions & {
+type Options = Omit<NotebookTransportOptions, "url"> & {
+  /** The session route, read before each connection. */
+  url: () => string;
+  /** Wait until the host can accept a connection. */
   waitUntilReady: () => Promise<void>;
   checkHealth: () => Promise<boolean>;
   onNotification: (notification: NotificationPayload) => void;
@@ -37,24 +39,33 @@ export function useNotebookClient(options: Options): NotebookClient {
 
   useEffect(() => {
     const lifetime = new AbortController();
+    let needsInitialReadiness = true;
     store.set(notebookClientAtom, controller.client);
     controller.connect({
-      createTransport: (url) =>
-        createConnectionTransport({
-          url,
-          headers,
-          static: isStatic,
-          transportType,
-        }),
-      url,
+      transport: createNotebookTransport({
+        static: isStatic,
+        transportType,
+        url: async () => {
+          if (needsInitialReadiness) {
+            // Explicit retries check current health, even if startup failed.
+            needsInitialReadiness = false;
+            try {
+              await waitUntilReady();
+            } catch (error) {
+              throw new StreamStopped("Healthy connection never made", {
+                cause: error,
+              });
+            }
+          }
+          return url();
+        },
+        headers,
+      }),
       signal: lifetime.signal,
-      waitUntilReady,
       checkHealth,
       // The host validates the envelope, not the native notification contents.
       onNotification: (notification) =>
         onNotification({ data: notification as NotificationMessage }),
-      decodeJson: jsonParseWithSpecialChar,
-      classifyClose: classifyCloseEvent,
     });
     return () => {
       lifetime.abort();
