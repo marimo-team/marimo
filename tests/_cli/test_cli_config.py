@@ -34,7 +34,8 @@ def test_config_show() -> None:
     )
     assert p.returncode == 0, p.stderr.decode()
     output = p.stdout.decode()
-    assert "Effective configuration (sources shown in comments)" in output
+    assert output.startswith("[ai]")
+    assert "sources shown in comments" not in output
     assert "[formatting]" in output
 
 
@@ -80,9 +81,11 @@ path = "/data"
     assert tomlkit.parse(output).unwrap() == values
 
 
+@pytest.mark.parametrize("with_provenance", [False, True])
 def test_config_show_includes_notebook_sources_and_does_not_save(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    with_provenance: bool,
 ) -> None:
     user_path = tmp_path / "marimo.toml"
     contents = (
@@ -102,16 +105,24 @@ def test_config_show_includes_notebook_sources_and_does_not_save(
         return MarimoConfigManager(user, ScriptConfigReader(current_path))
 
     monkeypatch.setattr(commands, "get_default_config_manager", manager)
-    result = CliRunner().invoke(commands.config, ["show", str(notebook)])
+    args = ["show", str(notebook)]
+    if with_provenance:
+        args.append("--with-provenance")
+    result = CliRunner().invoke(commands.config, args)
     assert result.exit_code == 0, result.output
-    assert f'theme = "dark" # user: {user_path}' in result.output
-    assert f'on_cell_change = "lazy" # script: {notebook}' in result.output
+    if with_provenance:
+        assert f'theme = "dark" # user: {user_path}' in result.output
+        assert f'on_cell_change = "lazy" # script: {notebook}' in result.output
+    else:
+        assert 'theme = "dark"\n' in result.output
+        assert 'on_cell_change = "lazy"\n' in result.output
+        assert "#" not in result.output
     assert 'api_key = "********"' in result.output
     assert "private-key" not in result.output
     assert user_path.read_text() == contents
 
 
-def test_config_show_warns_about_malformed_project_file(
+def test_config_show_reports_malformed_project_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -135,8 +146,34 @@ def test_config_show_warns_about_malformed_project_file(
     assert result.exit_code == 0, result.output
     assert len(records) == 1
     assert str(project) in records[0].getMessage()
-    assert "Project settings were ignored" in records[0].getMessage()
-    assert 'theme = "light" # default' in result.output
+    assert "Settings from this file were skipped" in records[0].getMessage()
+    assert 'theme = "light"\n' in result.output
+    assert "# default" not in result.output
+
+
+@pytest.mark.parametrize("with_provenance", [False, True])
+def test_config_show_parse_error_is_readable_and_printed_once(
+    tmp_path: Path, with_provenance: bool
+) -> None:
+    config_path = tmp_path / ".marimo.toml"
+    config_path.write_text('[display]\ntheme = "light\n')
+    args = ["marimo", "config", "show"]
+    if with_provenance:
+        args.append("--with-provenance")
+    result = subprocess.run(args, cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert result.stderr.count("Error:") == 1
+    error_line, explanation, blank_line = result.stderr.splitlines()
+    assert blank_line == ""
+    assert error_line.startswith(
+        f'Error: Could not load configuration from {config_path}: "'
+    )
+    assert error_line.endswith('"')
+    assert "line 2" in error_line
+    assert "Settings from this file were skipped" in explanation
+    assert "other configuration sources still apply" in result.stderr
+    assert "[E " not in result.stderr
+    assert result.stdout.startswith("[ai]")
 
 
 def test_config_describe_field_metadata() -> None:

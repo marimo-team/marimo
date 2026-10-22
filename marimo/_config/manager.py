@@ -333,10 +333,12 @@ class PyprojectConfigReader(ConfigReader):
             # project, so an allowlist here adds little protection.
             project_config = strip_untrusted_config(project_config)
         except Exception as e:
-            LOGGER.warning(
-                "Failed to read %s: %s. Project settings were ignored.",
-                self.source,
+            LOGGER.error(
+                'Could not load project configuration from %s: "%s"\n'
+                "Settings from this file were skipped; other configuration sources still apply.",
+                self.source.location,
                 e,
+                extra={"user_facing": True},
             )
             return {}
 
@@ -606,10 +608,12 @@ class ScriptConfigReader(ConfigReader):
             marimo_config = strip_untrusted_config(marimo_config)
 
         except Exception as e:
-            LOGGER.warning(
-                "Failed to read %s: %s. Script settings were ignored.",
-                self.source,
+            LOGGER.error(
+                'Could not load script configuration from %s: "%s"\n'
+                "Settings from this file were skipped; other configuration sources still apply.",
+                self.source.location,
                 e,
+                extra={"user_facing": True},
             )
             return {}
 
@@ -681,10 +685,12 @@ class UserConfigStore(ConfigReader):
             try:
                 user_config = read_marimo_config(path)
             except Exception as e:
-                LOGGER.warning(
-                    "Failed to read user configuration at %s: %s. User settings were ignored.",
+                LOGGER.error(
+                    'Could not load configuration from %s: "%s"\n'
+                    "Settings from this file were skipped; other configuration sources still apply.",
                     path,
                     e,
+                    extra={"user_facing": True},
                 )
                 return {}
             if not is_trusted_user_config_path(path):

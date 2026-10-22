@@ -42,7 +42,7 @@ class ConfigReader(ABC):
         return {}
 
     def read_layer(self) -> ConfigLayer:
-        """Read explicit settings, warning about invalid values without filling defaults."""
+        """Read explicit settings, reporting invalid values without filling defaults."""
         config = self.read()
         source = self.source
         field_sources = self.field_sources
@@ -65,10 +65,11 @@ class ConfigReader(ABC):
                 AttributeError,
             ) as error:
                 sources = ", ".join(map(str, dict.fromkeys(origins.values())))
-                LOGGER.warning(
+                LOGGER.error(
                     "Invalid configuration from %s: %s",
                     sources or source,
                     error,
+                    extra={"user_facing": True},
                 )
         return ConfigLayer(config, source, origins)
 
@@ -252,10 +253,11 @@ def get_marimo_config_from_pyproject_dict(
     if marimo_tool_config is None:
         return None
     if not isinstance(marimo_tool_config, dict):
-        LOGGER.warning(
+        LOGGER.error(
             "Ignoring marimo configuration in %s: 'tool.marimo' must be a table, got %s.",
             location or "pyproject.toml/script metadata",
             type(marimo_tool_config).__name__,
+            extra={"user_facing": True},
         )
         return None
     return cast(PartialMarimoConfig, marimo_tool_config)

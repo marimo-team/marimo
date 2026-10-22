@@ -60,13 +60,19 @@ marimo searches for the `.marimo.toml` file in the following order:
 If no `.marimo.toml` file is found, marimo creates one for you in an XDG config
 compliant way.
 
-To view the configuration marimo is using and the source of each value, run:
+To view the configuration marimo is using, run:
 
 ```bash
 marimo config show
 ```
 
-Each value has a source comment identifying the configuration file,
+Add `--with-provenance` to include the source of each value:
+
+```bash
+marimo config show --with-provenance
+```
+
+Each value then has a source comment identifying the configuration file,
 environment variable, default, or inferred setting that supplied it:
 
 ```toml
@@ -83,9 +89,11 @@ To include a notebook's script metadata, pass its path:
 marimo config show notebook.py
 ```
 
-If a configuration file cannot be parsed, marimo prints a warning with the file
+You can also use `--with-provenance` when passing a notebook path.
+
+If a configuration file cannot be parsed, marimo prints an error with the file
 path and parsing error, ignores that file's settings, and continues using the
-remaining sources. Invalid configuration values also produce warnings with
+remaining sources. Invalid configuration values also produce errors with
 their source and field path.
 
 To describe the user configuration options, run:

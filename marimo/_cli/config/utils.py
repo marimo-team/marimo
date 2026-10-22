@@ -32,7 +32,7 @@ def highlight_toml_headers(toml_string: str) -> str:
     for line in lines:
         stripped_line = line.strip()
         if stripped_line.startswith("[") and stripped_line.endswith("]"):
-            highlighted_lines.append(orange(line))
+            highlighted_lines.append(yellow(line))
         else:
             highlighted_lines.append(line)
 

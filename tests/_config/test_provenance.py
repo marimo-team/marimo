@@ -207,7 +207,7 @@ def test_manager_preserves_record_merge_grouping(
 
 
 @pytest.mark.parametrize("kind", ["user", "project", "script"])
-def test_parse_warnings_identify_the_file(
+def test_parse_errors_identify_the_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     kind: str,
@@ -234,7 +234,7 @@ def test_parse_warnings_identify_the_file(
     messages = [record.getMessage() for record in records]
     assert len(messages) == 1
     assert str(path) in messages[0]
-    assert "settings were ignored" in messages[0]
+    assert "Settings from this file were skipped" in messages[0]
     assert (
         resolved.config["display"]["theme"]
         == DEFAULT_CONFIG["display"]["theme"]
@@ -242,7 +242,7 @@ def test_parse_warnings_identify_the_file(
     assert resolved.origins[("display", "theme")] == ConfigSource("default")
 
 
-def test_validation_warning_identifies_source_and_field(
+def test_validation_error_identifies_source_and_field(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
