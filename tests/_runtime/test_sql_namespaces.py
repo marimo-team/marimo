@@ -140,13 +140,15 @@ def test_catalog_shorthand_refreshes_after_catalog_mutations(
     assert graph.parents[CellId_t("query")] == {"attach", "source"}
 
     affected = graph.delete_cell(CellId_t("attach"))
-    assert affected == {"source", "query"}
+    assert affected == dataflow.GraphMutationResult(
+        frozenset({"source", "query"})
+    )
     assert graph.parents[CellId_t("query")] == set()
 
     affected = graph.register_cell(
         CellId_t("attach"), _compile_sql("attach", sources["attach"])
     )
-    assert CellId_t("query") in affected
+    assert CellId_t("query") in affected.affected_cells
     assert graph.parents[CellId_t("query")] == {"attach", "source"}
 
 
@@ -280,7 +282,7 @@ def test_catalog_rebinding_respects_disabled_dependencies() -> None:
         CellId_t("attach"),
         _compile_sql("attach", "ATTACH ':memory:' AS attached"),
     )
-    assert CellId_t("query") in affected
+    assert CellId_t("query") in affected.affected_cells
     assert graph.is_disabled(CellId_t("query"))
     graph.disable_cell(CellId_t("source"))
     assert graph.cells[CellId_t("query")].disabled_transitively

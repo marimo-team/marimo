@@ -1981,3 +1981,42 @@ def test_schema_conflict_with_explicit_default_catalog(
     ):
         graph.register_cell(cid, cell)
     assert graph.get_multiply_defined() == [schema.rsplit(".", maxsplit=1)[-1]]
+
+
+def test_graph_mutations_report_existing_dependents() -> None:
+    graph = dataflow.DirectedGraph()
+    consumer = CellId_t("consumer")
+    source = CellId_t("source")
+    grandchild = CellId_t("grandchild")
+    assert (
+        graph.register_cell(
+            consumer, compiler.compile_cell("result = value", cell_id=consumer)
+        )
+        == dataflow.GraphMutationResult()
+    )
+    assert (
+        graph.register_cell(
+            CellId_t("unrelated"),
+            compiler.compile_cell(
+                "standalone = 1", cell_id=CellId_t("unrelated")
+            ),
+        )
+        == dataflow.GraphMutationResult()
+    )
+
+    registration = graph.register_cell(
+        source, compiler.compile_cell("value = 1", cell_id=source)
+    )
+    expected = dataflow.GraphMutationResult(frozenset({consumer}))
+    assert registration == expected
+    assert (
+        graph.register_cell(
+            grandchild,
+            compiler.compile_cell("final = result", cell_id=grandchild),
+        )
+        == dataflow.GraphMutationResult()
+    )
+
+    assert graph.delete_cell(source) == expected
+    assert registration == expected
+    assert graph.parents[grandchild] == {consumer}

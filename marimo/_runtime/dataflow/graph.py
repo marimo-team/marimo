@@ -17,6 +17,7 @@ from marimo._runtime.dataflow.topology import (
     GraphTopology,
     MutableGraphTopology,
 )
+from marimo._runtime.dataflow.types import GraphMutationResult
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -109,14 +110,15 @@ class DirectedGraph(GraphTopology):
 
     def register_cell(
         self, cell_id: CellId_t, cell: CellImpl
-    ) -> set[CellId_t]:
+    ) -> GraphMutationResult:
         """Add a cell to the graph.
 
         Mutates the graph, acquiring `self.lock`.
 
         Requires that `cell_id` is not already in the graph.
+        Returns existing cells whose dependencies changed.
         """
-        changed_sql_cells: set[CellId_t] = set()
+        affected_cells: set[CellId_t] = set()
         LOGGER.debug("Acquiring graph lock to register cell %s", cell_id)
         with self.lock:
             LOGGER.debug("Acquired graph lock.")
@@ -125,6 +127,8 @@ class DirectedGraph(GraphTopology):
             parents, children = edges.register_cell_dependencies(
                 cell_id, cell, self.topology, self.definition_registry
             )
+
+            affected_cells.update(children)
 
             # Add edges to topology
             for parent_id in parents:
@@ -143,7 +147,7 @@ class DirectedGraph(GraphTopology):
 
             if self._defines_catalog(cell):
                 self.definition_registry.rebuild_conflicts(self.topology.cells)
-                changed_sql_cells = self._refresh_sql_edges()
+                affected_cells.update(self._refresh_sql_edges())
 
         LOGGER.debug("Registered cell %s and released graph lock", cell_id)
         if self.is_any_ancestor_stale(cell_id):
@@ -151,7 +155,7 @@ class DirectedGraph(GraphTopology):
 
         if self.is_any_ancestor_disabled(cell_id):
             cell.set_runtime_state(status="disabled-transitively")
-        return changed_sql_cells - {cell_id}
+        return GraphMutationResult(frozenset(affected_cells - {cell_id}))
 
     @staticmethod
     def _defines_catalog(cell: CellImpl) -> bool:
@@ -257,7 +261,7 @@ class DirectedGraph(GraphTopology):
                     child.set_runtime_state("idle")
         return cells_to_run
 
-    def delete_cell(self, cell_id: CellId_t) -> set[CellId_t]:
+    def delete_cell(self, cell_id: CellId_t) -> GraphMutationResult:
         """Removes a cell from the graph.
 
         Mutates the graph, acquiring `self.lock`.
@@ -271,7 +275,7 @@ class DirectedGraph(GraphTopology):
                 raise ValueError(f"Cell {cell_id} not found")
 
             # Grab a reference to children before we remove it
-            children = self.topology.children[cell_id].copy()
+            affected_cells = self.topology.children[cell_id].copy()
 
             # Removing this cell from its defs' definer sets
             cell = self.topology.cells[cell_id]
@@ -292,10 +296,10 @@ class DirectedGraph(GraphTopology):
             self.topology.remove_node(cell_id)
             if self._defines_catalog(cell):
                 self.definition_registry.rebuild_conflicts(self.topology.cells)
-                children.update(self._refresh_sql_edges())
+                affected_cells.update(self._refresh_sql_edges())
 
         LOGGER.debug("Deleted cell %s and Released graph lock.", cell_id)
-        return children
+        return GraphMutationResult(frozenset(affected_cells))
 
     def is_disabled(self, cell_id: CellId_t) -> bool:
         """Check if a cell is disabled (directly or transitively)."""
