@@ -159,8 +159,7 @@ def _needs_trailing_blank_line(mod: ast.Module, code: str) -> bool:
 
 
 def _can_strip_bare_return(cell: CellImpl) -> bool:
-    """Returns True if a bare return can be safely omitted (ruff-compatible).
-    """
+    """Returns True if a bare return can be safely omitted (ruff-compatible)."""
     # Comment only case
     if not cell.mod.body:
         return False
@@ -168,12 +167,13 @@ def _can_strip_bare_return(cell: CellImpl) -> bool:
     if cell.code != cell.code.rstrip("\n"):
         return False
     # A single function/class def would trigger toplevel reclassification
-    if len(cell.mod.body) == 1 and isinstance(
-        cell.mod.body[0],
-        (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
-    ):
-        return False
-    return True
+    return not (
+        len(cell.mod.body) == 1
+        and isinstance(
+            cell.mod.body[0],
+            (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+        )
+    )
 
 
 def to_decorator(

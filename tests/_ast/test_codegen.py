@@ -2260,8 +2260,7 @@ def _(x):
 
 @app.cell
 def _(foo):
-    foo()
-    return\
+    foo()\
 """
         )
 

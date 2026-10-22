@@ -14,7 +14,6 @@ def __(mo):
         This is the title cell with a description.
         """
     )
-    return
 
 
 @app.cell
@@ -24,7 +23,6 @@ def __(mo):
         This is a second markdown cell that should also be rendered.
         """
     )
-    return
 
 
 @app.cell

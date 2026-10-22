@@ -274,4 +274,3 @@ class KernelRequestHandlers:
 
     async def _handle_stop(self, request: StopKernelCommand) -> None:
         del request
-        return

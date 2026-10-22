@@ -22,7 +22,6 @@ def _(mo):
     mo.md("""
     # This cell is hidden
     """)
-    return
 
 
 @app.cell(disabled=True)
@@ -34,13 +33,11 @@ def _(x):
 @app.cell
 def _(y):
     print(y)
-    return
 
 
 @app.cell(expand_output=True)
 def _(y):
     z = y + 1
-    return
 
 
 if __name__ == "__main__":
