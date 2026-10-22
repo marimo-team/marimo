@@ -40,6 +40,36 @@ async function resolve(url: StreamUrl): Promise<URL | undefined> {
   }
 }
 
+/** A resume cursor and replica belong to the session that produced them. */
+function withSessionIdentity(
+  url: StreamUrl,
+  connect: (target: URL) => NotebookTransport,
+): NotebookTransport {
+  let previous: string | undefined;
+  return async (attempt, handlers) => {
+    const target = await resolve(url);
+    if (target === undefined || attempt.signal.aborted) {
+      return;
+    }
+    target.searchParams.delete("cursor");
+    const identity = new URL(target);
+    identity.searchParams.delete("access_token");
+    identity.searchParams.sort();
+    identity.hash = "";
+    const key = identity.toString();
+    let { cursor } = attempt;
+    if (previous !== undefined && previous !== key) {
+      // Reset both the stream's cursor and its subscribers' state.
+      handlers.message({ event: "reset", data: {} });
+      cursor = null;
+    }
+    previous = key;
+    if (!attempt.signal.aborted) {
+      return connect(target)({ ...attempt, cursor }, handlers);
+    }
+  };
+}
+
 /**
  * Follow a marimo session over its WebSocket route.
  *
@@ -52,41 +82,40 @@ async function resolve(url: StreamUrl): Promise<URL | undefined> {
  * silent socket.
  */
 export function websocket(url: StreamUrl): NotebookTransport {
-  return async ({ cursor, signal }, { open, message }) => {
-    const target = await resolve(url);
-    if (target === undefined || signal.aborted) {
-      return;
-    }
-    target.searchParams.delete("cursor");
-    if (cursor !== null) {
-      target.searchParams.set("cursor", cursor);
-    }
-    await new Promise<void>((settle, reject) => {
-      const socket = new WebSocket(target);
-      const timeout = setTimeout(() => socket.close(), CONNECT_MS);
-      const abort = () => socket.close();
-      signal.addEventListener("abort", abort, { once: true });
-      socket.addEventListener("open", () => {
-        clearTimeout(timeout);
-        open();
-      });
-      socket.addEventListener("message", ({ data }) =>
-        // marimo's parser reads `NaN`. A message it cannot read arrives as an
-        // empty object, which `NotebookEvents` rejects as not an event.
-        message(jsonParseWithSpecialChar(String(data))),
-      );
-      socket.addEventListener("close", (event) => {
-        clearTimeout(timeout);
-        signal.removeEventListener("abort", abort);
-        const stopped = signal.aborted ? undefined : stopOn(event);
-        if (stopped === undefined) {
-          settle();
-        } else {
-          reject(stopped);
+  return withSessionIdentity(
+    url,
+    (target) =>
+      async ({ cursor, signal }, { open, message }) => {
+        if (cursor !== null) {
+          target.searchParams.set("cursor", cursor);
         }
-      });
-    });
-  };
+        await new Promise<void>((settle, reject) => {
+          const socket = new WebSocket(target);
+          const timeout = setTimeout(() => socket.close(), CONNECT_MS);
+          const abort = () => socket.close();
+          signal.addEventListener("abort", abort, { once: true });
+          socket.addEventListener("open", () => {
+            clearTimeout(timeout);
+            open();
+          });
+          socket.addEventListener("message", ({ data }) =>
+            // marimo's parser reads `NaN`. A message it cannot read arrives as an
+            // empty object, which `NotebookEvents` rejects as not an event.
+            message(jsonParseWithSpecialChar(String(data))),
+          );
+          socket.addEventListener("close", (event) => {
+            clearTimeout(timeout);
+            signal.removeEventListener("abort", abort);
+            const stopped = signal.aborted ? undefined : stopOn(event);
+            if (stopped === undefined) {
+              settle();
+            } else {
+              reject(stopped);
+            }
+          });
+        });
+      },
+  );
 }
 
 /**
@@ -100,32 +129,34 @@ export function sessionSse(
   url: StreamUrl,
   headers: () => Record<string, string>,
 ): NotebookTransport {
-  const stream = sse(url, {
-    fetch: (input, init) => {
-      const sent = new Headers(init?.headers);
-      for (const [name, value] of Object.entries(headers())) {
-        sent.set(name, value);
-      }
-      return globalThis.fetch(input, { ...init, headers: sent });
-    },
-    stop: (frame) =>
-      frame.event === "close"
-        ? stopOn(frame.data as { code?: number; reason?: string })
-        : undefined,
-  });
-  return (attempt, handlers) =>
-    stream(attempt, {
-      ...handlers,
-      message: (frame) =>
-        handlers.message(
-          typeof frame === "object" &&
-            frame !== null &&
-            "data" in frame &&
-            typeof frame.data === "string"
-            ? { ...frame, data: jsonParseWithSpecialChar(frame.data) }
-            : frame,
-        ),
+  return withSessionIdentity(url, (target) => {
+    const stream = sse(target, {
+      fetch: (input, init) => {
+        const sent = new Headers(init?.headers);
+        for (const [name, value] of Object.entries(headers())) {
+          sent.set(name, value);
+        }
+        return globalThis.fetch(input, { ...init, headers: sent });
+      },
+      stop: (frame) =>
+        frame.event === "close"
+          ? stopOn(frame.data as { code?: number; reason?: string })
+          : undefined,
     });
+    return (attempt, handlers) =>
+      stream(attempt, {
+        ...handlers,
+        message: (frame) =>
+          handlers.message(
+            typeof frame === "object" &&
+              frame !== null &&
+              "data" in frame &&
+              typeof frame.data === "string"
+              ? { ...frame, data: jsonParseWithSpecialChar(frame.data) }
+              : frame,
+          ),
+      });
+  });
 }
 
 /** A connection that opens and delivers nothing, for static notebooks. */

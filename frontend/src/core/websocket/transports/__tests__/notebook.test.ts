@@ -1,7 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { NotebookEvents, StreamStopped } from "@marimo-team/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  NotebookEvents,
+  StreamStopped,
+  type StreamUrl,
+} from "@marimo-team/client";
+import { createStore } from "jotai/vanilla";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { createNotebookClient } from "../../../host/notebook-client";
+import { fixtureMessages } from "../../../host/__tests__/fixtures";
+import { ConnectionState } from "../../../host/connection";
+import { Deferred } from "@/utils/Deferred";
 import {
   createNotebookTransport,
   pyodide,
@@ -58,6 +67,61 @@ function collect(events: NotebookEvents<string>) {
   const received: unknown[] = [];
   events.subscribe((event) => received.push(event));
   return received;
+}
+
+/** Drive the real session adapter through either network protocol. */
+function network(transportType: "websocket" | "sse", url: StreamUrl) {
+  const requests: { request: Request; stream: ReturnType<typeof body> }[] = [];
+  vi.stubGlobal("WebSocket", FakeSocket);
+  vi.stubGlobal(
+    "fetch",
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const stream = body();
+      requests.push({ request: new Request(input, init), stream });
+      return stream.response;
+    },
+  );
+  const count = () =>
+    transportType === "websocket" ? FakeSocket.opened.length : requests.length;
+  const transport = createNotebookTransport({
+    static: false,
+    transportType,
+    url,
+    headers: () => ({}),
+  });
+  let index = 0;
+  return {
+    transport,
+    count,
+    opened: async () => {
+      await vi.waitFor(() => expect(count()).toBeGreaterThan(index));
+      const next = index++;
+      if (transportType === "websocket") {
+        const socket = FakeSocket.opened[next];
+        socket.open();
+        return {
+          cursor: new URL(socket.url).searchParams.get("cursor"),
+          receive: (frame: { event: string; data: unknown; id?: string }) =>
+            socket.receive(JSON.stringify(frame)),
+          drop: () => socket.close(),
+          stop: () => socket.close(1000, "MARIMO_SHUTDOWN"),
+        };
+      }
+      const { request, stream } = requests[next];
+      return {
+        cursor: request.headers.get("Last-Event-ID"),
+        receive: (frame: { event: string; data: unknown; id?: string }) =>
+          stream.push(
+            `${frame.id === undefined ? "" : `id: ${frame.id}\n`}event: ${frame.event}\ndata: ${JSON.stringify(frame.data)}\n\n`,
+          ),
+        drop: stream.end,
+        stop: () =>
+          stream.push(
+            'event: close\ndata: {"code":1000,"reason":"MARIMO_SHUTDOWN"}\n\n',
+          ),
+      };
+    },
+  };
 }
 
 afterEach(() => {
@@ -223,6 +287,140 @@ describe("sessionSse", () => {
     events.close();
   });
 });
+
+describe.each(["websocket", "sse"] as const)(
+  "%s session identity",
+  (transportType) => {
+    const base =
+      transportType === "websocket"
+        ? "ws://localhost/ws"
+        : "http://localhost/sse";
+
+    it.each(["automatic", "manual"])(
+      "discards the cursor and replica when the session changes on %s reconnect",
+      async (recovery) => {
+        vi.useFakeTimers();
+        let target = `${base}?session_id=s1`;
+        const url = vi.fn(() => target);
+        const connection = network(transportType, url);
+        const store = createStore();
+        const { client, connect } = createNotebookClient(store);
+        const lifetime = new AbortController();
+        onTestFinished(() => lifetime.abort());
+        connect({
+          transport: connection.transport,
+          signal: lifetime.signal,
+          checkHealth: async () => true,
+          onNotification: vi.fn(),
+        });
+        const first = await connection.opened();
+        const snapshot = fixtureMessages("notebook-events.sse");
+        snapshot.forEach(first.receive);
+        await vi.waitFor(() =>
+          expect(store.get(client.notebookAtom)?.id).toBe("n1"),
+        );
+
+        target = `${base}?session_id=s2`;
+        if (recovery === "automatic") {
+          first.drop();
+          await vi.advanceTimersByTimeAsync(2000);
+        } else {
+          first.stop();
+          await vi.waitUntil(
+            () =>
+              store.get(client.connectionAtom).state === ConnectionState.CLOSED,
+          );
+          await client.reconnect();
+        }
+        const second = await connection.opened();
+        expect({
+          cursor: second.cursor,
+          notebook: store.get(client.notebookAtom),
+          document: store.get(client.documentAtom),
+          attachments: store.get(client.attachmentsAtom),
+        }).toEqual({
+          cursor: null,
+          notebook: null,
+          document: null,
+          attachments: [],
+        });
+
+        // A second drop before any records must not resurrect the library's old cursor.
+        second.drop();
+        await vi.advanceTimersByTimeAsync(2000);
+        const third = await connection.opened();
+        expect(third.cursor).toBeNull();
+        for (const frame of snapshot) {
+          third.receive({
+            ...frame,
+            data: JSON.parse(
+              JSON.stringify(frame.data).replaceAll('"n1"', '"n2"'),
+            ),
+          });
+        }
+        await vi.waitFor(() =>
+          expect(store.get(client.notebookAtom)?.id).toBe("n2"),
+        );
+        expect(store.get(client.documentAtom)?.revision.notebook_id).toBe("n2");
+        expect(url).toHaveBeenCalledTimes(3);
+      },
+    );
+
+    it("keeps the replica and cursor when only authentication and query ordering change", async () => {
+      vi.useFakeTimers();
+      let target = `${base}?session_id=s1&file=a.py&access_token=a`;
+      const connection = network(transportType, () => target);
+      const store = createStore();
+      const { client, connect } = createNotebookClient(store);
+      const lifetime = new AbortController();
+      onTestFinished(() => lifetime.abort());
+      connect({
+        transport: connection.transport,
+        signal: lifetime.signal,
+        checkHealth: async () => true,
+        onNotification: vi.fn(),
+      });
+      const first = await connection.opened();
+      fixtureMessages("notebook-events.sse").forEach(first.receive);
+      await vi.waitFor(() =>
+        expect(store.get(client.notebookAtom)?.id).toBe("n1"),
+      );
+      const document = store.get(client.documentAtom);
+      const attachments = store.get(client.attachmentsAtom);
+
+      target = `${base}?access_token=b&file=a.py&session_id=s1`;
+      first.drop();
+      await vi.advanceTimersByTimeAsync(2000);
+      const second = await connection.opened();
+      expect(second.cursor).toBe("97");
+      expect(store.get(client.documentAtom)).toBe(document);
+      second.receive({ event: "ready", id: "100", data: {} });
+      await vi.waitFor(() =>
+        expect(store.get(client.notebookAtom)?.id).toBe("n1"),
+      );
+      expect(store.get(client.attachmentsAtom)).toEqual(attachments);
+    });
+
+    it("does not open a connection after cancellation during URL resolution", async () => {
+      vi.useFakeTimers();
+      const target = new Deferred<string>();
+      const url = vi.fn(() => target.promise);
+      const connection = network(transportType, url);
+      const events = new NotebookEvents(connection.transport);
+      onTestFinished(() => events.close());
+      const received = collect(events);
+      await vi.waitFor(() => expect(url).toHaveBeenCalledOnce());
+      events.close();
+      target.resolve(base);
+      await vi.advanceTimersByTimeAsync(0);
+      expect({
+        opened: connection.count(),
+        events: received,
+        status: events.status,
+      }).toEqual({ opened: 0, events: [], status: "closed" });
+    });
+  },
+);
 
 describe("pyodide", () => {
   it("delivers worker notifications as marimo events and host events as they are", async () => {
