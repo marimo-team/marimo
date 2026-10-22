@@ -13,6 +13,7 @@ from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._core import backend as be, protocol
+from marimo._core.document import Document, DocumentCell
 from marimo._core.stream import Stream
 from marimo._messaging.notification import (
     CellNotification,
@@ -21,6 +22,7 @@ from marimo._messaging.notification import (
     StartupProgressNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
+from marimo._runtime.commands import ExecuteCellsCommand
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.backend import SessionBackend
 from marimo._server.scratchpad import scratchpad_request_metadata
@@ -371,8 +373,9 @@ async def test_submission_failure_is_an_error(
     )
 
 
+@pytest.mark.parametrize("cell_run", [False, True])
 async def test_host_run_carries_screenshot_metadata(
-    manager: FakeManager, observed: Observed
+    manager: FakeManager, observed: Observed, cell_run: bool
 ) -> None:
     b = SessionBackend(
         protocol.NotebookId("n1"),
@@ -391,7 +394,14 @@ async def test_host_run_carries_screenshot_metadata(
     )
     b.adopt(RT1, manager.next_session)
     run_id = protocol.RunId("run-screenshot")
-    b.run(run_id, "ctx.screenshot()")
+    if cell_run:
+        b.run_cells(
+            run_id,
+            Document([DocumentCell(protocol.CellId("a"), "1")], {}),
+            [protocol.CellId("a")],
+        )
+    else:
+        b.run(run_id, "ctx.screenshot()")
     await asyncio.wait_for(manager.next_session.submitted.wait(), 5)
     command = manager.next_session.commands[-1]
     assert command.request.meta == {
@@ -408,3 +418,65 @@ async def test_host_run_carries_screenshot_metadata(
     assert b._run is not None
     assert b._run.task is not None
     await b._run.task
+
+
+async def test_running_cells_instantiates_from_the_host_document(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    b.start(RT1)
+    await observed.wait_for(be.Running)
+    session = manager.next_session
+    document = Document(
+        [
+            DocumentCell(protocol.CellId("a"), "x = 1"),
+            DocumentCell(protocol.CellId("b"), "y = x"),
+        ],
+        {},
+    )
+
+    b.run_cells(protocol.RunId("run-1"), document, [protocol.CellId("b")])
+    await asyncio.wait_for(session.submitted.wait(), 5)
+
+    (instantiation,) = session.instantiations
+    assert instantiation.auto_run is False
+    assert instantiation.codes == {"a": "x = 1", "b": "y = x"}
+    (command,) = session.commands
+    assert isinstance(command, ExecuteCellsCommand)
+    assert command.cell_ids == ["b"]
+    assert command.codes == ["y = x"]
+    assert command.run_id == "run-1"
+
+    session.broadcast(
+        CompletedRunNotification(run_id="run-1", outcome="succeeded")
+    )
+    await observed.wait_for(be.Done)
+    assert observed.messages[-1] == be.Done(
+        protocol.RunId("run-1"), "succeeded"
+    )
+
+
+@pytest.mark.parametrize("method", ["instantiate", "put_control_request"])
+async def test_cell_submission_failure_ends_the_run(
+    manager: FakeManager,
+    observed: Observed,
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    observed.messages.clear()
+
+    def failed(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("Kernel channel closed")
+
+    monkeypatch.setattr(session, method, failed)
+    b.run_cells(
+        protocol.RunId("failed"),
+        Document([DocumentCell(protocol.CellId("a"), "42")], {}),
+        [protocol.CellId("a")],
+    )
+
+    assert observed.messages == [be.Done(protocol.RunId("failed"), "failed")]
+    assert b._run is None

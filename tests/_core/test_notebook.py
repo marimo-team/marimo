@@ -14,7 +14,7 @@ from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol, protocol_events
 from marimo._core.document import Document, DocumentCell
-from marimo._core.errors import Conflict, NoRuntime, NotFound
+from marimo._core.errors import Conflict, Invalid, NoRuntime, NotFound
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -1451,3 +1451,74 @@ async def test_deleting_an_active_cell_releases_its_result_when_the_run_ends() -
     assert list(notebook.document) == []
     assert fold(notebook._snapshot()) == {}
     assert fold(host.events(notebook_id=notebook.id)) == {}
+
+
+async def test_running_cells_hands_the_backend_the_document() -> None:
+    _, notebook = await host_at(Clock())
+    notebook.replace(
+        [DocumentCell(CellId("c1"), "x = 1"), DocumentCell(CellId("c2"), "x")],
+        {},
+    )
+    c1 = notebook.document.cell(CellId("c1"))
+    assert c1 is not None
+
+    run = notebook.run(
+        cells=[
+            protocol.RequestedCell(id=CellId("c1"), code_hash=c1.code_hash)
+        ],
+        request_id="run-1",
+    )
+
+    assert run.status == "queued"
+    assert notebook.backend.calls[-1] == (  # type: ignore[attr-defined]
+        "run_cells",
+        run.id,
+        notebook.document.etag,
+        ("c1",),
+    )
+
+
+async def test_running_a_cell_whose_code_changed_is_a_conflict() -> None:
+    _, notebook = await host_at(Clock())
+    notebook.replace([DocumentCell(CellId("c1"), "x = 1")], {})
+    calls = len(notebook.backend.calls)  # type: ignore[attr-defined]
+
+    with pytest.raises(Conflict, match="changed"):
+        notebook.run(
+            cells=[
+                protocol.RequestedCell(
+                    id=CellId("c1"), code_hash=protocol.Etag("0" * 16)
+                )
+            ],
+            request_id="run-1",
+        )
+    with pytest.raises(Invalid, match="not in the document"):
+        notebook.run(
+            cells=[protocol.RequestedCell(id=CellId("ghost"))],
+            request_id="run-2",
+        )
+
+    assert len(notebook.backend.calls) == calls  # type: ignore[attr-defined]
+    assert notebook.executions.active() is None
+
+
+async def test_a_run_names_code_or_cells() -> None:
+    _, notebook = await host_at(Clock())
+    with pytest.raises(Invalid):
+        notebook.run(request_id="run-1")  # type: ignore[call-overload]
+    with pytest.raises(Invalid):
+        notebook.run("1", cells=[], request_id="run-2")  # type: ignore[call-overload]
+
+
+@pytest.mark.parametrize("cells", [[], ()])
+async def test_a_cell_run_needs_at_least_one_target(
+    cells: list[protocol.RequestedCell] | tuple[protocol.RequestedCell, ...],
+) -> None:
+    _, notebook = await host_at(Clock())
+    calls = list(notebook.backend.calls)  # type: ignore[attr-defined]
+
+    with pytest.raises(Invalid, match="at least one cell"):
+        notebook.run(cells=cells, request_id="empty")
+
+    assert notebook.backend.calls == calls  # type: ignore[attr-defined]
+    assert notebook.executions.active() is None

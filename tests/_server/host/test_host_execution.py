@@ -221,6 +221,133 @@ async def test_scratch_outcomes_from_the_kernel(
         assert outcome["error"]["message"]
 
 
+@pytest.mark.parametrize("delete", [False, True], ids=["edit", "delete"])
+async def test_cell_runs_preserve_order_with_later_edits(
+    live_host: tuple[Starlette, str, Response], delete: bool
+) -> None:
+    app, notebook_id, events = live_host
+    notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
+    cell = next(iter(notebook.document))
+    session = next(iter(app.state.session_manager.sessions.values()))
+    runs = f"/notebooks/{notebook_id}/runtime/runs"
+    body = json.dumps(
+        {"cells": [{"id": cell.id, "code_hash": cell.code_hash}]}
+    ).encode()
+
+    async def completed(response: Response) -> None:
+        assert response.status == 202, response.body
+        await wait_for(
+            events,
+            lambda stream: any(
+                r.get("data", {}).get("run", {}).get("id")
+                == response.json()["id"]
+                and r["data"]["run"]["status"] == "completed"
+                for r in stream.records
+            ),
+        )
+
+    await completed(
+        await finished(app, "POST", runs, headers=key("warm"), body=body)
+    )
+    # A scratch client must not let a later edit overtake an accepted cell run.
+    async with session.scratchpad_lock:
+        accepted = await finished(
+            app, "POST", runs, headers=key("run"), body=body
+        )
+        assert accepted.status == 202, accepted.body
+        change = (
+            {"kind": "delete_cell", "id": cell.id, "base_etag": "*"}
+            if delete
+            else {
+                "kind": "put_cell",
+                "base_etag": "*",
+                "cell": {"id": cell.id, "code": "example = 99"},
+            }
+        )
+        edited = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/edits",
+            headers=key("edit"),
+            body=json.dumps({"changes": [change]}).encode(),
+        )
+        assert edited.status == 200, edited.body
+    await completed(accepted)
+
+    assertion = (
+        f"assert {cell.id!r} not in _graph.cells"
+        if delete
+        else f"assert _graph.cells[{cell.id!r}].code == 'example = 99'"
+    )
+    checked = await finished(
+        app,
+        "POST",
+        runs,
+        headers=key("check-graph"),
+        body=json.dumps(
+            {
+                "code": "from marimo._runtime.context import get_context as _ctx\n"
+                "_graph = _ctx().graph\n" + assertion
+            }
+        ).encode(),
+    )
+    await completed(checked)
+    assert (
+        next(
+            r["data"]["run"]["outcome"]
+            for r in reversed(events.records)
+            if r.get("data", {}).get("run", {}).get("id")
+            == checked.json()["id"]
+        )
+        == "succeeded"
+    )
+    current = notebook.document.cell(cell.id)
+    assert (None if current is None else current.code) == (
+        None if delete else "example = 99"
+    )
+
+
+@pytest.mark.parametrize(
+    "notebook_source",
+    [
+        (
+            "import marimo\napp = marimo.App()\n"
+            "@app.cell\ndef _():\n    answer = input('prompt')\n    return (answer,)\n"
+        )
+    ],
+    indirect=True,
+)
+async def test_host_cell_input_fails_without_waiting_for_stdin(
+    live_host: tuple[Starlette, str, Response],
+) -> None:
+    app, notebook_id, events = live_host
+    notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
+    cell = next(iter(notebook.document))
+    accepted = await finished(
+        app,
+        "POST",
+        f"/notebooks/{notebook_id}/runtime/runs",
+        headers=key("run"),
+        body=json.dumps({"cells": [{"id": cell.id}]}).encode(),
+    )
+    assert accepted.status == 202, accepted.body
+    await wait_for(
+        events,
+        lambda stream: any(
+            r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
+            and r["data"]["run"]["status"] == "completed"
+            for r in stream.records
+        ),
+    )
+    [execution] = [
+        r["data"]["execution"]
+        for r in events.records
+        if r.get("data", {}).get("execution", {}).get("status") == "completed"
+    ]
+    assert execution["outcome"]["error"]["name"] == "EOFError"
+    assert notebook.executions.active() is None
+
+
 async def test_background_output_after_a_scratch_run_is_dropped(
     live_host: tuple[Starlette, str, Response],
 ) -> None:
