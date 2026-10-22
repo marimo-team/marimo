@@ -189,7 +189,9 @@ def probe_module(
     if setup_cell is not None and setup_cell.code.strip():
         blocks.append(setup_cell.code)
     for status in _dependency_order(extraction):
-        tree = ast.parse(status.code)
+        assert status._cell is not None
+        # NB. The compiler replaces non-breaking spaces in cell source.
+        tree = ast.parse(status._cell.code)
         ScopedVisitor("cell_" + status.cell_id).visit(tree)
         blocks.append(ast.unparse(tree))
     body = "\n".join(blocks)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import runpy
 import threading
 from concurrent.futures import ThreadPoolExecutor, wait
 from typing import TYPE_CHECKING
@@ -309,6 +310,23 @@ def test_save_writes_inferred_types_to_disk_when_enabled(
 
     assert "def _(x: int):" in nb.read_text()
     assert backend.search_paths == [tmp_path]
+
+
+def test_save_normalizes_nonbreaking_spaces_with_inference(
+    tmp_path: Path,
+) -> None:
+    nb = tmp_path / "nb.py"
+    nb.write_text(_NOTEBOOK_WITH_PARAMETER)
+    fm = load_notebook(nb)
+    fm.config_reader = _ConfigReader(infer_types="jedi")  # type: ignore[assignment]
+    request = _save_request(fm, nb)
+    request.codes[0] = "x\u00a0=\u00a02"
+
+    fm.save(request)
+
+    assert "def _(x: int):" in nb.read_text()
+    _, values = runpy.run_path(str(nb))["app"].run()
+    assert values["x"] == 2
 
 
 def test_to_code_skips_type_inference_when_disabled(
