@@ -38,8 +38,6 @@ import type {
 } from "../network/types";
 import { filenameAtom } from "../saving/file-state";
 import { store } from "../state/jotai";
-import { BasicTransport } from "../websocket/transports/basic";
-import type { IConnectionTransport } from "../websocket/transports/transport";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC } from "./rpc";
 import { getWasmRuntimeConfig } from "./runtime-config";
@@ -717,12 +715,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
       payload: operation,
     });
   }
-}
-
-export function createPyodideConnection(): IConnectionTransport {
-  return BasicTransport.withProducerCallback((callback) => {
-    PyodideBridge.INSTANCE.attachMessageConsumer(callback);
-  });
 }
 
 // Compose the worker name. The optional "::controller" suffix tells
