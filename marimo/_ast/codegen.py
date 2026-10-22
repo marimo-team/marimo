@@ -164,7 +164,7 @@ def _can_strip_bare_return(cell: CellImpl) -> bool:
     if not cell.mod.body:
         return False
     # If the user has explicit \n, then we leave it
-    if cell.code != cell.code.rstrip("\n"):
+    if cell.code.rstrip(" \t") != cell.code.rstrip(" \t\r\n"):
         return False
     # A single function/class def would trigger toplevel reclassification
     return not (
