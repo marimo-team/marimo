@@ -277,10 +277,10 @@ async def test_preexisting_memory_table_survives_cell_removal(
         duckdb.execute(f"CREATE TABLE {table} AS SELECT 1 AS amount")
         await k.run(
             [
-                exec_req.get("import marimo as mo"),
+                exec_req.get("import duckdb"),
                 exec_req.get_with_id(
                     "table",
-                    f'mo.sql("{create} {table} AS SELECT 2 AS amount")',
+                    f'duckdb.sql("{create} {table} AS SELECT 2 AS amount")',
                 ),
             ]
         )
