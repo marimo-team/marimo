@@ -9,7 +9,6 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.context import is_code_mode_request
 from marimo._messaging.notification import (
-    CompletedRunNotification,
     MissingPackageAlertNotification,
     PackageStatusType,
 )
@@ -36,7 +35,6 @@ from marimo._runtime.packages.utils import (
 from marimo._runtime.runner import hook_context
 
 if TYPE_CHECKING:
-    from marimo._runtime.request_router import RequestRouter
     from marimo._runtime.runtime import Kernel
 
 LOGGER = _loggers.marimo_logger()
@@ -57,9 +55,6 @@ class PackagesCallbacks:
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
         self.package_manager: PackageManager | None = None
-
-    def register(self, router: RequestRouter) -> None:
-        router.register(InstallPackagesCommand, self._handle_install)
 
     def _notebook_index_urls(self) -> list[str]:
         """Read PEP 723 index config from the current notebook.
@@ -91,10 +86,6 @@ class PackagesCallbacks:
             if isinstance(url, str) and url and url not in urls:
                 urls.append(url)
         return urls
-
-    async def _handle_install(self, request: InstallPackagesCommand) -> None:
-        await self.install_missing_packages(request)
-        broadcast_notification(CompletedRunNotification())
 
     def update_package_manager(self, package_manager: str) -> None:
         if GLOBAL_SETTINGS.SANDBOX_MODE is not None:
