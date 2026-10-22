@@ -13,7 +13,7 @@ from marimo._runtime.commands import (
     ModelUpdateMessage,
 )
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
-from marimo._types.ids import WidgetModelId
+from marimo._types.ids import CellId_t, WidgetModelId
 from tests._messaging.mocks import MockStream
 
 if TYPE_CHECKING:
@@ -41,6 +41,21 @@ async def test_nested_commands_complete_the_run_once(
     ]
     assert {m["run_id"] for m in messages if m["op"] == "cell-op"} == {"outer"}
     assert messages[-1]["op"] == "completed-run"
+
+
+async def test_cell_runs_carry_the_requested_run_id(
+    mocked_kernel: MockedKernel,
+) -> None:
+    await KernelRequestHandlers(mocked_kernel.k)._handle_execute_multiple(
+        ExecuteCellsCommand(
+            cell_ids=[CellId_t("a")], codes=["x = 1"], run_id="run-1"
+        )
+    )
+    messages = MockStream(mocked_kernel.stream).operations
+    assert [m["run_id"] for m in messages if m["op"] == "completed-run"] == [
+        "run-1"
+    ]
+    assert {m["run_id"] for m in messages if m["op"] == "cell-op"} == {"run-1"}
 
 
 async def test_a_failed_command_flushes_before_completing(

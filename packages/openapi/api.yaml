@@ -1898,7 +1898,9 @@ components:
         \ and reactive execution.\n\n    Attributes:\n        cell_ids: Cells to execute.\n\
         \        codes: Python code for each cell. Must match length of cell_ids.\n\
         \        request: HTTP request context if available.\n        timestamp: Unix\
-        \ timestamp when command was created."
+        \ timestamp when command was created.\n        run_id: Optional correlation\
+        \ ID. When set, the run's notifications\n            and its `CompletedRunNotification`\
+        \ carry it."
       properties:
         cellIds:
           items:
@@ -1911,6 +1913,11 @@ components:
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        runId:
+          anyOf:
+          - type: string
           - type: 'null'
           default: null
         timestamp:

@@ -4961,12 +4961,16 @@ export interface components {
      *             codes: Python code for each cell. Must match length of cell_ids.
      *             request: HTTP request context if available.
      *             timestamp: Unix timestamp when command was created.
+     *             run_id: Optional correlation ID. When set, the run's notifications
+     *                 and its `CompletedRunNotification` carry it.
      */
     ExecuteCellsCommand: {
       cellIds: components["schemas"]["CellId"][];
       codes: string[];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
+      /** @default null */
+      runId?: string | null;
       timestamp?: number;
       /** @enum {unknown} */
       type: "execute-cells";
