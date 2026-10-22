@@ -3,12 +3,14 @@ from __future__ import annotations
 
 from itertools import permutations
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 
 from marimo._ast import compiler
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import dataflow
+from marimo._runtime.dataflow import edges
 from marimo._runtime.dataflow.definitions import DefinitionRegistry
 from marimo._types.ids import CellId_t
 
@@ -313,3 +315,68 @@ def test_catalog_rebinding_respects_disabled_dependencies() -> None:
     graph.enable_cell(CellId_t("source"))
     assert not graph.is_disabled(CellId_t("query"))
     assert not graph.cells[CellId_t("query")].disabled_transitively
+
+
+def test_unrelated_catalog_does_not_recompute_existing_sql_cells() -> None:
+    sources = {
+        "source": "CREATE TABLE sales (id INT)",
+        "query": "SELECT * FROM sales",
+    }
+    graph = _sql_graph(sources, list(sources))
+    with patch.object(
+        edges, "compute_edges_for_cell", wraps=edges.compute_edges_for_cell
+    ) as compute:
+        graph.register_cell(
+            CellId_t("attach"),
+            _compile_sql("attach", "ATTACH ':memory:' AS unrelated"),
+        )
+        assert [call.args[0] for call in compute.call_args_list] == ["attach"]
+        compute.reset_mock()
+        graph.delete_cell(CellId_t("attach"))
+        compute.assert_not_called()
+    assert graph.parents[CellId_t("query")] == {"source"}
+
+
+@pytest.mark.parametrize("alias", ["attached", "Attached"])
+def test_duplicate_catalog_keeps_existing_bindings(alias: str) -> None:
+    sources = {
+        "attach": "ATTACH ':memory:' AS attached",
+        "source": "CREATE TABLE attached.sales (id INT)",
+        "query": "SELECT * FROM attached.main.sales",
+    }
+    graph = _sql_graph(sources, list(sources))
+    with patch.object(
+        edges, "compute_edges_for_cell", wraps=edges.compute_edges_for_cell
+    ) as compute:
+        graph.register_cell(
+            CellId_t("duplicate"),
+            _compile_sql("duplicate", f"ATTACH ':memory:' AS {alias}"),
+        )
+        assert [call.args[0] for call in compute.call_args_list] == [
+            "duplicate"
+        ]
+        assert graph.parents[CellId_t("query")] == {
+            "attach",
+            "duplicate",
+            "source",
+        }
+        compute.reset_mock()
+        graph.delete_cell(CellId_t("duplicate"))
+        compute.assert_not_called()
+    assert graph.parents[CellId_t("query")] == {"attach", "source"}
+
+
+def test_catalog_rebinding_updates_explicit_memory_readers() -> None:
+    sources = {
+        "source": "CREATE TABLE attached.sales (id INT)",
+        "query": "SELECT * FROM memory.attached.sales",
+    }
+    graph = _sql_graph(sources, list(sources))
+    assert graph.parents[CellId_t("query")] == {"source"}
+    graph.register_cell(
+        CellId_t("attach"),
+        _compile_sql("attach", "ATTACH ':memory:' AS attached"),
+    )
+    assert graph.parents[CellId_t("query")] == set()
+    graph.delete_cell(CellId_t("attach"))
+    assert graph.parents[CellId_t("query")] == {"source"}

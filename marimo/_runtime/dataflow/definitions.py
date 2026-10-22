@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, NamedTuple
 
 from marimo._ast.sql_visitor import SQLRef
 
@@ -30,8 +30,7 @@ def effective_variable_definitions(
     )
 
 
-@dataclass(frozen=True)
-class _DefinitionConflictKey:
+class _DefinitionConflictKey(NamedTuple):
     namespace: Literal["global", "sql", "sql-schema"]
     parts: tuple[str, ...]
 
@@ -138,14 +137,18 @@ class DefinitionRegistry:
             Set of sibling cell IDs (cells that also define this variable)
         """
         variables = effective_variable_definitions(variable_data)
-        catalogs = self.sql_catalogs
+        catalogs: frozenset[str] | None = None
         siblings: set[CellId_t] = set()
         self.definitions.setdefault(name, set()).add(cell_id)
         for variable in variables:
+            if variable.kind == "schema" and catalogs is None:
+                catalogs = self.sql_catalogs
             typed_def = (name, variable.kind)
-            conflict_key = self._conflict_key(name, variable, catalogs)
+            conflict_key = self._conflict_key(
+                name, variable, catalogs or frozenset()
+            )
             self.typed_definitions.setdefault(typed_def, set()).add(cell_id)
-            if variable.kind == "catalog":
+            if variable.kind == "catalog" and catalogs is not None:
                 catalogs = catalogs | {name.lower()}
             definers = self._register_conflict(cell_id, name, conflict_key)
             siblings.update(definers - {cell_id})
@@ -156,7 +159,15 @@ class DefinitionRegistry:
         cell_id: CellId_t,
         variable_data: dict[Name, list[VariableData]],
     ) -> None:
-        catalogs = self.sql_catalogs
+        catalogs = (
+            self.sql_catalogs
+            if any(
+                variable.kind == "schema"
+                for data in variable_data.values()
+                for variable in data
+            )
+            else frozenset()
+        )
         for name, data in variable_data.items():
             if name not in self.definitions:
                 continue

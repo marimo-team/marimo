@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
+from itertools import chain
 from typing import TYPE_CHECKING, Literal
 
 from marimo import _loggers
@@ -92,7 +93,11 @@ class DirectedGraph(GraphTopology):
             name,
             language,
             self.topology,
-            catalogs=self.definition_registry.sql_catalogs,
+            catalogs=(
+                self.definition_registry.sql_catalogs
+                if language == "sql"
+                else frozenset()
+            ),
         )
 
     def get_sql_namespace_parents(self, cell_id: CellId_t) -> set[CellId_t]:
@@ -123,6 +128,11 @@ class DirectedGraph(GraphTopology):
         with self.lock:
             LOGGER.debug("Acquired graph lock.")
             assert cell_id not in self.topology.cells
+            catalogs_before = (
+                self.definition_registry.sql_catalogs
+                if self._defines_catalog(cell)
+                else None
+            )
 
             parents, children = edges.register_cell_dependencies(
                 cell_id, cell, self.topology, self.definition_registry
@@ -145,9 +155,17 @@ class DirectedGraph(GraphTopology):
                     (cell_id, child_id), self.topology
                 )
 
-            if self._defines_catalog(cell):
-                self.definition_registry.rebuild_conflicts(self.topology.cells)
-                affected_cells.update(self._refresh_sql_edges())
+            if catalogs_before is not None:
+                changed_catalogs = (
+                    catalogs_before ^ self.definition_registry.sql_catalogs
+                )
+                if changed_catalogs:
+                    self.definition_registry.rebuild_conflicts(
+                        self.topology.cells
+                    )
+                    affected_cells.update(
+                        self._refresh_sql_edges(changed_catalogs)
+                    )
 
         LOGGER.debug("Registered cell %s and released graph lock", cell_id)
         if self.is_any_ancestor_stale(cell_id):
@@ -165,15 +183,35 @@ class DirectedGraph(GraphTopology):
             for variable in data
         )
 
-    def _refresh_sql_edges(self) -> set[CellId_t]:
+    def _refresh_sql_edges(
+        self, changed_catalogs: frozenset[str]
+    ) -> set[CellId_t]:
         # ATTACH can change a path from a nested schema to a catalog shorthand.
         sql_cells = {
             cid: cell
             for cid, cell in self.topology.cells.items()
             if cell.language == "sql"
         }
+        # A catalog can change the identity of a definition or its reader.
+        rebound_cells = {
+            cid: cell
+            for cid, cell in sql_cells.items()
+            if any(
+                ref.parts[0].lower() in changed_catalogs
+                for ref in chain(
+                    cell.sql_refs.values(),
+                    cell.sql_namespace_refs,
+                    (
+                        variable.sql_ref
+                        for data in cell.variable_data.values()
+                        for variable in data
+                        if variable.sql_ref is not None
+                    ),
+                )
+            )
+        }
         desired: set[tuple[CellId_t, CellId_t]] = set()
-        for cid, cell in sql_cells.items():
+        for cid, cell in rebound_cells.items():
             parents, children = edges.compute_edges_for_cell(
                 cid, cell, self.topology, self.definition_registry
             )
@@ -185,9 +223,14 @@ class DirectedGraph(GraphTopology):
             )
         current = {
             (parent, child)
-            for parent in sql_cells
+            for parent in rebound_cells
             for child in self.topology.children[parent]
             if child in sql_cells
+        } | {
+            (parent, child)
+            for child in rebound_cells
+            for parent in self.topology.parents[child]
+            if parent in sql_cells
         }
         changed = {child for _, child in current ^ desired}
         for edge in current - desired:
@@ -279,6 +322,11 @@ class DirectedGraph(GraphTopology):
 
             # Removing this cell from its defs' definer sets
             cell = self.topology.cells[cell_id]
+            catalogs_before = (
+                self.definition_registry.sql_catalogs
+                if self._defines_catalog(cell)
+                else None
+            )
             self.definition_registry.unregister_definitions(
                 cell_id, cell.variable_data
             )
@@ -294,9 +342,17 @@ class DirectedGraph(GraphTopology):
 
             # Purge this cell from the graph topology
             self.topology.remove_node(cell_id)
-            if self._defines_catalog(cell):
-                self.definition_registry.rebuild_conflicts(self.topology.cells)
-                affected_cells.update(self._refresh_sql_edges())
+            if catalogs_before is not None:
+                changed_catalogs = (
+                    catalogs_before ^ self.definition_registry.sql_catalogs
+                )
+                if changed_catalogs:
+                    self.definition_registry.rebuild_conflicts(
+                        self.topology.cells
+                    )
+                    affected_cells.update(
+                        self._refresh_sql_edges(changed_catalogs)
+                    )
 
         LOGGER.debug("Deleted cell %s and Released graph lock.", cell_id)
         return GraphMutationResult(frozenset(affected_cells))
