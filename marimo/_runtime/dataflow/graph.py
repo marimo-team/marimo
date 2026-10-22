@@ -87,15 +87,36 @@ class DirectedGraph(GraphTopology):
         Only does a local analysis of refs, without taking into consideration
         whether refs are defined by other cells.
         """
-        return edges.get_referring_cells(name, language, self.topology)
+        return edges.get_referring_cells(
+            name,
+            language,
+            self.topology,
+            catalogs=self.definition_registry.sql_catalogs,
+        )
 
-    def register_cell(self, cell_id: CellId_t, cell: CellImpl) -> None:
+    def get_sql_namespace_parents(self, cell_id: CellId_t) -> set[CellId_t]:
+        cell = self.topology.cells[cell_id]
+        if not cell.sql_namespace_refs:
+            return set()
+        resolved = edges.resolve_cell_references(
+            cell_id,
+            cell,
+            self.topology,
+            self.definition_registry,
+            namespace_only=True,
+        )
+        return {parent for parents in resolved.values() for parent in parents}
+
+    def register_cell(
+        self, cell_id: CellId_t, cell: CellImpl
+    ) -> set[CellId_t]:
         """Add a cell to the graph.
 
         Mutates the graph, acquiring `self.lock`.
 
         Requires that `cell_id` is not already in the graph.
         """
+        changed_sql_cells: set[CellId_t] = set()
         LOGGER.debug("Acquiring graph lock to register cell %s", cell_id)
         with self.lock:
             LOGGER.debug("Acquired graph lock.")
@@ -120,12 +141,58 @@ class DirectedGraph(GraphTopology):
                     (cell_id, child_id), self.topology
                 )
 
+            if self._defines_catalog(cell):
+                self.definition_registry.rebuild_conflicts(self.topology.cells)
+                changed_sql_cells = self._refresh_sql_edges()
+
         LOGGER.debug("Registered cell %s and released graph lock", cell_id)
         if self.is_any_ancestor_stale(cell_id):
             self.set_stale({cell_id})
 
         if self.is_any_ancestor_disabled(cell_id):
             cell.set_runtime_state(status="disabled-transitively")
+        return changed_sql_cells - {cell_id}
+
+    @staticmethod
+    def _defines_catalog(cell: CellImpl) -> bool:
+        return any(
+            variable.kind == "catalog"
+            for data in cell.variable_data.values()
+            for variable in data
+        )
+
+    def _refresh_sql_edges(self) -> set[CellId_t]:
+        # ATTACH can change a path from a nested schema to a catalog shorthand.
+        sql_cells = {
+            cid: cell
+            for cid, cell in self.topology.cells.items()
+            if cell.language == "sql"
+        }
+        desired: set[tuple[CellId_t, CellId_t]] = set()
+        for cid, cell in sql_cells.items():
+            parents, children = edges.compute_edges_for_cell(
+                cid, cell, self.topology, self.definition_registry
+            )
+            desired.update(
+                (parent, cid) for parent in parents if parent in sql_cells
+            )
+            desired.update(
+                (cid, child) for child in children if child in sql_cells
+            )
+        current = {
+            (parent, child)
+            for parent in sql_cells
+            for child in self.topology.children[parent]
+            if child in sql_cells
+        }
+        changed = {child for _, child in current ^ desired}
+        for edge in current - desired:
+            self.cycle_tracker.remove_cycles_with_edge(edge)
+            self.topology.remove_edge(*edge)
+        for edge in desired - current:
+            self.topology.add_edge(*edge)
+            self.cycle_tracker.detect_cycle_for_edge(edge, self.topology)
+        return changed
 
     def is_any_ancestor_stale(self, cell_id: CellId_t) -> bool:
         """Check if any ancestor of a cell is stale."""
@@ -195,7 +262,7 @@ class DirectedGraph(GraphTopology):
 
         Mutates the graph, acquiring `self.lock`.
 
-        Returns the ids of the children of the removed cell.
+        Returns dependents affected by removal or changed catalog bindings.
         """
         LOGGER.debug("Acquiring graph lock to delete cell %s", cell_id)
         with self.lock:
@@ -223,6 +290,9 @@ class DirectedGraph(GraphTopology):
 
             # Purge this cell from the graph topology
             self.topology.remove_node(cell_id)
+            if self._defines_catalog(cell):
+                self.definition_registry.rebuild_conflicts(self.topology.cells)
+                children.update(self._refresh_sql_edges())
 
         LOGGER.debug("Deleted cell %s and Released graph lock.", cell_id)
         return children

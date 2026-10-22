@@ -394,43 +394,55 @@ class SQLRef:
 
         return ".".join(quote_part(part.lower()) for part in self.parts)
 
+    def split_catalog(
+        self, catalogs: frozenset[str]
+    ) -> tuple[str | None, tuple[str, ...]]:
+        parts = tuple(part.lower() for part in self.parts)
+        has_namespace = len(parts) > 1 or self.kind == "schema"
+        if has_namespace and parts[0] in catalogs | {"memory", "temp"}:
+            return parts[0], parts[1:]
+        return None, parts
+
     def matches_hierarchical_ref(
-        self, name: str, ref: str, kind: SQLTypes = "any"
+        self,
+        name: str,
+        ref: str,
+        kind: SQLTypes = "any",
+        *,
+        catalogs: frozenset[str] = frozenset(),
     ) -> bool:
-        parts = self.from_qualified_name(ref).parts
+        definition = self.from_qualified_name(ref)
         own_parts = tuple(part.lower() for part in self.parts)
         name = name.lower()
         if kind == "catalog":
             namespace = own_parts if self.kind == "schema" else own_parts[:-1]
-            return bool(namespace) and name == namespace[0] == parts[0]
-        if kind == "schema":
-            namespace = own_parts if self.kind == "schema" else own_parts[:-1]
-            if len(parts) > 1 and parts[0] in {"memory", "temp"}:
-                parts = parts[1:]
-            if len(namespace) > 1 and namespace[0] in {"memory", "temp"}:
-                namespace = namespace[1:]
-            return any(
-                namespace[offset : offset + len(parts)] == parts
-                for offset in (0, 1)
+            return (
+                bool(namespace) and name == namespace[0] == definition.parts[0]
             )
+
+        own_catalog, own_path = self.split_catalog(catalogs)
+        ref_catalog, parts = definition.split_catalog(catalogs)
+        if (
+            self.kind == "schema"
+            or kind == "schema"
+            or (self.qualifiers and definition.qualifiers)
+        ) and (own_catalog or "memory") != (ref_catalog or "memory"):
+            return False
+        if kind == "schema":
+            namespace = own_path if self.kind == "schema" else own_path[:-1]
+            return namespace[: len(parts)] == parts
         if self.kind == "schema":
             return False
         if kind == "any" and name != own_parts[-1]:
             return name in own_parts[:-1]
 
-        def without_default_schema(path: tuple[str, ...]) -> tuple[str, ...]:
-            return (
-                (path[0], path[2])
-                if len(path) == 3
-                and path[1] == "main"
-                and path[0] in {"memory", "temp"}
-                else path
-            )
-
-        own_parts = without_default_schema(own_parts)
-        parts = without_default_schema(parts)
-        length = min(len(parts), len(own_parts))
-        return name == own_parts[-1] and own_parts[-length:] == parts[-length:]
+        if own_catalog is not None and len(own_path) == 1:
+            own_path = ("main", *own_path)
+        if ref_catalog is not None and len(parts) == 1:
+            parts = ("main", *parts)
+        if self.qualifiers and definition.qualifiers:
+            return name == own_parts[-1] and own_path == parts
+        return name == own_parts[-1]
 
     def contains_hierarchical_ref(self, ref: str, kind: str) -> bool:
         if kind in ("table", "view"):

@@ -455,6 +455,12 @@ class CellMetadata:
     code: str | None = None
 
 
+@dataclasses.dataclass(frozen=True)
+class _SQLCleanupState:
+    catalogs: frozenset[str]
+    protected_objects: frozenset[str]
+
+
 def _get_attached_catalogs() -> set[str]:
     """Fetch the names of all catalogs currently attached to DuckDB."""
     import duckdb
@@ -609,6 +615,7 @@ class Kernel:
             sys.path.insert(0, "")
 
         self.graph = dataflow.DirectedGraph()
+        self._sql_cleanup_states: dict[CellId_t, _SQLCleanupState] = {}
         self.agent = Agent()
         # When autorun on startup is disabled, this holds cells that have
         # not yet been run; these cells are removed when they or their
@@ -865,7 +872,7 @@ class Kernel:
         cell_id: CellId_t,
         cell: CellImpl,
         stale: bool,
-    ) -> None:
+    ) -> set[CellId_t]:
         if cell_id in self.cell_metadata:
             # If we already have a config for this cell id, restore it
             # This can happen when a cell was previously deactivated (due to a
@@ -876,7 +883,7 @@ class Kernel:
             self.cell_metadata[cell_id] = CellMetadata()
         self.cell_metadata[cell_id].code = cell.code
 
-        self.graph.register_cell(cell_id, cell)
+        changed_sql_cells = self.graph.register_cell(cell_id, cell)
         if stale:
             self.graph.cells[cell_id].set_stale(stale=True, broadcast=False)
         # leaky abstraction: the graph doesn't know about stale modules, so
@@ -885,6 +892,7 @@ class Kernel:
         LOGGER.debug("registered cell %s", cell_id)
         LOGGER.debug("parents: %s", self.graph.parents[cell_id])
         LOGGER.debug("children: %s", self.graph.children[cell_id])
+        return changed_sql_cells
 
     def _try_compiling_cell(
         self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
@@ -951,20 +959,22 @@ class Kernel:
         code: str,
         carried_imports: list[ImportData],
         stale: bool,
-    ) -> Error | None:
+    ) -> tuple[set[CellId_t], Error | None]:
         """Attempt to register a cell with given id and code.
 
         Precondition: a cell with the supplied id must not already exist in the
         graph.
 
-        If cell was unable to be registered, returns an Error object.
+        Returns dependents whose catalog binding changed and any compile error.
         """
         cell, error = self._try_compiling_cell(cell_id, code, carried_imports)
 
-        if cell is not None:
+        changed_sql_cells = (
             self._register_cell(cell_id, cell, stale)
-
-        return error
+            if cell is not None
+            else set()
+        )
+        return changed_sql_cells, error
 
     def _maybe_register_cell(
         self, cell_id: CellId_t, code: str, stale: bool
@@ -976,13 +986,12 @@ class Kernel:
         same id but different code is registered.
 
         Returns:
-        - a set of ids for cells that were previously children of `cell_id`
-          but are no longer children of `cell_id` after registration;
-          only non-empty when `cell-id` was already registered but with
-          different code.
+        - dependents whose previous edges were removed or whose catalog
+          bindings changed during registration.
         - an `Error` if the cell couldn't be registered, `None` otherwise
         """
         previous_children: set[CellId_t] = set()
+        changed_sql_cells: set[CellId_t] = set()
         error = None
         if not self.graph.is_cell_cached(cell_id, code):
             previous_cell = self.graph.cells.get(cell_id, None)
@@ -1008,7 +1017,7 @@ class Kernel:
                 LOGGER.debug("Deleting cell %s", cell_id)
                 previous_children = self._deactivate_cell(cell_id)
 
-            error = self._try_registering_cell(
+            changed_sql_cells, error = self._try_registering_cell(
                 cell_id, code, carried_imports=carried_imports, stale=stale
             )
             if error is not None and previous_cell is not None:
@@ -1043,31 +1052,31 @@ class Kernel:
             self.graph.children,
         )
 
-        # We only return cells that were previously children of cell_id
-        # but are no longer children of the newly registered cell; these
-        # returned cells are stale.
+        # Removed edges and changed catalog bindings both invalidate dependents.
         children = self.graph.children.get(cell_id, set())
-        return previous_children - children, error
+        return (previous_children - children) | changed_sql_cells, error
 
     def _delete_variables(
         self,
         variables: dict[Name, list[VariableData]],
         exclude_defs: set[Name],
+        sql_cleanup: _SQLCleanupState | None,
     ) -> None:
-        """Delete `names` from kernel, except for `exclude_defs`"""
-        # Memoize the attached-catalog lookup
-        attached_catalogs: set[str] | None = None
+        """Delete definitions using the catalog bindings from their execution."""
+        attached_catalogs = set(sql_cleanup.catalogs if sql_cleanup else ())
 
         def get_attached_catalogs() -> set[str]:
-            nonlocal attached_catalogs
-            if attached_catalogs is None:
-                attached_catalogs = _get_attached_catalogs()
             return attached_catalogs
 
         for name, variable_data in variables.items():
             if name in exclude_defs:
                 continue
             for variable in effective_variable_definitions(variable_data):
+                if (
+                    variable.kind in ("table", "view", "catalog")
+                    and sql_cleanup is None
+                ):
+                    continue
                 if variable.kind == "table" and DependencyManager.duckdb.has():
                     import duckdb
 
@@ -1076,7 +1085,11 @@ class Kernel:
                     qualified = _in_memory_qualified_name(
                         variable, name, get_attached_catalogs
                     )
-                    if qualified is not None:
+                    if (
+                        qualified is not None
+                        and sql_cleanup is not None
+                        and qualified not in sql_cleanup.protected_objects
+                    ):
                         try:
                             duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
                         except Exception as e:
@@ -1092,7 +1105,11 @@ class Kernel:
                     qualified = _in_memory_qualified_name(
                         variable, name, get_attached_catalogs
                     )
-                    if qualified is not None:
+                    if (
+                        qualified is not None
+                        and sql_cleanup is not None
+                        and qualified not in sql_cleanup.protected_objects
+                    ):
                         try:
                             duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
                         except Exception as e:
@@ -1107,6 +1124,11 @@ class Kernel:
 
                     try:
                         identifier = quote_sql_identifier(name)
+                        if (
+                            sql_cleanup is None
+                            or identifier in sql_cleanup.protected_objects
+                        ):
+                            continue
                         duckdb.execute(
                             f"DETACH DATABASE IF EXISTS {identifier}"
                         )
@@ -1156,6 +1178,7 @@ class Kernel:
         self._delete_variables(
             {**cell.variable_data, **temporaries},
             exclude_defs if exclude_defs is not None else set(),
+            sql_cleanup=self._sql_cleanup_states.pop(cell_id, None),
         )
 
         missing_modules_after_deletion = (
@@ -1549,6 +1572,69 @@ class Kernel:
             for cid in ctx.cells_to_run:
                 self._invalidate_cell_state(cid)
 
+        def remember_sql_cleanup_state(
+            cell: CellImpl, ctx: hook_context.PreExecutionHookContext
+        ) -> None:
+            variables = [
+                (name, variable)
+                for name, data in cell.variable_data.items()
+                for variable in data
+                if variable.kind in ("table", "view", "catalog")
+            ]
+            if not variables:
+                return
+            live_catalogs = frozenset(_get_attached_catalogs())
+            catalogs = (
+                live_catalogs | ctx.graph.definition_registry.sql_catalogs
+            )
+            targets = {
+                qualified
+                for name, variable in variables
+                if variable.kind in ("table", "view")
+                and (
+                    qualified := _in_memory_qualified_name(
+                        variable, name, lambda: set(catalogs)
+                    )
+                )
+                is not None
+            }
+            protected = {
+                quote_sql_identifier(name)
+                for name, variable in variables
+                if variable.kind == "catalog" and name.lower() in live_catalogs
+            }
+            if targets:
+                from marimo._ast.sql_visitor import SQLRef
+                from marimo._sql.engines.duckdb import DuckDBEngine
+
+                # Existing objects must survive failed CREATE and IF NOT EXISTS.
+                try:
+                    existing: dict[tuple[str, ...], set[str]] = {}
+                    engine = DuckDBEngine()
+                    for target in targets:
+                        path = SQLRef.from_qualified_name(target).parts
+                        schema_path = path[1:-1]
+                        if schema_path not in existing:
+                            existing[schema_path] = {
+                                table.name.lower()
+                                for table in engine.get_tables_in_schema(
+                                    database="memory",
+                                    schema=schema_path[-1],
+                                    schema_path=list(schema_path),
+                                    include_table_details=False,
+                                )
+                            }
+                        if path[-1] in existing[schema_path]:
+                            protected.add(target)
+                except Exception:
+                    protected.update(targets)
+                    LOGGER.warning(
+                        "Failed to inspect SQL cleanup targets", exc_info=True
+                    )
+            self._sql_cleanup_states[cell.cell_id] = _SQLCleanupState(
+                catalogs, frozenset(protected)
+            )
+
         def note_time_of_interruption(
             cell_impl: CellImpl,
             ctx: hook_context.PostExecutionHookContext,
@@ -1562,6 +1648,7 @@ class Kernel:
         # Copy hooks and add run-specific hooks
         run_hooks = self._hooks.copy()
         run_hooks.add_preparation(invalidate_state)
+        run_hooks.add_pre_execution(remember_sql_cleanup_state)
         run_hooks.add_post_execution(note_time_of_interruption, Priority.LATE)
         run_hooks.add_on_finish(self.packages_callbacks.missing_packages_hook)
         run_hooks.add_on_finish(self._propagate_kernel_errors)

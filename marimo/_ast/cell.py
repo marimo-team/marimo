@@ -189,6 +189,8 @@ class CellImpl:
     # unique id
     cell_id: CellId_t
 
+    sql_namespace_refs: set[SQLRef] = dataclasses.field(default_factory=set)
+
     # Subset of `temporaries` that are closed over (transitively) by a
     # function, lambda, or class defined in this cell, and so must be retained
     # in the kernel globals for those closures to be callable.

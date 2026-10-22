@@ -1924,3 +1924,60 @@ def test_multiple_qualified_sql_objects_in_one_cell(
     graph.delete_cell(CellId_t("0"))
     assert not graph.ancestors(CellId_t("1"))
     assert not graph.ancestors(CellId_t("2"))
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb")
+@pytest.mark.parametrize("reverse_order", [False, True])
+@pytest.mark.parametrize("kind", ["TABLE", "VIEW"])
+@pytest.mark.parametrize(
+    ("name", "query_name"),
+    [
+        ("memory.same_name", "memory.main.same_name"),
+        ("finance.reports", "finance.reports"),
+        ("memory.finance.reports.sales", "memory.finance.reports.sales"),
+    ],
+)
+def test_schema_and_relation_with_same_qualified_name(
+    reverse_order: bool, kind: str, name: str, query_name: str
+) -> None:
+    relation = f"{kind} {name} " + (
+        "(id INT)" if kind == "TABLE" else "AS SELECT 1 AS id"
+    )
+    sources = [
+        f'mo.sql("CREATE SCHEMA {name}")',
+        f'mo.sql("CREATE {relation}")',
+        f'mo.sql("SELECT * FROM {query_name}")',
+    ]
+    cells = {
+        CellId_t(str(i)): compiler.compile_cell(code, cell_id=CellId_t(str(i)))
+        for i, code in enumerate(sources)
+    }
+    graph = dataflow.DirectedGraph()
+    for cid, cell in (
+        reversed(cells.items()) if reverse_order else cells.items()
+    ):
+        graph.register_cell(cid, cell)
+    assert not graph.get_multiply_defined()
+    assert graph.parents[CellId_t("2")] == {"1"}
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb")
+@pytest.mark.parametrize("reverse_order", [False, True])
+@pytest.mark.parametrize("schema", ["finance", "finance.reports"])
+def test_schema_conflict_with_explicit_default_catalog(
+    reverse_order: bool, schema: str
+) -> None:
+    cells = {
+        CellId_t("0"): compiler.compile_cell(
+            f'mo.sql("CREATE SCHEMA {schema}")', cell_id=CellId_t("0")
+        ),
+        CellId_t("1"): compiler.compile_cell(
+            f'mo.sql("CREATE SCHEMA memory.{schema}")', cell_id=CellId_t("1")
+        ),
+    }
+    graph = dataflow.DirectedGraph()
+    for cid, cell in (
+        reversed(cells.items()) if reverse_order else cells.items()
+    ):
+        graph.register_cell(cid, cell)
+    assert graph.get_multiply_defined() == [schema.rsplit(".", maxsplit=1)[-1]]

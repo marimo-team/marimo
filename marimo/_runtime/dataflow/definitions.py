@@ -6,8 +6,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from marimo._ast.sql_visitor import SQLRef
+
 if TYPE_CHECKING:
-    from marimo._ast.sql_visitor import SQLRef
+    from collections.abc import Mapping
+
+    from marimo._ast.cell import CellImpl
     from marimo._ast.visitor import Name, VariableData
     from marimo._types.ids import CellId_t
 
@@ -63,14 +67,40 @@ class DefinitionRegistry:
         Only qualified SQL definitions return a non-global key.
         """
         sql_ref = variable.sql_ref
-        qualified_name = sql_ref.qualified_name if sql_ref else None
-        if (
-            variable.language == "sql"
-            and qualified_name is not None
-            and qualified_name != name
-        ):
-            return ("sql", qualified_name)
+        if variable.language == "sql" and sql_ref is not None:
+            if variable.kind == "schema":
+                catalog, path = sql_ref.split_catalog(self.sql_catalogs)
+                catalog = catalog or "memory"
+                if catalog == "memory" and path == (name,):
+                    return ("global", name)
+                return (
+                    "sql-schema",
+                    SQLRef.from_parts([catalog, *path]).qualified_name,
+                )
+            if sql_ref.qualified_name != name:
+                return ("sql", sql_ref.qualified_name)
+
         return ("global", name)
+
+    @property
+    def sql_catalogs(self) -> frozenset[str]:
+        return frozenset(
+            name.lower()
+            for name, kind in self.typed_definitions
+            if kind == "catalog"
+        )
+
+    def rebuild_conflicts(self, cells: Mapping[CellId_t, CellImpl]) -> None:
+        self.definition_conflicts.clear()
+        self.conflict_names.clear()
+        for cell_id, cell in cells.items():
+            for name, data in cell.variable_data.items():
+                for variable in effective_variable_definitions(data):
+                    key = self._conflict_key(name, variable)
+                    self.definition_conflicts.setdefault(key, set()).add(
+                        cell_id
+                    )
+                    self.conflict_names.setdefault(key, name)
 
     def register_definition(
         self,
