@@ -47,10 +47,7 @@ class LexicalScope(str, Enum):
 
 
 def is_lazy_import(node: ast.AST) -> bool:
-    """Whether `node` is a `lazy import` statement (PEP 810, Python 3.15+).
-
-    Older parsers have no `is_lazy` attribute, so this is False there.
-    """
+    """Return whether the node is a lazy import statement."""
     return isinstance(node, (ast.Import, ast.ImportFrom)) and bool(
         getattr(node, "is_lazy", 0)
     )
@@ -68,8 +65,6 @@ class ImportData:
     # from a.b import c => symbol == a.b.c
     imported_symbol: str | None = None
     import_level: int | None = None
-    # `lazy import` (PEP 810, Python 3.15+): the module is resolved on first
-    # use of the name rather than when the statement runs.
     is_lazy: bool = False
 
     def __post_init__(self) -> None:
@@ -254,8 +249,7 @@ class ScopedVisitor(ast.NodeVisitor):
         allow_lazy_imports: bool = True,
     ) -> None:
         self.block_stack: list[Block] = [Block()]
-        # `lazy import` is legal only at module level, so cells that are
-        # saved as function bodies must reject it.
+        # NB. Lazy imports are invalid in cells saved as function bodies.
         self.allow_lazy_imports = allow_lazy_imports
         # Names to be loaded into a variable required_refs
         self.ref_stack: list[set[Name]] = [set()]

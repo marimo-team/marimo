@@ -927,7 +927,7 @@ class Kernel:
                 if isinstance(e, ImportStarError):
                     error = MarimoImportStarError(msg=str(e), lineno=lineno)
                 elif isinstance(e, LazyImportError):
-                    # str(e) would append "(line N)"; lineno is sent apart.
+                    # NB. str(e) appends the line number already in lineno.
                     error = MarimoLazyImportError(msg=e.msg, lineno=lineno)
                 else:
 

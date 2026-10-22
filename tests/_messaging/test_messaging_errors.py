@@ -71,10 +71,15 @@ class TestErrorClasses:
             msg="`lazy import` is only allowed in the setup cell.", lineno=2
         )
 
-        serialized = msgspec.to_builtins(error)
-        assert serialized["type"] == "lazy-import"
-        assert error.describe() == error.msg
-        assert error.lineno == 2
+        assert msgspec.to_builtins(error) == {
+            "type": "lazy-import",
+            "msg": "`lazy import` is only allowed in the setup cell.",
+            "lineno": 2,
+        }
+        assert (
+            error.describe()
+            == "`lazy import` is only allowed in the setup cell."
+        )
 
     def test_marimo_interruption_error(self) -> None:
         error = MarimoInterruptionError()

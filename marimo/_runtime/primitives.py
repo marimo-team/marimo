@@ -171,8 +171,7 @@ def from_unclonable_module(obj: object) -> bool:
     )
 
 
-# PEP 810 lazy import proxies (Python 3.15+) stand in for a module until
-# the name is read; `inspect.ismodule` does not recognize them.
+# NB. inspect.ismodule does not recognize Python 3.15 lazy import proxies.
 _LAZY_IMPORT_TYPES: tuple[type, ...] = (
     (types.LazyImportType,) if hasattr(types, "LazyImportType") else ()
 )

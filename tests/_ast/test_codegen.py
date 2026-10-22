@@ -7,6 +7,7 @@ import sys
 from functools import partial
 from inspect import cleandoc
 from pathlib import Path
+from runpy import run_path
 from textwrap import dedent
 from typing import Any
 from unittest.mock import patch
@@ -2309,17 +2310,23 @@ def test_format_markdown_preserves_surrounding_source(
 )
 class TestLazyImports:
     @staticmethod
-    def test_lazy_import_in_regular_cell_saves_as_unparsable_cell() -> None:
-        # The cell does not compile, so the fallback keeps the file loadable.
+    def test_lazy_import_in_regular_cell_saves_as_unparsable_cell(
+        tmp_path: Path,
+    ) -> None:
         contents = wrap_generate_filecontents(
             ["lazy import json", "x = 1"], ["one", "two"]
         )
         assert "app._unparsable_cell" in contents
         assert "lazy import json" in contents
         compile(contents, "<notebook>", "exec")
+        path = tmp_path / "notebook.py"
+        path.write_text(contents)
+        app = load.load_app(path)
+        assert app is not None
+        assert list(app._cell_manager.codes()) == ["lazy import json", "x = 1"]
 
     @staticmethod
-    def test_lazy_import_in_setup_cell_serializes() -> None:
+    def test_lazy_import_in_setup_cell_serializes(tmp_path: Path) -> None:
         contents = wrap_generate_filecontents(
             ["lazy import json\nX = 1", "y = json.dumps(X)"],
             [SETUP_CELL_NAME, "two"],
@@ -2328,3 +2335,13 @@ class TestLazyImports:
         assert "    lazy import json" in contents
         assert "app._unparsable_cell" not in contents
         compile(contents, "<notebook>", "exec")
+        path = tmp_path / "notebook.py"
+        path.write_text(contents)
+        app = load.load_app(path)
+        assert app is not None
+        assert list(app._cell_manager.codes()) == [
+            "lazy import json\nX = 1",
+            "y = json.dumps(X)",
+        ]
+        _, defs = run_path(str(path))["app"].run()
+        assert defs["y"] == "1"

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -12,9 +13,24 @@ from marimo._runtime.runtime import Kernel
 from marimo._types.ids import CellId_t
 from tests.conftest import ExecReqProvider
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
+
 pytestmark = pytest.mark.skipif(
     sys.version_info < (3, 15), reason="`lazy import` requires Python 3.15"
 )
+
+
+@pytest.fixture
+def lazy_module(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[str]:
+    module_name = "marimo_lazy_import_test"
+    (tmp_path / f"{module_name}.py").write_text("def foo():\n    return 1\n")
+    monkeypatch.syspath_prepend(tmp_path)
+    yield module_name
+    sys.modules.pop(module_name, None)
 
 
 class TestLazyImports:
@@ -29,33 +45,44 @@ class TestLazyImports:
         assert error.lineno == 1
         assert error.msg == "`lazy import` is only allowed in the setup cell."
 
-    async def test_lazy_import_in_setup_cell_runs(
-        self, k: Kernel, exec_req: ExecReqProvider
+    @pytest.mark.parametrize(
+        ("setup_code", "reader"),
+        [
+            ("lazy import {m}", "{m}.foo()"),
+            ("lazy from {m} import foo", "foo()"),
+        ],
+    )
+    async def test_setup_import_is_deferred_until_first_use(
+        self,
+        execution_kernel: Kernel,
+        exec_req: ExecReqProvider,
+        lazy_module: str,
+        setup_code: str,
+        reader: str,
     ) -> None:
+        k = execution_kernel
         await k.run(
             [
                 ExecuteCellCommand(
-                    cell_id=CellId_t(SETUP_CELL_NAME), code="lazy import json"
+                    cell_id=CellId_t(SETUP_CELL_NAME),
+                    code=setup_code.format(m=lazy_module),
                 ),
-                exec_req.get("x = json.dumps(1)"),
             ]
         )
         assert not k.errors
-        assert k.globals["x"] == "1"
+        assert lazy_module not in sys.modules
 
-    async def test_lazy_import_in_setup_cell_runs_in_strict_mode(
-        self, strict_kernel: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        # Strict execution clones each ref; a lazy proxy must pass through
-        # like a module instead of failing to deepcopy.
-        k = strict_kernel
         await k.run(
             [
-                ExecuteCellCommand(
-                    cell_id=CellId_t(SETUP_CELL_NAME), code="lazy import json"
-                ),
-                exec_req.get("x = json.dumps(1)"),
+                exec_req.get(
+                    f"def use_module():\n    return {reader.format(m=lazy_module)}"
+                )
             ]
         )
         assert not k.errors
-        assert k.globals["x"] == "1"
+        assert lazy_module not in sys.modules
+
+        await k.run([exec_req.get("x = use_module()")])
+        assert not k.errors
+        assert k.globals["x"] == 1
+        assert lazy_module in sys.modules
