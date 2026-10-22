@@ -69,7 +69,7 @@ marimo config show
 Add `--show-sources` to include the source of each configuration value:
 
 ```bash
-marimo config show --show-sources
+% marimo config show --show-sources
 
 [display]
 theme = "dark" # /path/to/pyproject.toml
