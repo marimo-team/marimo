@@ -32,6 +32,7 @@ from marimo._session.managers.ipc import KernelStartupError
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._types.ids import SessionId
 from tests._server.api.endpoints.ws_helpers import (
+    QUERY_PARAMS_CASES,
     assert_kernel_ready_response,
     create_response,
 )
@@ -197,6 +198,18 @@ async def test_sse_kernel_ready(client: TestClient) -> None:
         message = json.loads(event["data"])
         assert message["op"] == "kernel-ready"
         assert_kernel_ready_response(message)
+
+
+@pytest.mark.parametrize(("query", "expected"), QUERY_PARAMS_CASES)
+async def test_sse_query_params(
+    client: TestClient, query: str, expected: dict[str, str | list[str]]
+) -> None:
+    async with _connect(client, f"{SSE_QUERY}&{query}") as connection:
+        event = await connection.next_notification()
+        assert_kernel_ready_response(json.loads(event["data"]))
+        session = get_session_manager(client).get_session("123")
+        assert session is not None
+        assert session._kernel_manager.app_metadata.query_params == expected
 
 
 async def test_sse_requires_session_id(client: TestClient) -> None:

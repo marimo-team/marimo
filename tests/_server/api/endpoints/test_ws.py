@@ -31,6 +31,7 @@ from marimo._types.ids import SessionId
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.api.endpoints.ws_helpers import (
     HEADERS,
+    QUERY_PARAMS_CASES,
     assert_kernel_ready_response,
     assert_parse_ready_response,
     create_response,
@@ -324,20 +325,17 @@ def test_file_watcher_calls_reload(client: TestClient) -> None:
         session_manager.watch = False
 
 
-async def test_query_params(client: TestClient) -> None:
-    with client.websocket_connect(
-        f"{WS_URL}&foo=1&bar=2&bar=3&baz=4"
-    ) as websocket:
+@pytest.mark.parametrize(("query", "expected"), QUERY_PARAMS_CASES)
+async def test_query_params(
+    client: TestClient, query: str, expected: dict[str, str | list[str]]
+) -> None:
+    with client.websocket_connect(f"{WS_URL}&{query}") as websocket:
         data = receive_notification(websocket)
         assert_kernel_ready_response(data)
 
         session = get_session_manager(client).get_session("123")
         assert session
-        assert session._kernel_manager.app_metadata.query_params == {
-            "foo": "1",
-            "bar": ["2", "3"],
-            "baz": "4",
-        }
+        assert session._kernel_manager.app_metadata.query_params == expected
 
 
 async def test_connect_kiosk_without_session(client: TestClient) -> None:

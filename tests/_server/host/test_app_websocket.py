@@ -54,7 +54,9 @@ def test_app_executes_with_hidden_source_and_retained_hashes(
     client: TestClient, app_host: SessionBridge, include_code: bool
 ) -> None:
     get_session_manager(client).include_code = include_code
-    with client.websocket_connect(url("alice") + "&color=blue") as ws:
+    with client.websocket_connect(
+        url("alice") + "&query_params=color%3Dblue"
+    ) as ws:
         snapshot = socket_snapshot(ws)
         ready = receive_notification(ws, "kernel-ready")
         assert ready["auto_instantiated"] is True
