@@ -39,19 +39,23 @@ export function useNotebookClient(options: Options): NotebookClient {
 
   useEffect(() => {
     const lifetime = new AbortController();
+    let needsInitialReadiness = true;
     store.set(notebookClientAtom, controller.client);
     controller.connect({
       transport: createNotebookTransport({
         static: isStatic,
         transportType,
         url: async () => {
-          try {
-            await waitUntilReady();
-          } catch (error) {
-            // Shown as a disconnected kernel, like a host that cannot be reached.
-            throw new StreamStopped("Healthy connection never made", {
-              cause: error,
-            });
+          if (needsInitialReadiness) {
+            // Explicit retries check current health, even if startup failed.
+            needsInitialReadiness = false;
+            try {
+              await waitUntilReady();
+            } catch (error) {
+              throw new StreamStopped("Healthy connection never made", {
+                cause: error,
+              });
+            }
           }
           return url();
         },

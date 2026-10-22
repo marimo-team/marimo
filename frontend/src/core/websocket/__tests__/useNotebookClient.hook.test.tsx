@@ -7,6 +7,7 @@ import type { PropsWithChildren } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NotebookTransport } from "@marimo-team/client";
 import { ConnectionState } from "../types";
+import { Deferred } from "@/utils/Deferred";
 import { createNotebookTransport } from "../transports/notebook";
 import { useNotebookClient } from "../useNotebookClient";
 import { fixtureMessages } from "../../host/__tests__/fixtures";
@@ -39,7 +40,13 @@ function makeTransport() {
   };
 }
 
-function setup(strict = false) {
+function setup(
+  strict = false,
+  readiness: {
+    waitUntilReady?: () => Promise<void>;
+    checkHealth?: () => Promise<boolean>;
+  } = {},
+) {
   const store = createStore();
   const options = {
     static: false,
@@ -49,6 +56,7 @@ function setup(strict = false) {
     waitUntilReady: async () => undefined,
     checkHealth: async () => true,
     onNotification: vi.fn(),
+    ...readiness,
   };
   const wrapper = ({ children }: PropsWithChildren) => (
     <Provider store={store}>{children}</Provider>
@@ -66,6 +74,82 @@ beforeEach(() => {
 });
 
 describe("useNotebookClient", () => {
+  it.each([true, false])(
+    "rechecks health after failed startup (healthy: %s)",
+    async (healthy) => {
+      const fake = makeTransport();
+      vi.mocked(createNotebookTransport).mockImplementation(
+        ({ url }) =>
+          async (attempt, handlers) => {
+            if (typeof url === "function") {
+              await url();
+            }
+            if (!attempt.signal.aborted) {
+              return fake.transport(attempt, handlers);
+            }
+          },
+      );
+      const waitUntilReady = vi
+        .fn()
+        .mockRejectedValue(new Error("Startup gave up"));
+      const checkHealth = vi.fn().mockResolvedValue(healthy);
+      const { result, store, unmount } = setup(false, {
+        waitUntilReady,
+        checkHealth,
+      });
+      await act(async () => Promise.resolve());
+      expect(store.get(result.current.connectionAtom).state).toBe(
+        ConnectionState.CLOSED,
+      );
+
+      await act(async () => result.current.reconnect());
+      expect({
+        healthChecks: checkHealth.mock.calls.length,
+        initialWaits: waitUntilReady.mock.calls.length,
+        connections: fake.opened.length,
+        state: store.get(result.current.connectionAtom).state,
+      }).toEqual({
+        healthChecks: 1,
+        initialWaits: 1,
+        connections: healthy ? 1 : 0,
+        state: healthy ? ConnectionState.CONNECTING : ConnectionState.CLOSED,
+      });
+      act(() => fake.opened.at(-1)?.open());
+      expect(store.get(result.current.connectionAtom).state).toBe(
+        healthy ? ConnectionState.OPEN : ConnectionState.CLOSED,
+      );
+      unmount();
+    },
+  );
+
+  it("waits for initial readiness without reviving an unmounted connection", async () => {
+    const ready = new Deferred<void>();
+    const resolvedUrl = vi.fn();
+    vi.mocked(createNotebookTransport).mockImplementation(
+      ({ url }) =>
+        async () => {
+          if (typeof url === "function") {
+            await url();
+            resolvedUrl();
+          }
+        },
+    );
+    const { result, store, unmount } = setup(false, {
+      waitUntilReady: () => ready.promise,
+    });
+    await act(async () => Promise.resolve());
+    expect(resolvedUrl).not.toHaveBeenCalled();
+    expect(store.get(result.current.connectionAtom)).toEqual({
+      state: ConnectionState.CONNECTING,
+    });
+    unmount();
+    await act(async () => ready.resolve());
+    expect(store.get(result.current.connectionAtom)).toEqual({
+      state: ConnectionState.NOT_STARTED,
+    });
+    expect(store.get(notebookClientAtom)).toBeNull();
+  });
+
   it("exposes host presence to the UI without waiting for kernel-ready", async () => {
     const fake = makeTransport();
     vi.mocked(createNotebookTransport).mockReturnValue(fake.transport);
