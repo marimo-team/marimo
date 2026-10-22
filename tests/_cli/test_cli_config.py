@@ -69,14 +69,14 @@ def test_config_show_source_comments_are_valid_toml() -> None:
     assert output == snapshot(
         """\
 [display]
-custom_css = ["styles.css"] # project: /project/pyproject.toml
-theme = "dark" # project: /project/pyproject.toml
+custom_css = ["styles.css"] # /project/pyproject.toml
+theme = "dark" # /project/pyproject.toml
 
-[[file_browser.folders]] # project: /project/pyproject.toml
+[[file_browser.folders]] # /project/pyproject.toml
 name = "Data"
 path = "/data"
 
-[keymap.overrides] # project: /project/pyproject.toml"""
+[keymap.overrides] # /project/pyproject.toml"""
     )
     assert tomlkit.parse(output).unwrap() == values
 
@@ -111,8 +111,8 @@ def test_config_show_includes_notebook_sources_and_does_not_save(
     result = CliRunner().invoke(commands.config, args)
     assert result.exit_code == 0, result.output
     if show_sources:
-        assert f'theme = "dark" # user: {user_path}' in result.output
-        assert f'on_cell_change = "lazy" # script: {notebook}' in result.output
+        assert f'theme = "dark" # {user_path}' in result.output
+        assert f'on_cell_change = "lazy" # {notebook}' in result.output
     else:
         assert 'theme = "dark"\n' in result.output
         assert 'on_cell_change = "lazy"\n' in result.output
@@ -120,6 +120,38 @@ def test_config_show_includes_notebook_sources_and_does_not_save(
     assert 'api_key = "********"' in result.output
     assert "private-key" not in result.output
     assert user_path.read_text() == contents
+
+
+def test_config_show_relative_notebook_finds_parent_project(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import tomlkit
+
+    user_path = tmp_path / "marimo.toml"
+    user_path.write_text("")
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _self: str(user_path)
+    )
+    project = tmp_path / "pyproject.toml"
+    project.write_text('[tool.marimo.display]\ntheme = "dark"\n')
+    notebooks = tmp_path / "notebooks"
+    notebooks.mkdir()
+    notebook = notebooks / "app.py"
+    notebook.write_text(
+        '# /// script\n# [tool.marimo.runtime]\n# on_cell_change = "lazy"\n# ///\n'
+    )
+    monkeypatch.chdir(notebooks)
+    runner = CliRunner()
+    relative = runner.invoke(config, ["show", "app.py", "--show-sources"])
+    absolute = runner.invoke(config, ["show", str(notebook), "--show-sources"])
+    assert relative.exit_code == absolute.exit_code == 0, relative.output
+    assert relative.output == absolute.output
+    values = tomlkit.parse(relative.output).unwrap()
+    assert values["display"]["theme"] == "dark"
+    assert values["runtime"]["on_cell_change"] == "lazy"
+    assert f'theme = "dark" # {project}' in relative.output
+    assert f'on_cell_change = "lazy" # {notebook}' in relative.output
 
 
 def test_config_show_reports_malformed_project_file(

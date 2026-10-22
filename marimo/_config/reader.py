@@ -5,15 +5,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, cast
 
-import msgspec
-
 from marimo import _loggers
-from marimo._config.config import (
-    MarimoConfig,
-    PartialMarimoConfig,
-    merge_config,
-)
-from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
+from marimo._config.config import PartialMarimoConfig
 from marimo._config.provenance import ConfigLayer, ConfigPath, ConfigSource
 from marimo._config.resolver import config_paths
 from marimo._utils.toml import toml_reader
@@ -42,7 +35,7 @@ class ConfigReader(ABC):
         return {}
 
     def read_layer(self) -> ConfigLayer:
-        """Read explicit settings, reporting invalid values without filling defaults."""
+        """Read sparse settings and their sources, without validating inherited fields."""
         config = self.read()
         source = self.source
         field_sources = self.field_sources
@@ -50,27 +43,6 @@ class ConfigReader(ABC):
             path: field_sources.get(path, source)
             for path in config_paths(cast(dict[str, Any], config))
         }
-        if config:
-            try:
-                # Normalize legacy values before validating against the schema.
-                config = cast(
-                    PartialMarimoConfig,
-                    merge_config(cast(MarimoConfig, {}), config),
-                )
-                MarimoConfigSchema.from_dict(cast(dict[str, object], config))
-            except (
-                msgspec.ValidationError,
-                TypeError,
-                ValueError,
-                AttributeError,
-            ) as error:
-                sources = ", ".join(map(str, dict.fromkeys(origins.values())))
-                LOGGER.error(
-                    "Invalid configuration from %s: %s",
-                    sources or source,
-                    error,
-                    extra={"user_facing": True},
-                )
         return ConfigLayer(config, source, origins)
 
 

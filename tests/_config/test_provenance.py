@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
@@ -234,6 +235,11 @@ def test_parse_errors_identify_the_file(
     messages = [record.getMessage() for record in records]
     assert len(messages) == 1
     assert str(path) in messages[0]
+    assert (
+        "Expected ']'"
+        if sys.version_info >= (3, 11)
+        else "Unexpected character: '\\n'"
+    ) in messages[0]
     assert "Settings from this file were skipped" in messages[0]
     assert (
         resolved.config["display"]["theme"]
@@ -249,12 +255,112 @@ def test_validation_error_identifies_source_and_field(
     user = make_user(
         tmp_path, monkeypatch, '[save]\nautosave_delay = "fast"\n'
     )
+    project = tmp_path / "pyproject.toml"
+    project.write_text('[tool.marimo.display]\ntheme = "dark"\n')
     with _loggers.capture_output() as (_, _, records):
-        resolved = MarimoConfigManager(user).get_config_with_sources()
+        resolved = MarimoConfigManager(
+            user, PyprojectConfigReader(str(tmp_path))
+        ).get_config_with_sources()
     assert [record.getMessage() for record in records] == [
         f"Invalid configuration from user: {tmp_path / 'marimo.toml'}: Expected `int`, got `str` - at `$.save.autosave_delay`"
     ]
     assert resolved.origins[("save", "autosave_delay")] == user.source
+
+
+@pytest.mark.parametrize(
+    ("overlay", "expected"),
+    [
+        ('args = ["--verbose"]', {"args": ["--verbose"]}),
+        ("disabled = true", {"disabled": True}),
+    ],
+)
+def test_sparse_mcp_overlay_inherits_transport_without_validation_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    overlay: str,
+    expected: dict[str, Any],
+) -> None:
+    user = make_user(
+        tmp_path, monkeypatch, '[mcp.mcpServers.example]\ncommand = "uvx"\n'
+    )
+    project = tmp_path / "pyproject.toml"
+    project.write_text(f"[tool.marimo.mcp.mcpServers.example]\n{overlay}\n")
+    reader = PyprojectConfigReader(str(tmp_path))
+    manager = MarimoConfigManager(user, reader)
+    with _loggers.capture_output() as (_, _, records):
+        overrides = manager.get_config_overrides()
+        resolved = manager.get_config_with_sources()
+        assert manager.get_config() == resolved.config
+    assert records == []
+    assert overrides["mcp"]["mcpServers"] == {"example": expected}
+    assert resolved.config["mcp"]["mcpServers"] == {
+        "example": {"command": "uvx", **expected}
+    }
+    assert {
+        path: source
+        for path, source in resolved.origins.items()
+        if path[:3] == ("mcp", "mcpServers", "example")
+    } == {
+        ("mcp", "mcpServers", "example", "command"): user.source,
+        (
+            "mcp",
+            "mcpServers",
+            "example",
+            overlay.split(" = ", maxsplit=1)[0],
+        ): reader.source,
+    }
+
+
+@pytest.mark.parametrize(
+    ("overlay", "error"),
+    [
+        (
+            "args = 123",
+            "Expected `array | null`, got `int` - at `$.mcp.mcpServers[...].args`",
+        ),
+        (
+            "args = [123]",
+            "Expected `str`, got `int` - at `$.mcp.mcpServers[...].args[0]`",
+        ),
+        (
+            'disabled = "no"',
+            "Expected `bool | null`, got `str` - at `$.mcp.mcpServers[...].disabled`",
+        ),
+    ],
+)
+def test_invalid_mcp_overlay_reports_project_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    overlay: str,
+    error: str,
+) -> None:
+    user = make_user(
+        tmp_path, monkeypatch, '[mcp.mcpServers.example]\ncommand = "uvx"\n'
+    )
+    project = tmp_path / "pyproject.toml"
+    project.write_text(f"[tool.marimo.mcp.mcpServers.example]\n{overlay}\n")
+    with _loggers.capture_output() as (_, _, records):
+        MarimoConfigManager(
+            user, PyprojectConfigReader(str(tmp_path))
+        ).get_config_with_sources()
+    assert [record.getMessage() for record in records] == [
+        f"Invalid configuration from project: {project}: {error}"
+    ]
+
+
+def test_overridden_invalid_value_does_not_report_validation_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = make_user(
+        tmp_path, monkeypatch, '[save]\nautosave_delay = "fast"\n'
+    )
+    with _loggers.capture_output() as (_, _, records):
+        resolved = MarimoConfigManager(
+            user, OverrideConfigReader({"save": {"autosave_delay": 1000}})
+        ).get_config_with_sources()
+    assert records == []
+    assert resolved.config["save"]["autosave_delay"] == 1000
 
 
 def test_legacy_reload_values_keep_their_origin(

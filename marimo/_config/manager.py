@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import os
+import re
 from functools import cached_property, lru_cache
 from pathlib import Path
 from typing import Any, cast
+
+import msgspec
 
 from marimo import _loggers
 from marimo._config.config import (
@@ -24,6 +27,7 @@ from marimo._config.config import (
     merge_config,
     merge_default_config,
 )
+from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
 from marimo._config.packages import PackageManagerKind
 from marimo._config.provenance import (
     ConfigLayer,
@@ -61,6 +65,45 @@ from marimo._config.utils import (
 from marimo._utils.env import env_to_value
 
 LOGGER = _loggers.marimo_logger()
+
+
+def _validate_config(resolved: ResolvedConfig) -> None:
+    try:
+        MarimoConfigSchema.from_dict(cast(dict[str, object], resolved.config))
+    except (
+        msgspec.ValidationError,
+        TypeError,
+        ValueError,
+        AttributeError,
+    ) as error:
+        match = re.search(r" - at `\$(.*?)`$", str(error))
+        # msgspec hides dictionary keys as [...] and indexes into lists whose
+        # provenance is tracked as a single value.
+        path = (
+            [
+                field or None
+                for field, index in re.findall(
+                    r"\.([^.[\]]+)|\[(\.\.\.|\d+)\]", match[1]
+                )
+                if not index.isdigit()
+            ]
+            if match
+            else []
+        )
+        sources = dict.fromkeys(
+            source
+            for origin, source in resolved.origins.items()
+            if all(
+                field is None or field == key
+                for field, key in zip(path, origin, strict=False)
+            )
+        )
+        LOGGER.error(
+            "Invalid configuration from %s: %s",
+            ", ".join(map(str, sources)),
+            error,
+            extra={"user_facing": True},
+        )
 
 
 def get_default_config_manager(
@@ -234,6 +277,7 @@ class MarimoConfigManager:
             )
         )
         resolved = resolve_config_with_sources(layers)
+        _validate_config(resolved)
         if hide_secrets:
             resolved.config = redact_secrets(resolved.config)
         return resolved

@@ -31,7 +31,7 @@ def config() -> None:
 @click.option(
     "--show-sources",
     is_flag=True,
-    help="Include source comments for each configuration value.",
+    help="Include source comments for configuration settings and tables.",
 )
 def show(notebook: str | None = None, show_sources: bool = False) -> None:
     """
