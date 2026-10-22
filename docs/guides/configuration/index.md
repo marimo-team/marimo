@@ -66,17 +66,11 @@ To view the configuration marimo is using, run:
 marimo config show
 ```
 
-Add `--show-sources` to include source comments for settings and tables:
+Add `--show-sources` to include the source of each configuration value:
 
 ```bash
 marimo config show --show-sources
-```
 
-Source comments identify the configuration file, environment variable, default,
-or inferred setting that supplied a setting or table. For arrays of tables,
-the source comment appears on each table header:
-
-```toml
 [display]
 theme = "dark" # /path/to/pyproject.toml
 
@@ -89,13 +83,6 @@ To include a notebook's script metadata, pass its path:
 ```bash
 marimo config show notebook.py
 ```
-
-You can also use `--show-sources` when passing a notebook path.
-
-If a configuration file cannot be parsed, marimo prints an error with the file
-path and parsing error, ignores that file's settings, and continues using the
-remaining sources. Diagnostics for invalid configuration values identify their
-source, such as the configuration file or environment variable.
 
 To describe the user configuration options, run:
 
