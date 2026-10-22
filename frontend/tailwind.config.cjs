@@ -90,6 +90,10 @@ module.exports = {
           foreground:
             "color-mix(in srgb, var(--action-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
+        "search-highlight": {
+          DEFAULT:
+            "color-mix(in srgb, var(--search-highlight), transparent calc((1 - <alpha-value>) * 100%))",
+        },
         popover: {
           DEFAULT:
             "color-mix(in srgb, var(--popover), transparent calc((1 - <alpha-value>) * 100%))",

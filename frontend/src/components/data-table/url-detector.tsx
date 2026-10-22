@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { marked } from "marked";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import {
   Popover,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { Events } from "@/utils/events";
 import type { ContentPart } from "@/utils/url-parser";
+import { highlightMatches } from "./search-highlight";
 
 const ImageWithFallback = ({ url }: { url: string }) => {
   const [error, setError] = useState(false);
@@ -93,21 +94,43 @@ export const MarkdownUrlDetector = ({
   return <UrlDetector parts={parts} />;
 };
 
-export const UrlDetector = ({ parts }: { parts: ContentPart[] }) => {
+export const UrlDetector = ({
+  parts,
+  highlightPattern,
+}: {
+  parts: ContentPart[];
+  highlightPattern?: RegExp;
+}) => {
   const markup = parts.map((part, idx) => {
     if (part.type === "url") {
-      return <URLAnchor key={idx} url={part.url} />;
+      return (
+        <URLAnchor
+          key={idx}
+          url={part.url}
+          highlightPattern={highlightPattern}
+        />
+      );
     }
     if (part.type === "image") {
       return <ImageWithFallback key={idx} url={part.url} />;
     }
-    return part.value;
+    return (
+      <Fragment key={idx}>
+        {highlightMatches(part.value, highlightPattern)}
+      </Fragment>
+    );
   });
 
   return markup;
 };
 
-const URLAnchor = ({ url }: { url: string }) => {
+const URLAnchor = ({
+  url,
+  highlightPattern,
+}: {
+  url: string;
+  highlightPattern?: RegExp;
+}) => {
   return (
     <a
       href={url}
@@ -116,7 +139,7 @@ const URLAnchor = ({ url }: { url: string }) => {
       onClick={Events.stopPropagation()}
       className="text-link hover:underline"
     >
-      {url}
+      {highlightMatches(url, highlightPattern)}
     </a>
   );
 };

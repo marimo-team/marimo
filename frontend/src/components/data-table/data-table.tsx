@@ -58,6 +58,7 @@ import { useColumnPinning } from "./hooks/use-column-pinning";
 import { useScrollContainerHeight } from "./hooks/use-scroll-container-height";
 import { CellSelectionProvider } from "./range-focus/provider";
 import { DataTableBody, renderTableHeader } from "./renderers";
+import { buildHighlightPattern } from "./search-highlight";
 import { TableBottomBar } from "./TableBottomBar";
 import { TableTopBar } from "./TableTopBar";
 import {
@@ -231,6 +232,11 @@ const DataTableInternal = <TData,>({
     return idx + offset;
   }
 
+  const highlightPattern = React.useMemo(
+    () => buildHighlightPattern(searchQuery),
+    [searchQuery],
+  );
+
   const table = useReactTable<TData>({
     _features: [
       ColumnPinning,
@@ -245,7 +251,7 @@ const DataTableInternal = <TData,>({
     ],
     data,
     columns,
-    meta: { rawData },
+    meta: { rawData, highlightPattern },
     getCoreRowModel: getCoreRowModel(),
     // pagination
     rowCount: totalRows === "too_many" ? undefined : totalRows,

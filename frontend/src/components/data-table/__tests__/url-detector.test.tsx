@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { parseContent } from "@/utils/url-parser";
+import { buildHighlightPattern } from "../search-highlight";
 import { isMarkdown, UrlDetector } from "../url-detector";
 
 describe("UrlDetector", () => {
@@ -199,5 +200,44 @@ describe("isMarkdown", () => {
   it.fails("returns true for markdown with URLs", () => {
     expect(isMarkdown("[Link](https://example.com)")).toBe(true);
     expect(isMarkdown("Visit [marimo](https://marimo.io)")).toBe(true);
+  });
+});
+
+describe("UrlDetector with highlightPattern", () => {
+  it("wraps a text match in a mark", () => {
+    const { container } = render(
+      <UrlDetector
+        parts={parseContent("Alice Smith")}
+        highlightPattern={buildHighlightPattern("smi")}
+      />,
+    );
+    const marks = container.querySelectorAll("mark");
+    expect(marks).toHaveLength(1);
+    expect(marks[0].textContent).toBe("Smi");
+    expect(container.textContent).toBe("Alice Smith");
+  });
+
+  it("wraps a match inside a link label", () => {
+    const { container } = render(
+      <UrlDetector
+        parts={parseContent("see https://marimo.io/docs")}
+        highlightPattern={buildHighlightPattern("marimo")}
+      />,
+    );
+    const link = container.querySelector("a");
+    expect(link).not.toBeNull();
+    const mark = link?.querySelector("mark");
+    expect(mark?.textContent).toBe("marimo");
+    expect(link).toHaveAttribute("href", "https://marimo.io/docs");
+  });
+
+  it("renders no mark for an empty query", () => {
+    const { container } = render(
+      <UrlDetector
+        parts={parseContent("Alice Smith")}
+        highlightPattern={buildHighlightPattern("")}
+      />,
+    );
+    expect(container.querySelector("mark")).toBeNull();
   });
 });
