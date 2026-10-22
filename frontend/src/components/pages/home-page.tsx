@@ -8,6 +8,7 @@ import {
   ChevronsDownUpIcon,
   ClockIcon,
   ExternalLinkIcon,
+  PlusIcon,
   PlayCircleIcon,
   PowerOffIcon,
   RefreshCcwIcon,
@@ -123,28 +124,57 @@ const HomePage: React.FC = () => {
           setRunningNotebooks: runningResponse.setData,
         }}
       >
-        <div className="absolute top-3 right-5 flex gap-3 z-50">
-          <OpenTutorialDropDown />
-          <ConfigButton showAppConfig={false} />
-          <ShutdownButton
-            description={`This will shutdown the notebook server and terminate all running notebooks (${running.size}). You'll lose all data that's in memory.`}
-          />
-        </div>
-        <div className="flex flex-col gap-6 max-w-6xl container pt-5 pb-20 z-10">
-          <img src="logo.png" alt="marimo logo" className="w-48 mb-2" />
-          <CreateNewNotebook />
-          <ResourceLinks />
-          <NotebookList
-            header={<Header Icon={PlayCircleIcon}>Running notebooks</Header>}
-            files={[...running.values()]}
-          />
-          <NotebookList
-            header={<Header Icon={ClockIcon}>Recent notebooks</Header>}
-            files={recents.files}
-          />
-          <ErrorBoundary>
-            <WorkspaceNotebooks onRefreshRecents={recentsResponse.refetch} />
-          </ErrorBoundary>
+        <div className="min-h-screen bg-background">
+          <header className="border-b border-border/60">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-10">
+              <img src="logo.png" alt="marimo" className="w-28" />
+              <div className="flex items-center gap-3">
+                <OpenTutorialDropDown />
+                <ConfigButton showAppConfig={false} />
+                <ShutdownButton
+                  description={`This will shutdown the notebook server and terminate all running notebooks (${running.size}). You'll lose all data that's in memory.`}
+                />
+              </div>
+            </div>
+          </header>
+          <main className="mx-auto max-w-7xl px-5 py-10 sm:px-10 sm:py-14">
+            <div className="mb-10 flex flex-wrap items-center justify-between gap-5">
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight">
+                  Your notebooks
+                </h1>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Pick up where you left off, or start something new.
+                </p>
+              </div>
+              <CreateNewNotebook />
+            </div>
+            <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <ErrorBoundary>
+                <WorkspaceNotebooks
+                  onRefreshRecents={recentsResponse.refetch}
+                />
+              </ErrorBoundary>
+              <aside
+                aria-label="Notebook activity"
+                className="flex min-w-0 flex-col gap-8"
+              >
+                <NotebookList
+                  header={
+                    <Header Icon={PlayCircleIcon}>Running notebooks</Header>
+                  }
+                  files={[...running.values()]}
+                  emptyMessage="No notebooks are running."
+                />
+                <NotebookList
+                  header={<Header Icon={ClockIcon}>Recent notebooks</Header>}
+                  files={recents.files}
+                  emptyMessage="Notebooks you open will appear here."
+                />
+              </aside>
+            </div>
+            <ResourceLinks />
+          </main>
         </div>
       </RunningNotebooksContext>
     </Suspense>
@@ -195,23 +225,44 @@ const WorkspaceNotebooks: React.FC<{ onRefreshRecents: () => void }> = ({
 
   return (
     <WorkspaceContext value={workspaceContextValue}>
-      <div className="flex flex-col gap-2">
-        {workspace.hasMore && (
-          <TruncatedWorkspaceBanner fileCount={workspace.fileCount} />
-        )}
+      <div className="flex min-w-0 flex-col gap-4">
         <Header
           Icon={BookTextIcon}
           control={
-            <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => refetch()}
+              aria-label="Refresh workspace"
+            >
+              {isFetching ? (
+                <Spinner size="small" />
+              ) : (
+                <RefreshCcwIcon className="w-4 h-4" />
+              )}
+            </Button>
+          }
+        >
+          Workspace
+        </Header>
+        {workspace.hasMore && (
+          <TruncatedWorkspaceBanner fileCount={workspace.fileCount} />
+        )}
+        <div className="overflow-hidden rounded-xl border border-border/70 bg-background">
+          <div className="flex flex-wrap items-center gap-3 border-b border-border/60 bg-muted/20 p-3">
+            <div className="min-w-40 flex-1">
               <Input
                 id="search"
+                aria-label="Search workspace"
                 value={searchText}
-                icon={<SearchIcon size={13} />}
+                icon={<SearchIcon size={15} />}
                 onChange={(e) => setSearchText(e.target.value)}
-                placeholder="Search"
-                className="mb-0 border-border"
+                placeholder="Find a notebook…"
+                className="mb-0 h-9 rounded-md border-border/60 bg-background font-sans shadow-none hover:shadow-none focus-visible:shadow-none"
               />
-              <CollapseAllButton />
+            </div>
+            <CollapseAllButton />
+            <div className="flex items-center gap-2">
               <Checkbox
                 data-testid="include-markdown-checkbox"
                 id="include-markdown"
@@ -220,23 +271,14 @@ const WorkspaceNotebooks: React.FC<{ onRefreshRecents: () => void }> = ({
                   setIncludeMarkdown(Boolean(checked))
                 }
               />
-              <Label htmlFor="include-markdown">Include markdown</Label>
+              <Label
+                htmlFor="include-markdown"
+                className="text-xs text-muted-foreground"
+              >
+                Include markdown
+              </Label>
             </div>
-          }
-        >
-          Workspace
-          <Button
-            variant="text"
-            size="icon"
-            className="w-4 h-4 ml-1 p-0 opacity-70 hover:opacity-100"
-            onClick={() => refetch()}
-            aria-label="Refresh workspace"
-          >
-            <RefreshCcwIcon className="w-4 h-4" />
-          </Button>
-          {isFetching && <Spinner size="small" />}
-        </Header>
-        <div className="flex flex-col divide-y divide-(--slate-3) border rounded overflow-hidden max-h-192 overflow-y-auto shadow-sm bg-background">
+          </div>
           <NotebookFileTree searchText={searchText} files={workspace.files} />
         </div>
       </div>
@@ -481,20 +523,22 @@ const FolderArrow = ({ node }: { node: NodeApi<FileInfo> }) => {
 const NotebookList: React.FC<{
   header: React.ReactNode;
   files: MarimoFile[];
-}> = ({ header, files }) => {
-  if (files.length === 0) {
-    return null;
-  }
-
+  emptyMessage: string;
+}> = ({ header, files, emptyMessage }) => {
   return (
-    <div className="flex flex-col gap-2">
+    <section className="flex min-w-0 flex-col gap-3">
       {header}
-      <div className="flex flex-col divide-y divide-(--slate-3) border rounded overflow-hidden max-h-192 overflow-y-auto shadow-sm bg-background">
+      <div className="flex max-h-80 flex-col divide-y divide-border/50 overflow-y-auto rounded-xl border border-border/60">
+        {files.length === 0 && (
+          <p className="px-4 py-6 text-sm text-muted-foreground">
+            {emptyMessage}
+          </p>
+        )}
         {files.map((file) => {
           return <MarimoFileComponent key={file.path} file={file} />;
         })}
       </div>
-    </div>
+    </section>
   );
 };
 
@@ -514,14 +558,14 @@ const MarimoFileComponent = ({ file }: { file: MarimoFile }) => {
 
   return (
     <a
-      className="py-1.5 px-4 hover:bg-(--blue-2) hover:text-primary transition-colors duration-300 cursor-pointer group relative flex gap-4 items-center"
+      className="py-3 px-4 hover:bg-muted/50 transition-colors cursor-pointer group relative flex gap-3 items-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       key={file.path}
       href={href.toString()}
       target={tabTarget(file.initializationId || file.path)}
     >
-      <div className="flex flex-col justify-between flex-1">
-        <span className="flex items-center gap-2">
-          {file.name}
+      <div className="flex min-w-0 flex-col gap-1 flex-1">
+        <span className="flex items-center gap-2 text-sm font-medium">
+          <span className="truncate">{file.name}</span>
           {isMarkdown && (
             <span className="opacity-80">
               <MarkdownIcon />
@@ -530,7 +574,7 @@ const MarimoFileComponent = ({ file }: { file: MarimoFile }) => {
         </span>
         <p
           title={file.path}
-          className="text-sm text-muted-foreground overflow-hidden whitespace-nowrap text-ellipsis"
+          className="text-xs text-muted-foreground overflow-hidden whitespace-nowrap text-ellipsis"
         >
           {file.path}
         </p>
@@ -541,8 +585,8 @@ const MarimoFileComponent = ({ file }: { file: MarimoFile }) => {
             <SessionShutdownButton filePath={file.path} />
           </div>
           <ExternalLinkIcon
-            size={20}
-            className="group-hover:opacity-100 opacity-0 transition-opacity duration-300 text-primary"
+            size={14}
+            className="opacity-40 group-hover:opacity-100"
           />
         </div>
         {!!file.lastModified && (
@@ -571,7 +615,8 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
       <Button
         size={"icon"}
         variant="outline"
-        className="opacity-80 hover:opacity-100 hover:bg-accent text-destructive border-destructive hover:border-destructive hover:text-destructive bg-background hover:bg-(--red-1)"
+        aria-label="Shutdown notebook"
+        className="border-transparent text-muted-foreground shadow-none hover:border-destructive hover:bg-(--red-1) hover:text-destructive"
         onClick={(e) => {
           e.stopPropagation();
           e.preventDefault();
@@ -614,20 +659,12 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
 const CreateNewNotebook: React.FC = () => {
   const url = newNotebookURL();
   return (
-    <a
-      className="relative rounded-lg p-6 group
-      text-primary hover:bg-(--blue-2) shadow-md-solid shadow-accent border bg-(--blue-1)
-      transition-colors duration-300 cursor-pointer
-      "
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-    >
-      <h2 className="text-lg font-semibold">Create a new notebook</h2>
-      <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-opacity duration-300">
-        <ExternalLinkIcon size={24} />
-      </div>
-    </a>
+    <Button asChild={true} size="default" className="gap-2 rounded-lg">
+      <a href={url} target="_blank" rel="noreferrer">
+        <PlusIcon className="h-4 w-4" />
+        New notebook
+      </a>
+    </Button>
   );
 };
 
