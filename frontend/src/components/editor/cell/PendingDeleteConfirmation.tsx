@@ -65,7 +65,7 @@ export const PendingDeleteConfirmation: React.FC<{ cellId: CellId }> = ({
       <div className="flex items-start gap-3">
         <AlertTriangleIcon className="w-4 h-4 text-(--amber-11) mt-0.5 shrink-0" />
         <div className="flex-1">
-          <div className="font-code text-sm text-[0.84375rem]">
+          <div className="font-code text-sm text-sm-minus">
             <p className="text-(--amber-11) font-medium">{warningMessage}</p>
 
             {hasDependencies &&

@@ -58,9 +58,7 @@ const CollapsibleTraceback = ({
         ) : (
           <ChevronRight className="h-3 w-3" />
         )}
-        <span className="text-[0.6875rem] uppercase tracking-wider">
-          Traceback
-        </span>
+        <span className="text-3xs uppercase tracking-wider">Traceback</span>
       </button>
       {isOpen && (
         <div className="font-code text-sm mt-1 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text">
@@ -83,7 +81,7 @@ const Tip = (props: {
           {props.title ?? "Tip"}
         </AccordionTrigger>
         <AccordionContent
-          className="mr-24 text-[0.84375rem]"
+          className="mr-24 text-sm-minus"
           wrapperClassName="pt-0 pb-2"
         >
           {props.children}
@@ -711,7 +709,7 @@ export const MarimoErrorOutput = ({
   const title = (
     <div className="space-y-0.5">
       {statusOverline && (
-        <div className="flex items-center gap-1 font-code text-[0.6875rem] uppercase tracking-wider text-muted-foreground/70">
+        <div className="flex items-center gap-1 font-code text-3xs uppercase tracking-wider text-muted-foreground/70">
           {statusOverline}
           <Tooltip
             content="marimo didn't run this cell because it detected an error."
@@ -733,7 +731,7 @@ export const MarimoErrorOutput = ({
     <Alert
       variant={alertVariant}
       className={cn(
-        "border-none font-code text-sm text-[0.84375rem] p-0 text-muted-foreground normal has-[svg]:pl-0 space-y-2",
+        "border-none font-code text-sm text-sm-minus p-0 text-muted-foreground normal has-[svg]:pl-0 space-y-2",
         className,
       )}
     >

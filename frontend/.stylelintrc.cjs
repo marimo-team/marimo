@@ -11,7 +11,17 @@ module.exports = {
     // Turn off rules from the standard config
     "at-rule-no-unknown": [
       true,
-      { ignoreAtRules: ["tailwind", "reference", "config", "theme"] },
+      {
+        ignoreAtRules: [
+          "tailwind",
+          "reference",
+          "config",
+          "theme",
+          "plugin",
+          "custom-variant",
+          "utility",
+        ],
+      },
     ],
     "font-family-no-missing-generic-family-keyword": null,
     "number-max-precision": null,
