@@ -18,7 +18,6 @@ function connect(response: () => Response) {
     "http://localhost/prefix/api/marimo/v1/?session_id=s1",
     {
       token: "secret",
-      headers: { "X-Example": "1" },
       fetch,
     },
   );
@@ -54,7 +53,6 @@ describe("Client", () => {
     );
     expect(request.method).toBe("POST");
     expect(request.headers.get("Authorization")).toBe("Bearer secret");
-    expect(request.headers.get("X-Example")).toBe("1");
     expect(request.headers.get("Idempotency-Key")).toBe("create-1");
     expect(await request.json()).toEqual(input);
   });
@@ -74,7 +72,6 @@ describe("Client", () => {
       "http://localhost/prefix/api/marimo/v1/notebooks/n%2F1%3F%23%25?session_id=s1",
     );
     expect(sent().headers.get("Authorization")).toBe("Bearer secret");
-    expect(sent().headers.get("X-Example")).toBe("1");
     expect(client.notebook("n1").url.href).toBe(
       client.notebook(record).url.href,
     );
@@ -126,7 +123,6 @@ describe("Client", () => {
       "http://localhost/prefix/api/marimo/v1/events?session_id=s1&types=notebook",
     );
     expect(sent().headers.get("Authorization")).toBe("Bearer secret");
-    expect(sent().headers.get("X-Example")).toBe("1");
     expect(sent().headers.get("Last-Event-ID")).toBe("40");
     expect(sent(1).headers.get("Last-Event-ID")).toBeNull();
     first.close();

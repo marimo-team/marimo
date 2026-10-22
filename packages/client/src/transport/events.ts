@@ -1,13 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type * as Protocol from "../protocol.ts";
-import type { Connection } from "../request.ts";
+import type { ClientOptions } from "../request.ts";
 import { type Transport, StreamStopped } from "./frame.ts";
 import { sse } from "./sse.ts";
 import {
   type StreamEvent,
   EventStream,
-  type EventStreamInit,
+  type EventStreamOptions,
   report,
 } from "./stream.ts";
 
@@ -23,8 +23,8 @@ function delay(attempt: number): number {
 type Status = "connecting" | "connected" | "closed";
 
 /** How an event stream reaches its host and what it follows. */
-export interface EventsInit<K extends string = Protocol.ObjectTypeOutput>
-  extends Connection, EventStreamInit<K> {
+export interface EventsOptions<K extends string = Protocol.ObjectTypeOutput>
+  extends ClientOptions, EventStreamOptions<K> {
   /** Aborting closes the stream. */
   readonly signal?: AbortSignal;
   /**
@@ -50,8 +50,9 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 /**
  * A host stream, followed across reconnects.
  *
- * Given a URL, it follows the stream there over server-sent events. Given a
- * `Transport`, it follows whatever connection the transport opens.
+ * Given a URL, it follows the stream there with `sse` and sends `types` as a
+ * query parameter. Given a `Transport`, it follows whatever connection the
+ * transport opens.
  *
  * - It starts with a snapshot that ends in `ready`, then delivers changes.
  * - After a dropped connection it resumes from its cursor, backing off between
@@ -78,7 +79,7 @@ export class Events<
 
   public constructor(
     source: string | URL | Transport,
-    init: EventsInit<K>,
+    init: EventsOptions<K>,
     kinds: readonly string[],
   ) {
     let transport: Transport;

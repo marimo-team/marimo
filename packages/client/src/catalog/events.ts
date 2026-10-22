@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { type CatalogKind, catalogKinds } from "../kinds.ts";
-import { Events, type EventsInit } from "../transport/events.ts";
+import { Events, type EventsOptions } from "../transport/events.ts";
 import type { Transport } from "../transport/frame.ts";
 import type { StreamEvent } from "../transport/stream.ts";
 
@@ -9,9 +9,9 @@ import type { StreamEvent } from "../transport/stream.ts";
 export type CatalogEvent<K extends CatalogKind = CatalogKind> = StreamEvent<K>;
 
 /** How a catalog stream reaches its host and what it follows. */
-export interface CatalogEventsInit<
+export interface CatalogEventsOptions<
   K extends CatalogKind = CatalogKind,
-> extends EventsInit<K> {}
+> extends EventsOptions<K> {}
 
 /**
  * The host's catalog, followed across reconnects without retaining its objects.
@@ -25,7 +25,7 @@ export class CatalogEvents<
 > extends Events<K> {
   public constructor(
     source: string | URL | Transport,
-    init: CatalogEventsInit<K> = {},
+    init: CatalogEventsOptions<K> = {},
   ) {
     super(source, init, catalogKinds);
   }

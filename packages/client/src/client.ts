@@ -1,12 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { CatalogEvents, type CatalogEventsInit } from "./catalog/events.ts";
+import { CatalogEvents, type CatalogEventsOptions } from "./catalog/events.ts";
 import type { CatalogKind } from "./kinds.ts";
 import { NotebookClient } from "./notebook/client.ts";
 import type * as Protocol from "./protocol.ts";
 import {
   below,
-  type Connection,
+  type ClientOptions,
   type MutationOptions,
   request,
   resolve,
@@ -14,15 +14,12 @@ import {
   type Target,
 } from "./request.ts";
 
-/** How a `Client` reaches and authenticates with its host. */
-export type ClientInit = Connection;
-
 /** A client for a host's API, without a retained catalog. */
 export class Client {
   readonly #target: Target<"">;
 
-  public constructor(url: string | URL, init: ClientInit = {}) {
-    this.#target = { url: new URL(url), prefix: "", connection: init };
+  public constructor(url: string | URL, init: ClientOptions = {}) {
+    this.#target = { url: new URL(url), prefix: "", client: init };
   }
 
   /** The host API's base URL. Each read returns a copy. */
@@ -30,18 +27,18 @@ export class Client {
     return new URL(this.#target.url);
   }
 
-  /** Follow the catalog with this client's connection and an independent cursor. */
+  /** Follow the catalog with this client's options and an independent cursor. */
   public events<const K extends CatalogKind = CatalogKind>(
-    options: Omit<CatalogEventsInit<K>, keyof Connection> = {},
+    options: Omit<CatalogEventsOptions<K>, keyof ClientOptions> = {},
   ): CatalogEvents<K> {
     return new CatalogEvents<K>(below(this.#target.url, "/events"), {
-      ...this.#target.connection,
+      ...this.#target.client,
       ...options,
     });
   }
 
   /**
-   * Address a notebook by id or catalog record, sharing this connection.
+   * Address a notebook by id or catalog record, sharing this client's options.
    *
    * Makes no request and retains no metadata. The id belongs to this host.
    */
@@ -51,7 +48,7 @@ export class Client {
     const id = typeof notebook === "string" ? notebook : notebook.id;
     return new NotebookClient(
       resolve(this.#target, "/notebooks/{notebook_id}", { notebook_id: id }),
-      this.#target.connection,
+      this.#target.client,
     );
   }
 

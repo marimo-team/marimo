@@ -26,5 +26,28 @@ The transport sends any filters the host needs. The stream's `types` option
 filters delivered events locally. A notebook transport must apply `runId`
 itself. Each reconnect must use the same filters.
 
+## Build on server-sent events
+
+`sse` is the transport a stream uses for a URL. Use it directly when a host
+serves the protocol's events with a URL that changes between connections or
+with frames of its own that end the stream.
+
+```ts
+import { NotebookEvents, StreamStopped, sse } from "@marimo-team/client";
+
+const events = new NotebookEvents(
+  sse(() => `${base}/events?session_id=${session()}`, {
+    token,
+    stop: (frame) =>
+      frame.event === "close"
+        ? new StreamStopped("The session closed")
+        : undefined,
+  }),
+);
+```
+
+The URL function runs before each connection. A `StreamStopped` it throws
+stops the stream.
+
 See the [transport contract](src/transport/frame.ts) for the function and
 event types.
