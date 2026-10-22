@@ -538,18 +538,16 @@ const NotebookList: React.FC<{
   emptyMessage: string;
 }> = ({ files, emptyMessage }) => {
   return (
-    <section className="flex min-w-0 flex-col gap-3">
-      <div className="flex max-h-[500px] min-h-40 flex-col divide-y divide-border/50 overflow-y-auto rounded-lg border border-border/60">
-        {files.length === 0 && (
-          <p className="px-4 py-6 text-sm text-muted-foreground">
-            {emptyMessage}
-          </p>
-        )}
-        {files.map((file) => {
-          return <MarimoFileComponent key={file.path} file={file} />;
-        })}
-      </div>
-    </section>
+    <div className="flex max-h-[500px] min-h-40 min-w-0 flex-col divide-y divide-border/50 overflow-y-auto rounded-lg border border-border/60">
+      {files.length === 0 && (
+        <p className="px-4 py-6 text-sm text-muted-foreground">
+          {emptyMessage}
+        </p>
+      )}
+      {files.map((file) => {
+        return <MarimoFileComponent key={file.path} file={file} />;
+      })}
+    </div>
   );
 };
 
@@ -675,7 +673,7 @@ const CreateNewNotebook: React.FC = () => {
     <Button
       asChild={true}
       size="sm"
-      className="gap-2 rounded-md border-[#365f43] bg-[#365f43] text-white shadow-none hover:bg-[#2b5037] dark:border-[#a8c9ae] dark:bg-[#a8c9ae] dark:text-[#172b1c] dark:hover:bg-[#bdd8c2]"
+      className="gap-2 rounded-md border-(--brand) bg-(--brand) text-(--brand-foreground) shadow-none hover:bg-(--brand-hover)"
     >
       <a href={url} target="_blank" rel="noreferrer">
         <PlusIcon className="h-4 w-4" />

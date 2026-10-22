@@ -205,19 +205,3 @@ export const TruncatedWorkspaceBanner: React.FC<{
     </Banner>
   );
 };
-
-export const Header: React.FC<{
-  Icon: React.FC<React.SVGProps<SVGSVGElement>>;
-  control?: React.ReactNode;
-  children: React.ReactNode;
-}> = ({ Icon, control, children }) => {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        <Icon className="h-4 w-4 text-muted-foreground" />
-        {children}
-      </h2>
-      {control}
-    </div>
-  );
-};

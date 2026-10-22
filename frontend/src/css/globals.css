@@ -75,6 +75,9 @@
     --ring: hsl(215deg 20.2% 65.1%);
 
     /* Semantic colors. */
+    --brand: light-dark(#365f43, #a8c9ae);
+    --brand-hover: light-dark(#2b5037, #bdd8c2);
+    --brand-foreground: light-dark(#fff, #172b1c);
     --destructive: var(--red-9, #e5484d);
     --destructive-hover: var(--red-10, #dc3e42);
     --destructive-border: var(--red-11, #ce2c31);
