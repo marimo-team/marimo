@@ -500,10 +500,14 @@ def _declared_type(
     for value in values:
         if value.kind != "instance":
             return None
+        if value.full_name.rpartition(".")[2].startswith("_"):
+            continue
         member = _member_type(value, scope, spellings)
         if member is None:
             return None
         members.append(member)
+    if not members:
+        return None
     node = cast(ast.expr, _Normalize().visit(_union(members)))
     if _names_in(node) - scope.allowed_refs or _is_broad(node):
         return None

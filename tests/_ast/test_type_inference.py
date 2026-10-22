@@ -484,6 +484,40 @@ class TestInferAnnotations:
         )
         assert "def _(origin: Point, points: list[Point]):" in source
 
+    @pytest.mark.parametrize(
+        ("types", "signature"),
+        [
+            (["library._Private"], "def _(value):"),
+            (["library.__Private"], "def _(value):"),
+            (["library._internal.Public"], "def _(value: library.Public):"),
+            (
+                ["library._Private", "library._internal.Public"],
+                "def _(value: library.Public):",
+            ),
+        ],
+    )
+    def test_private_class_names_are_discarded(
+        self,
+        types: list[str],
+        signature: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        backend = FakeBackend(
+            {"value": [instance(name) for name in types]},
+            classes={
+                "library._Private": "library._Private",
+                "library.__Private": "library.__Private",
+                "library.Public": "library._internal.Public",
+            },
+        )
+        source = generate(
+            ["value = library.make()", "print(value)"],
+            setup="import library",
+            backend=backend,
+            monkeypatch=monkeypatch,
+        )
+        assert signature in source
+
     def test_union_with_an_unspellable_member_is_dropped(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
