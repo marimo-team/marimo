@@ -7,7 +7,6 @@ import json
 import socket
 import sys
 import threading
-import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -39,7 +38,7 @@ class RecordingInbox:
 
 def main() -> None:
     directory = Path(sys.argv[1])
-    config = msgspec.json.decode(sys.stdin.read(), type=ForwarderConfig)
+    config = msgspec.json.decode(sys.stdin.readline(), type=ForwarderConfig)
     calls = 0
 
     def controlled_events(
@@ -54,11 +53,8 @@ def main() -> None:
         nonlocal calls
         calls += 1
         if calls == 2:
-            (directory / "reconnecting.json").write_text(
-                json.dumps({"cursor": cursor})
-            )
-            while not (directory / "resume").exists():
-                time.sleep(0.01)
+            print(json.dumps({"cursor": cursor}), flush=True)
+            assert sys.stdin.readline() == "resume\n"
         response = open_events(
             url=url,
             notebook=notebook,
@@ -70,8 +66,7 @@ def main() -> None:
         if calls == 1:
 
             def drop() -> None:
-                while not (directory / "drop").exists():
-                    time.sleep(0.01)
+                assert sys.stdin.readline() == "drop\n"
                 response.socket.shutdown(socket.SHUT_RDWR)
 
             threading.Thread(target=drop, daemon=True).start()
