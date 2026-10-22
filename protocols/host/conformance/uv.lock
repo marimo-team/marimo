@@ -135,6 +135,7 @@ dependencies = [
     { name = "psutil" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "python-jsonpath" },
 ]
 
 [package.metadata]
@@ -145,6 +146,7 @@ requires-dist = [
     { name = "psutil", specifier = "==7.2.2" },
     { name = "pytest", specifier = "==9.0.3" },
     { name = "pytest-asyncio", specifier = "==1.3.0" },
+    { name = "python-jsonpath", specifier = "==2.2.1" },
 ]
 
 [[package]]
@@ -313,6 +315,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/90/2c/8af215c0f776415f3590cac4f9086ccefd6fd463befeae41cd4d3f193e5a/pytest_asyncio-1.3.0.tar.gz", hash = "sha256:d7f52f36d231b80ee124cd216ffb19369aa168fc10095013c6b014a34d3ee9e5", size = 50087, upload-time = "2025-11-10T16:07:47.256Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e5/35/f8b19922b6a25bc0880171a2f1a003eaeb93657475193ab516fd87cac9da/pytest_asyncio-1.3.0-py3-none-any.whl", hash = "sha256:611e26147c7f77640e6d0a92a38ed17c3e9848063698d5c93d5aa7aa11cebff5", size = 15075, upload-time = "2025-11-10T16:07:45.537Z" },
+]
+
+[[package]]
+name = "python-jsonpath"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ee/65/5dcdbd783b98a936f6aacee699aed4c0978d74cb0f8ad61dc59bb39b809a/python_jsonpath-2.2.1.tar.gz", hash = "sha256:3de7862cbc56566b61c2c25fe5a398bbba9466e972c1069a4c82cb60a8034dc5", size = 51022, upload-time = "2026-07-07T09:56:08.062Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2d/c1/e8ccd211bc8c411eb84341ae3ded659e6bdb926697fb7724e2dbbf8077cf/python_jsonpath-2.2.1-py3-none-any.whl", hash = "sha256:ff3a65df52336fec13e2728612d6e2a76221264762a1b5385fac5dd21ae6f40e", size = 65235, upload-time = "2026-07-07T09:56:06.755Z" },
 ]
 
 [[package]]

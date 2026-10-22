@@ -31,3 +31,15 @@ It does not yet cover opening an editor, answering host decisions, or unsupporte
 operation responses. Retention expiry, external store changes, shutdown, and
 transport failures also need implementation tests. WebSocket transport is outside
 this contract.
+
+Experimental features have separate conformance tests. Check the stable
+contract and all experimental fixtures together with:
+
+```sh
+uv run --locked --project protocols/host/conformance \
+  pytest -c protocols/host/conformance/pyproject.toml \
+  protocols/host/conformance protocols/host/experimental
+```
+
+The base probes continue to ignore experimental events. Each feature's suite
+validates its payloads against the composed contract.

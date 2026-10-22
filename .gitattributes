@@ -2,3 +2,6 @@
 pixi.lock merge=binary linguist-language=YAML linguist-generated=true
 packages/client/src/protocol.ts linguist-generated=true
 packages/client/src/operations.ts linguist-generated=true
+
+# SSE frames end with a blank line, including the final frame.
+protocols/host/**/*.sse whitespace=-blank-at-eof

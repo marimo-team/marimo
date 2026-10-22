@@ -17,6 +17,10 @@ from marimo._core import protocol, protocol_events
 FIXTURES = (
     Path(__file__).resolve().parents[2] / "protocols" / "host" / "fixtures"
 )
+EXPERIMENTAL_FIXTURES = (
+    FIXTURES.parent / "experimental" / "analysis" / "fixtures"
+)
+
 MODELS = {
     "record.json": protocol.HostRecord,
     "cell.json": protocol.Cell,
@@ -137,7 +141,9 @@ def round_trip(model: type, text: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "path", sorted(FIXTURES.rglob("*.json")), ids=lambda path: path.name
+    "path",
+    sorted([*FIXTURES.rglob("*.json"), *EXPERIMENTAL_FIXTURES.glob("*.json")]),
+    ids=lambda path: path.name,
 )
 def test_json_models(path: Path) -> None:
     model = (
@@ -149,7 +155,9 @@ def test_json_models(path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "path", sorted(FIXTURES.glob("*.sse")), ids=lambda path: path.name
+    "path",
+    sorted([*FIXTURES.glob("*.sse"), *EXPERIMENTAL_FIXTURES.glob("*.sse")]),
+    ids=lambda path: path.name,
 )
 def test_stream_models(path: Path) -> None:
     events = stream_events(path)
@@ -173,7 +181,9 @@ def test_stream_models(path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "path", sorted(FIXTURES.glob("*.sse")), ids=lambda path: path.name
+    "path",
+    sorted([*FIXTURES.glob("*.sse"), *EXPERIMENTAL_FIXTURES.glob("*.sse")]),
+    ids=lambda path: path.name,
 )
 def test_produced_events_match_wire_fixtures(path: Path) -> None:
     for frame in stream_events(path):

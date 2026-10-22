@@ -220,8 +220,7 @@ paths:
         that orders them, in the opening phase and after every change, so
         a client never holds a document whose `order` names a cell it has
         not received. The effects of one change to the document arrive
-        together, with no other event between them. The analysis, when
-        the host has one, follows the document it describes.
+        together, with no other event between them.
       parameters:
         - $ref: '#/components/parameters/NotebookId'
         - $ref: '#/components/parameters/Types'
@@ -239,7 +238,7 @@ paths:
                 description: |
                   One event. `data` holds JSON, and the event name says
                   which shape: a NotebookMessage, DocumentMessage,
-                  AnalysisMessage, CellMessage, RuntimeMessage, AttachmentMessage,
+                  CellMessage, RuntimeMessage, AttachmentMessage,
                   RunMessage, ExecutionMessage, ConsoleMessage,
                   DisplayMessage, or VariableMessage for an event named
                   after that kind; a CustomMessage for `custom`; a RemovedMessage
@@ -294,10 +293,8 @@ paths:
         On success the document has changed, and every attachment sees
         the effects on the notebook's stream with this request's key: the
         cells that changed, `cell.removed` for each deleted cell, and then
-        the document, with nothing in between. The analysis of the new
-        revision follows with the same key once the host has it. The
-        response carries the new etags, as of this edit or a later
-        revision, so a client keeps editing without reading again. A
+        the document, with nothing in between. The response carries the new
+        etags, as of this edit or a later revision, so a client keeps editing without reading again. A
         change that changes nothing keeps its etags and sends no events.
         Whether the result has reached the store shows in the document's
         `saved_etag`.
@@ -832,10 +829,10 @@ components:
         The kinds a stream carries, and the values `types` accepts. The
         catalog stream carries host, project, notebook, runtime, and
         attachment. A notebook's stream carries notebook, document,
-        analysis, cell, runtime, attachment, run, execution, console,
+        cell, runtime, attachment, run, execution, console,
         display, variable, and custom. Custom events describe occurrences
         rather than object state.
-      enum: [host, project, notebook, document, analysis, cell, runtime, attachment, run, execution, console, display, variable, custom]
+      enum: [host, project, notebook, document, cell, runtime, attachment, run, execution, console, display, variable, custom]
     Custom:
       type: object
       description: |
@@ -1137,7 +1134,7 @@ components:
       properties:
         kind:
           type: string
-          description: The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions, and reserves `multiple-definitions` and `cycle-dependencies` for analysis, because every host schedules them the same way. Clients show unrecognized kinds as plain errors.
+          description: The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors.
         message:
           type: string
           description: A description of the error to show people.
@@ -1318,46 +1315,6 @@ components:
         expand_output:
           type: boolean
           description: Whether clients show the full output rather than a scrolled box.
-    Analysis:
-      type: object
-      description: |
-        What a document's cells imply, computed together over one
-        revision of the document so that cross-cell errors agree. One
-        per notebook, and removed with it. It follows the document it
-        describes, and `document_etag` says which revision that is.
-      required: [notebook_id, document_etag, cells]
-      properties:
-        notebook_id:
-          $ref: '#/components/schemas/NotebookId'
-          description: The notebook this analysis belongs to.
-        document_etag:
-          $ref: '#/components/schemas/Etag'
-          description: The document revision this analysis describes. Equal to the document's `etag` while the analysis is current.
-        cells:
-          type: object
-          additionalProperties: { $ref: '#/components/schemas/CellAnalysis' }
-          description: Every cell of that revision, by id.
-    CellAnalysis:
-      type: object
-      description: |
-        What a cell's text implies: the names it defines and reads, which
-        are the edges of the dependency graph, and the errors found in the
-        text alone or across the set of cells. A pure function of the
-        code, so two producers compute the same values.
-      required: [defs, refs, errors]
-      properties:
-        defs:
-          type: array
-          items: { type: string }
-          description: Names this cell defines.
-        refs:
-          type: array
-          items: { type: string }
-          description: Names this cell reads from other cells.
-        errors:
-          type: array
-          items: { $ref: '#/components/schemas/Error' }
-          description: Diagnostics about the code. Only an `error` affects scheduling. `multiple-definitions` lists the definers in `related`, each `range` at its definition; `cycle-dependencies` lists the cycle. Both are reported on every cell involved, differing only in `range`. Every other kind belongs to the analyzer named in `source`.
     Cell:
       type: object
       description: |
@@ -1434,7 +1391,6 @@ components:
         - $ref: '#/components/schemas/ProjectEvent'
         - $ref: '#/components/schemas/NotebookEvent'
         - $ref: '#/components/schemas/DocumentEvent'
-        - $ref: '#/components/schemas/AnalysisEvent'
         - $ref: '#/components/schemas/CellEvent'
         - $ref: '#/components/schemas/RuntimeEvent'
         - $ref: '#/components/schemas/AttachmentEvent'
@@ -1463,7 +1419,6 @@ components:
           project: '#/components/schemas/ProjectEvent'
           notebook: '#/components/schemas/NotebookEvent'
           document: '#/components/schemas/DocumentEvent'
-          analysis: '#/components/schemas/AnalysisEvent'
           cell: '#/components/schemas/CellEvent'
           runtime: '#/components/schemas/RuntimeEvent'
           attachment: '#/components/schemas/AttachmentEvent'
@@ -1520,14 +1475,6 @@ components:
         event: { type: string, enum: [document] }
         id: *event_cursor
         data: { $ref: '#/components/schemas/DocumentMessage' }
-    AnalysisEvent:
-      type: object
-      description: A `analysis` event from a host stream.
-      required: [event, data]
-      properties:
-        event: { type: string, enum: [analysis] }
-        id: *event_cursor
-        data: { $ref: '#/components/schemas/AnalysisMessage' }
     CellEvent:
       type: object
       description: A `cell` event from a host stream.
@@ -1800,14 +1747,6 @@ components:
         request_id: *request_id
         time: *time
         document: { $ref: '#/components/schemas/Document' }
-    AnalysisMessage:
-      type: object
-      description: The data of an `analysis` event. The analysis as it now is.
-      required: [analysis]
-      properties:
-        request_id: *request_id
-        time: *time
-        analysis: { $ref: '#/components/schemas/Analysis' }
     CellMessage:
       type: object
       description: The data of a `cell` event. The cell as it now is.
@@ -1966,7 +1905,7 @@ components:
           default: false
     CellInput:
       type: object
-      description: A cell as a client writes it. Code must be a string, even when the host withholds source in cell records. Null is not an edit or a request to preserve existing source. The host derives the etags and the analysis.
+      description: A cell as a client writes it. Code must be a string, even when the host withholds source in cell records. Null is not an edit or a request to preserve existing source. The host derives the etags.
       required: [id, code]
       properties:
         id:

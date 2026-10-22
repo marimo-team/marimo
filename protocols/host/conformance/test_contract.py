@@ -26,8 +26,6 @@ MODELS = {
     "record.json": "HostRecord",
     "cell.json": "Cell",
     "cell-withheld.json": "Cell",
-    "analysis.json": "Analysis",
-    "diagnostic.json": "Error",
     "edit.json": "EditRequest",
     "edit-conflict-request.json": "EditRequest",
     "edit-response.json": "EditResponse",
@@ -65,18 +63,6 @@ async def test_stream_examples(path):
     for frame in found:
         if frame.comment is None:
             frame.message()
-
-
-@pytest.mark.parametrize("message", [{}, {"analysis": {}}])
-async def test_invalid_analysis_messages_are_rejected(message):
-    data = json.dumps(message)
-    with pytest.raises(ValidationError):
-        Frame(event="analysis", data=data).message()
-
-    stream = f"event: analysis\ndata: {data}\n\nevent: ready\ndata: {{}}\n\n"
-    watch = Watch(frames(lines(stream)), timeout=1)
-    with pytest.raises(ValidationError):
-        await watch.ready()
 
 
 async def test_sse_preserves_multiline_data_comments_and_explicit_ids():

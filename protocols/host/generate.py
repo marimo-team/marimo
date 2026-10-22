@@ -4,18 +4,89 @@
 #   "datamodel-code-generator==0.72.0",
 #   "jinja2==3.1.6",
 #   "ruff==0.16.4",
-#   "msgspec[yaml]==0.22.0"
+#   "msgspec[yaml]==0.22.0",
+#   "python-jsonpath==2.2.1"
 # ]
 # ///
-"""Generate msgspec models for the marimo host protocol."""
+"""Compose the host contract and generate its Python bindings or OpenAPI JSON."""
 
 import argparse
 import ast
+import copy
+import json
 import subprocess
+import sys
 import tempfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
+
+import jsonpath
+import msgspec.yaml
+
+ROOT = Path(__file__).resolve().parent
+
+
+def merge(target: dict[str, Any], update: dict[str, Any]) -> None:
+    """Recursively merge object properties, replacing other values."""
+    for key, value in update.items():
+        if isinstance(target.get(key), dict) and isinstance(value, dict):
+            merge(target[key], value)
+        else:
+            target[key] = copy.deepcopy(value)
+
+
+def compose(
+    selection: str | None = None, *, root: Path = ROOT
+) -> dict[str, Any]:
+    document = msgspec.yaml.decode((root / "openapi.yaml").read_bytes())
+    available = {
+        path.parent.name: path
+        for path in (root / "experimental").glob("*/overlay.yaml")
+    }
+    if selection is None:
+        selected = []
+    elif selection == "all":
+        selected = sorted(available)
+    else:
+        selected = sorted(set(selection.split(",")))
+    unknown = set(selected) - available.keys()
+    if unknown:
+        raise ValueError(
+            f"Unknown experimental features: {', '.join(sorted(unknown))}"
+        )
+    for name in selected:
+        overlay = msgspec.yaml.decode(available[name].read_bytes())
+        if overlay["overlay"] != "1.0.0":
+            raise ValueError("Only OpenAPI Overlay 1.0.0 is supported")
+        schemas = document["components"]["schemas"]
+        previous = set(schemas)
+        for action in overlay["actions"]:
+            if action.get("remove"):
+                raise ValueError("Experimental overlays support updates only")
+            matches = jsonpath.findall(action["target"], document, strict=True)
+            if not matches:
+                raise ValueError(
+                    f"Overlay target does not exist: {action['target']}"
+                )
+            for target in matches:
+                update = action["update"]
+                if isinstance(target, dict) and isinstance(update, dict):
+                    merge(target, update)
+                elif isinstance(target, list):
+                    target.append(copy.deepcopy(update))
+                else:
+                    raise ValueError(
+                        f"Expected an object or array: {action['target']}"
+                    )
+        for schema in schemas.keys() - previous:
+            schemas[schema]["description"] = (
+                f"Experimental ({name}). "
+                + schemas[schema].get("description", "")
+            )
+    if selected:
+        document["x-marimo-experimental"] = selected
+    return document
 
 
 # msgspec decodes tuple fields from JSON arrays without changing the wire format.
@@ -77,7 +148,17 @@ def tuple_arrays(source: bytes) -> bytes:
     return source
 
 
-def event_adapters(document: dict[str, Any]) -> str:
+def regeneration_command(document: dict[str, Any]) -> str:
+    features = document.get("x-marimo-experimental", [])
+    command = "uv run --no-config --locked --script protocols/host/generate.py"
+    return command + (
+        f" --include-experimental={','.join(features)}" if features else ""
+    )
+
+
+def event_adapters(
+    document: dict[str, Any], *, relative_import: bool = False
+) -> str:
     """Derive typed event adapters from the discriminator and schema refs."""
     from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
@@ -135,7 +216,11 @@ def event_adapters(document: dict[str, Any]) -> str:
         keep_trailing_newline=True,
     )
     return env.get_template("events.py.jinja2").render(
-        records=list(records.values()), removals=removed
+        records=list(records.values()),
+        removals=removed,
+        command=regeneration_command(document),
+        features=document.get("x-marimo-experimental", []),
+        relative_import=relative_import,
     )
 
 
@@ -163,6 +248,10 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
     )
 
     # Freeze records and keep identifier types distinct without changing their wire shape.
+    features = document.get("x-marimo-experimental", [])
+    experimental_header = (
+        f"# Experimental features: {', '.join(features)}\n" if features else ""
+    )
     schemas = document["components"]["schemas"]
     template_data = defaultdict(dict)
     for name, schema in schemas.items():
@@ -193,7 +282,8 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
             "# Copyright 2026 Marimo. All rights reserved.\n"
             "# AUTO-GENERATED FILE — DO NOT EDIT.\n"
             "# Generated from protocols/host/openapi.yaml.\n"
-            "# Regenerate with `make host-protocol-codegen`.\n"
+            + experimental_header
+            + f"# Regenerate with `{regeneration_command(document)}`.\n"
             "# ruff: noqa: TC003 - msgspec resolves annotations at runtime\n"
             "# ruff: noqa: RUF036 - the generator orders unions; the wire shape is the same"
         ),
@@ -205,21 +295,42 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
 
 
 def main() -> None:
-    import msgspec.yaml
-
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true")
-    args = parser.parse_args()
-    root = Path(__file__).resolve().parent
-    destination = root.parents[1] / "marimo" / "_core"
-    document = sorted_keys(
-        msgspec.yaml.decode((root / "openapi.yaml").read_bytes())
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true")
+    mode.add_argument(
+        "--schema",
+        action="store_true",
+        help="Print the composed OpenAPI document as JSON instead of generating bindings",
     )
+    parser.add_argument(
+        "--include-experimental",
+        nargs="?",
+        const="all",
+        help="Include all experimental features, or a comma-separated selection",
+    )
+    parser.add_argument("--output-dir", type=Path)
+    args = parser.parse_args()
+    default_destination = ROOT.parents[1] / "marimo" / "_core"
+    destination = args.output_dir or default_destination
+    document = compose(args.include_experimental)
+    if args.schema:
+        sys.stdout.write(json.dumps(document) + "\n")
+        return
+    document = sorted_keys(document)
+    if not args.check:
+        destination.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as directory:
         output = Path(directory) / "protocol.py"
         generate_models(document, output)
         adapters = Path(directory) / "protocol_events.py"
-        adapters.write_text(event_adapters(document), encoding="utf-8")
+        adapters.write_text(
+            event_adapters(
+                document,
+                relative_import=destination.resolve() != default_destination,
+            ),
+            encoding="utf-8",
+        )
         format_generated(adapters)
         for generated in (output, adapters):
             target = destination / generated.name
@@ -227,7 +338,8 @@ def main() -> None:
             if not target.exists() or target.read_bytes() != content:
                 if args.check:
                     raise SystemExit(
-                        "Host bindings are stale; run make host-protocol-codegen"
+                        "Host bindings are stale; regenerate with the same "
+                        "feature selection and output directory"
                     )
                 target.write_bytes(content)
     print("Host protocol models are current.")

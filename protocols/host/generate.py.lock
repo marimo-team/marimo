@@ -6,19 +6,12 @@ resolution-markers = [
     "python_full_version < '3.14'",
 ]
 
-[options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
-exclude-newer-span = "P7D"
-
-[options.exclude-newer-package]
-agent-plugins = false
-marimo-lens = false
-
 [manifest]
 requirements = [
     { name = "datamodel-code-generator", specifier = "==0.72.0" },
     { name = "jinja2", specifier = "==3.1.6" },
     { name = "msgspec", extras = ["yaml"], specifier = "==0.22.0" },
+    { name = "python-jsonpath", specifier = "==2.2.1" },
     { name = "ruff", specifier = "==0.16.4" },
 ]
 
@@ -520,6 +513,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c2/d7/ad493864a7fb21c0c4df98f965e2db430cb25a9d7369b5778d5016c09fd9/pydantic_core-2.46.5-pp311-pypy311_pp73-musllinux_1_1_armv7l.whl", hash = "sha256:2d330aaba8621b1edcec8ae2c4050f63b84ccf6d98723a8f212e9684713abf0e", size = 2294560, upload-time = "2026-08-28T10:01:23.495Z" },
     { url = "https://files.pythonhosted.org/packages/02/8e/b41c84c913f29973a268e6c2b5bbf13c95adb9956c126d10da11ba3b2bef/pydantic_core-2.46.5-pp311-pypy311_pp73-musllinux_1_1_x86_64.whl", hash = "sha256:b6acfb46a814762367fb7ba0828b0a17d441b92ce249a0e007474c9072662dda", size = 2317531, upload-time = "2026-08-28T10:01:26.334Z" },
     { url = "https://files.pythonhosted.org/packages/db/1d/068464f23075f66a8f1b806935e9cd9363ee446636ea70d2c22ee8659dbf/pydantic_core-2.46.5-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:d0a24b40877af2de4950252be9d21eaf7fb07660f3c2cae1f56c6b599ada5266", size = 2140686, upload-time = "2026-08-28T10:01:28.947Z" },
+]
+
+[[package]]
+name = "python-jsonpath"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ee/65/5dcdbd783b98a936f6aacee699aed4c0978d74cb0f8ad61dc59bb39b809a/python_jsonpath-2.2.1.tar.gz", hash = "sha256:3de7862cbc56566b61c2c25fe5a398bbba9466e972c1069a4c82cb60a8034dc5", size = 51022, upload-time = "2026-07-07T09:56:08.062Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2d/c1/e8ccd211bc8c411eb84341ae3ded659e6bdb926697fb7724e2dbbf8077cf/python_jsonpath-2.2.1-py3-none-any.whl", hash = "sha256:ff3a65df52336fec13e2728612d6e2a76221264762a1b5385fac5dd21ae6f40e", size = 65235, upload-time = "2026-07-07T09:56:06.755Z" },
 ]
 
 [[package]]

@@ -13,9 +13,6 @@ data: {"cell":{"id":"k7f2","notebook_id":"n1","code":"y = x * 2","name":"_","con
 event: document
 data: {"document":{"notebook_id":"n1","order":["c1","c3","k7f2"],"app_config":{"width":"full"},"etag":"e59d9c2af02f5814","saved_etag":"e59d9c2af02f5814","order_etag":"b9c412c2d7d63161","app_config_etag":"283513048dfeb45b","version":1}}
 
-event: analysis
-data: {"analysis":{"notebook_id":"n1","document_etag":"e59d9c2af02f5814","cells":{"c1":{"defs":["mo"],"refs":[],"errors":[]},"c3":{"defs":["x"],"refs":[],"errors":[]},"k7f2":{"defs":["y"],"refs":["x"],"errors":[]}}}}
-
 event: runtime
 data: {"runtime":{"id":"r1","notebook_id":"n1","status":"running","message":null,"marimo_version":"0.25.0","started_at":"2026-10-01T09:14:02Z"}}
 
