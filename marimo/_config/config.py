@@ -230,9 +230,9 @@ class FormattingConfig(TypedDict):
 
     - `line_length`: max line length
     - `infer_types`: `"off"` or `"jedi"`. With `"jedi"`, marimo infers
-      types for cell parameters when it writes a notebook file. Only types
-      that need no quoting are written. Those are builtins, setup cell
-      definitions and imports, and top-level functions and classes.
+      types for cell parameters when it writes a notebook file in a native
+      Python runtime. Only types available before every consuming signature
+      are written. Inference is disabled by default and unavailable in Pyodide.
     """
 
     line_length: int

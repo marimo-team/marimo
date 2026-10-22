@@ -37,6 +37,7 @@ import { capabilitiesAtom } from "@/core/config/capabilities";
 import { mergeConfig, useUserConfig } from "@/core/config/config";
 import {
   PackageManagerNames,
+  TYPE_INFERENCE_MODES,
   type UserConfig,
   UserConfigSchema,
 } from "@/core/config/config-schema";
@@ -47,7 +48,6 @@ import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { Banner } from "@/plugins/impl/common/error-banner";
-import { TYPE_INFERENCE_MODES } from "@/core/config/config-schema";
 import { THEMES } from "@/theme/useTheme";
 import { arrayToggle } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
@@ -404,38 +404,40 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
-              <OverriddenFormField
-                control={form.control}
-                name="formatting.infer_types"
-                render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Infer types on save</FormLabel>
-                      <FormControl>
-                        <NativeSelect
-                          data-testid="infer-types-select"
-                          onChange={(e) => field.onChange(e.target.value)}
-                          value={override.value}
-                          disabled={field.disabled || override.isOverridden}
-                          className="inline-flex mr-2"
-                        >
-                          {TYPE_INFERENCE_MODES.map((option) => (
-                            <option value={option} key={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </NativeSelect>
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden override={override} />
-                    </FormItem>
-                    <FormDescription>
-                      Add inferred type annotations to cell signatures when
-                      saving.
-                    </FormDescription>
-                  </div>
-                )}
-              />
+              {!isWasmRuntime && (
+                <OverriddenFormField
+                  control={form.control}
+                  name="formatting.infer_types"
+                  render={({ field, override }) => (
+                    <div className="flex flex-col space-y-1">
+                      <FormItem className={formItemClasses}>
+                        <FormLabel>Infer types on save</FormLabel>
+                        <FormControl>
+                          <NativeSelect
+                            data-testid="infer-types-select"
+                            onChange={(e) => field.onChange(e.target.value)}
+                            value={override.value}
+                            disabled={field.disabled || override.isOverridden}
+                            className="inline-flex mr-2"
+                          >
+                            {TYPE_INFERENCE_MODES.map((option) => (
+                              <option value={option} key={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </NativeSelect>
+                        </FormControl>
+                        <FormMessage />
+                        <IsOverridden override={override} />
+                      </FormItem>
+                      <FormDescription>
+                        Add inferred type annotations to cell signatures when
+                        saving.
+                      </FormDescription>
+                    </div>
+                  )}
+                />
+              )}
             </SettingGroup>
             <SettingGroup title="Autocomplete">
               <OverriddenFormField

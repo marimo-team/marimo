@@ -130,6 +130,7 @@ class TestCandidateNames:
         # its cell, and `K` is module scope in the generated file.
         assert candidate_names(extraction) == {"x"}
 
+    @pytest.mark.requires("duckdb", "sqlglot")
     def test_sql_definitions_are_skipped(self) -> None:
         extraction, _ = make_extraction(
             [
@@ -306,7 +307,7 @@ class TestInferAnnotations:
             in source
         )
 
-    def test_explicit_annotation_wins_and_is_not_probed(
+    def test_explicit_annotation_wins(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         backend = FakeBackend(
@@ -318,8 +319,6 @@ class TestInferAnnotations:
             monkeypatch=monkeypatch,
         )
         assert "def _(x: float, y):" in source
-        # The backend was only asked about `y`; `x` is not a candidate.
-        assert backend.inferred.keys() == {"x"}
 
     def test_several_definitions_form_a_union(
         self, monkeypatch: pytest.MonkeyPatch

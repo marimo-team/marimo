@@ -5,10 +5,10 @@ marimo joins the cells into one module in dependency order and asks a
 backend for the type of every definition of each candidate variable. The
 module-level names of the generated file are setup cell definitions and
 top-level functions or classes. marimo keeps a type only when every name in
-it is a builtin or a module-level name. A library class is spelled through
-the setup cell, as `np.ndarray` or `Path`, and the backend must confirm that
-the spelling names the same class. Every other type is dropped. Nothing is
-quoted.
+it is available before every consuming signature. A library class is
+spelled through the setup cell, as `np.ndarray` or `Path`, and the backend
+must confirm that the spelling names the same class. Every other type is
+dropped. Nothing is quoted.
 """
 
 from __future__ import annotations

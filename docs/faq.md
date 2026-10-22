@@ -483,21 +483,34 @@ For Python 3.12+, marimo additionally implements annotation scoping.
 
 With `formatting.infer_types` set to `"jedi"`, marimo infers the types of the
 variables a cell reads and writes them into the cell's signature on save.
+Inference is disabled by default and available only with a native Python
+runtime; it is not supported in browser notebooks running on Pyodide.
+`marimo check --fix` uses each notebook's configuration, including project
+and inline script settings, so its signatures match the editor's saves.
 
 Nuances:
 
-- marimo writes only types that need no quotes: builtins, setup-cell and
-  top-level names, and classes reached through a setup-cell import, such as
-  `pd.DataFrame`.
+- marimo writes only types available before every consuming signature:
+  unshadowed builtins, setup-cell names, earlier top-level classes, and
+  classes reached through a setup-cell import, such as `pd.DataFrame`.
+  A class defined after any consuming signature is omitted from all of
+  that variable's signatures, including when nested in a container or union.
 - Library classes lose their generic parameters. jedi confirms each spelling.
-- A tuple longer than three elements is written as `tuple[int | str, ...]`.
+- Classes reached through nested module paths such as
+  `concurrent.futures.Future` are omitted; importing the class directly can
+  make it available.
+- A container with an unavailable or shadowed nested type falls back to its
+  bare type, such as `list`.
+- A tuple longer than three elements is written with an element union,
+  such as `tuple[int | str, ...]`.
 - A type that says little is dropped: `object`, `Any`, and a union with more
   than three members.
 - An annotation that does not fit on its parameter line within
   `formatting.line_length` is dropped.
-- marimo writes jedi's answer unchanged. A wrong answer makes a wrong
-  annotation. Your own annotations win.
-- Names jedi cannot infer stay unannotated.
+- jedi can infer an incorrect type. Your own annotations take precedence.
+- Names jedi cannot infer stay unannotated. So do names bound by imports,
+  function or class definitions, pattern captures, or assignment expressions
+  inside comprehensions, even if they also have ordinary assignments.
 
 <a name="faq-dotenv"></a>
 
