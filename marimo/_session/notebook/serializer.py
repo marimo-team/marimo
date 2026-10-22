@@ -30,11 +30,8 @@ class NotebookSerializer(Protocol):
 
         Args:
             notebook: Notebook in intermediate representation
-            infer_types: Backend that annotates unannotated cell parameters
-                with inferred types, or `"off"`. Formats without signatures
-                ignore this.
-            line_length: Inferred annotations that do not fit one parameter
-                line within this width are dropped.
+            infer_types: Inference backend for formats with cell signatures.
+            line_length: Maximum parameter line width for inferred annotations.
 
         Returns:
             Serialized notebook content as string
@@ -115,11 +112,8 @@ class MarkdownNotebookSerializer(NotebookSerializer):
         infer_types: TypeInferenceMode = "off",
         line_length: int = 79,
     ) -> str:
-        """Serialize notebook to Markdown format.
-
-        Markdown notebooks have no cell signatures. `infer_types` and
-        `line_length` exist for interface parity and are ignored.
-        """
+        """Serialize notebook to Markdown format."""
+        # NB. Markdown has no cell signatures to annotate.
         del infer_types, line_length
         from marimo._convert.markdown import convert_from_ir_to_markdown
 

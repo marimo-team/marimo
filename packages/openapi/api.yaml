@@ -2653,11 +2653,7 @@ components:
       type: object
     FormattingConfig:
       description: "Configuration for code formatting.\n\n    **Keys.**\n\n    - `line_length`:\
-        \ max line length\n    - `infer_types`: `\"off\"` or `\"jedi\"`. With `\"\
-        jedi\"`, marimo infers\n      types for cell parameters when it writes a notebook\
-        \ file in a native\n      Python runtime. Only types available before every\
-        \ consuming signature\n      are written. Inference is disabled by default\
-        \ and unavailable in Pyodide."
+        \ max line length"
       properties:
         infer_types:
           enum:

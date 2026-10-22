@@ -1,15 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Infer parameter annotations for generated cell signatures.
-
-marimo joins the cells into one module in dependency order and asks a
-backend for the type of every definition of each candidate variable. The
-module-level names of the generated file are setup cell definitions and
-top-level functions or classes. marimo keeps a type only when every name in
-it is available before every consuming signature. A library class is
-spelled through the setup cell, as `np.ndarray` or `Path`, and the backend
-must confirm that the spelling names the same class. Every other type is
-dropped. Nothing is quoted.
-"""
+"""Infer parameter annotations for generated cell signatures."""
 
 from __future__ import annotations
 
@@ -37,28 +27,19 @@ TypeInferenceMode = Literal["off", "jedi"]
 # A fixed-length tuple longer than this is written as `tuple[T, ...]`.
 MAX_TUPLE_ELEMENTS = 3
 
-# A union with more members than this says little about the value. Such a
-# type is dropped rather than written.
+# Omit annotations containing a union wider than this.
 MAX_UNION_MEMBERS = 3
 
-# Types that admit every value. An annotation naming one is dropped.
+# Omit annotations containing an unconstrained type.
 _BROAD_TYPES = frozenset({"object", "Any"})
 
-# Used when no formatting config is available.
 DEFAULT_LINE_LENGTH = 79
 
-# What a parameter line costs besides its name and annotation: the indent,
-# the `: ` separator, and the trailing comma.
-_PARAMETER_OVERHEAD = len("    ") + len(": ") + len(",")
-
-# The synthesized module is never written to disk. The stem is what jedi
-# reports as the module of a class the notebook defines.
+# Jedi reports notebook-defined classes under this module name.
 PROBE_MODULE_NAME = "__marimo_probe__"
 
 _BUILTINS = "builtins"
 
-# `typing` spellings that jedi uses in type hints, and the builtin each one
-# is written as in a signature.
 _TYPING_TO_BUILTIN = {
     "List": "list",
     "Dict": "dict",
@@ -87,14 +68,14 @@ class Backend(Protocol):
     ) -> dict[Name, list[Inferred]]:
         """Infer every module-level definition of each name in `source`.
 
-        A name is left out when any of its definitions cannot be inferred.
+        Omit a name if any of its definitions cannot be inferred.
         """
         ...
 
     def resolve(
         self, source: str, expressions: list[str], search_path: Path | None
     ) -> list[Inferred | None]:
-        """What each expression names when evaluated after `source`."""
+        """Resolve expressions statically after the module source."""
         ...
 
 
@@ -107,11 +88,7 @@ def infer_annotations(
     line_length: int = DEFAULT_LINE_LENGTH,
     backend: Backend | None = None,
 ) -> dict[Name, AnnotationData]:
-    """Infer annotations for the variables that cells read as parameters.
-
-    Returns only annotations that the generated file can spell bare and
-    that fit on one parameter line within `line_length`.
-    """
+    """Infer annotations for variables that cells read as parameters."""
     if mode == "off":
         return {}
     names = candidate_names(extraction)
@@ -126,11 +103,11 @@ def infer_annotations(
     if not inferred:
         return {}
 
-    spellings = _ClassSpellings(
+    spellings = _ClassAnnotationResolver(
         extraction, setup_cell, backend, source, search_path
     )
-    # NB. `unshadowed` only accounts for cell definitions. A setup cell that
-    # rebinds `int` makes the bare name mean something else in the file.
+    # NB. `unshadowed` only covers cell definitions, so also exclude setup
+    # definitions, which can rebind builtins.
     setup_defs = set(setup_cell.defs) if setup_cell is not None else set()
     scope = _Scope(
         allowed_refs=extraction.allowed_refs,
@@ -142,15 +119,12 @@ def infer_annotations(
         if node is None:
             continue
         annotation = _annotation(node)
-        # NB. A type too long for its own line is dropped, not wrapped.
-        budget = line_length - len(name) - _PARAMETER_OVERHEAD
-        if len(annotation.repr) > budget:
+        if len(f"    {name}: {annotation.repr},") > line_length:
             continue
         annotations[name] = annotation
 
-    # Signatures are evaluated in file order, not dependency order. Keep
-    # one annotation per variable only if every consuming signature can
-    # evaluate it before the notebook runs.
+    # NB. Python evaluates signatures in file order before cells run, so each
+    # signature needs access to its types.
     available = scope.builtins | setup_defs
     for status in extraction:
         if status.is_toplevel:
@@ -173,7 +147,7 @@ class _Scope:
 
 
 def candidate_names(extraction: TopLevelExtraction) -> set[Name]:
-    """Variables worth probing: public, unannotated, and read by some cell."""
+    """Find public, unannotated variables read by other cells."""
     variables = extraction.variables
     names: set[Name] = set()
     for status in extraction:
@@ -181,13 +155,11 @@ def candidate_names(extraction: TopLevelExtraction) -> set[Name]:
             continue
         for name in status.defs:
             data = variables.get(name)
-            # Private names are filtered out of variable data at compile time.
+            # NB. Compilation excludes private names from variable data.
             if data is None:
                 continue
             if data.annotation_data is not None or data.language == "sql":
                 continue
-            # Module-scope names are never parameters, and names nothing
-            # reads never appear in a signature.
             if name in extraction.allowed_refs:
                 continue
             if name not in extraction.used_refs:
@@ -197,15 +169,13 @@ def candidate_names(extraction: TopLevelExtraction) -> set[Name]:
 
 
 def module_aliases(setup_cell: CellImpl | None) -> dict[Name, str]:
-    """Names the setup cell binds to whole modules, `np` to `numpy`.
-
-    `from a import b` binds an object, not a module, and is left out.
-    """
+    """Collect module aliases from setup-cell imports."""
     if setup_cell is None:
         return {}
     aliases: dict[Name, str] = {}
     for name, entries in setup_cell.variable_data.items():
         import_data = entries[0].import_data
+        # NB. A from-import can bind a module or an object.
         if import_data is not None and import_data.imported_symbol is None:
             aliases[name] = import_data.module
     return aliases
@@ -214,7 +184,7 @@ def module_aliases(setup_cell: CellImpl | None) -> dict[Name, str]:
 def probe_module(
     extraction: TopLevelExtraction, setup_cell: CellImpl | None
 ) -> str:
-    """The setup cell, then every cell in dependency order, as one module."""
+    """Combine setup and cells in dependency order into one module."""
     blocks: list[str] = []
     if setup_cell is not None and setup_cell.code.strip():
         blocks.append(setup_cell.code)
@@ -229,11 +199,7 @@ def probe_module(
 
 
 def _dependency_order(extraction: TopLevelExtraction) -> list[TopLevelStatus]:
-    """Order cells so that each definition precedes its uses.
-
-    File order breaks ties. Cells in a cycle keep their file order after
-    every acyclic cell.
-    """
+    """Order cells by dependency, using file order to break ties."""
     statuses = [status for status in extraction if not status.is_unparsable]
     position = {id(status): idx for idx, status in enumerate(statuses)}
 
@@ -270,6 +236,7 @@ def _dependency_order(extraction: TopLevelExtraction) -> list[TopLevelStatus]:
                 heappush(heap, (position[id(child)], child))
 
     if len(ordered) < len(statuses):
+        # NB. Preserve file order for cycles and their dependents.
         emitted = {id(status) for status in ordered}
         ordered.extend(s for s in statuses if id(s) not in emitted)
     return ordered
@@ -278,11 +245,7 @@ def _dependency_order(extraction: TopLevelExtraction) -> list[TopLevelStatus]:
 def definition_sites(
     source: str, names: set[Name]
 ) -> dict[Name, list[tuple[int, int]]]:
-    """Line and column of every module-level binding of each name.
-
-    Names with bindings that cannot be fully inferred are omitted, even
-    when they also have ordinary assignments.
-    """
+    """Locate module-level bindings, excluding names with unsupported bindings."""
     sites: dict[Name, list[tuple[int, int]]] = defaultdict(list)
     unsupported: set[Name] = set()
 
@@ -304,8 +267,7 @@ def definition_sites(
         elif isinstance(
             node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
         ):
-            # Assignment expressions in comprehensions bind in the enclosing
-            # scope, but their value is not inferred here.
+            # NB. Comprehension walruses bind in the enclosing scope.
             unsupported.update(
                 child.target.id
                 for child in ast.walk(node)
@@ -345,7 +307,7 @@ _SCOPES = (
 
 
 class JediBackend:
-    """Static inference with jedi against the running interpreter."""
+    """Infer types with Jedi against the running interpreter."""
 
     def infer_definitions(
         self, source: str, names: set[Name], search_path: Path | None
@@ -387,8 +349,7 @@ class JediBackend:
 
     @staticmethod
     def _script(source: str, search_path: Path | None) -> object | None:
-        # NB. jedi is a core dependency, but importing it costs a few hundred
-        # milliseconds. Import it only when a save needs it.
+        # NB. Defer importing Jedi until inference is enabled.
         import jedi  # type: ignore
 
         script: object
@@ -422,8 +383,7 @@ class JediBackend:
                 full_name = getattr(definition, "full_name", None)
                 if not full_name:
                     continue
-                # NB. jedi cannot spell every type it infers. A failed hint
-                # still leaves the bare class from `full_name`.
+                # NB. A failed hint still leaves the class in `full_name`.
                 try:
                     hint = cast("str | None", definition.get_type_hint())  # type: ignore[attr-defined]
                 except Exception:
@@ -438,14 +398,8 @@ class JediBackend:
         return values
 
 
-class _ClassSpellings:
-    """Spell a non-builtin class through names the setup cell puts in scope.
-
-    The bare class name is a candidate when it is a module-level name of the
-    generated file. Each setup cell module alias adds `alias.ClassName` when
-    its module contains the class. The backend must confirm that a candidate
-    names the inferred class.
-    """
+class _ClassAnnotationResolver:
+    """Resolve classes to annotations available in the notebook."""
 
     def __init__(
         self,
@@ -493,9 +447,9 @@ class _ClassSpellings:
 
 
 def _declared_type(
-    values: list[Inferred], scope: _Scope, spellings: _ClassSpellings
+    values: list[Inferred], scope: _Scope, spellings: _ClassAnnotationResolver
 ) -> ast.expr | None:
-    """The annotation for a variable, from the values inferred for it."""
+    """Build a variable's annotation from its inferred values."""
     members: list[ast.expr] = []
     for value in values:
         if value.kind != "instance":
@@ -508,7 +462,7 @@ def _declared_type(
         members.append(member)
     if not members:
         return None
-    node = cast(ast.expr, _Normalize().visit(_union(members)))
+    node = cast(ast.expr, _SimplifyTypeAnnotation().visit(_union(members)))
     if _names_in(node) - scope.allowed_refs or _is_broad(node):
         return None
     return node
@@ -527,7 +481,7 @@ def _is_broad(node: ast.expr) -> bool:
 
 
 def _member_type(
-    value: Inferred, scope: _Scope, spellings: _ClassSpellings
+    value: Inferred, scope: _Scope, spellings: _ClassAnnotationResolver
 ) -> ast.expr | None:
     module, _, class_name = value.full_name.rpartition(".")
     if module != _BUILTINS:
@@ -538,8 +492,8 @@ def _member_type(
         return None
     bare = ast.Name(id=class_name, ctx=ast.Load())
     hinted = lower_hint(value.hint) if value.hint else None
-    # A nested name may be unavailable or a shadowed builtin. The bare
-    # container is still true in either case.
+    # NB. An unavailable or shadowed nested type still permits the bare
+    # container annotation.
     if (
         hinted is None
         or _names_in(hinted) - scope.allowed_refs
@@ -550,28 +504,14 @@ def _member_type(
 
 
 def lower_hint(hint: str) -> ast.expr | None:
-    """Rewrite a jedi type hint with builtin generics and `|` unions.
-
-    `List[Union[int, str]]` becomes `list[int | str]`. Returns None when the
-    hint is not a Python expression.
-    """
+    """Rewrite a Jedi type hint with builtin generics and `|` unions."""
     try:
         node = ast.parse(hint, mode="eval").body
     except SyntaxError:
         return None
-    return cast(ast.expr, _Normalize().visit(_LowerTyping().visit(node)))
-
-
-def to_annotation(hint: str, allowed_refs: set[Name]) -> AnnotationData | None:
-    """Turn a builtin type hint into an annotation, or None to drop it.
-
-    Drop anything that is not a Python expression or that names something
-    outside module scope.
-    """
-    node = lower_hint(hint)
-    if node is None or _names_in(node) - allowed_refs:
-        return None
-    return _annotation(node)
+    return cast(
+        ast.expr, _SimplifyTypeAnnotation().visit(_LowerTyping().visit(node))
+    )
 
 
 def _annotation(node: ast.expr) -> AnnotationData:
@@ -592,7 +532,7 @@ def _union_members(node: ast.expr) -> list[ast.expr]:
 
 
 def _union(members: list[ast.expr]) -> ast.expr:
-    """`A | B | C` over the distinct members, in first-seen order."""
+    """Join distinct types with `|`, preserving their order."""
     distinct: list[ast.expr] = []
     for member in members:
         if all(ast.dump(member) != ast.dump(seen) for seen in distinct):
@@ -604,7 +544,7 @@ def _union(members: list[ast.expr]) -> ast.expr:
 
 
 class _LowerTyping(ast.NodeTransformer):
-    """`typing` spellings to the builtin ones a signature wants."""
+    """Convert typing generics to builtin annotation syntax."""
 
     def visit_Name(self, node: ast.Name) -> ast.expr:
         if node.id in _TYPING_TO_BUILTIN:
@@ -629,15 +569,8 @@ class _LowerTyping(ast.NodeTransformer):
         return node
 
 
-class _Normalize(ast.NodeTransformer):
-    """Rewrite an inferred type as the declared type a parameter wants.
-
-    `Literal[...]` members widen to their type, so `Literal[1]` is `int`.
-    Members that cannot be widened leave the `Literal[...]` as it is. A
-    fixed-length tuple longer than `MAX_TUPLE_ELEMENTS` becomes
-    `tuple[T, ...]` over the union of its element types, which every such
-    tuple satisfies. Unions drop duplicate members.
-    """
+class _SimplifyTypeAnnotation(ast.NodeTransformer):
+    """Widen literals and long tuples, and deduplicate unions."""
 
     def visit_BinOp(self, node: ast.BinOp) -> ast.expr:
         self.generic_visit(node)
@@ -690,7 +623,7 @@ def _widen_literal_member(member: ast.expr) -> ast.expr | None:
         if isinstance(value, bool):
             return ast.Name(id="bool", ctx=ast.Load())
         return ast.Name(id=type(value).__name__, ctx=ast.Load())
-    # Enum members: `Literal[Color.RED]` widens to `Color`.
+    # NB. `Literal[Color.RED]` widens to the enum type `Color`.
     if isinstance(member, ast.Attribute):
         return member.value
     return None

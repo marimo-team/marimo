@@ -22,15 +22,12 @@ from marimo._ast.type_inference import (
     lower_hint,
     module_aliases,
     probe_module,
-    to_annotation,
 )
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from marimo._ast.cell import CellImpl
-
-BUILTIN_REFS = {"int", "str", "bool", "bytes", "list", "dict", "tuple", "set"}
 
 
 def make_extraction(
@@ -52,11 +49,7 @@ def instance(full_name: str, hint: str | None = None) -> Inferred:
 
 
 class FakeBackend:
-    """Answers with canned inferences and resolves canned class spellings.
-
-    `classes` maps an expression such as `pd.DataFrame` to the class it
-    names. Any other expression resolves to nothing.
-    """
+    """Return configured inferences and resolve known class aliases."""
 
     def __init__(
         self,
@@ -126,8 +119,6 @@ class TestCandidateNames:
             ],
             setup="K = 1",
         )
-        # `y` is annotated, `unused` is never read, `_private` is local to
-        # its cell, and `K` is module scope in the generated file.
         assert candidate_names(extraction) == {"x"}
 
     @pytest.mark.requires("duckdb", "sqlglot")
@@ -139,7 +130,7 @@ class TestCandidateNames:
                 "print(df)",
             ],
         )
-        # The second cell reads `t`, so only the SQL rule keeps it out.
+        # NB. A read of `t` rules out exclusion as an unused variable.
         assert "t" in extraction.used_refs
         names = candidate_names(extraction)
         assert "t" not in names
@@ -207,7 +198,7 @@ class TestDefinitionSites:
         assert sites["first"] == [(8, 0)]
         assert sites["second"] == [(8, 7)]
         assert sites["walrus"] == [(9, 6)]
-        # The comprehension variable is not a module-level `x`.
+        # NB. Comprehensions bind `x` in their own scope.
         assert sites["squares"] == [(12, 0)]
 
     def test_functions_classes_and_imports_have_no_site(self) -> None:
@@ -232,7 +223,6 @@ class TestLowerHint:
             ("Optional[int]", "int | None"),
             ("Union[int, int]", "int"),
             ("NoneType", "None"),
-            # Long fixed tuples loosen to a variadic tuple.
             ("Tuple[int, str]", "tuple[int, str]"),
             ("Tuple[int, str, int, str]", "tuple[int | str, ...]"),
             ("Tuple[int, ...]", "tuple[int, ...]"),
@@ -240,7 +230,6 @@ class TestLowerHint:
                 "Dict[str, Tuple[int, str, int, str]]",
                 "dict[str, tuple[int | str, ...]]",
             ),
-            # Narrowed literals widen to their declared type.
             ("Literal[1]", "int"),
             ("Literal[True]", "bool"),
             ('Literal[1, "a"]', "int | str"),
@@ -256,27 +245,6 @@ class TestLowerHint:
     def test_not_an_expression(self) -> None:
         assert lower_hint("len(__obj: Sized) -> int") is None
         assert lower_hint("<class 'Foo'>") is None
-
-
-class TestToAnnotation:
-    def test_builtins_are_written_bare_with_refs(self) -> None:
-        annotation = to_annotation("Dict[str, List[int]]", BUILTIN_REFS)
-        assert annotation is not None
-        assert annotation.repr == "dict[str, list[int]]"
-        assert annotation.refs == {"dict", "str", "list", "int"}
-
-    @pytest.mark.parametrize(
-        "hint", ["DataFrame", "List[Foo]", "def f() -> int", "slider"]
-    )
-    def test_unresolvable_or_invalid_hints_are_dropped(
-        self, hint: str
-    ) -> None:
-        assert to_annotation(hint, BUILTIN_REFS) is None
-
-    def test_module_scope_names_are_allowed(self) -> None:
-        allowed = BUILTIN_REFS | {"Foo", "Path"}
-        assert to_annotation("List[Foo]", allowed).repr == "list[Foo]"
-        assert to_annotation("Optional[Path]", allowed).repr == "Path | None"
 
 
 class TestInferAnnotations:
@@ -351,9 +319,7 @@ class TestInferAnnotations:
     ) -> None:
         backend = FakeBackend(
             {
-                # jedi raised on the hint for `[]`.
                 "empty": [instance("builtins.list", None)],
-                # The hint names a class that is not in scope.
                 "frames": [instance("builtins.list", "List[DataFrame]")],
             }
         )
@@ -414,8 +380,6 @@ class TestInferAnnotations:
             monkeypatch=monkeypatch,
         )
         assert "def _(arr: np.ndarray, df: pd.DataFrame, n: int):" in source
-        # Only aliases whose module contains the class are tried, and the
-        # generic parameters are never written.
         assert backend.resolved == ["np.ndarray", "pd.DataFrame"]
 
     def test_unverified_spellings_are_omitted_not_quoted(
@@ -424,7 +388,7 @@ class TestInferAnnotations:
         backend = FakeBackend(
             {
                 "df": [instance("pandas.core.frame.DataFrame", "DataFrame")],
-                # A nested private path that no alias reaches.
+                # NB. No setup alias reaches this nested class.
                 "stock": [
                     instance("marimo._plugins.ui._impl.input.slider", "slider")
                 ],
@@ -600,8 +564,6 @@ class TestJediBackend:
             "builtins.int",
         ]
         assert inferred["fn"][0].kind == "function"
-        # jedi has no answer for `unknown_call()`, and `restock` is bound by
-        # `def`, which has no definition site.
         assert "mystery" not in inferred
         assert "restock" not in inferred
 
@@ -652,7 +614,6 @@ def test_infer_annotations_with_real_jedi() -> None:
         "x: int",
     ]:
         assert expected in source
-    # A function is not an instance, so it has no annotation.
     assert "def _(helper):" in source
 
 
@@ -774,8 +735,8 @@ def test_library_classes_with_real_jedi() -> None:
     )
     assert "df: pd.DataFrame" in source
     assert "col: pd.Series" in source
-    # NB. jedi infers `np.linspace` wrongly, and marimo writes what jedi
-    # says. This pins the accepted behavior so a backend change is visible.
+    # NB. marimo keeps Jedi's incorrect tuple inference for `np.linspace`,
+    # and this expectation detects backend changes.
     assert "prices: tuple" in source
 
 
@@ -822,7 +783,7 @@ class TestBroadTypes:
                     instance("builtins.str", "str"),
                     instance("builtins.bytes", "bytes"),
                 ],
-                # The collapsed tuple's element union is four wide.
+                # NB. The collapsed tuple has four types in its element union.
                 "record": [
                     instance("builtins.tuple", "Tuple[int, str, float, bytes]")
                 ],
@@ -886,7 +847,7 @@ class TestLineLength:
             ["_", "_", "_"],
             [CellConfig(), CellConfig(), CellConfig()],
             infer_types="jedi",
-            # `    a: int,` is 11 characters; the long name needs 28.
+            # `    a: int,` is 11 characters, and the long name needs 28.
             line_length=12,
         )
         assert "def _(a: int, a_much_longer_name):" in source

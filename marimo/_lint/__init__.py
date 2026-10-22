@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from marimo import _loggers
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.linter import FileStatus, Linter
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
@@ -15,8 +14,6 @@ if TYPE_CHECKING:
 
     from marimo._ast.type_inference import TypeInferenceMode
     from marimo._config.config import LintConfig
-
-LOGGER = _loggers.marimo_logger()
 
 
 # Define severity ordering (lower index = higher priority)
@@ -84,11 +81,8 @@ def run_check(
         ignore_scripts: Whether to ignore files not recognizable as marimo notebooks
         formatter: Output format for diagnostics ("full" or "json")
         lint_config: Optional lint rule selection config
-        infer_types: Backend that adds inferred type annotations to
-            regenerated files. None uses each notebook's
-            `formatting.infer_types` setting.
-        line_length: Width an inferred annotation must fit within.
-            None uses each notebook's `formatting.line_length` setting.
+        infer_types: Inference backend, or None to use notebook configuration.
+        line_length: Parameter line width, or None to use notebook configuration.
 
     Returns:
         Linter with per-file status and diagnostics

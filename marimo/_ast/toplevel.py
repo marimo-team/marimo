@@ -392,11 +392,7 @@ class TopLevelExtraction:
     def add_default_annotations(
         self, annotations: dict[Name, AnnotationData]
     ) -> None:
-        """Annotate variables that have no annotation of their own.
-
-        An annotation the user wrote in the cell always wins over the
-        default supplied here.
-        """
+        """Add inferred annotations to variables without explicit annotations."""
         variables = self.variables
         for name, annotation in annotations.items():
             data = variables.get(name)

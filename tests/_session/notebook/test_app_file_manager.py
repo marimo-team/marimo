@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from marimo._ast.type_inference import Inferred
+from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.notebook import (
     AppFileManager,
     load_notebook,
@@ -236,7 +237,7 @@ def _(x):
 
 
 class _ConfigReader:
-    """Stand-in for MarimoConfigReader exposing only the formatting section."""
+    """Provide formatting configuration for save tests."""
 
     def __init__(self, infer_types: str) -> None:
         self.infer_types = infer_types
@@ -247,7 +248,7 @@ class _ConfigReader:
 
 
 class _FakeBackend:
-    """A backend that types `x` as `int` and records where it was asked."""
+    """Infer `x` as `int` and record the module search path."""
 
     def __init__(self) -> None:
         self.search_paths: list[Path | None] = []
@@ -266,9 +267,7 @@ class _FakeBackend:
         return [None] * len(expressions)
 
 
-def _save_request(fm: AppFileManager, nb: Path):  # type: ignore[no-untyped-def]
-    from marimo._server.models.models import SaveNotebookRequest
-
+def _save_request(fm: AppFileManager, nb: Path) -> SaveNotebookRequest:
     cell_manager = fm.app.cell_manager
     return SaveNotebookRequest(
         cell_ids=list(cell_manager.cell_ids()),
@@ -290,7 +289,6 @@ def test_infer_types_follows_live_config(tmp_path: Path) -> None:
     reader = _ConfigReader(infer_types="off")
     fm.config_reader = reader  # type: ignore[assignment]
     assert fm.infer_types == "off"
-    # Changed in the settings UI after the session started.
     reader.infer_types = "jedi"
     assert fm.infer_types == "jedi"
 
@@ -310,7 +308,6 @@ def test_save_writes_inferred_types_to_disk_when_enabled(
     fm.save(_save_request(fm, nb))
 
     assert "def _(x: int):" in nb.read_text()
-    # The notebook's directory is where sibling modules are resolved.
     assert backend.search_paths == [tmp_path]
 
 
@@ -333,7 +330,6 @@ def test_line_length_follows_config_and_defaults_to_79(tmp_path: Path) -> None:
     fm = load_notebook(_write_notebook(tmp_path / "nb.py"))
     assert fm.line_length == 79
     reader = _ConfigReader(infer_types="jedi")
-    reader.line_length = 100  # type: ignore[attr-defined]
     reader.get_config = lambda **_: {  # type: ignore[method-assign]
         "formatting": {"infer_types": "jedi", "line_length": 100}
     }

@@ -74,7 +74,6 @@ class AppFileManager:
         # Configuration defaults
         self._defaults = defaults or AppDefaults()
 
-        # User configuration for save-time options. Defaults apply when None.
         self.config_reader: MarimoConfigManager | None = None
 
         # Load the app
@@ -100,7 +99,7 @@ class AppFileManager:
 
     @property
     def infer_types(self) -> TypeInferenceMode:
-        """Backend that types saved signatures, or `"off"`."""
+        """Read the configured inference backend."""
         if self.config_reader is None:
             return "off"
         formatting = self.config_reader.get_config().get("formatting", {})
@@ -108,7 +107,7 @@ class AppFileManager:
 
     @property
     def line_length(self) -> int:
-        """Line width that an inferred annotation must fit within."""
+        """Read the configured annotation line length."""
         if self.config_reader is None:
             return 79
         formatting = self.config_reader.get_config().get("formatting", {})

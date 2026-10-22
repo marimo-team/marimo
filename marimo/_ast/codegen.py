@@ -21,6 +21,7 @@ from marimo._ast.names import (
 )
 from marimo._ast.parse import ast_parse
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
+from marimo._ast.type_inference import infer_annotations
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name, VariableData
 from marimo._convert.converters import MarimoConvert
@@ -83,7 +84,7 @@ def indent_text(text: str) -> str:
 def _format_arg(arg: Any) -> str:
     if isinstance(arg, str):
         literal = repr(arg)
-        # Prefer double quotes, as ruff does, unless the value contains one.
+        # NB. Match Ruff's quote style unless the value contains double quotes.
         return f'"{literal[1:-1]}"' if '"' not in arg else literal
     elif isinstance(arg, list):
         return f"[{', '.join([_format_arg(item) for item in arg])}]"
@@ -589,14 +590,7 @@ def generate_filecontents(
     infer_types: TypeInferenceMode = "off",
     line_length: int = 79,
 ) -> str:
-    """Translates a sequences of codes (cells) to a Python file
-
-    `infer_types` names the backend that annotates unannotated cell
-    parameters with inferred types, or is `"off"`. An inferred annotation
-    that does not fit on one parameter line within `line_length` is
-    dropped. `filename` is the notebook's path. The backend uses it to
-    resolve sibling modules.
-    """
+    """Generate a Python notebook from cell source and configuration."""
 
     # Normalize internal cell names. Empty names would emit `def ():`
     # (invalid Python) and fall back to the unparsable-cell path;
@@ -611,8 +605,6 @@ def generate_filecontents(
         toplevel_defs = set(setup_cell.defs)
     extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
     if infer_types != "off":
-        from marimo._ast.type_inference import infer_annotations
-
         extraction.add_default_annotations(
             infer_annotations(
                 extraction,

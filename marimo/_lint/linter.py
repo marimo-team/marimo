@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
 from marimo._cli.print import red
+from marimo._config.manager import get_default_config_manager
 from marimo._convert.converters import MarimoConvert
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.formatters import LintResultJSON
@@ -88,8 +89,7 @@ class Linter:
         self.unsafe_fixes = unsafe_fixes
         self.ignore_scripts = ignore_scripts
         self.formatter = formatter
-        # None inherits the notebook's formatting config. Explicit values
-        # override it, including "off".
+        # NB. None inherits notebook configuration, while "off" overrides it.
         self.infer_types = infer_types
         self.line_length = line_length
         self.files: list[FileStatus] = []
@@ -399,8 +399,6 @@ class Linter:
         infer_types = self.infer_types
         line_length = self.line_length
         if infer_types is None or line_length is None:
-            from marimo._config.manager import get_default_config_manager
-
             config = get_default_config_manager(
                 current_path=file_status.file
             ).get_config(hide_secrets=False)

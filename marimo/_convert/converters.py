@@ -43,12 +43,7 @@ class MarimoConverterIntermediate:
     def to_py(
         self, *, infer_types: TypeInferenceMode = "off", line_length: int = 79
     ) -> str:
-        """Convert to python format.
-
-        `infer_types` names the backend that annotates unannotated cell
-        parameters with inferred types, or is `"off"`. Inferred annotations
-        longer than one parameter line within `line_length` are dropped.
-        """
+        """Convert the notebook to Python."""
         from marimo._ast.codegen import generate_filecontents_from_ir
 
         return generate_filecontents_from_ir(
