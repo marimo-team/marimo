@@ -145,13 +145,23 @@ export class Events<
     onEvent: (event: StreamEvent<K>) => void,
     onError?: (error: unknown) => void,
   ): () => void {
-    const unsubscribe = this.#stream.subscribe(onEvent);
-    if (onError === undefined || this.#settle === undefined) {
-      return unsubscribe;
+    let active = true;
+    const unsubscribe = this.#stream.subscribe((event) => {
+      if (active) {
+        onEvent(event);
+      }
+    });
+    const failed = (error: unknown) => {
+      if (active) {
+        onError?.(error);
+      }
+    };
+    if (onError !== undefined && this.#settle !== undefined) {
+      this.#onErrors.add(failed);
     }
-    this.#onErrors.add(onError);
     return () => {
-      this.#onErrors.delete(onError);
+      active = false;
+      this.#onErrors.delete(failed);
       unsubscribe();
     };
   }

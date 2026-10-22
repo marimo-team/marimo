@@ -380,6 +380,100 @@ describe("NotebookEvents", () => {
     expect(closing).not.toHaveBeenCalled();
   });
 
+  it.each([false, true])(
+    "owns each registration of a shared event callback (onError: %s)",
+    async (withError) => {
+      const stream = body();
+      const events = new NotebookEvents(url, {
+        types: ["marimo"],
+        fetch: answering(stream.response).fetch,
+      });
+      const received = vi.fn();
+      const leave = events.subscribe(received, withError ? vi.fn() : undefined);
+      events.subscribe(received);
+      leave();
+      leave();
+      stream.push("id: 1\nevent: marimo\ndata: {}\n\n");
+      await vi.waitFor(() => expect(events.cursor).toBe("1"));
+      events.close();
+      expect(received.mock.calls).toEqual([
+        [{ event: "marimo", data: {}, id: "1" }],
+      ]);
+    },
+  );
+
+  it("owns each registration of a shared error callback", async () => {
+    const events = new NotebookEvents(url, {
+      fetch: answering(new Response(null, { status: 403 })).fetch,
+    });
+    const failed = vi.fn();
+    const leave = events.subscribe(vi.fn(), failed);
+    events.subscribe(vi.fn(), failed);
+    leave();
+    events.subscribe(vi.fn(), failed);
+    leave();
+    const error = await events.closed.catch((error: unknown) => error);
+    expect(failed.mock.calls).toEqual([[error], [error]]);
+  });
+
+  it.each(["status", "error"])(
+    "honors unsubscribe during terminal %s delivery",
+    async (during) => {
+      let leave = () => {};
+      const events = new NotebookEvents(url, {
+        fetch: answering(new Response(null, { status: 403 })).fetch,
+        onStatus: (status) => {
+          if (status === "closed" && during === "status") {
+            leave();
+          }
+        },
+      });
+      events.subscribe(vi.fn(), () => {
+        if (during === "error") {
+          leave();
+        }
+      });
+      const removed = vi.fn();
+      const remaining = vi.fn();
+      leave = events.subscribe(vi.fn(), removed);
+      events.subscribe(vi.fn(), remaining);
+      const error = await events.closed.catch((error: unknown) => error);
+      expect(removed.mock.calls).toEqual([]);
+      expect(remaining.mock.calls).toEqual([[error]]);
+    },
+  );
+
+  it("reports a throwing error callback and still notifies other subscribers", async () => {
+    const queued = vi.fn();
+    vi.stubGlobal("queueMicrotask", queued);
+    const thrown = new Error("subscriber failed");
+    const events = new NotebookEvents(url, {
+      fetch: answering(new Response(null, { status: 403 })).fetch,
+    });
+    events.subscribe(vi.fn(), () => {
+      throw thrown;
+    });
+    const remaining = vi.fn();
+    events.subscribe(vi.fn(), remaining);
+    const error = await events.closed.catch((error: unknown) => error);
+    expect(remaining.mock.calls).toEqual([[error]]);
+    expect(queued.mock.calls).toEqual([[expect.any(Function)]]);
+    expect(queued.mock.calls[0][0]).toThrow(thrown);
+  });
+
+  it("does not notify error subscribers when aborted", async () => {
+    const controller = new AbortController();
+    const events = new NotebookEvents(url, {
+      signal: controller.signal,
+      fetch: unanswered(),
+    });
+    const failed = vi.fn();
+    events.subscribe(vi.fn(), failed);
+    controller.abort();
+    await expect(events.closed).resolves.toBeUndefined();
+    expect(failed.mock.calls).toEqual([]);
+  });
+
   it.each([
     'event: cell\ndata: {"cell":{"id":"c1"}}\n\n',
     "event: reset\ndata: 5\n\n",
