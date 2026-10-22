@@ -146,6 +146,10 @@ from marimo._runtime.runner.hooks import (
     Priority,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._runtime.sql_cleanup import (
+    SQLCleanupState,
+    capture_sql_cleanup_state,
+)
 from marimo._runtime.state import State
 from marimo._runtime.win32_interrupt_handler import (
     Win32InterruptHandler,
@@ -163,10 +167,6 @@ from marimo._sql.engines.types import (
 )
 from marimo._sql.get_engines import (
     get_engines_from_variables,
-)
-from marimo._sql.sql_quoting import (
-    quote_qualified_name,
-    quote_sql_identifier,
 )
 from marimo._tracer import attach_trace_context, kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
@@ -455,51 +455,6 @@ class CellMetadata:
     code: str | None = None
 
 
-@dataclasses.dataclass(frozen=True)
-class _SQLCleanupState:
-    catalogs: frozenset[str]
-    protected_objects: frozenset[str]
-
-
-def _get_attached_catalogs() -> set[str]:
-    """Fetch the names of all catalogs currently attached to DuckDB."""
-    import duckdb
-
-    try:
-        return {
-            row[0].lower()
-            for row in duckdb.sql(
-                "SELECT database_name FROM duckdb_databases()"
-            ).fetchall()
-        }
-    except Exception:
-        return set()
-
-
-def _in_memory_qualified_name(
-    variable: VariableData,
-    name: Name,
-    attached_catalogs: Callable[[], set[str]],
-) -> str | None:
-    """Resolve the quoted, qualified name of an in-memory table/view.
-
-    Returns `None` if the object doesn't live in the "memory" catalog.
-
-    `attached_catalogs` lazily resolves DuckDB's attached catalogs; callers
-    should memoize it when resolving many names, to avoid repeated queries.
-    """
-    qualifiers = list(variable.sql_ref.qualifiers) if variable.sql_ref else []
-    catalog = "memory"
-    if qualifiers and (
-        qualifiers[0] == "memory"
-        or qualifiers[0].lower() in attached_catalogs()
-    ):
-        catalog = qualifiers.pop(0)
-    if catalog != "memory":
-        return None
-    return quote_qualified_name(catalog, *(qualifiers or ["main"]), name)
-
-
 class Kernel:
     """Kernel that manages the dependency graph and its execution.
 
@@ -615,7 +570,7 @@ class Kernel:
             sys.path.insert(0, "")
 
         self.graph = dataflow.DirectedGraph()
-        self._sql_cleanup_states: dict[CellId_t, _SQLCleanupState] = {}
+        self._sql_cleanup_states: dict[CellId_t, SQLCleanupState] = {}
         self.agent = Agent()
         # When autorun on startup is disabled, this holds cells that have
         # not yet been run; these cells are removed when they or their
@@ -1063,99 +1018,36 @@ class Kernel:
         self,
         variables: dict[Name, list[VariableData]],
         exclude_defs: set[Name],
-        sql_cleanup: _SQLCleanupState | None,
+        sql_cleanup: SQLCleanupState | None,
     ) -> None:
         """Delete definitions using the catalog bindings from their execution."""
-        attached_catalogs = set(sql_cleanup.catalogs if sql_cleanup else ())
-
-        def get_attached_catalogs() -> set[str]:
-            return attached_catalogs
-
         for name, variable_data in variables.items():
             if name in exclude_defs:
                 continue
             for variable in effective_variable_definitions(variable_data):
+                if variable.kind in ("table", "view", "catalog"):
+                    if sql_cleanup is None:
+                        continue
+                    if DependencyManager.duckdb.has():
+                        sql_cleanup.delete_definition(name, variable)
+                        continue
+
+                if name in self.globals:
+                    del self.globals[name]
+
+                # Restore module-level __doc__ so it doesn't fall
+                # through to builtins.__doc__
+                if name == "__doc__":
+                    self.globals["__doc__"] = (
+                        self.app_metadata.docstring
+                        or "Created for the marimo kernel."
+                    )
+
                 if (
-                    variable.kind in ("table", "view", "catalog")
-                    and sql_cleanup is None
+                    "__annotations__" in self.globals
+                    and name in self.globals["__annotations__"]
                 ):
-                    continue
-                if variable.kind == "table" and DependencyManager.duckdb.has():
-                    import duckdb
-
-                    # We only drop in-memory tables: we don't want to drop tables
-                    # on databases!
-                    qualified = _in_memory_qualified_name(
-                        variable, name, get_attached_catalogs
-                    )
-                    if (
-                        qualified is not None
-                        and sql_cleanup is not None
-                        and qualified not in sql_cleanup.protected_objects
-                    ):
-                        try:
-                            duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
-                        except Exception as e:
-                            LOGGER.warning(
-                                "Failed to drop table %s: %s", name, e
-                            )
-                elif (
-                    variable.kind == "view" and DependencyManager.duckdb.has()
-                ):
-                    import duckdb
-
-                    # We only drop in-memory views for the same reason.
-                    qualified = _in_memory_qualified_name(
-                        variable, name, get_attached_catalogs
-                    )
-                    if (
-                        qualified is not None
-                        and sql_cleanup is not None
-                        and qualified not in sql_cleanup.protected_objects
-                    ):
-                        try:
-                            duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
-                        except Exception as e:
-                            LOGGER.warning(
-                                "Failed to drop view %s: %s", name, e
-                            )
-                elif (
-                    variable.kind == "catalog"
-                    and DependencyManager.duckdb.has()
-                ):
-                    import duckdb
-
-                    try:
-                        identifier = quote_sql_identifier(name)
-                        if (
-                            sql_cleanup is None
-                            or identifier in sql_cleanup.protected_objects
-                        ):
-                            continue
-                        duckdb.execute(
-                            f"DETACH DATABASE IF EXISTS {identifier}"
-                        )
-                    except Exception as e:
-                        LOGGER.warning(
-                            "Failed to detach catalog %s: %s", name, e
-                        )
-                else:
-                    if name in self.globals:
-                        del self.globals[name]
-
-                    # Restore module-level __doc__ so it doesn't fall
-                    # through to builtins.__doc__
-                    if name == "__doc__":
-                        self.globals["__doc__"] = (
-                            self.app_metadata.docstring
-                            or "Created for the marimo kernel."
-                        )
-
-                    if (
-                        "__annotations__" in self.globals
-                        and name in self.globals["__annotations__"]
-                    ):
-                        del self.globals["__annotations__"][name]
+                    del self.globals["__annotations__"][name]
 
     def _invalidate_cell_state(
         self,
@@ -1579,65 +1471,13 @@ class Kernel:
         def remember_sql_cleanup_state(
             cell: CellImpl, ctx: hook_context.PreExecutionHookContext
         ) -> None:
-            variables = [
-                (name, variable)
-                for name, data in cell.variable_data.items()
-                for variable in data
-                if variable.kind in ("table", "view", "catalog")
-            ]
-            if not variables:
+            if cell.language != "sql":
                 return
-            live_catalogs = frozenset(_get_attached_catalogs())
-            catalogs = (
-                live_catalogs | ctx.graph.definition_registry.sql_catalogs
+            state = capture_sql_cleanup_state(
+                cell.variable_data, ctx.graph.definition_registry.sql_catalogs
             )
-            targets = {
-                qualified
-                for name, variable in variables
-                if variable.kind in ("table", "view")
-                and (
-                    qualified := _in_memory_qualified_name(
-                        variable, name, lambda: set(catalogs)
-                    )
-                )
-                is not None
-            }
-            protected = {
-                quote_sql_identifier(name)
-                for name, variable in variables
-                if variable.kind == "catalog" and name.lower() in live_catalogs
-            }
-            if targets:
-                from marimo._ast.sql_visitor import SQLRef
-                from marimo._sql.engines.duckdb import DuckDBEngine
-
-                # Existing objects must survive failed CREATE and IF NOT EXISTS.
-                try:
-                    existing: dict[tuple[str, ...], set[str]] = {}
-                    engine = DuckDBEngine()
-                    for target in targets:
-                        path = SQLRef.from_qualified_name(target).parts
-                        schema_path = path[1:-1]
-                        if schema_path not in existing:
-                            existing[schema_path] = {
-                                table.name.lower()
-                                for table in engine.get_tables_in_schema(
-                                    database="memory",
-                                    schema=schema_path[-1],
-                                    schema_path=list(schema_path),
-                                    include_table_details=False,
-                                )
-                            }
-                        if path[-1] in existing[schema_path]:
-                            protected.add(target)
-                except Exception:
-                    protected.update(targets)
-                    LOGGER.warning(
-                        "Failed to inspect SQL cleanup targets", exc_info=True
-                    )
-            self._sql_cleanup_states[cell.cell_id] = _SQLCleanupState(
-                catalogs, frozenset(protected)
-            )
+            if state is not None:
+                self._sql_cleanup_states[cell.cell_id] = state
 
         def note_time_of_interruption(
             cell_impl: CellImpl,
