@@ -694,10 +694,6 @@ class LazyLoader(BasePersistenceLoader):
                 and ctx.cache.store_from_untrusted_origin
             ):
                 store = self._store_cls()
-                LOGGER.warning(
-                    "Ignoring cache.store from an untrusted config layer "
-                    "while cache verification is off; using the default store."
-                )
             else:
                 # Reuse the store across recreations of a named loader (State GC,
                 # partial reconstruction) so cached data survives.
