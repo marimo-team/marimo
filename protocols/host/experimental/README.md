@@ -19,3 +19,18 @@ must also generate a valid contract when selected on its own.
 
 Once implementation experience establishes a stable design, move its contract,
 documentation, fixtures, and tests into the core protocol.
+
+## Composing the schema
+
+Both language generators use `generate.py` to compose the contract. To inspect
+the OpenAPI schema with selected features as JSON:
+
+```sh
+uv run --no-config --locked --script protocols/host/generate.py --schema --include-experimental=analysis > /tmp/host-openapi.json
+```
+
+Separate multiple feature names with commas; unknown names fail.
+The composer applies Overlay 1.0 `update` actions in feature-name order.
+JSONPath targets must match an object or array: object updates merge
+recursively, and array updates append an entry. Root updates (`target: $`)
+can add paths and components together. Removal actions are not supported.

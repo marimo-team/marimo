@@ -47,40 +47,26 @@ commit. Use the examples and conformance tests from that commit too.
 
 ## Selecting experimental contracts
 
-Both generator scripts default to the stable base. The client package
-`codegen` and `codegen:check` commands explicitly include experimental features
-for Turbo builds; `codegen:stable` invokes the script without that opt-in.
-`--include-experimental` includes
-all overlays; `--include-experimental=analysis` selects named features (comma
-separated). Unknown names fail. `--check` uses the same selection and compares
-against the chosen output directory without writing files.
+marimo's checked-in Python and TypeScript bindings include all experimental
+features. The generation commands above preserve that selection.
 
-marimo's checked-in Python bindings and private `@marimo-team/client` include
-all experimental features. The Make targets and client package commands opt in
-explicitly. To generate stable-only bindings without replacing those files:
+To generate stable-only bindings in a separate directory:
 
 ```sh
+# Python types and event adapters
 uv run --no-config --locked --script protocols/host/generate.py --output-dir /tmp/host-python
+
+# TypeScript types, validation schemas, and operation definitions
 pnpm --dir packages/client codegen:stable --output-dir /tmp/host-typescript
 ```
 
-`--output-dir` contains `protocol.py` and `protocol_events.py` for Python, or
-`protocol.ts` and `operations.ts` for TypeScript. Stable-only generation produces
-bindings, not a separate stable build of the handwritten client package; that
-package currently consumes experimental Analysis types.
+Both generator scripts default to stable-only bindings. Add
+`--include-experimental` for all features or
+`--include-experimental=analysis` for a specific feature.
+Add `--check` to verify existing output without writing files.
 
-Both language generators use `generate.py` to compose the contract. Its
-`--schema` option emits the selected OpenAPI document as JSON for other tools:
+Stable-only generation covers the generated bindings; the client package
+itself currently requires experimental Analysis types.
 
-```sh
-uv run --no-config --locked --script protocols/host/generate.py --schema --include-experimental=analysis > /tmp/host-openapi.json
-```
-
-The composer applies Overlay 1.0 `update` actions in feature-name order.
-Targets use JSONPath and must match an object or array. Object updates merge
-recursively; array targets append an entry. Root updates (`target: $`) can add
-paths and components together. Removal actions are not supported.
-
-Generated headers list the selected features, and descriptions identify added
-experimental schemas. Compatibility requirements and the process for adding
-and graduating features are described in [experimental features](experimental/README.md).
+See [experimental features](experimental/README.md) for compatibility rules
+and instructions for adding features.
