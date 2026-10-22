@@ -1029,33 +1029,6 @@ class InternalApp:
     def update_config(self, updates: dict[str, Any]) -> _AppConfig:
         return self.config.update(updates)
 
-    def with_data(
-        self,
-        *,
-        cell_ids: Iterable[CellId_t],
-        codes: Iterable[str],
-        names: Iterable[str],
-        configs: Iterable[CellConfig],
-    ) -> InternalApp:
-        """Rewrite the cell list from textual fields, in place.
-
-        Mutates `self._app._cell_manager` rather than replacing it,
-        so any caller holding `app.cell_manager` or
-        `app.cell_manager.document` (notably `Session.document`)
-        continues to see live state without rebinding.
-
-        Cells that survive the rewrite keep their compiled `Cell`;
-        callers from save flows pass the frontend's snapshot, which
-        renames/reorders/reconfigures cells but doesn't recompile.
-        """
-        self.apply_data(
-            cell_ids=cell_ids,
-            codes=codes,
-            names=names,
-            configs=configs,
-        )
-        return self
-
     def apply_data(
         self,
         *,
@@ -1064,7 +1037,18 @@ class InternalApp:
         names: Iterable[str],
         configs: Iterable[CellConfig],
     ) -> Transaction:
-        """Rewrite the cell list and return the applied transaction."""
+        """Rewrite the cell list from textual fields, in place.
+
+        Mutates `self._app._cell_manager` rather than replacing it,
+        so any caller holding `app.cell_manager` or
+        `app.cell_manager.document` (notably `Session.document`)
+        continues to see live state without rebinding.
+
+        Cells that survive the rewrite keep their compiled `Cell`. The
+        editor's save passes its snapshot, which renames, reorders, and
+        reconfigures cells without recompiling. Returns the applied
+        transaction.
+        """
         cm = self._app._cell_manager
         prev_compiled = dict(cm._compiled_cells)
         rebuilt = CellManager(prefix=cm.prefix)
