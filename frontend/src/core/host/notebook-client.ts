@@ -171,11 +171,24 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
         (error) => {
           if (!signal.aborted && current === events) {
             Logger.warn("Notebook stream stopped", error);
-            setStatus(statusAfter(error));
+            const status = statusAfter(error);
+            if (status === malformed) {
+              stopMalformed(current);
+            } else {
+              setStatus(status);
+            }
           }
         },
       );
       events = current;
+    }
+
+    function stopMalformed(source: NotebookEvents<string>) {
+      source.close();
+      // The cursor can already include an event the replica rejected.
+      resumable = false;
+      store.set(streamAtom, reducer.initial);
+      setStatus(malformed);
     }
 
     function apply(source: NotebookEvents<string>, event: EditorEvent) {
@@ -185,6 +198,7 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
           onNotification(message.data.marimo);
         } else {
           Logger.error("Failed to decode notebook message", event);
+          stopMalformed(source);
         }
         return;
       }
@@ -193,10 +207,7 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
       } catch (error) {
         // An event the replica cannot apply, such as another notebook's.
         Logger.error("Failed to apply notebook event", error);
-        source.close();
-        resumable = false;
-        store.set(streamAtom, reducer.initial);
-        setStatus(malformed);
+        stopMalformed(source);
         return;
       }
       if (event.event === "ready" || event.event === "reset") {

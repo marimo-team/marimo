@@ -205,6 +205,54 @@ describe("NotebookClient lifetime", () => {
   });
 
   it.each([
+    ["a malformed native envelope", { event: "marimo", id: "98", data: {} }],
+    ["null native event data", { event: "marimo", id: "98", data: null }],
+    ["an invalid protocol record", { event: "cell", id: "98", data: {} }],
+    ["an undecodable message", "{broken"],
+    ["a changed notebook", { event: "notebook", id: "98", data: { notebook } }],
+  ])(
+    "rebuilds from a fresh snapshot after rejecting %s",
+    async (_name, message) => {
+      const { connect, opened, client, store, onNotification } = setup();
+      connect(lifetime().signal);
+      const first = await opened();
+      const snapshot = fixtureMessages("notebook-events.sse");
+      snapshot.forEach(first.receive);
+      expect(store.get(client.documentAtom)).not.toBeNull();
+      onNotification.mockClear();
+
+      first.receive(message);
+      first.receive(kernelReady);
+      expect({
+        connection: store.get(client.connectionAtom),
+        document: store.get(client.documentAtom),
+        attachments: store.get(client.attachmentsAtom),
+        aborted: first.signal.aborted,
+        notifications: onNotification.mock.calls,
+      }).toEqual({
+        connection: {
+          state: ConnectionState.CLOSED,
+          code: "KERNEL_DISCONNECTED",
+          reason: "Failed to decode notebook message",
+        },
+        document: null,
+        attachments: [],
+        aborted: true,
+        notifications: [],
+      });
+
+      await client.reconnect();
+      const second = await opened();
+      expect(second.cursor).toBeNull();
+      snapshot.forEach(second.receive);
+      expect(store.get(client.documentAtom)?.revision.notebook_id).toBe("n1");
+      expect(store.get(client.connectionAtom)).toEqual({
+        state: ConnectionState.OPEN,
+      });
+    },
+  );
+
+  it.each([
     [
       "a final close",
       {
