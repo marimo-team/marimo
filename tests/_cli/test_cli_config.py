@@ -81,11 +81,11 @@ path = "/data"
     assert tomlkit.parse(output).unwrap() == values
 
 
-@pytest.mark.parametrize("with_provenance", [False, True])
+@pytest.mark.parametrize("show_sources", [False, True])
 def test_config_show_includes_notebook_sources_and_does_not_save(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    with_provenance: bool,
+    show_sources: bool,
 ) -> None:
     user_path = tmp_path / "marimo.toml"
     contents = (
@@ -106,11 +106,11 @@ def test_config_show_includes_notebook_sources_and_does_not_save(
 
     monkeypatch.setattr(commands, "get_default_config_manager", manager)
     args = ["show", str(notebook)]
-    if with_provenance:
-        args.append("--with-provenance")
+    if show_sources:
+        args.append("--show-sources")
     result = CliRunner().invoke(commands.config, args)
     assert result.exit_code == 0, result.output
-    if with_provenance:
+    if show_sources:
         assert f'theme = "dark" # user: {user_path}' in result.output
         assert f'on_cell_change = "lazy" # script: {notebook}' in result.output
     else:
@@ -151,15 +151,15 @@ def test_config_show_reports_malformed_project_file(
     assert "# default" not in result.output
 
 
-@pytest.mark.parametrize("with_provenance", [False, True])
+@pytest.mark.parametrize("show_sources", [False, True])
 def test_config_show_parse_error_is_readable_and_printed_once(
-    tmp_path: Path, with_provenance: bool
+    tmp_path: Path, show_sources: bool
 ) -> None:
     config_path = tmp_path / ".marimo.toml"
     config_path.write_text('[display]\ntheme = "light\n')
     args = ["marimo", "config", "show"]
-    if with_provenance:
-        args.append("--with-provenance")
+    if show_sources:
+        args.append("--show-sources")
     result = subprocess.run(args, cwd=tmp_path, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert result.stderr.count("Error:") == 1

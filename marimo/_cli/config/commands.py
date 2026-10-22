@@ -27,11 +27,11 @@ def config() -> None:
     "notebook", required=False, type=click.Path(exists=True, dir_okay=False)
 )
 @click.option(
-    "--with-provenance",
+    "--show-sources",
     is_flag=True,
     help="Include source comments for each configuration value.",
 )
-def show(notebook: str | None = None, with_provenance: bool = False) -> None:
+def show(notebook: str | None = None, show_sources: bool = False) -> None:
     """
     Print out marimo config information.
     Example usage:
@@ -41,7 +41,7 @@ def show(notebook: str | None = None, with_provenance: bool = False) -> None:
     config_manager = get_default_config_manager(
         current_path=notebook or os.getcwd()
     )
-    if with_provenance:
+    if show_sources:
         output = format_config_with_sources(
             config_manager.get_config_with_sources()
         )

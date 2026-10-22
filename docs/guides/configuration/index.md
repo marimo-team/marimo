@@ -66,10 +66,10 @@ To view the configuration marimo is using, run:
 marimo config show
 ```
 
-Add `--with-provenance` to include the source of each value:
+Add `--show-sources` to include the source of each value:
 
 ```bash
-marimo config show --with-provenance
+marimo config show --show-sources
 ```
 
 Each value then has a source comment identifying the configuration file,
@@ -89,7 +89,7 @@ To include a notebook's script metadata, pass its path:
 marimo config show notebook.py
 ```
 
-You can also use `--with-provenance` when passing a notebook path.
+You can also use `--show-sources` when passing a notebook path.
 
 If a configuration file cannot be parsed, marimo prints an error with the file
 path and parsing error, ignores that file's settings, and continues using the
