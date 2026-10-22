@@ -210,7 +210,7 @@ class TestFindSQLDefs:
                     table="представление", catalog="каталог", schema="схема"
                 )
             ],
-            schemas=["схема"],
+            schemas=["каталог.схема"],
             reffed_catalogs=["каталог", "каталог", "каталог"],
             reffed_schemas=["схема", "схема"],
         )
@@ -494,7 +494,7 @@ class TestFindSQLDefs:
         CREATE SCHEMA my_catalog.my_schema;
         """
         assert find_sql_defs(sql) == SQLDefs(
-            schemas=["my_schema"],
+            schemas=["my_catalog.my_schema"],
             reffed_catalogs=["my_catalog"],
         )
 
@@ -1265,3 +1265,48 @@ class TestFindSQLRefs:
             SQLRef(table="table1"),
             SQLRef(table="table2"),
         }
+
+
+@pytest.mark.skipif(
+    not HAS_SQLGLOT or not HAS_DUCKDB, reason="SQL dependencies required"
+)
+@pytest.mark.parametrize(
+    "parts",
+    [
+        ["finance", "reports", "sales"],
+        ["memory", "finance", "reports", "sales"],
+        ["memory", "finance", "reports", "quarterly", "sales"],
+        ["finance.reports", "sales"],
+    ],
+)
+def test_nested_sql_identifier_paths(parts: list[str]) -> None:
+    from marimo._sql.sql_quoting import quote_qualified_name
+
+    name = quote_qualified_name(*parts)
+    ref = SQLRef.from_parts(parts)
+    assert find_sql_refs(f"SELECT * FROM {name}") == {ref}
+    assert find_sql_defs(f"CREATE TABLE {name} (id INT)").tables == [ref]
+    assert SQLRef.from_qualified_name(ref.qualified_name) == ref
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+def test_main_shorthand_respects_nested_schema_ambiguity() -> None:
+    ref = SQLRef.from_parts(["parent", "main", "sales"])
+    assert not ref.matches_hierarchical_ref("sales", "parent.sales", "table")
+
+
+@pytest.mark.parametrize(
+    ("reference", "definition"),
+    [
+        ("memory.finance.reports.sales", "finance"),
+        ("finance.reports.sales", "memory.finance"),
+        ("finance.reports.sales", "memory.finance.reports"),
+        ("memory.finance.reports.sales", "finance.reports"),
+    ],
+)
+def test_sql_schema_dependency_with_default_catalog(
+    reference: str, definition: str
+) -> None:
+    ref = SQLRef.from_qualified_name(reference)
+    schema = SQLRef.from_qualified_name(definition)
+    assert ref.matches_hierarchical_ref(schema.table, definition, "schema")

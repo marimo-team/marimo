@@ -12,6 +12,20 @@ if TYPE_CHECKING:
     from marimo._types.ids import CellId_t
 
 
+def effective_variable_definitions(
+    data: list[VariableData],
+) -> list[VariableData]:
+    """SQL objects coexist with each other and the final Python binding."""
+    sql_definitions = [
+        variable for variable in data if variable.language == "sql"
+    ]
+    return (
+        sql_definitions
+        if data[-1].language == "sql"
+        else [*sql_definitions, data[-1]]
+    )
+
+
 @dataclass
 class DefinitionRegistry:
     """Tracks variable definitions across cells.
@@ -74,17 +88,20 @@ class DefinitionRegistry:
         Returns:
             Set of sibling cell IDs (cells that also define this variable)
         """
-        variable = variable_data[-1]  # Only the last definition matters
-        typed_def = (name, variable.kind)
-        conflict_key = self._conflict_key(name, variable)
-
+        variables = effective_variable_definitions(variable_data)
+        siblings: set[CellId_t] = set()
         self.definitions.setdefault(name, set()).add(cell_id)
-        self.typed_definitions.setdefault(typed_def, set()).add(cell_id)
-        self.definition_conflicts.setdefault(conflict_key, set()).add(cell_id)
-        self.conflict_names.setdefault(conflict_key, name)
-
-        # Return siblings (other cells that define the same semantic object)
-        siblings = self.definition_conflicts[conflict_key] - {cell_id}
+        for variable in variables:
+            typed_def = (name, variable.kind)
+            conflict_key = self._conflict_key(name, variable)
+            self.typed_definitions.setdefault(typed_def, set()).add(cell_id)
+            self.definition_conflicts.setdefault(conflict_key, set()).add(
+                cell_id
+            )
+            self.conflict_names.setdefault(conflict_key, name)
+            siblings.update(
+                self.definition_conflicts[conflict_key] - {cell_id}
+            )
         return siblings
 
     def unregister_definitions(
@@ -92,36 +109,24 @@ class DefinitionRegistry:
         cell_id: CellId_t,
         variable_data: dict[Name, list[VariableData]],
     ) -> None:
-        """Unregister all definitions for a cell.
-
-        Args:
-            cell_id: The cell being removed
-            variable_data: Definitions and metadata for the cell
-        """
         for name, data in variable_data.items():
             if name not in self.definitions:
                 continue
-
-            variable = data[-1]
-            typed_def = (name, variable.kind)
-            conflict_key = self._conflict_key(name, variable)
-
-            name_defs = self.definitions[name]
-            name_defs.discard(cell_id)
-            if typed_def in self.typed_definitions:
-                self.typed_definitions[typed_def].discard(cell_id)
-                if not self.typed_definitions[typed_def]:
-                    del self.typed_definitions[typed_def]
-
-            if conflict_key in self.definition_conflicts:
-                conflict_defs = self.definition_conflicts[conflict_key]
-                conflict_defs.discard(cell_id)
-                if not conflict_defs:
-                    del self.definition_conflicts[conflict_key]
-                    self.conflict_names.pop(conflict_key, None)
-
-            if not name_defs:
-                # No more cells define this name, so we remove it
+            variables = effective_variable_definitions(data)
+            for variable in variables:
+                typed_def = (name, variable.kind)
+                conflict_key = self._conflict_key(name, variable)
+                if typed_def in self.typed_definitions:
+                    self.typed_definitions[typed_def].discard(cell_id)
+                    if not self.typed_definitions[typed_def]:
+                        del self.typed_definitions[typed_def]
+                if conflict_key in self.definition_conflicts:
+                    self.definition_conflicts[conflict_key].discard(cell_id)
+                    if not self.definition_conflicts[conflict_key]:
+                        del self.definition_conflicts[conflict_key]
+                        self.conflict_names.pop(conflict_key, None)
+            self.definitions[name].discard(cell_id)
+            if not self.definitions[name]:
                 del self.definitions[name]
 
     def get_defining_cells(self, name: Name) -> set[CellId_t]:

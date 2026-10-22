@@ -128,6 +128,7 @@ from marimo._runtime.context.kernel_context import (
 )
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._runtime.dataflow.definitions import effective_variable_definitions
 from marimo._runtime.execution import ExecutionAttempt
 from marimo._runtime.input_override import getpass_override
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
@@ -481,24 +482,16 @@ def _in_memory_qualified_name(
     `attached_catalogs` lazily resolves DuckDB's attached catalogs; callers
     should memoize it when resolving many names, to avoid repeated queries.
     """
-    sql_ref = variable.sql_ref
-    catalog = sql_ref.catalog if sql_ref else None
-    schema = sql_ref.schema if sql_ref else None
-
-    if catalog is None and schema is not None:
-        # A two-part name (e.g. `CREATE TABLE foo.bar ...`) is ambiguous:
-        # `foo` could be a schema in the default "memory" catalog, or
-        # shorthand for the catalog `foo` (i.e. `foo.main.bar`). Disambiguate
-        # against DuckDB's actual attached catalogs, so we don't mistake an
-        # attached database for a "memory" schema (or vice versa).
-        if schema.lower() in attached_catalogs():
-            catalog, schema = schema, "main"
-
-    catalog = catalog or "memory"
+    qualifiers = list(variable.sql_ref.qualifiers) if variable.sql_ref else []
+    catalog = "memory"
+    if qualifiers and (
+        qualifiers[0] == "memory"
+        or qualifiers[0].lower() in attached_catalogs()
+    ):
+        catalog = qualifiers.pop(0)
     if catalog != "memory":
         return None
-    schema = schema or "main"
-    return quote_qualified_name(catalog, schema, name)
+    return quote_qualified_name(catalog, *(qualifiers or ["main"]), name)
 
 
 class Kernel:
@@ -1072,61 +1065,72 @@ class Kernel:
             return attached_catalogs
 
         for name, variable_data in variables.items():
-            # Take the last definition of the variable
-            variable = variable_data[-1]
             if name in exclude_defs:
                 continue
+            for variable in effective_variable_definitions(variable_data):
+                if variable.kind == "table" and DependencyManager.duckdb.has():
+                    import duckdb
 
-            if variable.kind == "table" and DependencyManager.duckdb.has():
-                import duckdb
-
-                # We only drop in-memory tables: we don't want to drop tables
-                # on databases!
-                qualified = _in_memory_qualified_name(
-                    variable, name, get_attached_catalogs
-                )
-                if qualified is not None:
-                    try:
-                        duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
-                    except Exception as e:
-                        LOGGER.warning("Failed to drop table %s: %s", name, e)
-            elif variable.kind == "view" and DependencyManager.duckdb.has():
-                import duckdb
-
-                # We only drop in-memory views for the same reason.
-                qualified = _in_memory_qualified_name(
-                    variable, name, get_attached_catalogs
-                )
-                if qualified is not None:
-                    try:
-                        duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
-                    except Exception as e:
-                        LOGGER.warning("Failed to drop view %s: %s", name, e)
-            elif variable.kind == "catalog" and DependencyManager.duckdb.has():
-                import duckdb
-
-                try:
-                    identifier = quote_sql_identifier(name)
-                    duckdb.execute(f"DETACH DATABASE IF EXISTS {identifier}")
-                except Exception as e:
-                    LOGGER.warning("Failed to detach catalog %s: %s", name, e)
-            else:
-                if name in self.globals:
-                    del self.globals[name]
-
-                # Restore module-level __doc__ so it doesn't fall
-                # through to builtins.__doc__
-                if name == "__doc__":
-                    self.globals["__doc__"] = (
-                        self.app_metadata.docstring
-                        or "Created for the marimo kernel."
+                    # We only drop in-memory tables: we don't want to drop tables
+                    # on databases!
+                    qualified = _in_memory_qualified_name(
+                        variable, name, get_attached_catalogs
                     )
-
-                if (
-                    "__annotations__" in self.globals
-                    and name in self.globals["__annotations__"]
+                    if qualified is not None:
+                        try:
+                            duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
+                        except Exception as e:
+                            LOGGER.warning(
+                                "Failed to drop table %s: %s", name, e
+                            )
+                elif (
+                    variable.kind == "view" and DependencyManager.duckdb.has()
                 ):
-                    del self.globals["__annotations__"][name]
+                    import duckdb
+
+                    # We only drop in-memory views for the same reason.
+                    qualified = _in_memory_qualified_name(
+                        variable, name, get_attached_catalogs
+                    )
+                    if qualified is not None:
+                        try:
+                            duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
+                        except Exception as e:
+                            LOGGER.warning(
+                                "Failed to drop view %s: %s", name, e
+                            )
+                elif (
+                    variable.kind == "catalog"
+                    and DependencyManager.duckdb.has()
+                ):
+                    import duckdb
+
+                    try:
+                        identifier = quote_sql_identifier(name)
+                        duckdb.execute(
+                            f"DETACH DATABASE IF EXISTS {identifier}"
+                        )
+                    except Exception as e:
+                        LOGGER.warning(
+                            "Failed to detach catalog %s: %s", name, e
+                        )
+                else:
+                    if name in self.globals:
+                        del self.globals[name]
+
+                    # Restore module-level __doc__ so it doesn't fall
+                    # through to builtins.__doc__
+                    if name == "__doc__":
+                        self.globals["__doc__"] = (
+                            self.app_metadata.docstring
+                            or "Created for the marimo kernel."
+                        )
+
+                    if (
+                        "__annotations__" in self.globals
+                        and name in self.globals["__annotations__"]
+                    ):
+                        del self.globals["__annotations__"][name]
 
     def _invalidate_cell_state(
         self,

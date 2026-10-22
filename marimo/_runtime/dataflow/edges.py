@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from marimo._types.ids import CellId_t
 
 from marimo._ast.sql_visitor import SQLTypes
+from marimo._runtime.dataflow.definitions import effective_variable_definitions
 
 LOGGER = _loggers.marimo_logger()
 
@@ -45,6 +46,8 @@ def get_referring_cells(
     name: Name,
     language: Literal["python", "sql"],
     topology: GraphTopology,
+    sql_definition: SQLRef | None = None,
+    sql_kind: SQLTypes = "any",
 ) -> set[CellId_t]:
     """Get all cells that have a ref to `name`.
 
@@ -63,22 +66,19 @@ def get_referring_cells(
                 continue
 
             for ref in cell.refs:
-                # Direct reference match
-                if ref == name:
-                    cells.add(cid)
-                    break
-
                 sql_ref = cell.sql_refs.get(ref)
-
-                kind: SQLTypes = "any"
-                if name in cell.variable_data:
-                    variable_data = cell.variable_data[name][-1]
-                    kind = cast(SQLTypes, variable_data.kind)
-
-                # Hierarchical reference match
-                if sql_ref and sql_ref.matches_hierarchical_ref(
-                    name, ref, kind
-                ):
+                if sql_ref is not None:
+                    qualified_name = (
+                        sql_definition.qualified_name
+                        if sql_definition
+                        else name
+                    )
+                    if sql_ref.matches_hierarchical_ref(
+                        name, qualified_name, sql_kind
+                    ):
+                        cells.add(cid)
+                        break
+                elif ref == name:
                     cells.add(cid)
                     break
 
@@ -191,14 +191,14 @@ def resolve_cell_references(
                 )
                 continue
 
-            other_variable_data = other_cell.variable_data[variable_name][-1]
-            language = other_variable_data.language
-            if language == "sql" and cell.language == "python":
-                # SQL table/db def -> Python ref is not an edge
-                continue
-            if language == "sql" and cell.language == "sql":
-                # Edges between SQL cells need to respect hierarchy.
-                if sql_ref:
+            variables = effective_variable_definitions(
+                other_cell.variable_data[variable_name]
+            )
+            for other_variable_data in variables:
+                language = other_variable_data.language
+                if language == "sql" and cell.language == "python":
+                    continue
+                if language == "sql" and cell.language == "sql" and sql_ref:
                     other_sql_ref = other_variable_data.sql_ref
                     qualified_name = (
                         other_sql_ref.qualified_name if other_sql_ref else name
@@ -209,7 +209,8 @@ def resolve_cell_references(
                         kind=cast(SQLTypes, other_variable_data.kind),
                     ):
                         continue
-            resolved.setdefault(name, set()).add(other_id)
+                resolved.setdefault(name, set()).add(other_id)
+                break
 
     return resolved
 
@@ -239,20 +240,16 @@ def compute_edges_for_cell(
     # First, process the variables that this cell defines. Any cell
     # that refers to a defined variable becomes a child of this cell.
     for name, variable_data in cell.variable_data.items():
-        # NB. Only the last definition matters.
-        # Technically more nuanced with branching statements, but this is
-        # the best we can do with static analysis.
-        variable = variable_data[-1]
-
-        # a cell can refer to its own defs, but that doesn't add an
-        # edge to the dependency graph
-        referring_cells = get_referring_cells(
-            name,
-            language=variable.language,
-            topology=topology,
-        ) - {cell_id}
-
-        children.update(referring_cells)
+        variables = effective_variable_definitions(variable_data)
+        for variable in variables:
+            referring_cells = get_referring_cells(
+                name,
+                language=variable.language,
+                topology=topology,
+                sql_definition=variable.sql_ref,
+                sql_kind=cast(SQLTypes, variable.kind),
+            ) - {cell_id}
+            children.update(referring_cells)
 
     for defining_cells in resolve_cell_references(
         cell_id, cell, topology, definitions

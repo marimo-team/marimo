@@ -831,18 +831,45 @@ class ScopedVisitor(ast.NodeVisitor):
                         )
                         defined_names.add(_view.qualified_name)
                     for _schema in sql_defs.schemas:
-                        self._define(None, _schema, VariableData("schema"))
-                        defined_names.add(_schema)
+                        schema_ref = SQLRef.from_qualified_name(_schema)
+                        self._define(
+                            None,
+                            schema_ref.table,
+                            VariableData("schema", sql_ref=schema_ref),
+                        )
+                        defined_names.add(schema_ref.qualified_name)
                     for _catalog in sql_defs.catalogs:
                         self._define(None, _catalog, VariableData("catalog"))
                         defined_names.add(_catalog)
+
+                    for definition in [
+                        *sql_defs.tables,
+                        *sql_defs.views,
+                        *(
+                            SQLRef.from_qualified_name(schema)
+                            for schema in sql_defs.schemas
+                        ),
+                    ]:
+                        if not definition.qualifiers:
+                            continue
+                        parent = SQLRef(
+                            table=definition.qualifiers[-1],
+                            qualifiers=definition.qualifiers[:-1],
+                            kind="schema",
+                        )
+                        if parent.qualified_name not in defined_names:
+                            self._add_ref(
+                                None,
+                                parent.qualified_name,
+                                deleted=False,
+                                sql_ref=parent,
+                            )
 
                     if has_sqlglot:
                         sql_refs = find_sql_refs_cached(statement_sql)
 
                         for ref in sql_refs:
                             name = ref.qualified_name
-                            # Cells that define the same name aren't cycles, so we skip them
                             if name in defined_names:
                                 continue
                             self._add_ref(
