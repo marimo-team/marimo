@@ -16,10 +16,10 @@ mkdir -p .context
 cd frontend
 pnpm exec vitest bench benchmarks/cell-editing.bench.ts benchmarks/cell-analysis.bench.ts \
   --mode test --run --no-file-parallelism \
-  --outputJson ../.context/cell-editing-baseline.json
+  --reporter=json --outputFile ../.context/cell-editing-baseline.json
 ```
 
-For comparisons, add `--compare ../.context/cell-editing-baseline.json` and change the output filename.
+For comparisons, save each revision to a separate file and compare the per-test `benchmarks` results in the JSON reports. Vitest 5 removed `--compare` and changed the report format; regenerate baselines recorded with Vitest 4.
 
 - `cell-editing.bench.ts`: reducer, document conversion, and Jotai subscriptions at 10, 25, 100, and 1,000 cells.
 - `cell-analysis.bench.ts`: Python transactions and analyzers at 20, 200, and 2,000 lines, with 1,000 known variables.
