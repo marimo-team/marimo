@@ -24,7 +24,9 @@ def config() -> None:
 
 @click.command(cls=ColoredCommand, help="""Show the marimo config.""")
 @click.argument(
-    "notebook", required=False, type=click.Path(exists=True, dir_okay=False)
+    "notebook",
+    required=False,
+    type=click.Path(exists=True, dir_okay=False, resolve_path=True),
 )
 @click.option(
     "--show-sources",
