@@ -311,16 +311,12 @@ variable to the key itself in Privacy-Enhanced Mail (PEM) form, not a path.
     There is no narrower "cache-only" version of this grant: add a fingerprint
     only if you would run any script that person handed you.
 
-| Cache entry | `off` | `on` (default) | `strict` |
+| Cache entry | `off` (default) | `on` | `strict` |
 |---|---|---|---|
 | Signed by a trusted key | load | load | load |
 | Unsigned, or signed by an unknown key | load without verifying | recompute | raise an error |
 
 We recommend using `strict` in CI.
-
-Note that notebooks running in browser under WebAssembly (WASM) do not have a
-machine key. Configuration must be set in the PEP-723 metadata for verification
-to work.
 
 ## Comparison with `functools.cache`
 
