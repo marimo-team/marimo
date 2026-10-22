@@ -60,7 +60,6 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 if offset < 0:
                     raise ValueError("Offset must be a non-negative integer")
 
-                # Narwhals LazyFrame does not expose slicing.
                 return PolarsTableManager(
                     self._original_data.slice(offset, count)
                 )
