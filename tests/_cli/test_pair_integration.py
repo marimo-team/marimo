@@ -33,7 +33,6 @@ def _command(
 ) -> list[str]:
     target = []
     if selector == "notebook":
-        assert server.notebook_id is not None
         target = ["--notebook", server.notebook_id]
     elif selector == "session":
         target = ["--session", server.stable_session_id]
@@ -137,7 +136,6 @@ def test_authenticated_execution_preserves_session_contract(
 ) -> None:
     token_file = tmp_path / "token"
     token_file.write_text("pair-editor-private-token")
-    assert editor_server.notebook_id is not None
     result = _run(
         editor_server,
         "--token-file",
