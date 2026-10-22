@@ -160,3 +160,32 @@ def test_geometry_column_type_and_stats():
         assert summary.unique is None
     finally:
         duckdb.execute("DROP TABLE geo_stats_table")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_nested_column_type() -> None:
+    import duckdb
+
+    from marimo._sql.utils import is_duckdb_v2
+
+    if not is_duckdb_v2():
+        pytest.skip("Nested schemas require DuckDB 2")
+    try:
+        duckdb.execute(
+            "CREATE SCHEMA type_test; CREATE SCHEMA type_test.reports; "
+            "CREATE TABLE type_test.reports.sales (amount INT); "
+            'CREATE SCHEMA "type_test.reports"; '
+            'CREATE TABLE "type_test.reports".sales (amount VARCHAR)'
+        )
+        assert (
+            get_column_type('"memory"."type_test"."reports"."sales"', "amount")
+            == "integer"
+        )
+        assert (
+            get_column_type('"memory"."type_test.reports"."sales"', "amount")
+            == "string"
+        )
+    finally:
+        duckdb.execute(
+            'DROP SCHEMA IF EXISTS type_test CASCADE; DROP SCHEMA IF EXISTS "type_test.reports" CASCADE'
+        )

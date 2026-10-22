@@ -13,26 +13,29 @@ import type {
 import { logNever } from "@/utils/assertNever";
 import type { ColumnHeaderStatsKey } from "../data-table/types";
 
-/**
- * Stable id for a table node in the datasources tree.
- *
- * schemaPath already includes the leaf schema for nested namespaces, so use it
- * when present and fall back to the flat schema name otherwise (avoids
- * duplicating the leaf, e.g. `top.nested.nested.table`).
- */
+function tablePath(context: SQLTableContext, tableName: string): string[] {
+  const segments = context.schemaPath?.length
+    ? context.schemaPath
+    : [context.schema];
+  return [context.database, ...segments.filter(Boolean), tableName];
+}
+
 export function tableUniqueId(
-  sqlTableContext: SQLTableContext | undefined,
+  context: SQLTableContext | undefined,
   tableName: string,
 ): string {
-  if (!sqlTableContext) {
-    return tableName;
-  }
-  const segments = (
-    sqlTableContext.schemaPath?.length
-      ? sqlTableContext.schemaPath
-      : [sqlTableContext.schema]
-  ).filter(Boolean);
-  return [sqlTableContext.database, ...segments, tableName].join(".");
+  return context ? JSON.stringify(tablePath(context, tableName)) : tableName;
+}
+
+export function fullyQualifiedTableName(
+  context: SQLTableContext | undefined,
+  tableName: string,
+): string {
+  return context
+    ? getFormatter(context.dialect).formatTablePath(
+        tablePath(context, tableName),
+      )
+    : tableName;
 }
 
 // Some databases have no schemas, so we don't show it (eg. Clickhouse)
@@ -114,6 +117,10 @@ const defaultFormatter: SqlCodeFormatter = {
     `SELECT ${columnName} FROM ${tableName} LIMIT 100`,
 };
 
+function quoteIdentifier(identifier: string): string {
+  return `"${identifier.replaceAll('"', '""')}"`;
+}
+
 function getFormatter(dialect: string): SqlCodeFormatter {
   dialect = dialect.toLowerCase();
   if (!isKnownDialect(dialect)) {
@@ -146,9 +153,9 @@ function getFormatter(dialect: string): SqlCodeFormatter {
       // Quote column and table names to avoid raising errors on weird characters
       return {
         formatTablePath: (tablePath: string[]) =>
-          tablePath.map((part) => `"${part}"`).join("."),
+          tablePath.map(quoteIdentifier).join("."),
         formatSelectClause: (columnName: string, tableName: string) =>
-          `SELECT ${columnName === "*" ? "*" : `"${columnName}"`} FROM ${tableName} LIMIT 100`,
+          `SELECT ${columnName === "*" ? "*" : quoteIdentifier(columnName)} FROM ${tableName} LIMIT 100`,
       };
     case "db2":
     case "db2i":
@@ -194,6 +201,7 @@ export function sqlCode({
       engine,
       schema,
       defaultSchema,
+      schemaPath,
       defaultDatabase,
       database,
       dialect,
@@ -207,12 +215,13 @@ export function sqlCode({
       }
     } else {
       // Include schema if it's not the default schema
-      if (schema !== defaultSchema) {
-        tablePath.unshift(schema);
+      const path = schemaPath?.length ? schemaPath : [schema];
+      if (path.length > 1 || path[0] !== defaultSchema) {
+        tablePath.unshift(...path);
       }
 
-      // Include database if it's not the default database
-      if (database !== defaultDatabase) {
+      // Nested schema names can also be attached catalog names.
+      if (path.length > 1 || database !== defaultDatabase) {
         tablePath.unshift(database);
       }
     }
