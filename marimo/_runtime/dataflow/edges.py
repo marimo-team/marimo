@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from marimo._ast.cell import CellImpl
-    from marimo._ast.sql_visitor import SQLRef
     from marimo._ast.visitor import Name
     from marimo._runtime.dataflow.definitions import DefinitionRegistry
     from marimo._runtime.dataflow.topology import (
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
     )
     from marimo._types.ids import CellId_t
 
-from marimo._ast.sql_visitor import SQLTypes
+from marimo._ast.sql_visitor import SQLRef, SQLTypes
 from marimo._runtime.dataflow.definitions import effective_variable_definitions
 
 LOGGER = _loggers.marimo_logger()
@@ -54,6 +53,31 @@ def _cell_references(
         yield ref.qualified_name, ref
 
 
+def _matches_reference(
+    cell: CellImpl,
+    reference_name: Name,
+    sql_ref: SQLRef | None,
+    *,
+    definition_name: Name,
+    language: Literal["python", "sql"],
+    sql_definition: SQLRef | None,
+    sql_kind: SQLTypes,
+    catalogs: frozenset[str],
+) -> bool:
+    if language == "python":
+        return reference_name == definition_name and (
+            sql_ref is None or sql_ref.kind != "schema"
+        )
+    if cell.language != "sql":
+        return False
+    if sql_ref is None:
+        return reference_name == definition_name
+    definition = sql_definition or SQLRef.from_qualified_name(definition_name)
+    return sql_ref.matches_hierarchical_ref(
+        definition_name, definition, sql_kind, catalogs=catalogs
+    )
+
+
 def get_referring_cells(
     name: Name,
     language: Literal["python", "sql"],
@@ -79,18 +103,16 @@ def get_referring_cells(
                 continue
 
             for ref, sql_ref in _cell_references(cell):
-                if sql_ref is not None:
-                    qualified_name = (
-                        sql_definition.qualified_name
-                        if sql_definition
-                        else name
-                    )
-                    if sql_ref.matches_hierarchical_ref(
-                        name, qualified_name, sql_kind, catalogs=catalogs
-                    ):
-                        cells.add(cid)
-                        break
-                elif ref == name:
+                if _matches_reference(
+                    cell,
+                    ref,
+                    sql_ref,
+                    definition_name=name,
+                    language=language,
+                    sql_definition=sql_definition,
+                    sql_kind=sql_kind,
+                    catalogs=catalogs,
+                ):
                     cells.add(cid)
                     break
 
@@ -150,43 +172,23 @@ def resolve_cell_references(
             if not _is_valid_cell_reference(other_id, name, topology):
                 continue
             other_cell = topology.cells[other_id]
-            for variable_name in names:
-                variables = effective_variable_definitions(
+            if any(
+                _matches_reference(
+                    cell,
+                    name,
+                    sql_ref,
+                    definition_name=variable_name,
+                    language=variable.language,
+                    sql_definition=variable.sql_ref,
+                    sql_kind=cast(SQLTypes, variable.kind),
+                    catalogs=catalogs,
+                )
+                for variable_name in names
+                for variable in effective_variable_definitions(
                     other_cell.variable_data[variable_name]
                 )
-                for variable in variables:
-                    if (
-                        variable.language == "sql"
-                        and cell.language == "python"
-                    ):
-                        continue
-                    if (
-                        variable.language == "python"
-                        and sql_ref is not None
-                        and sql_ref.kind == "schema"
-                    ):
-                        continue
-                    if (
-                        variable.language == "sql"
-                        and cell.language == "sql"
-                        and sql_ref
-                    ):
-                        qualified_name = (
-                            variable.sql_ref.qualified_name
-                            if variable.sql_ref is not None
-                            else variable_name
-                        )
-                        if not sql_ref.matches_hierarchical_ref(
-                            variable_name,
-                            qualified_name,
-                            kind=cast(SQLTypes, variable.kind),
-                            catalogs=catalogs,
-                        ):
-                            continue
-                    resolved.setdefault(name, set()).add(other_id)
-                    break
-                if other_id in resolved.get(name, set()):
-                    break
+            ):
+                resolved.setdefault(name, set()).add(other_id)
 
     return resolved
 

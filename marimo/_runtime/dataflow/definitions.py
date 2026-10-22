@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from marimo._ast.sql_visitor import SQLRef
 
@@ -28,6 +28,12 @@ def effective_variable_definitions(
         if data[-1].language == "sql"
         else [*sql_definitions, data[-1]]
     )
+
+
+@dataclass(frozen=True)
+class _DefinitionConflictKey:
+    namespace: Literal["global", "sql", "sql-schema"]
+    parts: tuple[str, ...]
 
 
 @dataclass
@@ -54,14 +60,19 @@ class DefinitionRegistry:
     # Qualified SQL definitions with the same leaf name are distinct objects
     # in the database, but still need to be discoverable by their leaf name
     # when computing SQL edges.
-    definition_conflicts: dict[tuple[str, str], set[CellId_t]] = field(
+    definition_conflicts: dict[_DefinitionConflictKey, set[CellId_t]] = field(
         default_factory=dict
     )
-    conflict_names: dict[tuple[str, str], Name] = field(default_factory=dict)
+    conflict_names: dict[_DefinitionConflictKey, Name] = field(
+        default_factory=dict
+    )
 
+    @staticmethod
     def _conflict_key(
-        self, name: Name, variable: VariableData
-    ) -> tuple[str, str]:
+        name: Name,
+        variable: VariableData,
+        catalogs: frozenset[str],
+    ) -> _DefinitionConflictKey:
         """
         Return the key used to group definitions that conflict.
         Only qualified SQL definitions return a non-global key.
@@ -69,18 +80,28 @@ class DefinitionRegistry:
         sql_ref = variable.sql_ref
         if variable.language == "sql" and sql_ref is not None:
             if variable.kind == "schema":
-                catalog, path = sql_ref.split_catalog(self.sql_catalogs)
+                catalog, path = sql_ref.split_catalog(catalogs)
                 catalog = catalog or "memory"
                 if catalog == "memory" and path == (name,):
-                    return ("global", name)
-                return (
+                    return _DefinitionConflictKey("global", (name,))
+                return _DefinitionConflictKey(
                     "sql-schema",
-                    SQLRef.from_parts([catalog, *path]).qualified_name,
+                    (catalog, *path),
                 )
             if sql_ref.qualified_name != name:
-                return ("sql", sql_ref.qualified_name)
+                return _DefinitionConflictKey(
+                    "sql", tuple(part.lower() for part in sql_ref.parts)
+                )
 
-        return ("global", name)
+        return _DefinitionConflictKey("global", (name,))
+
+    def _register_conflict(
+        self, cell_id: CellId_t, name: Name, key: _DefinitionConflictKey
+    ) -> set[CellId_t]:
+        definers = self.definition_conflicts.setdefault(key, set())
+        definers.add(cell_id)
+        self.conflict_names.setdefault(key, name)
+        return definers
 
     @property
     def sql_catalogs(self) -> frozenset[str]:
@@ -93,14 +114,12 @@ class DefinitionRegistry:
     def rebuild_conflicts(self, cells: Mapping[CellId_t, CellImpl]) -> None:
         self.definition_conflicts.clear()
         self.conflict_names.clear()
+        catalogs = self.sql_catalogs
         for cell_id, cell in cells.items():
             for name, data in cell.variable_data.items():
                 for variable in effective_variable_definitions(data):
-                    key = self._conflict_key(name, variable)
-                    self.definition_conflicts.setdefault(key, set()).add(
-                        cell_id
-                    )
-                    self.conflict_names.setdefault(key, name)
+                    key = self._conflict_key(name, variable, catalogs)
+                    self._register_conflict(cell_id, name, key)
 
     def register_definition(
         self,
@@ -119,19 +138,17 @@ class DefinitionRegistry:
             Set of sibling cell IDs (cells that also define this variable)
         """
         variables = effective_variable_definitions(variable_data)
+        catalogs = self.sql_catalogs
         siblings: set[CellId_t] = set()
         self.definitions.setdefault(name, set()).add(cell_id)
         for variable in variables:
             typed_def = (name, variable.kind)
-            conflict_key = self._conflict_key(name, variable)
+            conflict_key = self._conflict_key(name, variable, catalogs)
             self.typed_definitions.setdefault(typed_def, set()).add(cell_id)
-            self.definition_conflicts.setdefault(conflict_key, set()).add(
-                cell_id
-            )
-            self.conflict_names.setdefault(conflict_key, name)
-            siblings.update(
-                self.definition_conflicts[conflict_key] - {cell_id}
-            )
+            if variable.kind == "catalog":
+                catalogs = catalogs | {name.lower()}
+            definers = self._register_conflict(cell_id, name, conflict_key)
+            siblings.update(definers - {cell_id})
         return siblings
 
     def unregister_definitions(
@@ -139,13 +156,14 @@ class DefinitionRegistry:
         cell_id: CellId_t,
         variable_data: dict[Name, list[VariableData]],
     ) -> None:
+        catalogs = self.sql_catalogs
         for name, data in variable_data.items():
             if name not in self.definitions:
                 continue
             variables = effective_variable_definitions(data)
             for variable in variables:
                 typed_def = (name, variable.kind)
-                conflict_key = self._conflict_key(name, variable)
+                conflict_key = self._conflict_key(name, variable, catalogs)
                 if typed_def in self.typed_definitions:
                     self.typed_definitions[typed_def].discard(cell_id)
                     if not self.typed_definitions[typed_def]:
@@ -213,10 +231,18 @@ class DefinitionRegistry:
         """
 
         def sort_key(
-            item: tuple[tuple[str, str], set[CellId_t]],
+            item: tuple[_DefinitionConflictKey, set[CellId_t]],
         ) -> tuple[Name, tuple[str, str]]:
             conflict_key, _definers = item
-            return (self.conflict_names[conflict_key], conflict_key)
+            identity = (
+                conflict_key.parts[0]
+                if conflict_key.namespace == "global"
+                else SQLRef.from_parts(list(conflict_key.parts)).qualified_name
+            )
+            return (
+                self.conflict_names[conflict_key],
+                (conflict_key.namespace, identity),
+            )
 
         return [
             (self.conflict_names[conflict_key], definers)

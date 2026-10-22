@@ -9,6 +9,7 @@ import pytest
 from marimo._ast import compiler
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import dataflow
+from marimo._runtime.dataflow.definitions import DefinitionRegistry
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -234,6 +235,27 @@ def test_schema_conflict_identity_refreshes_with_catalog_bindings() -> None:
         sources, ["attach", "default_catalog", "unqualified_catalog"]
     )
     assert not graph.get_multiply_defined()
+
+
+@pytest.mark.parametrize("schema", ["attached.nested", "attached.attached"])
+def test_unregister_definitions_retains_catalog_binding(schema: str) -> None:
+    cell_id = CellId_t("source")
+    cell = _compile_sql(
+        cell_id, f"ATTACH ':memory:' AS attached; CREATE SCHEMA {schema}"
+    )
+    registry = DefinitionRegistry()
+    for name, variables in cell.variable_data.items():
+        registry.register_definition(cell_id, name, variables)
+    registry.rebuild_conflicts({cell_id: cell})
+
+    registry.unregister_definitions(cell_id, cell.variable_data)
+
+    assert (
+        registry.definitions,
+        registry.typed_definitions,
+        registry.definition_conflicts,
+        registry.conflict_names,
+    ) == ({}, {}, {}, {})
 
 
 def test_catalog_rebinding_adds_and_removes_cycles() -> None:

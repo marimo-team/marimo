@@ -406,22 +406,26 @@ class SQLRef:
     def matches_hierarchical_ref(
         self,
         name: str,
-        ref: str,
+        definition: SQLRef,
         kind: SQLTypes = "any",
         *,
         catalogs: frozenset[str] = frozenset(),
     ) -> bool:
-        definition = self.from_qualified_name(ref)
         own_parts = tuple(part.lower() for part in self.parts)
         name = name.lower()
         if kind == "catalog":
             namespace = own_parts if self.kind == "schema" else own_parts[:-1]
             return (
-                bool(namespace) and name == namespace[0] == definition.parts[0]
+                bool(namespace)
+                and name == namespace[0] == definition.parts[0].lower()
             )
 
         own_catalog, own_path = self.split_catalog(catalogs)
-        ref_catalog, parts = definition.split_catalog(catalogs)
+        ref_catalog, parts = (
+            definition.split_catalog(catalogs)
+            if definition.qualifiers
+            else (None, (definition.table.lower(),))
+        )
         if (
             self.kind == "schema"
             or kind == "schema"

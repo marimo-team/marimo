@@ -1292,7 +1292,8 @@ def test_nested_sql_identifier_paths(parts: list[str]) -> None:
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
 def test_main_shorthand_respects_nested_schema_ambiguity() -> None:
     ref = SQLRef.from_parts(["parent", "main", "sales"])
-    assert not ref.matches_hierarchical_ref("sales", "parent.sales", "table")
+    definition = SQLRef.from_parts(["parent", "sales"])
+    assert not ref.matches_hierarchical_ref("sales", definition, "table")
 
 
 @pytest.mark.parametrize(
@@ -1309,4 +1310,38 @@ def test_sql_schema_dependency_with_default_catalog(
 ) -> None:
     ref = SQLRef.from_qualified_name(reference)
     schema = SQLRef.from_qualified_name(definition)
-    assert ref.matches_hierarchical_ref(schema.table, definition, "schema")
+    assert ref.matches_hierarchical_ref(schema.table, schema, "schema")
+
+
+@pytest.mark.parametrize(
+    ("reference", "definition", "expected"),
+    [
+        (["finance.reports", "sales"], ["finance.reports", "sales"], True),
+        (["finance.reports", "sales"], ["finance", "reports", "sales"], False),
+        (
+            ["finance", "reports", 'sal"es'],
+            ["finance", "reports", 'sal"es'],
+            True,
+        ),
+        (["memory", "finance", "sales"], ["finance", "sales"], True),
+        (["attached", "sales"], ["attached", "main", "sales"], True),
+    ],
+)
+def test_sql_dependency_matching_preserves_identifier_segments(
+    reference: list[str], definition: list[str], expected: bool
+) -> None:
+    ref = SQLRef.from_parts(reference)
+    target = SQLRef.from_parts(definition)
+    assert (
+        ref.matches_hierarchical_ref(
+            target.table, target, "table", catalogs=frozenset({"attached"})
+        )
+        == expected
+    )
+
+
+def test_sql_catalog_matching_is_case_insensitive() -> None:
+    ref = SQLRef.from_parts(["attached", "main", "sales"])
+    assert ref.matches_hierarchical_ref(
+        "Attached", SQLRef(table="Attached"), "catalog"
+    )
