@@ -443,6 +443,24 @@ class NarwhalsTableManager(
         if offset < 0:
             raise ValueError("Offset must be a non-negative integer")
 
+        if is_narwhals_lazyframe(self.data):
+            if self.data.implementation.is_duckdb():
+                import duckdb
+
+                relation = self.data.to_native()
+                if isinstance(relation, duckdb.DuckDBPyRelation):
+                    return self.with_new_data(
+                        nw.from_native(relation.limit(count, offset=offset))
+                    )
+            elif self.data.implementation.is_ibis():
+                import ibis  # type: ignore
+
+                table = self.data.to_native()
+                if isinstance(table, ibis.Table):
+                    return self.with_new_data(
+                        nw.from_native(table.limit(count, offset=offset))
+                    )
+
         if offset == 0:
             return self.with_new_data(self.data.head(count))
         else:

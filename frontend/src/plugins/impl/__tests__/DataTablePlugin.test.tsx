@@ -10,6 +10,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { Provider } from "jotai";
 import { useState } from "react";
@@ -538,6 +539,130 @@ describe("table pagination and static notebook control suppression", () => {
 
   beforeEach(() => {
     mockIsStatic.mockReturnValue(false);
+  });
+
+  it("pages lazy results with unknown totals and resets search, sorting, and filters to page one", async () => {
+    const props = makeProps();
+    const search = vi
+      .fn()
+      .mockImplementation(
+        async (request: {
+          page_number: number;
+          query?: string;
+          sort?: { by: string; descending: boolean }[];
+        }) => ({
+          data: [
+            { id: request.page_number + 1, name: request.query || "item" },
+          ],
+          total_rows: "too_many",
+          has_next_page: request.page_number === 0,
+        }),
+      );
+    render(
+      <Wrapper>
+        <LoadingDataTableComponent
+          {...props}
+          lazy={true}
+          totalRows="too_many"
+          selection={null}
+          showColumnSummaries={false}
+          search={search}
+        />
+      </Wrapper>,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    expect(screen.getByText("Unknown, 2 columns")).toBeInTheDocument();
+    expect(screen.queryByTestId("last-page-button")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Previewing the first/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 1 }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId("previous-page-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeDisabled(),
+    );
+    search.mockClear();
+    fireEvent.change(screen.getByPlaceholderText("Search..."), {
+      target: { value: "new" },
+    });
+    await waitFor(() =>
+      expect(search).toHaveBeenCalledWith(
+        expect.objectContaining({ query: "new", page_number: 0 }),
+      ),
+    );
+    expect(
+      search.mock.calls.every(([request]) => request.page_number === 0),
+    ).toBe(true);
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeDisabled(),
+    );
+    search.mockClear();
+    fireEvent.click(
+      within(screen.getByRole("columnheader", { name: /name/ })).getByRole(
+        "button",
+        { name: "Sort column ascending" },
+      ),
+    );
+    await waitFor(() =>
+      expect(search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          page_number: 0,
+          sort: [{ by: "name", descending: false }],
+        }),
+      ),
+    );
+    expect(
+      search.mock.calls.every(([request]) => request.page_number === 0),
+    ).toBe(true);
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 1 }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeDisabled(),
+    );
+    search.mockClear();
+    const columnMenu = within(
+      screen.getByRole("columnheader", { name: /name/ }),
+    ).getByRole("button", { name: "Column options" });
+    fireEvent.keyDown(columnMenu, { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Filter" }));
+    fireEvent.change(screen.getByPlaceholderText("Text…"), {
+      target: { value: "item" },
+    });
+    fireEvent.click(screen.getByLabelText("Apply filter"));
+    await waitFor(() =>
+      expect(search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          page_number: 0,
+          filters: expect.objectContaining({ children: expect.any(Array) }),
+        }),
+      ),
+    );
+    expect(
+      search.mock.calls.every(([request]) => request.page_number === 0),
+    ).toBe(true);
   });
 
   it("requests only the first page with the new configured page size", async () => {
