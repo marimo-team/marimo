@@ -149,6 +149,7 @@ def allowlist_script_config(
 _UNTRUSTED_MARIMO_KEYS: tuple[tuple[str, ...], ...] = (
     ("signing",),
     ("cache", "verification"),
+    ("cache", "loader"),
 )
 
 # `cache.store` is not a trust anchor on its own: the verifying loaders check

@@ -164,6 +164,7 @@ def create_kernel_context(
         VirtualFileStorage,
     )
     from marimo._save.cache import CacheState
+    from marimo._save.loaders import get_loader_key
     from marimo._save.signing_policy import get_signing_policy
     from marimo._save.stores import cache_store_is_untrusted, get_store
 
@@ -198,6 +199,13 @@ def create_kernel_context(
                 parent.cache.signing_policy
                 if parent is not None
                 else get_signing_policy(
+                    kernel.app_metadata.filename, config=kernel.user_config
+                )
+            ),
+            loader=(
+                parent.cache.loader
+                if parent is not None
+                else get_loader_key(
                     kernel.app_metadata.filename, config=kernel.user_config
                 )
             ),

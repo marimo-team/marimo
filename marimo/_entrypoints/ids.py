@@ -7,6 +7,7 @@ from typing import Literal
 KnownEntryPoint = Literal[
     "marimo.agent.capability",
     "marimo.cell.executor",
+    "marimo.cache.loader",
     "marimo.cache.store",
     "marimo.kernel.lifespan",
     "marimo.server.asgi.lifespan",

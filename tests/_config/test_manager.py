@@ -1432,8 +1432,9 @@ def test_script_config_manager_strips_signing_and_verification(
     assert "cache" not in config
 
 
+@pytest.mark.parametrize("loader", ["pickle", "custom"])
 def test_project_config_manager_strips_signing_and_verification(
-    tmp_path: Path,
+    tmp_path: Path, loader: str
 ) -> None:
     """A cloned repo's pyproject.toml is untrusted origin for signing config."""
     pyproject_path = tmp_path / "pyproject.toml"
@@ -1446,6 +1447,7 @@ def test_project_config_manager_strips_signing_and_verification(
 
     [tool.marimo.cache]
     verification = "off"
+    loader = "{loader}"
 
     [tool.marimo.cache.store]
     type = "file"
@@ -1455,8 +1457,6 @@ def test_project_config_manager_strips_signing_and_verification(
     config = PyprojectConfigReader(str(pyproject_path)).read()
 
     assert "signing" not in config
-    # `cache.store` is not a trust anchor, so a project may still choose one;
-    # the verifying loaders check its bytes before unpickling.
     assert config.get("cache") == {"store": {"type": "file"}}
 
 
@@ -1487,8 +1487,9 @@ def test_effective_config_anchors_trust_in_user_layer_only(
     assert user_fp in trusted
 
 
+@pytest.mark.parametrize("loader", ["pickle", "custom"])
 def test_workspace_marimo_toml_strips_signing_and_verification(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, loader: str
 ) -> None:
     """A `.marimo.toml` found by walking up from the cwd is project-origin.
 
@@ -1507,6 +1508,7 @@ def test_workspace_marimo_toml_strips_signing_and_verification(
 
             [cache]
             verification = "off"
+            loader = "{loader}"
 
             [cache.store]
             type = "file"
@@ -1528,6 +1530,7 @@ def test_workspace_marimo_toml_strips_signing_and_verification(
 
     assert "signing" not in config
     assert config.get("cache", {}).get("verification") is None
+    assert config.get("cache", {}).get("loader") is None
     # The store goes too, unlike the project and script layers. A store set
     # here would load as the user layer, so `cache_store_is_untrusted` could
     # not tell it apart from one the operator chose, and the unsigned pickle
@@ -1548,6 +1551,7 @@ def test_trusted_user_config_location_anchors_trust(
 
             [cache]
             verification = "strict"
+            loader = "pickle"
             """
         )
     )
@@ -1566,3 +1570,4 @@ def test_trusted_user_config_location_anchors_trust(
 
     assert config["signing"]["trusted_signers"] == {_FAKE_FP: "me"}
     assert config["cache"]["verification"] == "strict"
+    assert config["cache"]["loader"] == "pickle"

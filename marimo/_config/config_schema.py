@@ -14,6 +14,7 @@ from msgspec import UNSET, Meta, UnsetType, field
 from marimo._config.packages import infer_package_manager
 from marimo._config.schema_utils import Config
 from marimo._config.types import (
+    CacheLoader,
     CacheVerification,
     CopilotMode,
     ExecutionType,
@@ -787,6 +788,10 @@ class CacheConfig(Config, kw_only=True):
         Meta(
             description="Backing cache store, or a list of stores composed into a tiered store."
         ),
+    ] = UNSET
+    loader: Annotated[
+        CacheLoader | UnsetType,
+        Meta(description="Default loader for mo.persistent_cache."),
     ] = UNSET
 
 
