@@ -96,13 +96,6 @@ presentation preference; it does not withhold source. A null `code` field does
 not promise that source cannot be inferred from hashes, outputs, diagnostics,
 or other protocol data.
 
-A host MAY also publish an **analysis** of the document: each cell's
-definitions, references, and problems, so clients can understand a cell's role
-in the computation and identify problems before execution. Because cells share
-a dependency graph, editing one can affect the analysis of others. An analysis
-therefore covers the whole document and names the revision it describes. Hosts
-publish it after that revision of the document.
-
 ### Runtimes and attachments
 
 Clients connected to a notebook share its document and runtime. Hosts MUST

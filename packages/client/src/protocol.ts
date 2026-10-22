@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 // Generated from protocols/host/openapi.yaml. Do not edit.
-// Regenerate with: pnpm --dir packages/client codegen
+// Experimental features: analysis
+// Regenerate with: pnpm --dir packages/client codegen --include-experimental=analysis
 
 import * as zod from "zod";
 
@@ -130,7 +131,6 @@ export const ObjectType = zod
     "project",
     "notebook",
     "document",
-    "analysis",
     "cell",
     "runtime",
     "attachment",
@@ -140,9 +140,10 @@ export const ObjectType = zod
     "display",
     "variable",
     "custom",
+    "analysis",
   ])
   .describe(
-    "The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\nanalysis, cell, runtime, attachment, run, execution, console,\ndisplay, variable, and custom. Custom events describe occurrences\nrather than object state.\n",
+    "The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\ncell, runtime, attachment, run, execution, console,\ndisplay, variable, and custom. Custom events describe occurrences\nrather than object state.\n",
   );
 
 export type ObjectType = zod.input<typeof ObjectType>;
@@ -503,7 +504,7 @@ export const Error = zod
     kind: zod
       .string()
       .describe(
-        "The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions, and reserves `multiple-definitions` and `cycle-dependencies` for analysis, because every host schedules them the same way. Clients show unrecognized kinds as plain errors.",
+        "The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors.",
       ),
     message: zod
       .string()
@@ -731,42 +732,6 @@ export const CellConfig = zod
 export type CellConfig = zod.input<typeof CellConfig>;
 export type CellConfigOutput = zod.output<typeof CellConfig>;
 
-export const CellAnalysis = zod
-  .object({
-    defs: zod.array(zod.string()).describe("Names this cell defines."),
-    refs: zod
-      .array(zod.string())
-      .describe("Names this cell reads from other cells."),
-    errors: zod
-      .array(Error)
-      .describe(
-        "Diagnostics about the code. Only an `error` affects scheduling. `multiple-definitions` lists the definers in `related`, each `range` at its definition; `cycle-dependencies` lists the cycle. Both are reported on every cell involved, differing only in `range`. Every other kind belongs to the analyzer named in `source`.",
-      ),
-  })
-  .describe(
-    "What a cell's text implies: the names it defines and reads, which\nare the edges of the dependency graph, and the errors found in the\ntext alone or across the set of cells. A pure function of the\ncode, so two producers compute the same values.\n",
-  );
-
-export type CellAnalysis = zod.input<typeof CellAnalysis>;
-export type CellAnalysisOutput = zod.output<typeof CellAnalysis>;
-
-export const Analysis = zod
-  .object({
-    notebook_id: NotebookId.describe("The notebook this analysis belongs to."),
-    document_etag: Etag.describe(
-      "The document revision this analysis describes. Equal to the document's `etag` while the analysis is current.",
-    ),
-    cells: zod
-      .record(zod.string(), CellAnalysis)
-      .describe("Every cell of that revision, by id."),
-  })
-  .describe(
-    "What a document's cells imply, computed together over one\nrevision of the document so that cross-cell errors agree. One\nper notebook, and removed with it. It follows the document it\ndescribes, and `document_etag` says which revision that is.\n",
-  );
-
-export type Analysis = zod.input<typeof Analysis>;
-export type AnalysisOutput = zod.output<typeof Analysis>;
-
 export const Cell = zod
   .object({
     id: CellId,
@@ -989,42 +954,6 @@ export const DocumentEvent = zod
 
 export type DocumentEvent = zod.input<typeof DocumentEvent>;
 export type DocumentEventOutput = zod.output<typeof DocumentEvent>;
-
-export const AnalysisMessage = zod
-  .object({
-    request_id: zod
-      .string()
-      .optional()
-      .describe(
-        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
-      ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
-    analysis: Analysis,
-  })
-  .describe("The data of an `analysis` event. The analysis as it now is.");
-
-export type AnalysisMessage = zod.input<typeof AnalysisMessage>;
-export type AnalysisMessageOutput = zod.output<typeof AnalysisMessage>;
-
-export const AnalysisEvent = zod
-  .object({
-    event: zod.enum(["analysis"]),
-    id: zod
-      .string()
-      .min(1)
-      .optional()
-      .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: AnalysisMessage,
-  })
-  .describe("A `analysis` event from a host stream.");
-
-export type AnalysisEvent = zod.input<typeof AnalysisEvent>;
-export type AnalysisEventOutput = zod.output<typeof AnalysisEvent>;
 
 export const CellMessage = zod
   .object({
@@ -1559,13 +1488,86 @@ export const ReadyEvent = zod
 export type ReadyEvent = zod.input<typeof ReadyEvent>;
 export type ReadyEventOutput = zod.output<typeof ReadyEvent>;
 
+export const CellAnalysis = zod
+  .object({
+    defs: zod.array(zod.string()).describe("Names this cell defines."),
+    refs: zod
+      .array(zod.string())
+      .describe("Names this cell reads from other cells."),
+    errors: zod
+      .array(Error)
+      .describe(
+        "Diagnostics about the code. Only an `error` affects scheduling. `multiple-definitions` lists the definers in `related`, each `range` at its definition; `cycle-dependencies` lists the cycle. Both are reported on every cell involved, differing only in `range`. Every other kind belongs to the analyzer named in `source`.",
+      ),
+  })
+  .describe(
+    "Experimental (analysis). What a cell's text implies: the names it defines and reads, which\nare the edges of the dependency graph, and the errors found in the\ntext alone or across the set of cells. A pure function of the\ncode, so two producers compute the same values.\n",
+  );
+
+export type CellAnalysis = zod.input<typeof CellAnalysis>;
+export type CellAnalysisOutput = zod.output<typeof CellAnalysis>;
+
+export const Analysis = zod
+  .object({
+    notebook_id: NotebookId.describe("The notebook this analysis belongs to."),
+    document_etag: Etag.describe(
+      "The document revision this analysis describes. Equal to the document's `etag` while the analysis is current.",
+    ),
+    cells: zod
+      .record(zod.string(), CellAnalysis)
+      .describe("Every cell of that revision, by id."),
+  })
+  .describe(
+    "Experimental (analysis). What a document's cells imply, computed together over one\nrevision of the document so that cross-cell errors agree. One\nper notebook, and removed with it. It follows the document it\ndescribes, and `document_etag` says which revision that is.\n",
+  );
+
+export type Analysis = zod.input<typeof Analysis>;
+export type AnalysisOutput = zod.output<typeof Analysis>;
+
+export const AnalysisMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: zod.iso
+      .datetime({ offset: true })
+      .optional()
+      .describe(
+        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      ),
+    analysis: Analysis,
+  })
+  .describe(
+    "Experimental (analysis). The data of an `analysis` event. The analysis as it now is.",
+  );
+
+export type AnalysisMessage = zod.input<typeof AnalysisMessage>;
+export type AnalysisMessageOutput = zod.output<typeof AnalysisMessage>;
+
+export const AnalysisEvent = zod
+  .object({
+    event: zod.enum(["analysis"]),
+    id: zod
+      .string()
+      .min(1)
+      .optional()
+      .describe("The resume cursor. Omitted on snapshot and reset events."),
+    data: AnalysisMessage,
+  })
+  .describe("Experimental (analysis). A `analysis` event from a host stream.");
+
+export type AnalysisEvent = zod.input<typeof AnalysisEvent>;
+export type AnalysisEventOutput = zod.output<typeof AnalysisEvent>;
+
 export const Event = zod
   .union([
     HostEvent,
     ProjectEvent,
     NotebookEvent,
     DocumentEvent,
-    AnalysisEvent,
     CellEvent,
     RuntimeEvent,
     AttachmentEvent,
@@ -1587,6 +1589,7 @@ export const Event = zod
     VariableRemovedEvent,
     ResetEvent,
     ReadyEvent,
+    AnalysisEvent,
   ])
   .describe(
     "A record, removal, or control message from a host stream.\nThe data is decoded JSON. Snapshot records and reset events omit\nthe cursor; ready and live events carry it. Unknown event names\nbelong to later versions or host extensions.\n",
@@ -1784,7 +1787,7 @@ export const CellInput = zod
     config: CellConfigInput.optional(),
   })
   .describe(
-    "A cell as a client writes it. Code must be a string, even when the host withholds source in cell records. Null is not an edit or a request to preserve existing source. The host derives the etags and the analysis.",
+    "A cell as a client writes it. Code must be a string, even when the host withholds source in cell records. Null is not an edit or a request to preserve existing source. The host derives the etags.",
   );
 
 export type CellInput = zod.input<typeof CellInput>;

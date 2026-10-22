@@ -27,7 +27,6 @@ KINDS = (
     "project",
     "notebook",
     "document",
-    "analysis",
     "cell",
     "runtime",
     "attachment",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 from datetime import datetime
 from pathlib import Path
 
@@ -102,3 +103,26 @@ def test_event_adapters_follow_schema_references(
     assert namespace["removed"](protocol.Project, project.id) == (
         protocol.ProjectRemovedEvent(protocol.RemovedMessage(id="p1"))
     )
+
+
+def test_event_adapters_use_adjacent_models(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    package = tmp_path / "generated_protocol"
+    package.mkdir()
+    (package / "protocol.py").write_bytes(Path(protocol.__file__).read_bytes())
+    document = msgspec.yaml.decode(
+        Path("protocols/host/openapi.yaml").read_bytes()
+    )
+    (package / "protocol_events.py").write_text(
+        event_adapters(document, relative_import=True), encoding="utf-8"
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    models = importlib.import_module("generated_protocol.protocol")
+    events = importlib.import_module("generated_protocol.protocol_events")
+    cell = msgspec.json.decode(
+        Path("protocols/host/fixtures/cell.json").read_bytes(),
+        type=models.Cell,
+    )
+    assert events.body(events.record(cell)) is cell
+    assert events.protocol is models
