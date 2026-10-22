@@ -2,14 +2,11 @@
 
 import { useAtom, useSetAtom } from "jotai";
 import {
-  BookTextIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   ChevronsDownUpIcon,
-  ClockIcon,
   ExternalLinkIcon,
   PlusIcon,
-  PlayCircleIcon,
   PowerOffIcon,
   RefreshCcwIcon,
   SearchIcon,
@@ -45,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { getSessionId, isSessionId } from "@/core/kernel/session";
@@ -65,7 +63,6 @@ import { ConfigButton } from "../app-config/app-config-button";
 import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
 import {
-  Header,
   OpenTutorialDropDown,
   ResourceLinks,
   TruncatedWorkspaceBanner,
@@ -83,6 +80,9 @@ function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
   return `${getSessionId()}-${encodeURIComponent(path)}`;
 }
+
+const NOTEBOOK_TAB_CLASS =
+  "-mb-px rounded-none border-b-2 border-transparent px-1 py-3 text-(--gray-11) transition-colors hover:text-foreground focus-visible:ring-inset focus-visible:ring-offset-0 data-[state=active]:border-(--green-11) data-[state=active]:bg-transparent data-[state=active]:text-(--green-11) data-[state=active]:shadow-none";
 
 const HomePage: React.FC = () => {
   const [nonce, setNonce] = useState(0);
@@ -129,7 +129,6 @@ const HomePage: React.FC = () => {
             <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-10">
               <img src="logo.png" alt="marimo" className="w-28" />
               <div className="flex items-center gap-3">
-                <OpenTutorialDropDown />
                 <ConfigButton showAppConfig={false} />
                 <ShutdownButton
                   description={`This will shutdown the notebook server and terminate all running notebooks (${running.size}). You'll lose all data that's in memory.`}
@@ -137,42 +136,61 @@ const HomePage: React.FC = () => {
               </div>
             </div>
           </header>
-          <main className="mx-auto max-w-7xl px-5 py-10 sm:px-10 sm:py-14">
-            <div className="mb-10">
-              <h1 className="text-3xl font-semibold tracking-tight">
+          <main className="mx-auto max-w-7xl px-5 py-8 sm:px-10 sm:py-10">
+            <div className="mb-8">
+              <h1 className="text-2xl font-semibold tracking-tight">
                 Your notebooks
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 Pick up where you left off, or start something new.
               </p>
-              <div className="mt-5">
+              <div className="mt-5 flex items-center gap-3">
                 <CreateNewNotebook />
+                <OpenTutorialDropDown />
               </div>
             </div>
-            <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
-              <ErrorBoundary>
-                <WorkspaceNotebooks
-                  onRefreshRecents={recentsResponse.refetch}
-                />
-              </ErrorBoundary>
-              <aside
-                aria-label="Notebook activity"
-                className="flex min-w-0 flex-col gap-8"
+            <Tabs defaultValue="workspace">
+              <TabsList
+                aria-label="Notebooks"
+                className="mb-5 flex h-auto w-full justify-start gap-6 rounded-none border-b border-border/70 bg-transparent p-0"
               >
+                <TabsTrigger value="workspace" className={NOTEBOOK_TAB_CLASS}>
+                  Workspace
+                </TabsTrigger>
+                <TabsTrigger value="recent" className={NOTEBOOK_TAB_CLASS}>
+                  Recent
+                </TabsTrigger>
+                <TabsTrigger value="running" className={NOTEBOOK_TAB_CLASS}>
+                  Running
+                  <span className="ml-1.5 text-xs font-normal tabular-nums text-(--gray-11)">
+                    {running.size}
+                  </span>
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent
+                value="workspace"
+                forceMount={true}
+                className="mt-0 data-[state=inactive]:hidden"
+              >
+                <ErrorBoundary>
+                  <WorkspaceNotebooks
+                    onRefreshRecents={recentsResponse.refetch}
+                  />
+                </ErrorBoundary>
+              </TabsContent>
+              <TabsContent value="recent" className="mt-0">
                 <NotebookList
-                  header={
-                    <Header Icon={PlayCircleIcon}>Running notebooks</Header>
-                  }
-                  files={[...running.values()]}
-                  emptyMessage="No notebooks are running."
-                />
-                <NotebookList
-                  header={<Header Icon={ClockIcon}>Recent notebooks</Header>}
                   files={recents.files}
                   emptyMessage="Notebooks you open will appear here."
                 />
-              </aside>
-            </div>
+              </TabsContent>
+              <TabsContent value="running" className="mt-0">
+                <NotebookList
+                  files={[...running.values()]}
+                  emptyMessage="No notebooks are running."
+                />
+              </TabsContent>
+            </Tabs>
             <ResourceLinks />
           </main>
         </div>
@@ -226,29 +244,10 @@ const WorkspaceNotebooks: React.FC<{ onRefreshRecents: () => void }> = ({
   return (
     <WorkspaceContext value={workspaceContextValue}>
       <div className="flex min-w-0 flex-col gap-4">
-        <Header
-          Icon={BookTextIcon}
-          control={
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => refetch()}
-              aria-label="Refresh workspace"
-            >
-              {isFetching ? (
-                <Spinner size="small" />
-              ) : (
-                <RefreshCcwIcon className="w-4 h-4" />
-              )}
-            </Button>
-          }
-        >
-          Workspace
-        </Header>
         {workspace.hasMore && (
           <TruncatedWorkspaceBanner fileCount={workspace.fileCount} />
         )}
-        <div className="overflow-hidden rounded-xl border border-border/70 bg-background">
+        <div className="overflow-hidden rounded-lg border border-border/70 bg-background">
           <div className="flex flex-wrap items-center gap-3 border-b border-border/60 bg-muted/20 p-3">
             <div className="min-w-40 flex-1">
               <Input
@@ -261,6 +260,18 @@ const WorkspaceNotebooks: React.FC<{ onRefreshRecents: () => void }> = ({
                 className="mb-0 h-9 rounded-md border-border/60 bg-background font-sans shadow-none hover:shadow-none focus-visible:shadow-none"
               />
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => refetch()}
+              aria-label="Refresh workspace"
+            >
+              {isFetching ? (
+                <Spinner size="small" />
+              ) : (
+                <RefreshCcwIcon className="w-4 h-4" />
+              )}
+            </Button>
             <CollapseAllButton />
             <div className="flex items-center gap-2">
               <Checkbox
@@ -364,7 +375,7 @@ const NotebookFileTree: React.FC<{
         await handleRename(id, name);
       }}
       padding={5}
-      rowHeight={35}
+      rowHeight={44}
       indent={15}
       overscanCount={1000}
       // Hide the drop cursor
@@ -385,13 +396,15 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
     : guessFileType(node.data.name);
 
   const Icon = FILE_TYPE_ICONS[fileType];
-  const iconEl = <Icon className="w-5 h-5 shrink-0" strokeWidth={1.5} />;
+  const iconEl = (
+    <Icon className="w-4 h-4 shrink-0 text-(--gray-11)" strokeWidth={1.5} />
+  );
   const { root } = use(WorkspaceContext);
   const { runningNotebooks } = use(RunningNotebooksContext);
 
   const renderItem = () => {
     const itemClassName =
-      "flex items-center pl-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1 overflow-hidden h-full pr-3 gap-2";
+      "flex items-center pl-1 cursor-pointer hover:bg-(--sage-3) hover:text-foreground rounded-l flex-1 overflow-hidden h-full pr-3 gap-2";
 
     // Inline rename input; react-arborist flips `node.isEditing` when
     // `node.edit()` is called from the FileActions menu.
@@ -455,7 +468,7 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
     <div
       style={style}
       className={cn(
-        "flex items-center cursor-pointer ml-1 text-muted-foreground whitespace-nowrap group h-full",
+        "flex items-center cursor-pointer ml-1 text-sm text-foreground whitespace-nowrap group h-full",
       )}
       onClick={(evt) => {
         evt.stopPropagation();
@@ -521,14 +534,12 @@ const FolderArrow = ({ node }: { node: NodeApi<FileInfo> }) => {
 };
 
 const NotebookList: React.FC<{
-  header: React.ReactNode;
   files: MarimoFile[];
   emptyMessage: string;
-}> = ({ header, files, emptyMessage }) => {
+}> = ({ files, emptyMessage }) => {
   return (
     <section className="flex min-w-0 flex-col gap-3">
-      {header}
-      <div className="flex max-h-80 flex-col divide-y divide-border/50 overflow-y-auto rounded-xl border border-border/60">
+      <div className="flex max-h-[500px] min-h-40 flex-col divide-y divide-border/50 overflow-y-auto rounded-lg border border-border/60">
         {files.length === 0 && (
           <p className="px-4 py-6 text-sm text-muted-foreground">
             {emptyMessage}
@@ -555,14 +566,16 @@ const MarimoFileComponent = ({ file }: { file: MarimoFile }) => {
     : asURL(`?file=${encodeURIComponent(file.path)}`);
 
   const isMarkdown = file.path.endsWith(".md");
+  const Icon = FILE_TYPE_ICONS[guessFileType(file.name)];
 
   return (
     <a
-      className="py-3 px-4 hover:bg-muted/50 transition-colors cursor-pointer group relative flex gap-3 items-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      className="py-3 px-4 hover:bg-(--sage-3) transition-colors cursor-pointer group relative flex gap-3 items-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       key={file.path}
       href={href.toString()}
       target={tabTarget(file.initializationId || file.path)}
     >
+      <Icon className="h-4 w-4 shrink-0 text-(--gray-11)" strokeWidth={1.5} />
       <div className="flex min-w-0 flex-col gap-1 flex-1">
         <span className="flex items-center gap-2 text-sm font-medium">
           <span className="truncate">{file.name}</span>
@@ -659,7 +672,11 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
 const CreateNewNotebook: React.FC = () => {
   const url = newNotebookURL();
   return (
-    <Button asChild={true} size="sm" className="gap-2 rounded-lg">
+    <Button
+      asChild={true}
+      size="sm"
+      className="gap-2 rounded-md border-[#365f43] bg-[#365f43] text-white shadow-none hover:bg-[#2b5037] dark:border-[#a8c9ae] dark:bg-[#a8c9ae] dark:text-[#172b1c] dark:hover:bg-[#bdd8c2]"
+    >
       <a href={url} target="_blank" rel="noreferrer">
         <PlusIcon className="h-4 w-4" />
         New notebook

@@ -81,7 +81,12 @@ export const OpenTutorialDropDown: React.FC = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild={true}>
-        <Button data-testid="open-tutorial-button" size="xs" variant="outline">
+        <Button
+          data-testid="open-tutorial-button"
+          size="sm"
+          variant="outline"
+          className="border-border text-(--gray-11) shadow-none hover:border-(--gray-7) hover:bg-(--gray-3)"
+        >
           <GraduationCapIcon className="w-4 h-4 mr-2" />
           Tutorials
           <CaretDownIcon className="w-3 h-3 ml-1" />
