@@ -355,11 +355,13 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
     def _find_schema(
         self, database: str, path: tuple[str, ...]
     ) -> _CatalogSchema | None:
+        normalized_path = tuple(part.lower() for part in path)
         return next(
             (
                 schema
                 for schema in self._get_catalog_schemas(database)
-                if schema.path == path
+                if tuple(part.lower() for part in schema.path)
+                == normalized_path
             ),
             None,
         )
@@ -367,7 +369,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
     def _table_rows(
         self, schema: _CatalogSchema, table_name: str | None = None
     ) -> list[Any]:
-        predicate = "database_name = ? AND schema_oid = ?"
+        predicate = "NOT internal AND database_name = ? AND schema_oid = ?"
         params: list[Any] = [schema.database, schema.oid]
         if table_name is not None:
             predicate += " AND table_name = ?"

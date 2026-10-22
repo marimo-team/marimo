@@ -189,3 +189,27 @@ def test_nested_column_type() -> None:
         duckdb.execute(
             'DROP SCHEMA IF EXISTS type_test CASCADE; DROP SCHEMA IF EXISTS "type_test.reports" CASCADE'
         )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    ("schema", "table"),
+    [('column_type_"schema', "t.x"), ("column_type_schema", 't"x')],
+)
+def test_column_type_with_quoted_identifiers(schema: str, table: str) -> None:
+    import duckdb
+
+    from marimo._sql.sql_quoting import (
+        quote_qualified_name,
+        quote_sql_identifier,
+    )
+
+    qualified = quote_qualified_name("memory", schema, table)
+    try:
+        duckdb.execute(f"CREATE SCHEMA {quote_sql_identifier(schema)}")
+        duckdb.execute(f'CREATE TABLE {qualified} ("c""x" INT)')
+        assert get_column_type(qualified, 'c"x') == "integer"
+    finally:
+        duckdb.execute(
+            f"DROP SCHEMA IF EXISTS memory.{quote_sql_identifier(schema)} CASCADE"
+        )
