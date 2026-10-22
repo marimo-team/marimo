@@ -4963,8 +4963,11 @@ export interface components {
      *             timestamp: Unix timestamp when command was created.
      *             run_id: Optional correlation ID. When set, the run's notifications
      *                 and its `CompletedRunNotification` carry it.
+     *             allow_stdin: Whether cells may request interactive input.
      */
     ExecuteCellsCommand: {
+      /** @default true */
+      allowStdin?: boolean;
       cellIds: components["schemas"]["CellId"][];
       codes: string[];
       /** @default null */

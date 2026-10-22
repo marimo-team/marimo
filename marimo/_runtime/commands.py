@@ -298,6 +298,7 @@ class ExecuteCellsCommand(Command):
         timestamp: Unix timestamp when command was created.
         run_id: Optional correlation ID. When set, the run's notifications
             and its `CompletedRunNotification` carry it.
+        allow_stdin: Whether cells may request interactive input.
     """
 
     # ids of cells to run
@@ -309,6 +310,7 @@ class ExecuteCellsCommand(Command):
     # time at which the request was received
     timestamp: float = msgspec.field(default_factory=time.time)
     run_id: str | None = None
+    allow_stdin: bool = True
 
     def __repr__(self) -> str:
         return f"ExecuteCellsCommand(cells={len(self.cell_ids)})"

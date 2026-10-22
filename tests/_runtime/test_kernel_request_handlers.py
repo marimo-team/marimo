@@ -204,3 +204,35 @@ async def test_noninteractive_scratch_input_is_scoped_to_the_command(
         ExecuteScratchpadCommand(code="observed.append(input('interactive'))")
     )
     assert kernel.globals["observed"] == ["EOF", "interactive"]
+
+
+@pytest.mark.parametrize(
+    "read",
+    [
+        "input('prompt')",
+        "__import__('builtins').input()",
+        "__import__('getpass').getpass()",
+    ],
+)
+async def test_noninteractive_cell_input_is_scoped_to_the_command(
+    mocked_kernel: MockedKernel, read: str
+) -> None:
+    kernel = mocked_kernel.k
+    handlers = KernelRequestHandlers(kernel)
+    kernel.globals["observed"] = []
+    await handlers._handle_execute_multiple(
+        ExecuteCellsCommand(
+            cell_ids=[CellId_t("a")],
+            codes=[
+                f"try:\n    {read}\nexcept EOFError:\n    observed.append('EOF')"
+            ],
+            allow_stdin=False,
+        )
+    )
+    await handlers._handle_execute_multiple(
+        ExecuteCellsCommand(
+            cell_ids=[CellId_t("a")],
+            codes=["observed.append(input('interactive'))"],
+        )
+    )
+    assert kernel.globals["observed"] == ["EOF", "interactive"]

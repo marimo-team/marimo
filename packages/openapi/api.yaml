@@ -1900,8 +1900,11 @@ components:
         \        request: HTTP request context if available.\n        timestamp: Unix\
         \ timestamp when command was created.\n        run_id: Optional correlation\
         \ ID. When set, the run's notifications\n            and its `CompletedRunNotification`\
-        \ carry it."
+        \ carry it.\n        allow_stdin: Whether cells may request interactive input."
       properties:
+        allowStdin:
+          default: true
+          type: boolean
         cellIds:
           items:
             $ref: '#/components/schemas/CellId'

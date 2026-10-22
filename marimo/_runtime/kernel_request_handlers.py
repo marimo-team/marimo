@@ -179,6 +179,7 @@ class KernelRequestHandlers:
     ) -> None:
         with (
             self._run_context(request.run_id),
+            stdin_context(request.allow_stdin),
             http_request_context(request.request),
         ):
             await self._kernel.run(request.execution_requests)
