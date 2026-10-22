@@ -37,8 +37,6 @@ class QueryParams(State[SerializedQueryParams]):
         "access_token",
         "refresh_token",
         "session_id",
-        "cursor",
-        "types",
     }
 
     def __init__(

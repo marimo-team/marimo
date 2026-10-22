@@ -249,7 +249,8 @@ describe("RuntimeManager", () => {
         const url = runtime.getSseURL("s_123" as SessionId);
 
         expect(url.searchParams.get("access_token")).toBeNull();
-        expect(url.searchParams.get("foo")).toBe("bar");
+        expect(url.searchParams.get("query_params")).toBe("foo=bar");
+        expect(url.toString()).not.toContain("page-token");
       } finally {
         window.history.pushState({}, "", original);
       }
@@ -669,9 +670,16 @@ describe("RuntimeManager", () => {
       expect(httpUrl.searchParams.get("base_param")).toBe("existing");
 
       // Should preserve all window-level query params (including custom ones)
-      expect(wsUrl.searchParams.get("custom_param")).toBe("value123");
-      expect(wsUrl.searchParams.get("user_token")).toBe("abc");
-      expect(wsUrl.searchParams.get("theme")).toBe("dark");
+      expect(
+        Object.fromEntries(
+          new URLSearchParams(wsUrl.searchParams.get("query_params") ?? ""),
+        ),
+      ).toEqual({
+        base_param: "existing",
+        custom_param: "value123",
+        user_token: "abc",
+        theme: "dark",
+      });
       expect(httpUrl.searchParams.get("custom_param")).toBe("value123");
       expect(httpUrl.searchParams.get("user_token")).toBe("abc");
       expect(httpUrl.searchParams.get("theme")).toBe("dark");
@@ -738,7 +746,7 @@ describe("RuntimeManager", () => {
       const sessionId = "test" as SessionId;
 
       expect(runtime.getWsURL(sessionId).toString()).toMatchInlineSnapshot(
-        `"blob:https://example.com/12345678-1234-1234-1234-123456789abc?session_id=test"`,
+        `"blob:https://example.com/12345678-1234-1234-1234-123456789abc?query_params=&session_id=test"`,
       );
       expect(Logger.warn).toHaveBeenCalledOnce();
     });
