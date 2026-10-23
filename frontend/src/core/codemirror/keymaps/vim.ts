@@ -380,10 +380,7 @@ class CodeMirrorVimSync {
     this.instances.delete(instance);
   }
 
-  public broadcastModeChange(
-    originInstance: EditorView,
-    mode: string,
-  ) {
+  public broadcastModeChange(originInstance: EditorView, mode: string) {
     invariant(
       "exitInsertMode" in Vim,
       "Vim does not have an exitInsertMode method",

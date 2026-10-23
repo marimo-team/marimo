@@ -24,9 +24,7 @@ interface Props {
 // for all calls with the same key.
 const batchedLoader = createBatchedLoader();
 
-export const TableColumnSummary = ({
-  columnId,
-}: Props) => {
+export const TableColumnSummary = ({ columnId }: Props) => {
   const { locale } = useLocale();
 
   const chartSpecModel = React.use(ColumnChartContext);
