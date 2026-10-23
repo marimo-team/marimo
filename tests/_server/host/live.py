@@ -57,16 +57,24 @@ async def open_host(
             }
         }
     )
-    app = create_starlette_app(base_url="", enable_auth=True)
-    get_starlette_server_state_init(session_manager=manager).apply(app.state)
-    bridge = SessionBridge(manager)
-    await bridge.open()
-    app.state.host_context = HostContext(bridge=bridge, token=TOKEN, port=PORT)
-    notebook = next(iter(bridge.host.notebooks.values()))
-    events, task, disconnect = request(
-        app, "GET", f"/notebooks/{notebook.id}/events", headers=AUTH
-    )
-    try:
+    async with contextlib.AsyncExitStack() as cleanup:
+        cleanup.push_async_callback(manager.shutdown)
+        app = create_starlette_app(base_url="", enable_auth=True)
+        get_starlette_server_state_init(session_manager=manager).apply(
+            app.state
+        )
+        bridge = SessionBridge(manager)
+        cleanup.callback(bridge.close)
+        await bridge.open()
+        app.state.host_context = HostContext(
+            bridge=bridge, token=TOKEN, port=PORT
+        )
+        notebook = next(iter(bridge.host.notebooks.values()))
+        events, task, disconnect = request(
+            app, "GET", f"/notebooks/{notebook.id}/events", headers=AUTH
+        )
+        cleanup.push_async_callback(asyncio.wait_for, task, 5)
+        cleanup.callback(disconnect)
         started = await finished(
             app,
             "PUT",
@@ -83,8 +91,3 @@ async def open_host(
             timeout=15,
         )
         yield app, notebook.id, events
-    finally:
-        disconnect()
-        await asyncio.wait_for(task, 5)
-        bridge.close()
-        await manager.shutdown()

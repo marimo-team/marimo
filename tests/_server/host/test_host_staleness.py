@@ -7,7 +7,7 @@ import contextlib
 import itertools
 import json
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from starlette.applications import Starlette
 
     from marimo._config.config import OnCellChangeType
+    from marimo._core.protocol import RunOutcome
     from tests._server.host.drive import Response
     from tests._server.host.staleness import Outdated, Snapshot
 
@@ -46,8 +47,13 @@ class Client:
     cells: dict[str, str]
     _keys: itertools.count[int] = field(default_factory=itertools.count)
 
-    async def run(self, *cells: str, code: str | None = None) -> None:
-        """Run the named cells, or code in the scratchpad."""
+    async def run(
+        self,
+        *cells: str,
+        code: str | None = None,
+        outcome: RunOutcome = "succeeded",
+    ) -> None:
+        """Run the named cells, or code in the scratchpad, to `outcome`."""
         body: dict[str, object] = (
             {"code": code}
             if code is not None
@@ -62,14 +68,18 @@ class Client:
         )
         assert accepted.status == 202, accepted.body
         run_id = accepted.json()["id"]
-        await wait_for(
-            self.events,
-            lambda response: any(
-                r.get("data", {}).get("run", {}).get("id") == run_id
-                and r["data"]["run"]["status"] == "completed"
+
+        def completed(response: Response) -> list[dict[str, Any]]:
+            return [
+                run
                 for r in response.records
-            ),
-        )
+                if (run := r.get("data", {}).get("run", {})).get("id")
+                == run_id
+                and run["status"] == "completed"
+            ]
+
+        await wait_for(self.events, lambda response: bool(completed(response)))
+        assert completed(self.events)[-1]["outcome"] == outcome
 
     async def edit(self, cell: str, code: str) -> None:
         edited = await finished(
@@ -225,7 +235,7 @@ async def test_binding_a_missing_name_outdates_its_readers(
         binder="pass",
         reader="y = missing + 1",
     ) as c:
-        await c.run("binder", "reader")
+        await c.run("binder", "reader", outcome="failed")
         assert await c.outdated() == {}
 
         await c.edit("binder", "missing = 1")
