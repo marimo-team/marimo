@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
-import { type Extension, Prec } from "@codemirror/state";
+import { type Extension, Prec, Transaction } from "@codemirror/state";
 import {
   EditorView,
   type KeyBinding,
@@ -382,8 +382,12 @@ function shouldAutorunMarkdownUpdate({
   }
 
   return transactions.some((tr) => {
-    // Ignore RTC sync changes to avoid duplicate runs from remote edits.
-    if (tr.annotation(loroSyncAnnotation) !== undefined) {
+    // Ignore remote changes to avoid duplicate runs. The client that made the
+    // edit runs it.
+    if (
+      tr.annotation(Transaction.remote) ||
+      tr.annotation(loroSyncAnnotation) !== undefined
+    ) {
       return false;
     }
 
