@@ -21,6 +21,7 @@ from marimo._ast.names import (
 )
 from marimo._ast.parse import ast_parse
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
+from marimo._ast.type_inference import infer_annotations
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name, VariableData
 from marimo._convert.converters import MarimoConvert
@@ -35,6 +36,8 @@ from marimo._version import __version__
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from marimo._ast.type_inference import TypeInferenceMode
 
 from typing import TypeAlias
 
@@ -80,7 +83,9 @@ def indent_text(text: str) -> str:
 
 def _format_arg(arg: Any) -> str:
     if isinstance(arg, str):
-        return f'"{arg}"'.replace("\\", "\\\\")
+        literal = repr(arg)
+        # Match Ruff's quote style unless the value contains double quotes.
+        return f'"{literal[1:-1]}"' if '"' not in arg else literal
     elif isinstance(arg, list):
         return f"[{', '.join([_format_arg(item) for item in arg])}]"
     else:
@@ -506,7 +511,12 @@ def generate_app_constructor(config: _AppConfig | None) -> str:
     return format_tuple_elements("app = marimo.App(...)", kwargs)
 
 
-def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
+def generate_filecontents_from_ir(
+    ir: NotebookSerializationV1,
+    *,
+    infer_types: TypeInferenceMode = "off",
+    line_length: int = 79,
+) -> str:
     # Markdown frontmatter may contain non-config metadata (e.g., author,
     # description). Suppress warnings for unrecognized keys from markdown.
     silent = (
@@ -524,12 +534,18 @@ def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
         else cell.name
         for cell in ir.cells
     ]
+    filename = (
+        ir.filename if ir.filename and ir.filename != "<marimo>" else None
+    )
     return generate_filecontents(
         codes=[cell.code for cell in ir.cells],
         names=names,
         cell_configs=[CellConfig.from_dict(cell.options) for cell in ir.cells],
         config=_AppConfig.from_untrusted_dict(ir.app.options, silent=silent),
         header_comments=header_comments,
+        filename=filename,
+        infer_types=infer_types,
+        line_length=line_length,
     )
 
 
@@ -569,8 +585,12 @@ def generate_filecontents(
     cell_configs: list[CellConfig],
     config: _AppConfig | None = None,
     header_comments: str | None = None,
+    *,
+    filename: str | None = None,
+    infer_types: TypeInferenceMode = "off",
+    line_length: int = 79,
 ) -> str:
-    """Translates a sequences of codes (cells) to a Python file"""
+    """Generate a Python notebook from cell source and configuration."""
 
     # Normalize internal cell names. Empty names would emit `def ():`
     # (invalid Python) and fall back to the unparsable-cell path;
@@ -584,6 +604,16 @@ def generate_filecontents(
     if setup_cell:
         toplevel_defs = set(setup_cell.defs)
     extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
+    if infer_types != "off":
+        extraction.add_default_annotations(
+            infer_annotations(
+                extraction,
+                setup_cell,
+                filename=filename,
+                mode=infer_types,
+                line_length=line_length,
+            )
+        )
     cell_blocks = [
         safe_serialize_cell(extraction, status) for status in extraction
     ]

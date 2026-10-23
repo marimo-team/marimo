@@ -3,10 +3,92 @@
 
 import json
 import tempfile
+from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
+from marimo._ast.cell import CellConfig
+from marimo._ast.codegen import generate_filecontents
 from marimo._cli.cli import check
+from marimo._config.manager import UserConfigStore, get_default_config_manager
+from marimo._server.models.models import SaveNotebookRequest
+from marimo._session.notebook import load_notebook
+
+
+@pytest.mark.parametrize("inline", [False, True])
+def test_fix_uses_each_notebooks_formatting_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, inline: bool
+) -> None:
+    monkeypatch.setattr(UserConfigStore, "read", lambda _self: {})
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.marimo.formatting]\ninfer_types = "off"\n'
+    )
+    files = []
+    signatures = [
+        ("jedi", 20, "def _(x: int, y):"),
+        ("jedi", 79, "def _(x: int, y: dict[str, list[int]]):"),
+        ("off", 79, "def _(x, y):"),
+    ]
+    for index, (mode, line_length, _) in enumerate(signatures):
+        project = tmp_path / str(index)
+        project.mkdir()
+        formatting = (
+            "[tool.marimo.formatting]\n"
+            f'infer_types = "{mode}"\nline_length = {line_length}\n'
+        )
+        project_config = formatting
+        header = None
+        if inline:
+            project_config = (
+                "[tool.marimo.formatting]\n"
+                f'infer_types = "{"off" if mode == "jedi" else "jedi"}"\n'
+                f"line_length = {79 if line_length == 20 else 20}\n"
+            )
+            header = (
+                "# /// script\n# dependencies = []\n"
+                + "".join(f"# {line}\n" for line in formatting.splitlines())
+                + "# ///\n"
+            )
+        (project / "pyproject.toml").write_text(project_config)
+        notebook = project / "notebook.py"
+        notebook.write_text(
+            generate_filecontents(
+                ["x = 1\ny = {'a': [1]}", "print(x, y)"],
+                ["_", "_"],
+                [CellConfig(), CellConfig()],
+                header_comments=header,
+            )
+        )
+        files.append(str(notebook))
+
+    runner = CliRunner()
+    result = runner.invoke(check, ["--fix", *files])
+    assert result.exit_code == 0, result.output
+    saved = [Path(file).read_text() for file in files]
+    for file, contents, (_, _, signature) in zip(
+        files, saved, signatures, strict=True
+    ):
+        assert signature in contents
+        manager = load_notebook(file)
+        manager.config_reader = get_default_config_manager(current_path=file)
+        cells = manager.app.cell_manager
+        manager.save(
+            SaveNotebookRequest(
+                cell_ids=list(cells.cell_ids()),
+                codes=list(cells.codes()),
+                names=list(cells.names()),
+                configs=list(cells.configs()),
+                filename=file,
+            )
+        )
+        assert Path(file).read_text() == contents
+
+    result = runner.invoke(check, ["--fix", *files])
+    assert result.exit_code == 0, result.output
+    assert "Updated" not in result.output
+    assert [Path(file).read_text() for file in files] == saved
 
 
 class TestLintCLI:

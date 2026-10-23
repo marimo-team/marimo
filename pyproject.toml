@@ -213,6 +213,7 @@ test-optional = [
     # For testing starrocks
     "starrocks>=1.3.0",
     "pandas>=1.5.3",
+    "pandas-stubs>=1.5.3.230321",
     "hvplot~=0.11.3",
     "geopandas>=1.1.0",
     "duckdb>=1.0.0",

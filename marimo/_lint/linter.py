@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
 from marimo._cli.print import red
+from marimo._config.manager import get_default_config_manager
 from marimo._convert.converters import MarimoConvert
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.formatters import LintResultJSON
@@ -23,6 +24,7 @@ from marimo._utils.generated_with import (
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
 
+    from marimo._ast.type_inference import TypeInferenceMode
     from marimo._config.config import LintConfig
     from marimo._lint.rules.base import LintRule
 
@@ -73,6 +75,8 @@ class Linter:
         ignore_scripts: bool = False,
         formatter: str = "full",
         lint_config: LintConfig | None = None,
+        infer_types: TypeInferenceMode | None = "off",
+        line_length: int | None = 79,
     ):
         if rules is not None:
             self.rule_engine = RuleEngine(rules, early_stopping)
@@ -85,6 +89,9 @@ class Linter:
         self.unsafe_fixes = unsafe_fixes
         self.ignore_scripts = ignore_scripts
         self.formatter = formatter
+        # None inherits notebook configuration, while "off" overrides it.
+        self.infer_types = infer_types
+        self.line_length = line_length
         self.files: list[FileStatus] = []
         self._lint_config = lint_config
         self._early_stopping = early_stopping
@@ -281,7 +288,11 @@ class Linter:
 
     @staticmethod
     def _generate_file_contents_from_notebook(
-        notebook: NotebookSerialization, filename: str
+        notebook: NotebookSerialization,
+        filename: str,
+        *,
+        infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
     ) -> str:
         """Generate file contents from notebook serialization."""
         converter = MarimoConvert.from_ir(notebook)
@@ -290,10 +301,17 @@ class Linter:
             if filename.endswith((".md", ".qmd")):
                 return converter.to_markdown()
             else:
-                return converter.to_py()
+                return converter.to_py(
+                    infer_types=infer_types, line_length=line_length
+                )
 
     @staticmethod
-    def _generate_file_contents(file_status: FileStatus) -> str:
+    def _generate_file_contents(
+        file_status: FileStatus,
+        *,
+        infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
+    ) -> str:
         """Generate file contents from notebook serialization."""
         if file_status.notebook is None:
             raise ValueError(
@@ -301,7 +319,10 @@ class Linter:
             )
 
         return Linter._generate_file_contents_from_notebook(
-            file_status.notebook, file_status.file
+            file_status.notebook,
+            file_status.file,
+            infer_types=infer_types,
+            line_length=line_length,
         )
 
     def run_streaming(
@@ -375,9 +396,24 @@ class Linter:
                         modified_notebook, diagnostics
                     )
 
+        infer_types = self.infer_types
+        line_length = self.line_length
+        if infer_types is None or line_length is None:
+            config = get_default_config_manager(
+                current_path=file_status.file
+            ).get_config(hide_secrets=False)
+            formatting = config["formatting"]
+            if infer_types is None:
+                infer_types = formatting.get("infer_types", "off")
+            if line_length is None:
+                line_length = formatting["line_length"]
+
         # Generate file contents from (possibly modified) notebook
         generated_contents = Linter._generate_file_contents_from_notebook(
-            modified_notebook, file_status.file
+            modified_notebook,
+            file_status.file,
+            infer_types=infer_types,
+            line_length=line_length,
         )
 
         # Only write if content changed (excluding __generated_with differences)
