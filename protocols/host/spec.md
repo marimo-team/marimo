@@ -196,11 +196,13 @@ A completed cell execution is **current** when:
 - the execution that bound each of those variables is current.
 
 A client finds a variable by the recorded revision's `execution` and the name.
-If none exists, that execution was replaced or removed. If its `update` is
-higher, the value was updated. If that execution's `code_hash` differs from
-its cell's, the cell was edited. The first that applies is why the result is
-**outdated**. A cell with no execution has no result to compare. Scratch
-executions have no cell and are not compared.
+If none exists, or a name recorded as null is now bound, the value was
+replaced. If its `update` is higher, the value was updated. If the execution
+that bound it is outdated, the result is outdated for the same reason. An
+execution whose `code_hash` differs from its cell's was edited. The first of
+these that applies to the execution or any of its dependencies is why the
+result is **outdated**. A cell with no execution has no result to compare.
+Scratch executions have no cell and are not compared.
 
 For example, cell `k7f2` reads `x`, which cell `c3` binds:
 
@@ -221,6 +223,8 @@ and rules:
 - a value the execution itself updated is recorded at the revision it set,
 - a name bound only by a result from an earlier runtime is recorded as
   unbound,
+- a name that resolves outside the notebook, such as a builtin, is not
+  recorded,
 - a value carried forward unchanged, such as an import, keeps its revision,
   so a revision's `execution` can be earlier than the variable's
   `execution_id`.
