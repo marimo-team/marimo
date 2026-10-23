@@ -1436,12 +1436,29 @@ class TestOldDates:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"A": ["apple", "banana", "cherry"]}),
+    create_dataframes(
+        {
+            "A": [
+                "apple",
+                "banana",
+                "C++",
+                "c++ guide",
+                "ΟΣ",
+                "ος",
+                "οσ",
+                "İstanbul",
+            ]
+        }
+    ),
 )
-def test_search_with_regex(df: Any) -> None:
+def test_search_treats_query_as_literal(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
-    result = manager.search("^[ab]")
-    assert result.get_num_rows() == 2
+    assert manager.search("^[ab]").get_num_rows() == 0
+    assert manager.search("c++").get_num_rows() == 2
+    assert manager.search("C++ G").get_num_rows() == 1
+    assert manager.search("a.b").get_num_rows() == 0
+    assert manager.search("Σ").get_num_rows() == 3
+    assert manager.search("İ").get_num_rows() == 1
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

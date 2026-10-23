@@ -92,6 +92,7 @@
     --action-hover: var(--yellow-10, #ffdc00);
     --action-border: var(--yellow-11, #9e6c00);
     --action-foreground: var(--yellow-12, #473b1f);
+    --search-highlight: var(--yellow-4, #fff394);
     --link: light-dark(hsl(211deg 90% 42%), hsl(211deg 90% 62%));
     --link-visited: light-dark(hsl(272deg 51% 54%), hsl(272deg 51% 74%));
     --stale: hsl(42deg 56% 44% / 25%);
@@ -140,6 +141,7 @@
     --action-hover: var(--yellow-7, #665417);
     --action-border: var(--yellow-11, #f5e147);
     --action-foreground: var(--yellow-12, #f6eeb4);
+    --search-highlight: var(--yellow-6, #524202);
     --stale: hsl(54deg 100% 86.7% / 25%);
   }
 }

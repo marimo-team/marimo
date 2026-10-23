@@ -34,6 +34,20 @@ RowId = str
 FieldType = DataType
 FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
 
+_REGEX_METACHARACTERS = frozenset(r"\.^$|?*+()[]{}")
+
+
+def regex_literal(text: str) -> str:
+    """Escape `text` so a regex engine matches it as a literal.
+
+    Only the metacharacters that Python `re`, Rust `regex`, and RE2 all
+    treat as special are escaped. `re.escape` also escapes spaces and
+    punctuation such as `#`, which some of those engines reject.
+    """
+    return "".join(
+        f"\\{char}" if char in _REGEX_METACHARACTERS else char for char in text
+    )
+
 
 class TableCoordinate(NamedTuple):
     row_id: int | str
