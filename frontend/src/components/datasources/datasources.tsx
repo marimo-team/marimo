@@ -702,7 +702,40 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
   );
 };
 
-const TableList: React.FC<{
+// Kept outside the component because the React Compiler does not yet
+// support try/finally inside component bodies.
+async function loadTableList(
+  sqlTableContext: SQLTableContext,
+  addTableList: ReturnType<typeof useDataSourceActions>["addTableList"],
+  setLoading: (loading: boolean) => void,
+) {
+  setLoading(true);
+  try {
+    const { engine, database, schema, schemaPath } = sqlTableContext;
+    const previewTableList = await PreviewSQLTableList.request({
+      engine: engine,
+      database: database,
+      schema: schema,
+      schemaPath: schemaPath ?? [],
+    });
+
+    if (!previewTableList?.tables) {
+      throw new Error("No tables available");
+    }
+
+    addTableList({
+      tables: previewTableList.tables,
+      sqlTableContext: sqlTableContext,
+    });
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * This is exported for testing purposes only.
+ */
+export const TableList: React.FC<{
   tables: DataTable[];
   sqlTableContext?: SQLTableContext;
   searchValue?: string;
@@ -731,26 +764,7 @@ const TableList: React.FC<{
   // resets tablesResolved to false).
   const { isPending, error } = useAsyncData(async () => {
     if (!tablesResolved && sqlTableContext) {
-      setTablesLoading(true);
-
-      const { engine, database, schema, schemaPath } = sqlTableContext;
-      const previewTableList = await PreviewSQLTableList.request({
-        engine: engine,
-        database: database,
-        schema: schema,
-        schemaPath: schemaPath ?? [],
-      });
-
-      if (!previewTableList?.tables) {
-        setTablesLoading(false);
-        throw new Error("No tables available");
-      }
-
-      addTableList({
-        tables: previewTableList.tables,
-        sqlTableContext: sqlTableContext,
-      });
-      setTablesLoading(false);
+      await loadTableList(sqlTableContext, addTableList, setTablesLoading);
     }
   }, [tablesResolved, sqlTableContext]);
 
