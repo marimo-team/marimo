@@ -3,25 +3,16 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import TYPE_CHECKING
 
 import pytest
 
 from marimo._core.document import code_hash
-from marimo._server.host.bridge import SessionBridge
-from marimo._server.host.context import HostContext
-from marimo._server.main import create_starlette_app
-from marimo._server.workspace import SingleFileWorkspace
 from marimo._session.notebook import AppFileManager
 from marimo._session.requests import InstantiateNotebookRequest
-from marimo._utils.marimo_path import MarimoPath
-from tests._server.host.drive import PORT, finished, request, wait_for
-from tests._server.mocks import (
-    get_mock_session_manager,
-    get_starlette_server_state_init,
-)
+from tests._server.host.drive import finished, wait_for
+from tests._server.host.live import key, open_host
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -30,12 +21,6 @@ if TYPE_CHECKING:
     from starlette.applications import Starlette
 
     from tests._server.host.drive import Response
-
-AUTH = {"Authorization": "Bearer execution-test"}
-
-
-def key(value: str) -> dict[str, str]:
-    return {**AUTH, "Idempotency-Key": value}
 
 
 @pytest.fixture
@@ -55,44 +40,8 @@ async def live_host(
     tmp_path: Path,
     notebook_source: str,
 ) -> AsyncIterator[tuple[Starlette, str, Response]]:
-    manager = get_mock_session_manager()
-    file = tmp_path / "notebook.py"
-    file.write_text(notebook_source)
-    manager.workspace = SingleFileWorkspace.from_path(MarimoPath(file))
-    manager.redirect_console_to_browser = True
-    app = create_starlette_app(base_url="", enable_auth=True)
-    get_starlette_server_state_init(session_manager=manager).apply(app.state)
-    bridge = SessionBridge(manager)
-    await bridge.open()
-    app.state.host_context = HostContext(
-        bridge=bridge, token="execution-test", port=PORT
-    )
-    notebook = next(iter(bridge.host.notebooks.values()))
-    events, task, disconnect = request(
-        app, "GET", f"/notebooks/{notebook.id}/events", headers=AUTH
-    )
-    try:
-        started = await finished(
-            app,
-            "PUT",
-            f"/notebooks/{notebook.id}/runtime",
-            headers=key("start"),
-        )
-        assert started.status == 202
-        await wait_for(
-            events,
-            lambda response: any(
-                r.get("data", {}).get("runtime", {}).get("status") == "running"
-                for r in response.records
-            ),
-            timeout=15,
-        )
-        yield app, notebook.id, events
-    finally:
-        disconnect()
-        await asyncio.wait_for(task, 5)
-        bridge.close()
-        await manager.shutdown()
+    async with open_host(tmp_path, notebook_source) as host:
+        yield host
 
 
 async def test_move_preserves_the_running_notebook(
