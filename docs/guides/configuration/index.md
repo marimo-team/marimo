@@ -66,17 +66,7 @@ To view the configuration marimo is using, run:
 marimo config show
 ```
 
-Add `--show-sources` to include the source of each configuration value:
-
-```bash
-% marimo config show --show-sources
-
-[display]
-theme = "dark" # /path/to/pyproject.toml
-
-[save]
-autosave_delay = 1000 # default
-```
+Add `--show-sources` to include where each configuration value was determined.
 
 To include a notebook's script metadata, pass its path:
 
@@ -147,6 +137,13 @@ You can also configure marimo settings directly in your notebook files using scr
     Script metadata configuration has the highest precedence, followed by `pyproject.toml` configuration, then user configuration:
 
     **Script config > pyproject.toml config > user config**
+
+### Dotenv files
+
+By default, marimo loads `.env` from the project directory, or the notebook's
+directory when there is no `pyproject.toml`. Override this location with
+`runtime.dotenv`; run `marimo config describe` for the option's path resolution
+and loading rules.
 
 ## Environment variables
 

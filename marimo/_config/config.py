@@ -8,6 +8,7 @@ import sys
 from dataclasses import dataclass
 
 from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
+from marimo._config.provenance import env_var_name
 from marimo._config.types import (
     CacheLoader as CacheLoader,
     CacheVerification as CacheVerification,
@@ -163,10 +164,13 @@ class RuntimeConfig(TypedDict):
         `PYTHONPATH` environment variable, the directories will be included in
         where Python will look for imported modules.
     - `dotenv`: a list of paths to `.env` files to load.
-        If the file does not exist, it will be silently ignored. Relative
-        paths resolve against the directory holding the `pyproject.toml`,
-        or the notebook's directory when there is none. The default is
-        `[".env"]`.
+        An explicit list replaces the automatically discovered `.env` beside
+        the nearest `pyproject.toml`, or the notebook when there is no project.
+        An empty list disables loading. Relative paths in project settings
+        and script metadata resolve from that project or notebook directory;
+        use absolute paths in user settings. Existing environment variables
+        take precedence, followed by files in list order. Missing files are
+        ignored.
     - `default_sql_output`: the default output format for SQL queries. Can be one of:
         `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
         The default is `"auto"`.
@@ -783,12 +787,12 @@ DEFAULT_CONFIG: MarimoConfig = cast(
 
 # These defaults read the environment when DEFAULT_CONFIG is constructed.
 DEFAULT_CONFIG_ENV_VARS = {
-    ("runtime", name): variable
-    for name, variable in (
-        ("output_max_bytes", "MARIMO_OUTPUT_MAX_BYTES"),
-        ("std_stream_max_bytes", "MARIMO_STD_STREAM_MAX_BYTES"),
+    path: env_var_name(path)
+    for path in (
+        ("runtime", "output_max_bytes"),
+        ("runtime", "std_stream_max_bytes"),
     )
-    if variable in os.environ
+    if env_var_name(path) in os.environ
 }
 
 

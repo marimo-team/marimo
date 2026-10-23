@@ -258,7 +258,6 @@ def test_layered_configuration_snapshot(
                 "signing": {"private_key_path": "********"},
                 "mcp": {"mcpServers": {}, "presets": []},
                 "runtime": {
-                    "dotenv": [],
                     "watcher_on_save": "lazy",
                     "auto_reload": "off",
                     "default_csv_encoding": "utf-8",
@@ -442,7 +441,6 @@ def test_layered_configuration_snapshot(
                     "output_max_bytes": 8000000,
                     "auto_reload": "off",
                     "default_csv_encoding": "utf-8",
-                    "dotenv": [],
                     "reactive_tests": True,
                     "auto_instantiate": False,
                     "default_sql_output": "auto",
@@ -535,7 +533,7 @@ def test_dotenv_fallbacks_snapshot(config_tree: Path) -> None:
                     "runtime": {"dotenv": ["<root>/home/project/.env"]}
                 },
                 "dotenv": ["<root>/home/project/.env"],
-                "masked_dotenv": [],
+                "masked_dotenv": None,
                 "overrides": {},
             },
             "standalone_notebook": {
@@ -545,7 +543,7 @@ def test_dotenv_fallbacks_snapshot(config_tree: Path) -> None:
                     }
                 },
                 "dotenv": ["<root>/home/project/notebooks/.env"],
-                "masked_dotenv": [],
+                "masked_dotenv": None,
                 "overrides": {"formatting": {"line_length": 100}},
             },
             "home": {
@@ -560,7 +558,7 @@ def test_dotenv_fallbacks_snapshot(config_tree: Path) -> None:
                 }
             },
             "explicit_user": {"dotenv": ["chosen.env"]},
-            "masked_empty_user": {"dotenv": ["<root>/home/project/.env"]},
+            "masked_empty_user": {"dotenv": []},
         }
     )
 
@@ -816,7 +814,7 @@ def test_trust_origins_snapshot(config_tree: Path) -> None:
             },
             "workspace": {"signing": None, "cache": {}},
             "pyproject": {
-                "display": {"theme": "dark", "custom_css": []},
+                "display": {"theme": "dark"},
                 "cache": {"store": "disk"},
             },
         }
@@ -860,7 +858,6 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
                     "models": {"displayed_models": [], "custom_models": []},
                 },
                 "runtime": {
-                    "dotenv": [],
                     "reactive_tests": True,
                     "auto_instantiate": False,
                     "default_sql_output": "auto",
@@ -897,6 +894,7 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
                     "reactive_tests": True,
                     "show_tracebacks": False,
                     "output_max_bytes": 8000000,
+                    "dotenv": ["secrets.env"],
                     "auto_reload": "off",
                     "on_cell_change": "autorun",
                 },
@@ -1005,7 +1003,7 @@ def test_dotenv_explicit_precedence_snapshot(config_tree: Path) -> None:
         {
             "user_only": {
                 "resolved": ["user.env"],
-                "masked": [],
+                "masked": None,
                 "overrides": {},
             },
             "project_replaces_user": {
@@ -1013,7 +1011,7 @@ def test_dotenv_explicit_precedence_snapshot(config_tree: Path) -> None:
                     "<root>/home/project/first.env",
                     "<root>/home/project/../shared.env",
                 ],
-                "masked": [],
+                "masked": None,
                 "overrides": {
                     "dotenv": [
                         "<root>/home/project/first.env",
@@ -1028,7 +1026,7 @@ def test_dotenv_explicit_precedence_snapshot(config_tree: Path) -> None:
             },
             "script_replaces_project": {
                 "resolved": ["<root>/home/project/script.env"],
-                "masked": [],
+                "masked": None,
                 "overrides": {"dotenv": ["<root>/home/project/script.env"]},
             },
             "script_empty": {
@@ -1043,12 +1041,12 @@ def test_dotenv_explicit_precedence_snapshot(config_tree: Path) -> None:
             },
             "memory_replaces_script": {
                 "resolved": ["memory.env"],
-                "masked": [],
+                "masked": None,
                 "overrides": {"dotenv": ["memory.env"]},
             },
             "absolute_path": {
                 "resolved": ["<root>/home/project/absolute.env"],
-                "masked": [],
+                "masked": None,
                 "overrides": {"dotenv": ["<root>/home/project/absolute.env"]},
             },
         }
@@ -1088,19 +1086,19 @@ def test_dotenv_workspace_session_snapshot(config_tree: Path) -> None:
         {
             "standalone_session": {
                 "workspace": ["<root>/home/project/.env"],
-                "masked_session": [],
+                "masked_session": None,
                 "session": ["<root>/home/project/notebooks/.env"],
                 "overrides": {},
             },
             "unsaved_session": {
                 "workspace": ["<root>/home/project/.env"],
-                "masked_session": [],
+                "masked_session": None,
                 "session": ["<root>/home/project/.env"],
                 "overrides": {},
             },
             "project_session": {
                 "workspace": ["<root>/home/project/.env"],
-                "masked_session": [],
+                "masked_session": None,
                 "session": ["<root>/home/project/.env"],
                 "overrides": {},
             },

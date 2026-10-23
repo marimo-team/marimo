@@ -7,8 +7,7 @@ from typing import Any, cast
 
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
-from marimo._config.provenance import ConfigLayer, ConfigPath, ConfigSource
-from marimo._config.resolver import config_paths
+from marimo._config.provenance import ConfigLayer, ConfigSource
 from marimo._utils.toml import toml_reader
 
 LOGGER = _loggers.marimo_logger()
@@ -29,21 +28,9 @@ class ConfigReader(ABC):
     def source(self) -> ConfigSource:
         return "override"
 
-    @property
-    def field_sources(self) -> dict[ConfigPath, ConfigSource]:
-        """Sources that differ per field, such as environment variable names."""
-        return {}
-
     def read_layer(self) -> ConfigLayer:
         """Read sparse settings and their sources, without validating inherited fields."""
-        config = self.read()
-        source = self.source
-        field_sources = self.field_sources
-        origins = {
-            path: field_sources.get(path, source)
-            for path in config_paths(cast(dict[str, Any], config))
-        }
-        return ConfigLayer(config, source, origins)
+        return ConfigLayer(self.read(), self.source)
 
 
 def read_marimo_config(path: str) -> PartialMarimoConfig:

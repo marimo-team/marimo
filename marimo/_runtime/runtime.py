@@ -150,9 +150,7 @@ from marimo._runtime.win32_interrupt_handler import (
     Win32InterruptHandler,
     ignore_console_ctrl_c,
 )
-from marimo._secrets.load_dotenv import (
-    load_dotenv_with_fallback,
-)
+from marimo._secrets.load_dotenv import DotEnvReader
 from marimo._session.model import SessionMode
 from marimo._session.queue import QueueType
 from marimo._sql.engines.types import (
@@ -2500,7 +2498,7 @@ class Kernel:
         for env in dotenvs:
             if Path(env).exists():
                 try:
-                    load_dotenv_with_fallback(env)
+                    DotEnvReader(env).load()
                 except Exception as e:
                     LOGGER.error(
                         "Failed to load dotenv file %s", env, exc_info=e

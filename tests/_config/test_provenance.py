@@ -10,6 +10,7 @@ import pytest
 from marimo import _loggers
 from marimo._config.config import (
     DEFAULT_CONFIG,
+    DEFAULT_CONFIG_ENV_VARS,
     PartialMarimoConfig,
     merge_default_config,
 )
@@ -22,7 +23,11 @@ from marimo._config.manager import (
     SecurityConfigReader,
     UserConfigStore,
 )
-from marimo._config.provenance import ConfigLayer, ConfigSource, EnvVarName
+from marimo._config.provenance import (
+    ConfigLayer,
+    ConfigSource,
+    format_config_source,
+)
 from marimo._config.resolver import resolve_config_with_sources
 from marimo._config.settings import GLOBAL_SETTINGS
 
@@ -103,6 +108,50 @@ def make_user(
     return user
 
 
+@pytest.mark.parametrize("user_override", [False, True])
+def test_environment_backed_defaults_preserve_their_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    user_override: bool,
+) -> None:
+    user = make_user(
+        tmp_path,
+        monkeypatch,
+        "[runtime]\noutput_max_bytes = 777\n" if user_override else "",
+    )
+    monkeypatch.setitem(
+        DEFAULT_CONFIG_ENV_VARS,
+        ("runtime", "output_max_bytes"),
+        "MARIMO_OUTPUT_MAX_BYTES",
+    )
+    monkeypatch.setitem(
+        DEFAULT_CONFIG_ENV_VARS,
+        ("runtime", "std_stream_max_bytes"),
+        "MARIMO_STD_STREAM_MAX_BYTES",
+    )
+    resolved = MarimoConfigManager(user).get_config_with_sources()
+    assert resolved.origins[("runtime", "output_max_bytes")] == (
+        user.source if user_override else "env_var"
+    )
+    assert resolved.origins[("runtime", "std_stream_max_bytes")] == "env_var"
+    assert resolved.origins[("package_management", "manager")] == "inferred"
+
+
+def test_environment_validation_error_uses_variable_name(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = make_user(tmp_path, monkeypatch)
+    monkeypatch.setenv(
+        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", "invalid"
+    )
+    with _loggers.capture_output() as (_, _, records):
+        MarimoConfigManager(user, EnvConfigReader()).get_config()
+    assert [record.getMessage() for record in records] == [
+        "Invalid configuration from _MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE: Expected `bool`, got `str` - at `$.runtime.auto_instantiate`"
+    ]
+
+
 def test_environment_sources_use_variable_names(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -111,15 +160,120 @@ def test_environment_sources_use_variable_names(
     )
     monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", "lazy")
     monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", "sse")
-    assert EnvConfigReader().read_layer().origins == {
-        ("runtime", "auto_instantiate"): EnvVarName(
-            "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE"
-        ),
-        ("runtime", "on_cell_change"): EnvVarName(
-            "MARIMO_RUNTIME_ON_CELL_CHANGE"
-        ),
-        ("server", "transport"): EnvVarName("MARIMO_SERVER_TRANSPORT"),
+    layer = EnvConfigReader().read_layer()
+    assert layer == ConfigLayer(
+        {
+            "runtime": {"auto_instantiate": True, "on_cell_change": "lazy"},
+            "server": {"transport": "sse"},
+        },
+        "env_var",
+    )
+    resolved = resolve_config_with_sources([layer])
+    assert {
+        path: format_config_source(path, source)
+        for path, source in resolved.origins.items()
+    } == {
+        (
+            "runtime",
+            "auto_instantiate",
+        ): "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE",
+        ("runtime", "on_cell_change"): "MARIMO_RUNTIME_ON_CELL_CHANGE",
+        ("server", "transport"): "MARIMO_SERVER_TRANSPORT",
     }
+
+
+@pytest.mark.parametrize("clear_css", [False, True])
+def test_project_display_preserves_user_css_unless_explicitly_cleared(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    clear_css: bool,
+) -> None:
+    user = make_user(
+        tmp_path, monkeypatch, '[display]\ncustom_css = ["user.css"]\n'
+    )
+    project = tmp_path / "pyproject.toml"
+    project.write_text(
+        '[tool.marimo.display]\ntheme = "dark"\n'
+        + ("custom_css = []\n" if clear_css else "")
+    )
+    reader = PyprojectConfigReader(str(tmp_path))
+    resolved = MarimoConfigManager(user, reader).get_config_with_sources()
+    assert resolved.config["display"]["custom_css"] == (
+        [] if clear_css else ["user.css"]
+    )
+    assert resolved.origins[("display", "custom_css")] == (
+        project if clear_css else user.source
+    )
+
+
+@pytest.mark.parametrize("source", ["user", "project", "script", "override"])
+def test_empty_dotenv_disables_inferred_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+) -> None:
+    user = make_user(
+        tmp_path,
+        monkeypatch,
+        "[runtime]\ndotenv = []\n" if source == "user" else "",
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.marimo.runtime]\ndotenv = []\n" if source == "project" else ""
+    )
+    notebook = tmp_path / "app.py"
+    notebook.write_text(
+        "# /// script\n# [tool.marimo.runtime]\n# dotenv = []\n# ///\n"
+        if source == "script"
+        else ""
+    )
+    manager = MarimoConfigManager(
+        user,
+        PyprojectConfigReader(str(notebook)),
+        ScriptConfigReader(str(notebook)),
+        OverrideConfigReader(
+            {"runtime": {"dotenv": []}} if source == "override" else {}
+        ),
+    )
+    resolved = manager.get_config_with_sources(hide_secrets=False)
+    assert resolved.config["runtime"]["dotenv"] == []
+    sources = {
+        "user": user.source,
+        "project": tmp_path / "pyproject.toml",
+        "script": notebook,
+        "override": "override",
+    }
+    assert resolved.origins[("runtime", "dotenv")] == sources[source]
+
+
+def test_empty_dotenv_overrides_inherited_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = make_user(
+        tmp_path, monkeypatch, '[runtime]\ndotenv = ["custom.env"]\n'
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.marimo.runtime]\ndotenv = []\n"
+    )
+    notebook = tmp_path / "app.py"
+    notebook.write_text(
+        "# /// script\n# [tool.marimo.runtime]\n# dotenv = []\n# ///\n"
+    )
+    override = OverrideConfigReader({"runtime": {"dotenv": []}})
+    manager = MarimoConfigManager(
+        user,
+        PyprojectConfigReader(str(notebook)),
+        ScriptConfigReader(str(notebook)),
+        override,
+    )
+    resolved = manager.get_config_with_sources(hide_secrets=False)
+    assert resolved.config["runtime"]["dotenv"] == []
+    assert resolved.origins[("runtime", "dotenv")] == "override"
+    assert (
+        manager.get_config_overrides(hide_secrets=False)["runtime"]["dotenv"]
+        == []
+    )
+    assert override.read() == {"runtime": {"dotenv": []}}
 
 
 def test_manager_tracks_file_environment_default_and_security_sources(
@@ -161,14 +315,14 @@ def test_manager_tracks_file_environment_default_and_security_sources(
         ("save", "autosave_delay"): "default",
         ("runtime", "on_cell_change"): notebook,
         ("runtime", "dotenv"): "inferred",
-        ("server", "transport"): EnvVarName("MARIMO_SERVER_TRANSPORT"),
-        ("sharing", "html"): EnvVarName("MARIMO_RESTRICT_SHARING"),
+        ("server", "transport"): "env_var",
+        ("sharing", "html"): "env_var",
         ("ai", "open_ai", "api_key"): tmp_path / "marimo.toml",
     }
     assert resolved.config == merge_default_config(
         {
-            "display": {"theme": "light", "custom_css": []},
-            "runtime": {"on_cell_change": "lazy", "dotenv": []},
+            "display": {"theme": "light"},
+            "runtime": {"on_cell_change": "lazy"},
             "server": {"transport": "sse"},
             "sharing": {"html": False, "wasm": False, "molab": False},
             "ai": {"open_ai": {"api_key": "********"}},

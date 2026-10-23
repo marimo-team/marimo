@@ -44,7 +44,9 @@ def redact_secrets(config: MarimoConfig) -> MarimoConfig:
             return
         if len(path) == 1:
             if isinstance(obj[key], list):
-                obj[key] = []
+                # Omit hidden paths so saving a masked config preserves them.
+                if obj[key]:
+                    obj.pop(key)
             elif obj[key]:
                 obj[key] = SECRET_PLACEHOLDER
         else:

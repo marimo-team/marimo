@@ -17,6 +17,7 @@ from msgspec import NODEFAULT, UNSET, Meta, UnsetType
 from msgspec.structs import fields
 
 from marimo._cli.print import cyan, green, muted, orange, yellow
+from marimo._config.provenance import format_config_source
 from marimo._config.schema_utils import Config
 
 if TYPE_CHECKING:
@@ -54,7 +55,7 @@ def format_config_with_sources(resolved: ResolvedConfig) -> str:
                 annotate(item, field_path)
                 continue
             source = (
-                str(resolved.origins[field_path])
+                format_config_source(field_path, resolved.origins[field_path])
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
             )

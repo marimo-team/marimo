@@ -47,6 +47,26 @@ def test_config_describe() -> None:
     assert p.returncode == 0, p.stderr.decode()
 
 
+def test_config_show_environment_source_names() -> None:
+    resolved = resolve_config_with_sources(
+        [
+            ConfigLayer(
+                {
+                    "runtime": {"output_max_bytes": 1000},
+                    "server": {"transport": "sse"},
+                },
+                "env_var",
+            )
+        ]
+    )
+    assert format_config_with_sources(resolved) == snapshot("""\
+[runtime]
+output_max_bytes = 1000 # MARIMO_OUTPUT_MAX_BYTES
+
+[server]
+transport = "sse" # MARIMO_SERVER_TRANSPORT""")
+
+
 def test_config_show_source_comments_are_valid_toml(tmp_path: Path) -> None:
     import tomlkit
 
