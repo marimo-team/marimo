@@ -16,8 +16,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import { isInternalCellName } from "@/core/cells/names";
 import { useExpandedConsoleOutput } from "@/core/cells/outputs";
-import type { WithResponse } from "@/core/cells/types";
-import type { OutputMessage } from "@/core/kernel/messages";
+import type { ConsoleOutputMessage } from "@/core/cells/types";
 import {
   type UseInputHistoryReturn,
   useInputHistory,
@@ -73,7 +72,7 @@ interface Props {
   cellId: CellId;
   cellName: string;
   className?: string;
-  consoleOutputs: WithResponse<OutputMessage>[];
+  consoleOutputs: ConsoleOutputMessage[];
   stale: boolean;
   interrupted: boolean;
   debuggerActive: boolean;
@@ -241,19 +240,24 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
             return null;
           }
 
+          const originalIdx = consoleOutputs.length - idx - 1;
+          // Outputs render in reverse, so the reversed index shifts on every
+          // new line. The assigned id survives collapse and truncation. The
+          // original position is the fallback for outputs without one.
+          const key = output.id ?? `position-${originalIdx}`;
+
           if (output.channel === "stdin") {
             invariant(
               typeof output.data === "string",
               "Expected data to be a string",
             );
 
-            const originalIdx = consoleOutputs.length - idx - 1;
             const isPassword = output.mimetype === "text/password";
 
             if (output.response == null && lastStdInputIdx === idx) {
               return (
                 <StdInput
-                  key={idx}
+                  key={key}
                   output={output.data}
                   isPdb={isPdb}
                   isPassword={isPassword}
@@ -268,7 +272,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
             return (
               <StdInputWithResponse
-                key={idx}
+                key={key}
                 output={output.data}
                 response={output.response}
                 isPassword={isPassword}
@@ -278,7 +282,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
           }
 
           return (
-            <React.Fragment key={idx}>
+            <React.Fragment key={key}>
               <OutputRenderer
                 cellId={cellId}
                 onRefactorWithAI={onRefactorWithAI}

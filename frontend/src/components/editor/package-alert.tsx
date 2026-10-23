@@ -172,12 +172,12 @@ export const PackageAlert: React.FC = () => {
               <p>The following packages were not found:</p>
               <table className="list-disc ml-2 mt-1">
                 <tbody>
-                  {packageAlert.packages.map((pkg, index) => {
+                  {packageAlert.packages.map((pkg) => {
                     const parsed = parsePackageSpecifier(pkg);
                     const currentExtras = selectedExtras[pkg] || parsed.extras;
 
                     return (
-                      <tr className="font-mono text-sm" key={index}>
+                      <tr className="font-mono text-sm" key={pkg}>
                         <td className="pr-2 py-1 align-middle">
                           <BoxIcon size="1rem" />
                         </td>
@@ -296,7 +296,7 @@ export const PackageAlert: React.FC = () => {
               </>
             )}
             <ul className="list-disc ml-2 mt-1">
-              {Object.entries(packageAlert.packages).map(([pkg, st], index) => (
+              {Object.entries(packageAlert.packages).map(([pkg, st]) => (
                 <li
                   className={cn(
                     "flex items-center gap-1 font-mono text-sm",
@@ -307,7 +307,7 @@ export const PackageAlert: React.FC = () => {
                       status === "failed" &&
                       "text-muted-foreground",
                   )}
-                  key={index}
+                  key={pkg}
                 >
                   <ProgressIcon status={st} />
                   {pkg}
