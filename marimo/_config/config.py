@@ -3,12 +3,10 @@
 # ruff: noqa: PLC0414
 from __future__ import annotations
 
-import os
 import sys
 from dataclasses import dataclass
 
 from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
-from marimo._config.provenance import env_var_name
 from marimo._config.types import (
     CacheLoader as CacheLoader,
     CacheVerification as CacheVerification,
@@ -781,16 +779,6 @@ class PartialMarimoConfig(TypedDict, total=False):
 DEFAULT_CONFIG: MarimoConfig = cast(
     MarimoConfig, MarimoConfigSchema().to_dict()
 )
-
-# These defaults read the environment when DEFAULT_CONFIG is constructed.
-DEFAULT_CONFIG_ENV_VARS = {
-    path: env_var_name(path)
-    for path in (
-        ("runtime", "output_max_bytes"),
-        ("runtime", "std_stream_max_bytes"),
-    )
-    if env_var_name(path) in os.environ
-}
 
 
 def merge_default_config(

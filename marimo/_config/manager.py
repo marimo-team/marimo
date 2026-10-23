@@ -5,14 +5,13 @@ import os
 import re
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import msgspec
 
 from marimo import _loggers
 from marimo._config.config import (
     DEFAULT_CONFIG,
-    DEFAULT_CONFIG_ENV_VARS,
     CompletionConfig,
     ExperimentalConfigType,
     ExportType,
@@ -66,6 +65,9 @@ from marimo._config.utils import (
     is_trusted_user_config_path,
 )
 from marimo._utils.env import env_to_value
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -270,22 +272,6 @@ class MarimoConfigManager:
                 "inferred",
             )
         )
-        if DEFAULT_CONFIG_ENV_VARS:
-            runtime = cast(dict[str, Any], DEFAULT_CONFIG["runtime"])
-            layers.append(
-                ConfigLayer(
-                    {
-                        "runtime": cast(
-                            RuntimeConfig,
-                            {
-                                path[1]: runtime[path[1]]
-                                for path in DEFAULT_CONFIG_ENV_VARS
-                            },
-                        )
-                    },
-                    "env_var",
-                )
-            )
         layers.append(self.user_config_mgr.read_layer())
         overrides = resolve_config_with_sources(
             reader.read_layer() for reader in readers
@@ -501,12 +487,26 @@ class EnvConfigReader(ConfigReader):
         path: ConfigPath,
         config: PartialMarimoConfig,
         allowed_values: tuple[Any, ...] | None = None,
+        *,
+        parse: Callable[[str], object] | None = None,
     ) -> None:
         key = env_var_name(path)
-        loaded_value = env_to_value(key)
-        if not isinstance(loaded_value, tuple):
-            return
-        value = loaded_value[0]
+        if parse is not None:
+            raw = os.environ.get(key)
+            if raw is None:
+                return
+            try:
+                value = parse(raw)
+            except ValueError as error:
+                LOGGER.warning(
+                    "Ignoring invalid value %r for %s: %s", raw, key, error
+                )
+                return
+        else:
+            loaded_value = env_to_value(key)
+            if not isinstance(loaded_value, tuple):
+                return
+            value = loaded_value[0]
         if allowed_values is not None and value not in allowed_values:
             LOGGER.warning(
                 "Ignoring invalid value %r for %s; expected one of %s",
@@ -543,6 +543,10 @@ class EnvConfigReader(ConfigReader):
             project_config,
             allowed_values=("lazy", "autorun"),
         )
+        for name in ("output_max_bytes", "std_stream_max_bytes"):
+            self._maybe_override_from_env(
+                ("runtime", name), project_config, parse=int
+            )
         return project_config
 
 

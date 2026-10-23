@@ -10,7 +10,6 @@ import pytest
 from marimo import _loggers
 from marimo._config.config import (
     DEFAULT_CONFIG,
-    DEFAULT_CONFIG_ENV_VARS,
     PartialMarimoConfig,
     merge_default_config,
 )
@@ -108,33 +107,65 @@ def make_user(
     return user
 
 
-@pytest.mark.parametrize("user_override", [False, True])
-def test_environment_backed_defaults_preserve_their_source(
+def test_environment_output_limits_override_files(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    user_override: bool,
 ) -> None:
     user = make_user(
         tmp_path,
         monkeypatch,
-        "[runtime]\noutput_max_bytes = 777\n" if user_override else "",
+        "[runtime]\noutput_max_bytes = 777\nstd_stream_max_bytes = 888\n",
     )
-    monkeypatch.setitem(
-        DEFAULT_CONFIG_ENV_VARS,
-        ("runtime", "output_max_bytes"),
-        "MARIMO_OUTPUT_MAX_BYTES",
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.marimo.runtime]\noutput_max_bytes = 999\nstd_stream_max_bytes = 1000\n"
     )
-    monkeypatch.setitem(
-        DEFAULT_CONFIG_ENV_VARS,
-        ("runtime", "std_stream_max_bytes"),
-        "MARIMO_STD_STREAM_MAX_BYTES",
+    notebook = tmp_path / "app.py"
+    notebook.write_text(
+        "# /// script\n# [tool.marimo.runtime]\n# output_max_bytes = 1111\n"
+        "# std_stream_max_bytes = 2222\n# ///\n"
     )
-    resolved = MarimoConfigManager(user).get_config_with_sources()
-    assert resolved.origins[("runtime", "output_max_bytes")] == (
-        user.source if user_override else "env_var"
-    )
+    monkeypatch.setenv("MARIMO_OUTPUT_MAX_BYTES", "1234")
+    monkeypatch.setenv("MARIMO_STD_STREAM_MAX_BYTES", "5678")
+    resolved = MarimoConfigManager(
+        user,
+        PyprojectConfigReader(str(notebook)),
+        ScriptConfigReader(str(notebook)),
+        EnvConfigReader(),
+    ).get_config_with_sources()
+    assert resolved.config["runtime"]["output_max_bytes"] == 1234
+    assert resolved.config["runtime"]["std_stream_max_bytes"] == 5678
+    assert resolved.origins[("runtime", "output_max_bytes")] == "env_var"
     assert resolved.origins[("runtime", "std_stream_max_bytes")] == "env_var"
     assert resolved.origins[("package_management", "manager")] == "inferred"
+
+
+@pytest.mark.parametrize(
+    ("field", "variable"),
+    [
+        ("output_max_bytes", "MARIMO_OUTPUT_MAX_BYTES"),
+        ("std_stream_max_bytes", "MARIMO_STD_STREAM_MAX_BYTES"),
+    ],
+)
+def test_invalid_environment_output_limit_keeps_file_value(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    variable: str,
+) -> None:
+    user = make_user(tmp_path, monkeypatch, f"[runtime]\n{field} = 777\n")
+    monkeypatch.setenv(variable, "invalid")
+    with _loggers.capture_output() as (_, _, records):
+        resolved = MarimoConfigManager(
+            user, EnvConfigReader()
+        ).get_config_with_sources()
+    assert resolved.config["runtime"][field] == 777
+    assert resolved.origins[("runtime", field)] == user.source
+    assert len(records) == 1
+    assert (
+        records[0]
+        .getMessage()
+        .startswith(f"Ignoring invalid value 'invalid' for {variable}:")
+    )
 
 
 def test_environment_validation_error_uses_variable_name(

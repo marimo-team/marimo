@@ -6,7 +6,6 @@ The dictionary interfaces in `config.py` remain in use during migration.
 
 from __future__ import annotations
 
-import os
 from typing import Annotated, Any, Literal
 
 from msgspec import UNSET, Meta, UnsetType, field
@@ -179,11 +178,7 @@ class RuntimeConfig(Config, kw_only=True):
         Meta(
             description="the maximum size in bytes of cell outputs; larger values may affect frontend performance"
         ),
-    ] = field(
-        default_factory=lambda: int(
-            os.getenv("MARIMO_OUTPUT_MAX_BYTES", "8000000")
-        )
-    )
+    ] = 8_000_000
     serve_cached_sessions_in_apps: Annotated[
         bool | UnsetType,
         Meta(
@@ -195,11 +190,7 @@ class RuntimeConfig(Config, kw_only=True):
         Meta(
             description="the maximum size in bytes of console outputs; larger values may affect frontend performance"
         ),
-    ] = field(
-        default_factory=lambda: int(
-            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", "1000000")
-        )
-    )
+    ] = 1_000_000
     pythonpath: Annotated[
         list[str] | UnsetType,
         Meta(
