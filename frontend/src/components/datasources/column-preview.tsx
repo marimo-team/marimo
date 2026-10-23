@@ -112,7 +112,10 @@ export const DatasetColumnPreview: React.FC<{
 
   const addDataframeChart = preview.chart_code &&
     table.source_type === "local" && (
-      <AddDataframeChart chartCode={preview.chart_code} />
+      <AddDataframeChart
+        chartCode={preview.chart_code}
+        columnName={column.name}
+      />
     );
 
   const addSQLChart = table.source_type === "duckdb" && (
@@ -239,7 +242,8 @@ export function renderChart(chartSpec: string, theme: Theme) {
 
 export const AddDataframeChart: React.FC<{
   chartCode: string;
-}> = ({ chartCode }) => {
+  columnName: string;
+}> = ({ chartCode, columnName }) => {
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell } = useCellActions();
@@ -262,7 +266,7 @@ export const AddDataframeChart: React.FC<{
   return (
     <Tooltip content="Add chart to notebook" delayDuration={400}>
       <Button
-        aria-label="Add chart to notebook"
+        aria-label={`Add chart to notebook for ${columnName}`}
         variant="outline"
         size="icon"
         className="z-10 bg-background absolute right-1 -top-0.5"

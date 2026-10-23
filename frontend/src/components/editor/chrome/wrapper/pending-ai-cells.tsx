@@ -83,7 +83,7 @@ export const PendingAICells: React.FC = () => {
           aria-label="Previous pending AI cell"
           variant="ghost"
           size="icon"
-          onClick={() => clickNext("up")}
+          onClick={() => clickNext("down")}
         >
           <ChevronUp className="h-3.5 w-3.5" />
         </Button>
@@ -96,7 +96,7 @@ export const PendingAICells: React.FC = () => {
           aria-label="Next pending AI cell"
           variant="ghost"
           size="icon"
-          onClick={() => clickNext("down")}
+          onClick={() => clickNext("up")}
         >
           <ChevronDown className="h-3.5 w-3.5" />
         </Button>

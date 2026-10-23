@@ -34,11 +34,13 @@ describe("PendingAICells", () => {
     const store = createStore();
     const first = cellId("first-pending-cell");
     const second = cellId("second-pending-cell");
+    const third = cellId("third-pending-cell");
     store.set(
       stagedAICellsAtom,
       new Map([
         [first, { type: "add_cell" }],
         [second, { type: "add_cell" }],
+        [third, { type: "add_cell" }],
       ]),
     );
 
@@ -56,16 +58,32 @@ describe("PendingAICells", () => {
     });
 
     fireEvent.click(next);
+    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(first, "focus");
+    expect(screen.getByText("1 / 3")).toBeInTheDocument();
+
+    fireEvent.click(next);
     expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(second, "focus");
-    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    expect(screen.getByText("2 / 3")).toBeInTheDocument();
+
+    fireEvent.click(previous);
+    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(first, "focus");
+    expect(screen.getByText("1 / 3")).toBeInTheDocument();
+
+    fireEvent.click(next);
+    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(second, "focus");
+    expect(screen.getByText("2 / 3")).toBeInTheDocument();
+
+    fireEvent.click(next);
+    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(third, "focus");
+    expect(screen.getByText("3 / 3")).toBeInTheDocument();
 
     fireEvent.click(next);
     expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(first, "focus");
-    expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    expect(screen.getByText("1 / 3")).toBeInTheDocument();
 
     fireEvent.click(previous);
-    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(second, "focus");
-    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(third, "focus");
+    expect(screen.getByText("3 / 3")).toBeInTheDocument();
   });
 
   it("disables bulk actions while cells are still generating", () => {
