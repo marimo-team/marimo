@@ -563,7 +563,6 @@ class Kernel:
         self._callbacks: list[KernelCallback] = [
             self.secrets_callbacks,
             self.datasets_callbacks,
-            self.packages_callbacks,
             self.sql_callbacks,
             self.cache_callbacks,
             self.external_storage_callbacks,
