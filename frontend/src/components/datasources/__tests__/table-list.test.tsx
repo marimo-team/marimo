@@ -84,7 +84,10 @@ describe("TableList deferred discovery", () => {
   });
 
   it("requests the table list with the table context and waits for the kernel", async () => {
-    const client = renderDeferredTableList();
+    let pendingRequestId: RequestId | undefined;
+    const client = renderDeferredTableList((requestId) => {
+      pendingRequestId = requestId;
+    });
 
     await waitFor(() => {
       expect(client.previewSQLTableList).toHaveBeenCalledTimes(1);
@@ -98,5 +101,18 @@ describe("TableList deferred discovery", () => {
       }),
     );
     expect(screen.getByText("Loading tables...")).toBeInTheDocument();
+
+    // Settle the request so the process-wide registry does not keep the entry.
+    expect(pendingRequestId).toBeDefined();
+    PreviewSQLTableList.resolve(
+      pendingRequestId as RequestId,
+      {
+        tables: [],
+      } as unknown as SQLTableListPreview,
+    );
+    await waitFor(() => {
+      expect(screen.queryByText("Loading tables...")).toBeNull();
+    });
+    expect(PreviewSQLTableList.requests.size).toBe(0);
   });
 });
