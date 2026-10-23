@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -26,7 +26,6 @@ def _(mo):
     To provide reactive execution, marimo creates a dataflow graph out of your
     cells.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -42,7 +41,6 @@ def _(mo):
     runtime puts you in control over when cells are run, while still giving
     guarantees about the notebook state.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -63,7 +61,6 @@ def _(mo):
     The rule for reactive execution can be restated in terms of the graph: when
     a cell is run, its descendants are run automatically.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -74,7 +71,6 @@ def _(mo):
     The next four cells plot a sine wave with a given period and amplitude.
     Each cell is labeled with its refs and defs.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -91,7 +87,6 @@ def _(mo):
             """
         }
     )
-    return
 
 
 @app.cell
@@ -102,7 +97,6 @@ def _(amplitude, mo, period, plot_wave):
     - `refs: {mo.refs()}`
     - `defs: {mo.defs()}`
     """)
-    return
 
 
 @app.cell
@@ -162,7 +156,6 @@ def _(mo):
     `amplitude`, then click the run button ( ▷ ) to register your changes.
     See what happens to the sine wave.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -190,7 +183,6 @@ def _(mo):
 
     The last cell, which doesn't define anything, produces the plot.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -202,7 +194,6 @@ def _(mo):
     surprising if you are not used to dataflow programming. We list these
     below.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -215,7 +206,6 @@ def _(mo):
     traditional notebooks. It also lets you place boilerplate, like
     imports or long markdown strings, at the bottom of the editor.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -230,21 +220,18 @@ def _(mo):
     If you violate this constraint, marimo provides a helpful
     error message, like below:
     """)
-    return
 
 
 @app.cell
 def _():
     planet = "Mars"
     planet
-    return
 
 
 @app.cell
 def _():
     planet = "Earth"
     planet
-    return
 
 
 @app.cell(hide_code=True)
@@ -253,7 +240,6 @@ def _(mo):
     **🌊 Try it!** In the previous cell, change the name `planet` to `home`,
     then run the cell.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -266,19 +252,16 @@ def _(mo):
     **🌊 Try it!** Get rid of the following errors by merging the next two
     cells into a single cell.
     """)
-    return
 
 
 @app.cell
 def _():
     count = 0
-    return
 
 
 @app.cell
 def _():
     count += 1
-    return
 
 
 @app.cell(hide_code=True)
@@ -293,28 +276,24 @@ def _(mo):
 
     **Example**.
     """)
-    return
 
 
 @app.cell
 def _():
     _private_variable, _ = 1, 2
     _private_variable, _
-    return
 
 
 @app.cell
 def _():
     _private_variable, _ = 3, 4
     _private_variable, _
-    return
 
 
 @app.cell
 def _():
     # `_private_variable` and `_` are not defined in this cell
     _private_variable, _
-    return
 
 
 @app.cell(hide_code=True)
@@ -327,7 +306,6 @@ def _(mo):
     can arise when state has been deleted from the editor but not from the
     program memory.
     """)
-    return
 
 
 @app.cell
@@ -347,7 +325,6 @@ def _(mo):
 @app.cell
 def _(to_be_deleted):
     to_be_deleted
-    return
 
 
 @app.cell(hide_code=True)
@@ -357,7 +334,6 @@ def _(mo):
 
     Cycles among cells are not allowed. For example:
     """)
-    return
 
 
 @app.cell
@@ -383,19 +359,16 @@ def _(mo):
     **🌊 Example**. Change the value of `state.number` in the next cell, then
     run the cell. Notice how the subsequent cell isn't updated.
     """)
-    return
 
 
 @app.cell
 def _(state):
     state.number = 1
-    return
 
 
 @app.cell
 def _(state):
     state.number
-    return
 
 
 @app.cell
@@ -419,7 +392,6 @@ def _(mo):
             """
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -431,7 +403,6 @@ def _(mo):
     mutate an object without running it. So: mutations (such as
     appending to a list) will not trigger reactive execution.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -447,7 +418,6 @@ def _(mo):
             )
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -465,13 +435,11 @@ def _(mo):
 
     Follow these tips to stay on the marimo way:
     """)
-    return
 
 
 @app.cell
 def _(mo, tips):
     mo.accordion(tips)
-    return
 
 
 @app.cell(hide_code=True)
@@ -485,7 +453,6 @@ def _(mo):
     marimo tutorial ui
     ```
     """)
-    return
 
 
 @app.cell

@@ -7,7 +7,6 @@ app = marimo.App()
 @app.cell
 def _():
     """Script with main block in pypercent."""
-    return
 
 
 @app.cell
@@ -24,7 +23,6 @@ def _(sys):
         sys.exit(0)
 
     _main_()
-    return
 
 
 if __name__ == "__main__":

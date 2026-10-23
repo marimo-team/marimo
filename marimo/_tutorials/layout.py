@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.15"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -20,7 +20,6 @@ def _(mo):
     `marimo` provides functions to help you lay out your output, such as
     in rows and columns, accordions, tabs, and callouts.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -30,7 +29,6 @@ def _(mo):
 
     Arrange objects into rows and columns with `mo.hstack` and `mo.vstack`.
     """)
-    return
 
 
 @app.cell
@@ -39,13 +37,11 @@ def _(mo):
         [mo.ui.text(label="hello"), mo.ui.slider(1, 10, label="slider")],
         justify="start",
     )
-    return
 
 
 @app.cell
 def _(mo):
     mo.vstack([mo.ui.text(label="world"), mo.ui.number(1, 10, label="number")])
-    return
 
 
 @app.cell
@@ -71,7 +67,6 @@ def _(mo):
         plots!).
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -81,7 +76,6 @@ def _(mo):
     The presentation of stacked elements can be customized with some arguments
     that are best understood by example.
     """)
-    return
 
 
 @app.cell
@@ -117,7 +111,6 @@ def _(align, boxes, gap, justify, mo, wrap):
         gap=gap.value,
         wrap=wrap.value,
     )
-    return
 
 
 @app.cell
@@ -127,7 +120,6 @@ def _(align, boxes, gap, mo):
         align=align.value,
         gap=gap.value,
     )
-    return
 
 
 @app.cell
@@ -151,7 +143,6 @@ def _(mo):
             "Documentation: `mo.vstack`": mo.doc(mo.vstack),
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -162,7 +153,6 @@ def _(mo):
     functions, and subclassed by most marimo classes) have a shortcut using
     via their `center`, `right`, and `left` methods.
     """)
-    return
 
 
 @app.cell
@@ -170,19 +160,16 @@ def _(mo):
     mo.md("""
     This markdown is left-justified.
     """)
-    return
 
 
 @app.cell
 def _(mo):
     mo.md("This markdown is centered.").center()
-    return
 
 
 @app.cell
 def _(mo):
     mo.md("This markdown is right-justified.").right()
-    return
 
 
 @app.cell(hide_code=True)
@@ -194,7 +181,6 @@ def _(mo):
             "Documentation: `Html.left`": mo.doc(mo.Html.left),
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -204,7 +190,6 @@ def _(mo):
 
     Create expandable shelves of content using `mo.accordion`:
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -212,7 +197,6 @@ def _(mo):
     mo.md("""
     An accordion can contain multiple items:
     """)
-    return
 
 
 @app.cell
@@ -228,7 +212,6 @@ def _(mo):
             ),
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -238,7 +221,6 @@ def _(mo):
 
     Use `mo.ui.tabs` to display multiple objects in a single tabbed output:
     """)
-    return
 
 
 @app.cell
@@ -265,13 +247,11 @@ def _(mo):
             "🏢 Organization": _organization,
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.accordion({"Documentation: `mo.ui.tabs`": mo.doc(mo.ui.tabs)})
-    return
 
 
 @app.cell
@@ -292,13 +272,11 @@ def _(mo):
         {mo.tree(_t)}
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.accordion({"Documentation: `mo.tree`": mo.doc(mo.tree)})
-    return
 
 
 @app.cell(hide_code=True)
@@ -309,7 +287,6 @@ def _(mo):
     Turn any markdown or HTML into an emphasized callout with the `callout`
     method:
     """)
-    return
 
 
 @app.cell
@@ -329,13 +306,11 @@ def _(callout_kind, mo):
         {callout_kind}
         """
     ).callout(kind=callout_kind.value, title="This is a callout!")
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.accordion({"Documentation: `mo.callout`": mo.doc(mo.callout)})
-    return
 
 
 @app.cell

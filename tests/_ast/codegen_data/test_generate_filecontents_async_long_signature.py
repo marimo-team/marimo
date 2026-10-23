@@ -40,7 +40,6 @@ async def two(
     async for data_point in client("test", "ws://localhost:8000"):
         print(data_point)
     data_point
-    return
 
 
 if __name__ == "__main__":

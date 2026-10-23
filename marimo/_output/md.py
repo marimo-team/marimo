@@ -444,4 +444,3 @@ def latex(
     # Append the LaTeX to the output, in case this
     # is not the last expression of the cell
     output.append(_md(f"$$\n{latex_text.strip()}\n$$"))
-    return

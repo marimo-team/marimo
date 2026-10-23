@@ -178,8 +178,6 @@ def test_live_collection_ignores_stale_disk(tmp_path) -> None:
         def test_renamed_target():
             assert True
 
-        return
-
     _, lcls = app.run()
     lcls = dict(lcls)
     defs = {"test_values", "test_added", "test_renamed_target"}
@@ -508,8 +506,6 @@ def test_rerun_keeps_lazily_imported_modules(tmp_path, monkeypatch) -> None:
             fake_torch.seed()
             assert local_helper.VALUE == 1
 
-        return
-
     notebook = tmp_path / "notebook.py"
     notebook.write_text("import marimo\napp = marimo.App()\n")
 
@@ -588,8 +584,6 @@ def test_collection_skips_entries_beside_the_notebook_path(
         def test_anchor():
             assert True
 
-        return
-
     previous = os.environ.get("PYTEST_CURRENT_TEST", "")
     os.environ.pop("PYTEST_CURRENT_TEST", None)
     try:
@@ -642,8 +636,6 @@ def test_working_dir_conftest_applies_to_notebook_below_it(
         def test_shared(shared_value):
             assert shared_value == 7
 
-        return
-
     previous = os.environ.get("PYTEST_CURRENT_TEST", "")
     os.environ.pop("PYTEST_CURRENT_TEST", None)
     try:
@@ -689,8 +681,6 @@ def test_parent_conftest_applies_from_sibling_working_dir(
     def _():
         def test_shared(shared_value):
             assert shared_value == 7
-
-        return
 
     previous = os.environ.get("PYTEST_CURRENT_TEST", "")
     os.environ.pop("PYTEST_CURRENT_TEST", None)
@@ -747,8 +737,6 @@ def test_project_config_applies_to_notebook_outside_working_dir(
             import project_helper  # type: ignore[import-not-found]
 
             assert (shared_value, project_helper.VALUE) == (7, 42)
-
-        return
 
     previous = os.environ.get("PYTEST_CURRENT_TEST", "")
     os.environ.pop("PYTEST_CURRENT_TEST", None)
