@@ -381,24 +381,31 @@ export class StatefulOutputMessage implements OutputMessage {
   public static create(message: StringOutputMessage): StatefulOutputMessage {
     const ansiReducer = new AnsiReducer();
     ansiReducer.append(message.data);
-    return new StatefulOutputMessage(
-      message.mimetype,
-      message.channel,
-      message.timestamp,
+    return new StatefulOutputMessage({
+      mimetype: message.mimetype,
+      channel: message.channel,
+      timestamp: message.timestamp,
       ansiReducer,
-      message.code,
-      message.id,
-    );
+      code: message.code,
+      id: message.id,
+    });
   }
 
-  private constructor(
-    mimetype: OutputMessage["mimetype"],
-    channel: OutputMessage["channel"],
-    timestamp: OutputMessage["timestamp"],
-    ansiReducer: AnsiReducer,
-    code: OutputMessage["code"],
-    id: StringOutputMessage["id"],
-  ) {
+  private constructor({
+    mimetype,
+    channel,
+    timestamp,
+    ansiReducer,
+    code,
+    id,
+  }: {
+    mimetype: OutputMessage["mimetype"];
+    channel: OutputMessage["channel"];
+    timestamp: OutputMessage["timestamp"];
+    ansiReducer: AnsiReducer;
+    code: OutputMessage["code"];
+    id: StringOutputMessage["id"];
+  }) {
     this.mimetype = mimetype;
     this.channel = channel;
     this.timestamp = timestamp;
@@ -410,14 +417,14 @@ export class StatefulOutputMessage implements OutputMessage {
 
   public appendData(chunk: string): StatefulOutputMessage {
     this.ansiReducer.append(chunk);
-    return new StatefulOutputMessage(
-      this.mimetype,
-      this.channel,
-      this.timestamp,
-      this.ansiReducer,
-      this.code,
-      this.id,
-    );
+    return new StatefulOutputMessage({
+      mimetype: this.mimetype,
+      channel: this.channel,
+      timestamp: this.timestamp,
+      ansiReducer: this.ansiReducer,
+      code: this.code,
+      id: this.id,
+    });
   }
 
   public toJSON(): StringOutputMessage {

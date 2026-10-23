@@ -279,13 +279,19 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
     return this.parser.isSupported(code);
   }
 
-  public getExtension(
-    cellId: CellId,
-    completionConfig: CompletionConfig,
-    hotkeys: HotkeyProvider,
-    placeholderType: PlaceholderType,
-    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
-  ): Extension[] {
+  public getExtension({
+    cellId,
+    completionConfig,
+    hotkeys,
+    placeholderType,
+    lspConfig,
+  }: {
+    cellId: CellId;
+    completionConfig: CompletionConfig;
+    hotkeys: HotkeyProvider;
+    placeholderType: PlaceholderType;
+    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig };
+  }): Extension[] {
     const getCompletionsExtension = () => {
       const autocompleteOptions = {
         // We remove the default keymap because we use our own which
