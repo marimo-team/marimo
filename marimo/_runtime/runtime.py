@@ -2170,10 +2170,12 @@ class Kernel:
             }
             variable_values: list[VariableValue] = []
             for name in bound_names:
-                # TODO update variable values even for namespaces? lenses? etc
-                variable_values.append(
-                    create_variable_value(name=name, value=value)
-                )
+                if name in self.globals:
+                    variable_values.append(
+                        create_variable_value(
+                            name=name, value=self.globals[name]
+                        )
+                    )
                 try:
                     # subtracting self.graph.definitions[name]: never rerun the
                     # cell that created the name

@@ -29,6 +29,7 @@ from marimo._messaging.errors import (
 from marimo._messaging.notification import (
     CellNotification,
     VariablesNotification,
+    VariableValuesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._plugins.ui._core.ids import IDProvider
@@ -301,6 +302,36 @@ class TestExecution:
             assert k.graph.cells[er.cell_id].stale
             await k.run([er])
         assert k.globals["x"] == 6
+
+    async def test_set_ui_element_value_previews_bound_names(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get(code="import marimo as mo"),
+                exec_req.get(
+                    code="array = mo.ui.array([mo.ui.slider(0, 10, value=1)])"
+                ),
+            ]
+        )
+        mocked_kernel.stream.messages.clear()
+
+        await k.set_ui_element_value(
+            UpdateUIElementCommand.from_ids_and_values(
+                [(k.globals["array"][0]._id, 5)]
+            ),
+            notify_frontend=False,
+        )
+
+        [notification] = [
+            m
+            for m in mocked_kernel.stream.parsed_operations
+            if isinstance(m, VariableValuesNotification)
+        ]
+        assert [(v.name, v.value) for v in notification.variables] == [
+            ("array", "[5]")
+        ]
 
     async def test_set_ui_element_value_lensed_with_state(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
