@@ -1120,12 +1120,14 @@ def test_custom_provider_deepseek_flash_thinks_by_default(model: str) -> None:
 
     model_ = provider.create_model()
 
+    # Compare against the canonical v4 profile rather than specific profile
+    # keys, whose names differ across supported pydantic-ai versions.
+    canonical = CustomProvider(
+        AiModelId.from_model("deepseek/deepseek-v4-flash"), config
+    ).create_model()
+
     assert model_.model_name == "deepseek-flash"
-    assert model_.profile.get("thinking_enabled_by_default") is True
-    assert (
-        model_.profile.get("supports_forced_tool_choice_with_thinking")
-        is False
-    )
+    assert model_.profile == canonical.profile
 
 
 @pytest.mark.requires("openai", "pydantic_ai")
