@@ -769,9 +769,7 @@ class NarwhalsTableManager(
                     bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
                 except (OSError, OverflowError, ValueError):
                     # Fall back to timedelta calculation for old dates
-                    epoch = datetime.datetime(
-                        1970, 1, 1, tzinfo=datetime.timezone.utc
-                    )
+                    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC)
                     bin_end_dt = epoch + datetime.timedelta(
                         seconds=bin_end / ms_time
                     )
@@ -785,9 +783,7 @@ class NarwhalsTableManager(
                     )
                 except (OSError, OverflowError, ValueError):
                     # Fall back to timedelta calculation for old dates
-                    epoch = datetime.datetime(
-                        1970, 1, 1, tzinfo=datetime.timezone.utc
-                    )
+                    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC)
                     bin_end = epoch + datetime.timedelta(
                         seconds=bin_end / ms_time
                     )

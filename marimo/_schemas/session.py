@@ -10,13 +10,7 @@ It may be externally used and must be kept backwards compatible.
 
 from __future__ import annotations
 
-import sys
-from typing import Any, Literal
-
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-else:
-    from typing_extensions import NotRequired
+from typing import Any, Literal, NotRequired
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._schemas.common import BaseDict

@@ -955,7 +955,7 @@ def test_sandbox_progress_before_preparation_failure(
     async def prepare(*_args: object, **_kwargs: object) -> None:
         try:
             await asyncio.wait_for(release.wait(), timeout=5)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
         raise EnvironmentManagerError("Could not resolve dependencies")
 

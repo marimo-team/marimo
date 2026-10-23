@@ -741,7 +741,7 @@ def _stream(
                         event = await asyncio.wait_for(
                             subscription.next(), PING_SECONDS
                         )
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         yield PING
                         continue
                     yield _frame(event)

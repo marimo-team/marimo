@@ -3,8 +3,15 @@
 # ruff: noqa: PLC0414
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    NotRequired,
+    TypedDict,
+    cast,
+)
 
 from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
 from marimo._config.types import (
@@ -20,20 +27,6 @@ from marimo._config.types import (
     WidthType as WidthType,
 )
 from marimo._config.utils import deep_copy
-
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-else:
-    from typing_extensions import NotRequired
-
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Literal,
-    TypedDict,
-    cast,
-)
-
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
 

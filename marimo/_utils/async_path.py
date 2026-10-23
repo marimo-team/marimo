@@ -14,8 +14,7 @@ StrPath = str | os.PathLike[str]
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
-
-    from typing_extensions import Self
+    from typing import Self
 
 
 class AsyncPath(PurePath):

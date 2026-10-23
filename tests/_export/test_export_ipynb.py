@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pathlib
-import sys
 from pathlib import Path
 
 import pytest
@@ -87,9 +86,6 @@ HEAVY_DEPENDENCY_APPS = {"with_outputs"}
     ids=lambda path: path.stem,
 )
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@pytest.mark.skipif(
-    sys.version_info < (3, 11), reason="3.10 has different stack trace format"
-)
 async def test_export_ipynb(app_path: Path) -> None:
     """Test ipynb export with actual execution outputs."""
     internal_app = _load_fixture_app(app_path)

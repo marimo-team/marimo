@@ -7,6 +7,7 @@ import json
 import os
 import queue
 import threading
+from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
@@ -820,7 +821,7 @@ def test_resolve_session_many_matches(
 def _host_record(
     path: Path, *, url: str, started: float | None = None
 ) -> None:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     import msgspec
     import psutil
@@ -837,7 +838,7 @@ def _host_record(
                         psutil.Process().create_time()
                         if started is None
                         else started,
-                        tz=timezone.utc,
+                        tz=UTC,
                     ),
                 ),
                 name="marimo",

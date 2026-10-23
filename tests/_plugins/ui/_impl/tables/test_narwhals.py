@@ -1248,11 +1248,11 @@ def test_get_bin_values_decimal(df: Any) -> None:
                 datetime.timedelta(days=5, hours=5, minutes=5, seconds=5),
             ],
             "datetime_with_tz": [
-                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 2, 1, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 3, 1, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 4, 1, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 5, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 2, 1, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 3, 1, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 4, 1, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 5, 1, tzinfo=datetime.UTC),
             ],
             "dates_multiple": [
                 datetime.date(2021, 1, 1),
@@ -1347,28 +1347,28 @@ class TestGetBinValuesTemporal:
         assert bin_values == [
             BinValue(
                 bin_start=datetime.datetime(
-                    2021, 1, 1, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 1, 0, 0, tzinfo=datetime.UTC
                 ),
                 bin_end=datetime.datetime(
-                    2021, 2, 10, 8, 0, tzinfo=datetime.timezone.utc
+                    2021, 2, 10, 8, 0, tzinfo=datetime.UTC
                 ),
                 count=2,
             ),
             BinValue(
                 bin_start=datetime.datetime(
-                    2021, 2, 10, 8, 0, tzinfo=datetime.timezone.utc
+                    2021, 2, 10, 8, 0, tzinfo=datetime.UTC
                 ),
                 bin_end=datetime.datetime(
-                    2021, 3, 22, 8, 0, tzinfo=datetime.timezone.utc
+                    2021, 3, 22, 8, 0, tzinfo=datetime.UTC
                 ),
                 count=1,
             ),
             BinValue(
                 bin_start=datetime.datetime(
-                    2021, 3, 22, 8, 0, tzinfo=datetime.timezone.utc
+                    2021, 3, 22, 8, 0, tzinfo=datetime.UTC
                 ),
                 bin_end=datetime.datetime(
-                    2021, 5, 1, 8, 0, tzinfo=datetime.timezone.utc
+                    2021, 5, 1, 8, 0, tzinfo=datetime.UTC
                 ),
                 count=2,
             ),
@@ -1513,10 +1513,10 @@ def test_sort_values_with_nulls(df: Any) -> None:
             "A": [1, 2, 3, 4],  # Integer
             "B": ["a", "b", "c", "d"],  # String
             "C": [
-                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 1, 2, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 1, 3, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 1, 4, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 1, 2, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 1, 3, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 1, 4, tzinfo=datetime.UTC),
             ],  # Datetime with timezone
             "D": [1.1, 2.2, 3.3, 4.4],  # Float
             "E": [True, False, True, False],  # Boolean

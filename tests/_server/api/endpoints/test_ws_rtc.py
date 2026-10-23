@@ -57,9 +57,7 @@ ws_1_sync = "/ws_sync?session_id=123&access_token=fake-token"
 ws_2_sync = "/ws_sync?session_id=456&access_token=fake-token"
 
 
-@pytest.mark.skipif(
-    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
-)
+@pytest.mark.skipif("sys.version_info >= (3, 14)")
 async def test_loro_sync(client: TestClient) -> None:
     """Test that Loro-CRDT sync works between multiple clients"""
 
@@ -93,9 +91,7 @@ async def test_loro_sync(client: TestClient) -> None:
                 assert len(sync_msg2) > 0
 
 
-@pytest.mark.skipif(
-    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
-)
+@pytest.mark.skipif("sys.version_info >= (3, 14)")
 async def test_loro_cleanup_on_session_close(
     client: TestClient,
 ) -> None:
@@ -138,9 +134,7 @@ async def test_loro_cleanup_on_session_close(
     assert len(DOC_MANAGER.loro_docs_clients[file_key]) == 0
 
 
-@pytest.mark.skipif(
-    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
-)
+@pytest.mark.skipif("sys.version_info >= (3, 14)")
 async def test_loro_persistence(client: TestClient) -> None:
     """Test that cell content persists between connections"""
     from loro import ExportMode, LoroDoc
@@ -190,9 +184,7 @@ async def test_loro_persistence(client: TestClient) -> None:
 # ==============================================================================
 
 
-@pytest.mark.skipif(
-    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
-)
+@pytest.mark.skipif("sys.version_info >= (3, 14)")
 async def test_rtc_degrades_without_loro(client: TestClient) -> None:
     """Test that RTC gracefully degrades when Loro is unavailable.
 
@@ -233,9 +225,7 @@ async def test_rtc_degrades_without_loro(client: TestClient) -> None:
 # ==============================================================================
 
 
-@pytest.mark.skipif(
-    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
-)
+@pytest.mark.skipif("sys.version_info >= (3, 14)")
 async def test_ws_sync_without_existing_session(client: TestClient) -> None:
     """Test that ws_sync endpoint requires an existing session."""
     file_key = get_session_manager(client).workspace.get_unique_file_key()
@@ -254,9 +244,7 @@ async def test_ws_sync_without_existing_session(client: TestClient) -> None:
     assert exc_info.value.reason == "MARIMO_NOT_ALLOWED"
 
 
-@pytest.mark.skipif(
-    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
-)
+@pytest.mark.skipif("sys.version_info >= (3, 14)")
 async def test_ws_sync_cleanup_on_main_disconnect(client: TestClient) -> None:
     """Test that ws_sync clients are cleaned up when main session disconnects."""
     file_key = get_session_manager(client).workspace.get_unique_file_key()

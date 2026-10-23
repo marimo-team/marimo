@@ -586,13 +586,13 @@ class IPCKernelManagerImpl(KernelManager):
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 if not done:
-                    raise asyncio.TimeoutError
+                    raise TimeoutError
                 if handshake not in done:
                     # Let the reader finish lines printed immediately before
                     # exit, but don't wait on pipes inherited by descendants.
                     try:
                         await asyncio.wait_for(asyncio.shield(handshake), 0.5)
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         raise KernelStartupError(
                             f"Kernel exited during startup (exit code {exited.result()})."
                         ) from None
@@ -628,7 +628,7 @@ class IPCKernelManagerImpl(KernelManager):
 
             # Create a ProcessLike wrapper for the subprocess
             self.kernel_task = _SubprocessWrapper(self._process)
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             raise KernelStartupError(
                 f"Kernel did not become ready within {_startup_timeout():.0f}s "
                 f"(override with MARIMO_KERNEL_STARTUP_TIMEOUT).\n\n"

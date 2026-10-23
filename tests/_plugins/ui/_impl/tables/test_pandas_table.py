@@ -1980,15 +1980,9 @@ class TestPandasTableManager(unittest.TestCase):
                     datetime.time(7, 8, 9),
                 ],
                 "datetime_tz_col": [
-                    datetime.datetime(
-                        2021, 1, 1, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 2, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 3, tzinfo=datetime.timezone.utc
-                    ),
+                    datetime.datetime(2021, 1, 1, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 2, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 3, tzinfo=datetime.UTC),
                 ],
             }
         )

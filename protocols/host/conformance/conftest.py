@@ -66,9 +66,7 @@ def record(pytestconfig: pytest.Config) -> dict[str, Any]:
     assert not url.query
     assert not url.fragment
     process = psutil.Process(value["process"]["pid"])
-    started = datetime.fromisoformat(
-        value["process"]["started_at"].replace("Z", "+00:00")
-    )
+    started = datetime.fromisoformat(value["process"]["started_at"])
     assert abs(process.create_time() - started.timestamp()) < 1, (
         "stale process identity"
     )

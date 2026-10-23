@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, NoReturn
+from typing import Any, Never, NoReturn
 
 from marimo import _loggers
 
@@ -12,9 +12,9 @@ def _form_error_message(value: Any) -> str:
     return f"Unhandled value: {value} ({type(value).__name__})"
 
 
-def assert_never(value: NoReturn) -> NoReturn:
+def assert_never(value: Never) -> NoReturn:
     raise AssertionError(_form_error_message(value))
 
 
-def log_never(value: NoReturn) -> None:
+def log_never(value: Never) -> None:
     LOGGER.warning(_form_error_message(value))
