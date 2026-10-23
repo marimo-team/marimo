@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo import _loggers
 from marimo._config.config import merge_default_config
 from marimo._config.manager import UserConfigStore, get_default_config_manager
 from marimo._runtime.commands import (
@@ -138,20 +139,33 @@ def test_load_dotenv_success(mocked_kernel: MockedKernel):
         assert os.environ.get("ANOTHER_VAR") == "another_value"
 
 
-def test_load_dotenv_nonexistent_file(mocked_kernel: MockedKernel):
-    # Create a config with a nonexistent .env file
+def test_load_dotenv_nonexistent_file(
+    mocked_kernel: MockedKernel,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    missing = tmp_path / "missing.env"
+    other_missing = tmp_path / "also-missing.env"
+    valid = tmp_path / "valid.env"
+    valid.write_text("DOTENV_AFTER_MISSING=loaded\n")
+    monkeypatch.setenv("DOTENV_AFTER_MISSING", "before")
+    monkeypatch.delenv("DOTENV_AFTER_MISSING")
     custom_config = merge_default_config(
         {
             "runtime": {
-                "dotenv": ["nonexistent.env"],
+                "dotenv": [str(missing), str(valid), str(other_missing)],
             },
         }
     )
     mocked_kernel.k.user_config = custom_config
 
-    # Create a kernel with our custom config
-    # This should not raise an exception
-    mocked_kernel.k.load_dotenv()
+    with _loggers.capture_output() as (_, _, records):
+        mocked_kernel.k.load_dotenv()
+    assert [(record.levelname, record.getMessage()) for record in records] == [
+        ("WARNING", f"Dotenv file not found: {missing}"),
+        ("WARNING", f"Dotenv file not found: {other_missing}"),
+    ]
+    assert os.environ["DOTENV_AFTER_MISSING"] == "loaded"
 
 
 @pytest.mark.skipif(

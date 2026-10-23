@@ -210,19 +210,11 @@ class RuntimeConfig(Config, kw_only=True):
         list[str] | UnsetType,
         Meta(
             description=(
-                "Paths to `.env` files to load, in order. An explicit list replaces "
-                "the automatically discovered `.env` path; an empty list disables "
-                "dotenv loading. Remove the setting to restore automatic discovery, "
-                "including empty lists saved by older marimo versions. By default, "
-                "`.env` is discovered beside the nearest "
-                "`pyproject.toml`, or beside the notebook when there is no project. "
-                "The home directory is skipped unless it contains the project's "
-                "`pyproject.toml`. Relative paths in project settings and script "
-                "metadata resolve from that project or notebook directory. Use "
-                "absolute paths in user settings to avoid depending on the "
-                "notebook's working directory. Existing environment variables take "
-                "precedence; otherwise, the first file defining a variable wins. "
-                "Missing files are ignored."
+                "Paths to `.env` files, replacing the default project or notebook "
+                "`.env`. An empty list disables loading default .env file. Relative "
+                "paths in project settings and script metadata use the project "
+                "directory, or the notebook's directory when there is no project. "
+                "Use absolute paths in user settings."
             ),
             extra={"sensitive": True},
         ),

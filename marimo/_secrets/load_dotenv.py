@@ -4,8 +4,10 @@ from __future__ import annotations
 import os
 import re
 from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
@@ -15,6 +17,8 @@ if TYPE_CHECKING:
 _POSIX_VARIABLE = re.compile(
     r"\$\{(?P<name>[^}:]*)(?::-(?P<default>[^}]*))?\}"
 )
+
+LOGGER = _loggers.marimo_logger()
 
 
 class DotEnvReader:
@@ -27,6 +31,13 @@ class DotEnvReader:
         self, *, environment: Mapping[str, str | None] | None = None
     ) -> dict[str, str | None]:
         """Parse and interpolate values without modifying the environment."""
+        if not Path(self.file).exists():
+            LOGGER.warning(
+                "Dotenv file not found: %s",
+                self.file,
+                extra={"omit_log_prefix": True},
+            )
+            return {}
         return _interpolate_dotenv_values(
             _read_dotenv_bindings(self.file),
             os.environ if environment is None else environment,

@@ -15,7 +15,6 @@ import time
 import traceback
 from copy import copy
 from multiprocessing import connection
-from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -2496,13 +2495,10 @@ class Kernel:
             return
 
         for env in dotenvs:
-            if Path(env).exists():
-                try:
-                    DotEnvReader(env).load()
-                except Exception as e:
-                    LOGGER.error(
-                        "Failed to load dotenv file %s", env, exc_info=e
-                    )
+            try:
+                DotEnvReader(env).load()
+            except Exception as e:
+                LOGGER.error("Failed to load dotenv file %s", env, exc_info=e)
 
     async def handle_message(self, request: CommandMessage) -> None:
         """Handle a message from the client.
