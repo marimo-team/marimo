@@ -1107,6 +1107,83 @@ def test_custom_provider_inherits_profile_from_base_url() -> None:
 
 
 @pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize(
+    "model", ["deepseek/deepseek-flash", "deepseek_official/deepseek-flash"]
+)
+def test_custom_provider_deepseek_flash_thinks_by_default(model: str) -> None:
+    """DeepSeek's `deepseek-flash` gets the v4 profile, so a thinking request
+    is never sent a forced `tool_choice`. Regression test for #11419."""
+    config = AnyProviderConfig(
+        api_key="test-key", base_url="https://api.deepseek.com"
+    )
+    provider = CustomProvider(AiModelId.from_model(model), config)
+
+    model_ = provider.create_model()
+
+    assert model_.model_name == "deepseek-flash"
+    assert model_.profile.get("thinking_enabled_by_default") is True
+    assert (
+        model_.profile.get("supports_forced_tool_choice_with_thinking")
+        is False
+    )
+
+
+@pytest.mark.requires("openai", "pydantic_ai")
+@pytest.mark.parametrize(
+    ("model", "expected_tool_choice"),
+    [
+        pytest.param("deepseek-flash", "auto", id="deepseek_flash"),
+        pytest.param("deepseek-v4-flash", "auto", id="deepseek_v4_flash"),
+        pytest.param("deepseek-chat", "required", id="deepseek_chat"),
+    ],
+)
+async def test_deepseek_structured_completion_tool_choice(
+    model: str, expected_tool_choice: str
+) -> None:
+    """Structured completions only force the output tool on DeepSeek models
+    that don't think by default. Regression test for #11419."""
+    import json
+
+    import httpx
+    from openai import AsyncOpenAI
+
+    requests: list[dict[str, Any]] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(json.loads(request.content))
+        return httpx.Response(400, json={"error": {"message": "stop"}})
+
+    config = AnyProviderConfig(
+        api_key="test-key", base_url="https://api.deepseek.com"
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(respond)
+    ) as http_client:
+        client = AsyncOpenAI(
+            api_key="test-key",
+            base_url="https://api.deepseek.com",
+            http_client=http_client,
+            max_retries=0,
+        )
+        with patch.object(
+            CustomProvider, "get_openai_client", return_value=client
+        ):
+            provider = CustomProvider(
+                AiModelId.from_model(f"deepseek/{model}"), config
+            )
+            agent = provider._create_structured_completion_agent(
+                name="test",
+                max_tokens=100,
+                system_prompt="Generate code.",
+                output_type=CellCompletion,
+            )
+            with pytest.raises(Exception, match="stop"):
+                await agent.run("Hello")
+
+    assert requests[0]["tool_choice"] == expected_tool_choice
+
+
+@pytest.mark.requires("pydantic_ai")
 def test_custom_provider_unknown_base_url_stays_generic() -> None:
     """An unknown name with an unrecognized base URL falls back to the generic
     OpenAI provider (no thinking field), preserving prior behavior."""
