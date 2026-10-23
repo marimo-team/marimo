@@ -43,6 +43,7 @@ def show(notebook: str | None = None, show_sources: bool = False) -> None:
     config_manager = get_default_config_manager(
         current_path=notebook or os.getcwd()
     )
+    config_manager.user_config_mgr.save_config_if_missing()
     if show_sources:
         output = format_config_with_sources(
             config_manager.get_config_with_sources()
