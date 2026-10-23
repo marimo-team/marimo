@@ -33,6 +33,7 @@ from marimo._config.provenance import (
     ConfigLayer,
     ConfigPath,
     ConfigSource,
+    EnvVarName,
     ResolvedConfig,
 )
 from marimo._config.reader import (
@@ -102,7 +103,7 @@ def _validate_config(resolved: ResolvedConfig) -> None:
             "Invalid configuration from %s: %s",
             ", ".join(map(str, sources)),
             error,
-            extra={"user_facing": True},
+            extra={"omit_log_prefix": True},
         )
 
 
@@ -245,21 +246,19 @@ class MarimoConfigManager:
         layers = [
             ConfigLayer(
                 _contextual_defaults(reader),
-                ConfigSource("inferred", reader.source.location),
+                "inferred",
             )
             for reader in readers
         ]
         default_origins: dict[ConfigPath, ConfigSource] = {
-            path: ConfigSource("environment", variable)
+            path: EnvVarName(variable)
             for path, variable in DEFAULT_CONFIG_ENV_VARS.items()
         }
-        default_origins[("package_management", "manager")] = ConfigSource(
-            "inferred"
-        )
+        default_origins[("package_management", "manager")] = "inferred"
         layers.append(
             ConfigLayer(
                 cast(PartialMarimoConfig, DEFAULT_CONFIG),
-                ConfigSource("default"),
+                "default",
                 default_origins,
             )
         )
@@ -272,7 +271,7 @@ class MarimoConfigManager:
         layers.append(
             ConfigLayer(
                 cast(PartialMarimoConfig, overrides.config),
-                ConfigSource("override"),
+                "override",
                 overrides.origins,
             )
         )
@@ -322,19 +321,15 @@ class PyprojectConfigReader(ConfigReader):
 
     @property
     def source(self) -> ConfigSource:
-        return ConfigSource(
-            "project",
-            str(self.pyproject_path)
+        return (
+            self.pyproject_path
             if self.pyproject_path is not None
-            else None,
+            else "default"
         )
 
     @property
     def field_sources(self) -> dict[ConfigPath, ConfigSource]:
-        return {
-            path: ConfigSource("inferred", self.source.location)
-            for path in self._inferred_fields
-        }
+        return dict.fromkeys(self._inferred_fields, "inferred")
 
     @property
     def _dotenv_root(self) -> Path:
@@ -380,9 +375,9 @@ class PyprojectConfigReader(ConfigReader):
             LOGGER.error(
                 'Could not load project configuration from %s: "%s"\n'
                 "Settings from this file were skipped; other configuration sources still apply.",
-                self.source.location,
+                self.source,
                 e,
-                extra={"user_facing": True},
+                extra={"omit_log_prefix": True},
             )
             return {}
 
@@ -489,10 +484,6 @@ class PyprojectConfigReader(ConfigReader):
 
 class EnvConfigReader(ConfigReader):
     @property
-    def source(self) -> ConfigSource:
-        return ConfigSource("environment")
-
-    @property
     def field_sources(self) -> dict[ConfigPath, ConfigSource]:
         variables = {
             (
@@ -500,10 +491,10 @@ class EnvConfigReader(ConfigReader):
                 "auto_instantiate",
             ): "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE",
             ("server", "transport"): "MARIMO_SERVER_TRANSPORT",
+            ("runtime", "on_cell_change"): "MARIMO_RUNTIME_ON_CELL_CHANGE",
         }
         return {
-            path: ConfigSource("environment", variable)
-            for path, variable in variables.items()
+            path: EnvVarName(variable) for path, variable in variables.items()
         }
 
     def _maybe_override_from_env(
@@ -574,7 +565,7 @@ class SecurityConfigReader(ConfigReader):
 
     @property
     def source(self) -> ConfigSource:
-        return ConfigSource("security", "MARIMO_RESTRICT_SHARING")
+        return EnvVarName("MARIMO_RESTRICT_SHARING")
 
     def read(self) -> PartialMarimoConfig:
         config: PartialMarimoConfig = {}
@@ -604,7 +595,7 @@ class ScriptConfigReader(ConfigReader):
 
     @property
     def source(self) -> ConfigSource:
-        return ConfigSource("script", self.filename)
+        return Path(self.filename) if self.filename is not None else "default"
 
     def read(self) -> PartialMarimoConfig:
         return cast(PartialMarimoConfig, deep_copy(self._read_config()))
@@ -655,9 +646,9 @@ class ScriptConfigReader(ConfigReader):
             LOGGER.error(
                 'Could not load script configuration from %s: "%s"\n'
                 "Settings from this file were skipped; other configuration sources still apply.",
-                self.source.location,
+                self.source,
                 e,
-                extra={"user_facing": True},
+                extra={"omit_log_prefix": True},
             )
             return {}
 
@@ -670,9 +661,9 @@ class UserConfigStore(ConfigReader):
     @property
     def source(self) -> ConfigSource:
         try:
-            return ConfigSource("user", self.get_config_path())
+            return Path(self.get_config_path())
         except OSError:
-            return ConfigSource("user")
+            return "default"
 
     def save_config(
         self, config: MarimoConfig | PartialMarimoConfig
@@ -734,7 +725,7 @@ class UserConfigStore(ConfigReader):
                     "Settings from this file were skipped; other configuration sources still apply.",
                     path,
                     e,
-                    extra={"user_facing": True},
+                    extra={"omit_log_prefix": True},
                 )
                 return {}
             if not is_trusted_user_config_path(path):

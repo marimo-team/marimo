@@ -2,32 +2,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from pathlib import Path
+from typing import TYPE_CHECKING, Literal, NewType, TypeAlias
 
 if TYPE_CHECKING:
     from marimo._config.config import MarimoConfig, PartialMarimoConfig
 
 ConfigPath = tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class ConfigSource:
-    """The source of an explicitly supplied value or a default."""
-
-    kind: Literal[
-        "default",
-        "user",
-        "project",
-        "script",
-        "environment",
-        "override",
-        "inferred",
-        "security",
-    ]
-    location: str | None = None
-
-    def __str__(self) -> str:
-        return f"{self.kind}: {self.location}" if self.location else self.kind
+EnvVarName = NewType("EnvVarName", str)
+ConfigSource: TypeAlias = (
+    Path | EnvVarName | Literal["cli", "default", "inferred", "override"]
+)
 
 
 @dataclass

@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, cast
+from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -21,17 +22,14 @@ from marimo._config.manager import (
     SecurityConfigReader,
     UserConfigStore,
 )
-from marimo._config.provenance import ConfigLayer, ConfigSource
+from marimo._config.provenance import ConfigLayer, ConfigSource, EnvVarName
 from marimo._config.resolver import resolve_config_with_sources
 from marimo._config.settings import GLOBAL_SETTINGS
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 def test_leaf_sources_follow_merge_rules() -> None:
-    default = ConfigSource("default")
-    project = ConfigSource("project", "/project/pyproject.toml")
+    default: ConfigSource = "default"
+    project = Path("/project/pyproject.toml")
     resolved = resolve_config_with_sources(
         [
             ConfigLayer(
@@ -105,6 +103,25 @@ def make_user(
     return user
 
 
+def test_environment_sources_use_variable_names(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", "true"
+    )
+    monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", "lazy")
+    monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", "sse")
+    assert EnvConfigReader().read_layer().origins == {
+        ("runtime", "auto_instantiate"): EnvVarName(
+            "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE"
+        ),
+        ("runtime", "on_cell_change"): EnvVarName(
+            "MARIMO_RUNTIME_ON_CELL_CHANGE"
+        ),
+        ("server", "transport"): EnvVarName("MARIMO_SERVER_TRANSPORT"),
+    }
+
+
 def test_manager_tracks_file_environment_default_and_security_sources(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -140,19 +157,13 @@ def test_manager_tracks_file_environment_default_and_security_sources(
         ("ai", "open_ai", "api_key"),
     ]
     assert {path: resolved.origins[path] for path in paths} == {
-        ("display", "theme"): ConfigSource("project", str(project_path)),
-        ("save", "autosave_delay"): ConfigSource("default"),
-        ("runtime", "on_cell_change"): ConfigSource("script", str(notebook)),
-        ("runtime", "dotenv"): ConfigSource("inferred", str(notebook)),
-        ("server", "transport"): ConfigSource(
-            "environment", "MARIMO_SERVER_TRANSPORT"
-        ),
-        ("sharing", "html"): ConfigSource(
-            "security", "MARIMO_RESTRICT_SHARING"
-        ),
-        ("ai", "open_ai", "api_key"): ConfigSource(
-            "user", str(tmp_path / "marimo.toml")
-        ),
+        ("display", "theme"): project_path,
+        ("save", "autosave_delay"): "default",
+        ("runtime", "on_cell_change"): notebook,
+        ("runtime", "dotenv"): "inferred",
+        ("server", "transport"): EnvVarName("MARIMO_SERVER_TRANSPORT"),
+        ("sharing", "html"): EnvVarName("MARIMO_RESTRICT_SHARING"),
+        ("ai", "open_ai", "api_key"): tmp_path / "marimo.toml",
     }
     assert resolved.config == merge_default_config(
         {
@@ -245,7 +256,7 @@ def test_parse_errors_identify_the_file(
         resolved.config["display"]["theme"]
         == DEFAULT_CONFIG["display"]["theme"]
     )
-    assert resolved.origins[("display", "theme")] == ConfigSource("default")
+    assert resolved.origins[("display", "theme")] == "default"
 
 
 def test_validation_error_identifies_source_and_field(
@@ -262,7 +273,7 @@ def test_validation_error_identifies_source_and_field(
             user, PyprojectConfigReader(str(tmp_path))
         ).get_config_with_sources()
     assert [record.getMessage() for record in records] == [
-        f"Invalid configuration from user: {tmp_path / 'marimo.toml'}: Expected `int`, got `str` - at `$.save.autosave_delay`"
+        f"Invalid configuration from {tmp_path / 'marimo.toml'}: Expected `int`, got `str` - at `$.save.autosave_delay`"
     ]
     assert resolved.origins[("save", "autosave_delay")] == user.source
 
@@ -344,7 +355,7 @@ def test_invalid_mcp_overlay_reports_project_source(
             user, PyprojectConfigReader(str(tmp_path))
         ).get_config_with_sources()
     assert [record.getMessage() for record in records] == [
-        f"Invalid configuration from project: {project}: {error}"
+        f"Invalid configuration from {project}: {error}"
     ]
 
 

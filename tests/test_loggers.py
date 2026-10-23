@@ -21,7 +21,7 @@ from marimo._loggers import (
 from marimo._utils.log_formatter import LogFormatter
 
 
-def test_user_facing_error_format():
+def test_error_format_without_log_prefix():
     record = logging.LogRecord(
         "marimo",
         logging.ERROR,
@@ -31,9 +31,10 @@ def test_user_facing_error_format():
         ("test",),
         None,
     )
-    record.user_facing = True
+    record.omit_log_prefix = True
     formatter = LogFormatter(
-        color=False, user_facing_fmt=LogFormatter.USER_FACING_FORMAT
+        color=False,
+        without_log_prefix_fmt=LogFormatter.WITHOUT_LOG_PREFIX_FORMAT,
     )
     assert formatter.format(record) == (
         "Error: Invalid config: test\nDetails\n"
@@ -44,7 +45,7 @@ def test_user_facing_error_format():
         "\033[31mError: Invalid config: test\nDetails\033[0m\n"
     )
     assert "[E " in LogFormatter(color=False).format(record)
-    record.user_facing = False
+    record.omit_log_prefix = False
     assert "[E " in formatter.format(record)
 
 

@@ -53,14 +53,11 @@ def format_config_with_sources(resolved: ResolvedConfig) -> str:
             if isinstance(item, Table) and item:
                 annotate(item, field_path)
                 continue
-            origin = resolved.origins[field_path]
             source = (
-                origin.location
-                if origin.location
-                and origin.kind in ("user", "project", "script", "inferred")
-                else str(origin)
+                str(resolved.origins[field_path])
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
             )
-            source = source.replace("\n", "\\n").replace("\r", "\\r")
             if isinstance(item, AoT):
                 for entry in item:
                     entry.comment(source)

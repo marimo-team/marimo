@@ -27,7 +27,7 @@ class ConfigReader(ABC):
 
     @property
     def source(self) -> ConfigSource:
-        return ConfigSource("override", type(self).__name__)
+        return "override"
 
     @property
     def field_sources(self) -> dict[ConfigPath, ConfigSource]:
@@ -229,7 +229,7 @@ def get_marimo_config_from_pyproject_dict(
             "Ignoring marimo configuration in %s: 'tool.marimo' must be a table, got %s.",
             location or "pyproject.toml/script metadata",
             type(marimo_tool_config).__name__,
-            extra={"user_facing": True},
+            extra={"omit_log_prefix": True},
         )
         return None
     return cast(PartialMarimoConfig, marimo_tool_config)

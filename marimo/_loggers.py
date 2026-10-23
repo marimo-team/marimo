@@ -34,7 +34,9 @@ if TYPE_CHECKING:
 # Global log level for loggers
 _LOG_LEVEL: int = logging.WARNING
 
-_LOG_FORMATTER = LogFormatter(user_facing_fmt=LogFormatter.USER_FACING_FORMAT)
+_LOG_FORMATTER = LogFormatter(
+    without_log_prefix_fmt=LogFormatter.WITHOUT_LOG_PREFIX_FORMAT
+)
 
 # Cache of initialized loggers
 _LOGGERS: dict[str, logging.Logger] = {}

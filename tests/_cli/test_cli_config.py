@@ -18,7 +18,7 @@ from marimo._cli.config.utils import (
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.config_schema import MCPServerStdioConfig, SaveConfig
 from marimo._config.manager import MarimoConfigManager, UserConfigStore
-from marimo._config.provenance import ConfigLayer, ConfigSource
+from marimo._config.provenance import ConfigLayer
 from marimo._config.resolver import resolve_config_with_sources
 from marimo._utils.platform import is_windows
 
@@ -47,7 +47,7 @@ def test_config_describe() -> None:
     assert p.returncode == 0, p.stderr.decode()
 
 
-def test_config_show_source_comments_are_valid_toml() -> None:
+def test_config_show_source_comments_are_valid_toml(tmp_path: Path) -> None:
     import tomlkit
 
     values = cast(
@@ -58,15 +58,10 @@ def test_config_show_source_comments_are_valid_toml() -> None:
             "file_browser": {"folders": [{"path": "/data", "name": "Data"}]},
         },
     )
-    resolved = resolve_config_with_sources(
-        [
-            ConfigLayer(
-                values, ConfigSource("project", "/project/pyproject.toml")
-            )
-        ]
-    )
+    source = tmp_path / "pyproject.toml"
+    resolved = resolve_config_with_sources([ConfigLayer(values, source)])
     output = format_config_with_sources(resolved)
-    assert output == snapshot(
+    assert output.replace(str(source), "/project/pyproject.toml") == snapshot(
         """\
 [display]
 custom_css = ["styles.css"] # /project/pyproject.toml
