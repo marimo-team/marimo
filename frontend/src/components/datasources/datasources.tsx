@@ -13,7 +13,7 @@ import {
   VisibilityToggleButton,
 } from "@/components/editor/file-tree/tree-actions";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
@@ -978,6 +978,7 @@ const DatasetTableItem: React.FC<{
         {renderRowsByColumns()}
         <Tooltip content="Add table to notebook" delayDuration={400}>
           <Button
+            aria-label={`Add table ${table.name} to notebook`}
             className="group-hover:inline-flex hidden"
             variant="text"
             size="icon"
@@ -1068,19 +1069,16 @@ const DatasetColumnItem: React.FC<{
           {isIndexed &&
             renderItemSubtext({ tooltipContent: "Indexed", content: "IDX" })}
         </div>
-        <Tooltip content="Copy column name" delayDuration={400}>
-          <Button
-            variant="text"
-            size="icon"
-            className="group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground"
-          >
-            <CopyClipboardIcon
-              tooltip={false}
-              value={column.name}
-              className="h-3 w-3"
-            />
-          </Button>
-        </Tooltip>
+        <CopyClipboardIcon
+          tooltip="Copy column name"
+          value={column.name}
+          ariaLabel={`Copy column name ${column.name}`}
+          className="h-3 w-3"
+          buttonClassName={cn(
+            buttonVariants({ variant: "text", size: "icon" }),
+            "group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground",
+          )}
+        />
         <span className="text-xs text-muted-foreground">
           {column.external_type}
         </span>
