@@ -607,6 +607,9 @@ autosave_delay = 1000
 autosave = "after_delay"
 format_on_save = true
 
+[tool.marimo.formatting]
+infer_types = "jedi"
+
 [tool.marimo.experimental]
 multi_column = true
 cache_panel = true

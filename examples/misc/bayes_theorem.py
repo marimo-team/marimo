@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -53,10 +53,10 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(
-    bayes_result,
+    bayes_result: int | float,
     construct_probability_plot,
     mo,
-    p_e,
+    p_e: int | float,
     p_e_given_h,
     p_e_given_not_h,
     p_h,

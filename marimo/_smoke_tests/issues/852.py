@@ -2,19 +2,17 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Bug 852
 
     Explanation: The table was rendering incorrectly due to javascript number precision.
-    """
-    )
+    """)
     return
 
 
@@ -22,6 +20,7 @@ def _(mo):
 def _():
     import marimo as mo
     import pandas as pd
+
     return mo, pd
 
 

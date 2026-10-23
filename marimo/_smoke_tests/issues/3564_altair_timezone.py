@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -11,6 +11,7 @@ def _():
     import pandas as pd
     import polars as pl
     from datetime import datetime, timedelta, timezone
+
     return alt, datetime, mo, pd, pl, timedelta, timezone
 
 
@@ -45,7 +46,7 @@ def _(datetime, timedelta, timezone):
 
 
 @app.cell
-def _(alt, df_lib_select, mo, timedelta, to_display):
+def _(alt, df_lib_select, mo, timedelta, to_display: list):
     df_lib = df_lib_select.value
 
     df_buckets = df_lib.DataFrame(to_display)

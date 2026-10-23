@@ -8,90 +8,89 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Tables""")
+    mo.md("""
+    # Tables
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        First Header  | Second Header
-        ------------- | -------------
-        Content Cell  | Content Cell
-        $f(x)$        | Content Cell
-        """
-    )
+    mo.md("""
+    First Header  | Second Header
+    ------------- | -------------
+    Content Cell  | Content Cell
+    $f(x)$        | Content Cell
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        | Tables        | Are           | Cool  |
-        | ------------- |:-------------:| -----:|
-        | col 3 is      | right-aligned | $1600 |
-        | col 2 is      | centered      |   $12 |
-        | zebra stripes | are neat      |    $1 |
-        """
-    )
+    mo.md("""
+    | Tables        | Are           | Cool  |
+    | ------------- |:-------------:| -----:|
+    | col 3 is      | right-aligned | $1600 |
+    | col 2 is      | centered      |   $12 |
+    | zebra stripes | are neat      |    $1 |
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Footnotes""")
+    mo.md("""
+    # Footnotes
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        Here's a short footnote,[^1] and here's a longer one.[^longnote]
+    mo.md("""
+    Here's a short footnote,[^1] and here's a longer one.[^longnote]
 
-        [^1]: This is a short footnote.
+    [^1]: This is a short footnote.
 
-        [^longnote]: This is a longer footnote with paragraphs, and code.
+    [^longnote]: This is a longer footnote with paragraphs, and code.
 
-            Indent paragraphs to include them in the footnote.
+        Indent paragraphs to include them in the footnote.
 
-            `{ my code }` add some code, if you like.
+        `{ my code }` add some code, if you like.
 
-            Add as many paragraphs as you need.
-        """
-    )
+        Add as many paragraphs as you need.
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# External links""")
+    mo.md("""
+    # External links
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        This is [an example](http://example.com/ "Title") inline link.
+    mo.md("""
+    This is [an example](http://example.com/ "Title") inline link.
 
-        [This link](http://example.net/) has no title attribute.
-        """
-    )
+    [This link](http://example.net/) has no title attribute.
+    """)
     return
 
 

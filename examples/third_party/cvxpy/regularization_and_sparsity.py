@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -66,7 +66,7 @@ def _():
 
 
 @app.cell
-def _(m, n, np):
+def _(m: int, n: int, np):
     np.random.seed(0)
     A = np.random.randn(m, n)
     b = np.random.randn(m)
@@ -74,7 +74,7 @@ def _(m, n, np):
 
 
 @app.cell
-def _(A, b, sparse_solver):
+def _(A: float, b: float, sparse_solver):
     l2_solver = sparse_solver(A, b, p=2)
     l1_solver = sparse_solver(A, b, p=1)
     return l1_solver, l2_solver
@@ -111,7 +111,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo, n, number_of_zeros, sparsity_parameter, x_l1, x_l2):
+def _(mo, n: int, number_of_zeros, sparsity_parameter, x_l1, x_l2):
     (
         mo.md(
             """
@@ -174,7 +174,7 @@ def _(np):
 
 
 @app.cell
-def _(np, x_min_max):
+def _(np, x_min_max: list[float]):
     def cdf(x, ax):
         heights = np.arange(1, x.size+1) / x.size
         xs = np.sort(x)

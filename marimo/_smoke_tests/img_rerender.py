@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.23.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -47,7 +47,7 @@ def _(mo):
 
 
 @app.cell
-def _(choice, mo, sets):
+def _(choice, mo, sets: dict[str, list[str]]):
     urls = sets[choice.value]
     imgs = "".join(
         f'<img src="{u}" width="120" height="120" style="margin:4px"/>'

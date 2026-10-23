@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -10,6 +10,7 @@ def _():
     import pandas as pd
     import numpy as np
     import altair as alt
+
     return alt, mo, np, pd
 
 

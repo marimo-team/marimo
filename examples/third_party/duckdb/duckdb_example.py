@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -54,7 +54,7 @@ def _(datasets, duckdb):
 
 
 @app.cell(hide_code=True)
-def _(all_tags, dataset_date_range, dataset_length, mo):
+def _(all_tags, dataset_date_range: str, dataset_length: int, mo):
     # Create stats cards
     stats = mo.hstack(
         [

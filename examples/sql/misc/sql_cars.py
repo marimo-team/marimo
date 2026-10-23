@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -60,7 +60,7 @@ def _(mo, origin, top_n):
 
 
 @app.cell
-def _(mo, origin_filter, top_n, year_range):
+def _(mo, origin_filter: str, top_n, year_range):
     _df = mo.sql(
         f"""
         SELECT Name, Year, Origin, Horsepower, Miles_per_Gallon,

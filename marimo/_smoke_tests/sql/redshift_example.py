@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -20,13 +20,13 @@ def _():
     import marimo as mo
     import redshift_connector
     import os
+
     return mo, os, redshift_connector
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Connecting to Redshift via redshift_connector
 
     Steps:
@@ -34,8 +34,7 @@ def _(mo):
     1. Make sure the instance is publicly accessible
     2. Check VPC/subnets is public traffic is allowed
     3. Navigate to redshift -> workgroup -> obtain connection details
-    """
-    )
+    """)
     return
 
 
@@ -124,13 +123,12 @@ def close_prepared_statements_sample():
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Introspection
 
     get_tables() ->
     [
-      "dev", "information_schema", "views", "VIEW", None, "", "", "","", ""
+      "dev", "information_schema", "views", "VIEW", None, "\", "\", "\","\", "\"
     ]
 
     1. catalog
@@ -201,8 +199,7 @@ def _(mo):
     4. column_name
     5. key_sequence
     6. pk_name
-    """
-    )
+    """)
     return
 
 

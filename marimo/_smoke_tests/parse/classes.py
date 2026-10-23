@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.0"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -43,6 +43,7 @@ def _(C):
 
         def run(a: C = 1) -> int:
             return a
+
     return
 
 
@@ -55,17 +56,19 @@ def _(C):
 
         def run(a: B = 1) -> int:
             return a
+
     return
 
 
 @app.cell
-def _(value):
+def _(value: int):
     # This should NOT be reusable (depends on value)
     class Five:
         A: int = 1
 
         def run(a: A = value) -> int:
             return a
+
     return
 
 

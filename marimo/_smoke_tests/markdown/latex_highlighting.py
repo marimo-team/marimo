@@ -1,13 +1,12 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## Markdown / Latex Highlighting
 
     ```ts
@@ -37,14 +36,14 @@ def _(mo):
     \[ \sigma\sqrt{100} \]
 
     \( \sigma\sqrt{100} \)
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

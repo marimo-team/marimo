@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -75,7 +75,7 @@ def _(bigquery, credentials, mo, os, project):
 
 
 @app.cell
-def _(datasets, mo):
+def _(datasets: list, mo):
     # Dataset selection
     selected_dataset = mo.ui.dropdown(
         label="Select dataset", options=[d.dataset_id for d in datasets]

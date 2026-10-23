@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -19,7 +19,7 @@ def _():
 
 
 @app.cell
-def _(mo, name):
+def _(mo, name: str):
     mo.md(
         f"""
         Hello, {name}!

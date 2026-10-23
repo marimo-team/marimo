@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -61,7 +61,7 @@ def _(mo, reset):
 
 
 @app.cell
-def _(mo, reset, submitted_values, variables):
+def _(mo, reset, submitted_values: dict[str, set], variables):
     if variables.value is not None:
         submitted_values["x"].add(variables.value["x"])
         submitted_values["y"].add(variables.value["y"])

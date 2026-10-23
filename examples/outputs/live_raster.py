@@ -6,9 +6,10 @@
 #     "traitlets==5.14.3",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "unknown"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 

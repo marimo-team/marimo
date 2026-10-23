@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -156,7 +156,7 @@ def _(mo):
 
 
 @app.cell
-def _(home_expense_parameters, home_purchase_parameters, mo):
+def _(home_expense_parameters: list, home_purchase_parameters: list, mo):
     mo.hstack([home_purchase_parameters, home_expense_parameters])
     return
 
@@ -178,8 +178,8 @@ def _(
     home_price,
     loan,
     mo,
-    net_cash,
-    net_cash_per_month,
+    net_cash: int | float,
+    net_cash_per_month: float,
     property_tax_rate,
     rate,
     utilities,
@@ -293,7 +293,7 @@ def _(
 @app.cell
 def _(
     car_payment,
-    cash_less_housing,
+    cash_less_housing: None | int | float,
     clothing,
     dining_out,
     entertainment,

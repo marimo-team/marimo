@@ -1,17 +1,19 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""[Debounce mo.ui.text and mo.ui.text_area #2218](https://github.com/marimo-team/marimo/issues/2218)""")
+    mo.md(r"""
+    [Debounce mo.ui.text and mo.ui.text_area #2218](https://github.com/marimo-team/marimo/issues/2218)
+    """)
     return
 
 
 @app.cell
-def _(debounce, debounce_options, mo):
+def _(debounce: None | int | bool, debounce_options, mo):
     name_input = mo.ui.text(
         label="Enter your name for the greeting of a lifetime:", debounce=debounce
     )
@@ -27,7 +29,7 @@ def _(name_input):
 
 
 @app.cell
-def _(debounce, debounce_options, mo):
+def _(debounce: None | int | bool, debounce_options, mo):
     story_input = mo.ui.text_area(
         label="Now tell me a story from your childhood:", debounce=debounce
     )
@@ -65,6 +67,7 @@ def _(debounce_options):
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

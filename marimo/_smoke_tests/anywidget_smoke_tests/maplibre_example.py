@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -16,6 +16,7 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import functools
+
     return (mo,)
 
 
@@ -23,6 +24,7 @@ def _():
 def _():
     from maplibre.controls import NavigationControl, ScaleControl
     from maplibre.ipywidget import MapOptions, MapWidget
+
     return MapOptions, MapWidget, NavigationControl, ScaleControl
 
 
@@ -55,7 +57,13 @@ def _(MapOptions):
 
 
 @app.cell
-def _(MapWidget, NavigationControl, deck_grid_layer, map_options, mo):
+def _(
+    MapWidget,
+    NavigationControl,
+    deck_grid_layer: dict[str, int | str],
+    map_options,
+    mo,
+):
     m = MapWidget(map_options)
     m.use_message_queue(False)
     m.add_control(NavigationControl())

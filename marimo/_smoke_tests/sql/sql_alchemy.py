@@ -1,18 +1,21 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# SQLAlchemy Demo""")
+    mo.md("""
+    # SQLAlchemy Demo
+    """)
     return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -22,6 +25,7 @@ def _():
     from sqlalchemy.orm import declarative_base, Session
     from sqlalchemy.orm import Mapped, mapped_column
     import polars as pl
+
     return Mapped, Session, declarative_base, mapped_column, pl, sa
 
 
@@ -64,7 +68,9 @@ def _(Session, User, engine):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### All Users""")
+    mo.md("""
+    ### All Users
+    """)
     return
 
 
@@ -97,7 +103,9 @@ def _(Session, User, engine, mo, pl):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### Users under 30 (ordered by name)""")
+    mo.md("""
+    ### Users under 30 (ordered by name)
+    """)
     return
 
 
@@ -118,7 +126,9 @@ def _(Session, User, engine, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### Age Statistics""")
+    mo.md("""
+    ### Age Statistics
+    """)
     return
 
 

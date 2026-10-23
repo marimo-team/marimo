@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -119,7 +119,7 @@ def _(mo):
 def _(
     OpenAI,
     get_openai_callback,
-    knowledge_base,
+    knowledge_base: None,
     load_qa_chain,
     mo,
     openaikey,

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -8,12 +8,15 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import polars as pl
+
     return mo, pl
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Load data""")
+    mo.md(r"""
+    Load data
+    """)
     return
 
 
@@ -28,7 +31,9 @@ def _(pl):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""`mo.plain`""")
+    mo.md(r"""
+    `mo.plain`
+    """)
     return
 
 
@@ -41,7 +46,9 @@ def _(df, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""**default formatter**""")
+    mo.md(r"""
+    **default formatter**
+    """)
     return
 
 
@@ -54,7 +61,9 @@ def _(df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""`mo.ui.table.lazy`""")
+    mo.md(r"""
+    `mo.ui.table.lazy`
+    """)
     return
 
 
@@ -73,7 +82,9 @@ def _(df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Using with `mo.ui.table`""")
+    mo.md(r"""
+    Using with `mo.ui.table`
+    """)
     return
 
 
@@ -128,7 +139,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(create_chart, df, emotions, mo):
+def _(create_chart, df, emotions: list[str], mo):
     mo.stop(not create_chart.value)
 
     import altair as alt

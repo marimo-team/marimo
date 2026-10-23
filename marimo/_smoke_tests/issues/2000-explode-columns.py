@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -11,6 +11,7 @@ def _():
     import marimo as mo
     import pandas as pd
     import polars as pl
+
     return mo, pd, pl
 
 
@@ -28,7 +29,7 @@ def _():
 
 
 @app.cell
-def _(json_data, list_data, pd, pl):
+def _(json_data: list[dict[str, str]], list_data: list[list[str]], pd, pl):
     df = pd.DataFrame()
     df['list_data'] = list_data
     df['json_data'] = json_data
@@ -43,7 +44,9 @@ def _(json_data, list_data, pd, pl):
 
 @app.cell
 def _(mo):
-    mo.md("""### Transformations performed manually with pandas:""")
+    mo.md("""
+    ### Transformations performed manually with pandas:
+    """)
     return
 
 
@@ -57,7 +60,9 @@ def _(df, pd):
 
 @app.cell
 def _(mo):
-    mo.md("""### Transformations on pandas dataframe using `mo.ui.dataframe`:""")
+    mo.md("""
+    ### Transformations on pandas dataframe using `mo.ui.dataframe`:
+    """)
     return
 
 
@@ -69,7 +74,9 @@ def _(df2, mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Transformations on polars dataframe using `mo.ui.dataframe`:""")
+    mo.md(r"""
+    ### Transformations on polars dataframe using `mo.ui.dataframe`:
+    """)
     return
 
 

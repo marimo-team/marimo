@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -80,7 +80,7 @@ def _():
 
 
 @app.cell
-def _(PASSWORD, mo):
+def _(PASSWORD: str, mo):
     _df = mo.sql(
         f"""
         -- Boilerplate: detach the database so this cell works when you re-run it

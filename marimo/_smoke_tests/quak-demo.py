@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -21,6 +21,7 @@ def _():
     import polars as pl
     import quak
     from vega_datasets import data
+
     return data, mo, quak
 
 

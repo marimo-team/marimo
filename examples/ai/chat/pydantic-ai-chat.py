@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.23.10"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
@@ -139,9 +139,9 @@ def _(
     delete_file_tool,
     fetch_dog_tool,
     input_key,
-    model_name,
+    model_name: None,
     models,
-    os_key,
+    os_key: None | str,
     structured,
     thinking,
 ):
@@ -201,7 +201,7 @@ def _(
 
 
 @app.cell
-def _(agent):
+def _(agent: Agent):
     chatbot = mo.ui.chat(
         mo.ai.llm.pydantic_ai(agent),
         prompts=[

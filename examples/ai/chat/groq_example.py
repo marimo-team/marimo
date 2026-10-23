@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -57,7 +57,7 @@ def _(mo):
 
 
 @app.cell
-def _(input_key, mo, os_key):
+def _(input_key, mo, os_key: None | str):
     key = os_key or input_key.value
 
     mo.stop(
@@ -68,7 +68,7 @@ def _(input_key, mo, os_key):
 
 
 @app.cell
-def _(key, mo):
+def _(key: None | str, mo):
     chatbot = mo.ui.chat(
        mo.ai.llm.groq(
            model="llama-3.1-70b-versatile",
