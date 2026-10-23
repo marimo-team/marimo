@@ -8,8 +8,6 @@ from marimo._config.utils import deep_copy
 
 SECRET_PLACEHOLDER = "********"
 
-# TODO: mypy doesn't like using @overload here
-
 
 def redact_secrets_partial(config: PartialMarimoConfig) -> PartialMarimoConfig:
     """Return a sparse configuration copy with sensitive values redacted."""
@@ -44,7 +42,6 @@ def redact_secrets(config: MarimoConfig) -> MarimoConfig:
             return
         if len(path) == 1:
             if isinstance(obj[key], list):
-                # Omit hidden paths so saving a masked config preserves them.
                 if obj[key]:
                     obj.pop(key)
             elif obj[key]:
