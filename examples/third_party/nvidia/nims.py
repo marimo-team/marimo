@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -31,7 +31,7 @@ def _(mo):
 
 
 @app.cell
-def _(api_token, default_api_token):
+def _(api_token, default_api_token: None | str | list[str]):
     api_token if not default_api_token else None
     api_token
     return
@@ -65,7 +65,7 @@ def _(mo, uploaded_file):
 
 
 @app.cell
-def _(base64_encoded, mo):
+def _(base64_encoded: str, mo):
     data_uri = f"data:image/png;base64,{base64_encoded}"
     mo.Html(f'<img src="{data_uri}" />')
     return (data_uri,)
@@ -91,7 +91,16 @@ def _():
 
 
 @app.cell
-def _(api_token, data_uri, mo, prompt, requests, temperature, top_p, url):
+def _(
+    api_token,
+    data_uri: str,
+    mo,
+    prompt,
+    requests,
+    temperature,
+    top_p,
+    url: str,
+):
     mo.stop(not prompt.value)
 
     payload = {

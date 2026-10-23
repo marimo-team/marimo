@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -36,7 +36,7 @@ def _():
 
 
 @app.cell
-def _(data, mo):
+def _(data: dict[str, list[int]], mo):
     import pandas as pd
 
     mo.vstack([mo.plain(pd.DataFrame(data)), pd.DataFrame(data)])
@@ -44,7 +44,7 @@ def _(data, mo):
 
 
 @app.cell
-def _(data, mo):
+def _(data: dict[str, list[int]], mo):
     import polars as pl
 
     mo.vstack([mo.plain(pl.DataFrame(data)), pl.DataFrame(data)])
@@ -54,6 +54,7 @@ def _(data, mo):
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

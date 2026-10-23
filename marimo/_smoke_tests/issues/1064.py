@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -10,12 +10,15 @@ app = marimo.App(width="full")
 def _():
     import marimo as mo
     import plotly.express as px
+
     return mo, px
 
 
 @app.cell
 def _(mo):
-    mo.md("# Issue 1064")
+    mo.md("""
+    # Issue 1064
+    """)
     return
 
 

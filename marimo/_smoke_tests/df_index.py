@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -9,6 +9,7 @@ def _():
     import marimo as mo
     import pandas as pd
     import numpy as np
+
     return mo, np, pd
 
 
@@ -20,14 +21,14 @@ def _(np):
 
 
 @app.cell
-def _(columns, data, pd):
+def _(columns: list[str], data: float, pd):
     df_no_index = pd.DataFrame(data, columns=columns)
     df_no_index
     return
 
 
 @app.cell
-def _(columns, data, pd):
+def _(columns: list[str], data: float, pd):
     _dates = pd.date_range(start="2023-01-01", periods=100, freq="D")
     df_date_index = pd.DataFrame(data, index=_dates, columns=columns)
     df_date_index
@@ -35,7 +36,7 @@ def _(columns, data, pd):
 
 
 @app.cell
-def _(columns, data, pd):
+def _(columns: list[str], data: float, pd):
     _dates = pd.date_range(start="2023-01-01", periods=100, freq="D")
     df_date_index_with_name = pd.DataFrame(
         data, index=pd.DatetimeIndex(_dates, name="date"), columns=columns
@@ -45,7 +46,7 @@ def _(columns, data, pd):
 
 
 @app.cell
-def _(columns, data, pd):
+def _(columns: list[str], data: float, pd):
     _dates = pd.date_range(start="2023-01-01", periods=100, freq="D")
     df_category_index = pd.DataFrame(
         data, index=pd.CategoricalIndex(_dates), columns=columns
@@ -55,7 +56,7 @@ def _(columns, data, pd):
 
 
 @app.cell
-def _(columns, data, pd):
+def _(columns: list[str], data: float, pd):
     index = pd.MultiIndex.from_tuples(
         [(i, j) for i in range(5) for j in range(2)], names=["Level1", "Level2"]
     )

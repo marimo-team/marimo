@@ -8,19 +8,22 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Small table""")
+    mo.md(r"""
+    ## Small table
+    """)
     return
 
 
@@ -35,7 +38,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(mo, small_table):
     _df = mo.sql(
         f"""
         SELECT * FROM small_table;
@@ -45,7 +48,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(mo, small_table):
     _df = mo.sql(
         f"""
         SELECT * FROM small_table LIMIT 10;
@@ -55,7 +58,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(mo, small_table):
     _df = mo.sql(
         f"""
         SELECT * FROM small_table LIMIT 1000;
@@ -65,7 +68,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(mo, small_table):
     _df = mo.sql(
         f"""
         SELECT * FROM small_table LIMIT 300;
@@ -75,7 +78,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(mo, small_table):
     _df = mo.sql(
         f"""
         SELECT * FROM small_table LIMIT 301;
@@ -85,7 +88,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(mo, small_table):
     _df = mo.sql(
         f"""
         SELECT * FROM small_table LIMIT 1100;
@@ -96,7 +99,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Large table""")
+    mo.md(r"""
+    ## Large table
+    """)
     return
 
 
@@ -111,7 +116,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(large_table, mo):
     _df = mo.sql(
         f"""
         SELECT * FROM large_table;
@@ -121,7 +126,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(large_table, mo):
     _df = mo.sql(
         f"""
         SELECT * FROM large_table LIMIT 25_000;
@@ -131,7 +136,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(large_table, mo):
     _df = mo.sql(
         f"""
         SELECT * FROM large_table LIMIT 20_000;

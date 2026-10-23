@@ -5,9 +5,10 @@
 #     "pyfiglet",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.13.0"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -28,7 +29,7 @@ def _():
     import shared_module  # noqa: E402
 
     identity = shared_module.get_identity()
-    return (identity, shared_module)
+    return identity, shared_module, sys
 
 
 @app.cell
@@ -80,11 +81,11 @@ def _(identity, shared_module):
         ).callout(kind="danger")
 
     status
-    return
+    return (mo,)
 
 
 @app.cell
-def _():
+def _(mo, sys):
     # Detect sandbox mode by checking if we're in a venv
     in_sandbox = sys.prefix != sys.base_prefix
 

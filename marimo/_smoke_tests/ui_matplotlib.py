@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.20.1"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -165,7 +165,7 @@ def _(log_ax, mo):
 
 
 @app.cell
-def _(log_fig, log_x, log_y, np):
+def _(log_fig, log_x: float, log_y: float, np):
     _m = log_fig.value.get_mask(log_x, log_y)
     log_x_sel, log_y_sel  = log_x[_m], log_y[_m]
     np.column_stack([log_x_sel, log_y_sel])

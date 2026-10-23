@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.16.3"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -15,6 +15,7 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import ibis
+
     return ibis, mo
 
 

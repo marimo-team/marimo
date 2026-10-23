@@ -15,7 +15,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(
     width="medium",
     layout_file="layouts/grid-dashboard.grid.json",
@@ -148,7 +148,18 @@ def _(dataset, np):
 
 
 @app.cell
-def _(XLABEL, YLABEL, YLIM, alt, get_data, get_title, get_xlim, go, pio, plt):
+def _(
+    XLABEL: str,
+    YLABEL: str,
+    YLIM: tuple[int, int],
+    alt,
+    get_data,
+    get_title,
+    get_xlim,
+    go,
+    pio,
+    plt,
+):
     # Charting functions
 
 
@@ -286,7 +297,7 @@ def _(XLABEL, YLABEL, YLIM, alt, get_data, get_title, get_xlim, go, pio, plt):
 
 
 @app.cell
-def _(HEIGHT, altair_view, hvplot_view, mo, mpl_view, plotly_view):
+def _(HEIGHT: int, altair_view, hvplot_view, mo, mpl_view, plotly_view):
     mo.ui.tabs(
         {
             "matplotlib": mpl_view(1952, True),
@@ -315,13 +326,13 @@ def _(mo):
 
 
 @app.cell
-def _(YEARS, mo):
+def _(YEARS: list, mo):
     get_year, set_year = mo.state(YEARS[-1])
     return get_year, set_year
 
 
 @app.cell
-def _(YEARS, get_year, mo, set_year):
+def _(YEARS: list, get_year, mo, set_year):
     year = mo.ui.slider(
         value=get_year(), steps=YEARS, full_width=True, on_change=set_year
     )
@@ -349,7 +360,7 @@ def _(mo):
 
 
 @app.cell
-def _(YEARS, autoplay, set_year):
+def _(YEARS: list, autoplay, set_year):
     autoplay
 
 
@@ -385,7 +396,7 @@ def _(plotly_view, show_legend, year):
 
 
 @app.cell
-def _(HEIGHT, altair_view, show_legend, year):
+def _(HEIGHT: int, altair_view, show_legend, year):
     altair_view(year=year.value, show_legend=show_legend.value, height=HEIGHT - 100)
     return
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -13,7 +13,7 @@ def _(mo):
 
 
 @app.cell
-def _(NUMBER_OF_EXAMPLES, mo):
+def _(NUMBER_OF_EXAMPLES: int, mo):
     get_index, set_index = mo.state(0)
 
 
@@ -46,7 +46,7 @@ def _(mo):
 
 
 @app.cell
-def _(NUMBER_OF_EXAMPLES, get_index, mo, set_index):
+def _(NUMBER_OF_EXAMPLES: int, get_index, mo, set_index):
     index = mo.ui.number(
         0,
         NUMBER_OF_EXAMPLES - 1,
@@ -78,13 +78,13 @@ def _(mo):
 
 
 @app.cell
-def _(LABELS_PATH, NUMBER_OF_EXAMPLES, load_labels):
+def _(LABELS_PATH: str, NUMBER_OF_EXAMPLES: int, load_labels):
     labels = load_labels(LABELS_PATH, NUMBER_OF_EXAMPLES)
     return (labels,)
 
 
 @app.cell
-def _(LABELS_PATH, labels, write_labels):
+def _(LABELS_PATH: str, labels: list[dict[str, str]], write_labels):
     def update_label(value, index):
         labels[index]["label"] = value
         write_labels(labels, LABELS_PATH)
@@ -93,7 +93,7 @@ def _(LABELS_PATH, labels, write_labels):
 
 
 @app.cell
-def _(LABELS_PATH, labels, write_labels):
+def _(LABELS_PATH: str, labels: list[dict[str, str]], write_labels):
     def update_notes(value, index):
         labels[index]["notes"] = value
         write_labels(labels, LABELS_PATH)
@@ -116,7 +116,7 @@ def _(mo, notes):
 
 
 @app.cell
-def _(index, labels, mo, update_label, update_notes):
+def _(index, labels: list[dict[str, str]], mo, update_label, update_notes):
     data = labels[index.value]
 
     label_picker = mo.ui.radio(

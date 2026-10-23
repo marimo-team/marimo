@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.25.1"
 app = marimo.App(width="columns")
 
 
@@ -12,6 +12,7 @@ def _():
     import ibis as ib
 
     from vega_datasets import data
+
     return data, ib, mo, pd, pl
 
 

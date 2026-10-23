@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -18,6 +18,7 @@ def _():
     import ibis
     import polars as pl
     import marimo as mo
+
     return ibis, pl
 
 
@@ -25,6 +26,7 @@ def _():
 def _():
     from ibis import _
     from datetime import datetime
+
     return
 
 
@@ -41,7 +43,7 @@ def _():
 
 
 @app.cell
-def _(ibis, test_data):
+def _(ibis, test_data: dict):
     t = ibis.memtable(test_data)
     return (t,)
 

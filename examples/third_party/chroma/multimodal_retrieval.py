@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -73,7 +73,7 @@ def _(load_dataset, mo):
 
 
 @app.cell
-def _(N_IMAGES, dataset, mo, os):
+def _(N_IMAGES: int, dataset, mo, os):
     # Write the images to a folder
     IMAGE_FOLDER = "images"
     os.makedirs(IMAGE_FOLDER, exist_ok=True)
@@ -98,7 +98,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(all_images, img_width, mo):
+def _(all_images: list, img_width, mo):
     import io
 
 
@@ -176,7 +176,7 @@ def _(mo):
 
 
 @app.cell
-def _(IMAGE_FOLDER, client, embedding_function, image_loader, os):
+def _(IMAGE_FOLDER: str, client, embedding_function, image_loader, os):
     collection = client.create_collection(
         name="multimodal_collection",
         embedding_function=embedding_function,
@@ -264,14 +264,14 @@ def _(collection, mo, selected_image):
 
 
 @app.cell(hide_code=True)
-def _(IMAGE_FOLDER, mo):
+def _(IMAGE_FOLDER: str, mo):
     selected_image = mo.ui.file_browser(IMAGE_FOLDER, multiple=False)
     selected_image
     return (selected_image,)
 
 
 @app.cell(hide_code=True)
-def _(mo, results, selected):
+def _(mo, results: list, selected):
     mo.hstack(
         [
             mo.vstack([mo.md("## Selected"), selected]),

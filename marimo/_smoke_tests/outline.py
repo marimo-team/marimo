@@ -2,19 +2,22 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md("# Heading 1")
+    mo.md("""
+    # Heading 1
+    """)
     return
 
 
@@ -26,7 +29,11 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("# Heading 2 \n\n Headings between carousel and tabs are detected")
+    mo.md("""
+    # Heading 2
+
+    Headings between carousel and tabs are detected
+    """)
     return
 
 
@@ -38,7 +45,11 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("# Heading 3 \n\n Headings between tabs and accordion are detected")
+    mo.md("""
+    # Heading 3
+
+    Headings between tabs and accordion are detected
+    """)
     return
 
 
@@ -50,7 +61,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("# Heading 4")
+    mo.md("""
+    # Heading 4
+    """)
     return
 
 

@@ -8,27 +8,26 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        Re-run this with notebook with the following command line:
+    mo.md("""
+    Re-run this with notebook with the following command line:
 
-        ```bash
-        marimo edit marimo/_smoke_tests/cli_args.py -- -a foo --b=bar -d 10 -d 20 -d false
-        ```
-        """
-    )
+    ```bash
+    marimo edit marimo/_smoke_tests/cli_args.py -- -a foo --b=bar -d 10 -d 20 -d false
+    ```
+    """)
     return
 
 

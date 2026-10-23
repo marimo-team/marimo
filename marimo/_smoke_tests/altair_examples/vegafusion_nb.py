@@ -12,19 +12,22 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Basic examples""")
+    mo.md(r"""
+    # Basic examples
+    """)
     return
 
 
@@ -91,23 +94,23 @@ def _(alt, delay_hist, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # Examples from vegafusion
+    mo.md(r"""
+    # Examples from vegafusion
 
-        The examples below still hit `MARIMO_OUTPUT_MAX_BYTES` limitations, and require increasing this before running this notebook:
+    The examples below still hit `MARIMO_OUTPUT_MAX_BYTES` limitations, and require increasing this before running this notebook:
 
-        ```
-        export MARIMO_OUTPUT_MAX_BYTES=100_000_000
-        ```
-        """
-    )
+    ```
+    export MARIMO_OUTPUT_MAX_BYTES=100_000_000
+    ```
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Interactive Cross-filter""")
+    mo.md(r"""
+    ## Interactive Cross-filter
+    """)
     return
 
 
@@ -144,6 +147,7 @@ def _(alt):
             .transform_calculate("time", "hours(datum.date)")
             .repeat(column=["distance", "delay", "time"])
         )
+
     return (make_cross_filter_chart,)
 
 
@@ -159,7 +163,9 @@ def _(alt, make_cross_filter_chart, pd):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Interactive average""")
+    mo.md(r"""
+    ## Interactive average
+    """)
     return
 
 
@@ -189,6 +195,7 @@ def _(alt):
         )
 
         return alt.layer(bars, line, data=source).properties(height=200)
+
     return (make_average_chart,)
 
 
@@ -204,7 +211,9 @@ def _(alt, make_average_chart, pd):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Interactive Chart with Cross-Highlight""")
+    mo.md(r"""
+    ## Interactive Chart with Cross-Highlight
+    """)
     return
 
 
@@ -257,6 +266,7 @@ def _(alt):
             bar,
             rect + circ,
         ).resolve_legend(color="independent", size="independent")
+
     return (make_movie_chart,)
 
 
@@ -272,7 +282,9 @@ def _(alt, make_movie_chart, pd):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Vega fusion mimes""")
+    mo.md(r"""
+    # Vega fusion mimes
+    """)
     return
 
 

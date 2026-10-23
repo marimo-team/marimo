@@ -10,20 +10,20 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Altair Tooltip Images
 
     This smoke test verifies that images in Altair tooltips render correctly
@@ -33,8 +33,7 @@ def _(mo):
     1. External image URLs in tooltips
     2. Base64-encoded images in tooltips
     3. XSS vulnerability prevention
-    """
-    )
+    """)
     return
 
 
@@ -77,14 +76,12 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Instructions
 
     Hover over the circles to see the image tooltips.
     The images should render in the tooltip, not just show URLs as text.
-    """
-    )
+    """)
     return
 
 
@@ -127,8 +124,7 @@ def _(alt, pd):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## XSS Security Tests
 
     These tests verify that the tooltip handler properly sanitizes
@@ -136,8 +132,7 @@ def _(mo):
 
     **Expected behavior:** All XSS attempts should be neutralized.
     No alert boxes or script execution should occur when hovering.
-    """
-    )
+    """)
     return
 
 

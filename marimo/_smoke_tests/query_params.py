@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -75,7 +75,9 @@ def _(mo, query_params):
 
 @app.cell
 def _(mo):
-    mo.md("""You can also initialized with query params. Open this URL [/?foo=1&bar=2&bar=3&baz=4](/?foo=1&bar=2&bar=3&baz=4) and restart the kernel""")
+    mo.md("""
+    You can also initialized with query params. Open this URL [/?foo=1&bar=2&bar=3&baz=4](/?foo=1&bar=2&bar=3&baz=4) and restart the kernel
+    """)
     return
 
 
@@ -83,6 +85,7 @@ def _(mo):
 def _():
     import marimo as mo
     import random
+
     return (mo,)
 
 

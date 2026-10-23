@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.6"
+__generated_with = "0.25.1"
 app = marimo.App(auto_download=["ipynb"])
 
 
@@ -9,6 +9,7 @@ def _():
     import marimo as mo
     import matplotlib.pyplot as plt
     import plotly.express as px
+
     return mo, plt, px
 
 

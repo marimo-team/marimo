@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -58,6 +58,7 @@ def _():
 @app.cell
 def _():
     import quak
+
     return (quak,)
 
 
@@ -80,7 +81,7 @@ def _():
 
 
 @app.cell
-def _(q, thing):
+def _(q, thing: dict[str, int]):
     # Check gets update only once
     thing["a"] += 1
     print(thing["a"])

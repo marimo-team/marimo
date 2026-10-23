@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -10,6 +10,7 @@ def _():
     import pandas as pd
     import polars as pl
     import altair as alt
+
     return alt, mo, pd, pl
 
 
@@ -146,13 +147,13 @@ def _(alt, mo, pd):
 
 
 @app.cell
-def _(data, mo):
+def _(data: dict, mo):
     mo.vstack([mo.md("## Table"), mo.ui.table(data, page_size=20)])
     return
 
 
 @app.cell
-def _(data, mo, pd):
+def _(data: dict, mo, pd):
     pandas_rich = pd.DataFrame(data).transpose()
     mo.vstack([mo.md("## Pandas dataframe"), pandas_rich])
     return (pandas_rich,)
@@ -165,7 +166,7 @@ def _(mo, pandas_rich):
 
 
 @app.cell
-def _(data, mo, pl):
+def _(data: dict, mo, pl):
     data.pop("arrays", None)
     data.pop("batch", None)
     data.pop("mixed", None)
@@ -210,13 +211,13 @@ def _(mo, pd, pl):
 
 
 @app.cell
-def _(data, mo):
+def _(data: dict, mo):
     mo.ui.data_editor(data=data, label="Edit Data")
     return
 
 
 @app.cell
-def _(data, mo):
+def _(data: dict, mo):
     mo.ui.data_explorer(data)
     return
 

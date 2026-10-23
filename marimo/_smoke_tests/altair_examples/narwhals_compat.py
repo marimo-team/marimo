@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -11,6 +11,7 @@ def _():
     import polars as pl
 
     import marimo as mo
+
     return alt, mo, pd, pl
 
 
@@ -45,7 +46,7 @@ def _(chart):
 
 
 @app.cell
-def _(chart, df):
+def _(chart, df: None):
     ["Types", type(df), type(chart.dataframe), type(chart.value)]
     return
 

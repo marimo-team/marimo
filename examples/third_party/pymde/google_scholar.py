@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -75,7 +75,7 @@ def _(coauthorship_graph):
 
 
 @app.cell
-def _(DEVICE, coauthorship_graph, pymde):
+def _(DEVICE: str, coauthorship_graph, pymde):
     mde = pymde.preserve_distances(
         data=coauthorship_graph,
         loss=pymde.losses.Absolute,
@@ -143,7 +143,7 @@ def _(gscholar):
 
 
 @app.cell
-def _(mde, pymde, scholar_disciplines_df, topic_colors):
+def _(mde, pymde, scholar_disciplines_df, topic_colors: list):
     pymde.plot(mde.X[scholar_disciplines_df['node_id'].values], colors=topic_colors,
                figsize_inches=(12, 12), background_color='black')
     return

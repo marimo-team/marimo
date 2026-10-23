@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -45,7 +45,7 @@ def _(item, mo):
 
 
 @app.cell
-def _(content, item, mo, openai, openaikey):
+def _(content: str, item, mo, openai, openaikey):
     openai.api_key = openaikey.value
 
     result = None

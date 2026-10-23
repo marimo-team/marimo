@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -25,7 +25,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(languages, mo):
+def _(languages: list[str], mo):
     language_select = mo.ui.dropdown(
         languages,
         value="javascript",
@@ -38,7 +38,7 @@ def _(languages, mo):
 
 
 @app.cell
-def _(language_select, mo, samples, theme_select):
+def _(language_select, mo, samples: dict[str, str], theme_select):
     mo.ui.code_editor(
         samples[language_select.value],
         language=language_select.value,
@@ -67,6 +67,7 @@ def _():
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

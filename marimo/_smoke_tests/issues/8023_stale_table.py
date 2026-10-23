@@ -1,16 +1,22 @@
 import marimo
+
+__generated_with = "0.25.1"
 app = marimo.App()
+
 
 @app.cell
 def _():
     import marimo as mo
     import pandas as pd
+
     return mo, pd
+
 
 @app.cell
 def _(mo):
     data_version, set_data_version = mo.state(0)
     return data_version, set_data_version
+
 
 @app.cell
 def _():
@@ -22,13 +28,15 @@ def _():
     ]
     return (data,)
 
+
 @app.cell
-def _(data, data_version, mo, pd):
+def _(data: list[dict[str, int | str]], data_version, mo, pd):
     _ = data_version()
     df = pd.DataFrame(data)
     table = mo.ui.table(df, selection="single", page_size=3)
     mo.output.replace(table)
     return (table,)
+
 
 @app.cell
 def _(mo):
@@ -36,8 +44,9 @@ def _(mo):
     mo.output.replace(approve_btn)
     return (approve_btn,)
 
+
 @app.cell
-def _(approve_btn, data, set_data_version, table):
+def _(approve_btn, data: list[dict[str, int | str]], set_data_version, table):
     import time
     if approve_btn.value:
         _sel = table.value
@@ -49,6 +58,7 @@ def _(approve_btn, data, set_data_version, table):
                     break
             set_data_version(time.time())
     return
+
 
 if __name__ == "__main__":
     app.run()

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -9,6 +9,7 @@ def _():
     import marimo as mo
     import anywidget
     import traitlets
+
     return anywidget, mo, traitlets
 
 
@@ -35,6 +36,7 @@ def _(anywidget, traitlets):
         """
         in_value = traitlets.Int(0).tag(sync=True)
         out_value = traitlets.Int(123).tag(sync=True)
+
     return (MyWidget,)
 
 

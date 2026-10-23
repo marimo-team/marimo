@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -8,12 +8,15 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import polars as pl
+
     return mo, pl
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Polars""")
+    mo.md(r"""
+    ## Polars
+    """)
     return
 
 
@@ -37,7 +40,9 @@ def _(df, mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Pandas""")
+    mo.md(r"""
+    ## Pandas
+    """)
     return
 
 

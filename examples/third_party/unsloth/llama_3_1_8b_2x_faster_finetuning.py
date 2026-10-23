@@ -14,7 +14,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -115,7 +115,7 @@ def _(mo):
 
 
 @app.cell
-def _(FastLanguageModel, dtype, load_in_4bit, max_seq_length):
+def _(FastLanguageModel, dtype: None, load_in_4bit, max_seq_length):
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name="unsloth/Meta-Llama-3.1-8B",
         max_seq_length=max_seq_length.value,
@@ -331,7 +331,14 @@ def _(mo):
 
 
 @app.cell
-def _(FastLanguageModel, alpaca_prompt, inf_instr_inp, mo, model, tokenizer):
+def _(
+    FastLanguageModel,
+    alpaca_prompt: str,
+    inf_instr_inp,
+    mo,
+    model,
+    tokenizer,
+):
     mo.stop(inf_instr_inp.value is None)
 
     FastLanguageModel.for_inference(model)  # Enable native 2x faster inference

@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -31,7 +32,7 @@ def _():
 
 
 @app.cell
-def _(kind, label, mo, value):
+def _(kind: str, label: str, mo, value: int | float):
     mo.callout(
         mo.md(f"""
         The value of *{label}* slider is **{value}**!
