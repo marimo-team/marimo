@@ -12,15 +12,18 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import os
 from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._runtime.exceptions import (
     MarimoRescheduleError,
 )
 from marimo._runtime.executor.lifecycles.cached import CachedLifecycle
 from marimo._save.loaders.lazy import LazyLoader
+from marimo._types.ids import CellId_t
 
 try:
     # Ships with the stub serialization toolkit; the lifecycle detects
@@ -300,6 +303,31 @@ class TestCachedLifecycleIntegration:
         assert any(ld.hits > 0 for ld in new_loaders), (
             "Expected the second run's LazyLoader to record a cache hit"
         )
+
+    async def test_setup_cell_reruns_its_side_effects_on_a_warm_cache(
+        self,
+        caching_kernel: MockedKernel,
+        exec_req: ExecReqProvider,
+        tracked_loaders: list[LazyLoader],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A new process restores no process state from the cache, so the
+        setup cell runs live to reapply settings such as library config."""
+        k = caching_kernel.k
+        monkeypatch.setenv("MARIMO_TEST_SETUP", "")
+        er = exec_req.get_with_id(
+            CellId_t(SETUP_CELL_NAME),
+            "import os\nos.environ['MARIMO_TEST_SETUP'] = 'svg'",
+        )
+
+        await k.run([er])
+        for loader in tracked_loaders:
+            loader.flush()
+
+        # Simulate a fresh process.
+        monkeypatch.delenv("MARIMO_TEST_SETUP")
+        await k.run([er])
+        assert os.environ.get("MARIMO_TEST_SETUP") == "svg"
 
     @requires_stub_loader
     async def test_unhashable_own_def_does_not_auto_rerun(
