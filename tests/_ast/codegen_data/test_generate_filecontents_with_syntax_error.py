@@ -15,7 +15,7 @@ app._unparsable_cell(
     r"""
     _ error
     """,
-    name="two"
+    name="two",
 )
 
 
@@ -32,7 +32,7 @@ app._unparsable_cell(
 
         \\t
     """,
-    name="_"
+    name="_",
 )
 
 

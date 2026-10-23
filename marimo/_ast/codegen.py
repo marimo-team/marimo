@@ -141,21 +141,16 @@ def _needs_trailing_blank_line(mod: ast.Module, code: str) -> bool:
     if not mod.body:
         return False
     last_stmt = mod.body[-1]
-    if not isinstance(
-        last_stmt,
-        (
-            ast.Import,
-            ast.ImportFrom,
-            ast.FunctionDef,
-            ast.AsyncFunctionDef,
-            ast.ClassDef,
-        ),
-    ):
-        return False
     # Check if there's trailing content (like comments) after the last statement
     # If so, don't add a blank line - the existing formatting should be preserved
     code_lines = code.rstrip().count("\n") + 1
-    return last_stmt.end_lineno == code_lines
+    if isinstance(last_stmt, (ast.Import, ast.ImportFrom)):
+        return last_stmt.end_lineno == code_lines
+    return any(
+        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        and node.end_lineno == code_lines
+        for node in ast.walk(last_stmt)
+    )
 
 
 def to_decorator(
@@ -434,11 +429,13 @@ def generate_unparsable_cell(
     if name is not None:
         flags["name"] = name
 
-    kwargs = ", ".join(
+    kwargs = ",\n".join(
         [f"{key}={_format_arg(value)}" for key, value in flags.items()]
     )
     if kwargs:
-        text.extend([indent_text(f"{code_as_str},"), indent_text(kwargs)])
+        text.extend(
+            [indent_text(f"{code_as_str},"), indent_text(f"{kwargs},")]
+        )
     else:
         text.append(indent_text(code_as_str))
 
