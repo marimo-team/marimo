@@ -76,6 +76,7 @@ export const TableTopBar = <TData,>({
           <input
             ref={inputRef}
             type="text"
+            aria-label="Search table"
             className="h-6 border-none bg-transparent focus:outline-hidden text-sm w-full min-w-0"
             value={internalValue}
             onKeyDown={(e) => {
@@ -90,6 +91,7 @@ export const TableTopBar = <TData,>({
           {reloading && <Spinner size="small" />}
           {internalValue && (
             <Button
+              aria-label="Clear table search"
               variant="text"
               size="xs"
               className="h-5 w-5 p-0 shrink-0"

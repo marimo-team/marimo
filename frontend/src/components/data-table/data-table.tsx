@@ -402,6 +402,12 @@ const DataTableInternal = <TData,>({
               </Banner>
             )}
             <Table
+              role={table.options.enableCellSelection ? "grid" : undefined}
+              aria-multiselectable={
+                table.options.enableCellSelection
+                  ? table.options.enableMultiCellSelection
+                  : undefined
+              }
               className={cn(
                 "relative",
                 columns.length <= AUTO_WIDTH_MAX_COLUMNS ? "w-auto" : "w-full",

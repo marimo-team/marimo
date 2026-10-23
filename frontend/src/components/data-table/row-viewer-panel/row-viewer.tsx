@@ -37,6 +37,7 @@ import type { GetRowResult } from "@/plugins/impl/DataTablePlugin";
 import { Objects } from "@/utils/objects";
 import { NAMELESS_COLUMN_PREFIX, renderCellValue } from "../columns";
 import { prettifyRowCount } from "../pagination";
+import { isInteractiveTarget } from "../range-focus/use-cell-range-selection";
 import {
   type FieldTypesWithExternalType,
   INDEX_COLUMN_NAME,
@@ -102,8 +103,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   }
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    // Don't intercept keys when typing in an input
-    if (e.target instanceof HTMLInputElement) {
+    if (e.defaultPrevented || isInteractiveTarget(e)) {
       return;
     }
     switch (e.key) {

@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { atom } from "jotai";
+import { atom, useStore } from "jotai";
 import { useJotaiEffect } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
 import { cellSelectionStateAtom } from "./atoms";
@@ -15,14 +15,21 @@ const focusedCellAtom = atom((get) => get(cellSelectionStateAtom).focusedCell);
 export function useScrollIntoViewOnFocus(
   root: React.RefObject<HTMLElement | null>,
 ) {
+  const store = useStore();
   useJotaiEffect(focusedCellAtom, (focusedCell) => {
     if (!focusedCell?.cellId) {
       return;
     }
 
     const scroll = () => {
+      if (
+        !root.current ||
+        store.get(focusedCellAtom)?.cellId !== focusedCell.cellId
+      ) {
+        return;
+      }
       // Check if this cell contains the CellRangeSelectionIndicator with our cellId
-      const indicator = root.current?.querySelector(
+      const indicator = root.current?.querySelector<HTMLElement>(
         `[data-cell-id="${focusedCell.cellId}"]`,
       );
       if (!indicator) {
@@ -31,6 +38,13 @@ export function useScrollIntoViewOnFocus(
           focusedCell.cellId,
         );
         return;
+      }
+
+      if (
+        root.current?.contains(document.activeElement) &&
+        document.activeElement?.matches("td[data-cell-id]")
+      ) {
+        indicator.focus({ preventScroll: true });
       }
 
       indicator.scrollIntoView({

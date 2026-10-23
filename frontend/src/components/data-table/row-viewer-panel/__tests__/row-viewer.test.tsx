@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { Provider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +17,29 @@ const renderWithProviders = (component: React.ReactNode) => {
 };
 
 describe("RowExpandedPanel", () => {
+  it("preserves Space activation on navigation buttons", async () => {
+    const select = vi.fn();
+    const navigate = vi.fn();
+    renderWithProviders(
+      <RowViewerPanel
+        rowIdx={0}
+        setRowIdx={navigate}
+        totalRows={2}
+        fieldTypes={[["name", ["string", "string"]]]}
+        getRow={async () => ({ rows: [{ name: "Alice" }] })}
+        isSelectable={true}
+        isRowSelected={false}
+        handleRowSelectionChange={select}
+      />,
+    );
+    await screen.findByText("Alice");
+    const next = screen.getByRole("button", { name: "Next row" });
+    expect(fireEvent.keyDown(next, { key: " " })).toBe(true);
+    expect(select).not.toHaveBeenCalled();
+    fireEvent.click(next);
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
   const mockFieldTypes: FieldTypesWithExternalType = [
     ["name", ["string", "string"]],
     ["age", ["number", "number"]],

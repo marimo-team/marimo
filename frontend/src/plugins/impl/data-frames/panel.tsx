@@ -295,27 +295,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
           return (
             <div
               key={`${JSON.stringify(item)}-${idx}`}
-              onClick={() => {
-                onSelect(idx);
-              }}
               className={cn(
-                "flex flex-row min-h-[40px] items-center px-2 cursor-pointer hover:bg-accent/50 text-sm overflow-hidden hover-actions-parent border border-muted border-l-2 border-l-transparent",
+                "group flex flex-row min-h-[40px] items-center px-2 cursor-pointer hover:bg-accent/50 text-sm overflow-hidden border border-muted border-l-2 border-l-transparent",
                 {
                   "border-l-primary bg-accent text-accent-foreground":
                     selected === idx,
                 },
               )}
             >
-              <div className="grow text-ellipsis">
+              <button
+                type="button"
+                className="grow text-left text-ellipsis py-2 focus-visible:outline focus-visible:outline-ring"
+                aria-pressed={selected === idx}
+                onClick={() => onSelect(idx)}
+              >
                 {Strings.startCase(item.type)}
-              </div>
-              <Trash2Icon
-                className="w-3 h-3 hover-action text-muted-foreground hover:text-destructive"
-                onClick={(e) => {
-                  onDelete(idx);
-                  e.stopPropagation();
-                }}
-              />
+              </button>
+              <button
+                type="button"
+                aria-label={`Delete ${Strings.startCase(item.type)} transform ${idx + 1}`}
+                className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-destructive focus-visible:outline focus-visible:outline-ring"
+                onClick={() => onDelete(idx)}
+              >
+                <Trash2Icon className="w-3 h-3" />
+              </button>
             </div>
           );
         })}
