@@ -1,11 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { Provider } from "jotai";
 import { beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { Tracebacks } from "@/__mocks__/tracebacks";
 import { cellId } from "@/__tests__/branded";
+import { toggleBreakpoint } from "@/core/codemirror/cells/debugger-state";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { initialModeAtom } from "@/core/mode";
 import { requestClientAtom } from "@/core/network/requests";
@@ -19,7 +20,32 @@ import {
 
 const cid = cellId("1");
 
+vi.mock("@/core/config/feature-flag", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/config/feature-flag")>()),
+  getFeatureFlag: (flag: string) => flag === "debugger",
+}));
+vi.mock("@/core/codemirror/cells/debugger-state", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/core/codemirror/cells/debugger-state")
+  >()),
+  toggleBreakpoint: vi.fn(),
+}));
+
 describe("traceback component", () => {
+  test("activates the breakpoint from the named button itself", () => {
+    render(
+      <Provider store={store}>
+        <TooltipProvider>
+          <MarimoTracebackOutput traceback={Tracebacks.raw} cellId={cid} />
+        </TooltipProvider>
+      </Provider>,
+    );
+    const buttons = screen.getAllByRole("button", {
+      name: "Toggle breakpoint",
+    });
+    fireEvent.click(buttons[0]);
+    expect(toggleBreakpoint).toHaveBeenCalledOnce();
+  });
   beforeEach(() => {
     vi.resetAllMocks();
     store.set(initialModeAtom, "edit");

@@ -29,13 +29,14 @@ export const CellLink = (props: Props): JSX.Element => {
   const formatName = formatCellName ?? ((name: string) => name);
 
   return (
-    <div
+    <a
+      href={
+        cellId === SCRATCH_CELL_ID ? undefined : `#${HTMLCellId.create(cellId)}`
+      }
       className={cn(
-        "inline-block cursor-pointer text-link hover:underline",
+        "inline-block cursor-pointer text-left text-link hover:underline focus-visible:outline focus-visible:outline-ring",
         className,
       )}
-      role="link"
-      tabIndex={-1}
       onClick={(e) => {
         // Scratch causes a crash since scratch is not registered like a
         // normal cell.
@@ -54,7 +55,7 @@ export const CellLink = (props: Props): JSX.Element => {
       }}
     >
       {formatName(displayCellName(cellName, cellIndex))}
-    </div>
+    </a>
   );
 };
 
