@@ -358,6 +358,7 @@ export class AnsiReducer {
 
 export type StringOutputMessage = Omit<OutputMessage, "data"> & {
   data: string;
+  id?: number;
 };
 
 /**
@@ -369,6 +370,7 @@ export class StatefulOutputMessage implements OutputMessage {
   public readonly channel: OutputMessage["channel"];
   public readonly timestamp: OutputMessage["timestamp"];
   public readonly code: OutputMessage["code"];
+  public readonly id: StringOutputMessage["id"];
   private ansiReducer = new AnsiReducer();
   private _data: string;
 
@@ -385,6 +387,7 @@ export class StatefulOutputMessage implements OutputMessage {
       message.timestamp,
       ansiReducer,
       message.code,
+      message.id,
     );
   }
 
@@ -394,11 +397,13 @@ export class StatefulOutputMessage implements OutputMessage {
     timestamp: OutputMessage["timestamp"],
     ansiReducer: AnsiReducer,
     code: OutputMessage["code"],
+    id: StringOutputMessage["id"],
   ) {
     this.mimetype = mimetype;
     this.channel = channel;
     this.timestamp = timestamp;
     this.code = code;
+    this.id = id;
     this.ansiReducer = ansiReducer;
     this._data = this.ansiReducer.render();
   }
@@ -411,6 +416,7 @@ export class StatefulOutputMessage implements OutputMessage {
       this.timestamp,
       this.ansiReducer,
       this.code,
+      this.id,
     );
   }
 
