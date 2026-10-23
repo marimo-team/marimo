@@ -216,11 +216,12 @@ export const GraphSelectionPanel: React.FC<{
               </Button>
             </Tooltip>
             <ConnectionCellActionsDropdown cellId={selection.id}>
-              <Button variant="ghost" size="icon">
+              <Button aria-label="Cell actions" variant="ghost" size="icon">
                 <MoreVerticalIcon className="w-4 h-4" />
               </Button>
             </ConnectionCellActionsDropdown>
             <Button
+              aria-label="Close cell details"
               variant="text"
               size="icon"
               onClick={() => {

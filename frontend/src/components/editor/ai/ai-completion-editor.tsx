@@ -408,6 +408,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
               </div>
             </Tooltip>
             <Button
+              aria-label="Discard AI completion"
               data-testid="decline-completion-button"
               variant="text"
               size="icon"

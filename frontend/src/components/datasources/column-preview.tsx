@@ -118,6 +118,7 @@ export const DatasetColumnPreview: React.FC<{
   const addSQLChart = table.source_type === "duckdb" && (
     <Tooltip content="Add SQL cell" delayDuration={400}>
       <Button
+        aria-label={`Add SQL cell for ${column.name}`}
         variant="outline"
         size="icon"
         className="z-10 bg-background absolute right-1 -top-1"
@@ -261,6 +262,7 @@ export const AddDataframeChart: React.FC<{
   return (
     <Tooltip content="Add chart to notebook" delayDuration={400}>
       <Button
+        aria-label="Add chart to notebook"
         variant="outline"
         size="icon"
         className="z-10 bg-background absolute right-1 -top-0.5"

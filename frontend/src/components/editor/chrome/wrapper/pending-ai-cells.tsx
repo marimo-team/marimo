@@ -79,7 +79,12 @@ export const PendingAICells: React.FC = () => {
       <SparklesIcon className="h-4 w-4 text-primary" />
 
       <div className="flex items-center">
-        <Button variant="ghost" size="icon" onClick={() => clickNext("up")}>
+        <Button
+          aria-label="Previous pending AI cell"
+          variant="ghost"
+          size="icon"
+          onClick={() => clickNext("up")}
+        >
           <ChevronUp className="h-3.5 w-3.5" />
         </Button>
         <span className="text-xs font-mono min-w-14 text-center">
@@ -87,7 +92,12 @@ export const PendingAICells: React.FC = () => {
             ? `${listStagedCells.length} pending`
             : `${currentIndex + 1} / ${listStagedCells.length}`}
         </span>
-        <Button variant="ghost" size="icon" onClick={() => clickNext("down")}>
+        <Button
+          aria-label="Next pending AI cell"
+          variant="ghost"
+          size="icon"
+          onClick={() => clickNext("down")}
+        >
           <ChevronDown className="h-3.5 w-3.5" />
         </Button>
       </div>

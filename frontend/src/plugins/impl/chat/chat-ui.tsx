@@ -441,6 +441,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     >
       <div className="absolute top-0 right-0 flex justify-end z-10 border border-(--slate-6) bg-inherit rounded-bl-lg">
         <Button
+          aria-label="Reset chat"
           variant="text"
           size="icon"
           disabled={messages.length === 0}
