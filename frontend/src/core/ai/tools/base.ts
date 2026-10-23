@@ -20,9 +20,11 @@ export type StatusValue = "success" | "error" | "warning";
  * @example
  * throw new ToolExecutionError(
  *   "Failed to fetch data",
- *   "FETCH_ERROR",
- *   true,
- *   "Check your network connection"
+ *   {
+ *     code: "FETCH_ERROR",
+ *     isRetryable: true,
+ *     suggestedFix: "Check your network connection",
+ *   }
  * );
  */
 export class ToolExecutionError extends Error {
@@ -33,10 +35,17 @@ export class ToolExecutionError extends Error {
 
   public constructor(
     message: string,
-    code = "TOOL_ERROR",
-    isRetryable = false,
-    suggestedFix?: string,
-    meta?: Record<string, unknown>,
+    {
+      code = "TOOL_ERROR",
+      isRetryable = false,
+      suggestedFix,
+      meta,
+    }: {
+      code?: string;
+      isRetryable?: boolean;
+      suggestedFix?: string;
+      meta?: Record<string, unknown>;
+    } = {},
   ) {
     super(message);
     this.name = "ToolExecutionError";

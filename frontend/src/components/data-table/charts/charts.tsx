@@ -372,13 +372,13 @@ export const ChartPanel: React.FC<{
   // deeply partial, but the form always starts from complete defaults.
   const formValues = useWatch({ control: form.control }) as ChartSchemaType;
 
-  const specWithoutData = createSpecWithoutData(
-    selectedChartType,
+  const specWithoutData = createSpecWithoutData({
+    chartType: selectedChartType,
     formValues,
     theme,
-    "container",
-    CHART_HEIGHT,
-  );
+    width: "container",
+    height: CHART_HEIGHT,
+  });
 
   // Prevent unnecessary re-renders of the chart
   const memoizedChart = useMemo(() => {

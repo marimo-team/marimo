@@ -916,16 +916,16 @@ const DataTableComponent = ({
     }
     const fieldTypesWithoutExternalTypes = toFieldTypes(fieldTypes);
 
-    return new ColumnChartSpecModel(
-      columnSummaries.data || [],
-      fieldTypesWithoutExternalTypes,
-      columnSummaries.stats,
-      columnSummaries.bin_values,
-      columnSummaries.value_counts,
-      {
+    return new ColumnChartSpecModel({
+      data: columnSummaries.data || [],
+      fieldTypes: fieldTypesWithoutExternalTypes,
+      stats: columnSummaries.stats,
+      binValues: columnSummaries.bin_values,
+      valueCounts: columnSummaries.value_counts,
+      opts: {
         includeCharts: columnSummaries.show_charts,
       },
-    );
+    });
   }, [fieldTypes, columnSummaries]);
 
   const rowHeaderNames = new Set(rowHeaders.map(([name]) => name));

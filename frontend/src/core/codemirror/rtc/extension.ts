@@ -207,7 +207,13 @@ export function realTimeCollaboration(
     extension: [
       languageObserverExtension(cellId),
       languageListenerExtension(cellId),
-      loroAwarenessPlugin(doc, awareness, userState, () => loroText, cellId),
+      loroAwarenessPlugin({
+        doc,
+        awareness,
+        user: userState,
+        getTextFromDoc: () => loroText,
+        cellId,
+      }),
       loroSyncPlugin(doc, ["codes", cellId], () => {
         return loroText;
       }),
@@ -419,14 +425,21 @@ function languageListenerExtension(cellId: CellId) {
 /**
  * Create a plugin to observe awareness changes
  */
-function loroAwarenessPlugin(
-  doc: LoroDoc,
-  awareness: Awareness<AwarenessState>,
-  user: UserState,
-  getTextFromDoc: (doc: LoroDoc) => LoroText,
-  cellId: CellId,
-  getUserId?: () => Uid,
-): Extension[] {
+function loroAwarenessPlugin({
+  doc,
+  awareness,
+  user,
+  getTextFromDoc,
+  cellId,
+  getUserId,
+}: {
+  doc: LoroDoc;
+  awareness: Awareness<AwarenessState>;
+  user: UserState;
+  getTextFromDoc: (doc: LoroDoc) => LoroText;
+  cellId: CellId;
+  getUserId?: () => Uid;
+}): Extension[] {
   const scopeId = `loro:cell:${cellId}` as ScopeId;
 
   return [
@@ -435,15 +448,14 @@ function loroAwarenessPlugin(
     createSelectionLayer(),
     ViewPlugin.define(
       (view) =>
-        new AwarenessPlugin(
-          view,
+        new AwarenessPlugin(view, {
           doc,
           user,
           awareness,
           getTextFromDoc,
           scopeId,
           getUserId,
-        ),
+        }),
     ),
     ViewPlugin.define(
       (view) => new RemoteAwarenessPlugin(view, doc, awareness, scopeId),
