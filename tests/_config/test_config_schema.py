@@ -68,15 +68,15 @@ def test_schema_defaults_preserve_dictionary_api() -> None:
     }
 
 
-def test_runtime_defaults_read_environment(
+def test_runtime_defaults_ignore_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("MARIMO_OUTPUT_MAX_BYTES", "1234")
     monkeypatch.setenv("MARIMO_STD_STREAM_MAX_BYTES", "5678")
     assert config_schema.RuntimeConfig().to_dict() == {
         **DEFAULT_CONFIG["runtime"],
-        "output_max_bytes": 1234,
-        "std_stream_max_bytes": 5678,
+        "output_max_bytes": 8_000_000,
+        "std_stream_max_bytes": 1_000_000,
     }
 
 

@@ -6,7 +6,6 @@ The dictionary interfaces in `config.py` remain in use during migration.
 
 from __future__ import annotations
 
-import os
 from typing import Annotated, Any, Literal
 
 from msgspec import UNSET, Meta, UnsetType, field
@@ -179,11 +178,7 @@ class RuntimeConfig(Config, kw_only=True):
         Meta(
             description="the maximum size in bytes of cell outputs; larger values may affect frontend performance"
         ),
-    ] = field(
-        default_factory=lambda: int(
-            os.getenv("MARIMO_OUTPUT_MAX_BYTES", "8000000")
-        )
-    )
+    ] = 8_000_000
     serve_cached_sessions_in_apps: Annotated[
         bool | UnsetType,
         Meta(
@@ -195,11 +190,7 @@ class RuntimeConfig(Config, kw_only=True):
         Meta(
             description="the maximum size in bytes of console outputs; larger values may affect frontend performance"
         ),
-    ] = field(
-        default_factory=lambda: int(
-            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", "1000000")
-        )
-    )
+    ] = 1_000_000
     pythonpath: Annotated[
         list[str] | UnsetType,
         Meta(
@@ -209,7 +200,13 @@ class RuntimeConfig(Config, kw_only=True):
     dotenv: Annotated[
         list[str] | UnsetType,
         Meta(
-            description="a list of paths to `.env` files to load. If the file does not exist, it will be silently ignored. Relative paths resolve against the directory holding the `pyproject.toml`, or the notebook's directory when there is none.",
+            description=(
+                "Paths to `.env` files, replacing the default project or notebook "
+                "`.env`. An empty list disables loading default .env file. Relative "
+                "paths in project settings and script metadata use the project "
+                "directory, or the notebook's directory when there is no project. "
+                "Use absolute paths in user settings."
+            ),
             extra={"sensitive": True},
         ),
     ] = UNSET

@@ -24,7 +24,6 @@ from marimo._server.config import (
 )
 from marimo._server.host.lifespan import host as host_lifespan
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
-from marimo._server.main import create_starlette_app
 from marimo._server.registry import LIFESPAN_REGISTRY
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
@@ -355,6 +354,8 @@ def start(
 
     (external_port, external_host) = _resolve_proxy(port, host, proxy)
     enable_auth = not AuthToken.is_empty(session_manager.auth_token)
+    from marimo._server.main import create_starlette_app
+
     app = create_starlette_app(
         base_url=base_url,
         host=external_host,
