@@ -4,7 +4,7 @@ from __future__ import annotations
 from marimo._data.get_datasets import _db_type_to_data_type
 from marimo._data.models import ColumnStats, DataType
 from marimo._sql.sql_quoting import parse_fully_qualified_table_name
-from marimo._sql.utils import execute_duckdb_sql, wrapped_sql
+from marimo._sql.utils import execute_duckdb_sql, is_duckdb_v2, wrapped_sql
 
 
 def get_sql_stats(
@@ -146,8 +146,14 @@ def get_column_type(
     Get the type of a column in a SQL table.
     """
 
-    # First, get the column info and data type
-    if "." in fully_qualified_table_name:
+    # DuckDB 1.0's pragma_table_info does not preserve escaped identifier quotes.
+    if is_duckdb_v2():
+        table_name = fully_qualified_table_name
+        column_info_result: tuple[str] | None = execute_duckdb_sql(
+            "SELECT type FROM pragma_table_info(?) WHERE name = ?",
+            [fully_qualified_table_name, column_name],
+        ).fetchone()
+    elif "." in fully_qualified_table_name:
         # Fully qualified table name
         db_name, schema_name, table_name = parse_fully_qualified_table_name(
             fully_qualified_table_name
@@ -160,7 +166,7 @@ def get_column_type(
         AND table_catalog = $3
         AND column_name = $4
         """
-        column_info_result: tuple[str] | None = execute_duckdb_sql(
+        column_info_result = execute_duckdb_sql(
             column_info_query,
             [table_name, schema_name, db_name, column_name],
         ).fetchone()

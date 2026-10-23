@@ -8,8 +8,9 @@ from typing import TYPE_CHECKING, Literal, cast
 from marimo import _loggers
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from marimo._ast.cell import CellImpl
-    from marimo._ast.sql_visitor import SQLRef
     from marimo._ast.visitor import Name
     from marimo._runtime.dataflow.definitions import DefinitionRegistry
     from marimo._runtime.dataflow.topology import (
@@ -18,7 +19,8 @@ if TYPE_CHECKING:
     )
     from marimo._types.ids import CellId_t
 
-from marimo._ast.sql_visitor import SQLTypes
+from marimo._ast.sql_visitor import SQLRef, SQLTypes
+from marimo._runtime.dataflow.definitions import effective_variable_definitions
 
 LOGGER = _loggers.marimo_logger()
 
@@ -41,10 +43,48 @@ def register_cell_dependencies(
     return compute_edges_for_cell(cell_id, cell, topology, definitions)
 
 
+def _cell_references(
+    cell: CellImpl, *, namespace_only: bool = False
+) -> Iterator[tuple[Name, SQLRef | None]]:
+    if not namespace_only:
+        for name in cell.refs:
+            yield name, cell.sql_refs.get(name)
+    for ref in cell.sql_namespace_refs:
+        yield ref.qualified_name, ref
+
+
+def _matches_reference(
+    cell: CellImpl,
+    reference_name: Name,
+    sql_ref: SQLRef | None,
+    *,
+    definition_name: Name,
+    language: Literal["python", "sql"],
+    sql_definition: SQLRef | None,
+    sql_kind: SQLTypes,
+    catalogs: frozenset[str],
+) -> bool:
+    if language == "python":
+        return reference_name == definition_name and (
+            sql_ref is None or sql_ref.kind != "schema"
+        )
+    if cell.language != "sql":
+        return False
+    if sql_ref is None:
+        return reference_name == definition_name
+    definition = sql_definition or SQLRef.from_qualified_name(definition_name)
+    return sql_ref.matches_hierarchical_ref(
+        definition_name, definition, sql_kind, catalogs=catalogs
+    )
+
+
 def get_referring_cells(
     name: Name,
     language: Literal["python", "sql"],
     topology: GraphTopology,
+    sql_definition: SQLRef | None = None,
+    sql_kind: SQLTypes = "any",
+    catalogs: frozenset[str] = frozenset(),
 ) -> set[CellId_t]:
     """Get all cells that have a ref to `name`.
 
@@ -62,22 +102,16 @@ def get_referring_cells(
             if cell.language != "sql":
                 continue
 
-            for ref in cell.refs:
-                # Direct reference match
-                if ref == name:
-                    cells.add(cid)
-                    break
-
-                sql_ref = cell.sql_refs.get(ref)
-
-                kind: SQLTypes = "any"
-                if name in cell.variable_data:
-                    variable_data = cell.variable_data[name][-1]
-                    kind = cast(SQLTypes, variable_data.kind)
-
-                # Hierarchical reference match
-                if sql_ref and sql_ref.matches_hierarchical_ref(
-                    name, ref, kind
+            for ref, sql_ref in _cell_references(cell):
+                if _matches_reference(
+                    cell,
+                    ref,
+                    sql_ref,
+                    definition_name=name,
+                    language=language,
+                    sql_definition=sql_definition,
+                    sql_kind=sql_kind,
+                    catalogs=catalogs,
                 ):
                     cells.add(cid)
                     break
@@ -104,43 +138,13 @@ def _is_valid_cell_reference(
     return True
 
 
-def _resolve_variable_name(
-    name: Name,
-    other_cell: CellImpl,
-    sql_ref: SQLRef | None,
-    sql_matches: list[tuple[set[CellId_t], Name]],
-) -> Name:
-    """Resolve the variable name to use when checking if it exists in another cell.
-
-    For regular (non-SQL) references, returns the original name unchanged.
-    For SQL hierarchical references, finds the variable name from sql_matches that
-    is actually defined in the other_cell.
-
-    Example:
-        cell_1: CREATE SCHEMA schema_name
-        cell_2: CREATE TABLE schema_name.table_name
-        cell_3: FROM schema_name.table_name SELECT *
-
-        When cell_3 references "schema_name.table_name":
-        - For cell_1: returns "schema_name" (what cell_1 actually defines)
-        - For cell_2: returns "table_name" (what cell_2 actually defines)
-    """
-    if not sql_ref or name in other_cell.variable_data:
-        return name
-
-    # For SQL hierarchical references, find the matching variable name
-    for _, matching_variable_name in sql_matches:
-        if matching_variable_name in other_cell.variable_data:
-            return matching_variable_name
-
-    return name
-
-
 def resolve_cell_references(
     cell_id: CellId_t,
     cell: CellImpl,
     topology: GraphTopology,
     definitions: DefinitionRegistry,
+    *,
+    namespace_only: bool = False,
 ) -> dict[Name, set[CellId_t]]:
     """Resolve each reference to its defining cells using language semantics.
 
@@ -148,68 +152,43 @@ def resolve_cell_references(
     Unresolved names and references to the cell itself are excluded.
     """
     resolved: dict[Name, set[CellId_t]] = {}
-    for name in cell.refs:
-        # First, for each referenced variable, we add cells that define
-        # that variable as parents
-        other_ids_defining_name: set[CellId_t] = definitions.definitions.get(
-            name, set()
-        ) - {cell_id}
+    catalogs = (
+        definitions.sql_catalogs if cell.language == "sql" else frozenset()
+    )
+    for name, sql_ref in _cell_references(cell, namespace_only=namespace_only):
+        candidates: dict[CellId_t, set[Name]] = {
+            cid: {name}
+            for cid in definitions.get_defining_cells(name) - {cell_id}
+        }
+        if sql_ref is not None:
+            for (
+                cell_ids,
+                variable_name,
+            ) in definitions.find_sql_hierarchical_matches(sql_ref):
+                for cid in cell_ids - {cell_id}:
+                    candidates.setdefault(cid, set()).add(variable_name)
 
-        variable_name: Name = name
-
-        # Handle SQL matching for hierarchical references
-        sql_matches: list[tuple[set[CellId_t], Name]] = []
-        sql_ref = cell.sql_refs.get(name)
-        if sql_ref:
-            sql_matches = definitions.find_sql_hierarchical_matches(sql_ref)
-            for matching_cell_ids, _ in sql_matches:
-                if cell_id in matching_cell_ids:
-                    LOGGER.debug("Cell %s is referencing itself", cell_id)
-                    continue
-                other_ids_defining_name.update(matching_cell_ids)
-
-        # If other_ids_defining_name is empty, the user will get a
-        # NameError at runtime (unless the symbol is a builtin).
-        for other_id in other_ids_defining_name:
-            if other_id == cell_id:
-                LOGGER.error("Cell %s is referencing itself", cell_id)
-                continue
-            if not _is_valid_cell_reference(other_id, variable_name, topology):
+        for other_id, names in candidates.items():
+            if not _is_valid_cell_reference(other_id, name, topology):
                 continue
             other_cell = topology.cells[other_id]
-
-            variable_name = _resolve_variable_name(
-                variable_name, other_cell, sql_ref, sql_matches
-            )
-
-            # If we don't have a matching variable name, skip
-            if variable_name not in other_cell.variable_data:
-                LOGGER.error(
-                    "Variable %s is not defined in cell %s",
-                    variable_name,
-                    other_id,
+            if any(
+                _matches_reference(
+                    cell,
+                    name,
+                    sql_ref,
+                    definition_name=variable_name,
+                    language=variable.language,
+                    sql_definition=variable.sql_ref,
+                    sql_kind=cast(SQLTypes, variable.kind),
+                    catalogs=catalogs,
                 )
-                continue
-
-            other_variable_data = other_cell.variable_data[variable_name][-1]
-            language = other_variable_data.language
-            if language == "sql" and cell.language == "python":
-                # SQL table/db def -> Python ref is not an edge
-                continue
-            if language == "sql" and cell.language == "sql":
-                # Edges between SQL cells need to respect hierarchy.
-                if sql_ref:
-                    other_sql_ref = other_variable_data.sql_ref
-                    qualified_name = (
-                        other_sql_ref.qualified_name if other_sql_ref else name
-                    )
-                    if not sql_ref.matches_hierarchical_ref(
-                        variable_name,
-                        qualified_name,
-                        kind=cast(SQLTypes, other_variable_data.kind),
-                    ):
-                        continue
-            resolved.setdefault(name, set()).add(other_id)
+                for variable_name in names
+                for variable in effective_variable_definitions(
+                    other_cell.variable_data[variable_name]
+                )
+            ):
+                resolved.setdefault(name, set()).add(other_id)
 
     return resolved
 
@@ -235,24 +214,24 @@ def compute_edges_for_cell(
     """
     parents: set[CellId_t] = set()
     children: set[CellId_t] = set()
+    catalogs = (
+        definitions.sql_catalogs if cell.language == "sql" else frozenset()
+    )
 
     # First, process the variables that this cell defines. Any cell
     # that refers to a defined variable becomes a child of this cell.
     for name, variable_data in cell.variable_data.items():
-        # NB. Only the last definition matters.
-        # Technically more nuanced with branching statements, but this is
-        # the best we can do with static analysis.
-        variable = variable_data[-1]
-
-        # a cell can refer to its own defs, but that doesn't add an
-        # edge to the dependency graph
-        referring_cells = get_referring_cells(
-            name,
-            language=variable.language,
-            topology=topology,
-        ) - {cell_id}
-
-        children.update(referring_cells)
+        variables = effective_variable_definitions(variable_data)
+        for variable in variables:
+            referring_cells = get_referring_cells(
+                name,
+                language=variable.language,
+                topology=topology,
+                sql_definition=variable.sql_ref,
+                sql_kind=cast(SQLTypes, variable.kind),
+                catalogs=catalogs,
+            ) - {cell_id}
+            children.update(referring_cells)
 
     for defining_cells in resolve_cell_references(
         cell_id, cell, topology, definitions

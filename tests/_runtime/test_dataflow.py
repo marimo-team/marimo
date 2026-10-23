@@ -90,7 +90,7 @@ def test_ancestor_analysis_preserves_sql_registration_order(
     graph = dataflow.DirectedGraph()
     for cid, cell in cells.items():
         graph.register_cell(cid, cell)
-    expected = {"0", "1"} if reverse_order else {"1"}
+    expected = {"0", "1"}
     assert graph.ancestors(CellId_t("2")) == expected
     assert (
         dataflow.get_ancestors_from_cells(cells, {CellId_t("2")}) == expected
@@ -1809,3 +1809,214 @@ def test_is_any_ancestor_errored_marimo_error() -> None:
     # Fix cell 0
     graph.cells["0"].set_run_result_status("success")
     assert not graph.is_any_ancestor_errored("1")
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb")
+@pytest.mark.parametrize("reverse_order", [False, True])
+def test_nested_schema_dependencies(reverse_order: bool) -> None:
+    sources = [
+        'mo.sql("CREATE SCHEMA finance")',
+        'mo.sql("CREATE SCHEMA finance.reports")',
+        'mo.sql("CREATE SCHEMA other")',
+        'mo.sql("CREATE SCHEMA other.reports")',
+        'mo.sql("CREATE TABLE finance.reports.sales (amount INT)")',
+        'mo.sql("CREATE TABLE other.reports.sales (amount INT)")',
+        "mo.sql('CREATE TABLE \"finance.reports\".sales (amount INT)')",
+        'mo.sql("SELECT * FROM memory.finance.reports.sales")',
+        'mo.sql("SELECT * FROM other.reports.sales")',
+        "mo.sql('SELECT * FROM \"finance.reports\".sales')",
+    ]
+    cells = {
+        CellId_t(str(i)): compiler.compile_cell(code, cell_id=CellId_t(str(i)))
+        for i, code in enumerate(sources)
+    }
+    graph = dataflow.DirectedGraph()
+    for cid, cell in (
+        reversed(cells.items()) if reverse_order else cells.items()
+    ):
+        graph.register_cell(cid, cell)
+    assert graph.parents[CellId_t("1")] == {"0"}
+    assert graph.parents[CellId_t("3")] == {"2"}
+    assert graph.ancestors(CellId_t("7")) == {"0", "1", "4"}
+    assert graph.ancestors(CellId_t("8")) == {"2", "3", "5"}
+    assert graph.ancestors(CellId_t("9")) == {"6"}
+    assert not graph.get_multiply_defined()
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb")
+@pytest.mark.parametrize(
+    ("definition", "reference"),
+    [
+        ("memory.finance.reports.sales", "finance.reports.sales"),
+    ],
+)
+@pytest.mark.parametrize("reverse_order", [False, True])
+def test_sql_qualified_shorthand_dependencies(
+    definition: str, reference: str, reverse_order: bool
+) -> None:
+    cells = {
+        CellId_t("0"): compiler.compile_cell(
+            f"mo.sql('CREATE TABLE {definition} (id INT)')",
+            cell_id=CellId_t("0"),
+        ),
+        CellId_t("1"): compiler.compile_cell(
+            f"mo.sql('SELECT * FROM {reference}')", cell_id=CellId_t("1")
+        ),
+    }
+    graph = dataflow.DirectedGraph()
+    for cid, cell in (
+        reversed(cells.items()) if reverse_order else cells.items()
+    ):
+        graph.register_cell(cid, cell)
+    assert "0" in graph.ancestors(CellId_t("1"))
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb")
+@pytest.mark.parametrize("reverse_order", [False, True])
+def test_nested_main_schema_is_not_catalog_shorthand(
+    reverse_order: bool,
+) -> None:
+    sources = [
+        'mo.sql("CREATE SCHEMA parent")',
+        'mo.sql("CREATE SCHEMA parent.main")',
+        'mo.sql("CREATE TABLE parent.main.t (i INT)")',
+        'mo.sql("CREATE TABLE parent.t (i INT)")',
+        'mo.sql("SELECT * FROM parent.main.t")',
+        'mo.sql("SELECT * FROM parent.t")',
+    ]
+    cells = {
+        CellId_t(str(i)): compiler.compile_cell(code, cell_id=CellId_t(str(i)))
+        for i, code in enumerate(sources)
+    }
+    graph = dataflow.DirectedGraph()
+    for cid, cell in (
+        reversed(cells.items()) if reverse_order else cells.items()
+    ):
+        graph.register_cell(cid, cell)
+    assert graph.ancestors(CellId_t("4")) == {"0", "1", "2"}
+    assert graph.ancestors(CellId_t("5")) == {"0", "3"}
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb")
+@pytest.mark.parametrize("reverse_order", [False, True])
+@pytest.mark.parametrize("python_definition", [False, True])
+def test_multiple_qualified_sql_objects_in_one_cell(
+    reverse_order: bool, python_definition: bool
+) -> None:
+    sources = [
+        'mo.sql("CREATE TABLE finance.a.t (i INT); CREATE TABLE finance.b.t (i INT)")',
+        'mo.sql("SELECT * FROM finance.a.t")',
+        'mo.sql("SELECT * FROM finance.b.t")',
+    ]
+    if python_definition:
+        sources[0] += "\nt = 1"
+    cells = {
+        CellId_t(str(i)): compiler.compile_cell(code, cell_id=CellId_t(str(i)))
+        for i, code in enumerate(sources)
+    }
+    graph = dataflow.DirectedGraph()
+    for cid, cell in (
+        reversed(cells.items()) if reverse_order else cells.items()
+    ):
+        graph.register_cell(cid, cell)
+    assert graph.ancestors(CellId_t("1")) == {"0"}
+    assert graph.ancestors(CellId_t("2")) == {"0"}
+    graph.delete_cell(CellId_t("0"))
+    assert not graph.ancestors(CellId_t("1"))
+    assert not graph.ancestors(CellId_t("2"))
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb")
+@pytest.mark.parametrize("reverse_order", [False, True])
+@pytest.mark.parametrize("kind", ["TABLE", "VIEW"])
+@pytest.mark.parametrize(
+    ("name", "query_name"),
+    [
+        ("memory.same_name", "memory.main.same_name"),
+        ("finance.reports", "finance.reports"),
+        ("memory.finance.reports.sales", "memory.finance.reports.sales"),
+    ],
+)
+def test_schema_and_relation_with_same_qualified_name(
+    reverse_order: bool, kind: str, name: str, query_name: str
+) -> None:
+    relation = f"{kind} {name} " + (
+        "(id INT)" if kind == "TABLE" else "AS SELECT 1 AS id"
+    )
+    sources = [
+        f'mo.sql("CREATE SCHEMA {name}")',
+        f'mo.sql("CREATE {relation}")',
+        f'mo.sql("SELECT * FROM {query_name}")',
+    ]
+    cells = {
+        CellId_t(str(i)): compiler.compile_cell(code, cell_id=CellId_t(str(i)))
+        for i, code in enumerate(sources)
+    }
+    graph = dataflow.DirectedGraph()
+    for cid, cell in (
+        reversed(cells.items()) if reverse_order else cells.items()
+    ):
+        graph.register_cell(cid, cell)
+    assert not graph.get_multiply_defined()
+    assert graph.parents[CellId_t("2")] == {"1"}
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb")
+@pytest.mark.parametrize("reverse_order", [False, True])
+@pytest.mark.parametrize("schema", ["finance", "finance.reports"])
+def test_schema_conflict_with_explicit_default_catalog(
+    reverse_order: bool, schema: str
+) -> None:
+    cells = {
+        CellId_t("0"): compiler.compile_cell(
+            f'mo.sql("CREATE SCHEMA {schema}")', cell_id=CellId_t("0")
+        ),
+        CellId_t("1"): compiler.compile_cell(
+            f'mo.sql("CREATE SCHEMA memory.{schema}")', cell_id=CellId_t("1")
+        ),
+    }
+    graph = dataflow.DirectedGraph()
+    for cid, cell in (
+        reversed(cells.items()) if reverse_order else cells.items()
+    ):
+        graph.register_cell(cid, cell)
+    assert graph.get_multiply_defined() == [schema.rsplit(".", maxsplit=1)[-1]]
+
+
+def test_graph_mutations_report_existing_dependents() -> None:
+    graph = dataflow.DirectedGraph()
+    consumer = CellId_t("consumer")
+    source = CellId_t("source")
+    grandchild = CellId_t("grandchild")
+    assert (
+        graph.register_cell(
+            consumer, compiler.compile_cell("result = value", cell_id=consumer)
+        )
+        == dataflow.GraphMutationResult()
+    )
+    assert (
+        graph.register_cell(
+            CellId_t("unrelated"),
+            compiler.compile_cell(
+                "standalone = 1", cell_id=CellId_t("unrelated")
+            ),
+        )
+        == dataflow.GraphMutationResult()
+    )
+
+    registration = graph.register_cell(
+        source, compiler.compile_cell("value = 1", cell_id=source)
+    )
+    expected = dataflow.GraphMutationResult(frozenset({consumer}))
+    assert registration == expected
+    assert (
+        graph.register_cell(
+            grandchild,
+            compiler.compile_cell("final = result", cell_id=grandchild),
+        )
+        == dataflow.GraphMutationResult()
+    )
+
+    assert graph.delete_cell(source) == expected
+    assert registration == expected
+    assert graph.parents[grandchild] == {consumer}
