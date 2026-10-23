@@ -48,7 +48,12 @@ import { HeatmapForm } from "./forms/heatmap";
 import { PieForm } from "./forms/pie";
 import { LazyChart } from "./lazy-chart";
 import { ChartSchema, type ChartSchemaType, getChartDefaults } from "./schemas";
-import { getChartTabName, type TabName, tabsStorageAtom } from "./storage";
+import {
+  createTabId,
+  getChartTabName,
+  type TabName,
+  tabsStorageAtom,
+} from "./storage";
 import { ChartType } from "./types";
 
 const NEW_CHART_TYPE = "bar" as ChartType;
@@ -114,7 +119,12 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     const tabName = getChartTabName(0, NEW_CHART_TYPE);
     const newTabs = new Map(tabsMap);
     newTabs.set(cellId, [
-      { tabName, chartType: NEW_CHART_TYPE, config: getChartDefaults() },
+      {
+        id: createTabId(),
+        tabName,
+        chartType: NEW_CHART_TYPE,
+        config: getChartDefaults(),
+      },
     ]);
     saveTabsMap(newTabs);
     setTabCounter(1);
@@ -135,6 +145,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     newTabs.set(cellId, [
       ...tabs,
       {
+        id: createTabId(),
         tabName,
         chartType: NEW_CHART_TYPE,
         config: getChartDefaults(),
@@ -235,7 +246,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
         </TabsTrigger>
         {tabs.map((tab) => (
           <TabsTrigger
-            key={tab.tabName}
+            key={tab.id}
             className="text-xs"
             value={tab.tabName}
             onClick={() => setSelectedTab(tab.tabName)}
@@ -276,7 +287,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
         };
         return (
           <TabsContent
-            key={tab.tabName}
+            key={tab.id}
             value={tab.tabName}
             className="h-[400px] mt-0"
           >

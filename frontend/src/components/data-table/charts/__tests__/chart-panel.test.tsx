@@ -10,11 +10,25 @@ import { cellId } from "@/__tests__/branded";
 import { LazyVegaEmbed } from "@/components/charts/lazy";
 import { vegaLoader } from "@/plugins/impl/vega/loader";
 import { ChartPanel, TablePanel, type TablePanelProps } from "../charts";
-import { getChartTabName, tabsStorageAtom } from "../storage";
+import { createTabId, getChartTabName, tabsStorageAtom } from "../storage";
 import { ChartType, NONE_VALUE } from "../types";
+import { TOO_MANY_ROWS } from "../../types";
 
 vi.mock("@/components/charts/lazy", () => ({
   LazyVegaEmbed: vi.fn(() => null),
+}));
+
+vi.mock("../components/chart-items", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../components/chart-items")>()),
+  ChartTypeSelect: ({
+    onValueChange,
+  }: {
+    onValueChange: (value: string) => void;
+  }) => (
+    <button type="button" onClick={() => onValueChange("line")}>
+      Change chart type
+    </button>
+  ),
 }));
 
 beforeAll(() => {
@@ -38,6 +52,7 @@ describe("ChartPanel", () => {
             id,
             [
               {
+                id: createTabId(),
                 tabName,
                 chartType: ChartType.BAR,
                 config: {
@@ -283,4 +298,62 @@ describe("ChartPanel", () => {
       });
     },
   );
+  it("keeps panel state when a chart type change renames the tab", async () => {
+    const store = createStore();
+    const id = cellId("rename-keeps-state");
+    const tabName = getChartTabName(0, ChartType.BAR);
+    store.set(
+      tabsStorageAtom,
+      new Map([
+        [
+          id,
+          [
+            {
+              id: createTabId(),
+              tabName,
+              chartType: ChartType.BAR,
+              config: {
+                general: {
+                  xColumn: { field: "value", type: "number" },
+                  yColumn: {
+                    field: "value",
+                    type: "integer",
+                    aggregate: NONE_VALUE,
+                  },
+                },
+              },
+            },
+          ],
+        ],
+      ]),
+    );
+    const sample = [{ value: 1 }];
+    const props: TablePanelProps = {
+      cellId: id,
+      data: sample,
+      dataTable: <div />,
+      totalRows: TOO_MANY_ROWS,
+      columns: 1,
+      displayHeader: true,
+      fieldTypes: [["value", ["number", "float64"]]],
+    };
+    const { getByRole, findByRole, queryByRole } = render(
+      <Provider store={store}>
+        <Tooltip.Provider>
+          <TablePanel {...props} />
+        </Tooltip.Provider>
+      </Provider>,
+    );
+    fireEvent.click(getByRole("tab", { name: tabName }));
+    fireEvent.click(await findByRole("button", { name: "Proceed" }));
+    await waitFor(() => {
+      expect(queryByRole("button", { name: "Proceed" })).toBeNull();
+    });
+
+    fireEvent.click(getByRole("button", { name: "Change chart type" }));
+
+    const renamed = getChartTabName(0, ChartType.LINE);
+    await findByRole("tab", { name: renamed });
+    expect(queryByRole("button", { name: "Proceed" })).toBeNull();
+  });
 });
