@@ -113,7 +113,7 @@ class MarkdownNotebookSerializer(NotebookSerializer):
         line_length: int = 79,
     ) -> str:
         """Serialize notebook to Markdown format."""
-        # NB. Markdown has no cell signatures to annotate.
+        # Markdown has no cell signatures to annotate.
         del infer_types, line_length
         from marimo._convert.markdown import convert_from_ir_to_markdown
 

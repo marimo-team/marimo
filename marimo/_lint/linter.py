@@ -89,7 +89,7 @@ class Linter:
         self.unsafe_fixes = unsafe_fixes
         self.ignore_scripts = ignore_scripts
         self.formatter = formatter
-        # NB. None inherits notebook configuration, while "off" overrides it.
+        # None inherits notebook configuration, while "off" overrides it.
         self.infer_types = infer_types
         self.line_length = line_length
         self.files: list[FileStatus] = []

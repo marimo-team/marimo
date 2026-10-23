@@ -130,7 +130,7 @@ class TestCandidateNames:
                 "print(df)",
             ],
         )
-        # NB. A read of `t` rules out exclusion as an unused variable.
+        # A read of `t` rules out exclusion as an unused variable.
         assert "t" in extraction.used_refs
         names = candidate_names(extraction)
         assert "t" not in names
@@ -198,7 +198,7 @@ class TestDefinitionSites:
         assert sites["first"] == [(8, 0)]
         assert sites["second"] == [(8, 7)]
         assert sites["walrus"] == [(9, 6)]
-        # NB. Comprehensions bind `x` in their own scope.
+        # Comprehensions bind `x` in their own scope.
         assert sites["squares"] == [(12, 0)]
 
     def test_functions_classes_and_imports_have_no_site(self) -> None:
@@ -388,7 +388,7 @@ class TestInferAnnotations:
         backend = FakeBackend(
             {
                 "df": [instance("pandas.core.frame.DataFrame", "DataFrame")],
-                # NB. No setup alias reaches this nested class.
+                # No setup alias reaches this nested class.
                 "stock": [
                     instance("marimo._plugins.ui._impl.input.slider", "slider")
                 ],
@@ -735,7 +735,7 @@ def test_library_classes_with_real_jedi() -> None:
     )
     assert "df: pd.DataFrame" in source
     assert "col: pd.Series" in source
-    # NB. marimo keeps Jedi's incorrect tuple inference for `np.linspace`,
+    # marimo keeps Jedi's incorrect tuple inference for `np.linspace`,
     # and this expectation detects backend changes.
     assert "prices: tuple" in source
 
@@ -783,7 +783,7 @@ class TestBroadTypes:
                     instance("builtins.str", "str"),
                     instance("builtins.bytes", "bytes"),
                 ],
-                # NB. The collapsed tuple has four types in its element union.
+                # The collapsed tuple has four types in its element union.
                 "record": [
                     instance("builtins.tuple", "Tuple[int, str, float, bytes]")
                 ],

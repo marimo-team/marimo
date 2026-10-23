@@ -106,7 +106,7 @@ def infer_annotations(
     spellings = _ClassAnnotationResolver(
         extraction, setup_cell, backend, source, search_path
     )
-    # NB. `unshadowed` only covers cell definitions, so also exclude setup
+    # `unshadowed` only covers cell definitions, so also exclude setup
     # definitions, which can rebind builtins.
     setup_defs = set(setup_cell.defs) if setup_cell is not None else set()
     scope = _Scope(
@@ -123,7 +123,7 @@ def infer_annotations(
             continue
         annotations[name] = annotation
 
-    # NB. Python evaluates signatures in file order before cells run, so each
+    # Python evaluates signatures in file order before cells run, so each
     # signature needs access to its types.
     available = scope.builtins | setup_defs
     for status in extraction:
@@ -155,7 +155,7 @@ def candidate_names(extraction: TopLevelExtraction) -> set[Name]:
             continue
         for name in status.defs:
             data = variables.get(name)
-            # NB. Compilation excludes private names from variable data.
+            # Compilation excludes private names from variable data.
             if data is None:
                 continue
             if data.annotation_data is not None or data.language == "sql":
@@ -175,7 +175,7 @@ def module_aliases(setup_cell: CellImpl | None) -> dict[Name, str]:
     aliases: dict[Name, str] = {}
     for name, entries in setup_cell.variable_data.items():
         import_data = entries[0].import_data
-        # NB. A from-import can bind a module or an object.
+        # A from-import can bind a module or an object.
         if import_data is not None and import_data.imported_symbol is None:
             aliases[name] = import_data.module
     return aliases
@@ -190,7 +190,7 @@ def probe_module(
         blocks.append(setup_cell.code)
     for status in _dependency_order(extraction):
         assert status._cell is not None
-        # NB. The compiler replaces non-breaking spaces in cell source.
+        # The compiler replaces non-breaking spaces in cell source.
         tree = ast.parse(status._cell.code)
         ScopedVisitor("cell_" + status.cell_id).visit(tree)
         blocks.append(ast.unparse(tree))
@@ -238,7 +238,7 @@ def _dependency_order(extraction: TopLevelExtraction) -> list[TopLevelStatus]:
                 heappush(heap, (position[id(child)], child))
 
     if len(ordered) < len(statuses):
-        # NB. Preserve file order for cycles and their dependents.
+        # Preserve file order for cycles and their dependents.
         emitted = {id(status) for status in ordered}
         ordered.extend(s for s in statuses if id(s) not in emitted)
     return ordered
@@ -269,7 +269,7 @@ def definition_sites(
         elif isinstance(
             node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
         ):
-            # NB. Comprehension walruses bind in the enclosing scope.
+            # Comprehension walruses bind in the enclosing scope.
             unsupported.update(
                 child.target.id
                 for child in ast.walk(node)
@@ -351,7 +351,7 @@ class JediBackend:
 
     @staticmethod
     def _script(source: str, search_path: Path | None) -> object | None:
-        # NB. Defer importing Jedi until inference is enabled.
+        # Defer importing Jedi until inference is enabled.
         import jedi  # type: ignore
 
         script: object
@@ -385,7 +385,7 @@ class JediBackend:
                 full_name = getattr(definition, "full_name", None)
                 if not full_name:
                     continue
-                # NB. A failed hint still leaves the class in `full_name`.
+                # A failed hint still leaves the class in `full_name`.
                 try:
                     hint = cast("str | None", definition.get_type_hint())  # type: ignore[attr-defined]
                 except Exception:
@@ -494,7 +494,7 @@ def _member_type(
         return None
     bare = ast.Name(id=class_name, ctx=ast.Load())
     hinted = lower_hint(value.hint) if value.hint else None
-    # NB. An unavailable or shadowed nested type still permits the bare
+    # An unavailable or shadowed nested type still permits the bare
     # container annotation.
     if (
         hinted is None
@@ -621,11 +621,11 @@ def _widen_literal_member(member: ast.expr) -> ast.expr | None:
         value = member.value
         if value is None:
             return ast.Constant(value=None)
-        # NB. Check bool before int, since True is an int.
+        # Check bool before int, since True is an int.
         if isinstance(value, bool):
             return ast.Name(id="bool", ctx=ast.Load())
         return ast.Name(id=type(value).__name__, ctx=ast.Load())
-    # NB. `Literal[Color.RED]` widens to the enum type `Color`.
+    # `Literal[Color.RED]` widens to the enum type `Color`.
     if isinstance(member, ast.Attribute):
         return member.value
     return None
