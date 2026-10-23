@@ -936,6 +936,16 @@ class GitHubCopilotProvider(PydanticProvider["Provider"]):
         )
 
 
+# DeepSeek's `deepseek-flash` (V4.1 Flash) thinks by default like the
+# `deepseek-v4-*` models it replaced, but pydantic-ai keys that on the
+# `deepseek-v4-` prefix. Without it, a forced `tool_choice` is sent and DeepSeek
+# rejects it with "Thinking mode does not support this tool_choice".
+# Remove once https://github.com/pydantic/pydantic-ai/issues/8353 is fixed.
+_DEEPSEEK_PROFILE_ALIASES: dict[str, str] = {
+    "deepseek-flash": "deepseek-v4-flash",
+}
+
+
 class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
     """Support for custom providers which may or may not be OpenAI-compatible.
 
@@ -1063,6 +1073,14 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         from pydantic_ai import UserError
         from pydantic_ai.models import infer_model
         from pydantic_ai.models.openai import OpenAIChatModel
+
+        profile_alias = _DEEPSEEK_PROFILE_ALIASES.get(self.model)
+        if self._provider_name == "deepseek" and profile_alias is not None:
+            return OpenAIChatModel(
+                model_name=self.model,
+                provider=self.provider,
+                profile=self.provider.model_profile(profile_alias),
+            )
 
         try:
             return infer_model(
