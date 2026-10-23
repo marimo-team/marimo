@@ -14,6 +14,7 @@ import {
   DatabaseIcon,
   EyeIcon,
   EyeOffIcon,
+  HashIcon,
   ImageIcon,
   LinkIcon,
   PlayIcon,
@@ -433,6 +434,15 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         handle: async () => {
           await copyToClipboard(createCellLink(name));
           toast({ description: "Link copied to clipboard" });
+        },
+      },
+      {
+        icon: <HashIcon size={13} strokeWidth={1.5} />,
+        label: "Copy cell ID",
+        additionalKeywords: ["cell_id", "identifier"],
+        handle: async () => {
+          await copyToClipboard(cellId);
+          toast({ description: "Cell ID copied to clipboard" });
         },
       },
     ],
