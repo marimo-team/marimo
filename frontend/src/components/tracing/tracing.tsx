@@ -52,6 +52,7 @@ export const Tracing: React.FC = () => {
 
   const { theme } = useTheme();
   const [chartPosition, setChartPosition] = useState<ChartPosition>("above");
+  const chartPositionId = React.useId();
   const panelSection = usePanelSection();
 
   const toggleChartPosition = () => {
@@ -76,11 +77,12 @@ export const Tracing: React.FC = () => {
     <div className="py-1 px-2 overflow-y-scroll h-full">
       <div className="flex flex-row justify-start gap-3">
         <div className="flex flex-row gap-1 items-center">
-          <label htmlFor="chartPosition" className="text-xs">
+          <label htmlFor={chartPositionId} className="text-xs">
             Inline chart
           </label>
           <input
             type="checkbox"
+            id={chartPositionId}
             name="chartPosition"
             data-testid="chartPosition"
             onClick={toggleChartPosition}
@@ -163,10 +165,15 @@ const TraceBlock: React.FC<{
   const chevron = <Icon height={16} className="inline" />;
 
   const traceTitle = (
-    <span className="text-sm cursor-pointer" onClick={onToggleExpanded}>
+    <button
+      type="button"
+      aria-expanded={isExpanded}
+      className="text-sm cursor-pointer"
+      onClick={onToggleExpanded}
+    >
       Run - {formatLogTimestamp(run.runStartTime)}
       {chevron}
-    </span>
+    </button>
   );
 
   if (!isExpanded) {
