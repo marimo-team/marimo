@@ -320,3 +320,31 @@ async def test_audio_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
             ]
         )
         assert len(get_context().virtual_file_registry.registry) == 1
+
+
+async def test_audio_width() -> None:
+    result = audio("https://example.com/test.wav", width=300)
+    assert (
+        result.text
+        == "<audio src='https://example.com/test.wav' controls style='width: 300px'></audio>"
+    )
+
+
+async def test_audio_narrow_width() -> None:
+    result = audio("https://example.com/test.wav", width=150)
+    assert (
+        result.text
+        == "<audio src='https://example.com/test.wav' controls style='width: 150px'></audio>"
+    )
+
+
+async def test_audio_style() -> None:
+    result = audio(
+        "https://example.com/test.wav",
+        width="100%",
+        style={"margin-top": "10px"},
+    )
+    assert (
+        result.text
+        == "<audio src='https://example.com/test.wav' controls style='width: 100%;margin-top: 10px'></audio>"
+    )
