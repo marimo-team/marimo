@@ -16,14 +16,13 @@ export class VegaPlugin implements IPlugin<VegaComponentState, Data> {
 
   public validator = z.object({
     spec: z
-      .object({})
-      .passthrough()
+      .looseObject({})
       .transform((spec) => spec as unknown as VegaLiteSpec),
     chartSelection: z
       .union([z.boolean(), z.literal("point"), z.literal("interval")])
       .default(true),
     fieldSelection: z.union([z.boolean(), z.array(z.string())]).default(true),
-    embedOptions: z.object({}).passthrough().default({}),
+    embedOptions: z.looseObject({}).default({}),
   });
 
   public render(props: IPluginProps<VegaComponentState, Data>): JSX.Element {

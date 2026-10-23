@@ -167,13 +167,13 @@ function updateLanguageAdapterAndCode({
       setLanguageAdapter.of(nextLanguage),
       setLanguageMetadata.of(metadata),
       languageCompartment.reconfigure(
-        nextLanguage.getExtension(
+        nextLanguage.getExtension({
           cellId,
           completionConfig,
-          hotkeysProvider,
+          hotkeys: hotkeysProvider,
           placeholderType,
           lspConfig,
-        ),
+        }),
       ),
       // Clear history
       historyCompartment.reconfigure([]),
@@ -218,13 +218,13 @@ export function adaptiveLanguageConfiguration(opts: {
     // Language adapter
     languageToggleKeymaps(),
     languageCompartment.of(
-      LanguageAdapters.python.getExtension(
+      LanguageAdapters.python.getExtension({
         cellId,
         completionConfig,
         hotkeys,
         placeholderType,
         lspConfig,
-      ),
+      }),
     ),
     languageAdapterState,
     languageMetadataField,
@@ -323,12 +323,12 @@ export function reconfigureLanguageEffect(
   }
 
   return languageCompartment.reconfigure(
-    language.getExtension(
+    language.getExtension({
       cellId,
       completionConfig,
-      hotkeysProvider,
+      hotkeys: hotkeysProvider,
       placeholderType,
       lspConfig,
-    ),
+    }),
   );
 }

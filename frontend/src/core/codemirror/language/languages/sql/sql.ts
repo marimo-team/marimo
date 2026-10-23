@@ -155,13 +155,15 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
     return this.parser.isSupported(pythonCode);
   }
 
-  public getExtension(
-    _cellId: CellId,
-    _completionConfig: CompletionConfig,
-    _hotkeys: HotkeyProvider,
-    _placeholderType: PlaceholderType,
-    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
-  ): Extension[] {
+  public getExtension({
+    lspConfig,
+  }: {
+    cellId: CellId;
+    completionConfig: CompletionConfig;
+    hotkeys: HotkeyProvider;
+    placeholderType: PlaceholderType;
+    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig };
+  }): Extension[] {
     const analysis = createSQLAnalysis();
     const extensions = [
       // This can be updated with a dispatch effect
