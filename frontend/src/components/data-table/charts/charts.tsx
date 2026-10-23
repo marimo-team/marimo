@@ -233,9 +233,9 @@ export const TablePanel: React.FC<TablePanelProps> = ({
         >
           Table
         </TabsTrigger>
-        {tabs.map((tab, idx) => (
+        {tabs.map((tab) => (
           <TabsTrigger
-            key={idx}
+            key={tab.tabName}
             className="text-xs"
             value={tab.tabName}
             onClick={() => setSelectedTab(tab.tabName)}
@@ -263,7 +263,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
       <TabsContent className="mt-1 overflow-hidden" value={DEFAULT_TAB_NAME}>
         {dataTable}
       </TabsContent>
-      {tabs.map((tab, idx) => {
+      {tabs.map((tab) => {
         const saveChart = (formValues: ChartSchemaType) => {
           saveTabChart({
             tabName: tab.tabName,
@@ -275,7 +275,11 @@ export const TablePanel: React.FC<TablePanelProps> = ({
           saveTabChartType(tab.tabName, chartType);
         };
         return (
-          <TabsContent key={idx} value={tab.tabName} className="h-[400px] mt-0">
+          <TabsContent
+            key={tab.tabName}
+            value={tab.tabName}
+            className="h-[400px] mt-0"
+          >
             <ChartPanel
               tableData={data}
               chartConfig={tab.config}

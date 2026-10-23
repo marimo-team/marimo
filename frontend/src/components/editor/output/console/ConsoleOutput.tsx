@@ -241,19 +241,23 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
             return null;
           }
 
+          // Outputs are appended at the end but rendered in reverse, so the
+          // reversed index shifts on every new line. The original position
+          // is stable for the lifetime of the output.
+          const originalIdx = consoleOutputs.length - idx - 1;
+
           if (output.channel === "stdin") {
             invariant(
               typeof output.data === "string",
               "Expected data to be a string",
             );
 
-            const originalIdx = consoleOutputs.length - idx - 1;
             const isPassword = output.mimetype === "text/password";
 
             if (output.response == null && lastStdInputIdx === idx) {
               return (
                 <StdInput
-                  key={idx}
+                  key={originalIdx}
                   output={output.data}
                   isPdb={isPdb}
                   isPassword={isPassword}
@@ -268,7 +272,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
             return (
               <StdInputWithResponse
-                key={idx}
+                key={originalIdx}
                 output={output.data}
                 response={output.response}
                 isPassword={isPassword}
@@ -278,7 +282,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
           }
 
           return (
-            <React.Fragment key={idx}>
+            <React.Fragment key={originalIdx}>
               <OutputRenderer
                 cellId={cellId}
                 onRefactorWithAI={onRefactorWithAI}
