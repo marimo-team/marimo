@@ -34,20 +34,7 @@ if TYPE_CHECKING:
 # Global log level for loggers
 _LOG_LEVEL: int = logging.WARNING
 
-
-class _ConsoleFormatter(LogFormatter):
-    def format(self, record: logging.LogRecord) -> str:
-        if getattr(record, "user_facing", False):
-            message = f"{record.levelname.capitalize()}: {record.getMessage()}"
-            if record.levelno in self._colors:
-                message = (
-                    f"{self._colors[record.levelno]}{message}{self._normal}"
-                )
-            return message + "\n"
-        return super().format(record)
-
-
-_LOG_FORMATTER = _ConsoleFormatter()
+_LOG_FORMATTER = LogFormatter(user_facing_fmt=LogFormatter.USER_FACING_FORMAT)
 
 # Cache of initialized loggers
 _LOGGERS: dict[str, logging.Logger] = {}

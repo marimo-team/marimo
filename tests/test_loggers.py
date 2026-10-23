@@ -12,7 +12,6 @@ from marimo._loggers import (
     _LOG_LEVEL,
     _LOGGERS,
     WindowsSafeRotatingFileHandler,
-    _ConsoleFormatter,
     get_log_directory,
     get_logger,
     make_log_directory,
@@ -33,16 +32,20 @@ def test_user_facing_error_format():
         None,
     )
     record.user_facing = True
-    assert _ConsoleFormatter(color=False).format(record) == (
+    formatter = LogFormatter(
+        color=False, user_facing_fmt=LogFormatter.USER_FACING_FORMAT
+    )
+    assert formatter.format(record) == (
         "Error: Invalid config: test\nDetails\n"
     )
-    formatter = _ConsoleFormatter(color=False)
     formatter._colors = {logging.ERROR: "\033[31m"}
     formatter._normal = "\033[0m"
     assert formatter.format(record) == (
         "\033[31mError: Invalid config: test\nDetails\033[0m\n"
     )
     assert "[E " in LogFormatter(color=False).format(record)
+    record.user_facing = False
+    assert "[E " in formatter.format(record)
 
 
 def test_set_level():
