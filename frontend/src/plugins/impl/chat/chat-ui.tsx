@@ -495,7 +495,7 @@ export const Chatbot: React.FC<Props> = (props) => {
                     : undefined,
                 })}
               </div>
-              <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
+              <div className="flex justify-end text-xs gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
                 <CopyClipboardIcon
                   value={textContent}
                   className="h-3 w-3"
@@ -503,6 +503,7 @@ export const Chatbot: React.FC<Props> = (props) => {
                 />
                 <button
                   type="button"
+                  aria-label="Delete message"
                   onClick={() => handleDelete(message.id)}
                   className="text-xs text-(--slate-9) hover:text-(--slate-11)"
                 >
