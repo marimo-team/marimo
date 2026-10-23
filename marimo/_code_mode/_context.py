@@ -104,8 +104,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
     from os import PathLike
     from types import TracebackType
-
-    from typing_extensions import Self
+    from typing import Self
 
     from marimo._ast.cell_manager import CellManager
     from marimo._code_mode.screenshot import _ScreenshotSession

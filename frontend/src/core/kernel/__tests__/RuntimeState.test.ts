@@ -25,7 +25,7 @@ describe("RuntimeState", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSendComponentValues = vi.fn((args) => Promise.resolve(null));
+    mockSendComponentValues = vi.fn(() => Promise.resolve(null));
     uiElementRegistry = UIElementRegistry.INSTANCE;
     uiElementRegistry.entries.clear();
 

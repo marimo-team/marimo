@@ -26,7 +26,7 @@ class PairTestServer:
     url: str
     session_id: str
     stable_session_id: str
-    notebook_id: str | None
+    notebook_id: str
     _process: subprocess.Popen[bytes]
     _websocket: ClientConnection
     _stderr_path: Path
@@ -141,15 +141,23 @@ def _wait_for_kernel_ready(
     websocket: ClientConnection,
     *,
     timeout: float = 10.0,
-) -> None:
+) -> str:
     deadline = time.monotonic() + timeout
+    notebook_id: str | None = None
     while True:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError("kernel did not become ready")
-        message = json.loads(websocket.recv(timeout=remaining))
-        if message.get("op") == "kernel-ready":
-            return
+        event = json.loads(websocket.recv(timeout=remaining))
+        if event["event"] == "notebook":
+            notebook_id = event["data"]["notebook"]["id"]
+        if event["event"] != "marimo":
+            continue
+        message = event["data"]["marimo"]
+        if message["op"] == "kernel-ready":
+            # The host publishes notebook identity before kernel-ready.
+            assert isinstance(notebook_id, str), "Missing notebook snapshot"
+            return notebook_id
 
 
 def _stop_process(process: subprocess.Popen[bytes]) -> None:
@@ -224,19 +232,20 @@ def pair_test_server(
             if token
             else {},
         )
-        _wait_for_kernel_ready(websocket)
+        notebook_id = _wait_for_kernel_ready(websocket)
         request = urllib.request.Request(
             f"{url}/api/sessions",
             headers={"Authorization": f"Bearer {token}"} if token else {},
         )
         with urllib.request.urlopen(request, timeout=5) as response:
             sessions = json.load(response)
+        assert sessions[session_id]["notebook_id"] == notebook_id
         stable_session_id = sessions[session_id]["session_id"]
         server = PairTestServer(
             url=url,
             session_id=session_id,
             stable_session_id=stable_session_id,
-            notebook_id=sessions[session_id].get("notebook_id"),
+            notebook_id=notebook_id,
             _process=process,
             _websocket=websocket,
             _stderr_path=stderr_path,

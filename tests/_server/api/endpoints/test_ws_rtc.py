@@ -13,6 +13,7 @@ from tests._server.api.endpoints.ws_helpers import (
     assert_kernel_ready_response,
     assert_parse_ready_response,
     create_response,
+    receive_notification,
 )
 from tests._server.conftest import get_user_config_manager
 from tests._server.mocks import get_session_manager
@@ -56,9 +57,7 @@ ws_1_sync = "/ws_sync?session_id=123&access_token=fake-token"
 ws_2_sync = "/ws_sync?session_id=456&access_token=fake-token"
 
 
-@pytest.mark.skipif(
-    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
-)
+@pytest.mark.skipif("sys.version_info >= (3, 14)")
 async def test_loro_sync(client: TestClient) -> None:
     """Test that Loro-CRDT sync works between multiple clients"""
 
@@ -69,9 +68,9 @@ async def test_loro_sync(client: TestClient) -> None:
         client.websocket_connect(ws_2) as websocket2,
     ):
         # Verify both websockets received kernel ready messages
-        data1 = websocket1.receive_json()
+        data1 = receive_notification(websocket1)
         assert_kernel_ready_response(data1)
-        data2 = websocket2.receive_json()
+        data2 = receive_notification(websocket2)
         assert_parse_ready_response(data2)
 
         # Connect first client to sync websocket
@@ -92,9 +91,7 @@ async def test_loro_sync(client: TestClient) -> None:
                 assert len(sync_msg2) > 0
 
 
-@pytest.mark.skipif(
-    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
-)
+@pytest.mark.skipif("sys.version_info >= (3, 14)")
 async def test_loro_cleanup_on_session_close(
     client: TestClient,
 ) -> None:
@@ -112,7 +109,7 @@ async def test_loro_cleanup_on_session_close(
         rtc_enabled(get_user_config_manager(client)),
         client.websocket_connect(ws_1) as websocket,
     ):
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert_kernel_ready_response(data)
 
         # Connect to cell websocket
@@ -137,9 +134,7 @@ async def test_loro_cleanup_on_session_close(
     assert len(DOC_MANAGER.loro_docs_clients[file_key]) == 0
 
 
-@pytest.mark.skipif(
-    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
-)
+@pytest.mark.skipif("sys.version_info >= (3, 14)")
 async def test_loro_persistence(client: TestClient) -> None:
     """Test that cell content persists between connections"""
     from loro import ExportMode, LoroDoc
@@ -153,7 +148,7 @@ async def test_loro_persistence(client: TestClient) -> None:
         rtc_enabled(get_user_config_manager(client)),
         client.websocket_connect(ws_1) as websocket,
     ):
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert_kernel_ready_response(data)
 
         with client.websocket_connect(ws_1_sync) as cell_ws1:
@@ -175,7 +170,7 @@ async def test_loro_persistence(client: TestClient) -> None:
         rtc_enabled(get_user_config_manager(client)),
         client.websocket_connect(ws_2) as websocket,
     ):
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert_kernel_ready_response(data, create_response({"resumed": True}))
 
         with client.websocket_connect(ws_2_sync) as cell_ws2:
@@ -189,9 +184,7 @@ async def test_loro_persistence(client: TestClient) -> None:
 # ==============================================================================
 
 
-@pytest.mark.skipif(
-    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
-)
+@pytest.mark.skipif("sys.version_info >= (3, 14)")
 async def test_rtc_degrades_without_loro(client: TestClient) -> None:
     """Test that RTC gracefully degrades when Loro is unavailable.
 
@@ -216,7 +209,7 @@ async def test_rtc_degrades_without_loro(client: TestClient) -> None:
         with client.websocket_connect(
             "/ws?session_id=123&access_token=fake-token"
         ) as websocket:
-            data = websocket.receive_json()
+            data = receive_notification(websocket)
             # Should still get kernel ready, but without RTC initialized
             assert_kernel_ready_response(data)
 
@@ -232,9 +225,7 @@ async def test_rtc_degrades_without_loro(client: TestClient) -> None:
 # ==============================================================================
 
 
-@pytest.mark.skipif(
-    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
-)
+@pytest.mark.skipif("sys.version_info >= (3, 14)")
 async def test_ws_sync_without_existing_session(client: TestClient) -> None:
     """Test that ws_sync endpoint requires an existing session."""
     file_key = get_session_manager(client).workspace.get_unique_file_key()
@@ -253,9 +244,7 @@ async def test_ws_sync_without_existing_session(client: TestClient) -> None:
     assert exc_info.value.reason == "MARIMO_NOT_ALLOWED"
 
 
-@pytest.mark.skipif(
-    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
-)
+@pytest.mark.skipif("sys.version_info >= (3, 14)")
 async def test_ws_sync_cleanup_on_main_disconnect(client: TestClient) -> None:
     """Test that ws_sync clients are cleaned up when main session disconnects."""
     file_key = get_session_manager(client).workspace.get_unique_file_key()
@@ -269,7 +258,7 @@ async def test_ws_sync_cleanup_on_main_disconnect(client: TestClient) -> None:
 
     with rtc_enabled(get_user_config_manager(client)):
         with client.websocket_connect(ws_1) as main_websocket:
-            data = main_websocket.receive_json()
+            data = receive_notification(main_websocket)
             assert_kernel_ready_response(data)
 
             # Connect to sync endpoint

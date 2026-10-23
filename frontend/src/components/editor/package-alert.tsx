@@ -158,6 +158,7 @@ export const PackageAlert: React.FC = () => {
               <SourceBadge source={packageAlert.source} />
             </span>
             <Button
+              aria-label="Dismiss missing packages alert"
               variant="text"
               data-testid="remove-banner-button"
               size="icon"
@@ -270,6 +271,7 @@ export const PackageAlert: React.FC = () => {
               <SourceBadge source={packageAlert.source} />
             </span>
             <Button
+              aria-label={`Dismiss ${title}`}
               variant="text"
               data-testid="remove-banner-button"
               size="icon"

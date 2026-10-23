@@ -137,5 +137,11 @@ describe("FileExplorer upload destination", () => {
       }),
     ).toBeVisible();
     expect(screen.queryByText(".hidden")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("file-explorer-hidden-files-button"));
+    expect(await screen.findByText(".hidden")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Upload files to workspace" }),
+    ).toBeVisible();
   });
 });

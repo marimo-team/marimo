@@ -73,7 +73,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter<MarkdownLanguage
     _cellId: CellId,
     _completionConfig: CompletionConfig,
     hotkeys: HotkeyProvider,
-    _: PlaceholderType,
+    _placeholderType: PlaceholderType,
   ): Extension[] {
     const markdownLanguageData = markdown().language.data;
     let view: EditorView | undefined;

@@ -3,7 +3,6 @@
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import { KnownQueryParams } from "../constants";
-import { NOTEBOOK_EVENT_TYPES } from "../host/events";
 import { isIslands } from "../islands/utils";
 import { getSessionId, type SessionId } from "../kernel/session";
 import { isStaticNotebook } from "../static/static-state";
@@ -129,43 +128,32 @@ export class RuntimeManager {
     return asWsUrl(this.appendCrossOriginAuth(url).toString());
   }
 
-  /**
-   * Search params for a session connection: the base URL's params, merged
-   * with the current page's, plus the session id.
-   */
-  private getSessionSearchParams(sessionId: SessionId): URLSearchParams {
-    const baseUrl = new URL(this.config.url);
-    const searchParams = new URLSearchParams(baseUrl.search);
-
-    // Merge in current page's query parameters
-    const currentParams = new URLSearchParams(window.location.search);
-    currentParams.forEach((value, key) => {
-      // Don't override base URL params
-      if (!searchParams.has(key)) {
-        searchParams.set(key, value);
-      }
-    });
-
-    searchParams.set(KnownQueryParams.sessionId, sessionId);
-    return searchParams;
+  /** Keep notebook page parameters separate from connection options. */
+  private getSessionURL(path: string, sessionId: SessionId): URL {
+    const url = this.formatHttpURL({ path });
+    const notebookParams = new URLSearchParams(this.httpURL.search);
+    const pageParams = new URLSearchParams(window.location.search);
+    for (const key of pageParams.keys()) {
+      notebookParams.delete(key);
+    }
+    for (const [key, value] of pageParams) {
+      notebookParams.append(key, value);
+    }
+    // These parameters are internal and are not exposed by mo.query_params().
+    notebookParams.delete(KnownQueryParams.accessToken);
+    notebookParams.delete("refresh_token");
+    notebookParams.delete(KnownQueryParams.sessionId);
+    url.searchParams.set("query_params", notebookParams.toString());
+    url.searchParams.set(KnownQueryParams.sessionId, sessionId);
+    return url;
   }
 
   /**
    * The WebSocket URL of the runtime.
    */
   public getWsURL(sessionId: SessionId): URL {
-    const searchParams = this.getSessionSearchParams(sessionId);
-    // TODO(MO-8039): Rediscover hosts and resolve notebooks on reconnect.
-    const notebookId = this.config.notebookId;
-    const path = notebookId
-      ? `/api/marimo/v1/notebooks/${encodeURIComponent(notebookId)}/events/ws`
-      : "/ws";
-    const url = this.formatWsURL(path, searchParams);
-    if (notebookId) {
-      // TODO(MO-8034): Separate host options from notebook query params.
-      url.searchParams.set("types", NOTEBOOK_EVENT_TYPES.join(","));
-    }
-    return url;
+    const url = this.getSessionURL("/ws", sessionId);
+    return asWsUrl(this.appendCrossOriginAuth(url).toString());
   }
 
   /**
@@ -175,13 +163,7 @@ export class RuntimeManager {
    * (see `headers()`) instead of the URL.
    */
   public getSseURL(sessionId: SessionId): URL {
-    // TODO: Migrate editor SSE to the host event stream. Until then, host
-    // state such as attachments is unavailable on this legacy connection.
-    const url = this.formatHttpURL({
-      path: "/sse",
-      searchParams: this.getSessionSearchParams(sessionId),
-      restrictToKnownQueryParams: false,
-    });
+    const url = this.getSessionURL("/sse", sessionId);
     // The page URL can still carry access_token (merged in from the
     // current page's params, before auth cleanup strips it); never
     // forward it — a token in the URL leaks into proxy/server logs.
@@ -193,7 +175,8 @@ export class RuntimeManager {
    * The WebSocket Sync URL of the runtime, for real-time updates.
    */
   public getWsSyncURL(sessionId: SessionId): URL {
-    return this.formatWsURL("/ws_sync", this.getSessionSearchParams(sessionId));
+    const url = this.getSessionURL("/ws_sync", sessionId);
+    return asWsUrl(this.appendCrossOriginAuth(url).toString());
   }
 
   /**

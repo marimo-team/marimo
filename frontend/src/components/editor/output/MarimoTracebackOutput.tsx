@@ -274,7 +274,7 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
     return (
       <div
         className="inline-block cursor-pointer text-destructive hover:underline"
-        onClick={(_) => {
+        onClick={() => {
           getRequestClient().openFile({
             path: info.filePath,
             lineNumber: info.lineNumber,

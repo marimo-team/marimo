@@ -98,7 +98,7 @@ export const CellSelectionFeature: TableFeature = {
           ]);
         } else {
           // This cell becomes the single selected cell
-          table.setCellSelection((_) => [
+          table.setCellSelection(() => [
             {
               rowId: rowId,
               columnName: columnName,
@@ -115,7 +115,7 @@ export const CellSelectionFeature: TableFeature = {
           );
         } else {
           // Clear the selection
-          table.setCellSelection((_) => []);
+          table.setCellSelection(() => []);
         }
       }
     };

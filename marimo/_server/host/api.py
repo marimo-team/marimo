@@ -10,7 +10,7 @@ from collections.abc import Awaitable, Callable
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeAlias, TypeVar, get_args
+from typing import TYPE_CHECKING, TypeAlias, TypeVar
 from urllib.parse import quote
 
 import msgspec
@@ -30,7 +30,6 @@ from marimo._core.errors import (
     NoRuntime,
     NotFound,
 )
-from marimo._core.stream import event_name
 from marimo._server.api.auth import TOKEN_QUERY_PARAM, validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
@@ -44,10 +43,11 @@ from marimo._server.host import (
     ATTACHMENT_KIND,
     ATTACHMENT_NAME,
     HOST_API_PATH,
+    stream_options,
 )
 from marimo._server.host.context import CachedMutation
-from marimo._server.host.events import serialize_event
-from marimo._server.host.websocket import EditorEventSocket
+from marimo._server.host.events import serialize_event, serialize_sse_event
+from marimo._server.host.session import SessionEventStream
 from marimo._server.sse import SSE_HEADERS
 from marimo._server.tokens import AuthToken
 
@@ -81,10 +81,6 @@ _ATTACHMENT_HEADERS = {
 PING = b": ping\n\n"
 PING_SECONDS = 15.0
 
-OBJECT_TYPES = frozenset(get_args(get_args(protocol.ObjectType)[0])) | {
-    "marimo"
-}
-"""Values the `types` stream filter accepts."""
 
 _TITLES = {
     "invalid-request": "Invalid request",
@@ -538,7 +534,7 @@ async def _editor_events_ws(websocket: WebSocket) -> None:
             code=1008, reason="Session notebook does not match"
         )
         return
-    await EditorEventSocket(
+    await SessionEventStream(
         websocket,
         notebook=notebook,
         bridge=bridge,
@@ -623,32 +619,17 @@ async def _notebook_events_ws(websocket: WebSocket) -> None:
 
 
 def _cursor(request: HTTPConnection) -> str | Response | None:
-    raw = request.headers.get("Last-Event-ID")
-    if request.scope["type"] == "websocket":
-        query = request.query_params.get("cursor")
-        if query is not None:
-            if raw is not None and raw != query:
-                return problem(400, "invalid-request", "Conflicting cursors")
-            raw = query
-    if raw == "":
-        return problem(400, "invalid-request", "Last-Event-ID is empty")
-    # Cursors are opaque; one the host did not issue resets the stream.
-    return raw
+    try:
+        return stream_options.cursor(request)
+    except ValueError as exc:
+        return problem(400, "invalid-request", str(exc))
 
 
 def _types(request: HTTPConnection) -> set[str] | Response | None:
-    asked = request.query_params.get("types")
-    if not asked:
-        return None
-    types = {kind for kind in asked.split(",") if kind}
-    unknown = types - OBJECT_TYPES
-    if unknown:
-        return problem(
-            400,
-            "invalid-request",
-            f"types has no kind named {', '.join(sorted(unknown))}",
-        )
-    return types
+    try:
+        return stream_options.types(request)
+    except ValueError as exc:
+        return problem(400, "invalid-request", str(exc))
 
 
 def _attachment_problem(error: msgspec.ValidationError) -> str:
@@ -760,7 +741,7 @@ def _stream(
                         event = await asyncio.wait_for(
                             subscription.next(), PING_SECONDS
                         )
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         yield PING
                         continue
                     yield _frame(event)
@@ -775,13 +756,7 @@ def _stream(
 
 def _frame(event: RoutedEvent) -> bytes:
     """Encode an event as an SSE frame."""
-    lines = []
-    if event.event.id is not msgspec.UNSET:
-        lines.append(f"id: {event.event.id}")
-    lines.append(f"event: {event_name(event.event)}")
-    data = msgspec.json.encode(event.event.data)
-    lines.append(f"data: {data.decode()}")
-    return ("\n".join(lines) + "\n\n").encode()
+    return serialize_sse_event(event).encode()
 
 
 # ---- notebooks -----------------------------------------------------------------
@@ -968,11 +943,14 @@ async def _run(request: Request) -> Response:
     key = request.headers["Idempotency-Key"]
     notebook = await _notebook(request)
     body = await _decode(request, protocol.RunRequest)
-    if body.code is msgspec.UNSET or body.cells is not msgspec.UNSET:
+    if isinstance(body.code, str) and body.cells is msgspec.UNSET:
+        started = notebook.run(body.code, request_id=key)
+    elif body.code is msgspec.UNSET and isinstance(body.cells, tuple):
+        started = notebook.run(cells=body.cells, request_id=key)
+    else:
         return problem(
-            400, "invalid-request", "This host requires scratch code"
+            400, "invalid-request", "A run names code or cells, not both"
         )
-    started = notebook.run(body.code, request_id=key)
     return _reply(202, started)
 
 

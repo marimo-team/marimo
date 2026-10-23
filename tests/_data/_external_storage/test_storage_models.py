@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -38,7 +38,7 @@ class TestObstore:
         return Obstore(store, VariableName(name))
 
     def test_list_entries(self) -> None:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         mock_store = MagicMock()
         mock_store.list_with_delimiter.return_value = {
             "common_prefixes": ["subdir/"],
@@ -96,7 +96,7 @@ class TestObstore:
         )
 
     def test_list_entries_skips_zero_byte_folder_marker(self) -> None:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         mock_store = MagicMock()
         mock_store.list_with_delimiter.return_value = {
             "common_prefixes": [],
@@ -144,7 +144,7 @@ class TestObstore:
         assert result.entries == []
 
     def test_list_entries_returns_next_page_token(self) -> None:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         mock_store = MagicMock()
         mock_store.list_with_delimiter.return_value = {
             "common_prefixes": ["a/", "b/"],
@@ -228,7 +228,7 @@ class TestObstore:
         )
 
     def test_create_storage_entry_with_all_metadata(self) -> None:
-        now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
         mock_store = MagicMock()
         backend = self._make_backend(mock_store)
 
@@ -268,7 +268,7 @@ class TestObstore:
         assert entry.mime_type == "application/toml"
 
     async def test_get_entry(self) -> None:
-        now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
         mock_store = MagicMock()
         head_result = {
             "path": "test.txt",
@@ -1141,7 +1141,7 @@ class TestFsspecFilesystem:
     @pytest.mark.parametrize(
         "mtime",
         [
-            datetime(2024, 1, 1, tzinfo=timezone.utc),
+            datetime(2024, 1, 1, tzinfo=UTC),
             datetime(2024, 1, 1),  # naive datetimes are treated as UTC
         ],
     )

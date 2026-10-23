@@ -24,7 +24,7 @@ export default meta;
 type Story = StoryObj;
 
 export const Primary: Story = {
-  render: (args, ctx) => (
+  render: () => (
     <Select>
       <SelectTrigger className="w-64">
         <SelectValue placeholder="Select a fruit" />
@@ -63,7 +63,7 @@ export const Primary: Story = {
 };
 
 export const Clearable: Story = {
-  render: (args, ctx) => {
+  render: () => {
     const [value, setValue] = useState<string>("");
     return (
       <>

@@ -89,7 +89,7 @@ def _(backend, input_key, mo):
         if backend.value == "ollama"
         else _get_open_ai_client()
     )
-    model = "llama3.1" if backend.value == "ollama" else "gpt-4-turbo"
+    model = "llama3.1" if backend.value == "ollama" else "gpt-5.6-sol"
     return client, model
 
 

@@ -15,7 +15,7 @@ export default meta;
 type Story = StoryObj;
 
 export const Primary: Story = {
-  render: (args, ctx) => {
+  render: () => {
     const [value, setValue] = useState<string[]>([]);
     return (
       <TooltipProvider>

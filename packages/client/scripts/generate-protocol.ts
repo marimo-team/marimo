@@ -5,16 +5,54 @@ import NodeFs from "node:fs";
 import NodeOs from "node:os";
 import NodePath from "node:path";
 import NodeUrl from "node:url";
+import NodeUtil from "node:util";
 import { generate, type OpenApiDocument } from "orval";
-import { parse } from "yaml";
 
 const root = NodeUrl.fileURLToPath(new URL("../../../", import.meta.url));
-const source = NodePath.join(root, "packages/client/src");
-const header = `/* Copyright 2026 Marimo. All rights reserved. */
-// Generated from protocols/host/openapi.yaml. Do not edit.
-// Regenerate with: pnpm --dir packages/client codegen
-
-`;
+const { values: args } = NodeUtil.parseArgs({
+  options: {
+    check: { type: "boolean", default: false },
+    "include-experimental": { type: "string" },
+    "output-dir": { type: "string" },
+  },
+  args: process.argv
+    .slice(2)
+    .map((arg) =>
+      arg === "--include-experimental" ? "--include-experimental=all" : arg,
+    ),
+});
+const source = args["output-dir"] ?? NodePath.join(root, "packages/client/src");
+const selection = args["include-experimental"];
+const spec: OpenApiDocument = JSON.parse(
+  NodeChildProcess.execFileSync(
+    "uv",
+    [
+      "run",
+      "--no-config",
+      "--locked",
+      "--script",
+      NodePath.join(root, "protocols/host/generate.py"),
+      "--schema",
+      ...(selection === undefined
+        ? []
+        : [`--include-experimental=${selection}`]),
+    ],
+    { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
+  ),
+);
+const features = (spec["x-marimo-experimental"] ?? []) as string[];
+const regenerationCommand = features.length
+  ? `pnpm --dir packages/client codegen --include-experimental=${features.join(",")}`
+  : "pnpm --dir packages/client codegen:stable";
+const header = [
+  "/* Copyright 2026 Marimo. All rights reserved. */",
+  "// Generated from protocols/host/openapi.yaml. Do not edit.",
+  ...(features.length
+    ? [`// Experimental features: ${features.join(", ")}`]
+    : []),
+  `// Regenerate with: ${regenerationCommand}`,
+  "\n",
+].join("\n");
 
 interface Parameter {
   name: string;
@@ -152,12 +190,6 @@ const temporary = NodeFs.mkdtempSync(
   NodePath.join(NodeOs.tmpdir(), "marimo-host-protocol-"),
 );
 try {
-  const spec: OpenApiDocument = parse(
-    NodeFs.readFileSync(
-      NodePath.join(root, "protocols/host/openapi.yaml"),
-      "utf8",
-    ),
-  );
   const schemas = spec.components?.schemas;
   if (!schemas) {
     throw new Error("Host protocol has no component schemas");
@@ -188,19 +220,22 @@ try {
     NodePath.join(root, "node_modules/.bin/oxfmt"),
     ["--config", NodePath.join(root, ".oxfmtrc.json"), output, table],
   );
+  if (!args.check) {
+    NodeFs.mkdirSync(source, { recursive: true });
+  }
   for (const [generated, name] of [
     [output, "protocol.ts"],
     [table, "operations.ts"],
   ] as const) {
     const content = NodeFs.readFileSync(generated, "utf8");
     const destination = NodePath.join(source, name);
-    if (process.argv.includes("--check")) {
+    if (args.check) {
       if (
         !NodeFs.existsSync(destination) ||
         NodeFs.readFileSync(destination, "utf8") !== content
       ) {
         throw new Error(
-          `${name} is stale; run pnpm --dir packages/client codegen`,
+          `${name} is stale; regenerate with the same feature selection and output directory`,
         );
       }
     } else {

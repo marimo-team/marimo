@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 import dataclasses
-import sys
 import types
-from typing import Any, ClassVar, Literal, TypedDict
-
-import pytest
+from typing import Any, ClassVar, Literal, NotRequired, TypedDict
 
 from marimo._utils.dataclass_to_openapi import (
     PythonTypeToOpenAPI,
@@ -212,13 +209,6 @@ def test_is_optional_with_pipe_union() -> None:
     assert _is_optional(str | int) is False
 
 
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-
-
-@pytest.mark.skipif(
-    sys.version_info < (3, 11), reason="Not supported in Python < 3.11"
-)
 def test_not_required() -> None:
     class NotRequiredDict(TypedDict):
         not_required_item: NotRequired[str]
@@ -237,9 +227,6 @@ def test_not_required() -> None:
     }
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11), reason="Not supported in Python < 3.11"
-)
 def test_not_required_total_false() -> None:
     class NotRequiredDictTotalFalse(TypedDict, total=False):
         not_required_item: NotRequired[str]
@@ -257,9 +244,6 @@ def test_not_required_total_false() -> None:
     }
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11), reason="Not supported in Python < 3.11"
-)
 def test_not_required_as_dataclass() -> None:
     @dataclasses.dataclass
     class NotRequiredDictAsDataclass(TypedDict):
@@ -282,9 +266,6 @@ def test_not_required_as_dataclass() -> None:
     }
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11), reason="Not supported in Python < 3.11"
-)
 def test_not_required_as_dataclass_total_false() -> None:
     @dataclasses.dataclass
     class NotRequiredDictAsDataclassTotalFalse(TypedDict, total=False):

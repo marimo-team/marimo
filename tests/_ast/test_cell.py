@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from marimo import _loggers, notebook_dir
+from marimo import notebook_dir
 from marimo._ast.app import App
 from marimo._ast.cell import CellConfig
 from marimo._runtime.context import runtime_context_installed
@@ -418,7 +418,6 @@ class TestCellRun:
         assert basic.run() == (1, {})
         assert len(caplog.records) == 0
         with caplog.at_level(logging.WARNING):
-            _loggers.marimo_logger().propagate = True
             assert basic() == 1
         assert len(caplog.records) == 1
         assert "signature" in caplog.text

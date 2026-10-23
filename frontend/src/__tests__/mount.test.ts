@@ -6,7 +6,6 @@ import { initialLayoutState, layoutStateAtom } from "@/core/layout/state";
 import { kioskModeAtom } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
-import { runtimeConfigAtom } from "@/core/runtime/config";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { ConnectionState } from "@/core/websocket/types";
 import { pairConfigAtom } from "@/core/config/pair";
@@ -102,25 +101,6 @@ describe("mount", () => {
   });
 
   describe("connection state initialization", () => {
-    it("passes the host notebook identity to the local runtime", () => {
-      mount({ ...baseOptions, notebookId: "nb_local" }, mockElement);
-      expect(store.get(runtimeConfigAtom).notebookId).toBe("nb_local");
-    });
-
-    it("uses a remote runtime's own notebook identity", () => {
-      mount(
-        {
-          ...baseOptions,
-          notebookId: "nb_local",
-          runtimeConfig: [
-            { url: "https://remote.example", notebookId: "nb_remote" },
-          ],
-        },
-        mockElement,
-      );
-      expect(store.get(runtimeConfigAtom).notebookId).toBe("nb_remote");
-    });
-
     it("should set connection to CONNECTING when runtimeConfig has lazy=false", () => {
       mount(
         {

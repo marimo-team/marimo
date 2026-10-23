@@ -247,7 +247,7 @@ class SessionImpl(Session):
         self._stable_id = mint(StableSessionId, "sess")
         self.app_file_manager = app_file_manager
         self.room = Room()
-
+        self.connection_generation = 0
         self._kernel_manager = kernel_manager
         self.ttl_seconds = (
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
@@ -463,6 +463,8 @@ class SessionImpl(Session):
         self.extensions.add(session_consumer)
         session_consumer.on_attach(self, self._event_bus)
         self.room.add_consumer(session_consumer, main=main)
+        if main:
+            self.connection_generation += 1
 
     def get_current_state(self) -> SessionView:
         """Return the current state of the session."""

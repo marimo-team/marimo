@@ -6,7 +6,6 @@ from __future__ import annotations
 import asyncio
 import copy
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -34,9 +33,11 @@ from marimo._session.notebook.storage import rename_no_replace
 from marimo._utils.generated_with import (
     contents_differ_excluding_generated_with,
 )
+from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+    from pathlib import Path
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
@@ -315,10 +316,8 @@ class SessionBridge(SessionEventListener):
                         f"{answer!r} is not an option for {_FILE_CHANGED.id}"
                     )
             # TODO(MO-8005): Move persistence to the notebook, with sessions
-            # consuming its events. Until then, save_from_cells on an attached
-            # session can replace a concurrent edit with this older snapshot.
-            # The notebook's writer must persist snapshots without mutating
-            # the live document; cover attached-session edits during a save.
+            # consuming its events. Until then the session's file manager
+            # writes the session's cells, which the host document mirrors.
             if session is None:
                 cells = [documents.to_notebook_cell(c) for c in revision]
                 manager = None
@@ -749,6 +748,12 @@ class SessionBridge(SessionEventListener):
                     if path is None
                     else self.index.ensure(path)
                 )
+            if notebook is None and path is not None:
+                try:
+                    notebook = self.index.register_open_notebook(path)
+                except HTTPException as exc:
+                    if exc.status_code != HTTPStatus.NOT_FOUND:
+                        raise
         if notebook is None:
             LOGGER.debug("Not publishing session for %s", path)
             return None
@@ -803,8 +808,4 @@ class SessionBridge(SessionEventListener):
             # Add notebooks to the catalog when first saved.
             await self.adopt(session)
             return
-        if self.index.moved(notebook.id, path) is None:
-            # An initially empty workspace has no project root. Keep the
-            # session notebook until workspace discovery can include its file.
-
-            self.index.rename(notebook.id, Path(path).stem)
+        self.index.moved(notebook.id, path)

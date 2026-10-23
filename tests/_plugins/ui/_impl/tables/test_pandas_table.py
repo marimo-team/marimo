@@ -1850,11 +1850,28 @@ class TestPandasTableManager(unittest.TestCase):
         manager = self.factory.create()(df)
         assert manager.get_field_type("A") == ("string", "object")
 
-    def test_search_with_regex(self) -> None:
-        df = pd.DataFrame({"A": ["apple", "banana", "cherry"]})
+    def test_search_treats_query_as_literal(self) -> None:
+        df = pd.DataFrame(
+            {
+                "A": [
+                    "apple",
+                    "banana",
+                    "C++",
+                    "c++ guide",
+                    "ΟΣ",
+                    "ος",
+                    "οσ",
+                    "İstanbul",
+                ]
+            }
+        )
         manager = self.factory.create()(df)
-        result = manager.search("^[ab]")
-        assert result.get_num_rows() == 2
+        assert manager.search("^[ab]").get_num_rows() == 0
+        assert manager.search("c++").get_num_rows() == 2
+        assert manager.search("C++ G").get_num_rows() == 1
+        assert manager.search("a.b").get_num_rows() == 0
+        assert manager.search("Σ").get_num_rows() == 3
+        assert manager.search("İ").get_num_rows() == 1
 
     def test_sort_values_with_nulls(self) -> None:
         df = pd.DataFrame({"A": [3, 1, None, 2]})
@@ -1963,15 +1980,9 @@ class TestPandasTableManager(unittest.TestCase):
                     datetime.time(7, 8, 9),
                 ],
                 "datetime_tz_col": [
-                    datetime.datetime(
-                        2021, 1, 1, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 2, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 3, tzinfo=datetime.timezone.utc
-                    ),
+                    datetime.datetime(2021, 1, 1, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 2, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 3, tzinfo=datetime.UTC),
                 ],
             }
         )

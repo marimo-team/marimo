@@ -2,11 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
-import {
-  generateSessionId,
-  isSessionId,
-  type SessionId,
-} from "@/core/kernel/session";
+import type { SessionId } from "@/core/kernel/session";
 import { Logger } from "@/utils/Logger";
 import { RuntimeManager } from "../runtime";
 import type { RuntimeConfig } from "../types";
@@ -56,38 +52,6 @@ describe("RuntimeManager", () => {
   });
 
   describe("getWsURL", () => {
-    it("uses host notebook events with the existing session and auth parameters", () => {
-      const original = window.location.href;
-      window.history.replaceState({}, "", "/?types=run");
-      try {
-        const runtime = new RuntimeManager({
-          ...mockConfig,
-          url: "https://example.com/nested?file=notebook.py",
-          notebookId: "nb_123",
-        });
-        const sessionId = "s_123456";
-        if (!isSessionId(sessionId)) {
-          throw new Error("Invalid test session ID");
-        }
-        const url = runtime.getWsURL(sessionId);
-        expect({
-          endpoint: `${url.origin}${url.pathname}`,
-          params: Object.fromEntries(url.searchParams),
-        }).toEqual({
-          endpoint:
-            "wss://example.com/nested/api/marimo/v1/notebooks/nb_123/events/ws",
-          params: {
-            file: "notebook.py",
-            types: "notebook,document,cell,attachment,marimo",
-            session_id: sessionId,
-            access_token: "test-token",
-          },
-        });
-      } finally {
-        window.history.replaceState({}, "", original);
-      }
-    });
-
     it("should return WebSocket URL with session ID for https", () => {
       const runtime = new RuntimeManager(mockConfig);
       const sessionId = "1234" as SessionId;
@@ -257,21 +221,6 @@ describe("RuntimeManager", () => {
   });
 
   describe("getSseURL", () => {
-    it.each([undefined, "nb_123"])(
-      "uses the legacy session stream when notebookId is %s",
-      (notebookId) => {
-        const runtime = new RuntimeManager({
-          ...mockConfig,
-          url: "https://example.com/nested?file=notebook.py",
-          notebookId,
-        });
-        const sessionId = generateSessionId();
-        expect(runtime.getSseURL(sessionId).toString()).toBe(
-          `https://example.com/nested/sse?file=notebook.py&session_id=${sessionId}`,
-        );
-      },
-    );
-
     it("should never put the auth token in the URL, even cross-origin", () => {
       // SSE requests can send headers, so auth travels in the
       // Authorization header; a token in the URL would leak into
@@ -300,7 +249,8 @@ describe("RuntimeManager", () => {
         const url = runtime.getSseURL("s_123" as SessionId);
 
         expect(url.searchParams.get("access_token")).toBeNull();
-        expect(url.searchParams.get("foo")).toBe("bar");
+        expect(url.searchParams.get("query_params")).toBe("foo=bar");
+        expect(url.toString()).not.toContain("page-token");
       } finally {
         window.history.pushState({}, "", original);
       }
@@ -720,9 +670,16 @@ describe("RuntimeManager", () => {
       expect(httpUrl.searchParams.get("base_param")).toBe("existing");
 
       // Should preserve all window-level query params (including custom ones)
-      expect(wsUrl.searchParams.get("custom_param")).toBe("value123");
-      expect(wsUrl.searchParams.get("user_token")).toBe("abc");
-      expect(wsUrl.searchParams.get("theme")).toBe("dark");
+      expect(
+        Object.fromEntries(
+          new URLSearchParams(wsUrl.searchParams.get("query_params") ?? ""),
+        ),
+      ).toEqual({
+        base_param: "existing",
+        custom_param: "value123",
+        user_token: "abc",
+        theme: "dark",
+      });
       expect(httpUrl.searchParams.get("custom_param")).toBe("value123");
       expect(httpUrl.searchParams.get("user_token")).toBe("abc");
       expect(httpUrl.searchParams.get("theme")).toBe("dark");
@@ -781,7 +738,7 @@ describe("RuntimeManager", () => {
       );
     });
 
-    it("should throw when creating WebSocket URLs from blob URLs", () => {
+    it("warns when creating WebSocket URLs from blob URLs", () => {
       const runtime = new RuntimeManager({
         url: "blob:https://example.com/12345678-1234-1234-1234-123456789abc",
         lazy: true,
@@ -789,7 +746,7 @@ describe("RuntimeManager", () => {
       const sessionId = "test" as SessionId;
 
       expect(runtime.getWsURL(sessionId).toString()).toMatchInlineSnapshot(
-        `"blob:https://example.com/12345678-1234-1234-1234-123456789abc?session_id=test"`,
+        `"blob:https://example.com/12345678-1234-1234-1234-123456789abc?query_params=&session_id=test"`,
       );
       expect(Logger.warn).toHaveBeenCalledOnce();
     });

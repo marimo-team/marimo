@@ -3,10 +3,15 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-import sys
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Generic, Literal, NewType, TypedDict, TypeVar
+from typing import (
+    Any,
+    Generic,
+    Literal,
+    NewType,
+    TypeVar,
+)
 
 import msgspec
 import pytest
@@ -16,11 +21,6 @@ from marimo._messaging.msgspec_encoder import asdict
 from marimo._runtime.commands import UpdateCellConfigCommand
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
-
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-else:
-    from typing_extensions import NotRequired
 
 
 @dataclass
@@ -755,54 +755,6 @@ def test_recursive_structure_limit() -> None:
         count += 1
         node = node.next
     assert count == 100
-
-
-@pytest.mark.skipif(
-    sys.version_info >= (3, 11), reason="Not supported in Python >= 3.11"
-)
-def test_not_required_types() -> None:
-    class WithNotRequired(TypedDict):
-        required: str
-        optional: NotRequired[str]
-        optional_dict: NotRequired[dict[str, str]]
-        optional_list: NotRequired[list[str]]
-
-    # Test with all fields provided
-    data: dict[str, Any] = {
-        "required": "value",
-        "optional": "optional_value",
-        "optional_dict": {"key": "value"},
-        "optional_list": ["item"],
-    }
-    parsed = parse_raw(data, WithNotRequired)
-    assert parsed["required"] == "value"
-    assert parsed["optional"] == "optional_value"
-    assert parsed["optional_dict"] == {"key": "value"}
-    assert parsed["optional_list"] == ["item"]
-
-    # Test with only required fields
-    data = {"required": "value"}
-    parsed = parse_raw(data, WithNotRequired)
-    assert parsed["required"] == "value"
-    assert not hasattr(parsed, "optional") or parsed["optional"] is None
-    assert (
-        not hasattr(parsed, "optional_dict") or parsed["optional_dict"] is None
-    )
-    assert (
-        not hasattr(parsed, "optional_list") or parsed["optional_list"] is None
-    )
-
-    # Test with empty values for container types
-    data = {
-        "required": "value",
-        "optional_dict": {},
-        "optional_list": [],
-    }
-    parsed = parse_raw(data, WithNotRequired)
-    assert parsed["required"] == "value"
-    assert "optional" not in parsed
-    assert parsed["optional_dict"] == {}
-    assert parsed["optional_list"] == []
 
 
 def test_date_and_datetime_types() -> None:

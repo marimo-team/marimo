@@ -65,7 +65,7 @@ import { type LayoutState, useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom, startupProgressAtom } from "../network/connection";
 import type { RequestId } from "../network/DeferredRequestRegistry";
-import { runtimeConfigAtom, useRuntimeManager } from "../runtime/config";
+import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
 import {
@@ -135,7 +135,6 @@ export function useNotebookSession(opts: {
   const setStableSessionId = useSetAtom(stableSessionIdAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
-  const { notebookId } = useAtomValue(runtimeConfigAtom);
   const transportType = useAtomValue(connectionTransportTypeAtom);
   const setCacheInfo = useSetAtom(cacheInfoAtom);
   const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
@@ -411,11 +410,8 @@ export function useNotebookSession(opts: {
     });
   };
   const notebook = useNotebookClient({
-    sessionId,
     static: isStaticNotebook(),
     transportType,
-    messageFormat:
-      notebookId && transportType === "websocket" ? "host" : "session",
     url: () =>
       transportType === "sse"
         ? runtimeManager.getSseURL(sessionId).toString()
@@ -428,7 +424,6 @@ export function useNotebookSession(opts: {
       }
     },
     checkHealth: () => runtimeManager.reconcileFromHealth(),
-    onMessageError,
     onNotification: (notification) => {
       try {
         handleNotification(notification);

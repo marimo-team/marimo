@@ -1,7 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 # AUTO-GENERATED FILE — DO NOT EDIT.
 # Generated from protocols/host/openapi.yaml.
-# Regenerate with `make host-protocol-codegen`.
+# Experimental features: analysis
+# Regenerate with `uv run --no-config --locked --script protocols/host/generate.py --include-experimental=analysis`.
 # ruff: noqa: TC003 - msgspec resolves annotations at runtime
 # ruff: noqa: RUF036 - the generator orders unions; the wire shape is the same
 
@@ -260,7 +261,6 @@ ObjectType: TypeAlias = Annotated[
         "project",
         "notebook",
         "document",
-        "analysis",
         "cell",
         "runtime",
         "attachment",
@@ -270,9 +270,10 @@ ObjectType: TypeAlias = Annotated[
         "display",
         "variable",
         "custom",
+        "analysis",
     ],
     Meta(
-        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\nanalysis, cell, runtime, attachment, run, execution, console,\ndisplay, variable, and custom. Custom events describe occurrences\nrather than object state.\n"
+        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\ncell, runtime, attachment, run, execution, console,\ndisplay, variable, and custom. Custom events describe occurrences\nrather than object state.\n"
     ),
 ]
 
@@ -1132,7 +1133,7 @@ class Error(Struct, frozen=True):
     kind: Annotated[
         str,
         Meta(
-            description="The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions, and reserves `multiple-definitions` and `cycle-dependencies` for analysis, because every host schedules them the same way. Clients show unrecognized kinds as plain errors."
+            description="The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors."
         ),
     ]
     message: Annotated[
@@ -1906,7 +1907,6 @@ Event: TypeAlias = Annotated[
     | ProjectEvent
     | NotebookEvent
     | DocumentEvent
-    | AnalysisEvent
     | CellEvent
     | RuntimeEvent
     | AttachmentEvent
@@ -1927,7 +1927,8 @@ Event: TypeAlias = Annotated[
     | DisplayRemovedEvent
     | VariableRemovedEvent
     | ResetEvent
-    | ReadyEvent,
+    | ReadyEvent
+    | AnalysisEvent,
     Meta(
         description="A record, removal, or control message from a host stream.\nThe data is decoded JSON. Snapshot records and reset events omit\nthe cursor; ready and live events carry it. Unknown event names\nbelong to later versions or host extensions.\n"
     ),

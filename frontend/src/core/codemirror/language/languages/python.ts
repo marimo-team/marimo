@@ -157,7 +157,7 @@ const pylspClient = once((lspConfig: LSPConfig) => {
   return notebookClient;
 });
 
-const tyLspClient = once((_: LSPConfig) => {
+const tyLspClient = once((_config: LSPConfig) => {
   // oxlint-disable-next-line prefer-const -- reassigned after closure capture
   let resyncCallback: (() => Promise<void>) | undefined;
 
@@ -176,7 +176,7 @@ const tyLspClient = once((_: LSPConfig) => {
   const notebookClient = new NotebookLanguageServerClient(
     new LanguageServerClient({
       ...lspClientOpts,
-      getWorkspaceConfiguration: (_) => [{ disableLanguageServices: true }],
+      getWorkspaceConfiguration: () => [{ disableLanguageServices: true }],
     }),
     {},
   );
@@ -226,7 +226,7 @@ const pyreflyClient = once(
   },
 );
 
-const pyrightClient = once((_: LSPConfig) => {
+const pyrightClient = once((_config: LSPConfig) => {
   // oxlint-disable-next-line prefer-const -- reassigned after closure capture
   let resyncCallback: (() => Promise<void>) | undefined;
 

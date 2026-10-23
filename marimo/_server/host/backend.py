@@ -8,6 +8,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+import msgspec
+
 from marimo import _loggers
 from marimo._core import backend as be, protocol
 from marimo._messaging.notification import (
@@ -19,22 +21,30 @@ from marimo._messaging.notification import (
     StartupProgressNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
-from marimo._runtime.commands import ExecuteScratchpadCommand, HTTPRequest
+from marimo._runtime.commands import (
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
+    HTTPRequest,
+)
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.events import notification_event
 from marimo._server.host.translate import RunTranslator
 from marimo._server.scratchpad import snapshot_for_scratchpad
 from marimo._session.consumer import SessionConsumer
-from marimo._session.model import ConnectionState
+from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.types import KernelState
-from marimo._types.ids import ConsumerId, SessionId
+from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from marimo._version import __version__
 
 if TYPE_CHECKING:
+    from collections.abc import Coroutine, Sequence
+
+    from marimo._core.document import Document
     from marimo._core.stream import Sink
     from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
+    from marimo._runtime.commands import CommandMessage
     from marimo._server.session_manager import SessionManager
     from marimo._session.events import SessionEventBus
     from marimo._session.session import Session
@@ -65,7 +75,7 @@ class _Run:
     session: Session
     translator: RunTranslator
     done: asyncio.Event = field(default_factory=asyncio.Event)
-    task: asyncio.Task[None] | None = None
+    task: asyncio.Task[object] | None = None
     submitted: bool = False
 
 
@@ -170,11 +180,64 @@ class SessionBackend(SessionConsumer):
             return
         run = _Run(session, RunTranslator(run_id, code))
         self._run = run
+        self._watch_run(run, self._run_code(run, code))
+
+    def run_cells(
+        self,
+        run_id: protocol.RunId,
+        document: Document,
+        cell_ids: Sequence[protocol.CellId],
+    ) -> None:
+        session = self.session
+        if session is None:
+            return
+        run = _Run(session, RunTranslator(run_id, None))
+        self._run = run
+        codes = {CellId_t(cell.id): cell.code for cell in document}
+        targets = [CellId_t(cell_id) for cell_id in cell_ids]
+        try:
+            # Enqueue before returning so later document edits follow the run.
+            session.instantiate(
+                InstantiateNotebookRequest(
+                    object_ids=[], values=[], auto_run=False, codes=codes
+                ),
+                http_request=None,
+            )
+            self._submit(
+                run,
+                ExecuteCellsCommand(
+                    cell_ids=targets,
+                    codes=[codes[cell_id] for cell_id in targets],
+                    request=self._http_request(session),
+                    run_id=run_id,
+                    allow_stdin=False,
+                ),
+            )
+        except Exception as exception:
+            self._finish_run(run, exception)
+            return
+        self._watch_run(run, run.done.wait())
+
+    def _watch_run(
+        self, run: _Run, coroutine: Coroutine[object, object, object]
+    ) -> None:
         run.task = asyncio.get_running_loop().create_task(
-            self._run_code(run, code), name=f"host.run.{run_id}"
+            coroutine, name=f"host.run.{run.translator.run_id}"
         )
         # A callback also finalizes cancellation before the coroutine starts.
-        run.task.add_done_callback(lambda task: self._finish_run(run, task))
+        run.task.add_done_callback(
+            lambda task: self._finish_run(
+                run,
+                asyncio.CancelledError()
+                if task.cancelled()
+                else task.exception(),
+            )
+        )
+
+    def _submit(self, run: _Run, command: CommandMessage) -> None:
+        run.submitted = True
+        self._translators[run.translator.run_id] = run.translator
+        run.session.put_control_request(command, from_consumer_id=None)
 
     async def _run_code(self, run: _Run, code: str) -> None:
         session = run.session
@@ -187,51 +250,51 @@ class SessionBackend(SessionConsumer):
                 http_request=None,
             )
             cells, outputs = snapshot_for_scratchpad(session)
-            request = None
-            if self._request_metadata is not None:
-                # Host runs have no HTTP origin. Give the URL fields the same
-                # keys a real request has so notebook code can read them.
-                empty_url: dict[str, Encodable] = {
-                    "path": "",
-                    "port": None,
-                    "scheme": "",
-                    "netloc": "",
-                    "query": "",
-                    "hostname": None,
-                }
-                request = HTTPRequest(
-                    url=dict(empty_url),
-                    base_url=dict(empty_url),
-                    headers={},
-                    query_params={},
-                    path_params={},
-                    cookies={},
-                    user={},
-                    meta=self._request_metadata(session),
-                )
-            run.submitted = True
-            self._translators[run.translator.run_id] = run.translator
-            session.put_control_request(
+            self._submit(
+                run,
                 ExecuteScratchpadCommand(
                     code=code,
-                    request=request,
+                    request=self._http_request(session),
                     notebook_cells=cells,
                     cell_outputs=outputs,
                     run_id=run.translator.run_id,
                     allow_stdin=False,
                 ),
-                from_consumer_id=None,
             )
             await run.done.wait()
 
-    def _finish_run(self, run: _Run, task: asyncio.Task[None]) -> None:
+    def _http_request(self, session: Session) -> HTTPRequest | None:
+        if self._request_metadata is None:
+            return None
+        # Host runs have no HTTP origin. Give the URL fields the same
+        # keys a real request has so notebook code can read them.
+        empty_url: dict[str, Encodable] = {
+            "path": "",
+            "port": None,
+            "scheme": "",
+            "netloc": "",
+            "query": "",
+            "hostname": None,
+        }
+        return HTTPRequest(
+            url=dict(empty_url),
+            base_url=dict(empty_url),
+            headers={},
+            query_params={},
+            path_params={},
+            cookies={},
+            user={},
+            meta=self._request_metadata(session),
+        )
+
+    def _finish_run(self, run: _Run, exception: BaseException | None) -> None:
         if self._run is run:
             self._run = None
         error = None
-        if task.cancelled():
+        if isinstance(exception, asyncio.CancelledError):
             run.translator.interrupted = True
-        elif (exception := task.exception()) is not None:
-            LOGGER.error("Scratch run failed in the host: %s", exception)
+        elif exception is not None:
+            LOGGER.error("Run failed in the host: %s", exception)
             error = protocol.Error(
                 kind="internal",
                 name=None,
@@ -366,6 +429,19 @@ class SessionBackend(SessionConsumer):
             )
             self._translators[run_id] = translator
             self._observe(be.Scheduled(translator.run_id))
+        # Run kernels omit source from native notifications. App documents are
+        # immutable, so recover the submitted source for host revision hashes.
+        # Keep the native message private and unchanged in the shared log.
+        if (
+            isinstance(message, ExecutionNotification)
+            and message.phase == "planned"
+            and message.code is None
+            and self._manager.mode is SessionMode.RUN
+            and self.session is not None
+        ):
+            cell = self.session.document.get(message.cell_id)
+            if cell is not None:
+                message = msgspec.structs.replace(message, code=cell.code)
         for out in translator.feed(message):
             self._observe(out)
         if translator.completed:

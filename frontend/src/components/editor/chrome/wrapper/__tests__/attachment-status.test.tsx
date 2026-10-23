@@ -16,6 +16,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import type { Attachment } from "@/core/attachments/state";
 import { pairConfigAtom } from "@/core/config/pair";
+import { createNotebookClient } from "@/core/host/notebook-client";
 import {
   type StableSessionId,
   stableSessionIdAtom,
@@ -45,10 +46,9 @@ function renderStatus(attachments: Attachment[] = [AGENT], preview = true) {
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
   store.set(notebookClientAtom, {
+    ...createNotebookClient(store).client,
     connectionAtom: atom({ state: ConnectionState.OPEN }),
-    documentAtom: atom(null),
     attachmentsAtom,
-    reconnect: async () => undefined,
   });
   store.set(attachmentsAtom, attachments);
   store.set(stableSessionIdAtom, "stable/test" as StableSessionId);

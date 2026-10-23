@@ -207,14 +207,14 @@ class TestDuckDBInvalidQueries:
             ("SELECT * FROM table WHERE", ["syntax", "error"]),
             ("SELECT * FROM table ORDER", ["syntax", "error"]),
             ("INSERT INTO", ["syntax", "error"]),
-            ("UPDATE", ["syntax", "error"]),
-            ("DELETE", ["syntax", "error"]),
+            ("UPDATE users SET", ["syntax", "error"]),
+            ("DELETE FROM", ["syntax", "error"]),
             # Unclosed parentheses
             ("SELECT COUNT(*", ["syntax", "error"]),
             # Unclosed quotes
             # ("SELECT 'unclosed string", ["syntax", "error"]), # DuckDB does not raise errors for this case
             # # Invalid function call
-            ("SELECT COUNT(DISTINCT)", ["syntax", "error"]),
+            ("SELECT COUNT(DISTINCT FROM users)", ["syntax", "error"]),
             # # Malformed CASE statement
             ("SELECT CASE WHEN FROM table", ["syntax", "error"]),
             # # Incomplete JOIN

@@ -71,7 +71,6 @@ export const SortableCell = React.forwardRef(
     return (
       <SortableCellInternal
         ref={ref}
-        cellId={cellId}
         canMoveX={canMoveX}
         {...props}
         attributes={attributes}
@@ -86,7 +85,7 @@ export const SortableCell = React.forwardRef(
 );
 SortableCell.displayName = "SortableCell";
 
-interface SortableCellInternalProps extends Props {
+interface SortableCellInternalProps extends Omit<Props, "cellId"> {
   children: React.ReactNode;
   attributes: DraggableAttributes;
   listeners: SyntheticListenerMap | undefined;
@@ -99,7 +98,6 @@ interface SortableCellInternalProps extends Props {
 const SortableCellInternal = React.forwardRef(
   (
     {
-      cellId,
       canMoveX,
       children,
       attributes,

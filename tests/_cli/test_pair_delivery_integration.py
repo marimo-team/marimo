@@ -252,9 +252,8 @@ def test_subprocess_reconnect_replays_messages_and_server_detach(
             stderr=subprocess.PIPE,
         )
         assert process.stdin is not None
-        process.stdin.write(msgspec.json.encode(config))
-        process.stdin.close()
-        process.stdin = None
+        process.stdin.write(msgspec.json.encode(config) + b"\n")
+        process.stdin.flush()
 
         def attachment() -> str:
             for event in events:
@@ -276,34 +275,44 @@ def test_subprocess_reconnect_replays_messages_and_server_detach(
             with urllib.request.urlopen(request, timeout=5) as response:
                 assert response.status == 202
 
+        assert process.stdout is not None
+        output = process.stdout
+
+        def receive() -> bytes:
+            lines: queue.Queue[bytes] = queue.Queue(maxsize=1)
+            reader = threading.Thread(
+                target=lambda: lines.put(output.readline()), daemon=True
+            )
+            reader.start()
+            try:
+                line = lines.get(timeout=10)
+            except queue.Empty:
+                line = b""
+            if line:
+                return line
+            if process.poll() is None:
+                process.kill()
+            reader.join(timeout=5)
+            _, stderr = process.communicate(timeout=5)
+            raise AssertionError(
+                "Replay subprocess did not respond:\n"
+                + stderr.decode(errors="replace")
+            )
+
         try:
-            assert process.stdout is not None
-            output = process.stdout
-            startup: queue.Queue[bytes] = queue.Queue(maxsize=1)
-            threading.Thread(
-                target=lambda: startup.put(output.readline()), daemon=True
-            ).start()
-            assert startup.get(timeout=10) in (b"attached\n", b"attached\r\n")
+            assert receive() in (b"attached\n", b"attached\r\n")
             first_id = attachment()
             send("before drop")
             wait_messages(tmp_path / "inbox.jsonl", 1)
-            (tmp_path / "drop").touch()
-            deadline = time.monotonic() + 10
-            while not (tmp_path / "reconnecting.json").exists():
-                if process.poll() is not None:
-                    _, stderr = process.communicate(timeout=5)
-                    raise AssertionError(stderr.decode())
-                if time.monotonic() >= deadline:
-                    raise AssertionError("Forwarder did not reconnect")
-                time.sleep(0.01)
-            cursor = json.loads((tmp_path / "reconnecting.json").read_text())[
-                "cursor"
-            ]
+            process.stdin.write(b"drop\n")
+            process.stdin.flush()
+            cursor = json.loads(receive())["cursor"]
             assert isinstance(cursor, str)
             assert cursor
             # The observer keeps the producer guard satisfied during the gap.
             send("during gap")
-            (tmp_path / "resume").touch()
+            process.stdin.write(b"resume\n")
+            process.stdin.flush()
             second_id = attachment()
             assert second_id != first_id
             wait_messages(tmp_path / "inbox.jsonl", 2)

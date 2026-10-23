@@ -255,6 +255,32 @@ def _recorded_puts(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[str]]:
 
 class TestRecording:
     @staticmethod
+    async def test_failed_cache_flush_does_not_record_entry(
+        tmp_path: Path,
+        exec_req: ExecReqProvider,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from marimo._save.loaders import PickleLoader
+
+        def fail_flush(_self: PickleLoader) -> None:
+            raise OSError("Cache write failed")
+
+        monkeypatch.setattr(PickleLoader, "save_cache", lambda *_: True)
+        monkeypatch.setattr(PickleLoader, "flush", fail_flush)
+        with _notebook_kernel(tmp_path) as (k, notebook, cache_dir):
+            await k.run(
+                [
+                    exec_req.get("import marimo as mo"),
+                    exec_req.get(
+                        "with mo.persistent_cache('train', method='pickle'):\n    x = 42\n"
+                    ),
+                ]
+            )
+            assert k.globals["x"] == 42
+            assert k.stderr.messages
+            assert not (cache_dir / manifest_name(notebook)).exists()
+
+    @staticmethod
     async def test_with_block_records_its_entry(
         tmp_path: Path, exec_req: ExecReqProvider
     ) -> None:
@@ -277,7 +303,7 @@ class TestRecording:
             assert len(entries) == 1
             block, key = entries.pop()
             assert block == "train"
-            assert (cache_dir / block / f"{key}.pickle").exists()
+            assert (cache_dir / block / f"{key}.jsonl").exists()
 
     @staticmethod
     async def test_records_accumulate_across_edits(
@@ -706,7 +732,7 @@ class TestRecording:
             assert {block for block, _ in there} == {"there"}
             for block, key in here | there:
                 directory = cache_dir if block == "here" else elsewhere
-                assert (directory / block / f"{key}.pickle").exists()
+                assert (directory / block / f"{key}.jsonl").exists()
 
     @staticmethod
     async def test_every_copy_of_a_manifest_finds_the_notebook(

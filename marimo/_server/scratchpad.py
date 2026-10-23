@@ -237,7 +237,7 @@ class ScratchCellListener(EventAwareExtension):
                 msg = await asyncio.wait_for(
                     self._queue.get(), timeout=remaining
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self.timed_out = True
                 return
             if msg is None:

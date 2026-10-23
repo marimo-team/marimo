@@ -37,45 +37,6 @@ export type ConnectionStatus =
 
 /** The recovery policy for a closed connection. */
 export interface CloseDecision {
-  kind: "terminal" | "gave-up" | "retry";
+  kind: "terminal" | "retry";
   status: ConnectionStatus;
-}
-
-export type ConnectionEvent = "open" | "close" | "message" | "error";
-
-export interface IConnectionTransportMap {
-  open: WebSocketEventMap["open"];
-  message: WebSocketEventMap["message"];
-  close: WebSocketEventMap["close"];
-  error: WebSocketEventMap["error"];
-}
-
-export type ConnectionTransportCallback<T extends ConnectionEvent> = (
-  data: IConnectionTransportMap[T],
-) => void;
-
-/** Transport readiness, using the WebSocket readyState values. */
-export const TransportReadyState = {
-  CONNECTING: 0,
-  OPEN: 1,
-  CLOSING: 2,
-  CLOSED: 3,
-} as const;
-
-export type TransportReadyState =
-  (typeof TransportReadyState)[keyof typeof TransportReadyState];
-
-/** A reconnectable source of notebook messages. */
-export interface NotebookTransport {
-  reconnect(code?: number | undefined, reason?: string | undefined): void;
-  close(): void;
-  addEventListener<T extends ConnectionEvent>(
-    event: T,
-    callback: ConnectionTransportCallback<T>,
-  ): void;
-  removeEventListener<T extends ConnectionEvent>(
-    event: T,
-    callback: ConnectionTransportCallback<T>,
-  ): void;
-  readyState: TransportReadyState;
 }

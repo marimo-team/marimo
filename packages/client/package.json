@@ -7,18 +7,20 @@
   "type": "module",
   "license": "Apache-2.0",
   "exports": {
-    "./protocol": "./dist/protocol.js",
-    "./reducer": "./dist/reducer.js"
+    ".": "./dist/index.js",
+    "./node": "./dist/node.js",
+    "./protocol": "./dist/protocol.js"
   },
   "files": [
     "dist"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "codegen": "node --experimental-strip-types scripts/generate-protocol.ts",
-    "codegen:check": "node --experimental-strip-types scripts/generate-protocol.ts --check",
+    "codegen": "node --experimental-strip-types scripts/generate-protocol.ts --include-experimental",
+    "codegen:check": "node --experimental-strip-types scripts/generate-protocol.ts --include-experimental --check",
     "test": "vitest",
-    "typecheck": "tsgo"
+    "typecheck": "tsgo",
+    "codegen:stable": "node --experimental-strip-types scripts/generate-protocol.ts"
   },
   "dependencies": {
     "zod": "^4.6.5"

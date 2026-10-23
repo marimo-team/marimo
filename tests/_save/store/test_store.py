@@ -18,7 +18,9 @@ class TestStore:
         @app.cell
         def _(mo, store):
             assert store._cache == {}
-            with mo.persistent_cache("mock", store=store) as cache:
+            with mo.persistent_cache(
+                "mock", store=store, method="pickle"
+            ) as cache:
                 a = 1
                 b = 2
 

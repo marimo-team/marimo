@@ -20,8 +20,8 @@ const records = {
   "record.json": Protocol.HostRecord,
   "cell.json": Protocol.Cell,
   "cell-withheld.json": Protocol.Cell,
-  "analysis.json": Protocol.Analysis,
-  "diagnostic.json": Protocol.Error,
+  "../experimental/analysis/fixtures/analysis.json": Protocol.Analysis,
+  "../experimental/analysis/fixtures/diagnostic.json": Protocol.Error,
   "edit.json": Protocol.EditRequest,
   "edit-conflict-request.json": Protocol.EditRequest,
   "edit-response.json": Protocol.EditResponse,
@@ -45,35 +45,32 @@ describe("host protocol fixtures", () => {
     },
   );
 
-  it.each(NodeFs.readdirSync(fixtures).filter((name) => name.endsWith(".sse")))(
-    "parses events in %s unchanged",
-    (name) => {
-      const stream = NodeFs.readFileSync(
-        new NodeUrl.URL(name, fixtures),
-        "utf8",
-      );
-      let count = 0;
-      for (const frame of stream.split(/\r?\n\r?\n/)) {
-        const event = /^event: (.+)$/m.exec(frame)?.[1];
-        if (!event && !/^data:/m.test(frame)) {
-          continue;
-        }
-        const data = frame
-          .split(/\r?\n/)
-          .filter((line) => line.startsWith("data:"))
-          .map((line) => line.slice(5).trimStart())
-          .join("\n");
-        const id = /^id: (.+)$/m.exec(frame)?.[1];
-        const payload: unknown = JSON.parse(data);
-        const input = { event, data: payload, ...(id ? { id } : {}) };
-        const original = structuredClone(input);
-        expect(Protocol.Event.parse(input)).toEqual(original);
-        expect(input).toEqual(original);
-        count += 1;
+  it.each([
+    ...NodeFs.readdirSync(fixtures).filter((name) => name.endsWith(".sse")),
+    "../experimental/analysis/fixtures/notebook-events.sse",
+  ])("parses events in %s unchanged", (name) => {
+    const stream = NodeFs.readFileSync(new NodeUrl.URL(name, fixtures), "utf8");
+    let count = 0;
+    for (const frame of stream.split(/\r?\n\r?\n/)) {
+      const event = /^event: (.+)$/m.exec(frame)?.[1];
+      if (!event && !/^data:/m.test(frame)) {
+        continue;
       }
-      expect(count).toBeGreaterThan(0);
-    },
-  );
+      const data = frame
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trimStart())
+        .join("\n");
+      const id = /^id: (.+)$/m.exec(frame)?.[1];
+      const payload: unknown = JSON.parse(data);
+      const input = { event, data: payload, ...(id ? { id } : {}) };
+      const original = structuredClone(input);
+      expect(Protocol.Event.parse(input)).toEqual(original);
+      expect(input).toEqual(original);
+      count += 1;
+    }
+    expect(count).toBeGreaterThan(0);
+  });
 });
 
 describe("host protocol bindings", () => {

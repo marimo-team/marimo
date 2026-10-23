@@ -42,7 +42,7 @@ dependencies = [
     # loro for collaborative editing (native extension; server-only).
     # No cp315 wheels as of 2026-10; drop the python_version marker when published.
     "loro>=1.10.0; python_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'android'",
-    # python <=3.10 compatibility
+    # python <=3.11 compatibility
     "typing_extensions>=4.4.0; python_version < '3.12'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
     "docutils>=0.16.0",
@@ -61,7 +61,7 @@ dependencies = [
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
     "Operating System :: OS Independent",
     "Environment :: Console",
@@ -70,7 +70,6 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Intended Audience :: Education",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -159,7 +158,7 @@ test = [
     "httpx~=0.28.0",
     "urllib3~=2.5.0",
     # Pytest and plugins
-    "pytest~=9.0.2",
+    "pytest~=9.1.1",
     "pytest-timeout~=2.4.0",
     "pytest-codecov~=0.7.0",
     "pytest-rerunfailures~=16.1",
@@ -173,6 +172,8 @@ test = [
     "dirty-equals~=0.9.0",
     # For protocol code generation tests
     "jinja2>=3.1.6",
+    "openapi-spec-validator>=0.9.0",
+    "python-jsonpath==2.2.1",
     # No cp315 wheels as of 2026-10 for matplotlib 3.10 and zstandard; drop the
     # python_version markers when published. numpy is listed on its own because
     # tests used to get it only through matplotlib.
@@ -254,7 +255,7 @@ typecheck = [
     "leafmap~=0.39.2",
     "panel>=1.5.3",
     "polars>=1.9.0",
-    "pytest>=9.0.2",
+    "pytest>=9.1.1",
     "duckdb>=1.0.0",
     "narwhals>=2.0.0",
     "matplotlib>=3.8.0",
@@ -321,9 +322,9 @@ docs = [
 # For packages without eligible source distributions, require wheels
 # for these targets so resolution can backtrack past incomplete uploads.
 required-environments = [
-    "sys_platform == 'linux' and platform_machine == 'x86_64' and python_version >= '3.10' and python_version < '3.16'",
-    "sys_platform == 'darwin' and platform_machine == 'arm64' and python_version == '3.10'",
-    "sys_platform == 'win32' and platform_machine == 'AMD64' and python_version == '3.10'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64' and python_version >= '3.11' and python_version < '3.16'",
+    "sys_platform == 'darwin' and platform_machine == 'arm64' and python_version == '3.11'",
+    "sys_platform == 'win32' and platform_machine == 'AMD64' and python_version == '3.11'",
 ]
 # Mirror CI's dependency window (UV_EXCLUDE_NEWER in .github/workflows) so local
 # resolution reproduces what CI resolves at setup time, including the ruff version.
@@ -379,6 +380,9 @@ ignore = [
     "D415", # First line should end with a period, question mark, or exclamation point
     "PLR1711", # Useless returns. We use this currently to delimit the end of a cell.
     "ASYNC119", # Yield in context manager in async generator; required for streaming generators (LLM/SSE), no clean refactor
+    # Enabled by the Python 3.11 target. Both need deliberate migrations.
+    "ASYNC109", # Async function with a `timeout` parameter; callers should use `asyncio.timeout`
+    "UP042", # `class X(str, Enum)` to `StrEnum`; changes `str()` of members
 
     # From new version of Ruff: We should fix these, but it raises too many errors
     "BLE001", # Do not catch blind exception: `Exception`

@@ -50,7 +50,6 @@ from marimo._utils.paths import (
 if TYPE_CHECKING:
     from starlette.requests import Request
 
-    from marimo._server.host.context import HostContext
 
 LOGGER = _loggers.marimo_logger()
 
@@ -417,22 +416,6 @@ async def index(request: Request) -> Response:
             except ValueError:
                 pass  # Keep absolute if not under directory
 
-        notebook_id = None
-        context: HostContext | None = getattr(
-            request.app.state, "host_context", None
-        )
-        if (
-            context is not None
-            and context.bridge.app_sessions is None
-            and absolute_filepath
-            and not app_state.remote_url
-        ):
-            record = context.bridge.index.notebook_for(absolute_filepath)
-            if record is None:
-                record = context.bridge.index.ensure(absolute_filepath)
-            if record is not None:
-                notebook_id = record.id
-
         html = notebook_page_template(
             html=html,
             base_url=app_state.base_url,
@@ -445,7 +428,6 @@ async def index(request: Request) -> Response:
             lsp_workspace=lsp_workspace,
             mode=app_state.mode,
             notebook_snapshot=notebook_snapshot,
-            notebook_id=notebook_id,
             runtime_config=[{"url": app_state.remote_url}]
             if app_state.remote_url
             else None,

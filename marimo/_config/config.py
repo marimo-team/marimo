@@ -1,26 +1,32 @@
 # Copyright 2026 Marimo. All rights reserved.
+# Same-name aliases explicitly re-export types for strict type checking.
+# ruff: noqa: PLC0414
 from __future__ import annotations
 
-import os
-import sys
 from dataclasses import dataclass
-
-from marimo._config.packages import infer_package_manager
-from marimo._config.utils import deep_copy
-
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-else:
-    from typing_extensions import NotRequired
-
 from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
+    NotRequired,
     TypedDict,
     cast,
 )
 
+from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
+from marimo._config.types import (
+    CacheLoader as CacheLoader,
+    CacheVerification as CacheVerification,
+    CopilotMode as CopilotMode,
+    ExecutionType as ExecutionType,
+    ExportType as ExportType,
+    OnCellChangeType as OnCellChangeType,
+    SqlOutputType as SqlOutputType,
+    StoreKey as StoreKey,
+    Theme as Theme,
+    WidthType as WidthType,
+)
+from marimo._config.utils import deep_copy
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
 
@@ -94,10 +100,6 @@ class KeymapConfig(TypedDict):
     destructive_delete: NotRequired[bool]
 
 
-OnCellChangeType = Literal["lazy", "autorun"]
-ExecutionType = Literal["relaxed", "strict"]
-
-
 @mddoc
 @dataclass
 class VenvConfig(TypedDict, total=False):
@@ -116,15 +118,6 @@ class VenvConfig(TypedDict, total=False):
 
     path: str
     writable: bool
-
-
-# TODO(akshayka): remove normal, migrate to compact
-# normal == compact
-WidthType = Literal["normal", "compact", "medium", "full", "columns"]
-Theme = Literal["light", "dark", "system"]
-ExportType = Literal["html", "markdown", "ipynb"]
-SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
-StoreKey = Literal["file", "redis", "rest", "tiered"]
 
 
 @mddoc
@@ -279,9 +272,6 @@ class PackageManagementConfig(TypedDict):
     """
 
     manager: Literal["pip", "rye", "uv", "poetry", "pixi"]
-
-
-CopilotMode = Literal["ask", "manual", "agent", "code_mode"]
 
 
 @mddoc
@@ -630,18 +620,18 @@ class StoreConfig(TypedDict, total=False):
 # One store, or a list composed into a TieredStore.
 CacheStoreConfig = list[StoreConfig] | StoreConfig
 
-CacheVerification = Literal["off", "on", "strict"]
-
 
 class CacheConfig(TypedDict, total=False):
     """Configuration for caching.
 
     `verification` is the signature-checking posture; `store` is the backing
-    store, or a list of stores composed into a `TieredStore`.
+    store, or a list of stores composed into a `TieredStore`; `loader` is the
+    default `method` for `mo.persistent_cache`.
     """
 
     verification: CacheVerification
     store: CacheStoreConfig
+    loader: CacheLoader
 
 
 class SigningConfig(TypedDict, total=False):
@@ -779,86 +769,9 @@ class PartialMarimoConfig(TypedDict, total=False):
     signing: NotRequired[SigningConfig]
 
 
-DEFAULT_CONFIG: MarimoConfig = {
-    "completion": {
-        "activate_on_typing": True,
-        "signature_hint_on_typing": False,
-        "copilot": False,
-        "auto_close_pairs": True,
-    },
-    "display": {
-        "theme": "light",
-        "code_editor_font_size": 14,
-        "cell_output": "below",
-        "default_width": "medium",
-        "dataframes": "rich",
-        "default_table_page_size": 10,
-        "default_table_max_columns": 50,
-        "reference_highlighting": True,
-        "code_lens": True,
-    },
-    "formatting": {"line_length": 79},
-    "keymap": {"preset": "default", "overrides": {}},
-    # dotenv's default value is set at runtime, since it resolves relative to
-    # the pyproject.toml or the notebook's directory.
-    "runtime": {
-        "auto_instantiate": False,
-        "auto_reload": "off",
-        "reactive_tests": True,
-        "on_cell_change": "autorun",
-        "watcher_on_save": "lazy",
-        "output_max_bytes": int(
-            os.getenv("MARIMO_OUTPUT_MAX_BYTES", "8000000")
-        ),
-        "std_stream_max_bytes": int(
-            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", "1000000")
-        ),
-        "default_sql_output": "auto",
-        "default_csv_encoding": "utf-8",
-        "show_tracebacks": False,
-    },
-    "save": {
-        "autosave": "after_delay",
-        "autosave_delay": 1000,
-        "format_on_save": False,
-    },
-    "package_management": {"manager": infer_package_manager()},
-    "server": {
-        "browser": "default",
-        "follow_symlink": False,
-    },
-    "language_servers": {
-        "pylsp": {
-            "enabled": False,
-            "enable_mypy": True,
-            "enable_ruff": True,
-            "enable_flake8": False,
-            "enable_pydocstyle": False,
-            "enable_pylint": False,
-            "enable_pyflakes": False,
-        }
-    },
-    "ai": {
-        "enabled": True,
-        "allow_provider_config": True,
-        "models": {
-            "displayed_models": [],
-            "custom_models": [],
-        },
-        "custom_providers": {},
-    },
-    "snippets": {
-        "custom_paths": [],
-        "include_default_snippets": True,
-    },
-    "mcp": {
-        "mcpServers": {},
-        "presets": [],
-    },
-    "diagnostics": {
-        "sql_linter": True,
-    },
-}
+DEFAULT_CONFIG: MarimoConfig = cast(
+    MarimoConfig, MarimoConfigSchema().to_dict()
+)
 
 
 def merge_default_config(

@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 // Generated from protocols/host/openapi.yaml. Do not edit.
-// Regenerate with: pnpm --dir packages/client codegen
+// Experimental features: analysis
+// Regenerate with: pnpm --dir packages/client codegen --include-experimental=analysis
 
 import * as Protocol from "./protocol.ts";
 

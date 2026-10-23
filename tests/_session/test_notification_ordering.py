@@ -19,14 +19,13 @@ from marimo._messaging.notification import (
     OperationRunning,
 )
 from marimo._messaging.serde import (
-    deserialize_kernel_message,
     serialize_kernel_message,
 )
 from marimo._messaging.types import KernelMessage
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionParams,
 )
-from marimo._server.api.endpoints.ws_endpoint import WebSocketHandler
+from marimo._server.host.session import SessionEventStream
 from marimo._session.consumer import SessionConsumer
 from marimo._session.extensions.extensions import (
     NotificationListenerExtension,
@@ -164,9 +163,14 @@ async def test_reconnect_snapshot_precedes_a_queued_live_update(
     session, consumer = session_and_consumer
     session.disconnect_consumer(consumer)
     session.notify(_progress("Before\n"), from_consumer_id=None)
-    handler = WebSocketHandler(
-        websocket=MagicMock(),
-        manager=MagicMock(),
+    handler = SessionEventStream(
+        connection=MagicMock(),
+        notebook=None,
+        bridge=MagicMock(),
+        doc_manager=MagicMock(),
+        types=None,
+        cursor=None,
+        manager=MagicMock(mode=SessionMode.EDIT),
         params=ConnectionParams(
             session_id=SessionId("reconnected"),
             file_key="notebook.py",
@@ -174,7 +178,6 @@ async def test_reconnect_snapshot_precedes_a_queued_live_update(
             auto_instantiate=False,
             rtc_enabled=False,
         ),
-        mode=SessionMode.EDIT,
     )
     asyncio.get_running_loop().call_soon(
         lambda: session.notify(_progress("After\n"), from_consumer_id=None)
@@ -183,10 +186,8 @@ async def test_reconnect_snapshot_precedes_a_queued_live_update(
     await asyncio.sleep(0)
 
     messages = []
-    while not handler.message_queue.empty():
-        messages.append(
-            deserialize_kernel_message(handler.message_queue.get_nowait())
-        )
+    while not handler._events.empty():
+        messages.append(handler._events.get_nowait().event.data.marimo)
     assert [
         message
         for message in messages

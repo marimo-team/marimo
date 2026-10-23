@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import re
 
+import pytest
+
+import marimo as mo
 from marimo._output.formatting import as_html
 from marimo._output.md import md
 from marimo._plugins.core.web_component import (
@@ -49,6 +52,22 @@ def test_embed_dollar_sign_in_md() -> None:
     markdown = md(as_html(["$", "$"]).text)
     # don't parse dollar in data as latex
     assert "arithmatex" not in markdown.text
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "C[A](C)",
+        "[link](https://example.com)",
+        "![alt](image.png)",
+        "[a][b]",
+    ],
+)
+def test_embed_markdown_link_in_md(value: str) -> None:
+    element = mo.ui.text(value=value, label="**Smile String** :")
+    rendered = md(f"{element}\n\n[b]: https://example.com")
+
+    assert parse_initial_value(rendered.text) == value
 
 
 # DOMPurify's SAFE_FOR_XML rule strips any attribute whose value matches

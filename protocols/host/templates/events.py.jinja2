@@ -1,7 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 # AUTO-GENERATED FILE — DO NOT EDIT.
 # Generated from protocols/host/openapi.yaml.
-# Regenerate with `make host-protocol-codegen`.
+{% if features -%}
+# Experimental features: {{ features | join(", ") }}
+{% endif -%}
+# Regenerate with `{{ command }}`.
 """Typed envelope adapters. Payload ownership stays with the caller."""
 
 from __future__ import annotations
@@ -10,8 +13,11 @@ from typing import TYPE_CHECKING, TypeAlias, overload
 
 from msgspec import UNSET, UnsetType
 
+{% if relative_import -%}
+from . import protocol  # noqa: TID252 - generated bindings share a package
+{% else -%}
 from marimo._core import protocol
-
+{% endif %}
 if TYPE_CHECKING:
     from datetime import datetime
 

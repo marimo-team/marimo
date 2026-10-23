@@ -144,7 +144,11 @@ def with_session(
                 with client.websocket_connect(
                     f"/ws?session_id={session_id}", headers=headers
                 ) as websocket:
-                    data = websocket.receive_text()
+                    from tests._server.api.endpoints.ws_helpers import (
+                        receive_until,
+                    )
+
+                    data = receive_until("kernel-ready", websocket)
                     assert data
                     if "temp_marimo_file" in func.__code__.co_varnames:
                         func(
@@ -181,7 +185,11 @@ def with_websocket_session(
                 with client.websocket_connect(
                     f"/ws?session_id={session_id}", headers=headers
                 ) as websocket:
-                    data = websocket.receive_text()
+                    from tests._server.api.endpoints.ws_helpers import (
+                        receive_until,
+                    )
+
+                    data = receive_until("kernel-ready", websocket)
                     assert data
 
                     func(client, websocket)
@@ -218,7 +226,11 @@ def with_read_session(
                 with client.websocket_connect(
                     f"/ws?session_id={session_id}", headers=headers
                 ) as websocket:
-                    data = websocket.receive_text()
+                    from tests._server.api.endpoints.ws_helpers import (
+                        receive_until,
+                    )
+
+                    data = receive_until("kernel-ready", websocket)
                     assert data
                     # Just change the mode here, otherwise our tests will run,
                     # in threads

@@ -12,7 +12,13 @@ interface SidebarToggleProps {
 export const SidebarToggle = ({ isOpen, toggle }: SidebarToggleProps) => {
   return (
     <div className="invisible lg:visible absolute top-[12px] right-[16px] z-20">
-      <Button onClick={toggle} className="w-10 h-8" variant="ghost" size="icon">
+      <Button
+        aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
+        onClick={toggle}
+        className="w-10 h-8"
+        variant="ghost"
+        size="icon"
+      >
         <ChevronLeft
           className={cn(
             "h-5 w-5 transition-transform ease-in-out duration-700",

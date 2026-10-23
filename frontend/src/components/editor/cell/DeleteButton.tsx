@@ -37,6 +37,7 @@ export const DeleteButton = (props: {
   return (
     <Tooltip content={tooltipMsg} usePortal={false}>
       <Button
+        aria-label="Delete cell"
         variant="ghost"
         size="icon"
         onClick={onClick}

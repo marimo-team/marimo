@@ -166,7 +166,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   return (
     <div className="flex border-b px-2 py-1 justify-between shrink-0 items-center">
       <Tooltip content="New chat">
-        <Button variant="text" size="icon" onClick={onNewChat}>
+        <Button
+          aria-label="New chat"
+          variant="text"
+          size="icon"
+          onClick={onNewChat}
+        >
           <PlusIcon className="h-4 w-4" />
         </Button>
       </Tooltip>
@@ -716,14 +721,10 @@ const ChatPanelBody = () => {
   );
 
   const isLoading = status === "submitted" || status === "streaming";
-  // Read via a ref so the queue-vs-send decision stays correct even when it is
-  // made after an `await` (e.g. resolving @-context), by which point the render
-  // closure's `isLoading` may be stale.
-  const isLoadingRef = useRef(isLoading);
-  isLoadingRef.current = isLoading;
-
+  // useEvent reads the latest loading state, even when called after an await
+  // (e.g. resolving @-context) that outlives the original render's closure.
   const submitOrQueue = useEvent((parts: ChatMessagePart[]) => {
-    if (isLoadingRef.current || hasQueuedRef.current) {
+    if (isLoading || hasQueuedRef.current) {
       enqueueUserMessage(parts);
     } else {
       sendUserMessage(parts);

@@ -7,7 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from tests._server.api.endpoints.ws_helpers import receive_until
+from tests._server.api.endpoints.ws_helpers import (
+    receive_notification,
+    receive_until,
+)
 from tests._server.mocks import token_header, with_session
 
 HAS_FORMATTER = DependencyManager.ruff.has() or DependencyManager.black.has()
@@ -197,7 +200,7 @@ def test_focus_cell_notifies_same_session_kiosk_consumer(
         f"/ws?session_id={SESSION_ID}&kiosk=true&access_token=fake-token",
         headers=auth_token,
     ) as websocket:
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert data["op"] == "kernel-ready"
         assert data["data"]["kiosk"] is True
 

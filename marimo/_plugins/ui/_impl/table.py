@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+from asyncio import CancelledError
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -1195,6 +1196,19 @@ class table(
                     column=e.column,
                     missing_packages=e.missing_packages,
                 )
+            except BaseException as error:
+                if isinstance(
+                    error,
+                    (
+                        KeyboardInterrupt,
+                        SystemExit,
+                        GeneratorExit,
+                        CancelledError,
+                    ),
+                ):
+                    raise
+                LOGGER.exception("Table download failed")
+                return DownloadAsResponse(error=str(error))
             return DownloadAsResponse(url=url, filename=filename)
         else:
             raise NotImplementedError(
@@ -1456,8 +1470,13 @@ class table(
             return data_url, "csv"
         except (ValueError, NotImplementedError):
             LOGGER.debug("CSV export failed, falling back to JSON.")
-        except Exception as e:
-            LOGGER.error("Unexpected error exporting CSV: %s", e)
+        except BaseException as error:
+            if isinstance(
+                error,
+                (KeyboardInterrupt, SystemExit, GeneratorExit, CancelledError),
+            ):
+                raise
+            LOGGER.exception("Unexpected error exporting CSV")
 
         # Fallback to JSON
         try:

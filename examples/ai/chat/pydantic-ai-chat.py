@@ -62,12 +62,12 @@ def _():
 
     models = mo.ui.dropdown(
         options={
-            "Gemini 2.5 Flash": "gemini-2.5-flash",
+            "Gemini 3.8 Flash": "gemini-3.8-flash",
             "Claude Haiku 4.5": "claude-haiku-4-5",
             "GPT 5 Nano": "gpt-5-nano",
             "GPT 5 (multimodal)": "gpt-5",
         },
-        value="Gemini 2.5 Flash",
+        value="Gemini 3.8 Flash",
         label="Choose a model",
     )
 

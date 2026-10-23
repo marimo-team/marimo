@@ -18,7 +18,10 @@ import type {
   DependencyTreeNode,
   DependencyTreeResponse,
 } from "@/core/network/types";
-import { withPackageInvalidation } from "@/core/packages/package-data";
+import {
+  invalidatePackageData,
+  withPackageInvalidation,
+} from "@/core/packages/package-data";
 import { useInstallPackages } from "@/core/packages/useInstallPackage";
 import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
 import { store } from "@/core/state/jotai";
@@ -141,6 +144,32 @@ describe("PackagesPanel", () => {
 
     expect(screen.getByText("already in tree")).toBeInTheDocument();
     expect(screen.queryByText("cycle")).not.toBeInTheDocument();
+  });
+
+  it("collapses expanded nodes when the dependency tree is refreshed", async () => {
+    const { client } = renderPanel(
+      { kind: "sandbox", backend: "pixi" },
+      populatedTree,
+    );
+    fireEvent.click(await screen.findByRole("treeitem", { name: /polars/ }));
+    expect(screen.getByText("already in tree")).toBeInTheDocument();
+
+    vi.mocked(client.getDependencyTree).mockResolvedValue({
+      tree: structuredClone(populatedTree),
+      context: { kind: "sandbox", backend: "pixi" },
+    });
+    act(() => invalidatePackageData());
+
+    await waitFor(() =>
+      expect(client.getDependencyTree).toHaveBeenCalledTimes(2),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("already in tree")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("treeitem", { name: /polars/ })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
   });
 
   it("keeps the configured package manager changeable outside a sandbox", async () => {

@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 type EqualityFn<T> = (a: T, b: T) => boolean;
 
@@ -13,13 +13,13 @@ export function useInternalStateWithSync<T>(
   initial: T,
   equalityFn: EqualityFn<T> = defaultEqualityFn,
 ) {
-  const [state, setState] = useState(initial);
-  const ref = useRef(initial);
+  const [state, setState] = useState(() => initial);
+  const [previousInitial, setPreviousInitial] = useState(() => initial);
 
   // Whenever the outside state changes, update the internal state
-  if (!equalityFn(ref.current, initial)) {
-    setState(initial); // react is ok to setState during render
-    ref.current = initial;
+  if (!equalityFn(previousInitial, initial)) {
+    setState(() => initial);
+    setPreviousInitial(() => initial);
   }
 
   return [state, setState] as const;

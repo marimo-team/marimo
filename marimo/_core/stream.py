@@ -15,7 +15,7 @@ from collections.abc import Callable, Collection, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import msgspec
 from msgspec import UNSET
@@ -44,7 +44,7 @@ def snapshot_event(
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def removal(
