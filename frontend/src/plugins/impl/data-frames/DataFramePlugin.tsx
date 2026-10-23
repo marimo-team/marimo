@@ -192,7 +192,6 @@ const EMPTY: Transformations = {
 export const DataFrameComponent = memo(
   ({
     columns,
-    dataframeName,
     pageSize,
     showDownload,
     lazy,

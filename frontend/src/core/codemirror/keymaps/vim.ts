@@ -369,7 +369,7 @@ class CodeMirrorVimSync {
       // We use onIdle to keep the focused editor snappy
       onIdle(() => {
         if (!skipBroadcast) {
-          this.broadcastModeChange(instance, e.mode, e.subMode);
+          this.broadcastModeChange(instance, e.mode);
         }
         this.isBroadcasting = false;
       });
@@ -383,7 +383,6 @@ class CodeMirrorVimSync {
   public broadcastModeChange(
     originInstance: EditorView,
     mode: string,
-    subMode?: string,
   ) {
     invariant(
       "exitInsertMode" in Vim,

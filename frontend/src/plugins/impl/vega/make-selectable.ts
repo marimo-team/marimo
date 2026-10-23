@@ -219,7 +219,7 @@ function removeSpecificParamsFromNestedSpecs(
     }
 
     if (filteredParams.length === 0) {
-      const { params, ...rest } = spec;
+      const { params: _params, ...rest } = spec;
       return rest as SpecWithParams;
     }
 

@@ -41,7 +41,7 @@ const urlFileStore: FileStore = {
 };
 
 export const domElementFileStore: FileStore = {
-  saveFile(contents: string) {
+  saveFile(_contents: string) {
     // Do nothing
   },
   readFile() {
@@ -54,7 +54,7 @@ export const domElementFileStore: FileStore = {
 };
 
 const remoteDefaultFileStore: FileStore = {
-  saveFile(contents: string) {
+  saveFile(_contents: string) {
     // Do nothing
   },
   readFile() {
@@ -79,7 +79,7 @@ export const mountConfigFileStore: FileStore = {
 };
 
 const emptyFileStore: FileStore = {
-  saveFile(contents: string) {
+  saveFile(_contents: string) {
     // Do nothing
   },
   readFile() {

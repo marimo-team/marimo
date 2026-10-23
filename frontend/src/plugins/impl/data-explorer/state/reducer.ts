@@ -47,7 +47,7 @@ const { valueAtom: chartSpecAtom, useActions } = createReducerAndAtoms(
     },
     set: (state, next: ChartSpec) => {
       // remove schema
-      const { schema, ...rest } = next;
+      const { schema: _schema, ...rest } = next;
       return { ...state, ...rest };
     },
   },

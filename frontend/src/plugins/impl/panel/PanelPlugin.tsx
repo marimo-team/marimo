@@ -78,7 +78,7 @@ type T = Record<string, unknown>;
 
 // oxlint-disable-next-line typescript/consistent-type-definitions
 type PluginFunctions = {
-  send_to_widget: <T>(req: {
+  send_to_widget: (req: {
     message?: unknown;
     buffers?: unknown;
   }) => Promise<null | undefined>;
