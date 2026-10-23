@@ -226,6 +226,25 @@ def _(pytest):
 
 **`conftest.py` fixtures** work as expected - pytest discovers them automatically.
 
+**Fixtures in test cells**: when a whole cell is a test (its name starts with
+`test_`), its arguments are filled in from the notebook, like any other cell.
+Fixtures defined or imported in the setup cell are resolved by pytest. To use
+any other fixture, such as one from `conftest.py`, give it a name ending in
+`_fixture`:
+
+```python
+# conftest.py
+@pytest.fixture
+def db_fixture():
+    return create_connection()
+```
+
+```python
+@app.cell
+def test_query(db_fixture):
+    assert db_fixture.query("SELECT 1") == 1
+```
+
 !!! info "Fixture Limitations"
 
     Fixtures defined in one cell **cannot** be used by tests in a different cell.
