@@ -206,13 +206,14 @@ export const KeyboardShortcuts: React.FC = () => {
               Press a key combination
             </span>
             {defaultHotkey.key !== hotkey.key && (
-              <span
+              <button
+                type="button"
                 className="text-xs cursor-pointer text-primary"
                 onClick={handleResetShortcut}
               >
                 Reset to default:{" "}
                 <span className="font-mono">{defaultHotkey.key}</span>
-              </span>
+              </button>
             )}
           </div>
         </div>

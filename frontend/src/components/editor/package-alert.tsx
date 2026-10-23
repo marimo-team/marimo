@@ -55,6 +55,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { ExternalLink } from "../ui/links";
@@ -592,14 +593,18 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
                 <div className="p-2 bg-popover border-b border-border">
                   <div className="flex flex-wrap gap-1 p-1 min-h-[24px]">
                     {selectedExtras.map((extra) => (
-                      <span
+                      <DropdownMenuItem
                         key={extra}
+                        aria-label={`Remove ${extra}`}
                         className="inline-flex items-center gap-1 px-1 py-0.5 text-sm font-mono border border-muted-foreground/30 hover:border-muted-foreground/60 rounded-sm cursor-pointer group transition-colors"
-                        onClick={() => handleExtraToggle(extra, false)}
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleExtraToggle(extra, false);
+                        }}
                       >
                         {extra}
                         <XIcon className="w-3 h-3 opacity-60 group-hover:opacity-100" />
-                      </span>
+                      </DropdownMenuItem>
                     ))}
                   </div>
                 </div>

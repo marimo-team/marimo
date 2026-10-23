@@ -71,7 +71,11 @@ const SnippetsPanel: React.FC = () => {
                 rootClassName="flex-1 border-r"
               />
               <ContributeSnippetButton>
-                <button className="float-right px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground">
+                <button
+                  type="button"
+                  aria-label="Contribute snippet"
+                  className="float-right px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
+                >
                   <PlusIcon className="h-4 w-4" />
                 </button>
               </ContributeSnippetButton>
