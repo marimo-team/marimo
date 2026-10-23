@@ -2,9 +2,8 @@
 
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
-
 
 with app.setup:
     import marimo as mo
@@ -18,7 +17,7 @@ def _():
 
 
 @app.cell
-def _(inner_value):
+def _(inner_value: int):
     mo.md(f"Inner value is: {inner_value}")
     return
 

@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -114,7 +114,7 @@ def _(get_prefix, mo, set_prefix):
 
 
 @app.cell
-def _(blobs, bucket, mo, set_prefix):
+def _(blobs: list, bucket, mo, set_prefix):
     # Display files in a table
     _files = [
         {

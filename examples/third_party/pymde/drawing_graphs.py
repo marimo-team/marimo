@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -82,7 +82,7 @@ def _():
 
 
 @app.cell
-def _(functools, penalties, pymde):
+def _(functools, penalties: dict, pymde):
     @functools.cache
     def complete_graph(n_items, penalty):
         edges = pymde.all_edges(n_items)
@@ -100,7 +100,7 @@ def _(functools, penalties, pymde):
 
 
 @app.cell
-def _(embedding_dim, functools, losses, pymde, torch):
+def _(embedding_dim: int, functools, losses: dict, pymde, torch):
     @functools.cache
     def tree(n_items, loss):
         edges = []

@@ -19,7 +19,7 @@
 
 import marimo
 
-__generated_with = "0.24.2"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 with app.setup:
@@ -85,7 +85,7 @@ def _(min_len):
 
     df = pl.from_arrow(rpy2_arrow.arrow.rarrow_to_py_table(r_table))
     df
-    return (df,)
+    return
 
 
 if __name__ == "__main__":

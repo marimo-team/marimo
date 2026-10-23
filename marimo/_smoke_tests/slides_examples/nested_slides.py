@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.8"
+__generated_with = "0.25.1"
 app = marimo.App(
     width="medium",
     layout_file="layouts/nested_slides.slides.json",
@@ -220,7 +220,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo, secret):
+def _(mo, secret: int):
     # Cell 21 (fragment) — pulls in the skipped cell's value.
     mo.md(f"### Third reveal — secret is **{secret}**")
     return

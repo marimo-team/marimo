@@ -1,12 +1,14 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="columns")
 
 
 @app.cell(column=0, hide_code=True)
 def _(mo):
-    mo.md(r"""# Selections with altair maps""")
+    mo.md(r"""
+    # Selections with altair maps
+    """)
     return
 
 
@@ -15,12 +17,15 @@ def _():
     import altair as alt
     import geopandas as gpd
     from vega_datasets import data
+
     return alt, data, gpd
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Load the data""")
+    mo.md("""
+    ## Load the data
+    """)
     return
 
 
@@ -41,13 +46,11 @@ def _(data, gpd):
 
 @app.cell(column=1, hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Example 1: Population map
+    mo.md(r"""
+    ## Example 1: Population map
 
-        https://altair-viz.github.io/user_guide/marks/geoshape.html#interactions
-        """
-    )
+    https://altair-viz.github.io/user_guide/marks/geoshape.html#interactions
+    """)
     return
 
 
@@ -95,12 +98,15 @@ def _(alt, us_population, us_states):
         )
 
         return (choropleth & bars).add_params(click_state)
+
     return (population_map,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### Without `mo.ui.altair_chart`""")
+    mo.md("""
+    ### Without `mo.ui.altair_chart`
+    """)
     return
 
 
@@ -112,7 +118,9 @@ def _(population_map):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### With `mo.ui.altair_chart`""")
+    mo.md(r"""
+    ### With `mo.ui.altair_chart`
+    """)
     return
 
 
@@ -125,7 +133,9 @@ def _(mo, population_map):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Selecting the bar chart or map should filter the table below""")
+    mo.md("""
+    Selecting the bar chart or map should filter the table below
+    """)
     return
 
 
@@ -143,6 +153,7 @@ def _():
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -153,7 +164,9 @@ def _():
 
 @app.cell(column=2)
 def _(mo):
-    mo.md("""## Example 2:""")
+    mo.md("""
+    ## Example 2:
+    """)
     return
 
 
@@ -218,12 +231,15 @@ def _(alt, gdf_quakies, gdf_world):
             type="orthographic", rotate=alt.expr(f"[{rotate0.name}, 0, 0]")
         )
         return comb
+
     return (world_map,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### Without `mo.ui.altair_chart`""")
+    mo.md("""
+    ### Without `mo.ui.altair_chart`
+    """)
     return
 
 
@@ -235,7 +251,9 @@ def _(world_map):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### With `mo.ui.altair_chart`""")
+    mo.md(r"""
+    ### With `mo.ui.altair_chart`
+    """)
     return
 
 
@@ -248,9 +266,9 @@ def _(mo, world_map):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """Hovering over an element on the map should filter the table below."""
-    )
+    mo.md("""
+    Hovering over an element on the map should filter the table below.
+    """)
     return
 
 

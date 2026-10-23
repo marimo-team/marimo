@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.20.2"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -68,40 +68,37 @@ def _(pd):
     return (df,)
 
 
-@app.cell
-def _():
-    def selected_rows(selection, data):
-        """Map a mo.ui.plotly selection back to rows in the source DataFrame."""
-        empty = data.iloc[0:0].copy()
-        if not selection:
-            return empty
-
-        # Prefer sample_id embedded via customdata
-        ids = [
-            row["sample_id"]
-            for row in selection
-            if isinstance(row.get("sample_id"), str)
-        ]
-        if ids:
-            return (
-                data[data["sample_id"].isin(ids)]
-                .drop_duplicates("sample_id")
-                .sort_values("sample_id")
-            )
-
-        # Fall back to pointIndex
-        indices = sorted({
-            row["pointIndex"]
-            for row in selection
-            if isinstance(row.get("pointIndex"), int)
-            and 0 <= row["pointIndex"] < len(data)
-        })
-        if indices:
-            return data.iloc[indices].copy()
-
+@app.function
+def selected_rows(selection, data):
+    """Map a mo.ui.plotly selection back to rows in the source DataFrame."""
+    empty = data.iloc[0:0].copy()
+    if not selection:
         return empty
 
-    return (selected_rows,)
+    # Prefer sample_id embedded via customdata
+    ids = [
+        row["sample_id"]
+        for row in selection
+        if isinstance(row.get("sample_id"), str)
+    ]
+    if ids:
+        return (
+            data[data["sample_id"].isin(ids)]
+            .drop_duplicates("sample_id")
+            .sort_values("sample_id")
+        )
+
+    # Fall back to pointIndex
+    indices = sorted({
+        row["pointIndex"]
+        for row in selection
+        if isinstance(row.get("pointIndex"), int)
+        and 0 <= row["pointIndex"] < len(data)
+    })
+    if indices:
+        return data.iloc[indices].copy()
+
+    return empty
 
 
 @app.cell
@@ -145,7 +142,7 @@ def _(df, go, mo):
 
 
 @app.cell
-def _(df, mo, selected_rows, violin_single):
+def _(df, mo, violin_single):
     _sel = selected_rows(violin_single.value, df)
 
     _summary = (
@@ -167,7 +164,7 @@ def _(df, mo, selected_rows, violin_single):
 
 
 @app.cell
-def _(df, mo, selected_rows, violin_single):
+def _(df, mo, violin_single):
     mo.ui.table(selected_rows(violin_single.value, df))
     return
 
@@ -207,7 +204,7 @@ def _(df, mo, px):
 
 
 @app.cell
-def _(df, mo, selected_rows, violin_grouped):
+def _(df, mo, violin_grouped):
     _sel_g = selected_rows(violin_grouped.value, df)
 
     _summary_g = (
@@ -233,7 +230,7 @@ def _(df, mo, selected_rows, violin_grouped):
 
 
 @app.cell
-def _(df, mo, selected_rows, violin_grouped):
+def _(df, mo, violin_grouped):
     mo.ui.table(selected_rows(violin_grouped.value, df))
     return
 
@@ -280,7 +277,7 @@ def _(df, go, mo):
 
 
 @app.cell
-def _(df, mo, selected_rows, violin_horizontal):
+def _(df, mo, violin_horizontal):
     _sel_h = selected_rows(violin_horizontal.value, df)
 
     _summary_h = (
@@ -300,7 +297,7 @@ def _(df, mo, selected_rows, violin_horizontal):
 
 
 @app.cell
-def _(df, mo, selected_rows, violin_horizontal):
+def _(df, mo, violin_horizontal):
     mo.ui.table(selected_rows(violin_horizontal.value, df))
     return
 

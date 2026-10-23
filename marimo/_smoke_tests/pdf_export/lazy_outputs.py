@@ -1,24 +1,29 @@
 import marimo
 
-__generated_with = "0.23.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md("# `mo.lazy` export smoke test")
+    mo.md("""
+    # `mo.lazy` export smoke test
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("## 1) Eager value (non-callable)")
+    mo.md("""
+    ## 1) Eager value (non-callable)
+    """)
     return
 
 
@@ -30,7 +35,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("## 2) Sync function")
+    mo.md("""
+    ## 2) Sync function
+    """)
     return
 
 
@@ -45,7 +52,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("## 3) Async function")
+    mo.md("""
+    ## 3) Async function
+    """)
     return
 
 

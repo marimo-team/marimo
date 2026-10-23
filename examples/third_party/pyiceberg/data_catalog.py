@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -83,7 +83,7 @@ def _(catalog_input, mo, token_input, warehouse_input):
 
 
 @app.cell
-def _(CATALOG_URI, TOKEN, WAREHOUSE):
+def _(CATALOG_URI: str, TOKEN: str, WAREHOUSE: str):
     import pyarrow as pa
     from pyiceberg.catalog.rest import RestCatalog
     from pyiceberg.exceptions import NamespaceAlreadyExistsError

@@ -8,20 +8,20 @@
 
 import marimo
 
-__generated_with = "0.17.0"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Issue #6893: Pandas Subplots Not Displaying
 
     This smoke test reproduces the issue where pandas DataFrame box plots
@@ -33,8 +33,7 @@ def _(mo):
 
     The issue occurs because `df.plot.box(subplots=True)` returns a numpy
     ndarray of matplotlib Axes objects, which marimo doesn't currently format.
-    """
-    )
+    """)
     return
 
 
@@ -54,7 +53,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Test Case 1: Box plot WITHOUT subplots (works correctly)""")
+    mo.md("""
+    ## Test Case 1: Box plot WITHOUT subplots (works correctly)
+    """)
     return
 
 
@@ -67,13 +68,11 @@ def _(df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## Test Case 2: Box plot WITH subplots (reproduces issue #6893)
 
     This is the exact scenario from the bug report.
-    """
-    )
+    """)
     return
 
 
@@ -86,7 +85,9 @@ def _(df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Test Case 3: Multiple subplots with custom layout""")
+    mo.md("""
+    ## Test Case 3: Multiple subplots with custom layout
+    """)
     return
 
 
@@ -101,13 +102,11 @@ def _(df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## Test Case 4: 1D array of subplots
 
     Test with a single row of subplots.
-    """
-    )
+    """)
     return
 
 

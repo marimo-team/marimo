@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -50,7 +50,7 @@ def _():
 
 
 @app.cell
-def _(mo, model_repo_id):
+def _(mo, model_repo_id: str):
     mo.md(f"""# HuggingFace Text-to-Image: **{model_repo_id}**""")
     return
 
@@ -66,7 +66,7 @@ def _():
 
 
 @app.cell
-def _(DiffusionPipeline, MAX_SEED, mo, model_repo_id, random, torch):
+def _(DiffusionPipeline, MAX_SEED, mo, model_repo_id: str, random, torch):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     if torch.cuda.is_available():
@@ -131,7 +131,7 @@ def _(get_prompt, mo, set_prompt):
 
 
 @app.cell
-def _(examples, mo, set_prompt):
+def _(examples: list[str], mo, set_prompt):
     def _on_click(example):
         def handle(v):
             set_prompt(example)
@@ -151,7 +151,7 @@ def _(examples, mo, set_prompt):
 
 
 @app.cell
-def _(MAX_IMAGE_SIZE, MAX_SEED, example_options, mo, prompt):
+def _(MAX_IMAGE_SIZE: int, MAX_SEED, example_options, mo, prompt):
     run_button = mo.ui.run_button(label="Run", kind="success", full_width=True)
 
     negative_prompt = mo.ui.text_area(

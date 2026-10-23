@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -16,6 +16,7 @@ app = marimo.App()
 def _():
     import marimo as mo
     import time
+
     return mo, time
 
 
@@ -42,7 +43,7 @@ def _(mo):
 
 
 @app.cell
-def _(disabled_switch, mo, sleep_time, time):
+def _(disabled_switch, mo, sleep_time: float, time):
     for _ in mo.status.progress_bar(
         range(10),
         title="Loading",
@@ -54,7 +55,7 @@ def _(disabled_switch, mo, sleep_time, time):
 
 
 @app.cell
-def _(disabled_switch, mo, sleep_time, time):
+def _(disabled_switch, mo, sleep_time: float, time):
     for _ in mo.status.progress_bar(
         range(10),
         title="Loading",
@@ -68,7 +69,7 @@ def _(disabled_switch, mo, sleep_time, time):
 
 
 @app.cell
-def _(disabled_switch, mo, sleep_time, time):
+def _(disabled_switch, mo, sleep_time: float, time):
     with mo.status.progress_bar(
         title="Loading",
         subtitle="Please wait",
@@ -82,7 +83,7 @@ def _(disabled_switch, mo, sleep_time, time):
 
 
 @app.cell
-def _(mo, sleep_time, time):
+def _(mo, sleep_time: float, time):
     with mo.status.spinner(title="Loading...", remove_on_exit=True) as _spinner:
         time.sleep(0.1)
         _spinner.update("Almost done")
@@ -91,7 +92,7 @@ def _(mo, sleep_time, time):
 
 
 @app.cell
-def _(mo, sleep_time, time):
+def _(mo, sleep_time: float, time):
     with mo.status.spinner(title="Loading...", remove_on_exit=True) as _spinner:
         time.sleep(sleep_time)
         _spinner.update("Almost done")
@@ -101,7 +102,7 @@ def _(mo, sleep_time, time):
 
 
 @app.cell
-def _(disabled_switch, mo, sleep_time, time):
+def _(disabled_switch, mo, sleep_time: float, time):
     # Fast updates should be debounced for performance
     for i in mo.status.progress_bar(
         range(1000),

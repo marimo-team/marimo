@@ -10,19 +10,23 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(layout_file="layouts/slides.slides.json")
 
 
 @app.cell
 def _(mo):
-    mo.md("""# A Presentation on `Iris` Data""")
+    mo.md("""
+    # A Presentation on `Iris` Data
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""## By the marimo team (`@marimo_io`)""")
+    mo.md("""
+    ## By the marimo team (`@marimo_io`)
+    """)
     return
 
 
@@ -31,6 +35,7 @@ def _():
     import marimo as mo
     import pandas as pd
     import altair as alt
+
     return alt, mo, pd
 
 
@@ -64,7 +69,9 @@ def _(alt, df, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Thank you!""")
+    mo.md("""
+    # Thank you!
+    """)
     return
 
 
@@ -76,40 +83,34 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        # H1 (`H1`)
-        ## H2 (`H2`)
-        ### H3 (`H3`)
-        #### H4 (`H4`)
-        ##### H5 (`H5`)
-        ###### H6 (`H6`)
-        """
-    )
+    mo.md(r"""
+    # H1 (`H1`)
+    ## H2 (`H2`)
+    ### H3 (`H3`)
+    #### H4 (`H4`)
+    ##### H5 (`H5`)
+    ###### H6 (`H6`)
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        - Item 1
-        - `Item 2`
-        - **Item 3**
-        - _Item 4_
-        """
-    )
+    mo.md(r"""
+    - Item 1
+    - `Item 2`
+    - **Item 3**
+    - _Item 4_
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        !!! note "Callouts"
-            This is a callout
-        """
-    )
+    mo.md(r"""
+    !!! note "Callouts"
+        This is a callout
+    """)
     return
 
 
@@ -128,7 +129,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Items that don't quite work in slides""")
+    mo.md(r"""
+    ## Items that don't quite work in slides
+    """)
     return
 
 

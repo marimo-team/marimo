@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -28,7 +28,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(MODEL_NAME, mo):
+def _(MODEL_NAME: str, mo):
     mo.md(f"""
     # Chat with **{MODEL_NAME}**
     """)
@@ -57,7 +57,7 @@ def _(mo, respond):
 
 
 @app.cell
-def _(InferenceClient, MODEL_NAME, os):
+def _(InferenceClient, MODEL_NAME: str, os):
     """
     For more information on `huggingface_hub` Inference API support, please check the docs: https://huggingface.co/docs/huggingface_hub/v0.26.2/en/guides/inference
     """

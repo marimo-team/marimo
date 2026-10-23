@@ -13,19 +13,22 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Binning Examples""")
+    mo.md(r"""
+    # Binning Examples
+    """)
     return
 
 
@@ -37,6 +40,7 @@ def _():
     import polars as pl
     import pyarrow
     from vega_datasets import data
+
     return alt, data, pl
 
 
@@ -50,7 +54,9 @@ def _(data, pl):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Basic Histogram with Auto-binning""")
+    mo.md(r"""
+    ## Basic Histogram with Auto-binning
+    """)
     return
 
 
@@ -86,7 +92,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Histogram with Custom Bin Parameters""")
+    mo.md(r"""
+    ## Histogram with Custom Bin Parameters
+    """)
     return
 
 
@@ -120,7 +128,9 @@ def _(custom_bins, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Histogram with Fixed Bin Step""")
+    mo.md(r"""
+    ## Histogram with Fixed Bin Step
+    """)
     return
 
 
@@ -152,7 +162,9 @@ def _(mo, step_bins):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## 2D Binning (Heatmap)""")
+    mo.md(r"""
+    ## 2D Binning (Heatmap)
+    """)
     return
 
 
@@ -189,7 +201,9 @@ def _(heatmap, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Binned Color Encoding""")
+    mo.md(r"""
+    ## Binned Color Encoding
+    """)
     return
 
 
@@ -226,7 +240,9 @@ def _(binned_color, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Binned Size Encoding""")
+    mo.md(r"""
+    ## Binned Size Encoding
+    """)
     return
 
 
@@ -264,7 +280,9 @@ def _(binned_size, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Stacked Histogram with Binning""")
+    mo.md(r"""
+    ## Stacked Histogram with Binning
+    """)
     return
 
 
@@ -297,7 +315,9 @@ def _(mo, stacked_histogram):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Binning with Selection""")
+    mo.md(r"""
+    ## Binning with Selection
+    """)
     return
 
 
@@ -330,7 +350,9 @@ def _(binned_selection, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Custom Bin Extent""")
+    mo.md(r"""
+    ## Custom Bin Extent
+    """)
     return
 
 

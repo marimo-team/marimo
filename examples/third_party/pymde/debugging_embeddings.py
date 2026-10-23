@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -46,7 +46,7 @@ def _(n_neighbors):
 
 
 @app.cell
-def _(mo, ready):
+def _(mo, ready: bool):
     mo.md(
         """
         Below, we've plotted an embedding along with a CDF of the distortions
@@ -59,7 +59,7 @@ def _(mo, ready):
 
 
 @app.cell
-def _(mnist, plt, quadratic_mde, ready):
+def _(mnist, plt, quadratic_mde: None, ready: bool):
     def compute_embedding():
         _ = quadratic_mde.embed(verbose=True)
         quadratic_mde.plot(color_by=mnist.attributes["digits"])
@@ -87,7 +87,7 @@ def _(mo):
 
 
 @app.cell
-def _(knn, n_neighbors, ready):
+def _(knn, n_neighbors, ready: bool):
     knn_graph = knn(n_neighbors.value) if ready else None
     return (knn_graph,)
 
@@ -104,7 +104,7 @@ def _(functools, mnist, pymde):
 
 
 @app.cell
-def _(knn_graph, mnist, pymde, ready, torch):
+def _(knn_graph: None, mnist, pymde, ready: bool, torch):
     def construct_mde_problem():
         if torch.cuda.is_available():
             device = "cuda"
@@ -125,7 +125,7 @@ def _(knn_graph, mnist, pymde, ready, torch):
 
 
 @app.cell
-def _(mo, ready):
+def _(mo, ready: bool):
     mo.md(
         """
         ## Pairs with highest and lowest distortion
@@ -140,14 +140,14 @@ def _(mo, ready):
 
 
 @app.cell
-def _(mo, ready):
+def _(mo, ready: bool):
     n_pairs = mo.ui.slider(5, 10, label="number of pairs")
     n_pairs if ready else None
     return (n_pairs,)
 
 
 @app.cell
-def _(mo, ready):
+def _(mo, ready: bool):
     mo.md(
         """### Low distortion pairs
 
@@ -159,13 +159,13 @@ def _(mo, ready):
 
 
 @app.cell
-def _(n_pairs, pairs, plot_pairs, ready):
+def _(n_pairs, pairs: None, plot_pairs, ready: bool):
     plot_pairs(pairs[-n_pairs.value :]) if ready else None
     return
 
 
 @app.cell
-def _(mo, ready):
+def _(mo, ready: bool):
     mo.md(
         """
         ### High distortion pairs
@@ -182,7 +182,7 @@ def _(mo, ready):
 
 
 @app.cell
-def _(n_pairs, pairs, plot_pairs, ready):
+def _(n_pairs, pairs: None, plot_pairs, ready: bool):
     plot_pairs(pairs[: n_pairs.value]) if ready else None
     return
 

@@ -2,13 +2,14 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(app_title="1654 - Virtualize Multiselect")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -29,7 +30,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, xs_list):
+def _(mo, xs_list: list[str]):
     v = mo.ui.multiselect(xs_list, label="Extra small list with 10 items")
     v
     return (v,)
@@ -42,37 +43,37 @@ def _(v):
 
 
 @app.cell
-def _(mo, sm_list):
+def _(mo, sm_list: list[str]):
     mo.ui.multiselect(sm_list, label="Small list with 100 items")
     return
 
 
 @app.cell
-def _(md_list, mo):
+def _(md_list: list[str], mo):
     mo.ui.multiselect(md_list, label="Medium list with 500 items")
     return
 
 
 @app.cell
-def _(lg_list, mo):
+def _(lg_list: list[str], mo):
     mo.ui.multiselect(lg_list, label="Large list with 1K items")
     return
 
 
 @app.cell
-def _(mo, xl_list):
+def _(mo, xl_list: list[str]):
     mo.ui.multiselect(xl_list, label="XL list with 10K items")
     return
 
 
 @app.cell
-def _(mo, xxl_list):
+def _(mo, xxl_list: list[str]):
     mo.ui.multiselect(xxl_list, label="XXL list with 100K items")
     return
 
 
 @app.cell
-def _(mo, xxxl_list):
+def _(mo, xxxl_list: list[str]):
     try:
         mo.ui.multiselect(xxxl_list, label="XXXL list with 200K items")
     except ValueError as e:

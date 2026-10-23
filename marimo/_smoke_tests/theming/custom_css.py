@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium", css_file="custom.css")
 
 
@@ -16,6 +16,7 @@ app = marimo.App(width="medium", css_file="custom.css")
 def _():
     import marimo as mo
     from vega_datasets import data
+
     return data, mo
 
 
@@ -39,13 +40,11 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # heading
 
     Here is a paragraph
-    """
-    )
+    """)
     return
 
 

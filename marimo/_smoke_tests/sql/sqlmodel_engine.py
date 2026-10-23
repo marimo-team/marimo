@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -21,24 +21,30 @@ app = marimo.App(width="medium")
 def _():
     import altair as alt
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# SQLModel with `mo.sql()`""")
+    mo.md("""
+    # SQLModel with `mo.sql()`
+    """)
     return
 
 
 @app.cell
 def _():
     from sqlmodel import text, create_engine
+
     return (create_engine,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## sqlite""")
+    mo.md("""
+    ## sqlite
+    """)
     return
 
 
@@ -77,7 +83,7 @@ def _(create_engine, mo):
 
 
 @app.cell
-def _(mo, sqlite):
+def _(mo, products, sqlite):
     products_df = mo.sql(
         f"""
         SELECT name, price, category
@@ -91,7 +97,9 @@ def _(mo, sqlite):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### All Products (sorted by price)""")
+    mo.md("""
+    ### All Products (sorted by price)
+    """)
     return
 
 
@@ -114,12 +122,14 @@ def _(mo, products_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Category Summary""")
+    mo.md(r"""
+    ### Category Summary
+    """)
     return
 
 
 @app.cell
-def _(mo, sqlite):
+def _(mo, products, sqlite):
     _df = mo.sql(
         f"""
         -- Category summary
@@ -149,7 +159,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, price_threshold, sqlite):
+def _(mo, price_threshold, products, sqlite):
     _df = mo.sql(
         f"""
         SELECT name, price, category
@@ -164,7 +174,9 @@ def _(mo, price_threshold, sqlite):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## postgresql""")
+    mo.md(r"""
+    ## postgresql
+    """)
     return
 
 
@@ -220,7 +232,7 @@ def _(connection, mo):
 
 
 @app.cell
-def _(mo, sqlite):
+def _(mo, products, sqlite):
     _df = mo.sql(
         f"""
         SELECT * FROM products LIMIT 100

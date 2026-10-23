@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -26,13 +27,13 @@ def _(mo):
 
 
 @app.cell
-def button(keys_1, keys_2, switch):
+def button(keys_1: list[str], keys_2: list[str], switch):
     keys = keys_1 if switch.value else keys_2
     return (keys,)
 
 
 @app.cell
-def display(keys, mo):
+def display(keys: list[str], mo):
     table = mo.ui.table({str(k): mo.ui.text(value=k) for k in keys})
     table
     return

@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -42,7 +42,7 @@ def _(plt):
     x = np.linspace(0, 10)
     plt.plot(x, x**2)
     plt.gca()
-    return (x,)
+    return np, x
 
 
 @app.cell(hide_code=True)

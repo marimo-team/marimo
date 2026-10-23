@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -105,7 +105,7 @@ def _(
 
 
 @app.cell
-def _(function, function_options):
+def _(function, function_options: dict):
     selected_function = function_options[function.value]
     return (selected_function,)
 

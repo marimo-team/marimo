@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -27,13 +27,17 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Multi-Catalog Ibis Backend Tests""")
+    mo.md(r"""
+    # Multi-Catalog Ibis Backend Tests
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## DuckDB Multi-Catalog with Temp Tables""")
+    mo.md(r"""
+    ## DuckDB Multi-Catalog with Temp Tables
+    """)
     return
 
 
@@ -81,7 +85,9 @@ def _(duckdb_con):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## DuckDB Attached Catalogs""")
+    mo.md(r"""
+    ## DuckDB Attached Catalogs
+    """)
     return
 
 
@@ -120,7 +126,9 @@ def _(duckdb_con):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## DataFusion Backend""")
+    mo.md(r"""
+    ## DataFusion Backend
+    """)
     return
 
 

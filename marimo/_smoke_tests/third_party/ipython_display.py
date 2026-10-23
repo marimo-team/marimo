@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -41,6 +41,7 @@ def _():
     # not on PyPI
     # installation instructions here https://github.com/allefeld/pytikz
     import tikz
+
     return (tikz,)
 
 

@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return
 
 
@@ -16,6 +17,7 @@ def _():
     import leafmap.leafmap as leafmap
     import leafmap.foliumap as leafmap_folium
     import leafmap.plotlymap as leafmap_plotly
+
     return default_leamap, leafmap, leafmap_folium, leafmap_plotly
 
 
@@ -23,6 +25,7 @@ def _():
 def _():
     import keplergl
     import leafmap.kepler as leafmap_kepler
+
     return (leafmap_kepler,)
 
 

@@ -7,7 +7,7 @@ escaped when generating Altair chart code.
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -17,13 +17,13 @@ def _():
     import pandas as pd
     import polars as pl
     import altair as alt
+
     return alt, mo, pd, pl
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Testing Altair Charts with Special Characters
 
     This notebook tests column names with special characters:
@@ -32,8 +32,7 @@ def _(mo):
     - Colons: `:`
 
     These characters need to be escaped in Altair field names.
-    """
-    )
+    """)
     return
 
 
@@ -63,14 +62,12 @@ def _(pandas_df, pl):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     Use the data table chart builder to create a chart using `value.data` column.
-    The generated Python code should escape the dot: `field='value\\.data'`
+    The generated Python code should escape the dot: `field='value\.data'`
 
     Repeat for all the other columns
-    """
-    )
+    """)
     return
 
 

@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -40,7 +40,7 @@ def _(mo):
 
 
 @app.cell
-def _(input_key, mo, os_key):
+def _(input_key, mo, os_key: None | str):
     openai_key = os_key or input_key.value
 
     mo.stop(
@@ -51,7 +51,7 @@ def _(input_key, mo, os_key):
 
 
 @app.cell
-def _(mo, openai_key):
+def _(mo, openai_key: None | str):
     chatbot = mo.ui.chat(
        mo.ai.llm.openai(
             "gpt-4o",

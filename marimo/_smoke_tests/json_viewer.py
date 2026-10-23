@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -49,13 +49,13 @@ def _():
 
 
 @app.cell
-def _(mo, sample):
+def _(mo, sample: dict):
     mo.json(sample, label="JSON values")
     return
 
 
 @app.cell
-def _(sample):
+def _(sample: dict):
     sample
     return
 
@@ -187,7 +187,7 @@ def _(mo):
 
 
 @app.cell
-def _(json, mo, sample):
+def _(json, mo, sample: dict):
     mo.ui.table(
         [
             {

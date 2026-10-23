@@ -2,13 +2,14 @@
 
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     from inner import app
+
     return (app,)
 
 
@@ -107,6 +108,7 @@ def _(mo):
 @app.cell
 def _():
     from make_table import app as table_app
+
     return (table_app,)
 
 
@@ -131,6 +133,7 @@ def _(table_app_results):
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

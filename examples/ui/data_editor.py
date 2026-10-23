@@ -5,9 +5,10 @@
 #     "vega-datasets==0.9.0",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -32,7 +33,7 @@ def _():
 
 
 @app.cell
-def _(DATA_FILE, mo, os):
+def _(DATA_FILE: str, mo, os):
     import polars as pl
 
     if not os.path.exists(DATA_FILE):
@@ -54,7 +55,7 @@ def _(mo):
 
 
 @app.cell
-def _(DATA_FILE, editor, mo):
+def _(DATA_FILE: str, editor, mo):
     mo.stop(editor.value is None, mo.md("Submit your changes."))
 
     editor.value.write_csv(DATA_FILE)

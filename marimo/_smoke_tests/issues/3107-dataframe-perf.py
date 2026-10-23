@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -65,6 +65,7 @@ def _():
         unique_groups = df["group"].unique().to_list()
 
         return df
+
     return create_test_dataframe, pl
 
 
@@ -76,7 +77,7 @@ def _(create_test_dataframe):
 
 
 @app.cell
-def _(df, pl):
+def _(df: tuple, pl):
     x = df.filter(pl.col("group") == "group2")
     return
 

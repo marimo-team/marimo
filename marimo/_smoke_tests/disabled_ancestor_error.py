@@ -5,7 +5,7 @@
 
 import marimo
 
-__generated_with = "0.23.1"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -28,13 +28,13 @@ def _(toggle):
 
 
 @app.cell(disabled=True)
-def _(x):
+def _(x: int):
     y = x + 1
     return (y,)
 
 
 @app.cell
-def _(y):
+def _(y: int):
     z = y + 1
     return
 

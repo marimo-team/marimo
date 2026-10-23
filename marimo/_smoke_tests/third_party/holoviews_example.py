@@ -13,20 +13,18 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        # HoloViews in marimo
-        ```
-        pip install holoviews
-        ```
-        """
-    )
+    mo.md("""
+    # HoloViews in marimo
+    ```
+    pip install holoviews
+    ```
+    """)
     return
 
 
@@ -71,7 +69,9 @@ def _(backend, hv, mo, station_info):
 
 @app.cell
 def _(mo):
-    mo.md("""## Area chart""")
+    mo.md("""
+    ## Area chart
+    """)
     return
 
 
@@ -84,7 +84,9 @@ def _(hv, np):
 
 @app.cell
 def _(mo):
-    mo.md("""## Scatter chart""")
+    mo.md("""
+    ## Scatter chart
+    """)
     return
 
 
@@ -96,7 +98,9 @@ def _(scatter):
 
 @app.cell
 def _(mo):
-    mo.md("""# HV Plot""")
+    mo.md("""
+    # HV Plot
+    """)
     return
 
 
@@ -111,7 +115,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md("""# Composed Views""")
+    mo.md("""
+    # Composed Views
+    """)
     return
 
 

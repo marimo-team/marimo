@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.17.0"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -22,19 +23,19 @@ def _(mo):
 
 
 @app.cell
-def _(items, mo):
+def _(items: list, mo):
     mo.hstack(items)
     return
 
 
 @app.cell
-def _(items, mo):
+def _(items: list, mo):
     mo.vstack(items)
     return
 
 
 @app.cell
-def _(items, mo):
+def _(items: list, mo):
     _items = [
         mo.md("a" * 200),
         mo.md("b" * 180),

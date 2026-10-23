@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.0"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -11,6 +11,7 @@ def _():
 
     def blocking():
         return "done"
+
     return asyncio, blocking, concurrent
 
 

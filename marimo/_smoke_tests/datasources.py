@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -20,6 +20,7 @@ def _():
     import marimo as mo
     from vega_datasets import data
     import pandas as pd
+
     return data, mo, pd
 
 
@@ -85,7 +86,7 @@ def _(df, mo):
 
 
 @app.cell
-def _(mo):
+def _(mo, polars_df):
     _df = mo.sql(
         f"""
         SELECT * FROM polars_df

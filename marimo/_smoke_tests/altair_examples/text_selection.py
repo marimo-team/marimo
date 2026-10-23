@@ -9,19 +9,22 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Basic Text""")
+    mo.md(r"""
+    ## Basic Text
+    """)
     return
 
 
@@ -52,7 +55,9 @@ def _(chart, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Bar chart with text""")
+    mo.md(r"""
+    ## Bar chart with text
+    """)
     return
 
 
@@ -94,13 +99,11 @@ def _(chart2):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # Bar chart with double text
+    mo.md(r"""
+    # Bar chart with double text
 
-        This fails for another reason which is that `month(date)` field gets converted into `month_date` and breaks the backend filtering.
-        """
-    )
+    This fails for another reason which is that `month(date)` field gets converted into `month_date` and breaks the backend filtering.
+    """)
     return
 
 

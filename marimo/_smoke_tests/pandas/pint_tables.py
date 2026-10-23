@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.23.14"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -64,7 +64,7 @@ def _(mo, pd, pint):
         }
     )
     mo.vstack([df_mixed, mo.plain(df_mixed)])
-    return (df_mixed,)
+    return
 
 
 @app.cell(hide_code=True)

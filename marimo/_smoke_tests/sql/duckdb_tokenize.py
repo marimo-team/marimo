@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -18,6 +18,7 @@ def _():
     import marimo as mo
     import duckdb
     import re
+
     return duckdb, mo, re
 
 
@@ -131,6 +132,7 @@ def _(re):
             i += 1
 
         return created_tables
+
     return (find_created_tables,)
 
 

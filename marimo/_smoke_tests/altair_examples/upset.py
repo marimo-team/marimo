@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium", sql_output="polars")
 
 
@@ -19,6 +19,7 @@ def _():
     import pandas as pd
     import pyarrow
     from altair_upset import UpSetAltair
+
     return UpSetAltair, mo, pd
 
 

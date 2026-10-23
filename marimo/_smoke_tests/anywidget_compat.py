@@ -12,13 +12,14 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -61,6 +62,7 @@ def _():
 
         # Stateful property that can be accessed by JavaScript & Python
         count = traitlets.Int(0).tag(sync=True)
+
     return (CounterWidget,)
 
 
@@ -114,6 +116,7 @@ def _(w_reactive):
 def _():
     import altair as alt
     import pandas as pd
+
     return alt, pd
 
 

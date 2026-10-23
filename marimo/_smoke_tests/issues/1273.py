@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -10,6 +10,7 @@ app = marimo.App(width="full")
 def _():
     import marimo as mo
     import plotly.express as px
+
     return mo, px
 
 
@@ -21,7 +22,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, px, s, x, y):
+def _(mo, px, s, x: list, y: list[int]):
     # takes affect when using the slider
     mo.vstack([
         s,
@@ -31,7 +32,7 @@ def _(mo, px, s, x, y):
 
 
 @app.cell
-def _(mo, px, s, x, y):
+def _(mo, px, s, x: list, y: list[int]):
     # takes affect when using the slider
     # also is zoom/range is persisted across app view, but reset when the slider changes the range
     plot = mo.ui.plotly(px.scatter(x=x, y=y, range_x=s.value, title=f'range_x: {s.value}'))

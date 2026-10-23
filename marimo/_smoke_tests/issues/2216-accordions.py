@@ -7,13 +7,14 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -51,7 +52,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""**b)** If the expected value of $X$ is the average of its two values mentioned in the previous part, what do you think the expected value of $Y$ will be? Confirm your answer using the law of iterated expectations.""")
+    mo.md(r"""
+    **b)** If the expected value of $X$ is the average of its two values mentioned in the previous part, what do you think the expected value of $Y$ will be? Confirm your answer using the law of iterated expectations.
+    """)
     return
 
 

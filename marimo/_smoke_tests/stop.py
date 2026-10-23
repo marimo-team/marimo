@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -16,6 +16,7 @@ app = marimo.App()
 def _():
     import marimo as mo
     import time
+
     return (mo,)
 
 
@@ -51,7 +52,7 @@ def _(mo, secret):
 
 
 @app.cell
-def _(mo, secret, success_1):
+def _(mo, secret, success_1: bool):
     # Validation 3
     # This cell depends on the secret and first validation
     mo.stop(
@@ -64,7 +65,7 @@ def _(mo, secret, success_1):
 
 
 @app.cell
-def _(mo, success_1, success_2, success_3):
+def _(mo, success_1: bool, success_2: bool, success_3: bool):
     # This depends on all the validations, and not the secret
     _success = success_1 and success_2 and success_3
     mo.stop(not _success)

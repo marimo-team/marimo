@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -120,7 +120,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(COLORS, colors, mo, shape):
+def _(COLORS: list[str], colors, mo, shape):
     selected_colors = [color for i, color in enumerate(COLORS) if colors.value[i]]
 
 

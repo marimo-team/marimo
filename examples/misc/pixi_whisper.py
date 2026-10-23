@@ -20,8 +20,8 @@
 
 import marimo
 
-__generated_with = "0.25.0"
-app = marimo.App(width="compact")
+__generated_with = "0.25.1"
+app = marimo.App()
 
 
 @app.cell(hide_code=True)

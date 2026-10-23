@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -30,7 +30,7 @@ def _(mo):
 
 
 @app.cell
-def _(compute_embedding, constraint, embedding_dimension):
+def _(compute_embedding, constraint, embedding_dimension: int):
     embedding = compute_embedding(embedding_dimension, constraint)
     return (embedding,)
 

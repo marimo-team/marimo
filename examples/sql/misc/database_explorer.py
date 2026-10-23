@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -119,7 +119,7 @@ def _():
 
 
 @app.cell
-def _(FUNCTIONS, mo):
+def _(FUNCTIONS: list[str], mo):
     function = mo.ui.dropdown(
         label="Dropdown",
         options=FUNCTIONS,
@@ -160,7 +160,7 @@ def _(duckdb, mo):
 
 
 @app.cell
-def _(mo, table_names):
+def _(mo, table_names: list):
     mo.stop(not table_names)
     table_select = mo.ui.dropdown(
         label="Table",
@@ -186,7 +186,7 @@ def _(mo, table_select):
 
 
 @app.cell
-def _(limit, mo, table_select_value):
+def _(limit, mo, table_select_value: None):
     selected_table = mo.sql(
         f"""
         select * from my_db.{table_select_value} LIMIT {limit.value};

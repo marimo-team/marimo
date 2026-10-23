@@ -5,9 +5,10 @@
 #     "humanize",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.13.0"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -28,7 +29,7 @@ def _():
     import shared_module  # noqa: E402
 
     identity = shared_module.get_identity()
-    return (identity, shared_module)
+    return identity, shared_module, sys
 
 
 @app.cell
@@ -82,11 +83,11 @@ def _(identity, shared_module):
     print("HELLO FROM APP 1")
 
     status
-    return
+    return (mo,)
 
 
 @app.cell
-def _():
+def _(mo, sys):
     in_sandbox = sys.prefix != sys.base_prefix
 
     # Try importing the sandbox-only dep for this app
@@ -154,12 +155,13 @@ def _():
 def _(mo):
     slider = mo.ui.slider(1, 20)
     slider
-    return slider,
+    return (slider,)
 
 
 @app.cell
 def _(slider):
     slider.value
+    return
 
 
 if __name__ == "__main__":

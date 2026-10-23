@@ -12,7 +12,7 @@ Bug: The main app's setup cell should NOT rerun when the inner app is embedded.
 
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 with app.setup:
@@ -59,7 +59,7 @@ def _(result):
 
 
 @app.cell
-def _(setup_count_before_embed):
+def _(setup_count_before_embed: int):
     setup_count_after_embed = setup_tracker["count"]
 
     # This is the key assertion - setup should still be 1

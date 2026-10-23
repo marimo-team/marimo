@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -9,12 +9,15 @@ def _():
     import marimo as mo
     import polars as pl
     import numpy as np
+
     return mo, np, pl
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Lazy polars""")
+    mo.md(r"""
+    # Lazy polars
+    """)
     return
 
 
@@ -41,13 +44,16 @@ def _(lazy_df):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Lazy ibis""")
+    mo.md(r"""
+    # Lazy ibis
+    """)
     return
 
 
 @app.cell
 def _():
     import ibis
+
     return (ibis,)
 
 
@@ -127,6 +133,7 @@ def _(execution_timer, ibis):
         with execution_timer("to_sql"):
             if "ibis" in str(type(tm)).lower():
                 ibis.to_sql(tm.take(100, 0).take(10, 0).data.count())
+
     return (time_things,)
 
 
@@ -186,6 +193,7 @@ def _():
                 print(
                     f"\033[91m[SLOW]\033[0m {self.name} time: {duration} seconds"
                 )
+
     return (execution_timer,)
 
 

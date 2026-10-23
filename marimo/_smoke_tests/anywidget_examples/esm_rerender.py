@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -18,6 +18,7 @@ def _():
     import marimo as mo
     import anywidget
     import traitlets
+
     return anywidget, mo, traitlets
 
 
@@ -56,6 +57,7 @@ def _(anywidget, traitlets):
 
         # Stateful property that can be accessed by JavaScript & Python
         count = traitlets.Int(0).tag(sync=True)
+
     return (CounterWidget,)
 
 

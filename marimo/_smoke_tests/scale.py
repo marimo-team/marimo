@@ -8,13 +8,15 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Scale""")
+    mo.md("""
+    # Scale
+    """)
     return
 
 
@@ -139,45 +141,44 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
+    mo.md("""
+    ---
 
-        # h1 Heading
-        ## h2 Heading
-        ### h3 Heading
-        #### h4 Heading
-        ##### h5 Heading
-        ###### h6 Heading
-
-
-        ## Emphasis
-
-        **This is bold text**
-
-        __This is bold text__
-
-        *This is italic text*
-
-        _This is italic text_
-
-        ~~Strikethrough~~
+    # h1 Heading
+    ## h2 Heading
+    ### h3 Heading
+    #### h4 Heading
+    ##### h5 Heading
+    ###### h6 Heading
 
 
-        ## Blockquotes
+    ## Emphasis
+
+    **This is bold text**
+
+    __This is bold text__
+
+    *This is italic text*
+
+    _This is italic text_
+
+    ~~Strikethrough~~
 
 
-        > Blockquotes can also be nested...
-        >> ...by using additional greater-than signs right next to each other...
-        > > > ...or with spaces between arrows.
-        """
-    )
+    ## Blockquotes
+
+
+    > Blockquotes can also be nested...
+    >> ...by using additional greater-than signs right next to each other...
+    > > > ...or with spaces between arrows.
+    """)
     return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

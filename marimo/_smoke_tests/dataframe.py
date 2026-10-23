@@ -14,13 +14,15 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# 🤖 Lists/Dicts""")
+    mo.md("""
+    # 🤖 Lists/Dicts
+    """)
     return
 
 
@@ -75,13 +77,17 @@ def _(as_primitives):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# 🐼 Pandas""")
+    mo.md("""
+    # 🐼 Pandas
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## mo.ui.dataframe""")
+    mo.md("""
+    ## mo.ui.dataframe
+    """)
     return
 
 
@@ -94,7 +100,9 @@ def _(cars, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## mo.ui.table""")
+    mo.md("""
+    ## mo.ui.table
+    """)
     return
 
 
@@ -113,7 +121,9 @@ def _(t):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## .value""")
+    mo.md("""
+    ## .value
+    """)
     return
 
 
@@ -131,7 +141,9 @@ def _(dataframe):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## mo.ui.data_explorer""")
+    mo.md("""
+    ## mo.ui.data_explorer
+    """)
     return
 
 
@@ -143,13 +155,17 @@ def _(mo, pl_dataframe):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# 🐻‍❄️ Polars""")
+    mo.md("""
+    # 🐻‍❄️ Polars
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""## mo.ui.dataframe""")
+    mo.md("""
+    ## mo.ui.dataframe
+    """)
     return
 
 
@@ -168,7 +184,9 @@ def _(pl_dataframe_prime):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## mo.ui.table""")
+    mo.md("""
+    ## mo.ui.table
+    """)
     return
 
 
@@ -181,7 +199,9 @@ def _(cars, mo, pl):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## mo.ui.data_explorer""")
+    mo.md("""
+    ## mo.ui.data_explorer
+    """)
     return
 
 
@@ -193,7 +213,9 @@ def _(mo, pl_dataframe):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# 🏹 Arrow""")
+    mo.md("""
+    # 🏹 Arrow
+    """)
     return
 
 
@@ -206,7 +228,9 @@ def _(cars, mo, pa):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## mo.ui.table""")
+    mo.md("""
+    ## mo.ui.table
+    """)
     return
 
 
@@ -219,7 +243,9 @@ def _(arrow_table, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## .value""")
+    mo.md("""
+    ## .value
+    """)
     return
 
 
@@ -237,12 +263,10 @@ def _(arrow_table, mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        rf"""
-        # 💽 Dataframe protocol
-        > See the [API](https://data-apis.org/dataframe-protocol/latest/API.html)
-        """
-    )
+    mo.md(rf"""
+    # 💽 Dataframe protocol
+    > See the [API](https://data-apis.org/dataframe-protocol/latest/API.html)
+    """)
     return
 
 
@@ -274,7 +298,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(rf"## mo.ui.table")
+    mo.md(rf"""
+    ## mo.ui.table
+    """)
     return
 
 
@@ -299,7 +325,9 @@ def _(ibis_penguins):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(rf"## mo.ui.data_explorer")
+    mo.md(rf"""
+    ## mo.ui.data_explorer
+    """)
     return
 
 
@@ -323,7 +351,7 @@ def _():
 
 
 @app.cell
-def _(mo):
+def _(cars, mo):
     _df = mo.sql(
         f"""
         SELECT * FROM cars WHERE Cylinders > 6;

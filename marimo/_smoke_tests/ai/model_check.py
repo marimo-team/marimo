@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -79,7 +79,7 @@ def _():
 
 
 @app.cell
-def _(models_csv):
+def _(models_csv: str):
     import polars as pl
     import io
 
@@ -93,6 +93,7 @@ def _():
     import any_llm
     import marimo as mo
     import anthropic
+
     return any_llm, mo
 
 
@@ -118,6 +119,7 @@ def _(any_llm, mo):
             messages=[{"role": "user", "content": "hi"}],
             api_key=key,
         )
+
     return (query,)
 
 

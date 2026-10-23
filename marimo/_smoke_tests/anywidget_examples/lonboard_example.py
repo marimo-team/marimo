@@ -14,7 +14,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -31,6 +31,7 @@ def _():
 
     from lonboard import Map, ScatterplotLayer
     from lonboard.colormap import apply_continuous_cmap
+
     return (
         BrBG_10,
         Map,

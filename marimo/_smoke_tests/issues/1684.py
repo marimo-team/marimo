@@ -2,28 +2,27 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        $$
-        \begin{align*}
-        x &= 1 && \tag{Taylor} \\
-        x &= 1123123123123123 && \tag{Taylor's rule} \\
-        \end{align*}
-        $$
-        """
-    )
+    mo.md(r"""
+    $$
+    \begin{align*}
+    x &= 1 && \tag{Taylor} \\
+    x &= 1123123123123123 && \tag{Taylor's rule} \\
+    \end{align*}
+    $$
+    """)
     return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

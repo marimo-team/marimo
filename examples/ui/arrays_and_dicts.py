@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -134,7 +134,7 @@ def _(create, mo):
 
 
 @app.cell(hide_code=True)
-def _(mo, mo_d, py_d):
+def _(mo, mo_d, py_d: dict):
     mo_d_ref = {k: mo_d[k].value for k in mo_d.value.keys()}
     py_d_ref = {k: py_d[k].value for k in py_d.keys()}
     mo.hstack(

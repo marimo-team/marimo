@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.23.1"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 with app.setup:
@@ -31,7 +31,7 @@ def _():
 
 
 @app.cell
-def _(data):
+def _(data: pd.DataFrame):
     alt.renderers.enable("svg")
 
     chart = alt.Chart(data).mark_point().encode(x="x", y="y")
@@ -55,7 +55,7 @@ def _(chart):
 
 
 @app.cell
-def _(data):
+def _(data: pd.DataFrame):
     # Issue #9013: SVG rendering breaks image marks
     chart_with_images = (
         alt.Chart(data)

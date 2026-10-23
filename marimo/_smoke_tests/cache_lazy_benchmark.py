@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -28,7 +28,7 @@ def _():
 
 
 @app.cell
-def _(ARRAY_SIZE, mo, np, time):
+def _(ARRAY_SIZE: int, mo, np, time):
     _start = time.perf_counter()
     with mo.persistent_cache(name="bench_pickle", method="pickle"):
         pickle_a = np.random.rand(ARRAY_SIZE)
@@ -43,7 +43,7 @@ def _(ARRAY_SIZE, mo, np, time):
 
 
 @app.cell
-def _(ARRAY_SIZE, mo, np, time):
+def _(ARRAY_SIZE: int, mo, np, time):
     _start = time.perf_counter()
     with mo.persistent_cache(name="bench_lazy", method="lazy"):
         lazy_a = np.random.rand(ARRAY_SIZE)
@@ -58,7 +58,7 @@ def _(ARRAY_SIZE, mo, np, time):
 
 
 @app.cell
-def _(ARRAY_SIZE, lazy_time, pickle_time):
+def _(ARRAY_SIZE: int, lazy_time: float, pickle_time: float):
     print(f"\nArray size: {ARRAY_SIZE} ({ARRAY_SIZE * 8 / 1e6:.1f}MB each)")
     print(f"Pickle: {pickle_time * 1000:.1f}ms | Lazy: {lazy_time * 1000:.1f}ms")
     return

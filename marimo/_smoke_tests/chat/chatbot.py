@@ -11,25 +11,30 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Built-in chatbots""")
+    mo.md(r"""
+    # Built-in chatbots
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## OpenAI""")
+    mo.md(r"""
+    ## OpenAI
+    """)
     return
 
 
@@ -52,7 +57,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Anthropic""")
+    mo.md(r"""
+    ## Anthropic
+    """)
     return
 
 
@@ -72,7 +79,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Google Gemini""")
+    mo.md(r"""
+    ## Google Gemini
+    """)
     return
 
 
@@ -92,7 +101,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Custom chatbots""")
+    mo.md(r"""
+    # Custom chatbots
+    """)
     return
 
 
@@ -107,13 +118,13 @@ def _(mo):
 
 
 @app.cell
-def _(input_key, os_key):
+def _(input_key, os_key: None | str):
     openai_key = os_key or input_key.value
     return (openai_key,)
 
 
 @app.cell(hide_code=True)
-def _(mo, openai_key):
+def _(mo, openai_key: None | str):
     # Initialize a client
     mo.stop(
         not openai_key,
@@ -130,7 +141,9 @@ def _(mo, openai_key):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Simple""")
+    mo.md(r"""
+    ## Simple
+    """)
     return
 
 
@@ -148,7 +161,9 @@ def _(client, ell, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Complex""")
+    mo.md(r"""
+    ## Complex
+    """)
     return
 
 
@@ -227,6 +242,7 @@ def _(cars, client, ell):
                 del as_dict["datasets"]
             return alt.Chart.from_dict(as_dict)
         return response
+
     return get_sample_prompts, my_complex_model
 
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 with app.setup:
@@ -9,15 +9,13 @@ with app.setup:
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        r"""
-        # @app.function smoke test
+    mo.md(r"""
+    # @app.function smoke test
 
-        See [2293 for discussion](https://github.com/marimo-team/marimo/issues/2293)[^2293]
+    See [2293 for discussion](https://github.com/marimo-team/marimo/issues/2293)[^2293]
 
-        [^2293]: https://github.com/marimo-team/marimo/issues/2293
-        """
-    )
+    [^2293]: https://github.com/marimo-team/marimo/issues/2293
+    """)
     return
 
 

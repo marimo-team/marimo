@@ -4,7 +4,7 @@
 
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -138,7 +138,7 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(discovered_catalogs, mo, msgspec, observed_engine):
+def _(discovered_catalogs: list, mo, msgspec, observed_engine):
     mo.vstack(
         [
             mo.md(f"**Metadata queries: {len(observed_engine.queries)}**"),
@@ -298,7 +298,7 @@ def _(ObservedDuckDBEngine, create_smoke_connection, product):
 
 
 @app.cell(hide_code=True)
-def _(check_results, mo):
+def _(check_results: list[dict[str, str]], mo):
     _failures = [
         result for result in check_results if result["status"] == "FAIL"
     ]
@@ -314,7 +314,7 @@ def _(check_results, mo):
 
 
 @app.cell
-def _(check_results):
+def _(check_results: list[dict[str, str]]):
     assert all(result["status"] == "PASS" for result in check_results), [
         result for result in check_results if result["status"] == "FAIL"
     ]

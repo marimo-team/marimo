@@ -2,63 +2,70 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _(mo):
-    mo.md("""Markdown""")
+    mo.md("""
+    Markdown
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""Markdown with an escaped \"""quote\"""!!""")
+    mo.md(r"""
+    Markdown with an escaped \"\""quote\"\""!!
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        Markdown with a trailing "quote"
-        """
-    )
+    mo.md("""
+    Markdown with a trailing "quote"
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        "Markdown" with a leading quote
-        """
-    )
+    mo.md("""
+    "Markdown" with a leading quote
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""Markdown with a trailing 'single quote'""")
+    mo.md("""
+    Markdown with a trailing 'single quote'
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""'Markdown' with a leading single quote""")
+    mo.md("""
+    'Markdown' with a leading single quote
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""Markdown with an triple-single '''quote'''!!""")
+    mo.md("""
+    Markdown with an triple-single '''quote'''!!
+    """)
     return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

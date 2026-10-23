@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(
     width="medium",
     layout_file="layouts/2070-latex-slides.slides.json",
@@ -32,7 +32,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md("""# 2""")
+    mo.md("""
+    # 2
+    """)
     return
 
 
@@ -43,7 +45,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md("""# 3""")
+    mo.md("""
+    # 3
+    """)
     return
 
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.2"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -158,7 +158,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(collision, serialized):
+def _(collision: dict[int | str, str], serialized):
     serialized(collision)
     return
 

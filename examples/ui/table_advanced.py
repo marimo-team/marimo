@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -46,7 +46,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, office_characters):
+def _(mo, office_characters: list):
     single_select_table = mo.ui.table(
         office_characters,
         selection="single",
@@ -70,7 +70,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, office_characters):
+def _(mo, office_characters: list):
     multi_select_table = mo.ui.table(
         office_characters,
         selection="multi",
@@ -94,7 +94,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, office_characters):
+def _(mo, office_characters: list):
     table = mo.ui.table(
         office_characters,
         label="Employees",

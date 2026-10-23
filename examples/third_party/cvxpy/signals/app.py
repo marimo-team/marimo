@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -63,7 +63,7 @@ def _(complib, mo):
 
 
 @app.cell
-def _(component_options, get_component_radio_tracker):
+def _(component_options: list[str], get_component_radio_tracker):
     def user_tried_all_components():
         return len(get_component_radio_tracker()) == len(component_options)
 
@@ -120,7 +120,7 @@ def _(get_show_third_component, mo):
 
 
 @app.cell
-def _(get_show_third_component, intro, mo, radios):
+def _(get_show_third_component, intro, mo, radios: list):
     # Show radios
     (
         mo.hstack(
@@ -141,7 +141,7 @@ def _(get_show_third_component, intro, mo, radios):
 
 
 @app.cell
-def _(get_show_third_component, intro, mo, radios):
+def _(get_show_third_component, intro, mo, radios: list):
     # Plot 3-component decomposition
     (
         None
@@ -161,7 +161,7 @@ def _(get_show_third_component, intro, mo, radios):
 
 
 @app.cell
-def _(explainer, get_show_third_component, mo, radios):
+def _(explainer, get_show_third_component, mo, radios: list):
     # Component explainer callout
     (
         mo.md(explainer.explainer(radios[0].value)).callout(kind="neutral")
@@ -236,7 +236,7 @@ def _():
 
 
 @app.cell
-def _(complib, radios, solved_ever):
+def _(complib, radios: list, solved_ever):
     _chosen_components = set([r.value for r in radios])
 
 
@@ -697,7 +697,7 @@ def _(component_array):
 
 
 @app.cell
-def _(component_array, noise_component_selected, problem):
+def _(component_array, noise_component_selected: None, problem):
     should_compute_decomposition = (
         noise_component_selected
         and sum(1 for v in component_array.value if v is not None) >= 2
@@ -709,10 +709,10 @@ def _(component_array, noise_component_selected, problem):
 def _(
     component_array,
     mo,
-    noise_component_selected,
+    noise_component_selected: None,
     problem,
-    rolled_up_params,
-    should_compute_decomposition,
+    rolled_up_params: tuple,
+    should_compute_decomposition: None,
 ):
     mo.stop(problem is None)
 
@@ -777,8 +777,8 @@ def _(
     mo,
     plt,
     problem,
-    rolled_up_params,
-    should_compute_decomposition,
+    rolled_up_params: tuple,
+    should_compute_decomposition: None,
 ):
     mo.stop(not should_compute_decomposition)
 

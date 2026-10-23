@@ -2,20 +2,17 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Scrollbar issue with iframed altair
 
     There should be no vertical scrollbar within the iframed container.
-
-    """
-    )
+    """)
     return
 
 

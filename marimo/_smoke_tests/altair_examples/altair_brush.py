@@ -11,13 +11,15 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Data""")
+    mo.md(r"""
+    ## Data
+    """)
     return
 
 
@@ -43,7 +45,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Plain Altair""")
+    mo.md(r"""
+    ## Plain Altair
+    """)
     return
 
 
@@ -71,7 +75,9 @@ def _(alt, traces):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Example of the Or ( | ) operator""")
+    mo.md(r"""
+    ## Example of the Or ( | ) operator
+    """)
     return
 
 
@@ -101,7 +107,9 @@ def _(alt, mo, traces):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Example of the Or ( | ) operator with selection""")
+    mo.md(r"""
+    ## Example of the Or ( | ) operator with selection
+    """)
     return
 
 

@@ -1,18 +1,22 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Box plots""")
+    mo.md(r"""
+    # Box plots
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Example 1""")
+    mo.md(r"""
+    ## Example 1
+    """)
     return
 
 
@@ -49,7 +53,9 @@ def _(boxplot, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Example 2""")
+    mo.md(r"""
+    ## Example 2
+    """)
     return
 
 
@@ -78,6 +84,7 @@ def _(boxplot2, mo):
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

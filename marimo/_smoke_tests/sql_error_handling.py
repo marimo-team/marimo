@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.16.1"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
@@ -19,26 +19,22 @@ with app.setup(hide_code=True):
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     # SQL Error Handling Smoke Test
 
     This notebook demonstrates marimo's SQL error handling capabilities across different types of SQL errors.
     Each section shows how marimo gracefully handles SQL errors with helpful error messages.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     ## Setup Test Data
 
     First, let's create some test data to work with.
-    """
-    )
+    """)
     return
 
 
@@ -55,7 +51,7 @@ def _():
         )
         """
     )
-    return (users,)
+    return
 
 
 @app.cell
@@ -73,13 +69,11 @@ def _(users):
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     ## 1. Table Not Found Errors
 
     DuckDB provides helpful suggestions when table names don't exist.
-    """
-    )
+    """)
     return
 
 
@@ -107,13 +101,11 @@ def _(user_table):
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     ## 2. Column Not Found Errors
 
     Column reference errors with candidate suggestions.
-    """
-    )
+    """)
     return
 
 
@@ -143,13 +135,11 @@ def _(users):
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     ## 3. SQL Syntax Errors
 
     Various syntax errors with position information.
-    """
-    )
+    """)
     return
 
 
@@ -199,13 +189,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     ## 4. Data Type Errors
 
     Type mismatch and conversion errors.
-    """
-    )
+    """)
     return
 
 
@@ -233,13 +221,11 @@ def _(users):
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     ## 5. Function Errors
 
     Function call errors and argument mismatches.
-    """
-    )
+    """)
     return
 
 
@@ -268,13 +254,11 @@ def _(users):
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     ## 6. Aggregate Function Errors
 
     GROUP BY and aggregate function errors.
-    """
-    )
+    """)
     return
 
 
@@ -303,13 +287,11 @@ def _(users):
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     ## 7. Complex Query Errors
 
     More complex SQL errors that might occur in real scenarios.
-    """
-    )
+    """)
     return
 
 
@@ -340,13 +322,11 @@ def _(nonexistent_table, users):
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     ## 8. Very Long SQL Statements
 
     Testing error handling with long SQL that gets truncated.
-    """
-    )
+    """)
     return
 
 
@@ -365,13 +345,11 @@ def _(nonexistent_table):
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     ## 9. SQL with Special Characters
 
     Testing error handling with special characters and edge cases.
-    """
-    )
+    """)
     return
 
 
@@ -396,15 +374,14 @@ def _(用户表):
     )
     return
 
+
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        r"""
+    mo.md(r"""
     ## 11. Multiple Statements
 
     Test sql cells with multiple queries
-    """
-    )
+    """)
     return
 
 
@@ -421,13 +398,11 @@ def _(users):
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     ## 12. Successful Query for Comparison
 
     Here's a working query to show the contrast with error handling.
-    """
-    )
+    """)
     return
 
 
@@ -447,8 +422,7 @@ def _(users):
 
 @app.cell(hide_code=True)
 def _():
-    mo.md(
-        """
+    mo.md("""
     ## Summary
 
     This notebook demonstrates marimo's comprehensive SQL error handling:
@@ -462,8 +436,7 @@ def _():
 
     Each SQL cell above will display a structured error in marimo's error UI, showing how
     different types of SQL errors are handled gracefully with actionable feedback.
-    """
-    )
+    """)
     return
 
 

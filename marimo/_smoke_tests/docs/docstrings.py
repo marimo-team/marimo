@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -17,6 +17,7 @@ def _():
     import docstring_to_markdown
     import marimo as mo
     from marimo._utils.docs import google_docstring_to_markdown
+
     return docstring_to_markdown, google_docstring_to_markdown, mo
 
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -10,6 +10,7 @@ def _():
     import traitlets
     import marimo as mo
     from svg import SVG, Circle
+
     return Circle, SVG, anywidget, mo, traitlets
 
 
@@ -30,6 +31,7 @@ def _(anywidget, traitlets):
         """
         svg = traitlets.Unicode().tag(sync=True)
         selected_id = traitlets.Any().tag(sync=True)
+
     return (HoverWidget,)
 
 

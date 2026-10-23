@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -24,6 +24,7 @@ def _():
     from vega_datasets import data
 
     import marimo as mo
+
     return data, mo, np, pd
 
 
@@ -70,7 +71,13 @@ def _(chart_selection_type, legend_selection_type, theme):
 
 
 @app.cell
-def _(alt, cars, chart_selection_value, legend_selection_value, mo):
+def _(
+    alt,
+    cars,
+    chart_selection_value: None | bool | str,
+    legend_selection_value: bool,
+    mo,
+):
     _chart = (
         alt.Chart(cars)
         .mark_point()
@@ -91,12 +98,20 @@ def _(alt, cars, chart_selection_value, legend_selection_value, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Basic Chart""")
+    mo.md("""
+    # Basic Chart
+    """)
     return
 
 
 @app.cell
-def _(alt, chart1, chart_selection_value, legend_selection_value, mo):
+def _(
+    alt,
+    chart1,
+    chart_selection_value: None | bool | str,
+    legend_selection_value: bool,
+    mo,
+):
     mo.vstack(
         [
             chart1,
@@ -122,7 +137,13 @@ def _(alt, chart1, chart_selection_value, legend_selection_value, mo):
 
 
 @app.cell
-def _(alt, chart_selection_value, employment, legend_selection_value, mo):
+def _(
+    alt,
+    chart_selection_value: None | bool | str,
+    employment,
+    legend_selection_value: bool,
+    mo,
+):
     # _selection = alt.selection_point(fields=["series"], bind="legend")
 
     _chart = (
@@ -148,7 +169,9 @@ def _(alt, chart_selection_value, employment, legend_selection_value, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Another Chart""")
+    mo.md("""
+    # Another Chart
+    """)
     return
 
 
@@ -160,7 +183,9 @@ def _(chart2, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Defined Width + Height""")
+    mo.md("""
+    # Defined Width + Height
+    """)
     return
 
 
@@ -187,7 +212,13 @@ def _(alt, iris, mo):
 
 
 @app.cell
-def _(alt, chart_selection_value, iris, legend_selection_value, mo):
+def _(
+    alt,
+    chart_selection_value: None | bool | str,
+    iris,
+    legend_selection_value: bool,
+    mo,
+):
     # _color_sel = alt.selection_point(fields=["species"], bind="legend")
     # _size_sel = alt.selection_point(fields=["petalWidth"], bind="legend")
 
@@ -216,7 +247,9 @@ def _(alt, chart_selection_value, iris, legend_selection_value, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Chart + Chart""")
+    mo.md("""
+    # Chart + Chart
+    """)
     return
 
 
@@ -228,7 +261,9 @@ def _(chart3, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Chart + Table""")
+    mo.md("""
+    # Chart + Table
+    """)
     return
 
 
@@ -240,7 +275,9 @@ def _(chart3, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Chart + Table returned as an array""")
+    mo.md("""
+    # Chart + Table returned as an array
+    """)
     return
 
 
@@ -251,7 +288,13 @@ def _(chart3):
 
 
 @app.cell
-def _(alt, cars, chart_selection_value, legend_selection_value, mo):
+def _(
+    alt,
+    cars,
+    chart_selection_value: None | bool | str,
+    legend_selection_value: bool,
+    mo,
+):
     brush = alt.selection_interval()
     points = (
         alt.Chart(cars)
@@ -280,7 +323,9 @@ def _(alt, cars, chart_selection_value, legend_selection_value, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Chart with transform""")
+    mo.md("""
+    # Chart with transform
+    """)
     return
 
 
@@ -292,7 +337,9 @@ def _(chart4, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Bar chart""")
+    mo.md("""
+    # Bar chart
+    """)
     return
 
 
@@ -344,7 +391,9 @@ def _(hist, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Pivot and horizontal bar chart""")
+    mo.md("""
+    # Pivot and horizontal bar chart
+    """)
     return
 
 
@@ -430,7 +479,9 @@ def _(mo, pie):
 
 @app.cell
 def _(mo):
-    mo.md("""# Line Chart""")
+    mo.md("""
+    # Line Chart
+    """)
     return
 
 
@@ -455,7 +506,9 @@ def _(line_chart, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Multi-Line Chart""")
+    mo.md("""
+    # Multi-Line Chart
+    """)
     return
 
 
@@ -526,12 +579,10 @@ def _(facet_chart, mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        # With `transform_filter`
-        > Bug https://github.com/marimo-team/marimo/issues/727
-        """
-    )
+    mo.md("""
+    # With `transform_filter`
+    > Bug https://github.com/marimo-team/marimo/issues/727
+    """)
     return
 
 
@@ -561,7 +612,9 @@ def _(mo, with_transform):
 
 @app.cell
 def _(mo):
-    mo.md("""# Layers""")
+    mo.md("""
+    # Layers
+    """)
     return
 
 
@@ -614,7 +667,9 @@ def _(layered_chart, mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# layered""")
+    mo.md(r"""
+    # layered
+    """)
     return
 
 
@@ -635,7 +690,9 @@ def _(alt, data, datum, mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# hconcat""")
+    mo.md(r"""
+    # hconcat
+    """)
     return
 
 
@@ -647,7 +704,9 @@ def _(base, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# vconcat""")
+    mo.md("""
+    # vconcat
+    """)
     return
 
 

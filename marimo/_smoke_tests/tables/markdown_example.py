@@ -1,17 +1,18 @@
 import marimo
 
-__generated_with = "0.17.8"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
-def _(markdown_sample, mo):
+def _(markdown_sample: str, mo):
     mo.ui.table(
         {
             "heading": ["### Hello" * 8],

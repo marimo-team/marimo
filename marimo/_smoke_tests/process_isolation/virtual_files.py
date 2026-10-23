@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.1"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 with app.setup:
@@ -24,7 +24,7 @@ def _():
     **How to test:**
 
     ```
-    marimo run marimo/_smoke_tests/process_isolation/virtual_files.py \\
+    marimo run marimo/_smoke_tests/process_isolation/virtual_files.py \
                marimo/_smoke_tests/process_isolation/app1.py
     ```
 

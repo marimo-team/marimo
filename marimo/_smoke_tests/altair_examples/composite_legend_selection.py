@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -9,21 +9,20 @@ def _():
     import altair as alt
     import pandas as pd
     import marimo as mo
+
     return alt, mo, pd
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Composite Chart Legend Selection Bug
 
     Test case for https://github.com/marimo-team/marimo/issues/6676
 
     Legend selection should work on composite charts created with the `+` operator.
     Clicking legend items should filter the chart.
-    """
-    )
+    """)
     return
 
 
@@ -43,7 +42,9 @@ def _(pd):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Composite chart with error bars and points""")
+    mo.md(r"""
+    ### Composite chart with error bars and points
+    """)
     return
 
 
@@ -101,7 +102,9 @@ def _(sample_mo_chart):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Simple layered chart (for comparison)""")
+    mo.md(r"""
+    ### Simple layered chart (for comparison)
+    """)
     return
 
 
@@ -135,7 +138,9 @@ def _(simple_mo_chart):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Workaround with explicit legend selection""")
+    mo.md(r"""
+    ### Workaround with explicit legend selection
+    """)
     return
 
 
@@ -198,7 +203,9 @@ def _(workaround_mo_chart):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### vconcat with legend selection""")
+    mo.md(r"""
+    ### vconcat with legend selection
+    """)
     return
 
 
@@ -237,7 +244,9 @@ def _(vconcat_mo_chart):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### hconcat with legend selection""")
+    mo.md(r"""
+    ### hconcat with legend selection
+    """)
     return
 
 

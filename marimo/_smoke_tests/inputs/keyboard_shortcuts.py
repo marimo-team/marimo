@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.22.0"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -143,7 +143,7 @@ def _(mo):
 
 
 @app.cell
-def _(key, mo, mod_button, mod_count):
+def _(key: str, mo, mod_button, mod_count):
     mc = mod_count()
     mo.vstack(
         [

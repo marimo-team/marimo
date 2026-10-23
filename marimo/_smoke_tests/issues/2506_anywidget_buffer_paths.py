@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -12,7 +12,7 @@ def _():
 
 
 @app.cell
-def _(CONTENT):
+def _(CONTENT: bytes):
     import anywidget
     import traitlets
 
@@ -40,21 +40,21 @@ def _(CONTENT):
 
 
 @app.cell
-def _(CONTENT, mo):
+def _(CONTENT: bytes, mo):
     # Not lossy
     mo.image(CONTENT.decode("latin1").encode("latin1"))
     return
 
 
 @app.cell
-def _(CONTENT, mo):
+def _(CONTENT: bytes, mo):
     # Is lossy
     mo.image(CONTENT.decode("utf-8", errors="replace").encode("utf-8"))
     return
 
 
 @app.cell
-def _(CONTENT, anywidget, traitlets):
+def _(CONTENT: bytes, anywidget, traitlets):
     import numpy as np
     from pathlib import Path
 
@@ -83,6 +83,7 @@ def _(CONTENT, anywidget, traitlets):
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

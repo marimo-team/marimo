@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -10,12 +10,15 @@ def _():
 
     import marimo as mo
     import pandas as pd
+
     return datetime, mo, pd
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Datetime""")
+    mo.md(r"""
+    ## Datetime
+    """)
     return
 
 
@@ -33,7 +36,9 @@ def _(datetime, pd):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Seconds""")
+    mo.md(r"""
+    ## Seconds
+    """)
     return
 
 
@@ -51,7 +56,9 @@ def _(datetime, pd):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Milliseconds""")
+    mo.md(r"""
+    ## Milliseconds
+    """)
     return
 
 
@@ -76,7 +83,9 @@ def _(mo, test_df):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Nanoseconds""")
+    mo.md(r"""
+    ## Nanoseconds
+    """)
     return
 
 

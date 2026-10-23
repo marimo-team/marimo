@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.19.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium", auto_download=["html"])
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -14,6 +15,7 @@ def _():
 def _():
     import plotly.express as px
     import numpy as np
+
     return np, px
 
 
