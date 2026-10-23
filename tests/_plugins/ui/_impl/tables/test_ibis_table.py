@@ -166,12 +166,16 @@ class TestIbisTableManagerFactory(unittest.TestCase):
             2,
         ]
 
-        assert as_list(self.manager.take(2, 1).select_columns(["A"]).data) == [
+        assert as_list(
+            self.manager.take(2, 1).select_columns(["A"]).data.collect()
+        ) == [
             2,
             3,
         ]
 
-        assert as_list(self.manager.take(2, 2).select_columns(["A"]).data) == [
+        assert as_list(
+            self.manager.take(2, 2).select_columns(["A"]).data.collect()
+        ) == [
             3,
         ]
 

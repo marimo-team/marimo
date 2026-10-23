@@ -5638,6 +5638,10 @@ components:
             - type: number
             - type: string
               const: too_many
+        has_next_page:
+          type:
+            - boolean
+            - "null"
         cell_styles:
           anyOf:
             - type: object

@@ -49,6 +49,7 @@ from marimo._plugins.ui._impl.tables.geometry_export import (
     get_export_metadata,
     has_geometry_columns,
 )
+from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.selection import (
     INDEX_COLUMN_NAME,
     add_selection_column,
@@ -253,6 +254,7 @@ class SearchTableResponse:
     # Unformatted data mirroring the same shape/page as `data`,
     # provided when format_mapping is applied.
     raw_data: str | None = None
+    has_next_page: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -607,9 +609,12 @@ class table(
         Create a table from a lazy dataframe (e.g., Polars LazyFrame, Ibis Table, DuckDB Relation).
 
         This won't load the data into memory until requested by the user.
-        Once requested, only the first 10 rows will be loaded.
+        Each page fetches at most `page_size` rows plus one row to check
+        whether another page exists, without counting the full result.
 
-        Pagination and selection are not supported for lazy tables.
+        For consistent paging, sort by a unique key and keep the source unchanged.
+        Pages are queried independently; the table does not snapshot the source.
+        Selection is not supported for lazy tables.
 
         Args:
             data (IntoLazyFrame): The data to display.
@@ -629,7 +634,7 @@ class table(
 
         return table(
             data=data,
-            pagination=False,
+            pagination=True,
             selection=None,
             initial_selection=None,
             page_size=page_size,
@@ -1045,7 +1050,7 @@ class table(
 
     def _get_banner_text(self) -> str:
         if self._lazy:
-            return f"Previewing only the first {self._page_size} rows."
+            return ""
 
         total_columns = self._manager.get_num_columns()
         if self._max_columns is not None and total_columns > self._max_columns:
@@ -1817,9 +1822,9 @@ class table(
 
         def clamp_rows_and_columns(
             manager: TableManager[Any],
-        ) -> tuple[str, str | None]:
+        ) -> tuple[str, str | None, bool | None]:
             # Limit to page and column clamping for the frontend
-            data = manager.take(args.page_size, offset)
+            data = manager.take(args.page_size + int(self._lazy), offset)
             column_names = data.get_column_names()
 
             # Do not clamp if max_columns is None
@@ -1833,9 +1838,16 @@ class table(
                 data = data.select_columns(columns_to_select)
 
             try:
+                has_next_page = None
+                if self._lazy and isinstance(data, NarwhalsTableManager):
+                    frame = data.as_frame()
+                    has_next_page = frame.shape[0] > args.page_size
+                    data = get_table_manager(
+                        frame.head(args.page_size).to_native()
+                    )
                 formatted = data.to_json_str(self._format_mapping)
                 raw = data.to_json_str() if self._format_mapping else None
-                return formatted, raw
+                return formatted, raw, has_next_page
             except BaseException as e:
                 # Catch and re-raise the error as a non-BaseException
                 # to avoid crashing the kernel
@@ -1851,7 +1863,9 @@ class table(
             else:
                 total_rows = self._manager.get_num_rows(force=True) or 0
 
-            formatted_data, raw_data = clamp_rows_and_columns(self._manager)
+            formatted_data, raw_data, has_next_page = clamp_rows_and_columns(
+                self._manager
+            )
             return SearchTableResponse(
                 data=formatted_data,
                 total_rows=total_rows,
@@ -1862,6 +1876,7 @@ class table(
                     offset, args.page_size, total_rows
                 ),
                 raw_data=raw_data,
+                has_next_page=has_next_page,
             )
 
         filter_function = (
@@ -1883,7 +1898,9 @@ class table(
         else:
             total_rows = result.get_num_rows(force=True) or 0
 
-        formatted_data, raw_data = clamp_rows_and_columns(result)
+        formatted_data, raw_data, has_next_page = clamp_rows_and_columns(
+            result
+        )
         return SearchTableResponse(
             data=formatted_data,
             total_rows=total_rows,
@@ -1892,6 +1909,7 @@ class table(
                 offset, args.page_size, total_rows
             ),
             raw_data=raw_data,
+            has_next_page=has_next_page,
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:

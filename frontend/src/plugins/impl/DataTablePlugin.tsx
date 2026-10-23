@@ -231,6 +231,7 @@ type DataTableFunctions = {
   }) => Promise<{
     data: TableData<T>;
     total_rows: number | TooManyRows;
+    has_next_page?: boolean | null;
     cell_styles?: CellStyleState | null;
     cell_hover_texts?: Record<string, Record<string, string | null>> | null;
     raw_data?: TableData<T> | null;
@@ -343,6 +344,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         z.object({
           data: z.union([z.string(), z.array(z.object({}).passthrough())]),
           total_rows: z.union([z.number(), z.literal(TOO_MANY_ROWS)]),
+          has_next_page: z.boolean().nullish(),
           cell_styles: z
             .record(
               z.string(),
@@ -510,6 +512,7 @@ interface DataTableSearchProps {
   filters?: ColumnFiltersState;
   setFilters?: SetFilters;
   hasStableRowId: boolean;
+  hasNextPage?: boolean;
 }
 
 export const LoadingDataTableComponent = memo(
@@ -553,11 +556,28 @@ export const LoadingDataTableComponent = memo(
       setPaginationState({ pageIndex: 0, pageSize: props.pageSize });
     }
 
+    const [previousQuery, setPreviousQuery] = useState({
+      sorting,
+      filters,
+      searchQuery,
+    });
+    if (
+      previousQuery.sorting !== sorting ||
+      previousQuery.filters !== filters ||
+      previousQuery.searchQuery !== searchQuery
+    ) {
+      setPreviousQuery({ sorting, filters, searchQuery });
+      if (props.lazy) {
+        setPaginationState((state) => ({ ...state, pageIndex: 0 }));
+      }
+    }
+
     // Data loading
     const { data, error, isPending, isFetching } = useAsyncData<{
       rows: T[];
       rawRows?: T[];
       totalRows: number | TooManyRows;
+      hasNextPage?: boolean;
       cellStyles: CellStyleState | undefined | null;
       cellHoverTexts?: Record<string, Record<string, string | null>> | null;
     }>(async () => {
@@ -574,6 +594,7 @@ export const LoadingDataTableComponent = memo(
       let tableData = props.data;
       let rawTableData: TableData<T> | undefined | null = props.rawData;
       let totalRows = props.totalRows;
+      let hasNextPage: boolean | undefined;
       let cellStyles = props.cellStyles;
       let cellHoverTexts = props.cellHoverTexts;
 
@@ -617,6 +638,7 @@ export const LoadingDataTableComponent = memo(
         tableData = searchResults.data;
         rawTableData = searchResults.raw_data;
         totalRows = searchResults.total_rows;
+        hasNextPage = searchResults.has_next_page ?? undefined;
         cellStyles = searchResults.cell_styles || {};
         cellHoverTexts = searchResults.cell_hover_texts || {};
       }
@@ -629,6 +651,7 @@ export const LoadingDataTableComponent = memo(
         rows: tableData,
         rawRows: rawData,
         totalRows: totalRows,
+        hasNextPage,
         cellStyles,
         cellHoverTexts,
       };
@@ -785,6 +808,9 @@ export const LoadingDataTableComponent = memo(
         setFilters={setFilters}
         reloading={isFetching && !isPending}
         totalRows={data?.totalRows ?? props.totalRows}
+        hasNextPage={
+          props.lazy ? !error && (data?.hasNextPage ?? false) : undefined
+        }
         sizeBytes={sizeBytes}
         sizeBytesIsLoading={sizeBytesIsLoading}
         paginationState={paginationState}
@@ -834,6 +860,7 @@ const DataTableComponent = ({
   data,
   rawData,
   totalRows,
+  hasNextPage,
   sizeBytes,
   sizeBytesIsLoading,
   maxColumns,
@@ -1133,7 +1160,8 @@ const DataTableComponent = ({
     <>
       {/* When the totalRows is "too_many" and the pageSize is the same as the
        * number of rows, we are likely displaying all the data (could be more, but we don't know the total). */}
-      {totalRows === TOO_MANY_ROWS &&
+      {hasNextPage === undefined &&
+        totalRows === TOO_MANY_ROWS &&
         paginationState.pageSize === data.length && (
           <Banner className="mb-1 rounded">
             Previewing the first {paginationState.pageSize} rows.
@@ -1171,6 +1199,7 @@ const DataTableComponent = ({
             maxHeight={maxHeight}
             sorting={sorting}
             totalRows={totalRows}
+            hasNextPage={hasNextPage}
             sizeBytes={sizeBytes}
             sizeBytesIsLoading={sizeBytesIsLoading}
             totalColumns={totalColumns}
