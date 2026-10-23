@@ -667,15 +667,36 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
   );
 };
 
-const CreateNewNotebook: React.FC = () => {
-  const url = newNotebookURL();
+export const CreateNewNotebook: React.FC = () => {
+  // Reusing a `__new__` key reattaches to an old session; rotate it per open
+  const [url, setUrl] = useState(newNotebookURL);
+  const rotateUrl = () => {
+    const next = newNotebookURL();
+    setUrl(next);
+    return next;
+  };
+  const rotateDragPayload = (event: React.DragEvent<HTMLAnchorElement>) => {
+    // The browser copies the href into the drag payload before this handler
+    // runs, so the rotated URL must be written into the payload by hand
+    const next = rotateUrl();
+    event.dataTransfer.setData("text/uri-list", next);
+    event.dataTransfer.setData("text/plain", next);
+  };
   return (
     <Button
       asChild={true}
       size="sm"
       className="gap-2 rounded-md border-(--brand) bg-(--brand) text-(--brand-foreground) shadow-none hover:bg-(--brand-hover)"
     >
-      <a href={url} target="_blank" rel="noreferrer">
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        onClick={rotateUrl}
+        onAuxClick={rotateUrl}
+        onContextMenu={rotateUrl}
+        onDragStart={rotateDragPayload}
+      >
         <PlusIcon className="h-4 w-4" />
         New notebook
       </a>
