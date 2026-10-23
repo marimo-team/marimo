@@ -25,7 +25,7 @@ const spinnerVariants = cva("animate-spin", {
 const Spinner = React.forwardRef<
   SVGSVGElement,
   React.SVGProps<SVGSVGElement> & VariantProps<typeof spinnerVariants>
->(({ className, children, centered, size, ...props }, ref) => (
+>(({ className, children: _children, centered, size, ...props }, ref) => (
   <Loader2Icon
     ref={ref}
     className={cn(spinnerVariants({ centered, size }), className)}

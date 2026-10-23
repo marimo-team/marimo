@@ -74,7 +74,6 @@ const RangeSliderComponent = ({
   start,
   stop,
   step,
-  steps,
   debounce,
   orientation,
   showValue,

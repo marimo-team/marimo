@@ -74,7 +74,7 @@ describe("state utility functions", () => {
       const newState = addSession(initialState, session);
 
       // Remove the dynamic tabId for snapshot comparison
-      const { tabId, ...sessionWithoutId } = newState.sessions[0];
+      const { tabId: _tabId, ...sessionWithoutId } = newState.sessions[0];
       expect({
         ...newState,
         sessions: [sessionWithoutId],
@@ -116,7 +116,7 @@ describe("state utility functions", () => {
       const newState = addSession(initialState, newSession);
 
       // Remove dynamic tabId for snapshot
-      const { tabId, ...sessionWithoutId } = newState.sessions[0];
+      const { tabId: _tabId, ...sessionWithoutId } = newState.sessions[0];
       expect({
         ...newState,
         sessions: [sessionWithoutId],
