@@ -4,7 +4,7 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import types
-from collections.abc import Mapping, Sequence, Sequence as CollectionSequence
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from enum import Enum
 from typing import (
@@ -109,11 +109,7 @@ class PythonTypeToOpenAPI:
                         ]
                     )
                 }
-        elif (
-            origin is list
-            or origin is CollectionSequence
-            or origin is Sequence
-        ):
+        elif origin is list or origin is Sequence:
             if py_type in processed_classes:
                 ref = processed_classes[py_type]
                 return {"$ref": f"#/components/schemas/{ref}"}

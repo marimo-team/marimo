@@ -7,7 +7,7 @@ Notebook IDs persist across rescans and recorded file moves.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -287,7 +287,7 @@ class WorkspaceIndex:
             ),
             updated_at=None
             if modified is None
-            else datetime.fromtimestamp(modified, tz=timezone.utc),
+            else datetime.fromtimestamp(modified, tz=UTC),
         )
         if notebook_id in self._host.notebooks:
             self._host.update_notebook(record, request_id=request_id)
