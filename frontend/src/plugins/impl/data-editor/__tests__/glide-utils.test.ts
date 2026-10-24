@@ -253,6 +253,33 @@ describe("pasteCells", () => {
     });
   });
 
+  it("skips only invalid tokens pasted into configured boolean columns", async () => {
+    mockClipboard.readText.mockResolvedValue(
+      "Write docs\t30\tyes\nFix bug\t31\tmaybe",
+    );
+    const mockOnAddEdits = vi.fn();
+    const columns = createMockColumns();
+    columns[2].configuredType = "boolean";
+
+    pasteCells({
+      selection: createMockSelection(0, 0),
+      data: createMockData(),
+      columns,
+      editableColumns: "all",
+      onAddEdits: mockOnAddEdits,
+    });
+
+    await vi.waitFor(() => {
+      expect(mockOnAddEdits).toHaveBeenCalledWith([
+        { rowIdx: 0, columnId: "name", value: "Write docs" },
+        { rowIdx: 0, columnId: "age", value: 30 },
+        { rowIdx: 0, columnId: "active", value: true },
+        { rowIdx: 1, columnId: "name", value: "Fix bug" },
+        { rowIdx: 1, columnId: "age", value: 31 },
+      ]);
+    });
+  });
+
   it("should skip invalid number values", async () => {
     mockClipboard.readText.mockResolvedValue("Grace\tinvalid\tfalse");
 

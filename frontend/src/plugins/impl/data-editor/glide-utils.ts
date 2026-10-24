@@ -220,10 +220,16 @@ export function pasteCells(options: {
               break;
             }
             case "boolean":
-              convertedValue =
-                column.configuredType === "boolean"
-                  ? normalizeBoolean(cellValue, column.title)
-                  : cellValue.toLowerCase() === "true" || cellValue === "1";
+              if (column.configuredType !== "boolean") {
+                convertedValue =
+                  cellValue.toLowerCase() === "true" || cellValue === "1";
+                break;
+              }
+              try {
+                convertedValue = normalizeBoolean(cellValue, column.title);
+              } catch {
+                continue;
+              }
               break;
             case "string":
             case "date":
