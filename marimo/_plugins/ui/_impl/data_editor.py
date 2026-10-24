@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import datetime
 import math
+import numbers
 from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
@@ -25,6 +26,7 @@ from marimo import _loggers
 from marimo._data.models import DataType
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._utils.assert_never import log_never
 from marimo._utils.deprecated import deprecated
@@ -36,6 +38,12 @@ if TYPE_CHECKING:
 
     from narwhals.dtypes import DType
     from typing_extensions import TypeIs
+
+    from marimo._plugins.ui._impl.tables.table_manager import (
+        FieldType,
+        FieldTypes,
+        TableManager,
+    )
 
 
 class PositionalEdit(TypedDict):
@@ -651,7 +659,6 @@ class data_editor(
         self._edits: DataEdits | None = None
         column_names = table_manager.get_column_names()
         self._column_names = column_names
-        field_types = table_manager.get_field_types()
 
         if isinstance(editable_columns, list):
             for col in editable_columns:
@@ -673,6 +680,9 @@ class data_editor(
             column_types=validated_column_types,
         )
         self._column_types = validated_column_types
+        field_types = _editor_field_types(
+            table_manager, column_names, validated_column_types
+        )
         super().__init__(
             component_name=data_editor._name,
             label=label,
@@ -825,6 +835,63 @@ def _convert_list(value: Any) -> list[Any]:
         return parsed if isinstance(parsed, list) else list(parsed)
     except (TypeError, ValueError, SyntaxError):
         return value.split(",")
+
+
+def _editor_field_types(
+    table_manager: TableManager[Any],
+    column_names: list[str],
+    column_types: ColumnTypes,
+) -> FieldTypes:
+    field_types = table_manager.get_field_types()
+    if not field_types and isinstance(table_manager, DefaultTableManager):
+        # Without explicit types the frontend guesses each column's type
+        # from CSV text, which turns strings such as "01" into numbers.
+        rows = DefaultTableManager._normalize_data(table_manager.data)
+        if rows:
+            field_types = [
+                (column, _infer_field_type([row.get(column) for row in rows]))
+                for column in column_names
+            ]
+    return [
+        (column, ("string", "str"))
+        if isinstance(column_types.get(column), list)
+        else (column, field_type)
+        for column, field_type in field_types
+    ]
+
+
+def _infer_field_type(values: list[Any]) -> tuple[FieldType, str]:
+    present = [value for value in values if value is not None]
+    value_types = {type(value) for value in present}
+    external_type = (
+        next(iter(value_types)).__name__ if len(value_types) == 1 else "object"
+    )
+    if not present:
+        return "string", external_type
+    if all(isinstance(value, bool) for value in present):
+        return "boolean", external_type
+    if all(
+        isinstance(value, numbers.Integral) and not isinstance(value, bool)
+        for value in present
+    ):
+        return "integer", external_type
+    if all(
+        isinstance(value, (numbers.Real, Decimal))
+        and not isinstance(value, bool)
+        for value in present
+    ):
+        return "number", external_type
+    if all(isinstance(value, datetime.datetime) for value in present):
+        return "datetime", external_type
+    if all(
+        isinstance(value, datetime.date)
+        and not isinstance(value, datetime.datetime)
+        for value in present
+    ):
+        return "date", external_type
+    if all(isinstance(value, datetime.time) for value in present):
+        return "time", external_type
+    return "string", external_type
 
 
 def _normalize_boolean(value: Any, column: str) -> bool:

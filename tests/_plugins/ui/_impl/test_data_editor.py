@@ -379,6 +379,59 @@ def test_data_editor_exposes_columns_for_empty_data(data, expected_columns):
     assert editor._component_args["field-types"] is None
 
 
+def test_data_editor_sends_dropdown_columns_as_strings_for_row_data():
+    editor = data_editor(
+        [{"count": 5, "level": "01"}, {"count": 6, "level": "02"}],
+        column_types={"level": ["01", "02"]},
+    )
+
+    assert editor._component_args["field-types"] == [
+        ("count", ("integer", "int")),
+        ("level", ("string", "str")),
+    ]
+
+
+def test_data_editor_sends_field_types_for_row_data():
+    editor = data_editor(
+        [
+            {
+                "i": 5,
+                "f": 1.5,
+                "b": True,
+                "s": "01",
+                "d": datetime.date(2024, 1, 2),
+                "dt": datetime.datetime(2024, 1, 2, 3, 4, 5),
+                "t": datetime.time(3, 4),
+                "n": None,
+                "mix": 1,
+            },
+            {
+                "i": 6,
+                "f": 2,
+                "b": False,
+                "s": "02",
+                "d": datetime.date(2024, 1, 3),
+                "dt": datetime.datetime(2024, 1, 3, 3, 4, 5),
+                "t": datetime.time(4, 5),
+                "n": 3,
+                "mix": "a",
+            },
+        ]
+    )
+
+    assert editor._component_args["field-types"] == [
+        ("i", ("integer", "int")),
+        ("f", ("number", "object")),
+        ("b", ("boolean", "bool")),
+        ("s", ("string", "str")),
+        ("d", ("date", "date")),
+        ("dt", ("datetime", "datetime")),
+        ("t", ("time", "time")),
+        ("n", ("integer", "int")),
+        ("mix", ("string", "object")),
+    ]
+
+
 def test_data_editor_preserves_numeric_string_column_order():
     editor = data_editor([{"10": "x", "2": "y"}])
     edits: DataEdits = {"edits": [{"columnIdx": 0, "type": "remove"}]}
