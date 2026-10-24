@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import datetime
+import math
 from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
@@ -828,9 +829,13 @@ def _convert_list(value: Any) -> list[Any]:
 def _normalize_boolean(value: Any, column: str) -> bool:
     if isinstance(value, bool):
         return value
-    if isinstance(value, (int, float, Decimal)):
-        return bool(value)
-    if isinstance(value, str):
+    if isinstance(value, Decimal):
+        if value.is_finite():
+            return bool(value)
+    elif isinstance(value, (int, float)):
+        if math.isfinite(value):
+            return bool(value)
+    elif isinstance(value, str):
         normalized = value.strip().lower()
         if normalized in {"true", "t", "yes", "y", "1"}:
             return True

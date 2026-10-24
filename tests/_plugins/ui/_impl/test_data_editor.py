@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime
 from copy import deepcopy
+from decimal import Decimal
 from typing import Any, cast
 from unittest.mock import Mock
 
@@ -232,6 +233,43 @@ def test_data_editor_rejects_invalid_explicit_boolean_edit():
         ValueError, match="Invalid boolean value 'maybe' for column 'A'"
     ):
         editor._convert_value(edits)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        float("nan"),
+        float("inf"),
+        float("-inf"),
+        Decimal("NaN"),
+        Decimal("sNaN"),
+        Decimal("Infinity"),
+    ],
+)
+def test_data_editor_rejects_non_finite_boolean_value(value: Any):
+    with pytest.raises(ValueError, match="Invalid boolean value"):
+        data_editor([{"A": value}], column_types={"A": "boolean"})
+
+
+def test_data_editor_rejects_non_finite_boolean_edit():
+    editor = data_editor([{"A": True}], column_types={"A": "boolean"})
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "A", "value": float("nan")}]
+    }
+
+    with pytest.raises(ValueError, match="Invalid boolean value"):
+        editor._convert_value(edits)
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+def test_data_editor_rejects_nan_in_boolean_dataframe_column():
+    import pandas as pd
+
+    with pytest.raises(ValueError, match="Invalid boolean value"):
+        data_editor(
+            pd.DataFrame({"A": [1.0, 0.0, float("nan")]}),
+            column_types={"A": "boolean"},
+        )
 
 
 def test_data_editor_rejects_unknown_column_type_column():
