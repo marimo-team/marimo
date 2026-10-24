@@ -268,8 +268,7 @@ class _EditableTable:
                 continue
             if isinstance(self.data, list):
                 for row in self.data:
-                    if column in row:
-                        row[column] = _normalize_boolean(row[column], column)
+                    row[column] = _normalize_boolean(row.get(column), column)
             else:
                 self.data[column] = [
                     _normalize_boolean(value, column)
