@@ -184,11 +184,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
             return []
 
         selected_cells: list[TableCell] = []
-        if (
-            self.is_column_oriented
-            and isinstance(self.data, dict)
-            and all(isinstance(v, list) for v in self.data.values())
-        ):
+        if self.is_column_oriented and isinstance(self.data, dict):
             columns = self._padded_columns()
             for row_id, column_name in cells:
                 selected_cells.append(
@@ -209,7 +205,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
                 selected_cells.append(
                     TableCell(row=row_id, column=column_name, value=value)
                 )
-        elif isinstance(self.data, list):
+        elif isinstance(self.data, (list, tuple)):
             rows_of_list = self.data
             for row_id, column_name in cells:
                 row_index = int(row_id)
