@@ -6,6 +6,7 @@ import msgspec
 from marimo._messaging.errors import (
     CycleError,
     ImportStarError,
+    LazyImportError,
     MarimoAncestorPreventedError,
     MarimoAncestorStoppedError,
     MarimoExceptionRaisedError,
@@ -64,6 +65,21 @@ class TestErrorClasses:
         assert serialized["type"] == "import-star"
         assert error.describe() == "Cannot use import * in this context"
         assert error.lineno == 3
+
+    def test_lazy_import_error(self) -> None:
+        error = LazyImportError(
+            msg="`lazy import` is only allowed in the setup cell.", lineno=2
+        )
+
+        assert msgspec.to_builtins(error) == {
+            "type": "lazy-import",
+            "msg": "`lazy import` is only allowed in the setup cell.",
+            "lineno": 2,
+        }
+        assert (
+            error.describe()
+            == "`lazy import` is only allowed in the setup cell."
+        )
 
     def test_marimo_interruption_error(self) -> None:
         error = MarimoInterruptionError()

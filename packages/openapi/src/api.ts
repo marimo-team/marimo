@@ -4176,6 +4176,7 @@ export interface components {
             | components["schemas"]["CycleError"]
             | components["schemas"]["MultipleDefinitionError"]
             | components["schemas"]["ImportStarError"]
+            | components["schemas"]["LazyImportError"]
             | components["schemas"]["MarimoAncestorStoppedError"]
             | components["schemas"]["MarimoAncestorPreventedError"]
             | components["schemas"]["MarimoExceptionRaisedError"]
@@ -5729,6 +5730,14 @@ export interface components {
       data: Record<string, any>;
       type: string;
     };
+    /** LazyImportError */
+    LazyImportError: {
+      /** @default null */
+      lineno?: number | null;
+      msg: string;
+      /** @enum {unknown} */
+      type: "lazy-import";
+    };
     /**
      * LintConfig
      * @description Configuration for lint rule selection.
@@ -5990,6 +5999,7 @@ export interface components {
       | components["schemas"]["CycleError"]
       | components["schemas"]["MultipleDefinitionError"]
       | components["schemas"]["ImportStarError"]
+      | components["schemas"]["LazyImportError"]
       | components["schemas"]["MarimoAncestorStoppedError"]
       | components["schemas"]["MarimoAncestorPreventedError"]
       | components["schemas"]["MarimoExceptionRaisedError"]
