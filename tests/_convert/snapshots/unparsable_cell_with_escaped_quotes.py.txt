@@ -8,7 +8,7 @@ app._unparsable_cell(
     r"""
     return
     """,
-    name="_"
+    name="_",
 )
 
 
@@ -18,7 +18,7 @@ app._unparsable_cell(
     x = "hello \"world\"
     x.
     """,
-    name="_"
+    name="_",
 )
 
 
@@ -28,7 +28,7 @@ app._unparsable_cell(
     x = "hello \"\"\"world\"\"\""
     x.
     """,
-    name="_"
+    name="_",
 )
 
 
@@ -39,7 +39,7 @@ app._unparsable_cell(
     path = "C:\\Users\\test"
     x.
     """,
-    name="_"
+    name="_",
 )
 
 
