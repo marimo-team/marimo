@@ -59,6 +59,32 @@ def test_loads_rejects_multiple_blocks(separator: str) -> None:
         script_metadata.loads(block + separator + block)
 
 
+def test_loads_reads_block_after_bom() -> None:
+    script = '\ufeff# /// script\n# dependencies = ["numpy"]\n# ///\n'
+    assert script_metadata.loads(script) == {"dependencies": ["numpy"]}
+
+
+def test_write_manifest_replaces_block_after_bom(tmp_path: Path) -> None:
+    path = tmp_path / "notebook.py"
+    path.write_text(
+        '# /// script\n# dependencies = ["numpy"]\n# ///\nprint("hi")\n',
+        encoding="utf-8-sig",
+    )
+    previous = script_metadata.read_manifest(str(path))
+    assert previous == 'dependencies = ["numpy"]\n'
+
+    script_metadata.write_manifest(
+        str(path), 'dependencies = ["numpy", "polars"]\n', previous=previous
+    )
+
+    source = path.read_text(encoding="utf-8")
+    assert source.count("# /// script") == 1
+    assert script_metadata.loads(source) == {
+        "dependencies": ["numpy", "polars"]
+    }
+    compile(source, str(path), "exec")
+
+
 def test_loads_ignores_other_block_types() -> None:
     script = (
         "# /// script\n# dependencies = []\n# ///\n"
