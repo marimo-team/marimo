@@ -33,11 +33,15 @@ export function normalizeConfiguredColumns(
   return data.map((row) => {
     const normalizedRow = { ...row };
     for (const [columnName, columnType] of columnTypes) {
-      if (columnType === "boolean" && columnName in normalizedRow) {
-        normalizedRow[columnName] = normalizeBoolean(
-          normalizedRow[columnName],
-          columnName,
-        );
+      if (!(columnName in normalizedRow)) {
+        continue;
+      }
+      const value = normalizedRow[columnName];
+      if (columnType === "boolean") {
+        normalizedRow[columnName] = normalizeBoolean(value, columnName);
+      } else if (typeof value === "number" || typeof value === "bigint") {
+        // CSV auto-parsing turns numeric-looking options into numbers.
+        normalizedRow[columnName] = String(value);
       }
     }
     return normalizedRow;

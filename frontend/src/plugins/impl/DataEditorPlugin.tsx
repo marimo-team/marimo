@@ -115,9 +115,10 @@ const LoadingDataEditor = (props: Props) => {
       props.fieldTypes ?? inferFieldTypes(localData),
     );
     for (const [columnName, columnType] of columnTypes) {
-      if (columnType === "boolean") {
-        inferredFields.set(columnName, "boolean");
-      }
+      inferredFields.set(
+        columnName,
+        columnType === "boolean" ? "boolean" : "string",
+      );
     }
 
     return {
