@@ -180,6 +180,25 @@ def test_data_editor_dropdown_dataframe():
     assert result["status"].tolist() == ["closed", "closed"]
 
 
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+@pytest.mark.parametrize("options", [["open", "closed"], ["1", "2"]])
+def test_data_editor_dropdown_keeps_string_in_empty_numeric_dataframe(
+    options: list[str],
+):
+    import pandas as pd
+
+    editor = data_editor(
+        pd.DataFrame({"status": pd.Series([], dtype="int64")}),
+        column_types={"status": options},
+    )
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "status", "value": options[0]}]
+    }
+
+    result = editor._convert_value(edits)
+    assert result["status"].tolist() == [options[0]]
+
+
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )

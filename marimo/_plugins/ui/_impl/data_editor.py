@@ -345,12 +345,14 @@ class _EditableTable:
             if dtype is not None
             else self.conversion_examples.get(column_id)
         )
-        column_type = self.column_types.get(column_id)
-        converted_value = (
-            _normalize_boolean(edit["value"], column_id)
-            if column_type == "boolean"
-            else _convert_value(edit["value"], conversion_value, dtype)
-        )
+        if configured_type == "boolean":
+            converted_value = _normalize_boolean(edit["value"], column_id)
+        elif isinstance(configured_type, list):
+            converted_value = edit["value"]
+        else:
+            converted_value = _convert_value(
+                edit["value"], conversion_value, dtype
+            )
         if isinstance(self.data, list):
             self.data[row_idx][column_id] = converted_value
         else:
