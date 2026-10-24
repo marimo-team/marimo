@@ -6,9 +6,15 @@ import type { DataType } from "@/core/kernel/messages";
 
 export type EditorRow = Record<string, unknown>;
 
+// Shared transport for specialized column editors: dropdown columns use a
+// string array, while checkbox columns use the boolean discriminator.
+export type ColumnType = "boolean" | string[];
+export type ColumnTypes = Map<string, ColumnType>;
+
 export interface EditorState {
   data: EditorRow[];
   columnFields: FieldTypes;
+  columnTypes: ColumnTypes;
 }
 
 export interface PositionalEdit {
@@ -57,4 +63,5 @@ export interface Edits {
 export type ModifiedGridColumn = GridColumn & {
   kind: GridCellKind;
   dataType: DataType;
+  configuredType?: ColumnType;
 };

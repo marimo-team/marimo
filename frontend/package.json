@@ -44,6 +44,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@glideapps/glide-data-grid": "6.0.4-alpha24",
+    "@glideapps/glide-data-grid-cells": "6.0.4-alpha24",
     "@hookform/resolvers": "^5.9.1",
     "@img-comparison-slider/react": "^8.0.2",
     "@internationalized/date": "^3.12.4",
