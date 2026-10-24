@@ -172,7 +172,6 @@ def watch_and_export(
             output.write_bytes(result.bytez)
         else:
             echo(result.text)
-        return
 
     if output:
         output_path = Path(output)

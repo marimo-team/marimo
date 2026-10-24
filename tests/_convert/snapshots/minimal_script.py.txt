@@ -9,7 +9,6 @@ def _():
     x = 5
     y = 10
     print(x + y)
-    return
 
 
 if __name__ == "__main__":

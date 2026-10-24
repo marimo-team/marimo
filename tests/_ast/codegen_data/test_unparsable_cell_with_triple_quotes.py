@@ -7,7 +7,6 @@ app = marimo.App()
 @app.cell
 def _():
     x = 1
-    return
 
 
 app._unparsable_cell(

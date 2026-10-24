@@ -378,7 +378,6 @@ ignore = [
     "PT011", # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
     "E501",  # Line too long, we still trim
     "D415", # First line should end with a period, question mark, or exclamation point
-    "PLR1711", # Useless returns. We use this currently to delimit the end of a cell.
     "ASYNC119", # Yield in context manager in async generator; required for streaming generators (LLM/SSE), no clean refactor
     # Enabled by the Python 3.11 target. Both need deliberate migrations.
     "ASYNC109", # Async function with a `timeout` parameter; callers should use `asyncio.timeout`
@@ -465,6 +464,7 @@ extend-select = [
     "D211",  # No blank lines allowed before class docstring
     "D214",  # Section is over-indented
     "D215",  # Section underline is over-indented
+    "PLR1711", # Useless return statements
     "PLW1514", # Unspecified encoding in open()
     "UP",  # Upgrades
 ]

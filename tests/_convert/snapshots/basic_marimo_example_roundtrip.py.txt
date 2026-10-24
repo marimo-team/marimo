@@ -9,7 +9,6 @@ def _(mo):
     mo.md(r"""
     This is a simple marimo notebook
     """)
-    return
 
 
 @app.cell
@@ -22,7 +21,6 @@ def _():
 def _(x):
     y = x+1
     y
-    return
 
 
 @app.cell
