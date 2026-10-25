@@ -614,17 +614,11 @@ class table(
         """
         Create a table from a lazy dataframe (e.g., Polars LazyFrame, Ibis Table, DuckDB Relation).
 
-        This won't load the data into memory until requested by the user,
-        unless `preload=True`. Pages are fetched without counting the full result.
-        Polars, Ibis, and DuckDB collect at most `page_size` rows plus one row
-        to check whether another page exists. Other Narwhals backends may also
-        collect preceding rows. Query engines may still scan or sort the source.
+        Data loads on request without counting the full result.
+        Pagination is supported; selection is not.
 
-        Each page reruns the query. Sort by a unique key for a consistent order,
-        and keep the source unchanged while paging: inserted or deleted rows can
-        shift page boundaries, causing rows to be skipped or repeated. The table
-        does not keep a snapshot of the source.
-        Selection is not supported for lazy tables.
+        Pages are queried independently. For consistent results, sort by a unique
+        key and keep the source unchanged.
 
         Args:
             data (IntoLazyFrame): The data to display.
