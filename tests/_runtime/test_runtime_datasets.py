@@ -84,6 +84,43 @@ async def connection_requests() -> list[ExecuteCellCommand]:
 
 @pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")
 class TestPreviewSQLTable:
+    async def test_internal_duckdb_nested_table(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        import duckdb
+
+        from marimo._sql.utils import is_duckdb_v2
+
+        if not is_duckdb_v2():
+            pytest.skip("Nested schemas require DuckDB 2")
+        try:
+            duckdb.execute(
+                "CREATE SCHEMA preview_nested; CREATE SCHEMA preview_nested.reports; CREATE TABLE preview_nested.reports.sales (amount INT)"
+            )
+            await mocked_kernel.k.handle_message(
+                PreviewSQLTableCommand(
+                    request_id=RequestId("nested"),
+                    engine=INTERNAL_DUCKDB_ENGINE,
+                    database="memory",
+                    schema="reports",
+                    schema_path=["preview_nested", "reports"],
+                    table_name="sales",
+                )
+            )
+            results = [
+                op
+                for op in mocked_kernel.stream.operations
+                if isinstance(op, SQLTablePreviewNotification)
+            ]
+            assert len(results) == 1
+            assert results[0].error is None
+            assert results[0].table is not None
+            assert results[0].table.columns[0].name == "amount"
+        finally:
+            duckdb.execute(
+                "DROP SCHEMA IF EXISTS memory.preview_nested CASCADE"
+            )
+
     async def test_non_existent_engine(
         self, mocked_kernel: MockedKernel
     ) -> None:
