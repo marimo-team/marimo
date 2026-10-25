@@ -368,9 +368,9 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
 
     def _table_rows(
         self, schema: _CatalogSchema, table_name: str | None = None
-    ) -> list[Any]:
+    ) -> list[tuple[str, DataTableType]]:
         predicate = "NOT internal AND database_name = ? AND schema_oid = ?"
-        params: list[Any] = [schema.database, schema.oid]
+        params: list[str | int] = [schema.database, schema.oid]
         if table_name is not None:
             predicate += " AND table_name = ?"
             params.append(table_name)
@@ -434,7 +434,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
             "SELECT database_name, schema_oid, table_name, column_name, data_type "
             "FROM duckdb_columns() WHERE NOT internal"
         )
-        params: list[Any] = []
+        params: list[str | int] = []
         if database is not None:
             query += " AND database_name = ?"
             params.append(database)
