@@ -23,9 +23,15 @@ export function initialDocument(): Document {
   const cells = new Map<Protocol.CellId, Protocol.Cell>();
   let revision: Protocol.Document | undefined;
   for (const event of fixtureEvents("notebook-events.sse")) {
-    if (event.event === "ready") {break;}
-    if (event.event === "cell") {cells.set(event.data.cell.id, event.data.cell);}
-    if (event.event === "document") {revision = event.data.document;}
+    if (event.event === "ready") {
+      break;
+    }
+    if (event.event === "cell") {
+      cells.set(event.data.cell.id, event.data.cell);
+    }
+    if (event.event === "document") {
+      revision = event.data.document;
+    }
   }
   invariant(revision !== undefined, "Fixture has no document");
   return { revision, cells };

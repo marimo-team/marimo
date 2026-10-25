@@ -24,9 +24,15 @@ export function createUser(
     ) {
       store.set(model.editAtom, (tx) => {
         for (const [id, patch] of Object.entries(changes)) {
-          if (patch.code !== undefined) {tx.setCode(id, patch.code);}
-          if (patch.name !== undefined) {tx.setName(id, patch.name);}
-          if (patch.config !== undefined) {tx.updateConfig(id, patch.config);}
+          if (patch.code !== undefined) {
+            tx.setCode(id, patch.code);
+          }
+          if (patch.name !== undefined) {
+            tx.setName(id, patch.name);
+          }
+          if (patch.config !== undefined) {
+            tx.updateConfig(id, patch.config);
+          }
         }
       });
     },
