@@ -210,7 +210,7 @@ class TestFindSQLDefs:
                     table="представление", catalog="каталог", schema="схема"
                 )
             ],
-            schemas=["схема"],
+            schemas=["каталог.схема"],
             reffed_catalogs=["каталог", "каталог", "каталог"],
             reffed_schemas=["схема", "схема"],
         )
@@ -494,7 +494,7 @@ class TestFindSQLDefs:
         CREATE SCHEMA my_catalog.my_schema;
         """
         assert find_sql_defs(sql) == SQLDefs(
-            schemas=["my_schema"],
+            schemas=["my_catalog.my_schema"],
             reffed_catalogs=["my_catalog"],
         )
 
@@ -1301,3 +1301,75 @@ def test_nested_sql_identifier_paths(parts: list[str]) -> None:
     assert find_sql_refs(f"SELECT * FROM {name}") == {ref}
     assert find_sql_defs(f"CREATE TABLE {name} (id INT)").tables == [ref]
     assert SQLRef.from_qualified_name(ref.qualified_name) == ref
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+def test_main_shorthand_respects_nested_schema_ambiguity() -> None:
+    ref = SQLRef.from_parts(["parent", "main", "sales"])
+    definition = SQLRef.from_parts(["parent", "sales"])
+    assert not ref.matches_hierarchical_ref("sales", definition, "table")
+
+
+@pytest.mark.parametrize(
+    ("reference", "definition"),
+    [
+        ("memory.finance.reports.sales", "finance"),
+        ("finance.reports.sales", "memory.finance"),
+        ("finance.reports.sales", "memory.finance.reports"),
+        ("memory.finance.reports.sales", "finance.reports"),
+    ],
+)
+def test_sql_schema_dependency_with_default_catalog(
+    reference: str, definition: str
+) -> None:
+    ref = SQLRef.from_qualified_name(reference)
+    schema = SQLRef.from_qualified_name(definition)
+    assert ref.matches_hierarchical_ref(schema.table, schema, "schema")
+
+
+@pytest.mark.parametrize(
+    ("reference", "definition", "expected"),
+    [
+        (["finance.reports", "sales"], ["finance.reports", "sales"], True),
+        (["finance.reports", "sales"], ["finance", "reports", "sales"], False),
+        (
+            ["finance", "reports", 'sal"es'],
+            ["finance", "reports", 'sal"es'],
+            True,
+        ),
+        (["memory", "finance", "sales"], ["finance", "sales"], True),
+        (["attached", "sales"], ["attached", "main", "sales"], True),
+    ],
+)
+def test_sql_dependency_matching_preserves_identifier_segments(
+    reference: list[str], definition: list[str], expected: bool
+) -> None:
+    ref = SQLRef.from_parts(reference)
+    target = SQLRef.from_parts(definition)
+    assert (
+        ref.matches_hierarchical_ref(
+            target.table, target, "table", catalogs=frozenset({"attached"})
+        )
+        == expected
+    )
+
+
+def test_sql_catalog_matching_is_case_insensitive() -> None:
+    ref = SQLRef.from_parts(["attached", "main", "sales"])
+    assert ref.matches_hierarchical_ref(
+        "Attached", SQLRef(table="Attached"), "catalog"
+    )
+
+
+def test_catalog_only_constructor_keeps_explicit_catalog_binding() -> None:
+    reference = SQLRef(table="sales", catalog="Attached")
+    assert reference.split_catalog(frozenset()) == ("attached", ("sales",))
+    assert reference.matches_hierarchical_ref(
+        "sales",
+        SQLRef.from_parts(["attached", "main", "sales"]),
+        "table",
+        catalogs=frozenset({"attached"}),
+    )
+    assert not reference.matches_hierarchical_ref(
+        "sales", SQLRef.from_parts(["memory", "attached", "sales"]), "table"
+    )

@@ -325,6 +325,7 @@ class App:
                             defs=cell_impl.defs,
                             refs=cell_impl.refs,
                             sql_refs=cell_impl.sql_refs,
+                            sql_namespace_refs=cell_impl.sql_namespace_refs.copy(),
                             temporaries=cell_impl.temporaries,
                             closed_over_temporaries=cell_impl.closed_over_temporaries,
                             variable_data=cell_impl.variable_data,

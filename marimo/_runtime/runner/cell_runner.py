@@ -757,6 +757,12 @@ class Runner:
     ) -> CellId_t | None:
         """Return the first out-of-run ancestor still in a stopped/errored state."""
         cell = self.graph.cells[cell_id]
+        for parent in sorted(self.graph.get_sql_namespace_parents(cell_id)):
+            if (
+                parent not in self._run_position
+                and self.graph.cells[parent].run_result_status == "exception"
+            ):
+                return parent
         for ref in cell.refs:
             if ref in self.glbls:
                 # The reference is already available

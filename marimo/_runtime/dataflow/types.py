@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from marimo._types.ids import CellId_t
 
 # Edge is a tuple of (parent, child) cell IDs
@@ -14,3 +16,10 @@ Edge = tuple[CellId_t, CellId_t]
 # the source read by the destination; and the third entry is the destination
 # node.
 EdgeWithVar = tuple[CellId_t, tuple[str, ...], CellId_t]
+
+
+@dataclass(frozen=True)
+class GraphMutationResult:
+    """Existing cells whose dependencies changed during a graph mutation."""
+
+    affected_cells: frozenset[CellId_t] = frozenset()
