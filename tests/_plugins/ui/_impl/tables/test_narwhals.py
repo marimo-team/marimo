@@ -1007,6 +1007,30 @@ def test_empty_dataframe(df: Any) -> None:
 
 
 @pytest.mark.parametrize(
+    "df",
+    create_dataframes({"value": range(5)}, include=["pandas", "pyarrow"]),
+)
+@pytest.mark.parametrize(
+    ("count", "offset", "expected"),
+    [(2, 0, [0, 1]), (2, 4, [4]), (2, 5, []), (0, 3, [])],
+)
+def test_take_lazy_without_native_slice(
+    df: Any, count: int, offset: int, expected: list[int]
+) -> None:
+    source = nw.from_native(df).lazy()
+    manager = NarwhalsTableManager.from_dataframe(source)
+
+    page = manager.take(count, offset)
+
+    assert json.loads(page.to_json_str()) == [
+        {"value": value} for value in expected
+    ]
+    assert source.collect().to_dict(as_series=False) == {
+        "value": list(range(5))
+    }
+
+
+@pytest.mark.parametrize(
     "df", create_dataframes({"A": [1, 2, 3]}, exclude=["duckdb"])
 )
 @pytest.mark.parametrize(("threshold", "expected"), [(0, 3), (1, 2), (3, 0)])

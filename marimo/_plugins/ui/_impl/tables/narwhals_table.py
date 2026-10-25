@@ -13,6 +13,11 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import msgspec
 import narwhals.stable.v2 as nw
+from narwhals.dependencies import (
+    is_duckdb_relation,
+    is_ibis_table,
+    is_polars_lazyframe,
+)
 from narwhals.typing import IntoDataFrameT, IntoLazyFrameT
 
 from marimo import _loggers
@@ -444,41 +449,34 @@ class NarwhalsTableManager(
             raise ValueError("Offset must be a non-negative integer")
 
         if is_narwhals_lazyframe(self.data):
-            if self.data.implementation.is_polars():
-                import polars as pl
-
-                frame = self.data.to_native()
-                if isinstance(frame, pl.LazyFrame):
-                    return self.with_new_data(
-                        nw.from_native(frame.slice(offset, count))
-                    )
-            elif self.data.implementation.is_duckdb():
-                import duckdb
-
-                relation = self.data.to_native()
-                if isinstance(relation, duckdb.DuckDBPyRelation):
-                    return self.with_new_data(
-                        nw.from_native(relation.limit(count, offset=offset))
-                    )
-            elif self.data.implementation.is_ibis():
-                import ibis  # type: ignore
-
-                table = self.data.to_native()
-                if isinstance(table, ibis.Table):
-                    return self.with_new_data(
-                        nw.from_native(table.limit(count, offset=offset))
-                    )
+            return self._take_lazy(self.data, count, offset)
 
         if offset == 0:
             return self.with_new_data(self.data.head(count))
-        else:
-            if is_narwhals_lazyframe(self.data):
-                # Lazyframes do not support slicing, https://github.com/narwhals-dev/narwhals/issues/2389
-                # So we collect the first n rows
-                data = self.data.head(offset + count).collect()
-                return self.with_new_data(data[offset : offset + count])
-            else:
-                return self.with_new_data(self.data[offset : offset + count])
+        return self.with_new_data(self.data[offset : offset + count])
+
+    def _take_lazy(
+        self, frame: nw.LazyFrame[IntoLazyFrameT], count: int, offset: int
+    ) -> TableManager[Any]:
+        native = frame.to_native()
+        if is_polars_lazyframe(native):
+            return self.with_new_data(
+                nw.from_native(native.slice(offset, count))
+            )
+        if is_duckdb_relation(native):
+            return self.with_new_data(
+                nw.from_native(native.limit(count, offset=offset))
+            )
+        if is_ibis_table(native):
+            return self.with_new_data(
+                nw.from_native(native.limit(count, offset=offset))
+            )
+
+        if offset == 0:
+            return self.with_new_data(frame.head(count))
+        # Narwhals has no portable lazy slicing API for the other backends.
+        data = frame.head(offset + count).collect()
+        return self.with_new_data(data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
         pattern = f"(?i){regex_literal(query)}"

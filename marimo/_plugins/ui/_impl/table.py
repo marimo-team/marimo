@@ -258,6 +258,12 @@ class SearchTableResponse:
 
 
 @dataclass(frozen=True)
+class _TablePage:
+    manager: TableManager[Any]
+    has_next_page: bool | None = None
+
+
+@dataclass(frozen=True)
 class GetSizeBytesResponse:
     size_bytes: int | None = None
 
@@ -608,12 +614,16 @@ class table(
         """
         Create a table from a lazy dataframe (e.g., Polars LazyFrame, Ibis Table, DuckDB Relation).
 
-        This won't load the data into memory until requested by the user.
-        Each page fetches at most `page_size` rows plus one row to check
-        whether another page exists, without counting the full result.
+        This won't load the data into memory until requested by the user,
+        unless `preload=True`. Pages are fetched without counting the full result.
+        Polars, Ibis, and DuckDB collect at most `page_size` rows plus one row
+        to check whether another page exists. Other Narwhals backends may also
+        collect preceding rows. Query engines may still scan or sort the source.
 
-        For consistent paging, sort by a unique key and keep the source unchanged.
-        Pages are queried independently; the table does not snapshot the source.
+        Each page reruns the query. Sort by a unique key for a consistent order,
+        and keep the source unchanged while paging: inserted or deleted rows can
+        shift page boundaries, causing rows to be skipped or repeated. The table
+        does not keep a snapshot of the source.
         Selection is not supported for lazy tables.
 
         Args:
@@ -1788,6 +1798,38 @@ class table(
             result[row_str] = row_hovers
         return result
 
+    def _clamp_columns(
+        self, manager: TableManager[Any], max_columns: int | None
+    ) -> TableManager[Any]:
+        column_names = manager.get_column_names()
+        if max_columns is None or len(column_names) <= max_columns:
+            return manager
+
+        columns_to_select = column_names[:max_columns]
+        # Selection needs stable row IDs even when columns are clamped.
+        if self._has_stable_row_id:
+            columns_to_select = [INDEX_COLUMN_NAME] + columns_to_select
+        return manager.select_columns(columns_to_select)
+
+    def _prepare_page(
+        self, manager: TableManager[Any], page_size: int
+    ) -> _TablePage:
+        if not self._lazy or not isinstance(manager, NarwhalsTableManager):
+            return _TablePage(manager)
+
+        frame = manager.as_frame()
+        return _TablePage(
+            manager=get_table_manager(frame.head(page_size).to_native()),
+            has_next_page=frame.shape[0] > page_size,
+        )
+
+    def _serialize_page(
+        self, manager: TableManager[Any]
+    ) -> tuple[str, str | None]:
+        formatted = manager.to_json_str(self._format_mapping)
+        raw = manager.to_json_str() if self._format_mapping else None
+        return formatted, raw
+
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         """Search and filter the table data.
 
@@ -1820,87 +1862,38 @@ class table(
         self._current_filters = args.filters
         self._current_query = args.query
 
-        def clamp_rows_and_columns(
-            manager: TableManager[Any],
-        ) -> tuple[str, str | None, bool | None]:
-            # Limit to page and column clamping for the frontend
-            data = manager.take(args.page_size + int(self._lazy), offset)
-            column_names = data.get_column_names()
-
-            # Do not clamp if max_columns is None
-            if max_columns is not None and len(column_names) > max_columns:
-                columns_to_select = column_names[:max_columns]
-                # Always include _marimo_row_id so the frontend can use
-                # stable row IDs for selection, even when columns are clamped.
-                # Without this, filtering + selecting returns wrong rows.
-                if self._has_stable_row_id:
-                    columns_to_select = [INDEX_COLUMN_NAME] + columns_to_select
-                data = data.select_columns(columns_to_select)
-
-            try:
-                has_next_page = None
-                if self._lazy and isinstance(data, NarwhalsTableManager):
-                    frame = data.as_frame()
-                    has_next_page = frame.shape[0] > args.page_size
-                    data = get_table_manager(
-                        frame.head(args.page_size).to_native()
-                    )
-                formatted = data.to_json_str(self._format_mapping)
-                raw = data.to_json_str() if self._format_mapping else None
-                return formatted, raw, has_next_page
-            except BaseException as e:
-                # Catch and re-raise the error as a non-BaseException
-                # to avoid crashing the kernel
-                raise TableSearchError(str(e)) from e
-
-        # If no query or sort, return nothing
-        # The frontend will just show the original data
-        total_rows: int | Literal["too_many"]
         if not args.query and not args.sort and not args.filters:
-            self._searched_manager = self._manager
-            if self._lazy:
-                total_rows = "too_many"
-            else:
-                total_rows = self._manager.get_num_rows(force=True) or 0
-
-            formatted_data, raw_data, has_next_page = clamp_rows_and_columns(
-                self._manager
+            result = self._manager
+        else:
+            filter_function = (
+                self._apply_filters_query_sort_cached
+                if is_hashable(args.filters, args.query, args.sort)
+                else self._apply_filters_query_sort
             )
-            return SearchTableResponse(
-                data=formatted_data,
-                total_rows=total_rows,
-                cell_styles=self._style_cells(
-                    offset, args.page_size, total_rows
-                ),
-                cell_hover_texts=self._hover_cells(
-                    offset, args.page_size, total_rows
-                ),
-                raw_data=raw_data,
-                has_next_page=has_next_page,
+            result = filter_function(
+                args.filters,
+                args.query,
+                tuple(args.sort) if args.sort else None,  # type: ignore
             )
-
-        filter_function = (
-            self._apply_filters_query_sort_cached
-            if is_hashable(args.filters, args.query, args.sort)
-            else self._apply_filters_query_sort
-        )
-        result = filter_function(
-            args.filters,
-            args.query,
-            tuple(args.sort) if args.sort else None,  # type: ignore
-        )
 
         # Save the manager to be used for selection
         self._searched_manager = result
 
+        total_rows: int | Literal["too_many"]
         if self._lazy:
             total_rows = "too_many"
         else:
             total_rows = result.get_num_rows(force=True) or 0
 
-        formatted_data, raw_data, has_next_page = clamp_rows_and_columns(
-            result
-        )
+        count = args.page_size + 1 if self._lazy else args.page_size
+        data = self._clamp_columns(result.take(count, offset), max_columns)
+        try:
+            page = self._prepare_page(data, args.page_size)
+            formatted_data, raw_data = self._serialize_page(page.manager)
+        except BaseException as e:
+            # Translate native panics so they do not crash the kernel.
+            raise TableSearchError(str(e)) from e
+
         return SearchTableResponse(
             data=formatted_data,
             total_rows=total_rows,
@@ -1909,7 +1902,7 @@ class table(
                 offset, args.page_size, total_rows
             ),
             raw_data=raw_data,
-            has_next_page=has_next_page,
+            has_next_page=page.has_next_page,
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:
