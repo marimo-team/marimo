@@ -556,21 +556,28 @@ export const LoadingDataTableComponent = memo(
       setPaginationState({ pageIndex: 0, pageSize: props.pageSize });
     }
 
-    const [previousQuery, setPreviousQuery] = useState({
-      sorting,
-      filters,
-      searchQuery,
-    });
-    if (
-      previousQuery.sorting !== sorting ||
-      previousQuery.filters !== filters ||
-      previousQuery.searchQuery !== searchQuery
-    ) {
-      setPreviousQuery({ sorting, filters, searchQuery });
+    const resetLazyPage = useEvent(() => {
       if (props.lazy) {
-        setPaginationState((state) => ({ ...state, pageIndex: 0 }));
+        setPaginationState((state) =>
+          state.pageIndex === 0 ? state : { ...state, pageIndex: 0 },
+        );
       }
-    }
+    });
+
+    const handleSortingChange: OnChangeFn<SortingState> = useEvent(
+      (updater) => {
+        setSorting(updater);
+        resetLazyPage();
+      },
+    );
+    const handleFiltersChange: SetFilters = useEvent((updater) => {
+      setFilters(updater);
+      resetLazyPage();
+    });
+    const handleSearchQueryChange = useEvent((query: string) => {
+      setSearchQuery(query);
+      resetLazyPage();
+    });
 
     // Data loading
     const { data, error, isPending, isFetching } = useAsyncData<{
@@ -801,11 +808,11 @@ export const LoadingDataTableComponent = memo(
         rawData={data?.rawRows}
         columnSummaries={columnSummaries}
         sorting={sorting}
-        setSorting={setSorting}
+        setSorting={handleSortingChange}
         searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
+        setSearchQuery={handleSearchQueryChange}
         filters={filters}
-        setFilters={setFilters}
+        setFilters={handleFiltersChange}
         reloading={isFetching && !isPending}
         totalRows={data?.totalRows ?? props.totalRows}
         hasNextPage={
