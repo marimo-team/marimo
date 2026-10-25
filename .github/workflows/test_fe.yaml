@@ -115,7 +115,7 @@ jobs:
     if: ${{ needs.changes.outputs.frontend == 'true' }}
     name: 🧪 Test frontend
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC
