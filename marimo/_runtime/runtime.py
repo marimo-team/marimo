@@ -128,6 +128,7 @@ from marimo._runtime.context.kernel_context import (
 )
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._runtime.dataflow.definitions import effective_variable_definitions
 from marimo._runtime.execution import ExecutionAttempt
 from marimo._runtime.input_override import getpass_override
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
@@ -145,6 +146,10 @@ from marimo._runtime.runner.hooks import (
     Priority,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._runtime.sql_cleanup import (
+    SQLCleanupState,
+    capture_sql_cleanup_state,
+)
 from marimo._runtime.state import State
 from marimo._runtime.win32_interrupt_handler import (
     Win32InterruptHandler,
@@ -162,10 +167,6 @@ from marimo._sql.engines.types import (
 )
 from marimo._sql.get_engines import (
     get_engines_from_variables,
-)
-from marimo._sql.sql_quoting import (
-    quote_qualified_name,
-    quote_sql_identifier,
 )
 from marimo._tracer import attach_trace_context, kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
@@ -454,53 +455,6 @@ class CellMetadata:
     code: str | None = None
 
 
-def _get_attached_catalogs() -> set[str]:
-    """Fetch the names of all catalogs currently attached to DuckDB."""
-    import duckdb
-
-    try:
-        return {
-            row[0].lower()
-            for row in duckdb.sql(
-                "SELECT database_name FROM duckdb_databases()"
-            ).fetchall()
-        }
-    except Exception:
-        return set()
-
-
-def _in_memory_qualified_name(
-    variable: VariableData,
-    name: Name,
-    attached_catalogs: Callable[[], set[str]],
-) -> str | None:
-    """Resolve the quoted, qualified name of an in-memory table/view.
-
-    Returns `None` if the object doesn't live in the "memory" catalog.
-
-    `attached_catalogs` lazily resolves DuckDB's attached catalogs; callers
-    should memoize it when resolving many names, to avoid repeated queries.
-    """
-    sql_ref = variable.sql_ref
-    catalog = sql_ref.catalog if sql_ref else None
-    schema = sql_ref.schema if sql_ref else None
-
-    if catalog is None and schema is not None:
-        # A two-part name (e.g. `CREATE TABLE foo.bar ...`) is ambiguous:
-        # `foo` could be a schema in the default "memory" catalog, or
-        # shorthand for the catalog `foo` (i.e. `foo.main.bar`). Disambiguate
-        # against DuckDB's actual attached catalogs, so we don't mistake an
-        # attached database for a "memory" schema (or vice versa).
-        if schema.lower() in attached_catalogs():
-            catalog, schema = schema, "main"
-
-    catalog = catalog or "memory"
-    if catalog != "memory":
-        return None
-    schema = schema or "main"
-    return quote_qualified_name(catalog, schema, name)
-
-
 class Kernel:
     """Kernel that manages the dependency graph and its execution.
 
@@ -616,6 +570,7 @@ class Kernel:
             sys.path.insert(0, "")
 
         self.graph = dataflow.DirectedGraph()
+        self._sql_cleanup_states: dict[CellId_t, SQLCleanupState] = {}
         self.agent = Agent()
         # When autorun on startup is disabled, this holds cells that have
         # not yet been run; these cells are removed when they or their
@@ -1060,57 +1015,20 @@ class Kernel:
         self,
         variables: dict[Name, list[VariableData]],
         exclude_defs: set[Name],
+        sql_cleanup: SQLCleanupState | None,
     ) -> None:
-        """Delete `names` from kernel, except for `exclude_defs`"""
-        # Memoize the attached-catalog lookup
-        attached_catalogs: set[str] | None = None
-
-        def get_attached_catalogs() -> set[str]:
-            nonlocal attached_catalogs
-            if attached_catalogs is None:
-                attached_catalogs = _get_attached_catalogs()
-            return attached_catalogs
-
+        """Delete definitions using the catalog bindings from their execution."""
         for name, variable_data in variables.items():
-            # Take the last definition of the variable
-            variable = variable_data[-1]
             if name in exclude_defs:
                 continue
+            for variable in effective_variable_definitions(variable_data):
+                if variable.kind in ("table", "view", "catalog"):
+                    if sql_cleanup is None:
+                        continue
+                    if DependencyManager.duckdb.has():
+                        sql_cleanup.delete_definition(name, variable)
+                        continue
 
-            if variable.kind == "table" and DependencyManager.duckdb.has():
-                import duckdb
-
-                # We only drop in-memory tables: we don't want to drop tables
-                # on databases!
-                qualified = _in_memory_qualified_name(
-                    variable, name, get_attached_catalogs
-                )
-                if qualified is not None:
-                    try:
-                        duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
-                    except Exception as e:
-                        LOGGER.warning("Failed to drop table %s: %s", name, e)
-            elif variable.kind == "view" and DependencyManager.duckdb.has():
-                import duckdb
-
-                # We only drop in-memory views for the same reason.
-                qualified = _in_memory_qualified_name(
-                    variable, name, get_attached_catalogs
-                )
-                if qualified is not None:
-                    try:
-                        duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
-                    except Exception as e:
-                        LOGGER.warning("Failed to drop view %s: %s", name, e)
-            elif variable.kind == "catalog" and DependencyManager.duckdb.has():
-                import duckdb
-
-                try:
-                    identifier = quote_sql_identifier(name)
-                    duckdb.execute(f"DETACH DATABASE IF EXISTS {identifier}")
-                except Exception as e:
-                    LOGGER.warning("Failed to detach catalog %s: %s", name, e)
-            else:
                 if name in self.globals:
                     del self.globals[name]
 
@@ -1152,6 +1070,7 @@ class Kernel:
         self._delete_variables(
             {**cell.variable_data, **temporaries},
             exclude_defs if exclude_defs is not None else set(),
+            sql_cleanup=self._sql_cleanup_states.pop(cell_id, None),
         )
 
         missing_modules_after_deletion = (
@@ -1545,6 +1464,17 @@ class Kernel:
             for cid in ctx.cells_to_run:
                 self._invalidate_cell_state(cid)
 
+        def remember_sql_cleanup_state(
+            cell: CellImpl, ctx: hook_context.PreExecutionHookContext
+        ) -> None:
+            if cell.language != "sql":
+                return
+            state = capture_sql_cleanup_state(
+                cell.variable_data, ctx.graph.definition_registry.sql_catalogs
+            )
+            if state is not None:
+                self._sql_cleanup_states[cell.cell_id] = state
+
         def note_time_of_interruption(
             cell_impl: CellImpl,
             ctx: hook_context.PostExecutionHookContext,
@@ -1558,6 +1488,7 @@ class Kernel:
         # Copy hooks and add run-specific hooks
         run_hooks = self._hooks.copy()
         run_hooks.add_preparation(invalidate_state)
+        run_hooks.add_pre_execution(remember_sql_cleanup_state)
         run_hooks.add_post_execution(note_time_of_interruption, Priority.LATE)
         run_hooks.add_on_finish(self.packages_callbacks.missing_packages_hook)
         run_hooks.add_on_finish(self._propagate_kernel_errors)

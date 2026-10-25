@@ -1265,3 +1265,25 @@ class TestFindSQLRefs:
             SQLRef(table="table1"),
             SQLRef(table="table2"),
         }
+
+
+@pytest.mark.skipif(
+    not HAS_SQLGLOT or not HAS_DUCKDB, reason="SQL dependencies required"
+)
+@pytest.mark.parametrize(
+    "parts",
+    [
+        ["finance", "reports", "sales"],
+        ["memory", "finance", "reports", "sales"],
+        ["memory", "finance", "reports", "quarterly", "sales"],
+        ["finance.reports", "sales"],
+    ],
+)
+def test_nested_sql_identifier_paths(parts: list[str]) -> None:
+    from marimo._sql.sql_quoting import quote_qualified_name
+
+    name = quote_qualified_name(*parts)
+    ref = SQLRef.from_parts(parts)
+    assert find_sql_refs(f"SELECT * FROM {name}") == {ref}
+    assert find_sql_defs(f"CREATE TABLE {name} (id INT)").tables == [ref]
+    assert SQLRef.from_qualified_name(ref.qualified_name) == ref

@@ -256,14 +256,6 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                             continue
                         break
 
-                    # Assert parts is either 1, 2, or 3
-                    if len(parts) not in (1, 2, 3):
-                        LOGGER.warning(
-                            "Unexpected number of parts in CREATE TABLE: %s",
-                            parts,
-                            extra={"parts": parts},
-                        )
-
                     if is_table:
                         # only add the table name
                         created_tables.append(SQLRef.from_parts(parts))
@@ -337,46 +329,65 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class SQLRef:
-    # Tables are synonymous with views,
-    # since we can't know the difference in queries
     table: str
-    schema: str | None = None
-    catalog: str | None = None
+    qualifiers: tuple[str, ...]
+
+    def __init__(
+        self,
+        table: str,
+        schema: str | None = None,
+        catalog: str | None = None,
+        *,
+        qualifiers: tuple[str, ...] | None = None,
+    ) -> None:
+        object.__setattr__(self, "table", table)
+        object.__setattr__(
+            self,
+            "qualifiers",
+            qualifiers
+            if qualifiers is not None
+            else tuple(part for part in (catalog, schema) if part is not None),
+        )
+
+    @property
+    def schema(self) -> str | None:
+        return self.qualifiers[-1] if self.qualifiers else None
+
+    @property
+    def catalog(self) -> str | None:
+        return self.qualifiers[0] if len(self.qualifiers) > 1 else None
+
+    @property
+    def parts(self) -> tuple[str, ...]:
+        return (*self.qualifiers, self.table)
 
     @classmethod
-    def from_parts(
-        cls,
-        parts: list[str],
-    ) -> SQLRef:
-        catalog = None
-        schema = None
-        table = ""
-        if len(parts) == 3:
-            catalog, schema, table = parts
-            catalog = catalog.lower()
-            schema = schema.lower()
-        elif len(parts) == 2:
-            schema, table = parts
-            schema = schema.lower()
-        elif len(parts) == 1:
-            table = parts[0]
-        return cls(table=table.lower(), schema=schema, catalog=catalog)
+    def from_parts(cls, parts: list[str]) -> SQLRef:
+        return cls(
+            table=parts[-1].lower(),
+            qualifiers=tuple(part.lower() for part in parts[:-1]),
+        )
+
+    @classmethod
+    def from_qualified_name(cls, name: str) -> SQLRef:
+        parts = re.findall(r'"(?:[^"]|"")*"|[^.]+', name)
+        return cls.from_parts(
+            [
+                part[1:-1].replace('""', '"') if part.startswith('"') else part
+                for part in parts
+            ]
+        )
 
     @property
     def qualified_name(self) -> str:
-        """Convert a SQLRef to a fully qualified name to be used as a reference in the visitor"""
-        parts = []
-        if self.catalog is not None:
-            parts.append(self.catalog)
-        if self.schema is not None:
-            parts.append(self.schema)
+        def quote_part(part: str) -> str:
+            if "." in part or '"' in part:
+                return '"' + part.replace('"', '""') + '"'
+            return part
 
-        # Table is always required
-        parts.append(self.table)
-        name = ".".join(parts)
-        return name.lower()
+        return ".".join(quote_part(part.lower()) for part in self.parts)
 
     def matches_hierarchical_ref(
         self, name: str, ref: str, kind: SQLTypes = "any"
@@ -519,21 +530,12 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
         except AttributeError:
             # sqlglot may return Table nodes with this=None (e.g. DROP SCHEMA)
             return None
-        schema_name = table.db or None
-        catalog_name = table.catalog or None
-
         if table_name is None:
             return None
-
-        # Check if the table name looks like a URL or has a file extension.
-        # These are often not actual table references, so we skip them.
-        # Note that they can be valid table names, but we skip them to avoid circular deps
         if "://" in table_name or table_name.endswith(COMMON_FILE_EXTENSIONS):
             return None
-
-        return SQLRef(
-            table=table_name, schema=schema_name, catalog=catalog_name
-        )
+        parts = [part.name for part in table.parts]
+        return SQLRef(table=parts[-1], qualifiers=tuple(parts[:-1]))
 
     from sqlglot.errors import ParseError
 
