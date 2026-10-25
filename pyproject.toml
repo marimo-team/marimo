@@ -110,7 +110,7 @@ recommended = [
     "marimo-lens>=0.2.3",                        # Inspect and select notebook outputs
     "cryptography>=42.0.0",                      # Ed25519 signing of persistent cache manifests
     "altair>=5.4.0",                             # Plotting in datasource viewer
-    "pydantic-ai-slim[openai]>=2.34.0,<3.0.0",  # AI features
+    "pydantic-ai-slim[openai]>=2.60.0,<3.0.0",  # AI features
     "ruff",                                      # Formatting
     "nbformat>=5.7.0",                           # Export as IPYNB
 ]
@@ -150,7 +150,7 @@ dev = [
     # For linting
     "ruff>=0.16.6",
     # For AI
-    "pydantic-ai-slim[openai]>=2.34.0,<3.0.0",
+    "pydantic-ai-slim[openai]>=2.60.0,<3.0.0",
 ]
 
 test = [
@@ -223,7 +223,7 @@ test-optional = [
     "anywidget~=0.9.21",
     "ipython~=8.12.3",
     # testing gen ai
-    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=2.34.0,<3.0.0",
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=2.60.0,<3.0.0",
     # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
     "cachetools>=5.0.0",
     "boto3>=1.38.46",
@@ -264,7 +264,7 @@ typecheck = [
     "obstore>=0.8.2",
     "huggingface_hub>=1.24.0",
     "fsspec>=2026.2.0",
-    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=2.34.0,<3.0.0",
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=2.60.0,<3.0.0",
     "loro>=1.5.0",
     "boto3-stubs>=1.38.46",
     "pandas-stubs>=1.5.3.230321",
@@ -329,7 +329,13 @@ required-environments = [
 # Mirror CI's dependency window (UV_EXCLUDE_NEWER in .github/workflows) so local
 # resolution reproduces what CI resolves at setup time, including the ruff version.
 exclude-newer = "7 days"
-exclude-newer-package = { agent-plugins = false, marimo-lens = false }
+
+[tool.uv.exclude-newer-package]
+agent-plugins = false
+marimo-lens = false
+# Remove after 2026-10-30, when the Anthropic 2.x fix clears the release-age window.
+pydantic-ai-slim = false
+pydantic-graph = false
 
 [tool.uv.sources]
 marimo_docs = { path = "./docs", editable = true }
