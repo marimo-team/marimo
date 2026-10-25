@@ -677,6 +677,139 @@ describe("table pagination and static notebook control suppression", () => {
     ).toBe(true);
   });
 
+  it.each(["success", "error"] as const)(
+    "ignores a stale lazy page %s after the query changes",
+    async (outcome) => {
+      const props = makeProps();
+      const initial = {
+        data: [{ id: 1, name: "initial-page" }],
+        total_rows: "too_many" as const,
+        has_next_page: true,
+      };
+      const oldPage = new Deferred<typeof initial>();
+      const newQuery = new Deferred<typeof initial>();
+      const search = vi
+        .fn()
+        .mockResolvedValueOnce(initial)
+        .mockReturnValueOnce(oldPage.promise)
+        .mockReturnValueOnce(newQuery.promise);
+      render(
+        <Wrapper>
+          <LoadingDataTableComponent
+            {...props}
+            lazy={true}
+            totalRows="too_many"
+            selection={null}
+            showColumnSummaries={false}
+            search={search}
+          />
+        </Wrapper>,
+      );
+      await screen.findByText("initial-page");
+      fireEvent.click(screen.getByTestId("next-page-button"));
+      await waitFor(() =>
+        expect(search).toHaveBeenLastCalledWith(
+          expect.objectContaining({ page_number: 1 }),
+        ),
+      );
+      expect(screen.getByTestId("next-page-button")).toBeDisabled();
+
+      fireEvent.change(screen.getByPlaceholderText("Search..."), {
+        target: { value: "current" },
+      });
+      await waitFor(() =>
+        expect(search).toHaveBeenLastCalledWith(
+          expect.objectContaining({ query: "current", page_number: 0 }),
+        ),
+      );
+      await act(async () => {
+        newQuery.resolve({
+          data: [{ id: 2, name: "latest-page" }],
+          total_rows: "too_many",
+          has_next_page: false,
+        });
+      });
+      await screen.findByText("latest-page");
+
+      await act(async () => {
+        if (outcome === "success") {
+          oldPage.resolve({
+            ...initial,
+            data: [{ id: 3, name: "stale-result" }],
+          });
+        } else {
+          oldPage.reject(new Error("stale-page-error"));
+        }
+      });
+      expect(screen.getByText("latest-page")).toBeInTheDocument();
+      expect(screen.queryByText("stale-result")).not.toBeInTheDocument();
+      expect(screen.queryByText("stale-page-error")).not.toBeInTheDocument();
+      expect(screen.getByTestId("previous-page-button")).toBeDisabled();
+      expect(screen.getByTestId("next-page-button")).toBeDisabled();
+    },
+  );
+
+  it("recovers from a failed lazy page by navigating back", async () => {
+    const props = makeProps();
+    const initial = {
+      data: [{ id: 1, name: "initial-page" }],
+      total_rows: "too_many" as const,
+      has_next_page: true,
+    };
+    const failedPage = new Deferred<typeof initial>();
+    const search = vi
+      .fn()
+      .mockResolvedValueOnce(initial)
+      .mockReturnValueOnce(failedPage.promise)
+      .mockResolvedValueOnce({
+        ...initial,
+        data: [{ id: 1, name: "recovered-page" }],
+      })
+      .mockResolvedValueOnce({
+        ...initial,
+        data: [{ id: 2, name: "last-page" }],
+        has_next_page: false,
+      });
+    render(
+      <Wrapper>
+        <LoadingDataTableComponent
+          {...props}
+          lazy={true}
+          totalRows="too_many"
+          selection={null}
+          showColumnSummaries={false}
+          search={search}
+        />
+      </Wrapper>,
+    );
+    await screen.findByText("initial-page");
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 1 }),
+      ),
+    );
+    expect(screen.getByTestId("next-page-button")).toBeDisabled();
+    expect(screen.getByText("initial-page")).toBeInTheDocument();
+    await act(async () => {
+      failedPage.reject(new Error("page-fetch-failed"));
+    });
+    await screen.findByText("page-fetch-failed");
+    expect(screen.getByTestId("next-page-button")).toBeDisabled();
+    expect(screen.getByTestId("previous-page-button")).toBeEnabled();
+
+    fireEvent.click(screen.getByTestId("previous-page-button"));
+    await screen.findByText("recovered-page");
+    expect(search).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page_number: 0 }),
+    );
+    expect(screen.queryByText("page-fetch-failed")).not.toBeInTheDocument();
+    expect(screen.getByTestId("next-page-button")).toBeEnabled();
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await screen.findByText("last-page");
+    expect(screen.getByTestId("next-page-button")).toBeDisabled();
+  });
+
   it("requests only the first page with the new configured page size", async () => {
     const props = makeProps();
     const view = (pageSize: number) => (
