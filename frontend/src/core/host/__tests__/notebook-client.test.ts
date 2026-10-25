@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Deferred } from "@/utils/Deferred";
 import { ConnectionState } from "../../websocket/types";
 import type { ConnectionStatus } from "../connection";
-import { createNotebookClient } from "../notebook-client";
+import { createNotebookClient, type NotebookClient } from "../notebook-client";
 import { fixtureEvents, fixtureMessages } from "./fixtures";
 
 /** One connection the fake transport opened. */
@@ -22,7 +22,7 @@ interface Attempt {
   stop(status?: ConnectionStatus): void;
 }
 
-function setup() {
+function setup(edit?: NotebookClient["edit"]) {
   const attempts: Attempt[] = [];
   const transport: NotebookTransport = ({ cursor, signal }, handlers) =>
     new Promise((resolve, reject) => {
@@ -40,7 +40,7 @@ function setup() {
   const onNotification = vi.fn();
   const checkHealth = vi.fn(async () => true);
   const store = createStore();
-  const controller = createNotebookClient(store);
+  const controller = createNotebookClient(store, { edit });
   const client = controller.client;
   const connect = (signal: AbortSignal) =>
     controller.connect({
@@ -98,6 +98,62 @@ const notebook = {
 };
 
 describe("NotebookClient lifetime", () => {
+  it("keeps an edit's target and request identity across a stream reset", async () => {
+    const edit = vi.fn<NotebookClient["edit"]>().mockResolvedValue({
+      ok: false,
+      status: 409,
+      problem: { type: "conflict", title: "conflict", status: 409 },
+    });
+    const { connect, opened, client } = setup(edit);
+    connect(lifetime().signal);
+    const { receive } = await opened();
+    fixtureMessages("notebook-events.sse").forEach(receive);
+    const options = { idempotencyKey: "edit-1", signal: lifetime().signal };
+    await client.edit("n1", [], options);
+    receive({ event: "reset", data: {} });
+    await client.edit("n1", [], options);
+    expect(edit.mock.calls).toEqual([
+      ["n1", [], options],
+      ["n1", [], options],
+    ]);
+
+    receive({
+      event: "notebook",
+      data: { notebook: { ...notebook, id: "n2" } },
+    });
+    await expect(client.edit("n1", [], options)).rejects.toThrow(
+      "notebook changed",
+    );
+    expect(edit).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects aborted edits and reports a missing edit adapter", async () => {
+    const { client } = setup();
+    const controller = lifetime();
+    await expect(
+      client.edit("n1", [], {
+        idempotencyKey: "edit-1",
+        signal: controller.signal,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      status: 501,
+      problem: {
+        type: "tag:marimo.io,2026:host/unsupported-operation",
+        title: "Document editing is unavailable on this connection",
+        status: 501,
+      },
+    });
+    const reason = new Error("Session ended");
+    controller.abort(reason);
+    await expect(
+      client.edit("n1", [], {
+        idempotencyKey: "edit-1",
+        signal: controller.signal,
+      }),
+    ).rejects.toBe(reason);
+  });
+
   it("exposes identity and capabilities only after the notebook is ready", async () => {
     const { connect, opened, client, store } = setup();
     connect(lifetime().signal);
