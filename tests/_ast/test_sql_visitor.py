@@ -543,6 +543,20 @@ def test_find_sql_defs_duckdb_not_available() -> None:
 
 
 class TestSQLRefsConvertName:
+    def test_catalog_only_preserves_constructor_identity(self) -> None:
+        catalog = SQLRef(table="t", catalog="db")
+        schema = SQLRef(table="t", schema="db")
+        parsed = SQLRef.from_parts(["db", "t"])
+        assert (catalog.schema, catalog.catalog, catalog.parts) == (
+            None,
+            "db",
+            ("db", "t"),
+        )
+        assert schema == parsed
+        assert catalog != schema
+        assert catalog == SQLRef(table="t", catalog="db")
+        assert len({catalog, schema, parsed}) == 2
+
     def test_simple(self) -> None:
         ref = SQLRef(table="test_table")
         assert ref.qualified_name == "test_table"

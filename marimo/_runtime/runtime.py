@@ -1465,13 +1465,11 @@ class Kernel:
                 self._invalidate_cell_state(cid)
 
         def remember_sql_cleanup_state(
-            cell: CellImpl, ctx: hook_context.PreExecutionHookContext
+            cell: CellImpl, _ctx: hook_context.PreExecutionHookContext
         ) -> None:
             if cell.language != "sql":
                 return
-            state = capture_sql_cleanup_state(
-                cell.variable_data, ctx.graph.definition_registry.sql_catalogs
-            )
+            state = capture_sql_cleanup_state(cell.variable_data)
             if state is not None:
                 self._sql_cleanup_states[cell.cell_id] = state
 

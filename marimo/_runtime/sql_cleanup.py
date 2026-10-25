@@ -71,12 +71,19 @@ def in_memory_relation_path(
     attached_catalogs: frozenset[str],
 ) -> tuple[str, ...] | None:
     """Resolve an in-memory relation using its execution's catalog bindings."""
-    qualifiers = list(variable.sql_ref.qualifiers) if variable.sql_ref else []
+    sql_ref = variable.sql_ref
+    qualifiers = list(sql_ref.qualifiers) if sql_ref else []
     catalog = "memory"
     if qualifiers and (
-        qualifiers[0] == "memory" or qualifiers[0].lower() in attached_catalogs
+        qualifiers[0].lower() == "memory"
+        or qualifiers[0].lower() in attached_catalogs
+        or (
+            sql_ref is not None
+            and sql_ref.catalog is not None
+            and sql_ref.schema is None
+        )
     ):
-        catalog = qualifiers.pop(0)
+        catalog = qualifiers.pop(0).lower()
     if catalog != "memory":
         return None
     return (catalog, *(qualifiers or ["main"]), name)
@@ -84,7 +91,6 @@ def in_memory_relation_path(
 
 def capture_sql_cleanup_state(
     variable_data: Mapping[Name, Sequence[VariableData]],
-    declared_catalogs: frozenset[str],
 ) -> SQLCleanupState | None:
     """Record pre-existing objects before executing a cell's SQL."""
     variables = [
@@ -96,6 +102,11 @@ def capture_sql_cleanup_state(
     if not variables:
         return None
     live_catalogs = _get_attached_catalogs()
+    declared_catalogs = frozenset(
+        name.lower()
+        for name, variable in variables
+        if variable.kind == "catalog"
+    )
     catalogs = live_catalogs | declared_catalogs
     targets = {
         path

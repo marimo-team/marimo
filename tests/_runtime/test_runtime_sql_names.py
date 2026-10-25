@@ -36,3 +36,32 @@ def test_in_memory_sql_object_paths(
         )
         == expected
     )
+
+
+@pytest.mark.parametrize("catalogs", [frozenset(), frozenset({"memory"})])
+@pytest.mark.parametrize(
+    ("ref", "expected"),
+    [
+        (SQLRef("t", catalog="MEMORY"), ("memory", "main", "t")),
+        (
+            SQLRef("t", catalog="MEMORY", schema="MixedSchema"),
+            ("memory", "MixedSchema", "t"),
+        ),
+        (SQLRef("t", catalog="unknown_external"), None),
+        (
+            SQLRef("t", schema="unknown_external"),
+            ("memory", "unknown_external", "t"),
+        ),
+    ],
+)
+def test_explicit_catalog_paths(
+    ref: SQLRef,
+    expected: tuple[str, ...] | None,
+    catalogs: frozenset[str],
+) -> None:
+    assert (
+        in_memory_relation_path(
+            VariableData("table", sql_ref=ref), "t", catalogs
+        )
+        == expected
+    )

@@ -19,10 +19,7 @@ def test_python_definitions_do_not_inspect_sql_catalogs() -> None:
     with patch(
         "marimo._runtime.sql_cleanup._get_attached_catalogs"
     ) as catalogs:
-        assert (
-            capture_sql_cleanup_state({"value": [VariableData()]}, frozenset())
-            is None
-        )
+        assert capture_sql_cleanup_state({"value": [VariableData()]}) is None
     catalogs.assert_not_called()
 
 
@@ -46,8 +43,8 @@ def test_failed_inspection_protects_all_cleanup_targets() -> None:
             {
                 path[-1]: [variable],
                 "attached": [VariableData("catalog")],
+                "declared": [VariableData("catalog")],
             },
-            frozenset({"declared"}),
         )
     assert state is not None
     assert state == SQLCleanupState(
@@ -75,7 +72,7 @@ def test_existing_unbound_view_is_protected_without_querying_it() -> None:
         duckdb.execute(f"CREATE VIEW {qualified} AS SELECT * FROM {table}")
         duckdb.execute(f"DROP TABLE {table}")
         variable = VariableData("view", sql_ref=SQLRef(view))
-        state = capture_sql_cleanup_state({view: [variable]}, frozenset())
+        state = capture_sql_cleanup_state({view: [variable]})
         assert state is not None
         assert ("memory", "main", view) in state.protected_relations
 

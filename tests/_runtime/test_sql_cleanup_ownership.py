@@ -53,6 +53,50 @@ requires_sql = pytest.mark.skipif(
 
 
 @requires_sql
+async def test_skipped_attach_does_not_prevent_memory_relation_cleanup(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    import duckdb
+
+    alias = "cleanup_skipped_catalog"
+    try:
+        duckdb.execute(f"CREATE SCHEMA memory.{alias}")
+        await k.run([exec_req.get("import duckdb")])
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    "attach",
+                    f"if False:\n    duckdb.sql(\"ATTACH ':memory:' AS {alias}\")",
+                )
+            ]
+        )
+        assert alias in k.graph.definition_registry.sql_catalogs
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    "table",
+                    f'duckdb.sql("CREATE TABLE {alias}.sales AS SELECT 1 AS marker")',
+                )
+            ]
+        )
+        assert not k.errors
+        assert duckdb.sql(
+            f"SELECT * FROM memory.{alias}.sales"
+        ).fetchone() == (1,)
+
+        await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("table")))
+
+        assert duckdb.sql(
+            "SELECT count(*) FROM duckdb_tables() WHERE database_name = 'memory' "
+            "AND schema_name = ? AND table_name = 'sales'",
+            params=[alias],
+        ).fetchone() == (0,)
+    finally:
+        duckdb.execute(f"DETACH DATABASE IF EXISTS {alias}")
+        duckdb.execute(f"DROP SCHEMA IF EXISTS memory.{alias} CASCADE")
+
+
+@requires_sql
 async def test_cleanup_uses_catalog_binding_before_external_detach(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:

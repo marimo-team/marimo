@@ -333,6 +333,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
 class SQLRef:
     table: str
     qualifiers: tuple[str, ...]
+    _catalog_only: bool = field(repr=False)
 
     def __init__(
         self,
@@ -345,6 +346,11 @@ class SQLRef:
         object.__setattr__(self, "table", table)
         object.__setattr__(
             self,
+            "_catalog_only",
+            qualifiers is None and catalog is not None and schema is None,
+        )
+        object.__setattr__(
+            self,
             "qualifiers",
             qualifiers
             if qualifiers is not None
@@ -353,11 +359,19 @@ class SQLRef:
 
     @property
     def schema(self) -> str | None:
-        return self.qualifiers[-1] if self.qualifiers else None
+        return (
+            self.qualifiers[-1]
+            if self.qualifiers and not self._catalog_only
+            else None
+        )
 
     @property
     def catalog(self) -> str | None:
-        return self.qualifiers[0] if len(self.qualifiers) > 1 else None
+        return (
+            self.qualifiers[0]
+            if len(self.qualifiers) > 1 or self._catalog_only
+            else None
+        )
 
     @property
     def parts(self) -> tuple[str, ...]:
