@@ -112,7 +112,9 @@ it("removes an extra absent from available choices through a keyboard menu item"
   fireEvent.keyDown(remove, { key: "Enter" });
   fireEvent.click(screen.getByTestId("install-packages-button"));
   expect(client.sendInstallMissingPackages).toHaveBeenCalledExactlyOnceWith({
-    manager: "uv", source: "kernel", versions: { polars: "" },
+    manager: "uv",
+    source: "kernel",
+    versions: { polars: "" },
   });
 });
 

@@ -21,7 +21,9 @@ it.each(["Enter", " "])(
     const knownModel = [...getKnownModelMaps().modelMap.values()].find(
       (model) => model.provider === "openai",
     );
-    if (!knownModel) {throw new Error("Expected a known OpenAI model");}
+    if (!knownModel) {
+      throw new Error("Expected a known OpenAI model");
+    }
     const model = { ...knownModel, capabilities: [] };
     vi.spyOn(aiUtils, "listModelsForAiSettings").mockReturnValue([
       [model.provider, [model]],
