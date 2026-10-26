@@ -9,6 +9,7 @@ completion, so a background thread cannot write into a later attempt.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from threading import RLock
 from typing import Literal
 from uuid import uuid4
 
@@ -33,6 +34,9 @@ class ExecutionAttempt:
     run_id: str | None = field(default_factory=lambda: RUN_ID_CTX.get(None))
     completed: bool = False
     depends_on: dict[str, Revision | None] | None = None
+    _lock: RLock = field(
+        default_factory=RLock, init=False, repr=False, compare=False
+    )
 
     @classmethod
     def plan(cls, cell_id: CellId_t, code: str) -> ExecutionAttempt:
@@ -56,16 +60,29 @@ class ExecutionAttempt:
 
     def activate(self) -> execution_id_context:
         """Attribute output in this context to the attempt."""
-        return execution_id_context(self.cell_id, self.id)
+        return execution_id_context(self.cell_id, self.id, self)
 
     def start(self) -> None:
         self._notify("running")
 
     def finish(self) -> None:
         """Complete the attempt after its output and errors are reported."""
-        if not self.completed:
+        with self._lock:
+            if self.completed:
+                return
             self.completed = True
-            self._notify("completed")
+        self._notify("completed")
+
+    def advance_inputs(self, revisions: dict[str, Revision]) -> None:
+        """Keep this attempt current against the values it updated itself."""
+        with self._lock:
+            if self.completed or self.depends_on is None:
+                return
+            self.depends_on.update(
+                (name, revision)
+                for name, revision in revisions.items()
+                if name in self.depends_on
+            )
 
     def _notify(self, phase: Literal["running", "completed"]) -> None:
         broadcast_notification(

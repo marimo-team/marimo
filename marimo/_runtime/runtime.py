@@ -61,7 +61,6 @@ from marimo._messaging.notification import (
     UIElementMessageNotification,
     VariableDeclarationNotification,
     VariablesNotification,
-    VariableValue,
     VariableValuesNotification,
 )
 from marimo._messaging.notification_utils import (
@@ -1083,64 +1082,78 @@ class Kernel:
                 attached_catalogs = _get_attached_catalogs()
             return attached_catalogs
 
-        for name, variable_data in variables.items():
-            # Take the last definition of the variable
-            variable = variable_data[-1]
-            if name in exclude_defs:
-                continue
+        with self._state_lock:
+            for name, variable_data in variables.items():
+                # Take the last definition of the variable
+                variable = variable_data[-1]
+                if name in exclude_defs:
+                    continue
 
-            self._bindings.pop(name, None)
+                self._bindings.pop(name, None)
 
-            if variable.kind == "table" and DependencyManager.duckdb.has():
-                import duckdb
+                if variable.kind == "table" and DependencyManager.duckdb.has():
+                    import duckdb
 
-                # We only drop in-memory tables: we don't want to drop tables
-                # on databases!
-                qualified = _in_memory_qualified_name(
-                    variable, name, get_attached_catalogs
-                )
-                if qualified is not None:
-                    try:
-                        duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
-                    except Exception as e:
-                        LOGGER.warning("Failed to drop table %s: %s", name, e)
-            elif variable.kind == "view" and DependencyManager.duckdb.has():
-                import duckdb
-
-                # We only drop in-memory views for the same reason.
-                qualified = _in_memory_qualified_name(
-                    variable, name, get_attached_catalogs
-                )
-                if qualified is not None:
-                    try:
-                        duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
-                    except Exception as e:
-                        LOGGER.warning("Failed to drop view %s: %s", name, e)
-            elif variable.kind == "catalog" and DependencyManager.duckdb.has():
-                import duckdb
-
-                try:
-                    identifier = quote_sql_identifier(name)
-                    duckdb.execute(f"DETACH DATABASE IF EXISTS {identifier}")
-                except Exception as e:
-                    LOGGER.warning("Failed to detach catalog %s: %s", name, e)
-            else:
-                if name in self.globals:
-                    del self.globals[name]
-
-                # Restore module-level __doc__ so it doesn't fall
-                # through to builtins.__doc__
-                if name == "__doc__":
-                    self.globals["__doc__"] = (
-                        self.app_metadata.docstring
-                        or "Created for the marimo kernel."
+                    # We only drop in-memory tables: we don't want to drop tables
+                    # on databases!
+                    qualified = _in_memory_qualified_name(
+                        variable, name, get_attached_catalogs
                     )
-
-                if (
-                    "__annotations__" in self.globals
-                    and name in self.globals["__annotations__"]
+                    if qualified is not None:
+                        try:
+                            duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
+                        except Exception as e:
+                            LOGGER.warning(
+                                "Failed to drop table %s: %s", name, e
+                            )
+                elif (
+                    variable.kind == "view" and DependencyManager.duckdb.has()
                 ):
-                    del self.globals["__annotations__"][name]
+                    import duckdb
+
+                    # We only drop in-memory views for the same reason.
+                    qualified = _in_memory_qualified_name(
+                        variable, name, get_attached_catalogs
+                    )
+                    if qualified is not None:
+                        try:
+                            duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
+                        except Exception as e:
+                            LOGGER.warning(
+                                "Failed to drop view %s: %s", name, e
+                            )
+                elif (
+                    variable.kind == "catalog"
+                    and DependencyManager.duckdb.has()
+                ):
+                    import duckdb
+
+                    try:
+                        identifier = quote_sql_identifier(name)
+                        duckdb.execute(
+                            f"DETACH DATABASE IF EXISTS {identifier}"
+                        )
+                    except Exception as e:
+                        LOGGER.warning(
+                            "Failed to detach catalog %s: %s", name, e
+                        )
+                else:
+                    if name in self.globals:
+                        del self.globals[name]
+
+                    # Restore module-level __doc__ so it doesn't fall
+                    # through to builtins.__doc__
+                    if name == "__doc__":
+                        self.globals["__doc__"] = (
+                            self.app_metadata.docstring
+                            or "Created for the marimo kernel."
+                        )
+
+                    if (
+                        "__annotations__" in self.globals
+                        and name in self.globals["__annotations__"]
+                    ):
+                        del self.globals["__annotations__"][name]
 
     def _invalidate_cell_state(
         self,
@@ -1580,6 +1593,29 @@ class Kernel:
                 VariableValuesNotification(variables=values), self.stream
             )
 
+    def _update_variables(self, names: Iterable[str]) -> None:
+        if get_context().is_embedded() or get_mode() != "edit":
+            return
+        with self._state_lock:
+            revisions = {}
+            for name in sorted(set(names)):
+                if (
+                    name not in self.globals
+                    or (binding := self._bindings.get(name)) is None
+                ):
+                    continue
+                revision = Revision(
+                    binding.revision.execution, binding.revision.update + 1
+                )
+                self._bindings[name] = dataclasses.replace(
+                    binding, revision=revision
+                )
+                revisions[name] = revision
+            self._publish_variables(revisions)
+            current = EXECUTION_CTX.get()
+            if current is not None and current.attempt is not None:
+                current.attempt.advance_inputs(revisions)
+
     def _propagate_kernel_errors(
         self,
         ctx: hook_context.OnFinishHookContext,
@@ -1663,6 +1699,9 @@ class Kernel:
         from marimo._runtime.threads import is_marimo_thread
 
         ctx = get_context()
+        self._update_variables(
+            name for name in self._bindings if self.globals.get(name) is state
+        )
         if ctx.execution_context is not None:
             setter_cell_id = ctx.execution_context.cell_id
         else:
@@ -2230,14 +2269,8 @@ class Kernel:
                 for name in ctx.ui_element_registry.bound_names(object_id)
                 if not is_local(name)
             }
-            variable_values: list[VariableValue] = []
+            self._update_variables(bound_names)
             for name in bound_names:
-                if name in self.globals:
-                    variable_values.append(
-                        create_variable_value(
-                            name=name, value=self.globals[name]
-                        )
-                    )
                 try:
                     # subtracting self.graph.definitions[name]: never rerun the
                     # cell that created the name
@@ -2261,12 +2294,6 @@ class Kernel:
                     write_traceback(tmpio.read())
                     # Entering undefined behavior territory ...
                     continue
-
-            if variable_values and not ctx.is_embedded():
-                broadcast_notification(
-                    VariableValuesNotification(variables=variable_values),
-                    self.stream,
-                )
 
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(referring_cells)

@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 import pytest
@@ -10,7 +11,12 @@ from marimo._messaging.notification import (
     VariableValue,
     VariableValuesNotification,
 )
-from marimo._runtime.commands import DeleteCellCommand, ExecuteCellsCommand
+from marimo._runtime.commands import (
+    DeleteCellCommand,
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
+    UpdateUIElementCommand,
+)
 from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
 from tests._runtime._helpers.session import mocked_kernel_session
@@ -180,3 +186,151 @@ async def test_failed_and_skipped_executions_only_bind_existing_names(
     assert set(bound(messages)) == {"x"}
     assert variables(messages)["y"].revision is None
     assert executions["b"].depends_on == {"y": None}
+
+
+async def test_state_updates_advance_the_setters_own_input_revision(
+    mocked_kernel: MockedKernel,
+) -> None:
+    await run(
+        mocked_kernel.k,
+        a="import marimo as mo",
+        b="get, set_value = mo.state(0)",
+        c="value = get()",
+    )
+    old = bound(mocked_kernel.stream.parsed_operations)["get"].revision
+    mocked_kernel.stream.messages.clear()
+
+    await run(
+        mocked_kernel.k,
+        d="for i in range(3):\n    set_value(get() + 1)",
+    )
+    messages = mocked_kernel.stream.parsed_operations
+    new = bound(messages)["get"].revision
+    assert new.execution == old.execution
+    assert new.update == old.update + 3
+    executions = completed(messages)
+    assert executions["d"].depends_on["get"] == new
+    assert executions["c"].depends_on == {"get": new}
+    assert mocked_kernel.k.globals["value"] == 3
+
+
+async def test_ui_updates_publish_revisions_without_rerunning_lazy_cells(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    kernel.reactive_execution_mode = "lazy"
+    await run(
+        kernel,
+        a="import marimo as mo",
+        b="slider = mo.ui.slider(0, 10, value=1)",
+        c="value = slider.value",
+    )
+    messages = mocked_kernel.stream.parsed_operations
+    before = completed(messages)["c"]
+    old = bound(messages)["slider"].revision
+
+    await kernel.router.dispatch(
+        UpdateUIElementCommand.from_ids_and_values(
+            [(kernel.globals["slider"]._id, 5)]
+        )
+    )
+    messages = mocked_kernel.stream.parsed_operations
+    assert completed(messages)["c"] == before
+    slider = bound(messages)["slider"]
+    assert (slider.revision.execution, slider.revision.update) == (
+        old.execution,
+        old.update + 1,
+    )
+    assert slider.value == "5"
+    assert before.depends_on == {"slider": old}
+
+
+async def test_scratch_updates_reach_nested_readers_from_the_notebook_namespace(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    kernel.reactive_execution_mode = "lazy"
+    await run(
+        kernel,
+        a="import marimo as mo",
+        b="get, set_value = mo.state(1)",
+        c="value = get()",
+        alias="alias = get",
+    )
+    before = bound(mocked_kernel.stream.parsed_operations)["get"]
+
+    async def run_reader() -> None:
+        await run(kernel, c="value = get()")
+
+    kernel.globals["run_reader"] = run_reader
+    mocked_kernel.stream.messages.clear()
+    await kernel.router.dispatch(
+        ExecuteScratchpadCommand(
+            code="""
+get = "scratch-local"
+set_value(2)
+await run_reader()
+"""
+        )
+    )
+    messages = mocked_kernel.stream.parsed_operations
+    updated = bound(messages)
+    after = updated["get"]
+    assert updated["alias"].revision.update == 1
+    assert after.datatype == "State"
+    assert after.execution_id == before.execution_id
+    assert after.revision.update == before.revision.update + 1
+    child = completed(messages)["c"]
+    assert child.depends_on == {"get": after.revision}
+    update_index = next(
+        i
+        for i, m in enumerate(messages)
+        if isinstance(m, VariableValuesNotification) and after in m.variables
+    )
+    child_start = next(
+        i
+        for i, m in enumerate(messages)
+        if isinstance(m, ExecutionNotification)
+        and m.execution_id == child.execution_id
+        and m.phase == "running"
+    )
+    assert update_index < child_start
+    assert kernel.globals["value"] == 2
+
+
+async def test_background_updates_do_not_rewrite_completed_inputs(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    kernel.reactive_execution_mode = "lazy"
+    await run(
+        kernel,
+        a="import marimo as mo\nimport threading",
+        b="get, set_value = mo.state(1)",
+        c="""
+gate = threading.Event()
+done = threading.Event()
+def _update():
+    gate.wait()
+    set_value(2)
+    done.set()
+worker = mo.Thread(target=_update)
+worker.start()
+get()
+""",
+    )
+    before = completed(mocked_kernel.stream.parsed_operations)["c"]
+    try:
+        kernel.globals["gate"].set()
+        assert await asyncio.to_thread(kernel.globals["done"].wait, 5)
+    finally:
+        kernel.globals["gate"].set()
+        kernel.globals["worker"].join(timeout=5)
+    messages = mocked_kernel.stream.parsed_operations
+    assert completed(messages)["c"] == before
+    previous = before.depends_on["get"]
+    current = bound(messages)["get"].revision
+    assert (current.execution, current.update) == (
+        previous.execution,
+        previous.update + 1,
+    )
