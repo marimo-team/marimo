@@ -176,22 +176,24 @@ const TraceBlock: React.FC<{
     </button>
   );
 
-  if (!isExpanded) {
-    return (
-      <div key={run.runId} className="flex flex-col">
-        <pre className="font-mono font-semibold">{traceTitle}</pre>
-      </div>
-    );
-  }
-
   return (
-    <TraceBlockBody
-      key={run.runId}
-      run={run}
-      chartPosition={chartPosition}
-      theme={theme}
-      title={traceTitle}
-    />
+    <div
+      className={cn(
+        "grid grid-cols-1",
+        isExpanded &&
+          chartPosition === "sideBySide" &&
+          "grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_1fr]",
+      )}
+    >
+      <pre className="font-mono font-semibold">{traceTitle}</pre>
+      {isExpanded && (
+        <TraceBlockBody
+          run={run}
+          chartPosition={chartPosition}
+          theme={theme}
+        />
+      )}
+    </div>
   );
 };
 
@@ -199,8 +201,7 @@ const TraceBlockBody: React.FC<{
   run: Run;
   chartPosition: ChartPosition;
   theme: ResolvedTheme;
-  title: React.ReactNode;
-}> = ({ run, chartPosition, theme, title }) => {
+}> = ({ run, chartPosition, theme }) => {
   const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
   const vegaRef = useRef<HTMLDivElement>(null);
   const { ref, width = 300 } = useResizeObserver<HTMLDivElement>();
@@ -271,16 +272,22 @@ const TraceBlockBody: React.FC<{
   }, [embed]);
 
   const traceRows = (
-    <TraceRows
-      run={run}
-      hoveredCellId={hoveredCellId}
-      hiddenInputElementId={hiddenInputElementId}
-    />
+    <div className="font-mono font-semibold">
+      <TraceRows
+        run={run}
+        hoveredCellId={hoveredCellId}
+        hiddenInputElementId={hiddenInputElementId}
+      />
+    </div>
   );
 
   const chartElement = (
     <div
-      className={chartPosition === "sideBySide" ? "-mt-0.5 flex-1" : ""}
+      className={
+        chartPosition === "sideBySide"
+          ? "-mt-0.5 col-start-2 row-start-1 row-span-2 min-w-0"
+          : "min-w-0"
+      }
       ref={ref}
     >
       <Suspense>
@@ -291,24 +298,18 @@ const TraceBlockBody: React.FC<{
 
   if (chartPosition === "above") {
     return (
-      <div key={run.runId} className="flex flex-col">
-        <pre className="font-mono font-semibold">
-          {title}
-          {chartElement}
-          {traceRows}
-        </pre>
-      </div>
+      <>
+        {chartElement}
+        {traceRows}
+      </>
     );
   }
 
   return (
-    <div key={run.runId} className="flex flex-row">
-      <pre className="font-mono font-semibold">
-        {title}
-        {traceRows}
-      </pre>
+    <>
+      {traceRows}
       {chartElement}
-    </div>
+    </>
   );
 };
 
