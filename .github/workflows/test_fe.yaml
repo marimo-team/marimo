@@ -32,6 +32,8 @@ jobs:
               - 'packages/**'
               - 'protocols/host/**'
               - 'pnpm-workspace.yaml'
+              - '.github/workflows/test_fe.yaml'
+              - '.github/actions/install/**'
 
   lint_frontend:
     needs: changes
@@ -110,9 +112,65 @@ jobs:
           check-name: "dedupe"
           command: "pnpm dedupe"
 
-  test_frontend:
+  test_frontend_shards:
     needs: changes
     if: ${{ needs.changes.outputs.frontend == 'true' }}
+    name: 🧪 Frontend shard ${{ matrix.shard }}/3
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    permissions:
+      contents: read
+      id-token: write # required for Doppler OIDC
+    defaults:
+      run:
+        working-directory: ./frontend
+        shell: bash
+
+    steps:
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔐 Fetch Doppler secrets
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: dopplerhq/secrets-fetch-action@cd2efbf9a404504316435873eff298b82f7e0562 # v1.3.0
+        id: secrets
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: marimo-oss
+          doppler-config: ci_test
+
+      - name: 📥 Install repo
+        uses: ./.github/actions/install
+
+      - name: 🧪 Test with coverage
+        env:
+          TURBO_TOKEN: ${{ steps.secrets.outputs.TURBO_TOKEN }}
+        run: >-
+          pnpm turbo test:coverage --log-order=stream --
+          --shard=${{ matrix.shard }}/3
+          --reporter=default --reporter=github-actions --reporter=blob
+          --outputFile.blob=coverage/blob-${{ matrix.shard }}.json
+          --coverage.reporter=json
+
+      - name: 📤 Upload test report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: frontend-test-report-${{ matrix.shard }}
+          path: frontend/coverage/blob-${{ matrix.shard }}.json
+          if-no-files-found: error
+          retention-days: 1
+
+  test_frontend:
+    needs: [changes, test_frontend_shards]
+    if: ${{ !cancelled() && needs.changes.outputs.frontend == 'true' }}
     name: 🧪 Test frontend
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -169,11 +227,23 @@ jobs:
             exit 1
           fi
 
-      - name: 🧪 Test
+      - name: 📥 Download test reports
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: frontend-test-report-*
+          path: frontend/coverage-blobs
+          merge-multiple: true
+
+      - name: 📊 Merge tests and coverage
         id: test
-        env:
-          TURBO_TOKEN: ${{ steps.secrets.outputs.TURBO_TOKEN }}
-        run: pnpm turbo test:coverage
+        run: |
+          for shard in 1 2 3; do
+            if [[ ! -f "coverage-blobs/blob-${shard}.json" ]]; then
+              echo "::error::Missing frontend test report for shard ${shard}"
+              exit 1
+            fi
+          done
+          pnpm exec vitest --merge-reports=coverage-blobs --coverage
 
       - name: 🧪 Test llm-info
         working-directory: ${{ github.workspace }}
@@ -187,7 +257,7 @@ jobs:
         # Runs even when tests fail (reportOnFailure writes the summary anyway).
         # Fork PRs run with a read-only GITHUB_TOKEN, so posting the comment
         # fails with 403 — don't fail the check for external contributors.
-        if: always()
+        if: ${{ always() && hashFiles('frontend/coverage/coverage-summary.json') != '' }}
         continue-on-error: true
         uses: davelosert/vitest-coverage-report-action@3c50566c523e04813df28de8f7c48dd97d663f1c # v2
         with:
@@ -211,6 +281,12 @@ jobs:
         with:
           check-name: "test"
           command: "pnpm turbo test"
+
+      - name: 🔎 Verify all frontend shards passed
+        if: ${{ always() && needs.test_frontend_shards.result != 'success' }}
+        run: |
+          echo "Frontend test shards did not all pass."
+          exit 1
 
       - name: Summarize clean-tree failure after typecheck
         if: failure() && steps.typecheck_clean_tree.outcome == 'failure'

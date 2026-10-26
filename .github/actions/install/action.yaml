@@ -21,3 +21,6 @@ runs:
 
     - name: Set up uv for host protocol generation
       uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      with:
+        # Avoid scanning node_modules for unrelated Python dependency files.
+        cache-dependency-glob: protocols/host/generate.py.lock
