@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -73,7 +73,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(has_duckdb_installed, mo):
+def _(has_duckdb_installed: bool, mo):
     if has_duckdb_installed:
         mo.output.replace(
             mo.md(
@@ -160,7 +160,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(has_polars_installed):
+def _(has_polars_installed: bool):
     _SIZE = 1000
 
 

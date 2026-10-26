@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.15"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -91,7 +91,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(changed, mo):
+def _(changed: bool, mo):
     (
         mo.md(
             f"""
@@ -333,7 +333,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, tips):
+def _(mo, tips: dict[str, str]):
     mo.accordion(tips)
     return
 

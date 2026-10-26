@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -95,7 +95,7 @@ def _(mo):
 
 
 @app.cell
-def _(amplitude, mo, period, plot_wave):
+def _(amplitude: int, mo, period: int, plot_wave):
     mo.md(f"""
     {mo.as_html(plot_wave(amplitude, period))}
 
@@ -345,7 +345,7 @@ def _(mo):
 
 
 @app.cell
-def _(to_be_deleted):
+def _(to_be_deleted: str):
     to_be_deleted
     return
 
@@ -361,13 +361,13 @@ def _(mo):
 
 
 @app.cell
-def _(two):
+def _(two: int):
     one = two - 1
     return (one,)
 
 
 @app.cell
-def _(one):
+def _(one: int):
     two = one + 1
     return (two,)
 
@@ -469,7 +469,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, tips):
+def _(mo, tips: dict[str, str]):
     mo.accordion(tips)
     return
 

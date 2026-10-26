@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.25.2"
 app = marimo.App(app_title="marimo for Jupyter users")
 
 
@@ -42,7 +42,7 @@ def _():
 
 
 @app.cell
-def _(x):
+def _(x: int):
     y = x + 1; y
     return
 
@@ -199,7 +199,7 @@ def _():
 
 
 @app.cell
-def _(df):
+def _(df: int):
     results = df.groupby(["my_column"]).sum()
     return
 

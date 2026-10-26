@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 with app.setup:
@@ -391,7 +391,7 @@ def _():
 
 
 @app.cell
-def wrapped_function_example(variable):
+def wrapped_function_example(variable: int):
     def not_a_top_level_function():
         """
         This function depends on a variable declared in another cell.
@@ -443,7 +443,7 @@ def _():
 
 
 @app.cell
-def _(contents, mo):
+def _(contents: str | bytes, mo):
     mo.ui.code_editor(contents)
     return
 
