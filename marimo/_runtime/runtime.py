@@ -24,7 +24,13 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellImpl, RuntimeStateType
+from marimo._ast.cell import (
+    CellConfig,
+    CellImpl,
+    ImportedValue,
+    ImportWorkspace,
+    RuntimeStateType,
+)
 from marimo._ast.compiler import _build_source_position_map, compile_cell
 from marimo._ast.errors import ImportStarError
 from marimo._ast.names import SETUP_CELL_NAME
@@ -186,6 +192,7 @@ if TYPE_CHECKING:
     from marimo._runtime.virtual_file import VirtualFileStorageType
 
 LOGGER = _loggers.marimo_logger()
+_NOT_IMPORTED = object()
 
 _KERNEL_LIFESPAN_REGISTRY = EntryPointRegistry[Lifespan[None]](
     "marimo.kernel.lifespan",
@@ -459,8 +466,10 @@ class CellMetadata:
 class Binding:
     """The execution that owns a notebook name and its value's revision."""
 
+    cell_id: CellId_t
     execution_id: str
     revision: Revision
+    imported: object = _NOT_IMPORTED
 
 
 def _get_attached_catalogs() -> set[str]:
@@ -1022,13 +1031,26 @@ class Kernel:
             else:
                 carried_imports = []
 
-            if previous_cell is not None:
-                LOGGER.debug("Deleting cell %s", cell_id)
-                previous_children = self._deactivate_cell(cell_id)
+            with self._state_lock:
+                carried_values = (
+                    self._imported_values(previous_cell)
+                    if previous_cell is not None and carried_imports
+                    else {}
+                )
+                if previous_cell is not None:
+                    LOGGER.debug("Deleting cell %s", cell_id)
+                    previous_children = self._deactivate_cell(cell_id)
 
             error = self._try_registering_cell(
                 cell_id, code, carried_imports=carried_imports, stale=stale
             )
+            if error is None:
+                workspace = self.graph.cells[cell_id].import_workspace
+                workspace.carried_values = {
+                    name: carried_values[name]
+                    for name in workspace.imported_defs
+                    if name in carried_values
+                }
             if error is not None and previous_cell is not None:
                 # The frontend keeps the cell around in the case of a
                 # registration error; let the FE know the cell is no longer
@@ -1169,6 +1191,7 @@ class Kernel:
         """
         cell = self.graph.cells[cell_id]
         cell.import_workspace.imported_defs = set()
+        cell.import_workspace.carried_values.clear()
         missing_modules_before_deletion = (
             self.module_registry.missing_modules()
         )
@@ -1561,6 +1584,17 @@ class Kernel:
                 for name in sorted(cell.refs)
             }
 
+    def _imported_values(self, cell: CellImpl) -> dict[str, ImportedValue]:
+        with self._state_lock:
+            return {
+                name: ImportedValue(binding.imported, binding.revision)
+                for name in cell.import_workspace.imported_defs
+                if name in self.globals
+                and (binding := self._bindings.get(name)) is not None
+                and binding.cell_id == cell.cell_id
+                and binding.imported is not _NOT_IMPORTED
+            }
+
     def _bind_variables(
         self,
         cell: CellImpl,
@@ -1568,16 +1602,39 @@ class Kernel:
         result: cell_runner.RunResult,
     ) -> None:
         del result
+        carried = cell.import_workspace.carried_values
+        cell.import_workspace.carried_values = {}
         if not ctx.should_broadcast_data:
             return
         current = EXECUTION_CTX.get()
         assert current is not None
         with self._state_lock:
+            # A nested run may have produced a newer import while this cell
+            # was queued. Its live binding takes precedence over the carry.
+            previous_imports = carried | self._imported_values(cell)
+            imports = (
+                {item.definition for item in cell.imports}
+                if cell.import_workspace.is_import_block
+                else set()
+            )
             for name in cell.deleted_refs - self.globals.keys():
                 self._bindings.pop(name, None)
-            revision = Revision(ExecutionId(current.id), 0)
             for name in cell.defs.intersection(self.globals):
-                self._bindings[name] = Binding(current.id, revision)
+                value = self.globals[name]
+                previous = (
+                    previous_imports.get(name) if name in imports else None
+                )
+                revision = (
+                    previous.revision
+                    if previous is not None and previous.value is value
+                    else Revision(ExecutionId(current.id), 0)
+                )
+                self._bindings[name] = Binding(
+                    cell.cell_id,
+                    current.id,
+                    revision,
+                    value if name in imports else _NOT_IMPORTED,
+                )
             self._publish_variables(cell.defs)
 
     def _publish_variables(self, names: Iterable[str]) -> None:
@@ -1637,9 +1694,21 @@ class Kernel:
         # descendants (cancelled == cells that raise exceptions), whereas
         # eager kernels do (since we clear all state ahead of time, and
         # have the closure of the roots in cells to run)
+        workspaces: list[ImportWorkspace] = []
+
         def invalidate_state(ctx: hook_context.PreparationHookContext) -> None:
             for cid in ctx.cells_to_run:
-                self._invalidate_cell_state(cid)
+                source = self.graph.cells[cid]
+                workspace = ctx.graph.cells[cid].import_workspace
+                workspaces.append(workspace)
+                with self._state_lock:
+                    carried = (
+                        self._imported_values(source)
+                        or source.import_workspace.carried_values
+                    )
+                    source.import_workspace.carried_values = {}
+                    self._invalidate_cell_state(cid)
+                    workspace.carried_values = carried
 
         def note_time_of_interruption(
             cell_impl: CellImpl,
@@ -1683,7 +1752,11 @@ class Kernel:
         # TODO(akshayka): when no logger is configured, log output is not
         #                 redirected to frontend (it's printed to console),
         #                 which is incorrect
-        await runner.run_all()
+        try:
+            await runner.run_all()
+        finally:
+            for workspace in workspaces:
+                workspace.carried_values.clear()
         with self._state_lock:
             cells_with_stale_state = runner.resolve_state_updates(
                 self.state_updates

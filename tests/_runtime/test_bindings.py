@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import asyncio
+import sys
+from types import ModuleType
 from typing import TYPE_CHECKING
 
 import pytest
@@ -15,6 +17,7 @@ from marimo._runtime.commands import (
     DeleteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
+    UpdateCellConfigCommand,
     UpdateUIElementCommand,
 )
 from marimo._session.model import SessionMode
@@ -333,4 +336,135 @@ get()
     assert (current.execution, current.update) == (
         previous.execution,
         previous.update + 1,
+    )
+
+
+@pytest.mark.parametrize("debugging", [False, True])
+async def test_reimport_in_the_same_cell_keeps_its_revision(
+    mocked_kernel: MockedKernel,
+    monkeypatch: pytest.MonkeyPatch,
+    debugging: bool,
+) -> None:
+    if debugging:
+        monkeypatch.setenv("DEBUGPY_RUNNING", "1")
+    await run(mocked_kernel.k, a="import math", b="value = math.pi")
+    messages = mocked_kernel.stream.parsed_operations
+    before = completed(messages)["b"]
+    old = bound(messages)["math"]
+
+    await run(mocked_kernel.k, a="import math\nimport os")
+    messages = mocked_kernel.stream.parsed_operations
+    current = bound(messages)["math"]
+    assert current.execution_id != old.execution_id
+    assert current.revision == old.revision
+    assert completed(messages)["b"].depends_on == before.depends_on
+
+
+async def test_rebinding_none_in_the_same_cell_advances_its_revision(
+    mocked_kernel: MockedKernel,
+) -> None:
+    await run(mocked_kernel.k, a="x = None")
+    old = bound(mocked_kernel.stream.parsed_operations)["x"].revision
+    await run(mocked_kernel.k, a="x = None\ny = 1")
+    new = bound(mocked_kernel.stream.parsed_operations)["x"].revision
+    assert new != old
+
+
+@pytest.mark.parametrize(
+    "replacement", ["pass", "import missing_revision_test_module\nimport math"]
+)
+async def test_removed_or_failed_imports_do_not_reuse_their_old_revision(
+    mocked_kernel: MockedKernel,
+    replacement: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    kernel = mocked_kernel.k
+    await run(kernel, a="import math")
+    old = bound(mocked_kernel.stream.parsed_operations)["math"].revision
+    await run(kernel, a=replacement)
+    if replacement == "pass":
+        await run(kernel, a="import math")
+    else:
+        module = ModuleType("missing_revision_test_module")
+        monkeypatch.setitem(sys.modules, module.__name__, module)
+        await run(kernel, a=replacement)
+    assert (
+        bound(mocked_kernel.stream.parsed_operations)["math"].revision != old
+    )
+
+
+@pytest.mark.parametrize("changed", [False, True])
+async def test_queued_imports_use_the_latest_nested_result(
+    mocked_kernel: MockedKernel,
+    monkeypatch: pytest.MonkeyPatch,
+    changed: bool,
+) -> None:
+    module = ModuleType("revision_test_module")
+    module.value = None
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    kernel = mocked_kernel.k
+    kernel.reactive_execution_mode = "lazy"
+    code = "from revision_test_module import value"
+    nested = False
+
+    async def rerun_import() -> None:
+        if nested:
+            if changed:
+                module.value = object()
+            await run(kernel, b=code)
+
+    kernel.globals["rerun_import"] = rerun_import
+    await run(kernel, a="await rerun_import()", b=code, c="result = value")
+    initial = bound(mocked_kernel.stream.parsed_operations)["value"].revision
+    reader = completed(mocked_kernel.stream.parsed_operations)["c"]
+    nested = True
+    mocked_kernel.stream.messages.clear()
+    await run(kernel, a="await rerun_import()", b=code)
+    messages = mocked_kernel.stream.parsed_operations
+    values = [
+        v
+        for m in messages
+        if isinstance(m, VariableValuesNotification)
+        for v in m.variables
+        if v.name == "value"
+    ]
+    assert len(values) == 2
+    assert values[0].execution_id != values[1].execution_id
+    assert values[0].revision == values[1].revision
+    assert (values[1].revision != initial) is changed
+    assert "c" not in completed(messages)
+    assert reader.depends_on == {"value": initial}
+
+
+async def test_disabled_imports_discard_their_carried_revision(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    kernel.reactive_execution_mode = "lazy"
+    await run(kernel, a="import math")
+    old = bound(mocked_kernel.stream.parsed_operations)["math"].revision
+    await kernel.router.dispatch(
+        UpdateCellConfigCommand(configs={CellId_t("a"): {"disabled": True}})
+    )
+    await run(kernel, a="import math\nimport os")
+    await kernel.router.dispatch(
+        UpdateCellConfigCommand(configs={CellId_t("a"): {"disabled": False}})
+    )
+    await run(kernel, a="import math\nimport os")
+    assert (
+        bound(mocked_kernel.stream.parsed_operations)["math"].revision != old
+    )
+
+
+async def test_rejected_imports_discard_their_carried_revision(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    await run(kernel, a="import math")
+    old = bound(mocked_kernel.stream.parsed_operations)["math"].revision
+    await run(kernel, a="import math\nimport os", b="math = 1")
+    await kernel.delete_cell(DeleteCellCommand(cell_id=CellId_t("b")))
+    await run(kernel, a="import math\nimport os")
+    assert (
+        bound(mocked_kernel.stream.parsed_operations)["math"].revision != old
     )
