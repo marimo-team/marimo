@@ -158,12 +158,38 @@ and loading rules.
 
 ## Environment variables
 
-marimo supports the following environment variables for advanced configuration:
+Every configuration leaf listed by `marimo config describe` can be set through
+an environment variable. Prefix its path with `MARIMO_`, replace dots
+with underscores, and uppercase the result. For example:
+
+```bash
+MARIMO_DISPLAY_THEME=dark marimo edit notebook.py
+MARIMO_SAVE_AUTOSAVE_DELAY=2000 marimo edit notebook.py
+MARIMO_EXPERIMENTAL_DEBUGGER=true marimo edit notebook.py
+MARIMO_RUNTIME_PYTHONPATH='["src", "lib"]' marimo edit notebook.py
+MARIMO_KEYMAP_OVERRIDES='{"run-cell": "Shift-Enter"}' marimo edit notebook.py
+```
+
+Strings are supplied directly, booleans accept `true` or `false` (case
+insensitive), and numbers use their usual numeric form. Lists and dictionaries
+use JSON and are addressed as whole values; individual dictionary entries and
+list elements cannot be addressed. Use `null` for nullable settings. Empty
+strings remain empty strings.
+
+Environment settings override user, project, and notebook configuration.
+Explicit runtime overrides take precedence, and machine-wide restrictions such
+as `MARIMO_RESTRICT_SHARING` are always enforced. Malformed values are reported
+and ignored independently, so the corresponding file or default value still
+applies. Run `marimo config show` to check your environment configuration, or add
+`--show-sources` to see which environment variables supplied the effective values.
+Environment overrides are not saved to configuration files.
+
+marimo also supports the following environment variables for advanced configuration:
 
 | Environment Variable          | Description                                                                                                                  | Default Value   |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| `MARIMO_OUTPUT_MAX_BYTES` (deprecated, use `pyproject.toml`)     | Maximum size of output that marimo will display. Outputs larger than this will be truncated.                                 | 8,000,000 (8MB) |
-| `MARIMO_STD_STREAM_MAX_BYTES` (deprecated, use `pyproject.toml`) | Maximum size of standard stream (stdout/stderr) output that marimo will display. Outputs larger than this will be truncated. | 1,000,000 (1MB) |
+| `MARIMO_RUNTIME_OUTPUT_MAX_BYTES`      | Maximum size of output that marimo will display. Outputs larger than this will be truncated.                                 | 8,000,000 (8MB) |
+| `MARIMO_RUNTIME_STD_STREAM_MAX_BYTES`  | Maximum size of standard stream (stdout/stderr) output that marimo will display. Outputs larger than this will be truncated. | 1,000,000 (1MB) |
 | `MARIMO_SKIP_UPDATE_CHECK`    | If set to "1", marimo will skip checking for updates when starting.                                                          | Not set         |
 | `MARIMO_SQL_DEFAULT_LIMIT`    | Default limit for SQL query results. If not set, no limit is applied.                                                        | Not set         |
 | `MARIMO_RUNTIME_ON_CELL_CHANGE` | Override `runtime.on_cell_change` in edit mode: `lazy` marks dependent cells stale; `autorun` automatically runs them. Takes precedence over user, project, and script configuration. Has no effect with `marimo run`, which always uses `autorun`. | Not set |

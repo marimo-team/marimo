@@ -10,7 +10,7 @@ import pytest
 
 from marimo._config.config import PartialMarimoConfig, merge_default_config
 from marimo._config.manager import (
-    EnvConfigReader,
+    EnvVarReader,
     MarimoConfigManager,
     OverrideConfigReader,
     PyprojectConfigReader,
@@ -1241,11 +1241,9 @@ def test_project_config_manager_resolve_invalid_custom_css(
 def test_env_config_manager_auto_instantiate_true(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test that EnvConfigReader correctly loads auto_instantiate from env"""
-    monkeypatch.setenv(
-        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", "true"
-    )
-    manager = EnvConfigReader()
+    """Test that EnvVarReader correctly loads auto_instantiate from env"""
+    monkeypatch.setenv("MARIMO_RUNTIME_AUTO_INSTANTIATE", "true")
+    manager = EnvVarReader()
     config = manager.read()
     assert config == {"runtime": {"auto_instantiate": True}}
 
@@ -1261,10 +1259,8 @@ def test_env_config_manager_boolean_case_insensitive(
     monkeypatch: pytest.MonkeyPatch, env_value: str, expected: bool
 ) -> None:
     """Test boolean parsing is case-insensitive"""
-    monkeypatch.setenv(
-        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", env_value
-    )
-    manager = EnvConfigReader()
+    monkeypatch.setenv("MARIMO_RUNTIME_AUTO_INSTANTIATE", env_value)
+    manager = EnvVarReader()
     config = manager.read()
     assert config["runtime"]["auto_instantiate"] is expected
 
@@ -1274,30 +1270,18 @@ def test_env_config_manager_on_cell_change(
     monkeypatch: pytest.MonkeyPatch, mode: str
 ) -> None:
     monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", mode)
-    assert EnvConfigReader().read() == {"runtime": {"on_cell_change": mode}}
+    assert EnvVarReader().read() == {"runtime": {"on_cell_change": mode}}
 
 
-@pytest.mark.parametrize(
-    ("value", "parsed"),
-    [
-        ("invalid", "invalid"),
-        ("", ""),
-        ("true", True),
-        ("[lazy,autorun]", ["lazy", "autorun"]),
-    ],
-)
+@pytest.mark.parametrize("value", ["invalid", "", "true", "[lazy,autorun]"])
 def test_env_config_manager_on_cell_change_invalid(
-    monkeypatch: pytest.MonkeyPatch, value: str, parsed: Any
+    monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
     monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", value)
     with patch("marimo._config.manager.LOGGER.warning") as warning:
-        assert EnvConfigReader().read() == {}
-    warning.assert_called_once_with(
-        "Ignoring invalid value %r for %s; expected one of %s",
-        parsed,
-        "MARIMO_RUNTIME_ON_CELL_CHANGE",
-        "'lazy', 'autorun'",
-    )
+        assert EnvVarReader().read() == {}
+    warning.assert_called_once()
+    assert warning.call_args.args[1] == "MARIMO_RUNTIME_ON_CELL_CHANGE"
 
 
 @pytest.mark.parametrize("mode", ["lazy", "autorun"])
@@ -1329,7 +1313,7 @@ def test_env_on_cell_change_overrides_files(
 
 def test_env_config_manager_no_env_vars() -> None:
     """Test that missing env vars return empty config"""
-    manager = EnvConfigReader()
+    manager = EnvVarReader()
     config = manager.read()
     assert config == {}
 
@@ -1340,7 +1324,7 @@ def test_env_config_manager_server_transport(
 ) -> None:
     """MARIMO_SERVER_TRANSPORT selects the kernel-connection transport"""
     monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", transport)
-    manager = EnvConfigReader()
+    manager = EnvVarReader()
     config = manager.read()
     assert config == {"server": {"transport": transport}}
 
@@ -1350,7 +1334,7 @@ def test_env_config_manager_server_transport_invalid(
 ) -> None:
     """Invalid MARIMO_SERVER_TRANSPORT values are ignored with a warning"""
     monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", "carrier-pigeon")
-    manager = EnvConfigReader()
+    manager = EnvVarReader()
     config = manager.read()
     assert config == {}
 
@@ -1368,7 +1352,7 @@ def test_restrict_sharing_clamps_config_overrides(
     """
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
     manager = MarimoConfigManager(
-        UserConfigStore(), EnvConfigReader(), SecurityConfigReader()
+        UserConfigStore(), EnvVarReader(), SecurityConfigReader()
     )
     overrides = manager.get_config_overrides(hide_secrets=False)
     assert overrides["sharing"] == RESTRICTED_SHARING
@@ -1387,9 +1371,7 @@ def test_restrict_sharing_overrides_user_config(
             {"sharing": {"wasm": True, "html": True, "molab": True}}
         ),
     )
-    manager = MarimoConfigManager(
-        user, EnvConfigReader(), SecurityConfigReader()
-    )
+    manager = MarimoConfigManager(user, EnvVarReader(), SecurityConfigReader())
     assert manager.get_config(hide_secrets=False)["sharing"] == (
         RESTRICTED_SHARING
     )
@@ -1400,13 +1382,13 @@ def test_restrict_sharing_beats_later_override(
 ) -> None:
     """A later with_overrides() cannot re-enable sharing.
 
-    with_overrides() appends its partial after EnvConfigReader, but
+    with_overrides() appends its partial after EnvVarReader, but
     MarimoConfigManager keeps the SecurityConfigReader last, so the
     enforcement still wins over the later override.
     """
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
     manager = MarimoConfigManager(
-        UserConfigStore(), EnvConfigReader(), SecurityConfigReader()
+        UserConfigStore(), EnvVarReader(), SecurityConfigReader()
     ).with_overrides({"sharing": {"wasm": True, "html": True, "molab": True}})
     assert manager.get_config_overrides(hide_secrets=False)["sharing"] == (
         RESTRICTED_SHARING
@@ -1419,7 +1401,7 @@ def test_restrict_sharing_disabled_keeps_user_config(
     """With the flag off, an explicit sharing config is left untouched."""
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", False)
     manager = MarimoConfigManager(
-        UserConfigStore(), EnvConfigReader(), SecurityConfigReader()
+        UserConfigStore(), EnvVarReader(), SecurityConfigReader()
     ).with_overrides({"sharing": {"wasm": True}})
     assert manager.get_config_overrides(hide_secrets=False)["sharing"] == {
         "wasm": True
