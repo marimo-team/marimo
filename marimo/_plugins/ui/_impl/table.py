@@ -614,7 +614,7 @@ class table(
         """
         Create a table from a lazy dataframe (e.g., Polars LazyFrame, Ibis Table, DuckDB Relation).
 
-        Data loads on request without counting the full result.
+        This won't load the data into memory until requested by the user.
         Pagination is supported; selection is not.
 
         Pages are queried independently. For consistent results, sort by a unique
