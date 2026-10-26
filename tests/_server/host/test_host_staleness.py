@@ -544,3 +544,53 @@ async def test_reconnecting_recovers_updates_and_replaced_bindings(
             == await c.snapshot()
         )
         assert recovered.outdated() == {c.cells["reader"]: "replaced"}
+
+
+async def test_restart_retains_results_without_restoring_python_values(
+    tmp_path: Path,
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        binder="x = 1",
+        reader="y = x + 1",
+    ) as c:
+        await c.run("binder", "reader")
+        retained = await c.snapshot()
+        binder = retained.latest(c.cells["binder"])
+        assert binder is not None
+        restarted = await finished(
+            c.app,
+            "POST",
+            f"/notebooks/{c.notebook_id}/runtime/restart",
+            headers=key("restart"),
+        )
+        assert restarted.status == 202
+        runtime_id = restarted.json()["id"]
+        assert runtime_id != binder.runtime_id
+        await wait_for(
+            c.events,
+            lambda response: any(
+                r.get("event") == "runtime"
+                and r["data"]["runtime"]["id"] == runtime_id
+                and r["data"]["runtime"]["status"] == "running"
+                for r in response.records
+            ),
+            timeout=15,
+        )
+        assert await c.snapshot() == retained
+        assert await c.outdated() == {}
+        await c.run(code="assert 'x' not in globals()")
+
+        # Keep the old result, but give the new runtime no definition of x.
+        await c.edit("binder", "pass")
+        await c.run("reader", outcome="failed")
+        current = await c.snapshot()
+        reader = current.latest(c.cells["reader"])
+        assert reader is not None
+        assert reader.runtime_id == runtime_id
+        assert reader.depends_on == {"x": None}
+        assert current.latest(c.cells["binder"]) == binder
+        assert next(
+            v for v in current.variables.values() if v.name == "x"
+        ) == next(v for v in retained.variables.values() if v.name == "x")
