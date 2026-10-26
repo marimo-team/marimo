@@ -9,8 +9,6 @@ import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-import pytest
-
 from tests._server.host.drive import finished, wait_for
 from tests._server.host.live import key, open_host
 from tests._server.host.staleness import snapshot
@@ -128,13 +126,6 @@ async def client(
         yield Client(app, notebook_id, events, ids)
 
 
-# Passes once the host publishes variables and dependencies.
-unpublished = pytest.mark.xfail(
-    strict=True, reason="the host does not publish variables yet"
-)
-
-
-@unpublished
 async def test_edits_and_reruns_outdate_dependents(tmp_path: Path) -> None:
     async with client(
         tmp_path, on_cell_change="lazy", x="x = 1", y="y = x + 1"
@@ -162,7 +153,6 @@ async def test_autorun_leaves_every_result_current(tmp_path: Path) -> None:
         assert await c.outdated() == {}
 
 
-@unpublished
 async def test_state_updates_outdate_readers(tmp_path: Path) -> None:
     async with client(
         tmp_path,
@@ -225,7 +215,6 @@ async def test_reimporting_keeps_dependents_current(tmp_path: Path) -> None:
         assert (await c.snapshot()).latest(c.cells["value"]) == before
 
 
-@unpublished
 async def test_binding_a_missing_name_outdates_its_readers(
     tmp_path: Path,
 ) -> None:

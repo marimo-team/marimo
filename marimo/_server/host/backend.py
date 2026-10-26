@@ -19,6 +19,7 @@ from marimo._messaging.notification import (
     InterruptedNotification,
     NotebookDocumentTransactionNotification,
     StartupProgressNotification,
+    VariableValuesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.commands import (
@@ -392,6 +393,27 @@ class SessionBackend(SessionConsumer):
             self._handle_notification(message)
 
     def _handle_notification(self, message: NotificationMessage) -> None:
+        if isinstance(message, VariableValuesNotification):
+            for value in message.variables:
+                if value.execution_id is None or value.revision is None:
+                    continue
+                self._observe(
+                    be.Produced(
+                        protocol.Variable(
+                            execution_id=protocol.ExecutionId(
+                                value.execution_id
+                            ),
+                            id=protocol.ItemId(
+                                f"{value.execution_id}-variable-{value.name}"
+                            ),
+                            name=value.name,
+                            preview=value.value,
+                            revision=value.revision,
+                            type=value.datatype,
+                        )
+                    )
+                )
+            return
         if isinstance(message, NotebookDocumentTransactionNotification):
             if self._document_changed is not None and self.session is not None:
                 self._document_changed()
