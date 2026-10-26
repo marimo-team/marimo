@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -169,7 +169,7 @@ def describe_file(file):
 
 
 @app.cell
-def _(client, ell, execute_code, files, mo, model, packages):
+def _(client, ell, execute_code, files, mo, model: str, packages):
     files_instructions = ""
     packages_instructions = ""
     if files.value:

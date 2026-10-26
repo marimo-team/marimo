@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -44,13 +44,13 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(URL, mo):
+def _(URL: str, mo):
     mo.md(rf"""First we read the dataset at: **{URL}**""")
     return
 
 
 @app.cell
-def _(URL, mo):
+def _(URL: str, mo):
     dataset = mo.sql(
         f"""
         CREATE OR REPLACE VIEW dataset AS

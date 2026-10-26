@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.16.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -13,6 +13,7 @@ def _():
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -44,7 +45,7 @@ def _(mo):
 
 
 @app.cell
-def _(FILE, mo, null):
+def _(FILE: str, mo):
     _df = mo.sql(
         f"""
         CREATE TABLE gdf AS

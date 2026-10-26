@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -66,6 +66,7 @@ def _(random):
         print("Loaded!")
         num = random.randint(0, 100)
         return num
+
     return (generate_number_async,)
 
 
@@ -77,6 +78,7 @@ def _(random, time):
         print("Loaded!")
         num = random.randint(0, 100)
         return num
+
     return (generate_number,)
 
 

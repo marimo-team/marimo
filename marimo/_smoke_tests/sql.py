@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -21,12 +21,15 @@ def _():
     from vega_datasets import data
     import duckdb
     import marimo as mo
+
     return alt, data, duckdb, mo
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Cars""")
+    mo.md("""
+    ## Cars
+    """)
     return
 
 
@@ -36,11 +39,11 @@ def _(data, mo):
     cars = data.cars()
     cylinders = mo.ui.slider.from_series(cars["Cylinders"])
     cylinders
-    return (cylinders,)
+    return cars, cylinders
 
 
 @app.cell
-def _(cylinders, mo):
+def _(cars, cylinders, mo):
     df = mo.sql(
         f"""
         SELECT "Name", "Miles_per_Gallon", "Cylinders", "Horsepower"
@@ -65,18 +68,20 @@ def _(alt, df, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Airports""")
+    mo.md("""
+    ## Airports
+    """)
     return
 
 
 @app.cell
 def _(data):
     airports = data.airports()
-    return
+    return (airports,)
 
 
 @app.cell
-def _(mo):
+def _(airports, mo):
     less_airports = mo.sql(
         f"""
         select * from airports limit 2
@@ -93,7 +98,9 @@ def _(less_airports):
 
 @app.cell
 def _(mo):
-    mo.md("""## Google Sheets""")
+    mo.md("""
+    ## Google Sheets
+    """)
     return
 
 
@@ -104,7 +111,7 @@ def _():
 
 
 @app.cell
-def _(mo, sheet):
+def _(mo, sheet: str):
     job_types = mo.sql(
         f"""
         SELECT DISTINCT current_job_title
@@ -122,7 +129,7 @@ def _(job_types, mo):
 
 
 @app.cell
-def _(job_title, mo, sheet):
+def _(job_title, mo, sheet: str):
     _df = mo.sql(
         f"""
         SELECT *
@@ -135,7 +142,9 @@ def _(job_title, mo, sheet):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Debug""")
+    mo.md("""
+    Debug
+    """)
     return
 
 
@@ -151,7 +160,7 @@ def _(duckdb):
 
 
 @app.cell(hide_code=True)
-def _(duckdb, job_title, sheet):
+def _(duckdb, job_title, sheet: str):
     duckdb.get_table_names(
         f"""
         SELECT *
@@ -163,7 +172,7 @@ def _(duckdb, job_title, sheet):
 
 
 @app.cell
-def _(mo):
+def _(cars, mo):
     grouped_cars_by_origin = mo.sql(
         f"""
         SELECT "Origin", COUNT(*) AS "Count"

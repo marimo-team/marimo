@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return
 
 
@@ -23,94 +24,92 @@ def _():
 
 app._unparsable_cell(
     r"""
+    # fmt: off
+    import os
+    import sys
+    from typing import List, Dict
+    import random
 
-        # fmt: off
-        import os
-        import sys
-        from typing import List, Dict
-        import random
+    # undefined variable
+    result = undefined_var + 10
 
-        # undefined variable
-        result = undefined_var + 10
+    # unused import
+    import json
 
-        # unused import
-        import json
+    # unused variable
+    unused_variable = 42
 
-        # unused variable
-        unused_variable = 42
+    # missing type hints
+    def add_numbers(a, b):
+        return a + b
 
-        # missing type hints
-        def add_numbers(a, b):
-            return a + b
+    # undefined name
+    print(nonexistent_variable)
 
-        # undefined name
-        print(nonexistent_variable)
-
-        # too many blank lines
-
+    # too many blank lines
 
 
 
-        # missing docstring
-        class MyClass:
-            def __init__(self):
-                self.value = 10
 
-        # unused method parameter
-        def process_data(data, unused_param):
-            return data * 2
+    # missing docstring
+    class MyClass:
+        def __init__(self):
+            self.value = 10
 
-        # variable shadowing
-        def shadow_test():
-            x = 5
-            for x in range(3):
-                print(x)
+    # unused method parameter
+    def process_data(data, unused_param):
+        return data * 2
 
-        # mutable default argument
-        def risky_function(items=[]):
-            items.append(1)
-            return items
+    # variable shadowing
+    def shadow_test():
+        x = 5
+        for x in range(3):
+            print(x)
 
-        # star imports
-        from os import *
+    # mutable default argument
+    def risky_function(items=[]):
+        items.append(1)
+        return items
 
-        # too many arguments
-        def too_many_args(a,b,c,d,e,f,g,h,i,j,k):
-            return a+b
+    # star imports
+    from os import *
 
-        # bare except
-        try:
-            risky_operation()
-        except:
-            pass
+    # too many arguments
+    def too_many_args(a,b,c,d,e,f,g,h,i,j,k):
+        return a+b
 
-        # redefining built-in
-        list = []
-        str = \\"hello\\"
-        def print():
-            pass
+    # bare except
+    try:
+        risky_operation()
+    except:
+        pass
 
-        # missing final newline
+    # redefining built-in
+    list = []
+    str = \\"hello\\"
+    def print():
+        pass
 
-        # line too long
-        very_long_variable_name = \\"This is an extremely long line that exceeds the recommended maximum line length and should trigger a linting warning\\"
+    # missing final newline
 
-        # multiple statements on one line
-        x = 5; y = 10; z = 15
+    # line too long
+    very_long_variable_name = \\"This is an extremely long line that exceeds the recommended maximum line length and should trigger a linting warning\\"
 
-        # complex boolean expression
-        if x == True and y == False and z == True and zz == False:
-            pass
+    # multiple statements on one line
+    x = 5; y = 10; z = 15
 
-        # wrong variable name style
-        camelCaseVariable = 123
+    # complex boolean expression
+    if x == True and y == False and z == True and zz == False:
+        pass
 
-        # undefined name in type annotation
-        def process_items(items: InvalidType) -> None:
-            pass
+    # wrong variable name style
+    camelCaseVariable = 123
 
-         # fmt: on
-    
+    # undefined name in type annotation
+    def process_items(items: InvalidType) -> None:
+        pass
+
+     # fmt: on
     """,
     name="_"
 )

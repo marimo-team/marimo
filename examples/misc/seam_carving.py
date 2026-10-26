@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -81,7 +81,7 @@ def _():
 
 
 @app.cell
-def _(efficient_seam_carve, input_image, mo, slider):
+def _(efficient_seam_carve, input_image: str, mo, slider):
     with mo.persistent_cache("seam_carves"):
         scale_factor = slider.value
         result = efficient_seam_carve(input_image, scale_factor)

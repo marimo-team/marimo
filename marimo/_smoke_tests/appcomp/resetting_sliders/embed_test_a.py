@@ -1,18 +1,20 @@
 import marimo
 
-__generated_with = "0.19.2"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return
 
 
 @app.cell
 def _():
     import embed_test_b
+
     return (embed_test_b,)
 
 

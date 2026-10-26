@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -11,18 +11,17 @@ def _():
     import pandas as pd
     import numpy as np
     import marimo as mo
+
     return mo, np, pd
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     This highlights some of the differences between displaying data in different libraries: polars, pandas, pyarrow, and dictionaries.
 
     These differences are due to how each library prints their data as CSVs.
-    """
-    )
+    """)
     return
 
 
@@ -101,7 +100,7 @@ def _(df, mo):
 
 
 @app.cell
-def _(data, pd):
+def _(data: dict, pd):
     df = pd.DataFrame(data)
     df
     return (df,)
@@ -120,7 +119,7 @@ def _(df, mo):
 
 
 @app.cell
-def _(data_2, mo, pd):
+def _(data_2: dict, mo, pd):
     # Arrow
     import pyarrow as pa
     import pyarrow.parquet as pq
@@ -169,7 +168,7 @@ def _(np, pd):
 
 
 @app.cell
-def _(data_2, mo):
+def _(data_2: dict, mo):
     # Polars
     import polars as pl
 

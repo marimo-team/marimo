@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -53,7 +53,7 @@ def _(mo):
 
 
 @app.cell
-def _(clear_selection, mo, types_name):
+def _(clear_selection, mo, types_name: list):
     clear_selection
     pokemon_types = mo.ui.multiselect(types_name)
     return (pokemon_types,)
@@ -119,7 +119,15 @@ def _(distribution_plot, drilldown, mo, pokemon_types):
 
 
 @app.cell
-def _(attribute, colors, filtered_pokemons, mo, plt, pokemon_types, sns):
+def _(
+    attribute,
+    colors: dict[str, str],
+    filtered_pokemons: dict,
+    mo,
+    plt,
+    pokemon_types,
+    sns,
+):
     def plot():
         plt.figure(figsize=(6.5, 4))
         if attribute.value is not None:
@@ -149,7 +157,7 @@ def _(attribute, colors, filtered_pokemons, mo, plt, pokemon_types, sns):
 
 
 @app.cell
-def _(filtered_pokemons, mo, pokemon_types):
+def _(filtered_pokemons: dict, mo, pokemon_types):
     def make_table():
         records = [
             row

@@ -8,19 +8,22 @@
 
 import marimo
 
-__generated_with = "0.17.3"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""::lucide:alarm-clock::""")
+    mo.md(r"""
+    ::lucide:alarm-clock::
+    """)
     return
 
 

@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -18,18 +18,23 @@ def _():
     import pandas as pd
     import marimo as mo
     import numpy as np
+
     return mo, np, pd
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Lots of columns""")
+    mo.md(r"""
+    ## Lots of columns
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Set cols to 10000 to crash the frontend. Number of rows appears to have no effect.""")
+    mo.md("""
+    Set cols to 10000 to crash the frontend. Number of rows appears to have no effect.
+    """)
     return
 
 
@@ -62,13 +67,11 @@ def _(df):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        ## 20k rows, 40 columns 
+    mo.md(r"""
+    ## 20k rows, 40 columns
 
-        This is the default max to show column summaries
-        """
-    )
+    This is the default max to show column summaries
+    """)
     return
 
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.14"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -31,25 +31,25 @@ def cases(mo):
         "chrome-headless-shell-mac-arm64/chrome-headless-shell"
     )
     PLAYWRIGHT_ERR = f"""\
-BrowserType.launch: Executable doesn't exist at {LONG_PATH}
-╔════════════════════════════════════════════════════════════╗
-║ Looks like Playwright was just installed or updated.       ║
-║ Please run the following command to download new browsers: ║
-║                                                            ║
-║     playwright install                                     ║
-║                                                            ║
-║ <3 Playwright Team                                         ║
-╚════════════════════════════════════════════════════════════╝"""
+    BrowserType.launch: Executable doesn't exist at {LONG_PATH}
+    ╔════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright was just installed or updated.       ║
+    ║ Please run the following command to download new browsers: ║
+    ║                                                            ║
+    ║     playwright install                                     ║
+    ║                                                            ║
+    ║ <3 Playwright Team                                         ║
+    ╚════════════════════════════════════════════════════════════╝"""
     LONG_STACK = """\
-Traceback (most recent call last):
-  File "/Users/example/src/marimo/marimo/_server/export/_pdf_raster.py", line 601, in rasterize
-    async with async_playwright() as playwright:
-  File "/Users/example/src/marimo/marimo/_server/api/endpoints/export.py", line 142, in export_as_pdf
-    pdf_bytes = await export_pdf(request)
-  File "/Users/example/.local/share/uv/tools/marimo/lib/python3.12/site-packages/playwright/_impl/_connection.py", line 59, in send
-    return await self._inner_send(method, dict(params), False)
-playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist
-"""
+    Traceback (most recent call last):
+      File "/Users/example/src/marimo/marimo/_server/export/_pdf_raster.py", line 601, in rasterize
+        async with async_playwright() as playwright:
+      File "/Users/example/src/marimo/marimo/_server/api/endpoints/export.py", line 142, in export_as_pdf
+        pdf_bytes = await export_pdf(request)
+      File "/Users/example/.local/share/uv/tools/marimo/lib/python3.12/site-packages/playwright/_impl/_connection.py", line 59, in send
+        return await self._inner_send(method, dict(params), False)
+    playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist
+    """
 
     def fire_toast(
         title: str, description: str, *, as_html: bool = False, kind="danger"
@@ -78,7 +78,15 @@ playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist
 
 
 @app.cell
-def trigger(LONG_PATH, LONG_STACK, PLAYWRIGHT_ERR, cases, fire, fire_toast, mo):
+def trigger(
+    LONG_PATH: str,
+    LONG_STACK: str,
+    PLAYWRIGHT_ERR: str,
+    cases,
+    fire,
+    fire_toast,
+    mo,
+):
     if fire.value:
         choice = cases.value
         if choice == "short":

@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -28,7 +28,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(md_token, mo):
+def _(md_token: None | str, mo):
     callout = mo.md(f"""
     There is no **MotherDuck** token found in your environment. To set one up, go to the [MotherDuck's settings page](https://app.motherduck.com/settings/general), create a token, and copy it below.
     And re-run this notebook:
@@ -197,7 +197,7 @@ def _(mo):
 
 
 @app.cell
-def _(MONTHS, duckdb, mo):
+def _(MONTHS: dict[str, int], duckdb, mo):
     month_select = mo.ui.multiselect(
         MONTHS,
         label="Month",
@@ -231,7 +231,7 @@ def _(hn_type_select, mo, month_select):
 
 
 @app.cell(hide_code=True)
-def _(hn_type_select, mo, month_list):
+def _(hn_type_select, mo, month_list: str):
     most_monthly_voted = mo.sql(
         f"""
         -- Most monthly voted
@@ -316,7 +316,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, search_value):
+def _(mo, search_value: str):
     keyword_results = mo.sql(
         f"""
         SELECT
@@ -340,7 +340,7 @@ def _(search_input):
 
 
 @app.cell(hide_code=True)
-def _(alt, keyword_results, mo, search_value):
+def _(alt, keyword_results, mo, search_value: str):
     if keyword_results.is_empty():
         mo.stop(True, f"No results for {search_value}")
 

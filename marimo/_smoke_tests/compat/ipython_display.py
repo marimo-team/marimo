@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -33,6 +33,7 @@ def _():
         Code,
         IFrame,
     )
+
     return (
         Audio,
         Code,
@@ -187,7 +188,9 @@ def _(Markdown):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Display Commands""")
+    mo.md(r"""
+    # Display Commands
+    """)
     return
 
 
@@ -212,6 +215,7 @@ def _():
         display_javascript,
         display_pdf,
     )
+
     return (
         display_html,
         display_javascript,
@@ -269,6 +273,7 @@ def _(
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

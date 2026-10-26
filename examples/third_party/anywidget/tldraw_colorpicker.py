@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -40,7 +40,7 @@ def _():
 
 
 @app.cell
-def _(mo, np, opacity, plt, sizes, widget, x, y):
+def _(mo, np, opacity: float, plt, sizes: float, widget, x: int, y: int):
     fig, ax = plt.subplots()
     fig.set_size_inches(3, 3)
     ax.set(xlim=(0, 8), xticks=np.arange(1, 8), ylim=(0, 8), yticks=np.arange(1, 8))

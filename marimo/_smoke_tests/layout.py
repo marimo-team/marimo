@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -25,12 +25,14 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Horizontal Stack: `hstack`""")
+    mo.md("""
+    # Horizontal Stack: `hstack`
+    """)
     return
 
 
 @app.cell
-def _(align, boxes, gap, justify, mo, wrap):
+def _(align, boxes: list, gap, justify, mo, wrap):
     mo.hstack(
         boxes,
         align=align.value,
@@ -43,12 +45,14 @@ def _(align, boxes, gap, justify, mo, wrap):
 
 @app.cell
 def _(mo):
-    mo.md("""# Vertical Stack: `vstack`""")
+    mo.md("""
+    # Vertical Stack: `vstack`
+    """)
     return
 
 
 @app.cell
-def _(align, boxes, gap, mo):
+def _(align, boxes: list, gap, mo):
     mo.vstack(
         boxes,
         align=align.value,
@@ -73,6 +77,7 @@ def _(mo, size):
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

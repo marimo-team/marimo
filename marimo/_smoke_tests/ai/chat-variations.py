@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.2"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium", auto_download=["html"])
 
 
@@ -10,6 +10,7 @@ def _():
     import time
     import asyncio
     import pydantic_ai.ui.vercel_ai.response_types as vercel
+
     return asyncio, time, uuid, vercel
 
 
@@ -118,12 +119,14 @@ def _(uuid, vercel):
         yield vercel.TextEndChunk(id=text_id)
         yield vercel.FinishStepChunk()
         yield vercel.FinishChunk()
+
     return (async_streaming_chunks,)
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -136,6 +139,7 @@ def _(asyncio):
         yield " It does not include reasoning or tool calls."
         await asyncio.sleep(1)
         yield " Have a nice day!"
+
     return (async_streaming_text,)
 
 
@@ -148,6 +152,7 @@ def _(time):
         yield " is simple "
         time.sleep(1)
         yield " streaming."
+
     return (sync_streaming_text,)
 
 
@@ -156,6 +161,7 @@ def _(asyncio):
     async def async_no_streaming_text(messages, config):
         await asyncio.sleep(1)
         return f"**echo**: _{messages[-1].content}_"
+
     return (async_no_streaming_text,)
 
 
@@ -164,6 +170,7 @@ def _(time):
     def sync_no_streaming_text(messages, config):
         time.sleep(1)
         return f"**echo**: _{messages[-1].content}_"
+
     return (sync_no_streaming_text,)
 
 
@@ -172,6 +179,7 @@ def _(mo, time):
     def sync_no_streaming_object(messages, config):
         time.sleep(1)
         return mo.ui.table([1, 2, 3, messages[-1].content])
+
     return (sync_no_streaming_object,)
 
 

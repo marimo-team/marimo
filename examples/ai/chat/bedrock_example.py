@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -61,7 +61,7 @@ def _():
 
 
 @app.cell
-def _(aws_config, mo):
+def _(aws_config: dict, mo):
     # Display AWS configuration status
     mo.stop(
         not aws_config["has_credentials"],

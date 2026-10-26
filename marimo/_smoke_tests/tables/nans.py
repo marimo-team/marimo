@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.2"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -10,6 +10,7 @@ def _():
     import polars as pl
     import pandas as pd
     import numpy as np
+
     return mo, np, pd, pl
 
 

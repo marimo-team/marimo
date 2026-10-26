@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.16.2"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -27,7 +27,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## vconcat with hconcat inside""")
+    mo.md(r"""
+    ## vconcat with hconcat inside
+    """)
     return
 
 
@@ -68,7 +70,9 @@ def _(mo, stacked_chart):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Nested vconcat""")
+    mo.md(r"""
+    ## Nested vconcat
+    """)
     return
 
 
@@ -105,7 +109,9 @@ def _(mo, stacked_chart1):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## hconcat with vconcat inside""")
+    mo.md(r"""
+    ## hconcat with vconcat inside
+    """)
     return
 
 
@@ -142,7 +148,9 @@ def _(h_v_chart, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Nested hconcat""")
+    mo.md(r"""
+    ## Nested hconcat
+    """)
     return
 
 
@@ -179,7 +187,9 @@ def _(mo, nested_h_chart):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Complex nested combination""")
+    mo.md(r"""
+    ## Complex nested combination
+    """)
     return
 
 

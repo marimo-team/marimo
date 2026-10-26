@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="full")
 
 
@@ -112,6 +112,7 @@ def _(mo):
             widths=[1, 1, 1, 1, 1, 1],
             gap=2,
         )
+
     return (output_stats,)
 
 
@@ -129,6 +130,7 @@ def _(alt, mo):
             )
         )
         return mo.ui.altair_chart(_chart)
+
     return (output_chart,)
 
 
@@ -136,6 +138,7 @@ def _(alt, mo):
 def _(mo):
     def output_table(df):
         return mo.ui.table(df[::-1], selection=None)
+
     return (output_table,)
 
 
@@ -285,6 +288,7 @@ def _():
     import pandas as pd
     import altair as alt
     import os
+
     return alt, mo, os, pd
 
 
@@ -296,6 +300,7 @@ def _():
     import hashlib
     from threading import Thread
     from websocket import create_connection, WebSocketConnectionClosedException
+
     return (
         WebSocketConnectionClosedException,
         create_connection,

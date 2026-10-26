@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -8,6 +8,7 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import datetime
+
     return datetime, mo
 
 
@@ -18,7 +19,7 @@ def _():
 
 
 @app.cell
-def _(initial_data, mo):
+def _(initial_data: list[dict[str, int]], mo):
     get_data, set_data = mo.state(initial_data)
     return get_data, set_data
 
@@ -40,7 +41,7 @@ def _(datetime, get_data, mo, set_data):
 
 
 @app.cell
-def _(mo, table_list):
+def _(mo, table_list: list):
     table = mo.ui.table(table_list)
     return (table,)
 
@@ -71,7 +72,7 @@ def _(get_data):
 
 
 @app.cell
-def _(table_list):
+def _(table_list: list):
     table_list[0]["x"].value
     return
 

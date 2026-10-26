@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 
@@ -35,7 +35,7 @@ def _():
 
 
 @app.cell
-def _(after_image_path, before_image_path, mo):
+def _(after_image_path: str, before_image_path: str, mo):
     # Basic horizontal comparison with default settings
     mo.image_compare(before_image=before_image_path, after_image=after_image_path)
     return
@@ -52,7 +52,7 @@ def _(mo):
 
 
 @app.cell
-def _(after_image_path, before_image_path, mo):
+def _(after_image_path: str, before_image_path: str, mo):
     mo.image_compare(
         before_image=before_image_path,
         after_image=after_image_path,
@@ -73,7 +73,7 @@ def _(mo):
 
 
 @app.cell
-def _(after_image_path, before_image_path, mo):
+def _(after_image_path: str, before_image_path: str, mo):
     mo.image_compare(
         before_image=before_image_path,
         after_image=after_image_path,

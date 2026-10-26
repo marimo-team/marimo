@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -8,12 +8,15 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import os
+
     return mo, os
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Setup""")
+    mo.md(r"""
+    ## Setup
+    """)
     return
 
 
@@ -41,13 +44,17 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Run some queries""")
+    mo.md("""
+    ## Run some queries
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### Streaming""")
+    mo.md("""
+    ### Streaming
+    """)
     return
 
 
@@ -61,7 +68,9 @@ def _(api_token):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Non-streaming""")
+    mo.md(r"""
+    ### Non-streaming
+    """)
     return
 
 

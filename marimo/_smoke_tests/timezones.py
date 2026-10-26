@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -42,11 +42,12 @@ def _():
 
     def print_df(df):
         return mo.hstack([df, mo.plain(df)])
+
     return mo, print_df
 
 
 @app.cell
-def _(datetime, pl, print_df):
+def _(datetime, pl: None, print_df):
     df = pl.DataFrame(
         {
             "price": [40, 50],
@@ -73,7 +74,7 @@ def _(df, print_df):
 
 
 @app.cell
-def _(date, pl, print_df):
+def _(date, pl: None, print_df):
     _df = pl.DataFrame(
         {"price": [40, 50], "date": [date(2020, 1, 1), date(2020, 1, 2)]}
     )
@@ -82,7 +83,7 @@ def _(date, pl, print_df):
 
 
 @app.cell
-def _(pl, print_df, time):
+def _(pl: None, print_df, time):
     _df = pl.DataFrame(
         {
             "price": [40, 50],

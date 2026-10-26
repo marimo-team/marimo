@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.1"
 app = marimo.App()
 
 with app.setup:
@@ -70,13 +70,13 @@ def plot_dictionary(data: dict) -> None:
 
 
 @app.cell(hide_code=True)
-def plot(plot_data):
+def plot(plot_data: dict[str, int]):
     plot_dictionary(plot_data)
     return
 
 
 @app.cell(hide_code=True)
-def _(sample_data):
+def _(sample_data: dict[str, int]):
     plot_dictionary(sample_data)
     return
 

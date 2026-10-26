@@ -1,8 +1,8 @@
 ---
-title: Latex
-marimo-version: 0.19.6
 header: |-
   # Copyright 2026 Marimo. All rights reserved.
+title: Latex
+marimo-version: 0.25.1
 ---
 
 ```python {.marimo}
