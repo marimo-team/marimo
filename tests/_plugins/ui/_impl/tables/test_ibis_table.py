@@ -309,13 +309,30 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         manager = self.factory.create()(table)
         assert manager.get_field_type("A") == ("unknown", "unknown")
 
-    def test_search_with_regex(self) -> None:
+    def test_search_treats_query_as_literal(self) -> None:
         import ibis
 
-        table = ibis.memtable({"A": ["apple", "banana", "cherry"]})
+        table = ibis.memtable(
+            {
+                "A": [
+                    "apple",
+                    "banana",
+                    "C++",
+                    "c++ guide",
+                    "ΟΣ",
+                    "ος",
+                    "οσ",
+                    "İstanbul",
+                ]
+            }
+        )
         manager = self.factory.create()(table)
-        result = manager.search("^[ab]")
-        assert result.get_num_rows() == 2
+        assert manager.search("^[ab]").get_num_rows() == 0
+        assert manager.search("c++").get_num_rows() == 2
+        assert manager.search("C++ G").get_num_rows() == 1
+        assert manager.search("a.b").get_num_rows() == 0
+        assert manager.search("Σ").get_num_rows() == 3
+        assert manager.search("İ").get_num_rows() == 1
 
     def test_sort_values_with_nulls(self) -> None:
         import ibis
@@ -472,21 +489,11 @@ class TestTemporalColSummaries(unittest.TestCase):
                     datetime.datetime(2021, 1, 5),
                 ],
                 "datetime_with_tz": [
-                    datetime.datetime(
-                        2021, 1, 1, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 2, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 3, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 4, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 5, tzinfo=datetime.timezone.utc
-                    ),
+                    datetime.datetime(2021, 1, 1, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 2, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 3, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 4, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 5, tzinfo=datetime.UTC),
                 ],
                 "time": [
                     datetime.time(1, 2, 3),
@@ -548,28 +555,28 @@ class TestTemporalColSummaries(unittest.TestCase):
         assert bin_values == [
             BinValue(
                 bin_start=datetime.datetime(
-                    2021, 1, 1, 8, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 1, 8, 0, 0, tzinfo=datetime.UTC
                 ),
                 bin_end=datetime.datetime(
-                    2021, 1, 2, 16, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 2, 16, 0, 0, tzinfo=datetime.UTC
                 ),
                 count=2,
             ),
             BinValue(
                 bin_start=datetime.datetime(
-                    2021, 1, 2, 16, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 2, 16, 0, 0, tzinfo=datetime.UTC
                 ),
                 bin_end=datetime.datetime(
-                    2021, 1, 4, 0, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 4, 0, 0, 0, tzinfo=datetime.UTC
                 ),
                 count=1,
             ),
             BinValue(
                 bin_start=datetime.datetime(
-                    2021, 1, 4, 0, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 4, 0, 0, 0, tzinfo=datetime.UTC
                 ),
                 bin_end=datetime.datetime(
-                    2021, 1, 5, 8, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 5, 8, 0, 0, tzinfo=datetime.UTC
                 ),
                 count=2,
             ),

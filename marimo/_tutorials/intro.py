@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.15"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -37,7 +37,6 @@ def _(mo, slider):
 
     {"##" + "🍃" * slider.value}
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -57,7 +56,6 @@ def _(mo):
             )
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -68,7 +66,6 @@ def _(mo):
         with `marimo edit` at the command line.
         """
     ).callout(kind="info", title="Creating your own notebooks")
-    return
 
 
 @app.cell(hide_code=True)
@@ -87,7 +84,6 @@ def _(mo):
     making for a dynamic programming environment that prevents bugs before they
     happen.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -114,7 +110,6 @@ def _(changed, mo):
             """
         )
     )
-    return
 
 
 @app.cell
@@ -138,7 +133,6 @@ def _(mo):
             )
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -148,7 +142,6 @@ def _(mo):
     constraint on how names appear in cells: no two cells may define the same
     variable.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -163,7 +156,6 @@ def _(mo):
             )
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -178,7 +170,6 @@ def _(mo):
             )
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -194,7 +185,6 @@ def _(mo):
     marimo provides a library of UI elements to choose from under
     `marimo.ui`.
     """)
-    return
 
 
 @app.cell
@@ -202,7 +192,6 @@ def _(mo):
     mo.md("""
     **🌊 Some UI elements.** Try interacting with the below elements.
     """)
-    return
 
 
 @app.cell
@@ -220,13 +209,11 @@ def _(icon, mo):
 @app.cell
 def _(icon, repetitions):
     icon, repetitions
-    return
 
 
 @app.cell
 def _(icon, mo, repetitions):
     mo.md("# " + icon.value * repetitions.value)
-    return
 
 
 @app.cell(hide_code=True)
@@ -247,7 +234,6 @@ def _(mo):
     values, and
     - importable by other modules (more on that in the future).
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -262,7 +248,6 @@ def _(mo):
     Of course, you can use marimo just to level-up your
     notebooking, without ever making apps.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -319,7 +304,6 @@ def _(mo):
     In addition to tutorials, we have examples in
     [our GitHub repo](https://www.github.com/marimo-team/marimo/tree/main/examples).
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -329,13 +313,11 @@ def _(mo):
 
     Here are some tips to help you get started with the marimo editor.
     """)
-    return
 
 
 @app.cell
 def _(mo, tips):
     mo.accordion(tips)
-    return
 
 
 @app.cell(hide_code=True)
@@ -343,7 +325,6 @@ def _(mo):
     mo.md("""
     ## Finally, a fun fact
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -354,7 +335,6 @@ def _(mo):
     called a "marimo moss ball". Made of just strands of algae, these
     beloved assemblages are greater than the sum of their parts.
     """)
-    return
 
 
 @app.cell(hide_code=True)

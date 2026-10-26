@@ -219,6 +219,45 @@ describe("transitionCell serialization", () => {
   });
 });
 
+describe("transitionCell console output ids", () => {
+  const output = (
+    data: string,
+    channel: OutputMessage["channel"] = "stdout",
+  ): OutputMessage => ({
+    channel,
+    mimetype: "text/plain",
+    data,
+    timestamp: 0,
+  });
+
+  it("assigns increasing ids to appended outputs", () => {
+    let cell = createCellRuntimeState({ status: "running" });
+    cell = transitionCell(cell, { console: output("a") } as CellMessage);
+    cell = transitionCell(cell, {
+      console: output("b", "stderr"),
+    } as CellMessage);
+    expect(cell.consoleOutputs.map((o) => o.id)).toEqual([1, 2]);
+  });
+
+  it("continues from the surviving maximum after a collapse", () => {
+    let cell = createCellRuntimeState({ status: "running" });
+    cell = transitionCell(cell, { console: output("a") } as CellMessage);
+    cell = transitionCell(cell, { console: output("b") } as CellMessage);
+    expect(cell.consoleOutputs.map((o) => o.id)).toEqual([1]);
+    cell = transitionCell(cell, {
+      console: output("c", "stderr"),
+    } as CellMessage);
+    expect(cell.consoleOutputs.map((o) => o.id)).toEqual([1, 2]);
+  });
+
+  it("assigns ids when the kernel replaces the whole console", () => {
+    const cell = transitionCell(createCellRuntimeState({ status: "running" }), {
+      console: [output("a"), output("b", "stderr")],
+    } as CellMessage);
+    expect(cell.consoleOutputs.map((o) => o.id)).toEqual([1, 2]);
+  });
+});
+
 describe("transitionCell stdin resolution", () => {
   describe.each([
     {

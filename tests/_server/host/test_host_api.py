@@ -2327,3 +2327,40 @@ def test_websocket_snapshot_failure_releases_subscription(
         assert caught.value.code == 1008
         assert notebook._attachments == {}
         assert len(harness.host._stream._listeners) == listeners
+
+
+async def test_cell_runs_over_http(harness: Harness) -> None:
+    nid = await harness.running()
+    notebook = await harness.host.notebook(nid)
+    (cell,) = notebook.document
+    runs = f"/notebooks/{nid}/runtime/runs"
+
+    body = json.dumps(
+        {"cells": [{"id": cell.id, "code_hash": cell.code_hash}]}
+    ).encode()
+    accepted = await finished(
+        harness.app, "POST", runs, headers=key("r1"), body=body
+    )
+    assert accepted.status == 202, accepted.body
+    run_id = accepted.json()["id"]
+    assert harness.backend().calls[-1] == (
+        "run_cells",
+        run_id,
+        notebook.document.etag,
+        (cell.id,),
+    )
+
+    notebook.observe(be.Done(protocol.RunId(run_id), "succeeded"))
+    stale = json.dumps({"cells": [{"id": cell.id, "code_hash": "0" * 16}]})
+    conflict = await finished(
+        harness.app, "POST", runs, headers=key("r2"), body=stale.encode()
+    )
+    assert conflict.status == 409
+    assert conflict.json()["type"].endswith("/conflict")
+    assert "changed since it was read" in conflict.json()["detail"]
+
+    both = json.dumps({"code": "1", "cells": [{"id": cell.id}]}).encode()
+    invalid = await finished(
+        harness.app, "POST", runs, headers=key("r3"), body=both
+    )
+    assert invalid.status == 400

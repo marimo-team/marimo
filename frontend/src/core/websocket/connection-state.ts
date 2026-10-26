@@ -2,22 +2,12 @@
 
 import type { CloseDecision } from "../host/connection";
 import { Logger } from "@/utils/Logger";
-import { TRANSPORT_EXHAUSTED_REASON } from "./transports/ws";
 import { ConnectionState, WebSocketClosedReason } from "./types";
 
 // Keep server reasons in sync with ws_endpoint.py and ws/*.py.
 // SSE carries the same reasons in close events. Unclassified reasons retry.
 export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
   switch (event.reason) {
-    case TRANSPORT_EXHAUSTED_REASON:
-      return {
-        kind: "gave-up",
-        status: {
-          state: ConnectionState.CLOSED,
-          code: WebSocketClosedReason.KERNEL_DISCONNECTED,
-          reason: "kernel not found",
-        },
-      };
     case "MARIMO_NO_FILE_KEY":
     case "MARIMO_NO_SESSION_ID":
     case "MARIMO_NO_SESSION":

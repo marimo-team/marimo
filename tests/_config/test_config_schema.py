@@ -1,11 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
 import types
 from typing import (
     TYPE_CHECKING,
     Any,
+    NotRequired,
     Union,
     get_args,
     get_origin,
@@ -31,12 +31,6 @@ from marimo._config.schema_utils import (
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-else:
-    from typing_extensions import NotRequired
-
 
 SCHEMA_CLASSES = [
     cls

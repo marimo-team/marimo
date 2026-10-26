@@ -28,6 +28,7 @@ class FakeSession:
         self.event_bus = SessionEventBus()
         self.consumers: list[tuple[SessionConsumer, bool]] = []
         self.commands: list[Any] = []
+        self.instantiations: list[Any] = []
         self.notifications: list[NotificationMessage] = []
         self.submitted = asyncio.Event()
         self.interrupts = 0
@@ -58,7 +59,8 @@ class FakeSession:
                 return
 
     def instantiate(self, request: Any, *, http_request: Any) -> None:
-        del request, http_request
+        del http_request
+        self.instantiations.append(request)
 
     def put_control_request(self, request: Any, from_consumer_id: Any) -> None:
         del from_consumer_id

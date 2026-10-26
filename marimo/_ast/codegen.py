@@ -158,6 +158,24 @@ def _needs_trailing_blank_line(mod: ast.Module, code: str) -> bool:
     return last_stmt.end_lineno == code_lines
 
 
+def _can_strip_bare_return(cell: CellImpl) -> bool:
+    """Returns True if a bare return can be safely omitted (ruff-compatible)."""
+    # Comment only case
+    if not cell.mod.body:
+        return False
+    # If the user has explicit \n, then we leave it
+    if cell.code.rstrip(" \t") != cell.code.rstrip(" \t\r\n"):
+        return False
+    # A single function/class def would trigger toplevel reclassification
+    return not (
+        len(cell.mod.body) == 1
+        and isinstance(
+            cell.mod.body[0],
+            (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+        )
+    )
+
+
 def to_decorator(
     config: CellConfig | None,
     fn: Decorators = "cell",
@@ -375,19 +393,20 @@ def to_functiondef(
     elif body := indent_text(cell.code):
         definition_body.append(body)
 
-    returns = format_tuple_elements(
-        "return (...)",
-        defs,
-        indent=True,
-        allowed_naked=True,
-        # maybe consider "return Edges(...)"
-        # Such that the return type can simply be 'Edges'
-    )
-    # Add blank line before return for ruff compatibility when last statement
-    # is an import, function def, or class def
-    if _needs_trailing_blank_line(cell.mod, cell.code):
-        definition_body.append("")
-    definition_body.append(returns)
+    if defs or not _can_strip_bare_return(cell):
+        returns = format_tuple_elements(
+            "return (...)",
+            defs,
+            indent=True,
+            allowed_naked=True,
+            # maybe consider "return Edges(...)"
+            # Such that the return type can simply be 'Edges'
+        )
+        # Add blank line before return for ruff compatibility when last statement
+        # is an import, function def, or class def
+        if _needs_trailing_blank_line(cell.mod, cell.code):
+            definition_body.append("")
+        definition_body.append(returns)
     return "\n".join(definition_body)
 
 

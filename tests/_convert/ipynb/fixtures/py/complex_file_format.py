@@ -28,7 +28,6 @@ def _():
     - Feature 1
     - Feature 2
     """)
-    return
 
 
 @app.cell
@@ -45,7 +44,6 @@ def disabled_cell():
     """This cell is disabled."""
     x = 42
     should_not_run = True
-    return
 
 
 @app.cell
@@ -60,14 +58,12 @@ def analysis(df):
     """Named cell with analysis and markdown output."""
     result = df["a"].sum()
     mo.md(f"The sum is **{result}**")
-    return
 
 
 @app.cell
 def _():
     """Unnamed cell."""
     internal_var = 100
-    return
 
 
 @app.function

@@ -183,7 +183,7 @@ class SessionEventStream(SessionHandler):
                             event = await asyncio.wait_for(
                                 self._events.get(), self.heartbeat_seconds
                             )
-                        except asyncio.TimeoutError:
+                        except TimeoutError:
                             yield None
                             continue
                         if event is None:

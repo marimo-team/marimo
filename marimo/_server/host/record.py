@@ -6,7 +6,7 @@ from __future__ import annotations
 import atexit
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from ipaddress import IPv6Address, ip_address
 from uuid import uuid4
 
@@ -53,10 +53,10 @@ def _process_started_at() -> datetime:
         import psutil
 
         started = psutil.Process(os.getpid()).create_time()
-        return datetime.fromtimestamp(started, tz=timezone.utc)
+        return datetime.fromtimestamp(started, tz=UTC)
     except Exception:
         # The fallback allows discovery but cannot verify process identity.
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
 
 class HostRecordFile:

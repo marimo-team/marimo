@@ -200,7 +200,7 @@ async def wait_for(
         response.changed.clear()
         try:
             await asyncio.wait_for(response.changed.wait(), remaining)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             continue
 
 

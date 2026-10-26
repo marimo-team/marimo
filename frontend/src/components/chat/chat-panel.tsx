@@ -166,7 +166,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   return (
     <div className="flex border-b px-2 py-1 justify-between shrink-0 items-center">
       <Tooltip content="New chat">
-        <Button variant="text" size="icon" onClick={onNewChat}>
+        <Button
+          aria-label="New chat"
+          variant="text"
+          size="icon"
+          onClick={onNewChat}
+        >
           <PlusIcon className="h-4 w-4" />
         </Button>
       </Tooltip>

@@ -12,7 +12,6 @@ import {
   GraduationCapIcon,
   GridIcon,
   LayoutIcon,
-  LinkIcon,
   MessagesSquareIcon,
   OrbitIcon,
   PackageIcon,
@@ -82,7 +81,12 @@ export const OpenTutorialDropDown: React.FC = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild={true}>
-        <Button data-testid="open-tutorial-button" size="xs" variant="outline">
+        <Button
+          data-testid="open-tutorial-button"
+          size="sm"
+          variant="outline"
+          className="border-border text-(--gray-11) shadow-none hover:border-(--gray-7) hover:bg-(--gray-3)"
+        >
           <GraduationCapIcon className="w-4 h-4 mr-2" />
           Tutorials
           <CaretDownIcon className="w-3 h-3 ml-1" />
@@ -135,7 +139,7 @@ const RESOURCES = [
     url: Constants.githubPage,
   },
   {
-    title: "Community",
+    title: "Discussion",
     description: "Join the marimo Discord community",
     icon: MessagesSquareIcon,
     url: Constants.discordLink,
@@ -162,9 +166,11 @@ const RESOURCES = [
 
 export const ResourceLinks: React.FC = () => {
   return (
-    <div className="flex flex-col gap-2">
-      <Header Icon={LinkIcon}>Resources</Header>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <nav
+      aria-label="Resources"
+      className="mt-12 border-t border-border/60 pt-6"
+    >
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
         {RESOURCES.map((resource) => (
           <a
             key={resource.title}
@@ -172,19 +178,15 @@ export const ResourceLinks: React.FC = () => {
             target="_blank"
             rel="noreferrer"
             aria-label={`${resource.title}: ${resource.description}`}
-            className="flex items-start gap-3 py-3 px-3 rounded-lg border hover:bg-accent/20 transition-colors shadow-xs"
+            title={resource.description}
+            className="flex items-center gap-2 rounded-sm text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <resource.icon className="w-5 h-5 mt-1.5 text-primary" />
-            <div>
-              <h3 className="font-medium">{resource.title}</h3>
-              <p className="text-sm text-muted-foreground">
-                {resource.description}
-              </p>
-            </div>
+            <resource.icon className="h-4 w-4" />
+            <span>{resource.title}</span>
           </a>
         ))}
       </div>
-    </div>
+    </nav>
   );
 };
 
@@ -201,21 +203,5 @@ export const TruncatedWorkspaceBanner: React.FC<{
       your workspace is large or deeply nested. Start marimo from a subfolder to
       see them.
     </Banner>
-  );
-};
-
-export const Header: React.FC<{
-  Icon: React.FC<React.SVGProps<SVGSVGElement>>;
-  control?: React.ReactNode;
-  children: React.ReactNode;
-}> = ({ Icon, control, children }) => {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <h2 className="flex items-center gap-2 text-xl font-semibold text-muted-foreground select-none">
-        <Icon className="h-5 w-5" />
-        {children}
-      </h2>
-      {control}
-    </div>
   );
 };

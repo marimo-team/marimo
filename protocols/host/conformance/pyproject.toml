@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "httpx==0.28.1",
     "jsonschema==4.26.0",
+    "python-jsonpath==2.2.1",
     "msgspec[yaml]==0.22.0",
     "psutil==7.2.2",
     "pytest==9.0.3",
@@ -17,6 +18,7 @@ package = false
 
 [tool.pytest.ini_options]
 testpaths = ["."]
+pythonpath = [".", ".."]
 addopts = "-ra"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

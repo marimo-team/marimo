@@ -3,25 +3,16 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import TYPE_CHECKING
 
 import pytest
 
 from marimo._core.document import code_hash
-from marimo._server.host.bridge import SessionBridge
-from marimo._server.host.context import HostContext
-from marimo._server.main import create_starlette_app
-from marimo._server.workspace import SingleFileWorkspace
 from marimo._session.notebook import AppFileManager
 from marimo._session.requests import InstantiateNotebookRequest
-from marimo._utils.marimo_path import MarimoPath
-from tests._server.host.drive import PORT, finished, request, wait_for
-from tests._server.mocks import (
-    get_mock_session_manager,
-    get_starlette_server_state_init,
-)
+from tests._server.host.drive import finished, wait_for
+from tests._server.host.live import key, open_host
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -30,12 +21,6 @@ if TYPE_CHECKING:
     from starlette.applications import Starlette
 
     from tests._server.host.drive import Response
-
-AUTH = {"Authorization": "Bearer execution-test"}
-
-
-def key(value: str) -> dict[str, str]:
-    return {**AUTH, "Idempotency-Key": value}
 
 
 @pytest.fixture
@@ -55,44 +40,8 @@ async def live_host(
     tmp_path: Path,
     notebook_source: str,
 ) -> AsyncIterator[tuple[Starlette, str, Response]]:
-    manager = get_mock_session_manager()
-    file = tmp_path / "notebook.py"
-    file.write_text(notebook_source)
-    manager.workspace = SingleFileWorkspace.from_path(MarimoPath(file))
-    manager.redirect_console_to_browser = True
-    app = create_starlette_app(base_url="", enable_auth=True)
-    get_starlette_server_state_init(session_manager=manager).apply(app.state)
-    bridge = SessionBridge(manager)
-    await bridge.open()
-    app.state.host_context = HostContext(
-        bridge=bridge, token="execution-test", port=PORT
-    )
-    notebook = next(iter(bridge.host.notebooks.values()))
-    events, task, disconnect = request(
-        app, "GET", f"/notebooks/{notebook.id}/events", headers=AUTH
-    )
-    try:
-        started = await finished(
-            app,
-            "PUT",
-            f"/notebooks/{notebook.id}/runtime",
-            headers=key("start"),
-        )
-        assert started.status == 202
-        await wait_for(
-            events,
-            lambda response: any(
-                r.get("data", {}).get("runtime", {}).get("status") == "running"
-                for r in response.records
-            ),
-            timeout=15,
-        )
-        yield app, notebook.id, events
-    finally:
-        disconnect()
-        await asyncio.wait_for(task, 5)
-        bridge.close()
-        await manager.shutdown()
+    async with open_host(tmp_path, notebook_source) as host:
+        yield host
 
 
 async def test_move_preserves_the_running_notebook(
@@ -219,6 +168,133 @@ async def test_scratch_outcomes_from_the_kernel(
             outcome["error"]["name"],
         ) == ("error", "syntax" if name is None else "exception", name)
         assert outcome["error"]["message"]
+
+
+@pytest.mark.parametrize("delete", [False, True], ids=["edit", "delete"])
+async def test_cell_runs_preserve_order_with_later_edits(
+    live_host: tuple[Starlette, str, Response], delete: bool
+) -> None:
+    app, notebook_id, events = live_host
+    notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
+    cell = next(iter(notebook.document))
+    session = next(iter(app.state.session_manager.sessions.values()))
+    runs = f"/notebooks/{notebook_id}/runtime/runs"
+    body = json.dumps(
+        {"cells": [{"id": cell.id, "code_hash": cell.code_hash}]}
+    ).encode()
+
+    async def completed(response: Response) -> None:
+        assert response.status == 202, response.body
+        await wait_for(
+            events,
+            lambda stream: any(
+                r.get("data", {}).get("run", {}).get("id")
+                == response.json()["id"]
+                and r["data"]["run"]["status"] == "completed"
+                for r in stream.records
+            ),
+        )
+
+    await completed(
+        await finished(app, "POST", runs, headers=key("warm"), body=body)
+    )
+    # A scratch client must not let a later edit overtake an accepted cell run.
+    async with session.scratchpad_lock:
+        accepted = await finished(
+            app, "POST", runs, headers=key("run"), body=body
+        )
+        assert accepted.status == 202, accepted.body
+        change = (
+            {"kind": "delete_cell", "id": cell.id, "base_etag": "*"}
+            if delete
+            else {
+                "kind": "put_cell",
+                "base_etag": "*",
+                "cell": {"id": cell.id, "code": "example = 99"},
+            }
+        )
+        edited = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/edits",
+            headers=key("edit"),
+            body=json.dumps({"changes": [change]}).encode(),
+        )
+        assert edited.status == 200, edited.body
+    await completed(accepted)
+
+    assertion = (
+        f"assert {cell.id!r} not in _graph.cells"
+        if delete
+        else f"assert _graph.cells[{cell.id!r}].code == 'example = 99'"
+    )
+    checked = await finished(
+        app,
+        "POST",
+        runs,
+        headers=key("check-graph"),
+        body=json.dumps(
+            {
+                "code": "from marimo._runtime.context import get_context as _ctx\n"
+                "_graph = _ctx().graph\n" + assertion
+            }
+        ).encode(),
+    )
+    await completed(checked)
+    assert (
+        next(
+            r["data"]["run"]["outcome"]
+            for r in reversed(events.records)
+            if r.get("data", {}).get("run", {}).get("id")
+            == checked.json()["id"]
+        )
+        == "succeeded"
+    )
+    current = notebook.document.cell(cell.id)
+    assert (None if current is None else current.code) == (
+        None if delete else "example = 99"
+    )
+
+
+@pytest.mark.parametrize(
+    "notebook_source",
+    [
+        (
+            "import marimo\napp = marimo.App()\n"
+            "@app.cell\ndef _():\n    answer = input('prompt')\n    return (answer,)\n"
+        )
+    ],
+    indirect=True,
+)
+async def test_host_cell_input_fails_without_waiting_for_stdin(
+    live_host: tuple[Starlette, str, Response],
+) -> None:
+    app, notebook_id, events = live_host
+    notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
+    cell = next(iter(notebook.document))
+    accepted = await finished(
+        app,
+        "POST",
+        f"/notebooks/{notebook_id}/runtime/runs",
+        headers=key("run"),
+        body=json.dumps({"cells": [{"id": cell.id}]}).encode(),
+    )
+    assert accepted.status == 202, accepted.body
+    await wait_for(
+        events,
+        lambda stream: any(
+            r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
+            and r["data"]["run"]["status"] == "completed"
+            for r in stream.records
+        ),
+    )
+    [execution] = [
+        r["data"]["execution"]
+        for r in events.records
+        if r.get("data", {}).get("execution", {}).get("status") == "completed"
+    ]
+    assert execution["outcome"]["error"]["name"] == "EOFError"
+    assert notebook.executions.active() is None
 
 
 async def test_background_output_after_a_scratch_run_is_dropped(

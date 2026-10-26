@@ -51,6 +51,7 @@ export const StartupLogsAlert: React.FC = () => {
             {isRunning ? "Initializing..." : "Initialized"}
           </span>
           <Button
+            aria-label="Dismiss startup logs"
             variant="text"
             data-testid="remove-startup-logs-button"
             size="icon"

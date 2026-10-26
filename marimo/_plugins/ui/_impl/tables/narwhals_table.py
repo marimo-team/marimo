@@ -35,6 +35,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
     TableCoordinate,
     TableManager,
+    regex_literal,
 )
 from marimo._sql.sql_quoting import quote_sql_identifier
 from marimo._utils.narwhals_utils import (
@@ -454,7 +455,7 @@ class NarwhalsTableManager(
                 return self.with_new_data(self.data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
-        query = query.lower()
+        pattern = f"(?i){regex_literal(query)}"
 
         expressions: list[Any] = []
         for column, dtype in self.nw_schema.items():
@@ -465,7 +466,7 @@ class NarwhalsTableManager(
             if is_narwhals_string_type(dtype):
                 # Cast to string as pandas may fail for certain values
                 expressions.append(
-                    nw.col(column).cast(nw.String).str.contains(f"(?i){query}")
+                    nw.col(column).cast(nw.String).str.contains(pattern)
                 )
             elif dtype == nw.List(nw.String):
                 # TODO: Narwhals doesn't support list.contains
@@ -479,7 +480,7 @@ class NarwhalsTableManager(
                 or dtype == nw.Boolean
             ):
                 expressions.append(
-                    nw.col(column).cast(nw.String).str.contains(f"(?i){query}")
+                    nw.col(column).cast(nw.String).str.contains(pattern)
                 )
 
         if not expressions:
@@ -768,9 +769,7 @@ class NarwhalsTableManager(
                     bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
                 except (OSError, OverflowError, ValueError):
                     # Fall back to timedelta calculation for old dates
-                    epoch = datetime.datetime(
-                        1970, 1, 1, tzinfo=datetime.timezone.utc
-                    )
+                    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC)
                     bin_end_dt = epoch + datetime.timedelta(
                         seconds=bin_end / ms_time
                     )
@@ -784,9 +783,7 @@ class NarwhalsTableManager(
                     )
                 except (OSError, OverflowError, ValueError):
                     # Fall back to timedelta calculation for old dates
-                    epoch = datetime.datetime(
-                        1970, 1, 1, tzinfo=datetime.timezone.utc
-                    )
+                    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC)
                     bin_end = epoch + datetime.timedelta(
                         seconds=bin_end / ms_time
                     )

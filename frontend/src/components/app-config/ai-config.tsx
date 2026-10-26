@@ -502,6 +502,7 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
           <ModelInfoCard model={model} />
           {model.custom && (
             <Button
+              aria-label={`Delete model ${model.name}`}
               variant="ghost"
               size="icon"
               onClick={handleDelete}

@@ -450,6 +450,7 @@ export const SlideSidebar = ({
         )}
         <Tooltip content={isConfigOpen ? "Collapse panel" : "Expand panel"}>
           <Button
+            aria-label={isConfigOpen ? "Collapse panel" : "Expand panel"}
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-foreground"

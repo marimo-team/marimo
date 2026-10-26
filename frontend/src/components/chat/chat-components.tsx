@@ -124,6 +124,7 @@ export const AddContextButton = ({
   return (
     <Tooltip content="Add context">
       <Button
+        aria-label="Add context"
         variant="text"
         size="icon"
         onClick={handleAddContext}
@@ -148,6 +149,7 @@ export const AttachFileButton = ({
     <>
       <Tooltip content="Attach a file">
         <Button
+          aria-label="Attach a file"
           variant="text"
           size="icon"
           onClick={() => fileInputRef.current?.click()}

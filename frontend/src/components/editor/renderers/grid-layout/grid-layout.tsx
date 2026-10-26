@@ -190,12 +190,18 @@ export const GridLayoutRenderer: React.FC<Props> = ({
           cells: [...cellLayouts, dropped],
         });
       }}
-      onDragStart={(_layout, _oldItem, _newItem, _placeholder, event) => {
-        dragProps.onDragStart(event);
-      }}
-      onDrag={(_layout, _oldItem, _newItem, _placeholder, event) => {
-        dragProps.onDragMove(event);
-      }}
+      onDragStart={
+        // oxlint-disable-next-line marimo/prefer-object-params -- React Grid Layout supplies the event as the fifth argument.
+        (_layout, _oldItem, _newItem, _placeholder, event) => {
+          dragProps.onDragStart(event);
+        }
+      }
+      onDrag={
+        // oxlint-disable-next-line marimo/prefer-object-params -- React Grid Layout supplies the event as the fifth argument.
+        (_layout, _oldItem, _newItem, _placeholder, event) => {
+          dragProps.onDragMove(event);
+        }
+      }
       onDragStop={() => {
         dragProps.onDragStop();
       }}

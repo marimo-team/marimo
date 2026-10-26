@@ -9,7 +9,7 @@ opaque. Gaps represent events outside an excerpt or its filter.
 shown in `run.sse`. Its snapshot includes the display and console output
 already produced. Both streams end with the same execution and run completion
 events, using the same cursors. `cell.json` is cell `c3` from that snapshot,
-and `analysis.json` is the analysis of that document. `cell-withheld.json`
+and `cell-withheld.json`
 is the same cell with source withheld from the client: its hashes and version
 are unchanged.
 
@@ -48,6 +48,6 @@ from storage. Its source is `x = 21`, but its original run and runtime are
 unknown. It illustrates a separate restoration scenario, outside the session
 above.
 
-`diagnostic.json` illustrates a separate document in which cells `c1` and `c2`
-both define `x`. The other problem responses illustrate individual rejected
-requests. `record.json` contains fictional local discovery credentials.
+The problem responses illustrate individual rejected requests. `record.json` contains fictional local discovery credentials.
+
+Experimental Analysis examples live in [experimental/analysis](../experimental/analysis/spec.md).

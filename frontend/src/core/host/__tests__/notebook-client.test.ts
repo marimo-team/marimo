@@ -1,94 +1,163 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 // @vitest-environment jsdom
 
-import { describe, expect, it, vi } from "vitest";
+import { type NotebookTransport, StreamStopped } from "@marimo-team/client";
 import { createStore } from "jotai";
-import { ConnectionState } from "../../websocket/types";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Deferred } from "@/utils/Deferred";
-import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
-import { classifyCloseEvent } from "../../websocket/connection-state";
-import { createNotebookClient } from "../notebook-client";
+import { ConnectionState } from "../../websocket/types";
+import type { ConnectionStatus } from "../connection";
+import { createNotebookClient, type NotebookClient } from "../notebook-client";
 import { fixtureEvents, fixtureMessages } from "./fixtures";
 
-function notebookMessage(id: string) {
-  const notebook = {
-    id,
-    project_id: "p1",
-    path: null,
-    name: id,
-    operations: [],
-    updated_at: null,
-  };
-  return JSON.stringify({ event: "notebook", data: { notebook } });
+/** One connection the fake transport opened. */
+interface Attempt {
+  readonly cursor: string | null;
+  readonly signal: AbortSignal;
+  open(): void;
+  receive(message: unknown): void;
+  /** End the connection so the stream reconnects. */
+  drop(): void;
+  /** End the stream, with the status the editor shows if the transport has one. */
+  stop(status?: ConnectionStatus): void;
 }
 
-function setup(url: () => string = () => "ws://localhost/ws") {
-  const events = new EventTarget();
-  const healthy = new Deferred<void>();
-  let provider = url;
-  const urls: URL[] = [];
-  const transport = {
-    readyState: WebSocket.CLOSED,
-    reconnect: vi.fn(() => {
-      urls.push(new URL(provider()));
-    }),
-    close: vi.fn(() => events.dispatchEvent(new CloseEvent("close"))),
-    send: vi.fn(),
-    addEventListener: events.addEventListener.bind(events),
-    removeEventListener: events.removeEventListener.bind(events),
-  };
+function setup(edit?: NotebookClient["edit"]) {
+  const attempts: Attempt[] = [];
+  const transport: NotebookTransport = ({ cursor, signal }, handlers) =>
+    new Promise((resolve, reject) => {
+      attempts.push({
+        cursor,
+        signal,
+        open: handlers.open,
+        receive: handlers.message,
+        drop: resolve,
+        stop: (status) =>
+          reject(new StreamStopped("stopped", { cause: status })),
+      });
+      signal.addEventListener("abort", () => resolve(), { once: true });
+    });
   const onNotification = vi.fn();
   const checkHealth = vi.fn(async () => true);
   const store = createStore();
-  const controller = createNotebookClient(store);
+  const controller = createNotebookClient(store, { edit });
   const client = controller.client;
   const connect = (signal: AbortSignal) =>
     controller.connect({
-      createTransport: (next) => {
-        provider = next;
-        return transport;
-      },
-      url,
+      transport,
       signal,
-      waitUntilReady: () => healthy.promise,
       checkHealth,
       onNotification: (notification) => onNotification({ data: notification }),
-      decodeJson: jsonParseWithSpecialChar,
-      classifyClose: classifyCloseEvent,
     });
+  let next = 0;
+  /** Wait for the next connection, and open it. */
+  const opened = async () => {
+    await vi.waitFor(() => expect(attempts.length).toBeGreaterThan(next));
+    const attempt = attempts[next++];
+    attempt.open();
+    return attempt;
+  };
   return {
-    events,
-    healthy,
-    transport,
+    attempts,
     client,
     connect,
     onNotification,
     store,
     checkHealth,
-    urls,
-    receive: (message: unknown) =>
-      events.dispatchEvent(
-        new MessageEvent("message", { data: JSON.stringify(message) }),
-      ),
+    opened,
   };
 }
 
+const lifetimes: AbortController[] = [];
+function lifetime() {
+  const controller = new AbortController();
+  lifetimes.push(controller);
+  return controller;
+}
+
+afterEach(() => {
+  lifetimes.splice(0).forEach((controller) => controller.abort());
+  vi.useRealTimers();
+});
+
+/** Wait out the stream's backoff before it reconnects. */
+const backoff = () => vi.advanceTimersByTimeAsync(2000);
+
+const kernelReady = {
+  event: "marimo",
+  data: { marimo: { op: "kernel-ready", resumed: false } },
+};
+
+const notebook = {
+  id: "nb/with space",
+  project_id: "p1",
+  path: null,
+  name: "Notebook",
+  operations: ["notebook.edit"],
+  updated_at: null,
+};
+
 describe("NotebookClient lifetime", () => {
+  it("keeps an edit's target and request identity across a stream reset", async () => {
+    const edit = vi.fn<NotebookClient["edit"]>().mockResolvedValue({
+      ok: false,
+      status: 409,
+      problem: { type: "conflict", title: "conflict", status: 409 },
+    });
+    const { connect, opened, client } = setup(edit);
+    connect(lifetime().signal);
+    const { receive } = await opened();
+    fixtureMessages("notebook-events.sse").forEach(receive);
+    const options = { idempotencyKey: "edit-1", signal: lifetime().signal };
+    await client.edit("n1", [], options);
+    receive({ event: "reset", data: {} });
+    await client.edit("n1", [], options);
+    expect(edit.mock.calls).toEqual([
+      ["n1", [], options],
+      ["n1", [], options],
+    ]);
+
+    receive({
+      event: "notebook",
+      data: { notebook: { ...notebook, id: "n2" } },
+    });
+    await expect(client.edit("n1", [], options)).rejects.toThrow(
+      "notebook changed",
+    );
+    expect(edit).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects aborted edits and reports a missing edit adapter", async () => {
+    const { client } = setup();
+    const controller = lifetime();
+    await expect(
+      client.edit("n1", [], {
+        idempotencyKey: "edit-1",
+        signal: controller.signal,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      status: 501,
+      problem: {
+        type: "tag:marimo.io,2026:host/unsupported-operation",
+        title: "Document editing is unavailable on this connection",
+        status: 501,
+      },
+    });
+    const reason = new Error("Session ended");
+    controller.abort(reason);
+    await expect(
+      client.edit("n1", [], {
+        idempotencyKey: "edit-1",
+        signal: controller.signal,
+      }),
+    ).rejects.toBe(reason);
+  });
+
   it("exposes identity and capabilities only after the notebook is ready", async () => {
-    const { connect, healthy, events, receive, client, store } = setup();
-    const lifetime = new AbortController();
-    connect(lifetime.signal);
-    healthy.resolve();
-    await healthy.promise;
-    events.dispatchEvent(new Event("open"));
-    const notebook = {
-      id: "nb/with space",
-      project_id: "p1",
-      path: null,
-      name: "Notebook",
-      operations: ["notebook.edit"],
-      updated_at: null,
-    };
+    const { connect, opened, client, store } = setup();
+    connect(lifetime().signal);
+    const { receive } = await opened();
     receive({ event: "notebook", data: { notebook } });
     expect(store.get(client.notebookAtom)).toBeNull();
     receive({ event: "ready", id: "1", data: {} });
@@ -101,396 +170,401 @@ describe("NotebookClient lifetime", () => {
     expect(store.get(client.notebookAtom)?.operations).toEqual([]);
     receive({ event: "notebook.removed", id: "3", data: { id: notebook.id } });
     expect(store.get(client.notebookAtom)).toBeNull();
-    lifetime.abort();
   });
 
   it("rebuilds the replica after a reconnect reset selects a new notebook", async () => {
-    const notebookId = "n2";
-    const { connect, events, healthy, urls, receive, client, store } = setup(
-      () => "ws://localhost/ws?session_id=visitor",
-    );
-    const lifetime = new AbortController();
-    connect(lifetime.signal);
-    healthy.resolve();
-    await healthy.promise;
-    events.dispatchEvent(new Event("open"));
-    fixtureMessages("notebook-events.sse").forEach(receive);
+    vi.useFakeTimers();
+    const { connect, opened, client, store } = setup();
+    connect(lifetime().signal);
+    const first = await opened();
+    fixtureMessages("notebook-events.sse").forEach(first.receive);
     expect(store.get(client.documentAtom)?.revision.notebook_id).toBe("n1");
 
-    events.dispatchEvent(new CloseEvent("close"));
-    expect(urls.at(-1)?.searchParams.get("cursor")).toBe("97");
+    first.drop();
+    await backoff();
     expect(store.get(client.documentAtom)?.revision.notebook_id).toBe("n1");
     expect(store.get(client.notebookAtom)).toBeNull();
-    events.dispatchEvent(new Event("open"));
-    receive({ event: "reset", data: {} });
+    const second = await opened();
+    expect(second.cursor).toBe("97");
+    second.receive({ event: "reset", data: {} });
     expect(store.get(client.documentAtom)).toBeNull();
     for (const event of fixtureMessages("notebook-events.sse")) {
-      receive(
-        JSON.parse(
-          JSON.stringify(event).replaceAll('"n1"', JSON.stringify(notebookId)),
-        ),
+      second.receive(
+        JSON.parse(JSON.stringify(event).replaceAll('"n1"', '"n2"')),
       );
     }
-    expect(store.get(client.documentAtom)?.revision.notebook_id).toBe(
-      notebookId,
-    );
+    expect(store.get(client.documentAtom)?.revision.notebook_id).toBe("n2");
     expect(store.get(client.connectionAtom).state).toBe(ConnectionState.OPEN);
-    expect(store.get(client.notebookAtom)?.id).toBe(notebookId);
-    lifetime.abort();
+    expect(store.get(client.notebookAtom)?.id).toBe("n2");
   });
 
-  it.each(["{broken", JSON.stringify({ event: "ready", data: {} })])(
-    "stops consuming a malformed host stream: %s",
-    (data) => {
-      const { connect, events, client, store, transport, onNotification } =
-        setup();
-      const lifetime = new AbortController();
-      connect(lifetime.signal);
-      events.dispatchEvent(new Event("open"));
-      events.dispatchEvent(new MessageEvent("message", { data }));
-      events.dispatchEvent(
-        new MessageEvent("message", {
-          data: JSON.stringify({
-            event: "marimo",
-            data: { marimo: { op: "reconnected" } },
-          }),
-        }),
-      );
-      expect(store.get(client.connectionAtom)).toEqual({
-        state: ConnectionState.CLOSED,
-        code: "KERNEL_DISCONNECTED",
-        reason: "Failed to decode notebook message",
+  it.each([
+    ["a message that is not an event", "{broken"],
+    ["an event from another notebook", "identity"],
+  ])("stops consuming a stream on %s", async (_name, message) => {
+    const { connect, opened, client, store, onNotification } = setup();
+    connect(lifetime().signal);
+    const attempt = await opened();
+    if (message === "identity") {
+      attempt.receive({ event: "notebook", data: { notebook } });
+      attempt.receive({
+        event: "notebook",
+        data: { notebook: { ...notebook, id: "n2" } },
       });
-      expect(transport.close).toHaveBeenCalledOnce();
-      expect(onNotification).not.toHaveBeenCalled();
-      lifetime.abort();
-    },
-  );
-
-  it("resumes from the last cursor until reset or a new session", async () => {
-    const session = { id: "first", token: "a" };
-    const { connect, events, healthy, urls, receive } = setup(
-      () =>
-        `ws://localhost/ws?session_id=${session.id}&access_token=${session.token}&cursor=999`,
-    );
-    const lifetime = new AbortController();
-    connect(lifetime.signal);
-    healthy.resolve();
-    await healthy.promise;
-    expect(urls[0].searchParams.get("cursor")).toBeNull();
-
-    const snapshot = fixtureMessages("notebook-events.sse");
-    events.dispatchEvent(new Event("open"));
-    for (const message of snapshot) {
-      receive(message);
+    } else {
+      attempt.receive(message);
     }
-    session.token = "b";
-    events.dispatchEvent(new CloseEvent("close"));
-    expect(urls[1].searchParams.get("cursor")).toBe("97");
-    expect(urls[1].searchParams.get("access_token")).toBe("b");
-
-    events.dispatchEvent(new Event("open"));
-    receive({ event: "reset", data: {} });
-    events.dispatchEvent(new CloseEvent("close"));
-    expect(urls[2].searchParams.get("cursor")).toBeNull();
-
-    events.dispatchEvent(new Event("open"));
-    for (const message of snapshot) {
-      receive(message);
-    }
-    session.id = "second";
-    events.dispatchEvent(new CloseEvent("close"));
-    expect(urls[3].searchParams.get("cursor")).toBeNull();
-    expect(urls[3].searchParams.get("session_id")).toBe("second");
-    lifetime.abort();
-  });
-
-  it("exposes the confirmed document until the lifetime ends", async () => {
-    const { connect, events, client, store, healthy, receive } = setup();
-    const lifetime = new AbortController();
-    connect(lifetime.signal);
-    healthy.resolve();
-    await healthy.promise;
-    events.dispatchEvent(new Event("open"));
-    const snapshot = fixtureMessages("notebook-events.sse");
-    for (const message of snapshot.slice(0, -3)) {
-      receive(message);
-    }
-    expect(store.get(client.documentAtom)).toBeNull();
-    for (const message of snapshot.slice(-3)) {
-      receive(message);
-    }
-    expect(store.get(client.documentAtom)?.revision.order).toEqual([
-      "c1",
-      "c3",
-      "k7f2",
-    ]);
-    events.dispatchEvent(new CloseEvent("close"));
-    expect(store.get(client.documentAtom)?.revision.order).toEqual([
-      "c1",
-      "c3",
-      "k7f2",
-    ]);
-    lifetime.abort();
-    expect(store.get(client.documentAtom)).toBeNull();
-  });
-
-  it("stops consuming a stream whose notebook changes", () => {
-    const { connect, events, client, store, transport } = setup();
-    const lifetime = new AbortController();
-    connect(lifetime.signal);
-    events.dispatchEvent(new Event("open"));
-    for (const id of ["n1", "n2"]) {
-      events.dispatchEvent(
-        new MessageEvent("message", { data: notebookMessage(id) }),
-      );
-    }
-    expect(store.get(client.connectionAtom)).toEqual({
-      state: ConnectionState.CLOSED,
-      code: "KERNEL_DISCONNECTED",
-      reason: "Failed to decode notebook message",
+    attempt.receive({
+      event: "marimo",
+      data: { marimo: { op: "reconnected" } },
     });
-    expect(transport.close).toHaveBeenCalledOnce();
-    lifetime.abort();
-  });
-
-  it.each(["MARIMO_UNAUTHORIZED", "MARIMO_TRANSPORT_EXHAUSTED"])(
-    "stops automatic recovery after %s but permits an explicit reconnect",
-    async (reason) => {
-      const {
-        connect,
-        client,
-        store,
-        events,
-        transport,
-        healthy,
-        checkHealth,
-      } = setup();
-      const lifetime = new AbortController();
-      connect(lifetime.signal);
-      healthy.resolve();
-      await healthy.promise;
-      events.dispatchEvent(new CloseEvent("close", { reason }));
-      events.dispatchEvent(new Event("error"));
+    await vi.waitFor(() =>
       expect(store.get(client.connectionAtom).state).toBe(
         ConnectionState.CLOSED,
-      );
-      expect(transport.reconnect).toHaveBeenCalledOnce();
-      await client.reconnect();
-      expect(checkHealth).toHaveBeenCalledOnce();
-      expect(transport.reconnect).toHaveBeenCalledTimes(2);
-      lifetime.abort();
-    },
-  );
-
-  it("only resets the automatic retry budget after an open event", () => {
-    const { connect, events, transport } = setup();
-    const lifetime = new AbortController();
-    connect(lifetime.signal);
-    events.dispatchEvent(new CloseEvent("close"));
-    events.dispatchEvent(new Event("error"));
-    events.dispatchEvent(new CloseEvent("close"));
-    expect(transport.reconnect).toHaveBeenCalledOnce();
-    events.dispatchEvent(new Event("open"));
-    events.dispatchEvent(new CloseEvent("close"));
-    expect(transport.reconnect).toHaveBeenCalledTimes(2);
-    lifetime.abort();
-  });
-
-  it("does not revive an aborted lifetime when a manual health check finishes", async () => {
-    const { connect, client, transport, checkHealth } = setup();
-    const health = new Deferred<boolean>();
-    checkHealth.mockReturnValue(health.promise);
-    const lifetime = new AbortController();
-    connect(lifetime.signal);
-    const attempt = client.reconnect();
-    lifetime.abort();
-    health.resolve(true);
-    await attempt;
-    expect(transport.reconnect).not.toHaveBeenCalled();
-  });
-
-  it("does not connect after abort, even when the health check finishes", async () => {
-    const { client, connect, healthy, transport } = setup();
-    const controller = new AbortController();
-    connect(controller.signal);
-    controller.abort();
-    healthy.resolve();
-    await healthy.promise;
-    client.reconnect();
-    expect(transport.reconnect).not.toHaveBeenCalled();
-    expect(transport.close).toHaveBeenCalledOnce();
-  });
-
-  it("detaches listeners before closing so cleanup cannot trigger a session retry", () => {
-    const { connect, client, store, events, transport, onNotification } =
-      setup();
-    const controller = new AbortController();
-    connect(controller.signal);
-    controller.abort();
-    events.dispatchEvent(
-      new MessageEvent("message", {
-        data: JSON.stringify({ data: { op: "reconnected" } }),
-      }),
+      ),
     );
-    expect(transport.reconnect).not.toHaveBeenCalled();
-    expect(store.get(client.connectionAtom)).toEqual({
-      state: ConnectionState.NOT_STARTED,
-    });
+    expect(store.get(client.connectionAtom)).toMatchInlineSnapshot(`
+      {
+        "code": "KERNEL_DISCONNECTED",
+        "reason": "Failed to decode notebook message",
+        "state": "CLOSED",
+      }
+    `);
+    expect(attempt.signal.aborted).toBe(true);
     expect(onNotification).not.toHaveBeenCalled();
   });
 
-  it("can reconnect after effect cleanup without reviving the earlier client attempt", async () => {
-    const { connect, healthy, transport, events, onNotification } = setup();
-    const first = new AbortController();
-    connect(first.signal);
-    first.abort();
-    const second = new AbortController();
-    connect(second.signal);
-    healthy.resolve();
-    await healthy.promise;
-    expect(transport.reconnect).toHaveBeenCalledOnce();
-    events.dispatchEvent(
-      new MessageEvent("message", {
-        data: JSON.stringify({
-          event: "marimo",
-          data: { marimo: { op: "reconnected" } },
-        }),
-      }),
+  it("exposes the confirmed document until the lifetime ends", async () => {
+    vi.useFakeTimers();
+    const { connect, opened, client, store } = setup();
+    const current = lifetime();
+    connect(current.signal);
+    const attempt = await opened();
+    const snapshot = fixtureMessages("notebook-events.sse");
+    snapshot.slice(0, -3).forEach(attempt.receive);
+    expect(store.get(client.documentAtom)).toBeNull();
+    snapshot.slice(-3).forEach(attempt.receive);
+    expect(store.get(client.documentAtom)?.revision.order).toEqual([
+      "c1",
+      "c3",
+      "k7f2",
+    ]);
+    attempt.drop();
+    await backoff();
+    expect(store.get(client.documentAtom)?.revision.order).toEqual([
+      "c1",
+      "c3",
+      "k7f2",
+    ]);
+    current.abort();
+    expect(store.get(client.documentAtom)).toBeNull();
+  });
+
+  it.each([
+    ["a malformed native envelope", { event: "marimo", id: "98", data: {} }],
+    ["null native event data", { event: "marimo", id: "98", data: null }],
+    ["an invalid protocol record", { event: "cell", id: "98", data: {} }],
+    ["an undecodable message", "{broken"],
+    ["a changed notebook", { event: "notebook", id: "98", data: { notebook } }],
+  ])(
+    "rebuilds from a fresh snapshot after rejecting %s",
+    async (_name, message) => {
+      const { connect, opened, client, store, onNotification } = setup();
+      connect(lifetime().signal);
+      const first = await opened();
+      const snapshot = fixtureMessages("notebook-events.sse");
+      snapshot.forEach(first.receive);
+      expect(store.get(client.documentAtom)).not.toBeNull();
+      onNotification.mockClear();
+
+      first.receive(message);
+      first.receive(kernelReady);
+      expect({
+        connection: store.get(client.connectionAtom),
+        document: store.get(client.documentAtom),
+        attachments: store.get(client.attachmentsAtom),
+        aborted: first.signal.aborted,
+        notifications: onNotification.mock.calls,
+      }).toEqual({
+        connection: {
+          state: ConnectionState.CLOSED,
+          code: "KERNEL_DISCONNECTED",
+          reason: "Failed to decode notebook message",
+        },
+        document: null,
+        attachments: [],
+        aborted: true,
+        notifications: [],
+      });
+
+      await client.reconnect();
+      const second = await opened();
+      expect(second.cursor).toBeNull();
+      snapshot.forEach(second.receive);
+      expect(store.get(client.documentAtom)?.revision.notebook_id).toBe("n1");
+      expect(store.get(client.connectionAtom)).toEqual({
+        state: ConnectionState.OPEN,
+      });
+    },
+  );
+
+  it.each([
+    [
+      "a final close",
+      {
+        state: ConnectionState.CLOSED,
+        code: "KERNEL_DISCONNECTED",
+        reason: "not authorized",
+      },
+    ],
+    ["the host giving up", undefined],
+  ] as const)(
+    "shows the stop after %s and resumes on an explicit reconnect",
+    async (_name, status) => {
+      const { connect, opened, attempts, client, store, checkHealth } = setup();
+      connect(lifetime().signal);
+      const first = await opened();
+      first.receive({ event: "ready", id: "5", data: {} });
+      first.stop(status);
+      await vi.waitFor(() =>
+        expect(store.get(client.connectionAtom)).toEqual(
+          status ?? {
+            state: ConnectionState.CLOSED,
+            code: "KERNEL_DISCONNECTED",
+            reason: "kernel not found",
+          },
+        ),
+      );
+      expect(attempts).toHaveLength(1);
+      await client.reconnect();
+      expect(checkHealth).toHaveBeenCalledOnce();
+      expect((await opened()).cursor).toBe("5");
+    },
+  );
+
+  it("does not revive an aborted lifetime when a manual health check finishes", async () => {
+    const { connect, opened, attempts, client, checkHealth } = setup();
+    const health = new Deferred<boolean>();
+    checkHealth.mockReturnValue(health.promise);
+    const current = lifetime();
+    connect(current.signal);
+    const first = await opened();
+    first.stop({
+      state: ConnectionState.CLOSED,
+      code: "KERNEL_DISCONNECTED",
+      reason: "",
+    });
+    await vi.waitFor(() => expect(checkHealth).not.toHaveBeenCalled());
+    const attempt = client.reconnect();
+    current.abort();
+    health.resolve(true);
+    await attempt;
+    expect(attempts).toHaveLength(1);
+  });
+
+  it("discards an interrupted snapshot before a manual reconnect", async () => {
+    const { connect, opened, client, store } = setup();
+    connect(lifetime().signal);
+    const first = await opened();
+    const snapshot = fixtureEvents("notebook-events.sse");
+    for (const event of snapshot) {
+      if (event.event === "ready") {
+        break;
+      }
+      first.receive(event);
+    }
+    first.stop();
+    await vi.waitFor(() =>
+      expect(store.get(client.connectionAtom).state).toBe(
+        ConnectionState.CLOSED,
+      ),
     );
+
+    await client.reconnect();
+    const second = await opened();
+    expect(second.cursor).toBeNull();
+    for (const event of snapshot) {
+      if (event.event === "notebook") {
+        second.receive(event);
+      }
+      if (event.event === "document") {
+        second.receive({
+          ...event,
+          data: { document: { ...event.data.document, order: [] } },
+        });
+      }
+    }
+    second.receive({ event: "ready", id: "100", data: {} });
+    expect({
+      connection: store.get(client.connectionAtom),
+      order: store.get(client.documentAtom)?.revision.order,
+      attachments: store.get(client.attachmentsAtom),
+    }).toEqual({
+      connection: { state: ConnectionState.OPEN },
+      order: [],
+      attachments: [],
+    });
+  });
+
+  it("does not connect after abort", async () => {
+    const { connect, attempts, client, store } = setup();
+    const current = lifetime();
+    connect(current.signal);
+    current.abort();
+    await client.reconnect();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(attempts).toHaveLength(0);
+    expect(store.get(client.connectionAtom)).toEqual({
+      state: ConnectionState.NOT_STARTED,
+    });
+  });
+
+  it("forwards notifications for the current lifetime only", async () => {
+    const { connect, opened, onNotification } = setup();
+    const first = lifetime();
+    connect(first.signal);
+    const earlier = await opened();
+    first.abort();
+    connect(lifetime().signal);
+    const current = await opened();
+    earlier.receive(kernelReady);
+    current.receive({
+      event: "marimo",
+      data: { marimo: { op: "reconnected" } },
+    });
     expect(onNotification).toHaveBeenCalledExactlyOnceWith({
       data: { op: "reconnected" },
     });
-    second.abort();
   });
 });
-
-async function open() {
-  const url = vi.fn(() => "ws://localhost/ws?session_id=first&cursor=999");
-  const setupResult = setup(url);
-  const lifetime = new AbortController();
-  setupResult.connect(lifetime.signal);
-  setupResult.healthy.resolve();
-  await setupResult.healthy.promise;
-  setupResult.events.dispatchEvent(new Event("open"));
-  return { ...setupResult, lifetime, url };
-}
 
 describe("NotebookClient attachments", () => {
   const [browser, agent] = fixtureEvents("notebook-events.sse").flatMap(
     (event) => (event.event === "attachment" ? [event.data.attachment] : []),
   );
 
+  async function open() {
+    const result = setup();
+    result.connect(lifetime().signal);
+    return { ...result, attempt: await result.opened() };
+  }
+
   it("publishes a complete snapshot and applies live changes independently of kernel readiness", async () => {
-    const { client, store, receive, lifetime } = await open();
+    const { client, store, attempt } = await open();
     const snapshot = fixtureMessages("notebook-events.sse");
     const readyIndex = snapshot.findIndex((event) => event.event === "ready");
-    snapshot.slice(0, readyIndex).forEach(receive);
+    snapshot.slice(0, readyIndex).forEach(attempt.receive);
     expect(store.get(client.attachmentsAtom)).toEqual([]);
-    snapshot.slice(readyIndex).forEach(receive);
+    snapshot.slice(readyIndex).forEach(attempt.receive);
     expect(store.get(client.attachmentsAtom)).toEqual([browser, agent]);
     const renamed = { ...agent, name: "Renamed agent" };
-    receive({ event: "attachment", id: "98", data: { attachment: renamed } });
-    receive({
+    attempt.receive({
+      event: "attachment",
+      id: "98",
+      data: { attachment: renamed },
+    });
+    attempt.receive({
       event: "attachment.removed",
       id: "99",
       data: { id: browser.id },
     });
     expect(store.get(client.attachmentsAtom)).toEqual([renamed]);
-    receive({ data: { op: "kernel-ready", resumed: false } });
+    attempt.receive(kernelReady);
     expect(store.get(client.attachmentsAtom)).toEqual([renamed]);
-    receive({ event: "attachment.removed", id: "100", data: { id: agent.id } });
-    expect(store.get(client.attachmentsAtom)).toEqual([]);
-    lifetime.abort();
-  });
-
-  it("resumes attachments alongside an incomplete document and waits for replay ready", async () => {
-    const { client, store, receive, events, urls, lifetime } = await open();
-    expect(urls[0].searchParams.has("cursor")).toBe(false);
-    fixtureMessages("notebook-events.sse").forEach(receive);
-    const confirmed = store.get(client.documentAtom);
-    const edits = fixtureMessages("edits.sse");
-    edits.slice(0, 3).forEach(receive);
-    const renamed = { ...agent, name: "Renamed agent" };
-    receive({ event: "attachment", id: "112a", data: { attachment: renamed } });
-    expect(store.get(client.attachmentsAtom)).toEqual([browser, renamed]);
-    events.dispatchEvent(new CloseEvent("close"));
-    expect(store.get(client.attachmentsAtom)).toEqual([]);
-    expect(urls.at(-1)!.searchParams.get("cursor")).toBe("112a");
-    events.dispatchEvent(new Event("open"));
-    expect(store.get(client.attachmentsAtom)).toEqual([]);
-    expect(store.get(client.documentAtom)).toBe(confirmed);
-    edits.slice(3).forEach(receive);
-    receive({
+    attempt.receive({
       event: "attachment.removed",
-      id: "115",
-      data: { id: browser.id },
+      id: "100",
+      data: { id: agent.id },
     });
     expect(store.get(client.attachmentsAtom)).toEqual([]);
-    receive({ event: "ready", id: "116", data: {} });
-    expect(store.get(client.attachmentsAtom)).toEqual([renamed]);
-    const revisions = fixtureEvents("edits.sse").flatMap((event) =>
-      event.event === "document" ? [event.data.document] : [],
-    );
-    expect(store.get(client.documentAtom)?.revision).toEqual(revisions.at(-1));
-    lifetime.abort();
   });
 
-  it("replaces stale attachments with an empty snapshot after reset", async () => {
-    const { client, store, receive, lifetime } = await open();
-    fixtureMessages("notebook-events.sse").forEach(receive);
-    receive({ event: "reset", data: {} });
-    expect(store.get(client.attachmentsAtom)).toEqual([]);
-    fixtureMessages("notebook-events.sse")
-      .filter((event) => event.event !== "attachment")
-      .forEach(receive);
-    expect(store.get(client.attachmentsAtom)).toEqual([]);
-    lifetime.abort();
-  });
-
-  it.each(["close", "error", "malformed", "removed", "abort", "identity"])(
-    "clears presence on %s and ignores messages after disposal",
-    async (reason) => {
-      const { client, store, receive, events, url, lifetime } = await open();
-      fixtureMessages("notebook-events.sse").forEach(receive);
-      expect(store.get(client.attachmentsAtom)).toEqual([browser, agent]);
-      switch (reason) {
-        case "close":
-          events.dispatchEvent(
-            new CloseEvent("close", { reason: "MARIMO_UNAUTHORIZED" }),
-          );
-          break;
-        case "error":
-          events.dispatchEvent(new Event("error"));
-          break;
-        case "malformed":
-          receive({ event: "attachment", id: "98", data: {} });
-          break;
-        case "removed":
-          receive({ event: "notebook.removed", id: "98", data: { id: "n1" } });
-          break;
-        case "identity":
-          url.mockReturnValue(
-            "ws://localhost/api/marimo/v1/notebooks/n2/events/ws",
-          );
-          events.dispatchEvent(new CloseEvent("close"));
-          receive({ event: "ready", id: "98", data: {} });
-          break;
-        default:
-          lifetime.abort();
+  it.each(["automatic", "manual"])(
+    "preserves an incomplete live document across %s reconnect and waits for replay ready",
+    async (recovery) => {
+      vi.useFakeTimers();
+      const { client, store, attempt, opened } = await open();
+      expect(attempt.cursor).toBeNull();
+      fixtureMessages("notebook-events.sse").forEach(attempt.receive);
+      const confirmed = store.get(client.documentAtom);
+      const edits = fixtureMessages("edits.sse");
+      edits.slice(0, 3).forEach(attempt.receive);
+      const renamed = { ...agent, name: "Renamed agent" };
+      attempt.receive({
+        event: "attachment",
+        id: "112a",
+        data: { attachment: renamed },
+      });
+      expect(store.get(client.attachmentsAtom)).toEqual([browser, renamed]);
+      if (recovery === "automatic") {
+        attempt.drop();
+        await backoff();
+      } else {
+        attempt.stop();
+        await vi.advanceTimersByTimeAsync(0);
+        await client.reconnect();
       }
       expect(store.get(client.attachmentsAtom)).toEqual([]);
-      lifetime.abort();
-      fixtureMessages("notebook-events.sse").forEach(receive);
+      const replay = await opened();
+      expect(replay.cursor).toBe("112a");
       expect(store.get(client.attachmentsAtom)).toEqual([]);
+      expect(store.get(client.documentAtom)).toBe(confirmed);
+      edits.slice(3).forEach(replay.receive);
+      replay.receive({
+        event: "attachment.removed",
+        id: "115",
+        data: { id: browser.id },
+      });
+      expect(store.get(client.attachmentsAtom)).toEqual([]);
+      replay.receive({ event: "ready", id: "116", data: {} });
+      expect(store.get(client.attachmentsAtom)).toEqual([renamed]);
+      const revisions = fixtureEvents("edits.sse").flatMap((event) =>
+        event.event === "document" ? [event.data.document] : [],
+      );
+      expect(store.get(client.documentAtom)?.revision).toEqual(
+        revisions.at(-1),
+      );
     },
   );
 
-  it("keeps host resources empty for notification-only WASM connections", async () => {
-    const { client, store, receive, lifetime } = await open();
-    receive({ data: { op: "kernel-ready" } });
-    receive({ data: { op: "reconnected" } });
-    expect(store.get(client.attachmentsAtom)).toEqual([]);
-    lifetime.abort();
-  });
+  it.each(["drop", "stop", "removed", "abort"])(
+    "clears presence on %s and ignores messages after disposal",
+    async (reason) => {
+      vi.useFakeTimers();
+      const current = lifetime();
+      const result = setup();
+      result.connect(current.signal);
+      const { client, store } = result;
+      const attempt = await result.opened();
+      fixtureMessages("notebook-events.sse").forEach(attempt.receive);
+      expect(store.get(client.attachmentsAtom)).toEqual([browser, agent]);
+      switch (reason) {
+        case "drop":
+          attempt.drop();
+          await backoff();
+          break;
+        case "stop":
+          attempt.stop({
+            state: ConnectionState.CLOSED,
+            code: "KERNEL_DISCONNECTED",
+            reason: "not authorized",
+          });
+          await vi.advanceTimersByTimeAsync(0);
+          break;
+        case "removed":
+          attempt.receive({
+            event: "notebook.removed",
+            id: "98",
+            data: { id: "n1" },
+          });
+          break;
+        default:
+          current.abort();
+      }
+      expect(store.get(client.attachmentsAtom)).toEqual([]);
+      current.abort();
+      fixtureMessages("notebook-events.sse").forEach(attempt.receive);
+      expect(store.get(client.attachmentsAtom)).toEqual([]);
+    },
+  );
 });

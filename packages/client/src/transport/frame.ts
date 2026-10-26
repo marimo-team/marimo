@@ -45,9 +45,9 @@ export interface Handlers {
  * The event stream calls it again for each attempt. It resolves when the
  * connection ended and another attempt makes sense. It rejects when the
  * stream should stop, preferably with a `StreamStopped` that says why, and
- * `closed` rejects with the same error. It sends the cursor however its host
- * expects, and leaves reconnecting, validation, and the cursor's value to
- * the event stream.
+ * `closed` rejects with the same error. Calls to the handlers after it
+ * settles are ignored. It sends the cursor however its host expects, and
+ * leaves reconnecting, validation, and the cursor's value to the event stream.
  */
 export type Transport = (attempt: Attempt, handlers: Handlers) => Promise<void>;
 

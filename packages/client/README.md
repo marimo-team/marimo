@@ -133,12 +133,22 @@ pnpm --dir packages/client build --watch
 
 After changing OpenAPI, regenerate the protocol types, schemas, and
 operation definitions. `codegen:check` checks that generated files match
-the specification.
+the specification. Generation requires `uv` as well as the Node toolchain:
+both language generators use the same Python overlay composer. The checked-in
+client includes experimental features, including Analysis.
 
 ```sh
 pnpm --dir packages/client codegen
 pnpm --dir packages/client codegen:check
 ```
+
+The package commands opt into all experimental features so Turbo builds retain
+the APIs the handwritten client consumes. Use `codegen:stable` for stable-only
+bindings, using
+`--output-dir` to keep them separate from the client's checked-in bindings. Use
+`--include-experimental=analysis` to select a feature. This selects generated
+contracts; it does not create a separate stable build of the client package.
+See the [host protocol tooling](../../protocols/host/README.md) for details.
 
 Run the package's tests and typecheck. Omit `--run` to watch tests while
 developing.

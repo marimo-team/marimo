@@ -7,6 +7,7 @@ on:
       - "marimo/_core/protocol.py"
       - "tests/_core/test_protocol.py"
       - "tests/_lint/test_host_protocol_codegen.py"
+      - "tests/_lint/test_host_protocol_overlays.py"
       - "pyproject.toml"
       - "Makefile"
       - ".github/workflows/test_host_protocol.yaml"
@@ -28,7 +29,7 @@ jobs:
       - name: Check Python model generation and portable fixtures
         run: make host-protocol-check
       - name: Check generated Python bindings against fixtures
-        run: uv run --group test pytest tests/_core/test_protocol.py tests/_lint/test_host_protocol_codegen.py
+        run: uv run --group test pytest tests/_core/test_protocol.py tests/_lint/test_host_protocol_codegen.py tests/_lint/test_host_protocol_overlays.py
       - name: Lint protocol tooling
         run: |
           uv run ruff check protocols

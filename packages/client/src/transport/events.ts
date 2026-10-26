@@ -11,12 +11,21 @@ import {
   report,
 } from "./stream.ts";
 
-/** Attempts in a row without an event before the stream gives up. */
+/** Failed attempts in a row before the stream gives up. */
 const ATTEMPTS = 10;
 
-/** The delay before reconnecting, which grows with each attempt in a row. */
+/** How long a connection stays open after its first event to count as healthy. */
+const HEALTHY_MS = 5000;
+
+/**
+ * The delay before reconnecting, which grows with each failed attempt in a row.
+ *
+ * Ten attempts wait about 77 seconds in all. Each delay varies by a quarter
+ * either way, so clients that lost the same host do not reconnect in step.
+ */
 function delay(attempt: number): number {
-  return Math.min(1000 * 1.3 ** attempt, 10_000);
+  const backoff = Math.min(1000 * 1.5 ** (attempt - 1), 15_000);
+  return backoff * (0.75 + Math.random() / 2);
 }
 
 /** Whether a stream is receiving events. */
@@ -56,7 +65,8 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
  *
  * - It starts with a snapshot that ends in `ready`, then delivers changes.
  * - After a dropped connection it resumes from its cursor, backing off between
- *   attempts. It stops after ten attempts in a row without a message.
+ *   attempts. It stops after ten failed attempts in a row. An attempt fails
+ *   unless its connection stayed open for five seconds after its first event.
  * - When it cannot resume, it delivers `reset` and a fresh snapshot follows.
  *   The caller discards what it built on `reset`.
  */
@@ -145,13 +155,23 @@ export class Events<
     onEvent: (event: StreamEvent<K>) => void,
     onError?: (error: unknown) => void,
   ): () => void {
-    const unsubscribe = this.#stream.subscribe(onEvent);
-    if (onError === undefined || this.#settle === undefined) {
-      return unsubscribe;
+    let active = true;
+    const unsubscribe = this.#stream.subscribe((event) => {
+      if (active) {
+        onEvent(event);
+      }
+    });
+    const failed = (error: unknown) => {
+      if (active) {
+        onError?.(error);
+      }
+    };
+    if (onError !== undefined && this.#settle !== undefined) {
+      this.#onErrors.add(failed);
     }
-    this.#onErrors.add(onError);
     return () => {
-      this.#onErrors.delete(onError);
+      active = false;
+      this.#onErrors.delete(failed);
       unsubscribe();
     };
   }
@@ -219,21 +239,27 @@ export class Events<
     const { signal } = this.#controller;
     let attempt = 0;
     while (!signal.aborted) {
+      // Callbacks from an attempt that ended are ignored.
+      let current = true;
+      let healthy = false;
+      let uptime: ReturnType<typeof setTimeout> | undefined;
       try {
         const cursor = this.#stream.resume();
         await transport(
           { cursor, signal },
           {
             open: () => {
-              if (this.#settle !== undefined) {
+              if (current && this.#settle !== undefined) {
                 this.#setStatus("connected");
               }
             },
             message: (message) => {
-              if (this.#settle === undefined) {
+              if (!current || this.#settle === undefined) {
                 return;
               }
-              attempt = 0;
+              uptime ??= setTimeout(() => {
+                healthy = true;
+              }, HEALTHY_MS);
               try {
                 this.#stream.receive(message);
               } catch (error) {
@@ -247,12 +273,17 @@ export class Events<
       } catch (error) {
         this.#finish()?.reject(error);
         return;
+      } finally {
+        current = false;
+        clearTimeout(uptime);
       }
       if (signal.aborted) {
         return;
       }
       this.#setStatus("connecting");
-      attempt += 1;
+      // A host that drops each connection soon after opening it still runs
+      // out of attempts.
+      attempt = healthy ? 1 : attempt + 1;
       if (attempt > ATTEMPTS) {
         this.#finish()?.reject(
           new StreamStopped("The host could not be reached"),

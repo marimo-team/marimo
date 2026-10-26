@@ -69,12 +69,14 @@ export class MarkdownLanguageAdapter implements LanguageAdapter<MarkdownLanguage
     return this.parser.isSupported(pythonCode);
   }
 
-  public getExtension(
-    _cellId: CellId,
-    _completionConfig: CompletionConfig,
-    hotkeys: HotkeyProvider,
-    _: PlaceholderType,
-  ): Extension[] {
+  public getExtension({
+    hotkeys,
+  }: {
+    cellId: CellId;
+    completionConfig: CompletionConfig;
+    hotkeys: HotkeyProvider;
+    placeholderType: PlaceholderType;
+  }): Extension[] {
     const markdownLanguageData = markdown().language.data;
     let view: EditorView | undefined;
 

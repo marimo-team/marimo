@@ -128,13 +128,15 @@ fe-codegen:
 .PHONY: host-protocol-codegen
 # Generate host protocol Python bindings
 host-protocol-codegen:
-	uv run --locked --script protocols/host/generate.py
+	uv run --no-config --locked --script protocols/host/generate.py --include-experimental
 
 .PHONY: host-protocol-check
 # Check host model generation and portable protocol fixtures
 host-protocol-check:
-	uv run --locked --script protocols/host/generate.py --check
-	uv run --locked --project protocols/host/conformance pytest protocols/host/conformance
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+		uv run --no-config --locked --script protocols/host/generate.py --output-dir "$$tmp"
+	uv run --no-config --locked --script protocols/host/generate.py --include-experimental --check
+	uv run --locked --project protocols/host/conformance pytest -c protocols/host/conformance/pyproject.toml protocols/host/conformance protocols/host/experimental
 
 .PHONY: fe-plugin-schema
 # 🔄 Generate frontend plugin API schema

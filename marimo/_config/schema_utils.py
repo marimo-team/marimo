@@ -4,11 +4,11 @@
 from __future__ import annotations
 
 import copy
-import sys
 from typing import (
     Annotated,
     Any,
     ClassVar,
+    Self,
     get_args,
     get_origin,
     get_type_hints,
@@ -17,11 +17,6 @@ from typing import (
 import msgspec
 from msgspec import UNSET, Meta
 from msgspec.structs import fields
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
 
 
 def default_if_unset(value: Any, default: Any) -> Any:

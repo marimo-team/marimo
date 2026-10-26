@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from marimo._server.session_manager import SessionManager
     from marimo._session import Session
 
+from starlette.datastructures import QueryParams as StarletteQueryParams
 from starlette.websockets import WebSocketDisconnect
 
 from marimo import _loggers
@@ -243,9 +244,12 @@ class SessionConnector:
         return new_session, ConnectionType.NEW
 
     def _extract_query_params(self) -> QueryParams:
-        """Extract query params from the connection, filtering ignored keys."""
+        """Read notebook parameters independently of stream options."""
+        params = StarletteQueryParams(
+            self.connection.query_params.get("query_params", "")
+        )
         query_params = QueryParams({}, NoopStream())
-        for key, value in self.connection.query_params.multi_items():
+        for key, value in params.multi_items():
             if key not in QueryParams.IGNORED_KEYS:
                 query_params.append(key, value)
         return query_params

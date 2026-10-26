@@ -21,7 +21,6 @@ def _():
 @app.cell
 def _(x):
     print(x)
-    return
 
 
 if __name__ == "__main__":

@@ -92,7 +92,6 @@ def test_export_ipynb_marks_hidden_code_cells_for_nbconvert() -> None:
     @app.cell()
     def _(x):
         print(x)
-        return
 
     ipynb_json = json.loads(
         convert_from_ir_to_ipynb(InternalApp(app), sort_mode="top-down")

@@ -96,13 +96,6 @@ presentation preference; it does not withhold source. A null `code` field does
 not promise that source cannot be inferred from hashes, outputs, diagnostics,
 or other protocol data.
 
-A host MAY also publish an **analysis** of the document: each cell's
-definitions, references, and problems, so clients can understand a cell's role
-in the computation and identify problems before execution. Because cells share
-a dependency graph, editing one can affect the analysis of others. An analysis
-therefore covers the whole document and names the revision it describes. Hosts
-publish it after that revision of the document.
-
 ### Runtimes and attachments
 
 Clients connected to a notebook share its document and runtime. Hosts MUST
@@ -202,12 +195,16 @@ A completed cell execution is **current** when:
 - each name it depends on that was unbound is still unbound,
 - the execution that bound each of those variables is current.
 
-A client finds a variable by the recorded revision's `execution` and the name.
-If none exists, that execution was replaced or removed. If its `update` is
-higher, the value was updated. If that execution's `code_hash` differs from
-its cell's, the cell was edited. The first that applies is why the result is
-**outdated**. A cell with no execution has no result to compare. Scratch
-executions have no cell and are not compared.
+A client looks up each dependency by name, and also by the recorded revision's
+`execution` unless it is null. A dependency was replaced if no variable matches
+its revision, or if a variable now has a name recorded as null. It was updated
+if the variable's `update` is higher. An execution was edited if its
+`code_hash` differs from its cell's. A result whose dependency was bound by an
+outdated execution is outdated for the same reason. The first of replaced,
+updated, and edited that applies is why the result is **outdated**.
+
+A cell without an execution has no result to compare. Scratch executions run in
+a local namespace, bind no variables, and are not compared.
 
 For example, cell `k7f2` reads `x`, which cell `c3` binds:
 

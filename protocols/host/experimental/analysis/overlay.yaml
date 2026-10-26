@@ -1,0 +1,80 @@
+overlay: 1.0.0
+info:
+  title: Experimental document analysis
+  version: 0.1.0
+extends: ../../openapi.yaml
+actions:
+  - target: $.components.schemas
+    update:
+      Analysis:
+        type: object
+        description: |
+          What a document's cells imply, computed together over one
+          revision of the document so that cross-cell errors agree. One
+          per notebook, and removed with it. It follows the document it
+          describes, and `document_etag` says which revision that is.
+        required: [notebook_id, document_etag, cells]
+        properties:
+          notebook_id:
+            $ref: '#/components/schemas/NotebookId'
+            description: The notebook this analysis belongs to.
+          document_etag:
+            $ref: '#/components/schemas/Etag'
+            description: The document revision this analysis describes. Equal to the document's `etag` while the analysis is current.
+          cells:
+            type: object
+            additionalProperties: { $ref: '#/components/schemas/CellAnalysis' }
+            description: Every cell of that revision, by id.
+      CellAnalysis:
+        type: object
+        description: |
+          What a cell's text implies: the names it defines and reads, which
+          are the edges of the dependency graph, and the errors found in the
+          text alone or across the set of cells. A pure function of the
+          code, so two producers compute the same values.
+        required: [defs, refs, errors]
+        properties:
+          defs:
+            type: array
+            items: { type: string }
+            description: Names this cell defines.
+          refs:
+            type: array
+            items: { type: string }
+            description: Names this cell reads from other cells.
+          errors:
+            type: array
+            items: { $ref: '#/components/schemas/Error' }
+            description: Diagnostics about the code. Only an `error` affects scheduling. `multiple-definitions` lists the definers in `related`, each `range` at its definition; `cycle-dependencies` lists the cycle. Both are reported on every cell involved, differing only in `range`. Every other kind belongs to the analyzer named in `source`.
+      AnalysisEvent:
+        type: object
+        description: A `analysis` event from a host stream.
+        required: [event, data]
+        properties:
+          event: { type: string, enum: [analysis] }
+          id:
+            type: string
+            minLength: 1
+            description: The resume cursor. Omitted on snapshot and reset events.
+          data: { $ref: '#/components/schemas/AnalysisMessage' }
+      AnalysisMessage:
+        type: object
+        description: The data of an `analysis` event. The analysis as it now is.
+        required: [analysis]
+        properties:
+          request_id:
+            type: string
+            description: The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.
+          time:
+            type: string
+            format: date-time
+            description: When the host made this change. Present on live and replayed events; omitted on snapshots.
+          analysis: { $ref: '#/components/schemas/Analysis' }
+  - target: $.components.schemas.ObjectType.enum
+    update: analysis
+  - target: $.components.schemas.Event.oneOf
+    update:
+      $ref: '#/components/schemas/AnalysisEvent'
+  - target: $.components.schemas.Event.discriminator.mapping
+    update:
+      analysis: '#/components/schemas/AnalysisEvent'

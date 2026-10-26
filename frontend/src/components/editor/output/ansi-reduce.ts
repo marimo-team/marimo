@@ -358,6 +358,7 @@ export class AnsiReducer {
 
 export type StringOutputMessage = Omit<OutputMessage, "data"> & {
   data: string;
+  id?: number;
 };
 
 /**
@@ -369,6 +370,7 @@ export class StatefulOutputMessage implements OutputMessage {
   public readonly channel: OutputMessage["channel"];
   public readonly timestamp: OutputMessage["timestamp"];
   public readonly code: OutputMessage["code"];
+  public readonly id: StringOutputMessage["id"];
   private ansiReducer = new AnsiReducer();
   private _data: string;
 
@@ -379,39 +381,50 @@ export class StatefulOutputMessage implements OutputMessage {
   public static create(message: StringOutputMessage): StatefulOutputMessage {
     const ansiReducer = new AnsiReducer();
     ansiReducer.append(message.data);
-    return new StatefulOutputMessage(
-      message.mimetype,
-      message.channel,
-      message.timestamp,
+    return new StatefulOutputMessage({
+      mimetype: message.mimetype,
+      channel: message.channel,
+      timestamp: message.timestamp,
       ansiReducer,
-      message.code,
-    );
+      code: message.code,
+      id: message.id,
+    });
   }
 
-  private constructor(
-    mimetype: OutputMessage["mimetype"],
-    channel: OutputMessage["channel"],
-    timestamp: OutputMessage["timestamp"],
-    ansiReducer: AnsiReducer,
-    code: OutputMessage["code"],
-  ) {
+  private constructor({
+    mimetype,
+    channel,
+    timestamp,
+    ansiReducer,
+    code,
+    id,
+  }: {
+    mimetype: OutputMessage["mimetype"];
+    channel: OutputMessage["channel"];
+    timestamp: OutputMessage["timestamp"];
+    ansiReducer: AnsiReducer;
+    code: OutputMessage["code"];
+    id: StringOutputMessage["id"];
+  }) {
     this.mimetype = mimetype;
     this.channel = channel;
     this.timestamp = timestamp;
     this.code = code;
+    this.id = id;
     this.ansiReducer = ansiReducer;
     this._data = this.ansiReducer.render();
   }
 
   public appendData(chunk: string): StatefulOutputMessage {
     this.ansiReducer.append(chunk);
-    return new StatefulOutputMessage(
-      this.mimetype,
-      this.channel,
-      this.timestamp,
-      this.ansiReducer,
-      this.code,
-    );
+    return new StatefulOutputMessage({
+      mimetype: this.mimetype,
+      channel: this.channel,
+      timestamp: this.timestamp,
+      ansiReducer: this.ansiReducer,
+      code: this.code,
+      id: this.id,
+    });
   }
 
   public toJSON(): StringOutputMessage {

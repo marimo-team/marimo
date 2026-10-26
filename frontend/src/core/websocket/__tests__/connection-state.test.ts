@@ -64,16 +64,4 @@ describe("classifyCloseEvent", () => {
       });
     });
   });
-
-  describe("transport exhaustion", () => {
-    it("MARIMO_TRANSPORT_EXHAUSTED → gave-up with KERNEL_DISCONNECTED", () => {
-      const decision = classify("MARIMO_TRANSPORT_EXHAUSTED");
-      expect(decision.kind).toBe("gave-up");
-      expect(decision.status).toEqual({
-        state: ConnectionState.CLOSED,
-        code: WebSocketClosedReason.KERNEL_DISCONNECTED,
-        reason: "kernel not found",
-      });
-    });
-  });
 });
