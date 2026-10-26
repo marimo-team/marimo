@@ -42,6 +42,7 @@ from marimo._cli.utils import (
     check_app_correctness_or_convert,
     resolve_token,
 )
+from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._lint import run_check
 from marimo._mcp.setup import McpType
@@ -593,8 +594,13 @@ def edit(
             "  - Use 'marimo run' instead if you only need to view notebooks"
         )
 
-    if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
-        GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
+    server_config = get_default_config_manager(current_path=name).get_config()[
+        "server"
+    ]
+    GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = not (
+        skip_update_check or server_config["skip_update_check"]
+    )
+    if GLOBAL_SETTINGS.CHECK_STATUS_UPDATE:
         # Check for version updates after preflight checks pass.
         check_for_updates(print_latest_version)
 

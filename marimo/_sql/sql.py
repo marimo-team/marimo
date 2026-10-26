@@ -1,15 +1,19 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 from marimo._config.config import SqlOutputType
+from marimo._config.manager import get_default_config_manager
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._output.rich_help import mddoc
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 from marimo._runtime.output import replace
 from marimo._sql.engines.dbapi import DBAPIConnection, DBAPIEngine
 from marimo._sql.engines.duckdb import DuckDBEngine
@@ -29,8 +33,11 @@ from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
 
 
 def get_default_result_limit() -> int | None:
-    limit = os.environ.get("MARIMO_SQL_DEFAULT_LIMIT")
-    return int(limit) if limit is not None else None
+    try:
+        config = get_context().marimo_config
+    except ContextNotInitializedError:
+        config = get_default_config_manager(current_path=None).get_config()
+    return config["runtime"].get("sql_default_limit")
 
 
 def _resolve_default_duckdb_deps(

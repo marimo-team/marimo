@@ -12,6 +12,7 @@ from starlette.authentication import SimpleUser
 from starlette.datastructures import Headers, QueryParams
 from starlette.requests import HTTPConnection
 
+from marimo._config.config import merge_default_config
 from marimo._config.manager import MarimoConfigManager, UserConfigStore
 from marimo._server.api.auth import (
     CookieSession,
@@ -66,7 +67,7 @@ def test_custom_session_middleware_secure_flag_default(app: Starlette):
 
 
 def test_custom_session_middleware_secure_flag_enabled(app: Starlette):
-    # https_only=True (wired from MARIMO_SESSION_COOKIE_SECURE) marks the
+    # https_only=True (wired from MARIMO_SERVER_SESSION_COOKIE_SECURE) marks the
     # session cookie as Secure.
     middleware = CustomSessionMiddleware(app, "secret_key", https_only=True)
     assert "secure" in middleware.security_flags
@@ -186,12 +187,15 @@ def test_hash_access_token_is_keyed_and_deterministic():
 
 
 def test_session_secret_env_override():
-    # GlobalSettings reads env vars at import time, so check in a fresh
-    # interpreter.
+    # The fallback secret is random per process; check in fresh interpreters.
     code = (
-        "from marimo._server.api.auth import SESSION_SECRET, hash_access_token;"
-        "print(str(SESSION_SECRET));"
-        "print(hash_access_token('tok'))"
+        "from marimo._config.manager import get_default_config_manager;"
+        "from marimo._server.main import create_starlette_app;"
+        "from marimo._server.api.auth import hash_access_token;"
+        "config = get_default_config_manager(current_path=None).get_config(hide_secrets=False);"
+        "app = create_starlette_app(base_url='', server_config=config['server']);"
+        "print(str(app.state.session_secret));"
+        "print(hash_access_token('tok', secret=app.state.session_secret))"
     )
 
     def run(env: dict[str, str]) -> list[str]:
@@ -202,14 +206,14 @@ def test_session_secret_env_override():
         )
         return out.strip().splitlines()
 
-    stable_a = run({"MARIMO_SESSION_SECRET": "stable-secret"})
-    stable_b = run({"MARIMO_SESSION_SECRET": "stable-secret"})
+    stable_a = run({"MARIMO_SERVER_SESSION_SECRET": "stable-secret"})
+    stable_b = run({"MARIMO_SERVER_SESSION_SECRET": "stable-secret"})
     assert stable_a[0] == "stable-secret"
     # Same secret => same cookie hash across processes
     assert stable_a[1] == stable_b[1]
 
-    random_a = run({"MARIMO_SESSION_SECRET": ""})
-    random_b = run({"MARIMO_SESSION_SECRET": ""})
+    random_a = run({"MARIMO_SERVER_SESSION_SECRET": ""})
+    random_b = run({"MARIMO_SERVER_SESSION_SECRET": ""})
     # Empty/unset => random per process, so hashes differ
     assert random_a[0] != "stable-secret"
     assert random_a[0] != random_b[0]
@@ -315,3 +319,36 @@ async def test_custom_auth_middleware_without_user():
 
     await middleware(scope, mock_receive, mock_send)
     assert CustomAuthenticationMiddleware.KEY not in scope
+
+
+async def test_configured_session_secret_signs_and_validates_cookies() -> None:
+    config = merge_default_config(
+        {
+            "server": {
+                "session_secret": "configured-secret",
+                "session_cookie_secure": True,
+            }
+        }
+    )
+    app = create_starlette_app(base_url="", server_config=config["server"])
+    get_starlette_server_state_init().apply(app.state)
+    middleware = next(
+        item
+        for item in app.user_middleware
+        if item.cls is CustomSessionMiddleware
+    )
+    assert middleware.kwargs == {
+        "secret_key": "configured-secret",
+        "https_only": True,
+    }
+    conn = create_connection(app)
+    await app.build_middleware_stack()(conn.scope, mock_receive, mock_send)
+    token = str(AppState.from_app(app).session_manager.auth_token)
+    CookieSession(
+        conn.session, secret=app.state.session_secret
+    ).set_access_token(token)
+    assert validate_auth(conn)
+    conn.session["access_token"] = hash_access_token(
+        token, secret="another-server-secret"
+    )
+    assert not validate_auth(conn)

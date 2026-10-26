@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -10,6 +10,9 @@ from marimo._config.config_schema import MarimoConfig
 from marimo._config.manager import EnvVarReader
 from marimo._config.provenance import env_var_name, format_config_source
 from marimo._config.schema_utils import config_leaf_types
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.fixture(autouse=True)
@@ -26,6 +29,11 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     [
         (("display", "theme"), "dark", "dark"),
         (("package_management", "manager"), "pixi", "pixi"),
+        (("server", "skip_update_check"), "true", True),
+        (("server", "session_cookie_secure"), "1", True),
+        (("server", "session_secret"), "session-secret", "session-secret"),
+        (("runtime", "sql_default_limit"), "300", 300),
+        (("runtime", "sql_default_limit"), "null", None),
         (("save", "autosave_delay"), "2000", 2000),
         (("completion", "activate_on_typing"), "False", False),
         (("experimental", "debugger"), "true", True),
@@ -149,4 +157,64 @@ def test_security_enforcement_overrides_environment(
             ("sharing", "html"), resolved.origins[("sharing", "html")]
         )
         == "env var: MARIMO_RESTRICT_SHARING"
+    )
+
+
+def test_migrated_settings_from_user_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._config.manager import MarimoConfigManager, UserConfigStore
+    from marimo._server.main import create_starlette_app
+
+    path = tmp_path / "marimo.toml"
+    path.write_text(
+        '[runtime]\nsql_default_limit = 200\n[server]\nskip_update_check = true\nsession_cookie_secure = true\nsession_secret = "private-secret"\n'
+    )
+    user = UserConfigStore()
+    monkeypatch.setattr(user, "get_config_path", lambda: str(path))
+    monkeypatch.setattr(
+        "marimo._config.manager.is_trusted_user_config_path", lambda _: True
+    )
+    manager = MarimoConfigManager(user)
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["sql_default_limit"] == 200
+    assert config["server"] == {
+        "browser": "default",
+        "follow_symlink": False,
+        "skip_update_check": True,
+        "session_cookie_secure": True,
+        "session_secret": "private-secret",
+    }
+    assert manager.get_config()["server"]["session_secret"] == "********"
+    assert (
+        create_starlette_app(
+            base_url="", server_config=config["server"]
+        ).state.session_secret
+        == "private-secret"
+    )
+
+
+def test_session_secret_from_project_is_ignored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._config.manager import (
+        MarimoConfigManager,
+        PyprojectConfigReader,
+        UserConfigStore,
+    )
+
+    user_path = tmp_path / "marimo.toml"
+    user_path.write_text('[server]\nsession_secret = "user-secret"\n')
+    user = UserConfigStore()
+    monkeypatch.setattr(user, "get_config_path", lambda: str(user_path))
+    monkeypatch.setattr(
+        "marimo._config.manager.is_trusted_user_config_path", lambda _: True
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.marimo.server]\nsession_secret = "project-secret"\n'
+    )
+    manager = MarimoConfigManager(user, PyprojectConfigReader(str(tmp_path)))
+    assert (
+        manager.get_config(hide_secrets=False)["server"]["session_secret"]
+        == "user-secret"
     )

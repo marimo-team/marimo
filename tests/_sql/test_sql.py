@@ -18,6 +18,7 @@ from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.sql import (
     _query_includes_limit,
     _resolve_default_duckdb_deps,
+    get_default_result_limit,
     sql,
 )
 from marimo._sql.utils import (
@@ -380,7 +381,7 @@ def test_sql_with_limit() -> None:
     # assert len(result) == 5
 
     # Test with environment variable limit
-    # with patch.dict(os.environ, {"MARIMO_SQL_DEFAULT_LIMIT": "3"}):
+    # with patch.dict(os.environ, {"MARIMO_RUNTIME_SQL_DEFAULT_LIMIT": "3"}):
     #     with patch.dict(globals(), {"df": df}):
     #         result = sql("SELECT * FROM df")
     #         assert len(result) == 3
@@ -466,7 +467,7 @@ def test_query_includes_limit() -> None:
 def test_applies_limit(mock_replace: MagicMock) -> None:
     import duckdb
 
-    with patch.dict(os.environ, {"MARIMO_SQL_DEFAULT_LIMIT": "300"}):
+    with patch.dict(os.environ, {"MARIMO_RUNTIME_SQL_DEFAULT_LIMIT": "300"}):
         duckdb.sql("CREATE OR REPLACE TABLE t AS SELECT * FROM range(1000)")
         mock_replace.assert_not_called()
 
@@ -912,3 +913,26 @@ class TestDisplayConfigBehavior:
 
             # The call should be a table object
             assert isinstance(call_args, ui.table)
+
+
+def test_sql_limit_uses_notebook_configuration() -> None:
+    from marimo._config.config import merge_default_config
+
+    context = MagicMock()
+    context.marimo_config = merge_default_config(
+        {"runtime": {"sql_default_limit": 25}}
+    )
+    with patch("marimo._sql.sql.get_context", return_value=context):
+        assert get_default_result_limit() == 25
+
+
+def test_sql_limit_uses_environment_outside_notebook(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._runtime.context.types import ContextNotInitializedError
+
+    monkeypatch.setenv("MARIMO_RUNTIME_SQL_DEFAULT_LIMIT", "45")
+    with patch(
+        "marimo._sql.sql.get_context", side_effect=ContextNotInitializedError
+    ):
+        assert get_default_result_limit() == 45

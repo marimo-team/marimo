@@ -6744,6 +6744,7 @@ export interface components {
       reactive_tests: boolean;
       serve_cached_sessions_in_apps?: boolean;
       show_tracebacks?: boolean;
+      sql_default_limit?: number | null;
       std_stream_max_bytes: number;
       /** @enum {unknown} */
       watcher_on_save: "autorun" | "lazy";
@@ -6989,6 +6990,9 @@ export interface components {
       browser: "default" | string;
       disable_file_downloads?: boolean;
       follow_symlink: boolean;
+      session_cookie_secure?: boolean;
+      session_secret?: string;
+      skip_update_check?: boolean;
       /** @enum {unknown} */
       transport?: "sse" | "websocket";
     };

@@ -182,6 +182,7 @@ class RuntimeConfig(TypedDict):
     std_stream_max_bytes: int
     pythonpath: NotRequired[list[str]]
     dotenv: NotRequired[list[str]]
+    sql_default_limit: NotRequired[int | None]
     default_sql_output: SqlOutputType
     default_auto_download: NotRequired[list[ExportType]]
     default_csv_encoding: NotRequired[str]
@@ -256,6 +257,9 @@ class ServerConfig(TypedDict):
         when using `"sse"`.
     """
 
+    skip_update_check: NotRequired[bool]
+    session_cookie_secure: NotRequired[bool]
+    session_secret: NotRequired[str]
     browser: Literal["default"] | str
     follow_symlink: bool
     disable_file_downloads: NotRequired[bool]

@@ -168,7 +168,12 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "autosave_delay": 1000,
                 "format_on_save": False,
             },
-            "server": {"browser": "default", "follow_symlink": False},
+            "server": {
+                "skip_update_check": False,
+                "session_cookie_secure": False,
+                "browser": "default",
+                "follow_symlink": False,
+            },
             "diagnostics": {"sql_linter": True},
         }
     )
@@ -267,8 +272,10 @@ def test_layered_configuration_snapshot(
                     "show_tracebacks": False,
                 },
                 "server": {
+                    "skip_update_check": False,
                     "follow_symlink": False,
                     "browser": "default",
+                    "session_cookie_secure": False,
                     "transport": "sse",
                 },
                 "snippets": {
@@ -345,8 +352,10 @@ def test_layered_configuration_snapshot(
                     "show_tracebacks": False,
                 },
                 "server": {
+                    "skip_update_check": False,
                     "follow_symlink": False,
                     "browser": "default",
+                    "session_cookie_secure": False,
                     "transport": "sse",
                 },
                 "snippets": {
@@ -449,7 +458,12 @@ def test_layered_configuration_snapshot(
                     "autosave_delay": 1000,
                     "format_on_save": False,
                 },
-                "server": {"browser": "default", "follow_symlink": False},
+                "server": {
+                    "skip_update_check": False,
+                    "session_cookie_secure": False,
+                    "browser": "default",
+                    "follow_symlink": False,
+                },
                 "diagnostics": {"sql_linter": True},
             },
             "overrides_unmasked": {
@@ -693,6 +707,8 @@ format_on_save = false
 [server]
 browser = "default"
 follow_symlink = false
+session_cookie_secure = false
+skip_update_check = false
 
 [snippets]
 custom_paths = []

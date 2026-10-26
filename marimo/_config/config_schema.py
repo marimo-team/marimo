@@ -210,6 +210,12 @@ class RuntimeConfig(Config, kw_only=True):
             extra={"sensitive": True},
         ),
     ] = UNSET
+    sql_default_limit: Annotated[
+        int | UnsetType | None,
+        Meta(
+            description="Default maximum number of SQL result rows when a query has no LIMIT. None means no limit."
+        ),
+    ] = UNSET
     default_sql_output: Annotated[
         SqlOutputType,
         Meta(
@@ -303,6 +309,25 @@ class FormattingConfig(Config, kw_only=True):
 class ServerConfig(Config, kw_only=True):
     """Configuration for the server."""
 
+    skip_update_check: Annotated[
+        bool,
+        Meta(
+            description="Skip checking for marimo updates when starting the editor."
+        ),
+    ] = False
+    session_cookie_secure: Annotated[
+        bool,
+        Meta(
+            description="Only send session cookies over HTTPS. Enable when serving behind TLS."
+        ),
+    ] = False
+    session_secret: Annotated[
+        str | UnsetType,
+        Meta(
+            description="Secret used to sign session cookies. Set a stable value to preserve sessions across restarts or replicas; otherwise a random secret is generated per process.",
+            extra={"sensitive": True},
+        ),
+    ] = UNSET
     browser: Annotated[
         Literal["default"] | str,
         Meta(

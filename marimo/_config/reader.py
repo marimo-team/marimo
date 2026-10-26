@@ -156,6 +156,7 @@ def allowlist_script_config(
 #
 # Both are anchored only in trusted user/environment config.
 _UNTRUSTED_MARIMO_KEYS: tuple[tuple[str, ...], ...] = (
+    ("server", "session_secret"),
     ("signing",),
     ("cache", "verification"),
     ("cache", "loader"),
