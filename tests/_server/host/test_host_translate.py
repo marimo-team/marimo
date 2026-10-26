@@ -24,6 +24,7 @@ from marimo._core.protocol import (
     ErrorOutcome,
     ExecutionId,
     InterruptedOutcome,
+    Revision,
     RunId,
     ValueOutcome,
 )
@@ -78,7 +79,8 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
     )
     assert t.feed(CompletedRunNotification(run_id="other")) == []
     assert not t.completed
-    messages.extend(t.feed(attempt("completed")))
+    inputs = {"x": Revision(ExecutionId("producer"), 2), "print": None}
+    messages.extend(t.feed(attempt("completed", depends_on=inputs)))
     messages.extend(t.feed(CompletedRunNotification(run_id="r1")))
     assert t.completed
     messages.extend(t.finish())
@@ -120,6 +122,7 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                 outcome=ValueOutcome(
                     DisplayData(data="<pre>9</pre>", mimetype="text/html")
                 ),
+                depends_on=inputs,
             ),
             Done(run_id=RunId("r1"), outcome="succeeded"),
         ]

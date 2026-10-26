@@ -35,11 +35,13 @@ from marimo._config.config import (
     MarimoConfig,
     OnCellChangeType,
 )
+from marimo._core.protocol import ExecutionId, Revision
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import (
+    EXECUTION_CTX,
     RUN_ID_CTX,
     run_id_context,
 )
@@ -178,7 +180,7 @@ from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Sequence
+    from collections.abc import Callable, Iterable, Iterator, Sequence
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
@@ -454,6 +456,14 @@ class CellMetadata:
     code: str | None = None
 
 
+@dataclasses.dataclass(frozen=True)
+class Binding:
+    """The execution that owns a notebook name and its value's revision."""
+
+    execution_id: str
+    revision: Revision
+
+
 def _get_attached_catalogs() -> set[str]:
     """Fetch the names of all catalogs currently attached to DuckDB."""
     import duckdb
@@ -581,10 +591,12 @@ class Kernel:
                 if path not in sys.path:
                     sys.path.insert(0, path)
 
-        self._hooks = hooks
+        self._hooks = hooks.copy()
+        self._hooks.add_post_execution(self._bind_variables)
 
         self._globals_lock = threading.RLock()
         self._state_lock = threading.RLock()
+        self._bindings: dict[str, Binding] = {}
         self._out_of_band_worker_started = False
 
         self.debugger = debugger_override
@@ -1077,6 +1089,8 @@ class Kernel:
             if name in exclude_defs:
                 continue
 
+            self._bindings.pop(name, None)
+
             if variable.kind == "table" and DependencyManager.duckdb.has():
                 import duckdb
 
@@ -1520,6 +1534,52 @@ class Kernel:
             # modules are marked as stale
             self.graph.set_stale(cell_ids, prune_imports=True)
 
+    def _read_inputs(
+        self, cell: CellImpl
+    ) -> dict[str, Revision | None] | None:
+        if get_context().is_embedded() or get_mode() != "edit":
+            return None
+        with self._state_lock:
+            return {
+                name: binding.revision
+                if name in self.globals
+                and (binding := self._bindings.get(name))
+                else None
+                for name in sorted(cell.refs)
+            }
+
+    def _bind_variables(
+        self,
+        cell: CellImpl,
+        ctx: hook_context.PostExecutionHookContext,
+        result: cell_runner.RunResult,
+    ) -> None:
+        del result
+        if not ctx.should_broadcast_data:
+            return
+        current = EXECUTION_CTX.get()
+        assert current is not None
+        with self._state_lock:
+            for name in cell.deleted_refs - self.globals.keys():
+                self._bindings.pop(name, None)
+            revision = Revision(ExecutionId(current.id), 0)
+            for name in cell.defs.intersection(self.globals):
+                self._bindings[name] = Binding(current.id, revision)
+            self._publish_variables(cell.defs)
+
+    def _publish_variables(self, names: Iterable[str]) -> None:
+        values = []
+        for name in sorted(names):
+            value = create_variable_value(name, self.globals.get(name))
+            if (binding := self._bindings.get(name)) is not None:
+                value.execution_id = binding.execution_id
+                value.revision = binding.revision
+            values.append(value)
+        if values:
+            broadcast_notification(
+                VariableValuesNotification(variables=values), self.stream
+            )
+
     def _propagate_kernel_errors(
         self,
         ctx: hook_context.OnFinishHookContext,
@@ -1578,6 +1638,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=run_hooks,
+            get_inputs=self._read_inputs,
             user_config=self.user_config,
         )
 
@@ -1954,6 +2015,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=scratchpad_hooks,
+            get_inputs=self._read_inputs,
             executions={SCRATCH_CELL_ID: execution},
             user_config=self.user_config,
         )

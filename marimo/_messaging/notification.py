@@ -17,6 +17,7 @@ import msgspec
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
+from marimo._core.protocol import Revision
 from marimo._data._external_storage.models import (
     StorageEntry,
     StorageNamespace,
@@ -101,6 +102,7 @@ class ExecutionNotification(Notification, tag="execution"):
     phase: Literal["planned", "running", "completed"]
     code: str | None = None
     caused_by: str | None = None
+    depends_on: dict[str, Revision | None] | None = None
 
 
 class CellNotification(Notification, tag="cell-op"):
@@ -714,6 +716,8 @@ class VariableValue(BaseStruct):
     name: str
     value: str | None
     datatype: str | None
+    execution_id: str | None = None
+    revision: Revision | None = None
 
 
 class VariablesNotification(Notification, tag="variables"):

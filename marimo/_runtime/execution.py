@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 from uuid import uuid4
 
+from marimo._core.protocol import Revision
 from marimo._messaging.context import (
     EXECUTION_CTX,
     RUN_ID_CTX,
@@ -31,6 +32,7 @@ class ExecutionAttempt:
     id: str = field(default_factory=lambda: str(uuid4()))
     run_id: str | None = field(default_factory=lambda: RUN_ID_CTX.get(None))
     completed: bool = False
+    depends_on: dict[str, Revision | None] | None = None
 
     @classmethod
     def plan(cls, cell_id: CellId_t, code: str) -> ExecutionAttempt:
@@ -72,5 +74,6 @@ class ExecutionAttempt:
                 cell_id=self.cell_id,
                 run_id=self.run_id,
                 phase=phase,
+                depends_on=self.depends_on if phase == "completed" else None,
             )
         )

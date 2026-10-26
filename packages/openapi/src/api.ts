@@ -5057,6 +5057,10 @@ export interface components {
       cell_id: components["schemas"]["CellId"];
       /** @default null */
       code?: string | null;
+      /** @default null */
+      depends_on?: {
+        [key: string]: components["schemas"]["Revision"] | null;
+      } | null;
       execution_id: string;
       /** @enum {unknown} */
       op: "execution";
@@ -6669,6 +6673,13 @@ export interface components {
     };
     /** Format: request-id */
     RequestId: TypedString<"RequestId">;
+    /** Revision */
+    Revision: {
+      /** @description Identifies an execution. Unique within the host. */
+      execution: string;
+      /** @description How many times the value has been updated since it was produced. Zero at binding. */
+      update: number;
+    };
     /** RunningNotebooksResponse */
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
@@ -7607,7 +7618,11 @@ export interface components {
      */
     VariableValue: {
       datatype: string | null;
+      /** @default null */
+      execution_id?: string | null;
       name: string;
+      /** @default null */
+      revision?: components["schemas"]["Revision"] | null;
       value: string | null;
     };
     /**
