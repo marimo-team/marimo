@@ -10,7 +10,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
 from marimo import _loggers
-from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._config.config import DEFAULT_CONFIG, ServerConfig
 from marimo._server.api.auth import (
     SESSION_SECRET,
     CustomAuthenticationMiddleware,
@@ -59,7 +59,14 @@ def create_starlette_app(
     lsp_servers: list[LspServer] | None = None,
     skew_protection: bool = True,
     timeout: float | None = None,
+    server_config: ServerConfig | None = None,
 ) -> Starlette:
+    server_config = (
+        server_config
+        if server_config is not None
+        else DEFAULT_CONFIG["server"]
+    )
+    session_secret = server_config.get("session_secret") or SESSION_SECRET
     # Handle host API requests first to bypass the editor's middleware.
     final_middlewares: list[Middleware] = [
         Middleware(HostApiMiddleware, base_url=base_url)
@@ -75,8 +82,8 @@ def create_starlette_app(
             [
                 Middleware(
                     CustomSessionMiddleware,
-                    secret_key=SESSION_SECRET,
-                    https_only=GLOBAL_SETTINGS.SESSION_COOKIE_SECURE,
+                    secret_key=session_secret,
+                    https_only=server_config["session_cookie_secure"],
                 ),
             ]
         )
@@ -135,6 +142,7 @@ def create_starlette_app(
             app_state=app.state,
             timeout_duration_minutes=timeout,
         )
+    app.state.session_secret = session_secret
     return app
 
 
