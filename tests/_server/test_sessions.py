@@ -1419,10 +1419,8 @@ async def test_sandbox_auto_picks_backend_from_manifest(
 async def test_session_script_dotenv_reaches_the_kernel_config(
     tmp_path: Path,
 ) -> None:
-    # runtime.dotenv is masked to [] when read with secrets hidden. If the
-    # session layered that masked snapshot on as an override, the empty list
-    # would win the unmasked merge the kernel reads, so a script-level dotenv
-    # would load nothing.
+    # The kernel needs the configured dotenv paths even though they are
+    # omitted from the configuration exposed to the frontend.
     session_consumer = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     tmp_file = tmp_path / "nb.py"
@@ -1458,7 +1456,7 @@ async def test_session_script_dotenv_reaches_the_kernel_config(
             str(tmp_path / ".env.local"),
         ]
         masked = session.config_manager.get_config()
-        assert masked["runtime"]["dotenv"] == []
+        assert "dotenv" not in masked["runtime"]
     finally:
         session.close()
 
