@@ -6,9 +6,16 @@ import {
   type NotebookEvent,
   NotebookEvents,
   type NotebookTransport,
+  type Result,
   StreamStopped,
 } from "@marimo-team/client";
-import type { Attachment, NotebookOutput } from "@marimo-team/client/protocol";
+import type {
+  Attachment,
+  Change,
+  EditResponseOutput,
+  NotebookId,
+  NotebookOutput,
+} from "@marimo-team/client/protocol";
 import { type Atom, atom, type createStore } from "jotai/vanilla";
 import { z } from "zod";
 import {
@@ -41,6 +48,12 @@ export interface NotebookClient {
    * retains the last document. Partial updates are not exposed.
    */
   readonly documentAtom: Atom<Document | null>;
+  /** Apply an edit to the notebook captured by the caller, even across a reset. */
+  edit(
+    notebookId: NotebookId,
+    changes: readonly Change[],
+    options: { readonly idempotencyKey: string; readonly signal: AbortSignal },
+  ): Promise<Result<EditResponseOutput>>;
   /** Live attachments, empty until the stream is ready or while disconnected. */
   readonly attachmentsAtom: Atom<readonly Attachment[]>;
   /** Attempt to restore a closed connection after checking host health. */
@@ -90,8 +103,14 @@ function statusAfter(error: unknown): ConnectionStatus {
   return disconnected;
 }
 
-/** Create a client without opening a connection. */
-export function createNotebookClient(store: ReturnType<typeof createStore>) {
+/**
+ * Create a client without opening a connection.
+ * The session supplies edits authenticated for the same host as its stream.
+ */
+export function createNotebookClient(
+  store: ReturnType<typeof createStore>,
+  { edit }: { edit?: NotebookClient["edit"] } = {},
+) {
   // `useNotebookSession` copies this into the editor's shared `connectionAtom`,
   // which gates features until MO-8051 derives availability separately.
   const connectionAtom = atom<ConnectionStatus>({
@@ -122,6 +141,25 @@ export function createNotebookClient(store: ReturnType<typeof createStore>) {
     connectionAtom,
     notebookAtom,
     documentAtom,
+    edit: async (notebookId, changes, options) => {
+      options.signal.throwIfAborted();
+      const currentId = store.get(streamAtom).notebookId;
+      if (currentId !== null && currentId !== notebookId) {
+        throw new Error("The notebook changed before the edit was sent");
+      }
+      if (edit === undefined) {
+        return {
+          ok: false,
+          status: 501,
+          problem: {
+            type: "tag:marimo.io,2026:host/unsupported-operation",
+            title: "Document editing is unavailable on this connection",
+            status: 501,
+          },
+        };
+      }
+      return edit(notebookId, changes, options);
+    },
     attachmentsAtom,
     reconnect: async () => reconnect?.(),
   };

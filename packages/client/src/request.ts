@@ -110,10 +110,12 @@ interface Call<Id extends RequestOperationId> {
 /**
  * A random key for a request that changes state.
  *
- * `crypto.randomUUID` exists only in secure contexts, such as pages served
- * over HTTPS or from localhost. A host on a local network is often neither.
+ * Send it again with a retry whose outcome is unknown, so the host applies the
+ * request once. `crypto.randomUUID` exists only in secure contexts, such as
+ * pages served over HTTPS or from localhost. A host on a local network is
+ * often neither.
  */
-function idempotencyKey(): string {
+export function idempotencyKey(): string {
   if (typeof globalThis.crypto.randomUUID === "function") {
     return globalThis.crypto.randomUUID();
   }

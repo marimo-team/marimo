@@ -1,19 +1,31 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom, createStore } from "jotai/vanilla";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Document } from "../../host/resources/document";
-import { createDocumentModel, type DocumentSubmission } from "../model";
+import { createDocumentState, type DocumentSubmission } from "../state";
 import { cell, document, withCells } from "./fixtures";
+
+const lifetimes: AbortController[] = [];
+afterEach(() =>
+  lifetimes.splice(0).forEach((controller) => controller.abort()),
+);
 
 function setup() {
   const store = createStore();
   const source = atom<Document | null>(document());
-  const model = createDocumentModel(store, source);
+  const controller = new AbortController();
+  lifetimes.push(controller);
+  const model = createDocumentState({
+    store,
+    source,
+    signal: controller.signal,
+  });
   return {
     store,
     source,
     ...model,
+    abort: () => controller.abort(),
     submit() {
       const submission = store.set(model.submitAtom);
       if (submission === null) {
@@ -313,11 +325,11 @@ describe("document submissions", () => {
       submitAtom,
       submit,
       settle,
-      dispose,
+      abort,
     } = setup();
     store.set(editAtom, (tx) => tx.setCode("c1", "local"));
     const sent = submit();
-    dispose();
+    abort();
     const onOrder = vi.fn();
     store.sub(orderAtom, onOrder);
     const confirmed = withCells(document(), { c1: cell("c1", "local") });
@@ -325,7 +337,7 @@ describe("document submissions", () => {
     settle(sent, confirmed);
     const edit = vi.fn();
     store.set(editAtom, edit);
-    dispose();
+    abort();
     expect(edit).not.toHaveBeenCalled();
     expect(onOrder).not.toHaveBeenCalled();
     expect(store.get(orderAtom)).toBeNull();
