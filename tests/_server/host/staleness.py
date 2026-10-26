@@ -33,13 +33,13 @@ class Snapshot:
 
     cells: dict[str, protocol.Cell]
     executions: dict[str, protocol.Execution]
-    variables: tuple[protocol.Variable, ...]
+    variables: dict[str, protocol.Variable]
 
     @classmethod
     def decode(cls, records: list[dict[str, Any]]) -> Snapshot:
         cells: dict[str, protocol.Cell] = {}
         executions: dict[str, protocol.Execution] = {}
-        variables: list[protocol.Variable] = []
+        variables: dict[str, protocol.Variable] = {}
         for record in records:
             event = record.get("event")
             raw = msgspec.json.encode(record.get("data"))
@@ -52,12 +52,17 @@ class Snapshot:
                 ).execution
                 executions[execution.id] = execution
             elif event == "variable":
-                variables.append(
-                    msgspec.json.decode(
-                        raw, type=protocol.VariableMessage
-                    ).variable
-                )
-        return cls(cells, executions, tuple(variables))
+                variable = msgspec.json.decode(
+                    raw, type=protocol.VariableMessage
+                ).variable
+                variables[variable.id] = variable
+            elif event == "cell.removed":
+                cells.pop(record["data"]["id"], None)
+            elif event == "execution.removed":
+                executions.pop(record["data"]["id"], None)
+            elif event == "variable.removed":
+                variables.pop(record["data"]["id"], None)
+        return cls(cells, executions, variables)
 
     def latest(self, cell_id: str) -> protocol.Execution | None:
         """The cell's completed execution, if it has one."""
@@ -100,12 +105,12 @@ class Snapshot:
         self, name: str, revision: protocol.Revision | None
     ) -> Outdated | None:
         if revision is None:
-            bound = any(v.name == name for v in self.variables)
+            bound = any(v.name == name for v in self.variables.values())
             return "replaced" if bound else None
         variable = next(
             (
                 v
-                for v in self.variables
+                for v in self.variables.values()
                 if v.name == name
                 and v.revision.execution == revision.execution
             ),
