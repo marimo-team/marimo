@@ -3,6 +3,7 @@
 import { atom, createStore } from "jotai/vanilla";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Document } from "../../host/resources/document";
+import { selectCell } from "../select";
 import { createDocumentState, type DocumentSubmission } from "../state";
 import { cell, document, withCells } from "./fixtures";
 
@@ -25,6 +26,7 @@ function setup() {
     store,
     source,
     ...model,
+    cellAtom: (id: string) => selectCell(model.documentAtom, id),
     submit() {
       const submission = store.set(model.submitAtom);
       if (submission === null) {

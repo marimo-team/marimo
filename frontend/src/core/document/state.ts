@@ -1,13 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { dequal } from "dequal";
 import {
   atom,
   type Atom,
   type createStore,
   type WritableAtom,
 } from "jotai/vanilla";
-import { selectAtom } from "jotai/vanilla/utils";
 import type { Document } from "../host/resources/document";
 import * as Protocol from "@marimo-team/client/protocol";
 import {
@@ -16,14 +14,12 @@ import {
   createCell,
   deleteCell,
   type Draft,
-  type EditableCell,
   type EditableDocument,
   editCell,
   EMPTY_DRAFT,
   isEmptyDraft,
   type Placement,
   prune,
-  sameCell,
   setOrder,
   toChanges,
   viewDocument,
@@ -70,12 +66,8 @@ interface ModelState {
  * Switching notebook identity invalidates it, retaining each notebook's draft.
  */
 export interface DocumentState {
-  /** Hold onto the selector; its value is stable until the cell changes. */
-  cellAtom(id: Protocol.CellId): Atom<EditableCell | undefined>;
-  readonly orderAtom: Atom<readonly Protocol.CellId[] | null>;
-  readonly appConfigAtom: Atom<Readonly<
-    Protocol.Document["app_config"]
-  > | null>;
+  /** Confirmed host state with local drafts applied, null while unavailable. */
+  readonly documentAtom: Atom<EditableDocument | null>;
   /** Null when the document or source needed by a put is unavailable. */
   readonly changesAtom: Atom<readonly Protocol.Change[] | null>;
   /** Remains pending until both the response and its streamed revision arrive. */
@@ -158,23 +150,6 @@ export function createDocumentState({
       ? null
       : viewDocument(state.confirmed, draftOf(state));
   });
-  const cellAtom = (id: Protocol.CellId) =>
-    selectAtom(
-      documentAtom,
-      (document) => document?.cells.get(id),
-      (a, b) =>
-        a === b || (a !== undefined && b !== undefined && sameCell(a, b)),
-    );
-  const orderAtom = selectAtom(
-    documentAtom,
-    (document) => document?.order ?? null,
-    dequal,
-  );
-  const appConfigAtom = selectAtom(
-    stateAtom,
-    (state) => state.confirmed?.revision.app_config ?? null,
-    dequal,
-  );
   const changesAtom = atom((get): readonly Protocol.Change[] | null => {
     const state = get(stateAtom);
     return state.confirmed === null
@@ -304,9 +279,7 @@ export function createDocumentState({
   }
 
   return {
-    cellAtom,
-    orderAtom,
-    appConfigAtom,
+    documentAtom,
     changesAtom,
     pendingAtom,
     editAtom,
