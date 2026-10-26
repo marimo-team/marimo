@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 from typing import Any, cast
@@ -154,7 +155,7 @@ def test_invalid_environment_output_limit_keeps_file_value(
 ) -> None:
     user = make_user(tmp_path, monkeypatch, f"[runtime]\n{field} = 777\n")
     monkeypatch.setenv(variable, "invalid")
-    with _loggers.capture_output() as (_, _, records):
+    with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         resolved = MarimoConfigManager(
             user, EnvConfigReader()
         ).get_config_with_sources()
@@ -176,7 +177,7 @@ def test_environment_validation_error_uses_variable_name(
     monkeypatch.setenv(
         "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", "invalid"
     )
-    with _loggers.capture_output() as (_, _, records):
+    with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         MarimoConfigManager(user, EnvConfigReader()).get_config()
     assert [record.getMessage() for record in records] == [
         "Invalid configuration from _MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE: Expected `bool`, got `str` - at `$.runtime.auto_instantiate`"
@@ -424,7 +425,7 @@ def test_parse_errors_identify_the_file(
         contents = "# /// script\n# [tool.marimo.display\n# ///\n"
         readers.append(ScriptConfigReader(str(path)))
     path.write_text(contents)
-    with _loggers.capture_output() as (_, _, records):
+    with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         resolved = MarimoConfigManager(
             user, *readers
         ).get_config_with_sources()
@@ -453,7 +454,7 @@ def test_validation_error_identifies_source_and_field(
     )
     project = tmp_path / "pyproject.toml"
     project.write_text('[tool.marimo.display]\ntheme = "dark"\n')
-    with _loggers.capture_output() as (_, _, records):
+    with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         resolved = MarimoConfigManager(
             user, PyprojectConfigReader(str(tmp_path))
         ).get_config_with_sources()
@@ -483,7 +484,7 @@ def test_sparse_mcp_overlay_inherits_transport_without_validation_errors(
     project.write_text(f"[tool.marimo.mcp.mcpServers.example]\n{overlay}\n")
     reader = PyprojectConfigReader(str(tmp_path))
     manager = MarimoConfigManager(user, reader)
-    with _loggers.capture_output() as (_, _, records):
+    with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         overrides = manager.get_config_overrides()
         resolved = manager.get_config_with_sources()
         assert manager.get_config() == resolved.config
@@ -535,7 +536,7 @@ def test_invalid_mcp_overlay_reports_project_source(
     )
     project = tmp_path / "pyproject.toml"
     project.write_text(f"[tool.marimo.mcp.mcpServers.example]\n{overlay}\n")
-    with _loggers.capture_output() as (_, _, records):
+    with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         MarimoConfigManager(
             user, PyprojectConfigReader(str(tmp_path))
         ).get_config_with_sources()
@@ -551,7 +552,7 @@ def test_overridden_invalid_value_does_not_report_validation_error(
     user = make_user(
         tmp_path, monkeypatch, '[save]\nautosave_delay = "fast"\n'
     )
-    with _loggers.capture_output() as (_, _, records):
+    with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         resolved = MarimoConfigManager(
             user, OverrideConfigReader({"save": {"autosave_delay": 1000}})
         ).get_config_with_sources()
@@ -564,7 +565,7 @@ def test_legacy_reload_values_keep_their_origin(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     user = make_user(tmp_path, monkeypatch, "[runtime]\nauto_reload = true\n")
-    with _loggers.capture_output() as (_, _, records):
+    with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         resolved = MarimoConfigManager(user).get_config_with_sources()
     assert records == []
     assert resolved.config["runtime"]["auto_reload"] == "lazy"
