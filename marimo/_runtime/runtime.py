@@ -128,6 +128,7 @@ from marimo._runtime.context.kernel_context import (
 )
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._runtime.dataflow.definitions import effective_variable_definitions
 from marimo._runtime.execution import ExecutionAttempt
 from marimo._runtime.input_override import getpass_override
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
@@ -145,6 +146,10 @@ from marimo._runtime.runner.hooks import (
     Priority,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._runtime.sql_cleanup import (
+    SQLCleanupState,
+    capture_sql_cleanup_state,
+)
 from marimo._runtime.state import State
 from marimo._runtime.win32_interrupt_handler import (
     Win32InterruptHandler,
@@ -162,10 +167,6 @@ from marimo._sql.engines.types import (
 )
 from marimo._sql.get_engines import (
     get_engines_from_variables,
-)
-from marimo._sql.sql_quoting import (
-    quote_qualified_name,
-    quote_sql_identifier,
 )
 from marimo._tracer import attach_trace_context, kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
@@ -454,53 +455,6 @@ class CellMetadata:
     code: str | None = None
 
 
-def _get_attached_catalogs() -> set[str]:
-    """Fetch the names of all catalogs currently attached to DuckDB."""
-    import duckdb
-
-    try:
-        return {
-            row[0].lower()
-            for row in duckdb.sql(
-                "SELECT database_name FROM duckdb_databases()"
-            ).fetchall()
-        }
-    except Exception:
-        return set()
-
-
-def _in_memory_qualified_name(
-    variable: VariableData,
-    name: Name,
-    attached_catalogs: Callable[[], set[str]],
-) -> str | None:
-    """Resolve the quoted, qualified name of an in-memory table/view.
-
-    Returns `None` if the object doesn't live in the "memory" catalog.
-
-    `attached_catalogs` lazily resolves DuckDB's attached catalogs; callers
-    should memoize it when resolving many names, to avoid repeated queries.
-    """
-    sql_ref = variable.sql_ref
-    catalog = sql_ref.catalog if sql_ref else None
-    schema = sql_ref.schema if sql_ref else None
-
-    if catalog is None and schema is not None:
-        # A two-part name (e.g. `CREATE TABLE foo.bar ...`) is ambiguous:
-        # `foo` could be a schema in the default "memory" catalog, or
-        # shorthand for the catalog `foo` (i.e. `foo.main.bar`). Disambiguate
-        # against DuckDB's actual attached catalogs, so we don't mistake an
-        # attached database for a "memory" schema (or vice versa).
-        if schema.lower() in attached_catalogs():
-            catalog, schema = schema, "main"
-
-    catalog = catalog or "memory"
-    if catalog != "memory":
-        return None
-    schema = schema or "main"
-    return quote_qualified_name(catalog, schema, name)
-
-
 class Kernel:
     """Kernel that manages the dependency graph and its execution.
 
@@ -616,6 +570,7 @@ class Kernel:
             sys.path.insert(0, "")
 
         self.graph = dataflow.DirectedGraph()
+        self._sql_cleanup_states: dict[CellId_t, SQLCleanupState] = {}
         self.agent = Agent()
         # When autorun on startup is disabled, this holds cells that have
         # not yet been run; these cells are removed when they or their
@@ -872,7 +827,7 @@ class Kernel:
         cell_id: CellId_t,
         cell: CellImpl,
         stale: bool,
-    ) -> None:
+    ) -> dataflow.GraphMutationResult:
         if cell_id in self.cell_metadata:
             # If we already have a config for this cell id, restore it
             # This can happen when a cell was previously deactivated (due to a
@@ -883,7 +838,7 @@ class Kernel:
             self.cell_metadata[cell_id] = CellMetadata()
         self.cell_metadata[cell_id].code = cell.code
 
-        self.graph.register_cell(cell_id, cell)
+        mutation = self.graph.register_cell(cell_id, cell)
         if stale:
             self.graph.cells[cell_id].set_stale(stale=True, broadcast=False)
         # leaky abstraction: the graph doesn't know about stale modules, so
@@ -892,6 +847,7 @@ class Kernel:
         LOGGER.debug("registered cell %s", cell_id)
         LOGGER.debug("parents: %s", self.graph.parents[cell_id])
         LOGGER.debug("children: %s", self.graph.children[cell_id])
+        return mutation
 
     def _try_compiling_cell(
         self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
@@ -958,24 +914,26 @@ class Kernel:
         code: str,
         carried_imports: list[ImportData],
         stale: bool,
-    ) -> Error | None:
+    ) -> tuple[dataflow.GraphMutationResult, Error | None]:
         """Attempt to register a cell with given id and code.
 
         Precondition: a cell with the supplied id must not already exist in the
         graph.
 
-        If cell was unable to be registered, returns an Error object.
+        Returns graph mutation effects and any compile error.
         """
         cell, error = self._try_compiling_cell(cell_id, code, carried_imports)
 
-        if cell is not None:
+        mutation = (
             self._register_cell(cell_id, cell, stale)
-
-        return error
+            if cell is not None
+            else dataflow.GraphMutationResult()
+        )
+        return mutation, error
 
     def _maybe_register_cell(
         self, cell_id: CellId_t, code: str, stale: bool
-    ) -> tuple[set[CellId_t], Error | None]:
+    ) -> tuple[dataflow.GraphMutationResult, Error | None]:
         """Register a cell (given by id, code) if not already registered.
 
         If a cell with id `cell_id` is already registered but with different
@@ -983,13 +941,12 @@ class Kernel:
         same id but different code is registered.
 
         Returns:
-        - a set of ids for cells that were previously children of `cell_id`
-          but are no longer children of `cell_id` after registration;
-          only non-empty when `cell-id` was already registered but with
-          different code.
+        - graph mutation effects requiring invalidation outside the new
+          cell's current children, which are covered by its execution.
         - an `Error` if the cell couldn't be registered, `None` otherwise
         """
-        previous_children: set[CellId_t] = set()
+        deletion = dataflow.GraphMutationResult()
+        registration = dataflow.GraphMutationResult()
         error = None
         if not self.graph.is_cell_cached(cell_id, code):
             previous_cell = self.graph.cells.get(cell_id, None)
@@ -1013,9 +970,9 @@ class Kernel:
 
             if previous_cell is not None:
                 LOGGER.debug("Deleting cell %s", cell_id)
-                previous_children = self._deactivate_cell(cell_id)
+                deletion = self._deactivate_cell(cell_id)
 
-            error = self._try_registering_cell(
+            registration, error = self._try_registering_cell(
                 cell_id, code, carried_imports=carried_imports, stale=stale
             )
             if error is not None and previous_cell is not None:
@@ -1050,67 +1007,31 @@ class Kernel:
             self.graph.children,
         )
 
-        # We only return cells that were previously children of cell_id
-        # but are no longer children of the newly registered cell; these
-        # returned cells are stale.
+        # Current children are invalidated through the registered cell's execution.
         children = self.graph.children.get(cell_id, set())
-        return previous_children - children, error
+        affected_cells = (
+            deletion.affected_cells | registration.affected_cells
+        ) - children
+        return dataflow.GraphMutationResult(affected_cells), error
 
     def _delete_variables(
         self,
         variables: dict[Name, list[VariableData]],
         exclude_defs: set[Name],
+        sql_cleanup: SQLCleanupState | None,
     ) -> None:
-        """Delete `names` from kernel, except for `exclude_defs`"""
-        # Memoize the attached-catalog lookup
-        attached_catalogs: set[str] | None = None
-
-        def get_attached_catalogs() -> set[str]:
-            nonlocal attached_catalogs
-            if attached_catalogs is None:
-                attached_catalogs = _get_attached_catalogs()
-            return attached_catalogs
-
+        """Delete definitions using the catalog bindings from their execution."""
         for name, variable_data in variables.items():
-            # Take the last definition of the variable
-            variable = variable_data[-1]
             if name in exclude_defs:
                 continue
+            for variable in effective_variable_definitions(variable_data):
+                if variable.kind in ("table", "view", "catalog"):
+                    if sql_cleanup is None:
+                        continue
+                    if DependencyManager.duckdb.has():
+                        sql_cleanup.delete_definition(name, variable)
+                        continue
 
-            if variable.kind == "table" and DependencyManager.duckdb.has():
-                import duckdb
-
-                # We only drop in-memory tables: we don't want to drop tables
-                # on databases!
-                qualified = _in_memory_qualified_name(
-                    variable, name, get_attached_catalogs
-                )
-                if qualified is not None:
-                    try:
-                        duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
-                    except Exception as e:
-                        LOGGER.warning("Failed to drop table %s: %s", name, e)
-            elif variable.kind == "view" and DependencyManager.duckdb.has():
-                import duckdb
-
-                # We only drop in-memory views for the same reason.
-                qualified = _in_memory_qualified_name(
-                    variable, name, get_attached_catalogs
-                )
-                if qualified is not None:
-                    try:
-                        duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
-                    except Exception as e:
-                        LOGGER.warning("Failed to drop view %s: %s", name, e)
-            elif variable.kind == "catalog" and DependencyManager.duckdb.has():
-                import duckdb
-
-                try:
-                    identifier = quote_sql_identifier(name)
-                    duckdb.execute(f"DETACH DATABASE IF EXISTS {identifier}")
-                except Exception as e:
-                    LOGGER.warning("Failed to detach catalog %s: %s", name, e)
-            else:
                 if name in self.globals:
                     del self.globals[name]
 
@@ -1152,6 +1073,7 @@ class Kernel:
         self._delete_variables(
             {**cell.variable_data, **temporaries},
             exclude_defs if exclude_defs is not None else set(),
+            sql_cleanup=self._sql_cleanup_states.pop(cell_id, None),
         )
 
         missing_modules_after_deletion = (
@@ -1172,7 +1094,9 @@ class Kernel:
             )
         broadcast_notification(RemoveUIElementsNotification(cell_id=cell_id))
 
-    def _deactivate_cell(self, cell_id: CellId_t) -> set[CellId_t]:
+    def _deactivate_cell(
+        self, cell_id: CellId_t
+    ) -> dataflow.GraphMutationResult:
         """Deactivate: remove from graph, invalidate state, but keep metadata
 
         Keeps the cell's config, in case we see the same cell again.
@@ -1191,9 +1115,9 @@ class Kernel:
             # NOT delete/cleanup its defs from the kernel (i.e., an errored
             # cell shouldn't invalidate state of another cell).
             self.graph.delete_cell(cell_id)
-            return set()
+            return dataflow.GraphMutationResult()
 
-    def _delete_cell(self, cell_id: CellId_t) -> set[CellId_t]:
+    def _delete_cell(self, cell_id: CellId_t) -> dataflow.GraphMutationResult:
         """Delete a cell from the kernel and the graph.
 
         Deletion from the kernel involves removing cell's defs and
@@ -1251,7 +1175,7 @@ class Kernel:
 
         # The set of cells that need to be re-run due to cells being
         # deleted/re-registered.
-        cells_that_were_children_of_mutated_cells: set[CellId_t] = set()
+        cells_affected_by_mutation: set[CellId_t] = set()
 
         # Cells that were unable to be added to the graph due to syntax errors
         syntax_errors: dict[CellId_t, Error] = {}
@@ -1266,13 +1190,13 @@ class Kernel:
             self.cell_metadata.setdefault(
                 er.cell_id, CellMetadata()
             ).code = er.code
-            old_children, error = self._maybe_register_cell(
+            mutation, error = self._maybe_register_cell(
                 er.cell_id,
                 er.code,
                 stale=er.cell_id in cells_starting_stale
                 or pending is not None,
             )
-            cells_that_were_children_of_mutated_cells |= old_children
+            cells_affected_by_mutation.update(mutation.affected_cells)
             if error is None:
                 registered_cell_ids.add(er.cell_id)
             else:
@@ -1283,9 +1207,8 @@ class Kernel:
             if dr.cell_id not in cells_before_mutation:
                 self.cell_metadata.pop(dr.cell_id, None)
                 continue
-            cells_that_were_children_of_mutated_cells |= self._delete_cell(
-                dr.cell_id
-            )
+            mutation = self._delete_cell(dr.cell_id)
+            cells_affected_by_mutation.update(mutation.affected_cells)
         cells_in_graph = set(self.graph.cells.keys())
 
         # Check for semantic errors, like multiple definition errors, cycle
@@ -1370,7 +1293,7 @@ class Kernel:
         # run request but now have errors; these cells' descendants
         # will need to be run. Handles the case where a cell was cached (cell's
         # code didn't change), so its previous children were not added to
-        # cells_that_were_children_of_mutated_cells
+        # cells_affected_by_mutation
         cells_transitioned_to_error = (
             cells_with_errors_after_mutation
             - cells_with_errors_before_mutation
@@ -1441,7 +1364,7 @@ class Kernel:
         stale_cells = (
             set(
                 itertools.chain(
-                    cells_that_were_children_of_mutated_cells,
+                    cells_affected_by_mutation,
                     set().union(
                         *[
                             self.graph.children[cid]
@@ -1545,6 +1468,17 @@ class Kernel:
             for cid in ctx.cells_to_run:
                 self._invalidate_cell_state(cid)
 
+        def remember_sql_cleanup_state(
+            cell: CellImpl, ctx: hook_context.PreExecutionHookContext
+        ) -> None:
+            if cell.language != "sql":
+                return
+            state = capture_sql_cleanup_state(
+                cell.variable_data, ctx.graph.definition_registry.sql_catalogs
+            )
+            if state is not None:
+                self._sql_cleanup_states[cell.cell_id] = state
+
         def note_time_of_interruption(
             cell_impl: CellImpl,
             ctx: hook_context.PostExecutionHookContext,
@@ -1558,6 +1492,7 @@ class Kernel:
         # Copy hooks and add run-specific hooks
         run_hooks = self._hooks.copy()
         run_hooks.add_preparation(invalidate_state)
+        run_hooks.add_pre_execution(remember_sql_cleanup_state)
         run_hooks.add_post_execution(note_time_of_interruption, Priority.LATE)
         run_hooks.add_on_finish(self.packages_callbacks.missing_packages_hook)
         run_hooks.add_on_finish(self._propagate_kernel_errors)

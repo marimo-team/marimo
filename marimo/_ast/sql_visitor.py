@@ -256,14 +256,6 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                             continue
                         break
 
-                    # Assert parts is either 1, 2, or 3
-                    if len(parts) not in (1, 2, 3):
-                        LOGGER.warning(
-                            "Unexpected number of parts in CREATE TABLE: %s",
-                            parts,
-                            extra={"parts": parts},
-                        )
-
                     if is_table:
                         # only add the table name
                         created_tables.append(SQLRef.from_parts(parts))
@@ -284,7 +276,9 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                             reffed_catalogs.append(parts[0])
                     elif is_schema:
                         # only add the schema name
-                        created_schemas.append(parts[-1])
+                        created_schemas.append(
+                            SQLRef.from_parts(parts).qualified_name
+                        )
                         # add the catalog if exist
                         if len(parts) == 2:
                             reffed_catalogs.append(parts[0])
@@ -337,148 +331,133 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class SQLRef:
-    # Tables are synonymous with views,
-    # since we can't know the difference in queries
     table: str
-    schema: str | None = None
-    catalog: str | None = None
+    qualifiers: tuple[str, ...]
+    kind: Literal["table", "schema"]
+
+    def __init__(
+        self,
+        table: str,
+        schema: str | None = None,
+        catalog: str | None = None,
+        *,
+        qualifiers: tuple[str, ...] | None = None,
+        kind: Literal["table", "schema"] = "table",
+    ) -> None:
+        object.__setattr__(self, "table", table)
+        object.__setattr__(self, "kind", kind)
+        object.__setattr__(
+            self,
+            "qualifiers",
+            qualifiers
+            if qualifiers is not None
+            else tuple(part for part in (catalog, schema) if part is not None),
+        )
+
+    @property
+    def schema(self) -> str | None:
+        return self.qualifiers[-1] if self.qualifiers else None
+
+    @property
+    def catalog(self) -> str | None:
+        return self.qualifiers[0] if len(self.qualifiers) > 1 else None
+
+    @property
+    def parts(self) -> tuple[str, ...]:
+        return (*self.qualifiers, self.table)
 
     @classmethod
-    def from_parts(
-        cls,
-        parts: list[str],
-    ) -> SQLRef:
-        catalog = None
-        schema = None
-        table = ""
-        if len(parts) == 3:
-            catalog, schema, table = parts
-            catalog = catalog.lower()
-            schema = schema.lower()
-        elif len(parts) == 2:
-            schema, table = parts
-            schema = schema.lower()
-        elif len(parts) == 1:
-            table = parts[0]
-        return cls(table=table.lower(), schema=schema, catalog=catalog)
+    def from_parts(cls, parts: list[str]) -> SQLRef:
+        return cls(
+            table=parts[-1].lower(),
+            qualifiers=tuple(part.lower() for part in parts[:-1]),
+        )
+
+    @classmethod
+    def from_qualified_name(cls, name: str) -> SQLRef:
+        parts = re.findall(r'"(?:[^"]|"")*"|[^.]+', name)
+        return cls.from_parts(
+            [
+                part[1:-1].replace('""', '"') if part.startswith('"') else part
+                for part in parts
+            ]
+        )
 
     @property
     def qualified_name(self) -> str:
-        """Convert a SQLRef to a fully qualified name to be used as a reference in the visitor"""
-        parts = []
-        if self.catalog is not None:
-            parts.append(self.catalog)
-        if self.schema is not None:
-            parts.append(self.schema)
+        def quote_part(part: str) -> str:
+            if "." in part or '"' in part:
+                return '"' + part.replace('"', '""') + '"'
+            return part
 
-        # Table is always required
-        parts.append(self.table)
-        name = ".".join(parts)
-        return name.lower()
+        return ".".join(quote_part(part.lower()) for part in self.parts)
+
+    def split_catalog(
+        self, catalogs: frozenset[str]
+    ) -> tuple[str | None, tuple[str, ...]]:
+        parts = tuple(part.lower() for part in self.parts)
+        has_namespace = len(parts) > 1 or self.kind == "schema"
+        if has_namespace and parts[0] in catalogs | {"memory", "temp"}:
+            return parts[0], parts[1:]
+        return None, parts
 
     def matches_hierarchical_ref(
-        self, name: str, ref: str, kind: SQLTypes = "any"
+        self,
+        name: str,
+        definition: SQLRef,
+        kind: SQLTypes = "any",
+        *,
+        catalogs: frozenset[str] = frozenset(),
     ) -> bool:
-        """
-        Determine if a hierarchical reference string matches a SQLRef.
-
-        Args:
-            name: The name to match against (could be catalog, schema, or table).
-            ref: The fully qualified reference string (e.g., "schema.table", "catalog.schema.table").
-            kind: The kind of reference ("table", "view", "schema", "catalog").
-
-        Returns:
-            True if the reference matches the SQLRef's structure and values, False otherwise.
-        """
-        ref = ref.lower()
+        own_parts = tuple(part.lower() for part in self.parts)
         name = name.lower()
-        parts = ref.split(".")
-        num_parts = len(parts)
-
-        if num_parts == 0:
-            return False
-
         if kind == "catalog":
-            if self.catalog is not None:
-                return name == self.catalog == parts[0]
-            # Fallback to schema if catalog is None
-            kind = "schema"
+            namespace = own_parts if self.kind == "schema" else own_parts[:-1]
+            return (
+                bool(namespace)
+                and name == namespace[0] == definition.parts[0].lower()
+            )
 
+        own_catalog, own_path = self.split_catalog(catalogs)
+        ref_catalog, parts = (
+            definition.split_catalog(catalogs)
+            if definition.qualifiers
+            else (None, (definition.table.lower(),))
+        )
+        if (
+            self.kind == "schema"
+            or kind == "schema"
+            or (self.qualifiers and definition.qualifiers)
+        ) and (own_catalog or "memory") != (ref_catalog or "memory"):
+            return False
         if kind == "schema":
-            if num_parts < 3:
-                return name == self.schema == parts[0]
-            return name == self.schema == parts[1]
+            namespace = own_path if self.kind == "schema" else own_path[:-1]
+            return namespace[: len(parts)] == parts
+        if self.kind == "schema":
+            return False
+        if kind == "any" and name != own_parts[-1]:
+            return name in own_parts[:-1]
 
-        # Otherwise, kind is "table" or "view", and we should check the ordering
-        # and return accordingly
-        if num_parts == 1:
-            # Only table name provided
-            return name == self.table == parts[0] and kind in (
-                "table",
-                "view",
-                "any",
-            )
-
-        if num_parts == 2:
-            # Format: schema.table or catalog.table
-            # sqlglot cannot differentiate between schema and catalog
-            # so we check if the qualifier matches either
-            qualifier, table = parts
-            # Try matching as schema or catalog
-            if (self.schema, self.catalog) == (None, None):
-                return name == self.table == table and kind in (
-                    "table",
-                    "view",
-                    "any",
-                )
-            if qualifier not in (self.schema, self.catalog):
-                return False
-
-            return name in (
-                self.catalog,
-                self.schema,
-                self.table,
-            ) and kind in (
-                "table",
-                "view",
-                "catalog",
-                "schema",
-                "any",
-            )
-
-        if num_parts == 3:
-            # Format: catalog.schema.table
-            catalog, schema, table = parts
-            if self.catalog:
-                if catalog != self.catalog:
-                    return False
-                if schema != self.schema:
-                    return name == self.catalog and kind in ("catalog", "any")
-            elif self.schema:
-                if schema != self.schema:
-                    return False
-                return name == self.schema and kind in ("schema", "any")
-            return name in (
-                self.catalog,
-                self.schema,
-                self.table,
-            ) and kind in (
-                "table",
-                "view",
-                "catalog",
-                "schema",
-                "any",
-            )
-
-        return False
+        if own_catalog is not None and len(own_path) == 1:
+            own_path = ("main", *own_path)
+        if ref_catalog is not None and len(parts) == 1:
+            parts = ("main", *parts)
+        if self.qualifiers and definition.qualifiers:
+            return name == own_parts[-1] and own_path == parts
+        return name == own_parts[-1]
 
     def contains_hierarchical_ref(self, ref: str, kind: str) -> bool:
         if kind in ("table", "view"):
-            return ref == self.table
-        if kind == "catalog":
-            return ref == self.catalog or ref == self.schema
+            if self.kind == "schema":
+                return False
+            return ref.lower() == self.table.lower()
+        if kind in ("catalog", "schema"):
+            namespace = (
+                self.parts if self.kind == "schema" else self.qualifiers
+            )
+            return ref.lower() in (part.lower() for part in namespace)
         return False
 
 
@@ -519,21 +498,12 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
         except AttributeError:
             # sqlglot may return Table nodes with this=None (e.g. DROP SCHEMA)
             return None
-        schema_name = table.db or None
-        catalog_name = table.catalog or None
-
         if table_name is None:
             return None
-
-        # Check if the table name looks like a URL or has a file extension.
-        # These are often not actual table references, so we skip them.
-        # Note that they can be valid table names, but we skip them to avoid circular deps
         if "://" in table_name or table_name.endswith(COMMON_FILE_EXTENSIONS):
             return None
-
-        return SQLRef(
-            table=table_name, schema=schema_name, catalog=catalog_name
-        )
+        parts = [part.name for part in table.parts]
+        return SQLRef(table=parts[-1], qualifiers=tuple(parts[:-1]))
 
     from sqlglot.errors import ParseError
 

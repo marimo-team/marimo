@@ -478,8 +478,18 @@ SQL_CASES = [
             "2": "_ = mo.sql(f'FROM my_db.main.my_table SELECT *')",
             "3": "_ = mo.sql(f'FROM my_db.my_table SELECT *')",
         },
-        expected_parents={"0": [], "1": [], "2": ["0", "1"], "3": ["0", "1"]},
-        expected_children={"0": ["2", "3"], "1": ["2", "3"], "2": [], "3": []},
+        expected_parents={
+            "0": [],
+            "1": ["0"],
+            "2": ["0", "1"],
+            "3": ["0", "1"],
+        },
+        expected_children={
+            "0": ["1", "2", "3"],
+            "1": ["2", "3"],
+            "2": [],
+            "3": [],
+        },
         expected_refs={
             "0": ["mo"],
             "1": ["mo"],
@@ -526,8 +536,8 @@ SQL_CASES = [
             "1": "_ = mo.sql(f'CREATE TABLE my_schema.my_table AS SELECT * FROM catalog_one.my_schema.my_table')",
             "2": "_ = mo.sql(f'SELECT * FROM my_schema.my_table')",
         },
-        expected_parents={"0": [], "1": [], "2": ["1"]},
-        expected_children={"0": [], "1": ["2"], "2": []},
+        expected_parents={"0": [], "1": ["0"], "2": ["0", "1"]},
+        expected_children={"0": ["1", "2"], "1": ["2"], "2": []},
         expected_refs={
             "0": ["mo"],
             "1": ["mo", "catalog_one.my_schema.my_table"],
@@ -577,8 +587,8 @@ SQL_CASES = [
             "1": "_ = mo.sql(f'CREATE TABLE my_schema.data AS SELECT * FROM external.my_schema.data')",
             "2": "_ = mo.sql(f'SELECT * FROM my_schema.data')",
         },
-        expected_parents={"0": [], "1": [], "2": ["1"]},
-        expected_children={"0": [], "1": ["2"], "2": []},
+        expected_parents={"0": [], "1": ["0"], "2": ["0", "1"]},
+        expected_children={"0": ["1", "2"], "1": ["2"], "2": []},
         expected_refs={
             "0": ["mo"],
             "1": ["mo", "external.my_schema.data"],
@@ -594,8 +604,8 @@ SQL_CASES = [
             "1": "_ = mo.sql(f\"ATTACH 'my_db.db' as my_db\")",
             "2": "_ = mo.sql(f'FROM my_db.main.my_table SELECT *')",
         },
-        expected_parents={"0": [], "1": [], "2": ["0", "1"]},
-        expected_children={"0": ["2"], "1": ["2"], "2": []},
+        expected_parents={"0": ["1"], "1": [], "2": ["0", "1"]},
+        expected_children={"0": ["2"], "1": ["0", "2"], "2": []},
         expected_refs={
             "0": ["mo"],
             "1": ["mo"],

@@ -79,7 +79,9 @@ describe("DatasetColumnPreview fullyQualifiedTableName", () => {
   it("qualifies with database and schema for flat engines", () => {
     const client = renderPreview(ctx({ database: "db", schema: "public" }));
     expect(client.previewDatasetColumn).toHaveBeenCalledWith(
-      expect.objectContaining({ fullyQualifiedTableName: "db.public.users" }),
+      expect.objectContaining({
+        fullyQualifiedTableName: '"db"."public"."users"',
+      }),
     );
   });
 
@@ -87,7 +89,7 @@ describe("DatasetColumnPreview fullyQualifiedTableName", () => {
     // Regression: previously produced "db..users".
     const client = renderPreview(ctx({ database: "db", schema: "" }));
     expect(client.previewDatasetColumn).toHaveBeenCalledWith(
-      expect.objectContaining({ fullyQualifiedTableName: "db.users" }),
+      expect.objectContaining({ fullyQualifiedTableName: '"db"."users"' }),
     );
   });
 
@@ -98,7 +100,37 @@ describe("DatasetColumnPreview fullyQualifiedTableName", () => {
     );
     expect(client.previewDatasetColumn).toHaveBeenCalledWith(
       expect.objectContaining({
-        fullyQualifiedTableName: "top.nested.deep.users",
+        fullyQualifiedTableName: '"top"."nested"."deep"."users"',
+      }),
+    );
+  });
+
+  it("quotes a literal dot as one schema segment", () => {
+    const client = renderPreview(
+      ctx({
+        database: "memory",
+        schema: "finance.reports",
+        schemaPath: ["finance.reports"],
+      }),
+    );
+    expect(client.previewDatasetColumn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fullyQualifiedTableName: '"memory"."finance.reports"."users"',
+      }),
+    );
+  });
+
+  it("escapes quotes inside schema identifiers", () => {
+    const client = renderPreview(
+      ctx({
+        database: "memory",
+        schema: 'fi"nance',
+        schemaPath: ['fi"nance', "reports"],
+      }),
+    );
+    expect(client.previewDatasetColumn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fullyQualifiedTableName: '"memory"."fi""nance"."reports"."users"',
       }),
     );
   });

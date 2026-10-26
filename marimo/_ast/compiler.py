@@ -399,6 +399,7 @@ def compile_cell(
         defs=nonlocals,
         refs=v.refs,
         sql_refs=v.sql_refs,
+        sql_namespace_refs=v.sql_namespace_refs,
         temporaries=temporaries,
         closed_over_temporaries=closed_over_temporaries,
         variable_data=variable_data,
