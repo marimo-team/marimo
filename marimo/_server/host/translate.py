@@ -120,7 +120,7 @@ class RunTranslator:
 
     def _plan(self, notification: ExecutionNotification) -> be.Planned:
         execution = _Execution(
-            protocol.ExecutionId(f"{self.run_id}-{len(self._executions) + 1}"),
+            protocol.ExecutionId(notification.execution_id),
             notification.cell_id,
         )
         self._executions[notification.execution_id] = execution
@@ -190,7 +190,7 @@ class RunTranslator:
             out.append(
                 self._plan(
                     ExecutionNotification(
-                        execution_id="unsubmitted",
+                        execution_id=f"{self.run_id}-unsubmitted",
                         cell_id=SCRATCH_CELL_ID,
                         run_id=self.run_id,
                         phase="planned",

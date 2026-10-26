@@ -747,7 +747,7 @@ async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
     assert root["outcome"]["kind"] == "value"
     assert "42" in root["outcome"]["display"]["data"]
     assert all(
-        e["outcome"]["kind"] == "error"
+        e["outcome"]["kind"] == "error" and e["caused_by"] == root["id"]
         for e in executions
         if e["cell_id"] is not None
     )
