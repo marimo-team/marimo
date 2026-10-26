@@ -25,6 +25,7 @@ import React, {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
 } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import useEvent from "react-use-event-hook";
@@ -187,7 +188,10 @@ export const TransformPanel: React.FC<Props> = ({
           className="relative flex flex-row max-h-[400px] overflow-hidden bg-background"
         >
           <Sidebar
-            items={form.watch("transforms")}
+            items={transformsField.fields.map((field, index) => ({
+              id: field.id,
+              transform: transforms[index],
+            }))}
             selected={selectedTransform}
             onSelect={(index) => {
               setSelectedTransform(index);
@@ -274,7 +278,7 @@ export const TransformPanel: React.FC<Props> = ({
 };
 
 interface SidebarProps {
-  items: TransformType[];
+  items: { id: string; transform: TransformType }[];
   selected: number | undefined;
   onSelect: (index: number) => void;
   onDelete: (index: number) => void;
@@ -288,13 +292,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelect,
   onDelete,
 }) => {
+  const selectionButtons = useRef(new Map<string, HTMLButtonElement>());
+  const addButton = useRef<HTMLButtonElement>(null);
+
   return (
     <div className="flex flex-col overflow-y-hidden w-[180px] shadow-xs h-full">
       <div className="flex flex-col overflow-y-auto grow">
-        {items.map((item, idx) => {
+        {items.map(({ id, transform }, idx) => {
           return (
             <div
-              key={`${JSON.stringify(item)}-${idx}`}
+              key={id}
               className={cn(
                 "group flex flex-row min-h-[40px] items-center px-2 cursor-pointer hover:bg-accent/50 text-sm overflow-hidden border border-muted border-l-2 border-l-transparent",
                 {
@@ -304,18 +311,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             >
               <button
+                ref={(button) => {
+                  if (button) {
+                    selectionButtons.current.set(id, button);
+                  } else {
+                    selectionButtons.current.delete(id);
+                  }
+                }}
                 type="button"
                 className="grow text-left text-ellipsis py-2 focus-visible:outline focus-visible:outline-ring"
                 aria-pressed={selected === idx}
                 onClick={() => onSelect(idx)}
               >
-                {Strings.startCase(item.type)}
+                {Strings.startCase(transform.type)}
               </button>
               <button
                 type="button"
-                aria-label={`Delete ${Strings.startCase(item.type)} transform ${idx + 1}`}
+                aria-label={`Delete ${Strings.startCase(transform.type)} transform ${idx + 1}`}
                 className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-destructive focus-visible:outline focus-visible:outline-ring"
-                onClick={() => onDelete(idx)}
+                onClick={(event) => {
+                  if (event.currentTarget.matches(":focus")) {
+                    const neighbor = items[idx - 1] ?? items[idx + 1];
+                    const target = neighbor
+                      ? selectionButtons.current.get(neighbor.id)
+                      : addButton.current;
+                    target?.focus();
+                  }
+                  onDelete(idx);
+                }}
               >
                 <Trash2Icon className="w-3 h-3" />
               </button>
@@ -326,6 +349,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex flex-row shrink-0">
         <AddTransformDropdown onAdd={onAdd}>
           <Button
+            ref={addButton}
             data-testid="marimo-plugin-data-frames-add-transform"
             variant="text"
             className="w-full rounded-none m-0 hover:text-accent-foreground"
