@@ -17,7 +17,8 @@ _SPLIT_NUMBERS = re.compile(r"([0-9]+)").split
 
 def natural_sort(filename: str) -> list[int | str]:
     return [
-        int(c) if c.isdigit() else c.lower() for c in _SPLIT_NUMBERS(filename)
+        int(c) if c.isascii() and c.isdigit() else c.lower()
+        for c in _SPLIT_NUMBERS(filename)
     ]
 
 
