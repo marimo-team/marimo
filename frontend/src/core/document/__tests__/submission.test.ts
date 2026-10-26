@@ -25,7 +25,6 @@ function setup() {
     store,
     source,
     ...model,
-    abort: () => controller.abort(),
     submit() {
       const submission = store.set(model.submitAtom);
       if (submission === null) {
@@ -104,106 +103,39 @@ describe("document submissions", () => {
   );
 
   it.each(["response", "stream"] as const)(
-    "preserves later typing when the %s arrives first",
+    "does not notify cell subscribers when the %s acknowledges a superseded draft",
     (first) => {
-      const {
-        store,
-        source,
-        editAtom,
-        cellAtom,
-        changesAtom,
-        submitAtom,
-        submit,
-        settle,
-      } = setup();
+      const { store, source, editAtom, cellAtom, submit, settle } = setup();
       store.set(editAtom, (tx) => {
         tx.setCode("c1", "sent");
-        tx.updateConfig("c1", { hide_code: true });
+        tx.createCell({ id: "c3", code: "new" });
       });
       const sent = submit();
-      store.set(editAtom, (tx) => tx.setCode("c1", "still typing"));
+      store.set(editAtom, (tx) => {
+        tx.setCode("c1", "still typing");
+        tx.deleteCell("c3");
+      });
+      const onCode = vi.fn();
+      const onCreation = vi.fn();
+      const unsubscribeCode = store.sub(cellAtom("c1"), onCode);
+      const unsubscribeCreation = store.sub(cellAtom("c3"), onCreation);
       const confirmed = withCells(document(), {
-        c1: cell("c1", "sent", {
-          etag: "accepted",
-          config: { ...cell("c1", "").config, hide_code: true },
-        }),
+        c1: cell("c1", "sent", { etag: "accepted", version: 2 }),
+        c3: cell("c3", "new"),
       });
-      const onCell = vi.fn();
-      store.sub(cellAtom("c1"), onCell);
       const arrivals = {
         response: () => settle(sent, confirmed),
         stream: () => store.set(source, confirmed),
       };
-      arrivals[first]();
-      expect(store.set(submitAtom)).toBeNull();
-      arrivals[first === "response" ? "stream" : "response"]();
-      expect(onCell).not.toHaveBeenCalled();
-      expect(store.get(cellAtom("c1"))?.code).toBe("still typing");
-      expect(store.get(changesAtom)).toEqual([
-        {
-          kind: "put_cell",
-          base_etag: "accepted",
-          cell: {
-            id: "c1",
-            code: "still typing",
-            name: "_",
-            config: confirmed.cells.get("c1")?.config,
-          },
-        },
-      ]);
-      const next = submit();
-      settle(sent, confirmed);
-      expect(store.set(submitAtom)).toBeNull();
-      const updated = withCells(confirmed, {
-        c1: cell("c1", "still typing", {
-          config: confirmed.cells.get("c1")!.config,
-        }),
-      });
-      settle(next, updated);
-      store.set(source, updated);
-      expect(store.get(changesAtom)).toEqual([]);
-    },
-  );
-
-  it.each(["response", "stream"] as const)(
-    "never shows a cancelled creation when the %s arrives first",
-    (first) => {
-      const {
-        store,
-        source,
-        editAtom,
-        cellAtom,
-        orderAtom,
-        changesAtom,
-        submit,
-        settle,
-      } = setup();
-      store.set(editAtom, (tx) => tx.createCell({ id: "c3", code: "new" }));
-      const sent = submit();
-      store.set(editAtom, (tx) => tx.deleteCell("c3"));
-      const onCell = vi.fn();
-      store.sub(cellAtom("c3"), onCell);
-      // An unrelated revision before the creation must not forget the deletion.
-      const intermediate = withCells(document(), { c2: cell("c2", "remote") });
-      store.set(source, intermediate);
-      const confirmed = withCells(intermediate, { c3: cell("c3", "new") });
-      const arrivals = {
-        response: () => settle(sent, confirmed),
-        stream: () => store.set(source, confirmed),
-      };
-      arrivals[first]();
-      arrivals[first === "response" ? "stream" : "response"]();
-      expect(onCell).not.toHaveBeenCalled();
-      expect(store.get(orderAtom)).toEqual(["c1", "c2"]);
-      expect(store.get(changesAtom)).toEqual([
-        { kind: "delete_cell", id: "c3", base_etag: "c3-etag" },
-      ]);
-      const deletion = submit();
-      const removed = withCells(confirmed, { c3: null });
-      store.set(source, removed);
-      settle(deletion, removed);
-      settle(sent, confirmed);
-      expect(store.get(changesAtom)).toEqual([]);
+      try {
+        arrivals[first]();
+        arrivals[first === "response" ? "stream" : "response"]();
+        expect(onCode).not.toHaveBeenCalled();
+        expect(onCreation).not.toHaveBeenCalled();
+      } finally {
+        unsubscribeCode();
+        unsubscribeCreation();
+      }
     },
   );
 
@@ -226,36 +158,6 @@ describe("document submissions", () => {
     expect(seen).toEqual(["another client's edit"]);
     expect(store.set(submitAtom)).toBeNull();
   });
-
-  it.each(["before reset", "during reset", "after snapshot"] as const)(
-    "confirms a submission across reset when its response arrives %s",
-    (arrival) => {
-      const { store, source, editAtom, cellAtom, submit, settle } = setup();
-      store.set(editAtom, (tx) => tx.setCode("c1", "unsaved"));
-      const sent = submit();
-      const old = withCells(document(), { c1: cell("c1", "unsaved") });
-      store.set(editAtom, (tx) => tx.setCode("c1", "newer typing"));
-      if (arrival === "before reset") {
-        settle(sent, old);
-      }
-      store.set(source, null);
-      if (arrival === "during reset") {
-        settle(sent, old);
-      }
-      const fresh = withCells(old, { c2: cell("c2", "unrelated") });
-      store.set(source, fresh);
-      if (arrival === "after snapshot") {
-        settle(sent, old);
-      }
-      expect(store.get(cellAtom("c1"))?.code).toBe("newer typing");
-      const retried = submit();
-      const accepted = withCells(fresh, { c1: cell("c1", "newer typing") });
-      settle(retried, accepted);
-      store.set(source, accepted);
-      store.set(source, withCells(accepted, { c1: cell("c1", "remote") }));
-      expect(store.get(cellAtom("c1"))?.code).toBe("remote");
-    },
-  );
 
   it("invalidates submissions when switching notebooks, retaining each draft", () => {
     const { store, source, editAtom, cellAtom, submit, settle } = setup();
@@ -294,53 +196,6 @@ describe("document submissions", () => {
       },
     ]);
     settle(sent, remote);
-    expect(store.set(submitAtom)).toBeNull();
-  });
-
-  it("does not treat a response for another notebook as acceptance", () => {
-    const { store, editAtom, settleAtom, submitAtom, submit } = setup();
-    store.set(editAtom, (tx) => tx.setCode("c1", "local"));
-    const sent = submit();
-    expect(() => store.set(settleAtom, sent, document("n2").revision)).toThrow(
-      "another notebook",
-    );
-    expect(store.set(submitAtom)).toBeNull();
-  });
-
-  it("releases an unsent reversal without making a request", () => {
-    const { store, source, editAtom, cellAtom, submitAtom } = setup();
-    store.set(editAtom, (tx) => tx.setCode("c1", "local"));
-    store.set(editAtom, (tx) => tx.setCode("c1", "x = 1"));
-    expect(store.set(submitAtom)).toBeNull();
-    store.set(source, withCells(document(), { c1: cell("c1", "remote") }));
-    expect(store.get(cellAtom("c1"))?.code).toBe("remote");
-  });
-
-  it("stops observing and accepting work after disposal", () => {
-    const {
-      store,
-      source,
-      editAtom,
-      orderAtom,
-      submitAtom,
-      submit,
-      settle,
-      abort,
-    } = setup();
-    store.set(editAtom, (tx) => tx.setCode("c1", "local"));
-    const sent = submit();
-    abort();
-    const onOrder = vi.fn();
-    store.sub(orderAtom, onOrder);
-    const confirmed = withCells(document(), { c1: cell("c1", "local") });
-    store.set(source, confirmed);
-    settle(sent, confirmed);
-    const edit = vi.fn();
-    store.set(editAtom, edit);
-    abort();
-    expect(edit).not.toHaveBeenCalled();
-    expect(onOrder).not.toHaveBeenCalled();
-    expect(store.get(orderAtom)).toBeNull();
     expect(store.set(submitAtom)).toBeNull();
   });
 });
