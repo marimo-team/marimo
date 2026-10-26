@@ -123,6 +123,7 @@ export const ScratchPad: React.FC = () => {
           insert: item,
         },
       });
+      ev.focus();
     }
   });
 
