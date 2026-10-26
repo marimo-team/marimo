@@ -121,4 +121,15 @@ export type SerializedBridge = {
     : RawBridge[P];
 } & {
   save(payload: string): Promise<void>;
+  notebook: {
+    readonly id: string;
+    subscribe(
+      id: string,
+      cursor: string | null,
+      emit: (event: string) => void,
+    ): Promise<void>;
+    unsubscribe(id: string): void;
+    call(call: string): Promise<string>;
+    destroy(): void;
+  };
 };

@@ -12,6 +12,7 @@
  */
 
 import http from "node:http";
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -144,7 +145,7 @@ async function main() {
 
     // In Node.js, loadPyodide uses the bundled files from the npm package
     // Load without packages first, then add packages separately
-    const pyodide = await loadPyodide();
+    const pyodide = await loadPyodide({ convertNullToNone: true });
     console.log("Pyodide loaded successfully");
 
     // Load required packages that marimo depends on
@@ -294,6 +295,36 @@ result = {
 }
 json.dumps(result)
 `);
+
+    // Exercise the same Python proxy and callback lifetime as the worker RPC.
+    const notebook = pyodide.runPython("bridge.notebook");
+    const frames = [];
+    try {
+      await notebook.subscribe("acceptance", null, (raw) => frames.push(JSON.parse(raw)));
+      assert.equal(frames.at(-1).event, "ready");
+      const cell = frames.find((frame) => frame.event === "cell").data.cell;
+      const call = JSON.stringify({
+        operation: "notebook.edit",
+        params: { notebook_id: cell.notebook_id },
+        headers: { "idempotency-key": "wasm-acceptance-edit" },
+        body: { changes: [{
+          kind: "put_cell", base_etag: cell.etag,
+          cell: { id: cell.id, code: "x = 7", name: cell.name, config: cell.config },
+        }] },
+      });
+      const reply = JSON.parse(await notebook.call(call));
+      assert.equal(reply.status, 200);
+      assert.deepEqual(frames.at(-1).data.document, reply.body.document);
+      assert.equal(frames.at(-2).data.cell.code, "x = 7");
+      assert.equal(frames.at(-1).data.request_id, "wasm-acceptance-edit");
+      const count = frames.length;
+      assert.deepEqual(JSON.parse(await notebook.call(call)), reply);
+      assert.equal(frames.length, count);
+      assert.equal(pyodide.runPython("list(session.app_manager.app.cell_manager.codes())[0]"), "x = 7");
+      notebook.unsubscribe("acceptance");
+    } finally {
+      notebook.destroy();
+    }
 
     // Step 6: Test mo.watch.file in Pyodide (within execution context)
     console.log("Step 6: Testing mo.watch.file in Pyodide...");
