@@ -30,3 +30,12 @@ export function selectOrder(
 ): Atom<readonly Protocol.CellId[] | null> {
   return selectAtom(document, (value) => value?.order ?? null, dequal);
 }
+
+/** Select one field of a cell, unchanged until that field's value changes. */
+export function selectCellField<K extends keyof EditableCell>(
+  document: Atom<EditableDocument | null>,
+  id: Protocol.CellId,
+  field: K,
+): Atom<EditableCell[K] | undefined> {
+  return selectAtom(document, (value) => value?.cells.get(id)?.[field], dequal);
+}

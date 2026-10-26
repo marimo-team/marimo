@@ -68,6 +68,21 @@ describe("shouldAutorunMarkdownUpdate", () => {
     ).toBe(false);
   });
 
+  it("ignores remote transactions while focused", () => {
+    const transaction = createTransaction({
+      changes: { from: 0, insert: "#" },
+      annotations: [Transaction.remote.of(true)],
+    });
+
+    expect(
+      shouldAutorunMarkdownUpdate({
+        docChanged: transaction.docChanged,
+        transactions: [transaction],
+        hasFocus: true,
+      }),
+    ).toBe(false);
+  });
+
   it("ignores programmatic doc changes without a user event", () => {
     const transaction = createTransaction({
       changes: { from: 0, insert: "#" },
