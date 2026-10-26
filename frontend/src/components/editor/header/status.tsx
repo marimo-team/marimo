@@ -95,6 +95,8 @@ const RunningIcon = () => {
         <span
           className={topLeftStatus}
           data-testid="loading-indicator"
+          // Execution progress is advisory status, not a form result.
+          // eslint-disable-next-line jsx-a11y/prefer-tag-over-role
           role="status"
           aria-label={tooltip}
         >
