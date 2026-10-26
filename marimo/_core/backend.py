@@ -18,7 +18,7 @@ unnecessary if marimo adopts the core model directly.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
 from marimo._core import protocol
@@ -133,11 +133,21 @@ class Planned:
 
 
 @dataclass(frozen=True)
-class Status:
-    """An execution changed status to `running` or `completed`."""
+class Started:
+    """An execution started evaluating code."""
 
     execution_id: protocol.ExecutionId
-    status: protocol.Lifecycle
+
+
+@dataclass(frozen=True)
+class Completed:
+    """An execution finished with its final outcome and input revisions."""
+
+    execution_id: protocol.ExecutionId
+    outcome: protocol.Outcome
+    depends_on: dict[str, protocol.Revision | None] = field(
+        default_factory=dict
+    )
 
 
 @dataclass(frozen=True)
@@ -177,7 +187,8 @@ Message = (
     | Exited
     | Scheduled
     | Planned
-    | Status
+    | Started
+    | Completed
     | Produced
     | Concluded
     | Done

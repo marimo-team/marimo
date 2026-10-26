@@ -560,7 +560,7 @@ async def test_expiration_converges_for_live_replay_and_snapshot(
     )
     live.clear()
     notebook.observe(be.Produced(item))
-    notebook.observe(be.Status(execution, "running"))
+    notebook.observe(be.Started(execution))
     notebook.observe(be.Done(run.id, "succeeded"))
     assert live == []
 
@@ -749,7 +749,7 @@ async def test_completed_scratch_runs_belong_to_the_host() -> None:
     notebook.observe(be.Done(run.id, "succeeded"))
     # The notebook lets go without a word; the host still shows the run.
     assert fold(notebook._snapshot()) == {}
-    assert names(live) == ["execution", "execution", "run"]
+    assert names(live) == ["execution", "run"]
     assert set(fold(host.events(notebook_id=notebook.id))) == {
         ("run", run.id),
         ("execution", execution),

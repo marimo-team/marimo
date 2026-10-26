@@ -272,8 +272,27 @@ class Executions:
                     )
             case be.Planned(run_id=run_id, executions=planned):
                 changes.extend(self._observe_planned(run_id, planned, runtime))
-            case be.Status(execution_id=execution_id, status=status):
-                changes.extend(self._observe_status(execution_id, status))
+            case be.Started(execution_id=execution_id):
+                changes.extend(self._observe_started(execution_id))
+            case be.Completed(
+                execution_id=execution_id,
+                outcome=outcome,
+                depends_on=depends_on,
+            ):
+                if (
+                    result := self._results.get(execution_id)
+                ) is not None and result.execution.status != "completed":
+                    changes.append(
+                        self._set_execution(
+                            replace(
+                                result.execution,
+                                status="completed",
+                                outcome=outcome,
+                                depends_on=dict(depends_on),
+                                completed_at=utcnow(),
+                            )
+                        )
+                    )
             case be.Produced(item=item):
                 if (
                     result := self._results.get(item.execution_id)
@@ -426,33 +445,24 @@ class Executions:
             )
         return changes
 
-    def _observe_status(
-        self, execution_id: protocol.ExecutionId, status: protocol.Lifecycle
+    def _observe_started(
+        self, execution_id: protocol.ExecutionId
     ) -> list[Change]:
         changes: list[Change] = []
         result = self._results.get(execution_id)
         if result is None:
             return []
         execution = result.execution
-        if execution.status in (status, "completed"):
+        if execution.status != "queued":
             return []
         now = utcnow()
-        if status == "running":
-            execution = replace(execution, status=status, started_at=now)
-            assert execution.run_id is not None
-            run = self._runs[execution.run_id].run
-            if run.status == "queued":
-                changes.append(
-                    self._set_run(
-                        replace(run, status="running", started_at=now)
-                    )
-                )
-        elif status == "completed":
-            if execution.outcome is None:
-                raise ValueError("a completed execution must have an outcome")
-            execution = replace(execution, status=status, completed_at=now)
-        else:
-            execution = replace(execution, status=status)
+        execution = replace(execution, status="running", started_at=now)
+        assert execution.run_id is not None
+        run = self._runs[execution.run_id].run
+        if run.status == "queued":
+            changes.append(
+                self._set_run(replace(run, status="running", started_at=now))
+            )
         changes.append(self._set_execution(execution))
         return changes
 

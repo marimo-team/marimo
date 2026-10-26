@@ -8,12 +8,13 @@ from dirty_equals import IsStr
 from inline_snapshot import snapshot
 
 from marimo._core.backend import (
+    Completed,
     Concluded,
     Done,
     Planned,
     PlannedExecution,
     Produced,
-    Status,
+    Started,
 )
 from marimo._core.document import code_hash
 from marimo._core.protocol import (
@@ -96,7 +97,7 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                     ),
                 ),
             ),
-            Status(execution_id=ExecutionId("scratch"), status="running"),
+            Started(execution_id=ExecutionId("scratch")),
             Produced(
                 item=Console(
                     execution_id=ExecutionId("scratch"),
@@ -114,7 +115,12 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                     )
                 ),
             ),
-            Status(execution_id=ExecutionId("scratch"), status="completed"),
+            Completed(
+                execution_id=ExecutionId("scratch"),
+                outcome=ValueOutcome(
+                    DisplayData(data="<pre>9</pre>", mimetype="text/html")
+                ),
+            ),
             Done(run_id=RunId("r1"), outcome="succeeded"),
         ]
     )
@@ -155,7 +161,7 @@ def test_an_exception_ends_the_run_in_error() -> None:
 
     assert t.finish() == snapshot(
         [
-            Concluded(
+            Completed(
                 execution_id=ExecutionId("scratch"),
                 outcome=ErrorOutcome(
                     error=Error(
@@ -176,7 +182,6 @@ ZeroDivisionError: division by zero
                     )
                 ),
             ),
-            Status(execution_id=ExecutionId("scratch"), status="completed"),
             Done(run_id=RunId("r1"), outcome="failed"),
         ]
     )
@@ -196,11 +201,10 @@ def test_an_interruption_ends_the_run_interrupted(
 
     assert t.finish() == snapshot(
         [
-            Concluded(
+            Completed(
                 execution_id=ExecutionId("scratch"),
                 outcome=InterruptedOutcome(),
             ),
-            Status(execution_id=ExecutionId("scratch"), status="completed"),
             Done(run_id=RunId("r1"), outcome="interrupted"),
         ]
     )
@@ -286,13 +290,12 @@ def test_unsubmitted_runs_have_distinct_executions() -> None:
     for run_id in ("r1", "r2"):
         translator = RunTranslator(RunId(run_id), "print('never ran')")
         translator.interrupted = True
-        planned, concluded, status, done = translator.finish()
+        planned, completed, done = translator.finish()
         assert isinstance(planned, Planned)
         [execution] = planned.executions
         executions.append(execution.id)
-        assert (concluded, status, done) == (
-            Concluded(execution.id, InterruptedOutcome()),
-            Status(execution.id, "completed"),
+        assert (completed, done) == (
+            Completed(execution.id, InterruptedOutcome()),
             Done(RunId(run_id), "interrupted"),
         )
     assert len(set(executions)) == 2
@@ -344,7 +347,6 @@ def test_skipped_cells_report_their_error_after_becoming_idle(
         )
     )
     messages.extend(translator.finish())
-    assert isinstance(messages[0], Concluded)
+    assert isinstance(messages[0], Completed)
     assert isinstance(messages[0].outcome, outcome_type)
-    assert messages[1] == Status(ExecutionId("skipped"), "completed")
-    assert messages[2] == Done(RunId("r1"), run_outcome)  # type: ignore[arg-type]
+    assert messages[1] == Done(RunId("r1"), run_outcome)  # type: ignore[arg-type]

@@ -216,20 +216,19 @@ def plan(
             ),
         )
     )
-    notebook.observe(be.Status(execution, "running"))
+    notebook.observe(be.Started(execution))
     return execution
 
 
 def finish(notebook: Notebook, execution: protocol.ExecutionId) -> None:
     notebook.observe(
-        be.Concluded(
+        be.Completed(
             execution,
             protocol.ValueOutcome(
                 protocol.DisplayData(mimetype="text/plain", data="value")
             ),
         )
     )
-    notebook.observe(be.Status(execution, "completed"))
 
 
 def fold(events: list[RoutedEvent], initial: dict | None = None) -> dict:
