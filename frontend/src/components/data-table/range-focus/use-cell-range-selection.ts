@@ -83,6 +83,14 @@ export const useCellRangeSelection = <TData>({
         case "Enter":
         case " ":
           e.preventDefault();
+          updateSelection(
+            {
+              cellId: cell.id,
+              rowId: cell.row.id,
+              columnId: cell.column.id,
+            },
+            false,
+          );
           if (table.options.enableCellSelection) {
             cell.toggleSelected?.();
           } else if (cell.row.getCanSelect()) {

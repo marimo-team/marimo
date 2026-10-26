@@ -40,9 +40,14 @@ export function useScrollIntoViewOnFocus(
         return;
       }
 
+      const focusRoot = root.current.getRootNode();
+      const activeElement =
+        focusRoot instanceof ShadowRoot || focusRoot instanceof Document
+          ? focusRoot.activeElement
+          : null;
       if (
-        root.current?.contains(document.activeElement) &&
-        document.activeElement?.matches("td[data-cell-id]")
+        root.current.contains(activeElement) &&
+        activeElement?.matches("td[data-cell-id]")
       ) {
         indicator.focus({ preventScroll: true });
       }

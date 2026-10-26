@@ -1,11 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { copyToClipboard } from "@/utils/copy";
 import type { CellSelectionState } from "../cell-selection/types";
 import { DataTable } from "../data-table";
+
+vi.mock("@/utils/copy", () => ({ copyToClipboard: vi.fn() }));
 
 function SelectableTable({ multiple = false }: { multiple?: boolean }) {
   const [selection, setSelection] = useState<CellSelectionState>([]);
@@ -26,7 +29,82 @@ function SelectableTable({ multiple = false }: { multiple?: boolean }) {
 }
 
 describe("table keyboard access", () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it("includes the initial focused cell when extending a keyboard range", () => {
+    render(<SelectableTable />);
+    const [alice, bob] = screen.getAllByRole("gridcell");
+    act(() => alice.focus());
+    fireEvent.keyDown(alice, { key: "ArrowDown", shiftKey: true });
+    fireEvent.keyDown(bob, { key: "c", ctrlKey: true });
+    expect(copyToClipboard).toHaveBeenLastCalledWith("Alice\nBob", undefined);
+    fireEvent.keyDown(bob, { key: "ArrowUp", shiftKey: true });
+    fireEvent.keyDown(alice, { key: "c", ctrlKey: true });
+    expect(copyToClipboard).toHaveBeenLastCalledWith("Alice", undefined);
+  });
+
+  it.each(["Enter", " "])(
+    "copies the activated cell with %s, including after an older selection",
+    (key) => {
+      render(<SelectableTable />);
+      const [alice, bob] = screen.getAllByRole("gridcell");
+      for (const [cell, value] of [
+        [alice, "Alice"],
+        [bob, "Bob"],
+      ] as const) {
+        act(() => cell.focus());
+        fireEvent.keyDown(cell, { key });
+        fireEvent.keyDown(cell, { key: "c", ctrlKey: true });
+        expect(copyToClipboard).toHaveBeenLastCalledWith(value, undefined);
+        expect(cell).toHaveAttribute("aria-selected", "true");
+      }
+    },
+  );
+
+  it("moves focus and activation together inside a shadow root", () => {
+    vi.useFakeTimers();
+    const host = document.createElement("div");
+    document.body.append(host);
+    const shadow = host.attachShadow({ mode: "open" });
+    const container = document.createElement("div");
+    shadow.append(container);
+    const view = render(<SelectableTable />, { container });
+    try {
+      const [alice, bob] = within(container).getAllByRole("gridcell");
+      alice.scrollIntoView = vi.fn();
+      bob.scrollIntoView = vi.fn();
+      act(() => alice.focus());
+      fireEvent.keyDown(alice, { key: "ArrowDown" });
+      act(() => vi.runAllTimers());
+      expect(shadow.activeElement).toBe(bob);
+      fireEvent.keyDown(bob, { key: " " });
+      expect(bob).toHaveAttribute("aria-selected", "true");
+      expect(alice).toHaveAttribute("aria-selected", "false");
+    } finally {
+      view.unmount();
+      host.remove();
+    }
+  });
+
+  it("does not move focus away from a nested control after navigation", () => {
+    vi.useFakeTimers();
+    render(<SelectableTable />);
+    const [alice, bob] = screen.getAllByRole("gridcell");
+    alice.scrollIntoView = vi.fn();
+    bob.scrollIntoView = vi.fn();
+    const button = document.createElement("button");
+    alice.append(button);
+    act(() => alice.focus());
+    fireEvent.keyDown(alice, { key: "ArrowDown" });
+    act(() => {
+      button.focus();
+      vi.runAllTimers();
+    });
+    expect(button).toHaveFocus();
+  });
 
   it("ignores stale scheduled focus when moving between cells", () => {
     vi.useFakeTimers();
