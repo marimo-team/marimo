@@ -525,7 +525,10 @@ const EditableCellComponent = ({
     isMarkdownCodeHidden &&
     isEmptyMarkdownContent &&
     !needsRun && (
+      // Preserve pointer double-click editing; keyboard and assistive clicks activate directly.
+      // react-doctor-disable-next-line react-doctor/prefer-tag-over-role
       <div
+        // eslint-disable-next-line jsx-a11y/prefer-tag-over-role
         role="button"
         aria-label="Edit markdown"
         className="relative cursor-pointer px-3 py-2"
