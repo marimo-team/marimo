@@ -61,10 +61,10 @@ def test_config_show_environment_source_names() -> None:
     )
     assert format_config_with_sources(resolved) == snapshot("""\
 [runtime]
-output_max_bytes = 1000 # MARIMO_OUTPUT_MAX_BYTES
+output_max_bytes = 1000 # env var: MARIMO_RUNTIME_OUTPUT_MAX_BYTES
 
 [server]
-transport = "sse" # MARIMO_SERVER_TRANSPORT""")
+transport = "sse" # env var: MARIMO_SERVER_TRANSPORT""")
 
 
 def test_config_show_source_comments_are_valid_toml(tmp_path: Path) -> None:
@@ -249,7 +249,7 @@ def test_config_describe_nested_and_optional_sections(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Describing the schema must not resolve config or environment defaults.
-    monkeypatch.setenv("MARIMO_OUTPUT_MAX_BYTES", "invalid")
+    monkeypatch.setenv("MARIMO_RUNTIME_OUTPUT_MAX_BYTES", "invalid")
     monkeypatch.setenv("OPENAI_API_KEY", "secret-api-key")
     result = CliRunner().invoke(config, ["describe"])
     assert result.exit_code == 0, result.output
@@ -320,3 +320,54 @@ disabled
   Disable this MCP server.
   Type: bool | None"""
     )
+
+
+@pytest.mark.parametrize("show_sources", [False, True])
+def test_config_show_skips_malformed_environment_values(
+    tmp_path: Path, show_sources: bool
+) -> None:
+    import os
+
+    import tomlkit
+
+    (tmp_path / ".marimo.toml").write_text(
+        '[save]\nautosave_delay = 777\n[display]\ntheme = "light"\n'
+    )
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("MARIMO_")
+    }
+    env.update(
+        MARIMO_SAVE_AUTOSAVE_DELAY="private-invalid-value",
+        MARIMO_DISPLAY_THEME="dark",
+        MARIMO_FORMATTING_LINE_LENGTH="private-invalid-number",
+        MARIMO_KEYMAP_OVERRIDES='{"run-cell":"Shift-Enter"}',
+    )
+    args = ["marimo", "config", "show"]
+    if show_sources:
+        args.append("--show-sources")
+    result = subprocess.run(
+        args, cwd=tmp_path, env=env, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stderr.count("MARIMO_SAVE_AUTOSAVE_DELAY") == 1
+    assert result.stderr.count("MARIMO_FORMATTING_LINE_LENGTH") == 1
+    assert "malformed" in result.stderr
+    assert "skipped" in result.stderr
+    assert "private-invalid-value" not in result.stdout + result.stderr
+    assert "[W " not in result.stderr
+    values = tomlkit.parse(result.stdout).unwrap()
+    assert values["save"]["autosave_delay"] == 777
+    assert values["display"]["theme"] == "dark"
+    assert values["formatting"]["line_length"] == 79
+    assert values["keymap"]["overrides"] == {"run-cell": "Shift-Enter"}
+    if show_sources:
+        assert "# env var: MARIMO_KEYMAP_OVERRIDES" in result.stdout
+        assert (
+            'theme = "dark" # env var: MARIMO_DISPLAY_THEME' in result.stdout
+        )
+        assert (
+            f"autosave_delay = 777 # {tmp_path / '.marimo.toml'}"
+            in result.stdout
+        )

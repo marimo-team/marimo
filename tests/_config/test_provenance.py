@@ -14,7 +14,7 @@ from marimo._config.config import (
     merge_default_config,
 )
 from marimo._config.manager import (
-    EnvConfigReader,
+    EnvVarReader,
     MarimoConfigManager,
     OverrideConfigReader,
     PyprojectConfigReader,
@@ -124,13 +124,13 @@ def test_environment_output_limits_override_files(
         "# /// script\n# [tool.marimo.runtime]\n# output_max_bytes = 1111\n"
         "# std_stream_max_bytes = 2222\n# ///\n"
     )
-    monkeypatch.setenv("MARIMO_OUTPUT_MAX_BYTES", "1234")
-    monkeypatch.setenv("MARIMO_STD_STREAM_MAX_BYTES", "5678")
+    monkeypatch.setenv("MARIMO_RUNTIME_OUTPUT_MAX_BYTES", "1234")
+    monkeypatch.setenv("MARIMO_RUNTIME_STD_STREAM_MAX_BYTES", "5678")
     resolved = MarimoConfigManager(
         user,
         PyprojectConfigReader(str(notebook)),
         ScriptConfigReader(str(notebook)),
-        EnvConfigReader(),
+        EnvVarReader(),
     ).get_config_with_sources()
     assert resolved.config["runtime"]["output_max_bytes"] == 1234
     assert resolved.config["runtime"]["std_stream_max_bytes"] == 5678
@@ -142,8 +142,8 @@ def test_environment_output_limits_override_files(
 @pytest.mark.parametrize(
     ("field", "variable"),
     [
-        ("output_max_bytes", "MARIMO_OUTPUT_MAX_BYTES"),
-        ("std_stream_max_bytes", "MARIMO_STD_STREAM_MAX_BYTES"),
+        ("output_max_bytes", "MARIMO_RUNTIME_OUTPUT_MAX_BYTES"),
+        ("std_stream_max_bytes", "MARIMO_RUNTIME_STD_STREAM_MAX_BYTES"),
     ],
 )
 def test_invalid_environment_output_limit_keeps_file_value(
@@ -156,7 +156,7 @@ def test_invalid_environment_output_limit_keeps_file_value(
     monkeypatch.setenv(variable, "invalid")
     with _loggers.capture_output() as (_, _, records):
         resolved = MarimoConfigManager(
-            user, EnvConfigReader()
+            user, EnvVarReader()
         ).get_config_with_sources()
     assert resolved.config["runtime"][field] == 777
     assert resolved.origins[("runtime", field)] == user.source
@@ -164,7 +164,7 @@ def test_invalid_environment_output_limit_keeps_file_value(
     assert (
         records[0]
         .getMessage()
-        .startswith(f"Ignoring invalid value 'invalid' for {variable}:")
+        .startswith(f"Ignoring malformed configuration value from {variable}.")
     )
 
 
@@ -173,25 +173,25 @@ def test_environment_validation_error_uses_variable_name(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     user = make_user(tmp_path, monkeypatch)
-    monkeypatch.setenv(
-        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", "invalid"
-    )
+    monkeypatch.setenv("MARIMO_RUNTIME_AUTO_INSTANTIATE", "invalid")
     with _loggers.capture_output() as (_, _, records):
-        MarimoConfigManager(user, EnvConfigReader()).get_config()
+        MarimoConfigManager(user, EnvVarReader()).get_config()
     assert [record.getMessage() for record in records] == [
-        "Invalid configuration from _MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE: Expected `bool`, got `str` - at `$.runtime.auto_instantiate`"
+        (
+            "Ignoring malformed configuration value from MARIMO_RUNTIME_AUTO_INSTANTIATE. "
+            "This environment override was skipped; "
+            "run `marimo config describe` for accepted types."
+        )
     ]
 
 
 def test_environment_sources_use_variable_names(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv(
-        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", "true"
-    )
+    monkeypatch.setenv("MARIMO_RUNTIME_AUTO_INSTANTIATE", "true")
     monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", "lazy")
     monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", "sse")
-    layer = EnvConfigReader().read_layer()
+    layer = EnvVarReader().read_layer()
     assert layer == ConfigLayer(
         {
             "runtime": {"auto_instantiate": True, "on_cell_change": "lazy"},
@@ -207,9 +207,12 @@ def test_environment_sources_use_variable_names(
         (
             "runtime",
             "auto_instantiate",
-        ): "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE",
-        ("runtime", "on_cell_change"): "MARIMO_RUNTIME_ON_CELL_CHANGE",
-        ("server", "transport"): "MARIMO_SERVER_TRANSPORT",
+        ): "env var: MARIMO_RUNTIME_AUTO_INSTANTIATE",
+        (
+            "runtime",
+            "on_cell_change",
+        ): "env var: MARIMO_RUNTIME_ON_CELL_CHANGE",
+        ("server", "transport"): "env var: MARIMO_SERVER_TRANSPORT",
     }
 
 
@@ -328,7 +331,7 @@ def test_manager_tracks_file_environment_default_and_security_sources(
         user,
         PyprojectConfigReader(str(tmp_path)),
         ScriptConfigReader(str(notebook)),
-        EnvConfigReader(),
+        EnvVarReader(),
         SecurityConfigReader(),
     )
     resolved = manager.get_config_with_sources()
@@ -347,7 +350,7 @@ def test_manager_tracks_file_environment_default_and_security_sources(
         ("runtime", "on_cell_change"): notebook,
         ("runtime", "dotenv"): "inferred",
         ("server", "transport"): "env_var",
-        ("sharing", "html"): "env_var",
+        ("sharing", "html"): "MARIMO_RESTRICT_SHARING",
         ("ai", "open_ai", "api_key"): tmp_path / "marimo.toml",
     }
     assert resolved.config == merge_default_config(

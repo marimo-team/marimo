@@ -1,11 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import os
 import re
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast, get_args
 
 import msgspec
 
@@ -30,7 +31,6 @@ from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
 from marimo._config.packages import PackageManagerKind
 from marimo._config.provenance import (
     ConfigLayer,
-    ConfigPath,
     ConfigSource,
     ResolvedConfig,
     env_var_name,
@@ -53,6 +53,7 @@ from marimo._config.resolver import (
     resolve_config,
     resolve_config_with_sources,
 )
+from marimo._config.schema_utils import config_leaf_types
 from marimo._config.secrets import (
     redact_secrets,
     redact_secrets_partial,
@@ -64,10 +65,6 @@ from marimo._config.utils import (
     get_or_create_user_config_path,
     is_trusted_user_config_path,
 )
-from marimo._utils.env import env_to_value
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -131,7 +128,7 @@ def get_default_config_manager(
         UserConfigStore(),
         PyprojectConfigReader(current_path),
         ScriptConfigReader(current_path),
-        EnvConfigReader(),
+        EnvVarReader(),
         # Always merged last; see SecurityConfigReader.
         SecurityConfigReader(),
     )
@@ -477,77 +474,53 @@ class PyprojectConfigReader(ConfigReader):
         }
 
 
-class EnvConfigReader(ConfigReader):
+class EnvVarReader(ConfigReader):
+    """Read `MARIMO_<PATH>` overrides for schema-declared leaves."""
+
     @property
     def source(self) -> ConfigSource:
         return "env_var"
 
-    def _maybe_override_from_env(
-        self,
-        path: ConfigPath,
-        config: PartialMarimoConfig,
-        allowed_values: tuple[Any, ...] | None = None,
-        *,
-        parse: Callable[[str], object] | None = None,
-    ) -> None:
-        key = env_var_name(path)
-        if parse is not None:
+    def read(self) -> PartialMarimoConfig:
+        """Read schema-declared leaves, skipping malformed environment values."""
+        config: dict[str, Any] = {}
+        for path, annotation in config_leaf_types(MarimoConfigSchema).items():
+            key = env_var_name(path)
             raw = os.environ.get(key)
             if raw is None:
-                return
+                continue
             try:
-                value = parse(raw)
-            except ValueError as error:
+                # Preserve strings verbatim; use JSON for collections and null.
+                if raw == "null" and type(None) in get_args(annotation):
+                    value: Any = None
+                else:
+                    try:
+                        value = msgspec.convert(
+                            raw, type=annotation, strict=False
+                        )
+                    except msgspec.ValidationError:
+                        value = json.loads(raw)
+                partial: dict[str, Any] = {}
+                current = partial
+                for component in path[:-1]:
+                    current = current.setdefault(component, {})
+                current[path[-1]] = value
+                # Validate just this override, including legacy MCP normalization.
+                MarimoConfigSchema.from_dict(partial)
+            except (ValueError, TypeError):
                 LOGGER.warning(
-                    "Ignoring invalid value %r for %s: %s", raw, key, error
+                    "Ignoring malformed configuration value from %s. "
+                    "This environment override was skipped; "
+                    "run `marimo config describe` for accepted types.",
+                    key,
+                    extra={"omit_log_prefix": True},
                 )
-                return
-        else:
-            loaded_value = env_to_value(key)
-            if not isinstance(loaded_value, tuple):
-                return
-            value = loaded_value[0]
-        if allowed_values is not None and value not in allowed_values:
-            LOGGER.warning(
-                "Ignoring invalid value %r for %s; expected one of %s",
-                value,
-                key,
-                ", ".join(map(repr, allowed_values)),
-            )
-            return
-
-        current = cast(dict[str, Any], config)
-        for p in path[:-1]:
-            if p not in current or not isinstance(current[p], dict):
-                current[p] = {}
-            current = current[p]
-        current[path[-1]] = value
-        return
-
-    def read(self) -> PartialMarimoConfig:
-        """Get the configuration, as a partial configuration"""
-        project_config: PartialMarimoConfig = {}
-        # We could do this dynamically, but list explicitly for now to reduce
-        # surface area
-        self._maybe_override_from_env(
-            ("runtime", "auto_instantiate"),
-            project_config,
-        )
-        self._maybe_override_from_env(
-            ("server", "transport"),
-            project_config,
-            allowed_values=("websocket", "sse"),
-        )
-        self._maybe_override_from_env(
-            ("runtime", "on_cell_change"),
-            project_config,
-            allowed_values=("lazy", "autorun"),
-        )
-        for name in ("output_max_bytes", "std_stream_max_bytes"):
-            self._maybe_override_from_env(
-                ("runtime", name), project_config, parse=int
-            )
-        return project_config
+                continue
+            current = config
+            for component in path[:-1]:
+                current = current.setdefault(component, {})
+            current[path[-1]] = value
+        return cast(PartialMarimoConfig, config)
 
 
 class SecurityConfigReader(ConfigReader):
@@ -565,7 +538,7 @@ class SecurityConfigReader(ConfigReader):
 
     @property
     def source(self) -> ConfigSource:
-        return "env_var"
+        return "MARIMO_RESTRICT_SHARING"
 
     def read(self) -> PartialMarimoConfig:
         config: PartialMarimoConfig = {}

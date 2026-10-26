@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import copy
+import types
+from functools import cache
 from typing import (
     Annotated,
     Any,
     ClassVar,
     Self,
+    Union,
     get_args,
     get_origin,
     get_type_hints,
@@ -144,3 +147,26 @@ class Config(msgspec.Struct, dict=True, kw_only=True):
             self, msgspec.to_builtins(self)
         )
         return serialized
+
+
+@cache
+def config_leaf_types(cls: type[Config]) -> dict[tuple[str, ...], Any]:
+    """Discover declared settings, treating collections as whole values."""
+    leaves: dict[tuple[str, ...], Any] = {}
+    for item in fields(cls):
+        annotation = item.type
+        if get_origin(annotation) is Annotated:
+            annotation = get_args(annotation)[0]
+        variants = (
+            get_args(annotation)
+            if get_origin(annotation) in (Union, types.UnionType)
+            else (annotation,)
+        )
+        present = [arg for arg in variants if arg is not msgspec.UnsetType]
+        nested = present[0] if len(present) == 1 else None
+        if isinstance(nested, type) and issubclass(nested, Config):
+            for path, leaf_type in config_leaf_types(nested).items():
+                leaves[(item.encode_name, *path)] = leaf_type
+        else:
+            leaves[(item.encode_name,)] = annotation
+    return leaves

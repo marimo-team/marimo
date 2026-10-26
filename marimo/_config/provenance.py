@@ -10,31 +10,36 @@ if TYPE_CHECKING:
 
 ConfigPath = tuple[str, ...]
 ConfigSource: TypeAlias = (
-    Path | Literal["env_var", "cli", "default", "inferred", "override"]
+    Path
+    | Literal[
+        "env_var",
+        "cli",
+        "default",
+        "inferred",
+        "override",
+        "MARIMO_RESTRICT_SHARING",
+    ]
 )
 
 
 def env_var_name(path: ConfigPath) -> str:
-    """Map supported settings to their existing environment variable names."""
-    # Temporary until environment names are derived from schema paths.
-    names: dict[ConfigPath, str] = {
-        (
-            "runtime",
-            "auto_instantiate",
-        ): "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE",
-        ("runtime", "on_cell_change"): "MARIMO_RUNTIME_ON_CELL_CHANGE",
-        ("runtime", "output_max_bytes"): "MARIMO_OUTPUT_MAX_BYTES",
-        ("runtime", "std_stream_max_bytes"): "MARIMO_STD_STREAM_MAX_BYTES",
-        ("server", "transport"): "MARIMO_SERVER_TRANSPORT",
-        ("sharing", "html"): "MARIMO_RESTRICT_SHARING",
-        ("sharing", "wasm"): "MARIMO_RESTRICT_SHARING",
-        ("sharing", "molab"): "MARIMO_RESTRICT_SHARING",
-    }
-    return names[path]
+    """Name the environment variable supplying a setting or collection entry."""
+    from marimo._config.config_schema import MarimoConfig
+    from marimo._config.schema_utils import config_leaf_types
+
+    leaves = config_leaf_types(MarimoConfig)
+    for length in range(1, len(path) + 1):
+        if path[:length] in leaves:
+            return "MARIMO_" + "_".join(path[:length]).upper()
+    return "MARIMO_" + "_".join(path).upper()
 
 
 def format_config_source(path: ConfigPath, source: ConfigSource) -> str:
-    return env_var_name(path) if source == "env_var" else str(source)
+    if source == "env_var":
+        return f"env var: {env_var_name(path)}"
+    if source == "MARIMO_RESTRICT_SHARING":
+        return f"env var: {source}"
+    return str(source)
 
 
 @dataclass
