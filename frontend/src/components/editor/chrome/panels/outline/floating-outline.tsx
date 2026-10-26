@@ -71,17 +71,18 @@ export const MiniMap: React.FC<{
   const seen = new Map<string, number>();
   return (
     <div className="flex flex-col gap-4 items-end max-h-[70vh] overflow-hidden">
-      {items.map((item, idx) => {
+      {items.map((item) => {
         const identifier = "id" in item.by ? item.by.id : item.by.path;
+        const selector = JSON.stringify(item.by);
         // Keep track of how many times we've seen this selector
-        const occurrences = seen.get(identifier) ?? 0;
-        seen.set(identifier, occurrences + 1);
+        const occurrences = seen.get(selector) ?? 0;
+        seen.set(selector, occurrences + 1);
 
         return (
           <button
             type="button"
             aria-label={item.name}
-            key={`${identifier}-${idx}`}
+            key={`${selector}-${occurrences}`}
             className={cn(
               "h-[2px] bg-muted-foreground/60 focus-visible:outline focus-visible:outline-ring",
               item.level === 1 && "w-5",
@@ -114,13 +115,14 @@ export const OutlineList: React.FC<{
       inert={inert}
       className={cn("flex flex-col overflow-auto py-4 pl-2", className)}
     >
-      {items.map((item, idx) => {
+      {items.map((item) => {
         const identifier = "id" in item.by ? item.by.id : item.by.path;
+        const selector = JSON.stringify(item.by);
         // Keep track of how many times we've seen this selector
-        const occurrences = seen.get(identifier) ?? 0;
-        seen.set(identifier, occurrences + 1);
+        const occurrences = seen.get(selector) ?? 0;
+        seen.set(selector, occurrences + 1);
 
-        const key = `${identifier}-${idx}`;
+        const key = `${selector}-${occurrences}`;
         const sharedProps = {
           role: "link",
           tabIndex: 0,

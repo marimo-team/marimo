@@ -14,6 +14,45 @@ const items: OutlineItem[] = [
 ];
 
 describe("outline keyboard navigation", () => {
+  it.each([
+    { Component: MiniMap, role: "button" },
+    { Component: OutlineList, role: "link" },
+  ])(
+    "keeps the focused $role when other headings change",
+    ({ Component, role }) => {
+      const duplicate: OutlineItem = {
+        name: "Repeated second",
+        level: 2,
+        by: { id: "second" },
+      };
+      const initial = [...items, duplicate];
+      const props = {
+        activeHeaderId: undefined,
+        activeOccurrences: undefined,
+      };
+      const { rerender } = render(<Component {...props} items={initial} />);
+      const focused = screen.getByRole(role, { name: "Repeated second" });
+      focused.focus();
+
+      for (const by of [{ id: "inserted" }, { path: "second" }]) {
+        const inserted: OutlineItem = { name: "Inserted", level: 1, by };
+        rerender(<Component {...props} items={[inserted, ...initial]} />);
+        expect(screen.getByRole(role, { name: "Repeated second" })).toBe(
+          focused,
+        );
+        expect(focused).toHaveFocus();
+      }
+
+      rerender(
+        <Component {...props} items={[items[1], duplicate, items[0]]} />,
+      );
+      expect(screen.getByRole(role, { name: "Repeated second" })).toBe(focused);
+      expect(focused).toHaveFocus();
+      fireEvent.click(focused);
+      expect(scrollToOutlineItem).toHaveBeenLastCalledWith(duplicate, 1);
+    },
+  );
+
   it("activates plain and rich headings with Enter", () => {
     render(
       <OutlineList
