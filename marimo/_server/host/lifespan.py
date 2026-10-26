@@ -89,7 +89,7 @@ async def host(app: Starlette) -> AsyncIterator[None]:
     async def maintain() -> None:
         while True:
             await asyncio.sleep(1)
-            context.expire()
+            context.mutations.expire()
 
     maintenance = asyncio.create_task(maintain(), name="host.retention")
     record = None

@@ -29,6 +29,14 @@ class Invalid(HostError):
     """The request could not apply to any state."""
 
 
+class Forbidden(HostError):
+    """The notebook does not allow the command."""
+
+
+class Unsupported(HostError):
+    """The host does not offer the command."""
+
+
 class EditConflict(Conflict):
     """A change named a state the document no longer has.
 

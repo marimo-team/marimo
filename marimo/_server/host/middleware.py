@@ -20,7 +20,8 @@ from starlette.websockets import WebSocket
 
 from marimo import _loggers
 from marimo._server.host import HOST_API_PATH
-from marimo._server.host.api import build_app, editor_events_route, problem
+from marimo._server.host.api import build_app, editor_events_route
+from marimo._server.host.notebook_api import problem
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
