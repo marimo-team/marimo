@@ -148,6 +148,7 @@ export class LoroSyncPluginValue implements PluginValue {
       return;
     }
     let adj = 0;
+    // oxlint-disable-next-line marimo/prefer-object-params -- CodeMirror supplies positional change ranges and inserted text.
     update.changes.iterChanges((fromA, toA, fromB, toB, insert) => {
       const insertText = insert.sliceString(0, insert.length, "\n");
       if (fromA !== toA) {

@@ -258,7 +258,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         z.array(z.object({ rowId: z.string(), columnName: z.string() })),
       ]),
       label: z.string().nullable(),
-      data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+      data: z.union([z.string(), z.array(z.looseObject({}))]),
       rawData: z.union([z.string(), z.array(z.looseObject({}))]).nullish(),
       totalRows: z.union([z.number(), z.literal(TOO_MANY_ROWS)]),
       pagination: z.boolean().default(false),
@@ -296,7 +296,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       hasStableRowId: z.boolean().default(false),
       maxHeight: z.number().optional(),
       cellStyles: z
-        .record(z.string(), z.record(z.string(), z.object({}).passthrough()))
+        .record(z.string(), z.record(z.string(), z.looseObject({})))
         .optional(),
       hoverTemplate: z.string().optional(),
       cellHoverTexts: cellHoverTextSchema,
@@ -341,28 +341,25 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       )
       .output(
         z.object({
-          data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+          data: z.union([z.string(), z.array(z.looseObject({}))]),
           total_rows: z.union([z.number(), z.literal(TOO_MANY_ROWS)]),
           cell_styles: z
-            .record(
-              z.string(),
-              z.record(z.string(), z.object({}).passthrough()),
-            )
+            .record(z.string(), z.record(z.string(), z.looseObject({})))
             .nullable(),
           cell_hover_texts: cellHoverTextSchema.nullable(),
           raw_data: z.union([z.string(), z.array(z.looseObject({}))]).nullish(),
         }),
       ),
-    get_row_ids: rpc.input(z.object({}).passthrough()).output(
+    get_row_ids: rpc.input(z.looseObject({})).output(
       z.object({
         row_ids: z.array(z.number()),
         all_rows: z.boolean(),
         error: z.string().nullable(),
       }),
     ),
-    get_data_url: rpc.input(z.object({}).passthrough()).output(
+    get_data_url: rpc.input(z.looseObject({})).output(
       z.object({
-        data_url: z.union([z.string(), z.array(z.object({}).passthrough())]),
+        data_url: z.union([z.string(), z.array(z.looseObject({}))]),
         format: z.enum(["csv", "json", "arrow"]),
       }),
     ),
@@ -919,16 +916,16 @@ const DataTableComponent = ({
     }
     const fieldTypesWithoutExternalTypes = toFieldTypes(fieldTypes);
 
-    return new ColumnChartSpecModel(
-      columnSummaries.data || [],
-      fieldTypesWithoutExternalTypes,
-      columnSummaries.stats,
-      columnSummaries.bin_values,
-      columnSummaries.value_counts,
-      {
+    return new ColumnChartSpecModel({
+      data: columnSummaries.data || [],
+      fieldTypes: fieldTypesWithoutExternalTypes,
+      stats: columnSummaries.stats,
+      binValues: columnSummaries.bin_values,
+      valueCounts: columnSummaries.value_counts,
+      opts: {
         includeCharts: columnSummaries.show_charts,
       },
-    );
+    });
   }, [fieldTypes, columnSummaries]);
 
   const rowHeaderNames = new Set(rowHeaders.map(([name]) => name));

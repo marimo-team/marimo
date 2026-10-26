@@ -7,10 +7,12 @@ import { boundingBox, placeIslands } from "../layout";
 
 function node(
   id: string,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
+  {
+    x,
+    y,
+    width,
+    height,
+  }: { x: number; y: number; width: number; height: number },
 ): Node<NodeData> {
   return {
     id,
@@ -28,8 +30,8 @@ describe("boundingBox", () => {
 
   it("spans position + size across nodes", () => {
     const box = boundingBox([
-      node("a", 0, 0, 50, 50),
-      node("b", 10, 20, 100, 40),
+      node("a", { x: 0, y: 0, width: 50, height: 50 }),
+      node("b", { x: 10, y: 20, width: 100, height: 40 }),
     ]);
     expect(box).toEqual({ minX: 0, minY: 0, maxX: 110, maxY: 60 });
   });
@@ -52,12 +54,17 @@ describe("boundingBox", () => {
 
 describe("placeIslands", () => {
   it("returns nothing when there are no islands", () => {
-    expect(placeIslands([], [node("a", 0, 0, 100, 100)])).toEqual([]);
+    expect(
+      placeIslands([], [node("a", { x: 0, y: 0, width: 100, height: 100 })]),
+    ).toEqual([]);
   });
 
   it("stacks islands in a column to the right of the placed graph", () => {
-    const placed = [node("main", 0, 0, 200, 300)];
-    const islands = [node("i0", 0, 0, 90, 40), node("i1", 0, 0, 90, 40)];
+    const placed = [node("main", { x: 0, y: 0, width: 200, height: 300 })];
+    const islands = [
+      node("i0", { x: 0, y: 0, width: 90, height: 40 }),
+      node("i1", { x: 0, y: 0, width: 90, height: 40 }),
+    ];
     const result = placeIslands(islands, placed);
     // startX = maxX(200) + margin(40) = 240; startY = minY(0).
     expect(result[0].position).toEqual({ x: 240, y: 0 });
@@ -66,9 +73,9 @@ describe("placeIslands", () => {
   });
 
   it("wraps into a new column when the column gets too tall", () => {
-    const placed = [node("main", 0, 0, 200, 300)];
+    const placed = [node("main", { x: 0, y: 0, width: 200, height: 300 })];
     const islands = Array.from({ length: 10 }, (_, i) =>
-      node(`i${i}`, 0, 0, 90, 40),
+      node(`i${i}`, { x: 0, y: 0, width: 90, height: 40 }),
     );
     const result = placeIslands(islands, placed);
     const firstColumnX = result[0].position.x;
