@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import { connectionAtom } from "@/core/network/connection";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import type { Seconds } from "@/utils/time";
 import { getCellOutputState, installCaptureInterface } from "../capture";
 import { notebookAtom } from "../cells";
@@ -20,7 +20,7 @@ afterEach(() => {
 describe("live output availability", () => {
   it("reads current state without requiring DOM or subscribing to cells", () => {
     const store = createStore();
-    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
     const subscribe = vi.spyOn(store, "sub");
     installCaptureInterface(store);
     const query = () => window.__marimoCapture!.getCellState(id);
@@ -41,7 +41,7 @@ describe("live output availability", () => {
     expect(query()).toBe("available");
     update({ output: stateTestOutput, status: "queued" });
     expect(query()).toBe("pending");
-    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
     expect(query()).toBe("unknown");
     expect(subscribe).not.toHaveBeenCalled();
     subscribe.mockRestore();
