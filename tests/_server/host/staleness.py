@@ -123,17 +123,24 @@ class Snapshot:
         return self._reason(self.executions[variable.execution_id])
 
 
-async def snapshot(app: Starlette, notebook_id: str) -> Snapshot:
-    """Connect as a new client and read the notebook's state."""
+async def read_events(
+    app: Starlette, notebook_id: str, *, cursor: str | None = None
+) -> list[dict[str, Any]]:
+    """Read a snapshot or replay through its ready boundary, then disconnect."""
+    headers = AUTH if cursor is None else {**AUTH, "Last-Event-ID": cursor}
     response, task, disconnect = request(
-        app, "GET", f"/notebooks/{notebook_id}/events", headers=AUTH
+        app, "GET", f"/notebooks/{notebook_id}/events", headers=headers
     )
     try:
         await wait_for(response, lambda r: "ready" in r.names())
     finally:
         disconnect()
         await asyncio.wait_for(task, 5)
-    ready = response.names().index("ready")
-    return Snapshot.decode(
-        [r for r in response.records if "event" in r][:ready]
-    )
+    records = [r for r in response.records if "event" in r]
+    ready = next(i for i, r in enumerate(records) if r["event"] == "ready")
+    return records[: ready + 1]
+
+
+async def snapshot(app: Starlette, notebook_id: str) -> Snapshot:
+    """Connect as a new client and read the notebook's state."""
+    return Snapshot.decode(await read_events(app, notebook_id))

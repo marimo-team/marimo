@@ -15,7 +15,7 @@ from msgspec.structs import replace
 from marimo._runtime.commands import UpdateUIElementCommand
 from tests._server.host.drive import finished, wait_for
 from tests._server.host.live import key, open_host
-from tests._server.host.staleness import Snapshot, snapshot
+from tests._server.host.staleness import Snapshot, read_events, snapshot
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -513,3 +513,34 @@ async def test_state_updates_precede_nested_readers(tmp_path: Path) -> None:
         assert reader.depends_on == {"get_x": getter.revision}
         assert getter.revision.update == 1
         assert await c.outdated() == {}
+
+
+async def test_reconnecting_recovers_updates_and_replaced_bindings(
+    tmp_path: Path,
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        mo="import marimo as mo",
+        state="get_x, set_x = mo.state(1)",
+        x="x = 1",
+        reader="y = get_x() + x",
+    ) as c:
+        await c.run("mo", "state", "x", "reader")
+        initial = await read_events(c.app, c.notebook_id)
+        cursor = initial[-1]["id"]
+        assert Snapshot.decode(initial).outdated() == {}
+
+        await c.run(code="set_x(2)")
+        await c.edit("x", "x = 2")
+        await c.run("x")
+
+        replay = await read_events(c.app, c.notebook_id, cursor=cursor)
+        assert "reset" not in {r["event"] for r in replay}
+        recovered = Snapshot.decode([*initial, *replay])
+        assert (
+            recovered
+            == Snapshot.decode(c.events.records)
+            == await c.snapshot()
+        )
+        assert recovered.outdated() == {c.cells["reader"]: "replaced"}
