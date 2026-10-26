@@ -7,7 +7,9 @@ import { displayCellName } from "@/core/cells/names";
 import { goToCellLine } from "@/core/codemirror/go-to-definition/utils";
 import { useFilename } from "@/core/saving/filename";
 import { cn } from "@/utils/cn";
+import { Events } from "@/utils/events";
 import { Logger } from "../../../utils/Logger";
+import { focusCell } from "../navigation/focus-utils";
 
 interface Props {
   cellId: CellId;
@@ -29,6 +31,8 @@ export const CellLink = (props: Props): JSX.Element => {
   const formatName = formatCellName ?? ((name: string) => name);
 
   return (
+    // Reveal hidden cells before scrolling and focusing the destination.
+    // react-doctor-disable-next-line react-doctor/no-prevent-default
     <a
       href={
         cellId === SCRATCH_CELL_ID ? undefined : `#${HTMLCellId.create(cellId)}`
@@ -38,6 +42,9 @@ export const CellLink = (props: Props): JSX.Element => {
         className,
       )}
       onClick={(e) => {
+        if (e.defaultPrevented || e.button !== 0 || Events.hasModifier(e)) {
+          return;
+        }
         // Scratch causes a crash since scratch is not registered like a
         // normal cell.
         if (cellId === SCRATCH_CELL_ID) {
@@ -49,6 +56,7 @@ export const CellLink = (props: Props): JSX.Element => {
         requestAnimationFrame(() => {
           const succeeded = scrollAndHighlightCell(cellId, variant, skipScroll);
           if (succeeded) {
+            focusCell(cellId, { preventScroll: true });
             onClick?.();
           }
         });
