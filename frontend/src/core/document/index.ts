@@ -6,5 +6,7 @@ export type {
   DocumentEditor,
   DocumentHost,
   DocumentModel,
-  DocumentSyncState,
+  DocumentSyncStatus,
+  EditableCell,
+  EditableDocument,
 } from "./model";

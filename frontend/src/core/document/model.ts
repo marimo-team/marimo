@@ -6,18 +6,19 @@ import { createDocumentState, type DocumentState } from "./state";
 import {
   createDocumentSync,
   type DocumentHost,
-  type DocumentSyncState,
+  type DocumentSyncStatus,
 } from "./sync";
 
 export type { DocumentEdit, DocumentEditor } from "./state";
-export type { DocumentHost, DocumentSyncState } from "./sync";
+export type { EditableCell, EditableDocument } from "./draft";
+export type { DocumentHost, DocumentSyncStatus } from "./sync";
 
 /** The editable document and its synchronization with the host. */
 export interface DocumentModel extends Pick<
   DocumentState,
-  "cellAtom" | "orderAtom" | "appConfigAtom" | "editAtom"
+  "documentAtom" | "editAtom"
 > {
-  readonly syncStateAtom: Atom<DocumentSyncState>;
+  readonly syncStatusAtom: Atom<DocumentSyncStatus>;
   /** Drain local edits and return the confirmed revision. */
   flush(): Promise<Protocol.Document>;
   /** Retry a rejection against fresh state, or repeat an uncertain request exactly. */
@@ -42,11 +43,9 @@ export function createDocumentModel({
   });
   const sync = createDocumentSync({ store, notebook, state, signal });
   return {
-    cellAtom: state.cellAtom,
-    orderAtom: state.orderAtom,
-    appConfigAtom: state.appConfigAtom,
+    documentAtom: state.documentAtom,
     editAtom: state.editAtom,
-    syncStateAtom: sync.stateAtom,
+    syncStatusAtom: sync.statusAtom,
     flush: sync.flush,
     retry: sync.retry,
   };

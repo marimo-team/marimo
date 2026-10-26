@@ -43,7 +43,7 @@ export function createUser(
       store.set(model.editAtom, (tx) => tx.deleteCell(id));
     },
     cell(id: Protocol.CellId) {
-      const cell = store.get(model.cellAtom(id));
+      const cell = store.get(model.documentAtom)?.cells.get(id);
       return cell === undefined
         ? undefined
         : {
@@ -53,8 +53,8 @@ export function createUser(
             config: cell.config,
           };
     },
-    order: () => store.get(model.orderAtom),
-    status: () => store.get(model.syncStateAtom),
+    order: () => store.get(model.documentAtom)?.order ?? null,
+    status: () => store.get(model.syncStatusAtom),
     sync: () => observe(model.flush()),
     retry: () => observe(model.retry()),
   };

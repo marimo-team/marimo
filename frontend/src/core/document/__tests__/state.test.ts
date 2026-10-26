@@ -8,6 +8,7 @@ import {
   type DocumentEdit,
   type DocumentEditor,
 } from "../state";
+import { selectCell, selectOrder } from "../select";
 import { cell, document, withCells } from "./fixtures";
 
 const lifetimes: AbortController[] = [];
@@ -29,6 +30,8 @@ function setup(initial: Document | null = document()) {
     store,
     source,
     ...model,
+    cellAtom: (id: string) => selectCell(model.documentAtom, id),
+    orderAtom: selectOrder(model.documentAtom),
     abort: () => controller.abort(),
     edit: (callback: DocumentEdit) => store.set(model.editAtom, callback),
   };
@@ -252,10 +255,9 @@ describe("document model", () => {
     unsubscribeOrder();
   });
 
-  it("isolates cell, order and configuration subscriptions across local and host updates", () => {
+  it("isolates cell and order subscriptions across local and host updates", () => {
     const initial = document();
-    const { store, source, cellAtom, orderAtom, appConfigAtom, edit } =
-      setup(initial);
+    const { store, source, cellAtom, orderAtom, edit } = setup(initial);
     edit((tx) => {
       tx.setCode("c1", "local");
       tx.createCell({ id: "c3", code: "new" });
@@ -263,16 +265,13 @@ describe("document model", () => {
     const c1 = cellAtom("c1");
     const first = store.get(c1);
     const order = store.get(orderAtom);
-    const config = store.get(appConfigAtom);
     const onFirst = vi.fn();
     const onSecond = vi.fn();
     const onOrder = vi.fn();
-    const onConfig = vi.fn();
     const unsubscribe = [
       store.sub(c1, onFirst),
       store.sub(cellAtom("c2"), onSecond),
       store.sub(orderAtom, onOrder),
-      store.sub(appConfigAtom, onConfig),
     ];
 
     edit((tx) => tx.setCode("c2", "other local"));
@@ -289,11 +288,9 @@ describe("document model", () => {
     });
     expect(store.get(c1)).toBe(first);
     expect(store.get(orderAtom)).toBe(order);
-    expect(store.get(appConfigAtom)).toBe(config);
     expect(onFirst).not.toHaveBeenCalled();
     expect(onSecond).toHaveBeenCalledOnce();
     expect(onOrder).not.toHaveBeenCalled();
-    expect(onConfig).not.toHaveBeenCalled();
 
     store.set(
       source,
@@ -311,11 +308,6 @@ describe("document model", () => {
     edit((tx) => tx.setOrder(["c3", "c2", "c1"]));
     expect(onOrder).toHaveBeenCalledOnce();
     expect(onFirst).toHaveBeenCalledOnce();
-    store.set(source, {
-      ...remote,
-      revision: { ...remote.revision, app_config: { width: "full" } },
-    });
-    expect(onConfig).toHaveBeenCalledOnce();
     unsubscribe.forEach((fn) => fn());
   });
 

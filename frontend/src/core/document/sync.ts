@@ -9,7 +9,7 @@ import type { DocumentState, DocumentSubmission } from "./state";
 /** The notebook state and operation needed by document editing. */
 export type DocumentHost = Pick<NotebookClient, "documentAtom" | "edit">;
 
-export type DocumentSyncState =
+export type DocumentSyncStatus =
   | {
       readonly status:
         | "idle"
@@ -26,7 +26,7 @@ export type DocumentSyncState =
     };
 
 interface Submission {
-  readonly edit: DocumentSubmission;
+  readonly submission: DocumentSubmission;
   readonly idempotencyKey: string;
   readonly startedAt: number;
   readonly controller: AbortController;
@@ -85,7 +85,7 @@ export function createDocumentSync({
 }) {
   signal.throwIfAborted();
   const source = notebook.documentAtom;
-  const stateAtom = atom<DocumentSyncState>({ status: "idle" });
+  const statusAtom = atom<DocumentSyncStatus>({ status: "idle" });
   const observed = atom((get) => ({
     document: get(source),
     pending: get(state.pendingAtom),
@@ -93,7 +93,7 @@ export function createDocumentSync({
   }));
   let active: Submission | null = null;
   let running: Promise<Protocol.Document> | null = null;
-  let failure: Extract<DocumentSyncState, { status: "error" }> | null = null;
+  let failure: Extract<DocumentSyncStatus, { status: "error" }> | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let refreshing = false;
 
@@ -118,7 +118,7 @@ export function createDocumentSync({
       if (
         active &&
         current &&
-        current.revision.notebook_id !== active.edit.notebookId
+        current.revision.notebook_id !== active.submission.notebookId
       ) {
         active.controller.abort(
           new Error("The notebook changed during synchronization"),
@@ -130,13 +130,13 @@ export function createDocumentSync({
       clearTimer();
       const changes = store.get(state.changesAtom);
       if (changes === null) {
-        store.set(stateAtom, { status: "unavailable" });
+        store.set(statusAtom, { status: "unavailable" });
       } else if (changes.length === 0) {
         // Release unsent reversals instead of keeping an invisible override.
         store.set(state.submitAtom);
-        store.set(stateAtom, { status: "idle" });
+        store.set(statusAtom, { status: "idle" });
       } else {
-        store.set(stateAtom, { status: "pending" });
+        store.set(statusAtom, { status: "pending" });
         timer = setTimeout(() => {
           void flush().catch(() => undefined);
         }, DEBOUNCE_MS);
@@ -155,7 +155,7 @@ export function createDocumentSync({
           "The edit's retry window expired; its outcome is unknown",
         );
       }
-      store.set(stateAtom, { status: "sending" });
+      store.set(statusAtom, { status: "sending" });
       const controller = new AbortController();
       const abort = () => controller.abort(request.controller.signal.reason);
       request.controller.signal.addEventListener("abort", abort, {
@@ -170,10 +170,14 @@ export function createDocumentSync({
         signal.throwIfAborted();
         request.controller.signal.throwIfAborted();
         result = await abortable(
-          notebook.edit(request.edit.notebookId, request.edit.changes, {
-            idempotencyKey: request.idempotencyKey,
-            signal: controller.signal,
-          }),
+          notebook.edit(
+            request.submission.notebookId,
+            request.submission.changes,
+            {
+              idempotencyKey: request.idempotencyKey,
+              signal: controller.signal,
+            },
+          ),
           controller.signal,
         );
       } catch (error) {
@@ -198,17 +202,17 @@ export function createDocumentSync({
           cause: result.problem,
         });
       }
-      if (result.data.document.notebook_id !== request.edit.notebookId) {
+      if (result.data.document.notebook_id !== request.submission.notebookId) {
         throw new Error("Edit response belongs to another notebook");
       }
       request.response = result.data.document;
-      store.set(state.settleAtom, request.edit, request.response);
+      store.set(state.settleAtom, request.submission, request.response);
       return;
     }
   }
 
   function confirm(request: Submission): Promise<void> {
-    store.set(stateAtom, { status: "confirming" });
+    store.set(statusAtom, { status: "confirming" });
     return new Promise((resolve, reject) => {
       const check = () => {
         if (signal.aborted || request.controller.signal.aborted) {
@@ -216,7 +220,7 @@ export function createDocumentSync({
           reject(
             signal.aborted ? signal.reason : request.controller.signal.reason,
           );
-        } else if (store.get(state.pendingAtom) !== request.edit) {
+        } else if (store.get(state.pendingAtom) !== request.submission) {
           cleanup();
           resolve();
         }
@@ -247,12 +251,12 @@ export function createDocumentSync({
           if (current === null || store.get(state.changesAtom) === null) {
             throw unavailable();
           }
-          const edit = store.set(state.submitAtom);
-          if (edit === null) {
+          const submission = store.set(state.submitAtom);
+          if (submission === null) {
             return current.revision;
           }
           active = {
-            edit,
+            submission,
             idempotencyKey: idempotencyKey(),
             startedAt: Date.now(),
             controller: new AbortController(),
@@ -282,7 +286,7 @@ export function createDocumentSync({
             Date.now() - active.startedAt < RETRY_WINDOW_MS),
       };
       if (!signal.aborted) {
-        store.set(stateAtom, failure);
+        store.set(statusAtom, failure);
       }
       throw error;
     } finally {
@@ -305,7 +309,7 @@ export function createDocumentSync({
       return running;
     }
     const notebookId =
-      active?.edit.notebookId ?? store.get(source)?.revision.notebook_id;
+      active?.submission.notebookId ?? store.get(source)?.revision.notebook_id;
     if (notebookId === undefined) {
       return Promise.reject(unavailable());
     }
@@ -329,14 +333,14 @@ export function createDocumentSync({
       const rejectedAt = active.problem.edit?.document.version;
       if (
         !current ||
-        current.revision.notebook_id !== active.edit.notebookId ||
+        current.revision.notebook_id !== active.submission.notebookId ||
         (rejectedAt !== undefined && current.revision.version < rejectedAt)
       ) {
         return Promise.reject(
           new Error("Wait for the host's current document before retrying"),
         );
       }
-      store.set(state.settleAtom, active.edit, null);
+      store.set(state.settleAtom, active.submission, null);
       active = null;
     }
     failure = null;
@@ -355,5 +359,5 @@ export function createDocumentSync({
     stop();
   }
   refresh();
-  return { stateAtom, flush, retry };
+  return { statusAtom, flush, retry };
 }

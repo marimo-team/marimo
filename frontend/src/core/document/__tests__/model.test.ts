@@ -67,8 +67,8 @@ function setup() {
     unmounted,
     edit: (code: string) =>
       store.set(model.editAtom, (tx) => tx.setCode("c1", code)),
-    state: () => store.get(model.syncStateAtom),
-    value: () => store.get(model.cellAtom("c1")),
+    status: () => store.get(model.syncStatusAtom),
+    value: () => store.get(model.documentAtom)?.cells.get("c1"),
   };
 }
 
@@ -102,7 +102,7 @@ describe("document synchronization", () => {
   });
 
   it("fails without repeating a request when the response names another notebook", async () => {
-    const { sent, replies, edit, model, state } = setup();
+    const { sent, replies, edit, model, status } = setup();
     edit("local");
     const rejected = expectFailure(model.flush(), "another notebook");
     await vi.advanceTimersByTimeAsync(0);
@@ -110,7 +110,7 @@ describe("document synchronization", () => {
     await rejected;
     await vi.advanceTimersByTimeAsync(5000);
     expect(sent).toHaveBeenCalledOnce();
-    expect(state()).toMatchObject({ status: "error" });
+    expect(status()).toMatchObject({ status: "error" });
   });
 
   it("ignores a late response and source update after its lifetime ends", async () => {
@@ -145,7 +145,7 @@ describe("document synchronization", () => {
   });
 
   it("aborts an in-flight edit when notebook identity changes", async () => {
-    const { store, source, sent, edit, model, state } = setup();
+    const { store, source, sent, edit, model, status } = setup();
     edit("local");
     const flushed = model.flush();
     const rejected = expectFailure(flushed, "notebook changed");
@@ -153,6 +153,6 @@ describe("document synchronization", () => {
     store.set(source, document("n2"));
     await rejected;
     expect(sent.mock.calls[0][0].signal.aborted).toBe(true);
-    expect(state()).toMatchObject({ status: "error", retryable: false });
+    expect(status()).toMatchObject({ status: "error", retryable: false });
   });
 });
